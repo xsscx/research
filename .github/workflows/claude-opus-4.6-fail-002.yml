@@ -1,0 +1,526 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Last Upadated: 2026-02-08 02:38:04 UTC by David Hoyt
+#
+# Bots could not converge on removing 
+#  compiler from a matrix even when presented
+#   with 2 known good and working samples
+#   All Models Fail
+#
+# The process is similar to building xss.cx and provides
+# roaring laughter & enterrainment.
+#
+# Intent: build colorbleed tools
+#
+# Last Updated: alt-002 Replay Baseline
+#
+###############################################################
+
+name: claude-opus-4.6-fail-002
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_profile_count:
+        description: 'Number of test profiles to use (max 20)'
+        required: false
+        default: '5'
+        type: string
+      include_malformed:
+        description: 'Include potentially malformed profiles'
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+
+concurrency:
+  group: iccanalyzer-cli-test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_PROFILE_COUNT: ${{ github.event.inputs.test_profile_count || '5' }}
+  INCLUDE_MALFORMED: ${{ github.event.inputs.include_malformed || 'true' }}
+  TOTAL_MODES: 5  # Updated to include ninja-full mode
+
+jobs:
+  build:
+    name: "Build iccAnalyzer-lite"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      binary_path: ${{ steps.build.outputs.binary_path }}
+      profiles_available: ${{ steps.profiles.outputs.profiles_available }}
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Install dependencies with instrumentation tooling
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+            zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev \
+            gcc lcov gdb valgrind
+      - name: Clone iccDEV dependency
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          cd iccanalyzer-lite
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV
+          
+          echo "iccDEV cloned at: $(pwd)"
+          echo "iccDEV commit: $(git log --oneline -1)"
+      - name: Build iccDEV libraries with full instrumentation
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          cd iccanalyzer-lite/iccDEV/Build
+          
+          echo "Configuring CMake with full instrumentation..."
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -DENABLE_COVERAGE=ON \
+            -DENABLE_TOOLS=OFF \
+            -Wno-dev
+          
+          echo "Building libraries with $(nproc) cores..."
+          make -j$(nproc) IccProfLib2-static IccXML2-static
+          
+          echo "Verifying instrumented libraries..."
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+          
+          # Check for instrumentation symbols
+          echo "Instrumentation verification:"
+          nm IccProfLib/libIccProfLib2-static.a | grep -c "__asan\|__ubsan\|__gcov" | xargs echo "ASAN/UBSAN/Coverage symbols:"
+      - name: Build iccanalyzer-lite
+        id: build
+        working-directory: iccanalyzer-lite
+        run: |
+          set -euo pipefail
+          bash build.sh
+          
+          # Verify binary exists and is executable
+          if [ -f "./iccanalyzer-lite" ]; then
+            chmod +x ./iccanalyzer-lite
+            echo "binary_path=iccanalyzer-lite/iccanalyzer-lite" >> $GITHUB_OUTPUT
+            echo "✅ iccanalyzer-lite built successfully"
+            ls -lh ./iccanalyzer-lite
+          else
+            echo "❌ iccanalyzer-lite binary not found"
+            exit 1
+          fi
+      - name: Test basic functionality
+        working-directory: iccanalyzer-lite
+        run: |
+          set -euo pipefail
+          # Test help/usage output
+          ./iccanalyzer-lite --help 2>&1 || echo "Help command tested"
+          ./iccanalyzer-lite --version 2>&1 || echo "Version command tested"
+      - name: Prepare test profiles
+        id: profiles
+        run: |
+          set -euo pipefail
+          PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
+          
+          echo "Collecting test profiles..."
+          find test-profiles/ -name "*.icc" -type f | head -${PROFILE_COUNT} > test_profile_list.txt
+          
+          AVAILABLE=$(wc -l < test_profile_list.txt | tr -d ' \n\r')
+          echo "profiles_available=${AVAILABLE}" >> $GITHUB_OUTPUT
+          
+          echo "Selected ${AVAILABLE} profiles for testing:"
+          cat test_profile_list.txt
+          
+          {
+            echo "## Build Summary"
+            echo "- **Binary:** iccanalyzer-lite"
+            echo "- **Test profiles:** ${AVAILABLE}"
+            echo "- **Include malformed:** ${{ env.INCLUDE_MALFORMED }}"
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Upload binary artifact
+        run: |
+          set -euo pipefail
+          # Copy binary to workspace root for clean artifact structure
+          cp iccanalyzer-lite/iccanalyzer-lite ./iccanalyzer-lite-bin
+          file ./iccanalyzer-lite-bin
+          ldd ./iccanalyzer-lite-bin 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iccanalyzer-lite-binary
+          path: |
+            iccanalyzer-lite-bin
+            test_profile_list.txt
+          retention-days: 7
+
+  test-cli-modes:
+    name: "Test ${{ matrix.mode }} Mode"
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - heuristics
+          - roundtrip  
+          - comprehensive
+          - ninja
+          - ninja-full
+        include:
+          - mode: heuristics
+            flag: "-h"
+            description: "Security heuristics analysis"
+          - mode: roundtrip
+            flag: "-r"
+            description: "Round-trip accuracy test"
+          - mode: comprehensive  
+            flag: "-a"
+            description: "Comprehensive analysis (all modes)"
+          - mode: ninja
+            flag: "-n"
+            description: "Ninja mode (minimal output)"
+          - mode: ninja-full
+            flag: "-nf"
+            description: "Ninja mode (full dump, no truncation)"
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository (for test profiles)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Install runtime dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libxml2 libtiff6 libjpeg-turbo8 libpng16-16 \
+            zlib1g liblzma5 libssl3 \
+            libclang-rt-18-dev clang-18
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: iccanalyzer-lite-binary
+
+      - name: Setup test environment
+        run: |
+          set -euo pipefail
+          
+          # Rename downloaded binary to final name
+          mv iccanalyzer-lite-bin iccanalyzer-lite
+          chmod +x iccanalyzer-lite
+          
+          # Diagnostic: verify binary type and dependencies
+          echo "Binary info:"
+          file ./iccanalyzer-lite
+          echo "Shared library deps:"
+          ldd ./iccanalyzer-lite 2>&1 || true
+          
+          # Verify binary runs
+          ./iccanalyzer-lite --help 2>&1 || echo "Help output tested"
+          
+          echo "Testing mode: ${{ matrix.mode }}"
+          echo "CLI flag: ${{ matrix.flag }}"
+          echo "Description: ${{ matrix.description }}"
+          echo "Profiles available: ${{ needs.build.outputs.profiles_available }}"
+      - name: Run ${{ matrix.mode }} tests with coverage
+        id: test_mode
+        run: |
+          set -euo pipefail
+          
+          # Reset coverage counters
+          find . -name "*.gcda" -delete 2>/dev/null || true
+          
+          TESTED=0
+          PASSED=0
+          FAILED=0
+          
+          mkdir -p test-output/${{ matrix.mode }}
+          mkdir -p coverage-output/${{ matrix.mode }}
+          
+          echo "::group::${{ matrix.mode }} Mode Tests"
+          
+          while IFS= read -r profile; do
+            if [ ! -f "$profile" ]; then
+              echo "⏭️ SKIP: $profile (not found)"
+              continue
+            fi
+            
+            PROFILE_NAME=$(basename "$profile" .icc)
+            OUTPUT_FILE="test-output/${{ matrix.mode }}/${PROFILE_NAME}_${{ matrix.mode }}.log"
+            
+            echo "Testing: $profile"
+            
+            set +e
+            timeout 30s ./iccanalyzer-lite ${{ matrix.flag }} "$profile" > "$OUTPUT_FILE" 2>&1
+            EXIT_CODE=$?
+            set -e
+            
+            TESTED=$((TESTED + 1))
+            
+            if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
+              echo "✅ PASS: $profile (exit: $EXIT_CODE)"
+              PASSED=$((PASSED + 1))
+              
+              # Enhanced output analysis and reporting
+              OUTPUT_SIZE=$(wc -c < "$OUTPUT_FILE" 2>/dev/null || echo 0)
+              OUTPUT_LINES=$(wc -l < "$OUTPUT_FILE" 2>/dev/null || echo 0)
+              
+              case "${{ matrix.mode }}" in
+                "heuristics")
+                  SECURITY_COUNT=$(grep -c -E "(Security|Heuristic|Warning|Potential|Risk)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
+                  echo "   📊 Security analysis: ${SECURITY_COUNT} findings, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  ;;
+                "roundtrip")
+                  ACCURACY_COUNT=$(grep -c -E "(Round.*trip|Accuracy|Delta|Error)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
+                  echo "   🔄 Round-trip analysis: ${ACCURACY_COUNT} metrics, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  ;;
+                "comprehensive")
+                  ANALYSIS_COUNT=$(grep -c -E "(Analysis|Check|Test|Result)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
+                  echo "   📈 Comprehensive analysis: ${ANALYSIS_COUNT} checks, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  ;;
+                "ninja")
+                  echo "   🥷 Ninja output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (minimal mode)"
+                  ;;
+                "ninja-full")
+                  echo "   🥷📄 Ninja-full output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (full dump, no truncation)"
+                  ;;
+              esac
+              
+              # Check for sanitizer output
+              if grep -q -E "(AddressSanitizer|UBSan|ERROR|SUMMARY)" "$OUTPUT_FILE" 2>/dev/null; then
+                SANITIZER_ERRORS=$(grep -c -E "(AddressSanitizer|UBSan|ERROR)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
+                echo "   🚨 Sanitizer detections: ${SANITIZER_ERRORS}"
+              fi
+              
+            else
+              echo "❌ FAIL: $profile (exit: $EXIT_CODE)"
+              FAILED=$((FAILED + 1))
+              
+              # Enhanced error reporting
+              echo "   Error output (first 5 lines):"
+              head -5 "$OUTPUT_FILE" 2>/dev/null | sed 's/^/   /' || true
+              
+              # Check for specific error types
+              if grep -q -E "(heap-buffer-overflow|heap-use-after-free|stack-overflow)" "$OUTPUT_FILE" 2>/dev/null; then
+                echo "   🔥 Memory safety violation detected"
+              fi
+              if grep -q -E "(undefined behavior|UBSan)" "$OUTPUT_FILE" 2>/dev/null; then
+                echo "   ⚠️ Undefined behavior detected"
+              fi
+            fi
+            
+          done < test_profile_list.txt
+          
+          echo "::endgroup::"
+          
+          # Generate coverage report for this mode
+          echo "::group::Coverage Collection"
+          if command -v gcov >/dev/null 2>&1; then
+            find . -name "*.gcda" -exec gcov {} \; 2>/dev/null | head -10 || true
+            
+            # Collect coverage files
+            find . -name "*.gcov" -exec cp {} "coverage-output/${{ matrix.mode }}/" \; 2>/dev/null || true
+            COVERAGE_FILES=$(find "coverage-output/${{ matrix.mode }}" -name "*.gcov" | wc -l)
+            echo "Coverage files collected: ${COVERAGE_FILES}"
+          else
+            echo "gcov not available for coverage collection"
+          fi
+          echo "::endgroup::"
+          
+          # Output summary variables
+          echo "tested=$TESTED" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT  
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          
+          # Success if any tests passed and failure rate < 50%
+          if [ $PASSED -gt 0 ] && [ $FAILED -lt $PASSED ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            STATUS="✅ SUCCESS"
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            STATUS="❌ FAILURE"
+          fi
+          
+          {
+            echo "### ${{ matrix.mode }} Mode: ${STATUS}"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Tested | $TESTED |"
+            echo "| Passed | $PASSED |"
+            echo "| Failed | $FAILED |"
+            echo "| Success Rate | $((PASSED * 100 / (TESTED > 0 ? TESTED : 1)))% |"
+            echo "| Coverage Files | ${COVERAGE_FILES:-0} |"
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Upload test results with coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-coverage-${{ matrix.mode }}
+          path: |
+            test-output/${{ matrix.mode }}/
+            coverage-output/${{ matrix.mode }}/
+          retention-days: 30
+
+      - name: Generate result summary
+        if: always()
+        run: |
+          set -euo pipefail
+          
+          echo "=== ${{ matrix.mode }} Mode Test Summary ==="
+          echo "Flag: ${{ matrix.flag }}"
+          echo "Tested: ${{ steps.test_mode.outputs.tested }}"
+          echo "Passed: ${{ steps.test_mode.outputs.passed }}"
+          echo "Failed: ${{ steps.test_mode.outputs.failed }}"
+          echo "Status: ${{ steps.test_mode.outputs.status }}"
+  report:
+    name: "Test Suite Report"
+    needs: [build, test-cli-modes]
+    if: always()
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Download all test results and coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-coverage-*
+          path: all-results/
+          merge-multiple: false
+
+      - name: Generate comprehensive report with coverage
+        run: |
+          set -euo pipefail
+          
+          TOTAL_MODES=5
+          PROFILES=${{ needs.build.outputs.profiles_available }}
+          
+          {
+            echo "# iccAnalyzer CLI Test Suite Report"
+            echo ""
+            echo "## Configuration"
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| Test profiles | ${PROFILES} |"
+            echo "| CLI modes tested | ${TOTAL_MODES} |"
+            echo "| Include malformed | ${{ env.INCLUDE_MALFORMED }} |"
+            echo "| Build type | RelWithDebInfo + ASAN + UBSAN + Coverage |"
+            echo "| Run ID | ${{ github.run_id }} |"
+            echo ""
+            echo "## CLI Modes Tested"
+            echo "| Mode | Flag | Description | Status |"
+            echo "|------|------|-------------|--------|"
+            echo "| Heuristics | \`-h\` | Security heuristics analysis | See individual results |"
+            echo "| Round-trip | \`-r\` | Round-trip accuracy test | See individual results |"
+            echo "| Comprehensive | \`-a\` | All modes analysis | See individual results |"
+            echo "| Ninja | \`-n\` | Minimal output mode | See individual results |"
+            echo "| Ninja-full | \`-nf\` | Full dump (no truncation) | See individual results |"
+            echo ""
+            echo "## Instrumentation & Coverage"
+            
+            if [ -d all-results ]; then
+              TOTAL_LOGS=$(find all-results -name "*.log" | wc -l)
+              TOTAL_GCOV=$(find all-results -name "*.gcov" 2>/dev/null | wc -l || echo 0)
+              TOTAL_ARTIFACTS=$(find all-results -type f | wc -l)
+              
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| **Total test files** | ${TOTAL_LOGS} |"
+              echo "| **Coverage files** | ${TOTAL_GCOV} |"
+              echo "| **Total artifacts** | ${TOTAL_ARTIFACTS} |"
+              
+              echo ""
+              echo "### Per-Mode Results & Coverage"
+              for mode in heuristics roundtrip comprehensive ninja ninja-full; do
+                if [ -d "all-results/test-results-coverage-${mode}" ]; then
+                  LOG_COUNT=$(find "all-results/test-results-coverage-${mode}" -name "*.log" 2>/dev/null | wc -l || echo 0)
+                  COV_COUNT=$(find "all-results/test-results-coverage-${mode}" -name "*.gcov" 2>/dev/null | wc -l || echo 0)
+                  echo "- **${mode}**: ${LOG_COUNT} test logs, ${COV_COUNT} coverage files"
+                  
+                  # Sample coverage info if available
+                  if [ ${COV_COUNT} -gt 0 ]; then
+                    SAMPLE_GCOV=$(find "all-results/test-results-coverage-${mode}" -name "*.gcov" | head -1)
+                    if [ -n "$SAMPLE_GCOV" ] && [ -f "$SAMPLE_GCOV" ]; then
+                      LINES_COVERED=$(grep -c "    #####:" "$SAMPLE_GCOV" 2>/dev/null || echo "0")
+                      LINES_TOTAL=$(wc -l < "$SAMPLE_GCOV" 2>/dev/null || echo "1")
+                      COVERAGE_PCT=$(( (LINES_TOTAL - LINES_COVERED) * 100 / LINES_TOTAL ))
+                      echo "  - Sample coverage: ~${COVERAGE_PCT}% (${SAMPLE_GCOV##*/})"
+                    fi
+                  fi
+                fi
+              done
+              
+              echo ""
+              echo "### Sanitizer Findings"
+              ASAN_HITS=$(find all-results -name "*.log" -exec grep -l "AddressSanitizer" {} \; 2>/dev/null | wc -l || echo 0)
+              UBSAN_HITS=$(find all-results -name "*.log" -exec grep -l "UBSan\|undefined behavior" {} \; 2>/dev/null | wc -l || echo 0)
+              
+              echo "| Sanitizer | Detections |"
+              echo "|-----------|------------|"
+              echo "| AddressSanitizer | ${ASAN_HITS} |"
+              echo "| UndefinedBehaviorSanitizer | ${UBSAN_HITS} |"
+              
+              if [ ${ASAN_HITS} -gt 0 ] || [ ${UBSAN_HITS} -gt 0 ]; then
+                echo ""
+                echo "⚠️ **Sanitizer detections found** - Review individual test logs for details"
+              fi
+              
+            else
+              echo "*No test result artifacts found.*"
+            fi
+            
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Upload consolidated results  
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cli-test-suite-report-${{ github.run_id }}
+          path: all-results/
+          retention-days: 90
