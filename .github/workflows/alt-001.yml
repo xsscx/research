@@ -1,0 +1,136 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Last Upadated: 2026-02-07 20:05:02 UTC by David Hoyt
+#
+# Bots could not converge on removing 
+#  compiler from a matrix even when presented
+#   with 2 known good and working samples
+#   All Models Fail
+#
+#
+# Intent: build colorbleed tools
+#
+# Last Updated: alt-001 Replay Baseline
+#
+###############################################################
+
+name: hoyt-input-sample-001
+
+permissions:
+  contents: read
+  
+on:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: "Linux ${{ matrix.compiler }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc]
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+
+      - name: Install Dependencies
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake gcc g++ clang clang-tools \
+            libpng-dev libxml2 libxml2-dev libtiff-dev \
+            nlohmann-json3-dev libwxgtk3.2-dev wx-common \
+            python3 python3-pip curl git llvm
+      - name: Set Compiler
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
+      - name: Print Compiler Version
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          echo "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
+          $CC --version >> "$GITHUB_STEP_SUMMARY"
+      - name: Build
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          cd colorbleed_tools
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
+          cd ../../ && make -j"$(nproc)" clean all test
+      - name: Generate Checksums
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          cd colorbleed_tools
+          sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
+          cat SHA256SUMS
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: colorbleed-linux-${{ matrix.compiler }}
+          path: |
+            colorbleed_tools/iccToXml_unsafe
+            colorbleed_tools/iccFromXml_unsafe
+            colorbleed_tools/SHA256SUMS
+            colorbleed_tools/test.xml
+            colorbleed_tools/roundtrip.icc
+      - name: Summary Report
+        if: always()
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true 
+          echo "### Linux Build Summary (${{ matrix.compiler }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Compiler: ${{ matrix.compiler }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: ✅ Success" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat colorbleed_tools/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          

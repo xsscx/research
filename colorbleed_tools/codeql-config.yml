@@ -1,0 +1,225 @@
+# CodeQL Configuration for Security Research
+# Purpose: Comprehensive security analysis and exploit research for defense in depth
+# Project: iccLibFuzzer (RefIccMAX)
+# Maintainer: Security Research Team
+
+name: "iccLibFuzzer Security Analysis"
+
+# Disable default queries - we'll use custom security-focused queries
+disable-default-queries: false
+
+# Query suites to run
+queries:
+  # Official CodeQL security queries
+  - uses: security-and-quality
+  - uses: security-experimental
+  
+  # Custom security research queries (local path from repo root)
+  - uses: ./colorbleed_tools/codeql-queries
+
+# Query packs
+packs:
+  - codeql/cpp-queries@latest
+  - codeql/cpp-all@latest
+
+# Path filtering
+paths:
+  - IccProfLib/**
+  - IccXML/**
+  - Tools/**
+  - fuzzers/**
+
+paths-ignore:
+  - Testing/**
+  - docs/**
+  - "**/*.md"
+  - "**/CMakeFiles/**"
+  - Build*/**
+
+# Language-specific configuration
+cpp:
+  # Compiler flags to include
+  compile-command: "cmake -S Build/Cmake -B Build-codeql -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && make -C Build-codeql -j$(nproc)"
+  
+  # Include paths for analysis
+  include-paths:
+    - IccProfLib
+    - IccXML/IccLibXML
+    - Tools/CmdLine
+  
+  # Define macros for analysis
+  defines:
+    - ICCPROFLIB_API=
+    - ICCLIBXML_API=
+    - ICC_BYTE_ORDER_LITTLE_ENDIAN=1
+  
+  # C++ standard
+  standard: "c++17"
+
+# Analysis settings
+analysis:
+  # Maximum memory for analysis (MB)
+  ram: 8192
+  
+  # Number of threads (0 = auto-detect)
+  threads: 0
+  
+  # Timeout for queries (seconds)
+  timeout: 1800
+  
+  # Enable extended analysis
+  extended-analysis: true
+  
+  # Security-focused settings
+  security:
+    # Track taint flow through multiple hops
+    max-taint-hops: 10
+    
+    # Deep dataflow analysis
+    deep-analysis: true
+    
+    # Enable experimental security checks
+    experimental-checks: true
+
+# SARIF output configuration
+sarif:
+  # Include code snippets in results
+  add-snippets: true
+  
+  # Include dataflow paths
+  add-dataflow-paths: true
+  
+  # Include related locations
+  add-related-locations: true
+  
+  # Categorize results
+  category: "security-research"
+  
+  # Custom properties
+  properties:
+    project: "iccLibFuzzer"
+    purpose: "Exploit research and defense in depth"
+    maintainer-access: "write"
+
+# Suppress specific issues (use sparingly)
+suppressions:
+  # Example: suppress specific rule for specific file
+  # - rule: cpp/example-rule
+  #   file: path/to/file.cpp
+  #   reason: "False positive - reviewed by security team"
+
+# Custom configuration for specific vulnerability classes
+vulnerability-research:
+  # Memory safety
+  memory-safety:
+    enabled: true
+    priority: high
+    checks:
+      - buffer-overflow
+      - heap-overflow
+      - stack-overflow
+      - use-after-free
+      - double-free
+      - null-pointer-dereference
+      - uninitialized-memory
+  
+  # Integer safety
+  integer-safety:
+    enabled: true
+    priority: high
+    checks:
+      - integer-overflow
+      - signed-integer-overflow
+      - unsigned-integer-overflow
+      - integer-truncation
+      - division-by-zero
+  
+  # Type safety
+  type-safety:
+    enabled: true
+    priority: high
+    checks:
+      - type-confusion
+      - enum-undefined-behavior
+      - virtual-dispatch-confusion
+      - cast-alignment
+  
+  # Control flow
+  control-flow:
+    enabled: true
+    priority: medium
+    checks:
+      - unreachable-code
+      - infinite-loops
+      - missing-return
+      - switch-fallthrough
+  
+  # API misuse
+  api-misuse:
+    enabled: true
+    priority: high
+    checks:
+      - incorrect-api-usage
+      - resource-leaks
+      - format-string-vulnerabilities
+      - command-injection
+  
+  # Cryptography
+  crypto:
+    enabled: true
+    priority: high
+    checks:
+      - weak-crypto
+      - hardcoded-secrets
+      - insecure-random
+
+# Exploit development research settings
+exploit-research:
+  # Enable deep analysis for exploit chains
+  chain-analysis: true
+  
+  # Track gadget candidates for ROP/JOP
+  gadget-tracking: true
+  
+  # Identify information disclosure vectors
+  info-disclosure: true
+  
+  # Track privilege escalation paths
+  privilege-escalation: true
+  
+  # Identify code execution vectors
+  code-execution: true
+
+# CI/CD integration
+ci-integration:
+  # Fail build on high severity issues
+  fail-on-severity: high
+  
+  # Generate detailed reports
+  detailed-reports: true
+  
+  # Upload results to GitHub Security
+  upload-to-github: true
+  
+  # Compare with baseline
+  baseline-comparison: true
+
+# Metadata
+metadata:
+  project-name: "iccLibFuzzer"
+  project-url: "https://github.com/InternationalColorConsortium/DemoIccMAX"
+  security-contact: "security-research@example.com"
+  created: "2026-01-28"
+  purpose: "Security research, vulnerability discovery, exploit development for defense"
+  classification: "security-research"
+  
+# Custom tags for result classification
+tags:
+  - security
+  - vulnerability-research
+  - exploit-development
+  - defense-in-depth
+  - memory-safety
+  - type-safety
+  - integer-safety
+  - fuzzing-targets

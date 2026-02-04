@@ -1,0 +1,449 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build and test iccanalyzer-lite security analysis tool
+#
+# Last Updated: 2026-02-07 19:31:12 UTC by David Hoyt
+#               Feed the Bot known good and working input
+#
+###############################################################
+
+
+name: CFL LibFuzzer Parallel
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzzing duration per fuzzer in seconds (10-14400)'
+        required: false
+        default: '600'
+        type: string
+      sanitizer:
+        description: 'Sanitizer configuration'
+        required: false
+        default: 'address,undefined'
+        type: choice
+        options:
+          - 'address,undefined'
+          - 'address'
+          - 'undefined'
+      use_corpus_cache:
+        description: 'Use cached corpus from previous runs'
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: '0 */6 * * *'
+
+concurrency:
+  group: cfl-parallel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FUZZ_SECONDS: ${{ github.event.inputs.fuzz_seconds || '600' }}
+  SANITIZER: ${{ github.event.inputs.sanitizer || 'address,undefined' }}
+
+jobs:
+  build:
+    name: "Build All Fuzzers (${{ github.event.inputs.sanitizer || 'address,undefined' }})"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          SECS=${{ env.FUZZ_SECONDS }}
+          if ! [[ "$SECS" =~ ^[0-9]+$ ]] || [ "$SECS" -lt 10 ] || [ "$SECS" -gt 14400 ]; then
+            echo "::error::fuzz_seconds must be 10-14400, got: $SECS"
+            exit 1
+          fi
+          echo "Validated: ${SECS}s fuzzing, sanitizer=${{ env.SANITIZER }}"
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang clang-tools \
+            libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
+            nlohmann-json3-dev libssl-dev llvm
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: Clone iccDEV
+        run: |
+          set -euo pipefail
+          cd cfl
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+
+      - name: Build iccDEV libraries
+        run: |
+          set -euo pipefail
+          cd cfl/iccDEV
+
+          # Disable wxWidgets (not needed for fuzzing)
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }} -fno-omit-frame-pointer"
+
+          cd Build
+          cmake Cmake/ \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="${SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="${SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="${SAN_FLAGS} -fprofile-instr-generate" \
+            -DCMAKE_SHARED_LINKER_FLAGS="${SAN_FLAGS} -fprofile-instr-generate" \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_TOOLS=OFF \
+            -Wno-dev
+
+          make -j$(nproc) IccProfLib2-static IccXML2-static
+
+      - name: Build TiffImg.o
+        run: |
+          set -euo pipefail
+          ICCDEV="$PWD/cfl/iccDEV"
+          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }} -fno-omit-frame-pointer"
+          clang++ ${SAN_FLAGS} -g -O1 -frtti \
+            -I${ICCDEV}/IccProfLib \
+            -I${ICCDEV}/Tools/CmdLine/IccCommon \
+            -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \
+            -I/usr/include/libxml2 \
+            -c ${ICCDEV}/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp \
+            -o cfl/TiffImg.o || echo "WARN: TiffImg.o build failed, tiff fuzzers may skip"
+
+      - name: Build all fuzzers
+        run: |
+          set -euo pipefail
+          ICCDEV="$PWD/cfl/iccDEV"
+          CFL="$PWD/cfl"
+          BUILD="$ICCDEV/Build"
+          OUTDIR="$PWD/cfl/bin"
+          mkdir -p "$OUTDIR"
+
+          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }}"
+          CXXFLAGS="-fsanitize=fuzzer,${SAN_FLAGS#-fsanitize=} -fno-omit-frame-pointer -g -O1 -frtti -fprofile-instr-generate -fcoverage-mapping"
+          INCLUDES="-I$ICCDEV/IccProfLib -I$ICCDEV/IccXML/IccLibXML -I$ICCDEV/Tools/CmdLine/IccCommon -I$ICCDEV/Tools/CmdLine/IccApplyProfiles -I/usr/include/libxml2"
+          LIBS_BASE="$BUILD/IccProfLib/libIccProfLib2-static.a"
+          LIBS_XML="$BUILD/IccXML/libIccXML2-static.a"
+          LIBS_SYS="-lxml2 -lz"
+
+          # Fuzzers that need TiffImg.o and libtiff
+          TIFF_FUZZERS="icc_applyprofiles_fuzzer icc_tiffdump_fuzzer icc_specsep_fuzzer"
+
+          BUILT=0
+          SKIPPED=0
+          for src in "$CFL"/*_fuzzer.cpp; do
+            FNAME=$(basename "$src" .cpp)
+
+            # Determine extra objects/libs for tiff-dependent fuzzers
+            EXTRA_OBJ=""
+            EXTRA_LIBS=""
+            if echo "$TIFF_FUZZERS" | grep -qw "$FNAME"; then
+              if [ -f "$CFL/TiffImg.o" ]; then
+                EXTRA_OBJ="$CFL/TiffImg.o"
+                EXTRA_LIBS="-ltiff"
+              fi
+            fi
+
+            set +e
+            clang++ $CXXFLAGS $INCLUDES "$src" \
+              $EXTRA_OBJ $LIBS_BASE $LIBS_XML $LIBS_SYS $EXTRA_LIBS \
+              -o "$OUTDIR/$FNAME" 2>&1
+            RC=$?
+            set -e
+
+            if [ $RC -eq 0 ]; then
+              echo "OK: $FNAME"
+              BUILT=$((BUILT + 1))
+            else
+              echo "SKIP: $FNAME (exit $RC)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+
+          echo "Built: $BUILT, Skipped: $SKIPPED"
+          ls -lh "$OUTDIR"/*_fuzzer 2>/dev/null || true
+
+          {
+            echo "## Build Summary"
+            echo "- **Sanitizer:** \`${{ env.SANITIZER }}\`"
+            echo "- **Built:** $BUILT fuzzers"
+            echo "- **Skipped:** $SKIPPED fuzzers"
+            echo ""
+            echo '```'
+            ls "$OUTDIR"/*_fuzzer 2>/dev/null | xargs -I{} basename {} || true
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload fuzzer binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzzer-binaries-${{ env.SANITIZER }}
+          path: |
+            cfl/bin/*_fuzzer
+            cfl/*.dict
+            cfl/*_seed_corpus/
+          retention-days: 3
+
+  fuzz:
+    name: "${{ matrix.fuzzer }} (${{ github.event.inputs.fuzz_seconds || '600' }}s)"
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        fuzzer:
+          - icc_apply_fuzzer
+          - icc_applynamedcmm_fuzzer
+          - icc_applyprofiles_fuzzer
+          - icc_calculator_fuzzer
+          - icc_dump_fuzzer
+          - icc_fromxml_fuzzer
+          - icc_io_fuzzer
+          - icc_link_fuzzer
+          - icc_multitag_fuzzer
+          - icc_profile_fuzzer
+          - icc_roundtrip_fuzzer
+          - icc_specsep_fuzzer
+          - icc_spectral_fuzzer
+          - icc_tiffdump_fuzzer
+          - icc_toxml_fuzzer
+          - icc_v5dspobs_fuzzer
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Download fuzzer binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fuzzer-binaries-${{ env.SANITIZER }}
+
+      - name: Restore corpus cache
+        if: ${{ github.event.inputs.use_corpus_cache != 'false' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: corpus-${{ matrix.fuzzer }}
+          key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
+          restore-keys: |
+            cfl-corpus-${{ matrix.fuzzer }}-
+
+      - name: Run ${{ matrix.fuzzer }}
+        id: fuzz
+        run: |
+          set -euo pipefail
+
+          FUZZER="bin/${{ matrix.fuzzer }}"
+          if [ ! -f "$FUZZER" ]; then
+            echo "Fuzzer ${{ matrix.fuzzer }} was not built (compile skip)"
+            echo "status=skip" >> $GITHUB_OUTPUT
+            echo "**${{ matrix.fuzzer }}:** ⏭️ SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          chmod +x "$FUZZER"
+          mkdir -p corpus-${{ matrix.fuzzer }}
+          mkdir -p crash-artifacts
+
+          FUZZ_SECONDS=${{ env.FUZZ_SECONDS }}
+
+          # Dictionary fallback chain: per-fuzzer → icc_core → icc
+          DICT_ARG=""
+          if [ -f "${{ matrix.fuzzer }}.dict" ]; then
+            DICT_ARG="-dict=${{ matrix.fuzzer }}.dict"
+          elif [ -f "icc_core.dict" ]; then
+            DICT_ARG="-dict=icc_core.dict"
+          elif [ -f "icc.dict" ]; then
+            DICT_ARG="-dict=icc.dict"
+          fi
+
+          # Seed corpus (if available)
+          SEED_DIR=""
+          if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
+            SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
+          fi
+
+          echo "::group::Fuzzer Output"
+          echo "Duration: ${FUZZ_SECONDS}s | Dict: ${DICT_ARG:-none} | Seeds: ${SEED_DIR:-none}"
+
+          set +e
+          timeout --kill-after=10s $((FUZZ_SECONDS + 30))s "$FUZZER" \
+            -max_total_time=${FUZZ_SECONDS} \
+            -print_final_stats=1 \
+            -print_pcs=1 \
+            -detect_leaks=0 \
+            -timeout=30 \
+            -rss_limit_mb=4096 \
+            -use_value_profile=1 \
+            -max_len=65536 \
+            $DICT_ARG \
+            corpus-${{ matrix.fuzzer }} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -50
+          EXIT_CODE=$?
+          set -e
+          echo "::endgroup::"
+
+          # Extract stats from output (sanitize for GitHub Actions)
+          EXECS=$(grep -oP 'stat::number_of_executed_inputs:\s*\K\d+' /tmp/fuzz-output.log 2>/dev/null | tr -d '\r\n' || echo "0")
+          FEATURES=$(grep -oP 'stat::new_units_added:\s*\K\d+' /tmp/fuzz-output.log 2>/dev/null | tr -d '\r\n' || echo "0")
+          CORPUS_SIZE=$(ls corpus-${{ matrix.fuzzer }}/ 2>/dev/null | wc -l | tr -d '\r\n')
+
+          # Collect crash artifacts
+          find . -maxdepth 1 \( -name "crash-*" -o -name "leak-*" -o -name "oom-*" -o -name "timeout-*" \) \
+            -exec cp {} crash-artifacts/ \; 2>/dev/null || true
+          CRASHES=$(ls crash-artifacts/ 2>/dev/null | wc -l | tr -d '\r\n')
+
+          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
+            echo "status=pass" >> $GITHUB_OUTPUT
+            STATUS="✅ PASS"
+          else
+            echo "status=fail" >> $GITHUB_OUTPUT
+            STATUS="❌ FAIL"
+          fi
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "executions=$EXECS" >> $GITHUB_OUTPUT
+          echo "new_units=$FEATURES" >> $GITHUB_OUTPUT
+          echo "corpus_size=$CORPUS_SIZE" >> $GITHUB_OUTPUT
+          echo "crashes=$CRASHES" >> $GITHUB_OUTPUT
+
+          {
+            echo "### ${{ matrix.fuzzer }}: ${STATUS}"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Exit Code | $EXIT_CODE |"
+            echo "| Duration | ${FUZZ_SECONDS}s |"
+            echo "| Executions | $EXECS |"
+            echo "| New Units | $FEATURES |"
+            echo "| Corpus Size | $CORPUS_SIZE |"
+            echo "| Crashes | $CRASHES |"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate crash checksums
+        if: always()
+        run: |
+          if [ -d crash-artifacts ] && [ "$(ls -A crash-artifacts 2>/dev/null)" ]; then
+            cd crash-artifacts
+            sha256sum * > checksums.sha256 2>/dev/null || true
+            echo "### Crash Artifacts"
+            cat checksums.sha256
+          fi
+
+      - name: Save corpus cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: corpus-${{ matrix.fuzzer }}
+          key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
+
+      - name: Upload crash artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
+          path: crash-artifacts/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload corpus
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corpus-${{ matrix.fuzzer }}-${{ github.run_id }}
+          path: corpus-${{ matrix.fuzzer }}/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  report:
+    name: "Campaign Report"
+    needs: fuzz
+    if: always()
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Download all crash artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: crash-*
+          path: all-crashes/
+          merge-multiple: false
+
+      - name: Generate campaign summary
+        run: |
+          set -euo pipefail
+
+          TOTAL_CRASHES=0
+          if [ -d all-crashes ]; then
+            TOTAL_CRASHES=$(find all-crashes -type f ! -name "checksums.sha256" 2>/dev/null | wc -l)
+          fi
+
+          FUZZ_SECONDS=${{ env.FUZZ_SECONDS }}
+          SANITIZER="${{ env.SANITIZER }}"
+          FUZZERS=16
+
+          {
+            echo "# CFL LibFuzzer Parallel Campaign Report"
+            echo ""
+            echo "## Configuration"
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| Duration per fuzzer | ${FUZZ_SECONDS}s |"
+            echo "| Sanitizer | \`${SANITIZER}\` |"
+            echo "| Parallel fuzzers | ${FUZZERS} |"
+            echo "| Total fuzzing time | $((FUZZ_SECONDS * FUZZERS))s (~$((FUZZ_SECONDS * FUZZERS / 60))m) |"
+            echo "| Wall-clock time | ~${FUZZ_SECONDS}s (parallel) |"
+            echo "| Run ID | ${{ github.run_id }} |"
+            echo "| Trigger | ${{ github.event_name }} |"
+            echo ""
+            echo "## Results"
+            echo "- **Total crash artifacts:** ${TOTAL_CRASHES}"
+            echo ""
+
+            if [ $TOTAL_CRASHES -gt 0 ]; then
+              echo "### Crash Inventory"
+              echo '```'
+              find all-crashes -type f ! -name "checksums.sha256" -exec basename {} \; 2>/dev/null | sort
+              echo '```'
+              echo ""
+              echo "### Checksums"
+              echo '```'
+              find all-crashes -name "checksums.sha256" -exec cat {} \; 2>/dev/null
+              echo '```'
+            else
+              echo "*No crashes found in this campaign.*"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campaign-report-${{ github.run_id }}
+          path: all-crashes/
+          retention-days: 90
+          if-no-files-found: ignore

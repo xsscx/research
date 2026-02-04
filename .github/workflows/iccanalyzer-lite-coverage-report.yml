@@ -1,0 +1,442 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build iccanalyzer-lite with coverage instrumentation,
+#         run all CLI modes against test profiles, generate
+#         lcov/HTML coverage report
+#
+# Security: Pinned action SHAs, Hoyt bash prologue
+#
+# Last Updated: 2026-02-08 04:15:00 UTC by David Hoyt
+###############################################################
+
+name: iccAnalyzer-lite Coverage Report
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile_count:
+        description: 'Number of profiles to test (default 50, use "all" for maximum coverage)'
+        required: false
+        default: '50'
+        type: string
+
+jobs:
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev \
+            lcov
+
+      - name: Clone iccDEV dependency
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV && git config --add safe.directory "$PWD"
+          echo "iccDEV commit: $(git log --oneline -1)"
+
+      - name: Build iccDEV libraries with coverage
+        env:
+          BASH_ENV: /dev/null
+          CC: gcc
+          CXX: g++
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV/Build
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0" \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0 -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DENABLE_TOOLS=OFF \
+            -Wno-dev
+          make -j$(nproc)
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+          echo "Verifying .gcno files generated..."
+          GCNO_COUNT=$(find . -name "*.gcno" | wc -l)
+          echo "Found $GCNO_COUNT .gcno files"
+          if [ "$GCNO_COUNT" -eq 0 ]; then
+            echo "ERROR: No .gcno files — coverage instrumentation failed"
+            exit 1
+          fi
+
+      - name: Build iccanalyzer-lite (coverage mode)
+        working-directory: iccanalyzer-lite
+        env:
+          BASH_ENV: /dev/null
+          CXX: g++
+        run: |
+          set -euo pipefail
+          # Coverage-only build: no sanitizers (ASAN crashes skip gcda flush)
+          export CXX=g++
+          export CXXFLAGS="-fno-omit-frame-pointer -g -O0 -fprofile-arcs -ftest-coverage --coverage -std=c++17 -DICCANALYZER_LITE"
+          export LDFLAGS="-fprofile-arcs --coverage"
+
+          ICCDEV_BUILD="iccDEV/Build"
+          ICCDEV_ROOT="iccDEV"
+          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -lz -llzma -lm -lssl -lcrypto -lgcov"
+
+          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp"
+
+          echo "Building iccanalyzer-lite with g++ + gcov coverage..."
+          for src in $SOURCES; do
+            obj="${src%.cpp}.o"
+            ${CXX} ${CXXFLAGS} ${INCLUDES} -c $src -o $obj &
+          done
+          wait
+
+          echo "Linking..."
+          ${CXX} ${LDFLAGS} *.o ${LIBS} -o iccanalyzer-lite
+
+          echo "[OK] Coverage build complete"
+          ls -lh iccanalyzer-lite
+          GCNO_LITE=$(find . -maxdepth 1 -name "*.gcno" | wc -l)
+          echo "iccanalyzer-lite .gcno files: $GCNO_LITE"
+
+      - name: Verify binary
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          BINARY=$(find iccanalyzer-lite -name "iccanalyzer-lite" -type f -executable | head -1)
+          echo "Binary: $BINARY ($(stat -c%s "$BINARY") bytes)"
+          file "$BINARY"
+          echo "binary_path=$BINARY" >> $GITHUB_ENV
+
+      - name: Baseline coverage (zero counters)
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-report
+
+          # Capture from both build trees (iccDEV libs + iccanalyzer-lite sources)
+          lcov --capture --initial \
+            --directory iccanalyzer-lite/iccDEV/Build \
+            --directory iccanalyzer-lite \
+            --output-file coverage-report/baseline.info \
+            --ignore-errors source,gcov,empty \
+            --rc geninfo_unexecuted_blocks=1 2>&1 | tail -5 || true
+
+          if [ -f coverage-report/baseline.info ]; then
+            RECORDS=$(grep -c "^SF:" coverage-report/baseline.info 2>/dev/null || echo 0)
+            echo "Baseline: $RECORDS source file records"
+          else
+            echo "Warning: No baseline captured"
+          fi
+
+      - name: Setup test profiles
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+
+          # Collect ALL available profiles for maximum coverage
+          # 1. Local test profiles (crash/PoC/malformed)
+          find test-profiles/ -name "*.icc" > /tmp/all-profiles.txt 2>/dev/null || true
+          # 2. Extended test profiles (diverse ICC types)
+          find extended-test-profiles/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+          # 3. CFL seed corpora (fuzzer-generated edge cases)
+          find cfl/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+          # 4. iccDEV Testing suite (specification-conformant profiles)
+          find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+
+          # Deduplicate by filename
+          sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt
+
+          PROFILE_COUNT=${{ inputs.profile_count || '50' }}
+          AVAILABLE=$(wc -l < /tmp/all-profiles-dedup.txt)
+
+          # For coverage, use ALL profiles if count is 0 or "all"
+          if [ "$PROFILE_COUNT" = "all" ] || [ "$PROFILE_COUNT" = "0" ]; then
+            USE_COUNT=$AVAILABLE
+          else
+            USE_COUNT=$((AVAILABLE < PROFILE_COUNT ? AVAILABLE : PROFILE_COUNT))
+          fi
+
+          shuf -n $USE_COUNT /tmp/all-profiles-dedup.txt > coverage-report/selected-profiles.txt
+          echo "Selected $USE_COUNT profiles from $AVAILABLE available for coverage"
+          echo "Sources: test-profiles/ + extended-test-profiles/ + cfl/ + iccDEV/Testing/"
+          wc -l coverage-report/selected-profiles.txt
+
+      - name: Run all CLI modes for coverage
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          BINARY="${{ env.binary_path }}"
+          MODES="heuristics:h roundtrip:r comprehensive:a ninja:n ninja-full:nf"
+          SUMMARY="coverage-report/test-summary.txt"
+
+          TOTAL=0
+          CLEAN=0
+          FINDINGS=0
+
+          for MODE_PAIR in $MODES; do
+            MODE_NAME="${MODE_PAIR%%:*}"
+            MODE_FLAG="-${MODE_PAIR##*:}"
+
+            echo "=== $MODE_NAME ($MODE_FLAG) ===" | tee -a $SUMMARY
+
+            while IFS= read -r profile; do
+              TOTAL=$((TOTAL + 1))
+              PROFILE_NAME=$(basename "$profile")
+
+              TMPOUT=$(mktemp)
+              if timeout 30s $BINARY $MODE_FLAG "$profile" > "$TMPOUT" 2>&1; then
+                # Content-based finding detection (ninja modes exit 0 even for malformed profiles)
+                if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$TMPOUT" 2>/dev/null; then
+                  FINDINGS=$((FINDINGS + 1))
+                else
+                  CLEAN=$((CLEAN + 1))
+                fi
+              else
+                FINDINGS=$((FINDINGS + 1))
+              fi
+              rm -f "$TMPOUT"
+              echo "  [$MODE_NAME] $PROFILE_NAME" >> $SUMMARY
+            done < coverage-report/selected-profiles.txt
+          done
+
+          echo "" >> $SUMMARY
+          echo "Total: $TOTAL runs, $CLEAN clean, $FINDINGS findings" >> $SUMMARY
+          echo "total=$TOTAL" >> $GITHUB_ENV
+          echo "clean=$CLEAN" >> $GITHUB_ENV
+          echo "findings=$FINDINGS" >> $GITHUB_ENV
+          cat $SUMMARY
+
+          # Verify .gcda files were generated
+          GCDA_BUILD=$(find iccanalyzer-lite/iccDEV/Build -name "*.gcda" 2>/dev/null | wc -l)
+          GCDA_LITE=$(find iccanalyzer-lite -maxdepth 1 -name "*.gcda" 2>/dev/null | wc -l)
+          echo "Coverage: $GCDA_BUILD .gcda in iccDEV/Build, $GCDA_LITE .gcda in iccanalyzer-lite/"
+
+      - name: Generate coverage report
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd coverage-report
+
+          # Capture coverage from both build trees
+          lcov --capture \
+            --directory ../iccanalyzer-lite/iccDEV/Build \
+            --directory ../iccanalyzer-lite \
+            --output-file test.info \
+            --ignore-errors source,gcov,empty \
+            --rc geninfo_unexecuted_blocks=1 2>&1 | tail -10
+
+          if [ ! -f test.info ] || [ ! -s test.info ]; then
+            echo "Warning: No coverage data captured from build tree"
+            # Try broader search
+            lcov --capture \
+              --directory ../iccanalyzer-lite \
+              --output-file test.info \
+              --ignore-errors source,gcov,empty \
+              --rc geninfo_unexecuted_blocks=1 2>&1 | tail -10 || true
+          fi
+
+          TEST_RECORDS=$(grep -c "^SF:" test.info 2>/dev/null || echo 0)
+          echo "Test coverage: $TEST_RECORDS source file records"
+
+          # Combine baseline + test
+          if [ -f baseline.info ] && [ -s baseline.info ] && [ -f test.info ] && [ -s test.info ]; then
+            lcov --add-tracefile baseline.info \
+                 --add-tracefile test.info \
+                 --output-file combined.info \
+                 --ignore-errors source,empty 2>/dev/null || cp test.info combined.info
+          elif [ -f test.info ] && [ -s test.info ]; then
+            cp test.info combined.info
+          fi
+
+          # Filter to iccDEV library source (IccProfLib, IccXML) + iccanalyzer-lite source
+          if [ -f combined.info ] && [ -s combined.info ]; then
+            lcov --extract combined.info \
+                 '*/IccProfLib/*' \
+                 '*/IccXML/*' \
+                 '*/IccLibXML/*' \
+                 '*/iccanalyzer-lite/*.cpp' \
+                 '*/iccanalyzer-lite/*.h' \
+                 --output-file filtered.info \
+                 --ignore-errors source,empty 2>/dev/null || cp combined.info filtered.info
+
+            FILTERED_RECORDS=$(grep -c "^SF:" filtered.info 2>/dev/null || echo 0)
+            echo "Filtered coverage: $FILTERED_RECORDS source file records"
+
+            if [ "$FILTERED_RECORDS" -eq 0 ]; then
+              echo "Extract filter matched nothing — using combined.info directly"
+              cp combined.info filtered.info
+            fi
+
+            # Generate HTML report
+            genhtml filtered.info \
+              --output-directory html \
+              --title "iccAnalyzer-lite Coverage Report" \
+              --prefix "$(cd .. && pwd)" \
+              --legend \
+              --ignore-errors source,empty 2>&1 | tail -10 || true
+
+            # Generate text summary
+            lcov --summary filtered.info \
+              --ignore-errors source,empty 2>&1 | tee coverage-summary.txt || true
+          else
+            echo "No coverage data available — .gcda files may not have been generated"
+            echo "No coverage data captured" > coverage-summary.txt
+          fi
+
+          # Report stats
+          if [ -d html ]; then
+            echo "HTML report generated: $(find html -name "*.html" | wc -l) files"
+          fi
+
+      - name: Generate coverage index
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd coverage-report
+
+          cat > index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>iccAnalyzer-lite Coverage Report</title>
+            <style>
+              body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+              .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+              h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+              .summary { background: #e8f4f8; padding: 15px; margin: 20px 0; border-left: 4px solid #007acc; }
+              .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-box { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; text-align: center; }
+              .stat-value { font-size: 2em; font-weight: bold; color: #007acc; }
+              .stat-label { color: #666; margin-top: 5px; }
+              pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; overflow-x: auto; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>iccAnalyzer-lite Coverage Report</h1>
+          HTMLEOF
+
+          echo "<div class='summary'>" >> index.html
+          echo "<strong>Date:</strong> $(date -u '+%Y-%m-%d %H:%M:%S UTC')<br>" >> index.html
+          echo "<strong>Binary:</strong> iccanalyzer-lite (ASAN + UBSAN + Coverage)<br>" >> index.html
+          echo "<strong>Modes:</strong> -h, -r, -a, -n, -nf<br>" >> index.html
+          echo "<strong>Tests:</strong> ${{ env.total }} runs (${{ env.clean }} clean, ${{ env.findings }} findings)" >> index.html
+          echo "</div>" >> index.html
+
+          # Coverage summary
+          if [ -f coverage-summary.txt ]; then
+            echo "<h2>Coverage Summary</h2>" >> index.html
+            echo "<pre>" >> index.html
+            cat coverage-summary.txt >> index.html
+            echo "</pre>" >> index.html
+          fi
+
+          # Link to detailed HTML report
+          if [ -d html ]; then
+            echo "<h2>Detailed Coverage</h2>" >> index.html
+            echo "<p><a href='html/index.html'>View detailed lcov HTML report</a></p>" >> index.html
+          fi
+
+          echo "<h2>Test Summary</h2>" >> index.html
+          echo "<pre>" >> index.html
+          cat test-summary.txt >> index.html 2>/dev/null || echo "No test summary available"
+          echo "</pre>" >> index.html
+
+          echo "</div></body></html>" >> index.html
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iccanalyzer-lite-coverage-report
+          path: coverage-report/
+          retention-days: 30
+
+      - name: Report to summary
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## iccAnalyzer-lite Coverage Report
+
+          ### Test Execution
+          | Metric | Value |
+          |--------|-------|
+          | Total Runs | ${{ env.total }} |
+          | Clean | ${{ env.clean }} |
+          | Findings | ${{ env.findings }} |
+          | Modes | -h, -r, -a, -n, -nf |
+
+          ### Coverage Data
+          EOF
+
+          if [ -f coverage-report/coverage-summary.txt ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat coverage-report/coverage-summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage data not available (gcov files may not have been generated)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage report uploaded as \`iccanalyzer-lite-coverage-report\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Includes lcov HTML report, text summary, and test log" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,3 @@
+[libfuzzer]
+dict = icc_specsep_fuzzer.dict
+max_len = 10485760

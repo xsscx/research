@@ -1,0 +1,254 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: ClusterFuzzLite fuzzing campaign for iccDEV
+#
+# Based on: xsscx/cfl actions/runs/21781371436 (known good SUCCESS)
+# Pattern: cfl/ has fuzzer sources, clone iccDEV as subproject,
+#          build libs, compile fuzzers with -I/-L, run in parallel
+#
+# Migrated: 2026-02-07 by GitHub Copilot CLI
+#           Under llmcjf/ governance surveillance
+###############################################################
+
+name: ClusterFuzzLite Campaign
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzzing duration per fuzzer (seconds)'
+        required: false
+        default: '60'
+  schedule:
+    - cron: '0 0 * * 0'
+
+concurrency:
+  group: clusterfuzzlite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build All Fuzzers"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang clang-tools \
+            libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
+            nlohmann-json3-dev libssl-dev llvm
+
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: Clone iccDEV into cfl/
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd cfl
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+
+      - name: Build iccDEV libraries
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd cfl/iccDEV
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+          cd Build
+          cmake Cmake/ \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_TOOLS=OFF \
+            -Wno-dev
+
+          make -j$(nproc) IccProfLib2-static IccXML2-static
+
+      - name: Build all fuzzers
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          ICCDEV="$PWD/cfl/iccDEV"
+          CFL="$PWD/cfl"
+          BUILD="$ICCDEV/Build"
+          OUTDIR="$PWD/cfl/bin"
+          mkdir -p "$OUTDIR"
+
+          CXXFLAGS="-fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g -O1 -frtti -fprofile-instr-generate -fcoverage-mapping"
+          INCLUDES="-I$ICCDEV/IccProfLib -I$ICCDEV/IccXML/IccLibXML -I$ICCDEV/Tools/CmdLine/IccCommon -I$ICCDEV/Tools/CmdLine/IccApplyProfiles -I/usr/include/libxml2"
+          LIBS="$BUILD/IccProfLib/libIccProfLib2-static.a $BUILD/IccXML/libIccXML2-static.a -lxml2 -lz -ltiff"
+
+          BUILT=0
+          for src in "$CFL"/*_fuzzer.cpp; do
+            FNAME=$(basename "$src" .cpp)
+            set +e
+            clang++ $CXXFLAGS $INCLUDES "$src" $LIBS -o "$OUTDIR/$FNAME" 2>&1
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ]; then
+              echo "OK: $FNAME"
+              BUILT=$((BUILT + 1))
+            else
+              echo "SKIP: $FNAME (exit $RC)"
+            fi
+          done
+
+          echo "Built $BUILT fuzzers"
+          ls -lh "$OUTDIR"/*_fuzzer
+
+          {
+            echo "### Fuzzers Built: $BUILT"
+            echo '```'
+            ls "$OUTDIR"/*_fuzzer | xargs -I{} basename {}
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload fuzzer binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzzer-binaries
+          path: |
+            cfl/bin/*_fuzzer
+            cfl/*.dict
+            cfl/*_seed_corpus/
+          retention-days: 1
+
+  fuzz:
+    name: "Fuzz - ${{ matrix.fuzzer }}"
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        fuzzer:
+          - icc_apply_fuzzer
+          - icc_applynamedcmm_fuzzer
+          - icc_applyprofiles_fuzzer
+          - icc_calculator_fuzzer
+          - icc_dump_fuzzer
+          - icc_fromxml_fuzzer
+          - icc_io_fuzzer
+          - icc_link_fuzzer
+          - icc_multitag_fuzzer
+          - icc_profile_fuzzer
+          - icc_roundtrip_fuzzer
+          - icc_specsep_fuzzer
+          - icc_spectral_fuzzer
+          - icc_tiffdump_fuzzer
+          - icc_toxml_fuzzer
+          - icc_v5dspobs_fuzzer
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Download fuzzer binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fuzzer-binaries
+
+      - name: Run ${{ matrix.fuzzer }} (${{ github.event.inputs.fuzz_seconds || '60' }}s)
+        run: |
+          set -euo pipefail
+
+          FUZZER="bin/${{ matrix.fuzzer }}"
+          if [ ! -f "$FUZZER" ]; then
+            echo "Fuzzer ${{ matrix.fuzzer }} was not built (compile skip)"
+            echo "**${{ matrix.fuzzer }}:** SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          chmod +x "$FUZZER"
+          mkdir -p corpus
+
+          FUZZ_SECONDS=${{ github.event.inputs.fuzz_seconds || '60' }}
+
+          DICT_ARG=""
+          if [ -f "${{ matrix.fuzzer }}.dict" ]; then
+            DICT_ARG="-dict=${{ matrix.fuzzer }}.dict"
+          elif [ -f "icc_core.dict" ]; then
+            DICT_ARG="-dict=icc_core.dict"
+          fi
+
+          SEED_DIR=""
+          if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
+            SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
+          fi
+
+          set +e
+          timeout --kill-after=5s $((FUZZ_SECONDS + 5))s "$FUZZER" \
+            -max_total_time=${FUZZ_SECONDS} \
+            -print_final_stats=1 \
+            -detect_leaks=0 \
+            -timeout=30 \
+            $DICT_ARG \
+            corpus $SEED_DIR 2>&1 | tail -30
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
+            echo "**${{ matrix.fuzzer }}:** PASS (exit: $EXIT_CODE, ${FUZZ_SECONDS}s)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**${{ matrix.fuzzer }}:** FAIL (exit: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          mkdir -p crash-artifacts
+          find . -maxdepth 1 \( -name "crash-*" -o -name "leak-*" -o -name "oom-*" \) -exec cp {} crash-artifacts/ \; 2>/dev/null || true
+
+      - name: Upload crash artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
+          path: crash-artifacts/
+          retention-days: 30
+          if-no-files-found: ignore

@@ -1,0 +1,370 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build and test iccanalyzer-lite security analysis tool
+#
+# Last Updated: 2026-02-07 19:31:12 UTC by David Hoyt
+#               Feed the Bot known good and working input
+#
+###############################################################
+
+name: iccAnalyzer-lite Extended Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile_count:
+        description: 'Number of random profiles to test (max 50)'
+        required: false
+        default: '25'
+        type: string
+
+jobs:
+  extended-testing:
+    name: Extended ICC Profile Testing (25 profiles)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev
+
+      - name: Clone iccDEV dependency
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          cd iccanalyzer-lite
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV
+          
+          echo "iccDEV cloned at: $(pwd)"
+          echo "iccDEV commit: $(git log --oneline -1)"
+
+      - name: Build iccDEV libraries
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          
+          cd iccanalyzer-lite/iccDEV/Build
+          
+          echo "Configuring CMake with instrumentation..."
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -DENABLE_COVERAGE=ON \
+            -DENABLE_TOOLS=OFF \
+            -Wno-dev
+          
+          echo "Building libraries with $(nproc) cores..."
+          make -j$(nproc)
+          
+          echo "Verifying libraries..."
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+
+      - name: Build iccanalyzer-lite
+        working-directory: iccanalyzer-lite
+        run: |
+          bash build.sh
+
+      - name: Verify binary
+        working-directory: iccanalyzer-lite
+        run: |
+          ls -lh iccanalyzer-lite
+          file iccanalyzer-lite
+          ./iccanalyzer-lite --version
+
+      - name: Setup profile testing
+        id: setup
+        run: |
+          # Create test directory
+          mkdir -p profile-test-results
+          
+          # Count available profiles in extended-test-profiles directory
+          PROFILE_COUNT=$(find extended-test-profiles -type f \( -name "*.icc" -o -name "*.icm" \) | wc -l)
+          echo "Total profiles available: $PROFILE_COUNT"
+          
+          # Determine how many to test
+          REQUEST_COUNT="${{ github.event.inputs.profile_count || '25' }}"
+          TEST_COUNT=$((REQUEST_COUNT < PROFILE_COUNT ? REQUEST_COUNT : PROFILE_COUNT))
+          TEST_COUNT=$((TEST_COUNT > 50 ? 50 : TEST_COUNT))
+          
+          echo "Will test $TEST_COUNT profiles"
+          echo "test_count=$TEST_COUNT" >> $GITHUB_OUTPUT
+          
+          # Select profiles from extended-test-profiles
+          find extended-test-profiles -type f \( -name "*.icc" -o -name "*.icm" \) | \
+            shuf -n $TEST_COUNT > profile-test-results/selected-profiles.txt
+          
+          echo "Selected profiles:"
+          cat profile-test-results/selected-profiles.txt
+
+      - name: Run iccanalyzer-lite on profiles
+        run: |
+          cd iccanalyzer-lite
+          
+          # Create results directory
+          mkdir -p ../profile-test-results/outputs
+          
+          # Summary file
+          SUMMARY="../profile-test-results/test-summary.txt"
+          echo "==================================================================" > $SUMMARY
+          echo "iccAnalyzer-lite Extended Testing Report (25 Profiles)" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
+          echo "Binary: $(./iccanalyzer-lite --version | head -1)" >> $SUMMARY
+          echo "Profiles tested: $(wc -l < ../profile-test-results/selected-profiles.txt)" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "" >> $SUMMARY
+          
+          # Counters
+          TOTAL=0
+          SUCCESS=0
+          FAILED=0
+          
+          # Test each profile
+          while IFS= read -r profile; do
+            TOTAL=$((TOTAL + 1))
+            PROFILE_NAME=$(basename "$profile")
+            OUTPUT_FILE="../profile-test-results/outputs/${PROFILE_NAME}.txt"
+            
+            echo "[$TOTAL] Testing: $PROFILE_NAME"
+            echo "-------------------------------------------------------------------" >> $SUMMARY
+            echo "Profile $TOTAL: $PROFILE_NAME" >> $SUMMARY
+            echo "Path: $profile" >> $SUMMARY
+            echo "" >> $SUMMARY
+            
+            # Run iccanalyzer-lite with -nf (ninja mode, full fingerprinting)
+            if timeout 30s ./iccanalyzer-lite -nf "../$profile" > "$OUTPUT_FILE" 2>&1; then
+              # Content-based finding detection (ninja modes exit 0 even for malformed profiles)
+              if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                echo "Result: FINDING (content)" >> $SUMMARY
+                FAILED=$((FAILED + 1))
+                echo "  FINDING (content)"
+              else
+                echo "Result: CLEAN" >> $SUMMARY
+                SUCCESS=$((SUCCESS + 1))
+                echo "  CLEAN"
+              fi
+            else
+              EXIT_CODE=$?
+              echo "Result: FINDING (exit code: $EXIT_CODE)" >> $SUMMARY
+              FAILED=$((FAILED + 1))
+              echo "  FINDING (exit $EXIT_CODE)"
+              
+              # Append failure details
+              echo "" >> $SUMMARY
+              echo "Error output:" >> $SUMMARY
+              tail -20 "$OUTPUT_FILE" >> $SUMMARY
+            fi
+            
+            # Add file size info
+            FILE_SIZE=$(stat -f%z "$OUTPUT_FILE" 2>/dev/null || stat -c%s "$OUTPUT_FILE")
+            echo "Output size: $FILE_SIZE bytes" >> $SUMMARY
+            echo "" >> $SUMMARY
+            
+          done < ../profile-test-results/selected-profiles.txt
+          
+          # Final summary
+          echo "==================================================================" >> $SUMMARY
+          echo "FINAL RESULTS" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "Total profiles tested: $TOTAL" >> $SUMMARY
+          echo "Clean: $SUCCESS" >> $SUMMARY
+          echo "Failed: $FAILED" >> $SUMMARY
+          echo "Success rate: $(awk "BEGIN {printf \"%.2f\", ($SUCCESS/$TOTAL)*100}")%" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          
+          # Display summary
+          cat $SUMMARY
+          
+          # Set outputs for artifact naming
+          echo "total=$TOTAL" >> $GITHUB_ENV
+          echo "success=$SUCCESS" >> $GITHUB_ENV
+          echo "failed=$FAILED" >> $GITHUB_ENV
+
+      - name: Generate results index
+        run: |
+          cd profile-test-results
+          
+          INDEX_FILE="index.html"
+          
+          cat > $INDEX_FILE << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>iccAnalyzer-lite Extended Testing Results (25 Profiles)</title>
+            <style>
+              body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+              .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+              h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+              .summary { background: #e8f4f8; padding: 15px; margin: 20px 0; border-left: 4px solid #007acc; }
+              .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-box { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; text-align: center; }
+              .stat-value { font-size: 2em; font-weight: bold; color: #007acc; }
+              .stat-label { color: #666; margin-top: 5px; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+              th { background: #007acc; color: white; }
+              tr:nth-child(even) { background: #f9f9f9; }
+              .clean { color: green; font-weight: bold; }
+              .finding { color: #cc6600; font-weight: bold; }
+              .error { color: red; font-weight: bold; }
+              .profile-link { color: #007acc; text-decoration: none; }
+              .profile-link:hover { text-decoration: underline; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>iccAnalyzer-lite Extended Testing Results (25 Profiles)</h1>
+          EOF
+          
+          # Add summary stats
+          echo "<div class='summary'>" >> $INDEX_FILE
+          echo "<strong>Test Date:</strong> $(date -u '+%Y-%m-%d %H:%M:%S UTC')<br>" >> $INDEX_FILE
+          echo "<strong>Binary:</strong> iccanalyzer-lite v2.9.0<br>" >> $INDEX_FILE
+          echo "<strong>Command:</strong> iccanalyzer-lite -nf [profile]" >> $INDEX_FILE
+          echo "</div>" >> $INDEX_FILE
+          
+          echo "<div class='stats'>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value'>$total</div><div class='stat-label'>Total Tested</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>$success</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
+          echo "</div>" >> $INDEX_FILE
+          
+          # Results table
+          echo "<h2>Test Results</h2>" >> $INDEX_FILE
+          echo "<table>" >> $INDEX_FILE
+          echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Output</th><th>Size</th></tr>" >> $INDEX_FILE
+          
+          NUM=1
+          while IFS= read -r profile; do
+            PROFILE_NAME=$(basename "$profile")
+            OUTPUT_FILE="outputs/${PROFILE_NAME}.txt"
+            
+            if [ -f "$OUTPUT_FILE" ]; then
+              FILE_SIZE=$(stat -f%z "$OUTPUT_FILE" 2>/dev/null || stat -c%s "$OUTPUT_FILE")
+              
+              # Check if test passed (simple heuristic - check if output file has content and no error keywords)
+                  if [ "$FILE_SIZE" -le 1 ]; then
+                    STATUS="<span class='error'>ERROR</span>"
+                  elif grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|UBSan\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='finding'>FINDING</span>"
+                  elif grep -qi "\[ERR\]\|\[WARN\].*HEURISTIC\|Error reading ICC profile\|failed validation\|crash\|SEGV\|ABRT\|stack-smash\|heap-buffer\|memcpy-param-overlap\|double-free\|use-after-free\|MISMATCH\|overlap\|Suspicious\|UAF RISK\|INVALID\|CORRUPT" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='finding'>FINDING</span>"
+              else
+                    STATUS="<span class='clean'>CLEAN</span>"
+              fi
+              
+              echo "<tr>" >> $INDEX_FILE
+              echo "<td>$NUM</td>" >> $INDEX_FILE
+              echo "<td><code>$PROFILE_NAME</code></td>" >> $INDEX_FILE
+              echo "<td>$STATUS</td>" >> $INDEX_FILE
+              echo "<td><a class='profile-link' href='$OUTPUT_FILE'>View Output</a></td>" >> $INDEX_FILE
+              echo "<td>$FILE_SIZE bytes</td>" >> $INDEX_FILE
+              echo "</tr>" >> $INDEX_FILE
+              
+              NUM=$((NUM + 1))
+            fi
+          done < selected-profiles.txt
+          
+          echo "</table>" >> $INDEX_FILE
+          echo "</div></body></html>" >> $INDEX_FILE
+          
+          echo "Results index created: $INDEX_FILE"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iccanalyzer-lite-extended-test-results
+          path: profile-test-results/
+          retention-days: 30
+
+      - name: Report to summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## iccAnalyzer-lite Extended Testing Results (25 Security POC Profiles)
+          
+          ### Test Configuration
+          - **Binary:** iccanalyzer-lite v2.9.0
+          - **Command:** `iccanalyzer-lite -nf [profile]`
+          - **Timeout:** 30 seconds per profile
+          
+          ### Results Summary
+          | Metric | Value |
+          |--------|-------|
+          | Total Profiles | ${{ env.total }} |
+          | Clean | ${{ env.success }} |
+          | Findings | ${{ env.failed }} |
+          | Clean Rate | $(awk "BEGIN {printf \"%.2f%%\", (${{ env.success }}/${{ env.total }})*100}") |
+          
+          ### Artifacts
+          - Test results uploaded as `iccanalyzer-lite-extended-test-results`
+          - Includes individual output files for each profile
+          - HTML index with clickable results
+          
+          ### Status
+          EOF
+          
+          if [ "${{ env.failed }}" -eq 0 ]; then
+            echo "**ALL CLEAN** - No sanitizer findings detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**${{ env.failed }} FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check test success
+        run: |
+          if [ "${{ env.failed }}" -eq 0 ]; then
+            echo "SUCCESS: All ${{ env.total }} profiles tested successfully"
+            exit 0
+          else
+            echo "COMPLETE: ${{ env.success }}/${{ env.total }} clean, ${{ env.failed }} findings"
+            echo "Findings are successful sanitizer detections, not infrastructure failures"
+            # Don't fail the workflow, just report
+            exit 0
+          fi
