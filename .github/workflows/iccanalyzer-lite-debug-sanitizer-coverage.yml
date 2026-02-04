@@ -1,0 +1,593 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build iccanalyzer-lite in Debug mode with ASan, UBSan,
+#         and Clang source-based code coverage instrumentation.
+#         Run CLI test suite, merge profraw data, generate
+#         llvm-cov HTML + lcov + text summary reports.
+#
+# Instrumentation: -fprofile-instr-generate -fcoverage-mapping
+# Sanitizers: -fsanitize=address,undefined
+#
+# Reference:
+#   https://github.com/InternationalColorConsortium/iccDEV/actions/runs/21802938256/workflow
+#   https://github.com/xsscx/research/actions/workflows/iccanalyzer-cli-test-suite.yml
+#
+###############################################################
+
+name: iccAnalyzer Debug Sanitizer Coverage
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile_count:
+        description: 'Number of profiles to test (use "all" for maximum coverage)'
+        required: false
+        default: '50'
+        type: string
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly Monday 08:00 UTC
+
+concurrency:
+  group: debug-sanitizer-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-sanitizer-coverage:
+    name: "Debug + ASan + UBSan + Coverage"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5 # v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Git environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang-18 \
+            llvm-18 \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev \
+            lcov
+
+      - name: Clone iccDEV dependency
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV && git config --add safe.directory "$PWD"
+          echo "iccDEV commit: $(git log --oneline -1)"
+
+      - name: Build iccDEV libraries (Debug + ASan + UBSan + Coverage)
+        env:
+          BASH_ENV: /dev/null
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV/Build
+
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping -O0 -g" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping -O0 -g -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DENABLE_TOOLS=OFF \
+            -DENABLE_STATIC_LIBS=ON \
+            -Wno-dev
+
+          make -j$(nproc)
+
+          echo "Verifying instrumented libraries..."
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+
+          echo "Checking coverage instrumentation flags..."
+          find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | head -3 || true
+
+      - name: Build iccanalyzer-lite (Debug + ASan + UBSan + Coverage)
+        working-directory: iccanalyzer-lite
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          export CXX=clang++-18
+
+          SANITIZE_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+          export CXXFLAGS="${SANITIZE_FLAGS} ${COVERAGE_FLAGS} -g -O0 -std=c++17 -DICCANALYZER_LITE"
+          export LDFLAGS="${SANITIZE_FLAGS} -fprofile-instr-generate"
+
+          ICCDEV_BUILD="iccDEV/Build"
+          ICCDEV_ROOT="iccDEV"
+          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -lz -llzma -lm -lssl -lcrypto"
+
+          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp"
+
+          echo "Building iccanalyzer-lite: Debug + ASan + UBSan + Clang Coverage..."
+          for src in $SOURCES; do
+            obj="${src%.cpp}.o"
+            ${CXX} ${CXXFLAGS} ${INCLUDES} -c $src -o $obj &
+          done
+          wait
+
+          echo "Linking..."
+          ${CXX} ${LDFLAGS} *.o ${LIBS} -o iccanalyzer-lite
+
+          echo "[OK] Debug + Sanitizer + Coverage build complete"
+          ls -lh iccanalyzer-lite
+          file iccanalyzer-lite
+
+      - name: Verify binary
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          BINARY="iccanalyzer-lite/iccanalyzer-lite"
+          echo "Binary: $BINARY ($(stat -c%s "$BINARY") bytes)"
+          file "$BINARY"
+
+          # Verify sanitizer + coverage instrumentation
+          if nm "$BINARY" 2>/dev/null | grep -q "__asan_init"; then
+            echo "[OK] ASan instrumentation detected"
+          else
+            echo "[WARN] ASan symbols not found"
+          fi
+          if nm "$BINARY" 2>/dev/null | grep -q "__llvm_profile"; then
+            echo "[OK] Clang source-based coverage instrumentation detected"
+          else
+            echo "[WARN] Coverage symbols not found"
+          fi
+
+          echo "binary_path=$BINARY" >> $GITHUB_ENV
+
+      - name: Setup test profiles
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p profraw results/outputs
+
+          # Collect all available profiles
+          find test-profiles/ -name "*.icc" > /tmp/all-profiles.txt 2>/dev/null || true
+          find extended-test-profiles/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+          find cfl/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+          find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
+
+          sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt
+
+          PROFILE_COUNT=${{ inputs.profile_count || '50' }}
+          AVAILABLE=$(wc -l < /tmp/all-profiles-dedup.txt)
+
+          if [ "$PROFILE_COUNT" = "all" ] || [ "$PROFILE_COUNT" = "0" ]; then
+            USE_COUNT=$AVAILABLE
+          else
+            USE_COUNT=$((AVAILABLE < PROFILE_COUNT ? AVAILABLE : PROFILE_COUNT))
+          fi
+
+          shuf -n $USE_COUNT /tmp/all-profiles-dedup.txt > results/selected-profiles.txt
+          echo "Selected $USE_COUNT profiles from $AVAILABLE available"
+          echo "profile_count=$USE_COUNT" >> $GITHUB_ENV
+
+      - name: Run CLI test suite with profiling
+        env:
+          BASH_ENV: /dev/null
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=0:print_stats=1:log_path=${{ github.workspace }}/results/asan.log"
+          UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=0:log_path=${{ github.workspace }}/results/ubsan.log"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          BINARY="${{ env.binary_path }}"
+          MODES="heuristics:h roundtrip:r comprehensive:a ninja:n ninja-full:nf"
+          SUMMARY="results/test-summary.txt"
+
+          strip_ansi() {
+            sed -i 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$1"
+          }
+
+          echo "==================================================================" > $SUMMARY
+          echo "iccAnalyzer-lite Debug + Sanitizer + Coverage Test Report" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
+          echo "Build: Debug + ASan + UBSan + Clang Coverage" >> $SUMMARY
+          echo "Profiles: ${{ env.profile_count }}" >> $SUMMARY
+          echo "" >> $SUMMARY
+
+          GRAND_TOTAL=0
+          GRAND_CLEAN=0
+          GRAND_FINDINGS=0
+          SANITIZER_HITS=0
+
+          for MODE_PAIR in $MODES; do
+            MODE_NAME="${MODE_PAIR%%:*}"
+            MODE_FLAG="-${MODE_PAIR##*:}"
+
+            echo "=== $MODE_NAME ($MODE_FLAG) ===" | tee -a $SUMMARY
+            mkdir -p "results/outputs/${MODE_NAME}"
+
+            TOTAL=0
+            CLEAN=0
+            FINDINGS=0
+
+            while IFS= read -r profile; do
+              TOTAL=$((TOTAL + 1))
+              PROFILE_NAME=$(basename "$profile")
+              OUTPUT_FILE="results/outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+
+              # Each profile run writes its own profraw
+              export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/${MODE_NAME}-%p-%m.profraw"
+
+              echo "[$MODE_NAME] Testing: $PROFILE_NAME"
+
+              if timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1; then
+                strip_ansi "$OUTPUT_FILE"
+                # Content-based finding detection (ninja modes exit 0 even for malformed profiles)
+                if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                  FINDINGS=$((FINDINGS + 1))
+                  echo "  Result: FINDING (content)" >> $SUMMARY
+
+                  if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                    SANITIZER_HITS=$((SANITIZER_HITS + 1))
+                    echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
+                    tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
+                  fi
+                else
+                  CLEAN=$((CLEAN + 1))
+                  echo "  Result: CLEAN" >> $SUMMARY
+                fi
+              else
+                EXIT_CODE=$?
+                strip_ansi "$OUTPUT_FILE"
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: FINDING (exit $EXIT_CODE)" >> $SUMMARY
+
+                # Check for sanitizer reports in output
+                if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                  SANITIZER_HITS=$((SANITIZER_HITS + 1))
+                  echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
+                  tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
+                fi
+              fi
+
+              echo "  Profile: $PROFILE_NAME" >> $SUMMARY
+            done < results/selected-profiles.txt
+
+            echo "--- $MODE_NAME: $CLEAN/$TOTAL clean, $FINDINGS findings ---" >> $SUMMARY
+            echo "" >> $SUMMARY
+
+            GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
+            GRAND_CLEAN=$((GRAND_CLEAN + CLEAN))
+            GRAND_FINDINGS=$((GRAND_FINDINGS + FINDINGS))
+
+            echo "${MODE_NAME}_total=$TOTAL" >> $GITHUB_ENV
+            echo "${MODE_NAME}_clean=$CLEAN" >> $GITHUB_ENV
+            echo "${MODE_NAME}_findings=$FINDINGS" >> $GITHUB_ENV
+          done
+
+          echo "==================================================================" >> $SUMMARY
+          echo "FINAL: $GRAND_CLEAN/$GRAND_TOTAL clean, $GRAND_FINDINGS findings, $SANITIZER_HITS sanitizer hits" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+
+          echo "grand_total=$GRAND_TOTAL" >> $GITHUB_ENV
+          echo "grand_clean=$GRAND_CLEAN" >> $GITHUB_ENV
+          echo "grand_findings=$GRAND_FINDINGS" >> $GITHUB_ENV
+          echo "sanitizer_hits=$SANITIZER_HITS" >> $GITHUB_ENV
+
+          cat $SUMMARY
+
+          # Verify profraw files were generated
+          PROFRAW_COUNT=$(find "${{ github.workspace }}/profraw" -name "*.profraw" 2>/dev/null | wc -l)
+          echo "Generated $PROFRAW_COUNT .profraw files"
+
+      - name: Collect sanitizer logs
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p results/sanitizer-logs
+
+          # Collect ASan/UBSan log files (written to workspace by ASAN_OPTIONS/UBSAN_OPTIONS)
+          find "${{ github.workspace }}/results" -name "asan.log*" -exec cp {} results/sanitizer-logs/ \; 2>/dev/null || true
+          find "${{ github.workspace }}/results" -name "ubsan.log*" -exec cp {} results/sanitizer-logs/ \; 2>/dev/null || true
+
+          LOG_COUNT=$(find results/sanitizer-logs -type f 2>/dev/null | wc -l)
+          echo "Collected $LOG_COUNT sanitizer log files"
+
+          if [ "$LOG_COUNT" -gt 0 ]; then
+            echo "--- Sanitizer Log Summary ---"
+            for log in results/sanitizer-logs/*; do
+              echo "=== $(basename "$log") ==="
+              head -20 "$log"
+              echo ""
+            done
+          fi
+
+      - name: Merge profdata and generate coverage report
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p results/coverage
+
+          # Merge all .profraw files
+          PROFRAW_COUNT=$(find "${{ github.workspace }}/profraw" -name "*.profraw" 2>/dev/null | wc -l)
+          echo "Found $PROFRAW_COUNT .profraw files"
+
+          if [ "$PROFRAW_COUNT" -eq 0 ]; then
+            echo "::warning::No profraw files generated — coverage instrumentation may have failed"
+            echo "No coverage data available" > results/coverage/coverage-summary.txt
+            exit 0
+          fi
+
+          llvm-profdata-18 merge \
+            -sparse \
+            "${{ github.workspace }}"/profraw/*.profraw \
+            -o results/coverage/merged.profdata
+
+          echo "Merged profdata: $(stat -c%s results/coverage/merged.profdata) bytes"
+
+          MAIN_BIN="${{ env.binary_path }}"
+
+          # Generate text summary report
+          echo "--- Coverage Summary Report ---"
+          llvm-cov-18 report \
+            "$MAIN_BIN" \
+            -instr-profile=results/coverage/merged.profdata \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | tee results/coverage/coverage-summary.txt
+
+          # Generate HTML report
+          llvm-cov-18 show \
+            "$MAIN_BIN" \
+            -instr-profile=results/coverage/merged.profdata \
+            -format=html \
+            -output-dir=results/coverage/html \
+            -show-line-counts-or-regions \
+            -show-expansions \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | tail -5
+
+          # Generate lcov-compatible export
+          llvm-cov-18 export \
+            "$MAIN_BIN" \
+            -instr-profile=results/coverage/merged.profdata \
+            -format=lcov \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            > results/coverage/lcov.info 2>/dev/null || true
+
+          # Report stats
+          if [ -d results/coverage/html ]; then
+            HTML_COUNT=$(find results/coverage/html -name "*.html" | wc -l)
+            echo "HTML report: $HTML_COUNT files"
+          fi
+
+          LCOV_RECORDS=$(grep -c "^SF:" results/coverage/lcov.info 2>/dev/null || echo 0)
+          echo "LCOV: $LCOV_RECORDS source file records"
+
+      - name: Generate results index
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd results
+
+          cat > index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>iccAnalyzer-lite Debug + Sanitizer + Coverage Report</title>
+            <style>
+              body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+              .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+              h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+              h2 { color: #555; }
+              .summary { background: #e8f4f8; padding: 15px; margin: 20px 0; border-left: 4px solid #007acc; }
+              .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-box { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; text-align: center; }
+              .stat-value { font-size: 2em; font-weight: bold; color: #007acc; }
+              .stat-label { color: #666; margin-top: 5px; }
+              pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; overflow-x: auto; border-radius: 4px; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+              th { background: #007acc; color: white; }
+              tr:nth-child(even) { background: #f9f9f9; }
+              .clean { color: green; font-weight: bold; }
+              .finding { color: #cc6600; font-weight: bold; }
+              .sanitizer { color: red; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>iccAnalyzer-lite Debug + Sanitizer + Coverage Report</h1>
+          HTMLEOF
+
+          echo "<div class='summary'>" >> index.html
+          echo "<strong>Date:</strong> $(date -u '+%Y-%m-%d %H:%M:%S UTC')<br>" >> index.html
+          echo "<strong>Build:</strong> Debug + ASan + UBSan + Clang Source-Based Coverage<br>" >> index.html
+          echo "<strong>Compiler:</strong> clang++-18<br>" >> index.html
+          echo "<strong>Modes:</strong> -h (heuristics), -r (roundtrip), -a (comprehensive), -n (ninja), -nf (ninja-full)" >> index.html
+          echo "</div>" >> index.html
+
+          echo "<div class='stats'>" >> index.html
+          echo "<div class='stat-box'><div class='stat-value'>${{ env.grand_total }}</div><div class='stat-label'>Total Tests</div></div>" >> index.html
+          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>${{ env.grand_clean }}</div><div class='stat-label'>Clean</div></div>" >> index.html
+          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>${{ env.grand_findings }}</div><div class='stat-label'>Findings</div></div>" >> index.html
+          echo "<div class='stat-box'><div class='stat-value' style='color: red;'>${{ env.sanitizer_hits }}</div><div class='stat-label'>Sanitizer Hits</div></div>" >> index.html
+          echo "</div>" >> index.html
+
+          # Coverage summary
+          if [ -f coverage/coverage-summary.txt ]; then
+            echo "<h2>Code Coverage Summary (llvm-cov)</h2>" >> index.html
+            echo "<pre>" >> index.html
+            cat coverage/coverage-summary.txt >> index.html
+            echo "</pre>" >> index.html
+          fi
+
+          # Link to detailed HTML coverage report
+          if [ -d coverage/html ]; then
+            echo "<h2>Detailed Coverage</h2>" >> index.html
+            echo "<p><a href='coverage/html/index.html'>View detailed llvm-cov HTML report</a></p>" >> index.html
+          fi
+
+          # Per-mode results
+          for MODE_NAME in heuristics roundtrip comprehensive ninja ninja-full; do
+            if [ -d "outputs/${MODE_NAME}" ]; then
+              case "${MODE_NAME}" in
+                heuristics)    FLAG="-h" ;;
+                roundtrip)     FLAG="-r" ;;
+                comprehensive) FLAG="-a" ;;
+                ninja)         FLAG="-n" ;;
+                ninja-full)    FLAG="-nf" ;;
+              esac
+
+              echo "<h2>${MODE_NAME} Mode (${FLAG})</h2>" >> index.html
+              echo "<table>" >> index.html
+              echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Output</th><th>Size</th></tr>" >> index.html
+
+              NUM=1
+              while IFS= read -r profile; do
+                PROFILE_NAME=$(basename "$profile")
+                OUTPUT_FILE="outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+
+                if [ -f "$OUTPUT_FILE" ]; then
+                  FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
+
+                  if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='sanitizer'>SANITIZER</span>"
+                  elif grep -qi "\[ERR\]\|\[WARN\].*HEURISTIC\|Error reading ICC profile\|failed validation\|MISMATCH\|overlap\|Suspicious\|UAF RISK\|INVALID\|CORRUPT" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='finding'>FINDING</span>"
+                  else
+                    STATUS="<span class='clean'>CLEAN</span>"
+                  fi
+
+                  echo "<tr><td>$NUM</td><td><code>$PROFILE_NAME</code></td><td>$STATUS</td><td><a href='$OUTPUT_FILE'>View</a></td><td>$FILE_SIZE bytes</td></tr>" >> index.html
+                  NUM=$((NUM + 1))
+                fi
+              done < selected-profiles.txt
+
+              echo "</table>" >> index.html
+            fi
+          done
+
+          echo "</div></body></html>" >> index.html
+          echo "Results index created"
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: iccanalyzer-debug-sanitizer-coverage
+          path: results/
+          retention-days: 90
+
+      - name: Report to summary
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## iccAnalyzer-lite Debug + Sanitizer + Coverage Report
+
+          ### Build Configuration
+          | Setting | Value |
+          |---------|-------|
+          | Build Type | Debug |
+          | Compiler | clang++-18 |
+          | Sanitizers | ASan + UBSan |
+          | Coverage | Clang source-based (-fprofile-instr-generate -fcoverage-mapping) |
+          | Optimization | -O0 |
+
+          ### Test Results
+          | Metric | Value |
+          |--------|-------|
+          | Total Tests | ${{ env.grand_total }} |
+          | Clean | ${{ env.grand_clean }} |
+          | Findings | ${{ env.grand_findings }} |
+          | Sanitizer Hits | ${{ env.sanitizer_hits }} |
+          | Profiles Tested | ${{ env.profile_count }} |
+
+          ### Per-Mode Breakdown
+          | Mode | Flag | Clean | Findings | Total |
+          |------|------|-------|----------|-------|
+          | Heuristics | -h | ${{ env.heuristics_clean }} | ${{ env.heuristics_findings }} | ${{ env.heuristics_total }} |
+          | Round-trip | -r | ${{ env.roundtrip_clean }} | ${{ env.roundtrip_findings }} | ${{ env.roundtrip_total }} |
+          | Comprehensive | -a | ${{ env.comprehensive_clean }} | ${{ env.comprehensive_findings }} | ${{ env.comprehensive_total }} |
+          | Ninja | -n | ${{ env.ninja_clean }} | ${{ env.ninja_findings }} | ${{ env.ninja_total }} |
+          | Ninja-full | -nf | ${{ env.ninja-full_clean }} | ${{ env.ninja-full_findings }} | ${{ env.ninja-full_total }} |
+
+          ### Code Coverage
+          EOF
+
+          if [ -f results/coverage/coverage-summary.txt ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat results/coverage/coverage-summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage data not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          {
+            echo ""
+            echo "### Artifacts"
+            echo "- **\`iccanalyzer-debug-sanitizer-coverage\`**: Full results archive"
+            echo "  - \`coverage/html/\`: llvm-cov HTML report with line-by-line coverage"
+            echo "  - \`coverage/lcov.info\`: lcov-compatible coverage data"
+            echo "  - \`coverage/coverage-summary.txt\`: Text coverage summary"
+            echo "  - \`sanitizer-logs/\`: ASan and UBSan log files"
+            echo "  - \`outputs/\`: Per-mode CLI output files"
+            echo "  - \`index.html\`: Interactive results dashboard"
+            echo ""
+            echo "### Status"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.sanitizer_hits }}" -gt 0 ]; then
+            echo "⚠️ **${{ env.sanitizer_hits }} SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ env.grand_findings }}" -gt 0 ]; then
+            echo "**${{ env.grand_findings }} FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **ALL CLEAN** — No sanitizer findings across all modes" >> $GITHUB_STEP_SUMMARY
+          fi

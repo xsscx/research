@@ -1,0 +1,58 @@
+[libfuzzer]
+# Enhanced LibFuzzer Options - Combined Sanitizers with Full Instrumentation
+# Print final statistics including coverage, corpus, and performance metrics
+print_final_stats=1
+
+# Print program counter values for coverage analysis
+print_pcs=1
+
+# Print function coverage
+print_funcs=1
+
+# Maximum total time per fuzzer run (seconds)
+max_total_time=7200
+
+# Use value profile for better coverage guidance
+use_value_profile=1
+
+# Enable fork mode for parallel fuzzing
+fork=4
+
+# Reduce depth for faster iteration
+max_len=65536
+
+# Memory limit per run (MB) - increased for complex ICC profiles
+rss_limit_mb=4096
+
+# Timeout per individual test case (seconds)
+timeout=30
+
+[asan]
+# Address Sanitizer Options - Enhanced Stack Tracing
+symbolize=1
+print_stacktrace=1
+halt_on_error=1
+detect_stack_use_after_return=1
+check_initialization_order=1
+strict_init_order=1
+detect_invalid_pointer_pairs=2
+print_summary=1
+stack_trace_format=DEFAULT
+allocator_may_return_null=1
+detect_leaks=1
+quarantine_size_mb=256
+
+[ubsan]
+# Undefined Behavior Sanitizer Options - Enhanced Reporting
+symbolize=1
+print_stacktrace=1
+halt_on_error=0
+print_summary=1
+verbosity=1
+report_error_type=1
+
+[msan]
+# Memory Sanitizer Options (if enabled)
+symbolize=1
+print_stacktrace=1
+halt_on_error=1
