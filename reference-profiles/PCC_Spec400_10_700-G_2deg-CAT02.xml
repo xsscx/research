@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>NULL</PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+    <DataColourSpace>nc001F</DataColourSpace>
+    <PCS>NULL</PCS>
+    <CreationDateTime>2026-02-10T11:36:43</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.341064453125" Y="1.000000000000" Z="0.177459716797"/>
+    </PCSIlluminant>
+    <ProfileCreator>NULL</ProfileCreator>
+    <ProfileID>34A1E5F97CB9E26B70ACA5270798554C</ProfileID>
+    <SpectralPCS>rs001F</SpectralPCS>
+    <SpectralRange>
+     <Wavelengths start="400.00000000" end="700.00000000" steps="31"/>
+    </SpectralRange>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nm in 10nm steps spectral reflectance using &quot;G&quot; light and Standard 2deg observer]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+
+    <DToB3Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="31" OutputChannels="31">
+      </MultiProcessElements>
+    </multiProcessElementType> </DToB3Tag>
+
+    <BToD3Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="31" OutputChannels="31">
+      </MultiProcessElements>
+    </multiProcessElementType> </BToD3Tag>
+
+    <customToStandardPccTag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+            1.377363204956 0.403817832470 0.510839939117
+            0.279872745275 0.869308054447 0.198556229472
+            0.005273852032 0.047248765826 4.370584011078
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </customToStandardPccTag>
+
+    <standardToCustomPccTag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+            0.801083922386 -0.367945253849 -0.076915994287
+            -0.258325129747 1.271838784218 -0.027586413547
+            0.001826013555 -0.013305390254 0.229193419218
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </standardToCustomPccTag>
+
+    <spectralViewingConditionsTag> <spectralViewingConditionsType>
+      <StdObserver>Unknown observer</StdObserver>
+      <IlluminantXYZ X="54.570453643799" Y="160.000000000000" Z="28.394617080688"/>
+      <ObserverFuncs start="400.00000000" end="700.00000000" steps="31">
+       0.014310000464 0.043510001153 0.134379997849 0.283899992704 0.348280012608 0.336199998856 0.290800005198 0.195360004902
+       0.095640003681 0.032010000199 0.004900000058 0.009300000034 0.063270002604 0.165500000119 0.290399998426 0.433450013399
+       0.594500005245 0.762099981308 0.916299998760 1.026299953461 1.062199950218 1.002599954605 0.854449987411 0.642400026321
+       0.447899997234 0.283499985933 0.164900004864 0.087399996817 0.046769998968 0.022700000554 0.011358999647
+       0.000395999989 0.001210000017 0.004000000190 0.011599999852 0.023000000045 0.037999998778 0.059999998659 0.090980000794
+       0.139019995928 0.208020001650 0.323000013828 0.503000020981 0.709999978542 0.861999988556 0.953999996185 0.994949996471
+       0.995000004768 0.952000021935 0.870000004768 0.757000029087 0.630999982357 0.503000020981 0.381000012159 0.264999985695
+       0.174999997020 0.107000000775 0.061000000685 0.032000001520 0.017000000924 0.008209999651 0.004102000035
+       0.067850001156 0.207399994135 0.645600020885 1.385599970818 1.747059941292 1.772109985352 1.669199943542 1.287639975548
+       0.812950015068 0.465180009604 0.272000014782 0.158199995756 0.078249998391 0.042160000652 0.020300000906 0.008750000037
+       0.003899999894 0.002099999925 0.001649999991 0.001099999994 0.000799999980 0.000339999999 0.000190000006 0.000049999999
+       0.000019999999 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000
+      </ObserverFuncs>
+      <StdIlluminant>Illuminant Unknown</StdIlluminant>
+      <ColorTemperature>0.000000000000</ColorTemperature>
+      <IlluminantSPD start="400.00000000" end="700.00000000" steps="31">
+       0.699999988079 1.100000023842 1.200000047684 1.399999976158 1.600000023842 2.200000047684 3.099999904633 5.500000000000
+       11.600000381470 24.700000762939 47.299999237061 72.400001525879 90.699996948242 100.000000000000 93.800003051758 73.699996948242
+       44.900001525879 24.000000000000 11.500000000000 6.099999904633 2.799999952316 1.399999976158 0.899999976158 0.699999988079
+       0.699999988079 0.699999988079 0.699999988079 0.400000005960 0.400000005960 0.400000005960 0.400000005960
+      </IlluminantSPD>
+      <SurroundXYZ X="54.570453643799" Y="160.000000000000" Z="28.394617080688"/>
+    </spectralViewingConditionsType> </spectralViewingConditionsTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.341064453125" Y="1.000000000000" Z="0.177459716797"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <spectralWhitePointTag> <float16ArrayType>
+      <Data>
+            1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000
+            1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000
+            1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000
+            1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000 1.000000000000
+      </Data>
+    </float16ArrayType> </spectralWhitePointTag>
+
+    <copyrightTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+  </Tags>
+</IccProfile>

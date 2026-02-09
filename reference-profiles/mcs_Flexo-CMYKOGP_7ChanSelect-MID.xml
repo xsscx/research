@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>NULL</PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>mid </ProfileDeviceClass>
+    <ProfileDeviceSubClass>nink</ProfileDeviceSubClass>
+    <DataColourSpace>nc0007</DataColourSpace>
+    <PCS>NULL</PCS>
+    <CreationDateTime>2026-02-10T11:36:42</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false" MCSNeedsSubset="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.000000000000" Y="0.000000000000" Z="0.000000000000"/>
+    </PCSIlluminant>
+    <ProfileCreator>NULL</ProfileCreator>
+    <ProfileID>0524C12BC3478797EE4DFDA0D00A3DF8</ProfileID>
+    <MCS>6D630007h</MCS>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Channel selection for Photoshop CMYK + 3 spot image using MCS]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+
+    <AToM0Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="7" OutputChannels="7">
+        <CalculatorElement InputChannels="7" OutputChannels="7">
+          <MainFunction>
+            { in[0,4] out[0,4] 1 in[4] sub out[4] 1 in[5] sub out[5] 1 in[6] sub 
+              out[6] }
+          </MainFunction>
+        </CalculatorElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </AToM0Tag>
+
+    <materialTypeArrayTag> <tagArrayType>
+      <UTF8TextArray> <ArrayTags>
+         <utf8Type>
+         <TextData><![CDATA[Process Cyan]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Magenta]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Yellow]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Black]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Plus Orange]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Plus Green]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Plus Purple]]></TextData>
+         </utf8Type>
+
+      </ArrayTags> </UTF8TextArray>
+    </tagArrayType> </materialTypeArrayTag>
+
+    <copyrightTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2017 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+  </Tags>
+</IccProfile>

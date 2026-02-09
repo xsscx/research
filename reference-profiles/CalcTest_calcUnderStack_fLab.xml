@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>NULL</PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2018-08-15T10:22:18</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.950500488281" Y="1.000000000000" Z="1.089096069336"/>
+    </PCSIlluminant>
+    <ProfileCreator>ICC </ProfileCreator>
+    <ProfileID>BF3A3242936704838E2CE1FCFA94DD40</ProfileID>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[calcUnderStack_fLab]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+
+    <AToB1Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <CalculatorElement InputChannels="3" OutputChannels="3">
+          <SubElements>
+            <CurveSetElement InputChannels="3" OutputChannels="3">
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 0.500000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 1.000000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 1.500000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+            </CurveSetElement>
+            <MatrixElement InputChannels="3" OutputChannels="3">
+              <MatrixData>
+                1.000000000000 1.000000000000 -1.000000000000
+                2.000000000000 1.000000000000 -1.000000000000
+                1.000000000000 -1.000000000000 1.000000000000
+              </MatrixData>
+            </MatrixElement>
+            <CLutElement InputChannels="3" OutputChannels="3">
+              <GridPoints>2 2 2</GridPoints>
+              <TableData>
+                   0.00000000    0.00000000    0.00000000    0.00000000    0.00000000    0.75000000
+                   0.00000000    0.50000000    0.00000000    0.00000000    0.50000000    0.75000000
+                   0.25000000    0.00000000    0.00000000    0.25000000    0.00000000    0.75000000
+                   0.25000000    0.50000000    0.00000000    0.25000000    0.50000000    0.75000000
+              </TableData>
+            </CLutElement>
+            <CalculatorElement InputChannels="3" OutputChannels="3">
+              <MainFunction>
+                { in[0,3] 1 1 1 add[3] out[0,3] }
+              </MainFunction>
+            </CalculatorElement>
+            <JabToXYZElement InputChannels="3" OutputChannels="3">
+              <ColorAppearanceParams>
+               <WhitePoint>
+                <XYZNumber X="0.964200019836" Y="1.000000000000" Z="0.824899971485"/>               </WhitePoint>
+               <Luminance>500.000000000000</Luminance>
+               <BackgroundLuminance>20.000000000000</BackgroundLuminance>
+               <ImpactSurround>0.689999997616</ImpactSurround>
+               <ChromaticInductionFactor>1.000000000000</ChromaticInductionFactor>
+               <AdaptationFactor>1.000000000000</AdaptationFactor>
+</ColorAppearanceParams>
+            </JabToXYZElement>
+            <XYZToJabElement InputChannels="3" OutputChannels="3">
+              <ColorAppearanceParams>
+               <WhitePoint>
+                <XYZNumber X="0.964200019836" Y="1.000000000000" Z="0.824899971485"/>               </WhitePoint>
+               <Luminance>500.000000000000</Luminance>
+               <BackgroundLuminance>20.000000000000</BackgroundLuminance>
+               <ImpactSurround>0.689999997616</ImpactSurround>
+               <ChromaticInductionFactor>1.000000000000</ChromaticInductionFactor>
+               <AdaptationFactor>1.000000000000</AdaptationFactor>
+</ColorAppearanceParams>
+            </XYZToJabElement>
+            <TintArrayElement InputChannels="1" OutputChannels="3">
+  <float32ArrayType>
+    <Data>
+        1.000000000000 1.000000000000 -1.000000000000 2.000000000000 1.000000000000 -1.000000000000 1.000000000000 -1.000000000000
+        1.000000000000 </Data>
+  </float32ArrayType>
+            </TintArrayElement>
+          </SubElements>
+          <MainFunction>
+            { in[0,3] 2.1992188 gama[3] tsav[0,3] 0 0 0 eq[3] sum(3) 3 eq if 
+              { 1 2 fLab 1 tput[7] pi pop(1) }
+              tget[0,3] 0.57666862 0.18555851 0.18822776 mul[3] sum(3) tget[0,3] 
+              0.29734313 0.62736231 0.075287811 mul[3] sum(3) tget[0,3] 0.027033018 
+              0.070688359 0.9913426 mul[3] sum(3) out[0,3] }
+          </MainFunction>
+        </CalculatorElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </AToB1Tag>
+
+    <BToA1Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <CalculatorElement InputChannels="3" OutputChannels="3">
+          <SubElements>
+            <CurveSetElement InputChannels="3" OutputChannels="3">
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 0.500000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 1.000000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+              <SegmentedCurve>
+                <FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+                  1.000000000000 1.500000000000 0.000000000000 0.000000000000
+                </FormulaSegment>
+              </SegmentedCurve>
+            </CurveSetElement>
+            <MatrixElement InputChannels="3" OutputChannels="3">
+              <MatrixData>
+                1.000000000000 1.000000000000 -1.000000000000
+                2.000000000000 1.000000000000 -1.000000000000
+                1.000000000000 -1.000000000000 1.000000000000
+              </MatrixData>
+            </MatrixElement>
+            <CLutElement InputChannels="3" OutputChannels="3">
+              <GridPoints>2 2 2</GridPoints>
+              <TableData>
+                   0.00000000    0.00000000    0.00000000    0.00000000    0.00000000    0.75000000
+                   0.00000000    0.50000000    0.00000000    0.00000000    0.50000000    0.75000000
+                   0.25000000    0.00000000    0.00000000    0.25000000    0.00000000    0.75000000
+                   0.25000000    0.50000000    0.00000000    0.25000000    0.50000000    0.75000000
+              </TableData>
+            </CLutElement>
+            <CalculatorElement InputChannels="3" OutputChannels="3">
+              <MainFunction>
+                { in[0,3] 1 1 1 add[3] out[0,3] }
+              </MainFunction>
+            </CalculatorElement>
+            <JabToXYZElement InputChannels="3" OutputChannels="3">
+              <ColorAppearanceParams>
+               <WhitePoint>
+                <XYZNumber X="0.964200019836" Y="1.000000000000" Z="0.824899971485"/>               </WhitePoint>
+               <Luminance>500.000000000000</Luminance>
+               <BackgroundLuminance>20.000000000000</BackgroundLuminance>
+               <ImpactSurround>0.689999997616</ImpactSurround>
+               <ChromaticInductionFactor>1.000000000000</ChromaticInductionFactor>
+               <AdaptationFactor>1.000000000000</AdaptationFactor>
+</ColorAppearanceParams>
+            </JabToXYZElement>
+            <XYZToJabElement InputChannels="3" OutputChannels="3">
+              <ColorAppearanceParams>
+               <WhitePoint>
+                <XYZNumber X="0.964200019836" Y="1.000000000000" Z="0.824899971485"/>               </WhitePoint>
+               <Luminance>500.000000000000</Luminance>
+               <BackgroundLuminance>20.000000000000</BackgroundLuminance>
+               <ImpactSurround>0.689999997616</ImpactSurround>
+               <ChromaticInductionFactor>1.000000000000</ChromaticInductionFactor>
+               <AdaptationFactor>1.000000000000</AdaptationFactor>
+</ColorAppearanceParams>
+            </XYZToJabElement>
+            <TintArrayElement InputChannels="1" OutputChannels="3">
+  <float32ArrayType>
+    <Data>
+        1.000000000000 1.000000000000 -1.000000000000 2.000000000000 1.000000000000 -1.000000000000 1.000000000000 -1.000000000000
+        1.000000000000 </Data>
+  </float32ArrayType>
+            </TintArrayElement>
+          </SubElements>
+          <MainFunction>
+            { in[0,3] tsav[0,3] 0 0 0 eq[3] sum(3) 3 eq if 
+              { 1 2 fLab 1 tput[7] pi pop(1) }
+              tget[0,3] 2.04159 -0.56501001 -0.34472999 mul[3] sum(3) in[0,3] 
+              -0.96924001 1.87597 0.041560002 mul[3] sum(3) in[0,3] 0.01344 -0.11836 
+              1.01517 mul[3] sum(3) 0.45470694 gama[3] out[0,3] }
+          </MainFunction>
+        </CalculatorElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </BToA1Tag>
+
+    <customToStandardPccTag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+            1.152134776115 -0.062262143940 -0.062927372754
+            0.098920680583 0.934070467949 -0.025796821341
+            -0.028367010877 0.034691121429 0.750319957733
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </customToStandardPccTag>
+
+    <standardToCustomPccTag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+            0.865073263645 0.054898373783 0.074438899755
+            -0.090594761074 1.063468575478 0.028965266421
+            0.036894097924 -0.047094058245 1.334239840508
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType> </standardToCustomPccTag>
+
+    <spectralViewingConditionsTag> <spectralViewingConditionsType>
+      <StdObserver>CIE 1931 (two degree) standard observer</StdObserver>
+      <IlluminantXYZ X="95.050003051758" Y="100.000000000000" Z="108.910003662109"/>
+      <ObserverFuncs start="380.00000000" end="780.00000000" steps="81">
+       0.001368000056 0.002236000029 0.004242999945 0.007650000043 0.014310000464 0.023189999163 0.043510001153 0.077629998326
+       0.134379997849 0.214770004153 0.283899992704 0.328500002623 0.348280012608 0.348060011864 0.336199998856 0.318699985743
+       0.290800005198 0.251100003719 0.195360004902 0.142100006342 0.095640003681 0.057950001210 0.032010000199 0.014700000174
+       0.004900000058 0.002400000114 0.009300000034 0.029100000858 0.063270002604 0.109600000083 0.165500000119 0.225749999285
+       0.290399998426 0.359699994326 0.433450013399 0.512049973011 0.594500005245 0.678399980068 0.762099981308 0.842499971390
+       0.916299998760 0.978600025177 1.026299953461 1.056699991226 1.062199950218 1.045600056648 1.002599954605 0.938399970531
+       0.854449987411 0.751399993896 0.642400026321 0.541899979115 0.447899997234 0.360799998045 0.283499985933 0.218700006604
+       0.164900004864 0.121200002730 0.087399996817 0.063600003719 0.046769998968 0.032900001854 0.022700000554 0.015839999542
+       0.011358999647 0.008111000061 0.005789999850 0.004108999856 0.002898999956 0.002049000002 0.001440000022 0.001000000047
+       0.000690000015 0.000475999987 0.000331999996 0.000235000000 0.000165999998 0.000117000003 0.000082999999 0.000059000002
+       0.000042000000
+       0.000038999999 0.000064000000 0.000119999997 0.000216999993 0.000395999989 0.000639999984 0.001210000017 0.002180000069
+       0.004000000190 0.007300000172 0.011599999852 0.016839999706 0.023000000045 0.029799999669 0.037999998778 0.048000000417
+       0.059999998659 0.073899999261 0.090980000794 0.112599998713 0.139019995928 0.169300004840 0.208020001650 0.258599996567
+       0.323000013828 0.407299995422 0.503000020981 0.608200013638 0.709999978542 0.793200016022 0.861999988556 0.914849996567
+       0.953999996185 0.980300009251 0.994949996471 1.000000000000 0.995000004768 0.978600025177 0.952000021935 0.915400028229
+       0.870000004768 0.816299974918 0.757000029087 0.694899976254 0.630999982357 0.566799998283 0.503000020981 0.441199988127
+       0.381000012159 0.321000009775 0.264999985695 0.216999992728 0.174999997020 0.138199999928 0.107000000775 0.081600002944
+       0.061000000685 0.044580001384 0.032000001520 0.023199999705 0.017000000924 0.011920000426 0.008209999651 0.005723000038
+       0.004102000035 0.002928999951 0.002091000089 0.001484000008 0.001047000056 0.000739999989 0.000520000001 0.000361000013
+       0.000249000004 0.000172000000 0.000119999997 0.000085000000 0.000059999998 0.000042000000 0.000029999999 0.000021000000
+       0.000015000000
+       0.006450000219 0.010549999774 0.020050000399 0.036210000515 0.067850001156 0.110200002789 0.207399994135 0.371300011873
+       0.645600020885 1.039049983025 1.385599970818 1.622959971428 1.747059941292 1.782600045204 1.772109985352 1.744099974632
+       1.669199943542 1.528100013733 1.287639975548 1.041900038719 0.812950015068 0.616199970245 0.465180009604 0.353300005198
+       0.272000014782 0.212300002575 0.158199995756 0.111699998379 0.078249998391 0.057250000536 0.042160000652 0.029839999974
+       0.020300000906 0.013399999589 0.008750000037 0.005750000011 0.003899999894 0.002749999985 0.002099999925 0.001799999969
+       0.001649999991 0.001399999950 0.001099999994 0.001000000047 0.000799999980 0.000600000028 0.000339999999 0.000239999994
+       0.000190000006 0.000099999997 0.000049999999 0.000029999999 0.000019999999 0.000010000000 0.000000000000 0.000000000000
+       0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000
+       0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000
+       0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000 0.000000000000
+       0.000000000000
+      </ObserverFuncs>
+      <StdIlluminant>Illuminant D65</StdIlluminant>
+      <ColorTemperature>6500.000000000000</ColorTemperature>
+      <IlluminantSPD start="380.00000000" end="780.00000000" steps="81">
+       49.975498199463 52.311798095703 54.648200988770 68.701499938965 82.754898071289 87.120399475098 91.486000061035 92.458900451660
+       93.431800842285 90.056999206543 86.682296752930 95.773597717285 104.864997863770 110.935997009277 117.008003234863 117.410003662109
+       117.811996459961 116.335998535156 114.861000061035 115.391998291016 115.922996520996 112.366996765137 108.810997009277 109.082000732422
+       109.353996276855 108.578002929688 107.802001953125 106.295997619629 104.790000915527 106.238998413086 107.689002990723 106.046997070312
+       104.404998779297 104.224998474121 104.045997619629 102.023002624512 100.000000000000 98.167098999023 96.334197998047 96.061096191406
+       95.788002014160 92.236801147461 88.685600280762 89.345901489258 90.006202697754 89.802597045898 89.599098205566 88.648902893066
+       87.698699951172 85.493598937988 83.288597106934 83.493896484375 83.699203491211 81.862998962402 80.026802062988 80.120697021484
+       80.214599609375 81.246200561523 82.277801513672 80.280998229980 78.284202575684 74.002700805664 69.721298217773 70.665199279785
+       71.609100341797 72.978996276855 74.348999023438 67.976501464844 61.604000091553 65.744796752930 69.885597229004 72.486297607422
+       75.086997985840 69.339797973633 63.592700958252 55.005401611328 46.418201446533 56.611801147461 66.805397033691 65.094100952148
+       63.382801055908
+      </IlluminantSPD>
+      <SurroundXYZ X="95.050003051758" Y="100.000000000000" Z="108.910003662109"/>
+    </spectralViewingConditionsType> </spectralViewingConditionsTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.950500488281" Y="1.000000000000" Z="1.089096069336"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <copyrightTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2018 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+  </Tags>
+</IccProfile>

@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICC Profile Analyzer — MCP Web UI</title>
+<style>
+/* ── Reset & Variables ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #8b949e;
+  --accent:   #58a6ff;
+  --green:    #3fb950;
+  --red:      #f85149;
+  --yellow:   #d29922;
+  --mono:     'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --sans:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --radius:   6px;
+}
+html { font-size: 15px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Layout ────────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+header h1 { font-size: 1.4rem; font-weight: 600; }
+header .badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+/* ── Tool Selector ─────────────────────────────────────── */
+.toolbar {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.toolbar button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toolbar button:hover { border-color: var(--accent); color: var(--text); }
+.toolbar button.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Input Panel ───────────────────────────────────────── */
+.input-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.input-panel label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.input-row {
+  display: flex; gap: 0.5rem; align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+.input-row:last-child { margin-bottom: 0; }
+.input-row .field { flex: 1; }
+.input-row input, .input-row select {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+.input-row input:focus, .input-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+}
+.btn-run {
+  padding: 0.45rem 1.2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--green);
+  color: var(--bg);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.btn-run:hover { opacity: 0.85; }
+.btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Profile Quick-Pick ────────────────────────────────── */
+.profile-list {
+  margin-top: 0.5rem;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  display: none;
+}
+.profile-list.open { display: block; }
+.profile-list .item {
+  padding: 0.3rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between;
+}
+.profile-list .item:last-child { border-bottom: none; }
+.profile-list .item:hover { background: var(--surface); }
+.profile-list .item .size { color: var(--muted); font-size: 0.75rem; }
+
+/* ── File upload ───────────────────────────────────────── */
+.file-upload-row {
+  display: flex; gap: 0.5rem; align-items: center;
+  margin-top: 0.5rem; padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.file-upload-row .btn-upload {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.file-upload-row .btn-upload:hover { background: var(--accent); color: var(--bg); }
+.file-upload-row .upload-status {
+  font-size: 0.75rem; color: var(--muted);
+}
+.hidden-input {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  border: 0; padding: 0; margin: -1px;
+}
+.btn-save-xml {
+  padding: 0.45rem 1.2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.btn-save-xml:hover { opacity: 0.85; }
+.btn-save {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-save:hover { background: var(--accent); color: var(--bg); }
+.btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.download-link {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.clipboard-offscreen {
+  position: fixed;
+  opacity: 0;
+}
+
+/* ── Status bar ────────────────────────────────────────── */
+.status {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  min-height: 1.2em;
+}
+.status.running { color: var(--yellow); }
+.status.ok { color: var(--green); }
+.status.err { color: var(--red); }
+
+/* ── Output Panel ──────────────────────────────────────── */
+.output {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 300px;
+  max-height: 70vh;
+  overflow: auto;
+  position: relative;
+}
+.output pre {
+  padding: 1rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+.output .placeholder {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+.output .copy-btn {
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.output:hover .copy-btn { opacity: 1; }
+.output .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+/* ── Footer ────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  padding-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .input-row { flex-direction: column; }
+  .toolbar { gap: 0.3rem; }
+  .toolbar button { font-size: 0.78rem; padding: 0.35rem 0.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🎨 ICC Profile Analyzer</h1>
+    <span class="badge">MCP Web UI</span>
+  </header>
+
+  <!-- Tool selector -->
+  <nav class="toolbar" id="toolbar">
+    <button data-tool="list"      class="active">List Profiles</button>
+    <button data-tool="inspect"  >Inspect</button>
+    <button data-tool="security" >Security Scan</button>
+    <button data-tool="roundtrip">Round-Trip</button>
+    <button data-tool="full"     >Full Analysis</button>
+    <button data-tool="xml"      >To XML</button>
+    <button data-tool="compare"  >Compare</button>
+  </nav>
+
+  <!-- Input panel -->
+  <section class="input-panel" id="inputPanel">
+    <!-- Dynamically populated per tool -->
+  </section>
+
+  <!-- Status -->
+  <div class="status" id="status"></div>
+
+  <!-- Output -->
+  <section class="output" id="output">
+    <button class="copy-btn hidden-input" id="copyBtn">Copy</button>
+    <div class="placeholder" id="placeholder">Select a tool and click <strong>Run</strong></div>
+    <pre id="outputPre" class="hidden-input"></pre>
+  </section>
+
+  <footer>
+    Copyright &copy; 2026 David H Hoyt LLC &mdash;
+    <a href="https://hoyt.net">hoyt.net</a> &mdash;
+    ICC Profile MCP Server
+  </footer>
+
+</div>
+
+<script>
+/* ================================================================
+   ICC Profile Analyzer — Web UI (vanilla JS, zero dependencies)
+   ================================================================ */
+"use strict";
+
+const TOOLS = {
+  list:      { label: "List Profiles",  endpoint: "/api/list",      fields: ["directory"] },
+  inspect:   { label: "Inspect",        endpoint: "/api/inspect",   fields: ["path"] },
+  security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"] },
+  roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"] },
+  full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"] },
+  xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"] },
+  compare:   { label: "Compare",        endpoint: "/api/compare",   fields: ["path_a", "path_b"] },
+};
+
+const DIRS = ["test-profiles", "extended-test-profiles", "reference-profiles", "xif", "fuzz/graphics/icc"];
+
+const DEFAULT_PROFILE = "BlacklightPoster_411039.icc";
+const DEFAULT_XML_PROFILE = "reference-profiles/Display_sRGB_D65_colorimetric.icc";
+
+let currentTool = "list";
+let profileCache = {};   // directory -> [{name, size}]
+let abortCtrl = null;
+let lastOutput = "";     // store last output for Save As
+
+/* ── DOM refs ──────────────────────────────────────────── */
+const $toolbar    = document.getElementById("toolbar");
+const $inputPanel = document.getElementById("inputPanel");
+const $status     = document.getElementById("status");
+const $output     = document.getElementById("output");
+const $pre        = document.getElementById("outputPre");
+const $placeholder= document.getElementById("placeholder");
+const $copyBtn    = document.getElementById("copyBtn");
+
+/* ── Tool switching ────────────────────────────────────── */
+function selectTool(toolName) {
+  if (!TOOLS[toolName]) return;
+  currentTool = toolName;
+  location.hash = toolName;
+  $toolbar.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  const active = $toolbar.querySelector(`button[data-tool="${toolName}"]`);
+  if (active) active.classList.add("active");
+  renderInputs();
+  if (toolName === "list") run();
+}
+
+$toolbar.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-tool]");
+  if (!btn) return;
+  selectTool(btn.dataset.tool);
+});
+
+window.addEventListener("hashchange", () => {
+  const h = location.hash.replace(/^#/, "");
+  if (h && TOOLS[h] && h !== currentTool) selectTool(h);
+});
+
+/* ── Render input fields per tool ──────────────────────── */
+function renderInputs() {
+  const tool = TOOLS[currentTool];
+  let html = "";
+
+  // Save As button (for all tools)
+  const saveBtn = '<button class="btn-save" id="btnSave" disabled>💾 Save As</button>';
+
+  if (currentTool === "list") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-directory">Directory</label>
+          <select id="inp-directory">
+            ${DIRS.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "compare") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-path_a">Profile A</label>
+          <input id="inp-path_a" value="${esc(DEFAULT_PROFILE)}" placeholder="e.g. BlacklightPoster_411039.icc" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-path_b">Profile B</label>
+          <input id="inp-path_b" placeholder="e.g. cve-2022-26730-poc-sample-004.icc" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <div class="file-upload-row">
+        <input type="file" id="fileInput" accept=".icc,.icm,.icc2" class="hidden-input">
+        <button class="btn-upload" id="btnUpload">📂 Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">📋 Server Profiles</button>
+        <span class="upload-status" id="uploadStatus"></span>
+      </div>
+      <div id="profilePicker"></div>`;
+  } else {
+    const defaultVal = currentTool === "xml" ? DEFAULT_XML_PROFILE : DEFAULT_PROFILE;
+    const xmlSaveBtn = currentTool === "xml"
+      ? '<button class="btn-save-xml" id="btnSaveXml">Save XML</button>'
+      : '';
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-path">Profile</label>
+          <input id="inp-path" value="${esc(defaultVal)}" placeholder="e.g. BlacklightPoster_411039.icc" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${xmlSaveBtn}
+        ${saveBtn}
+      </div>
+      <div class="file-upload-row">
+        <input type="file" id="fileInput" accept=".icc,.icm,.icc2" class="hidden-input">
+        <button class="btn-upload" id="btnUpload">📂 Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">📋 Server Profiles</button>
+        <span class="upload-status" id="uploadStatus"></span>
+      </div>
+      <div id="profilePicker"></div>`;
+  }
+
+  $inputPanel.innerHTML = html;
+
+  // attach event handlers (no inline onclick — CSP nonce compliance)
+  const btnRun = document.getElementById("btnRun");
+  if (btnRun) btnRun.addEventListener("click", run);
+  const btnSave = document.getElementById("btnSave");
+  if (btnSave) btnSave.addEventListener("click", saveOutput);
+  const btnSaveXml = document.getElementById("btnSaveXml");
+  if (btnSaveXml) btnSaveXml.addEventListener("click", downloadXml);
+  const btnUpload = document.getElementById("btnUpload");
+  const fileInput = document.getElementById("fileInput");
+  if (btnUpload && fileInput) {
+    btnUpload.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", handleFileUpload);
+  }
+  const btnToggle = document.getElementById("btnTogglePicker");
+  if (btnToggle) btnToggle.addEventListener("click", toggleProfilePicker);
+  $inputPanel.querySelectorAll("input[type='text'], input:not([type])").forEach(inp => {
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+  });
+
+  // profile picker starts hidden — user toggles via "Server Profiles" button
+  if (currentTool !== "list") loadProfilePicker(false);
+}
+
+/* ── Profile quick-pick list ───────────────────────────── */
+async function loadProfilePicker(visible) {
+  const picker = document.getElementById("profilePicker");
+  if (!picker) return;
+
+  // Use reference-profiles for xml tool, test-profiles otherwise
+  const dir = currentTool === "xml" ? "reference-profiles" : "test-profiles";
+  const prefix = (dir !== "test-profiles") ? dir + "/" : "";
+
+  if (!profileCache[dir]) {
+    try {
+      const resp = await fetch(`/api/list?directory=${encodeURIComponent(dir)}`);
+      const data = await resp.json();
+      if (data.ok) {
+        const lines = data.result.split("\n").slice(1).filter(l => l.trim());
+        profileCache[dir] = lines.map(l => {
+          const m = l.trim().match(/^(.+\.icc)\s+\((.+)\)$/);
+          return m ? { name: m[1], size: m[2] } : null;
+        }).filter(Boolean);
+      }
+    } catch { return; }
+  }
+
+  const profiles = profileCache[dir];
+  if (!profiles || !profiles.length) return;
+
+  let html = `<div class="profile-list${visible ? ' open' : ''}">`;
+  for (const p of profiles) {
+    html += `<div class="item" data-name="${esc(prefix + p.name)}">
+      <span>${esc(p.name)}</span><span class="size">${esc(p.size)}</span>
+    </div>`;
+  }
+  html += '</div>';
+  picker.innerHTML = html;
+}
+
+/* ── Profile picker delegation (single handler, never duplicated) ── */
+$inputPanel.addEventListener("click", e => {
+  const item = e.target.closest(".item[data-name]");
+  if (!item) return;
+  const name = item.dataset.name;
+  const inputs = $inputPanel.querySelectorAll("input");
+  let filled = false;
+  for (const inp of inputs) {
+    if (!inp.value.trim()) { inp.value = name; filled = true; break; }
+  }
+  if (!filled && inputs.length) inputs[0].value = name;
+});
+
+/* ── Toggle server profile picker ──────────────────────── */
+function toggleProfilePicker() {
+  const picker = document.getElementById("profilePicker");
+  if (!picker) return;
+  const list = picker.querySelector(".profile-list");
+  if (list) {
+    list.classList.toggle("open");
+  } else {
+    loadProfilePicker(true);
+  }
+}
+
+/* ── File upload handler ────────────────────────────────── */
+async function handleFileUpload() {
+  const fileInput = document.getElementById("fileInput");
+  const statusEl = document.getElementById("uploadStatus");
+  if (!fileInput || !fileInput.files.length) return;
+
+  const file = fileInput.files[0];
+  if (file.size > 20 * 1024 * 1024) {
+    if (statusEl) statusEl.textContent = "File exceeds 20 MB limit";
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = `Uploading ${file.name}…`;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const resp = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await resp.json();
+    if (data.ok) {
+      const inputs = $inputPanel.querySelectorAll("input[id^='inp-path']");
+      for (const inp of inputs) {
+        if (inp.id && inp.id.startsWith("inp-path")) {
+          inp.value = data.path;
+          break;
+        }
+      }
+      if (statusEl) statusEl.textContent = `✓ ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`;
+    } else {
+      if (statusEl) statusEl.textContent = `✗ ${data.error}`;
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `✗ Upload failed: ${sanitize(err.message)}`;
+  }
+}
+
+/* ── Run the selected tool ─────────────────────────────── */
+async function run() {
+  const tool = TOOLS[currentTool];
+  const params = new URLSearchParams();
+
+  // Gather inputs
+  for (const f of tool.fields) {
+    const el = document.getElementById(`inp-${f}`);
+    if (!el) continue;
+    const val = el.value.trim();
+    if (!val && f !== "directory") {
+      setStatus("err", `${f} is required`);
+      el.focus();
+      return;
+    }
+    params.set(f, val);
+  }
+
+  // Abort previous request if still running
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+
+  setStatus("running", `Running ${tool.label}…`);
+  showOutput("");
+  const runBtn = $inputPanel.querySelector(".btn-run");
+  if (runBtn) runBtn.disabled = true;
+
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(`${tool.endpoint}?${params}`, { signal: abortCtrl.signal });
+    const data = await resp.json();
+    const ms = (performance.now() - t0).toFixed(0);
+
+    if (data.ok) {
+      setStatus("ok", `${tool.label} completed in ${ms} ms`);
+      showOutput(data.result);
+      lastOutput = data.result;
+      enableSave(true);
+    } else {
+      const safeErr = sanitize(data.error || "Unknown error");
+      setStatus("err", safeErr);
+      showOutput(`Error: ${safeErr}`);
+      lastOutput = "";
+      enableSave(false);
+    }
+  } catch (err) {
+    if (err.name === "AbortError") return;
+    const safeMsg = sanitize(err.message);
+    setStatus("err", `Network error: ${safeMsg}`);
+    showOutput(`Network error:\n${safeMsg}`);
+    lastOutput = "";
+    enableSave(false);
+  } finally {
+    if (runBtn) runBtn.disabled = false;
+  }
+}
+
+/* ── Helpers ───────────────────────────────────────────── */
+function setStatus(cls, msg) {
+  $status.className = `status ${cls}`;
+  $status.textContent = msg;
+}
+
+function showOutput(text) {
+  if (!text) {
+    $pre.classList.add("hidden-input");
+    $copyBtn.classList.add("hidden-input");
+    $placeholder.classList.remove("hidden-input");
+    // Remove any existing download link
+    const old = document.getElementById("downloadLink");
+    if (old) old.remove();
+    return;
+  }
+  $placeholder.classList.add("hidden-input");
+  $pre.classList.remove("hidden-input");
+  $copyBtn.classList.remove("hidden-input");
+  $pre.textContent = sanitize(text);
+
+  // Show download link if XML output was truncated
+  const old = document.getElementById("downloadLink");
+  if (old) old.remove();
+  if (currentTool === "xml" && text.includes("[TRUNCATED")) {
+    const el = document.getElementById("inp-path");
+    if (el && el.value.trim()) {
+      const link = document.createElement("a");
+      link.id = "downloadLink";
+      link.href = `/api/xml/download?path=${encodeURIComponent(el.value.trim())}`;
+      link.textContent = "⬇ Download Full XML";
+      link.className = "download-link";
+      link.download = "";
+      $output.parentNode.insertBefore(link, $output.nextSibling);
+    }
+  }
+}
+
+function copyOutput() {
+  const text = $pre.textContent;
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      $copyBtn.textContent = "Copied!";
+      setTimeout(() => { $copyBtn.textContent = "Copy"; }, 1500);
+    });
+  } else {
+    /* Fallback for non-HTTPS contexts */
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.className = "clipboard-offscreen";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    $copyBtn.textContent = "Copied!";
+    setTimeout(() => { $copyBtn.textContent = "Copy"; }, 1500);
+  }
+}
+
+function downloadXml() {
+  const el = document.getElementById("inp-path");
+  if (!el) return;
+  const val = el.value.trim();
+  if (!val) { setStatus("err", "Profile path is required"); el.focus(); return; }
+  // Trigger browser download via the download endpoint
+  const url = `/api/xml/download?path=${encodeURIComponent(val)}`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function enableSave(enabled) {
+  const btn = document.getElementById("btnSave");
+  if (btn) btn.disabled = !enabled;
+}
+
+async function saveOutput() {
+  if (!lastOutput) return;
+
+  // Build a descriptive filename
+  const tool = TOOLS[currentTool];
+  let profileName = "";
+  const pathInput = document.getElementById("inp-path") ||
+                    document.getElementById("inp-path_a") ||
+                    document.getElementById("inp-directory");
+  if (pathInput) profileName = pathInput.value.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  try {
+    const resp = await fetch("/api/output/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tool: currentTool,
+        text: lastOutput,
+        filename: profileName ? `${currentTool}_${profileName}` : currentTool,
+      }),
+    });
+    if (!resp.ok) {
+      setStatus("err", "Save failed");
+      return;
+    }
+    // Trigger browser download from response
+    const blob = await resp.blob();
+    const cd = resp.headers.get("Content-Disposition") || "";
+    const fnMatch = cd.match(/filename="?([^"]+)"?/);
+    const filename = fnMatch ? fnMatch[1] : `${currentTool}_output.txt`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus("ok", `Saved as ${filename}`);
+  } catch (err) {
+    setStatus("err", `Save failed: ${sanitize(err.message)}`);
+  }
+}
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* Strip C0 control chars (except LF \n and TAB \t) and DEL.
+   Mirrors sanitize-sed.sh _strip_ctrl_keep_newlines — defense-in-depth. */
+function sanitize(s) {
+  if (!s) return s;
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
+          .replace(/\r/g, "")
+          .replace(/\n{4,}/g, "\n\n\n");
+}
+
+/* ── Boot ──────────────────────────────────────────────── */
+$copyBtn.addEventListener("click", copyOutput);
+const initHash = location.hash.replace(/^#/, "");
+if (initHash && TOOLS[initHash]) {
+  selectTool(initHash);
+} else {
+  renderInputs();
+  run();
+}
+</script>
+</body>
+</html>

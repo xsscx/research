@@ -1,0 +1,233 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build and test the ICC Profile MCP Server.
+#         Builds iccDEV (libs + tools), iccanalyzer-lite,
+#         colorbleed_tools, installs MCP Python SDK, runs
+#         the full test suite (195 MCP + 124 Web UI tests).
+#
+###############################################################
+
+name: MCP Server Test
+
+permissions:
+  contents: write
+  packages: write
+
+on:
+  push:
+    branches: [mcp]
+    paths:
+      - 'mcp-server/**'
+      - 'iccanalyzer-lite/**'
+      - 'colorbleed_tools/**'
+      - '.github/workflows/mcp-server-test.yml'
+  pull_request:
+    branches: [main, mcp]
+    paths:
+      - 'mcp-server/**'
+      - 'iccanalyzer-lite/**'
+      - 'colorbleed_tools/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang-18 \
+            llvm-18 \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev \
+            python3 \
+            python3-venv \
+            python3-pip
+
+      - name: Build iccDEV (libraries + tools)
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
+          cd iccDEV
+          # Comment out wxWidgets (not needed for MCP tools, matches clusterfuzzlite.yml)
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+          cd Build
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DENABLE_TOOLS=ON \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_SHARED_LIBS=ON \
+            -Wno-dev
+          make -j"$(nproc)"
+          echo "✓ iccDEV libraries + tools built"
+          ls -lh IccProfLib/libIccProfLib2-static.a IccXML/libIccXML2-static.a
+          ls -lh Tools/IccToXml/iccToXml
+
+      - name: Install safe iccToXml
+        run: |
+          set -euo pipefail
+          cp iccanalyzer-lite/iccDEV/Build/Tools/IccToXml/iccToXml colorbleed_tools/iccToXml
+          chmod +x colorbleed_tools/iccToXml
+          echo "✓ Safe iccToXml installed to colorbleed_tools/"
+
+      - name: Build iccanalyzer-lite
+        env:
+          CXX: clang++-18
+        working-directory: iccanalyzer-lite
+        run: |
+          set -euo pipefail
+          bash build.sh
+          echo "✓ iccanalyzer-lite built"
+          ./iccanalyzer-lite --version 2>&1 | head -5 || true
+
+      - name: Build colorbleed_tools
+        env:
+          CC: clang-18
+          CXX: clang++-18
+          CXXFLAGS: "-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -std=gnu++17 -Wall"
+          LDFLAGS: "-fsanitize=address,undefined"
+        run: |
+          set -euo pipefail
+          cd colorbleed_tools
+          # Symlink iccDEV from iccanalyzer-lite to avoid a second clone
+          ln -sf ../iccanalyzer-lite/iccDEV iccDEV
+          make clean all CXXFLAGS="$CXXFLAGS" LINK_LIBS="-fsanitize=address,undefined -lxml2 -lz -llzma -lm"
+          make test CXXFLAGS="$CXXFLAGS" LINK_LIBS="-fsanitize=address,undefined -lxml2 -lz -llzma -lm"
+          echo "✓ colorbleed_tools built"
+          ls -lh iccToXml iccToXml_unsafe iccFromXml_unsafe
+
+      - name: Setup MCP Python environment
+        run: |
+          set -euo pipefail
+          cd mcp-server
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --quiet -r requirements.txt
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from icc_profile_mcp import mcp
+          tools = mcp._tool_manager._tools
+          print(f'✓ MCP server loaded: {len(tools)} tools registered')
+          for name in sorted(tools.keys()):
+              print(f'  - {name}')
+          "
+
+      - name: Run MCP test suite
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          MallocNanoZone: "0"
+        run: |
+          set -euo pipefail
+          source mcp-server/.venv/bin/activate
+          python mcp-server/test_mcp.py 2>&1 | tee /tmp/mcp-test-output.txt
+
+      - name: Web UI security and functional tests
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          MallocNanoZone: "0"
+        run: |
+          set -euo pipefail
+          source mcp-server/.venv/bin/activate
+          python mcp-server/test_web_ui.py 2>&1 | tee /tmp/webui-test-output.txt
+
+      - name: Build Python wheel
+        run: |
+          set -euo pipefail
+          cd mcp-server
+          source .venv/bin/activate
+          pip install --quiet build
+          python -m build
+          echo "✓ Wheel built"
+          ls -lh dist/
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: mcp-server/dist/
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/mcp'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mcp-dev
+          name: MCP Server (Development Build)
+          body: |
+            Development build from `mcp` branch.
+
+            **Commit:** ${{ github.sha }}
+            **Tests:** 195 MCP + 124 Web UI = 319 passed
+
+            Install: `pip install icc_profile_mcp-*.whl`
+          prerelease: true
+          make_latest: false
+          files: mcp-server/dist/*
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/mcp'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/mcp'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/icc-profile-mcp:dev
+            ghcr.io/${{ github.repository_owner }}/icc-profile-mcp:${{ github.sha }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## MCP Server Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/mcp-test-output.txt ]; then
+            tail -20 /tmp/mcp-test-output.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "MCP tests did not run" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Web UI Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/webui-test-output.txt ]; then
+            tail -40 /tmp/webui-test-output.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Web UI tests did not run" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY

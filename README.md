@@ -1,9 +1,20 @@
-# Hoyt's Research Branch
+# Security Research Tools for ICC Color Profiles
 
-Last Updated: 2026-02-07 16:45:26 UTC by David Hoyt
+Last Updated: 2026-02-10 15:45:39 UTC by David Hoyt
 
 - Fuzzing Tools
 - ColorBleed Tooling
   - [Latest Binary ](https://github.com/xsscx/research/actions/workflows/colorbleed-tools-build.yml)
 - iccAnalyzer-lite
   - [Latest Binary](https://github.com/xsscx/research/actions/workflows/iccanalyzer-lite-ab-test.yml)
+- iccMCP
+  - [Latest Package](https://github.com/xsscx/research/actions/workflows/mcp-server-test.yml) 
+
+##    iccAnalyzer Web UI
+
+```
+   docker pull ghcr.io/xsscx/icc-profile-mcp:dev
+   docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev icc-profile-web --host 0.0.0.0 --port 8080
+```
+   Open http://localhost:8080/
+<img width="3742" height="1936" alt="image" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />

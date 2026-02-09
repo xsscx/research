@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "icc-profile-mcp"
+version = "0.1.0"
+description = "MCP server for ICC color profile security analysis, validation, and forensic inspection"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "David H Hoyt", email = "dhoyt@hoyt.net" },
+]
+keywords = ["mcp", "icc", "color-profile", "security", "fuzzing", "analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "mcp[cli]>=1.26.0",
+]
+
+[project.optional-dependencies]
+web = [
+    "starlette",
+    "uvicorn",
+    "httpx",
+]
+dev = [
+    "starlette",
+    "uvicorn",
+    "httpx",
+]
+
+[project.urls]
+Homepage = "https://github.com/xsscx/research"
+Repository = "https://github.com/xsscx/research"
+Issues = "https://github.com/xsscx/research/issues"
+
+[project.scripts]
+icc-profile-mcp = "icc_profile_mcp:run_server"
+icc-profile-web = "web_ui:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = [
+    "icc_profile_mcp.py",
+    "web_ui.py",
+    "index.html",
+]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "icc_profile_mcp.py",
+    "web_ui.py",
+    "index.html",
+    "pyproject.toml",
+    "README.md",
+]

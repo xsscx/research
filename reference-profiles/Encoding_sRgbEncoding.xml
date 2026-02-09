@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>NULL</PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>cenc</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>NULL</PCS>
+    <CreationDateTime>0-00-00T00:00:00</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.000000000000" Y="0.000000000000" Z="0.000000000000"/>
+    </PCSIlluminant>
+    <ProfileCreator>NULL</ProfileCreator>
+  </Header>
+  <Tags>
+    <referenceNameTag> <utf8Type>
+      <TextData><![CDATA[sRGB]]></TextData>
+    </utf8Type> </referenceNameTag>
+
+  </Tags>
+</IccProfile>

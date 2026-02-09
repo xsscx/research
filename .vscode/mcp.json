@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "icc-profile-analyzer": {
+      "command": "${workspaceFolder}/mcp-server/.venv/bin/python",
+      "args": ["${workspaceFolder}/mcp-server/icc_profile_mcp.py"]
+    }
+  }
+}

@@ -1,8 +1,15 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-02-04 15:47:46 UTC by David Hoyt
+Last Updated: 2026-02-09 UTC by David Hoyt
 
-ICC Color Profile research tools to load & store unsafe file represenations.
+ICC Color Profile research tools to load & store unsafe file representations.
+
+## Tools
+
+| Binary | Description |
+|--------|-------------|
+| `iccToXml_unsafe` | ICC Profile → XML (unsafe load) |
+| `iccFromXml_unsafe` | XML → ICC Profile blob (unsafe store) |
 
 ## Use Cases
 - Fuzzing
@@ -21,27 +28,51 @@ ICC Color Profile research tools to load & store unsafe file represenations.
    - Desktops
    - TVs
 
+## Requirements
+
+### Ubuntu/Debian
+```
+sudo apt install -y build-essential cmake clang clang-tools \
+  libxml2-dev libtiff-dev zlib1g-dev liblzma-dev pkg-config git
+```
+
 ## Build
-### Host
+
+### Quick Start
 ```
-Linux repro 6.8.0-90-generic #91-Ubuntu SMP PREEMPT_DYNAMIC Tue Nov 18 14:14:30 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+cd colorbleed_tools
+make setup       # clone iccDEV, patch wxWidgets, build static libs
+make test        # build tools and run tests
 ```
-### Instructions
+
+### Individual Targets
 ```
-export CXX=g++
+make setup       # clone iccDEV + build libraries (one-time)
+make             # build both unsafe tools
+make test        # build + run basic tests
+make clean       # remove binaries and test files
+make distclean   # remove everything including iccDEV clone
+make help        # show all targets
+```
+
+### Build
+
+```
 git clone https://github.com/xsscx/research.git
 cd research
 cd colorbleed_tools
 git clone https://github.com/InternationalColorConsortium/iccDEV.git
-cd iccDEV && cd Build && cmake Cmake && make
-cd ../../ && make clean all test
+cd iccDEV && cd Build && cmake Cmake && make -j32
+cd ../../ && make distclean && make setup &&  make -j32 all test
+...
+[OK] Basic tests complete
 ```
 
-## Workflow
+## CI Workflow
 
 https://github.com/xsscx/research/blob/main/.github/workflows/colorbleed-tools-build.yml
 
-## References 
+## References
 - https://srd.cx/cve-2022-26730/
 - https://srd.cx/cve-2023-32443/
 - https://srd.cx/cve-2024-38427/

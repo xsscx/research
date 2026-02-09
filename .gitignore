@@ -49,7 +49,38 @@
 iccanalyzer-lite/iccanalyzer-lite
 colorbleed_tools/iccFromXml_unsafe
 colorbleed_tools/iccToXml_unsafe
+colorbleed_tools/iccToXml
 colorbleed_tools/roundtrip.icc
 colorbleed_tools/test.xml
 
+# LLVM profiling artifacts
+*.profraw
+*.profdata
+
+# Cloned SDK repos (built locally, not tracked)
 iccanalyzer-lite/iccDEV/
+cfl/iccDEV/
+cfl/bin/
+colorbleed_tools/iccDEV/
+
+# Local corpus data (cloned separately, not tracked in this repo)
+xif/
+fuzz/
+
+# MCP server
+mcp-server/.venv/
+mcp-server/__pycache__/
+mcp-server/dist/
+mcp-server/build/
+mcp-server/*.egg-info/
+
+# Build logs
+*.log
+iccanalyzer-lite/scan-build-results/
+
+# Screenshots (debug artifacts)
+Screenshot*
+*.png
+
+# Copilot session state
+.copilot/
