@@ -330,8 +330,13 @@ jobs:
           # Copy binaries with compiler-stamped names for release upload
           cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${{ matrix.compiler }}"
           cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${{ matrix.compiler }}"
+          chmod +x "iccToXml_unsafe-${{ matrix.compiler }}" "iccFromXml_unsafe-${{ matrix.compiler }}"
 
-          ls -lh "${TARBALL}" "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" "SHA256SUMS-${{ matrix.compiler }}.txt" "iccToXml_unsafe-${{ matrix.compiler }}" "iccFromXml_unsafe-${{ matrix.compiler }}"
+          # Wrap binaries in tar.gz to preserve execute permissions
+          tar -czf "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccToXml_unsafe-${{ matrix.compiler }}"
+          tar -czf "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}"
+
+          ls -lh "${TARBALL}" "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" "SHA256SUMS-${{ matrix.compiler }}.txt" "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -376,8 +381,8 @@ jobs:
             ${{ steps.package.outputs.tarball }}
             ${{ steps.package.outputs.summary_file }}
             ${{ steps.package.outputs.checksums_file }}
-            iccToXml_unsafe-${{ matrix.compiler }}
-            iccFromXml_unsafe-${{ matrix.compiler }}
+            iccToXml_unsafe-${{ matrix.compiler }}.tar.gz
+            iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

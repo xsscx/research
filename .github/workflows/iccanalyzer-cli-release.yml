@@ -446,9 +446,13 @@ jobs:
 
           # Copy static binary and generate checksums for release upload
           cp iccanalyzer-lite/iccanalyzer-lite-static iccanalyzer-lite-linux-amd64
+          chmod +x iccanalyzer-lite-linux-amd64
           sha256sum iccanalyzer-lite-linux-amd64 > SHA256SUMS.txt
 
-          ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64 SHA256SUMS.txt
+          # Wrap binary in tar.gz to preserve execute permissions
+          tar -czf iccanalyzer-lite-linux-amd64.tar.gz iccanalyzer-lite-linux-amd64
+
+          ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64.tar.gz SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -485,7 +489,7 @@ jobs:
           files: |
             ${{ steps.package.outputs.tarball }}
             ${{ steps.package.outputs.summary_file }}
-            iccanalyzer-lite-linux-amd64
+            iccanalyzer-lite-linux-amd64.tar.gz
             SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
