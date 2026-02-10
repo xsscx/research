@@ -430,8 +430,9 @@ jobs:
         id: package
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
 
-          TAG_PREFIX="${{ github.event.inputs.release_tag_prefix || 'cli-test-suite' }}"
+          TAG_PREFIX="$(sanitize_ref "${{ github.event.inputs.release_tag_prefix || 'cli-test-suite' }}")"
           DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
           RELEASE_TAG="${TAG_PREFIX}-${DATESTAMP}-run${{ github.run_number }}"
           echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT

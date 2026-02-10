@@ -303,8 +303,9 @@ jobs:
         id: package
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
 
-          TAG_PREFIX="${{ github.event.inputs.release_tag_prefix || 'colorbleed-test' }}"
+          TAG_PREFIX="$(sanitize_ref "${{ github.event.inputs.release_tag_prefix || 'colorbleed-test' }}")"
           DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
           RELEASE_TAG="${TAG_PREFIX}-${{ matrix.compiler }}-${DATESTAMP}-run${{ github.run_number }}"
           echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
