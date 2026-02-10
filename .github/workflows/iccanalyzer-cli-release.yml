@@ -454,7 +454,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
-          name: "iccAnalyzer-lite | Security Research Tools for Color Profiles — ${{ steps.package.outputs.release_tag }}"
+          name: "iccAnalyzer-lite | Security Research Tools for Color Profiles"
           body: |
             ## iccAnalyzer-lite CLI Test Suite Results
 

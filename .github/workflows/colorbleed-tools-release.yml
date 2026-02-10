@@ -337,7 +337,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
-          name: "ColorBleed | Reading & Writing Unsafe Color Profiles — ${{ matrix.compiler }} — ${{ steps.package.outputs.release_tag }}"
+          name: "ColorBleed | Reading & Writing Unsafe Color Profiles"
           body: |
             ## ColorBleed Tools Roundtrip Test Results
 
