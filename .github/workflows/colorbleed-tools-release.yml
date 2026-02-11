@@ -1,0 +1,438 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Manual-trigger colorbleed_tools test suite that
+#         publishes build + roundtrip results as a GitHub
+#         Release with test artifacts attached.
+#
+# Based on: colorbleed-tools-build.yml
+#
+# Tools Under Test:
+#   iccToXml_unsafe  - ICC binary → XML conversion
+#   iccFromXml_unsafe - XML → ICC binary conversion
+#
+# Test Strategy:
+#   1. Build with gcc and clang (matrix)
+#   2. Roundtrip each test profile: ICC → XML → ICC
+#   3. Compare file sizes and checksums
+#   4. Package results into a GitHub Release
+#
+###############################################################
+
+name: "ColorBleed Tools Test Suite → Release"
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_profile_count:
+        description: 'Number of test profiles to use (max 50)'
+        required: false
+        default: '25'
+        type: string
+      compiler:
+        description: 'Compiler to use'
+        required: false
+        default: 'clang'
+        type: choice
+        options:
+          - clang
+          - gcc
+          - both
+      release_tag_prefix:
+        description: 'Release tag prefix (auto-appended with date+run)'
+        required: false
+        default: 'colorbleed-test'
+        type: string
+
+concurrency:
+  group: colorbleed-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_PROFILE_COUNT: ${{ github.event.inputs.test_profile_count || '25' }}
+
+jobs:
+  build-test:
+    name: "Build & Test (${{ matrix.compiler }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: ${{ github.event.inputs.compiler == 'both' && fromJSON('["gcc","clang"]') || fromJSON(format('["{0}"]', github.event.inputs.compiler || 'clang')) }}
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    outputs:
+      grand_total: ${{ steps.tests.outputs.grand_total }}
+      grand_success: ${{ steps.tests.outputs.grand_success }}
+      grand_failed: ${{ steps.tests.outputs.grand_failed }}
+      clean_rate: ${{ steps.tests.outputs.clean_rate }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake gcc g++ clang clang-tools \
+            libxml2-dev libtiff-dev libpng-dev \
+            nlohmann-json3-dev libwxgtk3.2-dev wx-common \
+            zlib1g-dev liblzma-dev pkg-config git
+
+      - name: Set compiler
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            echo "CC=gcc"   >> "$GITHUB_ENV"
+            echo "CXX=g++"  >> "$GITHUB_ENV"
+          else
+            echo "CC=clang"   >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build colorbleed_tools via Makefile
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd colorbleed_tools
+          make setup
+          make -j"$(nproc)" clean all test
+
+      - name: Verify binaries
+        working-directory: colorbleed_tools
+        run: |
+          set -euo pipefail
+          echo "=== Binary Verification ==="
+          ls -lh iccToXml_unsafe iccFromXml_unsafe
+          file iccToXml_unsafe iccFromXml_unsafe
+          echo "=== Static Linking Check ==="
+          echo "Dynamic dependencies (only libc/libxml2 expected):"
+          ldd iccToXml_unsafe 2>&1 || true
+          ldd iccFromXml_unsafe 2>&1 || true
+          sha256sum iccToXml_unsafe iccFromXml_unsafe | tee SHA256SUMS
+
+      - name: Setup test profiles
+        id: setup
+        run: |
+          set -euo pipefail
+          mkdir -p colorbleed-test-results/outputs/toxml
+          mkdir -p colorbleed-test-results/outputs/roundtrip
+          mkdir -p colorbleed-test-results/outputs/diffs
+
+          PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
+          PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
+
+          find test-profiles/ -type f -name "*.icc" | \
+            shuf -n ${PROFILE_COUNT} > colorbleed-test-results/selected-profiles.txt
+
+          AVAILABLE=$(wc -l < colorbleed-test-results/selected-profiles.txt | tr -d ' \n\r')
+          echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
+
+          echo "Selected ${AVAILABLE} profiles for colorbleed roundtrip testing:"
+          cat colorbleed-test-results/selected-profiles.txt
+
+      - name: Run roundtrip conversion tests
+        id: tests
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+
+          SUMMARY="colorbleed-test-results/test-summary.txt"
+          echo "==================================================================" > $SUMMARY
+          echo "ColorBleed Tools Roundtrip Test Report" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
+          echo "Compiler: ${{ matrix.compiler }} (${{ env.CXX }})" >> $SUMMARY
+          echo "Tools: iccToXml_unsafe, iccFromXml_unsafe" >> $SUMMARY
+          echo "Profiles: $(wc -l < colorbleed-test-results/selected-profiles.txt)" >> $SUMMARY
+          echo "" >> $SUMMARY
+
+          TOTAL=0
+          SUCCESS=0
+          FAILED=0
+
+          while IFS= read -r profile; do
+            TOTAL=$((TOTAL + 1))
+            PROFILE_NAME=$(basename "$profile")
+            XML_OUT="colorbleed-test-results/outputs/toxml/${PROFILE_NAME}.xml"
+            RT_OUT="colorbleed-test-results/outputs/roundtrip/${PROFILE_NAME}"
+            DIFF_OUT="colorbleed-test-results/outputs/diffs/${PROFILE_NAME}.diff.txt"
+
+            echo "[${TOTAL}] Testing: ${PROFILE_NAME}"
+            echo "=== Profile: ${PROFILE_NAME} ===" >> $SUMMARY
+
+            # Step 1: ICC → XML
+            TOXML_OK=false
+            if timeout 30s ./colorbleed_tools/iccToXml_unsafe "${profile}" "$XML_OUT" > "colorbleed-test-results/outputs/toxml/${PROFILE_NAME}.log" 2>&1; then
+              if [ -f "$XML_OUT" ] && [ -s "$XML_OUT" ]; then
+                TOXML_OK=true
+                XML_SIZE=$(stat -c%s "$XML_OUT" 2>/dev/null || echo 0)
+                echo "  ICC→XML: OK ($XML_SIZE bytes)" >> $SUMMARY
+                echo "  ICC→XML: OK ($XML_SIZE bytes)"
+              else
+                echo "  ICC→XML: FAIL (empty output)" >> $SUMMARY
+                echo "  ICC→XML: FAIL (empty output)"
+              fi
+            else
+              EXIT_CODE=$?
+              echo "  ICC→XML: FAIL (exit $EXIT_CODE)" >> $SUMMARY
+              echo "  ICC→XML: FAIL (exit $EXIT_CODE)"
+              LOG_TAIL=$(tail -3 "colorbleed-test-results/outputs/toxml/${PROFILE_NAME}.log" 2>/dev/null || true)
+              echo "  Log: $LOG_TAIL" >> $SUMMARY
+            fi
+
+            # Step 2: XML → ICC (roundtrip)
+            ROUNDTRIP_OK=false
+            if [ "$TOXML_OK" = true ]; then
+              if timeout 30s ./colorbleed_tools/iccFromXml_unsafe "$XML_OUT" "$RT_OUT" > "colorbleed-test-results/outputs/roundtrip/${PROFILE_NAME}.log" 2>&1; then
+                if [ -f "$RT_OUT" ] && [ -s "$RT_OUT" ]; then
+                  ROUNDTRIP_OK=true
+                  RT_SIZE=$(stat -c%s "$RT_OUT" 2>/dev/null || echo 0)
+                  ORIG_SIZE=$(stat -c%s "${profile}" 2>/dev/null || echo 0)
+                  echo "  XML→ICC: OK ($RT_SIZE bytes, original: $ORIG_SIZE bytes)" >> $SUMMARY
+                  echo "  XML→ICC: OK ($RT_SIZE bytes, original: $ORIG_SIZE bytes)"
+                else
+                  echo "  XML→ICC: FAIL (empty output)" >> $SUMMARY
+                  echo "  XML→ICC: FAIL (empty output)"
+                fi
+              else
+                EXIT_CODE=$?
+                echo "  XML→ICC: FAIL (exit $EXIT_CODE)" >> $SUMMARY
+                echo "  XML→ICC: FAIL (exit $EXIT_CODE)"
+                LOG_TAIL=$(tail -3 "colorbleed-test-results/outputs/roundtrip/${PROFILE_NAME}.log" 2>/dev/null || true)
+                echo "  Log: $LOG_TAIL" >> $SUMMARY
+              fi
+            else
+              echo "  XML→ICC: SKIPPED (no XML from step 1)" >> $SUMMARY
+              echo "  XML→ICC: SKIPPED"
+            fi
+
+            # Step 3: Compare sizes
+            if [ "$ROUNDTRIP_OK" = true ]; then
+              ORIG_SIZE=$(stat -c%s "${profile}" 2>/dev/null || echo 0)
+              RT_SIZE=$(stat -c%s "$RT_OUT" 2>/dev/null || echo 0)
+              if [ "$ORIG_SIZE" -eq "$RT_SIZE" ]; then
+                ORIG_SHA=$(sha256sum "${profile}" | cut -d' ' -f1)
+                RT_SHA=$(sha256sum "$RT_OUT" | cut -d' ' -f1)
+                if [ "$ORIG_SHA" = "$RT_SHA" ]; then
+                  echo "  Roundtrip: EXACT MATCH" >> $SUMMARY
+                  echo "  Roundtrip: EXACT MATCH"
+                else
+                  echo "  Roundtrip: SIZE MATCH, CONTENT DIFFERS" >> $SUMMARY
+                  echo "  Roundtrip: SIZE MATCH, CONTENT DIFFERS"
+                fi
+              else
+                SIZE_DIFF=$((RT_SIZE - ORIG_SIZE))
+                echo "  Roundtrip: SIZE DELTA ${SIZE_DIFF} bytes (orig=$ORIG_SIZE rt=$RT_SIZE)" >> $SUMMARY
+                echo "  Roundtrip: SIZE DELTA ${SIZE_DIFF} bytes"
+              fi
+
+              SUCCESS=$((SUCCESS + 1))
+              echo "  Status: SUCCESS" >> $SUMMARY
+            else
+              FAILED=$((FAILED + 1))
+              echo "  Status: FAILED" >> $SUMMARY
+            fi
+
+            echo "" >> $SUMMARY
+
+          done < colorbleed-test-results/selected-profiles.txt
+
+          # Final summary
+          if [ "$TOTAL" -gt 0 ]; then
+            RATE=$(awk "BEGIN {printf \"%.1f\", ($SUCCESS/$TOTAL)*100}")
+          else
+            RATE="0.0"
+          fi
+
+          echo "==================================================================" >> $SUMMARY
+          echo "FINAL RESULTS (${{ matrix.compiler }})" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "Total profiles:   $TOTAL" >> $SUMMARY
+          echo "Roundtrip success: $SUCCESS" >> $SUMMARY
+          echo "Roundtrip failed:  $FAILED" >> $SUMMARY
+          echo "Success rate:      ${RATE}%" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+
+          cat $SUMMARY
+
+          # Outputs for release job
+          echo "grand_total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "grand_success=$SUCCESS" >> $GITHUB_OUTPUT
+          echo "grand_failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "clean_rate=$RATE" >> $GITHUB_OUTPUT
+
+          # Env for summary step
+          echo "grand_total=$TOTAL" >> $GITHUB_ENV
+          echo "grand_success=$SUCCESS" >> $GITHUB_ENV
+          echo "grand_failed=$FAILED" >> $GITHUB_ENV
+          echo "clean_rate=$RATE" >> $GITHUB_ENV
+
+      - name: Generate checksums for binaries
+        working-directory: colorbleed_tools
+        run: |
+          sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Package release assets
+        id: package
+        env:
+          INPUT_TAG_PREFIX: ${{ github.event.inputs.release_tag_prefix || 'colorbleed-test' }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+
+          TAG_PREFIX="$(sanitize_ref "$INPUT_TAG_PREFIX")"
+          DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
+          RELEASE_TAG="${TAG_PREFIX}-${{ matrix.compiler }}-${DATESTAMP}-run${{ github.run_number }}"
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+
+          # Copy binaries + checksums into results
+          cp colorbleed_tools/iccToXml_unsafe  colorbleed-test-results/
+          cp colorbleed_tools/iccFromXml_unsafe colorbleed-test-results/
+          cp colorbleed_tools/SHA256SUMS        colorbleed-test-results/
+          cp colorbleed_tools/test.xml          colorbleed-test-results/ 2>/dev/null || true
+          cp colorbleed_tools/roundtrip.icc     colorbleed-test-results/ 2>/dev/null || true
+
+          TARBALL="colorbleed-test-results-${{ matrix.compiler }}-${DATESTAMP}.tar.gz"
+          tar -czf "${TARBALL}" colorbleed-test-results/
+          echo "tarball=${TARBALL}" >> $GITHUB_OUTPUT
+
+          cp colorbleed-test-results/test-summary.txt "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt"
+          echo "summary_file=test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" >> $GITHUB_OUTPUT
+
+          cp colorbleed_tools/SHA256SUMS "SHA256SUMS-${{ matrix.compiler }}.txt"
+          echo "checksums_file=SHA256SUMS-${{ matrix.compiler }}.txt" >> $GITHUB_OUTPUT
+
+          # Copy binaries with compiler-stamped names for release upload
+          cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${{ matrix.compiler }}"
+          cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${{ matrix.compiler }}"
+          chmod +x "iccToXml_unsafe-${{ matrix.compiler }}" "iccFromXml_unsafe-${{ matrix.compiler }}"
+
+          # Wrap binaries in tar.gz to preserve execute permissions
+          tar -czf "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccToXml_unsafe-${{ matrix.compiler }}"
+          tar -czf "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}"
+
+          ls -lh "${TARBALL}" "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" "SHA256SUMS-${{ matrix.compiler }}.txt" "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        with:
+          tag_name: ${{ steps.package.outputs.release_tag }}
+          name: "ColorBleed | Reading & Writing Unsafe Color Profiles"
+          body: |
+            ## ColorBleed Tools Roundtrip Test Results
+
+            **Compiler:** `${{ matrix.compiler }}` (`${{ env.CXX }}`)
+
+            | Metric | Value |
+            |--------|-------|
+            | **Total Profiles** | ${{ env.grand_total }} |
+            | **Roundtrip Success** | ${{ env.grand_success }} |
+            | **Roundtrip Failed** | ${{ env.grand_failed }} |
+            | **Success Rate** | ${{ env.clean_rate }}% |
+
+            ### Tools Tested
+            | Tool | Description |
+            |------|-------------|
+            | `iccToXml_unsafe` | ICC binary → XML conversion |
+            | `iccFromXml_unsafe` | XML → ICC binary conversion |
+
+            ### Test Methodology
+            Each ICC profile is:
+            1. Converted to XML via `iccToXml_unsafe`
+            2. Converted back to ICC via `iccFromXml_unsafe`
+            3. Compared for size match and content integrity
+
+            ### Binary Checksums
+            ```
+            See SHA256SUMS attachment
+            ```
+
+            ### Build Info
+            - **Triggered by:** @${{ github.actor }}
+            - **Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.package.outputs.tarball }}
+            ${{ steps.package.outputs.summary_file }}
+            ${{ steps.package.outputs.checksums_file }}
+            iccToXml_unsafe-${{ matrix.compiler }}.tar.gz
+            iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test results artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: colorbleed-test-results-${{ matrix.compiler }}
+          path: colorbleed-test-results/
+          retention-days: 90
+
+      - name: Report to summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << SUMMARY_EOF
+          ## ColorBleed Tools Roundtrip Test → Release
+
+          ### Compiler: \`${{ matrix.compiler }}\` (\`${{ env.CXX }}\`)
+
+          | Metric | Value |
+          |--------|-------|
+          | Total Profiles | ${{ env.grand_total }} |
+          | Roundtrip Success | ${{ env.grand_success }} |
+          | Roundtrip Failed | ${{ env.grand_failed }} |
+          | Success Rate | ${{ env.clean_rate }}% |
+
+          ### Release
+          **Tag:** \`${{ steps.package.outputs.release_tag }}\`
+
+          SUMMARY_EOF
+
+          if [ "${{ env.grand_failed }}" -eq 0 ]; then
+            echo "### [OK] ALL ROUNDTRIPS SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### [WARN] ${{ env.grand_failed }} ROUNDTRIP FAILURE(S)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Final status
+        run: |
+          echo "============================================"
+          echo "  ColorBleed Tools → Release COMPLETE"
+          echo "============================================"
+          echo "Compiler: ${{ matrix.compiler }}"
+          echo "Tag:      ${{ steps.package.outputs.release_tag }}"
+          echo "Total:    ${{ env.grand_total }} profiles"
+          echo "Success:  ${{ env.grand_success }}"
+          echo "Failed:   ${{ env.grand_failed }}"
+          echo "Rate:     ${{ env.clean_rate }}%"
+          echo "============================================"
+          exit 0

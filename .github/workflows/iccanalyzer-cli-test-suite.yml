@@ -60,10 +60,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           submodules: recursive
           fetch-depth: 1
+
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
 
       - name: Install dependencies
         env:
@@ -75,7 +87,11 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           
-          sudo apt-get update -qq
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
@@ -90,7 +106,17 @@ jobs:
             libssl-dev \
             lcov
 
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-lite-
+
       - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -101,13 +127,47 @@ jobs:
           unset GITHUB_TOKEN || true
           
           cd iccanalyzer-lite
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-debug-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-build-lite-debug-
+
+      - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
       - name: Build iccDEV libraries with full instrumentation
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -122,11 +182,13 @@ jobs:
           
           echo "Configuring CMake with full instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           
           echo "Building libraries with $(nproc) cores..."
@@ -183,7 +245,7 @@ jobs:
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
           echo "Binary: $(./iccanalyzer-lite --version 2>&1 | head -1)" >> $SUMMARY
-          echo "Build: RelWithDebInfo + ASAN + UBSAN + Coverage" >> $SUMMARY
+          echo "Build: Debug + ASAN + UBSAN + Coverage" >> $SUMMARY
           echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
           
@@ -393,7 +455,7 @@ jobs:
           echo "Results index created: $INDEX_FILE"
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: iccanalyzer-cli-test-suite-results

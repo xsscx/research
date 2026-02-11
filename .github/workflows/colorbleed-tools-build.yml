@@ -26,7 +26,9 @@ jobs:
         compiler: [gcc, clang]
     steps:
       - name: Checkout master
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
 
       - name: Install Dependencies
         shell: bash --noprofile --norc {0}
@@ -65,11 +67,12 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
           echo "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
-          $CC --version >> "$GITHUB_STEP_SUMMARY"
+          sanitize_codeblock "$($CC --version 2>&1)" >> "$GITHUB_STEP_SUMMARY"
       - name: Build
         shell: bash --noprofile --norc {0}
         env:
@@ -80,9 +83,26 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
-          cd ../../ && make -j"$(nproc)" clean all test
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
+          cd ..
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="colorbleed_tools/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+          cd colorbleed_tools
+          make setup && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
         env:
@@ -96,7 +116,7 @@ jobs:
           sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
           cat SHA256SUMS
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: colorbleed-linux-${{ matrix.compiler }}
           path: |
@@ -112,20 +132,21 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
           echo "### Linux Build Summary (${{ matrix.compiler }})" >> "$GITHUB_STEP_SUMMARY"
           echo "- Compiler: ${{ matrix.compiler }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: ✅ Success" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe >> "$GITHUB_STEP_SUMMARY"
+          sanitize_codeblock "$(ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat colorbleed_tools/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+          sanitize_codeblock "$(cat colorbleed_tools/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           

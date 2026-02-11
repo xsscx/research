@@ -41,10 +41,10 @@
 // Convert 4-byte signature to ASCII string (FourCC format)
 void SignatureToFourCC(icUInt32Number sig, char *fourcc)
 {
-  fourcc[0] = (sig >> 24) & 0xFF;
-  fourcc[1] = (sig >> 16) & 0xFF;
-  fourcc[2] = (sig >> 8) & 0xFF;
-  fourcc[3] = sig & 0xFF;
+  fourcc[0] = static_cast<char>((sig >> 24) & 0xFF);
+  fourcc[1] = static_cast<char>((sig >> 16) & 0xFF);
+  fourcc[2] = static_cast<char>((sig >> 8) & 0xFF);
+  fourcc[3] = static_cast<char>(sig & 0xFF);
   fourcc[4] = '\0';
   
   // Replace non-printable characters with '.'
@@ -74,6 +74,13 @@ int AnalyzeSignatures(CIccProfile *pIcc)
   CIccInfo info;
   int issueCount = 0;
   
+  // Diagnostic: check header signatures for 0x3F corruption pattern
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.deviceClass, "header.deviceClass");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.colorSpace, "header.colorSpace");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.pcs, "header.pcs");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.manufacturer, "header.manufacturer");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.model, "header.model");
+
   // Analyze header signatures
   printf("Header Signatures:\n");
   printf("  Device Class:    0x%08X  '%s'  %s\n",
@@ -120,9 +127,11 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     IccTagEntry *entry = &(*i);
     CIccTag *pTag = pIcc->FindTag(entry->TagInfo.sig);
     
+    ICC_SANITY_CHECK_SIGNATURE(entry->TagInfo.sig, "tag.sig");
     SignatureToFourCC(entry->TagInfo.sig, fourcc);
     char typeFourCC[5] = "";
     if (pTag) {
+      ICC_SANITY_CHECK_SIGNATURE(pTag->GetType(), "tag.type");
       SignatureToFourCC(pTag->GetType(), typeFourCC);
     }
     
@@ -142,7 +151,6 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     if (pTag && HasNonPrintableSignature(pTag->GetType())) {
       if (hasIssues) printf(",");
       printf(" bad-type");
-      hasIssues = true;
       issueCount++;
     }
     

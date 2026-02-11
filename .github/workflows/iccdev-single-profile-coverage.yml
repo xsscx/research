@@ -1,0 +1,391 @@
+###############################################################
+#
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Code coverage for a SINGLE ICC profile using iccDEV
+#         tools. Does NOT run CreateAllProfiles.sh or RunTests.sh.
+#         Designed for MCP/Issue-based profile analysis where
+#         clean, isolated coverage per-profile is required.
+#
+# Usage: Trigger via workflow_dispatch with a profile path
+#        relative to test-profiles/ (e.g. "test-hoyt.icc")
+#
+###############################################################
+
+name: iccDEV Single Profile Coverage
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile_path:
+        description: 'ICC profile path relative to test-profiles/ (e.g. test-hoyt.icc). Leave blank for random.'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: single-profile-coverage-${{ github.ref }}-${{ inputs.profile_path || 'random' }}
+  cancel-in-progress: true
+
+jobs:
+  single-profile-coverage:
+    name: "Coverage: ${{ inputs.profile_path || 'random' }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate profile exists
+        env:
+          INPUT_PROFILE_PATH: ${{ inputs.profile_path }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+          if [ -z "$INPUT_PROFILE_PATH" ]; then
+            # Pick a random profile from test-profiles/
+            INPUT_PATH=$(ls -1 test-profiles/ | shuf -n1)
+            echo "[INFO] No profile specified, randomly selected: $INPUT_PATH"
+          else
+            INPUT_PATH="$(sanitize_filename "$INPUT_PROFILE_PATH")"
+          fi
+          PROFILE="test-profiles/$INPUT_PATH"
+          if [ ! -f "$PROFILE" ]; then
+            echo "::error::Profile not found: $PROFILE"
+            echo "Available profiles:"
+            ls -1 test-profiles/*.icc 2>/dev/null || echo "  (none)"
+            exit 1
+          fi
+          echo "profile_file=$PROFILE" >> $GITHUB_ENV
+          echo "profile_name=$(basename "$INPUT_PATH" .icc)" >> $GITHUB_ENV
+          echo "selected_profile=$INPUT_PATH" >> $GITHUB_ENV
+          echo "[OK] Profile: $PROFILE ($(stat -c%s "$PROFILE") bytes)"
+
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-coverage-single
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake \
+            clang-18 llvm-18 \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+            zlib1g-dev nlohmann-json3-dev \
+            lcov
+
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: /tmp/iccdev
+          key: ${{ runner.os }}-iccdev-coverage-single-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-coverage-single-
+
+      - name: Clone iccDEV
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        run: |
+          if [ ! -d "/tmp/iccdev" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+          fi
+
+      - name: Apply CFL patches
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        run: |
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP] $(basename "$p")"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
+      - name: Cache iccDEV coverage build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-build
+        with:
+          path: /tmp/iccdev/build-coverage
+          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-build-coverage-single-
+
+      - name: Build iccDEV with coverage instrumentation
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          set -euo pipefail
+          cd /tmp/iccdev
+          sed -i '/find_package(wxWidgets/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
+          mkdir -p build-coverage && cd build-coverage
+          cmake ../Build/Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DENABLE_TOOLS=ON \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_TESTS=OFF \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate" \
+            -Wno-dev
+          make -j$(nproc)
+
+      - name: Locate tools
+        run: |
+          set -euo pipefail
+          BUILD_DIR="/tmp/iccdev/build-coverage"
+          for tool in iccDumpProfile iccRoundTrip iccToXml iccFromXml iccApplyProfiles; do
+            BIN=$(find "$BUILD_DIR" -name "$tool" -type f -executable -print -quit 2>/dev/null || true)
+            if [ -n "$BIN" ]; then
+              echo "${tool}_path=$BIN" >> $GITHUB_ENV
+              echo "[OK] $tool: $BIN"
+            else
+              echo "[SKIP] $tool: not found"
+            fi
+          done
+
+      - name: Profile with IccDumpProfile
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ github.workspace }}/profraw" "${{ github.workspace }}/results"
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/dump-%p-%m.profraw"
+          PROFILE="${{ env.profile_file }}"
+          TOOL="${{ env.iccDumpProfile_path }}"
+
+          echo "=== IccDumpProfile ===" | tee results/dump-output.txt
+          timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/dump-output.txt || true
+          echo "exit_code=$?" >> results/dump-output.txt
+
+      - name: Profile with IccRoundTrip
+        run: |
+          set -euo pipefail
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/roundtrip-%p-%m.profraw"
+          PROFILE="${{ env.profile_file }}"
+          TOOL="${{ env.iccRoundTrip_path }}"
+
+          echo "=== IccRoundTrip ===" | tee results/roundtrip-output.txt
+          if [ -n "$TOOL" ]; then
+            timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/roundtrip-output.txt || true
+            echo "exit_code=$?" >> results/roundtrip-output.txt
+          else
+            echo "[SKIP] iccRoundTrip not available" | tee -a results/roundtrip-output.txt
+          fi
+
+      - name: Profile with XML round-trip
+        run: |
+          set -euo pipefail
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/xml-%p-%m.profraw"
+          PROFILE="${{ env.profile_file }}"
+          TO_XML="${{ env.iccToXml_path }}"
+          FROM_XML="${{ env.iccFromXml_path }}"
+
+          echo "=== XML Round-Trip ===" | tee results/xml-output.txt
+          if [ -n "$TO_XML" ]; then
+            XML_OUT="/tmp/${{ env.profile_name }}.xml"
+            ICC_OUT="/tmp/${{ env.profile_name }}-roundtrip.icc"
+            timeout 30s "$TO_XML" "$PROFILE" "$XML_OUT" 2>&1 | tee -a results/xml-output.txt || true
+            if [ -f "$XML_OUT" ]; then
+              echo "XML size: $(stat -c%s "$XML_OUT") bytes" | tee -a results/xml-output.txt
+              if [ -n "$FROM_XML" ]; then
+                timeout 30s "$FROM_XML" "$XML_OUT" "$ICC_OUT" 2>&1 | tee -a results/xml-output.txt || true
+                if [ -f "$ICC_OUT" ]; then
+                  echo "Round-trip ICC size: $(stat -c%s "$ICC_OUT") bytes" | tee -a results/xml-output.txt
+                fi
+              fi
+            fi
+            rm -f "$XML_OUT" "$ICC_OUT"
+          else
+            echo "[SKIP] iccToXml not available" | tee -a results/xml-output.txt
+          fi
+
+      - name: Profile with IccApplyProfiles
+        run: |
+          set -euo pipefail
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/apply-%p-%m.profraw"
+          PROFILE="${{ env.profile_file }}"
+          TOOL="${{ env.iccApplyProfiles_path }}"
+
+          echo "=== IccApplyProfiles ===" | tee results/apply-output.txt
+          if [ -z "$TOOL" ]; then
+            echo "[SKIP] iccApplyProfiles not available" | tee -a results/apply-output.txt
+            exit 0
+          fi
+
+          # Generate minimal 8x8 RGB TIFF test input
+          python3 -c "
+          import struct
+          w, h = 8, 8
+          pix = bytes([200, 100, 50] * w * h)
+          bps = struct.pack('<HHH', 8, 8, 8)
+          ifd_off = 8
+          n = 9
+          bps_off = ifd_off + 2 + n * 12 + 4
+          pix_off = bps_off + len(bps)
+          with open('/tmp/apply-input.tiff', 'wb') as f:
+              f.write(struct.pack('<2sHI', b'II', 42, ifd_off))
+              f.write(struct.pack('<H', n))
+              for tag, typ, cnt, val in [
+                  (256,3,1,w), (257,3,1,h), (258,3,3,bps_off),
+                  (259,3,1,1), (262,3,1,2), (273,4,1,pix_off),
+                  (277,3,1,3), (278,3,1,h), (279,4,1,len(pix))]:
+                  f.write(struct.pack('<HHII', tag, typ, cnt, val))
+              f.write(struct.pack('<I', 0))
+              f.write(bps)
+              f.write(pix)
+          "
+          echo "[OK] Generated 8x8 RGB test TIFF" | tee -a results/apply-output.txt
+
+          # iccApplyProfiles args: src dst encoding compression planar embed interp profile intent
+          #   encoding=0(same) compression=0(none) planar=0(contig)
+          #   embed=0(no) interp=0(linear) intent=0(perceptual)
+          for INTENT in 0 1 2 3; do
+            INTENT_NAMES=("Perceptual" "Relative" "Saturation" "Absolute")
+            echo "--- Intent $INTENT (${INTENT_NAMES[$INTENT]}) ---" | tee -a results/apply-output.txt
+            EXIT_CODE=0
+            timeout 30s "$TOOL" \
+              /tmp/apply-input.tiff /tmp/apply-output-${INTENT}.tiff \
+              0 0 0 0 0 \
+              "$PROFILE" "$INTENT" \
+              2>&1 | tee -a results/apply-output.txt || EXIT_CODE=$?
+            echo "exit_code=$EXIT_CODE" | tee -a results/apply-output.txt
+            if [ -f "/tmp/apply-output-${INTENT}.tiff" ]; then
+              SIZE=$(stat -c%s "/tmp/apply-output-${INTENT}.tiff")
+              echo "[OK] Output TIFF: $SIZE bytes" | tee -a results/apply-output.txt
+            fi
+          done
+          rm -f /tmp/apply-input.tiff /tmp/apply-output-*.tiff
+
+      - name: Merge profdata and generate coverage report
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-report
+
+          PROFRAW_COUNT=$(find "${{ github.workspace }}/profraw" -name "*.profraw" 2>/dev/null | wc -l)
+          echo "[INFO] $PROFRAW_COUNT .profraw files"
+
+          if [ "$PROFRAW_COUNT" -eq 0 ]; then
+            echo "::warning::No profraw files — profile may have caused early exit"
+            echo "No coverage data" > coverage-report/coverage-summary.txt
+            exit 0
+          fi
+
+          llvm-profdata-18 merge \
+            -sparse \
+            "${{ github.workspace }}"/profraw/*.profraw \
+            -o coverage-report/merged.profdata
+
+          BUILD_DIR="/tmp/iccdev/build-coverage"
+          MAIN_BIN="${{ env.iccDumpProfile_path }}"
+
+          OBJECT_ARGS=""
+          for bin in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable); do
+            if [ "$bin" != "$MAIN_BIN" ]; then
+              OBJECT_ARGS="$OBJECT_ARGS -object=$bin"
+            fi
+          done
+
+          # Text summary (filter benign mismatch warning from multi-binary merge)
+          llvm-cov-18 report \
+            "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=coverage-report/merged.profdata \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | grep -v "functions have mismatched data" \
+            | tee coverage-report/coverage-summary.txt
+
+          # HTML report
+          llvm-cov-18 show \
+            "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=coverage-report/merged.profdata \
+            -format=html \
+            -output-dir=coverage-report/html \
+            -show-line-counts-or-regions \
+            -show-expansions \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | grep -v "functions have mismatched data" | tail -5
+
+          # LCOV export
+          llvm-cov-18 export \
+            "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=coverage-report/merged.profdata \
+            -format=lcov \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            > coverage-report/lcov.info 2>/dev/null || true
+
+      - name: Report to summary
+        if: always()
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+          SAFE_PROFILE="$(sanitize_line "${selected_profile:-unknown}")"
+          {
+            echo "## iccDEV Single Profile Coverage"
+            echo ""
+            echo "**Profile**: \`$SAFE_PROFILE\`"
+            echo ""
+            echo "### Tool Outputs"
+            echo ""
+            for f in results/*.txt; do
+              echo "<details><summary>$(basename "$f" .txt)</summary>"
+              echo ""
+              echo '```'
+              sanitize_codeblock "$(head -200 "$f" 2>/dev/null)" || echo "(empty)"
+              echo '```'
+              echo "</details>"
+              echo ""
+            done
+            echo "### Coverage Summary"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage-report/coverage-summary.txt ]; then
+            sanitize_codeblock "$(cat coverage-report/coverage-summary.txt)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No coverage data available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          {
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: "coverage-${{ env.profile_name }}"
+          path: |
+            coverage-report/
+            results/
+          retention-days: 30
+          if-no-files-found: warn

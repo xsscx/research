@@ -164,4 +164,14 @@ bool ValidateBinaryDatabaseFormat(
 
 } // namespace IccAnalyzerSecurity
 
+// ── Output sanitization helpers (CodeQL icc/injection-attacks) ──
+
+/// Strip control characters (CR, LF, ANSI escapes, null) from strings
+/// used in log/stderr output to prevent log injection.
+std::string SanitizeForLog(const std::string& input);
+std::string SanitizeForLog(const char* input);
+
+/// Escape characters that have special meaning in DOT graph labels.
+std::string SanitizeForDOT(const std::string& input);
+
 #endif // _ICCANALYZERSECURITY_H
