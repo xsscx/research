@@ -62,8 +62,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 1
 
@@ -73,6 +74,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -94,11 +96,30 @@ jobs:
           unset GITHUB_TOKEN || true
           
           cd iccanalyzer-lite
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
+      - name: Apply CFL patches to iccDEV
+        run: |
+          set -euo pipefail
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
       - name: Build iccDEV libraries with full instrumentation
         env:
           BASH_ENV: /dev/null
@@ -142,10 +163,10 @@ jobs:
           if [ -f "./iccanalyzer-lite" ]; then
             chmod +x ./iccanalyzer-lite
             echo "binary_path=iccanalyzer-lite/iccanalyzer-lite" >> $GITHUB_OUTPUT
-            echo "✅ iccanalyzer-lite built successfully"
+            echo "[OK] iccanalyzer-lite built successfully"
             ls -lh ./iccanalyzer-lite
           else
-            echo "❌ iccanalyzer-lite binary not found"
+            echo "[FAIL] iccanalyzer-lite binary not found"
             exit 1
           fi
       - name: Test basic functionality
@@ -183,7 +204,7 @@ jobs:
           cp iccanalyzer-lite/iccanalyzer-lite ./iccanalyzer-lite-bin
           file ./iccanalyzer-lite-bin
           ldd ./iccanalyzer-lite-bin 2>&1 || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: iccanalyzer-lite-binary
           path: |
@@ -227,8 +248,9 @@ jobs:
 
     steps:
       - name: Checkout repository (for test profiles)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 1
 
@@ -243,7 +265,7 @@ jobs:
             zlib1g liblzma5 libssl3 \
             libclang-rt-18-dev clang-18
       - name: Download binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           name: iccanalyzer-lite-binary
 
@@ -287,7 +309,7 @@ jobs:
           
           while IFS= read -r profile; do
             if [ ! -f "$profile" ]; then
-              echo "⏭️ SKIP: $profile (not found)"
+              echo "[SKIP] SKIP: $profile (not found)"
               continue
             fi
             
@@ -304,7 +326,7 @@ jobs:
             TESTED=$((TESTED + 1))
             
             if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
-              echo "✅ PASS: $profile (exit: $EXIT_CODE)"
+              echo "[OK] PASS: $profile (exit: $EXIT_CODE)"
               PASSED=$((PASSED + 1))
               
               # Enhanced output analysis and reporting
@@ -314,32 +336,32 @@ jobs:
               case "${{ matrix.mode }}" in
                 "heuristics")
                   SECURITY_COUNT=$(grep -c -E "(Security|Heuristic|Warning|Potential|Risk)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   📊 Security analysis: ${SECURITY_COUNT} findings, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "    Security analysis: ${SECURITY_COUNT} findings, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "roundtrip")
                   ACCURACY_COUNT=$(grep -c -E "(Round.*trip|Accuracy|Delta|Error)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   🔄 Round-trip analysis: ${ACCURACY_COUNT} metrics, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "   [INFO] Round-trip analysis: ${ACCURACY_COUNT} metrics, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "comprehensive")
                   ANALYSIS_COUNT=$(grep -c -E "(Analysis|Check|Test|Result)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   📈 Comprehensive analysis: ${ANALYSIS_COUNT} checks, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "   [INFO] Comprehensive analysis: ${ANALYSIS_COUNT} checks, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "ninja")
-                  echo "   🥷 Ninja output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (minimal mode)"
+                  echo "   [INFO] Ninja output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (minimal mode)"
                   ;;
                 "ninja-full")
-                  echo "   🥷📄 Ninja-full output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (full dump, no truncation)"
+                  echo "   [INFO] Ninja-full output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (full dump, no truncation)"
                   ;;
               esac
               
               # Check for sanitizer output
               if grep -q -E "(AddressSanitizer|UBSan|ERROR|SUMMARY)" "$OUTPUT_FILE" 2>/dev/null; then
                 SANITIZER_ERRORS=$(grep -c -E "(AddressSanitizer|UBSan|ERROR)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                echo "   🚨 Sanitizer detections: ${SANITIZER_ERRORS}"
+                echo "   [CRITICAL] Sanitizer detections: ${SANITIZER_ERRORS}"
               fi
               
             else
-              echo "❌ FAIL: $profile (exit: $EXIT_CODE)"
+              echo "[FAIL] FAIL: $profile (exit: $EXIT_CODE)"
               FAILED=$((FAILED + 1))
               
               # Enhanced error reporting
@@ -348,10 +370,10 @@ jobs:
               
               # Check for specific error types
               if grep -q -E "(heap-buffer-overflow|heap-use-after-free|stack-overflow)" "$OUTPUT_FILE" 2>/dev/null; then
-                echo "   🔥 Memory safety violation detected"
+                echo "   [CRITICAL] Memory safety violation detected"
               fi
               if grep -q -E "(undefined behavior|UBSan)" "$OUTPUT_FILE" 2>/dev/null; then
-                echo "   ⚠️ Undefined behavior detected"
+                echo "   [WARN] Undefined behavior detected"
               fi
             fi
             
@@ -381,10 +403,10 @@ jobs:
           # Success if any tests passed and failure rate < 50%
           if [ $PASSED -gt 0 ] && [ $FAILED -lt $PASSED ]; then
             echo "status=success" >> $GITHUB_OUTPUT
-            STATUS="✅ SUCCESS"
+            STATUS="[OK] SUCCESS"
           else
             echo "status=failure" >> $GITHUB_OUTPUT
-            STATUS="❌ FAILURE"
+            STATUS="[FAIL] FAILURE"
           fi
           
           {
@@ -398,7 +420,7 @@ jobs:
             echo "| Coverage Files | ${COVERAGE_FILES:-0} |"
           } >> $GITHUB_STEP_SUMMARY
       - name: Upload test results with coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: test-results-coverage-${{ matrix.mode }}
@@ -429,7 +451,7 @@ jobs:
 
     steps:
       - name: Download all test results and coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           pattern: test-results-coverage-*
           path: all-results/
@@ -509,7 +531,7 @@ jobs:
               
               if [ ${ASAN_HITS} -gt 0 ] || [ ${UBSAN_HITS} -gt 0 ]; then
                 echo ""
-                echo "⚠️ **Sanitizer detections found** - Review individual test logs for details"
+                echo "[WARN] **Sanitizer detections found** - Review individual test logs for details"
               fi
               
             else
@@ -518,7 +540,7 @@ jobs:
             
           } >> $GITHUB_STEP_SUMMARY
       - name: Upload consolidated results  
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: cli-test-suite-report-${{ github.run_id }}

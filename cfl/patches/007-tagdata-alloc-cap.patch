@@ -1,0 +1,14 @@
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -8170,6 +8170,11 @@
+   if (m_nSize == nSize)
+     return true;
+ 
++  // CFL patch: cap TagData allocation to 128 MB to prevent OOM.
++  // nSize comes from profile tag data and can be arbitrarily large.
++  if (nSize > 134217728)
++    return false;
++
+   m_pData = (icUInt8Number*)icRealloc(m_pData, nSize*sizeof(icUInt8Number));
+ 
+   if (!m_pData) {
