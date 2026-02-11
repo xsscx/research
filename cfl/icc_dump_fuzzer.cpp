@@ -46,13 +46,9 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128 || size > 1024 * 1024) return 0;
   
-  // Extract verboseness parameter from first byte (matches tool's 1-100 range)
-  int verboseness = 1;
-  if (size > 128) {
-    verboseness = (data[0] % 100) + 1;  // 1-100
-    data++;
-    size--;
-  }
+  // Derive verboseness from trailing byte to preserve ICC header structure
+  // (consuming leading bytes shifts the profile header, breaking fidelity)
+  int verboseness = (data[size - 1] % 100) + 1;  // 1-100
   
   // Use ValidateIccProfile() like tool does with -v flag (line 193)
   std::string report;
@@ -103,7 +99,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       // Check if offset+size exceeds file size (check for overflow first)
       icUInt32Number tag_end = i->TagInfo.offset + i->TagInfo.size;
       if ((tag_end > i->TagInfo.offset) && (tag_end > pHdr->size)) {
-        // Non-compliant tag bounds
+        volatile bool non_compliant = true; (void)non_compliant;
       }
       
       // Find closest following tag for overlap detection
@@ -119,7 +115,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if ((tag_end > i->TagInfo.offset) &&  // Check for overflow
           (closest < tag_end) && 
           (closest < pHdr->size)) {
-        // Overlapping tags detected
+        volatile bool overlap = true; (void)overlap;
       }
       
       // Check for padding gaps (4-byte alignment)
@@ -127,7 +123,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       icUInt32Number aligned_end = i->TagInfo.offset + rndup;
       if ((aligned_end > i->TagInfo.offset) &&  // Check for overflow
           (closest > aligned_end)) {
-        // Unnecessary gap between tags
+        volatile bool gap = true; (void)gap;
       }
     }
     
@@ -135,13 +131,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (n > 0) {
       icUInt32Number expected_first_offset = 128 + 4 + (n * 12);
       if (smallest_offset > expected_first_offset) {
-        // Non-compliant: gap after tag table
+        volatile bool firstTagGap = true; (void)firstTagGap;
       }
     }
     
     // File size multiple-of-4 check (IccDumpProfile lines 331-335)
     if ((pHdr->version >= icVersionNumberV4_2) && (pHdr->size % 4 != 0)) {
-      // Non-compliant file size
+      volatile bool badSize = true; (void)badSize;
     }
     
     // Exercise all tags with Describe() - matches tool DumpTagCore() at line 108
@@ -150,63 +146,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         std::string desc;
         desc.reserve(100000);  // Pre-allocate 100KB max for safety
         
-        // Match tool behavior: call Describe() with verboseness parameter
-        // Tool calls this on EVERY tag (iccDumpProfile.cpp line 108)
+        // Match tool DumpTagCore() behavior: single Describe() call per tag
+        // with the user-specified verboseness (iccDumpProfile.cpp line 108)
         i->pTag->Describe(desc, verboseness);
-        
-        // For small tags, also try higher verbosity levels
-        if (i->TagInfo.size < 10000 && verboseness < 50) {
-          desc.clear();
-          i->pTag->Describe(desc, 50);
-        }
-        
-        // For tiny tags, try maximum verbosity
-        if (i->TagInfo.size < 1000 && verboseness < 100) {
-          desc.clear();
-          i->pTag->Describe(desc, 100);
-        }
         
         i->pTag->GetType();
         
         // Array type detection
         if (i->pTag->IsArrayType()) {
-          // Exercise array-specific paths
+          volatile bool isArray = true; (void)isArray;
         }
         i->pTag->IsSupported();
         
         // Get tag signature name for formatting
         Fmt.GetTagSigName(i->TagInfo.sig);
         Fmt.GetTagTypeSigName(i->pTag->GetType());
-      }
-    }
-    
-    // Exercise comprehensive tag lookup with Describe() - matches tool DumpTagSig()
-    icSignature tags[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
-                           icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
-                           icSigRedColorantTag, icSigGreenColorantTag, icSigBlueColorantTag,
-                           icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag,
-                           icSigGrayTRCTag, icSigMediaWhitePointTag,
-                           icSigLuminanceTag, icSigMeasurementTag,
-                           icSigNamedColor2Tag, icSigColorantTableTag,
-                           icSigChromaticAdaptationTag, icSigCopyrightTag,
-                           icSigProfileDescriptionTag, icSigViewingCondDescTag,
-                           icSigColorantOrderTag, icSigColorimetricIntentImageStateTag,
-                           icSigPerceptualRenderingIntentGamutTag,
-                           icSigSaturationRenderingIntentGamutTag,
-                           icSigTechnologyTag, icSigDeviceMfgDescTag,
-                           icSigDeviceModelDescTag, icSigProfileSequenceDescTag,
-                           icSigCicpTag, icSigMetaDataTag};
-    for (int j = 0; j < 32; j++) {
-      CIccTag *tag = pIcc->FindTag(tags[j]);
-      if (tag) {
-        // Match tool DumpTagCore() behavior (line 108)
-        std::string desc;
-        desc.reserve(100000);
-        tag->Describe(desc, verboseness);
-        
-        // Also validate
-        std::string validation_report;
-        tag->Validate("", validation_report);
       }
     }
     

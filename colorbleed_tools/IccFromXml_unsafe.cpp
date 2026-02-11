@@ -32,9 +32,13 @@
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
 #include <cstring>
+#include <climits>
+#include <cstdlib>
 
+/** Convert ICC XML profile to binary format, deliberately skipping safety checks. */
 int main(int argc, char* argv[])
 {
+  // Parse args: input XML, output ICC binary, optional -noid and -v flags
   if (argc<=2) {
     printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
@@ -43,6 +47,7 @@ int main(int argc, char* argv[])
     return -1;
   }
 
+  // Register XML tag and MPE factories for ICC profile parsing
   CIccTagCreator::PushFactory(new CIccTagXmlFactory());
   CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 
@@ -79,7 +84,12 @@ int main(int argc, char* argv[])
 
         path += szRelaxNGFileName;
 
-        FILE *f = fopen(path.c_str(), "r");
+        // Resolve to canonical path to mitigate path injection from argv[0]
+        char resolved[PATH_MAX];
+        if (!realpath(path.c_str(), resolved)) {
+          resolved[0] = '\0';
+        }
+        FILE *f = fopen(resolved, "r");
 
         if (f) {
           fclose(f);
@@ -90,6 +100,7 @@ int main(int argc, char* argv[])
     }
   }
 
+  // Attempt XML parse; on failure, report reason and exit
   if (!profile.LoadXml(argv[1], szRelaxNGDir.c_str(), &reason)) {
     printf("%s", reason.c_str());
 #ifndef WIN32
@@ -102,13 +113,13 @@ int main(int argc, char* argv[])
   std::string valid_report;
 
   if (profile.Validate(valid_report)<=icValidateWarning) {
-    int i;
+    int idx;
 
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
+    for (idx=0; idx<16; idx++) {
+      if (profile.m_Header.profileID.ID8[idx])
         break;
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
+    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
       printf("Profile parsed and saved correctly\n");
       printf("[ColorBleed] Review the outputs for Sensitive Information\n");
     }
@@ -118,13 +129,13 @@ int main(int argc, char* argv[])
     }
   }
   else {
-    int i;
+    int idx;
 
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
+    for (idx=0; idx<16; idx++) {
+      if (profile.m_Header.profileID.ID8[idx])
         break;
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
+    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
       printf("Profile parsed.  Profile is invalid, but saved correctly\n");
       printf("[ColorBleed] Review the output for sensitive information\n");
     }

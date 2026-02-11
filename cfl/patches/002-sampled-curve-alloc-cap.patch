@@ -1,0 +1,13 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -969,6 +969,11 @@
+ bool CIccSampledCurveSegment::SetSize(icUInt32Number nCount, bool bZeroAlloc/*=true*/)
+ {
++  // CFL patch: cap sampled curve allocation to 128 MB to prevent OOM.
++  // nCount comes from profile data via Read() and can be arbitrarily large.
++  if (nCount && (icUInt64Number)nCount * sizeof(icFloatNumber) > 134217728ULL)
++    return false;
++
+   if (!nCount) {
+     if (m_pSamples)
+       free(m_pSamples);

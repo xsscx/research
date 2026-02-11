@@ -8,7 +8,8 @@
 # Usage:  ./build.sh          # build all fuzzers
 #         ./build.sh clean    # remove build artifacts and start fresh
 #
-# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib
+# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
+#               libclang-rt-<ver>-dev (provides ASan/UBSan runtime)
 
 set -euo pipefail
 
@@ -16,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
 OUTPUT_DIR="$SCRIPT_DIR/bin"
+PROFRAW_DIR="$SCRIPT_DIR/profraw"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang}"
@@ -52,6 +54,7 @@ CORE_FUZZERS=(
   icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
+  icc_deep_dump_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)
@@ -81,6 +84,32 @@ if [ "${1:-}" = "clean" ]; then
   exit 0
 fi
 
+# --- Pre-flight: verify toolchain ---
+for tool in "$CC" "$CXX" cmake pkg-config; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo "❌ ERROR: $tool not found. Install it and retry."
+    exit 1
+  fi
+done
+
+# Verify ASan/UBSan runtime is available (libclang-rt-*-dev)
+ASAN_TEST=$(mktemp /tmp/asan_test.XXXXXX.cpp)
+echo 'int main(){}' > "$ASAN_TEST"
+if ! $CXX -fsanitize=address,undefined "$ASAN_TEST" -o /dev/null 2>/dev/null; then
+  rm -f "$ASAN_TEST"
+  CLANG_VER=$($CXX --version | grep -oP '\d+' | head -1)
+  echo "❌ ERROR: Clang sanitizer runtime not found."
+  echo ""
+  echo "   The ASan/UBSan runtime library is required but missing."
+  echo "   On Ubuntu/Debian, install it with:"
+  echo ""
+  echo "     sudo apt install libclang-rt-${CLANG_VER}-dev"
+  echo ""
+  echo "   This provides libclang_rt.asan, libclang_rt.ubsan, and fuzzer runtimes."
+  exit 1
+fi
+rm -f "$ASAN_TEST"
+
 banner "CFL Fuzzer Build — Full Instrumentation"
 echo "Compiler:  $($CXX --version | head -1)"
 echo "CMake:     $(cmake --version | head -1)"
@@ -102,6 +131,19 @@ else
   git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
+
+# --- Step 1b: Apply CFL OOM mitigation patches ---
+PATCHES_DIR="$SCRIPT_DIR/patches"
+if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
+  echo "Applying CFL library patches..."
+  for p in "$PATCHES_DIR"/*.patch; do
+    if patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
+      echo "  ✅ $(basename "$p")"
+    else
+      echo "  ⏭  $(basename "$p") (already applied or N/A)"
+    fi
+  done
+fi
 
 # --- Step 2: Patch wxWidgets out ---
 banner "Step 2: Patch wxWidgets"
@@ -155,7 +197,7 @@ fi
 
 # --- Step 4: Build fuzzers ---
 banner "Step 4: Build fuzzers"
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$PROFRAW_DIR"
 cd "$SCRIPT_DIR"
 
 BUILT=0
@@ -173,7 +215,11 @@ build_fuzzer() {
     return
   fi
 
-  if $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+  # Per-fuzzer profraw output path (unique via %p=PID, %m=merge-pool)
+  local PROFRAW_PATH="$PROFRAW_DIR/${name}-%p-%m.profraw"
+  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate=$PROFRAW_PATH -fcoverage-mapping -frtti"
+
+  if $CXX $CXXFLAGS_THIS $INCLUDE_FLAGS \
     "$SCRIPT_DIR/${name}.cpp" \
     "$LIB_PROF" \
     "${extra_libs[@]}" \
@@ -189,7 +235,11 @@ build_fuzzer() {
 
 echo "Core fuzzers (12):"
 for f in "${CORE_FUZZERS[@]}"; do
-  build_fuzzer "$f"
+  if [ "$f" = "icc_deep_dump_fuzzer" ]; then
+    build_fuzzer "$f" "-Wl,--allow-multiple-definition"
+  else
+    build_fuzzer "$f"
+  fi
 done
 
 echo ""
@@ -229,6 +279,10 @@ if [ "$BUILT" -gt 0 ]; then
   echo ""
   echo "SHA256 fingerprints:"
   sha256sum "$OUTPUT_DIR"/icc_* 2>/dev/null || shasum -a 256 "$OUTPUT_DIR"/icc_* 2>/dev/null
+  echo ""
+  echo "Profraw output: $PROFRAW_DIR/<fuzzer_name>-<pid>-<id>.profraw"
+  echo "  Merge:  llvm-profdata merge -sparse $PROFRAW_DIR/*.profraw -o merged.profdata"
+  echo "  Report: llvm-cov report \$(printf ' -object %s' $OUTPUT_DIR/icc_*) -instr-profile=merged.profdata"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

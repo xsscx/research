@@ -41,6 +41,8 @@
 
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerColors.h"
+#include "IccTagBasic.h"
+#include <cmath>
 
 //==============================================================================
 // Heuristic Security Analysis
@@ -136,6 +138,13 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("[ERROR] Cannot open file: %s\n", filename);
     return -1;
   }
+
+  // Get actual file size for inflation detection
+  struct stat fileStat;
+  size_t actualFileSize = 0;
+  if (stat(filename, &fileStat) == 0) {
+    actualFileSize = fileStat.st_size;
+  }
   
   icHeader header;
   // Read header with proper byte-swapping (ICC is big-endian)
@@ -184,7 +193,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   
   // 1. Profile Size Heuristic
   icUInt32Number profileSize = header.size;
-  printf("[H1] Profile Size: %u bytes (0x%08X)\n", profileSize, profileSize);
+  printf("[H1] Profile Size: %u bytes (0x%08X)", profileSize, profileSize);
+  if (actualFileSize > 0) {
+    printf("  [actual file: %zu bytes]", actualFileSize);
+  }
+  printf("\n");
   if (profileSize == 0) {
     printf("     %s[WARN]  HEURISTIC: Profile size is ZERO%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Invalid header, possible corruption%s\n", ColorWarning(), ColorReset());
@@ -195,6 +208,16 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount++;
   } else {
     printf("     %s[OK] Size within normal range%s\n", ColorSuccess(), ColorReset());
+  }
+  // Size inflation: header claims much larger than actual file
+  if (actualFileSize > 0 && profileSize > 0 &&
+      profileSize > actualFileSize * 16 && profileSize > (128u << 20)) {
+    printf("     %s[WARN]  HEURISTIC: Header claims %u bytes but file is %zu bytes (%.0fx inflation)%s\n",
+           ColorCritical(), profileSize, actualFileSize,
+           (double)profileSize / actualFileSize, ColorReset());
+    printf("     %sRisk: OOM via tag-internal allocations sized from inflated header%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
   }
   printf("\n");
   
@@ -220,34 +243,35 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 3. ColorSpace Signature Validation
+  // 3. ColorSpace Signature Validation (using IccSignatureUtils)
   icUInt32Number colorSpace = header.colorSpace;
   char csFourCC[5];
   SignatureToFourCC(colorSpace, csFourCC);
   printf("[H3] Data ColorSpace: 0x%08X (%s)\n", colorSpace, csFourCC);
   
-  if (colorSpace == 0x00000000 || colorSpace == 0xFFFFFFFF || colorSpace == 0x20202020) {
-    printf("     %s[WARN]  HEURISTIC: Invalid/null colorSpace signature%s\n", ColorCritical(), ColorReset());
-    printf("     %sRisk: Enum confusion, undefined behavior%s\n", ColorWarning(), ColorReset());
-    heuristicCount++;
-  } else if (HasNonPrintableSignature(colorSpace)) {
-    printf("     %s[WARN]  HEURISTIC: ColorSpace contains non-printable characters%s\n", ColorCritical(), ColorReset());
-    printf("     %sRisk: Binary signature exploitation%s\n", ColorWarning(), ColorReset());
-    heuristicCount++;
-  } else {
+  if (IsValidColorSpaceSignature((icColorSpaceSignature)colorSpace)) {
     CIccInfo info;
-    const char *csName = info.GetColorSpaceSigName((icColorSpaceSignature)colorSpace);
-    if (!csName || strlen(csName) == 0) {
-      printf("     %s[WARN]  HEURISTIC: Unknown colorSpace signature%s\n", ColorWarning(), ColorReset());
-      printf("     %sRisk: Parser may not handle unknown values safely%s\n", ColorWarning(), ColorReset());
-      heuristicCount++;
+    printf("     %s[OK] Valid colorSpace: %s%s\n", ColorSuccess(),
+           info.GetColorSpaceSigName((icColorSpaceSignature)colorSpace), ColorReset());
+  } else {
+    // Use DescribeColorSpaceSignature for raw byte decomposition
+    IccColorSpaceDescription csDesc = DescribeColorSpaceSignature(colorSpace);
+    if (colorSpace == 0x00000000 || colorSpace == 0xFFFFFFFF || colorSpace == 0x20202020) {
+      printf("     %s[WARN]  HEURISTIC: Invalid/null colorSpace signature%s\n", ColorCritical(), ColorReset());
+      printf("     %sRisk: Enum confusion, undefined behavior%s\n", ColorWarning(), ColorReset());
+    } else if (HasNonPrintableSignature(colorSpace)) {
+      printf("     %s[WARN]  HEURISTIC: ColorSpace contains non-printable characters%s\n", ColorCritical(), ColorReset());
+      printf("     %sRisk: Binary signature exploitation%s\n", ColorWarning(), ColorReset());
     } else {
-      printf("     %s[OK] Known colorSpace: %s%s\n", ColorSuccess(), csName, ColorReset());
+      printf("     %s[WARN]  HEURISTIC: Unknown/invalid colorSpace signature%s\n", ColorWarning(), ColorReset());
+      printf("     %sRisk: Parser may not handle unknown values safely%s\n", ColorWarning(), ColorReset());
     }
+    printf("     %sName: %s  Bytes: '%s'%s\n", ColorInfo(), csDesc.name, csDesc.bytes, ColorReset());
+    heuristicCount++;
   }
   printf("\n");
   
-  // 4. PCS ColorSpace Validation
+  // 4. PCS ColorSpace Validation (with ICC v5 spectral PCS support)
   icUInt32Number pcs = header.pcs;
   char pcsFourCC[5];
   SignatureToFourCC(pcs, pcsFourCC);
@@ -256,9 +280,13 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   if (pcs == icSigLabData || pcs == icSigXYZData) {
     CIccInfo info;
     printf("     %s[OK] Valid PCS: %s%s\n", ColorSuccess(), info.GetColorSpaceSigName((icColorSpaceSignature)pcs), ColorReset());
+  } else if (IsSpaceSpectralPCS((icColorSpaceSignature)pcs)) {
+    printf("     %s[OK] Spectral PCS (ICC v5): 0x%08X%s\n", ColorSuccess(), pcs, ColorReset());
   } else {
-    printf("     %s[WARN]  HEURISTIC: Invalid PCS signature (must be Lab or XYZ)%s\n", ColorCritical(), ColorReset());
+    IccColorSpaceDescription pcsDesc = DescribeColorSpaceSignature(pcs);
+    printf("     %s[WARN]  HEURISTIC: Invalid PCS signature (must be Lab, XYZ, or spectral)%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Colorimetric transform failures%s\n", ColorWarning(), ColorReset());
+    printf("     %sName: %s  Bytes: '%s'%s\n", ColorInfo(), pcsDesc.name, pcsDesc.bytes, ColorReset());
     heuristicCount++;
   }
   printf("\n");
@@ -336,6 +364,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("     %s[WARN]  HEURISTIC: Negative illuminant values (non-physical)%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Undefined behavior in color calculations%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
+  } else if (std::isnan(X) || std::isnan(Y) || std::isnan(Z) ||
+             std::isinf(X) || std::isinf(Y) || std::isinf(Z)) {
+    printf("     %s[WARN]  HEURISTIC: NaN or Infinity in illuminant values%s\n", ColorCritical(), ColorReset());
+    printf("     %sRisk: NaN propagation in color transforms, potential crash%s\n", ColorWarning(), ColorReset());
+    heuristicCount++;
   } else if (X > 5.0 || Y > 5.0 || Z > 5.0) {
     printf("     %s[WARN]  HEURISTIC: Illuminant values > 5.0 (suspicious)%s\n", ColorWarning(), ColorReset());
     printf("     %sRisk: Floating-point overflow in transforms%s\n", ColorWarning(), ColorReset());
@@ -345,6 +378,122 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
+  // 15. Date Field Validation
+  printf("[H15] Date Validation: %u-%02u-%02u %02u:%02u:%02u\n",
+         header.date.year, header.date.month, header.date.day,
+         header.date.hours, header.date.minutes, header.date.seconds);
+  {
+    bool dateValid = true;
+    if (header.date.month > 12 || header.date.month == 0) {
+      printf("      %s[WARN]  HEURISTIC: Invalid month: %u%s\n", ColorCritical(), header.date.month, ColorReset());
+      dateValid = false;
+    }
+    if (header.date.day > 31 || header.date.day == 0) {
+      printf("      %s[WARN]  HEURISTIC: Invalid day: %u%s\n", ColorCritical(), header.date.day, ColorReset());
+      dateValid = false;
+    }
+    if (header.date.hours > 23) {
+      printf("      %s[WARN]  HEURISTIC: Invalid hours: %u%s\n", ColorCritical(), header.date.hours, ColorReset());
+      dateValid = false;
+    }
+    if (header.date.minutes > 59) {
+      printf("      %s[WARN]  HEURISTIC: Invalid minutes: %u%s\n", ColorCritical(), header.date.minutes, ColorReset());
+      dateValid = false;
+    }
+    if (header.date.seconds > 59) {
+      printf("      %s[WARN]  HEURISTIC: Invalid seconds: %u%s\n", ColorCritical(), header.date.seconds, ColorReset());
+      dateValid = false;
+    }
+    if (header.date.year > 2100 || header.date.year < 1900) {
+      printf("      %s[WARN]  HEURISTIC: Suspicious year: %u (expected 1900-2100)%s\n",
+             ColorWarning(), header.date.year, ColorReset());
+      dateValid = false;
+    }
+    if (!dateValid) {
+      printf("      %sRisk: Malformed date may indicate crafted/corrupted profile%s\n", ColorWarning(), ColorReset());
+      heuristicCount++;
+    } else {
+      printf("      %s[OK] Date values within valid ranges%s\n", ColorSuccess(), ColorReset());
+    }
+  }
+  printf("\n");
+  
+  // 16. Suspicious Signature Patterns (repeat-byte, null)
+  printf("[H16] Signature Pattern Analysis\n");
+  {
+    struct { const char *name; icUInt32Number sig; } sigs[] = {
+      {"colorSpace",  header.colorSpace},
+      {"pcs",         header.pcs},
+      {"platform",    header.platform},
+      {"deviceClass", header.deviceClass},
+      {"manufacturer",header.manufacturer},
+      {"creator",     header.creator},
+      {"mcs",         header.mcs},
+    };
+    int suspiciousCount = 0;
+    for (auto &s : sigs) {
+      // Detect repeat-byte patterns (e.g. 0x8e8e8e8e, 0xabababab)
+      uint8_t b0 = (s.sig >> 24) & 0xFF;
+      bool repeatByte = (s.sig != 0) &&
+                        (b0 == ((s.sig >> 16) & 0xFF)) &&
+                        (b0 == ((s.sig >>  8) & 0xFF)) &&
+                        (b0 == (s.sig & 0xFF));
+      if (repeatByte) {
+        printf("      %s[WARN]  %s: 0x%08X repeat-byte pattern (fuzz artifact?)%s\n",
+               ColorWarning(), s.name, s.sig, ColorReset());
+        suspiciousCount++;
+      }
+    }
+    if (suspiciousCount > 0) {
+      printf("      %sRisk: %d repeat-byte signature(s) — likely crafted/fuzzed profile%s\n",
+             ColorWarning(), suspiciousCount, ColorReset());
+      heuristicCount++;
+    } else {
+      printf("      %s[OK] No suspicious signature patterns detected%s\n", ColorSuccess(), ColorReset());
+    }
+  }
+  printf("\n");
+  
+  // 17. Spectral/BiSpectral Range Validation
+  printf("[H17] Spectral Range Validation\n");
+  {
+    float specStart = icF16toF(header.spectralRange.start);
+    float specEnd   = icF16toF(header.spectralRange.end);
+    uint16_t specSteps = header.spectralRange.steps;
+    float biStart = icF16toF(header.biSpectralRange.start);
+    float biEnd   = icF16toF(header.biSpectralRange.end);
+    uint16_t biSteps = header.biSpectralRange.steps;
+    
+    bool hasSpectral = (specSteps > 0 || specStart != 0.0f || specEnd != 0.0f);
+    bool hasBiSpectral = (biSteps > 0 || biStart != 0.0f || biEnd != 0.0f);
+    
+    if (hasSpectral) {
+      printf("      Spectral: start=%.2fnm end=%.2fnm steps=%u\n", specStart, specEnd, specSteps);
+      if (specSteps > 10000) {
+        printf("      %s[WARN]  HEURISTIC: Excessive spectral steps: %u%s\n",
+               ColorWarning(), specSteps, ColorReset());
+        heuristicCount++;
+      }
+      if (specEnd < specStart && specEnd != 0.0f) {
+        printf("      %s[WARN]  HEURISTIC: Spectral end < start (%.2f < %.2f)%s\n",
+               ColorWarning(), specEnd, specStart, ColorReset());
+        heuristicCount++;
+      }
+    }
+    if (hasBiSpectral) {
+      printf("      BiSpectral: start=%.2fnm end=%.2fnm steps=%u\n", biStart, biEnd, biSteps);
+      if (biSteps > 10000) {
+        printf("      %s[WARN]  HEURISTIC: Excessive bispectral steps: %u%s\n",
+               ColorWarning(), biSteps, ColorReset());
+        heuristicCount++;
+      }
+    }
+    if (!hasSpectral && !hasBiSpectral) {
+      printf("      %s[OK] No spectral data (standard profile)%s\n", ColorSuccess(), ColorReset());
+    }
+  }
+  printf("\n");
+
   io.Close();
   
   // Now open profile with IccProfLib for tag-level analysis
@@ -479,10 +628,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       fseek(fp, 0, SEEK_SET);
       
       if (fileSize >= 132) {
-        icUInt8Number header[132];
-        if (fread(header, 1, 132, fp) == 132) {
-          icUInt32Number tagTableCount = (header[128]<<24) | (header[129]<<16) | 
-                                          (header[130]<<8) | header[131];
+        icUInt8Number rawHdr[132];
+        if (fread(rawHdr, 1, 132, fp) == 132) {
+          icUInt32Number tagTableCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) | (static_cast<icUInt32Number>(rawHdr[129])<<16) | 
+                                          (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
           
           bool foundTagArray = false;
           icUInt32Number tagArrayCount = 0;
@@ -496,17 +645,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             fseek(fp, entryPos, SEEK_SET);
             if (fread(entry, 1, 12, fp) != 12) break;
             
-            icUInt32Number tagSig = (entry[0]<<24) | (entry[1]<<16) | (entry[2]<<8) | entry[3];
-            icUInt32Number tagOffset = (entry[4]<<24) | (entry[5]<<16) | (entry[6]<<8) | entry[7];
-            icUInt32Number tagSize = (entry[8]<<24) | (entry[9]<<16) | (entry[10]<<8) | entry[11];
+            icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
+            icUInt32Number tagOffset = (static_cast<icUInt32Number>(entry[4])<<24) | (static_cast<icUInt32Number>(entry[5])<<16) | (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tagSize = (static_cast<icUInt32Number>(entry[8])<<24) | (static_cast<icUInt32Number>(entry[9])<<16) | (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
             
-            // Validate tag is within file bounds
-            if (tagOffset + 4 <= fileSize && tagOffset >= 128) {
+            // Validate tag is within file bounds (overflow-safe check)
+            if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
               icUInt8Number tagData[4];
               fseek(fp, tagOffset, SEEK_SET);
               if (fread(tagData, 1, 4, fp) == 4) {
-                icUInt32Number tagType = (tagData[0]<<24) | (tagData[1]<<16) | 
-                                         (tagData[2]<<8) | tagData[3];
+                icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) | 
+                                         (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
                 
                 // Check for TagArrayType (0x74617279 = 'tary')
                 if (tagType == 0x74617279) {
@@ -545,6 +694,75 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
     printf("\n");
     
+    // 18. Technology Signature Validation
+    printf("[H18] Technology Signature Validation\n");
+    {
+      CIccTag *pTechTag = pIcc->FindTag(icSigTechnologyTag);
+      if (pTechTag) {
+        CIccTagSignature *pSigTag = dynamic_cast<CIccTagSignature*>(pTechTag);
+        if (pSigTag) {
+          icTechnologySignature techSig = (icTechnologySignature)pSigTag->GetValue();
+          if (IsValidTechnologySignature(techSig)) {
+            CIccInfo techInfo;
+            printf("      %s[OK] Valid technology: %s%s\n", ColorSuccess(),
+                   techInfo.GetTechnologySigName(techSig), ColorReset());
+          } else {
+            printf("      %s[WARN]  HEURISTIC: Unknown technology signature: 0x%08X%s\n",
+                   ColorWarning(), (unsigned)techSig, ColorReset());
+            printf("       %sRisk: Non-standard technology, possible parser issue%s\n",
+                   ColorWarning(), ColorReset());
+            heuristicCount++;
+          }
+        } else {
+          printf("      %s[WARN]  Technology tag has unexpected type%s\n", ColorWarning(), ColorReset());
+          heuristicCount++;
+        }
+      } else {
+        printf("      %sINFO: No technology tag present%s\n", ColorInfo(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 19. Tag Overlap Detection
+    printf("[H19] Tag Offset/Size Overlap Detection\n");
+    {
+      struct TagRange { icUInt32Number sig; icUInt32Number offset; icUInt32Number size; };
+      std::vector<TagRange> ranges;
+      TagEntryList::iterator it;
+      for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        IccTagEntry *e = &(*it);
+        ranges.push_back({(icUInt32Number)e->TagInfo.sig, e->TagInfo.offset, e->TagInfo.size});
+      }
+      int overlapCount = 0;
+      for (size_t a = 0; a < ranges.size(); a++) {
+        for (size_t b = a+1; b < ranges.size(); b++) {
+          if (ranges[a].offset == ranges[b].offset && ranges[a].size == ranges[b].size)
+            continue; // Shared tag data (allowed by spec)
+          uint64_t aEnd = (uint64_t)ranges[a].offset + ranges[a].size;
+          uint64_t bEnd = (uint64_t)ranges[b].offset + ranges[b].size;
+          if (ranges[a].offset < bEnd && ranges[b].offset < aEnd &&
+              ranges[a].offset != ranges[b].offset) {
+            char s1[5], s2[5];
+            SignatureToFourCC(ranges[a].sig, s1);
+            SignatureToFourCC(ranges[b].sig, s2);
+            printf("      %s[WARN]  Tags '%s' and '%s' overlap: [%u+%u] vs [%u+%u]%s\n",
+                   ColorCritical(), s1, s2,
+                   ranges[a].offset, ranges[a].size,
+                   ranges[b].offset, ranges[b].size, ColorReset());
+            overlapCount++;
+          }
+        }
+      }
+      if (overlapCount > 0) {
+        printf("      %sRisk: %d tag overlap(s) — possible data corruption or exploitation%s\n",
+               ColorCritical(), overlapCount, ColorReset());
+        heuristicCount++;
+      } else {
+        printf("      %s[OK] No tag overlaps detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
     delete pIcc;
   }
   
@@ -826,8 +1044,9 @@ bool ValidateBinaryDatabaseFormat(
     return false;
   }
   
-  // Read flags (bytes 12-15, little-endian)
+  // Read flags (bytes 12-15, little-endian) — parsed for future validation
   uint32_t flags = *reinterpret_cast<const uint32_t*>(data + 12);
+  (void)flags;
   
   // If version >= 2, check uncompressed size
   if (version >= 2) {
@@ -885,3 +1104,39 @@ bool ValidateBinaryDatabaseFormat(
 }
 
 } // namespace IccAnalyzerSecurity
+
+// ── Output sanitization (CodeQL icc/injection-attacks) ──────────────
+
+std::string SanitizeForLog(const std::string& input) {
+  std::string out;
+  out.reserve(input.size());
+  for (unsigned char c : input) {
+    if (c == '\n' || c == '\r' || c == '\0' || c == '\x1b') continue;
+    if (c < 0x20 && c != '\t') continue;
+    out.push_back(static_cast<char>(c));
+  }
+  return out;
+}
+
+std::string SanitizeForLog(const char* input) {
+  if (!input) return "(null)";
+  return SanitizeForLog(std::string(input));
+}
+
+std::string SanitizeForDOT(const std::string& input) {
+  std::string out;
+  out.reserve(input.size());
+  for (char c : input) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '<':  out += "\\<";  break;
+      case '>':  out += "\\>";  break;
+      case '\n': out += "\\n";  break;
+      case '\r': break;
+      case '\0': break;
+      default:   out.push_back(c); break;
+    }
+  }
+  return out;
+}

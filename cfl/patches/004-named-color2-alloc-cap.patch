@@ -1,0 +1,14 @@
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -2852,6 +2852,11 @@
+ 
+   size_t nColorEntrySize = 32/*rootName*/ + (3/*PCS*/ + 1/*iAny*/ + (size_t)nDeviceCoords)*sizeof(icFloatNumber);
+ 
++  // CFL patch: cap NamedColor2 allocation to 128 MB to prevent OOM.
++  // nSize comes from profile tag data and can be arbitrarily large.
++  if ((icUInt64Number)nSize * nColorEntrySize > 134217728ULL)
++    return false;
++
+   SIccNamedColorEntry* pNamedColor = (SIccNamedColorEntry*)calloc(nSize, nColorEntrySize);
+ 
+   if (!pNamedColor)

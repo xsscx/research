@@ -38,6 +38,7 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerSignatures.h"
+#include <new>
 
 void PrintHexDump(const icUInt8Number *data, icUInt32Number size, icUInt32Number offset)
 {
@@ -109,13 +110,17 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
   icUInt32Number tagCount;
   pIO->Read32(&tagCount);
   
-  if (tagCount > UINT32_MAX / 12) {
+  if (tagCount > UINT32_MAX / 12 || tagCount > 10000) {
     printf("Error: Tag count too large (%u)\n", tagCount);
     return;
   }
   
   icUInt32Number tableSize = tagCount * 12 + 4;
-  icUInt8Number *tagTableData = new icUInt8Number[tableSize];
+  icUInt8Number *tagTableData = new (std::nothrow) icUInt8Number[tableSize];
+  if (!tagTableData) {
+    printf("Error: Allocation failed for tag table (%u bytes)\n", tableSize);
+    return;
+  }
   pIO->Seek(tagTableOffset, icSeekSet);
   pIO->Read8(tagTableData, tableSize);
   

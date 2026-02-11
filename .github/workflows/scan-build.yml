@@ -1,0 +1,202 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Run Clang scan-build static analysis on all C++ targets
+#
+# Targets: iccanalyzer-lite (12 modules), colorbleed_tools (2 modules)
+# Checkers: security.*, alpha.security.*, deadcode.*, core.*
+###############################################################
+
+name: Clang scan-build Analysis
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 7 * * 1'  # Monday 07:30 UTC
+
+concurrency:
+  group: scan-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan-build:
+    name: scan-build — ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [iccanalyzer-lite, colorbleed_tools]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang clang-tools ca-certificates \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev \
+            nlohmann-json3-dev
+
+      - name: Clone and build iccDEV libraries
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          cd iccDEV
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+          cd ..
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          cd iccDEV/Build
+          cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
+          make -j$(nproc) IccProfLib2 IccXML2
+
+      - name: scan-build — iccanalyzer-lite
+        if: matrix.target == 'iccanalyzer-lite'
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          mkdir -p /tmp/scan-build-results
+
+          CHECKERS="\
+            -enable-checker alpha.security.ArrayBound \
+            -enable-checker alpha.security.ArrayBoundV2 \
+            -enable-checker alpha.security.MallocOverflow \
+            -enable-checker alpha.security.ReturnPtrRange \
+            -enable-checker alpha.security.taint.TaintPropagation \
+            -enable-checker security.insecureAPI.UncheckedReturn \
+            -enable-checker security.insecureAPI.getpw \
+            -enable-checker security.insecureAPI.gets \
+            -enable-checker security.insecureAPI.mkstemp \
+            -enable-checker security.insecureAPI.mktemp \
+            -enable-checker security.insecureAPI.vfork \
+            -enable-checker security.FloatLoopCounter \
+            -enable-checker deadcode.DeadStores \
+            -enable-checker core.NullDereference \
+            -enable-checker core.DivideZero"
+
+          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+
+          SRCS=$(ls *.cpp)
+          TOTAL=0
+          BUGS=0
+
+          for src in $SRCS; do
+            echo "::group::scan-build: $src"
+            TOTAL=$((TOTAL + 1))
+            scan-build --status-bugs $CHECKERS \
+              -o /tmp/scan-build-results \
+              clang++ -std=c++17 -DICCANALYZER_LITE $INCLUDES \
+              -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
+            echo "::endgroup::"
+          done
+
+          {
+            echo "### scan-build: iccanalyzer-lite"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Modules scanned | $TOTAL |"
+            echo "| Modules with bugs | $BUGS |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          # Copy HTML reports if any exist, always generate summary
+          mkdir -p scan-build-report
+          cp -r /tmp/scan-build-results/* scan-build-report/ 2>/dev/null || true
+          {
+            echo "# scan-build: iccanalyzer-lite"
+            echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Commit: ${GITHUB_SHA:-unknown}"
+            echo "Modules scanned: $TOTAL"
+            echo "Modules with bugs: $BUGS"
+            echo ""
+            for src in $SRCS; do echo "  ✓ $src"; done
+          } > scan-build-report/summary.txt
+
+          if [ "$BUGS" -gt 0 ]; then
+            echo "::error::scan-build found bugs in $BUGS module(s)"
+            exit 1
+          fi
+
+      - name: scan-build — colorbleed_tools
+        if: matrix.target == 'colorbleed_tools'
+        run: |
+          set -euo pipefail
+          cd colorbleed_tools
+          mkdir -p /tmp/scan-build-results
+
+          CHECKERS="\
+            -enable-checker alpha.security.ArrayBound \
+            -enable-checker alpha.security.ArrayBoundV2 \
+            -enable-checker security.insecureAPI.UncheckedReturn \
+            -enable-checker deadcode.DeadStores \
+            -enable-checker core.NullDereference \
+            -enable-checker core.DivideZero"
+
+          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+
+          SRCS=$(ls *.cpp)
+          TOTAL=0
+          BUGS=0
+
+          for src in $SRCS; do
+            echo "::group::scan-build: $src"
+            TOTAL=$((TOTAL + 1))
+            scan-build --status-bugs $CHECKERS \
+              -o /tmp/scan-build-results \
+              clang++ -std=c++17 $INCLUDES \
+              -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
+            echo "::endgroup::"
+          done
+
+          {
+            echo "### scan-build: colorbleed_tools"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Modules scanned | $TOTAL |"
+            echo "| Modules with bugs | $BUGS |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p scan-build-report
+          cp -r /tmp/scan-build-results/* scan-build-report/ 2>/dev/null || true
+          {
+            echo "# scan-build: colorbleed_tools"
+            echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Commit: ${GITHUB_SHA:-unknown}"
+            echo "Modules scanned: $TOTAL"
+            echo "Modules with bugs: $BUGS"
+            echo ""
+            for src in $SRCS; do echo "  ✓ $src"; done
+          } > scan-build-report/summary.txt
+
+          if [ "$BUGS" -gt 0 ]; then
+            echo "::error::scan-build found bugs in $BUGS module(s)"
+            exit 1
+          fi
+
+      - name: Upload scan-build report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: scan-build-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            ${{ matrix.target }}/scan-build-report/
+          retention-days: 90
+          if-no-files-found: ignore

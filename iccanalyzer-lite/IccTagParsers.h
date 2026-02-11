@@ -152,6 +152,8 @@ inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, siz
     uint32_t str_len = Read32(data + rec_offset + 4);
     uint32_t str_offset = Read32(data + rec_offset + 8);
     
+    // Validate str_offset is within bounds before accessing
+    if (str_offset >= size) continue;
     if (str_offset + str_len > size || str_len > 10000) continue; // Safety
     
     char lang[3] = {0};
@@ -165,8 +167,9 @@ inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, siz
     
     // Convert UTF-16BE to ASCII (simplified - just take low bytes)
     for (uint32_t j = 0; j < str_len/2; j++) {
-      if (str_offset + j*2 + 1 < size) {
-        unsigned char c = data[str_offset + j*2 + 1];
+      size_t idx = static_cast<size_t>(str_offset) + static_cast<size_t>(j) * 2 + 1;
+      if (idx < size) {
+        unsigned char c = data[idx];
         if (c >= 32 && c < 127) xml << c;
       }
     }

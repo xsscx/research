@@ -42,8 +42,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           submodules: recursive
           fetch-depth: 1
 
@@ -59,8 +60,24 @@ jobs:
 
       - name: Clone iccDEV repository
         run: |
-          git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
-          cd iccDEV && git submodule update --init --recursive --depth 1
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          cd iccDEV
+          # Comment out wxWidgets requirement
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+      - name: Apply CFL patches to iccDEV
+        run: |
+          set -euo pipefail
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
 
       - name: Build iccDEV libraries
         run: |
@@ -69,7 +86,7 @@ jobs:
           make -j$(nproc) IccProfLib2 IccXML2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           languages: cpp
           config-file: ${{ matrix.target }}/codeql-config.yml
@@ -99,7 +116,7 @@ jobs:
           $CXX IccToXml_unsafe.o $LDFLAGS $LIBS -o iccToXml_unsafe
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           category: "/language:cpp/${{ matrix.target }}"
           output: codeql-results
@@ -144,12 +161,12 @@ jobs:
           - *-report.html - Human-readable report
           - *-findings.csv - Spreadsheet-compatible
           - *-summary.json - Machine-readable
-          - codeql-queries/ - All 15 security queries
+          - codeql-queries/ - All 14 security queries
           - codeql-config.yml - Analysis configuration
           EOREADME
 
       - name: Upload Analysis Bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codeql-analysis-${{ matrix.target }}-${{ github.run_id }}
           path: analysis-bundle/${{ matrix.target }}/
@@ -168,6 +185,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: codeql-analysis
     if: always()
+    permissions:
+      contents: read
     
     steps:
       - name: Generate Overall Summary

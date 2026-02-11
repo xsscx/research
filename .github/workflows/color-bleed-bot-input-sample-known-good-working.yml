@@ -29,7 +29,9 @@ jobs:
         compiler: [gcc]
     steps:
       - name: Checkout master
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
 
       - name: Install Dependencies
         shell: bash --noprofile --norc {0}
@@ -81,7 +83,16 @@ jobs:
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
           git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
+          cd ..
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          cd colorbleed_tools/iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
           cd ../../ && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}

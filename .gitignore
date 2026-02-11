@@ -1,6 +1,14 @@
 # Prerequisites
 *.d
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
 # Compiled Object files
 *.slo
 *.lo
@@ -45,11 +53,67 @@
 *.gcno
 *.gcov
 
+# Profiling
+*.profraw
+*.profdata
+**/profraw/
+
+# Coverage report artifacts
+*_coverage_html/
+*_coverage_report.txt
+**/coverage-report/
+
+# Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
+crash-*
+oom-*
+slow-unit-*
+*:Zone.Identifier
+dd.log
+fuzz
+
+# Hash-named fuzzer corpus files (keep only named .icc profiles)
+test-profiles/[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
+
+# Logs
+*.log
+dump.log
+profile-fuzzer.log
+
+# Scratch / staging dictionaries (consolidated versions are tracked)
+add-dict.txt
+add-*-dict.txt
+add-spectral-fuzzer-dict.txt
+new.dict
+*-dict-add.txt
+
 # Build artifacts (binaries and test outputs)
 iccanalyzer-lite/iccanalyzer-lite
+iccanalyzer-lite/iccAnalyzer-lite
+iccanalyzer-lite/iccDEV/
+iccanalyzer-lite/build/
+iccanalyzer-lite/*-build-report.md
+iccanalyzer-lite/last-verified-build.md
 colorbleed_tools/iccFromXml_unsafe
 colorbleed_tools/iccToXml_unsafe
+colorbleed_tools/iccToXml
 colorbleed_tools/roundtrip.icc
 colorbleed_tools/test.xml
 
-iccanalyzer-lite/iccDEV/
+# CFL build artifacts
+cfl/bin/
+cfl/iccDEV/
+colorbleed_tools/iccDEV/
+cfl/default.profraw
+cfl/fuzz-*.log
+cfl/findings/
+cfl/oom-*
+
+# Source-of-truth build
+source-of-truth/
+
+# Fuzz corpus (ephemeral, synced from ramdisk)
+fuzz/
+now/
+
+# XNU Image Fuzzer corpus (manually managed)
+xif/

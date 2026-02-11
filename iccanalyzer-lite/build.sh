@@ -1,6 +1,15 @@
 #!/bin/bash
-# Build iccAnalyzer-lite with ASAN+UBSAN+Coverage instrumentation
-# Matches iccDEV Build configuration
+# Build iccAnalyzer-lite — Debug build with maximum instrumentation
+# Goal: Find bugs in iccDEV library code via ASAN, UBSAN, coverage, and debug checks
+#
+# Build profile: DEBUG (not Release)
+#   -O0          : No optimization — preserves all code paths for analysis
+#   -g3          : Maximum debug info (includes macro definitions)
+#   -DDEBUG      : Enable library-level debug assertions
+#   ASAN+UBSAN   : Runtime memory and undefined-behavior detection
+#   Coverage     : gcov-compatible instrumentation for code profiling
+#   -ftrapv      : Trap on signed integer overflow
+#   -fstack-protector-strong : Stack buffer overflow detection
 
 set -e
 
@@ -20,10 +29,21 @@ fi
 
 echo "Using iccDEV at: $ICCDEV_ROOT"
 
-# Compiler and flags (matching iccDEV)
+# ── Compiler ──────────────────────────────────────────────────────────
 export CXX=clang++
-export CXXFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -fprofile-arcs -ftest-coverage --coverage -std=c++17 -DICCANALYZER_LITE"
-export LDFLAGS="-fsanitize=address,undefined -fprofile-arcs --coverage"
+
+# ── Debug + Sanitizer + Coverage flags ────────────────────────────────
+SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fno-sanitize-recover=undefined"
+DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common"
+HARDENING="-ftrapv -fstack-protector-strong -D_FORTIFY_SOURCE=0"
+COVERAGE="-fprofile-arcs -ftest-coverage --coverage"
+STANDARD="-std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter"
+
+export CXXFLAGS="${SANITIZERS} ${DEBUG_FLAGS} ${HARDENING} ${COVERAGE} ${STANDARD}"
+export LDFLAGS="${SANITIZERS} -fprofile-arcs --coverage"
+
+echo "CXXFLAGS: $CXXFLAGS"
+echo ""
 
 # Include paths
 INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
@@ -44,11 +64,15 @@ for src in $SOURCES; do
 done
 wait
 
-# Link
+# Link (--allow-multiple-definition needed for icRealloc OOM-guard override)
 echo "Linking..."
-${CXX} ${LDFLAGS} *.o ${LIBS} -o iccanalyzer-lite
+${CXX} ${LDFLAGS} -Wl,--allow-multiple-definition *.o ${LIBS} -o iccanalyzer-lite
 
 echo ""
 echo "[OK] Build complete"
 ls -lh iccanalyzer-lite
 file iccanalyzer-lite
+echo ""
+echo "Coverage output: .gcda files written alongside .gcno files at runtime"
+echo "  Library coverage: iccDEV/Build/**/*.gcda"
+echo "  Analyzer coverage: *.gcda (current directory)"

@@ -1,0 +1,111 @@
+###############################################################
+#
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build and push ICC Profile MCP Server container image
+#         with SBOM generation and build provenance attestation.
+#
+###############################################################
+
+name: MCP Server Docker Build
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    name: Build, Push, Attest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: mcp-server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@2d094306a78d7bde297684f0120dfb41969c38c2 # v0.22.2
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@c44148e5bf178192efd8947e07a0d439a356c60b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@b74e95116c27d38263fc426c93ebfca07aa6197b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mcp-server-sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          {
+            echo "## MCP Server Docker Build"
+            echo ""
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| **Image** | \`ghcr.io/${{ github.repository_owner }}/icc-profile-mcp\` |"
+            echo "| **Digest** | \`${{ steps.build-push.outputs.digest }}\` |"
+            echo "| **Tags** | $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ', ') |"
+            echo ""
+            echo "### Attestations"
+            echo "- ✅ Build provenance (SLSA)"
+            echo "- ✅ SBOM (SPDX)"
+            echo ""
+            echo "Verify: \`gh attestation verify oci://ghcr.io/${{ github.repository_owner }}/icc-profile-mcp:latest -R ${{ github.repository }}\`"
+          } >> $GITHUB_STEP_SUMMARY

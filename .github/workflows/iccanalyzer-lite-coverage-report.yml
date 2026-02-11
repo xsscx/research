@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
           fetch-depth: 1
@@ -83,6 +83,17 @@ jobs:
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Apply CFL patches to iccDEV
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+
       - name: Build iccDEV libraries with coverage
         env:
           BASH_ENV: /dev/null
@@ -121,7 +132,7 @@ jobs:
           # Coverage-only build: no sanitizers (ASAN crashes skip gcda flush)
           export CXX=g++
           export CXXFLAGS="-fno-omit-frame-pointer -g -O0 -fprofile-arcs -ftest-coverage --coverage -std=c++17 -DICCANALYZER_LITE"
-          export LDFLAGS="-fprofile-arcs --coverage"
+          export LDFLAGS="-fprofile-arcs --coverage -Wl,--allow-multiple-definition"
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"

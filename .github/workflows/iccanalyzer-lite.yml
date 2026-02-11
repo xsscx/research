@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: "iccanalyzer-lite • clang • RelWithDebInfo"
+    name: "iccanalyzer-lite • clang • Debug"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -31,8 +31,9 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
       
@@ -80,6 +81,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -91,7 +93,7 @@ jobs:
             echo "### Build Configuration"
             echo ""
             echo "**Compiler:**   clang++ ($(clang++ --version | head -n 1))"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"
           } >> $GITHUB_STEP_SUMMARY
@@ -102,6 +104,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -121,6 +124,17 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
       
+      - name: Apply CFL patches to iccDEV
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+
       - name: Build iccDEV libraries
         env:
           BASH_ENV: /dev/null
@@ -128,6 +142,7 @@ jobs:
           CXX: clang++
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -136,7 +151,7 @@ jobs:
           
           echo "Configuring CMake with instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
@@ -166,6 +181,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -198,6 +214,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -231,6 +248,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -251,7 +269,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: iccanalyzer-lite-instrumented
           path: |
@@ -268,6 +286,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -281,7 +300,7 @@ jobs:
             echo "**Status:**     ${{ job.status }}"
             echo "**Tool:**       iccanalyzer-lite"
             echo "**Compiler:**   clang++"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Features:**   AddressSanitizer, UndefinedBehaviorSanitizer, Coverage"
             echo "**Pattern:**    iccDEV libraries built with instrumentation"
             echo ""

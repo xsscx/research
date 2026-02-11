@@ -1,0 +1,423 @@
+###############################################################
+#
+# Copyright (c) 2026 International Color Consortium.
+#                All rights reserved.
+#                https://color.org
+#
+# Intent: Docker-based instrumented build of iccDEV with
+#         Phase 1: ASAN + UBSAN sanitizer testing
+#         Phase 2: Clang source-based code coverage profiling
+#         Generates llvm-cov HTML, lcov, and sanitizer reports
+#
+# Reference: xsscx/cfl/.github/workflows/ci-code-coverage.yml
+#
+###############################################################
+
+name: iccDEV Docker Instrumented Build
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: docker-instrumented-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-instrumented:
+    name: Docker ASAN/UBSAN + Coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Prepare build context
+        run: |
+          set -euo pipefail
+          # Copy colorbleed_tools source into build context alongside Dockerfile
+          cp -r "${{ github.workspace }}/colorbleed_tools" /tmp/colorbleed_tools
+          # Copy CFL patches for iccDEV library fixes
+          cp -r "${{ github.workspace }}/cfl/patches" /tmp/cfl-patches
+          cp "${{ github.workspace }}/Dockerfile.instrumented" /tmp/Dockerfile.instrumented
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: /tmp
+          file: /tmp/Dockerfile.instrumented
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@2d094306a78d7bde297684f0120dfb41969c38c2 # v0.22.2
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented@${{ steps.build-push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@c44148e5bf178192efd8947e07a0d439a356c60b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@b74e95116c27d38263fc426c93ebfca07aa6197b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Pull image for local testing
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/iccdev-instrumented:latest
+
+      - name: "Phase 1: ASAN/UBSAN testing"
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/run-asan.sh <<'SCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+
+          export ASAN_OPTIONS="detect_leaks=1:symbolize=1:abort_on_error=0:log_path=/tmp/asan"
+          export UBSAN_OPTIONS="print_stacktrace=1:log_path=/tmp/ubsan"
+
+          for d in /opt/iccdev/build-asan/Tools/*; do
+            [ -d "$d" ] && export PATH="$d:$PATH"
+          done
+          export LD_LIBRARY_PATH="/opt/iccdev/build-asan/IccProfLib:/opt/iccdev/build-asan/IccXML:${LD_LIBRARY_PATH:-}"
+
+          mkdir -p /tmp/sanitizer-results
+          cd /opt/iccdev/Testing
+
+          echo "--- CreateAllProfiles.sh (ASAN build) ---"
+          bash CreateAllProfiles.sh 2>&1 | tail -20
+          PROFILE_COUNT=$(find . -name "*.icc" | wc -l)
+          echo "Created $PROFILE_COUNT ICC profiles"
+
+          echo "--- RunTests.sh (ASAN build) ---"
+          bash RunTests.sh 2>&1 | tail -40 || true
+
+          echo ""
+          echo "=== ASAN/UBSAN Results ==="
+
+          ASAN_COUNT=0
+          if ls /tmp/asan.* 1>/dev/null 2>&1; then
+            ASAN_COUNT=$(ls /tmp/asan.* | wc -l)
+            cp /tmp/asan.* /tmp/sanitizer-results/ 2>/dev/null || true
+            echo "ASAN: $ASAN_COUNT log files"
+            echo "--- Sample ASAN errors ---"
+            head -30 /tmp/asan.* 2>/dev/null | head -50 || true
+          else
+            echo "ASAN: No issues detected"
+          fi
+
+          UBSAN_COUNT=0
+          if ls /tmp/ubsan.* 1>/dev/null 2>&1; then
+            UBSAN_COUNT=$(ls /tmp/ubsan.* | wc -l)
+            cp /tmp/ubsan.* /tmp/sanitizer-results/ 2>/dev/null || true
+            echo "UBSAN: $UBSAN_COUNT log files"
+            echo "--- Sample UBSAN errors ---"
+            head -30 /tmp/ubsan.* 2>/dev/null | head -50 || true
+          else
+            echo "UBSAN: No issues detected"
+          fi
+
+          echo "$PROFILE_COUNT" > /tmp/sanitizer-results/profile-count.txt
+          echo "$ASAN_COUNT" > /tmp/sanitizer-results/asan-count.txt
+          echo "$UBSAN_COUNT" > /tmp/sanitizer-results/ubsan-count.txt
+          SCRIPT
+          chmod +x /tmp/run-asan.sh
+
+          docker run --name asan-phase \
+            -v /tmp/run-asan.sh:/run-asan.sh:ro \
+            ghcr.io/${{ github.repository_owner }}/iccdev-instrumented:latest /run-asan.sh
+
+          mkdir -p sanitizer-results
+          docker cp asan-phase:/tmp/sanitizer-results/. sanitizer-results/
+
+          echo "asan_profiles=$(cat sanitizer-results/profile-count.txt)" >> $GITHUB_ENV
+          echo "asan_count=$(cat sanitizer-results/asan-count.txt)" >> $GITHUB_ENV
+          echo "ubsan_count=$(cat sanitizer-results/ubsan-count.txt)" >> $GITHUB_ENV
+
+          docker rm asan-phase
+
+      - name: "Phase 2: Coverage testing + report generation"
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/run-coverage.sh <<'SCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+
+          BUILD_DIR=/opt/iccdev/build-coverage
+          mkdir -p /tmp/profraw /tmp/coverage-report
+
+          for d in "$BUILD_DIR"/Tools/*; do
+            [ -d "$d" ] && export PATH="$d:$PATH"
+          done
+
+          cd /opt/iccdev/Testing
+
+          # Create profiles
+          export LLVM_PROFILE_FILE=/tmp/profraw/create-%p-%m.profraw
+          echo "--- CreateAllProfiles.sh (coverage build) ---"
+          bash CreateAllProfiles.sh 2>&1 | tail -20
+          PROFILE_COUNT=$(find . -name "*.icc" | wc -l)
+          echo "Created $PROFILE_COUNT ICC profiles"
+
+          # Run tests
+          export LLVM_PROFILE_FILE=/tmp/profraw/test-%p-%m.profraw
+          echo "--- RunTests.sh (coverage build) ---"
+          bash RunTests.sh 2>&1 | tail -40
+
+          # Dump all profiles
+          export LLVM_PROFILE_FILE=/tmp/profraw/dump-%p-%m.profraw
+          DUMP_BIN=$(find "$BUILD_DIR/Tools" -name "iccDumpProfile" -type f -executable | head -1)
+          TOTAL=0; PASS=0
+          while IFS= read -r icc; do
+            TOTAL=$((TOTAL + 1))
+            if timeout 10s "$DUMP_BIN" "$icc" > /dev/null 2>&1; then
+              PASS=$((PASS + 1))
+            fi
+          done < <(find /opt/iccdev/Testing -name "*.icc" -type f)
+          echo "IccDumpProfile: $TOTAL profiles, $PASS pass, $((TOTAL - PASS)) fail"
+
+          # XML round-trip
+          export LLVM_PROFILE_FILE=/tmp/profraw/xml-%p-%m.profraw
+          TO_XML=$(find "$BUILD_DIR" -name "iccToXml" -type f -executable -print -quit)
+          FROM_XML=$(find "$BUILD_DIR" -name "iccFromXml" -type f -executable -print -quit)
+          ROUNDTRIP=$(find "$BUILD_DIR" -name "iccRoundTrip" -type f -executable -print -quit)
+          CONVERTED=0
+          mapfile -t ICC_FILES < <(find /opt/iccdev/Testing -name "*.icc" -type f | shuf -n 50)
+          for icc in "${ICC_FILES[@]}"; do
+            XML_OUT="/tmp/$(basename "$icc" .icc).xml"
+            ICC_OUT="/tmp/$(basename "$icc")"
+            if [ -n "$TO_XML" ] && timeout 10s "$TO_XML" "$icc" "$XML_OUT" > /dev/null 2>&1; then
+              CONVERTED=$((CONVERTED + 1))
+              [ -n "$FROM_XML" ] && timeout 10s "$FROM_XML" "$XML_OUT" "$ICC_OUT" > /dev/null 2>&1 || true
+            fi
+            rm -f "$XML_OUT" "$ICC_OUT"
+          done
+          if [ -n "$ROUNDTRIP" ]; then
+            mapfile -t RT_FILES < <(find /opt/iccdev/Testing -name "*.icc" -type f | shuf -n 30)
+            for icc in "${RT_FILES[@]}"; do
+              timeout 10s "$ROUNDTRIP" "$icc" > /dev/null 2>&1 || true
+            done
+          fi
+          echo "XML round-trip: $CONVERTED conversions"
+
+          # Exercise ColorBleed unsafe tools
+          export LLVM_PROFILE_FILE=/tmp/profraw/colorbleed-%p-%m.profraw
+          CB_TOXML="$BUILD_DIR/iccToXml_unsafe"
+          CB_FROMXML="$BUILD_DIR/iccFromXml_unsafe"
+          CB_COUNT=0
+          if [ -x "$CB_TOXML" ] && [ -x "$CB_FROMXML" ]; then
+            mapfile -t CB_FILES < <(find /opt/iccdev/Testing -name "*.icc" -type f | shuf -n 50)
+            for icc in "${CB_FILES[@]}"; do
+              XML_OUT="/tmp/cb_$(basename "$icc" .icc).xml"
+              ICC_OUT="/tmp/cb_$(basename "$icc")"
+              if timeout 10s "$CB_TOXML" "$icc" "$XML_OUT" > /dev/null 2>&1; then
+                CB_COUNT=$((CB_COUNT + 1))
+                timeout 10s "$CB_FROMXML" "$XML_OUT" "$ICC_OUT" > /dev/null 2>&1 || true
+              fi
+              rm -f "$XML_OUT" "$ICC_OUT"
+            done
+            echo "ColorBleed roundtrip: $CB_COUNT conversions"
+          else
+            echo "ColorBleed tools not found, skipping"
+          fi
+
+          # Merge profdata and generate reports
+          PROFRAW_COUNT=$(find /tmp/profraw -name "*.profraw" | wc -l)
+          echo "Found $PROFRAW_COUNT .profraw files"
+
+          if [ "$PROFRAW_COUNT" -eq 0 ]; then
+            echo "ERROR: No profraw files generated"
+            exit 1
+          fi
+
+          llvm-profdata-18 merge -sparse /tmp/profraw/*.profraw \
+            -o /tmp/coverage-report/merged.profdata
+          echo "Merged profdata: $(stat -c%s /tmp/coverage-report/merged.profdata) bytes"
+
+          MAIN_BIN="$DUMP_BIN"
+          OBJECT_ARGS=""
+          for bin in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable); do
+            [ "$bin" != "$MAIN_BIN" ] && OBJECT_ARGS="$OBJECT_ARGS -object=$bin"
+          done
+          # Include colorbleed tools in coverage objects
+          [ -x "$BUILD_DIR/iccToXml_unsafe" ] && OBJECT_ARGS="$OBJECT_ARGS -object=$BUILD_DIR/iccToXml_unsafe"
+          [ -x "$BUILD_DIR/iccFromXml_unsafe" ] && OBJECT_ARGS="$OBJECT_ARGS -object=$BUILD_DIR/iccFromXml_unsafe"
+
+          # Text report
+          llvm-cov-18 report "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=/tmp/coverage-report/merged.profdata \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | tee /tmp/coverage-report/coverage-summary.txt
+
+          # HTML report
+          llvm-cov-18 show "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=/tmp/coverage-report/merged.profdata \
+            -format=html \
+            -output-dir=/tmp/coverage-report/html \
+            -show-line-counts-or-regions \
+            -show-expansions \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            2>&1 | tail -5
+
+          # LCOV export
+          llvm-cov-18 export "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=/tmp/coverage-report/merged.profdata \
+            -format=lcov \
+            -ignore-filename-regex='(third_party|/usr/|test)' \
+            > /tmp/coverage-report/lcov.info 2>/dev/null || true
+
+          # Summary
+          HTML_COUNT=$(find /tmp/coverage-report/html -name "*.html" 2>/dev/null | wc -l)
+          LCOV_RECORDS=$(grep -c "^SF:" /tmp/coverage-report/lcov.info 2>/dev/null || echo 0)
+          echo "HTML report: $HTML_COUNT files"
+          echo "LCOV: $LCOV_RECORDS source file records"
+
+          # Save metrics
+          echo "profile_count=$PROFILE_COUNT" > /tmp/coverage-report/metrics.env
+          echo "dump_total=$TOTAL" >> /tmp/coverage-report/metrics.env
+          echo "dump_pass=$PASS" >> /tmp/coverage-report/metrics.env
+          echo "dump_fail=$((TOTAL - PASS))" >> /tmp/coverage-report/metrics.env
+          echo "profraw_count=$PROFRAW_COUNT" >> /tmp/coverage-report/metrics.env
+          echo "html_count=$HTML_COUNT" >> /tmp/coverage-report/metrics.env
+          echo "lcov_records=$LCOV_RECORDS" >> /tmp/coverage-report/metrics.env
+          SCRIPT
+          chmod +x /tmp/run-coverage.sh
+
+          docker run --name cov-phase \
+            -v /tmp/run-coverage.sh:/run-coverage.sh:ro \
+            ghcr.io/${{ github.repository_owner }}/iccdev-instrumented:latest /run-coverage.sh
+
+          mkdir -p coverage-report
+          docker cp cov-phase:/tmp/coverage-report/. coverage-report/
+
+          # Load metrics into GITHUB_ENV
+          if [ -f coverage-report/metrics.env ]; then
+            cat coverage-report/metrics.env >> $GITHUB_ENV
+          fi
+
+          docker rm cov-phase
+
+      - name: Report to summary
+        if: always()
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          {
+            echo "## iccDEV Docker Instrumented Build Report"
+            echo ""
+            echo "### Phase 1: ASAN/UBSAN Testing"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| ICC Profiles Created | ${{ env.asan_profiles }} |"
+            echo "| ASAN Log Files | ${{ env.asan_count }} |"
+            echo "| UBSAN Log Files | ${{ env.ubsan_count }} |"
+            echo ""
+            echo "### Phase 2: Code Coverage"
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| ICC Profiles Created | ${{ env.profile_count }} |"
+            echo "| IccDumpProfile Total | ${{ env.dump_total }} |"
+            echo "| IccDumpProfile Pass | ${{ env.dump_pass }} |"
+            echo "| IccDumpProfile Fail | ${{ env.dump_fail }} |"
+            echo "| Profraw Files | ${{ env.profraw_count }} |"
+            echo "| HTML Report Files | ${{ env.html_count }} |"
+            echo "| LCOV Source Records | ${{ env.lcov_records }} |"
+            echo ""
+            echo "### Coverage Summary"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage-report/coverage-summary.txt ]; then
+            cat coverage-report/coverage-summary.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No coverage data available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          {
+            echo '```'
+            echo ""
+            echo "### Architecture"
+            echo "- **Container**: ubuntu:24.04 + Clang-18"
+            echo "- **ASAN build**: \`-fsanitize=address,undefined\` (full debug symbols)"
+            echo "- **Coverage build**: \`-fprofile-instr-generate -fcoverage-mapping\` (static libs)"
+            echo ""
+            echo "### Artifacts"
+            echo "- \`sanitizer-results\`: ASAN/UBSAN log files and metrics"
+            echo "- \`docker-coverage-report\`: llvm-cov HTML report, lcov.info, text summary"
+            echo ""
+            echo "### Reference"
+            echo "- [xsscx/cfl ci-code-coverage.yml](https://github.com/xsscx/cfl/actions/workflows/ci-code-coverage.yml)"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload sanitizer results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sanitizer-results
+          path: sanitizer-results/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: docker-coverage-report
+          path: coverage-report/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload SBOM
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+          if-no-files-found: warn
