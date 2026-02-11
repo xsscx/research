@@ -1,0 +1,90 @@
+###############################################################
+#
+# Copyright (c) 2026 International Color Consortium.
+#                All rights reserved.
+#                https://color.org
+#
+# Intent: Instrumented build of iccDEV with ASAN/UBSAN
+#         sanitizer testing and Clang source-based coverage.
+#
+###############################################################
+
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential cmake git ca-certificates pkg-config patch \
+  clang-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
+  libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+  zlib1g-dev liblzma-dev nlohmann-json3-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV CC=clang-18 CXX=clang++-18
+
+RUN git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /opt/iccdev \
+ && cd /opt/iccdev \
+ && echo "HEAD: $(git log --oneline -1)" \
+ && sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
+
+# Apply CFL library patches (OOM caps, crash fixes)
+COPY cfl-patches/ /tmp/cfl-patches/
+RUN echo "Applying CFL library patches..." \
+ && for p in /tmp/cfl-patches/*.patch; do \
+      if patch -p1 -d /opt/iccdev --forward -s < "$p" 2>/dev/null; then \
+        echo "  Applied $(basename $p)"; \
+      else \
+        echo "  Skipped $(basename $p) (already applied or N/A)"; \
+      fi; \
+    done \
+ && rm -rf /tmp/cfl-patches
+
+# Build 1: ASAN + UBSAN (sanitizer testing, no coverage)
+RUN cd /opt/iccdev && mkdir -p build-asan && cd build-asan \
+ && cmake ../Build/Cmake \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_C_COMPILER=clang-18 \
+    -DCMAKE_CXX_COMPILER=clang++-18 \
+    -DENABLE_TOOLS=ON -DENABLE_TESTS=OFF -Wno-dev \
+    -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \
+    -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \
+    -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+ && make -j$(nproc)
+
+# Build 2: Coverage (Clang source-based, static libs)
+RUN cd /opt/iccdev && mkdir -p build-coverage && cd build-coverage \
+ && cmake ../Build/Cmake \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_C_COMPILER=clang-18 \
+    -DCMAKE_CXX_COMPILER=clang++-18 \
+    -DENABLE_COVERAGE=ON -DENABLE_TOOLS=ON \
+    -DENABLE_STATIC_LIBS=ON -DENABLE_TESTS=OFF -Wno-dev \
+    -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+    -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+    -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate" \
+ && make -j$(nproc)
+
+# Build 3: ColorBleed unsafe tools (against coverage static libs)
+COPY colorbleed_tools /opt/colorbleed_tools
+RUN cd /opt/colorbleed_tools \
+ && clang++-18 -O2 -DNDEBUG -std=gnu++17 -Wall \
+    -I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML \
+    $(pkg-config --cflags libxml-2.0) \
+    IccToXml_unsafe.cpp \
+    /opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-static.a \
+    /opt/iccdev/build-coverage/IccXML/libIccXML2-static.a \
+    -lxml2 -lz -llzma -lm -fprofile-instr-generate \
+    -o /opt/iccdev/build-coverage/iccToXml_unsafe \
+ && clang++-18 -O2 -DNDEBUG -std=gnu++17 -Wall \
+    -I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML \
+    $(pkg-config --cflags libxml-2.0) \
+    IccFromXml_unsafe.cpp \
+    /opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-static.a \
+    /opt/iccdev/build-coverage/IccXML/libIccXML2-static.a \
+    -lxml2 -lz -llzma -lm -fprofile-instr-generate \
+    -o /opt/iccdev/build-coverage/iccFromXml_unsafe \
+ && echo "ColorBleed tools:" \
+ && ls -lh /opt/iccdev/build-coverage/iccToXml_unsafe /opt/iccdev/build-coverage/iccFromXml_unsafe
+
+WORKDIR /opt/iccdev

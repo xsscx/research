@@ -1,0 +1,16 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3505,8 +3505,12 @@
+ 
+     icUInt32Number i;
+     for (i=0; i<m_nOps; i++) {
+-      if (!pIO->Read32(&m_Op[i].sig))
++      // CFL patch: read sig into a uint32 to avoid UB from loading
++      // an arbitrary value into an enum type (icSigCalcOp).
++      icUInt32Number rawSig;
++      if (!pIO->Read32(&rawSig))
+         return false;
++      m_Op[i].sig = static_cast<icSigCalcOp>(rawSig);
+       if (!pIO->Read32(&m_Op[i].data.num))
+         return false;
+     }

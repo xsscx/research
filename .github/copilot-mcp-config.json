@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "icc-profile-mcp": {
+      "type": "local",
+      "command": "python",
+      "args": ["mcp-server/icc_profile_mcp.py"],
+      "tools": [
+        "inspect_profile",
+        "analyze_security",
+        "validate_roundtrip",
+        "full_analysis",
+        "profile_to_xml",
+        "compare_profiles",
+        "list_test_profiles",
+        "upload_and_analyze",
+        "build_tools"
+      ]
+    }
+  }
+}

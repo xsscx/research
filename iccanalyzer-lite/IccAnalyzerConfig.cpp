@@ -38,6 +38,8 @@
 #include "IccAnalyzerConfig.h"
 #include <cstdio>
 #include <cstring>
+#include <climits>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -105,21 +107,39 @@ bool LoadConfig(const char *config_path, IccAnalyzerConfig &config) {
 
 bool LoadConfigAuto(IccAnalyzerConfig &config) {
   const char *home = getenv("HOME");
-  if (!home) {
+  if (!home || !home[0]) {
     return false;
   }
   
-  char config_path[1024];
-  
-  // SECURITY FIX: Open files directly instead of checking existence first (prevents TOCTOU)
-  snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", home);
-  if (LoadConfig(config_path, config)) {
-    return true;
+  // Canonicalize HOME via realpath() to prevent path traversal
+  char resolved_home[PATH_MAX];
+  if (realpath(home, resolved_home) == nullptr) {
+    return false;
   }
   
-  snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", home);
-  if (LoadConfig(config_path, config)) {
-    return true;
+  // Verify resolved HOME is an absolute path without traversal
+  if (resolved_home[0] != '/' || strstr(resolved_home, "..") != nullptr) {
+    fprintf(stderr, "WARNING: HOME resolved to suspicious path — skipping config load\n");
+    return false;
+  }
+  
+  char config_path[PATH_MAX];
+  char resolved_config[PATH_MAX];
+  
+  snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", resolved_home);
+  if (realpath(config_path, resolved_config) != nullptr &&
+      strncmp(resolved_config, resolved_home, strlen(resolved_home)) == 0) {
+    if (LoadConfig(resolved_config, config)) {
+      return true;
+    }
+  }
+  
+  snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", resolved_home);
+  if (realpath(config_path, resolved_config) != nullptr &&
+      strncmp(resolved_config, resolved_home, strlen(resolved_home)) == 0) {
+    if (LoadConfig(resolved_config, config)) {
+      return true;
+    }
   }
   
   if (LoadConfig(".iccanalyzer.conf", config)) {

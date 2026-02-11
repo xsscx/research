@@ -1,0 +1,16 @@
+--- a/IccProfLib/IccUtil.cpp
++++ b/IccProfLib/IccUtil.cpp
+@@ -974,6 +974,13 @@
+ void icMemDump(std::string &sDump, void *pBuf, size_t nNum)
+ {
+   icUInt8Number *pData = (icUInt8Number *)pBuf;
++
++  // CFL patch: cap hex-dump size to prevent OOM during fuzzing.
++  // Each line is 79 chars for 16 bytes of input; a 4 MB tag produces
++  // ~20 MB of hex output.  Cap at 256 KB input (≈1.3 MB output).
++  if (nNum > 262144)
++    nNum = 262144;
++
+   const size_t bufSize = 80;
+   const size_t numSize = 10;
+   icChar buf[bufSize] = {0};

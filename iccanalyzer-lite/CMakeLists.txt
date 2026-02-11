@@ -71,4 +71,5 @@ target_link_options(iccAnalyzer-lite PRIVATE
     -fsanitize=address,undefined
     -fprofile-arcs
     --coverage
+    "LINKER:--allow-multiple-definition"
 )

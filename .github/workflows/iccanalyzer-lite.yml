@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: "iccanalyzer-lite • clang • RelWithDebInfo"
+    name: "iccanalyzer-lite • clang • Debug"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -31,8 +31,9 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
       
@@ -51,6 +52,17 @@ jobs:
           echo "Commit:      ${{ github.sha }}"
           echo "Runner OS:   ${{ runner.os }}"
       
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install build dependencies
         env:
           BASH_ENV: /dev/null
@@ -61,7 +73,11 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           
-          sudo apt-get update -qq
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
@@ -80,6 +96,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -91,23 +108,36 @@ jobs:
             echo "### Build Configuration"
             echo ""
             echo "**Compiler:**   clang++ ($(clang++ --version | head -n 1))"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"
           } >> $GITHUB_STEP_SUMMARY
       
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-lite-
+
       - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           
           cd iccanalyzer-lite
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           
           echo "iccDEV cloned at: $(pwd)"
@@ -121,13 +151,46 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
       
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-debug-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-build-lite-debug-
+
+      - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
       - name: Build iccDEV libraries
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
           CXX: clang++
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -136,11 +199,13 @@ jobs:
           
           echo "Configuring CMake with instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           
           echo "Building libraries with $(nproc) cores..."
@@ -166,6 +231,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -198,6 +264,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -231,6 +298,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -251,7 +319,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: iccanalyzer-lite-instrumented
           path: |
@@ -268,6 +336,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
@@ -281,7 +350,7 @@ jobs:
             echo "**Status:**     ${{ job.status }}"
             echo "**Tool:**       iccanalyzer-lite"
             echo "**Compiler:**   clang++"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Features:**   AddressSanitizer, UndefinedBehaviorSanitizer, Coverage"
             echo "**Pattern:**    iccDEV libraries built with instrumentation"
             echo ""

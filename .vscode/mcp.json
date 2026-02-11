@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "icc-profile-mcp": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["mcp-server/icc_profile_mcp.py"],
+      "env": {
+        "ICC_MCP_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}

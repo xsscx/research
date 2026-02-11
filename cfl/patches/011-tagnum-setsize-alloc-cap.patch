@@ -1,0 +1,59 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 5f81345..50bacb8 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -2845,6 +2845,10 @@ bool CIccTagNamedColor2::SetSize(icUInt32Number nSize, icInt32Number nDeviceCoor
+   if (nDeviceCoords<0)
+     nDeviceCoords = m_nDeviceCoords;
+ 
++  // CFL patch 011: cap NamedColor2 allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * (32 + 4 * sizeof(icFloatNumber)) > 134217728ULL)
++    return false;
++
+   icInt32Number nNewCoords=nDeviceCoords;
+ 
+   if (nDeviceCoords>0)
+@@ -3751,6 +3755,10 @@ bool CIccTagXYZ::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap XYZ allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(icXYZNumber) > 134217728ULL)
++    return false;
++
+   m_XYZ = (icXYZNumber*)icRealloc(m_XYZ, nSize*sizeof(icXYZNumber));
+ 
+   if (!m_XYZ) {
+@@ -5468,6 +5476,10 @@ bool CIccTagFixedNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=tru
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap FixedNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
+@@ -6031,6 +6043,10 @@ bool CIccTagNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap TagNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
+@@ -6603,6 +6619,10 @@ bool  CIccTagFloatNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=tr
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap FloatNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
