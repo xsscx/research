@@ -1,0 +1,80 @@
+###############################################################
+# Copilot Coding Agent — Environment Setup
+#
+# Pulls pre-built Docker image with iccanalyzer-lite,
+# colorbleed_tools, and MCP server. Extracts binaries to the
+# workspace so the coding agent can run them directly.
+#
+# Image built by: mcp-server-docker.yml
+# Registry: ghcr.io/xsscx/icc-profile-mcp:latest
+#
+# Ref: https://docs.github.com/en/copilot/customizing-copilot/
+#      customizing-the-development-environment-for-copilot-coding-agent
+###############################################################
+
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Pull pre-built MCP image
+        run: |
+          docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+
+      - name: Extract binaries from container
+        run: |
+          set -euo pipefail
+          CID=$(docker create ghcr.io/xsscx/icc-profile-mcp:latest)
+          docker cp "$CID":/app/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
+          docker cp "$CID":/app/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
+          docker cp "$CID":/app/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
+          docker rm "$CID" > /dev/null
+          chmod +x iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/icc*_unsafe
+
+      # Suppress gcov profiling noise: binary was compiled with --coverage
+      # inside Docker at /build/iccanalyzer-lite/, but runs at /home/runner/.
+      # Create the expected directory so .gcda writes succeed silently.
+      - name: Suppress gcov profiling stderr
+        run: |
+          sudo mkdir -p /build/iccanalyzer-lite
+          sudo chmod 755 /build/iccanalyzer-lite
+
+      - name: Install MCP server
+        run: |
+          pip install --quiet ./mcp-server[dev]
+
+      - name: Verify tools
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+          echo "--- iccanalyzer-lite ---"
+          iccanalyzer-lite/iccanalyzer-lite --version 2>&1 | head -3
+          echo "--- colorbleed_tools ---"
+          ls -la colorbleed_tools/icc*_unsafe
+          echo "--- MCP server ---"
+          python -c "from icc_profile_mcp import mcp; print('[OK]')"
+          echo "--- analyze-profile.sh ---"
+          test -x analyze-profile.sh && echo "[OK] analyze-profile.sh present" || echo "[FAIL] analyze-profile.sh missing"
+
+      - name: Smoke test iccanalyzer-lite
+        run: |
+          set -euo pipefail
+          PROFILE=$(ls -1 test-profiles/ | shuf -n1)
+          echo "Testing with: $PROFILE"
+          iccanalyzer-lite/iccanalyzer-lite -a "test-profiles/$PROFILE" > /dev/null 2>&1 || true
+          echo "[OK] iccanalyzer-lite exercised"

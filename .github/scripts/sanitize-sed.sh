@@ -129,6 +129,20 @@ sanitize_print() {
   printf '%s' "$s"
 }
 
+# sanitize_codeblock STRING
+# Like sanitize_print but WITHOUT HTML escaping — for content inside
+# markdown fenced code blocks (``` ``` ```). Code blocks inherently
+# prevent HTML injection so escape_html would double-escape.
+SANITIZE_CODEBLOCK_MAXLEN=${SANITIZE_CODEBLOCK_MAXLEN:-32000}
+sanitize_codeblock() {
+  local input="$1"
+  local s
+  s="$(_strip_ctrl_keep_newlines "$input")"
+  s="$(printf '%s' "$s" | sed -E ':a;N;$!ba;s/\n{4,}/\n\n\n/g')"
+  s="$(_truncate "$s" "$SANITIZE_CODEBLOCK_MAXLEN")"
+  printf '%s' "$s"
+}
+
 # sanitize_ref STRING
 # Sanitize branch, tag or ref names for use in filenames, concurrency groups, etc.
 # - replace disallowed chars with '-'

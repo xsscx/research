@@ -1,0 +1,17 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -5617,6 +5617,14 @@
+ 	if (m_Triangles)
+ 		delete [] m_Triangles;	
+ 	
++	// CFL patch: cap GamutBoundaryDesc allocations to 128 MB each.
++	// m_NumberOfVertices comes from profile data; channels*vertices products
++	// can produce multi-GB allocations that OOM-kill the fuzzer.
++	if ((icUInt64Number)m_nPCSChannels * m_NumberOfVertices * sizeof(icFloatNumber) > 134217728ULL)
++		return false;
++	if ((icUInt64Number)m_NumberOfTriangles * sizeof(icGamutBoundaryTriangle) > 134217728ULL)
++		return false;
++
+ 	m_PCSValues = new icFloatNumber[m_nPCSChannels*m_NumberOfVertices];
+ 
+   if (!m_PCSValues)

@@ -1,0 +1,15 @@
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -344,6 +344,12 @@
+ void CIccTagUnknown::Describe(std::string &sDescription, int nVerboseness)
+ {
+   const size_t bufSize = 128;
++
++  if (m_nSize <= 4) {
++    sDescription = "Unknown Tag Type of 0 Bytes.";
++    return;
++  }
++
+   icChar buf[bufSize];
+ 
+   sDescription = "Unknown Tag Type of ";

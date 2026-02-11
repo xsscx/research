@@ -1,0 +1,170 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: CI for ICC Profile MCP Server — lint + test
+###############################################################
+
+name: MCP Server Tests
+
+on:
+  push:
+    paths:
+      - 'mcp-server/**'
+      - '.github/workflows/mcp-server-test.yml'
+  pull_request:
+    paths:
+      - 'mcp-server/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('mcp-server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
+      - name: Install dependencies
+        run: |
+          cd mcp-server
+          pip install -r requirements.txt
+
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: iccDEV
+          key: ${{ runner.os }}-iccdev-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Cache iccDEV build
+        id: cache-iccdev-build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            iccDEV/Build/IccProfLib
+            iccDEV/Build/IccXML
+            iccDEV/Build/CMakeCache.txt
+            iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Install iccDEV + iccanalyzer-lite
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update
+          else
+            echo "Using cached APT packages"
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang git ca-certificates \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
+
+          if [ "${{ steps.cache-iccdev.outputs.cache-hit }}" != 'true' ]; then
+            # Clone and build iccDEV
+            if [ ! -d "iccDEV" ]; then
+              git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+            fi
+            cd iccDEV
+            sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+            sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+            sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+            sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Build/Cmake/CMakeLists.txt
+            cd ..
+          fi
+
+          if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
+            echo "Applying CFL library patches..."
+            for p in cfl/patches/*.patch; do
+              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+                echo "  [OK] $(basename "$p")"
+              else
+                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+              fi
+            done
+            # Strip stray U+FE0F (emoji variation selector) from upstream source
+            SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
+            if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+              sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+              echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+            fi
+            cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
+            cd ../..
+          fi
+
+          # Build colorbleed_tools (needed for XML roundtrip tests)
+          cd colorbleed_tools
+          make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
+          cd ..
+
+          # Build iccanalyzer-lite
+          cd iccanalyzer-lite
+          export CXX=clang++
+          export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
+          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
+                IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
+                IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
+                IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp"
+          for src in $SRCS; do
+            $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
+          done
+          OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
+          $CXX $OBJS \
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm \
+            -Wl,--allow-multiple-definition \
+            -o iccanalyzer-lite
+          cd ..
+
+      - name: Run MCP Server Tests
+        run: |
+          cd mcp-server
+          export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          python test_mcp.py
+
+      - name: Run Web UI Tests
+        run: |
+          cd mcp-server
+          export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          python test_web_ui.py
+
+      - name: Test Summary
+        if: always()
+        run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          echo "## MCP Server Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Python:** 3.12" >> $GITHUB_STEP_SUMMARY

@@ -205,7 +205,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     
     // Check for overflow before calculating tag table size
-    if (tagCount > (SIZE_MAX - 132) / 12) {
+    if (tagCount > 357913941u) {  // (UINT32_MAX - 132) / 12
       AST_LOG(2, "Tag count would cause integer overflow: %u", tagCount);
       unlink(dspTmpFile);
       unlink(obsTmpFile);
@@ -390,8 +390,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     return 0;
   }
 
-  AST_LOG(5, "GATE 5: Validating MPE structure (elements=%zu, in=%u, out=%u)", 
-          pTagIn->NumElements(), pTagIn->NumInputChannels(), pTagIn->NumOutputChannels());
+  AST_LOG(5, "GATE 5: Validating MPE structure (elements=%u, in=%u, out=%u)", 
+          (unsigned)pTagIn->NumElements(), pTagIn->NumInputChannels(), pTagIn->NumOutputChannels());
 
   // Validate MPE structure
   CIccMultiProcessElement *curveMpe = pTagIn->GetElement(0);
@@ -418,7 +418,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     uint32_t internalSize = ((uint32_t)obsData[0] << 24) | ((uint32_t)obsData[1] << 16) |
                             ((uint32_t)obsData[2] << 8) | obsData[3];
     if (internalSize != obsSize || internalSize > 50 * 1024 * 1024) {
-      AST_LOG(2, "Observer profile size mismatch: header says %u, actual %u", internalSize, obsSize);
+      AST_LOG(2, "Observer profile size mismatch: header says %u, actual %zu", internalSize, obsSize);
       delete dspIcc;
       CLEANUP_TEMP_FILES();
       return 0;

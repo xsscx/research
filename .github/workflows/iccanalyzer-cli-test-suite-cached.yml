@@ -58,7 +58,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
           fetch-depth: 1
@@ -141,7 +141,9 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite
           echo "Cloning iccDEV (cache miss)..."
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           git config --add safe.directory "$PWD"
           echo "iccDEV cloned at: $(pwd)"
@@ -157,6 +159,23 @@ jobs:
           cd iccanalyzer-lite/iccDEV
           git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
+
+      - name: Apply CFL patches to iccDEV
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
 
       - name: Cache iccDEV build
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
@@ -181,11 +200,13 @@ jobs:
 
           echo "Building iccDEV libraries (cache miss)..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
 
           echo "Building libraries with $(nproc) cores..."
@@ -265,7 +286,7 @@ jobs:
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
           echo "Binary: $(./iccanalyzer-lite --version 2>&1 | head -1)" >> $SUMMARY
-          echo "Build: RelWithDebInfo + ASAN + UBSAN + Coverage" >> $SUMMARY
+          echo "Build: Debug + ASAN + UBSAN + Coverage" >> $SUMMARY
           echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "Cache: APT=${{ steps.cache-apt.outputs.cache-hit || 'MISS' }} iccDEV=${{ steps.cache-iccdev.outputs.cache-hit || 'MISS' }} Build=${{ steps.cache-iccdev-build.outputs.cache-hit || 'MISS' }}" >> $SUMMARY
           echo "" >> $SUMMARY

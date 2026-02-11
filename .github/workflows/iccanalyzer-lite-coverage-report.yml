@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
           fetch-depth: 1
@@ -52,13 +52,26 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
       - name: Install dependencies
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
@@ -73,17 +86,57 @@ jobs:
             libssl-dev \
             lcov
 
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
           cd iccanalyzer-lite
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-gcov-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
       - name: Build iccDEV libraries with coverage
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           CC: gcc
@@ -99,6 +152,8 @@ jobs:
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           make -j$(nproc)
           ls -lh IccProfLib/libIccProfLib2-static.a
@@ -121,7 +176,7 @@ jobs:
           # Coverage-only build: no sanitizers (ASAN crashes skip gcda flush)
           export CXX=g++
           export CXXFLAGS="-fno-omit-frame-pointer -g -O0 -fprofile-arcs -ftest-coverage --coverage -std=c++17 -DICCANALYZER_LITE"
-          export LDFLAGS="-fprofile-arcs --coverage"
+          export LDFLAGS="-fprofile-arcs --coverage -Wl,--allow-multiple-definition"
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
@@ -180,6 +235,7 @@ jobs:
       - name: Setup test profiles
         env:
           BASH_ENV: /dev/null
+          INPUT_PROFILE_COUNT: ${{ inputs.profile_count || '50' }}
         run: |
           set -euo pipefail
 
@@ -196,7 +252,7 @@ jobs:
           # Deduplicate by filename
           sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt
 
-          PROFILE_COUNT=${{ inputs.profile_count || '50' }}
+          PROFILE_COUNT=${INPUT_PROFILE_COUNT:-50}
           AVAILABLE=$(wc -l < /tmp/all-profiles-dedup.txt)
 
           # For coverage, use ALL profiles if count is 0 or "all"
@@ -414,6 +470,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## iccAnalyzer-lite Coverage Report
 
@@ -430,7 +487,7 @@ jobs:
 
           if [ -f coverage-report/coverage-summary.txt ]; then
             echo '```' >> $GITHUB_STEP_SUMMARY
-            cat coverage-report/coverage-summary.txt >> $GITHUB_STEP_SUMMARY
+            sanitize_codeblock "$(cat coverage-report/coverage-summary.txt)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "Coverage data not available (gcov files may not have been generated)" >> $GITHUB_STEP_SUMMARY

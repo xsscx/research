@@ -1,0 +1,628 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Manual-trigger CLI test suite that publishes results
+#         as a GitHub Release with test artifacts attached.
+#
+# Based on: iccanalyzer-cli-test-suite.yml
+#
+# Usage: Actions → iccAnalyzer CLI Test Suite → Release →
+#        Run workflow (manual dispatch)
+#
+###############################################################
+
+name: "iccAnalyzer CLI Test Suite → Release"
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_profile_count:
+        description: 'Number of test profiles to use (max 50)'
+        required: false
+        default: '25'
+        type: string
+      include_malformed:
+        description: 'Include potentially malformed profiles'
+        required: false
+        default: true
+        type: boolean
+      release_tag_prefix:
+        description: 'Release tag prefix (auto-appended with date+run)'
+        required: false
+        default: 'cli-test-suite'
+        type: string
+
+concurrency:
+  group: iccanalyzer-cli-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_PROFILE_COUNT: ${{ github.event.inputs.test_profile_count || '25' }}
+  INCLUDE_MALFORMED: ${{ github.event.inputs.include_malformed || 'true' }}
+  TOTAL_MODES: 5
+
+jobs:
+  build-test-release:
+    name: "Build, Test & Release"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            lld \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev \
+            lcov
+
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
+          cd iccDEV
+
+          echo "iccDEV cloned at: $(pwd)"
+          echo "iccDEV commit: $(git log --oneline -1)"
+
+      - name: Cache iccDEV build artifacts
+        id: cache-iccdev-build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-reldbg-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
+      - name: Build iccDEV libraries with full instrumentation
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/iccDEV/Build
+
+          echo "Configuring CMake with full instrumentation..."
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -DENABLE_COVERAGE=ON \
+            -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
+            -Wno-dev
+
+          echo "Building libraries with $(nproc) cores..."
+          make -j$(nproc)
+
+          echo "Verifying instrumented libraries..."
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+
+      - name: Build iccanalyzer-lite
+        working-directory: iccanalyzer-lite
+        run: |
+          bash build.sh
+
+      - name: Verify binary
+        working-directory: iccanalyzer-lite
+        run: |
+          ls -lh iccanalyzer-lite
+          file iccanalyzer-lite
+          ./iccanalyzer-lite --version
+
+      - name: Setup test profiles
+        id: setup
+        run: |
+          set -euo pipefail
+          mkdir -p cli-test-results/outputs
+
+          PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
+          PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
+
+          find test-profiles/ -type f -name "*.icc" | \
+            shuf -n ${PROFILE_COUNT} > cli-test-results/selected-profiles.txt
+
+          AVAILABLE=$(wc -l < cli-test-results/selected-profiles.txt | tr -d ' \n\r')
+          echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
+
+          echo "Selected ${AVAILABLE} profiles for CLI mode testing:"
+          cat cli-test-results/selected-profiles.txt
+
+      - name: Run all CLI mode tests
+        id: tests
+        run: |
+          cd iccanalyzer-lite
+          source ../.github/scripts/sanitize-sed.sh
+
+          strip_ansi() {
+            sed -i 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$1"
+          }
+
+          SUMMARY="../cli-test-results/test-summary.txt"
+          echo "==================================================================" > $SUMMARY
+          echo "iccAnalyzer-lite CLI Test Suite Report" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "" >> $SUMMARY
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
+          echo "Binary: $(./iccanalyzer-lite --version 2>&1 | head -1)" >> $SUMMARY
+          echo "Build: RelWithDebInfo + ASAN + UBSAN + Coverage" >> $SUMMARY
+          echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
+          echo "" >> $SUMMARY
+
+          MODES="heuristics:h roundtrip:r comprehensive:a ninja:n ninja-full:nf"
+
+          GRAND_TOTAL=0
+          GRAND_SUCCESS=0
+          GRAND_FAILED=0
+
+          for MODE_PAIR in $MODES; do
+            MODE_NAME="${MODE_PAIR%%:*}"
+            MODE_FLAG="-${MODE_PAIR##*:}"
+
+            echo "==================================================================" >> $SUMMARY
+            echo "Mode: ${MODE_NAME} (${MODE_FLAG})" >> $SUMMARY
+            echo "==================================================================" >> $SUMMARY
+            echo "" >> $SUMMARY
+
+            mkdir -p "../cli-test-results/outputs/${MODE_NAME}"
+
+            TOTAL=0
+            CLEAN=0
+            FINDINGS=0
+
+            while IFS= read -r profile; do
+              TOTAL=$((TOTAL + 1))
+              PROFILE_NAME=$(basename "$profile")
+              OUTPUT_FILE="../cli-test-results/outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+
+              echo "[${MODE_NAME}] Testing: ${PROFILE_NAME}"
+              echo "Profile: ${PROFILE_NAME}" >> $SUMMARY
+
+              if timeout 30s ./iccanalyzer-lite ${MODE_FLAG} "../${profile}" > "$OUTPUT_FILE" 2>&1; then
+                strip_ansi "$OUTPUT_FILE"
+                if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                  echo "  Result: FINDING (content)" >> $SUMMARY
+                  FINDINGS=$((FINDINGS + 1))
+                  echo "  FINDING (content)"
+                else
+                  echo "  Result: CLEAN" >> $SUMMARY
+                  CLEAN=$((CLEAN + 1))
+                  echo "  CLEAN"
+                fi
+              else
+                EXIT_CODE=$?
+                strip_ansi "$OUTPUT_FILE"
+                echo "  Result: FINDING (exit code: $EXIT_CODE)" >> $SUMMARY
+                FINDINGS=$((FINDINGS + 1))
+                echo "  FINDING (exit $EXIT_CODE)"
+                echo "  Detection output:" >> $SUMMARY
+                tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
+              fi
+
+              FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
+              echo "  Output size: $FILE_SIZE bytes" >> $SUMMARY
+              echo "" >> $SUMMARY
+
+            done < ../cli-test-results/selected-profiles.txt
+
+            echo "---" >> $SUMMARY
+            echo "${MODE_NAME} totals: ${CLEAN}/${TOTAL} clean, ${FINDINGS} findings" >> $SUMMARY
+            echo "" >> $SUMMARY
+
+            GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
+            GRAND_SUCCESS=$((GRAND_SUCCESS + CLEAN))
+            GRAND_FAILED=$((GRAND_FAILED + FINDINGS))
+
+            echo "${MODE_NAME}_total=$TOTAL" >> $GITHUB_ENV
+            echo "${MODE_NAME}_success=$CLEAN" >> $GITHUB_ENV
+            echo "${MODE_NAME}_failed=$FINDINGS" >> $GITHUB_ENV
+          done
+
+          echo "==================================================================" >> $SUMMARY
+          echo "FINAL RESULTS" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+          echo "Grand total: ${GRAND_SUCCESS}/${GRAND_TOTAL} clean, ${GRAND_FAILED} findings" >> $SUMMARY
+          RATE=$(awk "BEGIN {printf \"%.1f\", ($GRAND_SUCCESS/$GRAND_TOTAL)*100}")
+          echo "Clean rate: ${RATE}%" >> $SUMMARY
+          echo "==================================================================" >> $SUMMARY
+
+          echo "grand_total=$GRAND_TOTAL" >> $GITHUB_ENV
+          echo "grand_success=$GRAND_SUCCESS" >> $GITHUB_ENV
+          echo "grand_failed=$GRAND_FAILED" >> $GITHUB_ENV
+          echo "clean_rate=$RATE" >> $GITHUB_ENV
+
+          cat $SUMMARY
+
+      - name: Collect coverage data
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p cli-test-results/coverage
+
+          if command -v gcov >/dev/null 2>&1; then
+            find iccanalyzer-lite -name "*.gcda" -exec gcov {} \; 2>/dev/null | tail -5 || true
+            find . -name "*.gcov" -exec cp {} cli-test-results/coverage/ \; 2>/dev/null || true
+            COVERAGE_FILES=$(find cli-test-results/coverage -name "*.gcov" 2>/dev/null | wc -l)
+            echo "Coverage files collected: ${COVERAGE_FILES}"
+          else
+            echo "gcov not available"
+          fi
+
+      - name: Generate results index
+        if: always()
+        run: |
+          cd cli-test-results
+
+          INDEX_FILE="index.html"
+
+          cat > $INDEX_FILE << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>iccAnalyzer-lite CLI Test Suite Results</title>
+            <style>
+              body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+              .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+              h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+              h2 { color: #555; }
+              .summary { background: #e8f4f8; padding: 15px; margin: 20px 0; border-left: 4px solid #007acc; }
+              .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+              .stat-box { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; text-align: center; }
+              .stat-value { font-size: 2em; font-weight: bold; color: #007acc; }
+              .stat-label { color: #666; margin-top: 5px; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+              th { background: #007acc; color: white; }
+              tr:nth-child(even) { background: #f9f9f9; }
+              .clean { color: green; font-weight: bold; }
+              .finding { color: #cc6600; font-weight: bold; }
+              .error { color: red; font-weight: bold; }
+              a.profile-link { color: #007acc; text-decoration: none; }
+              a.profile-link:hover { text-decoration: underline; }
+              a { color: #007acc; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>iccAnalyzer-lite CLI Test Suite — Release Report</h1>
+          EOF
+
+          echo "<div class='summary'>" >> $INDEX_FILE
+          echo "<strong>Test Date:</strong> $(date -u '+%Y-%m-%d %H:%M:%S UTC')<br>" >> $INDEX_FILE
+          echo "<strong>Binary:</strong> iccanalyzer-lite (ASAN + UBSAN + Coverage)<br>" >> $INDEX_FILE
+          echo "<strong>Modes:</strong> -h (heuristics), -r (roundtrip), -a (comprehensive), -n (ninja), -nf (ninja-full)" >> $INDEX_FILE
+          echo "</div>" >> $INDEX_FILE
+
+          echo "<div class='stats'>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value'>$grand_total</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>$grand_success</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$grand_failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
+          echo "</div>" >> $INDEX_FILE
+
+          for MODE_NAME in heuristics roundtrip comprehensive ninja ninja-full; do
+            if [ -d "outputs/${MODE_NAME}" ]; then
+              case "${MODE_NAME}" in
+                heuristics)    FLAG="-h" ;;
+                roundtrip)     FLAG="-r" ;;
+                comprehensive) FLAG="-a" ;;
+                ninja)         FLAG="-n" ;;
+                ninja-full)    FLAG="-nf" ;;
+              esac
+
+              echo "<h2>${MODE_NAME} Mode (${FLAG})</h2>" >> $INDEX_FILE
+              echo "<table>" >> $INDEX_FILE
+              echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Output</th><th>Size</th></tr>" >> $INDEX_FILE
+
+              NUM=1
+              while IFS= read -r profile; do
+                PROFILE_NAME=$(basename "$profile")
+                OUTPUT_FILE="outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+
+                if [ -f "$OUTPUT_FILE" ]; then
+                  FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
+
+                  if [ "$FILE_SIZE" -le 1 ]; then
+                    STATUS="<span class='error'>ERROR</span>"
+                  elif grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|UBSan\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='finding'>FINDING</span>"
+                  elif grep -qi "\[ERR\]\|\[WARN\].*HEURISTIC\|Error reading ICC profile\|failed validation\|crash\|SEGV\|ABRT\|stack-smash\|heap-buffer\|memcpy-param-overlap\|double-free\|use-after-free\|MISMATCH\|overlap\|Suspicious\|UAF RISK\|INVALID\|CORRUPT" "$OUTPUT_FILE" 2>/dev/null; then
+                    STATUS="<span class='finding'>FINDING</span>"
+                  else
+                    STATUS="<span class='clean'>CLEAN</span>"
+                  fi
+
+                  echo "<tr><td>$NUM</td><td><a href='outputs/${MODE_NAME}/${PROFILE_NAME}.txt'><code>$PROFILE_NAME</code></a></td><td>$STATUS</td><td><a class='profile-link' href='$OUTPUT_FILE'>View Output</a></td><td>$FILE_SIZE bytes</td></tr>" >> $INDEX_FILE
+                  NUM=$((NUM + 1))
+                fi
+              done < selected-profiles.txt
+
+              echo "</table>" >> $INDEX_FILE
+            fi
+          done
+
+          echo "</div></body></html>" >> $INDEX_FILE
+          echo "Results index created: $INDEX_FILE"
+
+      - name: Build static release binary
+        working-directory: iccanalyzer-lite
+        env:
+          CXX: clang++
+        run: |
+          set -euo pipefail
+
+          if [ -d "iccDEV" ]; then
+            ICCDEV_ROOT="iccDEV"
+          else
+            echo "ERROR: iccDEV not found"; exit 1
+          fi
+
+          # Fresh build dir for clean release libs (no ASAN/coverage artifacts)
+          RELEASE_BUILD="${ICCDEV_ROOT}/Build-release"
+          mkdir -p "$RELEASE_BUILD"
+          cd "$RELEASE_BUILD"
+          cmake ../Build/Cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -fno-lto" \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -fno-lto" \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
+            -Wno-dev
+          make -j$(nproc) IccProfLib2-static IccXML2-static
+          cd -
+
+          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
+          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp"
+
+          echo "Compiling static release binary..."
+          for src in $SOURCES; do
+            obj="${src%.cpp}.o"
+            clang++ -O2 -DNDEBUG -std=c++17 -flto=thin -DICCANALYZER_LITE ${INCLUDES} -c $src -o $obj &
+          done
+          wait
+
+          echo "Linking static binary..."
+          clang++ -flto=thin -fuse-ld=lld *.o \
+            ${RELEASE_BUILD}/IccProfLib/libIccProfLib2-static.a \
+            ${RELEASE_BUILD}/IccXML/libIccXML2-static.a \
+            -Wl,--allow-multiple-definition \
+            -Wl,-Bstatic -lz -llzma \
+            -Wl,-Bdynamic -lxml2 -lm -lpthread -ldl \
+            -o iccanalyzer-lite-static
+
+          echo "=== Static Release Binary ==="
+          ls -lh iccanalyzer-lite-static
+          file iccanalyzer-lite-static
+          ./iccanalyzer-lite-static --version
+
+      - name: Package release assets
+        id: package
+        env:
+          INPUT_TAG_PREFIX: ${{ github.event.inputs.release_tag_prefix || 'cli-test-suite' }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh
+
+          TAG_PREFIX="$(sanitize_ref "$INPUT_TAG_PREFIX")"
+          DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
+          RELEASE_TAG="${TAG_PREFIX}-${DATESTAMP}-run${{ github.run_number }}"
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+
+          TARBALL="iccanalyzer-cli-test-results-${DATESTAMP}.tar.gz"
+          tar -czf "${TARBALL}" cli-test-results/
+          echo "tarball=${TARBALL}" >> $GITHUB_OUTPUT
+
+          cp cli-test-results/test-summary.txt "test-summary-${DATESTAMP}.txt"
+          echo "summary_file=test-summary-${DATESTAMP}.txt" >> $GITHUB_OUTPUT
+
+          # Copy static binary and generate checksums for release upload
+          cp iccanalyzer-lite/iccanalyzer-lite-static iccanalyzer-lite-linux-amd64
+          chmod +x iccanalyzer-lite-linux-amd64
+          sha256sum iccanalyzer-lite-linux-amd64 > SHA256SUMS.txt
+
+          # Wrap binary in tar.gz to preserve execute permissions
+          tar -czf iccanalyzer-lite-linux-amd64.tar.gz iccanalyzer-lite-linux-amd64
+
+          ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64.tar.gz SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        with:
+          tag_name: ${{ steps.package.outputs.release_tag }}
+          name: "iccAnalyzer-lite | Security Research Tools for Color Profiles"
+          body: |
+            ## iccAnalyzer-lite CLI Test Suite Results
+
+            | Metric | Value |
+            |--------|-------|
+            | **Total Tests** | ${{ env.grand_total }} |
+            | **Clean** | ${{ env.grand_success }} |
+            | **Findings** | ${{ env.grand_failed }} |
+            | **Clean Rate** | ${{ env.clean_rate }}% |
+
+            ### Per-Mode Breakdown
+            | Mode | Flag | Clean | Findings | Total |
+            |------|------|-------|----------|-------|
+            | Heuristics | `-h` | ${{ env.heuristics_success }} | ${{ env.heuristics_failed }} | ${{ env.heuristics_total }} |
+            | Round-trip | `-r` | ${{ env.roundtrip_success }} | ${{ env.roundtrip_failed }} | ${{ env.roundtrip_total }} |
+            | Comprehensive | `-a` | ${{ env.comprehensive_success }} | ${{ env.comprehensive_failed }} | ${{ env.comprehensive_total }} |
+            | Ninja | `-n` | ${{ env.ninja_success }} | ${{ env.ninja_failed }} | ${{ env.ninja_total }} |
+            | Ninja-full | `-nf` | ${{ env.ninja-full_success }} | ${{ env.ninja-full_failed }} | ${{ env.ninja-full_total }} |
+
+            ### Build Configuration
+            - **Compiler:** clang++ (RelWithDebInfo)
+            - **Sanitizers:** ASAN + UBSAN
+            - **Coverage:** Enabled
+            - **Triggered by:** @${{ github.actor }}
+            - **Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.package.outputs.tarball }}
+            ${{ steps.package.outputs.summary_file }}
+            iccanalyzer-lite-linux-amd64.tar.gz
+            SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test results artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: iccanalyzer-cli-release-results
+          path: |
+            cli-test-results/
+            iccanalyzer-lite-linux-amd64
+            iccanalyzer-lite-linux-amd64.tar.gz
+            SHA256SUMS.txt
+          retention-days: 90
+
+      - name: Report to summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY_EOF'
+          ## iccAnalyzer-lite CLI Test Suite → Release
+
+          ### Results Summary
+          | Metric | Value |
+          |--------|-------|
+          | Total Tests | ${{ env.grand_total }} |
+          | Clean | ${{ env.grand_success }} |
+          | Findings | ${{ env.grand_failed }} |
+          | Clean Rate | ${{ env.clean_rate }}% |
+
+          ### Per-Mode Breakdown
+          | Mode | Flag | Clean | Findings | Total |
+          |------|------|-------|----------|-------|
+          | Heuristics | `-h` | ${{ env.heuristics_success }} | ${{ env.heuristics_failed }} | ${{ env.heuristics_total }} |
+          | Round-trip | `-r` | ${{ env.roundtrip_success }} | ${{ env.roundtrip_failed }} | ${{ env.roundtrip_total }} |
+          | Comprehensive | `-a` | ${{ env.comprehensive_success }} | ${{ env.comprehensive_failed }} | ${{ env.comprehensive_total }} |
+          | Ninja | `-n` | ${{ env.ninja_success }} | ${{ env.ninja_failed }} | ${{ env.ninja_total }} |
+          | Ninja-full | `-nf` | ${{ env.ninja-full_success }} | ${{ env.ninja-full_failed }} | ${{ env.ninja-full_total }} |
+
+          SUMMARY_EOF
+
+          RELEASE_TAG="${{ steps.package.outputs.release_tag }}"
+          echo "### Release" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${RELEASE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ github.server_url }}/${{ github.repository }}/releases/tag/${RELEASE_TAG}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.grand_failed }}" -eq 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### [OK] ALL CLEAN — No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] ${{ env.grand_failed }} FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Final status
+        run: |
+          echo "============================================"
+          echo "  CLI Test Suite → Release COMPLETE"
+          echo "============================================"
+          echo "Tag:      ${{ steps.package.outputs.release_tag }}"
+          echo "Total:    ${{ env.grand_total }} tests"
+          echo "Clean:    ${{ env.grand_success }}"
+          echo "Findings: ${{ env.grand_failed }}"
+          echo "Rate:     ${{ env.clean_rate }}%"
+          echo "============================================"
+
+          if [ "${{ env.grand_failed }}" -eq 0 ]; then
+            echo "STATUS: ALL CLEAN"
+          else
+            echo "STATUS: ${{ env.grand_failed }} finding(s) — sanitizer detections, not infrastructure failures"
+          fi
+          exit 0

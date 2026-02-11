@@ -196,7 +196,7 @@ int RecursiveScan(const char *directory, bool quiet)
       // Recurse into subdirectory
       int subResult = RecursiveScan(fullPath.c_str(), quiet);
       if (subResult >= 0) {
-        // Results are printed by recursive call
+        (void)subResult; // Results printed by recursive call
       }
     } else {
       // Check if it's an ICC file
@@ -218,14 +218,14 @@ int RecursiveScan(const char *directory, bool quiet)
       // Try to load profile
       CIccFileIO io;
       if (!io.Open(fullPath.c_str(), "rb")) {
-        if (!quiet) printf("  ✗ %s (cannot open)\n", fullPath.c_str());
+        if (!quiet) printf("  [FAIL] %s (cannot open)\n", fullPath.c_str());
         invalid++;
         continue;
       }
       
       CIccProfile *pIcc = new CIccProfile;
       if (!pIcc->Read(&io)) {
-        if (!quiet) printf("  ✗ %s (invalid ICC)\n", fullPath.c_str());
+        if (!quiet) printf("  [FAIL] %s (invalid ICC)\n", fullPath.c_str());
         invalid++;
         delete pIcc;
         io.Close();

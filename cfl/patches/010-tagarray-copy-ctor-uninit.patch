@@ -1,0 +1,21 @@
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1030,6 +1030,9 @@
+ ******************************************************************************/
+ CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
+ {
++  m_TagVals = NULL;
++  m_nSize = 0;
++
+   if (tagAry.m_nSize) {
+     m_TagVals = new IccTagPtr[tagAry.m_nSize];
+ 
+@@ -1071,7 +1074,7 @@
+     m_TagVals = new IccTagPtr[tagAry.m_nSize];
+ 
+     icUInt32Number i;
+-    for (i=0; i<m_nSize; i++) {
++    for (i=0; i<tagAry.m_nSize; i++) {
+       if (tagAry.m_TagVals[i].ptr)
+         m_TagVals[i].ptr = tagAry.m_TagVals[i].ptr->NewCopy();
+       else

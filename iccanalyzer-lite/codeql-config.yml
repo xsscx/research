@@ -207,7 +207,7 @@ ci-integration:
 # Metadata
 metadata:
   project-name: "iccLibFuzzer"
-  project-url: "https://github.com/InternationalColorConsortium/DemoIccMAX"
+  project-url: "https://github.com/InternationalColorConsortium/iccDEV"
   security-contact: "security-research@example.com"
   created: "2026-01-28"
   purpose: "Security research, vulnerability discovery, exploit development for defense"

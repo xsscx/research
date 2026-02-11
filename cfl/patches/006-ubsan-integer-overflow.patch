@@ -1,0 +1,58 @@
+--- a/IccProfLib/IccProfile.cpp
++++ b/IccProfLib/IccProfile.cpp
+@@ -1308,7 +1308,8 @@
+   
+   // if the tag claims to be longer than the actual file, return an error
+   // NOTE - ccox - it would be nice to cache the file length instead of calculating it per tag
+-  if ( (pTagEntry->TagInfo.offset + pTagEntry->TagInfo.size) > pIO->GetLength())
++  icUInt32Number ioLen = pIO->GetLength();
++  if (pTagEntry->TagInfo.size > ioLen || pTagEntry->TagInfo.offset > ioLen - pTagEntry->TagInfo.size)
+     return false;
+ 
+   icTagTypeSignature sigType;
+--- a/IccProfLib/IccSignatureUtils.h
++++ b/IccProfLib/IccSignatureUtils.h
+@@ -399,10 +399,10 @@
+   IccColorSpaceDescription desc;
+   desc.name = ColorSpaceSignatureToStr(sig);
+   desc.isKnown = IsValidColorSpaceSignature(sig);
+-  desc.bytes[0] = (sig >> 24) & 0xFF;
+-  desc.bytes[1] = (sig >> 16) & 0xFF;
+-  desc.bytes[2] = (sig >> 8) & 0xFF;
+-  desc.bytes[3] = sig & 0xFF;
++  desc.bytes[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
++  desc.bytes[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
++  desc.bytes[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
++  desc.bytes[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
+   desc.bytes[4] = '\0';
+   return desc;
+ }
+--- a/IccProfLib/IccUtil.cpp
++++ b/IccProfLib/IccUtil.cpp
+@@ -662,7 +662,7 @@
+         nummnt <<= 1;
+       } while (!(nummnt & 0x0400)); // Shift until leading bit overflows into exponent bit
+       rvsgn = ((icUInt32Number) numsgn) << 16;
+-      tmpexp = ((icUInt32Number) (numexp >> 10)) - 15 + 127 - exp;
++      tmpexp = static_cast<icInt32Number>((numexp >> 10)) - 15 + 127 - exp;
+       rvexp = (icUInt32Number) (tmpexp << 23);
+       rvmnt = ((icUInt32Number) (nummnt & 0x03FFu)) << 13;
+       rv = (rvsgn | rvexp | rvmnt);
+@@ -674,7 +674,7 @@
+       }
+     } else {
+       rvsgn = ((icUInt32Number) numsgn) << 16;
+-      tmpexp = ((icUInt32Number) (numexp >> 10)) - 15 + 127;
++      tmpexp = static_cast<icInt32Number>((numexp >> 10)) - 15 + 127;
+       rvexp = (icUInt32Number) (tmpexp << 23);
+       rvmnt = ((icUInt32Number) nummnt) << 13;
+       rv = (rvsgn | rvexp | rvmnt);
+@@ -1085,7 +1085,7 @@
+       bGetHexVal = true;
+     }
+     pBuf[i]=c;
+-    sig <<=8;
++    sig = static_cast<icUInt32Number>((static_cast<icUInt64Number>(sig) << 8) & 0xFFFFFFFFu);
+   }
+ 
+   if (bGetHexVal)

@@ -1,0 +1,20 @@
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1034,7 +1034,7 @@
+   m_nSize = 0;
+ 
+   if (tagAry.m_nSize) {
+-    m_TagVals = new IccTagPtr[tagAry.m_nSize];
++    m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));
+ 
+     icUInt32Number i;
+     for (i=0; i<tagAry.m_nSize; i++) {
+@@ -1071,7 +1071,7 @@
+   Cleanup();
+ 
+   if (tagAry.m_nSize) {
+-    m_TagVals = new IccTagPtr[tagAry.m_nSize];
++    m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));
+ 
+     icUInt32Number i;
+     for (i=0; i<tagAry.m_nSize; i++) {
