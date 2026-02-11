@@ -62,8 +62,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 1
 
@@ -183,7 +184,7 @@ jobs:
           cp iccanalyzer-lite/iccanalyzer-lite ./iccanalyzer-lite-bin
           file ./iccanalyzer-lite-bin
           ldd ./iccanalyzer-lite-bin 2>&1 || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: iccanalyzer-lite-binary
           path: |
@@ -227,8 +228,9 @@ jobs:
 
     steps:
       - name: Checkout repository (for test profiles)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 1
 
@@ -243,7 +245,7 @@ jobs:
             zlib1g liblzma5 libssl3 \
             libclang-rt-18-dev clang-18
       - name: Download binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           name: iccanalyzer-lite-binary
 
@@ -398,7 +400,7 @@ jobs:
             echo "| Coverage Files | ${COVERAGE_FILES:-0} |"
           } >> $GITHUB_STEP_SUMMARY
       - name: Upload test results with coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: test-results-coverage-${{ matrix.mode }}
@@ -429,7 +431,7 @@ jobs:
 
     steps:
       - name: Download all test results and coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           pattern: test-results-coverage-*
           path: all-results/
@@ -518,7 +520,7 @@ jobs:
             
           } >> $GITHUB_STEP_SUMMARY
       - name: Upload consolidated results  
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: cli-test-suite-report-${{ github.run_id }}

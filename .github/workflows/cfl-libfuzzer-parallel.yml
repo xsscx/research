@@ -59,8 +59,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
 
@@ -136,6 +137,7 @@ jobs:
       - name: Build all fuzzers
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           ICCDEV="$PWD/cfl/iccDEV"
           CFL="$PWD/cfl"
           BUILD="$ICCDEV/Build"
@@ -160,6 +162,7 @@ jobs:
             # Determine extra objects/libs for tiff-dependent fuzzers
             EXTRA_OBJ=""
             EXTRA_LIBS=""
+            EXTRA_LDFLAGS=""
             if echo "$TIFF_FUZZERS" | grep -qw "$FNAME"; then
               if [ -f "$CFL/TiffImg.o" ]; then
                 EXTRA_OBJ="$CFL/TiffImg.o"
@@ -167,9 +170,14 @@ jobs:
               fi
             fi
 
+            # icc_deep_dump_fuzzer overrides icRealloc — needs --allow-multiple-definition
+            if [ "$FNAME" = "icc_deep_dump_fuzzer" ]; then
+              EXTRA_LDFLAGS="-Wl,--allow-multiple-definition"
+            fi
+
             set +e
             clang++ $CXXFLAGS $INCLUDES "$src" \
-              $EXTRA_OBJ $LIBS_BASE $LIBS_XML $LIBS_SYS $EXTRA_LIBS \
+              $EXTRA_OBJ $LIBS_BASE $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
               -o "$OUTDIR/$FNAME" 2>&1
             RC=$?
             set -e
@@ -198,7 +206,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload fuzzer binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
           path: |
@@ -220,6 +228,7 @@ jobs:
           - icc_applynamedcmm_fuzzer
           - icc_applyprofiles_fuzzer
           - icc_calculator_fuzzer
+          - icc_deep_dump_fuzzer
           - icc_dump_fuzzer
           - icc_fromxml_fuzzer
           - icc_io_fuzzer
@@ -238,13 +247,13 @@ jobs:
 
     steps:
       - name: Download fuzzer binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
 
       - name: Restore corpus cache
         if: ${{ github.event.inputs.use_corpus_cache != 'false' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
           path: corpus-${{ matrix.fuzzer }}
           key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
@@ -255,6 +264,7 @@ jobs:
         id: fuzz
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
           FUZZER="bin/${{ matrix.fuzzer }}"
           if [ ! -f "$FUZZER" ]; then
@@ -353,13 +363,13 @@ jobs:
 
       - name: Save corpus cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
           path: corpus-${{ matrix.fuzzer }}
           key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
 
       - name: Upload crash artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -368,7 +378,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload corpus
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: corpus-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -387,7 +397,7 @@ jobs:
 
     steps:
       - name: Download all crash artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           pattern: crash-*
           path: all-crashes/
@@ -396,6 +406,7 @@ jobs:
       - name: Generate campaign summary
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
           TOTAL_CRASHES=0
           if [ -d all-crashes ]; then
@@ -404,7 +415,7 @@ jobs:
 
           FUZZ_SECONDS=${{ env.FUZZ_SECONDS }}
           SANITIZER="${{ env.SANITIZER }}"
-          FUZZERS=16
+          FUZZERS=17
 
           {
             echo "# CFL LibFuzzer Parallel Campaign Report"
@@ -440,7 +451,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload consolidated report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: campaign-report-${{ github.run_id }}

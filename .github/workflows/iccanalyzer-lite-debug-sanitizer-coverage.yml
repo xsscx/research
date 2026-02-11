@@ -134,7 +134,7 @@ jobs:
           SANITIZE_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
           COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
           export CXXFLAGS="${SANITIZE_FLAGS} ${COVERAGE_FLAGS} -g -O0 -std=c++17 -DICCANALYZER_LITE"
-          export LDFLAGS="${SANITIZE_FLAGS} -fprofile-instr-generate"
+          export LDFLAGS="${SANITIZE_FLAGS} -fprofile-instr-generate -Wl,--allow-multiple-definition"
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"

@@ -37,8 +37,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
 
@@ -125,8 +126,12 @@ jobs:
           BUILT=0
           for src in "$CFL"/*_fuzzer.cpp; do
             FNAME=$(basename "$src" .cpp)
+            EXTRA_LDFLAGS=""
+            if [ "$FNAME" = "icc_deep_dump_fuzzer" ]; then
+              EXTRA_LDFLAGS="-Wl,--allow-multiple-definition"
+            fi
             set +e
-            clang++ $CXXFLAGS $INCLUDES "$src" $LIBS -o "$OUTDIR/$FNAME" 2>&1
+            clang++ $CXXFLAGS $INCLUDES "$src" $LIBS $EXTRA_LDFLAGS -o "$OUTDIR/$FNAME" 2>&1
             RC=$?
             set -e
             if [ $RC -eq 0 ]; then
@@ -156,7 +161,7 @@ jobs:
           echo "Fuzzers for matrix: $FUZZERS"
 
       - name: Upload fuzzer binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fuzzer-binaries
           path: |
@@ -180,7 +185,7 @@ jobs:
 
     steps:
       - name: Download fuzzer binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           name: fuzzer-binaries
 
@@ -189,6 +194,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
           chmod +x "bin/${{ matrix.fuzzer }}"
           mkdir -p corpus
@@ -241,7 +247,7 @@ jobs:
           fi
 
       - name: Upload crash artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}

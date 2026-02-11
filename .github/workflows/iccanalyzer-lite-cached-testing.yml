@@ -10,6 +10,9 @@
 
 name: iccAnalyzer-lite Cached Testing
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -26,13 +29,14 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          persist-credentials: false
           submodules: recursive
           fetch-depth: 1
 
       - name: Cache APT packages
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-apt
         with:
           path: |
@@ -80,7 +84,7 @@ jobs:
           echo "iccDEV latest commit: $ICCDEV_COMMIT"
 
       - name: Cache iccDEV repository
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
@@ -116,7 +120,7 @@ jobs:
           echo "iccDEV commit: $(git log --oneline -1)"
 
       - name: Cache iccDEV build
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-iccdev-build
         with:
           path: |
@@ -182,6 +186,8 @@ jobs:
 
       - name: Setup profile testing
         id: setup
+        env:
+          INPUT_PROFILE_COUNT: ${{ github.event.inputs.profile_count || '25' }}
         run: |
           # Create test directory
           mkdir -p profile-test-results
@@ -191,7 +197,7 @@ jobs:
           echo "Total profiles available: $PROFILE_COUNT"
           
           # Determine how many to test
-          REQUEST_COUNT="${{ github.event.inputs.profile_count || '25' }}"
+          REQUEST_COUNT="${INPUT_PROFILE_COUNT}"
           TEST_COUNT=$((REQUEST_COUNT < PROFILE_COUNT ? REQUEST_COUNT : PROFILE_COUNT))
           TEST_COUNT=$((TEST_COUNT > 50 ? 50 : TEST_COUNT))
           
@@ -410,7 +416,7 @@ jobs:
           echo "Results index created: $INDEX_FILE"
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: iccanalyzer-lite-cached-test-results
@@ -420,6 +426,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite Cached Testing Results (25 Security POC Profiles)
           

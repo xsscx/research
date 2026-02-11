@@ -264,6 +264,38 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       printf("   Impact: Code execution, memory corruption\n");
       printf("   DO NOT PROCESS WITH IccProfLib - potential exploit attempt\n");
     }
+    
+    // Size inflation detection
+    icUInt32Number claimedSize = (rawData[0]<<24) | (rawData[1]<<16) | (rawData[2]<<8) | rawData[3];
+    if (claimedSize > 0 && claimedSize > fileSize * 16 && claimedSize > (128u << 20)) {
+      printf("\n⚠️  SIZE INFLATION: Header claims %u bytes, file is %zu bytes (%.0fx)\n",
+             claimedSize, fileSize, (double)claimedSize / fileSize);
+      printf("   Risk: OOM via tag-internal allocations based on inflated header size\n");
+    }
+    
+    // Tag overlap detection (raw)
+    if (maxTags > 1 && maxTags <= 200) {
+      int overlapCount = 0;
+      for (size_t a = 0; a < maxTags && (132 + a*12 + 12) <= fileSize; a++) {
+        size_t posA = 132 + a*12;
+        icUInt32Number offA = (rawData[posA+4]<<24) | (rawData[posA+5]<<16) | (rawData[posA+6]<<8) | rawData[posA+7];
+        icUInt32Number szA  = (rawData[posA+8]<<24) | (rawData[posA+9]<<16) | (rawData[posA+10]<<8) | rawData[posA+11];
+        for (size_t b = a+1; b < maxTags && (132 + b*12 + 12) <= fileSize; b++) {
+          size_t posB = 132 + b*12;
+          icUInt32Number offB = (rawData[posB+4]<<24) | (rawData[posB+5]<<16) | (rawData[posB+6]<<8) | rawData[posB+7];
+          icUInt32Number szB  = (rawData[posB+8]<<24) | (rawData[posB+9]<<16) | (rawData[posB+10]<<8) | rawData[posB+11];
+          if (offA == offB && szA == szB) continue; // shared (allowed by spec)
+          uint64_t endA = (uint64_t)offA + szA, endB = (uint64_t)offB + szB;
+          if (offA < endB && offB < endA && offA != offB) {
+            overlapCount++;
+          }
+        }
+      }
+      if (overlapCount > 0) {
+        printf("\n⚠️  TAG OVERLAP: %d overlapping tag pair(s) detected\n", overlapCount);
+        printf("   Risk: Data corruption, possible exploit crafting\n");
+      }
+    }
     printf("\n");
   } else {
     printf("WARNING: File too small for tag table\n\n");
