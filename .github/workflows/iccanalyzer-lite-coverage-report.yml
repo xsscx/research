@@ -121,7 +121,7 @@ jobs:
           # Coverage-only build: no sanitizers (ASAN crashes skip gcda flush)
           export CXX=g++
           export CXXFLAGS="-fno-omit-frame-pointer -g -O0 -fprofile-arcs -ftest-coverage --coverage -std=c++17 -DICCANALYZER_LITE"
-          export LDFLAGS="-fprofile-arcs --coverage"
+          export LDFLAGS="-fprofile-arcs --coverage -Wl,--allow-multiple-definition"
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"

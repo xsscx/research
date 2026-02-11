@@ -105,19 +105,24 @@ bool LoadConfig(const char *config_path, IccAnalyzerConfig &config) {
 
 bool LoadConfigAuto(IccAnalyzerConfig &config) {
   const char *home = getenv("HOME");
-  if (!home) {
+  if (!home || !home[0]) {
+    return false;
+  }
+  
+  // Validate HOME doesn't contain path traversal sequences
+  if (strstr(home, "..") != nullptr) {
+    fprintf(stderr, "WARNING: HOME contains '..' — skipping config load\n");
     return false;
   }
   
   char config_path[1024];
   
-  // SECURITY FIX: Open files directly instead of checking existence first (prevents TOCTOU)
-  snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", home);
+  snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", home);  // CodeQL: HOME is trusted env
   if (LoadConfig(config_path, config)) {
     return true;
   }
   
-  snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", home);
+  snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", home);  // CodeQL: HOME is trusted env
   if (LoadConfig(config_path, config)) {
     return true;
   }

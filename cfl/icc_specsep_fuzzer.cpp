@@ -91,6 +91,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   for (uint8_t i = 0; i < nFiles; i++) {
     char *tmpfile = (char*)malloc(32);
+    if (!tmpfile) {
+      for (auto tf : tmpfiles) { unlink(tf); free(tf); }
+      return 0;
+    }
     snprintf(tmpfile, 32, "/tmp/fuzz_sep_%d_XXXXXX", i);
     int fd = mkstemp(tmpfile);
     if (fd < 0) {

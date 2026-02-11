@@ -44,9 +44,9 @@ for src in $SOURCES; do
 done
 wait
 
-# Link
+# Link (--allow-multiple-definition needed for icRealloc OOM-guard override)
 echo "Linking..."
-${CXX} ${LDFLAGS} *.o ${LIBS} -o iccanalyzer-lite
+${CXX} ${LDFLAGS} -Wl,--allow-multiple-definition *.o ${LIBS} -o iccanalyzer-lite
 
 echo ""
 echo "[OK] Build complete"

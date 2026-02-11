@@ -8,7 +8,8 @@
 # Usage:  ./build.sh          # build all fuzzers
 #         ./build.sh clean    # remove build artifacts and start fresh
 #
-# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib
+# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
+#               libclang-rt-<ver>-dev (provides ASan/UBSan runtime)
 
 set -euo pipefail
 
@@ -52,6 +53,7 @@ CORE_FUZZERS=(
   icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
+  icc_deep_dump_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)
@@ -80,6 +82,32 @@ if [ "${1:-}" = "clean" ]; then
   echo "✅ Clean complete"
   exit 0
 fi
+
+# --- Pre-flight: verify toolchain ---
+for tool in "$CC" "$CXX" cmake pkg-config; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo "❌ ERROR: $tool not found. Install it and retry."
+    exit 1
+  fi
+done
+
+# Verify ASan/UBSan runtime is available (libclang-rt-*-dev)
+ASAN_TEST=$(mktemp /tmp/asan_test.XXXXXX.cpp)
+echo 'int main(){}' > "$ASAN_TEST"
+if ! $CXX -fsanitize=address,undefined "$ASAN_TEST" -o /dev/null 2>/dev/null; then
+  rm -f "$ASAN_TEST"
+  CLANG_VER=$($CXX --version | grep -oP '\d+' | head -1)
+  echo "❌ ERROR: Clang sanitizer runtime not found."
+  echo ""
+  echo "   The ASan/UBSan runtime library is required but missing."
+  echo "   On Ubuntu/Debian, install it with:"
+  echo ""
+  echo "     sudo apt install libclang-rt-${CLANG_VER}-dev"
+  echo ""
+  echo "   This provides libclang_rt.asan, libclang_rt.ubsan, and fuzzer runtimes."
+  exit 1
+fi
+rm -f "$ASAN_TEST"
 
 banner "CFL Fuzzer Build — Full Instrumentation"
 echo "Compiler:  $($CXX --version | head -1)"
@@ -189,7 +217,11 @@ build_fuzzer() {
 
 echo "Core fuzzers (12):"
 for f in "${CORE_FUZZERS[@]}"; do
-  build_fuzzer "$f"
+  if [ "$f" = "icc_deep_dump_fuzzer" ]; then
+    build_fuzzer "$f" "-Wl,--allow-multiple-definition"
+  else
+    build_fuzzer "$f"
+  fi
 done
 
 echo ""

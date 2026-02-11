@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout master
         uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        with:
+          persist-credentials: false
 
       - name: Install Dependencies
         shell: bash --noprofile --norc {0}
@@ -65,6 +67,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
@@ -81,8 +84,7 @@ jobs:
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
           git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
-          cd ../../ && make -j"$(nproc)" clean all test
+          make setup && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
         env:
@@ -112,6 +114,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
