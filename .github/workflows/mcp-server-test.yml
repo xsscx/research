@@ -1,0 +1,108 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: CI for ICC Profile MCP Server — lint + test
+###############################################################
+
+name: MCP Server Tests
+
+on:
+  push:
+    paths:
+      - 'mcp-server/**'
+      - '.github/workflows/mcp-server-test.yml'
+  pull_request:
+    paths:
+      - 'mcp-server/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd mcp-server
+          pip install -r requirements.txt
+
+      - name: Install iccDEV + iccanalyzer-lite
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang git ca-certificates \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
+
+          # Clone and build iccDEV
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          cd iccDEV
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Build/Cmake/CMakeLists.txt
+          cd Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
+          cd ../..
+
+          # Build colorbleed_tools (needed for XML roundtrip tests)
+          cd colorbleed_tools
+          make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
+          cd ..
+
+          # Build iccanalyzer-lite
+          cd iccanalyzer-lite
+          export CXX=clang++
+          export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
+          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
+                IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
+                IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
+                IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp"
+          for src in $SRCS; do
+            $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
+          done
+          OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
+          $CXX $OBJS \
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm \
+            -Wl,--allow-multiple-definition \
+            -o iccanalyzer-lite
+          cd ..
+
+      - name: Run MCP Server Tests
+        run: |
+          cd mcp-server
+          export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          python test_mcp.py
+
+      - name: Run Web UI Tests
+        run: |
+          cd mcp-server
+          export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          python test_web_ui.py
+
+      - name: Test Summary
+        if: always()
+        run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          echo "## MCP Server Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Python:** 3.12" >> $GITHUB_STEP_SUMMARY

@@ -16,6 +16,40 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+
+// ─── OOM protection: icRealloc override ───
+// iccDEV library routes all tag data allocations through icRealloc()
+// (IccUtil.cpp:112). Malicious profiles can trigger 4GB+ allocations via
+// CIccTagXYZ::SetSize, CIccTagData::SetSize, CIccMpeTintArray::Read, etc.
+// By providing our own definition, the linker picks this over the library's
+// version, capping single allocations at 256MB.
+static constexpr size_t kMaxSingleAlloc = 256 * 1024 * 1024; // 256 MB
+
+void* icRealloc(void *ptr, size_t size) {
+  if (size == 0) {
+    free(ptr);
+    return nullptr;
+  }
+  if (size > kMaxSingleAlloc) {
+    fprintf(stderr, "[OOM-guard] icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
+            ptr, size, (double)size / (1024.0*1024.0),
+            kMaxSingleAlloc / (1024*1024));
+    free(ptr);  // free(NULL) is safe per C standard
+    return nullptr;
+  }
+  void *nptr = realloc(ptr, size);
+  // realloc guarantees: on failure, original ptr is NOT freed (C11 §7.22.3.5)
+  if (!nptr) free(ptr);
+  return nptr;
+}
+
+// ─── ASAN options ───
+// When analyzing malicious profiles, library may request huge allocations.
+// allocator_may_return_null=1 makes ASAN return NULL instead of aborting.
+extern "C" const char *__asan_default_options() {
+  return "allocator_may_return_null=1:detect_leaks=0";
+}
 
 void PrintUsage() {
   printf("iccAnalyzer-lite v2.9.0 - Static Build (No Database Features)\n\n");
@@ -92,7 +126,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   
-  fprintf(stderr, "ERROR: Unknown option: %s\n\n", mode);
+  fprintf(stderr, "ERROR: Unknown option: %s\n\n", SanitizeForLog(mode).c_str());
   PrintUsage();
   return 1;
 }

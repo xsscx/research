@@ -60,8 +60,12 @@ std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
   return result;
 }
 
+/** Write embedded XSLT stylesheet for XML report rendering. */
 void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
 {
+  // Emit embedded XSLT 1.0 stylesheet that transforms XML analysis reports
+  // into styled HTML with status indicators and severity badges.
+  // Sections: CSS styles, profile metadata, heuristics results table, footer.
   xml << R"XSLT(
 <xsl:stylesheet version="1.0" 
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -273,8 +277,10 @@ bool IccAnalyzerXMLExport::ExportHeuristicsToXML(const char* filename,
   xml << "    <analyzer_version>iccAnalyzer v2.4.0</analyzer_version>\n";
   
   time_t now = time(nullptr);
+  struct tm tm_buf;
   char timestamp[64];
-  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S UTC", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S UTC", &tm_buf);
   xml << "    <timestamp>" << XMLEscape(timestamp) << "</timestamp>\n";
   xml << "  </metadata>\n";
   

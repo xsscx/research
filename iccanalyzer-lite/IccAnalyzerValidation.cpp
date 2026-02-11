@@ -196,7 +196,7 @@ int RecursiveScan(const char *directory, bool quiet)
       // Recurse into subdirectory
       int subResult = RecursiveScan(fullPath.c_str(), quiet);
       if (subResult >= 0) {
-        // Results are printed by recursive call
+        (void)subResult; // Results printed by recursive call
       }
     } else {
       // Check if it's an ICC file

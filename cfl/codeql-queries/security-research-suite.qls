@@ -1,0 +1,62 @@
+# CodeQL Query Suite for Security Research
+# Purpose: Comprehensive vulnerability detection for exploit development defense
+
+- description: Security research query suite for iccLibFuzzer
+- qlpack: codeql/cpp-queries
+
+# Memory safety vulnerabilities
+- queries: .
+  from: codeql/cpp-queries
+  filters:
+    - include:
+        kind:
+          - problem
+          - path-problem
+        tags contain:
+          - security
+
+# Custom security research queries
+- queries: ./enum-undefined-behavior.ql
+- queries: ./buffer-overflow.ql
+- queries: ./type-confusion.ql
+- queries: ./use-after-free.ql
+- queries: ./integer-overflow-allocation.ql
+
+# Built-in security queries
+- queries: .
+  from: codeql/cpp-queries
+  filters:
+    - include:
+        id:
+          - cpp/integer-overflow
+          - cpp/signed-overflow
+          - cpp/uncontrolled-allocation-size
+          - cpp/unbounded-write
+          - cpp/pointer-overflow-check
+          - cpp/bad-allocation-size
+          - cpp/dangerous-function-overflow
+          - cpp/wrong-type-format-argument
+          - cpp/tainted-format-string
+          - cpp/unsafe-strcat
+          - cpp/unsafe-strncat
+          - cpp/potentially-dangerous-function
+          - cpp/memory-may-not-be-freed
+          - cpp/memory-never-freed
+          - cpp/double-free
+          - cpp/use-after-free
+          - cpp/delete-void-pointer
+          - cpp/incorrect-allocation-error-handling
+          - cpp/offset-use-before-range-check
+          - cpp/upcast-array-pointer-arithmetic
+          - cpp/unsafe-use-of-this
+          - cpp/return-stack-allocated-memory
+          - cpp/stack-address-escape
+
+# Experimental security queries
+- queries: .
+  from: codeql/cpp-queries
+  filters:
+    - include:
+        tags contain:
+          - security
+          - experimental

@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: recursive
           fetch-depth: 1
@@ -94,6 +94,17 @@ jobs:
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Apply CFL patches to iccDEV
+        run: |
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+
       - name: Build iccDEV libraries (Debug + ASan + UBSan + Coverage)
         env:
           BASH_ENV: /dev/null
@@ -107,8 +118,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
-            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping -O0 -g" \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping -O0 -g -std=c++17" \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=integer -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -DDEBUG -ftrapv -fstack-protector-strong" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=integer -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -DDEBUG -ftrapv -fstack-protector-strong -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DENABLE_TOOLS=OFF \
             -DENABLE_STATIC_LIBS=ON \
@@ -131,10 +142,11 @@ jobs:
           set -euo pipefail
           export CXX=clang++-18
 
-          SANITIZE_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          SANITIZE_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
           COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
-          export CXXFLAGS="${SANITIZE_FLAGS} ${COVERAGE_FLAGS} -g -O0 -std=c++17 -DICCANALYZER_LITE"
-          export LDFLAGS="${SANITIZE_FLAGS} -fprofile-instr-generate"
+          DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-common -ftrapv -fstack-protector-strong"
+          export CXXFLAGS="${SANITIZE_FLAGS} ${COVERAGE_FLAGS} ${DEBUG_FLAGS} -std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter"
+          export LDFLAGS="${SANITIZE_FLAGS} -fprofile-instr-generate -Wl,--allow-multiple-definition"
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
