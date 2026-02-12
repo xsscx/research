@@ -418,6 +418,7 @@ jobs:
           clang++ -flto=thin -fuse-ld=lld *.o \
             ${RELEASE_BUILD}/IccProfLib/libIccProfLib2-static.a \
             ${RELEASE_BUILD}/IccXML/libIccXML2-static.a \
+            -Wl,--allow-multiple-definition \
             -Wl,-Bstatic -lz -llzma \
             -Wl,-Bdynamic -lxml2 -lm -lpthread -ldl \
             -o iccanalyzer-lite-static

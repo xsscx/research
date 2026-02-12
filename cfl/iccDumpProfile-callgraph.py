@@ -404,7 +404,10 @@ def _check_fidelity(site, fuzzer_map):
 
 def emit_dot(functions, calls, gates, outfile):
     """Generate Graphviz DOT file (modeled on iccanalyzer-lite GenerateDOTGraph)."""
-    with open(outfile, "w") as f:
+    safe_out = os.path.normpath(os.path.realpath(outfile))
+    if not os.path.isabs(safe_out):
+        raise ValueError(f"Output path must be absolute: {outfile}")
+    with open(safe_out, "w") as f:
         f.write("digraph iccDumpProfile {\n")
         f.write("  rankdir=TB;\n")
         f.write('  node [shape=box, style=filled, fontname="Helvetica"];\n')
@@ -512,9 +515,9 @@ def emit_dot(functions, calls, gates, outfile):
 
         f.write("}\n")
 
-    print(f"[OK] DOT graph written: {outfile}")
-    print(f"     Render: dot -Tpng {outfile} -o {outfile.replace('.dot', '.png')}")
-    return outfile
+    print(f"[OK] DOT graph written: {safe_out}")
+    print(f"     Render: dot -Tpng {safe_out} -o {safe_out.replace('.dot', '.png')}")
+    return safe_out
 
 
 def emit_json(functions, calls, gates, fuzzer_map=None):
@@ -589,11 +592,14 @@ def emit_json(functions, calls, gates, fuzzer_map=None):
 
 def load_fuzzer_map(fuzzer_path):
     """Parse a fuzzer .cpp for exercised API calls to produce a fidelity map."""
-    if not fuzzer_path or not os.path.exists(fuzzer_path):
+    if not fuzzer_path:
+        return None
+    safe_path = os.path.normpath(os.path.realpath(fuzzer_path))
+    if not os.path.isfile(safe_path):
         return None
 
     fmap = set()
-    with open(fuzzer_path) as f:
+    with open(safe_path) as f:
         for lineno, line in enumerate(f, 1):
             line_stripped = line.strip()
             # Match common ICC API patterns (case-insensitive collection)
