@@ -597,19 +597,20 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
         
         int inputDim = pCLUT->GetInputDim();
         int outputChannels = pCLUT->GetOutputChannels();
-        int expectedSize = outputChannels;
+        long long expectedSize = outputChannels; bool sizeOverflow = false;
         for (int d = 0; d < inputDim; d++) {
-          expectedSize *= pCLUT->GetDimSize(d);
+          long long dimSz = pCLUT->GetDimSize(d); if (dimSz > 0 && expectedSize > INT32_MAX / dimSz) { sizeOverflow = true; break; } expectedSize *= dimSz;
         }
         
+        if (sizeOverflow) { continue; }
         long actualSize = fileSize / 2;
         if (actualSize != expectedSize) {
-          printf("  Tag %s Element[%u]: Size mismatch (expected %d, got %ld)\n",
+          printf("  Tag %s Element[%u]: Size mismatch (expected %lld, got %ld)\n",
                  info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize, actualSize);
           continue;
         }
         
-        printf("  Tag %s Element[%u]: Injecting CLUT (%d entries)\n",
+        printf("  Tag %s Element[%u]: Injecting CLUT (%lld entries)\n",
                info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
         
         icFloatNumber *data = pCLUT->GetData(0);
@@ -773,19 +774,20 @@ int InjectMpeData(const char *profileFile, const char *outputFile, const char *c
         
         int inputDim = pCLUT->GetInputDim();
         int outputChannels = pCLUT->GetOutputChannels();
-        int expectedSize = outputChannels;
+        long long expectedSize = outputChannels; bool sizeOverflow = false;
         for (int d = 0; d < inputDim; d++) {
-          expectedSize *= pCLUT->GetDimSize(d);
+          long long dimSz = pCLUT->GetDimSize(d); if (dimSz > 0 && expectedSize > INT32_MAX / dimSz) { sizeOverflow = true; break; } expectedSize *= dimSz;
         }
         
+        if (sizeOverflow) { continue; }
         long actualSize = fileSize / 2;
         if (actualSize != expectedSize) {
-          printf("  Tag %s Element[%u]: Size mismatch (expected %d, got %ld)\n",
+          printf("  Tag %s Element[%u]: Size mismatch (expected %lld, got %ld)\n",
                  info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize, actualSize);
           continue;
         }
         
-        printf("  Tag %s Element[%u]: Injecting CLUT (%d entries)\n",
+        printf("  Tag %s Element[%u]: Injecting CLUT (%lld entries)\n",
                info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
         
         icFloatNumber *data = pCLUT->GetData(0);

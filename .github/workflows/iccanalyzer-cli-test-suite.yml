@@ -123,7 +123,7 @@ jobs:
           
           echo "Configuring CMake with full instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
@@ -184,7 +184,7 @@ jobs:
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
           echo "Binary: $(./iccanalyzer-lite --version 2>&1 | head -1)" >> $SUMMARY
-          echo "Build: RelWithDebInfo + ASAN + UBSAN + Coverage" >> $SUMMARY
+          echo "Build: Debug + ASAN + UBSAN + Coverage" >> $SUMMARY
           echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
           

@@ -60,6 +60,7 @@ venv/
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
 oom-*
+slow-unit-*
 *:Zone.Identifier
 dd.log
 fuzz
@@ -74,11 +75,14 @@ profile-fuzzer.log
 
 # Scratch / staging dictionaries (consolidated versions are tracked)
 add-dict.txt
+add-*-dict.txt
 add-spectral-fuzzer-dict.txt
 new.dict
+*-dict-add.txt
 
 # Build artifacts (binaries and test outputs)
 iccanalyzer-lite/iccanalyzer-lite
+iccanalyzer-lite/iccAnalyzer-lite
 iccanalyzer-lite/iccDEV/
 iccanalyzer-lite/build/
 iccanalyzer-lite/*-build-report.md
@@ -103,3 +107,6 @@ source-of-truth/
 
 # Fuzz corpus (ephemeral, synced from ramdisk)
 fuzz/
+
+# XNU Image Fuzzer corpus (manually managed)
+xif/

@@ -630,8 +630,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (fileSize >= 132) {
         icUInt8Number header[132];
         if (fread(header, 1, 132, fp) == 132) {
-          icUInt32Number tagTableCount = (header[128]<<24) | (header[129]<<16) | 
-                                          (header[130]<<8) | header[131];
+          icUInt32Number tagTableCount = (static_cast<icUInt32Number>(header[128])<<24) | (static_cast<icUInt32Number>(header[129])<<16) | 
+                                          (static_cast<icUInt32Number>(header[130])<<8) | header[131];
           
           bool foundTagArray = false;
           icUInt32Number tagArrayCount = 0;
@@ -645,17 +645,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             fseek(fp, entryPos, SEEK_SET);
             if (fread(entry, 1, 12, fp) != 12) break;
             
-            icUInt32Number tagSig = (entry[0]<<24) | (entry[1]<<16) | (entry[2]<<8) | entry[3];
-            icUInt32Number tagOffset = (entry[4]<<24) | (entry[5]<<16) | (entry[6]<<8) | entry[7];
-            icUInt32Number tagSize = (entry[8]<<24) | (entry[9]<<16) | (entry[10]<<8) | entry[11];
+            icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
+            icUInt32Number tagOffset = (static_cast<icUInt32Number>(entry[4])<<24) | (static_cast<icUInt32Number>(entry[5])<<16) | (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tagSize = (static_cast<icUInt32Number>(entry[8])<<24) | (static_cast<icUInt32Number>(entry[9])<<16) | (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
             
-            // Validate tag is within file bounds
-            if (tagOffset + tagSize <= fileSize && tagOffset >= 128 && tagSize >= 4) {
+            // Validate tag is within file bounds (overflow-safe check)
+            if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
               icUInt8Number tagData[4];
               fseek(fp, tagOffset, SEEK_SET);
               if (fread(tagData, 1, 4, fp) == 4) {
-                icUInt32Number tagType = (tagData[0]<<24) | (tagData[1]<<16) | 
-                                         (tagData[2]<<8) | tagData[3];
+                icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) | 
+                                         (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
                 
                 // Check for TagArrayType (0x74617279 = 'tary')
                 if (tagType == 0x74617279) {
