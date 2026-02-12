@@ -60,15 +60,19 @@ void SetXMLCompatibilityMode(bool enabled) {
 
 static std::string GetTimestamp() {
   time_t now = time(NULL);
+  struct tm tm_buf;
   char buf[64];
-  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", &tm_buf);
   return std::string(buf);
 }
 
 static std::string GetSessionID() {
   time_t now = time(NULL);
+  struct tm tm_buf;
   char buf[32];
-  strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm_buf);
   return std::string(buf);
 }
 
@@ -109,23 +113,22 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   }
   printf("\n");
   
-  // Get file size
-  struct stat st;
-  if (stat(filename, &st) != 0) {
-    printf("[ERR] ERROR: Cannot access file: %s\n", filename);
+  // Open file first, then stat the fd to avoid TOCTOU race
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("[ERR] ERROR: Cannot open file: %s\n", filename);
     printf("   Check that the file exists and you have read permissions.\n\n");
+    return -1;
+  }
+  
+  struct stat st;
+  if (fstat(fileno(fp), &st) != 0) {
+    printf("[ERR] ERROR: Cannot stat file: %s\n", filename);
+    fclose(fp);
     return -1;
   }
   size_t fileSize = st.st_size;
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
-  
-  // Read entire file
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
-    printf("[ERR] ERROR: Cannot open file: %s\n", filename);
-    printf("   Permission denied or file is locked.\n\n");
-    return -1;
-  }
   
   icUInt8Number *rawData = (icUInt8Number*)malloc(fileSize);
   if (!rawData) {
