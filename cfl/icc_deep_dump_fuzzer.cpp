@@ -38,15 +38,15 @@
 /*
  * icc_deep_dump_fuzzer.cpp — Enhanced ICC profile fuzzer
  *
- * Extends icc_dump_fuzzer with deeper analysis paths inspired by
- * iccanalyzer-lite security heuristics. Targets:
+ * Aligned with iccDumpProfile.cpp tool scope: exercises the same API
+ * surface (Describe, Validate, FindTag, GetType, IsArrayType) without
+ * entering tag execution paths (Begin/Apply) or CMM transforms.
  *
+ * Targets:
  *  - TagArrayType (tary) heap-use-after-free in CIccTagArray::Cleanup()
  *  - CLUT size overflow in multi-dimensional LUT tags
  *  - MPE chain depth exhaustion via nested MultiProcessElements
- *  - Tag type confusion via re-read with Attach() / LoadTag()
  *  - Integer overflow in tag offset/size arithmetic
- *  - Rendering intent transform chains (Apply paths)
  *  - Named color lookup with adversarial inputs
  */
 
@@ -69,7 +69,6 @@
 #include "IccTagDict.h"
 #include "IccMpeCalc.h"
 #include "IccUtil.h"
-#include "IccCmm.h"
 #include "IccIO.h"
 #include "IccSignatureUtils.h"
 
@@ -284,11 +283,20 @@ static void AnalyzeHeader(CIccProfile *pIcc) {
   // H5: Platform signature
   fmt.GetPlatformSigName(hdr->platform);
 
-  // Sanity-check critical header signatures for corruption patterns
-  ICC_SANITY_CHECK_SIGNATURE(hdr->colorSpace, "colorSpace");
-  ICC_SANITY_CHECK_SIGNATURE(hdr->pcs, "pcs");
-  ICC_SANITY_CHECK_SIGNATURE(hdr->platform, "platform");
-  ICC_SANITY_CHECK_SIGNATURE(hdr->deviceClass, "deviceClass");
+  // Validate critical header signatures — return early on corrupt/fuzzed values
+  // (ICC_SANITY_CHECK_SIGNATURE asserts on bad data, which kills the fuzzer)
+  {
+    icUInt32Number sigs[] = {
+      (icUInt32Number)hdr->colorSpace, (icUInt32Number)hdr->pcs,
+      (icUInt32Number)hdr->platform, (icUInt32Number)hdr->deviceClass
+    };
+    for (auto s : sigs) {
+      if (s == 0) return;  // null signature
+      uint8_t b0 = (s >> 24) & 0xFF;
+      if (b0 == ((s >> 16) & 0xFF) && b0 == ((s >> 8) & 0xFF) && b0 == (s & 0xFF))
+        return;  // repeat-byte pattern (e.g. 0x8e8e8e8e)
+    }
+  }
 
   // Rendering intent name (tool line 255) + enum bounds diagnostic
   fmt.GetRenderingIntentName((icRenderingIntent)(hdr->renderingIntent));
@@ -632,8 +640,8 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
         }
       }
 
-      // Begin() initializes internal state — crash-prone with bad data
-      pMPE->Begin(icElemInterpLinear);
+      // Note: iccDumpProfile calls Describe()/Validate() on MPE tags
+      // but never Begin() — tag execution is out of tool scope.
 
       (void)numElems;
     }
@@ -734,9 +742,7 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
              (double)first, (double)mid, (double)last,
              (std::isnan(first) || std::isnan(mid) || std::isnan(last)) ? 1 : 0);
         (void)first; (void)last; (void)mid;
-        // Apply curve — exercises interpolation path
-        volatile icFloatNumber applyResult = pCurve->Apply(0.5f);
-        (void)applyResult;
+        // Note: pCurve->Apply() not called — iccDumpProfile uses Describe() only
       }
       (void)curveSize;
     }
@@ -829,9 +835,8 @@ static void ExerciseCalculatorTags(CIccProfile *pIcc) {
     desc.reserve(kMaxDescribeLen);
     pMPE->Describe(desc, 100);
 
-    // Begin exercises Apply chain — triggers CIccCalculatorFunc evaluation
-    bool beginOk = pMPE->Begin(icElemInterpLinear);
-    DIAG("  Begin result=%d", (int)beginOk);
+    // Note: iccDumpProfile calls Describe()/Validate() on MPE tags
+    // but never Begin() — tag execution is out of tool scope.
   }
 }
 
@@ -904,108 +909,9 @@ static void ExerciseSignatureLookups(CIccProfile *pIcc, int verboseness) {
   }
 }
 
-// ── Phase 5: CMM transform exercise ──
-// Heap-allocated to isolate library bugs from fuzzer stack.
-static void ExerciseCMM(const uint8_t *data, size_t size, CIccProfile *pIcc,
-                        uint8_t intentByte) {
-  // Cycle through rendering intents 0-3 based on fuzzer input
-  icRenderingIntent intent = (icRenderingIntent)(intentByte & 0x03);
-
-  DIAG("CMM: colorSpace=0x%08x intent=%d(fuzzed) nSamples=%d",
-       pIcc->m_Header.colorSpace, (int)intent, pIcc->GetSpaceSamples());
-
-  // Validate colorSpace/PCS before CMM attempt
-  IccColorSpaceDescription csDesc = DescribeColorSpaceSignature((icUInt32Number)pIcc->m_Header.colorSpace);
-  DIAG("CMM: cs=%s valid=%d pcs=0x%08x",
-       csDesc.name, csDesc.isKnown, (uint32_t)pIcc->m_Header.pcs);
-
-  // Pre-crash state: CMM is a frequent crash point
-  DiagPreCrashState("ExerciseCMM", "AddXform/Begin/Apply path",
-                    data, size);
-
-  CIccCmm *pCmm = new CIccCmm(pIcc->m_Header.colorSpace, icSigLabData, false);
-
-  CIccMemIO *pIO = new CIccMemIO();
-  if (!pIO->Attach(const_cast<uint8_t*>(data), (icUInt32Number)size)) {
-    DIAG("CMM: Attach failed");
-    delete pIO;
-    delete pCmm;
-    return;
-  }
-
-  CIccProfile *pCopy = new CIccProfile();
-  if (!pCopy->Read(pIO)) {
-    DIAG("CMM: Read failed");
-    delete pCopy;
-    delete pIO;
-    delete pCmm;
-    return;
-  }
-  delete pIO;
-
-  icStatusCMM addStat = pCmm->AddXform(pCopy, intent);
-  if (addStat != icCmmStatOk) {
-    DIAG("CMM: AddXform failed status=%d", (int)addStat);
-    delete pCopy;
-    delete pCmm;
-    return;
-  }
-  // pCopy ownership transferred to pCmm on success
-
-  icStatusCMM beginStat = pCmm->Begin();
-  if (beginStat != icCmmStatOk) {
-    DIAG("CMM: Begin failed status=%d", (int)beginStat);
-    delete pCmm;
-    return;
-  }
-
-  DIAG("CMM: Begin succeeded, applying transform");
-
-  // Apply with small test pixel data
-  icFloatNumber srcPixel[16] = {};
-  icFloatNumber dstPixel[16] = {};
-  int nSamples = pIcc->GetSpaceSamples();
-  if (nSamples > 0 && nSamples <= 16) {
-    for (int i = 0; i < nSamples; i++)
-      srcPixel[i] = 0.5f;
-    pCmm->Apply(dstPixel, srcPixel);
-    DIAG("CMM: Apply done, dst[0]=%.6f", (double)dstPixel[0]);
-  }
-
-  delete pCmm;
-}
-
-// ── Phase 6: Re-read via Attach (tag type confusion) ──
-// Uses heap-allocated objects so library double-free/bad-free bugs
-// crash cleanly (ASAN reports the real bug) rather than corrupting
-// the fuzzer's own stack frame.
-static void ExerciseAttach(const uint8_t *data, size_t size) {
-  CIccMemIO *pIO = new CIccMemIO();
-  if (!pIO->Attach(const_cast<uint8_t*>(data), (icUInt32Number)size)) {
-    delete pIO;
-    return;
-  }
-
-  CIccProfile *pProfile = new CIccProfile();
-  if (!pProfile->Attach(pIO)) {
-    delete pProfile;
-    delete pIO;
-    return;
-  }
-
-  // Force lazy tag loading — triggers LoadTag() on each access
-  for (auto &entry : pProfile->m_Tags) {
-    CIccTag *pTag = pProfile->FindTag(entry.TagInfo.sig);
-    if (pTag) {
-      std::string desc;
-      pTag->Describe(desc, 1);
-    }
-  }
-
-  delete pProfile;
-  // pIO ownership may have transferred to profile via Attach;
-  // do NOT double-delete pIO here
-}
+// Note: ExerciseCMM (Phase 5) and ExerciseAttach (Phase 6) removed —
+// iccDumpProfile.cpp never performs CMM transforms or Attach re-reads.
+// These were outside the tool's scope and degraded fidelity alignment.
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 132 || size > kMaxProfileSize) return 0;
@@ -1060,15 +966,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   int verboseness = (verbByte % 100) + 1;
-  bool doCMM = (phaseByte & 0x01);
-  bool doAttach = (phaseByte & 0x02);
   bool doHighVerb = (phaseByte & 0x04);
   bool doOpenPath = (phaseByte & 0x08);  // OpenIccProfile path (tool line 218)
-  bool doCalcProbe = (phaseByte & 0x10); // Calculator/UBSAN probe
   (void)extraByte;
+  (void)intentByte;
 
-  DIAG("input size=%zu verb=%d phase=0x%02x open=%d cmm=%d attach=%d calc=%d",
-       size, verboseness, phaseByte, doOpenPath, doCMM, doAttach, doCalcProbe);
+  DIAG("input size=%zu verb=%d phase=0x%02x open=%d highverb=%d",
+       size, verboseness, phaseByte, doOpenPath, doHighVerb);
 
   CIccProfile *pIcc = nullptr;
 
@@ -1122,27 +1026,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Phase 4: Cross-tag signature lookup
   ExerciseSignatureLookups(pIcc, verboseness);
 
-  // Phase 5: CMM transform (expensive, fuzzer-gated)
-  if (doCMM && size < 65536) {
-    ExerciseCMM(data, size, pIcc, intentByte);
-  }
+  // Note: CMM transforms (AddXform/Begin/Apply) and Attach re-read
+  // are outside iccDumpProfile.cpp scope — removed for fidelity alignment.
 
-  // Phase 5b: Calculator/ChannelFunc UBSAN probe
-  // Targets IccMpeCalc.cpp:3482 enum load and calculator evaluation paths
-  if (doCalcProbe) {
-    ExerciseCalculatorTags(pIcc);
-  }
-
-  // Global profile methods
+  // Global profile methods (iccDumpProfile calls these)
   pIcc->GetSpaceSamples();
   pIcc->AreTagsUnique();
 
   delete pIcc;
-
-  // Phase 6: Re-read via Attach (separate profile instance)
-  if (doAttach) {
-    ExerciseAttach(data, size);
-  }
 
   return 0;
 }

@@ -47,6 +47,11 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <spawn.h>
+
+extern char **environ;
 
 // Parse ASAN crash log and extract stack frames
 bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file, 
@@ -258,15 +263,23 @@ bool CIccAnalyzerCallGraph::ExportGraph(const char* dot_file,
     return false;
   }
   
-  // Validate format (allowlist) - already done above at line 240
-  // Build command - NOTE: This still uses system() but with validated inputs
-  // TODO: Replace with fork()+exec() for full command injection prevention
-  char cmd[1024];
-  snprintf(cmd, sizeof(cmd), "dot -T%s %s -o %s 2>&1", format, dot_file, output_file);
-  
-  // Execute with verification
-  printf("Executing: %s\n", cmd);
-  int ret = system(cmd);
+  // Build argv for posix_spawn (no shell interpretation)
+  std::string fmt_arg = std::string("-T") + format;
+  std::string out_arg = std::string("-o") + std::string(output_file);
+  const char *argv[] = {"dot", fmt_arg.c_str(), dot_file, out_arg.c_str(), nullptr};
+
+  printf("Executing: dot %s %s %s\n", fmt_arg.c_str(), dot_file, out_arg.c_str());
+
+  pid_t pid;
+  int ret = posix_spawn(&pid, "/usr/bin/dot", nullptr, nullptr,
+                        const_cast<char *const *>(argv), environ);
+  if (ret != 0) {
+    fprintf(stderr, "ERROR: posix_spawn failed: %s\n", strerror(ret));
+    return false;
+  }
+  int status;
+  waitpid(pid, &status, 0);
+  ret = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
   
   if (ret != 0) {
     fprintf(stderr, "ERROR: Graphviz export failed (exit code: %d)\n", ret);
