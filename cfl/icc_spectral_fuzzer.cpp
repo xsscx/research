@@ -38,11 +38,9 @@
 #include "IccProfile.h"
 #include "IccTag.h"
 #include "IccUtil.h"
-#include "IccCmm.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <cstring>
-#include <cmath>
 #include <stdio.h>
 
 // AST Gate logging macros
@@ -149,34 +147,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     AST_LOG(6, "GATE 6: Checking for spectral color space");
-    // DEEP EXECUTION: Apply transformations if spectral profile
-    // NOTE: CMM takes ownership of profile via AddXform, so profile will be deleted when CMM is deleted
+    // Note: CMM transforms (AddXform/Begin/Apply) are out of scope for
+    // IccV5DspObsToV4Dsp — that tool uses MPE tag-level operations, not CMM.
+    // CMM spectral paths are covered by icc_apply_fuzzer.
     if (pProfile->m_Header.colorSpace == icSigReflectanceSpectralData ||
         pProfile->m_Header.colorSpace == icSigTransmisionSpectralData ||
         pProfile->m_Header.pcs == icSigReflectanceSpectralPcsData) {
-      AST_LOG(6, "Spectral profile detected - creating CMM chain");
-      CIccCmm *pCmm = new CIccCmm();
-      if (pCmm && pCmm->AddXform(pProfile, icPerceptual) == icCmmStatOk) {
-        AST_LOG_VERBOSE("  CMM AddXform succeeded");
-        if (pCmm->Begin() == icCmmStatOk) {
-          AST_LOG_VERBOSE("  CMM Begin succeeded - applying transformation");
-          icFloatNumber spectral_in[16] = {0.5f};
-          icFloatNumber spectral_out[16];
-          pCmm->Apply(spectral_out, spectral_in);
-          AST_LOG_VERBOSE("  CMM Apply completed");
-        } else {
-          AST_LOG_VERBOSE("  CMM Begin failed");
-        }
-      }
-      if (pCmm) {
-        AST_LOG(7, "GATE 7: Cleanup - CMM deletes profile");
-        delete pCmm;
-      }
+      AST_LOG(6, "Spectral profile detected");
     } else {
       AST_LOG_VERBOSE("Non-spectral profile");
-      AST_LOG(7, "GATE 7: Cleanup - deleting profile");
-      delete pProfile;
     }
+    AST_LOG(7, "GATE 7: Cleanup - deleting profile");
+    delete pProfile;
 
   } catch (...) {
     AST_LOG_VERBOSE("Exception caught during processing");

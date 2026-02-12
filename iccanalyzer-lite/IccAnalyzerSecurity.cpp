@@ -650,7 +650,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             icUInt32Number tagSize = (entry[8]<<24) | (entry[9]<<16) | (entry[10]<<8) | entry[11];
             
             // Validate tag is within file bounds
-            if (tagOffset + 4 <= fileSize && tagOffset >= 128) {
+            if (tagOffset + tagSize <= fileSize && tagOffset >= 128 && tagSize >= 4) {
               icUInt8Number tagData[4];
               fseek(fp, tagOffset, SEEK_SET);
               if (fread(tagData, 1, 4, fp) == 4) {
@@ -1044,8 +1044,9 @@ bool ValidateBinaryDatabaseFormat(
     return false;
   }
   
-  // Read flags (bytes 12-15, little-endian)
+  // Read flags (bytes 12-15, little-endian) — parsed for future validation
   uint32_t flags = *reinterpret_cast<const uint32_t*>(data + 12);
+  (void)flags;
   
   // If version >= 2, check uncompressed size
   if (version >= 2) {

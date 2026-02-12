@@ -142,7 +142,6 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     if (pTag && HasNonPrintableSignature(pTag->GetType())) {
       if (hasIssues) printf(",");
       printf(" bad-type");
-      hasIssues = true;
       issueCount++;
     }
     
