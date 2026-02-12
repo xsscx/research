@@ -273,8 +273,10 @@ bool IccAnalyzerXMLExport::ExportHeuristicsToXML(const char* filename,
   xml << "    <analyzer_version>iccAnalyzer v2.4.0</analyzer_version>\n";
   
   time_t now = time(nullptr);
+  struct tm tm_buf;
   char timestamp[64];
-  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S UTC", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S UTC", &tm_buf);
   xml << "    <timestamp>" << XMLEscape(timestamp) << "</timestamp>\n";
   xml << "  </metadata>\n";
   

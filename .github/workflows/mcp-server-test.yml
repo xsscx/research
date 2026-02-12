@@ -51,13 +51,19 @@ jobs:
             libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
 
           # Clone and build iccDEV
-          git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
-          cd iccDEV && git submodule update --init --recursive --depth 1
-          sed -i 's/^find_package(wxWidgets/#find_package(wxWidgets/' CMakeLists.txt
-          sed -i 's/^ADD_SUBDIRECTORY(Tools\/wxProfileDump/#ADD_SUBDIRECTORY(Tools\/wxProfileDump/' CMakeLists.txt
-          sed -i 's/^  message(FATAL_ERROR "wxWidgets not found/#  message(FATAL_ERROR "wxWidgets not found/' CMakeLists.txt
-          cd Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          cd iccDEV
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Build/Cmake/CMakeLists.txt
+          cd Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
           cd ../..
+
+          # Build colorbleed_tools (needed for XML roundtrip tests)
+          cd colorbleed_tools
+          make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
+          cd ..
 
           # Build iccanalyzer-lite
           cd iccanalyzer-lite

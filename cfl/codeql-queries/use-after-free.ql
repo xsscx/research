@@ -1,6 +1,6 @@
 /**
  * @name Use-After-Free Detection
- * @description Finds potential use-after-free vulnerabilities
+ * @description Finds potential use-after-free vulnerabilities using control flow analysis
  * @kind problem
  * @problem.severity error
  * @precision high
@@ -13,6 +13,7 @@
 
 import cpp
 import semmle.code.cpp.dataflow.DataFlow
+import semmle.code.cpp.controlflow.Guards
 
 /**
  * A delete or free operation
@@ -37,21 +38,33 @@ class Deallocation extends Expr {
 }
 
 /**
- * Access to a variable that may have been freed
+ * Access to a variable that may have been freed — requires same basic block
+ * or provable control flow path without reassignment or null check.
  */
 class PotentialUseAfterFree extends VariableAccess {
   PotentialUseAfterFree() {
     exists(Deallocation dealloc, Variable v |
       v = this.getTarget() and
       dealloc.getDeallocatedExpr() = v.getAnAccess() and
-      // Access happens after deallocation in control flow
-      dealloc.getLocation().getEndLine() < this.getLocation().getStartLine() and
       dealloc.getEnclosingFunction() = this.getEnclosingFunction() and
+      // Must be in the same basic block (straight-line code, no branches)
+      dealloc.getBasicBlock() = this.getBasicBlock() and
+      dealloc.getLocation().getEndLine() < this.getLocation().getStartLine() and
       // No reassignment between dealloc and use
       not exists(AssignExpr assign |
         assign.getLValue() = v.getAnAccess() and
+        assign.getBasicBlock() = this.getBasicBlock() and
         dealloc.getLocation().getEndLine() < assign.getLocation().getStartLine() and
         assign.getLocation().getEndLine() < this.getLocation().getStartLine()
+      ) and
+      // Not a null check (if (ptr) or if (ptr != NULL))
+      not exists(IfStmt guard |
+        guard.getCondition().getAChild*() = this
+      ) and
+      // Not setting to null
+      not exists(AssignExpr nullAssign |
+        nullAssign.getLValue() = this and
+        nullAssign.getRValue().getValue() = "0"
       )
     )
   }
@@ -60,38 +73,9 @@ class PotentialUseAfterFree extends VariableAccess {
     exists(Variable v |
       v = this.getTarget() and
       result.getDeallocatedExpr() = v.getAnAccess() and
+      result.getBasicBlock() = this.getBasicBlock() and
       result.getLocation().getEndLine() < this.getLocation().getStartLine() and
       result.getEnclosingFunction() = this.getEnclosingFunction()
-    )
-  }
-}
-
-/**
- * Double-free detection
- */
-class DoubleFree extends Deallocation {
-  DoubleFree() {
-    exists(Deallocation first, Variable v |
-      first.getDeallocatedExpr() = v.getAnAccess() and
-      this.getDeallocatedExpr() = v.getAnAccess() and
-      first != this and
-      first.getLocation().getEndLine() < this.getLocation().getStartLine() and
-      first.getEnclosingFunction() = this.getEnclosingFunction() and
-      // No reassignment between frees
-      not exists(AssignExpr assign |
-        assign.getLValue() = v.getAnAccess() and
-        first.getLocation().getEndLine() < assign.getLocation().getStartLine() and
-        assign.getLocation().getEndLine() < this.getLocation().getStartLine()
-      )
-    )
-  }
-
-  Deallocation getFirstFree() {
-    exists(Variable v |
-      result.getDeallocatedExpr() = v.getAnAccess() and
-      this.getDeallocatedExpr() = v.getAnAccess() and
-      result != this and
-      result.getLocation().getEndLine() < this.getLocation().getStartLine()
     )
   }
 }

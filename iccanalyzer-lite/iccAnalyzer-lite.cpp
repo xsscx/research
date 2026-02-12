@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   
-  fprintf(stderr, "ERROR: Unknown option: %s\n\n", mode);
+  fprintf(stderr, "ERROR: Unknown option: %s\n\n", SanitizeForLog(mode).c_str());
   PrintUsage();
   return 1;
 }

@@ -41,10 +41,10 @@
 // Convert 4-byte signature to ASCII string (FourCC format)
 void SignatureToFourCC(icUInt32Number sig, char *fourcc)
 {
-  fourcc[0] = (sig >> 24) & 0xFF;
-  fourcc[1] = (sig >> 16) & 0xFF;
-  fourcc[2] = (sig >> 8) & 0xFF;
-  fourcc[3] = sig & 0xFF;
+  fourcc[0] = static_cast<char>((sig >> 24) & 0xFF);
+  fourcc[1] = static_cast<char>((sig >> 16) & 0xFF);
+  fourcc[2] = static_cast<char>((sig >> 8) & 0xFF);
+  fourcc[3] = static_cast<char>(sig & 0xFF);
   fourcc[4] = '\0';
   
   // Replace non-printable characters with '.'
@@ -142,7 +142,6 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     if (pTag && HasNonPrintableSignature(pTag->GetType())) {
       if (hasIssues) printf(",");
       printf(" bad-type");
-      hasIssues = true;
       issueCount++;
     }
     

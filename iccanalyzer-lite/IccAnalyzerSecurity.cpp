@@ -630,8 +630,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (fileSize >= 132) {
         icUInt8Number header[132];
         if (fread(header, 1, 132, fp) == 132) {
-          icUInt32Number tagTableCount = (header[128]<<24) | (header[129]<<16) | 
-                                          (header[130]<<8) | header[131];
+          icUInt32Number tagTableCount = (static_cast<icUInt32Number>(header[128])<<24) | (static_cast<icUInt32Number>(header[129])<<16) | 
+                                          (static_cast<icUInt32Number>(header[130])<<8) | header[131];
           
           bool foundTagArray = false;
           icUInt32Number tagArrayCount = 0;
@@ -645,17 +645,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             fseek(fp, entryPos, SEEK_SET);
             if (fread(entry, 1, 12, fp) != 12) break;
             
-            icUInt32Number tagSig = (entry[0]<<24) | (entry[1]<<16) | (entry[2]<<8) | entry[3];
-            icUInt32Number tagOffset = (entry[4]<<24) | (entry[5]<<16) | (entry[6]<<8) | entry[7];
-            icUInt32Number tagSize = (entry[8]<<24) | (entry[9]<<16) | (entry[10]<<8) | entry[11];
+            icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
+            icUInt32Number tagOffset = (static_cast<icUInt32Number>(entry[4])<<24) | (static_cast<icUInt32Number>(entry[5])<<16) | (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tagSize = (static_cast<icUInt32Number>(entry[8])<<24) | (static_cast<icUInt32Number>(entry[9])<<16) | (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
             
-            // Validate tag is within file bounds
-            if (tagOffset + 4 <= fileSize && tagOffset >= 128) {
+            // Validate tag is within file bounds (overflow-safe check)
+            if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
               icUInt8Number tagData[4];
               fseek(fp, tagOffset, SEEK_SET);
               if (fread(tagData, 1, 4, fp) == 4) {
-                icUInt32Number tagType = (tagData[0]<<24) | (tagData[1]<<16) | 
-                                         (tagData[2]<<8) | tagData[3];
+                icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) | 
+                                         (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
                 
                 // Check for TagArrayType (0x74617279 = 'tary')
                 if (tagType == 0x74617279) {
@@ -1044,8 +1044,9 @@ bool ValidateBinaryDatabaseFormat(
     return false;
   }
   
-  // Read flags (bytes 12-15, little-endian)
+  // Read flags (bytes 12-15, little-endian) — parsed for future validation
   uint32_t flags = *reinterpret_cast<const uint32_t*>(data + 12);
+  (void)flags;
   
   // If version >= 2, check uncompressed size
   if (version >= 2) {
@@ -1103,3 +1104,39 @@ bool ValidateBinaryDatabaseFormat(
 }
 
 } // namespace IccAnalyzerSecurity
+
+// ── Output sanitization (CodeQL icc/injection-attacks) ──────────────
+
+std::string SanitizeForLog(const std::string& input) {
+  std::string out;
+  out.reserve(input.size());
+  for (unsigned char c : input) {
+    if (c == '\n' || c == '\r' || c == '\0' || c == '\x1b') continue;
+    if (c < 0x20 && c != '\t') continue;
+    out.push_back(static_cast<char>(c));
+  }
+  return out;
+}
+
+std::string SanitizeForLog(const char* input) {
+  if (!input) return "(null)";
+  return SanitizeForLog(std::string(input));
+}
+
+std::string SanitizeForDOT(const std::string& input) {
+  std::string out;
+  out.reserve(input.size());
+  for (char c : input) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '<':  out += "\\<";  break;
+      case '>':  out += "\\>";  break;
+      case '\n': out += "\\n";  break;
+      case '\r': break;
+      case '\0': break;
+      default:   out.push_back(c); break;
+    }
+  }
+  return out;
+}

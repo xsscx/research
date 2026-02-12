@@ -68,12 +68,12 @@ jobs:
       - name: Validate inputs
         run: |
           set -euo pipefail
-          SECS=${{ env.FUZZ_SECONDS }}
+          SECS="$FUZZ_SECONDS"
           if ! [[ "$SECS" =~ ^[0-9]+$ ]] || [ "$SECS" -lt 10 ] || [ "$SECS" -gt 14400 ]; then
             echo "::error::fuzz_seconds must be 10-14400, got: $SECS"
             exit 1
           fi
-          echo "Validated: ${SECS}s fuzzing, sanitizer=${{ env.SANITIZER }}"
+          echo "Validated: ${SECS}s fuzzing, sanitizer=$SANITIZER"
 
       - name: Install dependencies
         env:
@@ -104,7 +104,7 @@ jobs:
           sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
           sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
-          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }} -fno-omit-frame-pointer"
+          SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer"
 
           cd Build
           cmake Cmake/ \
@@ -125,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
-          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }} -fno-omit-frame-pointer"
+          SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer"
           clang++ ${SAN_FLAGS} -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
@@ -144,7 +144,7 @@ jobs:
           OUTDIR="$PWD/cfl/bin"
           mkdir -p "$OUTDIR"
 
-          SAN_FLAGS="-fsanitize=${{ env.SANITIZER }}"
+          SAN_FLAGS="-fsanitize=$SANITIZER"
           CXXFLAGS="-fsanitize=fuzzer,${SAN_FLAGS#-fsanitize=} -fno-omit-frame-pointer -g -O1 -frtti -fprofile-instr-generate -fcoverage-mapping"
           INCLUDES="-I$ICCDEV/IccProfLib -I$ICCDEV/IccXML/IccLibXML -I$ICCDEV/Tools/CmdLine/IccCommon -I$ICCDEV/Tools/CmdLine/IccApplyProfiles -I/usr/include/libxml2"
           LIBS_BASE="$BUILD/IccProfLib/libIccProfLib2-static.a"
@@ -196,7 +196,7 @@ jobs:
 
           {
             echo "## Build Summary"
-            echo "- **Sanitizer:** \`${{ env.SANITIZER }}\`"
+            echo "- **Sanitizer:** \`$SANITIZER\`"
             echo "- **Built:** $BUILT fuzzers"
             echo "- **Skipped:** $SKIPPED fuzzers"
             echo ""
@@ -246,6 +246,14 @@ jobs:
         shell: bash --noprofile --norc {0}
 
     steps:
+      - name: Checkout scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
       - name: Download fuzzer binaries
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
@@ -262,28 +270,36 @@ jobs:
 
       - name: Run ${{ matrix.fuzzer }}
         id: fuzz
+        env:
+          FUZZER_NAME: ${{ matrix.fuzzer }}
+          ASAN_OPTIONS: "symbolize=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
+          UBSAN_OPTIONS: "symbolize=1:print_stacktrace=1:halt_on_error=0:report_error_type=1"
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
-          FUZZER="bin/${{ matrix.fuzzer }}"
+          FUZZER="bin/${FUZZER_NAME}"
           if [ ! -f "$FUZZER" ]; then
-            echo "Fuzzer ${{ matrix.fuzzer }} was not built (compile skip)"
+            echo "Fuzzer ${FUZZER_NAME} was not built (compile skip)"
             echo "status=skip" >> $GITHUB_OUTPUT
-            echo "**${{ matrix.fuzzer }}:** ⏭️ SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            echo "**${FUZZER_NAME}:** ⏭️ SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
           chmod +x "$FUZZER"
-          mkdir -p corpus-${{ matrix.fuzzer }}
+          mkdir -p "corpus-${FUZZER_NAME}"
           mkdir -p crash-artifacts
 
-          FUZZ_SECONDS=${{ env.FUZZ_SECONDS }}
+          # Validate FUZZ_SECONDS is numeric
+          if ! [[ "$FUZZ_SECONDS" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: FUZZ_SECONDS is not numeric: $FUZZ_SECONDS"
+            exit 1
+          fi
 
           # Dictionary fallback chain: per-fuzzer → icc_core → icc
           DICT_ARG=""
-          if [ -f "${{ matrix.fuzzer }}.dict" ]; then
-            DICT_ARG="-dict=${{ matrix.fuzzer }}.dict"
+          if [ -f "${FUZZER_NAME}.dict" ]; then
+            DICT_ARG="-dict=${FUZZER_NAME}.dict"
           elif [ -f "icc_core.dict" ]; then
             DICT_ARG="-dict=icc_core.dict"
           elif [ -f "icc.dict" ]; then
@@ -292,8 +308,8 @@ jobs:
 
           # Seed corpus (if available)
           SEED_DIR=""
-          if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
-            SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
+          if [ -d "${FUZZER_NAME}_seed_corpus" ]; then
+            SEED_DIR="${FUZZER_NAME}_seed_corpus"
           fi
 
           echo "::group::Fuzzer Output"
@@ -310,7 +326,7 @@ jobs:
             -use_value_profile=1 \
             -max_len=65536 \
             $DICT_ARG \
-            corpus-${{ matrix.fuzzer }} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -50
+            corpus-${FUZZER_NAME} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -50
           EXIT_CODE=$?
           set -e
           echo "::endgroup::"
@@ -318,7 +334,7 @@ jobs:
           # Extract stats from output (sanitize for GitHub Actions)
           EXECS=$(grep -oP 'stat::number_of_executed_inputs:\s*\K\d+' /tmp/fuzz-output.log 2>/dev/null | tr -d '\r\n' || echo "0")
           FEATURES=$(grep -oP 'stat::new_units_added:\s*\K\d+' /tmp/fuzz-output.log 2>/dev/null | tr -d '\r\n' || echo "0")
-          CORPUS_SIZE=$(ls corpus-${{ matrix.fuzzer }}/ 2>/dev/null | wc -l | tr -d '\r\n')
+          CORPUS_SIZE=$(ls "corpus-${FUZZER_NAME}/" 2>/dev/null | wc -l | tr -d '\r\n')
 
           # Collect crash artifacts
           find . -maxdepth 1 \( -name "crash-*" -o -name "leak-*" -o -name "oom-*" -o -name "timeout-*" \) \
@@ -340,7 +356,7 @@ jobs:
           echo "crashes=$CRASHES" >> $GITHUB_OUTPUT
 
           {
-            echo "### ${{ matrix.fuzzer }}: ${STATUS}"
+            echo "### ${FUZZER_NAME}: ${STATUS}"
             echo "| Metric | Value |"
             echo "|--------|-------|"
             echo "| Exit Code | $EXIT_CODE |"
@@ -359,6 +375,21 @@ jobs:
             sha256sum * > checksums.sha256 2>/dev/null || true
             echo "### Crash Artifacts"
             cat checksums.sha256
+          fi
+
+      - name: Extract recommended dict entries
+        if: always()
+        run: |
+          mkdir -p dict-updates
+          if [ -f /tmp/fuzz-output.log ]; then
+            python3 .github/scripts/convert-libfuzzer-dict.py \
+              /tmp/fuzz-output.log \
+              "dict-updates/${{ matrix.fuzzer }}.dict" 2>&1 || true
+            if [ -f "dict-updates/${{ matrix.fuzzer }}.dict" ]; then
+              COUNT=$(grep -c '^"' "dict-updates/${{ matrix.fuzzer }}.dict" 2>/dev/null || echo 0)
+              echo "📖 Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
+              echo "**Dict entries:** ${COUNT} recommended" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
       - name: Save corpus cache
@@ -386,6 +417,15 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      - name: Upload dict updates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dict-${{ matrix.fuzzer }}-${{ github.run_id }}
+          path: dict-updates/
+          retention-days: 30
+          if-no-files-found: ignore
+
   report:
     name: "Campaign Report"
     needs: fuzz
@@ -403,6 +443,13 @@ jobs:
           path: all-crashes/
           merge-multiple: false
 
+      - name: Download all dict updates
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          pattern: dict-*
+          path: all-dicts/
+          merge-multiple: true
+
       - name: Generate campaign summary
         run: |
           set -euo pipefail
@@ -413,8 +460,12 @@ jobs:
             TOTAL_CRASHES=$(find all-crashes -type f ! -name "checksums.sha256" 2>/dev/null | wc -l)
           fi
 
-          FUZZ_SECONDS=${{ env.FUZZ_SECONDS }}
-          SANITIZER="${{ env.SANITIZER }}"
+          # Count dict updates
+          DICT_ENTRIES=0
+          if [ -d all-dicts ]; then
+            DICT_ENTRIES=$(grep -rhc '^"' all-dicts/ 2>/dev/null | paste -sd+ | bc 2>/dev/null || echo 0)
+          fi
+
           FUZZERS=17
 
           {
@@ -433,6 +484,7 @@ jobs:
             echo ""
             echo "## Results"
             echo "- **Total crash artifacts:** ${TOTAL_CRASHES}"
+            echo "- **Recommended dict entries:** ${DICT_ENTRIES}"
             echo ""
 
             if [ $TOTAL_CRASHES -gt 0 ]; then
@@ -457,4 +509,13 @@ jobs:
           name: campaign-report-${{ github.run_id }}
           path: all-crashes/
           retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload consolidated dict updates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dict-updates-${{ github.run_id }}
+          path: all-dicts/
+          retention-days: 30
           if-no-files-found: ignore

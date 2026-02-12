@@ -60,12 +60,12 @@ jobs:
 
       - name: Clone iccDEV repository
         run: |
-          git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
-          cd iccDEV && git submodule update --init --recursive --depth 1
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          cd iccDEV
           # Comment out wxWidgets requirement
-          sed -i 's/^find_package(wxWidgets/#find_package(wxWidgets/' CMakeLists.txt
-          sed -i 's/^ADD_SUBDIRECTORY(Tools\/wxProfileDump/#ADD_SUBDIRECTORY(Tools\/wxProfileDump/' CMakeLists.txt
-          sed -i 's/^  message(FATAL_ERROR "wxWidgets not found/#  message(FATAL_ERROR "wxWidgets not found/' CMakeLists.txt
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
       - name: Build iccDEV libraries
         run: |
@@ -74,7 +74,7 @@ jobs:
           make -j$(nproc) IccProfLib2 IccXML2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@fca7ace96b7d713c7035871441585e9c60e4ec70 # v3
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           languages: cpp
           config-file: ${{ matrix.target }}/codeql-config.yml
@@ -83,7 +83,7 @@ jobs:
         if: matrix.target == 'iccanalyzer-lite'
         run: |
           cd iccanalyzer-lite
-          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0"
+          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
           SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
                 IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
@@ -128,11 +128,10 @@ jobs:
           done
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@fca7ace96b7d713c7035871441585e9c60e4ec70 # v3
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           category: "/language:cpp/${{ matrix.target }}"
           output: codeql-results
-          upload: false
 
       - name: Generate Reports
         run: |
@@ -206,17 +205,17 @@ jobs:
           pip install -r requirements.txt
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@fca7ace96b7d713c7035871441585e9c60e4ec70 # v3
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           languages: python
           queries: security-and-quality
+          source-root: .
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@fca7ace96b7d713c7035871441585e9c60e4ec70 # v3
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
-          category: "/language:python/mcp-server"
+          category: "/language:python/all"
           output: codeql-results-python
-          upload: false
 
       - name: Generate Reports
         run: |
@@ -242,6 +241,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [codeql-analysis, codeql-python]
     if: always()
+    permissions:
+      contents: read
 
     steps:
       - name: Generate Overall Summary

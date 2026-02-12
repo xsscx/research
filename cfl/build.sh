@@ -131,6 +131,19 @@ else
 fi
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
+# --- Step 1b: Apply CFL OOM mitigation patches ---
+PATCHES_DIR="$SCRIPT_DIR/patches"
+if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
+  echo "Applying CFL library patches..."
+  for p in "$PATCHES_DIR"/*.patch; do
+    if patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
+      echo "  ✅ $(basename "$p")"
+    else
+      echo "  ⏭  $(basename "$p") (already applied or N/A)"
+    fi
+  done
+fi
+
 # --- Step 2: Patch wxWidgets out ---
 banner "Step 2: Patch wxWidgets"
 CMAKELISTS="$ICCDEV_DIR/Build/Cmake/CMakeLists.txt"

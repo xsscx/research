@@ -418,6 +418,7 @@ jobs:
           clang++ -flto=thin -fuse-ld=lld *.o \
             ${RELEASE_BUILD}/IccProfLib/libIccProfLib2-static.a \
             ${RELEASE_BUILD}/IccXML/libIccXML2-static.a \
+            -Wl,--allow-multiple-definition \
             -Wl,-Bstatic -lz -llzma \
             -Wl,-Bdynamic -lxml2 -lm -lpthread -ldl \
             -o iccanalyzer-lite-static
@@ -458,7 +459,7 @@ jobs:
           ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64.tar.gz SHA256SUMS.txt
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabced41ab8f3c11 # v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
           name: "iccAnalyzer-lite | Security Research Tools for Color Profiles"

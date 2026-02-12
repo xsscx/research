@@ -104,6 +104,10 @@ jobs:
           unset GITHUB_TOKEN || true
           
           cd iccanalyzer-lite
+          if [ -d iccDEV ]; then
+            echo "iccDEV directory exists (partial cache restore), refreshing..."
+            rm -rf iccDEV
+          fi
           echo "Cloning iccDEV (cache miss)..."
           git clone https://github.com/InternationalColorConsortium/iccDEV.git
           cd iccDEV
@@ -147,7 +151,7 @@ jobs:
           
           echo "Building iccDEV libraries (cache miss)..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
@@ -458,19 +462,19 @@ jobs:
           ### Status
           EOF
           
-          if [ "${{ env.failed }}" -eq 0 ]; then
+          if [ "${{ env.failed || '0' }}" -eq 0 ]; then
             echo "**ALL CLEAN** - No sanitizer findings detected" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**${{ env.failed }} FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation)" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ env.failed || '0' }} FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Check test success
         run: |
-          if [ "${{ env.failed }}" -eq 0 ]; then
-            echo "SUCCESS: All ${{ env.total }} profiles tested successfully"
+          if [ "${{ env.failed || '0' }}" -eq 0 ]; then
+            echo "SUCCESS: All ${{ env.total || '0' }} profiles tested successfully"
             exit 0
           else
-            echo "COMPLETE: ${{ env.success }}/${{ env.total }} clean, ${{ env.failed }} findings"
+            echo "COMPLETE: ${{ env.success || '0' }}/${{ env.total || '0' }} clean, ${{ env.failed || '0' }} findings"
             echo "Findings are successful sanitizer detections, not infrastructure failures"
             # Don't fail the workflow, just report
             exit 0

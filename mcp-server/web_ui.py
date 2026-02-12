@@ -275,7 +275,8 @@ async def api_xml_download(request: Request) -> Response:
             os.close(fd)
             try:
                 success = False
-                if TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK):
+                _safe_bin = os.path.normpath(str(TO_XML_SAFE_BIN))
+                if os.path.isfile(_safe_bin) and os.access(_safe_bin, os.X_OK):
                     try:
                         await _run([str(TO_XML_SAFE_BIN), str(profile), tmp_path])
                         if Path(tmp_path).exists() and Path(tmp_path).stat().st_size > 0:

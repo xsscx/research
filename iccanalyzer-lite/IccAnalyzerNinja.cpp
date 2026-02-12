@@ -60,15 +60,19 @@ void SetXMLCompatibilityMode(bool enabled) {
 
 static std::string GetTimestamp() {
   time_t now = time(NULL);
+  struct tm tm_buf;
   char buf[64];
-  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", &tm_buf);
   return std::string(buf);
 }
 
 static std::string GetSessionID() {
   time_t now = time(NULL);
+  struct tm tm_buf;
   char buf[32];
-  strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", gmtime(&now));
+  gmtime_r(&now, &tm_buf);
+  strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm_buf);
   return std::string(buf);
 }
 
@@ -109,23 +113,22 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   }
   printf("\n");
   
-  // Get file size
-  struct stat st;
-  if (stat(filename, &st) != 0) {
-    printf("[ERR] ERROR: Cannot access file: %s\n", filename);
+  // Open file first, then stat the fd to avoid TOCTOU race
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("[ERR] ERROR: Cannot open file: %s\n", filename);
     printf("   Check that the file exists and you have read permissions.\n\n");
+    return -1;
+  }
+  
+  struct stat st;
+  if (fstat(fileno(fp), &st) != 0) {
+    printf("[ERR] ERROR: Cannot stat file: %s\n", filename);
+    fclose(fp);
     return -1;
   }
   size_t fileSize = st.st_size;
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
-  
-  // Read entire file
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
-    printf("[ERR] ERROR: Cannot open file: %s\n", filename);
-    printf("   Permission denied or file is locked.\n\n");
-    return -1;
-  }
   
   icUInt8Number *rawData = (icUInt8Number*)malloc(fileSize);
   if (!rawData) {
@@ -149,12 +152,12 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     printf("\n");
     
     // Manual header parsing (no validation)
-    icUInt32Number size = (rawData[0]<<24) | (rawData[1]<<16) | (rawData[2]<<8) | rawData[3];
-    icUInt32Number cmmId = (rawData[4]<<24) | (rawData[5]<<16) | (rawData[6]<<8) | rawData[7];
-    icUInt32Number version = (rawData[8]<<24) | (rawData[9]<<16) | (rawData[10]<<8) | rawData[11];
-    icUInt32Number deviceClass = (rawData[12]<<24) | (rawData[13]<<16) | (rawData[14]<<8) | rawData[15];
-    icUInt32Number colorSpace = (rawData[16]<<24) | (rawData[17]<<16) | (rawData[18]<<8) | rawData[19];
-    icUInt32Number pcs = (rawData[20]<<24) | (rawData[21]<<16) | (rawData[22]<<8) | rawData[23];
+    icUInt32Number size = (static_cast<icUInt32Number>(rawData[0])<<24) | (static_cast<icUInt32Number>(rawData[1])<<16) | (static_cast<icUInt32Number>(rawData[2])<<8) | rawData[3];
+    icUInt32Number cmmId = (static_cast<icUInt32Number>(rawData[4])<<24) | (static_cast<icUInt32Number>(rawData[5])<<16) | (static_cast<icUInt32Number>(rawData[6])<<8) | rawData[7];
+    icUInt32Number version = (static_cast<icUInt32Number>(rawData[8])<<24) | (static_cast<icUInt32Number>(rawData[9])<<16) | (static_cast<icUInt32Number>(rawData[10])<<8) | rawData[11];
+    icUInt32Number deviceClass = (static_cast<icUInt32Number>(rawData[12])<<24) | (static_cast<icUInt32Number>(rawData[13])<<16) | (static_cast<icUInt32Number>(rawData[14])<<8) | rawData[15];
+    icUInt32Number colorSpace = (static_cast<icUInt32Number>(rawData[16])<<24) | (static_cast<icUInt32Number>(rawData[17])<<16) | (static_cast<icUInt32Number>(rawData[18])<<8) | rawData[19];
+    icUInt32Number pcs = (static_cast<icUInt32Number>(rawData[20])<<24) | (static_cast<icUInt32Number>(rawData[21])<<16) | (static_cast<icUInt32Number>(rawData[22])<<8) | rawData[23];
     
     printf("Header Fields (RAW - no validation):\n");
     printf("  Profile Size:    0x%08X (%u bytes) %s\n", size, size, 
@@ -180,7 +183,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   // === RAW TAG TABLE ANALYSIS ===
   printf("=== RAW TAG TABLE (0x0080+) ===\n");
   if (fileSize >= 132) {
-    icUInt32Number tagCount = (rawData[128]<<24) | (rawData[129]<<16) | (rawData[130]<<8) | rawData[131];
+    icUInt32Number tagCount = (static_cast<icUInt32Number>(rawData[128])<<24) | (static_cast<icUInt32Number>(rawData[129])<<16) | (static_cast<icUInt32Number>(rawData[130])<<8) | rawData[131];
     printf("Tag Count: %u (0x%08X)\n", tagCount, tagCount);
     
     if (tagCount > 1000) {
@@ -188,7 +191,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     }
     
     printf("\nTag Table Raw Data:\n");
-    size_t tagTableSize = 4 + (tagCount * 12);  // 4 bytes count + 12 bytes per tag
+    size_t tagTableSize = 4 + ((size_t)(tagCount > 0x0FFFFFFFU ? 0x0FFFFFFFU : tagCount) * 12);
     size_t dumpSize = (tagTableSize < 256) ? tagTableSize : 256;
     if (fileSize >= 128 + dumpSize) {
       PrintHexDump(rawData + 128, dumpSize, 128);
@@ -205,9 +208,9 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     
     for (size_t i = 0; i < maxTags && (132 + i*12 + 12) <= fileSize; i++) {
       size_t pos = 132 + i*12;
-      icUInt32Number sig = (rawData[pos]<<24) | (rawData[pos+1]<<16) | (rawData[pos+2]<<8) | rawData[pos+3];
-      icUInt32Number offset = (rawData[pos+4]<<24) | (rawData[pos+5]<<16) | (rawData[pos+6]<<8) | rawData[pos+7];
-      icUInt32Number tagSize = (rawData[pos+8]<<24) | (rawData[pos+9]<<16) | (rawData[pos+10]<<8) | rawData[pos+11];
+      icUInt32Number sig = (static_cast<icUInt32Number>(rawData[pos])<<24) | (static_cast<icUInt32Number>(rawData[pos+1])<<16) | (static_cast<icUInt32Number>(rawData[pos+2])<<8) | rawData[pos+3];
+      icUInt32Number offset = (static_cast<icUInt32Number>(rawData[pos+4])<<24) | (static_cast<icUInt32Number>(rawData[pos+5])<<16) | (static_cast<icUInt32Number>(rawData[pos+6])<<8) | rawData[pos+7];
+      icUInt32Number tagSize = (static_cast<icUInt32Number>(rawData[pos+8])<<24) | (static_cast<icUInt32Number>(rawData[pos+9])<<16) | (static_cast<icUInt32Number>(rawData[pos+10])<<8) | rawData[pos+11];
       
       char sigStr[5];
       sigStr[0] = (sig>>24)&0xff;
@@ -219,8 +222,8 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       // Read tag TYPE (first 4 bytes of tag data)
       char typeStr[5] = "----";
       if (offset < fileSize && offset + 4 <= fileSize) {
-        icUInt32Number tagType = (rawData[offset]<<24) | (rawData[offset+1]<<16) | 
-                                 (rawData[offset+2]<<8) | rawData[offset+3];
+        icUInt32Number tagType = (static_cast<icUInt32Number>(rawData[offset])<<24) | (static_cast<icUInt32Number>(rawData[offset+1])<<16) | 
+                                 (static_cast<icUInt32Number>(rawData[offset+2])<<8) | rawData[offset+3];
         typeStr[0] = (tagType>>24)&0xff;
         typeStr[1] = (tagType>>16)&0xff;
         typeStr[2] = (tagType>>8)&0xff;
@@ -266,7 +269,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     }
     
     // Size inflation detection
-    icUInt32Number claimedSize = (rawData[0]<<24) | (rawData[1]<<16) | (rawData[2]<<8) | rawData[3];
+    icUInt32Number claimedSize = (static_cast<icUInt32Number>(rawData[0])<<24) | (static_cast<icUInt32Number>(rawData[1])<<16) | (static_cast<icUInt32Number>(rawData[2])<<8) | rawData[3];
     if (claimedSize > 0 && claimedSize > fileSize * 16 && claimedSize > (128u << 20)) {
       printf("\n⚠️  SIZE INFLATION: Header claims %u bytes, file is %zu bytes (%.0fx)\n",
              claimedSize, fileSize, (double)claimedSize / fileSize);
@@ -278,12 +281,12 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       int overlapCount = 0;
       for (size_t a = 0; a < maxTags && (132 + a*12 + 12) <= fileSize; a++) {
         size_t posA = 132 + a*12;
-        icUInt32Number offA = (rawData[posA+4]<<24) | (rawData[posA+5]<<16) | (rawData[posA+6]<<8) | rawData[posA+7];
-        icUInt32Number szA  = (rawData[posA+8]<<24) | (rawData[posA+9]<<16) | (rawData[posA+10]<<8) | rawData[posA+11];
+        icUInt32Number offA = (static_cast<icUInt32Number>(rawData[posA+4])<<24) | (static_cast<icUInt32Number>(rawData[posA+5])<<16) | (static_cast<icUInt32Number>(rawData[posA+6])<<8) | rawData[posA+7];
+        icUInt32Number szA  = (static_cast<icUInt32Number>(rawData[posA+8])<<24) | (static_cast<icUInt32Number>(rawData[posA+9])<<16) | (static_cast<icUInt32Number>(rawData[posA+10])<<8) | rawData[posA+11];
         for (size_t b = a+1; b < maxTags && (132 + b*12 + 12) <= fileSize; b++) {
           size_t posB = 132 + b*12;
-          icUInt32Number offB = (rawData[posB+4]<<24) | (rawData[posB+5]<<16) | (rawData[posB+6]<<8) | rawData[posB+7];
-          icUInt32Number szB  = (rawData[posB+8]<<24) | (rawData[posB+9]<<16) | (rawData[posB+10]<<8) | rawData[posB+11];
+          icUInt32Number offB = (static_cast<icUInt32Number>(rawData[posB+4])<<24) | (static_cast<icUInt32Number>(rawData[posB+5])<<16) | (static_cast<icUInt32Number>(rawData[posB+6])<<8) | rawData[posB+7];
+          icUInt32Number szB  = (static_cast<icUInt32Number>(rawData[posB+8])<<24) | (static_cast<icUInt32Number>(rawData[posB+9])<<16) | (static_cast<icUInt32Number>(rawData[posB+10])<<8) | rawData[posB+11];
           if (offA == offB && szA == szB) continue; // shared (allowed by spec)
           uint64_t endA = (uint64_t)offA + szA, endB = (uint64_t)offB + szB;
           if (offA < endB && offB < endA && offA != offB) {
@@ -611,9 +614,10 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
               xml << "        <FirstBytes encoding=\"hex\">";
               
               size_t previewBytes = (dataSize < 64) ? dataSize : 64;
-              for (size_t j = 8; j < 8 + previewBytes && tagOffset + j < fileSize; j++) {
+              for (size_t j = 8; j < 8 + previewBytes; j++) {
+                if (tagOffset + j >= fileSize) break;
                 xml << std::hex << std::setfill('0') << std::setw(2) 
-                    << (int)data[tagOffset + j];
+                    << static_cast<unsigned>(static_cast<unsigned char>(data[tagOffset + j]));
               }
               if (dataSize > 64) {
                 xml << "...";

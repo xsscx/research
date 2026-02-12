@@ -47,6 +47,11 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <spawn.h>
+
+extern char **environ;
 
 // Parse ASAN crash log and extract stack frames
 bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file, 
@@ -56,7 +61,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
   // CJF-11: Verify file exists
   std::ifstream file(log_file);
   if (!file.is_open()) {
-    fprintf(stderr, "ERROR: Cannot open log file: %s\n", log_file);
+    fprintf(stderr, "ERROR: Cannot open log file: %s\n", SanitizeForLog(log_file).c_str());
     return false;
   }
   
@@ -66,7 +71,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
   
   // CJF-11: Verify file not empty
   if (content.empty()) {
-    fprintf(stderr, "ERROR: Log file is empty: %s\n", log_file);
+    fprintf(stderr, "ERROR: Log file is empty: %s\n", SanitizeForLog(log_file).c_str());
     return false;
   }
   
@@ -153,7 +158,7 @@ bool CIccAnalyzerCallGraph::GenerateDOTGraph(const std::vector<ASANFrame>& frame
   
   std::ofstream dot_file(output_file);
   if (!dot_file.is_open()) {
-    fprintf(stderr, "ERROR: Cannot create output file: %s\n", output_file);
+    fprintf(stderr, "ERROR: Cannot create output file: %s\n", SanitizeForLog(output_file).c_str());
     return false;
   }
   
@@ -181,13 +186,13 @@ bool CIccAnalyzerCallGraph::GenerateDOTGraph(const std::vector<ASANFrame>& frame
     }
     
     // Node label
-    std::string label = frame.m_function_name;
+    std::string label = SanitizeForDOT(frame.m_function_name);
     if (frame.m_is_crash) {
       label += "\\nCRASH";
     }
     
     dot_file << "  node_" << i << " [label=\"" << label << "\\n"
-             << frame.m_file_path << ":" << frame.m_line_number << "\", fillcolor="
+             << SanitizeForDOT(frame.m_file_path) << ":" << frame.m_line_number << "\", fillcolor="
              << color << "];\n";
   }
   
@@ -213,7 +218,7 @@ bool CIccAnalyzerCallGraph::GenerateDOTGraph(const std::vector<ASANFrame>& frame
   }
   verify.close();
   
-  printf("[OK] DOT graph generated: %s\n", output_file);
+  printf("[OK] DOT graph generated: %s\n", SanitizeForLog(output_file).c_str());
   return true;
 }
 
@@ -232,14 +237,14 @@ bool CIccAnalyzerCallGraph::ExportGraph(const char* dot_file,
   // CJF-11: Verify input file exists
   std::ifstream test(dot_file);
   if (!test.is_open()) {
-    fprintf(stderr, "ERROR: DOT file not found: %s\n", dot_file);
+    fprintf(stderr, "ERROR: DOT file not found: %s\n", SanitizeForLog(dot_file).c_str());
     return false;
   }
   test.close();
   
   // Validate format
   if (strcmp(format, "png") != 0 && strcmp(format, "svg") != 0 && strcmp(format, "pdf") != 0) {
-    fprintf(stderr, "ERROR: Unsupported format: %s (use png/svg/pdf)\n", format);
+    fprintf(stderr, "ERROR: Unsupported format: %s (use png/svg/pdf)\n", SanitizeForLog(format).c_str());
     return false;
   }
   
@@ -247,26 +252,34 @@ bool CIccAnalyzerCallGraph::ExportGraph(const char* dot_file,
   IccAnalyzerSecurity::PathValidationResult dot_result = IccAnalyzerSecurity::ValidateFilePath(dot_file, IccAnalyzerSecurity::PathValidationMode::STRICT, true, {".dot"});
   if (dot_result != IccAnalyzerSecurity::PathValidationResult::VALID) {
     fprintf(stderr, "ERROR: Invalid dot file path: %s\n", 
-            IccAnalyzerSecurity::GetValidationErrorMessage(dot_result, dot_file).c_str());
+            SanitizeForLog(IccAnalyzerSecurity::GetValidationErrorMessage(dot_result, dot_file)).c_str());
     return false;
   }
   
   IccAnalyzerSecurity::PathValidationResult out_result = IccAnalyzerSecurity::ValidateFilePath(output_file, IccAnalyzerSecurity::PathValidationMode::STRICT, false, {});
   if (out_result != IccAnalyzerSecurity::PathValidationResult::VALID) {
     fprintf(stderr, "ERROR: Invalid output file path: %s\n", 
-            IccAnalyzerSecurity::GetValidationErrorMessage(out_result, output_file).c_str());
+            SanitizeForLog(IccAnalyzerSecurity::GetValidationErrorMessage(out_result, output_file)).c_str());
     return false;
   }
   
-  // Validate format (allowlist) - already done above at line 240
-  // Build command - NOTE: This still uses system() but with validated inputs
-  // TODO: Replace with fork()+exec() for full command injection prevention
-  char cmd[1024];
-  snprintf(cmd, sizeof(cmd), "dot -T%s %s -o %s 2>&1", format, dot_file, output_file);
-  
-  // Execute with verification
-  printf("Executing: %s\n", cmd);
-  int ret = system(cmd);
+  // Build argv for posix_spawn (no shell interpretation)
+  std::string fmt_arg = std::string("-T") + format;
+  std::string out_arg = std::string("-o") + std::string(output_file);
+  const char *argv[] = {"dot", fmt_arg.c_str(), dot_file, out_arg.c_str(), nullptr};
+
+  printf("Executing: dot %s %s %s\n", fmt_arg.c_str(), SanitizeForLog(dot_file).c_str(), SanitizeForLog(out_arg).c_str());
+
+  pid_t pid;
+  int ret = posix_spawn(&pid, "/usr/bin/dot", nullptr, nullptr,
+                        const_cast<char *const *>(argv), environ);
+  if (ret != 0) {
+    fprintf(stderr, "ERROR: posix_spawn failed: %s\n", SanitizeForLog(strerror(ret)).c_str());
+    return false;
+  }
+  int status;
+  waitpid(pid, &status, 0);
+  ret = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
   
   if (ret != 0) {
     fprintf(stderr, "ERROR: Graphviz export failed (exit code: %d)\n", ret);
@@ -277,12 +290,12 @@ bool CIccAnalyzerCallGraph::ExportGraph(const char* dot_file,
   // CJF-11: Verify output was created
   std::ifstream verify(output_file);
   if (!verify.is_open() || verify.peek() == std::ifstream::traits_type::eof()) {
-    fprintf(stderr, "ERROR: Output file was not created: %s\n", output_file);
+    fprintf(stderr, "ERROR: Output file was not created: %s\n", SanitizeForLog(output_file).c_str());
     return false;
   }
   verify.close();
   
-  printf("[OK] Graph exported: %s\n", output_file);
+  printf("[OK] Graph exported: %s\n", SanitizeForLog(output_file).c_str());
   return true;
 }
 
@@ -433,7 +446,7 @@ bool CIccAnalyzerCallGraph::MapCrashToSource(const char* asan_log,
   
   // Export to PNG
   if (!ExportGraph(dot_file.c_str(), output_file, "png")) {
-    fprintf(stderr, "WARNING: PNG export failed, DOT file available: %s\n", dot_file.c_str());
+    fprintf(stderr, "WARNING: PNG export failed, DOT file available: %s\n", SanitizeForLog(dot_file).c_str());
   }
   
   return true;

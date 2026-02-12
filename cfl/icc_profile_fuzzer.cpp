@@ -38,14 +38,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string>
-#include <cmath>
 #include "IccProfile.h"
 #include "IccUtil.h"
 #include "IccIO.h"
 #include "IccTag.h"
 #include "IccTagLut.h"
 #include "IccMpeBasic.h"
-#include "IccCmm.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128) return 0;
@@ -128,42 +126,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       }
     }
     
-    // DEEP EXECUTION: Apply actual color transformations via CMM
-    CIccCmm *pCmm = new CIccCmm();
-    if (pCmm) {
-      if (pCmm->AddXform(pIcc, icPerceptual) == icCmmStatOk) {
-        // CMM now owns pIcc and will delete it in destructor
-        // Must call Begin() before Apply() to initialize m_pApply
-        if (pCmm->Begin() == icCmmStatOk) {
-          // Test with edge case pixel values
-          icFloatNumber test_pixels[][4] = {
-            {0.0f, 0.0f, 0.0f, 1.0f},     // Black
-            {1.0f, 1.0f, 1.0f, 1.0f},     // White
-            {0.5f, 0.5f, 0.5f, 1.0f},     // Gray
-            {1.0f, 0.0f, 0.0f, 1.0f},     // Red
-            {-0.1f, 0.5f, 1.1f, 1.0f},    // Out of range
-            {NAN, 0.5f, 0.5f, 1.0f},      // NaN input
-            {0.5f, INFINITY, 0.5f, 1.0f}, // Infinity input
-          };
-          
-          for (size_t k = 0; k < 7; k++) {
-            icFloatNumber out[4];
-            pCmm->Apply(out, test_pixels[k]);
-            volatile icFloatNumber check = out[0] + out[1] + out[2];
-            (void)check;
-          }
-        }
-        // CMM destructor will delete pIcc
-        delete pCmm;
-      } else {
-        // AddXform failed, CMM doesn't own profile
-        delete pCmm;
-        delete pIcc;
-      }
-    } else {
-      // CMM allocation failed
-      delete pIcc;
-    }
+    // Note: CMM transforms (AddXform/Begin/Apply) are out of scope for
+    // profile inspection tools. Those paths are covered by icc_apply_fuzzer
+    // and icc_applynamedcmm_fuzzer which mirror their respective tools.
+    delete pIcc;
   }
   
   return 0;

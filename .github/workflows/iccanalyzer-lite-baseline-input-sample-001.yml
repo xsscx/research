@@ -95,7 +95,7 @@ jobs:
           
           echo "Configuring CMake with instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \

@@ -53,14 +53,28 @@ class UncheckedArrayAccess extends ArrayExpr {
       FileToBufferConfig::flow(source, sink) and
       sink.asExpr() = this.getArrayOffset()
     ) and
-    // No bounds check before access
+    // No bounds check before access (direct or compound)
     not exists(IfStmt guard, RelationalOperation cmp |
-      guard.getCondition() = cmp and
+      guard.getCondition().getAChild*() = cmp and
       (
-        cmp.getLesserOperand() = this.getArrayOffset() or
-        cmp.getGreaterOperand() = this.getArrayOffset()
+        // Direct: if (offset < size)
+        cmp.getAnOperand() = this.getArrayOffset() or
+        // Compound: if (base + offset < size) — covers offset + j < fileSize patterns
+        exists(Expr compound |
+          cmp.getAnOperand() = compound and
+          compound.getAChild*() = this.getArrayOffset()
+        )
       ) and
       guard.getThen().getAChild*() = this
+    ) and
+    // Not inside a for/while loop with a bounds-checking condition
+    not exists(Loop loop, RelationalOperation cmp |
+      loop.getCondition().getAChild*() = cmp and
+      (
+        cmp.getAnOperand().getAChild*() = this.getArrayOffset() or
+        cmp.getAnOperand() = this.getArrayOffset()
+      ) and
+      loop.getStmt().getAChild*() = this
     )
   }
 }
