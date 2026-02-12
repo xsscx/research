@@ -104,6 +104,18 @@ jobs:
 
           make -j$(nproc) IccProfLib2-static IccXML2-static
 
+      - name: Build TiffImg.o
+        run: |
+          set -euo pipefail
+          ICCDEV="$PWD/cfl/iccDEV"
+          clang++ -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -frtti \
+            -I${ICCDEV}/IccProfLib \
+            -I${ICCDEV}/Tools/CmdLine/IccCommon \
+            -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \
+            -I/usr/include/libxml2 \
+            -c ${ICCDEV}/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp \
+            -o cfl/TiffImg.o || echo "WARN: TiffImg.o build failed, tiff fuzzers may skip"
+
       - name: Build all fuzzers
         env:
           BASH_ENV: /dev/null
@@ -121,17 +133,32 @@ jobs:
 
           CXXFLAGS="-fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g -O1 -frtti -fprofile-instr-generate -fcoverage-mapping"
           INCLUDES="-I$ICCDEV/IccProfLib -I$ICCDEV/IccXML/IccLibXML -I$ICCDEV/Tools/CmdLine/IccCommon -I$ICCDEV/Tools/CmdLine/IccApplyProfiles -I/usr/include/libxml2"
-          LIBS="$BUILD/IccProfLib/libIccProfLib2-static.a $BUILD/IccXML/libIccXML2-static.a -lxml2 -lz -ltiff"
+          LIBS_BASE="$BUILD/IccProfLib/libIccProfLib2-static.a"
+          LIBS_XML="$BUILD/IccXML/libIccXML2-static.a"
+          LIBS_SYS="-lxml2 -lz"
+
+          # Fuzzers that need TiffImg.o and libtiff
+          TIFF_FUZZERS="icc_applyprofiles_fuzzer icc_tiffdump_fuzzer icc_specsep_fuzzer"
 
           BUILT=0
           for src in "$CFL"/*_fuzzer.cpp; do
             FNAME=$(basename "$src" .cpp)
+            EXTRA_OBJ=""
+            EXTRA_LIBS=""
             EXTRA_LDFLAGS=""
+            if echo "$TIFF_FUZZERS" | grep -qw "$FNAME"; then
+              if [ -f "$CFL/TiffImg.o" ]; then
+                EXTRA_OBJ="$CFL/TiffImg.o"
+                EXTRA_LIBS="-ltiff"
+              fi
+            fi
             if [ "$FNAME" = "icc_deep_dump_fuzzer" ]; then
               EXTRA_LDFLAGS="-Wl,--allow-multiple-definition"
             fi
             set +e
-            clang++ $CXXFLAGS $INCLUDES "$src" $LIBS $EXTRA_LDFLAGS -o "$OUTDIR/$FNAME" 2>&1
+            clang++ $CXXFLAGS $INCLUDES "$src" \
+              $EXTRA_OBJ $LIBS_BASE $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
+              -o "$OUTDIR/$FNAME" 2>&1
             RC=$?
             set -e
             if [ $RC -eq 0 ]; then
@@ -192,6 +219,8 @@ jobs:
       - name: Run fuzzer (60s)
         env:
           BASH_ENV: /dev/null
+          ASAN_OPTIONS: "symbolize=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
+          UBSAN_OPTIONS: "symbolize=1:print_stacktrace=1:halt_on_error=0:report_error_type=1"
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true

@@ -18,7 +18,16 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-REPO_ROOT = Path(os.environ.get("ICC_MCP_ROOT", Path(__file__).resolve().parent.parent))
+def _init_repo_root() -> Path:
+    """Resolve REPO_ROOT with path validation to prevent path-injection."""
+    raw = os.environ.get("ICC_MCP_ROOT", str(Path(__file__).resolve().parent.parent))
+    resolved = os.path.realpath(raw)
+    if not os.path.isdir(resolved):
+        raise RuntimeError(f"REPO_ROOT is not a directory: {resolved}")
+    return Path(resolved)
+
+
+REPO_ROOT = _init_repo_root()
 ANALYZER_BIN = REPO_ROOT / "iccanalyzer-lite" / "iccanalyzer-lite"
 TO_XML_SAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
@@ -83,13 +92,13 @@ def _resolve_profile(path: str) -> Path:
 
     for base, base_resolved in zip(_ALLOWED_BASES, _ALLOWED_BASES_RESOLVED):
         candidate = (base / p).resolve()
-        # Ensure resolved path stays within the allowed base directory
-        try:
-            candidate.relative_to(base_resolved)
-        except ValueError:
+        # Normalize and verify path stays within allowed base (CodeQL sanitizer)
+        safe_path = os.path.normpath(str(candidate))
+        safe_base = os.path.normpath(str(base_resolved))
+        if not (safe_path == safe_base or safe_path.startswith(safe_base + os.sep)):
             continue
-        if candidate.is_file():
-            return candidate
+        if os.path.isfile(safe_path):
+            return Path(safe_path)
 
     raise FileNotFoundError(
         f"Profile not found: {path}. "
@@ -99,7 +108,8 @@ def _resolve_profile(path: str) -> Path:
 
 
 def _require_binary(bin_path: Path, name: str) -> None:
-    if not bin_path.exists():
+    safe = os.path.normpath(str(bin_path))
+    if not os.path.isfile(safe):
         raise FileNotFoundError(
             f"{name} not found at {bin_path}. "
             f"Build it first (see docstring)."

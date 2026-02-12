@@ -242,6 +242,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [codeql-analysis, codeql-python]
     if: always()
+    permissions:
+      contents: read
 
     steps:
       - name: Generate Overall Summary
