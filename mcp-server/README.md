@@ -24,7 +24,7 @@ ICC color profiles control how colors are translated between devices (cameras, m
 
 # Clone and build iccDEV, then build iccanalyzer-lite
 cd iccanalyzer-lite
-git clone https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
+git clone https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
 cd iccDEV/Build
 cmake Cmake \
   -DCMAKE_BUILD_TYPE=Debug \

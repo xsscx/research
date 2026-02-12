@@ -84,8 +84,7 @@ jobs:
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
           git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
-          cd ../../ && make -j"$(nproc)" clean all test
+          make setup && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
         env:

@@ -59,7 +59,7 @@ build_iccdev() {
 
   info "Cloning iccDEV..."
   if [ ! -d "$iccdev_dir" ]; then
-    git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git "$iccdev_dir"
+    git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$iccdev_dir"
   fi
 
   # Patch out wxWidgets (not needed, avoids installing libwxgtk3.2-dev)

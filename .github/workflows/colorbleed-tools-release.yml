@@ -342,7 +342,7 @@ jobs:
           ls -lh "${TARBALL}" "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" "SHA256SUMS-${{ matrix.compiler }}.txt" "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabced41ab8f3c11 # v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
           name: "ColorBleed | Reading & Writing Unsafe Color Profiles"
