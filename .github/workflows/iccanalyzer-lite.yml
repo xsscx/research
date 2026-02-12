@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: "iccanalyzer-lite • clang • RelWithDebInfo"
+    name: "iccanalyzer-lite • clang • Debug"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -93,7 +93,7 @@ jobs:
             echo "### Build Configuration"
             echo ""
             echo "**Compiler:**   clang++ ($(clang++ --version | head -n 1))"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"
           } >> $GITHUB_STEP_SUMMARY
@@ -140,7 +140,7 @@ jobs:
           
           echo "Configuring CMake with instrumentation..."
           cmake Cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
@@ -289,7 +289,7 @@ jobs:
             echo "**Status:**     ${{ job.status }}"
             echo "**Tool:**       iccanalyzer-lite"
             echo "**Compiler:**   clang++"
-            echo "**Build Type:** RelWithDebInfo"
+            echo "**Build Type:** Debug"
             echo "**Features:**   AddressSanitizer, UndefinedBehaviorSanitizer, Coverage"
             echo "**Pattern:**    iccDEV libraries built with instrumentation"
             echo ""
