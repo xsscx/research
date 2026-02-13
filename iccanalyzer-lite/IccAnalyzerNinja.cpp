@@ -277,7 +277,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     }
     
     // Tag overlap detection (raw)
-    if (maxTags > 1 && maxTags <= 200) {
+    if (maxTags > 1) {
       int overlapCount = 0;
       for (size_t a = 0; a < maxTags && (132 + a*12 + 12) <= fileSize; a++) {
         size_t posA = 132 + a*12;
@@ -352,6 +352,7 @@ static void sig2str(char* str, icUInt32Number sig) {
   }
 }
 
+/// Extract XML representation of ICC profile tags in ninja mode.
 int NinjaModeExtractXML(const char *filename, const char *output_xml)
 {
   std::string sessionID = GetSessionID();

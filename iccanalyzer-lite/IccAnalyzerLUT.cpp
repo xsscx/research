@@ -38,6 +38,22 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerLUT.h"
 #include <cstring>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+// Open file with restricted permissions (0600) to prevent world-readable output.
+static FILE *SecureFileOpen(const char *path, const char *mode) {
+  int flags = O_WRONLY | O_CREAT | O_TRUNC;
+  if (mode[0] == 'a') flags = O_WRONLY | O_CREAT | O_APPEND;
+  int fd = open(path, flags, S_IRUSR | S_IWUSR);
+  if (fd < 0) return nullptr;
+  const char *fmode = (strchr(mode, 'b')) ? "wb" : "w";
+  if (mode[0] == 'a') fmode = "a";
+  FILE *f = fdopen(fd, fmode);
+  if (!f) close(fd);
+  return f;
+}
 
 // Sanitize tag name for safe use in filenames — strips path separators
 // and non-printable characters to prevent path traversal via crafted profiles.
@@ -75,7 +91,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
   
   snprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d_info.txt",
            baseFilename, safeTag.c_str(), clutIndex);
-  FILE *fInfo = fopen(filename, "w");
+  FILE *fInfo = SecureFileOpen(filename, "w");
   if (fInfo) {
     fprintf(fInfo, "MPE CLUT Data\n");
     fprintf(fInfo, "Input Dimensions: %d\n", inputDim);
@@ -101,7 +117,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
   
   snprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d.bin",
            baseFilename, safeTag.c_str(), clutIndex);
-  FILE *fBin = fopen(filename, "wb");
+  FILE *fBin = SecureFileOpen(filename, "wb");
   if (fBin) {
     icFloatNumber *data = pCLUT->GetData(0);
     if (data) {
@@ -189,6 +205,7 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
 // Legacy LUT Extraction Functions
 //==============================================================================
 
+/// Extract LUT (Look-Up Table) data from all LUT tags in the profile.
 void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 {
   CIccInfo info;
@@ -225,7 +242,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCurvesA) {
           snprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "Input Curves (A-curves)\n");
             fprintf(f, "Channels: %u\n", pLut8->InputChannels());
@@ -237,13 +254,13 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCLUT) {
           snprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "CLUT Data (8-bit)\n");
             fprintf(f, "Input Channels: %u\n", pCLUT->GetInputDim());
             fprintf(f, "Output Channels: %u\n", pCLUT->GetOutputChannels());
-            for (int i = 0; i < pCLUT->GetInputDim(); i++) {
-              fprintf(f, "Grid[%d]: %u\n", i, pCLUT->GetDimSize(i));
+            for (int d = 0; d < pCLUT->GetInputDim(); d++) {
+              fprintf(f, "Grid[%d]: %u\n", d, pCLUT->GetDimSize(d));
             }
             fclose(f);
             printf("  Wrote CLUT metadata: %s\n", filename);
@@ -253,7 +270,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCurvesB) {
           snprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "Output Curves (B-curves)\n");
             fprintf(f, "Channels: %u\n", pLut8->OutputChannels());
@@ -269,7 +286,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCurvesA) {
           snprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "Input Curves (A-curves)\n");
             fprintf(f, "Channels: %u\n", pLut16->InputChannels());
@@ -281,13 +298,13 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCLUT) {
           snprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "CLUT Data (16-bit)\n");
             fprintf(f, "Input Channels: %u\n", pCLUT->GetInputDim());
             fprintf(f, "Output Channels: %u\n", pCLUT->GetOutputChannels());
-            for (int i = 0; i < pCLUT->GetInputDim(); i++) {
-              fprintf(f, "Grid[%d]: %u\n", i, pCLUT->GetDimSize(i));
+            for (int d = 0; d < pCLUT->GetInputDim(); d++) {
+              fprintf(f, "Grid[%d]: %u\n", d, pCLUT->GetDimSize(d));
             }
             fclose(f);
             printf("  Wrote CLUT metadata: %s\n", filename);
@@ -297,7 +314,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         if (pCurvesB) {
           snprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
-          FILE *f = fopen(filename, "w");
+          FILE *f = SecureFileOpen(filename, "w");
           if (f) {
             fprintf(f, "Output Curves (B-curves)\n");
             fprintf(f, "Channels: %u\n", pLut16->OutputChannels());
@@ -309,7 +326,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
       
       snprintf(filename, sizeof(filename), "%s_%s_lut_info.txt",
               baseFilename, safeTag.c_str());
-      FILE *f = fopen(filename, "w");
+      FILE *f = SecureFileOpen(filename, "w");
       if (f) {
         fprintf(f, "LUT Tag: %s\n", info.GetTagSigName((*i).TagInfo.sig));
         fprintf(f, "Type: %s\n", info.GetTagTypeSigName(tagType));
@@ -339,6 +356,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 // Legacy LUT Injection Functions
 //==============================================================================
 
+/// Inject CLUT data into a profile's LUT tag and save to output file.
 int InjectLutDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
   CIccFileIO io;
@@ -537,6 +555,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
 // MPE (Multi-Process Element) Injection Functions
 //==============================================================================
 
+/// Inject MPE CLUT binary data into a profile and save to output file.
 int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
   printf("=== Injecting MPE CLUT data ===\n");
@@ -654,6 +673,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
 // Public API Functions
 //==============================================================================
 
+/// Extract all LUT and MPE data from an ICC profile to files.
 int ExtractLutData(const char *filename, const char *baseFilename)
 {
   CIccFileIO io;

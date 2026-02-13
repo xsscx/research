@@ -33,6 +33,7 @@
 #include "IccLibXMLVer.h"
 #include <cstring>
 
+/// Convert ICC XML profile to binary format, deliberately skipping safety checks.
 int main(int argc, char* argv[])
 {
   if (argc<=2) {
@@ -102,13 +103,13 @@ int main(int argc, char* argv[])
   std::string valid_report;
 
   if (profile.Validate(valid_report)<=icValidateWarning) {
-    int i;
+    int idx;
 
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
+    for (idx=0; idx<16; idx++) {
+      if (profile.m_Header.profileID.ID8[idx])
         break;
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
+    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
       printf("Profile parsed and saved correctly\n");
       printf("[ColorBleed] Review the outputs for Sensitive Information\n");
     }
@@ -118,13 +119,13 @@ int main(int argc, char* argv[])
     }
   }
   else {
-    int i;
+    int idx;
 
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
+    for (idx=0; idx<16; idx++) {
+      if (profile.m_Header.profileID.ID8[idx])
         break;
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
+    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
       printf("Profile parsed.  Profile is invalid, but saved correctly\n");
       printf("[ColorBleed] Review the output for sensitive information\n");
     }

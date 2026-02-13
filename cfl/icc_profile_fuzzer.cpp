@@ -107,10 +107,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     
     // Test device class specific methods
-    pIcc->GetSpaceSamples();
-    pIcc->AreTagsUnique();
-    pIcc->GetParentSpaceSamples();
-    pIcc->GetParentColorSpace();
+    (void)pIcc->GetSpaceSamples();
+    (void)pIcc->AreTagsUnique();
+    (void)pIcc->GetParentSpaceSamples();
+    (void)pIcc->GetParentColorSpace();
     
     // Test serialization if profile is valid (before CMM ownership transfer)
     if (report.find("Error") == std::string::npos && size < 100000) {

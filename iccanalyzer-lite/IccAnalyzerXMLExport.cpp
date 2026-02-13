@@ -60,6 +60,7 @@ std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
   return result;
 }
 
+/// Write embedded XSLT stylesheet for XML report rendering.
 void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
 {
   xml << R"XSLT(

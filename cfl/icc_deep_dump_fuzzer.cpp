@@ -91,6 +91,7 @@ static constexpr uint32_t kMaxMPEDepth  = 1024;              // iccanalyzer-lite
 #endif
 #ifndef HAS_SANITIZER_STACK
   #define HAS_SANITIZER_STACK 0
+  __attribute__((unused))
   static inline void __sanitizer_print_stack_trace(void) {}
 #endif
 
@@ -123,11 +124,12 @@ void* icRealloc(void *ptr, size_t size) {
       fprintf(stderr, "[DIAG] OOM-guard: icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
               ptr, size, (double)size / (1024.0*1024.0),
               kMaxSingleAlloc / (1024*1024));
-    if (ptr) free(ptr);
+    free(ptr);  // free(NULL) is safe per C standard
     return nullptr;
   }
-  void *nptr = ptr ? realloc(ptr, size) : malloc(size);
-  if (!nptr && ptr) free(ptr);
+  void *nptr = realloc(ptr, size);
+  // realloc guarantees: on failure, original ptr is NOT freed (C11 §7.22.3.5)
+  if (!nptr) free(ptr);
   return nptr;
 }
 
@@ -504,7 +506,7 @@ static void AnalyzeTagStructure(CIccProfile *pIcc) {
   }
 
   // First tag offset check (tool lines 431-437)
-  if (tagCount > 0) {
+  {
     int expectedFirst = 128 + 4 + ((int)tagCount * 12);
     volatile bool firstTagGap = (smallestOffset > expectedFirst);
     (void)firstTagGap;
@@ -1019,6 +1021,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (doHighVerb && size < 32768) {
     ExerciseTags(pIcc, 100);
   }
+
+  // Phase 3c: Calculator/ChannelFunc UBSAN exerciser
+  ExerciseCalculatorTags(pIcc);
 
   // Phase 4: Cross-tag signature lookup
   ExerciseSignatureLookups(pIcc, verboseness);

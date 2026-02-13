@@ -628,10 +628,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       fseek(fp, 0, SEEK_SET);
       
       if (fileSize >= 132) {
-        icUInt8Number header[132];
-        if (fread(header, 1, 132, fp) == 132) {
-          icUInt32Number tagTableCount = (static_cast<icUInt32Number>(header[128])<<24) | (static_cast<icUInt32Number>(header[129])<<16) | 
-                                          (static_cast<icUInt32Number>(header[130])<<8) | header[131];
+        icUInt8Number rawHdr[132];
+        if (fread(rawHdr, 1, 132, fp) == 132) {
+          icUInt32Number tagTableCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) | (static_cast<icUInt32Number>(rawHdr[129])<<16) | 
+                                          (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
           
           bool foundTagArray = false;
           icUInt32Number tagArrayCount = 0;
@@ -703,9 +703,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         if (pSigTag) {
           icTechnologySignature techSig = (icTechnologySignature)pSigTag->GetValue();
           if (IsValidTechnologySignature(techSig)) {
-            CIccInfo info;
+            CIccInfo techInfo;
             printf("      %s[OK] Valid technology: %s%s\n", ColorSuccess(),
-                   info.GetTechnologySigName(techSig), ColorReset());
+                   techInfo.GetTechnologySigName(techSig), ColorReset());
           } else {
             printf("      %s[WARN]  HEURISTIC: Unknown technology signature: 0x%08X%s\n",
                    ColorWarning(), (unsigned)techSig, ColorReset());

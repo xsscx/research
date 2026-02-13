@@ -103,7 +103,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       // Check if offset+size exceeds file size (check for overflow first)
       icUInt32Number tag_end = i->TagInfo.offset + i->TagInfo.size;
       if ((tag_end > i->TagInfo.offset) && (tag_end > pHdr->size)) {
-        // Non-compliant tag bounds
+        volatile bool non_compliant = true; (void)non_compliant;
       }
       
       // Find closest following tag for overlap detection
@@ -119,7 +119,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if ((tag_end > i->TagInfo.offset) &&  // Check for overflow
           (closest < tag_end) && 
           (closest < pHdr->size)) {
-        // Overlapping tags detected
+        volatile bool overlap = true; (void)overlap;
       }
       
       // Check for padding gaps (4-byte alignment)
@@ -127,7 +127,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       icUInt32Number aligned_end = i->TagInfo.offset + rndup;
       if ((aligned_end > i->TagInfo.offset) &&  // Check for overflow
           (closest > aligned_end)) {
-        // Unnecessary gap between tags
+        volatile bool gap = true; (void)gap;
       }
     }
     
@@ -135,13 +135,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (n > 0) {
       icUInt32Number expected_first_offset = 128 + 4 + (n * 12);
       if (smallest_offset > expected_first_offset) {
-        // Non-compliant: gap after tag table
+        volatile bool firstTagGap = true; (void)firstTagGap;
       }
     }
     
     // File size multiple-of-4 check (IccDumpProfile lines 331-335)
     if ((pHdr->version >= icVersionNumberV4_2) && (pHdr->size % 4 != 0)) {
-      // Non-compliant file size
+      volatile bool badSize = true; (void)badSize;
     }
     
     // Exercise all tags with Describe() - matches tool DumpTagCore() at line 108
@@ -170,7 +170,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         
         // Array type detection
         if (i->pTag->IsArrayType()) {
-          // Exercise array-specific paths
+          volatile bool isArray = true; (void)isArray;
         }
         i->pTag->IsSupported();
         
@@ -196,8 +196,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                            icSigTechnologyTag, icSigDeviceMfgDescTag,
                            icSigDeviceModelDescTag, icSigProfileSequenceDescTag,
                            icSigCicpTag, icSigMetaDataTag};
-    for (int j = 0; j < 32; j++) {
-      CIccTag *tag = pIcc->FindTag(tags[j]);
+    for (int k = 0; k < 32; k++) {
+      CIccTag *tag = pIcc->FindTag(tags[k]);
       if (tag) {
         // Match tool DumpTagCore() behavior (line 108)
         std::string desc;

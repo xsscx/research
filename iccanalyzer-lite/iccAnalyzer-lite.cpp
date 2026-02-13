@@ -35,11 +35,12 @@ void* icRealloc(void *ptr, size_t size) {
     fprintf(stderr, "[OOM-guard] icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
             ptr, size, (double)size / (1024.0*1024.0),
             kMaxSingleAlloc / (1024*1024));
-    if (ptr) free(ptr);
+    free(ptr);  // free(NULL) is safe per C standard
     return nullptr;
   }
-  void *nptr = ptr ? realloc(ptr, size) : malloc(size);
-  if (!nptr && ptr) free(ptr);
+  void *nptr = realloc(ptr, size);
+  // realloc guarantees: on failure, original ptr is NOT freed (C11 §7.22.3.5)
+  if (!nptr) free(ptr);
   return nptr;
 }
 
