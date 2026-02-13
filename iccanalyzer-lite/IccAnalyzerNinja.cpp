@@ -423,6 +423,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
     return -1;
   }
   
+  // Read entire file into memory for raw byte-level header/tag parsing
   unsigned char* data = new unsigned char[fileSize];
   file.read((char*)data, fileSize);
   file.close();
@@ -435,6 +436,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   xml << "<!-- WARNING: Unsafe extraction - data not validated -->\n";
   xml << "<IccProfile>\n";
   
+  // Parse 128-byte ICC header fields at fixed offsets per ICC spec
   icUInt32Number profSize = read32(data);
   icUInt32Number cmmType = read32(data + 4);
   icUInt32Number version = read32(data + 8);
@@ -493,6 +495,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   icUInt32Number renderingIntent = read32(data + 64);
   xml << "    <RenderingIntent>" << renderingIntent << "</RenderingIntent>\n";
   
+  // PCS illuminant stored as s15Fixed16Number at offset 68 (D50 expected)
   icS15Fixed16Number illumX = read32(data + 68);
   icS15Fixed16Number illumY = read32(data + 72);
   icS15Fixed16Number illumZ = read32(data + 76);

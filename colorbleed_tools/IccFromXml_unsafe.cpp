@@ -36,6 +36,7 @@
 /** Convert ICC XML profile to binary format, deliberately skipping safety checks. */
 int main(int argc, char* argv[])
 {
+  // Parse args: input XML, output ICC binary, optional -noid and -v flags
   if (argc<=2) {
     printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
@@ -91,6 +92,7 @@ int main(int argc, char* argv[])
     }
   }
 
+  // Attempt XML parse; on failure, report reason and exit
   if (!profile.LoadXml(argv[1], szRelaxNGDir.c_str(), &reason)) {
     printf("%s", reason.c_str());
 #ifndef WIN32
