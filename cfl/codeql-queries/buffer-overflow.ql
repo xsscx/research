@@ -53,26 +53,35 @@ class UncheckedArrayAccess extends ArrayExpr {
       FileToBufferConfig::flow(source, sink) and
       sink.asExpr() = this.getArrayOffset()
     ) and
-    // No bounds check before access (direct or compound)
+    // No bounds check before access — match by variable name, not AST node identity
     not exists(IfStmt guard, RelationalOperation cmp |
       guard.getCondition().getAChild*() = cmp and
-      (
-        // Direct: if (offset < size)
-        cmp.getAnOperand() = this.getArrayOffset() or
-        // Compound: if (base + offset < size) — covers offset + j < fileSize patterns
-        exists(Expr compound |
-          cmp.getAnOperand() = compound and
-          compound.getAChild*() = this.getArrayOffset()
-        )
+      exists(Variable v |
+        this.getArrayOffset().getAChild*().(VariableAccess).getTarget() = v and
+        cmp.getAnOperand().getAChild*().(VariableAccess).getTarget() = v
       ) and
-      guard.getThen().getAChild*() = this
+      (
+        // Access is inside the then-block of the guard
+        guard.getThen().getAChild*() = this
+        or
+        // Guard is if(bad) break/continue/return — access is AFTER the guard in same block
+        exists(Stmt escape |
+          (escape instanceof BreakStmt or escape instanceof ContinueStmt or escape instanceof ReturnStmt) and
+          guard.getThen().getAChild*() = escape and
+          guard.getEnclosingFunction() = this.getEnclosingFunction() and
+          guard.getLocation().getEndLine() < this.getLocation().getStartLine()
+        )
+      )
     ) and
-    // Not inside a for/while loop with a bounds-checking condition
+    // Not inside a for/while loop with a bounds-checking condition on a shared variable
     not exists(Loop loop, RelationalOperation cmp |
       loop.getCondition().getAChild*() = cmp and
-      (
-        cmp.getAnOperand().getAChild*() = this.getArrayOffset() or
-        cmp.getAnOperand() = this.getArrayOffset()
+      exists(Variable v |
+        this.getArrayOffset().getAChild*().(VariableAccess).getTarget() = v and
+        (
+          cmp.getAnOperand().getAChild*().(VariableAccess).getTarget() = v or
+          cmp.getAnOperand().(VariableAccess).getTarget() = v
+        )
       ) and
       loop.getStmt().getAChild*() = this
     )
