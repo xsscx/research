@@ -208,6 +208,7 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
 /** Extract LUT (Look-Up Table) data from all LUT tags in the profile. */
 void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 {
+  // Iterate all tags, extracting curve and CLUT metadata for Lut8/Lut16 types
   CIccInfo info;
   int lutCount = 0;
   
@@ -234,6 +235,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
       
       char filename[512];
       
+      // Extract Lut8 sub-components: input curves (A), CLUT grid, output curves (B)
       if (pLut8) {
         CIccCLUT *pCLUT = pLut8->GetCLUT();
         LPIccCurve *pCurvesA = pLut8->GetCurvesA();
@@ -278,6 +280,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
             printf("  Wrote B-curves metadata: %s\n", filename);
           }
         }
+      // Extract Lut16 sub-components similarly to Lut8
       } else if (pLut16) {
         CIccCLUT *pCLUT = pLut16->GetCLUT();
         LPIccCurve *pCurvesA = pLut16->GetCurvesA();
@@ -359,6 +362,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 /** Inject CLUT data into a profile LUT tag and save to output file. */
 int InjectLutDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
+  // Open source profile and deserialize into CIccProfile for tag manipulation
   CIccFileIO io;
   if (!io.Open(profileFile, "rb")) {
     printf("Error opening profile: %s\n", profileFile);
@@ -396,6 +400,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
       long fileSize = ftell(f);
       fseek(f, 0, SEEK_SET);
       
+      // Validate CLUT grid dimensions with overflow-safe multiplication
       if (tagType == icSigLut8Type) {
         CIccTagLut8 *pLut8 = (CIccTagLut8*)pTag;
         CIccCLUT *pCLUT = pLut8->GetCLUT();
@@ -447,6 +452,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
+        // Convert 8-bit CLUT data to float [0.0, 1.0] range
         for (long j = 0; j < fileSize; j++) {
           pData[j] = (icFloatNumber)buffer[j] / 255.0f;
         }
@@ -455,6 +461,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         modified = true;
         printf("Injected %ld bytes into CLUT\n", fileSize);
         
+      // Handle Lut16 type: 16-bit CLUT data with big-endian byte swap
       } else if (tagType == icSigLut16Type) {
         CIccTagLut16 *pLut16 = (CIccTagLut16*)pTag;
         CIccCLUT *pCLUT = pLut16->GetCLUT();
@@ -558,6 +565,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
 /** Inject MPE CLUT binary data into a profile and save to output file. */
 int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
+  // Load profile, read CLUT binary, inject into MultiProcessElement CLUT tags
   printf("=== Injecting MPE CLUT data ===\n");
   printf("Input profile: %s\n", profileFile);
   printf("CLUT file: %s\n", clutFile);
@@ -632,6 +640,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
         printf("  Tag %s Element[%u]: Injecting CLUT (%lld entries)\n",
                info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
         
+        // Byte-swap 16-bit big-endian CLUT entries and normalize to float [0.0, 1.0]
         icFloatNumber *data = pCLUT->GetData(0);
         for (int idx = 0; idx < expectedSize; idx++) {
           icUInt16Number bigEndian = buffer[idx];
@@ -646,6 +655,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   
   delete[] buffer;
   
+  // Write modified profile to output file if any CLUT elements were injected
   if (tagsModified > 0) {
     CIccFileIO io;
     if (!io.Open(outputFile, "wb")) {
@@ -738,6 +748,7 @@ int InjectMpeLutData(int argc, char *argv[])
 /** Inject MPE CLUT data into profile, with progress logging. */
 int InjectMpeData(const char *profileFile, const char *outputFile, const char *clutFile)
 {
+  // Load profile and CLUT binary data as 16-bit samples for MPE injection
   printf("=== Injecting MPE CLUT data ===\n");
   printf("Input profile: %s\n", profileFile);
   printf("CLUT file: %s\n", clutFile);
@@ -778,6 +789,7 @@ int InjectMpeData(const char *profileFile, const char *outputFile, const char *c
   int tagsModified = 0;
   CIccInfo info;
   
+  // Iterate MPE tags, find CLUT elements, validate grid size with overflow checks
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
@@ -813,6 +825,7 @@ int InjectMpeData(const char *profileFile, const char *outputFile, const char *c
                info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
         
         icFloatNumber *data = pCLUT->GetData(0);
+        // Byte-swap 16-bit big-endian CLUT entries and normalize to float [0.0, 1.0]
         for (int idx = 0; idx < expectedSize; idx++) {
           icUInt16Number bigEndian = buffer[idx];
           icUInt16Number littleEndian = ((bigEndian >> 8) & 0xff) | ((bigEndian << 8) & 0xff00);

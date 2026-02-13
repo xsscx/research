@@ -15,6 +15,7 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 3 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read` | `new icFloatNumber[channels*vertices]` — products can exceed RSS limit |
 | 4 | `IccTagBasic.cpp` | `CIccTagNamedColor2::SetSize` | `calloc(nSize, entrySize)` — nSize from profile tag data |
 | 5 | `IccUtil.cpp` | `icMemDump` | `string::reserve(lines*79)` — hex-dump output proportional to tag data size; 21 GB alloc observed |
+| 6 | `IccProfile.cpp`, `IccUtil.cpp`, `IccSignatureUtils.h` | `LoadTag`, `icGetSig`, `icF16toF`, `DescribeColorSpaceSignature` | UBSAN: unsigned integer overflow in offset+size, left-shift overflow, implicit uint32→char narrowing |
 
 ## Allocation Cap
 
@@ -26,6 +27,12 @@ trigger OOM kills during fuzzing.
 Patch 005 caps the hex-dump input at 256 KB (`262144` bytes).
 This limits output to ~1.3 MB while still dumping the first 256 KB of
 any oversized tag — sufficient for forensic analysis of crafted profiles.
+
+Patch 006 fixes UBSAN-detected undefined behavior:
+- `IccProfile.cpp:LoadTag` — overflow-safe `offset + size` bounds check
+- `IccUtil.cpp:icGetSig` — left-shift overflow via 64-bit widening
+- `IccUtil.cpp:icF16toF` — unsigned underflow in exponent calc via signed cast
+- `IccSignatureUtils.h:DescribeColorSpaceSignature` — uint32→char narrowing
 
 ## Application
 

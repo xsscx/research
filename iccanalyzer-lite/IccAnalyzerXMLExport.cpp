@@ -63,6 +63,9 @@ std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
 /** Write embedded XSLT stylesheet for XML report rendering. */
 void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
 {
+  // Emit embedded XSLT 1.0 stylesheet that transforms XML analysis reports
+  // into styled HTML with status indicators and severity badges.
+  // Sections: CSS styles, profile metadata, heuristics results table, footer.
   xml << R"XSLT(
 <xsl:stylesheet version="1.0" 
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"

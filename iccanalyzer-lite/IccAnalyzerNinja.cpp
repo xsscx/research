@@ -213,10 +213,10 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       icUInt32Number tagSize = (static_cast<icUInt32Number>(rawData[pos+8])<<24) | (static_cast<icUInt32Number>(rawData[pos+9])<<16) | (static_cast<icUInt32Number>(rawData[pos+10])<<8) | rawData[pos+11];
       
       char sigStr[5];
-      sigStr[0] = (sig>>24)&0xff;
-      sigStr[1] = (sig>>16)&0xff;
-      sigStr[2] = (sig>>8)&0xff;
-      sigStr[3] = sig&0xff;
+      sigStr[0] = static_cast<char>(static_cast<unsigned char>((sig>>24)&0xff));
+      sigStr[1] = static_cast<char>(static_cast<unsigned char>((sig>>16)&0xff));
+      sigStr[2] = static_cast<char>(static_cast<unsigned char>((sig>>8)&0xff));
+      sigStr[3] = static_cast<char>(static_cast<unsigned char>(sig&0xff));
       sigStr[4] = '\0';
       
       // Read tag TYPE (first 4 bytes of tag data)
@@ -224,10 +224,10 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       if (offset < fileSize && offset + 4 <= fileSize) {
         icUInt32Number tagType = (static_cast<icUInt32Number>(rawData[offset])<<24) | (static_cast<icUInt32Number>(rawData[offset+1])<<16) | 
                                  (static_cast<icUInt32Number>(rawData[offset+2])<<8) | rawData[offset+3];
-        typeStr[0] = (tagType>>24)&0xff;
-        typeStr[1] = (tagType>>16)&0xff;
-        typeStr[2] = (tagType>>8)&0xff;
-        typeStr[3] = tagType&0xff;
+        typeStr[0] = static_cast<char>(static_cast<unsigned char>((tagType>>24)&0xff));
+        typeStr[1] = static_cast<char>(static_cast<unsigned char>((tagType>>16)&0xff));
+        typeStr[2] = static_cast<char>(static_cast<unsigned char>((tagType>>8)&0xff));
+        typeStr[3] = static_cast<char>(static_cast<unsigned char>(tagType&0xff));
         typeStr[4] = '\0';
         
         // Check for TagArrayType (CRITICAL security issue)
@@ -238,7 +238,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       
       const char *status = "OK";
       if (offset >= fileSize) status = "OOB offset";
-      else if (offset + tagSize > fileSize) status = "OOB size";
+      else if (tagSize > fileSize || offset > fileSize - tagSize) status = "OOB size";
       else if (offset < 128) status = "overlap";
       else if (tagSize == 0) status = "zero size";
       else if (tagSize > 10000000) status = "huge size";
@@ -423,6 +423,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
     return -1;
   }
   
+  // Read entire file into memory for raw byte-level header/tag parsing
   unsigned char* data = new unsigned char[fileSize];
   file.read((char*)data, fileSize);
   file.close();
@@ -435,6 +436,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   xml << "<!-- WARNING: Unsafe extraction - data not validated -->\n";
   xml << "<IccProfile>\n";
   
+  // Parse 128-byte ICC header fields at fixed offsets per ICC spec
   icUInt32Number profSize = read32(data);
   icUInt32Number cmmType = read32(data + 4);
   icUInt32Number version = read32(data + 8);
@@ -493,6 +495,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   icUInt32Number renderingIntent = read32(data + 64);
   xml << "    <RenderingIntent>" << renderingIntent << "</RenderingIntent>\n";
   
+  // PCS illuminant stored as s15Fixed16Number at offset 68 (D50 expected)
   icS15Fixed16Number illumX = read32(data + 68);
   icS15Fixed16Number illumY = read32(data + 72);
   icS15Fixed16Number illumZ = read32(data + 76);
