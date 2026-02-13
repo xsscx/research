@@ -312,6 +312,9 @@ jobs:
               .clean { color: green; font-weight: bold; }
               .finding { color: #cc6600; font-weight: bold; }
               .error { color: red; font-weight: bold; }
+              a.profile-link { color: #007acc; text-decoration: none; }
+              a.profile-link:hover { text-decoration: underline; }
+              a { color: #007acc; }
             </style>
           </head>
           <body>
@@ -343,7 +346,7 @@ jobs:
 
               echo "<h2>${MODE_NAME} Mode (${FLAG})</h2>" >> $INDEX_FILE
               echo "<table>" >> $INDEX_FILE
-              echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Size</th></tr>" >> $INDEX_FILE
+              echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Output</th><th>Size</th></tr>" >> $INDEX_FILE
 
               NUM=1
               while IFS= read -r profile; do
@@ -363,7 +366,7 @@ jobs:
                     STATUS="<span class='clean'>CLEAN</span>"
                   fi
 
-                  echo "<tr><td>$NUM</td><td><code>$PROFILE_NAME</code></td><td>$STATUS</td><td>$FILE_SIZE bytes</td></tr>" >> $INDEX_FILE
+                  echo "<tr><td>$NUM</td><td><a href='outputs/${MODE_NAME}/${PROFILE_NAME}.txt'><code>$PROFILE_NAME</code></a></td><td>$STATUS</td><td><a class='profile-link' href='$OUTPUT_FILE'>View Output</a></td><td>$FILE_SIZE bytes</td></tr>" >> $INDEX_FILE
                   NUM=$((NUM + 1))
                 fi
               done < selected-profiles.txt
