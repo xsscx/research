@@ -205,7 +205,7 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
 // Legacy LUT Extraction Functions
 //==============================================================================
 
-/// Extract LUT (Look-Up Table) data from all LUT tags in the profile.
+/** Extract LUT (Look-Up Table) data from all LUT tags in the profile. */
 void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 {
   CIccInfo info;
@@ -356,7 +356,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 // Legacy LUT Injection Functions
 //==============================================================================
 
-/// Inject CLUT data into a profile's LUT tag and save to output file.
+/** Inject CLUT data into a profile LUT tag and save to output file. */
 int InjectLutDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
   CIccFileIO io;
@@ -555,7 +555,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
 // MPE (Multi-Process Element) Injection Functions
 //==============================================================================
 
-/// Inject MPE CLUT binary data into a profile and save to output file.
+/** Inject MPE CLUT binary data into a profile and save to output file. */
 int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
   printf("=== Injecting MPE CLUT data ===\n");
@@ -673,7 +673,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
 // Public API Functions
 //==============================================================================
 
-/// Extract all LUT and MPE data from an ICC profile to files.
+/** Extract all LUT and MPE data from an ICC profile to files. */
 int ExtractLutData(const char *filename, const char *baseFilename)
 {
   CIccFileIO io;
@@ -720,6 +720,7 @@ int InjectLutData(int argc, char *argv[])
   return InjectLutDataInternal(profileFile, outputFile, clutFile);
 }
 
+/** Inject LUT CLUT data from command-line arguments. */
 int InjectMpeLutData(int argc, char *argv[])
 {
   if (argc < 5) {
@@ -734,6 +735,7 @@ int InjectMpeLutData(int argc, char *argv[])
   return InjectMpeDataInternal(profileFile, outputFile, clutFile);
 }
 
+/** Inject MPE CLUT data into profile, with progress logging. */
 int InjectMpeData(const char *profileFile, const char *outputFile, const char *clutFile)
 {
   printf("=== Injecting MPE CLUT data ===\n");

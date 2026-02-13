@@ -33,7 +33,7 @@
 #include "IccLibXMLVer.h"
 #include <cstring>
 
-/// Convert ICC XML profile to binary format, deliberately skipping safety checks.
+/** Convert ICC XML profile to binary format, deliberately skipping safety checks. */
 int main(int argc, char* argv[])
 {
   if (argc<=2) {

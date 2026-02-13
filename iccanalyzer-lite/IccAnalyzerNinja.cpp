@@ -352,7 +352,7 @@ static void sig2str(char* str, icUInt32Number sig) {
   }
 }
 
-/// Extract XML representation of ICC profile tags in ninja mode.
+/** Extract XML representation of ICC profile tags in ninja mode. */
 int NinjaModeExtractXML(const char *filename, const char *output_xml)
 {
   std::string sessionID = GetSessionID();
