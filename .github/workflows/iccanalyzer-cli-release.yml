@@ -506,7 +506,11 @@ jobs:
         if: always()
         with:
           name: iccanalyzer-cli-release-results
-          path: cli-test-results/
+          path: |
+            cli-test-results/
+            iccanalyzer-lite-linux-amd64
+            iccanalyzer-lite-linux-amd64.tar.gz
+            SHA256SUMS.txt
           retention-days: 90
 
       - name: Report to summary
