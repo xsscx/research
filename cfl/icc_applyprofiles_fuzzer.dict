@@ -9,3 +9,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "D\x01\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x0ds\x00\x00 Q\x00\x00"
