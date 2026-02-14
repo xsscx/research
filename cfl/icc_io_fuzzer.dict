@@ -2524,3 +2524,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xff\xff\xff\xff\x05"
+
+# --- added by convert-libfuzzer-dict.py ---
+"N10__cxxabiv"
