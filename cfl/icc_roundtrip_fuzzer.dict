@@ -495,3 +495,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\xde"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x83\x00\x00\x00\x00\x00\x00\x00"
