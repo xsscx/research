@@ -23,10 +23,11 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 
 ## Allocation Cap
 
-Patches 001–004 use a 128 MB per-allocation cap (`134217728` bytes).
-This is conservative enough to allow legitimate ICC profiles (largest
-real-world CLUT ≈ 50 MB) while preventing the 2+ GB allocations that
-trigger OOM kills during fuzzing.
+Patch 001 uses a 16 MB per-allocation cap (`16777216` bytes) for CLUT
+tables because `CIccCLUT::Init()` can be called many times per profile
+(175+ allocations observed in fuzzing), causing cumulative OOM even at
+128 MB per-call. Patches 002–004 use 128 MB (`134217728` bytes) since
+those allocate once per profile read.
 
 Patch 005 caps the hex-dump input at 256 KB (`262144` bytes).
 This limits output to ~1.3 MB while still dumping the first 256 KB of

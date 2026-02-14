@@ -270,6 +270,7 @@ jobs:
             -max_total_time=60 \
             -print_final_stats=1 \
             -detect_leaks=0 \
+            -rss_limit_mb=4096 \
             -timeout=30 \
             $DICT_ARG \
             corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -30

@@ -4,10 +4,10 @@
    }
    m_nNumPoints = (icUInt32Number)nNumPoints;
  
-+  // CFL patch: cap total CLUT allocation to 128 MB to prevent OOM during fuzzing.
++  // CFL patch: cap total CLUT allocation to 16 MB to prevent OOM during fuzzing.
 +  // Grid dimensions multiply exponentially with nInput (up to 15 dims).
 +  // When nMaxSize=0 (e.g., NewCLUT callers), there is no upstream bound.
-+  if ((icUInt64Number)NumPoints() * m_nOutput * sizeof(icFloatNumber) > 134217728ULL)
++  if ((icUInt64Number)NumPoints() * m_nOutput * sizeof(icFloatNumber) > 16777216ULL)
 +    return false;
 +
    icUInt32Number nSize = NumPoints() * m_nOutput;
