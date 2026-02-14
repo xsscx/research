@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
 OUTPUT_DIR="$SCRIPT_DIR/bin"
+PROFRAW_DIR="$SCRIPT_DIR/profraw"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang}"
@@ -196,7 +197,7 @@ fi
 
 # --- Step 4: Build fuzzers ---
 banner "Step 4: Build fuzzers"
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$PROFRAW_DIR"
 cd "$SCRIPT_DIR"
 
 BUILT=0
@@ -214,7 +215,11 @@ build_fuzzer() {
     return
   fi
 
-  if $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+  # Per-fuzzer profraw output path (unique via %p=PID, %m=merge-pool)
+  local PROFRAW_PATH="$PROFRAW_DIR/${name}-%p-%m.profraw"
+  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate=$PROFRAW_PATH -fcoverage-mapping -frtti"
+
+  if $CXX $CXXFLAGS_THIS $INCLUDE_FLAGS \
     "$SCRIPT_DIR/${name}.cpp" \
     "$LIB_PROF" \
     "${extra_libs[@]}" \
@@ -274,6 +279,10 @@ if [ "$BUILT" -gt 0 ]; then
   echo ""
   echo "SHA256 fingerprints:"
   sha256sum "$OUTPUT_DIR"/icc_* 2>/dev/null || shasum -a 256 "$OUTPUT_DIR"/icc_* 2>/dev/null
+  echo ""
+  echo "Profraw output: $PROFRAW_DIR/<fuzzer_name>-<pid>-<id>.profraw"
+  echo "  Merge:  llvm-profdata merge -sparse $PROFRAW_DIR/*.profraw -o merged.profdata"
+  echo "  Report: llvm-cov report \$(printf ' -object %s' $OUTPUT_DIR/icc_*) -instr-profile=merged.profdata"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

@@ -72,3 +72,7 @@ echo ""
 echo "[OK] Build complete"
 ls -lh iccanalyzer-lite
 file iccanalyzer-lite
+echo ""
+echo "Coverage output: .gcda files written alongside .gcno files at runtime"
+echo "  Library coverage: iccDEV/Build/**/*.gcda"
+echo "  Analyzer coverage: *.gcda (current directory)"

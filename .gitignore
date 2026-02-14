@@ -56,6 +56,12 @@ venv/
 # Profiling
 *.profraw
 *.profdata
+**/profraw/
+
+# Coverage report artifacts
+*_coverage_html/
+*_coverage_report.txt
+**/coverage-report/
 
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
@@ -107,6 +113,7 @@ source-of-truth/
 
 # Fuzz corpus (ephemeral, synced from ramdisk)
 fuzz/
+now/
 
 # XNU Image Fuzzer corpus (manually managed)
 xif/
