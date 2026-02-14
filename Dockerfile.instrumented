@@ -13,7 +13,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  build-essential cmake git ca-certificates pkg-config \
+  build-essential cmake git ca-certificates pkg-config patch \
   clang-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
   libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
   zlib1g-dev liblzma-dev nlohmann-json3-dev \
@@ -25,6 +25,18 @@ RUN git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.g
  && cd /opt/iccdev \
  && echo "HEAD: $(git log --oneline -1)" \
  && sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
+
+# Apply CFL library patches (OOM caps, crash fixes)
+COPY cfl-patches/ /tmp/cfl-patches/
+RUN echo "Applying CFL library patches..." \
+ && for p in /tmp/cfl-patches/*.patch; do \
+      if patch -p1 -d /opt/iccdev --forward -s < "$p" 2>/dev/null; then \
+        echo "  Applied $(basename $p)"; \
+      else \
+        echo "  Skipped $(basename $p) (already applied or N/A)"; \
+      fi; \
+    done \
+ && rm -rf /tmp/cfl-patches
 
 # Build 1: ASAN + UBSAN (sanitizer testing, no coverage)
 RUN cd /opt/iccdev && mkdir -p build-asan && cd build-asan \

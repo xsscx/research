@@ -100,6 +100,17 @@ jobs:
           
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
+      - name: Apply CFL patches to iccDEV
+        run: |
+          set -euo pipefail
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
       - name: Build iccDEV libraries with full instrumentation
         env:
           BASH_ENV: /dev/null

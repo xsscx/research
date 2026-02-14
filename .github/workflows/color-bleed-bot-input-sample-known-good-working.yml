@@ -83,7 +83,16 @@ jobs:
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
           git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          cd iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
+          cd ..
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          cd colorbleed_tools/iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
           cd ../../ && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}

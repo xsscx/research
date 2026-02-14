@@ -1,0 +1,42 @@
+/home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:12: runtime error: member access within misaligned address 0xbebebebebebebebe for type 'IccTagPtr', which requires 8 byte alignment
+0xbebebebebebebebe: note: pointer points here
+<memory cannot be printed>
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:12
+/home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:25: runtime error: load of misaligned address 0xbebebebebebebebe for type 'CIccTag *', which requires 8 byte alignment
+0xbebebebebebebebe: note: pointer points here
+<memory cannot be printed>
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:25
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==1358555==ERROR: AddressSanitizer: SEGV on unknown address (pc 0x57f20f52ff13 bp 0x7ffed5d08bc0 sp 0x7ffed5d08b40 T0)
+==1358555==The signal is caused by a READ memory access.
+==1358555==Hint: this fault was caused by a dereference of a high value address (see register values below).  Disassemble the provided pc to learn which register was used.
+    #0 0x57f20f52ff13 in CIccTagArray::Cleanup() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:25
+    #1 0x57f20f530de2 in CIccTagArray::~CIccTagArray() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1105:3
+    #2 0x57f20f530e47 in CIccTagArray::~CIccTagArray() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1104:1
+    #3 0x57f20f3f0b79 in CIccProfile::Cleanup() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccProfile.cpp:263:7
+    #4 0x57f20f3f1302 in CIccProfile::~CIccProfile() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccProfile.cpp:242:3
+    #5 0x57f20f3f13a7 in CIccProfile::~CIccProfile() /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccProfile.cpp:241:1
+    #6 0x57f20f716825 in CIccCmm::AddXform(CIccProfile&, icRenderingIntent, icXformInterp, IIccProfileConnectionConditions*, icXformLutType, bool, CIccCreateXformHintManager*) /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccCmm.cpp:8497:5
+    #7 0x57f20f3e8a04 in CIccEvalCompare::EvaluateProfile(CIccProfile*, unsigned char, icRenderingIntent, icXformInterp, bool) /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccEval.cpp:104:20
+    #8 0x57f20f3ea73a in CIccEvalCompare::EvaluateProfile(char const*, unsigned char, icRenderingIntent, icXformInterp, bool) /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccEval.cpp:204:24
+    #9 0x57f20f3e6679 in LLVMFuzzerTestOneInput /home/h02332/po/research/cfl/icc_roundtrip_fuzzer.cpp:141:27
+    #10 0x57f20f2f18d4 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x4828d4) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #11 0x57f20f2f0fc9 in fuzzer::Fuzzer::RunOne(unsigned char const*, unsigned long, bool, fuzzer::InputInfo*, bool, bool*) (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x481fc9) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #12 0x57f20f2f27b5 in fuzzer::Fuzzer::MutateAndTestOne() (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x4837b5) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #13 0x57f20f2f3315 in fuzzer::Fuzzer::Loop(std::vector<fuzzer::SizedFile, std::allocator<fuzzer::SizedFile>>&) (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x484315) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #14 0x57f20f2e05ef in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x4715ef) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #15 0x57f20f30ac76 in main (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x49bc76) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+    #16 0x74ec0fe2a1c9 in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+    #17 0x74ec0fe2a28a in __libc_start_main csu/../csu/libc-start.c:360:3
+    #18 0x57f20f2d55d4 in _start (/home/h02332/po/research/cfl/bin/icc_roundtrip_fuzzer+0x4665d4) (BuildId: 50d7e58993baee950eff24b1b04e4b67c386bb0e)
+
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV /home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagComposite.cpp:1508:25 in CIccTagArray::Cleanup()
+==1358555==ABORTING
+MS: 3 ChangeASCIIInt-ChangeByte-PersAutoDict- DE: "spac"-; base unit: 85598f5a9d9571a8adeecf50675d9a19a786e793
+artifact_prefix='/tmp/fuzz-ramdisk/'; Test unit written to /tmp/fuzz-ramdisk/crash-02a1383088ae70c854b691187c2057946495a9c4
+[2026-02-14 22:05:30 UTC] ~/po/research (main)$ ../source-of-truth/Build/Tools/IccRoundTrip/iccRoundTrip /tmp/fuzz-ramdisk/crash-02a1383088ae70c854b691187c2057946495a9c4
+Unable to perform round trip on '/tmp/fuzz-ramdisk/crash-02a1383088ae70c854b691187c2057946495a9c4'
+[2026-02-14 22:07:29 UTC] ~/po/research (main)$ ../source-of-truth/Build/Tools/IccDumpProfile/iccDumpProfile /tmp/fuzz-ramdisk/crash-02a1383088ae70c854b691187c2057946495a9c4
+Built with IccProfLib version 2.3.1.4

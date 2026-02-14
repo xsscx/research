@@ -71,6 +71,18 @@ jobs:
           # Comment out wxWidgets requirement (no GUI needed for coverage)
           sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
 
+          # Apply CFL library patches
+          cd ${{ github.workspace }}
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          cd /tmp/iccdev
+
           mkdir -p build-coverage && cd build-coverage
           cmake ../Build/Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
