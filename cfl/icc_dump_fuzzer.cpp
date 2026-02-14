@@ -150,21 +150,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         std::string desc;
         desc.reserve(100000);  // Pre-allocate 100KB max for safety
         
-        // Match tool behavior: call Describe() with verboseness parameter
-        // Tool calls this on EVERY tag (iccDumpProfile.cpp line 108)
+        // Match tool DumpTagCore() behavior: single Describe() call per tag
+        // with the user-specified verboseness (iccDumpProfile.cpp line 108)
         i->pTag->Describe(desc, verboseness);
-        
-        // For small tags, also try higher verbosity levels
-        if (i->TagInfo.size < 10000 && verboseness < 50) {
-          desc.clear();
-          i->pTag->Describe(desc, 50);
-        }
-        
-        // For tiny tags, try maximum verbosity
-        if (i->TagInfo.size < 1000 && verboseness < 100) {
-          desc.clear();
-          i->pTag->Describe(desc, 100);
-        }
         
         i->pTag->GetType();
         
@@ -177,36 +165,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         // Get tag signature name for formatting
         Fmt.GetTagSigName(i->TagInfo.sig);
         Fmt.GetTagTypeSigName(i->pTag->GetType());
-      }
-    }
-    
-    // Exercise comprehensive tag lookup with Describe() - matches tool DumpTagSig()
-    icSignature tags[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
-                           icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
-                           icSigRedColorantTag, icSigGreenColorantTag, icSigBlueColorantTag,
-                           icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag,
-                           icSigGrayTRCTag, icSigMediaWhitePointTag,
-                           icSigLuminanceTag, icSigMeasurementTag,
-                           icSigNamedColor2Tag, icSigColorantTableTag,
-                           icSigChromaticAdaptationTag, icSigCopyrightTag,
-                           icSigProfileDescriptionTag, icSigViewingCondDescTag,
-                           icSigColorantOrderTag, icSigColorimetricIntentImageStateTag,
-                           icSigPerceptualRenderingIntentGamutTag,
-                           icSigSaturationRenderingIntentGamutTag,
-                           icSigTechnologyTag, icSigDeviceMfgDescTag,
-                           icSigDeviceModelDescTag, icSigProfileSequenceDescTag,
-                           icSigCicpTag, icSigMetaDataTag};
-    for (int k = 0; k < 32; k++) {
-      CIccTag *tag = pIcc->FindTag(tags[k]);
-      if (tag) {
-        // Match tool DumpTagCore() behavior (line 108)
-        std::string desc;
-        desc.reserve(100000);
-        tag->Describe(desc, verboseness);
-        
-        // Also validate
-        std::string validation_report;
-        tag->Validate("", validation_report);
       }
     }
     
