@@ -74,6 +74,20 @@ jobs:
           cd cfl
           git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
 
+      - name: Apply CFL patches to iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          echo "Applying CFL library patches..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d cfl/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  ✅ $(basename "$p")"
+            else
+              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+            fi
+          done
+
       - name: Build iccDEV libraries (Debug)
         env:
           BASH_ENV: /dev/null
