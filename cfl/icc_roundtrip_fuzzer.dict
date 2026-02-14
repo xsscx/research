@@ -492,3 +492,6 @@
 # ui64 - Uses: 4
 "ui64"
 ###### End of recommended dictionary. ######
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\xde"
