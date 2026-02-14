@@ -16,6 +16,8 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 4 | `IccTagBasic.cpp` | `CIccTagNamedColor2::SetSize` | `calloc(nSize, entrySize)` — nSize from profile tag data |
 | 5 | `IccUtil.cpp` | `icMemDump` | `string::reserve(lines*79)` — hex-dump output proportional to tag data size; 21 GB alloc observed |
 | 6 | `IccProfile.cpp`, `IccUtil.cpp`, `IccSignatureUtils.h` | `LoadTag`, `icGetSig`, `icF16toF`, `DescribeColorSpaceSignature` | UBSAN: unsigned integer overflow in offset+size, left-shift overflow, implicit uint32→char narrowing |
+| 7 | `IccTagBasic.cpp` | `CIccTagData::SetSize` | `icRealloc(m_pData, nSize)` — nSize from profile tag data; 4 GB allocation observed |
+| 8 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | `pIO->Read32(&m_Op[i].sig)` — raw uint32 loaded into `icSigCalcOp` enum; UBSAN invalid-enum-load |
 
 ## Allocation Cap
 
@@ -33,6 +35,13 @@ Patch 006 fixes UBSAN-detected undefined behavior:
 - `IccUtil.cpp:icGetSig` — left-shift overflow via 64-bit widening
 - `IccUtil.cpp:icF16toF` — unsigned underflow in exponent calc via signed cast
 - `IccSignatureUtils.h:DescribeColorSpaceSignature` — uint32→char narrowing
+
+Patch 007 caps `CIccTagData::SetSize()` at 128 MB.  Triggered by
+`icc_multitag_fuzzer` — peak RSS 4,557 MB from a crafted tag size.
+
+Patch 008 fixes UBSAN `invalid-enum-load` in `CIccCalculatorFunc::Read()`.
+Reads `m_Op[i].sig` into a `uint32` first, then casts to `icSigCalcOp`,
+avoiding undefined behavior from loading arbitrary values into an enum type.
 
 ## Application
 
