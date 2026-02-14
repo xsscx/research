@@ -20,6 +20,7 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 8 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | `pIO->Read32(&m_Op[i].sig)` — raw uint32 loaded into `icSigCalcOp` enum; UBSAN invalid-enum-load |
 | 9 | `IccTagBasic.cpp` | `CIccTagUnknown::Describe` | Heap-buffer-overflow: `m_pData+4` OOB and `m_nSize-4` unsigned underflow when `m_nSize ≤ 4` |
 | 10 | `IccTagComposite.cpp` | `CIccTagArray` copy ctor / `operator=` | Uninitialized `m_TagVals`/`m_nSize` when source has 0 elements → SEGV in `Cleanup()`; wrong loop var in `operator=` |
+| 11 | `IccTagBasic.cpp` | `CIccTagFloatNum/TagNum/FixedNum/XYZ/NamedColor2::SetSize` | `icRealloc()` with uncapped nSize from profile — 11.5 GB allocation in calculator fuzzer |
 
 ## Allocation Cap
 
@@ -55,6 +56,12 @@ Patch 010 fixes two bugs in `CIccTagArray`:
   `m_nSize == 0` → ASAN fill pattern `0xBEBEBEBE` → SEGV in `Cleanup()`
 - `operator=`: loop uses `m_nSize` (stale after `Cleanup()`) instead of
   `tagAry.m_nSize` → zero iterations → tags not copied
+
+Patch 011 caps all remaining uncapped `SetSize()` variants at 128 MB:
+- `CIccTagFloatNum<T>::SetSize()` — triggered via `CIccMpeTintArray::Read()`
+  in `icc_calculator_fuzzer` with 11,573 MB peak RSS
+- `CIccTagNum<T>::SetSize()`, `CIccTagFixedNum<T>::SetSize()` — same pattern
+- `CIccTagXYZ::SetSize()`, `CIccTagNamedColor2::SetSize()` — defensive cap
 
 ## Application
 
