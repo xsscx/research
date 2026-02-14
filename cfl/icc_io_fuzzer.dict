@@ -2515,3 +2515,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "A1B"
 "\x00\x00\x00\x00\x00\x00\x00\xd4"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff\xff\xff\xff\xff\x04~"
