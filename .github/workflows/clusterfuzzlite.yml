@@ -14,7 +14,7 @@
 name: ClusterFuzzLite Campaign
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
 
 on:
@@ -242,6 +242,14 @@ jobs:
         shell: bash --noprofile --norc {0}
 
     steps:
+      - name: Checkout scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+            cfl/*.dict
+          sparse-checkout-cone-mode: false
+
       - name: Download fuzzer binaries
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
@@ -291,7 +299,7 @@ jobs:
             -detect_leaks=0 \
             -timeout=30 \
             $DICT_ARG \
-            corpus $SEED_DIR 2>&1 | tail -30
+            corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -30
           EXIT_CODE=$?
           set -e
 
@@ -312,3 +320,97 @@ jobs:
           path: crash-artifacts/
           retention-days: 30
           if-no-files-found: ignore
+
+      - name: Extract recommended dict entries
+        run: |
+          mkdir -p dict-updates
+          if [ -f /tmp/fuzz-output.log ]; then
+            python3 .github/scripts/convert-libfuzzer-dict.py \
+              /tmp/fuzz-output.log \
+              "dict-updates/${{ matrix.fuzzer }}.dict" 2>&1 || true
+            if [ -f "dict-updates/${{ matrix.fuzzer }}.dict" ]; then
+              COUNT=$(grep -c '^"' "dict-updates/${{ matrix.fuzzer }}.dict" 2>/dev/null || echo 0)
+              echo "📖 Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
+            fi
+          fi
+
+      - name: Upload dict updates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dict-${{ matrix.fuzzer }}-${{ github.run_id }}
+          path: dict-updates/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  update-dicts:
+    name: "Update Dictionaries"
+    needs: fuzz
+    if: always() && needs.fuzz.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ github.token }}
+
+      - name: Download all dict artifacts
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          pattern: dict-*
+          path: dict-artifacts/
+          merge-multiple: false
+
+      - name: Merge dict entries into cfl/*.dict
+        run: |
+          set -euo pipefail
+          UPDATED=0
+          TOTAL_NEW=0
+
+          echo "=== Dictionary Merge ==="
+          for dir in dict-artifacts/*/; do
+            [ -d "$dir" ] || continue
+            for dict_file in "$dir"*.dict; do
+              [ -f "$dict_file" ] || continue
+              FUZZER=$(basename "$dict_file" .dict)
+              TARGET="cfl/${FUZZER}.dict"
+
+              # Count new entries before merge
+              NEW=$(python3 .github/scripts/convert-libfuzzer-dict.py \
+                "$dict_file" "$TARGET" --append --dry-run 2>&1 | \
+                grep -oP 'New:\s+\K[0-9]+' || echo 0)
+
+              if [ "$NEW" -gt 0 ]; then
+                python3 .github/scripts/convert-libfuzzer-dict.py \
+                  "$dict_file" "$TARGET" --append
+                echo "  ✅ ${FUZZER}: +${NEW} entries → ${TARGET}"
+                UPDATED=$((UPDATED + 1))
+                TOTAL_NEW=$((TOTAL_NEW + NEW))
+              else
+                echo "  ⏭  ${FUZZER}: no new entries"
+              fi
+            done
+          done
+
+          echo ""
+          echo "Updated $UPDATED dict files with $TOTAL_NEW new entries total"
+          echo "DICT_UPDATED=$UPDATED" >> $GITHUB_ENV
+          echo "DICT_NEW_ENTRIES=$TOTAL_NEW" >> $GITHUB_ENV
+
+      - name: Commit updated dictionaries
+        if: env.DICT_UPDATED != '0'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cfl/*.dict
+          git commit -m "chore(dicts): auto-merge ${DICT_NEW_ENTRIES} recommended entries from run ${{ github.run_id }}
+
+          Updated ${DICT_UPDATED} dictionary files with LibFuzzer recommended entries.
+          Source: ClusterFuzzLite Campaign run ${{ github.run_id }}
+
+          Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          git push
