@@ -18,6 +18,8 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 6 | `IccProfile.cpp`, `IccUtil.cpp`, `IccSignatureUtils.h` | `LoadTag`, `icGetSig`, `icF16toF`, `DescribeColorSpaceSignature` | UBSAN: unsigned integer overflow in offset+size, left-shift overflow, implicit uint32→char narrowing |
 | 7 | `IccTagBasic.cpp` | `CIccTagData::SetSize` | `icRealloc(m_pData, nSize)` — nSize from profile tag data; 4 GB allocation observed |
 | 8 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | `pIO->Read32(&m_Op[i].sig)` — raw uint32 loaded into `icSigCalcOp` enum; UBSAN invalid-enum-load |
+| 9 | `IccTagBasic.cpp` | `CIccTagUnknown::Describe` | Heap-buffer-overflow: `m_pData+4` OOB and `m_nSize-4` unsigned underflow when `m_nSize ≤ 4` |
+| 10 | `IccTagComposite.cpp` | `CIccTagArray` copy ctor / `operator=` | Uninitialized `m_TagVals`/`m_nSize` when source has 0 elements → SEGV in `Cleanup()`; wrong loop var in `operator=` |
 
 ## Allocation Cap
 
@@ -42,6 +44,16 @@ Patch 007 caps `CIccTagData::SetSize()` at 128 MB.  Triggered by
 Patch 008 fixes UBSAN `invalid-enum-load` in `CIccCalculatorFunc::Read()`.
 Reads `m_Op[i].sig` into a `uint32` first, then casts to `icSigCalcOp`,
 avoiding undefined behavior from loading arbitrary values into an enum type.
+
+Patch 009 guards `CIccTagUnknown::Describe()` against `m_nSize ≤ 4`.
+Without this, `m_pData+4` points past the 3-byte buffer and `m_nSize-4`
+underflows to `0xFFFFFFFF`, causing heap-buffer-overflow in `icMemDump()`.
+
+Patch 010 fixes two bugs in `CIccTagArray`:
+- Copy constructor: `m_TagVals` and `m_nSize` uninitialized when source
+  `m_nSize == 0` → ASAN fill pattern `0xBEBEBEBE` → SEGV in `Cleanup()`
+- `operator=`: loop uses `m_nSize` (stale after `Cleanup()`) instead of
+  `tagAry.m_nSize` → zero iterations → tags not copied
 
 ## Application
 
