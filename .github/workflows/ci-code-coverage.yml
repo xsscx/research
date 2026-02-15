@@ -76,9 +76,9 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
           cd /tmp/iccdev

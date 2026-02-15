@@ -38,6 +38,16 @@
 #ifndef _ICCANALYZERERRORS_H
 #define _ICCANALYZERERRORS_H
 
+// Deterministic exit codes for workflow logic.
+// Signals (SIGILL=132, SIGABRT=134, SIGSEGV=139) are never returned by
+// the analyzer itself — their presence always indicates a real crash.
+enum IccExitCode {
+  ICC_EXIT_CLEAN   = 0,  // Profile analyzed, no issues detected
+  ICC_EXIT_FINDING = 1,  // Findings detected (heuristic warnings, validation failures)
+  ICC_EXIT_ERROR   = 2,  // I/O error (file not found, profile read failure)
+  ICC_EXIT_USAGE   = 3,  // Usage error (bad arguments, unknown option)
+};
+
 extern bool g_verbose_errors;
 
 void ErrorOutputDirRequired();

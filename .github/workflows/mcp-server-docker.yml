@@ -3,7 +3,8 @@
 # Copyright (c) 2026 David H Hoyt LLC
 #
 # Intent: Build and push ICC Profile MCP Server container image
-#         with SBOM generation and build provenance attestation.
+#         with SBOM generation and build provenance attestation
+#         Modes: mcp (stdio, default), web (Starlette UI)
 #
 ###############################################################
 
@@ -51,6 +52,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
           tags: |
             type=sha,prefix=
+            type=raw,value=dev
             type=raw,value=latest
 
       - name: Build and push Docker image
@@ -62,6 +64,34 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test — MCP stdio
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+            | docker run --rm -i "$IMAGE" mcp \
+            | python3 -c "import sys,json; r=json.load(sys.stdin); assert r['result']['serverInfo']['name']=='icc-profile-analyzer', f'Bad: {r}'; print('[OK] MCP stdio init')"
+
+      - name: Smoke test — tool count
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
+          cat > /tmp/check_tools.py << 'PYEOF'
+          import sys, json
+          for line in sys.stdin:
+              msg = json.loads(line)
+              if 'result' in msg and 'tools' in msg['result']:
+                  tools = [t['name'] for t in msg['result']['tools']]
+                  print(f'[OK] {len(tools)} tools: {tools}')
+                  assert len(tools) >= 9, f'Expected 9+ tools, got {len(tools)}'
+                  sys.exit(0)
+          print('[FAIL] No tools/list response found')
+          sys.exit(1)
+          PYEOF
+          printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n' \
+            | docker run --rm -i "$IMAGE" mcp \
+            | python3 /tmp/check_tools.py
 
       - name: Generate SBOM
         uses: anchore/sbom-action@2d094306a78d7bde297684f0120dfb41969c38c2 # v0.22.2
@@ -104,8 +134,8 @@ jobs:
             echo "| **Tags** | $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ', ') |"
             echo ""
             echo "### Attestations"
-            echo "- ✅ Build provenance (SLSA)"
-            echo "- ✅ SBOM (SPDX)"
+            echo "- [OK] Build provenance (SLSA)"
+            echo "- [OK] SBOM (SPDX)"
             echo ""
             echo "Verify: \`gh attestation verify oci://ghcr.io/${{ github.repository_owner }}/icc-profile-mcp:latest -R ${{ github.repository }}\`"
           } >> $GITHUB_STEP_SUMMARY

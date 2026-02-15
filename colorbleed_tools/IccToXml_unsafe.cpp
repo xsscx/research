@@ -24,6 +24,7 @@
  */
 
 #include <cstdio>
+#include <cstring>
 #include "IccTagXmlFactory.h"
 #include "IccMpeXmlFactory.h"
 #include "IccProfileXml.h"
@@ -42,6 +43,12 @@ int main(int argc, char* argv[])
   }
   CIccTagCreator::PushFactory(new CIccTagXmlFactory());
   CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+
+  // Reject output paths with traversal sequences
+  if (strstr(argv[2], "..") != NULL) {
+    printf("ERROR: output path must not contain '..'\n");
+    return -1;
+  }
 
   CIccProfileXml profile;
   CIccFileIO srcIO, dstIO;

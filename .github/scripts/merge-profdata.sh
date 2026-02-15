@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-die() { echo "❌ ERROR: $*" >&2; exit 1; }
+die() { echo "[FAIL] ERROR: $*" >&2; exit 1; }
 
 # --- Argument parsing ---
 PROFRAW_DIR="${1:?Usage: merge-profdata.sh <profraw-dir> [output.profdata]}"
@@ -68,6 +68,6 @@ echo ""
 "$LLVM_PROFDATA" merge -sparse "${PROFRAW_FILES[@]}" -o "$OUTPUT" 2>&1
 
 SIZE=$(ls -lh "$OUTPUT" | awk '{print $5}')
-echo "✅ Merged profdata: $OUTPUT ($SIZE)"
+echo "[OK] Merged profdata: $OUTPUT ($SIZE)"
 echo ""
 echo "Next: generate-coverage-report.sh $OUTPUT <output-dir> [binary...]"

@@ -15,11 +15,11 @@ Last Updated: 2026-02-12 20:55:00 UTC by David Hoyt
 
 | Check | Status | Details |
 |-------|--------|---------|
-| **CodeQL** | ✅ 0 alerts | v4, 3 targets × 14 custom queries + security-and-quality |
-| **scan-build** | ✅ 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
-| **Action Pinning** | ✅ 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
-| **Fuzzers** | ✅ 17/17 | Build + smoke test pass, aligned to project tool scope |
-| **OOM Patches** | ✅ 12 patches | 128MB allocation caps in cfl/patches/ |
+| **CodeQL** | 0 alerts | v4, 3 targets × 14 custom queries + security-and-quality |
+| **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
+| **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
+| **Fuzzers** | 17/17 | Build + smoke test pass, aligned to project tool scope |
+| **OOM Patches** | 12 patches | 128MB allocation caps in cfl/patches/ |
 
 ## Build
 
