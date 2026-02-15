@@ -515,3 +515,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00Q\x10\x00\x01\xe7F"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xa8\x00\x00\x00\x00\x00\x00\x00"
