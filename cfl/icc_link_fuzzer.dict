@@ -53,3 +53,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q@\x00\x00#\x05"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xc2\xf5\x82\xe3\xd5\xccj\x8d"
+"\x01\x06"
+"\xc0n \x00 Q\x00\x00"
