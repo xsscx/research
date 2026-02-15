@@ -36,38 +36,83 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache pip packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('mcp-server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
       - name: Install dependencies
         run: |
           cd mcp-server
           pip install -r requirements.txt
 
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: iccDEV
+          key: ${{ runner.os }}-iccdev-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Cache iccDEV build
+        id: cache-iccdev-build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            iccDEV/Build/IccProfLib
+            iccDEV/Build/IccXML
+            iccDEV/Build/CMakeCache.txt
+            iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Install iccDEV + iccanalyzer-lite
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
+          set -euo pipefail
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang git ca-certificates \
             libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
 
-          # Clone and build iccDEV
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
-          cd iccDEV
-          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
-          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
-          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
-          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Build/Cmake/CMakeLists.txt
-          cd ..
-          echo "Applying CFL library patches..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
-            else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
-            fi
-          done
-          cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
-          cd ../..
+          if [ "${{ steps.cache-iccdev.outputs.cache-hit }}" != 'true' ]; then
+            # Clone and build iccDEV
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+            cd iccDEV
+            sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+            sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+            sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+            sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Build/Cmake/CMakeLists.txt
+            cd ..
+          fi
+
+          if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
+            echo "Applying CFL library patches..."
+            for p in cfl/patches/*.patch; do
+              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+                echo "  [OK] $(basename "$p")"
+              else
+                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+              fi
+            done
+            cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
+            cd ../..
+          fi
 
           # Build colorbleed_tools (needed for XML roundtrip tests)
           cd colorbleed_tools

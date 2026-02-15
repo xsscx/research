@@ -418,9 +418,9 @@ jobs:
           SUMMARY_EOF
 
           if [ "${{ env.grand_failed }}" -eq 0 ]; then
-            echo "### ✅ ALL ROUNDTRIPS SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
+            echo "### [OK] ALL ROUNDTRIPS SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ⚠️ ${{ env.grand_failed }} ROUNDTRIP FAILURE(S)" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] ${{ env.grand_failed }} ROUNDTRIP FAILURE(S)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Final status

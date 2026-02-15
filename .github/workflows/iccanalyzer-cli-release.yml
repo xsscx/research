@@ -61,6 +61,15 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
       - name: Install dependencies
         env:
           BASH_ENV: /dev/null
@@ -71,7 +80,11 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          sudo apt-get update -qq
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
@@ -87,7 +100,15 @@ jobs:
             libssl-dev \
             lcov
 
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -104,18 +125,31 @@ jobs:
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Cache iccDEV build artifacts
+        id: cache-iccdev-build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-reldbg-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
 
       - name: Build iccDEV libraries with full instrumentation
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -135,6 +169,8 @@ jobs:
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
 
           echo "Building libraries with $(nproc) cores..."
@@ -414,6 +450,8 @@ jobs:
             -DCMAKE_C_FLAGS="-O2 -DNDEBUG -fno-lto" \
             -DENABLE_STATIC_LIBS=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           make -j$(nproc) IccProfLib2-static IccXML2-static
           cd -
@@ -556,10 +594,10 @@ jobs:
 
           if [ "${{ env.grand_failed }}" -eq 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ✅ ALL CLEAN — No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
+            echo "### [OK] ALL CLEAN — No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ⚠️ ${{ env.grand_failed }} FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] ${{ env.grand_failed }} FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Final status

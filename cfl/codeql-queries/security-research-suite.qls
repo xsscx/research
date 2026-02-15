@@ -21,7 +21,16 @@
 - queries: ./type-confusion.ql
 - queries: ./use-after-free.ql
 - queries: ./integer-overflow-allocation.ql
+- queries: ./integer-overflow-multiply.ql
 - queries: ./alloc-dealloc-mismatch.ql
+- queries: ./unchecked-io-return.ql
+- queries: ./injection-attacks.ql
+- queries: ./xml-all-attacks.ql
+- queries: ./xml-external-entity-attacks.ql
+- queries: ./iccanalyzer-security.ql
+- queries: ./iccdumpprofile-enum-reachability.ql
+- queries: ./all-tools-enum-reachability.ql
+- queries: ./argv-output-path.ql
 
 # Built-in security queries
 - queries: .

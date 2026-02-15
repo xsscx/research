@@ -67,7 +67,7 @@ unmount_ramdisk() {
     if [ -d "$ram_corpus" ]; then
       mkdir -p "$disk_corpus"
       rsync -a --quiet "$ram_corpus/" "$disk_corpus/"
-      echo "    ✓ $f  ($(find "$ram_corpus" -type f | wc -l) inputs)"
+      echo "    [OK] $f  ($(find "$ram_corpus" -type f | wc -l) inputs)"
     fi
   done
 
@@ -77,7 +77,7 @@ unmount_ramdisk() {
   if [ -n "$artifacts" ]; then
     mkdir -p "$SCRIPT_DIR/findings"
     cp $artifacts "$SCRIPT_DIR/findings/"
-    echo "    ⚠ Crash artifacts saved to cfl/findings/"
+    echo "    [WARN] Crash artifacts saved to cfl/findings/"
   fi
 
   echo "[*] Unmounting ramdisk"
@@ -145,7 +145,7 @@ PIDS=()
 for f in "${FUZZERS[@]}"; do
   fuzzer_bin="$BIN_DIR/$f"
   if [ ! -x "$fuzzer_bin" ]; then
-    echo "    ⚠ Skipping $f (binary not found)"
+    echo "    [WARN] Skipping $f (binary not found)"
     continue
   fi
 

@@ -48,17 +48,38 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          sudo apt-get update
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang git ca-certificates \
             libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
 
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: iccDEV
+          key: ${{ runner.os }}-iccdev-codeql-${{ matrix.target }}-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Clone iccDEV repository
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
           cd iccDEV
@@ -73,9 +94,9 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
             fi
           done
 
@@ -187,7 +208,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "## CodeQL Analysis: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** ✅ Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Artifact:** codeql-analysis-${{ matrix.target }}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
 

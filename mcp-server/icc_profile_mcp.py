@@ -11,6 +11,8 @@ Build prerequisites:
 """
 
 import asyncio
+import base64
+import hashlib
 import os
 import re
 import tempfile
@@ -49,6 +51,8 @@ def register_allowed_base(base: Path) -> None:
         _ALLOWED_BASES_RESOLVED.append(resolved)
 
 MAX_OUTPUT_BYTES = 10 * 1024 * 1024  # 10 MB cap on subprocess output
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB cap on uploaded profiles
+_UPLOAD_DIR: Path | None = None  # lazily created secure temp dir
 
 # Matches sanitize-sed.sh: strip C0 control chars except LF (\n), plus DEL (0x7F).
 # Keeps tab (\t) for formatted output readability.
@@ -365,6 +369,180 @@ async def list_test_profiles(directory: str = "test-profiles") -> str:
             continue
     header = f"{directory}/ — {len(lines)} profiles:\n"
     return header + "\n".join(lines)
+
+
+def _get_upload_dir() -> Path:
+    """Return (and lazily create) a secure temp directory for uploaded profiles."""
+    global _UPLOAD_DIR
+    if _UPLOAD_DIR is None or not _UPLOAD_DIR.is_dir():
+        _UPLOAD_DIR = Path(tempfile.mkdtemp(prefix="mcp_uploads_"))
+        _UPLOAD_DIR.chmod(0o700)
+        register_allowed_base(_UPLOAD_DIR)
+    return _UPLOAD_DIR
+
+
+@mcp.tool()
+async def upload_and_analyze(
+    data_base64: str,
+    filename: str = "uploaded.icc",
+    mode: str = "security",
+) -> str:
+    """Upload an ICC profile (base64-encoded) and run analysis on it.
+
+    Accepts a base64-encoded ICC profile, saves it to a secure temp directory,
+    and runs the requested analysis mode. The file is cleaned up after analysis.
+
+    Args:
+        data_base64: Base64-encoded ICC profile data
+        filename: Original filename (used for display, sanitized before use)
+        mode: Analysis mode — "security" (default), "inspect", "roundtrip",
+              "full", "xml", or "all" (runs security + inspect + roundtrip)
+    """
+    # Decode and validate
+    try:
+        raw = base64.b64decode(data_base64, validate=True)
+    except Exception:
+        return "[FAIL] Invalid base64 data. Encode the ICC file with: base64 < profile.icc"
+
+    if len(raw) < 128:
+        return "[FAIL] Data too small to be a valid ICC profile (min 128 bytes for header)"
+    if len(raw) > MAX_UPLOAD_BYTES:
+        return f"[FAIL] Profile too large ({len(raw):,} bytes, max {MAX_UPLOAD_BYTES:,})"
+
+    # Sanitize filename
+    safe_name = re.sub(r"[^\w.\-]", "_", os.path.basename(filename))
+    if not safe_name or safe_name.startswith("."):
+        safe_name = "uploaded.icc"
+    if not safe_name.lower().endswith((".icc", ".icm", ".iccp")):
+        safe_name += ".icc"
+
+    # Write to secure temp dir
+    upload_dir = _get_upload_dir()
+    prefix = hashlib.sha256(raw[:256]).hexdigest()[:12]
+    dest = upload_dir / f"{prefix}_{safe_name}"
+    dest.write_bytes(raw)
+
+    try:
+        _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+        profile_path = str(dest)
+
+        modes = {
+            "security": ["-h"],
+            "inspect": ["-nf"],
+            "roundtrip": ["-r"],
+            "full": ["-a"],
+        }
+
+        if mode == "xml":
+            result = await profile_to_xml(profile_path)
+            return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
+
+        if mode == "all":
+            parts = [f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)"]
+            for m_name, m_flags in [("security", ["-h"]), ("inspect", ["-nf"]), ("roundtrip", ["-r"])]:
+                out = await _run([str(ANALYZER_BIN)] + m_flags + [profile_path])
+                parts.append(f"\n{'='*70}\n  {m_name.upper()} MODE ({' '.join(m_flags)})\n{'='*70}\n{out}")
+            return "\n".join(parts)
+
+        flags = modes.get(mode)
+        if not flags:
+            return f"[FAIL] Unknown mode '{mode}'. Choose: security, inspect, roundtrip, full, xml, all"
+
+        result = await _run([str(ANALYZER_BIN)] + flags + [profile_path], timeout=120)
+        return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
+    finally:
+        dest.unlink(missing_ok=True)
+
+
+@mcp.tool()
+async def build_tools(target: str = "all") -> str:
+    """Build the native analysis tools required by this MCP server.
+
+    Builds iccanalyzer-lite and/or colorbleed_tools from source using their
+    respective build scripts. Requires clang/clang++ and system dependencies.
+
+    Args:
+        target: What to build — "all", "iccanalyzer-lite", or "colorbleed_tools"
+    """
+    targets = {
+        "iccanalyzer-lite": ("iccanalyzer-lite", "./build.sh"),
+        "colorbleed_tools": ("colorbleed_tools", "make setup && make"),
+    }
+
+    if target == "all":
+        build_list = list(targets.items())
+    elif target in targets:
+        build_list = [(target, targets[target])]
+    else:
+        return f"Unknown target '{target}'. Choose: all, iccanalyzer-lite, colorbleed_tools"
+
+    results = []
+    for name, (subdir, _) in build_list:
+        build_dir = REPO_ROOT / subdir
+        if not build_dir.is_dir():
+            results.append(f"[FAIL] {name}: directory not found at {build_dir}")
+            continue
+
+        if name == "colorbleed_tools":
+            # Two-step: make setup && make
+            setup_out = await _run_build(
+                ["make", "setup"], cwd=str(build_dir), timeout=120
+            )
+            build_out = await _run_build(
+                ["make"], cwd=str(build_dir), timeout=120
+            )
+            output = setup_out + "\n" + build_out
+        else:
+            output = await _run_build(
+                ["bash", "./build.sh"], cwd=str(build_dir), timeout=300
+            )
+
+        # Check for build artifacts
+        if name == "iccanalyzer-lite":
+            binary = build_dir / "iccanalyzer-lite"
+            if binary.is_file():
+                results.append(f"[OK] {name}: built successfully ({binary})")
+            else:
+                results.append(f"[FAIL] {name}: binary not found after build\n{output}")
+        elif name == "colorbleed_tools":
+            bins = [build_dir / b for b in ("iccToXml_unsafe", "iccFromXml_unsafe")]
+            found = [b.name for b in bins if b.is_file()]
+            if found:
+                results.append(f"[OK] {name}: built {', '.join(found)}")
+            else:
+                results.append(f"[FAIL] {name}: no binaries found after build\n{output}")
+
+    return "\n".join(results)
+
+
+async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
+    """Run a build command in a specified working directory.
+
+    Unlike _run(), inherits the full environment (needed for build tools)
+    but still sanitizes output.
+    """
+    env = os.environ.copy()
+    env["ASAN_OPTIONS"] = "detect_leaks=0"
+    env["MallocNanoZone"] = "0"
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=cwd,
+        env=env,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return f"[TIMEOUT after {timeout}s]"
+
+    output = stdout.decode(errors="replace")
+    if len(output) > MAX_OUTPUT_BYTES:
+        output = output[:MAX_OUTPUT_BYTES] + "\n[OUTPUT TRUNCATED at 10MB]"
+    return _sanitize_output(output.strip())
 
 
 def run_server() -> None:

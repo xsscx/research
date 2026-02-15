@@ -80,14 +80,14 @@ banner() { echo ""; echo "══════════════════
 if [ "${1:-}" = "clean" ]; then
   banner "Cleaning build artifacts"
   rm -rf "$OUTPUT_DIR" "$ICCDEV_DIR" "$SCRIPT_DIR/.build_tmp"
-  echo "✅ Clean complete"
+  echo "[OK] Clean complete"
   exit 0
 fi
 
 # --- Pre-flight: verify toolchain ---
 for tool in "$CC" "$CXX" cmake pkg-config; do
   if ! command -v "$tool" &>/dev/null; then
-    echo "❌ ERROR: $tool not found. Install it and retry."
+    echo "[FAIL] ERROR: $tool not found. Install it and retry."
     exit 1
   fi
 done
@@ -98,7 +98,7 @@ echo 'int main(){}' > "$ASAN_TEST"
 if ! $CXX -fsanitize=address,undefined "$ASAN_TEST" -o /dev/null 2>/dev/null; then
   rm -f "$ASAN_TEST"
   CLANG_VER=$($CXX --version | grep -oP '\d+' | head -1)
-  echo "❌ ERROR: Clang sanitizer runtime not found."
+  echo "[FAIL] ERROR: Clang sanitizer runtime not found."
   echo ""
   echo "   The ASan/UBSan runtime library is required but missing."
   echo "   On Ubuntu/Debian, install it with:"
@@ -138,7 +138,7 @@ if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
   echo "Applying CFL library patches..."
   for p in "$PATCHES_DIR"/*.patch; do
     if patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
-      echo "  ✅ $(basename "$p")"
+      echo "  [OK] $(basename "$p")"
     else
       echo "  ⏭  $(basename "$p") (already applied or N/A)"
     fi
@@ -191,7 +191,7 @@ echo "  UBSan symbols:    $UBSAN_SYM"
 echo "  Coverage symbols: $COV_SYM"
 
 if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ]; then
-  echo "❌ ERROR: Missing instrumentation — aborting"
+  echo "[FAIL] ERROR: Missing instrumentation — aborting"
   exit 1
 fi
 
@@ -225,10 +225,10 @@ build_fuzzer() {
     "${extra_libs[@]}" \
     -o "$OUTPUT_DIR/$name" 2>&1; then
     SIZE=$(ls -lh "$OUTPUT_DIR/$name" | awk '{print $5}')
-    echo "  ✅ $name ($SIZE)"
+    echo "  [OK] $name ($SIZE)"
     BUILT=$((BUILT + 1))
   else
-    echo "  ❌ $name FAILED"
+    echo "  [FAIL] $name FAILED"
     FAILED=$((FAILED + 1))
   fi
 }
@@ -287,9 +287,9 @@ fi
 
 if [ "$FAILED" -gt 0 ]; then
   echo ""
-  echo "❌ $FAILED fuzzer(s) failed to build"
+  echo "[FAIL]FAILED fuzzer(s) failed to build"
   exit 1
 fi
 
 echo ""
-echo "✅ All $BUILT fuzzers built successfully"
+echo "[OK] All $BUILT fuzzers built successfully"
