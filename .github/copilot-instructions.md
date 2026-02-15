@@ -1,6 +1,14 @@
 # Copilot Instructions — ICC Security Research
 
-## Build Commands
+## IMPORTANT: Tools are pre-built
+The `copilot-setup-steps.yml` workflow has already installed `iccanalyzer-lite` and `colorbleed_tools` binaries from the Docker image. **Do NOT build from source.** The tools are ready to use at:
+- `iccanalyzer-lite/iccanalyzer-lite` — security analyzer binary
+- `colorbleed_tools/iccToXml_unsafe` — ICC to XML converter
+- `colorbleed_tools/iccFromXml_unsafe` — XML to ICC converter
+
+Just run the analysis commands directly. Do not run `build.sh`, `local_build.sh`, `make setup`, or `make`.
+
+## Build Commands (for reference only — NOT needed for analysis)
 
 ```bash
 # iccanalyzer-lite (ASAN + UBSAN + coverage, clang++ only)
