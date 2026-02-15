@@ -240,3 +240,7 @@
 "2\x03"
 "\x00\x00P0\x013\x840"
 "\x13\x00\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01da"
+"ta"

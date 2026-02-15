@@ -418,3 +418,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x92"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\xbb"
