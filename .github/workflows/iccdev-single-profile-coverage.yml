@@ -110,6 +110,12 @@ jobs:
               echo "  [SKIP] $(basename "$p")"
             fi
           done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
 
       - name: Cache iccDEV coverage build
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
@@ -256,12 +262,13 @@ jobs:
             fi
           done
 
-          # Text summary
+          # Text summary (filter benign mismatch warning from multi-binary merge)
           llvm-cov-18 report \
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -ignore-filename-regex='(third_party|/usr/|test)' \
-            2>&1 | tee coverage-report/coverage-summary.txt
+            2>&1 | grep -v "functions have mismatched data" \
+            | tee coverage-report/coverage-summary.txt
 
           # HTML report
           llvm-cov-18 show \
@@ -272,7 +279,7 @@ jobs:
             -show-line-counts-or-regions \
             -show-expansions \
             -ignore-filename-regex='(third_party|/usr/|test)' \
-            2>&1 | tail -5
+            2>&1 | grep -v "functions have mismatched data" | tail -5
 
           # LCOV export
           llvm-cov-18 export \
