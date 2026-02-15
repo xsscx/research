@@ -164,6 +164,9 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
 
+          # Disable LTO — produces bitcode archives incompatible with sanitizer linking
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt
+
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
