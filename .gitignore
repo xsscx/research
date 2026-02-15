@@ -66,6 +66,7 @@ venv/
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
 oom-*
+!analysis-reports/oom-*
 slow-unit-*
 *:Zone.Identifier
 dd.log
