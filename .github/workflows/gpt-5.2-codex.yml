@@ -73,9 +73,9 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
 
@@ -176,7 +176,7 @@ jobs:
         run: |
           echo "## CodeQL Analysis: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** ✅ Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Artifact:** codeql-analysis-${{ matrix.target }}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
 

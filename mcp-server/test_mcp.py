@@ -554,7 +554,7 @@ async def main():
     print(f"{'='*60}")
     print()
     for section, (sp, sf) in T.section_counts.items():
-        status = "✓" if sf == 0 else "✗"
+        status = "[OK]" if sf == 0 else "[FAIL]"
         print(f"  {status} {section}: {sp}/{sp+sf}")
     print()
     print(f"  Total: {T.passed}/{T.total} passed, {T.failed} failed")

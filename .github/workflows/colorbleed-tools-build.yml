@@ -88,9 +88,9 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
           cd colorbleed_tools
@@ -130,7 +130,7 @@ jobs:
           unset GITHUB_TOKEN || true 
           echo "### Linux Build Summary (${{ matrix.compiler }})" >> "$GITHUB_STEP_SUMMARY"
           echo "- Compiler: ${{ matrix.compiler }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: ✅ Success" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"

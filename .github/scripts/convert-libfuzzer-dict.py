@@ -205,7 +205,7 @@ def main():
         print()
         for fuzzer, dictfile in sorted(FUZZER_DICT_MAP.items()):
             path = os.path.join(DICT_DIR, dictfile)
-            exists = "✓" if os.path.exists(path) else "✗"
+            exists = "[OK]" if os.path.exists(path) else "[FAIL]"
             count = 0
             if os.path.exists(path):
                 with open(_sanitize_path(path)) as f:
