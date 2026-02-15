@@ -140,9 +140,18 @@ if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
     if patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
       echo "  [OK] $(basename "$p")"
     else
-      echo "  ⏭  $(basename "$p") (already applied or N/A)"
+      echo "  [SKIP] $(basename "$p") (already applied or N/A)"
     fi
   done
+fi
+
+# Strip stray U+FE0F (emoji variation selector) from upstream source
+SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
+if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+  sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+  echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+else
+  echo "[INFO] IccSignatureUtils.h already clean"
 fi
 
 # --- Step 2: Patch wxWidgets out ---

@@ -29,6 +29,13 @@ fi
 
 echo "Using iccDEV at: $ICCDEV_ROOT"
 
+# Strip stray U+FE0F (emoji variation selector) from upstream source
+SIGUTILS="$ICCDEV_ROOT/IccProfLib/IccSignatureUtils.h"
+if [ -f "$SIGUTILS" ] && grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+  sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+  echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+fi
+
 # Clean stale coverage data to prevent gcda merge errors after rebuild
 find . -name "*.gcda" -delete 2>/dev/null || true
 

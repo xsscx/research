@@ -61,23 +61,30 @@ all: preflight $(TARGETS)
 	@echo ""
 
 preflight:
-	@command -v $(CXX) >/dev/null 2>&1 || { echo "❌ ERROR: $(CXX) not found"; exit 1; }
-	@command -v cmake >/dev/null 2>&1 || { echo "❌ ERROR: cmake not found"; exit 1; }
-	@test -f "$(LIB_PROF)" || { echo "❌ ERROR: $(LIB_PROF) not found. Run 'make setup' first."; exit 1; }
-	@test -f "$(LIB_XML)" || { echo "❌ ERROR: $(LIB_XML) not found. Run 'make setup' first."; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "[FAIL] ERROR: $(CXX) not found"; exit 1; }
+	@command -v cmake >/dev/null 2>&1 || { echo "[FAIL] ERROR: cmake not found"; exit 1; }
+	@test -f "$(LIB_PROF)" || { echo "[FAIL] ERROR: $(LIB_PROF) not found. Run 'make setup' first."; exit 1; }
+	@test -f "$(LIB_XML)" || { echo "[FAIL] ERROR: $(LIB_XML) not found. Run 'make setup' first."; exit 1; }
 
 setup:
 	@echo ""
 	@echo "════════════════════════════════════════"
 	@echo "  ColorBleed Setup: iccDEV Libraries"
 	@echo "════════════════════════════════════════"
-	@command -v $(CXX) >/dev/null 2>&1 || { echo "❌ ERROR: $(CXX) not found"; exit 1; }
-	@command -v cmake >/dev/null 2>&1 || { echo "❌ ERROR: cmake not found"; exit 1; }
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "[FAIL] ERROR: $(CXX) not found"; exit 1; }
+	@command -v cmake >/dev/null 2>&1 || { echo "[FAIL] ERROR: cmake not found"; exit 1; }
 	@if [ ! -d "$(REPO_ROOT)/.git" ]; then \
 		echo "Cloning iccDEV..."; \
 		git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git $(REPO_ROOT); \
 	else \
 		echo "Using existing checkout: $$(cd $(REPO_ROOT) && git rev-parse --short HEAD)"; \
+	fi
+	@SIGUTILS="$(REPO_ROOT)/IccProfLib/IccSignatureUtils.h"; \
+	if grep -qP '\xef\xb8\x8f' "$$SIGUTILS" 2>/dev/null; then \
+		sed -i 's/\xef\xb8\x8f//g' "$$SIGUTILS"; \
+		echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"; \
+	else \
+		echo "[INFO] IccSignatureUtils.h already clean"; \
 	fi
 	@echo "Patching wxWidgets and LTO out..."
 	@CMAKELISTS="$(REPO_ROOT)/Build/Cmake/CMakeLists.txt"; \

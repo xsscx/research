@@ -39,6 +39,15 @@ else
     git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
 
+# --- Step 1b: Strip stray U+FE0F (emoji variation selector) from upstream source ---
+SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
+if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+    sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+    echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+else
+    echo "[INFO] IccSignatureUtils.h already clean"
+fi
+
 # --- Step 2: Build iccDEV static libraries ---
 if [ -f "$LIB_PROF" ] && [ -f "$LIB_XML" ]; then
     echo "[INFO] iccDEV libs already built (skip)"
