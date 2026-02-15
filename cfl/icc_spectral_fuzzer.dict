@@ -49,3 +49,8 @@
 "\xf3\x01\x00\x00\x00\x00\x00\x00"
 "\x86BGR"
 "BBGR"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x13\xe7\xec\xbc\xe8K\xf9m"
+" ZYX"
+"\x00\x00st"

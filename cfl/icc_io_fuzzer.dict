@@ -2527,3 +2527,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "N10__cxxabiv"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\xa0\x00\x00"
