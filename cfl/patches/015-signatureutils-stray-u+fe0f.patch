@@ -1,0 +1,20 @@
+--- a/IccProfLib/IccSignatureUtils.h	2026-02-15 13:48:28.023579519 -0500
++++ IccProfLib/IccSignatureUtils.h	2026-02-15 13:48:28.023579519 -0500
+@@ -307,7 +307,7 @@
+ 
+     default:
+       // Emit structured warning with signature details
+-      ICC_LOG_WARNING("IccSignatureUtils.h:️ ColorSpace signature: 0x%08x (%s)",
++      ICC_LOG_WARNING("IccSignatureUtils.h: ColorSpace signature: 0x%08x (%s)",
+                       sig, ColorSpaceSignatureToStr(sig));
+       return false;
+   }
+@@ -369,7 +369,7 @@
+       return true;
+ 
+     default:
+-      ICC_LOG_WARNING("IccSignatureUtils.h:️ Invalid Technology signature: 0x%08x", sig);
++      ICC_LOG_WARNING("IccSignatureUtils.h: Invalid Technology signature: 0x%08x", sig);
+       return false;
+   }
+ }
