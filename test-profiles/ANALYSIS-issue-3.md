@@ -92,7 +92,7 @@
 
 **[WARN] H5 -- Unknown platform**: the platform field `0x00020000` does not match any known ICC platform code (APPL, MSFT, SGI, SUNW).
 
-**[WARN] H15 -- Malformed date**: year=2, month=0 is outside valid ranges. Malformed dates can trigger undefined behavior in date parsing routines.
+**[WARN] H15 -- Malformed date**: year=2, month=0 is outside valid ranges (valid months are 1-12, valid years are 1900-2100). Malformed dates can trigger undefined behavior in date parsing routines.
 
 **[WARN] H16 -- Repeat-byte patterns**: both colorSpace and PCS contain `0x20202020`, indicating the header was not populated with valid ICC data.
 
