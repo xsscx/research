@@ -110,16 +110,10 @@ protected:
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 130 || size > 1024 * 1024) return 0;
   
-  // Extract parameters from first 2 bytes (matches tool's argv[2] and argv[3])
-  // Tool line 158: nIntent = icRelativeColorimetric (default)
-  // Tool line 162: nIntent = atoi(argv[2]) (if provided)
-  // Tool line 164: nUseMPE = atoi(argv[3]) (if provided)
-  icRenderingIntent nIntent = (icRenderingIntent)(data[0] % 4);  // 0-3 (Perceptual, Relative, Saturation, Absolute)
-  bool nUseMPE = (data[1] % 2) == 1;  // false or true
-  
-  // Consume parameter bytes
-  data += 2;
-  size -= 2;
+  // Derive parameters from trailing bytes to preserve ICC header structure
+  // (consuming leading bytes shifts the profile header, breaking fidelity)
+  icRenderingIntent nIntent = (icRenderingIntent)(data[size - 1] % 4);
+  bool nUseMPE = (data[size - 2] % 2) == 1;
   
   // Create temp file (TOOL FIDELITY - matches tool's file-based I/O)
   char tmp_file[] = "/tmp/fuzz_roundtrip_XXXXXX";
