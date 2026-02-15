@@ -60,7 +60,7 @@ cat >> "$REPORT" << EOF
 | Command | Exit Code | Meaning |
 |---------|-----------|---------|
 | \`-a\` (comprehensive) | ${EC_A} | $([ $EC_A -eq 0 ] && echo "Clean" || ([ $EC_A -eq 1 ] && echo "Finding detected" || ([ $EC_A -eq 2 ] && echo "Error" || echo "Signal/crash"))) |
-| \`-nf\` (ninja full dump) | ${EC_NF} | $([ $EC_NF -eq 0 ] && echo "Clean" || ([ $EC_NF -eq 1 ] && echo "Finding detected" || ([ $EC_NF -eq 2 ] && echo "Error" || echo "Signal/crash"))) |
+| \`-nf\` (ninja full dump) | ${EC_NF} | $([ $EC_NF -eq 0 ] && echo "Dump completed" || ([ $EC_NF -eq 1 ] && echo "Finding detected" || ([ $EC_NF -eq 2 ] && echo "Error" || echo "Signal/crash"))) |
 | \`-r\` (round-trip) | ${EC_R} | $([ $EC_R -eq 0 ] && echo "Clean" || ([ $EC_R -eq 1 ] && echo "Finding detected" || ([ $EC_R -eq 2 ] && echo "Error" || echo "Signal/crash"))) |
 
 **ASAN/UBSAN**: $([ $ASAN_TOTAL -gt 0 ] && echo "[CRITICAL] ${ASAN_TOTAL} sanitizer error(s) detected" || echo "No sanitizer errors detected")
