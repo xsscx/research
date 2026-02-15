@@ -112,6 +112,12 @@ jobs:
                 echo "  [SKIP] $(basename "$p") (already applied or N/A)"
               fi
             done
+            # Strip stray U+FE0F (emoji variation selector) from upstream source
+            SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
+            if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+              sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+              echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+            fi
             cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
             cd ../..
           fi
