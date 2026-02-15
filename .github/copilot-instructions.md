@@ -1,37 +1,41 @@
 # Copilot Instructions — ICC Security Research
 
-## IMPORTANT: Tools are pre-built
-The `copilot-setup-steps.yml` workflow has already installed `iccanalyzer-lite` and `colorbleed_tools` binaries from the Docker image. **Do NOT build from source.** The tools are ready to use at:
-- `iccanalyzer-lite/iccanalyzer-lite` — security analyzer binary
+## STOP — DO NOT BUILD ANYTHING
+
+**The tools are ALREADY BUILT.** The `copilot-setup-steps.yml` Docker image provides pre-built binaries.
+
+**NEVER run**: `build.sh`, `local_build.sh`, `make setup`, `make`, `cmake`, `git clone` for iccDEV, or any compilation command.
+
+**NEVER clone iccDEV.** It is already built into the Docker image.
+
+The binaries are ready NOW at these paths:
+- `iccanalyzer-lite/iccanalyzer-lite` — security analyzer (ASAN+UBSAN instrumented)
 - `colorbleed_tools/iccToXml_unsafe` — ICC to XML converter
 - `colorbleed_tools/iccFromXml_unsafe` — XML to ICC converter
 
-Just run the analysis commands directly. Do not run `build.sh`, `local_build.sh`, `make setup`, or `make`.
+**Your first action** on any analysis issue: run `ls -la iccanalyzer-lite/iccanalyzer-lite` to confirm the binary exists, then run it. If the binary does not exist, report the error — do NOT try to build it.
 
-## Build Commands (for reference only — NOT needed for analysis)
+## FAILURE IDENTIFICATION — READ THIS
 
-```bash
-# iccanalyzer-lite (ASAN + UBSAN + coverage, clang++ only)
-cd iccanalyzer-lite && ./build.sh
+You MUST accurately report failures. Do NOT claim success when errors occur.
 
-# CFL fuzzers (17 LibFuzzer harnesses, auto-applies OOM patches to iccDEV)
-cd cfl && ./build.sh
+**How to detect failures:**
+1. **Exit code != 0** — Any non-zero exit code is a failure or finding. Report it explicitly.
+2. **ASAN output** — Lines containing `ERROR: AddressSanitizer` indicate memory safety bugs. This is a CRITICAL finding.
+3. **UBSAN output** — Lines containing `runtime error:` indicate undefined behavior. This is a finding.
+4. **Signal termination** — Exit codes 128+ (e.g., 134=SIGABRT, 137=SIGKILL, 139=SIGSEGV) are crashes. Report as CRITICAL.
+5. **Timeout** — If a tool hangs, that is a finding (possible infinite loop/recursion). Kill it after 60 seconds.
+6. **Empty output** — If a tool produces no stdout, something went wrong. Report it.
 
-# colorbleed_tools (unsafe ICC↔XML converters for mutation testing)
-cd colorbleed_tools && make setup && make
+**What counts as SUCCESS:** Exit code 0 AND no ASAN/UBSAN stderr AND non-empty output.
 
-# MCP server (Python venv + native deps)
-cd mcp-server && ./build.sh build
+**What you MUST NOT do:**
+- Do NOT say "analysis completed successfully" if exit code was non-zero
+- Do NOT omit ASAN/UBSAN stderr from the report
+- Do NOT summarize tool output — include it VERBATIM
+- Do NOT skip any of the 3 required commands (`-a`, `-nf`, `-r`)
 
-# MCP server tests (run from venv)
-cd mcp-server && ./build.sh test
-# Or individually:
-cd mcp-server && python test_mcp.py    # ~201 tests
-cd mcp-server && python test_web_ui.py  # ~123 tests
-
-# colorbleed_tools tests
-cd colorbleed_tools && make test
-```
+## Build Commands (REFERENCE ONLY — do NOT run these)
 
 ## Fuzzing
 
@@ -81,19 +85,50 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 3. Run the analysis tools against the renamed file
 
 ### Required analysis workflow for ICC profile issues
-When an issue asks to analyze an ICC profile, you MUST run ALL of these steps and include the **complete raw output** from each tool in the report. Do NOT summarize or omit tool output.
+When an issue asks to analyze an ICC profile, follow these EXACT steps in order. Do NOT skip steps. Do NOT build anything.
 
-1. `iccanalyzer-lite -a <file>` — comprehensive analysis (security heuristics + round-trip + structural). Include the **complete raw output**.
-2. `iccanalyzer-lite -nf <file>` — ninja mode full dump (no truncation). Include the **complete raw output**.
-3. `iccanalyzer-lite -r <file>` — round-trip accuracy test. Include the **complete raw output**.
-4. Record the exit code from each command (0=clean, 1=finding, 2=error, 3=usage).
-5. Include any ASAN/UBSAN stderr output — this is security-relevant.
-6. Add your own analysis AFTER all raw tool output — do not replace it with a summary.
+**Step 1: Verify the binary exists (do NOT build)**
+```bash
+ls -la iccanalyzer-lite/iccanalyzer-lite
+```
+If the binary does not exist, STOP and report the error. Do NOT try to build it.
 
-### Where to put the report
-Commit the complete report (all raw tool output + your analysis) to `analysis-reports/<profile-name>-analysis.md` in the repository. Include the full raw output in the **PR description** as well. The PR description is where the user will see results — do not leave it as just a checklist or summary.
+**Step 2: Run comprehensive analysis**
+```bash
+iccanalyzer-lite/iccanalyzer-lite -a test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
+```
+Capture ALL stdout and stderr. The `2>&1` ensures ASAN/UBSAN output is captured.
 
-The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels and heuristic IDs `[H1]`–`[H19]`. This output MUST appear verbatim in the report. If you summarize instead of including the raw output, the report is incomplete.
+**Step 3: Run ninja full dump**
+```bash
+iccanalyzer-lite/iccanalyzer-lite -nf test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
+```
+
+**Step 4: Run round-trip test**
+```bash
+iccanalyzer-lite/iccanalyzer-lite -r test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
+```
+
+**Step 5: Evaluate results honestly**
+- If ANY exit code is non-zero, report it as a finding or error (see exit codes above)
+- If ASAN/UBSAN output appears in stderr, report it as a CRITICAL security finding
+- If a command produces no output, report that as an error
+- Do NOT say "completed successfully" unless exit code = 0 AND no sanitizer errors
+
+**Step 6: Write the report**
+Create `analysis-reports/<profile-name>-analysis.md` containing:
+1. The VERBATIM raw output from all 3 commands (inside code blocks)
+2. The exit code from each command
+3. Any ASAN/UBSAN stderr (inside code blocks)
+4. Your analysis AFTER the raw output — never instead of it
+
+**Step 7: Update the PR description**
+The PR description MUST contain the full raw output, not just a checklist. Replace the WIP checklist with the actual report content.
+
+### Report quality requirements
+- The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels and heuristic IDs `[H1]`–`[H19]`. This output MUST appear verbatim.
+- If you summarize instead of including raw output, the report is INCOMPLETE and WRONG.
+- If you claim success but the exit code was non-zero, the report is WRONG.
 
 ### Code coverage for a single profile
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
