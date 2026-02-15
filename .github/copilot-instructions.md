@@ -123,12 +123,19 @@ Create `analysis-reports/<profile-name>-analysis.md` containing:
 4. Your analysis AFTER the raw output — never instead of it
 
 **Step 7: Update the PR description**
-The PR description MUST contain the full raw output, not just a checklist. Replace the WIP checklist with the actual report content.
+The PR description should contain:
+- A summary with exit codes from all 3 commands
+- Key findings (heuristic warnings, ASAN/UBSAN output, structural issues)
+- Reference to the full report in `analysis-reports/`
+
+The full verbatim output goes in the committed report file. The PR description is a summary pointing to it. Do NOT leave the PR description as just a WIP checklist.
 
 ### Report quality requirements
-- The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels and heuristic IDs `[H1]`–`[H19]`. This output MUST appear verbatim.
-- If you summarize instead of including raw output, the report is INCOMPLETE and WRONG.
+- The committed report in `analysis-reports/` MUST contain verbatim raw output from all 3 commands inside code blocks.
+- The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels and heuristic IDs `[H1]`–`[H19]`. This output MUST appear verbatim in the report file.
+- If you summarize instead of including raw output in the report file, the report is INCOMPLETE.
 - If you claim success but the exit code was non-zero, the report is WRONG.
+- If ASAN/UBSAN stderr is empty, explicitly state "No ASAN/UBSAN output detected" in the report. Do not silently omit this section.
 
 ### Code coverage for a single profile
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
