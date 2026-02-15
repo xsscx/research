@@ -47,3 +47,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\xa0\x00\x00\x00\x00\x00"
 "(\x0f\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"Y\x00\x00\x00\x00\x00\x00\x00"
+"UTF-16"
