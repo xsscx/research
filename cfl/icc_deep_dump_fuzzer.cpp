@@ -235,15 +235,6 @@ static void DiagPreCrashState(const char *function, const char *context,
   }
 }
 
-// Extract a controlled byte from fuzzer input for decision-making
-static uint8_t ConsumeByte(const uint8_t *&data, size_t &size) {
-  if (size == 0) return 0;
-  uint8_t b = *data;
-  data++;
-  size--;
-  return b;
-}
-
 // ── Phase 1: Header heuristic analysis (H1–H8 from iccanalyzer-lite) ──
 static void AnalyzeHeader(CIccProfile *pIcc) {
   icHeader *hdr = &pIcc->m_Header;
@@ -927,9 +918,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // OOM guard 1: Reject profiles with claimed size >> actual input.
   // Library uses header profileSize to set internal expectations, then
-  // tag-internal Read methods allocate based on data they parse. If a
-  // 265-byte input claims to be 4GB, these internal allocs explode.
-  if (size >= 4) {
+  // tag-internal Read methods allocate based on data they parse.
+  {
     uint32_t claimedSize = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
                            ((uint32_t)data[2] << 8) | (uint32_t)data[3];
     if (claimedSize > 0 && claimedSize > size * 16 && claimedSize > kMaxAllocPerTag) {
@@ -939,13 +929,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
   }
 
-  // OOM guard 2: Reject profiles with any single tag > kMaxAllocPerTag
-  // Library bugs in CIccTagXYZ::SetSize, CIccTagData::SetSize, etc. call
-  // icRealloc with user-controlled size from the tag table, causing 4GB+
-  // allocations.
-  // NOTE: data/size are already adjusted by ConsumeByte — they match what
-  // the library will parse. ICC tag count is at offset 128, entries at 132.
-  if (size >= 132) {
+  // OOM guard 2: Reject profiles with any single tag > kMaxAllocPerTag.
+  // ICC tag count is at offset 128, entries start at 132.
+  {
     uint32_t tagCount = ((uint32_t)data[128] << 24) | ((uint32_t)data[129] << 16) |
                         ((uint32_t)data[130] << 8) | (uint32_t)data[131];
     if (tagCount > kMaxTagCount) return 0;

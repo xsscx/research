@@ -4,8 +4,8 @@
 # Usage:
 #   ./build.sh                      # Build everything (iccDEV + tools + Python venv)
 #   ./build.sh build                # Same as above
-#   ./build.sh web                  # Start Web UI on 0.0.0.0:8000 (all interfaces)
-#   ./build.sh web 8080             # Start Web UI on 0.0.0.0:8080
+#   ./build.sh web                  # Start Web UI on 127.0.0.1:8000 (localhost)
+#   ./build.sh web 8080             # Start Web UI on 127.0.0.1:8080
 #   ./build.sh web 8080 192.168.1.5 # Start Web UI on specific IP and port
 #   ./build.sh mcp                  # Start MCP server (stdio transport)
 #   ./build.sh test                 # Run all tests (195 MCP + 124 Web UI)
@@ -165,8 +165,8 @@ cmd_build() {
   setup_venv
   echo ""
   info "Build complete. Next steps:"
-  echo "  ./build.sh web              # Web UI → http://0.0.0.0:8000 (all interfaces)"
-  echo "  ./build.sh web 8080         # Web UI → http://0.0.0.0:8080"
+  echo "  ./build.sh web              # Web UI → http://127.0.0.1:8000 (localhost)"
+  echo "  ./build.sh web 8080         # Web UI → http://127.0.0.1:8080"
   echo "  ./build.sh web 8080 1.2.3.4 # Web UI on specific IP and port"
   echo "  ./build.sh mcp              # Start MCP server (stdio)"
   echo "  ./build.sh test             # Run test suite"
@@ -174,7 +174,7 @@ cmd_build() {
 
 cmd_web() {
   local port="${1:-8000}"
-  local host="${2:-0.0.0.0}"
+  local host="${2:-127.0.0.1}"
   activate_venv
   info "Starting Web UI → http://$host:$port"
   ASAN_OPTIONS=detect_leaks=0 python "$SCRIPT_DIR/web_ui.py" --host "$host" --port "$port"
@@ -220,7 +220,7 @@ cmd_help() {
   echo ""
   echo "Commands:"
   echo "  build                Build everything (iccDEV + tools + Python venv)"
-  echo "  web [port] [host]    Start Web UI (default: 0.0.0.0:8000, all interfaces)"
+  echo "  web [port] [host]    Start Web UI (default: 127.0.0.1:8000, all interfaces)"
   echo "  mcp                  Start MCP server (stdio transport for AI assistants)"
   echo "  test                 Run all tests (MCP + Web UI)"
   echo "  clean                Remove build artifacts"
@@ -228,8 +228,8 @@ cmd_help() {
   echo ""
   echo "Examples:"
   echo "  ./build.sh                        # Build everything"
-  echo "  ./build.sh web                    # Web UI → http://0.0.0.0:8000"
-  echo "  ./build.sh web 9000               # Web UI → http://0.0.0.0:9000"
+  echo "  ./build.sh web                    # Web UI → http://127.0.0.1:8000"
+  echo "  ./build.sh web 9000               # Web UI → http://127.0.0.1:9000"
   echo "  ./build.sh web 8080 192.168.1.5   # Web UI on specific IP"
   echo "  ./build.sh web 8080 127.0.0.1     # Web UI on localhost only"
   echo "  ./build.sh mcp                    # MCP stdio server"

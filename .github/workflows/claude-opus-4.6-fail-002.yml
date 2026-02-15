@@ -106,9 +106,9 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
       - name: Build iccDEV libraries with full instrumentation
@@ -154,10 +154,10 @@ jobs:
           if [ -f "./iccanalyzer-lite" ]; then
             chmod +x ./iccanalyzer-lite
             echo "binary_path=iccanalyzer-lite/iccanalyzer-lite" >> $GITHUB_OUTPUT
-            echo "✅ iccanalyzer-lite built successfully"
+            echo "[OK] iccanalyzer-lite built successfully"
             ls -lh ./iccanalyzer-lite
           else
-            echo "❌ iccanalyzer-lite binary not found"
+            echo "[FAIL] iccanalyzer-lite binary not found"
             exit 1
           fi
       - name: Test basic functionality
@@ -300,7 +300,7 @@ jobs:
           
           while IFS= read -r profile; do
             if [ ! -f "$profile" ]; then
-              echo "⏭️ SKIP: $profile (not found)"
+              echo "[SKIP] SKIP: $profile (not found)"
               continue
             fi
             
@@ -317,7 +317,7 @@ jobs:
             TESTED=$((TESTED + 1))
             
             if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
-              echo "✅ PASS: $profile (exit: $EXIT_CODE)"
+              echo "[OK] PASS: $profile (exit: $EXIT_CODE)"
               PASSED=$((PASSED + 1))
               
               # Enhanced output analysis and reporting
@@ -327,32 +327,32 @@ jobs:
               case "${{ matrix.mode }}" in
                 "heuristics")
                   SECURITY_COUNT=$(grep -c -E "(Security|Heuristic|Warning|Potential|Risk)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   📊 Security analysis: ${SECURITY_COUNT} findings, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "    Security analysis: ${SECURITY_COUNT} findings, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "roundtrip")
                   ACCURACY_COUNT=$(grep -c -E "(Round.*trip|Accuracy|Delta|Error)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   🔄 Round-trip analysis: ${ACCURACY_COUNT} metrics, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "   [INFO] Round-trip analysis: ${ACCURACY_COUNT} metrics, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "comprehensive")
                   ANALYSIS_COUNT=$(grep -c -E "(Analysis|Check|Test|Result)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  echo "   📈 Comprehensive analysis: ${ANALYSIS_COUNT} checks, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
+                  echo "   [INFO] Comprehensive analysis: ${ANALYSIS_COUNT} checks, ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes"
                   ;;
                 "ninja")
-                  echo "   🥷 Ninja output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (minimal mode)"
+                  echo "   [INFO] Ninja output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (minimal mode)"
                   ;;
                 "ninja-full")
-                  echo "   🥷📄 Ninja-full output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (full dump, no truncation)"
+                  echo "   [INFO] Ninja-full output: ${OUTPUT_LINES} lines, ${OUTPUT_SIZE} bytes (full dump, no truncation)"
                   ;;
               esac
               
               # Check for sanitizer output
               if grep -q -E "(AddressSanitizer|UBSan|ERROR|SUMMARY)" "$OUTPUT_FILE" 2>/dev/null; then
                 SANITIZER_ERRORS=$(grep -c -E "(AddressSanitizer|UBSan|ERROR)" "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                echo "   🚨 Sanitizer detections: ${SANITIZER_ERRORS}"
+                echo "   [CRITICAL] Sanitizer detections: ${SANITIZER_ERRORS}"
               fi
               
             else
-              echo "❌ FAIL: $profile (exit: $EXIT_CODE)"
+              echo "[FAIL] FAIL: $profile (exit: $EXIT_CODE)"
               FAILED=$((FAILED + 1))
               
               # Enhanced error reporting
@@ -361,10 +361,10 @@ jobs:
               
               # Check for specific error types
               if grep -q -E "(heap-buffer-overflow|heap-use-after-free|stack-overflow)" "$OUTPUT_FILE" 2>/dev/null; then
-                echo "   🔥 Memory safety violation detected"
+                echo "   [CRITICAL] Memory safety violation detected"
               fi
               if grep -q -E "(undefined behavior|UBSan)" "$OUTPUT_FILE" 2>/dev/null; then
-                echo "   ⚠️ Undefined behavior detected"
+                echo "   [WARN] Undefined behavior detected"
               fi
             fi
             
@@ -394,10 +394,10 @@ jobs:
           # Success if any tests passed and failure rate < 50%
           if [ $PASSED -gt 0 ] && [ $FAILED -lt $PASSED ]; then
             echo "status=success" >> $GITHUB_OUTPUT
-            STATUS="✅ SUCCESS"
+            STATUS="[OK] SUCCESS"
           else
             echo "status=failure" >> $GITHUB_OUTPUT
-            STATUS="❌ FAILURE"
+            STATUS="[FAIL] FAILURE"
           fi
           
           {
@@ -522,7 +522,7 @@ jobs:
               
               if [ ${ASAN_HITS} -gt 0 ] || [ ${UBSAN_HITS} -gt 0 ]; then
                 echo ""
-                echo "⚠️ **Sanitizer detections found** - Review individual test logs for details"
+                echo "[WARN] **Sanitizer detections found** - Review individual test logs for details"
               fi
               
             else

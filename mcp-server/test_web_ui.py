@@ -34,7 +34,7 @@ def check(name: str, ok: bool) -> None:
     else:
         failed += 1
         errors.append(name)
-        print(f"  ✗ {name}")
+        print(f"  [FAIL] {name}")
 
 
 # ── CSP Nonce ──────────────────────────────────────────────
@@ -437,7 +437,7 @@ def main():
             check(f"{name} (exception: {exc})", False)
         count = (passed + failed) - before
         if name not in [e for e in errors]:
-            print(f"  ✓ {name}: {count}/{count}")
+            print(f"  [OK] {name}: {count}/{count}")
 
     elapsed = time.time() - t0
     print(f"\n  Total: {passed}/{passed + failed} passed, {failed} failed")
@@ -446,7 +446,7 @@ def main():
     if errors:
         print(f"\n  FAILURES:")
         for e in errors:
-            print(f"    ✗ {e}")
+            print(f"    [FAIL] {e}")
         print(f"\n  FAILED")
         sys.exit(1)
     else:
