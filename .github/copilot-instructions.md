@@ -85,57 +85,20 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 3. Run the analysis tools against the renamed file
 
 ### Required analysis workflow for ICC profile issues
-When an issue asks to analyze an ICC profile, follow these EXACT steps in order. Do NOT skip steps. Do NOT build anything.
+When an issue asks to analyze an ICC profile, run this ONE command:
 
-**Step 1: Verify the binary exists (do NOT build)**
 ```bash
-ls -la iccanalyzer-lite/iccanalyzer-lite
-```
-If the binary does not exist, STOP and report the error. Do NOT try to build it.
-
-**Step 2: Run comprehensive analysis**
-```bash
-iccanalyzer-lite/iccanalyzer-lite -a test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
-```
-Capture ALL stdout and stderr. The `2>&1` ensures ASAN/UBSAN output is captured.
-
-**Step 3: Run ninja full dump**
-```bash
-iccanalyzer-lite/iccanalyzer-lite -nf test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
+./analyze-profile.sh test-profiles/<filename>.icc
 ```
 
-**Step 4: Run round-trip test**
-```bash
-iccanalyzer-lite/iccanalyzer-lite -r test-profiles/<filename>.icc 2>&1; echo "EXIT_CODE=$?"
-```
+This script runs all 3 analysis commands (`-a`, `-nf`, `-r`), captures exit codes and ASAN/UBSAN output, and writes the complete report to `analysis-reports/`. Do NOT run the commands individually.
 
-**Step 5: Evaluate results honestly**
-- If ANY exit code is non-zero, report it as a finding or error (see exit codes above)
-- If ASAN/UBSAN output appears in stderr, report it as a CRITICAL security finding
-- If a command produces no output, report that as an error
-- Do NOT say "completed successfully" unless exit code = 0 AND no sanitizer errors
+Then:
+1. `git add analysis-reports/ && git commit -m "Analysis: <profile-name>"` 
+2. Update the PR description with the exit code summary from the script output
+3. If ASAN/UBSAN findings were detected, note them prominently in the PR description
 
-**Step 6: Write the report**
-Create `analysis-reports/<profile-name>-analysis.md` containing:
-1. The VERBATIM raw output from all 3 commands (inside code blocks)
-2. The exit code from each command
-3. Any ASAN/UBSAN stderr (inside code blocks)
-4. Your analysis AFTER the raw output — never instead of it
-
-**Step 7: Update the PR description**
-The PR description should contain:
-- A summary with exit codes from all 3 commands
-- Key findings (heuristic warnings, ASAN/UBSAN output, structural issues)
-- Reference to the full report in `analysis-reports/`
-
-The full verbatim output goes in the committed report file. The PR description is a summary pointing to it. Do NOT leave the PR description as just a WIP checklist.
-
-### Report quality requirements
-- The committed report in `analysis-reports/` MUST contain verbatim raw output from all 3 commands inside code blocks.
-- The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels and heuristic IDs `[H1]`–`[H19]`. This output MUST appear verbatim in the report file.
-- If you summarize instead of including raw output in the report file, the report is INCOMPLETE.
-- If you claim success but the exit code was non-zero, the report is WRONG.
-- If ASAN/UBSAN stderr is empty, explicitly state "No ASAN/UBSAN output detected" in the report. Do not silently omit this section.
+The script exits with the worst exit code across all 3 commands. Exit 0 = clean, 1 = finding, 2 = error.
 
 ### Code coverage for a single profile
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
