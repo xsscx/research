@@ -156,6 +156,8 @@ jobs:
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           
           echo "Building libraries with $(nproc) cores..."
