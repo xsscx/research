@@ -43,6 +43,15 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
+      - name: Cache APT packages
+        id: cache-apt
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+
       - name: Install dependencies
         env:
           BASH_ENV: /dev/null
@@ -53,7 +62,11 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          sudo apt-get update -qq
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang clang-tools \
             libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
@@ -62,7 +75,15 @@ jobs:
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
 
+      - name: Cache iccDEV repository
+        id: cache-iccdev
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: cfl/iccDEV
+          key: ${{ runner.os }}-iccdev-cfl-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Clone iccDEV into cfl/
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
         run: |
@@ -74,7 +95,19 @@ jobs:
           cd cfl
           git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
 
+      - name: Cache iccDEV build artifacts
+        id: cache-iccdev-build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            cfl/iccDEV/Build/IccProfLib
+            cfl/iccDEV/Build/IccXML
+            cfl/iccDEV/Build/CMakeCache.txt
+            cfl/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-cfl-${{ hashFiles('cfl/patches/*.patch') }}
+
       - name: Apply CFL patches to iccDEV
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
         run: |
@@ -82,13 +115,14 @@ jobs:
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d cfl/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
 
       - name: Build iccDEV libraries (Debug)
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
         run: |
@@ -114,6 +148,8 @@ jobs:
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DENABLE_STATIC_LIBS=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
 
           make -j$(nproc) IccProfLib2-static IccXML2-static
@@ -265,6 +301,11 @@ jobs:
             SEED_DIR="${FNAME}_seed_corpus"
           fi
 
+          # Enable deep dump diagnostics for icc_deep_dump_fuzzer
+          if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
+            export DEEP_DUMP_DIAG=1
+          fi
+
           set +e
           timeout --kill-after=5s 65s "bin/${{ matrix.fuzzer }}" \
             -max_total_time=60 \
@@ -273,7 +314,7 @@ jobs:
             -rss_limit_mb=4096 \
             -timeout=30 \
             $DICT_ARG \
-            corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -30
+            corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log
           EXIT_CODE=$?
           set -e
 
@@ -308,7 +349,7 @@ jobs:
               "dict-updates/${{ matrix.fuzzer }}.dict" 2>&1 || true
             if [ -f "dict-updates/${{ matrix.fuzzer }}.dict" ]; then
               COUNT=$(grep -c '^"' "dict-updates/${{ matrix.fuzzer }}.dict" 2>/dev/null || echo 0)
-              echo "📖 Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
+              echo "[INFO] Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
             fi
           fi
 
@@ -373,11 +414,11 @@ jobs:
               if [ "$NEW" -gt 0 ]; then
                 python3 .github/scripts/convert-libfuzzer-dict.py \
                   "$dict_file" "$TARGET" --append
-                echo "  ✅ ${FUZZER}: +${NEW} entries → ${TARGET}"
+                echo "  [OK] ${FUZZER}: +${NEW} entries → ${TARGET}"
                 UPDATED=$((UPDATED + 1))
                 TOTAL_NEW=$((TOTAL_NEW + NEW))
               else
-                echo "  ⏭  ${FUZZER}: no new entries"
+                echo "  [SKIP]  ${FUZZER}: no new entries"
               fi
             done
           done

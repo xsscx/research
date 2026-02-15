@@ -15,6 +15,66 @@ ICC color profiles control how colors are translated between devices (cameras, m
 
 ---
 
+## I Just Want to Test a Profile (No Setup Required)
+
+If you have an ICC profile and just want a report, here are the fastest paths — no C++ builds, no cloning, no terminal commands.
+
+### Option A: GitHub Issue (easiest)
+
+1. Open an issue at [github.com/xsscx/research/issues](https://github.com/xsscx/research/issues)
+2. Attach your `.icc` file to the issue
+3. Ask: *"Please analyze the security of the attached ICC profile"*
+4. The Copilot coding agent picks up the issue, builds the tools, and posts the report as a comment
+
+### Option B: Web UI (browser-based)
+
+```bash
+# If Docker is installed, one command:
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
+```
+
+Then open `http://127.0.0.1:8080` in your browser:
+1. Click **Security Scan** (or any tool button)
+2. Click **Choose File** and select your `.icc` file from your computer
+3. Click **Run**
+4. Read the report — click **Copy** or **Save As** to keep it
+
+### Option C: Copilot CLI or VS Code Chat
+
+If you have [Copilot CLI](https://github.com/github/copilot-cli) or VS Code with Copilot Chat:
+
+1. Open a terminal in this repo (or open the repo in VS Code)
+2. Say: *"Analyze the security of my-profile.icc"* — if the file is in `test-profiles/`
+3. Or provide your own file: *"Here is my ICC profile (base64-encoded): [paste]. Run a security scan."*
+
+To base64-encode a file on your machine:
+```bash
+# macOS/Linux:
+base64 < my-profile.icc | pbcopy    # copies to clipboard
+
+# Windows PowerShell:
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-profile.icc")) | Set-Clipboard
+```
+
+### What You Get Back
+
+Every analysis mode produces a plain-text report. Here is what a security scan looks like:
+
+```
+[H1] Profile Size: 16680 bytes — [OK] Size within normal range
+[H2] Magic Bytes: acsp — [OK] Valid ICC magic signature
+[H3] Data ColorSpace: Lab — [OK] Valid colorSpace
+...
+[H16] Signature Pattern Analysis — [WARN] repeat-byte pattern (fuzz artifact?)
+
+HEURISTIC SUMMARY: 12 WARNING(S) DETECTED
+  - Malformed/corrupted data
+  - Resource exhaustion attempts
+  - Enum confusion vulnerabilities
+```
+
+---
+
 ## Quick Start
 
 ### 1. Build the analysis tools
@@ -70,20 +130,20 @@ Skip the C++ build entirely by using the pre-built Docker image:
 
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/xsscx/icc-profile-mcp:dev
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 
 # Run as MCP stdio server
-docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:dev
+docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:latest
 
 # Run the Web UI on port 8080
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev icc-profile-web --host 0.0.0.0 --port 8080
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
 Or build locally:
 
 ```bash
 docker build -t icc-profile-mcp .
-docker run --rm -p 8080:8080 icc-profile-mcp icc-profile-web --host 0.0.0.0 --port 8080
+docker run --rm -p 8080:8080 icc-profile-mcp web
 ```
 
 ### Docker with Claude Desktop
@@ -93,7 +153,7 @@ docker run --rm -p 8080:8080 icc-profile-mcp icc-profile-web --host 0.0.0.0 --po
   "mcpServers": {
     "icc-profile-analyzer": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:dev"]
+      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:latest"]
     }
   }
 }
@@ -148,7 +208,7 @@ ASAN_OPTIONS=detect_leaks=0 icc-profile-web
 **Method 4 — Docker (no build required):**
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev icc-profile-web --host 0.0.0.0 --port 8080
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
 Then open `http://127.0.0.1:8080`.
@@ -164,7 +224,7 @@ Then open `http://127.0.0.1:8080`.
 
 ### Using the Web UI
 
-Open `http://127.0.0.1:8000` (or `:8080` for Docker) in your browser.
+Open `http://127.0.0.1:8000` (local) or `http://127.0.0.1:8080` (Docker) in your browser.
 
 #### Tool selector
 
@@ -186,11 +246,11 @@ The toolbar across the top provides all 7 analysis tools:
 2. **Choose a profile** — type a filename or select from the dropdown (auto-populated from *List Profiles*)
 3. **Run** — click the green **▶ Run** button
 4. **Read the output** — results appear in the output pane below
-5. **Copy or save** — use **Copy** (top-right of output) or **💾 Save As** to download results as a text file
+5. **Copy or save** — use **Copy** (top-right of output) or **Save As** to download results as a text file
 
 #### Upload your own profiles
 
-Any tool that takes a profile path also has a **📂 Choose File** button. Click it to upload an ICC profile from your local machine (up to 20 MB). The uploaded file is placed in a secure temp directory and becomes immediately available for analysis.
+Any tool that takes a profile path also has a **Choose File** button. Click it to upload an ICC profile from your local machine (up to 20 MB). The uploaded file is placed in a secure temp directory and becomes immediately available for analysis.
 
 #### Save XML
 
@@ -370,6 +430,53 @@ Tag Pair Analysis:
 
 ---
 
+### `upload_and_analyze`
+
+**What it does:** Accepts a base64-encoded ICC profile from any source, saves it to a secure temp directory, runs the requested analysis, and cleans up the file afterward.
+
+**When to use:** You have your own ICC profile that is not already in the repository.
+
+**Parameters:**
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `data_base64` | Yes | — | Base64-encoded ICC profile data |
+| `filename` | No | `uploaded.icc` | Original filename (for display only, sanitized) |
+| `mode` | No | `security` | Analysis mode: `security`, `inspect`, `roundtrip`, `full`, `xml`, or `all` |
+
+**Example requests:**
+> "Here is my ICC profile (base64): AABBCCdd... — run a security scan"
+
+> "Analyze this uploaded profile in all modes"
+
+**How to get base64 from a file:**
+```bash
+# macOS / Linux
+base64 < my-profile.icc
+
+# Windows PowerShell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-profile.icc"))
+```
+
+**Security:** 20 MB size cap, 128-byte minimum, filename sanitization, secure temp dir (mode 700), auto-cleanup after analysis.
+
+---
+
+### `build_tools`
+
+**What it does:** Builds the native C++ analysis tools (iccanalyzer-lite and/or colorbleed_tools) from source.
+
+**When to use:** First-time setup, or after code changes to the analysis tools.
+
+**Parameters:**
+| Parameter | Default | Options |
+|-----------|---------|---------|
+| `target` | `all` | `all`, `iccanalyzer-lite`, `colorbleed_tools` |
+
+**Example request:**
+> "Build all the analysis tools"
+
+---
+
 ## Profile Path Resolution
 
 You can reference profiles by:
@@ -447,7 +554,7 @@ Or with Docker (no C++ build required):
   "mcpServers": {
     "icc-profile-analyzer": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:dev"]
+      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:latest"]
     }
   }
 }
@@ -529,6 +636,18 @@ You: "List the extended test profiles"
 You: "Run a security scan on cve-2023-46602.icc"
 You: "Now inspect its raw structure — I want to see the tag table"
 You: "Convert it to XML so I can read the actual tag contents"
+```
+
+### Analyze your own ICC profile
+
+```
+You: "Here is my ICC profile (base64-encoded): [paste base64 data]
+      Run a full analysis."
+```
+
+Or in all modes at once:
+```
+You: "Upload and analyze this profile in all modes: [paste base64 data]"
 ```
 
 ### Compare a CVE PoC with a known-good profile

@@ -103,6 +103,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
     icUInt32Number totalEntries = outputChannels;
     for (int i = 0; i < inputDim; i++) {
       icUInt32Number dimSize = pCLUT->GetDimSize(i);
+      ICC_LOG_SAFE_VAL("mpeCLUT.grid", i, &dimSize, inputDim);
       if (dimSize > 0 && totalEntries > UINT32_MAX / dimSize) {
         fprintf(fInfo, "Warning: Total entries overflow\n");
         totalEntries = 0;
@@ -124,6 +125,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
       icUInt32Number totalEntries = outputChannels;
       for (int i = 0; i < inputDim; i++) {
         icUInt32Number dimSize = pCLUT->GetDimSize(i);
+        ICC_LOG_SAFE_VAL("mpeCLUT.grid", i, &dimSize, inputDim);
         if (dimSize > 0 && totalEntries > UINT32_MAX / dimSize) {
           printf("    MPE CLUT[%d]: Overflow detected, skipping\n", clutIndex);
           fclose(fBin);
@@ -133,6 +135,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
       }
       
       for (icUInt32Number i = 0; i < totalEntries; i++) {
+        ICC_TRACE_NAN(data[i], "mpeCLUT.data");
         icUInt16Number val = (icUInt16Number)(data[i] * 65535.0f + 0.5f);
         icUInt16Number bigEndian = ((val >> 8) & 0xff) | ((val << 8) & 0xff00);
         if (fwrite(&bigEndian, sizeof(icUInt16Number), 1, fBin) != 1) {
@@ -455,6 +458,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         // Convert 8-bit CLUT data to float [0.0, 1.0] range
         for (long j = 0; j < fileSize; j++) {
           pData[j] = (icFloatNumber)buffer[j] / 255.0f;
+          ICC_TRACE_NAN(pData[j], "lut8.clutData");
         }
         
         delete[] buffer;
@@ -523,6 +527,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           icUInt16Number val = buffer[j];
           val = ((val >> 8) & 0xff) | ((val << 8) & 0xff00);
           pData[j] = (icFloatNumber)val / 65535.0f;
+          ICC_TRACE_NAN(pData[j], "lut16.clutData");
         }
         
         delete[] buffer;

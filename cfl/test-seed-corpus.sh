@@ -15,7 +15,7 @@ echo ""
 
 # Check if fuzzers are built
 if [ ! -d "$BUILD_DIR" ]; then
-    echo "❌ ERROR: Build directory not found at $BUILD_DIR"
+    echo "[FAIL] ERROR: Build directory not found at $BUILD_DIR"
     echo "Please build fuzzers first: cd Build && cmake Cmake && make"
     exit 1
 fi
@@ -67,18 +67,18 @@ for fuzzer in "${FUZZERS[@]}"; do
     
     # Check executable
     if [ -f "$BUILD_DIR/$fuzzer" ] && [ -x "$BUILD_DIR/$fuzzer" ]; then
-        EXE_STATUS="✅"
+        EXE_STATUS="[OK]"
     else
-        EXE_STATUS="❌"
+        EXE_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Check dictionary
     dict="${FUZZER_DICTS[$fuzzer]}"
     if [ -f "$SCRIPT_DIR/$dict" ]; then
-        DICT_STATUS="✅"
+        DICT_STATUS="[OK]"
     else
-        DICT_STATUS="❌"
+        DICT_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
@@ -87,17 +87,17 @@ for fuzzer in "${FUZZERS[@]}"; do
     if [ -d "$corpus_dir" ]; then
         count=$(find "$corpus_dir" -type f | wc -l)
         if [ "$count" -gt 0 ]; then
-            CORPUS_STATUS="✅ ($count files)"
+            CORPUS_STATUS="[OK] ($count files)"
         else
-            CORPUS_STATUS="⚠️  (0 files)"
+            CORPUS_STATUS="[WARN]  (0 files)"
         fi
     else
-        CORPUS_STATUS="❌"
+        CORPUS_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # All checks passed?
-    if [ "$EXE_STATUS" = "✅" ] && [ "$DICT_STATUS" = "✅" ] && [[ "$CORPUS_STATUS" == ✅* ]]; then
+    if [ "$EXE_STATUS" = "[OK]" ] && [ "$DICT_STATUS" = "[OK]" ] && [[ "$CORPUS_STATUS" == [OK]* ]]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
     fi
     
@@ -108,12 +108,12 @@ echo "────────────────────────�
 echo ""
 echo "Summary:"
 echo "  Total Fuzzers: $TOTAL_TESTS"
-echo "  Ready:         $PASSED_TESTS ✅"
-echo "  Issues:        $FAILED_TESTS ❌"
+echo "  Ready:         $PASSED_TESTS [OK]"
+echo "  Issues:        $FAILED_TESTS [FAIL]"
 echo ""
 
 if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
-    echo "✅ All fuzzers ready for testing!"
+    echo "[OK] All fuzzers ready for testing!"
     echo ""
     echo "Quick test (5s per fuzzer):"
     echo "  cd $BUILD_DIR"
@@ -123,6 +123,6 @@ if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
     done
     exit 0
 else
-    echo "❌ Some fuzzers have issues. Please check and resolve."
+    echo "[FAIL] Some fuzzers have issues. Please check and resolve."
     exit 1
 fi

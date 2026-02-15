@@ -74,6 +74,13 @@ int AnalyzeSignatures(CIccProfile *pIcc)
   CIccInfo info;
   int issueCount = 0;
   
+  // Diagnostic: check header signatures for 0x3F corruption pattern
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.deviceClass, "header.deviceClass");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.colorSpace, "header.colorSpace");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.pcs, "header.pcs");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.manufacturer, "header.manufacturer");
+  ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.model, "header.model");
+
   // Analyze header signatures
   printf("Header Signatures:\n");
   printf("  Device Class:    0x%08X  '%s'  %s\n",
@@ -120,9 +127,11 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     IccTagEntry *entry = &(*i);
     CIccTag *pTag = pIcc->FindTag(entry->TagInfo.sig);
     
+    ICC_SANITY_CHECK_SIGNATURE(entry->TagInfo.sig, "tag.sig");
     SignatureToFourCC(entry->TagInfo.sig, fourcc);
     char typeFourCC[5] = "";
     if (pTag) {
+      ICC_SANITY_CHECK_SIGNATURE(pTag->GetType(), "tag.type");
       SignatureToFourCC(pTag->GetType(), typeFourCC);
     }
     
