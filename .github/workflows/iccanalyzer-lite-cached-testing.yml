@@ -128,9 +128,9 @@ jobs:
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  ✅ $(basename "$p")"
+              echo "  [OK] $(basename "$p")"
             else
-              echo "  ⏭  $(basename "$p") (already applied or N/A)"
+              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
             fi
           done
 
@@ -167,6 +167,8 @@ jobs:
             -DENABLE_UBSAN=ON \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           
           echo "Building libraries with $(nproc) cores..."
@@ -370,7 +372,7 @@ jobs:
           
           # Add cache statistics
           echo "<div class='cache-stats'>" >> $INDEX_FILE
-          echo "<h2>🚀 Cache Performance</h2>" >> $INDEX_FILE
+          echo "<h2> Cache Performance</h2>" >> $INDEX_FILE
           echo "<strong>APT Packages:</strong> <span class='${{ steps.cache-apt.outputs.cache-hit == 'true' && 'cache-hit' || 'cache-miss' }}'>${{ steps.cache-apt.outputs.cache-hit == 'true' && 'HIT' || 'MISS' }}</span><br>" >> $INDEX_FILE
           echo "<strong>iccDEV Repository:</strong> <span class='${{ steps.cache-iccdev.outputs.cache-hit == 'true' && 'cache-hit' || 'cache-miss' }}'>${{ steps.cache-iccdev.outputs.cache-hit == 'true' && 'HIT' || 'MISS' }}</span><br>" >> $INDEX_FILE
           echo "<strong>iccDEV Build:</strong> <span class='${{ steps.cache-iccdev-build.outputs.cache-hit == 'true' && 'cache-hit' || 'cache-miss' }}'>${{ steps.cache-iccdev-build.outputs.cache-hit == 'true' && 'HIT' || 'MISS' }}</span>" >> $INDEX_FILE
@@ -448,9 +450,9 @@ jobs:
           ### Cache Performance
           | Layer | Status |
           |-------|--------|
-          | APT Packages | ${{ steps.cache-apt.outputs.cache-hit == 'true' && '✅ HIT' || '⚠️ MISS' }} |
-          | iccDEV Repository | ${{ steps.cache-iccdev.outputs.cache-hit == 'true' && '✅ HIT' || '⚠️ MISS' }} |
-          | iccDEV Build | ${{ steps.cache-iccdev-build.outputs.cache-hit == 'true' && '✅ HIT' || '⚠️ MISS' }} |
+          | APT Packages | ${{ steps.cache-apt.outputs.cache-hit == 'true' && '[OK] HIT' || '[WARN] MISS' }} |
+          | iccDEV Repository | ${{ steps.cache-iccdev.outputs.cache-hit == 'true' && '[OK] HIT' || '[WARN] MISS' }} |
+          | iccDEV Build | ${{ steps.cache-iccdev-build.outputs.cache-hit == 'true' && '[OK] HIT' || '[WARN] MISS' }} |
           
           ### Test Configuration
           - **Binary:** iccanalyzer-lite v2.9.0

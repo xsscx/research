@@ -181,7 +181,7 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
       </head>
       <body>
         <div class="container">
-          <h1>🔍 ICC Profile Security Analysis Report</h1>
+          <h1>ICC Profile Security Analysis Report</h1>
           
           <div class="meta">
             <div class="meta-item">
@@ -198,7 +198,7 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
             </div>
           </div>
           
-          <h2>📊 Security Heuristics</h2>
+          <h2>Security Heuristics</h2>
           <table>
             <tr>
               <th>Check</th>
