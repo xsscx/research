@@ -29,10 +29,13 @@ mkdir -p analysis-reports
 
 FILESIZE=$(stat -c%s "$PROFILE" 2>/dev/null || stat -f%z "$PROFILE" 2>/dev/null)
 
-# Run all 3 commands, capture stdout+stderr and exit codes
-OUT_A=$(${ANALYZER} -a "$PROFILE" 2>&1);  EC_A=$?
-OUT_NF=$(${ANALYZER} -nf "$PROFILE" 2>&1); EC_NF=$?
-OUT_R=$(${ANALYZER} -r "$PROFILE" 2>&1);  EC_R=$?
+# Strip ANSI escape sequences from output
+strip_ansi() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+# Run all 3 commands, capture stdout+stderr and exit codes, strip color
+OUT_A=$(${ANALYZER} -a "$PROFILE" 2>&1 | strip_ansi);  EC_A=${PIPESTATUS[0]}
+OUT_NF=$(${ANALYZER} -nf "$PROFILE" 2>&1 | strip_ansi); EC_NF=${PIPESTATUS[0]}
+OUT_R=$(${ANALYZER} -r "$PROFILE" 2>&1 | strip_ansi);  EC_R=${PIPESTATUS[0]}
 
 # Check for ASAN/UBSAN
 ASAN_A=$(echo "$OUT_A" | grep -c "ERROR: AddressSanitizer\|ERROR: LeakSanitizer\|runtime error:" || true)
