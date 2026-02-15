@@ -239,3 +239,7 @@
 "\x05\x00YW"
 "ss\x00\xef"
 "*BGR"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x98\x01\x00\x00\x00\x00\x00\x00"
+"\xa7\xa7"

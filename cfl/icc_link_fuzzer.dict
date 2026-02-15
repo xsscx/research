@@ -156,3 +156,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q \x00J\xf0A"
+
+# --- added by convert-libfuzzer-dict.py ---
+"St9type_info"
+"\xfa\x00\x00\x00\x00\x00\x00\x00"
+"\xeb7\x07\x00\x00R\x00\x00"
