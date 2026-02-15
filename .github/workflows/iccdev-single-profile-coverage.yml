@@ -226,12 +226,54 @@ jobs:
           TOOL="${{ env.iccApplyProfiles_path }}"
 
           echo "=== IccApplyProfiles ===" | tee results/apply-output.txt
-          if [ -n "$TOOL" ]; then
-            timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/apply-output.txt || true
-            echo "exit_code=$?" >> results/apply-output.txt
-          else
+          if [ -z "$TOOL" ]; then
             echo "[SKIP] iccApplyProfiles not available" | tee -a results/apply-output.txt
+            exit 0
           fi
+
+          # Generate minimal 8x8 RGB TIFF test input
+          python3 -c "
+          import struct
+          w, h = 8, 8
+          pix = bytes([200, 100, 50] * w * h)
+          bps = struct.pack('<HHH', 8, 8, 8)
+          ifd_off = 8
+          n = 9
+          bps_off = ifd_off + 2 + n * 12 + 4
+          pix_off = bps_off + len(bps)
+          with open('/tmp/apply-input.tiff', 'wb') as f:
+              f.write(struct.pack('<2sHI', b'II', 42, ifd_off))
+              f.write(struct.pack('<H', n))
+              for tag, typ, cnt, val in [
+                  (256,3,1,w), (257,3,1,h), (258,3,3,bps_off),
+                  (259,3,1,1), (262,3,1,2), (273,4,1,pix_off),
+                  (277,3,1,3), (278,3,1,h), (279,4,1,len(pix))]:
+                  f.write(struct.pack('<HHII', tag, typ, cnt, val))
+              f.write(struct.pack('<I', 0))
+              f.write(bps)
+              f.write(pix)
+          "
+          echo "[OK] Generated 8x8 RGB test TIFF" | tee -a results/apply-output.txt
+
+          # iccApplyProfiles args: src dst encoding compression planar embed interp profile intent
+          #   encoding=0(same) compression=0(none) planar=0(contig)
+          #   embed=0(no) interp=0(linear) intent=0(perceptual)
+          for INTENT in 0 1 2 3; do
+            INTENT_NAMES=("Perceptual" "Relative" "Saturation" "Absolute")
+            echo "--- Intent $INTENT (${INTENT_NAMES[$INTENT]}) ---" | tee -a results/apply-output.txt
+            EXIT_CODE=0
+            timeout 30s "$TOOL" \
+              /tmp/apply-input.tiff /tmp/apply-output-${INTENT}.tiff \
+              0 0 0 0 0 \
+              "$PROFILE" "$INTENT" \
+              2>&1 | tee -a results/apply-output.txt || EXIT_CODE=$?
+            echo "exit_code=$EXIT_CODE" | tee -a results/apply-output.txt
+            if [ -f "/tmp/apply-output-${INTENT}.tiff" ]; then
+              SIZE=$(stat -c%s "/tmp/apply-output-${INTENT}.tiff")
+              echo "[OK] Output TIFF: $SIZE bytes" | tee -a results/apply-output.txt
+            fi
+          done
+          rm -f /tmp/apply-input.tiff /tmp/apply-output-*.tiff
 
       - name: Merge profdata and generate coverage report
         run: |
