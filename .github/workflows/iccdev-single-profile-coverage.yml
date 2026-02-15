@@ -96,7 +96,9 @@ jobs:
       - name: Clone iccDEV
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+          if [ ! -d "/tmp/iccdev" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+          fi
 
       - name: Apply CFL patches
         if: steps.cache-iccdev.outputs.cache-hit != 'true'

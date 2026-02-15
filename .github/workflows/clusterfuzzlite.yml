@@ -101,7 +101,9 @@ jobs:
           unset GITHUB_TOKEN || true
 
           cd cfl
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
 
       - name: Cache iccDEV build artifacts
         id: cache-iccdev-build

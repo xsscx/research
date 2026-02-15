@@ -61,7 +61,9 @@ jobs:
           set -euo pipefail
 
           # Clone iccDEV
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+          if [ ! -d "/tmp/iccdev" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+          fi
           cd /tmp/iccdev
 
           echo "iccDEV HEAD: $(git log --oneline -1)"

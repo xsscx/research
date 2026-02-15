@@ -83,7 +83,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ steps.cache-iccdev.outputs.cache-hit }}" != 'true' ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+            if [ ! -d "iccDEV" ]; then
+              git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+            fi
             cd iccDEV
             sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
             sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt

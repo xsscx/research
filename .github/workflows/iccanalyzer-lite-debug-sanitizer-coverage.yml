@@ -115,7 +115,9 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 

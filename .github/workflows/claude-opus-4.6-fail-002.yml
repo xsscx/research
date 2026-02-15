@@ -95,7 +95,9 @@ jobs:
           unset GITHUB_TOKEN || true
           
           cd iccanalyzer-lite
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           
           echo "iccDEV cloned at: $(pwd)"

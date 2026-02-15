@@ -82,7 +82,9 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd ..
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do

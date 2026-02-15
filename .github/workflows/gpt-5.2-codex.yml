@@ -60,7 +60,9 @@ jobs:
 
       - name: Clone iccDEV repository
         run: |
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+          fi
           cd iccDEV
           # Comment out wxWidgets requirement
           sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt

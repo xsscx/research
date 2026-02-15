@@ -141,7 +141,9 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite
           echo "Cloning iccDEV (cache miss)..."
-          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
           cd iccDEV
           git config --add safe.directory "$PWD"
           echo "iccDEV cloned at: $(pwd)"

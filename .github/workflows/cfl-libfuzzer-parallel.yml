@@ -117,7 +117,9 @@ jobs:
         run: |
           set -euo pipefail
           cd cfl
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
 
       - name: Apply CFL patches to iccDEV
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
