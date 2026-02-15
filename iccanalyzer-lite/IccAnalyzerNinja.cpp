@@ -159,6 +159,11 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     icUInt32Number colorSpace = (static_cast<icUInt32Number>(rawData[16])<<24) | (static_cast<icUInt32Number>(rawData[17])<<16) | (static_cast<icUInt32Number>(rawData[18])<<8) | rawData[19];
     icUInt32Number pcs = (static_cast<icUInt32Number>(rawData[20])<<24) | (static_cast<icUInt32Number>(rawData[21])<<16) | (static_cast<icUInt32Number>(rawData[22])<<8) | rawData[23];
     
+    // Diagnostic: check raw header signatures for corruption
+    ICC_SANITY_CHECK_SIGNATURE(deviceClass, "ninja.header.deviceClass");
+    ICC_SANITY_CHECK_SIGNATURE(colorSpace, "ninja.header.colorSpace");
+    ICC_SANITY_CHECK_SIGNATURE(pcs, "ninja.header.pcs");
+
     printf("Header Fields (RAW - no validation):\n");
     printf("  Profile Size:    0x%08X (%u bytes) %s\n", size, size, 
            (size != fileSize) ? "MISMATCH" : "OK");
@@ -212,6 +217,9 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       icUInt32Number offset = (static_cast<icUInt32Number>(rawData[pos+4])<<24) | (static_cast<icUInt32Number>(rawData[pos+5])<<16) | (static_cast<icUInt32Number>(rawData[pos+6])<<8) | rawData[pos+7];
       icUInt32Number tagSize = (static_cast<icUInt32Number>(rawData[pos+8])<<24) | (static_cast<icUInt32Number>(rawData[pos+9])<<16) | (static_cast<icUInt32Number>(rawData[pos+10])<<8) | rawData[pos+11];
       
+      // Diagnostic: detect 0x3F corruption in raw tag signatures
+      ICC_SANITY_CHECK_SIGNATURE(sig, "ninja.tagSig");
+
       char sigStr[5];
       sigStr[0] = static_cast<char>(static_cast<unsigned char>((sig>>24)&0xff));
       sigStr[1] = static_cast<char>(static_cast<unsigned char>((sig>>16)&0xff));
@@ -260,7 +268,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     // TagArrayType summary
     if (tagArrayCount > 0) {
       printf("\n");
-      printf("🚨 CRITICAL SECURITY WARNING:\n");
+      printf("[CRITICAL] SECURITY WARNING:\n");
       printf("   Found %u TagArrayType tag(s) in this profile!\n", tagArrayCount);
       printf("   These tags trigger heap-use-after-free in CIccTagArray::Cleanup()\n");
       printf("   Location: IccProfLib/IccTagComposite.cpp:1514\n");
@@ -271,7 +279,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     // Size inflation detection
     icUInt32Number claimedSize = (static_cast<icUInt32Number>(rawData[0])<<24) | (static_cast<icUInt32Number>(rawData[1])<<16) | (static_cast<icUInt32Number>(rawData[2])<<8) | rawData[3];
     if (claimedSize > 0 && claimedSize > fileSize * 16 && claimedSize > (128u << 20)) {
-      printf("\n⚠️  SIZE INFLATION: Header claims %u bytes, file is %zu bytes (%.0fx)\n",
+      printf("\n[WARN] SIZE INFLATION: Header claims %u bytes, file is %zu bytes (%.0fx)\n",
              claimedSize, fileSize, (double)claimedSize / fileSize);
       printf("   Risk: OOM via tag-internal allocations based on inflated header size\n");
     }
@@ -295,7 +303,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
         }
       }
       if (overlapCount > 0) {
-        printf("\n⚠️  TAG OVERLAP: %d overlapping tag pair(s) detected\n", overlapCount);
+        printf("\n[WARN] TAG OVERLAP: %d overlapping tag pair(s) detected\n", overlapCount);
         printf("   Risk: Data corruption, possible exploit crafting\n");
       }
     }
@@ -499,6 +507,10 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   icS15Fixed16Number illumX = read32(data + 68);
   icS15Fixed16Number illumY = read32(data + 72);
   icS15Fixed16Number illumZ = read32(data + 76);
+  // Diagnostic: trace NaN in illuminant fixed-point conversions
+  ICC_TRACE_NAN((illumX / 65536.0), "ninja.illuminant.X");
+  ICC_TRACE_NAN((illumY / 65536.0), "ninja.illuminant.Y");
+  ICC_TRACE_NAN((illumZ / 65536.0), "ninja.illuminant.Z");
   xml << "    <Illuminant>\n";
   xml << "      <X>" << (illumX / 65536.0) << "</X>\n";
   xml << "      <Y>" << (illumY / 65536.0) << "</Y>\n";

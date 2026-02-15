@@ -384,7 +384,7 @@ bool CIccAnalyzerCallGraph::AnalyzeExploitability(const VulnMetadata& metadata,
   bool is_exploitable = false;
   
   if (metadata.m_error_type == "stack-buffer-overflow") {
-    printf("✗ Stack buffer overflow detected\n");
+    printf("[CRITICAL] Stack buffer overflow detected\n");
     printf("  → Can overwrite return address\n");
     printf("  → RCE possible\n");
     is_exploitable = true;
@@ -394,7 +394,7 @@ bool CIccAnalyzerCallGraph::AnalyzeExploitability(const VulnMetadata& metadata,
     printf("  → RCE possible with heap grooming\n");
     is_exploitable = true;
   } else if (metadata.m_error_type == "heap-use-after-free") {
-    printf("✗ Use-after-free detected\n");
+    printf("[CRITICAL] Use-after-free detected\n");
     printf("  → Can control freed object\n");
     printf("  → RCE highly likely\n");
     is_exploitable = true;

@@ -73,7 +73,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     
     if (fp_result == 2) {
       // EXACT MATCH - Known malicious
-      printf("🚨 CRITICAL ALERT: EXACT MATCH TO KNOWN MALICIOUS PROFILE\n\n");
+      printf("[CRITICAL] EXACT MATCH TO KNOWN MALICIOUS PROFILE\n\n");
       printf("  Vulnerability Type: %s\n", vuln_type.c_str());
       printf("  Known As: %s\n", known_as.c_str());
       printf("  Confidence: %.0f%% (exact SHA256 match)\n", confidence);
@@ -92,9 +92,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         printf("  [WARN]  Use with caution in controlled environments only.\n\n");
         heuristicCount += 7; // High severity
       } else {
-        printf("  ℹ️  LOW SEVERITY ISSUE\n\n");
-        printf("  ℹ️  This profile contains known issues but is unlikely exploitable.\n");
-        printf("  ℹ️  Review recommended before deployment.\n\n");
+        printf("  [INFO] LOW SEVERITY ISSUE\n\n");
+        printf("  [INFO] This profile contains known issues but is unlikely exploitable.\n");
+        printf("  [INFO] Review recommended before deployment.\n\n");
         heuristicCount += 3; // Low severity
       }
     } else if (fp_result == 1) {
@@ -113,9 +113,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         printf("  [WARN]  Recommended action: Additional scrutiny required.\n\n");
         heuristicCount += 5; // Medium-high severity
       } else {
-        printf("  ℹ️  SIMILAR TO KNOWN ISSUE\n\n");
-        printf("  ℹ️  This profile may be a variant of a known issue.\n");
-        printf("  ℹ️  Recommended action: Manual review suggested.\n\n");
+        printf("  [INFO] SIMILAR TO KNOWN ISSUE\n\n");
+        printf("  [INFO] This profile may be a variant of a known issue.\n");
+        printf("  [INFO] Recommended action: Manual review suggested.\n\n");
         heuristicCount += 2;
       }
     } else {
@@ -358,6 +358,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   double Y = icFtoD(illumY);
   double Z = icFtoD(illumZ);
   
+  // Diagnostic: trace NaN illuminant values with file/line context
+  ICC_TRACE_NAN(X, "illuminant.X");
+  ICC_TRACE_NAN(Y, "illuminant.Y");
+  ICC_TRACE_NAN(Z, "illuminant.Z");
+
   printf("[H8] Illuminant XYZ: (%.6f, %.6f, %.6f)\n", X, Y, Z);
   
   if (X < 0.0 || Y < 0.0 || Z < 0.0) {
@@ -432,6 +437,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     };
     int suspiciousCount = 0;
     for (auto &s : sigs) {
+      // Diagnostic: check for 0x3F corruption pattern
+      ICC_SANITY_CHECK_SIGNATURE(s.sig, s.name);
       // Detect repeat-byte patterns (e.g. 0x8e8e8e8e, 0xabababab)
       uint8_t b0 = (s.sig >> 24) & 0xFF;
       bool repeatByte = (s.sig != 0) &&
@@ -464,6 +471,12 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     float biEnd   = icF16toF(header.biSpectralRange.end);
     uint16_t biSteps = header.biSpectralRange.steps;
     
+    // Diagnostic: trace NaN in spectral range conversions
+    ICC_TRACE_NAN(specStart, "spectralRange.start");
+    ICC_TRACE_NAN(specEnd, "spectralRange.end");
+    ICC_TRACE_NAN(biStart, "biSpectralRange.start");
+    ICC_TRACE_NAN(biEnd, "biSpectralRange.end");
+
     bool hasSpectral = (specSteps > 0 || specStart != 0.0f || specEnd != 0.0f);
     bool hasBiSpectral = (biSteps > 0 || biStart != 0.0f || biEnd != 0.0f);
     
@@ -677,7 +690,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           }
           
           if (foundTagArray) {
-            printf("      %s🚨 HEURISTIC: %u TagArrayType tag(s) detected%s\n", ColorCritical(), tagArrayCount, ColorReset());
+            printf("      %s[CRITICAL] HEURISTIC: %u TagArrayType tag(s) detected%s\n", ColorCritical(), tagArrayCount, ColorReset());
             printf("       %sRisk: CRITICAL - Heap-use-after-free in CIccTagArray::Cleanup()%s\n", ColorCritical(), ColorReset());
             printf("       %sLocation: IccProfLib/IccTagComposite.cpp:1514%s\n", ColorInfo(), ColorReset());
             printf("       %sImpact: Code execution, memory corruption%s\n", ColorCritical(), ColorReset());

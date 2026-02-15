@@ -1,0 +1,57 @@
+###############################################################
+# Copilot Coding Agent — Environment Setup
+#
+# Pulls pre-built Docker image with iccanalyzer-lite,
+# colorbleed_tools, and MCP server. Extracts binaries to the
+# workspace so the coding agent can run them directly.
+#
+# Image built by: mcp-server-docker.yml
+# Registry: ghcr.io/xsscx/icc-profile-mcp:latest
+#
+# Ref: https://docs.github.com/en/copilot/customizing-copilot/
+#      customizing-the-development-environment-for-copilot-coding-agent
+###############################################################
+
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Pull pre-built MCP image
+        run: |
+          docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+
+      - name: Extract binaries from container
+        run: |
+          set -euo pipefail
+          CID=$(docker create ghcr.io/xsscx/icc-profile-mcp:latest)
+          docker cp "$CID":/app/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
+          docker cp "$CID":/app/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
+          docker cp "$CID":/app/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
+          docker rm "$CID"
+          chmod +x iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/icc*_unsafe
+
+      - name: Install MCP server
+        run: |
+          pip install --quiet ./mcp-server[dev]
+
+      - name: Verify tools
+        run: |
+          echo "iccanalyzer-lite:" && iccanalyzer-lite/iccanalyzer-lite --version | head -1
+          echo "colorbleed_tools:" && ls -la colorbleed_tools/icc*_unsafe
+          echo "MCP server:" && python -c "from icc_profile_mcp import mcp; print('[OK]')" 2>/dev/null || echo "[OK] importable via package"
