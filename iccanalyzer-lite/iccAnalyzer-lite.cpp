@@ -52,7 +52,7 @@ extern "C" const char *__asan_default_options() {
 }
 
 void PrintUsage() {
-  printf("iccAnalyzer-lite v2.9.0 - Static Build (No Database Features)\n\n");
+  printf("iccAnalyzer-lite v2.9.1 - Static Build (No Database Features)\n\n");
   printf("Usage: iccAnalyzer-lite [OPTIONS] <profile.icc>\n\n");
   
   printf("Analysis Modes:\n");
@@ -65,68 +65,82 @@ void PrintUsage() {
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
   
+  printf("\nExit Codes:\n");
+  printf("  0  Clean    - Profile analyzed, no issues detected\n");
+  printf("  1  Finding  - Security heuristic warnings or validation failures\n");
+  printf("  2  Error    - I/O error (file not found, profile read failure)\n");
+  printf("  3  Usage    - Bad arguments or unknown option\n");
+  
   printf("\nNote: This is the LITE version - fingerprint database features disabled\n");
   printf("      For full version with all features, use regular iccAnalyzer\n");
+}
+
+// Normalize raw analysis return values to deterministic exit codes.
+// Raw: -1 = I/O error, 0 = clean, >0 = findings (count or flag)
+static int NormalizeExit(int raw) {
+  if (raw < 0)  return ICC_EXIT_ERROR;
+  if (raw == 0) return ICC_EXIT_CLEAN;
+  return ICC_EXIT_FINDING;
 }
 
 int main(int argc, char **argv) {
   if (argc < 2) {
     PrintUsage();
-    return 1;
+    return ICC_EXIT_USAGE;
   }
 
   const char *mode = argv[1];
   
   // Heuristics mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-h") == 0 && argc >= 3) {
-    return HeuristicAnalyze(argv[2], nullptr);
+    return NormalizeExit(HeuristicAnalyze(argv[2], nullptr));
   }
   
   // Round-trip mode
   if (strcmp(mode, "-r") == 0 && argc >= 3) {
-    return RoundTripAnalyze(argv[2]);
+    return NormalizeExit(RoundTripAnalyze(argv[2]));
   }
   
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-a") == 0 && argc >= 3) {
-    return ComprehensiveAnalyze(argv[2], nullptr);
+    return NormalizeExit(ComprehensiveAnalyze(argv[2], nullptr));
   }
   
   // Ninja mode
   if (strcmp(mode, "-n") == 0 && argc >= 3) {
-    return NinjaModeAnalyze(argv[2], false);
+    return NormalizeExit(NinjaModeAnalyze(argv[2], false));
   }
   
   // Ninja mode (full dump)
   if (strcmp(mode, "-nf") == 0 && argc >= 3) {
-    return NinjaModeAnalyze(argv[2], true);
+    return NormalizeExit(NinjaModeAnalyze(argv[2], true));
   }
   
   // Extract LUT
   if (strcmp(mode, "-x") == 0 && argc >= 4) {
-    return ExtractLutData(argv[2], argv[3]);
+    return NormalizeExit(ExtractLutData(argv[2], argv[3]));
   }
   
   // Version
   if (strcmp(mode, "--version") == 0 || strcmp(mode, "-version") == 0) {
     printf("=======================================================================\n");
-    printf("|                     iccAnalyzer-lite v2.9.0                         |\n");
+    printf("|                     iccAnalyzer-lite v2.9.1                         |\n");
     printf("|                                                                     |\n");
     printf("|             Copyright (c) 2021-2026 David H Hoyt LLC               |\n");
     printf("|                         hoyt.net                                    |\n");
     printf("=======================================================================\n");
     printf("\nBuild: Static (no external dependencies)\n");
     printf("Database features: DISABLED (lite version)\n");
-    return 0;
+    return ICC_EXIT_CLEAN;
   }
   
   // Help
   if (strcmp(mode, "--help") == 0 || strcmp(mode, "-help") == 0) {
     PrintUsage();
-    return 0;
+    return ICC_EXIT_CLEAN;
   }
   
   fprintf(stderr, "ERROR: Unknown option: %s\n\n", SanitizeForLog(mode).c_str());
   PrintUsage();
-  return 1;
+  return ICC_EXIT_USAGE;
 }

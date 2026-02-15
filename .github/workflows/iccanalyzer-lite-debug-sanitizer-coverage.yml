@@ -273,13 +273,40 @@ jobs:
 
               echo "[$MODE_NAME] Testing: $PROFILE_NAME"
 
-              if timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1; then
-                strip_ansi "$OUTPUT_FILE"
-                # Content-based finding detection (ninja modes exit 0 even for malformed profiles)
+              # Exit codes: 0=clean, 1=finding, 2=error, 3=usage, 128+=crash
+              timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1
+              EXIT_CODE=$?
+              strip_ansi "$OUTPUT_FILE"
+
+              if [ $EXIT_CODE -ge 128 ]; then
+                # Signal-based exit (SIGILL=132, SIGABRT=134, SIGSEGV=139)
+                SANITIZER_HITS=$((SANITIZER_HITS + 1))
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: CRASH (signal $((EXIT_CODE - 128)))" >> $SUMMARY
+                echo "  [CRASH] $MODE_NAME/$PROFILE_NAME exit=$EXIT_CODE" | tee -a $SUMMARY
+                tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
+              elif [ $EXIT_CODE -eq 2 ]; then
+                # I/O error (file not found, profile read failure)
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: ERROR (exit $EXIT_CODE)" >> $SUMMARY
+              elif [ $EXIT_CODE -eq 1 ]; then
+                # Finding detected by the analyzer
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: FINDING (exit $EXIT_CODE)" >> $SUMMARY
+                if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                  SANITIZER_HITS=$((SANITIZER_HITS + 1))
+                  echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
+                  tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
+                fi
+              elif [ $EXIT_CODE -eq 124 ]; then
+                # timeout killed the process
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: TIMEOUT" >> $SUMMARY
+              else
+                # Exit 0 = clean per analyzer, but check content for ninja modes
                 if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
                   FINDINGS=$((FINDINGS + 1))
                   echo "  Result: FINDING (content)" >> $SUMMARY
-
                   if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
                     SANITIZER_HITS=$((SANITIZER_HITS + 1))
                     echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
@@ -288,18 +315,6 @@ jobs:
                 else
                   CLEAN=$((CLEAN + 1))
                   echo "  Result: CLEAN" >> $SUMMARY
-                fi
-              else
-                EXIT_CODE=$?
-                strip_ansi "$OUTPUT_FILE"
-                FINDINGS=$((FINDINGS + 1))
-                echo "  Result: FINDING (exit $EXIT_CODE)" >> $SUMMARY
-
-                # Check for sanitizer reports in output
-                if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
-                  SANITIZER_HITS=$((SANITIZER_HITS + 1))
-                  echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
-                  tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
                 fi
               fi
 
