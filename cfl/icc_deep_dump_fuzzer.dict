@@ -274,3 +274,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00P\xf0\x00\x00N\xae"
+
+# --- added by convert-libfuzzer-dict.py ---
+"Q\x8f\x07\x00\xd0P\x00\x00"
+"!\xa6\x1f\x00\xf0P\x00\x00"
