@@ -129,6 +129,8 @@ jobs:
             -DCMAKE_SHARED_LINKER_FLAGS="${SAN_FLAGS} -fprofile-instr-generate" \
             -DENABLE_STATIC_LIBS=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
 
           make -j$(nproc) IccProfLib2-static IccXML2-static
@@ -326,6 +328,11 @@ jobs:
 
           echo "::group::Fuzzer Output"
           echo "Duration: ${FUZZ_SECONDS}s | Dict: ${DICT_ARG:-none} | Seeds: ${SEED_DIR:-none}"
+
+          # Enable deep dump diagnostics for icc_deep_dump_fuzzer
+          if [ "$FUZZER_NAME" = "icc_deep_dump_fuzzer" ]; then
+            export DEEP_DUMP_DIAG=1
+          fi
 
           set +e
           timeout --kill-after=10s $((FUZZ_SECONDS + 30))s "$FUZZER" \

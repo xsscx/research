@@ -121,6 +121,8 @@ jobs:
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DENABLE_STATIC_LIBS=ON \
             -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
 
           make -j$(nproc) IccProfLib2-static IccXML2-static
@@ -290,6 +292,11 @@ jobs:
           SEED_DIR=""
           if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
             SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
+          fi
+
+          # Enable deep dump diagnostics for icc_deep_dump_fuzzer
+          if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
+            export DEEP_DUMP_DIAG=1
           fi
 
           set +e
