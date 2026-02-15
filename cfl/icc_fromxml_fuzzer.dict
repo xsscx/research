@@ -75,3 +75,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "TC\xb3\x03\xfb\xe4=>"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00\x0a"
+"ISO-1"
