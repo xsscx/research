@@ -46,6 +46,14 @@ jobs:
           docker rm "$CID"
           chmod +x iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/icc*_unsafe
 
+      # Suppress gcov profiling noise: binary was compiled with --coverage
+      # inside Docker at /build/iccanalyzer-lite/, but runs at /home/runner/.
+      # GCOV_PREFIX_STRIP removes the /build prefix so .gcda writes go to /dev/null.
+      - name: Suppress gcov profiling stderr
+        run: |
+          echo "GCOV_PREFIX=/dev/null" >> "$GITHUB_ENV"
+          echo "GCOV_PREFIX_STRIP=9" >> "$GITHUB_ENV"
+
       - name: Install MCP server
         run: |
           pip install --quiet ./mcp-server[dev]
