@@ -51,3 +51,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "Y\x00\x00\x00\x00\x00\x00\x00"
 "UTF-16"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\x00"
+"N10__cxxabiv"
