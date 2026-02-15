@@ -153,3 +153,6 @@
 "MCH"
 "\xff\xffP \x00\x11\xd0@"
 "\xc0\xa5\x01\x00 Q\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00Q \x00J\xf0A"
