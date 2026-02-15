@@ -274,8 +274,8 @@ jobs:
               echo "[$MODE_NAME] Testing: $PROFILE_NAME"
 
               # Exit codes: 0=clean, 1=finding, 2=error, 3=usage, 128+=crash
-              timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1
-              EXIT_CODE=$?
+              EXIT_CODE=0
+              timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1 || EXIT_CODE=$?
               strip_ansi "$OUTPUT_FILE"
 
               if [ $EXIT_CODE -ge 128 ]; then
