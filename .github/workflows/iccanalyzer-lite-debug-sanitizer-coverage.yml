@@ -96,6 +96,8 @@ jobs:
             zlib1g-dev \
             liblzma-dev \
             nlohmann-json3-dev \
+            libwxgtk3.2-dev \
+            wx-common \
             libssl-dev \
             lcov
 
@@ -661,10 +663,15 @@ jobs:
             echo "### Status"
           } >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ env.sanitizer_hits }}" -gt 0 ]; then
-            echo "[WARN] **${{ env.sanitizer_hits }} SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ env.grand_findings }}" -gt 0 ]; then
-            echo "**${{ env.grand_findings }} FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
+          SANITIZER_HITS="${{ env.sanitizer_hits }}"
+          SANITIZER_HITS="${SANITIZER_HITS:-0}"
+          GRAND_FINDINGS="${{ env.grand_findings }}"
+          GRAND_FINDINGS="${GRAND_FINDINGS:-0}"
+
+          if [ "$SANITIZER_HITS" -gt 0 ]; then
+            echo "[WARN] **${SANITIZER_HITS} SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
+          elif [ "$GRAND_FINDINGS" -gt 0 ]; then
+            echo "**${GRAND_FINDINGS} FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
           else
             echo "[OK] **ALL CLEAN** — No sanitizer findings across all modes" >> $GITHUB_STEP_SUMMARY
           fi
