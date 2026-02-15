@@ -45,15 +45,13 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 258 || size > 2 * 1024 * 1024) return 0;
   
-  // Extract rendering intent and interpolation from first 2 bytes
-  icRenderingIntent intent = (icRenderingIntent)(data[0] % 4);
-  icXformInterp interp = (data[1] & 1) ? icInterpLinear : icInterpTetrahedral;
+  // Derive parameters from trailing bytes to preserve ICC header structure
+  icRenderingIntent intent = (icRenderingIntent)(data[size - 1] % 4);
+  icXformInterp interp = (data[size - 2] & 1) ? icInterpLinear : icInterpTetrahedral;
+  bool useAbsPCS = (data[size - 3] & 0x01);
   
-  // Use 3rd byte for PCS override flag (removed lutType - not used)
-  bool useAbsPCS = (data[2] & 0x01);
-  
-  // Split remaining input into two profiles
-  size_t mid = (size - 3) / 2 + 3;
+  // Split input into two profiles (no leading byte skip)
+  size_t mid = size / 2;
   
   char tmp1[] = "/tmp/fuzz_link1_XXXXXX";
   char tmp2[] = "/tmp/fuzz_link2_XXXXXX";
@@ -67,7 +65,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     return 0;
   }
   
-  write(fd1, data + 3, mid - 3);
+  write(fd1, data, mid);
   write(fd2, data + mid, size - mid);
   close(fd1);
   close(fd2);

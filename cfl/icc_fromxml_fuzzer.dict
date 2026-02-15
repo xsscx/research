@@ -25,3 +25,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x1e\x00\x00\x00\x00\x00\x00\x00"
+"\x0a\x00\x00\x00\x00\x00\x00\x00"

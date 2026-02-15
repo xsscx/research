@@ -54,3 +54,9 @@
 "\x13\xe7\xec\xbc\xe8K\xf9m"
 " ZYX"
 "\x00\x00st"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00"
+"pBsR"
+"CL"
+"m "

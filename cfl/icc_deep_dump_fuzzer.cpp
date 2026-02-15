@@ -915,11 +915,12 @@ static void ExerciseSignatureLookups(CIccProfile *pIcc, int verboseness) {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 132 || size > kMaxProfileSize) return 0;
 
-  // Consume control bytes for fuzzer-directed decisions
-  uint8_t verbByte = ConsumeByte(data, size);
-  uint8_t phaseByte = ConsumeByte(data, size);
-  uint8_t extraByte = ConsumeByte(data, size);
-  uint8_t intentByte = ConsumeByte(data, size);
+  // Derive control bytes from trailing bytes to preserve ICC header structure
+  // (consuming leading bytes shifts the profile header, breaking fidelity)
+  uint8_t verbByte = data[size - 1];
+  uint8_t phaseByte = data[size - 2];
+  uint8_t extraByte = data[size - 3];
+  uint8_t intentByte = data[size - 4];
 
   // ── Pre-scan tag table for OOM-inducing entries ──
   static constexpr size_t kMaxAllocPerTag = 128 * 1024 * 1024; // 128 MB

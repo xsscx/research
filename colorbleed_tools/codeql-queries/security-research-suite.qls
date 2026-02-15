@@ -21,6 +21,7 @@
 - queries: ./type-confusion.ql
 - queries: ./use-after-free.ql
 - queries: ./integer-overflow-allocation.ql
+- queries: ./alloc-dealloc-mismatch.ql
 
 # Built-in security queries
 - queries: .

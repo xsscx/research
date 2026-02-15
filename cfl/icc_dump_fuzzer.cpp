@@ -46,13 +46,9 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128 || size > 1024 * 1024) return 0;
   
-  // Extract verboseness parameter from first byte (matches tool's 1-100 range)
-  int verboseness = 1;
-  if (size > 128) {
-    verboseness = (data[0] % 100) + 1;  // 1-100
-    data++;
-    size--;
-  }
+  // Derive verboseness from trailing byte to preserve ICC header structure
+  // (consuming leading bytes shifts the profile header, breaking fidelity)
+  int verboseness = (data[size - 1] % 100) + 1;  // 1-100
   
   // Use ValidateIccProfile() like tool does with -v flag (line 193)
   std::string report;

@@ -161,7 +161,7 @@ jobs:
           - *-report.html - Human-readable report
           - *-findings.csv - Spreadsheet-compatible
           - *-summary.json - Machine-readable
-          - codeql-queries/ - All 15 security queries
+          - codeql-queries/ - All 14 security queries
           - codeql-config.yml - Analysis configuration
           EOREADME
 
