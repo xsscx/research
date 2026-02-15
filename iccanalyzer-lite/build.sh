@@ -38,8 +38,9 @@ DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls
 HARDENING="-ftrapv -fstack-protector-strong -D_FORTIFY_SOURCE=0"
 COVERAGE="-fprofile-arcs -ftest-coverage --coverage"
 STANDARD="-std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter"
+DIAGNOSTICS="-DICC_LOG_SAFE -DICC_TRACE_NAN_ENABLED"
 
-export CXXFLAGS="${SANITIZERS} ${DEBUG_FLAGS} ${HARDENING} ${COVERAGE} ${STANDARD}"
+export CXXFLAGS="${SANITIZERS} ${DEBUG_FLAGS} ${HARDENING} ${COVERAGE} ${STANDARD} ${DIAGNOSTICS}"
 export LDFLAGS="${SANITIZERS} -fprofile-arcs --coverage"
 
 echo "CXXFLAGS: $CXXFLAGS"

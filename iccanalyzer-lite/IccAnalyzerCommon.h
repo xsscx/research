@@ -39,6 +39,7 @@
 #define _ICCANALYZERCOMMON_H
 
 #include <cstdio>
+#include <cassert>
 
 // Lite version: Disable fingerprint database and metrics
 // Define ICCANALYZER_LITE at compile time to create distribution binary

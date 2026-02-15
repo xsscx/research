@@ -358,6 +358,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   double Y = icFtoD(illumY);
   double Z = icFtoD(illumZ);
   
+  // Diagnostic: trace NaN illuminant values with file/line context
+  ICC_TRACE_NAN(X, "illuminant.X");
+  ICC_TRACE_NAN(Y, "illuminant.Y");
+  ICC_TRACE_NAN(Z, "illuminant.Z");
+
   printf("[H8] Illuminant XYZ: (%.6f, %.6f, %.6f)\n", X, Y, Z);
   
   if (X < 0.0 || Y < 0.0 || Z < 0.0) {
@@ -432,6 +437,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     };
     int suspiciousCount = 0;
     for (auto &s : sigs) {
+      // Diagnostic: check for 0x3F corruption pattern
+      ICC_SANITY_CHECK_SIGNATURE(s.sig, s.name);
       // Detect repeat-byte patterns (e.g. 0x8e8e8e8e, 0xabababab)
       uint8_t b0 = (s.sig >> 24) & 0xFF;
       bool repeatByte = (s.sig != 0) &&
@@ -464,6 +471,12 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     float biEnd   = icF16toF(header.biSpectralRange.end);
     uint16_t biSteps = header.biSpectralRange.steps;
     
+    // Diagnostic: trace NaN in spectral range conversions
+    ICC_TRACE_NAN(specStart, "spectralRange.start");
+    ICC_TRACE_NAN(specEnd, "spectralRange.end");
+    ICC_TRACE_NAN(biStart, "biSpectralRange.start");
+    ICC_TRACE_NAN(biEnd, "biSpectralRange.end");
+
     bool hasSpectral = (specSteps > 0 || specStart != 0.0f || specEnd != 0.0f);
     bool hasBiSpectral = (biSteps > 0 || biStart != 0.0f || biEnd != 0.0f);
     
