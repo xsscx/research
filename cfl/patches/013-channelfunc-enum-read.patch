@@ -1,0 +1,18 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3474,10 +3474,14 @@
+   }
+ 
+-  icChannelFuncSignature sig;
+-
+-  if (!pIO->Read32(&sig))
++  // CFL patch: read into uint32 to avoid UB from loading an arbitrary
++  // value into enum type icChannelFuncSignature.
++  icUInt32Number rawSig;
++  if (!pIO->Read32(&rawSig))
+     return false;
+ 
++  icChannelFuncSignature sig = static_cast<icChannelFuncSignature>(rawSig);
++
+   if (sig!= GetType())
+     return false;

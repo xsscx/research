@@ -1,0 +1,12 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -4032,7 +4032,10 @@
+     else {
+-      i += op[i].data.size;
++      // CFL patch: guard against infinite loop when op[i].data.size == 0.
++      // With zero size, i never advances and the for-loop spins forever.
++      icUInt32Number step = op[i].data.size;
++      i += (step > 0) ? step : 1;
+     }
+ 
+     free(ifTemps);
