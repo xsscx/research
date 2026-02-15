@@ -527,7 +527,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.host == "0.0.0.0":
-        print("⚠️  WARNING: Binding to 0.0.0.0 exposes the server on all network interfaces.")
+        print("[WARN] WARNING: Binding to 0.0.0.0 exposes the server on all network interfaces.")
         print("   No authentication is configured. Use --host 127.0.0.1 for local-only access.")
     print(f"ICC Profile MCP Web UI → http://{args.host}:{args.port}")
     try:

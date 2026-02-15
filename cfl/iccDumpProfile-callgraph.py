@@ -331,9 +331,9 @@ def emit_text(functions, calls, gates, fuzzer_map=None):
                 if s.cli_only:
                     fidelity = " ⊘ N/A(CLI)"
                 elif _check_fidelity(s, fuzzer_map):
-                    fidelity = " ✅"
+                    fidelity = " [OK]"
                 else:
-                    fidelity = " ❌"
+                    fidelity = " [FAIL]"
 
             if gate_mark:
                 print(f"  │{gate_mark}")
@@ -349,7 +349,7 @@ def emit_text(functions, calls, gates, fuzzer_map=None):
 
     for g in gates:
         indent = "  " * (g.depth + 1)
-        sec_tag = " 🔴 SEC" if g.security_relevant else ""
+        sec_tag = " [CRITICAL] SEC" if g.security_relevant else ""
         print(f"\n{indent}[{g.gate_type.upper():10s}] L{g.line:3d} in {g.parent_func}(){sec_tag}")
         print(f"{indent}  condition: {g.condition}")
         if g.true_calls:

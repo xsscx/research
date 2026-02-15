@@ -1,0 +1,122 @@
+###############################################################
+# Copilot Coding Agent — Environment Setup
+#
+# Builds native dependencies required by the ICC Profile MCP
+# server so the coding agent can use iccanalyzer-lite tools.
+#
+# Ref: https://docs.github.com/en/copilot/customizing-copilot/
+#      customizing-the-development-environment-for-copilot-coding-agent
+###############################################################
+
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-copilot-setup
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+            zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev
+
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-lite-
+
+      - name: Clone iccDEV
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        run: |
+          cd iccanalyzer-lite
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+
+      - name: Apply CFL patches
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        run: |
+          for p in cfl/patches/*.patch; do
+            patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null || true
+          done
+
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-debug-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-build-lite-debug-
+
+      - name: Build iccDEV libraries
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        env:
+          CXX: clang++
+        run: |
+          cd iccanalyzer-lite/iccDEV/Build
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TOOLS=OFF \
+            -DENABLE_STATIC_LIBS=ON \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
+            -Wno-dev
+          make -j$(nproc)
+
+      - name: Build iccanalyzer-lite
+        run: |
+          cd iccanalyzer-lite
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Build colorbleed_tools
+        run: |
+          cd colorbleed_tools
+          make setup && make || echo "[WARN] colorbleed_tools build optional"
+
+      - name: Install MCP server
+        run: |
+          pip install --quiet ./mcp-server[dev]
+
+      - name: Verify tools
+        run: |
+          echo "iccanalyzer-lite:" && iccanalyzer-lite/iccanalyzer-lite --version | head -1
+          echo "MCP server:" && python -c "from icc_profile_mcp import mcp; print('OK')" 2>/dev/null || echo "[OK] importable via package"

@@ -21,7 +21,7 @@ echo ""
 
 # Verify fuzz directory exists
 if [ ! -d "$FUZZ_BASE" ]; then
-    echo "❌ ERROR: Fuzz directory not found at $FUZZ_BASE"
+    echo "[FAIL] ERROR: Fuzz directory not found at $FUZZ_BASE"
     exit 1
 fi
 
@@ -47,7 +47,7 @@ FUZZERS=(
 echo "Creating seed corpus directories..."
 for fuzzer in "${FUZZERS[@]}"; do
     mkdir -p "$SCRIPT_DIR/${fuzzer}_seed_corpus"
-    echo "  ✓ $fuzzer"
+    echo "  [OK] $fuzzer"
 done
 echo ""
 
@@ -66,9 +66,9 @@ if [ -d "$FUZZ_BASE/graphics/icc" ]; then
             ICC_COUNT=$((ICC_COUNT + 1))
         fi
     done
-    echo "  ✓ Copied $ICC_COUNT ICC files to 12 profile fuzzers"
+    echo "  [OK] Copied $ICC_COUNT ICC files to 12 profile fuzzers"
 else
-    echo "  ⚠ graphics/icc directory not found"
+    echo "  [WARN] graphics/icc directory not found"
 fi
 echo ""
 
@@ -87,9 +87,9 @@ if [ -d "$FUZZ_BASE/xml/icc" ]; then
             XML_COUNT=$((XML_COUNT + 1))
         fi
     done
-    echo "  ✓ Copied $XML_COUNT XML files to 2 XML fuzzers"
+    echo "  [OK] Copied $XML_COUNT XML files to 2 XML fuzzers"
 else
-    echo "  ⚠ xml/icc directory not found"
+    echo "  [WARN] xml/icc directory not found"
 fi
 echo ""
 
@@ -101,9 +101,9 @@ if [ -d "$FUZZ_BASE/graphics/tiff" ]; then
         cp "$tiff_file" "$SCRIPT_DIR/icc_specsep_fuzzer_seed_corpus/$(basename "$tiff_file")"
         TIFF_COUNT=$((TIFF_COUNT + 1))
     done
-    echo "  ✓ Copied $TIFF_COUNT TIFF files to specsep fuzzer"
+    echo "  [OK] Copied $TIFF_COUNT TIFF files to specsep fuzzer"
 else
-    echo "  ⚠ graphics/tiff directory not found"
+    echo "  [WARN] graphics/tiff directory not found"
 fi
 echo ""
 
@@ -150,15 +150,15 @@ for fuzzer in "${FUZZERS[@]}"; do
     dict="${FUZZER_DICTS[$fuzzer]}"
     if [ -f "$SCRIPT_DIR/$dict" ]; then
         size=$(wc -l < "$SCRIPT_DIR/$dict")
-        printf "%-35s %-40s ✅ (%d entries)\n" "$fuzzer" "$dict" "$size"
+        printf "%-35s %-40s [OK] (%d entries)\n" "$fuzzer" "$dict" "$size"
     else
-        printf "%-35s %-40s ❌ MISSING\n" "$fuzzer" "$dict"
+        printf "%-35s %-40s [FAIL] MISSING\n" "$fuzzer" "$dict"
     fi
 done
 echo "───────────────────────────────────────────────────────────────────────────────"
 echo ""
 
-echo "✅ Seed corpus setup complete!"
+echo "[OK] Seed corpus setup complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Test corpus with: ./test-seed-corpus.sh"

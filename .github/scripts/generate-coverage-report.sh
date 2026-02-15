@@ -22,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-die() { echo "❌ ERROR: $*" >&2; exit 1; }
+die() { echo "[FAIL] ERROR: $*" >&2; exit 1; }
 
 # --- Argument parsing ---
 PROFDATA="${1:?Usage: generate-coverage-report.sh <profdata-file> <output-dir> [binary...]}"
@@ -82,7 +82,7 @@ echo "Generating text report..."
   > "$OUTPUT_DIR/coverage-report.txt" 2>&1
 
 LINES=$(wc -l < "$OUTPUT_DIR/coverage-report.txt")
-echo "  ✅ $OUTPUT_DIR/coverage-report.txt ($LINES lines)"
+echo "  [OK] $OUTPUT_DIR/coverage-report.txt ($LINES lines)"
 
 # Extract and display summary line
 SUMMARY=$(tail -1 "$OUTPUT_DIR/coverage-report.txt" | grep -oP 'TOTAL.*' || true)
@@ -104,7 +104,7 @@ echo "Generating HTML report..."
 
 HTML_COUNT=$(find "$OUTPUT_DIR/html" -name '*.html' 2>/dev/null | wc -l)
 HTML_SIZE=$(du -sh "$OUTPUT_DIR/html" 2>/dev/null | cut -f1)
-echo "  ✅ $OUTPUT_DIR/html/ ($HTML_COUNT HTML files, $HTML_SIZE)"
+echo "  [OK] $OUTPUT_DIR/html/ ($HTML_COUNT HTML files, $HTML_SIZE)"
 
 echo ""
 echo "════════════════════════════════════════"
