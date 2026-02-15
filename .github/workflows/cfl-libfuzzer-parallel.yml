@@ -338,7 +338,7 @@ jobs:
             -use_value_profile=1 \
             -max_len=65536 \
             $DICT_ARG \
-            corpus-${FUZZER_NAME} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -50
+            corpus-${FUZZER_NAME} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log
           EXIT_CODE=$?
           set -e
           echo "::endgroup::"

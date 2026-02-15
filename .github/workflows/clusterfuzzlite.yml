@@ -300,7 +300,7 @@ jobs:
             -rss_limit_mb=4096 \
             -timeout=30 \
             $DICT_ARG \
-            corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log | tail -250
+            corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log
           EXIT_CODE=$?
           set -e
 
