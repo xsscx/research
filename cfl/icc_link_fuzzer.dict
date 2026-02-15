@@ -105,3 +105,7 @@
 "\x80\xd6y\x00PQ\x00\x00"
 "\x01\x00Q \x00\x10\xe8E"
 "\x80\xd7n\x00\x90Q\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"N10__cxxabiv120__si_class_type_in"
+"\xff\xff\xff\x02"

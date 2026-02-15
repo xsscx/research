@@ -55,3 +55,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x00"
 "N10__cxxabiv"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\xa0\x00\x00"

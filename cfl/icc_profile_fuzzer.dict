@@ -138,3 +138,6 @@
 "\x02\x02"
 "\x00\x00\x00\x00\x00\x00\x00;"
 "ED000"
+
+# --- added by convert-libfuzzer-dict.py ---
+"2A1"
