@@ -62,3 +62,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "5\x09\x00\x00\x00\x00\x00\x00"
 "iso10646ucs4"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x01-"
+"6\x00\x00\x00\x00\x00\x00\x00"
