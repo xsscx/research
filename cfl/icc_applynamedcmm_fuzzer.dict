@@ -38,3 +38,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xff\xff\xff\xff\xff"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff"
+"\x01\x00 \x00\x00\x00\x00\x00"

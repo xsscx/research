@@ -82,3 +82,11 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x0e\x09\x00\x00\x00\x00\x00\x00"
 "B1A"
+
+# --- added by convert-libfuzzer-dict.py ---
+"N10__cxxabiv117__class_type_infoE"
+"MCH"
+"\xff\xff\xff\xff\xff\xff\x0e\x14"
+"U2?"
+"\x0f\\"
+"\x01\x00\x00\x00\x00\x00\x01~"
