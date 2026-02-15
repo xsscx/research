@@ -2596,3 +2596,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xee\x0d\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"PPA"

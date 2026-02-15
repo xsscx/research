@@ -96,3 +96,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "WS~<\xb37\xdc\xc9"
 "B\x0c\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00%"
+"iso885981988"
