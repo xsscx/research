@@ -97,6 +97,10 @@ Then:
 1. `git add analysis-reports/ && git commit -m "Analysis: <profile-name>"` 
 2. Update the PR description with the exit code summary from the script output
 3. If ASAN/UBSAN findings were detected, note them prominently in the PR description
+4. Post each report as a comment on the originating issue:
+   ```bash
+   gh issue comment <ISSUE_NUMBER> --body "$(cat analysis-reports/<profile>-analysis.md)"
+   ```
 
 The script exits with the worst exit code across all 3 commands. Exit 0 = clean, 1 = finding, 2 = error.
 
