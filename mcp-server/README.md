@@ -477,7 +477,7 @@ base64 < my-profile.icc
 
 **What it does:** Builds the native C++ analysis tools (iccanalyzer-lite and/or colorbleed_tools) from source.
 
-**When to use:** First-time setup, or after code changes to the analysis tools.
+**When to use:** First-time setup, or after code changes to the analysis tools. For more control over cmake configuration, use `cmake_configure` + `cmake_build` instead.
 
 **Parameters:**
 | Parameter | Default | Options |
@@ -486,6 +486,99 @@ base64 < my-profile.icc
 
 **Example request:**
 > "Build all the analysis tools"
+
+---
+
+### `cmake_configure`
+
+**What it does:** Configures iccDEV with cmake, allowing control over build type, sanitizers, compiler, and whether to build CLI tools.
+
+**When to use:** Maintainers who need different build configurations — Release builds, coverage instrumentation, or `ENABLE_TOOLS=ON` to run CreateAllProfiles.sh and the iccDEV test suite.
+
+**Parameters:**
+| Parameter | Default | Options |
+|-----------|---------|---------|
+| `build_type` | `Debug` | `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
+| `enable_tools` | `False` | `True` / `False` — builds iccDEV CLI tools (iccFromXml, iccApplyProfiles, etc.) |
+| `sanitizers` | `asan+ubsan` | `asan+ubsan`, `asan`, `ubsan`, `coverage`, `none` |
+| `compiler` | `clang` | `clang`, `gcc` |
+| `generator` | `default` | `default` (auto-detect), `Ninja`, `Xcode` (macOS), `Unix Makefiles` |
+| `extra_cmake_args` | `""` | Additional `-DVAR=VALUE` flags (sanitized) |
+| `build_dir` | auto | Name for build directory under `iccDEV/Build/` |
+
+**Cross-platform:** Supports Unix Makefiles (Linux), Xcode (macOS), and Ninja generators.
+Source patches are applied automatically (U+FE0F strip, wxWidgets removal if unavailable).
+Uses iccDEV native cmake options (`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_COVERAGE`).
+
+**Example requests:**
+> "Configure iccDEV with tools enabled for profile generation"
+
+> "Set up a Release build with no sanitizers"
+
+> "Configure a coverage build so I can measure code coverage"
+
+---
+
+### `cmake_build`
+
+**What it does:** Runs `cmake --build` in a previously configured iccDEV build directory. Uses the cross-platform cmake build driver (works with Unix Makefiles, Ninja, Xcode, etc.).
+
+**When to use:** After `cmake_configure` to compile the configured build.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `build_dir` | (required) | Build directory name from `cmake_configure` |
+| `target` | `""` (all) | Make target (e.g. `install`) |
+| `jobs` | nproc | Parallel jobs |
+
+**Example request:**
+> "Build the configured iccDEV project"
+
+---
+
+### `create_all_profiles`
+
+**What it does:** Runs iccDEV's `Testing/CreateAllProfiles.sh` to generate the full ICC profile corpus (~80+ profiles) from XML specifications.
+
+**When to use:** After building with `enable_tools=True` to generate ICC test profiles for validation, testing, or fuzzing seed corpus.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `build_dir` | (required) | Build directory that was configured with `enable_tools=True` |
+
+**Prerequisite workflow:**
+```
+cmake_configure(enable_tools=True)  →  cmake_build(build_dir="...")  →  create_all_profiles(build_dir="...")
+```
+
+**Example request:**
+> "Generate all ICC test profiles using the tools build"
+
+---
+
+### `run_iccdev_tests`
+
+**What it does:** Runs iccDEV's `Testing/RunTests.sh` test suite against generated profiles, validating round-trip fidelity, profile application, and tool interoperability.
+
+**When to use:** After `create_all_profiles` to validate the generated profiles.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `build_dir` | (required) | Build directory that was configured with `enable_tools=True` |
+
+**Full maintainer workflow:**
+```
+cmake_configure(enable_tools=True)
+cmake_build(build_dir="...")
+create_all_profiles(build_dir="...")
+run_iccdev_tests(build_dir="...")
+```
+
+**Example request:**
+> "Run the iccDEV test suite against the generated profiles"
 
 ---
 

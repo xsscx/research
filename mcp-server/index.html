@@ -275,6 +275,12 @@ footer {
   text-align: center;
 }
 
+.toolbar .separator {
+  border-left: 1px solid var(--border);
+  margin: 0 0.3rem;
+  align-self: stretch;
+}
+
 /* ── Responsive ────────────────────────────────────────── */
 @media (max-width: 640px) {
   .input-row { flex-direction: column; }
@@ -300,6 +306,11 @@ footer {
     <button data-tool="full"     >Full Analysis</button>
     <button data-tool="xml"      >To XML</button>
     <button data-tool="compare"  >Compare</button>
+    <span class="separator" data-separator></span>
+    <button data-tool="cmake_configure">CMake Configure</button>
+    <button data-tool="cmake_build"    >CMake Build</button>
+    <button data-tool="create_profiles">Create Profiles</button>
+    <button data-tool="run_tests"      >Run Tests</button>
   </nav>
 
   <!-- Input panel -->
@@ -332,13 +343,17 @@ footer {
 "use strict";
 
 const TOOLS = {
-  list:      { label: "List Profiles",  endpoint: "/api/list",      fields: ["directory"] },
-  inspect:   { label: "Inspect",        endpoint: "/api/inspect",   fields: ["path"] },
-  security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"] },
-  roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"] },
-  full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"] },
-  xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"] },
-  compare:   { label: "Compare",        endpoint: "/api/compare",   fields: ["path_a", "path_b"] },
+  list:      { label: "List Profiles",  endpoint: "/api/list",      fields: ["directory"], method: "GET" },
+  inspect:   { label: "Inspect",        endpoint: "/api/inspect",   fields: ["path"],      method: "GET" },
+  security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"],      method: "GET" },
+  roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"],      method: "GET" },
+  full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"],      method: "GET" },
+  xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"],      method: "GET" },
+  compare:   { label: "Compare",        endpoint: "/api/compare",   fields: ["path_a", "path_b"], method: "GET" },
+  cmake_configure: { label: "CMake Configure", endpoint: "/api/cmake/configure", fields: ["build_type","enable_tools","sanitizers","compiler","generator","extra_cmake_args","build_dir"], method: "POST" },
+  cmake_build:     { label: "CMake Build",     endpoint: "/api/cmake/build",     fields: ["build_dir","target","jobs"], method: "POST" },
+  create_profiles: { label: "Create Profiles", endpoint: "/api/create-profiles", fields: ["build_dir"], method: "POST" },
+  run_tests:       { label: "Run Tests",       endpoint: "/api/run-tests",       fields: ["build_dir"], method: "POST" },
 };
 
 const DIRS = ["test-profiles", "extended-test-profiles", "xif", "fuzz/graphics/icc"];
@@ -401,6 +416,95 @@ function renderInputs() {
           </select>
         </div>
         <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "cmake_configure") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_type">Build Type</label>
+          <select id="inp-build_type">
+            <option value="Debug" selected>Debug</option>
+            <option value="Release">Release</option>
+            <option value="RelWithDebInfo">RelWithDebInfo</option>
+            <option value="MinSizeRel">MinSizeRel</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-sanitizers">Sanitizers</label>
+          <select id="inp-sanitizers">
+            <option value="asan+ubsan" selected>asan+ubsan</option>
+            <option value="asan">asan</option>
+            <option value="ubsan">ubsan</option>
+            <option value="coverage">coverage</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-compiler">Compiler</label>
+          <select id="inp-compiler">
+            <option value="clang" selected>clang</option>
+            <option value="gcc">gcc</option>
+          </select>
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-generator">Generator</label>
+          <select id="inp-generator">
+            <option value="default" selected>default (auto-detect)</option>
+            <option value="Ninja">Ninja</option>
+            <option value="Unix Makefiles">Unix Makefiles</option>
+            <option value="Xcode">Xcode (macOS)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-enable_tools">Enable Tools</label>
+          <select id="inp-enable_tools">
+            <option value="false">No</option>
+            <option value="true">Yes (required for CreateAllProfiles)</option>
+          </select>
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-extra_cmake_args">Extra CMake Args</label>
+          <input id="inp-extra_cmake_args" value="" placeholder="-DICC_LOG_SAFE=ON" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-build_dir">Build Dir (optional)</label>
+          <input id="inp-build_dir" value="" placeholder="auto-generated if empty" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Configure</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "cmake_build") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_dir">Build Dir</label>
+          <input id="inp-build_dir" value="" placeholder="e.g. build-debug-asan-ubsan-tools" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-target">Target (optional)</label>
+          <input id="inp-target" value="" placeholder="default: all" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-jobs">Jobs (optional)</label>
+          <input id="inp-jobs" type="number" value="0" min="0" placeholder="0 = auto">
+        </div>
+        <button class="btn-run" id="btnRun">Build</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "create_profiles" || currentTool === "run_tests") {
+    const btnLabel = currentTool === "create_profiles" ? "Create Profiles" : "Run Tests";
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_dir">Build Dir</label>
+          <input id="inp-build_dir" value="" placeholder="e.g. build-debug-asan-ubsan-tools" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">${esc(btnLabel)}</button>
         ${saveBtn}
       </div>`;
   } else if (currentTool === "compare") {
@@ -574,6 +678,64 @@ async function handleFileUpload() {
 /* ── Run the selected tool ─────────────────────────────── */
 async function run() {
   const tool = TOOLS[currentTool];
+  const isPost = tool.method === "POST";
+
+  if (isPost) {
+    // Build JSON body from inputs
+    const body = {};
+    for (const f of tool.fields) {
+      const el = document.getElementById(`inp-${f}`);
+      if (!el) continue;
+      let val = el.value.trim();
+      // Type coercion for special fields
+      if (f === "enable_tools") val = (val === "true");
+      else if (f === "jobs") val = parseInt(val, 10) || 0;
+      if (val !== "" && val !== 0 && val !== false) body[f] = val;
+    }
+
+    if (abortCtrl) abortCtrl.abort();
+    abortCtrl = new AbortController();
+    setStatus("running", `Running ${tool.label}…`);
+    showOutput("");
+    const runBtn = $inputPanel.querySelector(".btn-run");
+    if (runBtn) runBtn.disabled = true;
+
+    const t0 = performance.now();
+    try {
+      const resp = await fetch(tool.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: abortCtrl.signal,
+      });
+      const data = await resp.json();
+      const ms = (performance.now() - t0).toFixed(0);
+      if (data.ok) {
+        setStatus("ok", `${tool.label} completed in ${ms} ms`);
+        showOutput(data.result);
+        lastOutput = data.result;
+        enableSave(true);
+      } else {
+        const safeErr = sanitize(data.error || "Unknown error");
+        setStatus("err", safeErr);
+        showOutput(`Error: ${safeErr}`);
+        lastOutput = "";
+        enableSave(false);
+      }
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      const safeMsg = sanitize(err.message);
+      setStatus("err", `Network error: ${safeMsg}`);
+      showOutput(`Network error:\n${safeMsg}`);
+      lastOutput = "";
+      enableSave(false);
+    } finally {
+      if (runBtn) runBtn.disabled = false;
+    }
+    return;
+  }
+
+  // GET tools (original logic)
   const params = new URLSearchParams();
 
   // Gather inputs
