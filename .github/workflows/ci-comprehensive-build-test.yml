@@ -347,57 +347,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             build-essential cmake clang llvm ccache \
-            libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
+            libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev \
+            libclang-rt-dev || sudo apt-get install -y libclang-rt-18-dev 2>/dev/null || true
           ccache --zero-stats || true
 
-      - name: Clone iccDEV
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
-
-      - name: Patch iccDEV
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
-            xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
-          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
-            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
-
-      - name: Disable wxWidgets
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
-          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
-          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
-
-      - name: Configure Fuzzer Build
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          cd cfl/iccDEV
-          mkdir -p Build-fuzzing && cd Build-fuzzing
-          CC=clang CXX=clang++ cmake ../Build/Cmake \
-                -DCMAKE_BUILD_TYPE=Debug \
-                -DENABLE_FUZZING=ON \
-                -DENABLE_STATIC_LIBS=ON \
-                -DENABLE_SHARED_LIBS=ON \
-                -DENABLE_TOOLS=OFF
-
-      - name: Build Fuzzers
+      - name: Build Fuzzers via cfl/build.sh
         env:
           BASH_ENV: /dev/null
         run: |
@@ -407,26 +361,14 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          if command -v ccache >/dev/null 2>&1; then
-            export PATH="/usr/lib/ccache:$PATH"
-            export CC="ccache clang"
-            export CXX="ccache clang++"
-          fi
-
-          cd cfl/iccDEV/Build-fuzzing
           echo "::group::Fuzzer Build Output"
           BUILD_START=$(date +%s)
-          make -j"$(nproc)" 2>&1 | tee build-fuzzing.log
+          cd cfl && bash build.sh 2>&1 | tee build-fuzzing.log
           BUILD_END=$(date +%s)
           echo "::endgroup::"
 
           BUILD_TIME=$((BUILD_END - BUILD_START))
           echo "::notice title=Fuzzer Build Time::Fuzzer build completed in ${BUILD_TIME}s"
-
-          if grep -iE '(error|failed|undefined reference|cannot find)' build-fuzzing.log; then
-            echo "::error title=Fuzzer Build Failed::Fuzzer build errors detected"
-            exit 1
-          fi
 
           if command -v ccache >/dev/null 2>&1; then
             echo "::group::ccache Statistics"
@@ -443,11 +385,12 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          FUZZER_COUNT=$(find cfl/iccDEV/Build-fuzzing -name 'icc_*_fuzzer' -type f 2>/dev/null | wc -l)
+          FUZZER_COUNT=$(find cfl/bin -name 'icc_*_fuzzer' -type f 2>/dev/null | wc -l)
           echo "::notice title=Fuzzer Count::Built $FUZZER_COUNT fuzzers"
           if [ "$FUZZER_COUNT" -lt 1 ]; then
-            echo "::warning title=Fuzzer Verification::No fuzzer executables found"
-            find cfl/iccDEV/Build-fuzzing -type f -executable | head -20 || true
+            echo "::error title=Fuzzer Verification::No fuzzer executables found in cfl/bin/"
+            ls -la cfl/bin/ 2>/dev/null || echo "[WARN] cfl/bin/ not found"
+            exit 1
           fi
 
       - name: Upload Fuzzer Build Artifacts (on failure)
@@ -456,10 +399,9 @@ jobs:
         with:
           name: fuzzer-build-logs
           path: |
-            cfl/iccDEV/Build-fuzzing/build-fuzzing.log
-            cfl/iccDEV/Build-fuzzing/CMakeCache.txt
-            cfl/iccDEV/Build-fuzzing/CMakeFiles/CMakeError.log
-            cfl/iccDEV/Build-fuzzing/CMakeFiles/CMakeOutput.log
+            cfl/build-fuzzing.log
+            cfl/iccDEV/Build/CMakeCache.txt
+            cfl/iccDEV/Build/CMakeFiles/CMakeError.log
           retention-days: 7
 
       - name: Upload Fuzzer Executables (on success)
@@ -467,7 +409,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: fuzzer-executables-debug-instrumentation
-          path: cfl/iccDEV/Build-fuzzing/Testing/Fuzzing/*_fuzzer
+          path: cfl/bin/icc_*_fuzzer
           if-no-files-found: warn
           retention-days: 14
           compression-level: 9
@@ -481,7 +423,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          cd cfl/iccDEV/Build-fuzzing/Testing/Fuzzing 2>/dev/null || { echo "[WARN] Fuzzing dir not found"; exit 0; }
+          cd cfl/bin 2>/dev/null || { echo "[WARN] cfl/bin not found"; exit 0; }
 
           EXPECTED_FUZZERS="icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer icc_calculator_fuzzer icc_dump_fuzzer icc_fromxml_fuzzer icc_io_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer icc_roundtrip_fuzzer icc_spectral_fuzzer icc_toxml_fuzzer icc_v5dspobs_fuzzer"
 
