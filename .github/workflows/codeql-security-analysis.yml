@@ -277,10 +277,60 @@ jobs:
           path: analysis-bundle/mcp-server/
           retention-days: 90
 
+  devcontainer-lint:
+    name: DevContainer Shell Linting
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: ShellCheck devcontainer scripts
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          echo "## DevContainer Shell Linting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          SCRIPTS=$(find .devcontainer -name '*.sh' -type f | sort)
+          FAIL=0
+          for script in $SCRIPTS; do
+            if shellcheck -s bash "$script" 2>&1; then
+              echo "- [OK] $script" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- [FAIL] $script" >> $GITHUB_STEP_SUMMARY
+              FAIL=1
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$FAIL" -ne 0 ]; then
+            echo "**Status:** [FAIL] ShellCheck found issues" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "**Status:** [OK] All scripts pass ShellCheck" >> $GITHUB_STEP_SUMMARY
+
+      - name: Validate devcontainer.json files
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          CONFIGS=$(find .devcontainer -name 'devcontainer.json' -type f | sort)
+          for config in $CONFIGS; do
+            if python3 -c "import json; json.load(open('$config'))"; then
+              echo "[OK] Valid JSON: $config"
+            else
+              echo "[FAIL] Invalid JSON: $config"
+              exit 1
+            fi
+          done
+
   summary-report:
     name: Analysis Summary
     runs-on: ubuntu-latest
-    needs: [codeql-analysis, codeql-python]
+    needs: [codeql-analysis, codeql-python, devcontainer-lint]
     if: always()
     permissions:
       contents: read
@@ -293,7 +343,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "**Targets:** iccanalyzer-lite, colorbleed_tools, cfl, mcp-server" >> $GITHUB_STEP_SUMMARY
+          echo "**Targets:** iccanalyzer-lite, colorbleed_tools, cfl, mcp-server, devcontainer" >> $GITHUB_STEP_SUMMARY
           echo "**Total Queries:** 51 C++ (17 per target) + 3 custom Python + security-and-quality" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Repository Security Posture" >> $GITHUB_STEP_SUMMARY

@@ -21,7 +21,7 @@ echo "[INFO] Setting up MCP server venv..."
 cd mcp-server
 python3 -m venv .venv
 .venv/bin/pip install --quiet --upgrade pip
-.venv/bin/pip install --quiet -e .
+.venv/bin/pip install --quiet -e ".[dev]"
 cd ..
 
 echo "[INFO] Cloning iccDEV..."
