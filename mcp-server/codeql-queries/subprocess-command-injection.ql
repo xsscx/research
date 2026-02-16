@@ -24,11 +24,13 @@ class McpToolParameter extends DataFlow::Node {
     exists(Function f, Name n |
       f.getName() in [
         "cmake_configure", "cmake_build",
-        "create_all_profiles", "run_iccdev_tests"
+        "create_all_profiles", "run_iccdev_tests",
+        "cmake_option_matrix", "windows_build"
       ] and
       n.getId() in [
         "build_dir", "extra_cmake_args", "target",
-        "build_type", "sanitizers", "compiler", "generator"
+        "build_type", "sanitizers", "compiler", "generator",
+        "options", "vcpkg_source"
       ] and
       n.getScope() = f and
       this.asExpr() = n
