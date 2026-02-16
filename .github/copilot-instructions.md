@@ -64,7 +64,7 @@ cd cfl && ./test-seed-corpus.sh
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 7 tools for AI-assisted ICC profile analysis. Three integration methods:
+The ICC Profile MCP server exposes 13 tools (9 analysis + 4 maintainer build) for AI-assisted ICC profile security research. Three integration methods:
 
 ### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
@@ -119,6 +119,10 @@ Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-pr
 | `list_test_profiles` | List available test profiles |
 | `upload_and_analyze` | Accept base64-encoded ICC profile, analyze in any mode |
 | `build_tools` | Build native analysis tools from source |
+| `cmake_configure` | Configure iccDEV cmake (build type, sanitizers, generator, tools) |
+| `cmake_build` | Build iccDEV with cmake --build (cross-platform) |
+| `create_all_profiles` | Run CreateAllProfiles.sh from Testing/ directory |
+| `run_iccdev_tests` | Run RunTests.sh test suite |
 
 ## Architecture
 
@@ -127,7 +131,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **cfl/** — 17 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 19-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
-- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1.
+- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 13 tools: 9 analysis + 4 maintainer (cmake configure/build, CreateAllProfiles, RunTests). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — OOM mitigation patches (001–005+) applied to iccDEV before fuzzer builds. Patch 001 caps CLUT at 16MB; others cap at 128MB (patch 005 caps hex dumps at 256KB).
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
@@ -189,8 +193,11 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 
 ### MCP server security patterns
 - Path validation: allowlist of base dirs + symlink resolution + normpath checks + null byte rejection
+- Build dir validation: triple layer (web_ui regex, _resolve_build_dir, Path.resolve containment check)
+- CMake args: regex allowlist (`-DVAR=VALUE`, `-Wflag` only), shell metachar rejection
 - Subprocess: `asyncio.create_subprocess_exec` (never `shell=True`), minimal env vars
-- Output: strip control chars/ANSI, 10MB cap. Uploads: 20MB cap, temp dir with 700 mode
+- Output: `_sanitize_output` strips control chars/ANSI, 10MB cap. All output paths verified sanitized
+- Uploads: 20MB cap, temp dir with 700 mode
 - CSP with per-request nonce, strict security headers
 - Default binding: 127.0.0.1 (not 0.0.0.0)
 
@@ -198,7 +205,7 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 26 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 17 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
-- `codeql-security-analysis.yml` — 15 custom queries × 3 targets + security-and-quality
+- `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
 - `iccanalyzer-cli-release.yml` — CLI test suite + release artifacts
 - `iccanalyzer-lite-debug-sanitizer-coverage.yml` — Debug+ASan+UBSan+coverage with structured exit code dispatch
 - `mcp-server-test.yml` — MCP server unit tests

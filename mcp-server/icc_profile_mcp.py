@@ -15,6 +15,7 @@ import base64
 import hashlib
 import os
 import re
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -37,6 +38,7 @@ TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 XIF_DIR = REPO_ROOT / "xif"
 FUZZ_ICC_DIR = REPO_ROOT / "fuzz" / "graphics" / "icc"
+ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
 
 # Allowed base directories for profile resolution (resolved at import time)
 _ALLOWED_BASES = [REPO_ROOT, TEST_PROFILES, EXTENDED_PROFILES, XIF_DIR, FUZZ_ICC_DIR]
@@ -461,6 +463,11 @@ async def build_tools(target: str = "all") -> str:
     Builds iccanalyzer-lite and/or colorbleed_tools from source using their
     respective build scripts. Requires clang/clang++ and system dependencies.
 
+    For more control over cmake configuration (build types, sanitizers,
+    ENABLE_TOOLS), use cmake_configure + cmake_build instead. For generating
+    ICC test profiles, use create_all_profiles. For running the iccDEV test
+    suite, use run_iccdev_tests.
+
     Args:
         target: What to build — "all", "iccanalyzer-lite", or "colorbleed_tools"
     """
@@ -543,6 +550,523 @@ async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
     if len(output) > MAX_OUTPUT_BYTES:
         output = output[:MAX_OUTPUT_BYTES] + "\n[OUTPUT TRUNCATED at 10MB]"
     return _sanitize_output(output.strip())
+
+
+# ── Helpers for cmake / iccDEV maintainer tools ─────────────────────
+
+# Allowed cmake arg patterns — reject shell metacharacters
+_CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-/: ]*$")
+_CMAKE_FLAG_RE = re.compile(r"^-W[a-z\-]+$")
+
+_VALID_BUILD_TYPES = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"}
+_VALID_SANITIZERS = {"none", "asan", "ubsan", "asan+ubsan", "coverage"}
+_VALID_COMPILERS = {"clang", "gcc"}
+_VALID_GENERATORS = {"default", "Ninja", "Xcode", "Unix Makefiles"}
+
+
+def _sanitize_cmake_args(raw: str) -> list[str]:
+    """Parse and validate extra cmake arguments.
+
+    Only allows -DVAR=VALUE and -Wflag patterns to prevent injection.
+    """
+    if not raw or not raw.strip():
+        return []
+    args = []
+    for token in raw.split():
+        if _CMAKE_ARG_RE.match(token) or _CMAKE_FLAG_RE.match(token):
+            args.append(token)
+        else:
+            raise ValueError(
+                f"Rejected cmake arg: '{token}'. "
+                f"Only -DVAR=VALUE and -Wflag patterns are allowed."
+            )
+    return args
+
+
+def _resolve_iccdev_dir() -> Path:
+    """Locate the iccDEV source tree."""
+    if ICCDEV_DIR.is_dir():
+        return ICCDEV_DIR
+    raise FileNotFoundError(
+        f"iccDEV not found at {ICCDEV_DIR}. "
+        f"Clone it first: git clone https://github.com/InternationalColorConsortium/iccDEV.git {ICCDEV_DIR}"
+    )
+
+
+def _resolve_build_dir(build_dir: str) -> Path:
+    """Resolve and validate a build directory name under iccDEV/Build/.
+
+    Security: prevents path traversal out of iccDEV/Build/.
+    """
+    iccdev = _resolve_iccdev_dir()
+    base = iccdev / "Build"
+
+    # Sanitize: only allow simple directory names
+    clean = re.sub(r"[^\w.\-]", "_", build_dir)
+    if not clean or clean.startswith("."):
+        clean = "build-mcp"
+
+    target = (base / clean).resolve()
+    safe_base = base.resolve()
+    if not (str(target) == str(safe_base) or str(target).startswith(str(safe_base) + os.sep)):
+        raise ValueError(f"Build directory escapes iccDEV/Build/: {build_dir}")
+
+    return target
+
+
+def _find_iccdev_tools(build_dir: Path) -> list[str]:
+    """Find executable tool directories under a build directory."""
+    tool_dirs: list[str] = []
+    if not build_dir.is_dir():
+        return tool_dirs
+    for root, dirs, files in os.walk(str(build_dir)):
+        if "Tools" in root:
+            for f in files:
+                fp = os.path.join(root, f)
+                if os.access(fp, os.X_OK):
+                    d = os.path.dirname(fp)
+                    if d not in tool_dirs:
+                        tool_dirs.append(d)
+    return tool_dirs
+
+
+def _build_tool_path(build_dir: Path) -> str:
+    """Construct a PATH string with iccDEV tool directories prepended."""
+    tool_dirs = _find_iccdev_tools(build_dir)
+    base_path = os.environ.get("PATH", "/usr/bin:/bin")
+    if tool_dirs:
+        return os.pathsep.join(tool_dirs) + os.pathsep + base_path
+    return base_path
+
+
+def _patch_iccdev_source(iccdev: Path) -> list[str]:
+    """Apply known source patches to iccDEV tree.
+
+    1. Strip stray U+FE0F (emoji variation selector) from IccSignatureUtils.h
+    2. Patch out wxWidgets find_package if wx libs are not available
+
+    Returns list of patches applied.
+    """
+    patches: list[str] = []
+
+    # Strip U+FE0F from IccSignatureUtils.h (upstream bug, all workflows patch this)
+    sig_utils = iccdev / "IccProfLib" / "IccSignatureUtils.h"
+    if sig_utils.is_file():
+        content = sig_utils.read_bytes()
+        # U+FE0F = UTF-8 bytes \xef\xb8\x8f
+        if b"\xef\xb8\x8f" in content:
+            cleaned = content.replace(b"\xef\xb8\x8f", b"")
+            sig_utils.write_bytes(cleaned)
+            patches.append("Stripped U+FE0F from IccSignatureUtils.h")
+
+    # Patch out wxWidgets if not available (prevents cmake configure failure)
+    cmake_file = iccdev / "Build" / "Cmake" / "CMakeLists.txt"
+    if cmake_file.is_file() and not shutil.which("wx-config"):
+        content = cmake_file.read_text(errors="replace")
+        modified = False
+        for pattern in [
+            "find_package(wxWidgets",
+            "ADD_SUBDIRECTORY(Tools/wxProfileDump)",
+        ]:
+            uncommented = f"  {pattern}"
+            commented = f"#  {pattern}"
+            if uncommented in content and commented not in content:
+                content = content.replace(uncommented, commented)
+                modified = True
+        if modified:
+            cmake_file.write_text(content)
+            patches.append("Patched out wxWidgets (not installed)")
+
+    return patches
+
+
+@mcp.tool()
+async def cmake_configure(
+    build_type: str = "Debug",
+    enable_tools: bool = False,
+    sanitizers: str = "asan+ubsan",
+    compiler: str = "clang",
+    generator: str = "default",
+    extra_cmake_args: str = "",
+    build_dir: str = "",
+) -> str:
+    """Configure iccDEV with cmake, allowing build type, sanitizer, and tool selection.
+
+    This is for maintainers who need different build configurations — e.g.,
+    Release builds, coverage instrumentation, or ENABLE_TOOLS=ON to run
+    CreateAllProfiles.sh and the iccDEV test suite.
+
+    Cross-platform: supports Unix Makefiles (Linux), Xcode (macOS), and
+    Ninja generators. Use cmake_build after this to compile.
+
+    Args:
+        build_type: CMake build type — "Debug" (default), "Release",
+                    "RelWithDebInfo", or "MinSizeRel"
+        enable_tools: Build iccDEV CLI tools (iccFromXml, iccApplyProfiles,
+                      iccDumpProfile, etc.). Required for CreateAllProfiles.sh
+        sanitizers: Sanitizer config — "asan+ubsan" (default), "asan", "ubsan",
+                    "coverage", or "none"
+        compiler: Compiler family — "clang" (default) or "gcc"
+        generator: CMake generator — "default" (auto-detect), "Ninja",
+                   "Xcode" (macOS), or "Unix Makefiles"
+        extra_cmake_args: Additional cmake -D flags (e.g. "-DICC_LOG_SAFE=ON")
+        build_dir: Name for build directory under iccDEV/Build/
+                   (default: auto-generated from settings)
+    """
+    if build_type not in _VALID_BUILD_TYPES:
+        return f"[FAIL] Invalid build_type '{build_type}'. Choose: {', '.join(sorted(_VALID_BUILD_TYPES))}"
+    if sanitizers not in _VALID_SANITIZERS:
+        return f"[FAIL] Invalid sanitizers '{sanitizers}'. Choose: {', '.join(sorted(_VALID_SANITIZERS))}"
+    if compiler not in _VALID_COMPILERS:
+        return f"[FAIL] Invalid compiler '{compiler}'. Choose: {', '.join(sorted(_VALID_COMPILERS))}"
+    if generator not in _VALID_GENERATORS:
+        return f"[FAIL] Invalid generator '{generator}'. Choose: {', '.join(sorted(_VALID_GENERATORS))}"
+
+    try:
+        extra = _sanitize_cmake_args(extra_cmake_args)
+    except ValueError as e:
+        return f"[FAIL] {e}"
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+    except FileNotFoundError as e:
+        return f"[FAIL] {e}"
+
+    # Auto-patch source tree (U+FE0F strip, wxWidgets)
+    patches = _patch_iccdev_source(iccdev)
+
+    # Auto-generate build dir name if not specified
+    if not build_dir:
+        parts = [f"build-{build_type.lower()}"]
+        if sanitizers != "none":
+            parts.append(sanitizers.replace("+", "-"))
+        if enable_tools:
+            parts.append("tools")
+        build_dir = "-".join(parts)
+
+    try:
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve compiler
+    if compiler == "clang":
+        cxx = "clang++"
+        for suffix in ("", "-18", "-17", "-16"):
+            if shutil.which(f"clang++{suffix}"):
+                cxx = f"clang++{suffix}"
+                break
+        cc = cxx.replace("++", "")
+    else:
+        cxx = "g++"
+        cc = "gcc"
+
+    # Build cmake command
+    cmd = [
+        "cmake", str(iccdev / "Build" / "Cmake"),
+        f"-DCMAKE_BUILD_TYPE={build_type}",
+        f"-DCMAKE_C_COMPILER={cc}",
+        f"-DCMAKE_CXX_COMPILER={cxx}",
+        f"-DENABLE_TOOLS={'ON' if enable_tools else 'OFF'}",
+        "-DENABLE_STATIC_LIBS=ON",
+        "-Wno-dev",
+    ]
+
+    # Generator selection
+    if generator != "default":
+        cmd.extend(["-G", generator])
+
+    # Use iccDEV native cmake sanitizer options + raw compiler flags
+    c_flags = []
+    linker_flags = []
+    if sanitizers == "asan+ubsan":
+        cmd.extend(["-DENABLE_ASAN=ON", "-DENABLE_UBSAN=ON"])
+        c_flags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g", "-O1"]
+        linker_flags = ["-fsanitize=address,undefined"]
+    elif sanitizers == "asan":
+        cmd.append("-DENABLE_ASAN=ON")
+        c_flags = ["-fsanitize=address", "-fno-omit-frame-pointer", "-g", "-O1"]
+        linker_flags = ["-fsanitize=address"]
+    elif sanitizers == "ubsan":
+        cmd.append("-DENABLE_UBSAN=ON")
+        c_flags = ["-fsanitize=undefined", "-fno-omit-frame-pointer", "-g", "-O1"]
+        linker_flags = ["-fsanitize=undefined"]
+    elif sanitizers == "coverage":
+        cmd.append("-DENABLE_COVERAGE=ON")
+        c_flags = ["-fprofile-instr-generate", "-fcoverage-mapping"]
+        linker_flags = ["-fprofile-instr-generate"]
+
+    if c_flags:
+        flags_str = " ".join(c_flags)
+        cmd.append(f"-DCMAKE_C_FLAGS={flags_str}")
+        cmd.append(f"-DCMAKE_CXX_FLAGS={flags_str} -std=c++17")
+    if linker_flags:
+        link_str = " ".join(linker_flags)
+        cmd.append(f"-DCMAKE_EXE_LINKER_FLAGS={link_str}")
+
+    cmd.extend(extra)
+
+    # Summary header
+    patch_str = "; ".join(patches) if patches else "(none needed)"
+    summary = (
+        f"[INFO] cmake configure\n"
+        f"  Build type:    {build_type}\n"
+        f"  Sanitizers:    {sanitizers}\n"
+        f"  Compiler:      {cc} / {cxx}\n"
+        f"  Generator:     {generator}\n"
+        f"  Enable tools:  {enable_tools}\n"
+        f"  Build dir:     {target_dir}\n"
+        f"  Extra args:    {extra_cmake_args or '(none)'}\n"
+        f"  Source patches: {patch_str}\n"
+    )
+
+    output = await _run_build(cmd, cwd=str(target_dir), timeout=120)
+
+    # Check for CMake success indicators
+    if "Generating done" in output or "Build files have been written" in output:
+        return summary + f"\n[OK] cmake configured successfully\n\n{output}"
+    return summary + f"\n[WARN] cmake may have failed — check output:\n\n{output}"
+
+
+@mcp.tool()
+async def cmake_build(
+    build_dir: str = "",
+    target: str = "",
+    jobs: int = 0,
+) -> str:
+    """Build iccDEV in a previously configured build directory.
+
+    Uses cmake --build for cross-platform support (Unix Makefiles, Ninja,
+    Xcode, etc.). Run cmake_configure first to set up the build directory.
+
+    Args:
+        build_dir: Build directory name under iccDEV/Build/
+                   (e.g. "build-debug-asan-ubsan-tools")
+        target: Build target (default: all)
+        jobs: Parallel jobs (default: nproc)
+    """
+    if not build_dir:
+        return (
+            "[FAIL] build_dir is required. Run cmake_configure first to create one.\n"
+            "Example: cmake_configure(enable_tools=True) creates 'build-debug-asan-ubsan-tools'"
+        )
+
+    try:
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+    if not (target_dir / "CMakeCache.txt").is_file():
+        return (
+            f"[FAIL] {target_dir} has no CMakeCache.txt — run cmake_configure first.\n"
+            f"Example: cmake_configure(build_dir='{build_dir}')"
+        )
+
+    import multiprocessing
+    if jobs <= 0:
+        jobs = multiprocessing.cpu_count()
+
+    # Use cmake --build for cross-platform support (works with all generators)
+    cmd = ["cmake", "--build", str(target_dir), "--parallel", str(jobs)]
+    if target:
+        cmd.extend(["--target", target])
+
+    output = await _run_build(cmd, cwd=str(target_dir), timeout=600)
+
+    # Inventory built tools
+    tools = _find_iccdev_tools(target_dir)
+    tool_bins: list[str] = []
+    for d in tools:
+        for f in os.listdir(d):
+            fp = os.path.join(d, f)
+            if os.access(fp, os.X_OK) and os.path.isfile(fp):
+                tool_bins.append(f)
+
+    summary = f"[INFO] cmake --build (parallel={jobs}) in {target_dir.name}\n"
+    if tool_bins:
+        summary += f"  Tools built: {', '.join(sorted(set(tool_bins)))}\n"
+    else:
+        summary += "  Tools: none (ENABLE_TOOLS was OFF?)\n"
+
+    # Check for errors
+    if "Error" in output and ("make" in output or "FAILED" in output or "error" in output.lower()):
+        return summary + f"\n[FAIL] Build errors detected:\n\n{output}"
+    return summary + f"\n[OK] Build complete\n\n{output}"
+
+
+@mcp.tool()
+async def create_all_profiles(build_dir: str = "") -> str:
+    """Run iccDEV's CreateAllProfiles.sh to generate the full ICC profile corpus.
+
+    Requires a build with enable_tools=True. The script uses iccDEV CLI tools
+    (iccFromXml, iccApplyProfiles, etc.) to create ~80+ ICC profiles from XML
+    specifications in the Testing/ directory.
+
+    Args:
+        build_dir: Build directory name under iccDEV/Build/ that was configured
+                   with enable_tools=True
+    """
+    if not build_dir:
+        return (
+            "[FAIL] build_dir is required. First run:\n"
+            "  1. cmake_configure(enable_tools=True)\n"
+            "  2. cmake_build(build_dir='...')\n"
+            "  3. create_all_profiles(build_dir='...')"
+        )
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+    testing_dir = iccdev / "Testing"
+    script = testing_dir / "CreateAllProfiles.sh"
+
+    if not script.is_file():
+        return f"[FAIL] CreateAllProfiles.sh not found at {script}"
+
+    tools = _find_iccdev_tools(target_dir)
+    if not tools:
+        return (
+            f"[FAIL] No tools found in {target_dir}. "
+            f"Build with enable_tools=True first:\n"
+            f"  cmake_configure(enable_tools=True, build_dir='{build_dir}')\n"
+            f"  cmake_build(build_dir='{build_dir}')"
+        )
+
+    # Set up environment with tools on PATH
+    env = os.environ.copy()
+    env["PATH"] = _build_tool_path(target_dir)
+    env["ASAN_OPTIONS"] = "detect_leaks=0"
+    env["MallocNanoZone"] = "0"
+
+    # Count profiles before
+    before_count = len(list(testing_dir.glob("**/*.icc")))
+
+    proc = await asyncio.create_subprocess_exec(
+        "bash", str(script),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(testing_dir),
+        env=env,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return "[TIMEOUT] CreateAllProfiles.sh exceeded 300s"
+
+    output = stdout.decode(errors="replace")
+    if len(output) > MAX_OUTPUT_BYTES:
+        output = output[:MAX_OUTPUT_BYTES] + "\n[OUTPUT TRUNCATED at 10MB]"
+    output = _sanitize_output(output.strip())
+
+    # Count profiles after
+    after_profiles = sorted(testing_dir.glob("**/*.icc"))
+    after_count = len(after_profiles)
+    new_count = after_count - before_count
+
+    summary = (
+        f"[INFO] CreateAllProfiles.sh completed (exit code {proc.returncode})\n"
+        f"  Profiles before: {before_count}\n"
+        f"  Profiles after:  {after_count}\n"
+        f"  New profiles:    {new_count}\n"
+        f"  Testing dir:     {testing_dir}\n"
+    )
+
+    # List generated profiles (last 20 lines for brevity)
+    if after_profiles:
+        profile_list = "\n".join(
+            f"  {p.relative_to(testing_dir)}  ({p.stat().st_size:,} bytes)"
+            for p in after_profiles[:50]
+        )
+        if after_count > 50:
+            profile_list += f"\n  ... and {after_count - 50} more"
+        summary += f"\nGenerated profiles:\n{profile_list}\n"
+
+    if proc.returncode == 0:
+        return summary + f"\n[OK] Profile generation complete\n\n{output}"
+    return summary + f"\n[WARN] Script exited with code {proc.returncode}\n\n{output}"
+
+
+@mcp.tool()
+async def run_iccdev_tests(build_dir: str = "") -> str:
+    """Run iccDEV's RunTests.sh test suite against generated profiles.
+
+    Requires a build with enable_tools=True and profiles from
+    create_all_profiles(). Tests validate round-trip fidelity,
+    profile application, and tool interoperability.
+
+    Args:
+        build_dir: Build directory name under iccDEV/Build/ that was configured
+                   with enable_tools=True
+    """
+    if not build_dir:
+        return (
+            "[FAIL] build_dir is required. First run:\n"
+            "  1. cmake_configure(enable_tools=True)\n"
+            "  2. cmake_build(build_dir='...')\n"
+            "  3. create_all_profiles(build_dir='...')\n"
+            "  4. run_iccdev_tests(build_dir='...')"
+        )
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+    testing_dir = iccdev / "Testing"
+    script = testing_dir / "RunTests.sh"
+
+    if not script.is_file():
+        return f"[FAIL] RunTests.sh not found at {script}"
+
+    tools = _find_iccdev_tools(target_dir)
+    if not tools:
+        return (
+            f"[FAIL] No tools found in {target_dir}. "
+            f"Build with enable_tools=True first."
+        )
+
+    env = os.environ.copy()
+    env["PATH"] = _build_tool_path(target_dir)
+    env["ASAN_OPTIONS"] = "detect_leaks=0"
+    env["MallocNanoZone"] = "0"
+
+    proc = await asyncio.create_subprocess_exec(
+        "bash", str(script),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(testing_dir),
+        env=env,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return "[TIMEOUT] RunTests.sh exceeded 300s"
+
+    output = stdout.decode(errors="replace")
+    if len(output) > MAX_OUTPUT_BYTES:
+        output = output[:MAX_OUTPUT_BYTES] + "\n[OUTPUT TRUNCATED at 10MB]"
+    output = _sanitize_output(output.strip())
+
+    # Parse pass/fail from output
+    pass_count = output.lower().count("pass")
+    fail_count = output.lower().count("fail")
+
+    summary = (
+        f"[INFO] RunTests.sh completed (exit code {proc.returncode})\n"
+        f"  Build dir:  {target_dir}\n"
+    )
+    if pass_count or fail_count:
+        summary += f"  Matches:    ~{pass_count} pass, ~{fail_count} fail (approximate from output)\n"
+
+    if proc.returncode == 0:
+        return summary + f"\n[OK] Tests passed\n\n{output}"
+    return summary + f"\n[WARN] Tests exited with code {proc.returncode}\n\n{output}"
 
 
 def run_server() -> None:

@@ -3,10 +3,10 @@
 #
 # Intent: CodeQL security analysis for all research tools
 #
-# Last Updated: 2026-02-12 06:45:00 UTC by David Hoyt
+# Last Updated: 2026-02-16 14:00:00 UTC by David Hoyt
 #
 # Targets: iccanalyzer-lite, colorbleed_tools, cfl (fuzzers), mcp-server (Python)
-# Queries: 15 custom + security-and-quality + security-experimental
+# Queries: 17 custom C++ (per target) + 3 custom Python + security-and-quality + security-experimental
 ###############################################################
 
 name: CodeQL Security Analysis
@@ -249,7 +249,7 @@ jobs:
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           languages: python
-          queries: security-and-quality
+          config-file: mcp-server/codeql-config.yml
           source-root: .
 
       - name: Perform CodeQL Analysis
@@ -294,7 +294,7 @@ jobs:
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Targets:** iccanalyzer-lite, colorbleed_tools, cfl, mcp-server" >> $GITHUB_STEP_SUMMARY
-          echo "**Total Queries:** 51 C++ (17 per target) + Python security-and-quality" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Queries:** 51 C++ (17 per target) + 3 custom Python + security-and-quality" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Repository Security Posture" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA-pinned actions:** 83/83 (100%)" >> $GITHUB_STEP_SUMMARY
