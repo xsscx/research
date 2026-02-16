@@ -1,0 +1,40 @@
+# CodeQL Query Suite for MCP Server Security Research
+# Purpose: Detect injection, traversal, and sanitization gaps in the Python MCP server
+
+- description: Security research query suite for icc-profile-mcp
+- qlpack: codeql/python-queries
+
+# Built-in Python security queries
+- queries: .
+  from: codeql/python-queries
+  filters:
+    - include:
+        kind:
+          - problem
+          - path-problem
+        tags contain:
+          - security
+
+# Custom security research queries
+- queries: ./subprocess-command-injection.ql
+- queries: ./path-traversal-build-dir.ql
+- queries: ./missing-output-sanitization.ql
+
+# Built-in high-value queries
+- queries: .
+  from: codeql/python-queries
+  filters:
+    - include:
+        id:
+          - py/command-line-injection
+          - py/code-injection
+          - py/path-injection
+          - py/sql-injection
+          - py/unsafe-deserialization
+          - py/server-side-request-forgery
+          - py/url-redirection
+          - py/log-injection
+          - py/clear-text-logging-sensitive-data
+          - py/insecure-temporary-file
+          - py/shell-command-constructed-from-input
+          - py/incomplete-url-substring-sanitization

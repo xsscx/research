@@ -1,0 +1,26 @@
+# CodeQL Configuration for MCP Server (Python)
+# Purpose: Security analysis of the ICC Profile MCP server and Web UI
+# Targets: icc_profile_mcp.py, web_ui.py (REST API, build tools, analysis tools)
+
+name: "MCP Server Security Analysis"
+
+disable-default-queries: false
+
+queries:
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: ./mcp-server/codeql-queries
+
+packs:
+  - codeql/python-queries@latest
+  - codeql/python-all@latest
+
+paths:
+  - mcp-server/*.py
+
+paths-ignore:
+  - mcp-server/venv/**
+  - mcp-server/.venv/**
+  - mcp-server/test_*.py
+  - "**/__pycache__/**"
+  - "**/*.pyc"

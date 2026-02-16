@@ -104,7 +104,7 @@ def test_health():
     check("Health 200", r.status_code == 200)
     d = r.json()
     check("Health ok", d["ok"] is True)
-    check("Health tools=7", d["tools"] == 7)
+    check("Health tools=11", d["tools"] == 11)
 
 
 # ── List Profiles ──────────────────────────────────────────
@@ -387,6 +387,155 @@ def test_output_download_malformed_json():
     check("Malformed JSON handled", r.status_code == 400)
 
 
+# ── Maintainer Tool Endpoints ──────────────────────────────
+def test_cmake_configure_validation():
+    """Test cmake_configure input validation."""
+    # Valid request (won't actually succeed without iccDEV, but validates input)
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"build_type": "Debug", "sanitizers": "asan+ubsan"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure accepts valid input", r.status_code == 200)
+
+    # Invalid build type
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"build_type": "Evil"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects bad build_type", r.status_code == 400)
+
+    # Invalid sanitizer
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"sanitizers": "evil"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects bad sanitizer", r.status_code == 400)
+
+    # Invalid compiler
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"compiler": "msvc"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects bad compiler", r.status_code == 400)
+
+    # Invalid generator
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"generator": "Visual Studio"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects bad generator", r.status_code == 400)
+
+    # Build dir traversal
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"build_dir": "../../../etc"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects traversal build_dir", r.status_code == 400)
+
+    # Shell injection in extra_cmake_args
+    r = c.post(
+        "/api/cmake/configure",
+        content=json.dumps({"extra_cmake_args": "-DFOO=bar; rm -rf /"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects shell injection", r.status_code == 400)
+
+    # Malformed JSON
+    r = c.post(
+        "/api/cmake/configure",
+        content=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake configure rejects malformed JSON", r.status_code == 400)
+
+
+def test_cmake_build_validation():
+    """Test cmake_build input validation."""
+    # Empty build_dir returns error in result, not HTTP 400
+    r = c.post(
+        "/api/cmake/build",
+        content=json.dumps({}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake build no build_dir", r.status_code == 200 and "[FAIL]" in r.json().get("result", ""))
+
+    # Build dir traversal
+    r = c.post(
+        "/api/cmake/build",
+        content=json.dumps({"build_dir": "../../etc"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake build rejects traversal", r.status_code == 400)
+
+    # Special chars in build_dir
+    r = c.post(
+        "/api/cmake/build",
+        content=json.dumps({"build_dir": "test;rm -rf /"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("CMake build rejects special chars", r.status_code == 400)
+
+
+def test_create_profiles_validation():
+    """Test create_all_profiles input validation."""
+    # Empty build_dir
+    r = c.post(
+        "/api/create-profiles",
+        content=json.dumps({}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Create profiles no build_dir", r.status_code == 200 and "[FAIL]" in r.json().get("result", ""))
+
+    # Build dir traversal
+    r = c.post(
+        "/api/create-profiles",
+        content=json.dumps({"build_dir": "../../../tmp"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Create profiles rejects traversal", r.status_code == 400)
+
+
+def test_run_tests_validation():
+    """Test run_iccdev_tests input validation."""
+    # Empty build_dir
+    r = c.post(
+        "/api/run-tests",
+        content=json.dumps({}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Run tests no build_dir", r.status_code == 200 and "[FAIL]" in r.json().get("result", ""))
+
+    # Build dir traversal
+    r = c.post(
+        "/api/run-tests",
+        content=json.dumps({"build_dir": "../../../tmp"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Run tests rejects traversal", r.status_code == 400)
+
+
+def test_maintainer_method_enforcement():
+    """Maintainer endpoints must only accept POST."""
+    for ep in ["/api/cmake/configure", "/api/cmake/build", "/api/create-profiles", "/api/run-tests"]:
+        r = c.get(ep)
+        check(f"GET {ep} -> 405", r.status_code == 405)
+
+
+def test_maintainer_html_buttons():
+    """Index page should include maintainer tool buttons."""
+    r = c.get("/")
+    check("HTML has CMake Configure button", "cmake_configure" in r.text)
+    check("HTML has CMake Build button", "cmake_build" in r.text)
+    check("HTML has Create Profiles button", "create_profiles" in r.text)
+    check("HTML has Run Tests button", "run_tests" in r.text)
+
+
 # ── Run all tests ──────────────────────────────────────────
 def main():
     t0 = time.time()
@@ -427,6 +576,12 @@ def main():
         ("Output Download Malicious Filename", test_output_download_malicious_filename),
         ("Output Download Non-String Tool", test_output_download_non_string_tool),
         ("Output Download Malformed JSON", test_output_download_malformed_json),
+        ("CMake Configure Validation", test_cmake_configure_validation),
+        ("CMake Build Validation", test_cmake_build_validation),
+        ("Create Profiles Validation", test_create_profiles_validation),
+        ("Run Tests Validation", test_run_tests_validation),
+        ("Maintainer Method Enforcement", test_maintainer_method_enforcement),
+        ("Maintainer HTML Buttons", test_maintainer_html_buttons),
     ]
 
     for name, fn in suites:

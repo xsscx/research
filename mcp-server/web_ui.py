@@ -2,7 +2,7 @@
 """
 ICC Profile MCP Server — Web UI Backend
 
-Thin REST API wrapping the 7 MCP tool functions.
+Thin REST API wrapping the 11 MCP tool functions (7 analysis + 4 maintainer).
 Uses Starlette + uvicorn (already installed as MCP SDK dependencies).
 
 Usage:
@@ -45,13 +45,21 @@ from icc_profile_mcp import (  # noqa: E402
     _resolve_profile,
     _run,
     _sanitize_output,
+    _VALID_BUILD_TYPES,
+    _VALID_COMPILERS,
+    _VALID_GENERATORS,
+    _VALID_SANITIZERS,
     analyze_security,
+    cmake_build,
+    cmake_configure,
     compare_profiles,
+    create_all_profiles,
     full_analysis,
     inspect_profile,
     list_test_profiles,
     profile_to_xml,
     register_allowed_base,
+    run_iccdev_tests,
     validate_roundtrip,
 )
 
@@ -333,7 +341,132 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
-    return JSONResponse({"ok": True, "tools": 7})
+    return JSONResponse({"ok": True, "tools": 11})
+
+
+# ---------------------------------------------------------------------------
+# Maintainer tool endpoints (POST — they trigger builds / side-effects)
+# ---------------------------------------------------------------------------
+def _validate_build_dir(value: str) -> str:
+    """Validate build_dir param: alphanumeric, dash, underscore, dot only."""
+    value = value.strip()
+    if not value:
+        return ""
+    if len(value) > 200:
+        raise ValueError("build_dir exceeds 200 characters")
+    if not re.match(r"^[a-zA-Z0-9._-]+$", value):
+        raise ValueError("build_dir contains disallowed characters")
+    if ".." in value:
+        raise ValueError("build_dir contains path traversal sequence")
+    return value
+
+
+def _validate_choice(value: str, valid: set, param_name: str) -> str:
+    """Validate a parameter against a set of valid choices."""
+    value = value.strip()
+    if value not in valid:
+        raise ValueError(f"{param_name} must be one of: {', '.join(sorted(valid))}")
+    return value
+
+
+def _validate_extra_cmake_args(value: str) -> str:
+    """Validate extra cmake args: length limit, no shell metacharacters."""
+    value = value.strip()
+    if not value:
+        return ""
+    if len(value) > 500:
+        raise ValueError("extra_cmake_args exceeds 500 characters")
+    # Reject obvious shell injection
+    for ch in [";", "|", "`", "$", "(", ")", "<", ">", "&", "\n", "\r", "\x00"]:
+        if ch in value:
+            raise ValueError(f"extra_cmake_args contains disallowed character: {repr(ch)}")
+    return value
+
+
+async def api_cmake_configure(request: Request) -> Response:
+    """POST /api/cmake/configure — run cmake configure with given options."""
+    try:
+        body = await request.json()
+        build_type = _validate_choice(
+            body.get("build_type", "Debug"), _VALID_BUILD_TYPES, "build_type"
+        )
+        enable_tools = bool(body.get("enable_tools", False))
+        sanitizers = _validate_choice(
+            body.get("sanitizers", "asan+ubsan"), _VALID_SANITIZERS, "sanitizers"
+        )
+        compiler = _validate_choice(
+            body.get("compiler", "clang"), _VALID_COMPILERS, "compiler"
+        )
+        generator = _validate_choice(
+            body.get("generator", "default"), _VALID_GENERATORS, "generator"
+        )
+        extra_cmake_args = _validate_extra_cmake_args(
+            body.get("extra_cmake_args", "")
+        )
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+
+        async with (await _get_semaphore()):
+            result = await cmake_configure(
+                build_type=build_type,
+                enable_tools=enable_tools,
+                sanitizers=sanitizers,
+                compiler=compiler,
+                generator=generator,
+                extra_cmake_args=extra_cmake_args,
+                build_dir=build_dir,
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_cmake_build(request: Request) -> Response:
+    """POST /api/cmake/build — build iccDEV in a configured build directory."""
+    try:
+        body = await request.json()
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        target = body.get("target", "")
+        if isinstance(target, str):
+            target = target.strip()[:100]
+        else:
+            target = ""
+        jobs = body.get("jobs", 0)
+        if not isinstance(jobs, int) or jobs < 0:
+            jobs = 0
+
+        async with (await _get_semaphore()):
+            result = await cmake_build(
+                build_dir=build_dir,
+                target=target,
+                jobs=jobs,
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_create_profiles(request: Request) -> Response:
+    """POST /api/create-profiles — run CreateAllProfiles.sh."""
+    try:
+        body = await request.json()
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        async with (await _get_semaphore()):
+            result = await create_all_profiles(build_dir=build_dir)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_run_tests(request: Request) -> Response:
+    """POST /api/run-tests — run iccDEV RunTests.sh."""
+    try:
+        body = await request.json()
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        async with (await _get_semaphore()):
+            result = await run_iccdev_tests(build_dir=build_dir)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
 def _get_upload_dir() -> Path:
@@ -509,6 +642,10 @@ routes = [
     Route("/api/compare", api_compare, methods=["GET"]),
     Route("/api/upload", api_upload, methods=["POST"]),
     Route("/api/output/download", api_output_download, methods=["POST"]),
+    Route("/api/cmake/configure", api_cmake_configure, methods=["POST"]),
+    Route("/api/cmake/build", api_cmake_build, methods=["POST"]),
+    Route("/api/create-profiles", api_create_profiles, methods=["POST"]),
+    Route("/api/run-tests", api_run_tests, methods=["POST"]),
 ]
 
 app = Starlette(
