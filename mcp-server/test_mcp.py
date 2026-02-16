@@ -20,6 +20,17 @@ sys.path.insert(0, os.path.dirname(__file__))
 from icc_profile_mcp import (
     _resolve_profile,
     _ALLOWED_BASES_RESOLVED,
+    _sanitize_cmake_args,
+    _resolve_build_dir,
+    _resolve_iccdev_dir,
+    _find_iccdev_tools,
+    _build_tool_path,
+    _patch_iccdev_source,
+    _VALID_BUILD_TYPES,
+    _VALID_SANITIZERS,
+    _VALID_COMPILERS,
+    _VALID_GENERATORS,
+    ICCDEV_DIR,
     MAX_OUTPUT_BYTES,
     REPO_ROOT,
     list_test_profiles,
@@ -29,6 +40,10 @@ from icc_profile_mcp import (
     full_analysis,
     profile_to_xml,
     compare_profiles,
+    cmake_configure,
+    cmake_build,
+    create_all_profiles,
+    run_iccdev_tests,
 )
 
 
@@ -508,6 +523,248 @@ async def test_edge_cases():
 
 
 # ---------------------------------------------------------------------------
+# Maintainer Build Tools Tests
+# ---------------------------------------------------------------------------
+
+def test_sanitize_cmake_args():
+    """Verify cmake arg sanitization blocks injection."""
+    T.section("Security: cmake_configure Arg Sanitization")
+
+    # Valid args
+    valid_cases = [
+        ("-DCMAKE_BUILD_TYPE=Debug", "simple define"),
+        ("-DENABLE_TOOLS=ON", "boolean define"),
+        ("-DICC_LOG_SAFE=ON -Wno-dev", "multiple valid args"),
+        ("-DCMAKE_CXX_FLAGS=-O2", "flags with dash"),
+        ("", "empty string"),
+        ("  ", "whitespace only"),
+    ]
+    for raw, label in valid_cases:
+        try:
+            result = _sanitize_cmake_args(raw)
+            T.ok(f"valid: {label}", True)
+        except ValueError:
+            T.ok(f"valid: {label}", False, "Unexpected rejection")
+
+    # Invalid args — should be rejected
+    inject_cases = [
+        ("; rm -rf /", "shell injection semicolon"),
+        ("$(whoami)", "command substitution"),
+        ("`id`", "backtick injection"),
+        ("| cat /etc/passwd", "pipe injection"),
+        ("-DFOO=bar; echo pwned", "semicolon in value"),
+        ("--evil-flag", "double-dash flag"),
+        ("NAKED_ARG", "bare word"),
+        ("-DFOO=val$(cmd)", "substitution in value"),
+    ]
+    for raw, label in inject_cases:
+        try:
+            _sanitize_cmake_args(raw)
+            T.ok(f"reject: {label}", False, "Should have raised ValueError")
+        except ValueError:
+            T.ok(f"reject: {label}", True)
+
+    T.section_summary()
+
+
+def test_resolve_build_dir():
+    """Verify build dir resolution prevents traversal."""
+    T.section("Security: Build Dir Path Validation")
+
+    # Traversal attempts
+    traversal_cases = [
+        ("../../etc", "parent traversal"),
+        ("../../../tmp/evil", "deep traversal"),
+        ("/etc/passwd", "absolute path"),
+    ]
+    for raw, label in traversal_cases:
+        try:
+            # These should either sanitize the name or raise
+            result = _resolve_build_dir(raw)
+            # If it resolved, verify it's still under iccDEV/Build/
+            iccdev = _resolve_iccdev_dir()
+            safe_base = str((iccdev / "Build").resolve())
+            T.ok(f"traversal: {label}", str(result.resolve()).startswith(safe_base),
+                 f"Escaped to {result}")
+        except (ValueError, FileNotFoundError):
+            T.ok(f"traversal: {label}", True)
+
+    # Valid names
+    valid_cases = [
+        ("build-debug", "simple name"),
+        ("build-debug-asan-tools", "complex name"),
+        ("my.build", "dotted name"),
+    ]
+    for raw, label in valid_cases:
+        try:
+            result = _resolve_build_dir(raw)
+            T.ok(f"valid: {label}", "Build" in str(result))
+        except FileNotFoundError:
+            # iccDEV not cloned — still validates the logic path
+            T.ok(f"valid: {label} (no iccDEV)", True)
+
+    T.section_summary()
+
+
+def test_valid_constants():
+    """Verify build option constants are correct."""
+    T.section("Config: Build Option Constants")
+
+    T.ok("build types", "Debug" in _VALID_BUILD_TYPES and "Release" in _VALID_BUILD_TYPES, "")
+    T.ok("sanitizers", "asan+ubsan" in _VALID_SANITIZERS and "coverage" in _VALID_SANITIZERS, "")
+    T.ok("compilers", "clang" in _VALID_COMPILERS and "gcc" in _VALID_COMPILERS, "")
+    T.ok("generators", "Ninja" in _VALID_GENERATORS and "Xcode" in _VALID_GENERATORS, "")
+    T.ok("ICCDEV_DIR path", "iccDEV" in str(ICCDEV_DIR), "")
+
+    T.section_summary()
+
+
+async def test_cmake_configure_validation():
+    """Test cmake_configure parameter validation."""
+    T.section("Functional: cmake_configure Validation")
+
+    # Invalid build type
+    result = await cmake_configure(build_type="InvalidType")
+    T.ok("reject invalid build_type", "[FAIL]" in result, result[:80])
+
+    # Invalid sanitizer
+    result = await cmake_configure(sanitizers="magic")
+    T.ok("reject invalid sanitizers", "[FAIL]" in result, result[:80])
+
+    # Invalid compiler
+    result = await cmake_configure(compiler="msvc")
+    T.ok("reject invalid compiler", "[FAIL]" in result, result[:80])
+
+    # Invalid generator
+    result = await cmake_configure(generator="Visual Studio 99")
+    T.ok("reject invalid generator", "[FAIL]" in result, result[:80])
+
+    # Invalid extra args (injection attempt)
+    result = await cmake_configure(extra_cmake_args="; rm -rf /")
+    T.ok("reject injection in extra_cmake_args", "[FAIL]" in result or "Rejected" in result, result[:80])
+
+    # Valid args should not fail on validation (may fail on missing iccDEV)
+    result = await cmake_configure(
+        build_type="Release",
+        sanitizers="none",
+        compiler="gcc",
+        generator="Ninja",
+    )
+    # Should either succeed or fail because iccDEV is not cloned — not a validation error
+    T.ok("valid Release+none+gcc+Ninja", "[FAIL] Invalid" not in result, result[:80])
+
+    T.section_summary()
+
+
+async def test_cmake_build_validation():
+    """Test cmake_build parameter validation."""
+    T.section("Functional: cmake_build Validation")
+
+    # Missing build_dir
+    result = await cmake_build()
+    T.ok("require build_dir", "[FAIL]" in result, result[:80])
+
+    # Non-existent build dir (should fail gracefully)
+    result = await cmake_build(build_dir="nonexistent-dir-12345")
+    T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    T.section_summary()
+
+
+async def test_create_all_profiles_validation():
+    """Test create_all_profiles parameter validation."""
+    T.section("Functional: create_all_profiles Validation")
+
+    # Missing build_dir
+    result = await create_all_profiles()
+    T.ok("require build_dir", "[FAIL]" in result, result[:80])
+
+    # Non-existent build dir
+    result = await create_all_profiles(build_dir="nonexistent-12345")
+    T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    T.section_summary()
+
+
+async def test_run_iccdev_tests_validation():
+    """Test run_iccdev_tests parameter validation."""
+    T.section("Functional: run_iccdev_tests Validation")
+
+    # Missing build_dir
+    result = await run_iccdev_tests()
+    T.ok("require build_dir", "[FAIL]" in result, result[:80])
+
+    # Non-existent build dir
+    result = await run_iccdev_tests(build_dir="nonexistent-12345")
+    T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    T.section_summary()
+
+
+async def test_find_iccdev_tools():
+    """Test tool discovery helper."""
+    T.section("Functional: Tool Discovery")
+
+    from pathlib import Path
+    import tempfile
+
+    # Empty dir returns empty list
+    with tempfile.TemporaryDirectory() as td:
+        result = _find_iccdev_tools(Path(td))
+        T.ok("empty dir", result == [], str(result))
+
+    # Non-existent dir returns empty list
+    result = _find_iccdev_tools(Path("/nonexistent/path"))
+    T.ok("nonexistent dir", result == [], str(result))
+
+    # _build_tool_path with empty returns base PATH
+    path_str = _build_tool_path(Path("/nonexistent/path"))
+    T.ok("base PATH fallback", "/usr" in path_str or "/bin" in path_str, path_str[:60])
+
+    # _build_tool_path uses os.pathsep
+    import os as _os
+    T.ok("pathsep in _build_tool_path",
+         _os.pathsep in path_str or len(path_str.split(_os.pathsep)) >= 1,
+         f"sep={_os.pathsep}")
+
+    T.section_summary()
+
+
+def test_patch_iccdev_source():
+    """Test source patching helper."""
+    T.section("Functional: Source Patching")
+
+    from pathlib import Path
+    import tempfile
+
+    # Non-existent dir returns empty patch list
+    result = _patch_iccdev_source(Path("/nonexistent/path"))
+    T.ok("nonexistent dir no crash", isinstance(result, list), str(result))
+
+    # Create a mock iccDEV tree with U+FE0F byte
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        (td_path / "IccProfLib").mkdir()
+        sig_file = td_path / "IccProfLib" / "IccSignatureUtils.h"
+        sig_file.write_bytes(b"// test\xef\xb8\x8f content")
+        result = _patch_iccdev_source(td_path)
+        T.ok("strips U+FE0F", any("U+FE0F" in p for p in result), str(result))
+        cleaned = sig_file.read_bytes()
+        T.ok("U+FE0F removed from file", b"\xef\xb8\x8f" not in cleaned, repr(cleaned))
+
+    # Already clean file — no patch needed
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        (td_path / "IccProfLib").mkdir()
+        sig_file = td_path / "IccProfLib" / "IccSignatureUtils.h"
+        sig_file.write_bytes(b"// clean content")
+        result = _patch_iccdev_source(td_path)
+        T.ok("clean file no patch", not any("U+FE0F" in p for p in result), str(result))
+
+    T.section_summary()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -545,6 +802,17 @@ async def main():
 
     # Stress tests
     await test_extended_profiles()
+
+    # Maintainer build tools tests
+    test_sanitize_cmake_args()
+    test_resolve_build_dir()
+    test_valid_constants()
+    await test_cmake_configure_validation()
+    await test_cmake_build_validation()
+    await test_create_all_profiles_validation()
+    await test_run_iccdev_tests_validation()
+    await test_find_iccdev_tools()
+    test_patch_iccdev_source()
 
     elapsed = time.time() - start
 

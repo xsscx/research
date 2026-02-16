@@ -13,7 +13,11 @@
         "compare_profiles",
         "list_test_profiles",
         "upload_and_analyze",
-        "build_tools"
+        "build_tools",
+        "cmake_configure",
+        "cmake_build",
+        "create_all_profiles",
+        "run_iccdev_tests"
       ]
     }
   }
