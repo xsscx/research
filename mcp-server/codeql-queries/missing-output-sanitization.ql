@@ -43,6 +43,7 @@ class ToolReturnStatement extends Return {
     enclosingTool.getName() in [
       "cmake_configure", "cmake_build",
       "create_all_profiles", "run_iccdev_tests",
+      "cmake_option_matrix", "windows_build",
       "inspect_profile", "analyze_security",
       "validate_roundtrip", "full_analysis",
       "profile_to_xml", "compare_profiles",
@@ -74,6 +75,7 @@ where
   tool.getName() in [
     "cmake_configure", "cmake_build",
     "create_all_profiles", "run_iccdev_tests",
+    "cmake_option_matrix", "windows_build",
     "inspect_profile", "analyze_security",
     "validate_roundtrip", "full_analysis",
     "profile_to_xml", "compare_profiles"
