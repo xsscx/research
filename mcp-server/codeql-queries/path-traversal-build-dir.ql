@@ -18,16 +18,16 @@ import semmle.python.dataflow.new.TaintTracking
  */
 class BuildDirSource extends DataFlow::Node {
   BuildDirSource() {
-    exists(Function f, Parameter p |
+    exists(Function f, Name n |
       f.getName() in [
         "cmake_configure", "cmake_build",
         "create_all_profiles", "run_iccdev_tests",
         "api_cmake_configure", "api_cmake_build",
         "api_create_profiles", "api_run_tests"
       ] and
-      p = f.getArg(_) and
-      p.getName() = "build_dir" and
-      this.asExpr() = p.getAUse()
+      n.getId() = "build_dir" and
+      n.getScope() = f and
+      this.asExpr() = n
     )
     or
     // body.get("build_dir") in web handlers
@@ -68,6 +68,8 @@ class FileSystemSink extends DataFlow::Node {
 
 /**
  * Sanitizers that validate build_dir.
+ * Includes calls to sanitizer functions AND the re.sub sanitization
+ * inside _resolve_build_dir itself.
  */
 class BuildDirSanitizer extends DataFlow::Node {
   BuildDirSanitizer() {
@@ -75,6 +77,14 @@ class BuildDirSanitizer extends DataFlow::Node {
       c.getFunc().(Name).getId() in [
         "_resolve_build_dir", "_validate_build_dir"
       ] and
+      this.asExpr() = c
+    )
+    or
+    // re.sub() inside _resolve_build_dir strips unsafe chars
+    exists(Call c, Function f |
+      f.getName() = "_resolve_build_dir" and
+      c.getScope() = f and
+      c.getFunc().(Attribute).getName() = "sub" and
       this.asExpr() = c
     )
   }

@@ -64,7 +64,7 @@ cd cfl && ./test-seed-corpus.sh
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 13 tools (9 analysis + 4 maintainer build) for AI-assisted ICC profile security research. Three integration methods:
+The ICC Profile MCP server exposes 15 tools (9 analysis + 6 maintainer build) for AI-assisted ICC profile security research. Three integration methods:
 
 ### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
@@ -123,6 +123,8 @@ Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-pr
 | `cmake_build` | Build iccDEV with cmake --build (cross-platform) |
 | `create_all_profiles` | Run CreateAllProfiles.sh from Testing/ directory |
 | `run_iccdev_tests` | Run RunTests.sh test suite |
+| `cmake_option_matrix` | Test cmake option toggles independently |
+| `windows_build` | Windows MSVC + vcpkg build (native or script generation) |
 
 ## Architecture
 
@@ -131,7 +133,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **cfl/** — 17 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 19-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
-- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 13 tools: 9 analysis + 4 maintainer (cmake configure/build, CreateAllProfiles, RunTests). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
+- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 15 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — OOM mitigation patches (001–005+) applied to iccDEV before fuzzer builds. Patch 001 caps CLUT at 16MB; others cap at 128MB (patch 005 caps hex dumps at 256KB).
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
