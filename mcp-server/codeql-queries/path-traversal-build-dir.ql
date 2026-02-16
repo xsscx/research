@@ -22,8 +22,10 @@ class BuildDirSource extends DataFlow::Node {
       f.getName() in [
         "cmake_configure", "cmake_build",
         "create_all_profiles", "run_iccdev_tests",
+        "cmake_option_matrix", "windows_build",
         "api_cmake_configure", "api_cmake_build",
-        "api_create_profiles", "api_run_tests"
+        "api_create_profiles", "api_run_tests",
+        "api_option_matrix", "api_windows_build"
       ] and
       n.getId() = "build_dir" and
       n.getScope() = f and
