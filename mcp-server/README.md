@@ -240,7 +240,7 @@ Open `http://127.0.0.1:8000` (local) or `http://127.0.0.1:8080` (Docker) in your
 
 #### Tool selector
 
-The toolbar across the top provides all 7 analysis tools:
+The toolbar across the top provides all 13 tools — 7 analysis and 6 maintainer:
 
 | Button | What it does |
 |--------|-------------|
@@ -251,6 +251,12 @@ The toolbar across the top provides all 7 analysis tools:
 | **Full Analysis** | Combined security + round-trip + structural inspection |
 | **To XML** | Convert binary ICC profile to human-readable XML |
 | **Compare** | Unified diff of two profiles side by side |
+| **CMake Configure** | Configure iccDEV with cmake (build type, sanitizers, compiler, generator) |
+| **CMake Build** | Compile a previously configured iccDEV build |
+| **Create Profiles** | Run CreateAllProfiles.sh to generate the ICC test corpus |
+| **Run Tests** | Run the iccDEV test suite against generated profiles |
+| **Option Matrix** | Test cmake option toggles independently |
+| **Windows Build** | Generate or run a Windows MSVC + vcpkg build |
 
 #### Typical workflow
 
@@ -579,6 +585,47 @@ run_iccdev_tests(build_dir="...")
 
 **Example request:**
 > "Run the iccDEV test suite against the generated profiles"
+
+---
+
+### `cmake_option_matrix`
+
+**What it does:** Tests multiple cmake option toggles independently by running a quick configure+build for each option to verify it compiles cleanly.
+
+**When to use:** After code changes to verify that all cmake options (`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_COVERAGE`, `ICC_ENABLE_ASSERTS`, etc.) still build successfully.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `options` | `""` | Comma-separated list of cmake options to test (empty = test all known options) |
+| `compiler` | `clang` | `clang` or `gcc` |
+| `build_dir` | auto | Base build directory name |
+
+**Known options (17):**
+`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_TSAN`, `ENABLE_MSAN`, `ENABLE_LSAN`, `ENABLE_SANITIZERS`, `ENABLE_COVERAGE`, `ENABLE_FUZZING`, `ENABLE_TESTS`, `ENABLE_TOOLS`, `ENABLE_ICCXML`, `ENABLE_STATIC_LIBS`, `ENABLE_SHARED_LIBS`, `ICC_LOG_SAFE`, `ICC_TRACE_NAN_ENABLED`, `ICC_CLUT_DEBUG`, `ICC_ENABLE_ASSERTS`
+
+**Example request:**
+> "Test all cmake options to see which ones build cleanly"
+
+---
+
+### `windows_build`
+
+**What it does:** Builds iccDEV on Windows using MSVC and vcpkg dependencies. On Windows, runs the build natively. On Unix/macOS, generates a PowerShell script that can be copied to a Windows machine.
+
+**When to use:** When you need a Windows build of iccDEV, or want to generate build instructions for a Windows CI/CD pipeline.
+
+**Parameters:**
+| Parameter | Default | Options |
+|-----------|---------|---------|
+| `build_type` | `Debug` | `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
+| `compiler` | `msvc` | `msvc` |
+| `vcpkg_source` | `github_release` | `github_release` (pre-built deps from iccDEV v2.3.1 release), `git_clone` (clone vcpkg and install) |
+
+**Example requests:**
+> "Build iccDEV on Windows with Debug configuration"
+
+> "Generate a Windows build script I can run on my Windows machine"
 
 ---
 
