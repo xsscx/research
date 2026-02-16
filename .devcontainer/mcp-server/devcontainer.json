@@ -1,0 +1,43 @@
+{
+  "name": "ICC Profile MCP Server (Python)",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+
+  "containerEnv": {
+    "ASAN_OPTIONS": "detect_leaks=0",
+    "ICC_MCP_ROOT": "${containerWorkspaceFolder}"
+  },
+
+  "postCreateCommand": "bash .devcontainer/mcp-server/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/mcp-server/.venv/bin/python",
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": false,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.python"
+        }
+      }
+    },
+    "codespaces": {
+      "openFiles": [
+        "mcp-server/README.md"
+      ]
+    }
+  },
+
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "MCP Web UI",
+      "onAutoForward": "notify"
+    }
+  }
+}
