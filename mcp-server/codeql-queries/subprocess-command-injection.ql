@@ -21,17 +21,17 @@ import semmle.python.ApiGraphs
  */
 class McpToolParameter extends DataFlow::Node {
   McpToolParameter() {
-    exists(Function f, Parameter p |
+    exists(Function f, Name n |
       f.getName() in [
         "cmake_configure", "cmake_build",
         "create_all_profiles", "run_iccdev_tests"
       ] and
-      p = f.getArg(_) and
-      p.getName() in [
+      n.getId() in [
         "build_dir", "extra_cmake_args", "target",
         "build_type", "sanitizers", "compiler", "generator"
       ] and
-      this.asExpr() = p.getAUse()
+      n.getScope() = f and
+      this.asExpr() = n
     )
   }
 }

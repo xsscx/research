@@ -94,9 +94,9 @@ done
 
 # Verify ASan/UBSan runtime is available (libclang-rt-*-dev)
 ASAN_TEST=$(mktemp /tmp/asan_test.XXXXXX.cpp)
+trap 'rm -f "$ASAN_TEST"' EXIT
 echo 'int main(){}' > "$ASAN_TEST"
 if ! $CXX -fsanitize=address,undefined "$ASAN_TEST" -o /dev/null 2>/dev/null; then
-  rm -f "$ASAN_TEST"
   CLANG_VER=$($CXX --version | grep -oP '\d+' | head -1)
   echo "[FAIL] ERROR: Clang sanitizer runtime not found."
   echo ""
@@ -109,6 +109,7 @@ if ! $CXX -fsanitize=address,undefined "$ASAN_TEST" -o /dev/null 2>/dev/null; th
   exit 1
 fi
 rm -f "$ASAN_TEST"
+trap - EXIT
 
 banner "CFL Fuzzer Build — Full Instrumentation"
 echo "Compiler:  $($CXX --version | head -1)"

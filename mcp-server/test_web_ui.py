@@ -104,7 +104,7 @@ def test_health():
     check("Health 200", r.status_code == 200)
     d = r.json()
     check("Health ok", d["ok"] is True)
-    check("Health tools=11", d["tools"] == 11)
+    check("Health tools=13", d["tools"] == 13)
 
 
 # ── List Profiles ──────────────────────────────────────────
@@ -522,7 +522,7 @@ def test_run_tests_validation():
 
 def test_maintainer_method_enforcement():
     """Maintainer endpoints must only accept POST."""
-    for ep in ["/api/cmake/configure", "/api/cmake/build", "/api/create-profiles", "/api/run-tests"]:
+    for ep in ["/api/cmake/configure", "/api/cmake/build", "/api/create-profiles", "/api/run-tests", "/api/cmake/option-matrix", "/api/cmake/windows-build"]:
         r = c.get(ep)
         check(f"GET {ep} -> 405", r.status_code == 405)
 
@@ -534,6 +534,102 @@ def test_maintainer_html_buttons():
     check("HTML has CMake Build button", "cmake_build" in r.text)
     check("HTML has Create Profiles button", "create_profiles" in r.text)
     check("HTML has Run Tests button", "run_tests" in r.text)
+    check("HTML has Option Matrix button", "option_matrix" in r.text)
+    check("HTML has Windows Build button", "windows_build" in r.text)
+
+
+def test_option_matrix_validation():
+    """Test cmake_option_matrix Web UI endpoint validation."""
+    # Unknown option
+    r = c.post(
+        "/api/cmake/option-matrix",
+        content=json.dumps({"options": "NONEXISTENT_OPTION"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Option matrix rejects unknown option", r.status_code == 400)
+
+    # Empty options
+    r = c.post(
+        "/api/cmake/option-matrix",
+        content=json.dumps({"options": ""}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Option matrix rejects empty", r.status_code == 400 or "[FAIL]" in r.json().get("result", ""))
+
+    # Invalid build type
+    r = c.post(
+        "/api/cmake/option-matrix",
+        content=json.dumps({"options": "ENABLE_COVERAGE", "build_type": "BadType"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Option matrix rejects bad build_type", r.status_code == 400)
+
+    # GET should be 405
+    r = c.get("/api/cmake/option-matrix")
+    check("GET option-matrix -> 405", r.status_code == 405)
+
+    # Valid options (may fail due to missing iccDEV, but HTTP 200)
+    r = c.post(
+        "/api/cmake/option-matrix",
+        content=json.dumps({"options": "ENABLE_COVERAGE", "build_type": "Release", "compiler": "clang"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Option matrix valid request HTTP 200", r.status_code == 200)
+
+
+def test_windows_build_validation():
+    """Test windows_build Web UI endpoint validation."""
+    # Invalid build_type
+    r = c.post(
+        "/api/cmake/windows-build",
+        content=json.dumps({"build_type": "BadType"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Windows build rejects bad build_type", r.status_code == 400)
+
+    # Invalid vcpkg_deps
+    r = c.post(
+        "/api/cmake/windows-build",
+        content=json.dumps({"vcpkg_deps": "INVALID"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Windows build rejects bad vcpkg_deps", r.status_code == 400)
+
+    # Shell injection in cmake args
+    r = c.post(
+        "/api/cmake/windows-build",
+        content=json.dumps({"extra_cmake_args": "; rm -rf /"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Windows build rejects injection", r.status_code == 400)
+
+    # Path traversal in build_dir
+    r = c.post(
+        "/api/cmake/windows-build",
+        content=json.dumps({"build_dir": "../../etc/passwd"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Windows build rejects traversal",
+          r.status_code == 400 or "[FAIL]" in r.json().get("result", ""))
+
+    # GET should be 405
+    r = c.get("/api/cmake/windows-build")
+    check("GET windows-build -> 405", r.status_code == 405)
+
+    # Valid request (generates script on Linux, HTTP 200)
+    r = c.post(
+        "/api/cmake/windows-build",
+        content=json.dumps({"build_type": "Debug", "vcpkg_deps": "release"}),
+        headers={"Content-Type": "application/json"},
+    )
+    check("Windows build valid request HTTP 200", r.status_code == 200)
+
+
+def test_windows_build_html_button():
+    """Index page should include Windows Build button."""
+    r = c.get("/")
+    check("HTML has Windows Build button", "windows_build" in r.text)
+    check("HTML has Windows Build TOOLS entry", "windows-build" in r.text)
 
 
 # ── Run all tests ──────────────────────────────────────────
@@ -582,6 +678,9 @@ def main():
         ("Run Tests Validation", test_run_tests_validation),
         ("Maintainer Method Enforcement", test_maintainer_method_enforcement),
         ("Maintainer HTML Buttons", test_maintainer_html_buttons),
+        ("Option Matrix Validation", test_option_matrix_validation),
+        ("Windows Build Validation", test_windows_build_validation),
+        ("Windows Build HTML Button", test_windows_build_html_button),
     ]
 
     for name, fn in suites:

@@ -12,6 +12,15 @@ if [ $# -lt 1 ]; then
 fi
 
 PROFILE="$1"
+
+# Reject path traversal attempts
+case "$PROFILE" in
+  *..* | /*)
+    echo "[FAIL] Invalid path: must be relative and not contain '..'"
+    exit 3
+    ;;
+esac
+
 BASENAME=$(basename "$PROFILE" .icc)
 REPORT="analysis-reports/${BASENAME}-analysis.md"
 
