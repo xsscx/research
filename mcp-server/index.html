@@ -96,6 +96,7 @@ header .badge {
 }
 .input-row:last-child { margin-bottom: 0; }
 .input-row .field { flex: 1; }
+.input-row .field-wide { flex: 2; }
 .input-row input, .input-row select {
   width: 100%;
   padding: 0.45rem 0.7rem;
@@ -311,6 +312,8 @@ footer {
     <button data-tool="cmake_build"    >CMake Build</button>
     <button data-tool="create_profiles">Create Profiles</button>
     <button data-tool="run_tests"      >Run Tests</button>
+    <button data-tool="option_matrix"  >Option Matrix</button>
+    <button data-tool="windows_build" >Windows Build</button>
   </nav>
 
   <!-- Input panel -->
@@ -354,6 +357,8 @@ const TOOLS = {
   cmake_build:     { label: "CMake Build",     endpoint: "/api/cmake/build",     fields: ["build_dir","target","jobs"], method: "POST" },
   create_profiles: { label: "Create Profiles", endpoint: "/api/create-profiles", fields: ["build_dir"], method: "POST" },
   run_tests:       { label: "Run Tests",       endpoint: "/api/run-tests",       fields: ["build_dir"], method: "POST" },
+  option_matrix:   { label: "Option Matrix",   endpoint: "/api/cmake/option-matrix", fields: ["options","build_type","compiler"], method: "POST" },
+  windows_build:   { label: "Windows Build",   endpoint: "/api/cmake/windows-build", fields: ["build_type","vcpkg_deps","enable_tools","extra_cmake_args","build_dir"], method: "POST" },
 };
 
 const DIRS = ["test-profiles", "extended-test-profiles", "xif", "fuzz/graphics/icc"];
@@ -505,6 +510,67 @@ function renderInputs() {
           <input id="inp-build_dir" value="" placeholder="e.g. build-debug-asan-ubsan-tools" autocomplete="off">
         </div>
         <button class="btn-run" id="btnRun">${esc(btnLabel)}</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "option_matrix") {
+    html = `
+      <div class="input-row">
+        <div class="field field-wide">
+          <label for="inp-options">Options (comma-separated)</label>
+          <input id="inp-options" value="ENABLE_COVERAGE,ICC_ENABLE_ASSERTS,ICC_TRACE_NAN_ENABLED" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-build_type">Build Type</label>
+          <select id="inp-build_type">
+            <option value="Release" selected>Release</option>
+            <option value="Debug">Debug</option>
+            <option value="RelWithDebInfo">RelWithDebInfo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-compiler">Compiler</label>
+          <select id="inp-compiler">
+            <option value="clang" selected>clang</option>
+            <option value="gcc">gcc</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run Matrix</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "windows_build") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_type">Build Type</label>
+          <select id="inp-build_type">
+            <option value="Debug" selected>Debug</option>
+            <option value="Release">Release</option>
+            <option value="RelWithDebInfo">RelWithDebInfo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-vcpkg_deps">vcpkg Deps</label>
+          <select id="inp-vcpkg_deps">
+            <option value="release" selected>release (download)</option>
+            <option value="local">local (pre-extracted)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-enable_tools">Enable Tools</label>
+          <select id="inp-enable_tools">
+            <option value="true" selected>Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-extra_cmake_args">Extra CMake Args</label>
+          <input id="inp-extra_cmake_args" value="" placeholder="-DICC_LOG_SAFE=ON" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-build_dir">Build Dir</label>
+          <input id="inp-build_dir" value="" placeholder="e.g. build-win-debug-tools" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Build (Windows)</button>
         ${saveBtn}
       </div>`;
   } else if (currentTool === "compare") {

@@ -86,13 +86,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Run as non-root user
+RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp
+
 # Copy built artifacts
-COPY --from=builder /build/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
-COPY --from=builder /build/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
-COPY --from=builder /build/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
-COPY --from=builder /build/mcp-server/ mcp-server/
-COPY --from=builder /build/test-profiles/ test-profiles/
-COPY --from=builder /build/extended-test-profiles/ extended-test-profiles/
+COPY --from=builder --chown=mcp:mcp /build/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
+COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
+COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
+COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
+COPY --from=builder --chown=mcp:mcp /build/test-profiles/ test-profiles/
+COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test-profiles/
 
 ENV ASAN_OPTIONS=detect_leaks=0
 ENV MallocNanoZone=0
@@ -112,6 +115,8 @@ ENTRYPOINT
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
+
+USER mcp
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["mcp"]
