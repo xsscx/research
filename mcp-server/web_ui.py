@@ -51,7 +51,6 @@ from icc_profile_mcp import (  # noqa: E402
     _VALID_GENERATORS,
     _VALID_SANITIZERS,
     _VALID_VCPKG_SOURCES,
-    _VALID_WIN_COMPILERS,
     analyze_security,
     cmake_build,
     cmake_configure,

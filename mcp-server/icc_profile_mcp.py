@@ -563,7 +563,6 @@ _VALID_BUILD_TYPES = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"}
 _VALID_SANITIZERS = {"none", "asan", "ubsan", "asan+ubsan", "coverage"}
 _VALID_COMPILERS = {"clang", "gcc"}
 _VALID_GENERATORS = {"default", "Ninja", "Xcode", "Unix Makefiles"}
-_VALID_WIN_COMPILERS = {"msvc", "clang-cl"}
 _VALID_VCPKG_SOURCES = {"release", "local"}
 
 # Known cmake option toggles from iccDEV CMakeLists.txt (all ON/OFF booleans)
@@ -1298,10 +1297,14 @@ async def windows_build(
             " ".join(build_args),
             "",
             "# Set PATH for tool discovery",
-            '$exeDirs = Get-ChildItem -Recurse -File -Include *.exe '
-            f'-Path .\\{build_dir}\\ |',
-            '    Where-Object {{ $_.FullName -match "icc" -and '
-            '$_.FullName -notmatch "\\\\CMakeFiles\\\\" }} |',
+            (
+                '$exeDirs = Get-ChildItem -Recurse -File -Include *.exe '
+                f'-Path .\\{build_dir}\\ |'
+            ),
+            (
+                '    Where-Object {{ $_.FullName -match "icc" -and '
+                '$_.FullName -notmatch "\\\\CMakeFiles\\\\" }} |'
+            ),
             '    ForEach-Object {{ Split-Path $_.FullName -Parent }} |',
             '    Sort-Object -Unique',
             '$env:PATH = ($exeDirs -join ";") + ";" + $env:PATH',

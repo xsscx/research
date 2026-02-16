@@ -32,7 +32,6 @@ from icc_profile_mcp import (
     _VALID_COMPILERS,
     _VALID_GENERATORS,
     _VALID_VCPKG_SOURCES,
-    _VALID_WIN_COMPILERS,
     ICCDEV_DIR,
     MAX_OUTPUT_BYTES,
     REPO_ROOT,
@@ -820,8 +819,6 @@ def test_windows_build_constants():
     T.ok("vcpkg sources defined", len(_VALID_VCPKG_SOURCES) > 0, str(_VALID_VCPKG_SOURCES))
     T.ok("release in vcpkg sources", "release" in _VALID_VCPKG_SOURCES, str(_VALID_VCPKG_SOURCES))
     T.ok("local in vcpkg sources", "local" in _VALID_VCPKG_SOURCES, str(_VALID_VCPKG_SOURCES))
-    T.ok("win compilers defined", len(_VALID_WIN_COMPILERS) > 0, str(_VALID_WIN_COMPILERS))
-    T.ok("msvc in win compilers", "msvc" in _VALID_WIN_COMPILERS, str(_VALID_WIN_COMPILERS))
 
     T.section_summary()
 
