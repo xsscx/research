@@ -2,7 +2,7 @@
 """
 ICC Profile MCP Server — Web UI Backend
 
-Thin REST API wrapping the 11 MCP tool functions (7 analysis + 4 maintainer).
+Thin REST API wrapping the 12 MCP tool functions (7 analysis + 5 maintainer + 1 windows).
 Uses Starlette + uvicorn (already installed as MCP SDK dependencies).
 
 Usage:
@@ -46,14 +46,18 @@ from icc_profile_mcp import (  # noqa: E402
     _run,
     _sanitize_output,
     _VALID_BUILD_TYPES,
+    _VALID_CMAKE_OPTIONS,
     _VALID_COMPILERS,
     _VALID_GENERATORS,
     _VALID_SANITIZERS,
+    _VALID_VCPKG_SOURCES,
+    _VALID_WIN_COMPILERS,
     analyze_security,
     cmake_build,
     cmake_configure,
     compare_profiles,
     create_all_profiles,
+    cmake_option_matrix,
     full_analysis,
     inspect_profile,
     list_test_profiles,
@@ -61,6 +65,7 @@ from icc_profile_mcp import (  # noqa: E402
     register_allowed_base,
     run_iccdev_tests,
     validate_roundtrip,
+    windows_build,
 )
 
 # ---------------------------------------------------------------------------
@@ -341,7 +346,7 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
-    return JSONResponse({"ok": True, "tools": 11})
+    return JSONResponse({"ok": True, "tools": 13})
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +469,63 @@ async def api_run_tests(request: Request) -> Response:
         build_dir = _validate_build_dir(body.get("build_dir", ""))
         async with (await _get_semaphore()):
             result = await run_iccdev_tests(build_dir=build_dir)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_option_matrix(request: Request) -> Response:
+    """POST /api/cmake/option-matrix — test cmake options independently."""
+    try:
+        body = await request.json()
+        options = body.get("options", "ENABLE_COVERAGE,ICC_ENABLE_ASSERTS,ICC_TRACE_NAN_ENABLED")
+        if not isinstance(options, str):
+            raise ValueError("options must be a comma-separated string")
+        opt_list = [o.strip() for o in options.split(",") if o.strip()]
+        invalid = [o for o in opt_list if o not in _VALID_CMAKE_OPTIONS]
+        if invalid:
+            raise ValueError(f"Unknown cmake options: {', '.join(invalid)}")
+        build_type = _validate_choice(
+            body.get("build_type", "Release"), _VALID_BUILD_TYPES, "build_type"
+        )
+        compiler = _validate_choice(
+            body.get("compiler", "clang"), _VALID_COMPILERS, "compiler"
+        )
+        async with (await _get_semaphore()):
+            result = await cmake_option_matrix(
+                options=options,
+                build_type=build_type,
+                compiler=compiler,
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_windows_build(request: Request) -> Response:
+    """POST /api/cmake/windows-build — Windows MSVC + vcpkg build."""
+    try:
+        body = await request.json()
+        build_type = _validate_choice(
+            body.get("build_type", "Debug"), _VALID_BUILD_TYPES, "build_type"
+        )
+        vcpkg_deps = _validate_choice(
+            body.get("vcpkg_deps", "release"), _VALID_VCPKG_SOURCES, "vcpkg_deps"
+        )
+        enable_tools = bool(body.get("enable_tools", True))
+        extra_cmake_args = _validate_extra_cmake_args(
+            body.get("extra_cmake_args", "")
+        )
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+
+        async with (await _get_semaphore()):
+            result = await windows_build(
+                build_type=build_type,
+                vcpkg_deps=vcpkg_deps,
+                enable_tools=enable_tools,
+                extra_cmake_args=extra_cmake_args,
+                build_dir=build_dir,
+            )
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -646,6 +708,8 @@ routes = [
     Route("/api/cmake/build", api_cmake_build, methods=["POST"]),
     Route("/api/create-profiles", api_create_profiles, methods=["POST"]),
     Route("/api/run-tests", api_run_tests, methods=["POST"]),
+    Route("/api/cmake/option-matrix", api_option_matrix, methods=["POST"]),
+    Route("/api/cmake/windows-build", api_windows_build, methods=["POST"]),
 ]
 
 app = Starlette(

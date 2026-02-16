@@ -16,6 +16,7 @@ import hashlib
 import os
 import re
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -555,13 +556,24 @@ async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
 # ── Helpers for cmake / iccDEV maintainer tools ─────────────────────
 
 # Allowed cmake arg patterns — reject shell metacharacters
-_CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-/: ]*$")
+_CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-/:]*$")
 _CMAKE_FLAG_RE = re.compile(r"^-W[a-z\-]+$")
 
 _VALID_BUILD_TYPES = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"}
 _VALID_SANITIZERS = {"none", "asan", "ubsan", "asan+ubsan", "coverage"}
 _VALID_COMPILERS = {"clang", "gcc"}
 _VALID_GENERATORS = {"default", "Ninja", "Xcode", "Unix Makefiles"}
+_VALID_WIN_COMPILERS = {"msvc", "clang-cl"}
+_VALID_VCPKG_SOURCES = {"release", "local"}
+
+# Known cmake option toggles from iccDEV CMakeLists.txt (all ON/OFF booleans)
+_VALID_CMAKE_OPTIONS = {
+    "ENABLE_TOOLS", "ENABLE_TESTS", "ENABLE_ICCXML",
+    "ENABLE_STATIC_LIBS", "ENABLE_SHARED_LIBS",
+    "ENABLE_COVERAGE", "ENABLE_FUZZING",
+    "ENABLE_ASAN", "ENABLE_UBSAN", "ENABLE_TSAN", "ENABLE_MSAN", "ENABLE_LSAN",
+    "ICC_LOG_SAFE", "ICC_TRACE_NAN_ENABLED", "ICC_CLUT_DEBUG", "ICC_ENABLE_ASSERTS",
+}
 
 
 def _sanitize_cmake_args(raw: str) -> list[str]:
@@ -1067,6 +1079,301 @@ async def run_iccdev_tests(build_dir: str = "") -> str:
     if proc.returncode == 0:
         return summary + f"\n[OK] Tests passed\n\n{output}"
     return summary + f"\n[WARN] Tests exited with code {proc.returncode}\n\n{output}"
+
+
+@mcp.tool()
+async def cmake_option_matrix(
+    options: str = "ENABLE_COVERAGE,ICC_ENABLE_ASSERTS,ICC_TRACE_NAN_ENABLED",
+    build_type: str = "Release",
+    compiler: str = "clang",
+) -> str:
+    """Run a build-option matrix: configure+build iccDEV once per cmake option toggle.
+
+    Tests each cmake boolean option independently to verify it compiles.
+    Useful for maintainers validating that all cmake options still build cleanly.
+
+    Args:
+        options: Comma-separated cmake option names from CMakeLists.txt.
+                 Each is tested as -DOPTION=ON in its own build directory.
+                 Valid options: ENABLE_COVERAGE, ICC_ENABLE_ASSERTS,
+                 ICC_TRACE_NAN_ENABLED, ENABLE_SHARED_LIBS, ENABLE_STATIC_LIBS,
+                 ENABLE_TOOLS, ENABLE_TESTS, ENABLE_ICCXML, ICC_LOG_SAFE, etc.
+        build_type: CMake build type for all builds (default: "Release")
+        compiler: Compiler family (default: "clang")
+    """
+    if build_type not in _VALID_BUILD_TYPES:
+        return f"[FAIL] Invalid build_type '{build_type}'. Choose: {', '.join(sorted(_VALID_BUILD_TYPES))}"
+    if compiler not in _VALID_COMPILERS:
+        return f"[FAIL] Invalid compiler '{compiler}'. Choose: {', '.join(sorted(_VALID_COMPILERS))}"
+
+    opt_list = [o.strip() for o in options.split(",") if o.strip()]
+    if not opt_list:
+        return "[FAIL] No options specified"
+    if len(opt_list) > 10:
+        return "[FAIL] Too many options (max 10 per matrix call)"
+
+    invalid = [o for o in opt_list if o not in _VALID_CMAKE_OPTIONS]
+    if invalid:
+        return (
+            f"[FAIL] Unknown cmake options: {', '.join(invalid)}. "
+            f"Valid: {', '.join(sorted(_VALID_CMAKE_OPTIONS))}"
+        )
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+    except FileNotFoundError as e:
+        return f"[FAIL] {e}"
+
+    _patch_iccdev_source(iccdev)
+
+    if compiler == "clang":
+        cxx = "clang++"
+        for suffix in ("", "-18", "-17", "-16"):
+            if shutil.which(f"clang++{suffix}"):
+                cxx = f"clang++{suffix}"
+                break
+        cc = cxx.replace("++", "")
+    else:
+        cc, cxx = "gcc", "g++"
+
+    results: list[str] = []
+    cmake_dir = str(iccdev / "Build" / "Cmake")
+
+    for opt in opt_list:
+        dir_name = f"build-opt-{opt.lower()}"
+        try:
+            target_dir = _resolve_build_dir(dir_name)
+        except (FileNotFoundError, ValueError) as e:
+            results.append(f"[FAIL] {opt}: {e}")
+            continue
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        cmd_cfg = [
+            "cmake", cmake_dir,
+            f"-DCMAKE_BUILD_TYPE={build_type}",
+            f"-DCMAKE_C_COMPILER={cc}",
+            f"-DCMAKE_CXX_COMPILER={cxx}",
+            f"-D{opt}=ON",
+            "-Wno-dev",
+        ]
+
+        cfg_out = await _run_build(cmd_cfg, cwd=str(target_dir), timeout=120)
+        if "[FAIL]" in cfg_out or "Error" in cfg_out:
+            results.append(f"[FAIL] {opt}: configure failed\n{cfg_out[-200:]}")
+            continue
+
+        cmd_build = [
+            "cmake", "--build", str(target_dir),
+            "--parallel", str(min(os.cpu_count() or 2, 4)),
+        ]
+        build_out = await _run_build(cmd_build, cwd=str(target_dir), timeout=300)
+        if "[FAIL]" in build_out:
+            results.append(f"[FAIL] {opt}: build failed\n{build_out[-200:]}")
+        else:
+            results.append(f"[OK] {opt}")
+
+    passed = sum(1 for r in results if r.startswith("[OK]"))
+    failed = len(results) - passed
+    header = f"[INFO] Option matrix: {passed}/{len(results)} passed, {failed} failed\n"
+    header += f"  Build type: {build_type}, Compiler: {compiler}\n\n"
+    return header + "\n".join(results)
+
+
+@mcp.tool()
+async def windows_build(
+    build_type: str = "Debug",
+    vcpkg_deps: str = "release",
+    enable_tools: bool = True,
+    extra_cmake_args: str = "",
+    build_dir: str = "",
+) -> str:
+    """Configure and build iccDEV for Windows using MSVC and vcpkg dependencies.
+
+    Downloads pre-built vcpkg dependencies from the iccDEV GitHub release,
+    configures with the vcpkg toolchain file, and builds with MSBuild.
+
+    This tool generates the correct cmake and build commands for Windows.
+    On non-Windows hosts it produces a dry-run script for copy-paste execution.
+
+    Args:
+        build_type: CMake build type — "Debug" (default) or "Release"
+        vcpkg_deps: Dependency source — "release" (download zip from
+                    iccDEV v2.3.1 GitHub release) or "local" (assume
+                    vcpkg deps already extracted)
+        enable_tools: Build iccDEV CLI tools (default: True)
+        extra_cmake_args: Additional cmake -D flags
+        build_dir: Build directory name (default: auto-generated)
+    """
+    if build_type not in _VALID_BUILD_TYPES:
+        return (
+            f"[FAIL] Invalid build_type '{build_type}'. "
+            f"Choose: {', '.join(sorted(_VALID_BUILD_TYPES))}"
+        )
+    if vcpkg_deps not in _VALID_VCPKG_SOURCES:
+        return (
+            f"[FAIL] Invalid vcpkg_deps '{vcpkg_deps}'. "
+            f"Choose: {', '.join(sorted(_VALID_VCPKG_SOURCES))}"
+        )
+
+    try:
+        extra = _sanitize_cmake_args(extra_cmake_args)
+    except ValueError as e:
+        return f"[FAIL] {e}"
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+    except FileNotFoundError as e:
+        return f"[FAIL] {e}"
+
+    # Auto-generate build dir name
+    if not build_dir:
+        build_dir = f"build-win-{build_type.lower()}"
+        if enable_tools:
+            build_dir += "-tools"
+
+    try:
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+
+    cmake_dir = str(iccdev / "Build" / "Cmake")
+    toolchain = str(iccdev / "scripts" / "buildsystems" / "vcpkg.cmake")
+
+    # vcpkg download command
+    vcpkg_url = (
+        "https://github.com/InternationalColorConsortium/"
+        "iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip"
+    )
+
+    # Build cmake configure command
+    cfg_args = [
+        "cmake", cmake_dir,
+        "-B", str(target_dir),
+        f"-DCMAKE_TOOLCHAIN_FILE={toolchain}",
+        "-DVCPKG_MANIFEST_MODE=OFF",
+        f"-DCMAKE_BUILD_TYPE={build_type}",
+        f"-DENABLE_TOOLS={'ON' if enable_tools else 'OFF'}",
+        "-Wno-dev",
+    ]
+    cfg_args.extend(extra)
+
+    build_args = [
+        "cmake", "--build", str(target_dir),
+        "--config", build_type,
+        "--parallel",
+    ]
+
+    is_windows = sys.platform == "win32"
+
+    summary = (
+        f"[INFO] Windows build configuration\n"
+        f"  Build type:    {build_type}\n"
+        f"  Enable tools:  {enable_tools}\n"
+        f"  vcpkg deps:    {vcpkg_deps}\n"
+        f"  Build dir:     {target_dir.name}\n"
+        f"  Platform:      {'native Windows' if is_windows else 'cross-platform script'}\n"
+        f"  Extra args:    {extra_cmake_args or '(none)'}\n"
+    )
+
+    if not is_windows:
+        # Generate a PowerShell script for Windows execution
+        script_lines = [
+            "# Windows build script for iccDEV (PowerShell)",
+            "$ErrorActionPreference = 'Stop'",
+            "",
+        ]
+        if vcpkg_deps == "release":
+            script_lines.extend([
+                "# Download vcpkg dependencies",
+                f'Invoke-WebRequest -Uri "{vcpkg_url}" -OutFile "deps.zip"',
+                'tar -xf deps.zip',
+                "",
+            ])
+        script_lines.extend([
+            "# Configure",
+            " ".join(cfg_args).replace("/", "\\"),
+            "",
+            "# Build (run twice for MSBuild reliability)",
+            " ".join(build_args),
+            " ".join(build_args),
+            "",
+            "# Set PATH for tool discovery",
+            '$exeDirs = Get-ChildItem -Recurse -File -Include *.exe '
+            f'-Path .\\{build_dir}\\ |',
+            '    Where-Object {{ $_.FullName -match "icc" -and '
+            '$_.FullName -notmatch "\\\\CMakeFiles\\\\" }} |',
+            '    ForEach-Object {{ Split-Path $_.FullName -Parent }} |',
+            '    Sort-Object -Unique',
+            '$env:PATH = ($exeDirs -join ";") + ";" + $env:PATH',
+            "",
+            "# Run profile creation",
+            "cd Testing",
+            ".\\CreateAllProfiles.bat",
+        ])
+        script = "\n".join(script_lines)
+        return (
+            summary
+            + "\n[INFO] Not running on Windows. Generated PowerShell script:\n\n"
+            + f"```powershell\n{script}\n```\n"
+        )
+
+    # Native Windows execution
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    results: list[str] = []
+
+    # Step 1: Download vcpkg deps if requested
+    if vcpkg_deps == "release":
+        deps_zip = iccdev / "deps.zip"
+        if not deps_zip.is_file():
+            dl_cmd = [
+                "powershell", "-Command",
+                f'Invoke-WebRequest -Uri "{vcpkg_url}" '
+                f'-OutFile "{deps_zip}"',
+            ]
+            dl_out = await _run_build(dl_cmd, cwd=str(iccdev), timeout=120)
+            results.append(f"[INFO] vcpkg download: {dl_out[:200]}")
+
+            extract_cmd = ["tar", "-xf", str(deps_zip), "-C", str(iccdev)]
+            ex_out = await _run_build(extract_cmd, cwd=str(iccdev), timeout=60)
+            results.append(f"[INFO] vcpkg extract: {ex_out[:200]}")
+
+    # Step 2: Configure
+    cfg_out = await _run_build(cfg_args, cwd=str(target_dir), timeout=180)
+    if "Generating done" in cfg_out or "Build files have been written" in cfg_out:
+        results.append("[OK] cmake configured")
+    else:
+        results.append(f"[WARN] cmake configure output:\n{cfg_out[-500:]}")
+
+    # Step 3: Build (twice for MSBuild reliability)
+    for attempt in (1, 2):
+        build_out = await _run_build(build_args, cwd=str(target_dir), timeout=600)
+        if "FAILED" in build_out or "Error" in build_out:
+            results.append(
+                f"[WARN] Build attempt {attempt}:\n{build_out[-300:]}"
+            )
+        else:
+            results.append(f"[OK] Build attempt {attempt} complete")
+
+    # Step 4: Find built tools
+    tools = _find_iccdev_tools(target_dir)
+    tool_bins: list[str] = []
+    for d in tools:
+        for f in os.listdir(d):
+            fp = os.path.join(d, f)
+            if os.path.isfile(fp) and (
+                os.access(fp, os.X_OK) or fp.endswith(".exe")
+            ):
+                tool_bins.append(f)
+
+    if tool_bins:
+        results.append(
+            f"[OK] Tools found: {', '.join(sorted(set(tool_bins)))}"
+        )
+    else:
+        results.append("[WARN] No tool executables found")
+
+    return summary + "\n" + "\n".join(results)
 
 
 def run_server() -> None:

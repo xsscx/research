@@ -72,11 +72,13 @@ unmount_ramdisk() {
   done
 
   # Copy any crash/oom/timeout artifacts
-  local artifacts
-  artifacts=$(find "$RAMDISK" -maxdepth 1 \( -name 'crash-*' -o -name 'oom-*' -o -name 'timeout-*' -o -name 'slow-unit-*' \) 2>/dev/null || true)
-  if [ -n "$artifacts" ]; then
-    mkdir -p "$SCRIPT_DIR/findings"
-    cp $artifacts "$SCRIPT_DIR/findings/"
+  mkdir -p "$SCRIPT_DIR/findings"
+  local found_artifacts=0
+  while IFS= read -r -d '' artifact; do
+    cp -- "$artifact" "$SCRIPT_DIR/findings/"
+    found_artifacts=1
+  done < <(find "$RAMDISK" -maxdepth 1 \( -name 'crash-*' -o -name 'oom-*' -o -name 'timeout-*' -o -name 'slow-unit-*' \) -print0 2>/dev/null)
+  if [ "$found_artifacts" -eq 1 ]; then
     echo "    [WARN] Crash artifacts saved to cfl/findings/"
   fi
 

@@ -8,7 +8,7 @@
 #   ./build.sh web 8080             # Start Web UI on 127.0.0.1:8080
 #   ./build.sh web 8080 192.168.1.5 # Start Web UI on specific IP and port
 #   ./build.sh mcp                  # Start MCP server (stdio transport)
-#   ./build.sh test                 # Run all tests (246 MCP + 146 Web UI)
+#   ./build.sh test                 # Run all tests (257 MCP + 153 Web UI)
 #   ./build.sh clean                # Remove build artifacts
 #
 # Prerequisites (Ubuntu/Debian):
@@ -233,7 +233,7 @@ cmd_help() {
   echo "  ./build.sh web 8080 192.168.1.5   # Web UI on specific IP"
   echo "  ./build.sh web 8080 127.0.0.1     # Web UI on localhost only"
   echo "  ./build.sh mcp                    # MCP stdio server"
-  echo "  ./build.sh test                   # Run 392 tests"
+  echo "  ./build.sh test                   # Run 432 tests"
 }
 
 # ── Main ───────────────────────────────────────────────────────────

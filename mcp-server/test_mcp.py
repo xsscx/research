@@ -27,9 +27,12 @@ from icc_profile_mcp import (
     _build_tool_path,
     _patch_iccdev_source,
     _VALID_BUILD_TYPES,
+    _VALID_CMAKE_OPTIONS,
     _VALID_SANITIZERS,
     _VALID_COMPILERS,
     _VALID_GENERATORS,
+    _VALID_VCPKG_SOURCES,
+    _VALID_WIN_COMPILERS,
     ICCDEV_DIR,
     MAX_OUTPUT_BYTES,
     REPO_ROOT,
@@ -42,8 +45,10 @@ from icc_profile_mcp import (
     compare_profiles,
     cmake_configure,
     cmake_build,
+    cmake_option_matrix,
     create_all_profiles,
     run_iccdev_tests,
+    windows_build,
 )
 
 
@@ -701,6 +706,50 @@ async def test_run_iccdev_tests_validation():
     T.section_summary()
 
 
+async def test_cmake_option_matrix_validation():
+    """Test cmake_option_matrix parameter validation."""
+    T.section("Functional: cmake_option_matrix Validation")
+
+    # Invalid build type
+    result = await cmake_option_matrix(build_type="BadType")
+    T.ok("reject invalid build_type", "[FAIL]" in result, result[:80])
+
+    # Invalid compiler
+    result = await cmake_option_matrix(compiler="msvc")
+    T.ok("reject invalid compiler", "[FAIL]" in result, result[:80])
+
+    # Empty options
+    result = await cmake_option_matrix(options="")
+    T.ok("reject empty options", "[FAIL]" in result, result[:80])
+
+    # Unknown cmake option
+    result = await cmake_option_matrix(options="NONEXISTENT_OPTION")
+    T.ok("reject unknown option", "[FAIL]" in result, result[:80])
+
+    # Too many options (>10)
+    result = await cmake_option_matrix(options=",".join(sorted(_VALID_CMAKE_OPTIONS)[:11]))
+    T.ok("reject >10 options", "[FAIL]" in result, result[:80])
+
+    # Valid options (may fail on missing iccDEV, but not validation)
+    result = await cmake_option_matrix(options="ENABLE_COVERAGE,ICC_ENABLE_ASSERTS")
+    T.ok("valid options accepted", "[FAIL] Invalid" not in result and "[FAIL] Unknown" not in result, result[:80])
+
+    T.section_summary()
+
+
+def test_valid_cmake_options_constant():
+    """Test _VALID_CMAKE_OPTIONS constant."""
+    T.section("Constants: _VALID_CMAKE_OPTIONS")
+
+    T.ok("not empty", len(_VALID_CMAKE_OPTIONS) > 0, f"len={len(_VALID_CMAKE_OPTIONS)}")
+    T.ok("contains ENABLE_TOOLS", "ENABLE_TOOLS" in _VALID_CMAKE_OPTIONS, str(_VALID_CMAKE_OPTIONS))
+    T.ok("contains ENABLE_COVERAGE", "ENABLE_COVERAGE" in _VALID_CMAKE_OPTIONS, str(_VALID_CMAKE_OPTIONS))
+    T.ok("contains ICC_ENABLE_ASSERTS", "ICC_ENABLE_ASSERTS" in _VALID_CMAKE_OPTIONS, str(_VALID_CMAKE_OPTIONS))
+    T.ok("all uppercase names", all(o == o.upper() for o in _VALID_CMAKE_OPTIONS), "checked")
+
+    T.section_summary()
+
+
 async def test_find_iccdev_tools():
     """Test tool discovery helper."""
     T.section("Functional: Tool Discovery")
@@ -764,9 +813,53 @@ def test_patch_iccdev_source():
     T.section_summary()
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+def test_windows_build_constants():
+    """Test Windows build constants."""
+    T.section("Constants: Windows Build")
+
+    T.ok("vcpkg sources defined", len(_VALID_VCPKG_SOURCES) > 0, str(_VALID_VCPKG_SOURCES))
+    T.ok("release in vcpkg sources", "release" in _VALID_VCPKG_SOURCES, str(_VALID_VCPKG_SOURCES))
+    T.ok("local in vcpkg sources", "local" in _VALID_VCPKG_SOURCES, str(_VALID_VCPKG_SOURCES))
+    T.ok("win compilers defined", len(_VALID_WIN_COMPILERS) > 0, str(_VALID_WIN_COMPILERS))
+    T.ok("msvc in win compilers", "msvc" in _VALID_WIN_COMPILERS, str(_VALID_WIN_COMPILERS))
+
+    T.section_summary()
+
+
+async def test_windows_build_validation():
+    """Test windows_build input validation."""
+    T.section("Validation: windows_build")
+
+    # Invalid build type
+    result = await windows_build(build_type="INVALID")
+    T.ok("rejects invalid build_type", "[FAIL]" in result, result[:80])
+
+    # Invalid vcpkg_deps
+    result = await windows_build(vcpkg_deps="INVALID")
+    T.ok("rejects invalid vcpkg_deps", "[FAIL]" in result, result[:80])
+
+    # Invalid cmake args
+    result = await windows_build(extra_cmake_args="; rm -rf /")
+    T.ok("rejects shell injection", "[FAIL]" in result, result[:80])
+
+    # Path traversal in build_dir — sanitized to safe name (starts with . → fallback)
+    result = await windows_build(build_dir="../../etc")
+    T.ok("sanitizes traversal", "build-mcp" in result or "[FAIL]" in result, result[:120])
+
+    # Valid call on Linux generates PowerShell script
+    import sys
+    if sys.platform != "win32":
+        result = await windows_build(build_type="Debug")
+        T.ok("generates powershell script on linux",
+             "powershell" in result.lower() or "[FAIL]" in result or "PowerShell" in result,
+             result[:120])
+
+    # Valid build types accepted
+    for bt in ("Debug", "Release"):
+        result = await windows_build(build_type=bt)
+        T.ok(f"accepts {bt}", "[FAIL] Invalid build_type" not in result, result[:80])
+
+    T.section_summary()
 
 async def main():
     start = time.time()
@@ -811,8 +904,12 @@ async def main():
     await test_cmake_build_validation()
     await test_create_all_profiles_validation()
     await test_run_iccdev_tests_validation()
+    await test_cmake_option_matrix_validation()
+    test_valid_cmake_options_constant()
     await test_find_iccdev_tools()
     test_patch_iccdev_source()
+    test_windows_build_constants()
+    await test_windows_build_validation()
 
     elapsed = time.time() - start
 
