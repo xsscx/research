@@ -130,13 +130,21 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
     Uses a minimal subprocess environment to reduce attack surface.
     """
     # Minimal env: only what the binaries need to locate libraries and run
+    _default_path = (
+        os.defpath if os.defpath else
+        "C:\\Windows\\system32;C:\\Windows" if sys.platform == "win32"
+        else "/usr/bin:/bin"
+    )
     env = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "HOME": "/nonexistent",
+        "PATH": os.environ.get("PATH", _default_path),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "ASAN_OPTIONS": "detect_leaks=0",
         "MallocNanoZone": "0",
     }
+    if sys.platform != "win32":
+        env["HOME"] = "/nonexistent"
+    else:
+        env["USERPROFILE"] = os.environ.get("USERPROFILE", "C:\\Users\\Default")
     # LD_LIBRARY_PATH needed if iccDEV was built as shared libs
     ld_path = os.environ.get("LD_LIBRARY_PATH")
     if ld_path:
@@ -644,7 +652,7 @@ def _find_iccdev_tools(build_dir: Path) -> list[str]:
 def _build_tool_path(build_dir: Path) -> str:
     """Construct a PATH string with iccDEV tool directories prepended."""
     tool_dirs = _find_iccdev_tools(build_dir)
-    base_path = os.environ.get("PATH", "/usr/bin:/bin")
+    base_path = os.environ.get("PATH", os.defpath or "/usr/bin:/bin")
     if tool_dirs:
         return os.pathsep.join(tool_dirs) + os.pathsep + base_path
     return base_path

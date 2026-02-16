@@ -76,7 +76,8 @@ _INDEX_CONTENT: str | None = None  # cached on first request
 MAX_PATH_LEN = 512
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # 50 MB cap on file downloads
 # Allow only safe profile-path characters (alphanumeric, dash, underscore, dot, slash, tilde)
-_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/~ -]+$")
+# Include backslash for Windows path compatibility
+_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :-]+$")
 # Filename sanitization for Content-Disposition: keep only safe chars
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
 
@@ -169,7 +170,8 @@ def _validate_path(value: str, param_name: str = "path") -> str:
     if ".." in value:
         raise ValueError(f"{param_name} contains path traversal sequence")
     # Allow absolute paths only if they resolve into the upload directory
-    if value.startswith("/"):
+    _is_absolute = value.startswith("/") or (len(value) >= 3 and value[1] == ":" and value[2] in "/\\")
+    if _is_absolute:
         if _UPLOAD_DIR and Path(value).resolve().is_relative_to(_UPLOAD_DIR.resolve()):
             return value
         raise ValueError(f"{param_name} must be a relative path")
@@ -535,7 +537,8 @@ def _get_upload_dir() -> Path:
     global _UPLOAD_DIR
     if _UPLOAD_DIR is None or not _UPLOAD_DIR.is_dir():
         _UPLOAD_DIR = Path(tempfile.mkdtemp(prefix="mcp_uploads_"))
-        os.chmod(_UPLOAD_DIR, 0o700)
+        if sys.platform != "win32":
+            os.chmod(_UPLOAD_DIR, 0o700)
         register_allowed_base(_UPLOAD_DIR)
     return _UPLOAD_DIR
 
@@ -595,7 +598,8 @@ async def api_upload(request: Request) -> Response:
         prefix = secrets.token_hex(8)
         dest = upload_dir / f"{prefix}_{clean_name}"
         dest.write_bytes(data)
-        os.chmod(dest, 0o600)
+        if sys.platform != "win32":
+            os.chmod(dest, 0o600)
 
         # Return the path relative to upload dir — the resolver will find it
         return JSONResponse({
