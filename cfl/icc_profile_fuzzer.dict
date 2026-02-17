@@ -279,3 +279,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "MM"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xb0\x8a>"
