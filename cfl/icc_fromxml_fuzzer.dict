@@ -121,3 +121,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 ">\x22\xba\x8e\x8bm`\x0f"
 "<\x22\xba\x8e\x8bm`\x0f"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\xa6"
