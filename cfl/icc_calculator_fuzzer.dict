@@ -450,3 +450,8 @@
 # --- added by convert-libfuzzer-dict.py ---
 "J\x1c."
 "\x01\x00\x7fA\x22\x15\x8eB"
+
+# --- added by convert-libfuzzer-dict.py ---
+"cal"
+"\x00\x00\x00\x00\x00\x00\x01}"
+"\xff\xff\xff\x03"

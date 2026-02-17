@@ -457,3 +457,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x81"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x81"
+"\xff\xff~\xec\x09\xe050"
+"C\xb3V"
