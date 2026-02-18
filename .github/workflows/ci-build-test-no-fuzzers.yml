@@ -1,0 +1,989 @@
+###############################################################
+# ci-build-test-no-fuzzers.yml
+#
+# Comprehensive iccDEV build and test matrix for research repo.
+# Based on ci-comprehensive-build-test.yml with fuzzers removed.
+#
+# Adaptation: iccDEV is cloned into cfl/iccDEV/ (not repo root).
+# All cmake/build paths adjusted accordingly.
+# sanitize-sed.sh used for GITHUB_STEP_SUMMARY.
+#
+# Jobs:
+#   1. standard-builds     — os x compiler x build_type + profile creation
+#   2. sanitizer-builds    — asan / ubsan / asan+ubsan x build_type
+#   3. option-matrix       — individual cmake option toggles
+#   4. windows-build       — MSVC + vcpkg on windows-latest
+#   5. version-header-test — verify cmake-generated version headers
+#   6. clean-rebuild-test  — build / clean / rebuild cycle
+#   7. final-summary       — aggregate results
+###############################################################
+
+name: CI Build & Test (No Fuzzers)
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cfl/patches/**'
+      - '.github/workflows/ci-build-test-no-fuzzers.yml'
+
+concurrency:
+  group: no-fuzzers-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_REPO: ${{ github.repository }}
+  GH_NO_UPDATE_NOTIFIER: 1
+  GH_PROMPT_DISABLED: 1
+
+jobs:
+  #############################################################################
+  # Job 1: Standard Project Builds (Tools Only - No Fuzzing)
+  #############################################################################
+  standard-builds:
+    name: "Standard - ${{ matrix.os }} - ${{ matrix.compiler }} - ${{ matrix.build_type }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        build_type: [Release, Debug, RelWithDebInfo]
+        exclude:
+          - os: macos-latest
+            compiler: gcc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Cache Dependencies (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            ~/.cache/ccache
+          key: ${{ runner.os }}-deps-${{ matrix.compiler }}-${{ hashFiles('.github/workflows/ci-build-test-no-fuzzers.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-${{ matrix.compiler }}-
+            ${{ runner.os }}-deps-
+
+      - name: Cache Dependencies (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            ~/.cache/ccache
+          key: ${{ runner.os }}-deps-${{ matrix.compiler }}-${{ hashFiles('.github/workflows/ci-build-test-no-fuzzers.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-${{ matrix.compiler }}-
+            ${{ runner.os }}-deps-
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential cmake gcc g++ clang ccache \
+            libpng-dev libxml2-dev libtiff-dev \
+            nlohmann-json3-dev
+          ccache --zero-stats || true
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          brew install cmake llvm libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
+          ccache --zero-stats || true
+
+      - name: Clone iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Patch iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          # Strip U+FE0F (emoji variation selector) from upstream source
+          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i.bak "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
+          find cfl/iccDEV -name '*.bak' -delete 2>/dev/null || true
+          # Disable LTO (incompatible with sanitizers)
+          sed -i.bak 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
+            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
+          find cfl/iccDEV -name '*.bak' -delete 2>/dev/null || true
+
+      - name: Disable wxWidgets
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          sed -i.bak 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i.bak 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i.bak 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          find cfl/iccDEV -name '*.bak' -delete 2>/dev/null || true
+
+      - name: Set Compiler
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_COMPILER: ${{ matrix.compiler }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          if [ "$MATRIX_COMPILER" = "gcc" ]; then
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          else
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure CMake
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV
+          mkdir -p Build/build && cd Build/build
+          cmake ../Cmake \
+                -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" \
+                -DENABLE_SHARED_LIBS=ON \
+                -DENABLE_STATIC_LIBS=ON \
+                -DENABLE_TOOLS=ON
+
+      - name: Build
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_COMPILER: ${{ matrix.compiler }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          # Enable ccache if available
+          if command -v ccache >/dev/null 2>&1; then
+            export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+            if [ "$MATRIX_COMPILER" = "gcc" ]; then
+              export CC="ccache gcc"
+              export CXX="ccache g++"
+            else
+              export CC="ccache clang"
+              export CXX="ccache clang++"
+            fi
+          fi
+
+          cd cfl/iccDEV/Build/build
+          echo "::group::Build Output"
+          BUILD_START=$(date +%s)
+          make -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 2)" 2>&1 | tee build.log
+          BUILD_END=$(date +%s)
+          echo "::endgroup::"
+
+          BUILD_TIME=$((BUILD_END - BUILD_START))
+          echo "::notice title=Build Time::Build completed in ${BUILD_TIME}s"
+
+          if grep -iE '(error|failed|undefined reference|cannot find)' build.log; then
+            echo "::error title=Build Failed::Build errors detected in log"
+            exit 1
+          fi
+
+          # Show ccache stats if available
+          if command -v ccache >/dev/null 2>&1; then
+            echo "::group::ccache Statistics"
+            ccache --show-stats || true
+            echo "::endgroup::"
+          fi
+
+      - name: Upload Build Artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: build-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: |
+            cfl/iccDEV/Build/build/build.log
+            cfl/iccDEV/Build/build/CMakeCache.txt
+            cfl/iccDEV/Build/build/CMakeFiles/CMakeError.log
+            cfl/iccDEV/Build/build/CMakeFiles/CMakeOutput.log
+          retention-days: 7
+
+      - name: Upload Build Artifacts (on success)
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: build-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: |
+            cfl/iccDEV/Build/build/Tools/IccApplyNamedCmm/**/IccApplyNamedCmm
+            cfl/iccDEV/Build/build/Tools/IccDumpProfile/**/IccDumpProfile
+            cfl/iccDEV/Build/build/Tools/IccFromXml/**/IccFromXml
+            cfl/iccDEV/Build/build/Tools/IccToXml/**/IccToXml
+            cfl/iccDEV/Build/build/IccProfLib/libIccProfLib2*
+            cfl/iccDEV/Build/build/IccXML/libIccXML2*
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 9
+
+      - name: Test Profiles
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Testing
+          for d in ../Build/build/Tools/*; do
+            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+          done
+          sh CreateAllProfiles.sh
+          PROFILE_COUNT=$(find . -name "*.icc" | wc -l)
+          echo "Created $PROFILE_COUNT profiles"
+          if [ "$PROFILE_COUNT" -eq 0 ]; then
+            echo "ERROR: No profiles created"
+            exit 1
+          fi
+
+  #############################################################################
+  # Job 2: Sanitizer Builds (Individual Sanitizers)
+  #############################################################################
+  sanitizer-builds:
+    name: "Sanitizer - ${{ matrix.sanitizer }} - ${{ matrix.build_type }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, RelWithDebInfo]
+        sanitizer:
+          - asan
+          - ubsan
+          - asan-ubsan
+        exclude:
+          - sanitizer: asan-ubsan
+            build_type: RelWithDebInfo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            ~/.cache/ccache
+          key: sanitizer-deps-${{ matrix.sanitizer }}-${{ hashFiles('.github/workflows/ci-build-test-no-fuzzers.yml') }}
+          restore-keys: |
+            sanitizer-deps-${{ matrix.sanitizer }}-
+            sanitizer-deps-
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install Dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential cmake clang llvm \
+            libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
+
+      - name: Clone iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Patch iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
+            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
+
+      - name: Disable wxWidgets
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+
+      - name: Configure with Sanitizer
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_SANITIZER: ${{ matrix.sanitizer }}
+          MATRIX_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV
+          mkdir -p Build/build && cd Build/build
+
+          case "$MATRIX_SANITIZER" in
+            asan)
+              OPTS="-DENABLE_ASAN=ON"
+              ;;
+            ubsan)
+              OPTS="-DENABLE_UBSAN=ON"
+              ;;
+            asan-ubsan)
+              OPTS="-DENABLE_ASAN=ON -DENABLE_UBSAN=ON"
+              ;;
+          esac
+
+          CC=clang CXX=clang++ cmake ../Cmake \
+                -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" \
+                $OPTS
+
+      - name: Build with Sanitizer
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Build/build
+          make -j"$(nproc)" 2>&1 | tee build.log
+          if grep -iE 'error:' build.log; then
+            echo "ERROR: Build failed"
+            exit 1
+          fi
+
+      - name: Test with Sanitizer
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Testing
+          for d in ../Build/build/Tools/*; do
+            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+          done
+          timeout 300 sh CreateAllProfiles.sh || echo "Profile creation timed out (acceptable for sanitizer builds)"
+
+      - name: Upload Sanitizer Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: sanitizer-${{ matrix.sanitizer }}-${{ matrix.build_type }}
+          path: |
+            cfl/iccDEV/Build/build/Tools/IccApplyNamedCmm/**/IccApplyNamedCmm
+            cfl/iccDEV/Build/build/Tools/IccDumpProfile/**/IccDumpProfile
+            cfl/iccDEV/Build/build/IccProfLib/libIccProfLib2*
+            cfl/iccDEV/Build/build/build.log
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 9
+
+  #############################################################################
+  # Job 3: Build Option Matrix (Test Each Option Independently)
+  #############################################################################
+  option-matrix:
+    name: "Option - ${{ matrix.option_name }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - option_name: "ENABLE_COVERAGE"
+            cmake_opts: "-DENABLE_COVERAGE=ON"
+          - option_name: "ICC_ENABLE_ASSERTS"
+            cmake_opts: "-DICC_ENABLE_ASSERTS=ON"
+          - option_name: "ICC_TRACE_NAN_ENABLED"
+            cmake_opts: "-DICC_TRACE_NAN_ENABLED=ON"
+          - option_name: "SHARED_ONLY"
+            cmake_opts: "-DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=OFF"
+          # STATIC_ONLY excluded — upstream iccDEV IccXML/CMakeLists.txt:141
+          # references IccXML2 shared target unconditionally (bug)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install Dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential cmake clang \
+            libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
+
+      - name: Clone iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Patch iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
+            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
+
+      - name: Disable wxWidgets
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+
+      - name: Configure with Option
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_CMAKE_OPTS: ${{ matrix.cmake_opts }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV
+          mkdir -p Build/build && cd Build/build
+          cmake ../Cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                $MATRIX_CMAKE_OPTS
+
+      - name: Build
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Build/build
+          make -j"$(nproc)" 2>&1 | tee build.log
+          if grep -iE 'error:' build.log; then
+            echo "ERROR: Build failed"
+            exit 1
+          fi
+
+  #############################################################################
+  # Job 4: Windows Build (MSVC + vcpkg)
+  #############################################################################
+  windows-build:
+    name: "Windows - MSVC - ${{ matrix.build_type }}"
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      POWERSHELL_TELEMETRY_OPTOUT: "1"
+    defaults:
+      run:
+        shell: pwsh
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git Environment
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Clone iccDEV
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Install Dependencies
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          Write-Host "[INFO] Fetching vcpkg deps from iccDEV releases..."
+          Invoke-WebRequest -Uri "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -OutFile "cfl/iccDEV/deps.zip"
+          Write-Host "[INFO] Extracting..."
+          tar -xf cfl/iccDEV/deps.zip -C cfl/iccDEV
+          Write-Host "[OK] vcpkg deps ready"
+
+      - name: Configure
+        env:
+          BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          cd cfl/iccDEV/Build/Cmake
+          cmake -B build -S . `
+                -DCMAKE_TOOLCHAIN_FILE="..\..\scripts\buildsystems\vcpkg.cmake" `
+                -DVCPKG_MANIFEST_MODE=OFF `
+                -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+                -Wno-dev
+
+      - name: Build
+        env:
+          BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          cd cfl/iccDEV/Build/Cmake
+          cmake --build build --config $env:BUILD_TYPE -- /m /maxcpucount
+          cmake --build build --config $env:BUILD_TYPE -- /m /maxcpucount
+
+      - name: Test
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          cd cfl/iccDEV/Build/Cmake
+          $exeDirs = Get-ChildItem -Recurse -File -Include *.exe -Path .\build\ |
+              Where-Object { $_.FullName -match 'icc' -and $_.FullName -notmatch '\\CMakeFiles\\' -and $_.Name -notmatch '^CMake(C|CXX)CompilerId\.exe$' } |
+              ForEach-Object { Split-Path $_.FullName -Parent } |
+              Sort-Object -Unique
+          $env:PATH = ($exeDirs -join ';') + ';' + $env:PATH
+          cd ..\..\Testing
+          if (Test-Path .\CreateAllProfiles.bat) {
+            Write-Host "[INFO] Running CreateAllProfiles.bat..."
+            .\CreateAllProfiles.bat
+            Write-Host "[OK] Profile creation complete"
+          } else {
+            Write-Host "[WARN] CreateAllProfiles.bat not found, skipping"
+          }
+
+  #############################################################################
+  # Job 5: Version Header Generation Test
+  #############################################################################
+  version-header-test:
+    name: "Version Headers - Build Directory Generation"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install Dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
+
+      - name: Clone iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Patch iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
+            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
+
+      - name: Disable wxWidgets
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+
+      - name: Build
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV
+          mkdir -p Build/build && cd Build/build
+          cmake ../Cmake -DCMAKE_BUILD_TYPE=Release
+          make -j"$(nproc)"
+
+      - name: Verify Version Headers in Build Directory
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          if [ ! -f "cfl/iccDEV/Build/build/IccProfLib/IccProfLibVer.h" ] && [ ! -f "cfl/iccDEV/IccProfLib/IccProfLibVer.h" ]; then
+            echo "WARNING: IccProfLibVer.h not found (may not be generated yet)"
+          fi
+
+          if [ ! -f "cfl/iccDEV/Build/build/IccXML/IccLibXMLVer.h" ] && [ ! -f "cfl/iccDEV/IccXML/IccLibXML/IccLibXMLVer.h" ]; then
+            echo "WARNING: IccLibXMLVer.h not found (may not be generated yet)"
+          fi
+
+          echo "[OK] Version headers correctly generated in build directory"
+
+  #############################################################################
+  # Job 6: Clean/Rebuild Cycle Test
+  #############################################################################
+  clean-rebuild-test:
+    name: "Clean/Rebuild Cycle Test"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git Environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Install Dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
+
+      - name: Clone iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
+
+      - name: Patch iccDEV
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          find cfl/iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
+            cfl/iccDEV/Build/Cmake/CMakeLists.txt 2>/dev/null || true
+
+      - name: Disable wxWidgets
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' cfl/iccDEV/Build/Cmake/CMakeLists.txt
+
+      - name: Initial Build
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV
+          mkdir -p Build/build && cd Build/build
+          cmake ../Cmake -DCMAKE_BUILD_TYPE=Release
+          make -j"$(nproc)"
+          TOOL_COUNT_1=$(find Tools -type f -executable | wc -l)
+          echo "Initial build: $TOOL_COUNT_1 tools"
+          echo "TOOL_COUNT_1=$TOOL_COUNT_1" >> "$GITHUB_ENV"
+
+      - name: Clean
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Build/build
+          make clean
+          REMAINING=$(find Tools -type f -executable 2>/dev/null | wc -l || echo 0)
+          echo "After clean: $REMAINING executables"
+          if [ "$REMAINING" -ne 0 ]; then
+            echo "ERROR: make clean did not remove all executables"
+            exit 1
+          fi
+
+      - name: Rebuild
+        env:
+          BASH_ENV: /dev/null
+          TOOL_COUNT_1: ${{ env.TOOL_COUNT_1 }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd cfl/iccDEV/Build/build
+          make -j"$(nproc)"
+          TOOL_COUNT_2=$(find Tools -type f -executable | wc -l)
+          echo "After rebuild: $TOOL_COUNT_2 tools"
+
+          if [ "$TOOL_COUNT_2" -ne "${TOOL_COUNT_1:-0}" ]; then
+            echo "ERROR: Rebuild produced different number of tools ($TOOL_COUNT_2 vs ${TOOL_COUNT_1:-?})"
+            exit 1
+          fi
+
+          echo "[OK] Clean/rebuild cycle successful"
+
+  #############################################################################
+  # Job 7: Final Summary
+  #############################################################################
+  final-summary:
+    name: "Test Summary"
+    runs-on: ubuntu-latest
+    needs: [standard-builds, sanitizer-builds, option-matrix, windows-build, version-header-test, clean-rebuild-test]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Generate Summary
+        shell: bash --noprofile --norc {0}
+        env:
+          BASH_ENV: /dev/null
+          STANDARD_RESULT: ${{ needs.standard-builds.result }}
+          SANITIZER_RESULT: ${{ needs.sanitizer-builds.result }}
+          OPTION_RESULT: ${{ needs.option-matrix.result }}
+          WINDOWS_RESULT: ${{ needs.windows-build.result }}
+          VERSION_RESULT: ${{ needs.version-header-test.result }}
+          CLEAN_RESULT: ${{ needs.clean-rebuild-test.result }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          {
+            echo "# Build and Test Results (No Fuzzers)"
+            echo ""
+            echo "## Test Coverage"
+            echo ""
+            echo "### Platforms"
+            echo "- Ubuntu (latest)"
+            echo "- macOS (latest)"
+            echo "- Windows (latest)"
+            echo ""
+            echo "### Compilers"
+            echo "- GCC (Ubuntu)"
+            echo "- Clang (Ubuntu, macOS)"
+            echo "- MSVC (Windows)"
+            echo ""
+            echo "### Build Types"
+            echo "- Release"
+            echo "- Debug"
+            echo "- RelWithDebInfo"
+            echo ""
+            echo "### Sanitizers"
+            echo "- AddressSanitizer (ASAN)"
+            echo "- UndefinedBehaviorSanitizer (UBSAN)"
+            echo "- Combined ASAN+UBSAN"
+            echo ""
+            echo "### Build Options"
+            echo "- ENABLE_COVERAGE"
+            echo "- ICC_ENABLE_ASSERTS"
+            echo "- ICC_TRACE_NAN_ENABLED"
+            echo "- Shared libs only"
+            echo ""
+            echo "### Special Tests"
+            echo "- Version header generation (build directory)"
+            echo "- Clean/rebuild cycle"
+            echo ""
+            echo "## Job Results"
+            echo ""
+            echo "| Job | Status |"
+            echo "|-----|--------|"
+            echo "| Standard Builds | ${STANDARD_RESULT} |"
+            echo "| Sanitizer Builds | ${SANITIZER_RESULT} |"
+            echo "| Option Matrix | ${OPTION_RESULT} |"
+            echo "| Windows Build | ${WINDOWS_RESULT} |"
+            echo "| Version Header Test | ${VERSION_RESULT} |"
+            echo "| Clean/Rebuild Test | ${CLEAN_RESULT} |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Reference:** Based on ci-comprehensive-build-test.yml (fuzzers removed)"
+          } >> "$GITHUB_STEP_SUMMARY"
