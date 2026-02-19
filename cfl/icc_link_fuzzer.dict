@@ -333,3 +333,9 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q\xd0\x00\x05d\x80"
 "M<E"
+
+# --- added by convert-libfuzzer-dict.py ---
+",~"
+"\x00\x00 \x00\x00\x00\x00\x00"
+"M\x03H"
+"\x00\x00R\x00\x00\x0a\x7f\xa1"

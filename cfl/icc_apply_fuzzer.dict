@@ -469,3 +469,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "Y\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x80\x00"
