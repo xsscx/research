@@ -307,3 +307,8 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x06&"
 "\xbd\xd9\x880r\x08K\xee"
+
+# --- added by convert-libfuzzer-dict.py ---
+"C\xb7a"
+"MCa"
+"2sp"
