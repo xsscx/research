@@ -2626,3 +2626,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x01\xeb"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff\xff\xff\xff\xff\xff\xa8"
