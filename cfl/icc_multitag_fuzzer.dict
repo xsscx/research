@@ -335,3 +335,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "B\\x05"
 "\xb30"
+
+# --- added by convert-libfuzzer-dict.py ---
+"L0"
+"\xea\x06\x00\x00\x00\x00\x00\x00"
