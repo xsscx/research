@@ -512,3 +512,10 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "uepm"
+
+# --- added by convert-libfuzzer-dict.py ---
+">i6\x8a\x03\x7f\x00\x00"
+"o\xdb>Z"
+"\xff\xff\xff\xff\xff\xff%\x9d"
+"l7<\xa2"
+"0 T\xab"
