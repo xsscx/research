@@ -3,6 +3,9 @@
 #
 # Intent: ClusterFuzzLite fuzzing campaign for iccDEV
 #
+# Last UPdated: 2026-02-20 22:40:10 UTC by David Hoyt
+#
+#
 # Based on: xsscx/cfl actions/runs/21781371436 (known good SUCCESS)
 # Pattern: cfl/ has fuzzer sources, clone iccDEV as subproject,
 #          build libs, compile fuzzers with -I/-L, run in parallel
@@ -338,7 +341,7 @@ jobs:
 
           # Enable deep dump diagnostics for icc_deep_dump_fuzzer
           if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
-            export DEEP_DUMP_DIAG=1
+            export DEEP_DUMP_DIAG=0
           fi
 
           set +e
