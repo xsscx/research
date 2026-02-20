@@ -346,3 +346,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "in "
 "\x17\x05\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x9c]B"
