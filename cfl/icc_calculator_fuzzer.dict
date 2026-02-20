@@ -497,3 +497,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x88<i\x1c"
+
+# --- added by convert-libfuzzer-dict.py ---
+"%\x01\x00\x00\x00\x00\x00\x00"
+"\xa8\xdeT\x9b"
