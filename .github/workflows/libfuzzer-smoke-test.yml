@@ -312,7 +312,7 @@ jobs:
 
           # Enable deep dump diagnostics for icc_deep_dump_fuzzer
           if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
-            export DEEP_DUMP_DIAG=1
+            export DEEP_DUMP_DIAG=0
           fi
 
           set +e
