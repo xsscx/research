@@ -342,3 +342,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xdd\xa2EGO\x7f\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"in "
+"\x17\x05\x00\x00\x00\x00\x00\x00"
