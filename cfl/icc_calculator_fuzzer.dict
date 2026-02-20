@@ -509,3 +509,6 @@
 "\xfe\xff"
 "\x01\x00P0\x00Oj\x94"
 "\x00\x00\x00\x00\x00\x00\x00\x01"
+
+# --- added by convert-libfuzzer-dict.py ---
+"uepm"
