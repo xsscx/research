@@ -476,3 +476,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x12\x00"
 "\xe6\x00\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x7f?+\xcf\xfd0"

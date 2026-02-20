@@ -349,3 +349,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x9c]B"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff}\xfc0\xb7):"
+"\xdd2\xa30\xfc~\x00\x00"
+"\xff\xff\xff\xff\xff\xff\x03\x93"
