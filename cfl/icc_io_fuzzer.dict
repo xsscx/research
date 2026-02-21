@@ -2635,3 +2635,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x00z"
+
+# --- added by convert-libfuzzer-dict.py ---
+"r\xa6W"
