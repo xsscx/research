@@ -389,3 +389,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff~M\x08\xac?\xca"
+
+# --- added by convert-libfuzzer-dict.py ---
+"Q\x01\x00\x00\x00\x00\x00\x00"
+"p\xa7?\x22\x98\xf3\xfe]"
+"\x0ch"
