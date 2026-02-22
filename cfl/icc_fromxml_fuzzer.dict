@@ -131,3 +131,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x00\x17"
 "ibm912"
+
+# --- added by convert-libfuzzer-dict.py ---
+"N10__cxxabiv117__class_type_infoE"
