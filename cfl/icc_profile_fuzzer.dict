@@ -328,3 +328,6 @@
 "\x15\x01\x00\x00\x00\x00\x00\x00"
 "4B1"
 "alc"
+
+# --- added by convert-libfuzzer-dict.py ---
+"uu"
