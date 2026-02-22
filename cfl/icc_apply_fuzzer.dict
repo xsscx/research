@@ -496,3 +496,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "C\xda "
 "\x01\x00\x00A"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff~\xf2K\xaf}H"
