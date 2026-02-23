@@ -670,3 +670,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "M\xb7H"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00Qp\x00\x069\x00"
+"\xff\xffQp\x00\x00\xa0\xef"
+"MC\xb7"
