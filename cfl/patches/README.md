@@ -27,6 +27,7 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 14 | `IccMpeCalc.cpp` | `CIccCalcOpMgr::IsValidOp` | Infinite loop when `SeqNeedTempReset()` called with `nOps==0` |
 | 15 | `IccMpeBasic.cpp` | `CIccSingleSampledCurve::SetSize` | `malloc(nCount * sizeof(icFloatNumber))` — nCount from profile; 17 GB allocation in multitag fuzzer |
 | 16 | `IccTagLut.cpp` | `CIccTagCurve::Apply` | UBSAN: `-nan` cast to `unsigned int` — NaN bypasses `<0`/`>1` clamp, reaches `(icUInt32Number)(v * m_nMaxIndex)` |
+| 17 | `IccTagLut.cpp` | `CIccTagCurve::SetSize` | `malloc(nSize * sizeof(icFloatNumber))` — nSize from XML/profile data; 12.4 GB allocation in fromxml fuzzer |
 
 ## Allocation Cap
 
@@ -80,6 +81,11 @@ clamp (`if(v<0.0) ... else if(v>1.0)`) does not catch NaN because IEEE 754
 comparisons with NaN are always false.  NaN propagates to the cast
 `(icUInt32Number)(v * m_nMaxIndex)` which is undefined behavior.
 Fix: `if (std::isnan(v)) v = 0.0;` before the clamp.
+
+Patch 017 caps `CIccTagCurve::SetSize()` at 128 MB.  Triggered by
+`icc_fromxml_fuzzer` — `malloc(12408970272)` (12.4 GB) from a crafted
+XML profile with oversized curve entry count parsed via
+`CIccTagXmlCurve::ParseXml()` → `icMBBFromXml()`.
 
 ## Application
 
