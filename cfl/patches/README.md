@@ -1,10 +1,11 @@
 # CFL Library Patches — Fuzzing OOM Mitigation
 
+Last Updated: 2026-02-23 16:09:58 UTC
+
 These patches add allocation-size caps to iccDEV library code to prevent
 out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 
-**Scope:** CFL/LibFuzzer only — NOT intended as upstream PRs.  
-**Applied by:** `build.sh` after cloning iccDEV, before `cmake`.
+**Scope:** CFL/LibFuzzer Testing — intended as potential upstream PRs.
 
 ## Patches
 
@@ -21,6 +22,10 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 9 | `IccTagBasic.cpp` | `CIccTagUnknown::Describe` | Heap-buffer-overflow: `m_pData+4` OOB and `m_nSize-4` unsigned underflow when `m_nSize ≤ 4` |
 | 10 | `IccTagComposite.cpp` | `CIccTagArray` copy ctor / `operator=` | Uninitialized `m_TagVals`/`m_nSize` when source has 0 elements → SEGV in `Cleanup()`; wrong loop var in `operator=` |
 | 11 | `IccTagBasic.cpp` | `CIccTagFloatNum/TagNum/FixedNum/XYZ/NamedColor2::SetSize` | `icRealloc()` with uncapped nSize from profile — 11.5 GB allocation in calculator fuzzer |
+| 12 | `IccTagComposite.cpp` | `CIccTagArray::Read` | Mismatched `new[]`/`free` in `Cleanup()` — ASAN alloc-dealloc-mismatch |
+| 13 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | Enum range check on `m_Op[i].extra` for `icSigChannelFunction` |
+| 14 | `IccMpeCalc.cpp` | `CIccCalcOpMgr::IsValidOp` | Infinite loop when `SeqNeedTempReset()` called with `nOps==0` |
+| 15 | `IccMpeBasic.cpp` | `CIccSingleSampledCurve::SetSize` | `malloc(nCount * sizeof(icFloatNumber))` — nCount from profile; 17 GB allocation in multitag fuzzer |
 
 ## Allocation Cap
 
@@ -63,12 +68,8 @@ Patch 011 caps all remaining uncapped `SetSize()` variants at 128 MB:
 - `CIccTagNum<T>::SetSize()`, `CIccTagFixedNum<T>::SetSize()` — same pattern
 - `CIccTagXYZ::SetSize()`, `CIccTagNamedColor2::SetSize()` — defensive cap
 
-## Application
-
-Patches are applied automatically by `build.sh`:
-
-```bash
-for p in "$SCRIPT_DIR"/patches/*.patch; do
-  patch -p1 -d "$ICCDEV_DIR" < "$p"
-done
-```
+Patch 015 caps `CIccSingleSampledCurve::SetSize()` at 128 MB.  Triggered
+by `icc_multitag_fuzzer` — `malloc(17179689408)` (17 GB) from a crafted
+A2B0 tag with nested `CIccMpeCalculator::Read()` calling
+`CIccMpeCurveSet::Read()` → `CIccSingleSampledCurve::Read()`.
+Same pattern as patch 002 (`CIccSampledCurveSegment`) but different class.
