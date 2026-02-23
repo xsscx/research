@@ -6,8 +6,8 @@
 # disk bottlenecks on corpus sync, merge, and crash writes.
 #
 # Usage:
-#   sudo ./ramdisk-fuzz.sh                  # run all 17 fuzzers, 300s each
-#   sudo ./ramdisk-fuzz.sh 60               # run all 17 fuzzers, 60s each
+#   sudo ./ramdisk-fuzz.sh                  # run all 18 fuzzers, 300s each
+#   sudo ./ramdisk-fuzz.sh 60               # run all 18 fuzzers, 60s each
 #   sudo ./ramdisk-fuzz.sh 120 icc_profile_fuzzer icc_io_fuzzer
 #                                           # run only the named fuzzers
 #
@@ -29,7 +29,7 @@ JOBS="$(nproc 2>/dev/null || echo 4)"
 # Shift past the seconds argument (if given) so $@ is fuzzer names only
 if [[ "${1:-}" =~ ^[0-9]+$ ]]; then shift; fi
 
-# ── All 17 fuzzers ──────────────────────────────────────────────────
+# ── All 18 fuzzers ──────────────────────────────────────────────────
 ALL_FUZZERS=(
   icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
@@ -37,6 +37,7 @@ ALL_FUZZERS=(
   icc_calculator_fuzzer
   icc_deep_dump_fuzzer
   icc_dump_fuzzer
+  icc_fromcube_fuzzer
   icc_fromxml_fuzzer
   icc_io_fuzzer
   icc_link_fuzzer

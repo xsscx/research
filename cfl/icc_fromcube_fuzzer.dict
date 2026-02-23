@@ -1,0 +1,48 @@
+# icc_fromcube_fuzzer dictionary — LibFuzzer tokens
+# Keywords and patterns from the .cube 3D LUT file format
+
+# Cube file header keywords
+"TITLE "
+"LUT_3D_SIZE "
+"LUT_1D_SiZE "
+"LUT_3D_INPUT_RANGE "
+"DOMAIN_MIN "
+"DOMAIN_MAX "
+"LUT_IN_VIDEO_RANGE"
+"LUT_OUT_VIDEO_RANGE"
+
+# Comment prefix
+"# "
+
+# Common LUT sizes
+"2"
+"3"
+"4"
+"5"
+"8"
+"9"
+"16"
+"17"
+"32"
+"33"
+"64"
+"65"
+
+# Numeric values (float triplets in LUT entries)
+"0.0 0.0 0.0"
+"1.0 1.0 1.0"
+"0.5 0.5 0.5"
+"0.0"
+"1.0"
+"0.5"
+"0.25"
+"0.75"
+
+# Domain range values
+"0.0 1.0"
+"-1.0 1.0"
+"0.0 0.0 0.0"
+"1.0 1.0 1.0"
+
+# Title with quotes
+"\"Test LUT\""

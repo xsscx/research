@@ -8,7 +8,7 @@
 #   .github/scripts/ramdisk-clean.sh --execute /tmp/fuzz-ramdisk
 #
 # Removes:
-#   - Stray corpus dirs not matching any of the 17 fuzzers
+#   - Stray corpus dirs not matching any of the 18 fuzzers
 #   - Stray non-corpus dirs (latest/, updated/, tmp/, etc.)
 #   - Loose artifacts (crash-*, oom-*, timeout-*, slow-unit-*, leak-*)
 #     → saved to cfl/findings/ before deletion
@@ -54,6 +54,7 @@ ALL_FUZZERS=(
   icc_calculator_fuzzer
   icc_deep_dump_fuzzer
   icc_dump_fuzzer
+  icc_fromcube_fuzzer
   icc_fromxml_fuzzer
   icc_io_fuzzer
   icc_link_fuzzer

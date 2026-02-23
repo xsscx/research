@@ -96,6 +96,13 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_spectral_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_spectral_fuzzer IccProfLib2)
   
+  # FromCube fuzzer
+  add_executable(icc_fromcube_fuzzer icc_fromcube_fuzzer.cpp)
+  target_compile_options(icc_fromcube_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_fromcube_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_fromcube_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_fromcube_fuzzer IccProfLib2)
+
   # Apply fuzzer
   add_executable(icc_apply_fuzzer icc_apply_fuzzer.cpp)
   target_compile_options(icc_apply_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
@@ -153,7 +160,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
   
   message(STATUS "Fuzzing harnesses configured:")
-  message(STATUS "  Core: profile, calculator, v5dspobs, multitag, roundtrip, dump, io, link, spectral (9)")
+  message(STATUS "  Core: profile, calculator, v5dspobs, multitag, roundtrip, dump, io, link, spectral, fromcube (10)")
   message(STATUS "  Apply: apply, applynamedcmm, applyprofiles (3)")
   if(TARGET IccXML2)
     message(STATUS "  XML: fromxml, toxml (2)")
