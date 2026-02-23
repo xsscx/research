@@ -331,3 +331,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "uu"
+
+# --- added by convert-libfuzzer-dict.py ---
+"5\x01\x00\x00\x00\x00\x00\x00"
