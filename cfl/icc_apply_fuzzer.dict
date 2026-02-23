@@ -499,3 +499,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff~\xf2K\xaf}H"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x19\x00\x00\x00"
