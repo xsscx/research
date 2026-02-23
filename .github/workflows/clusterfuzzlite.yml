@@ -41,7 +41,7 @@ jobs:
   build:
     name: "Build All Fuzzers"
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash --noprofile --norc {0}
@@ -262,7 +262,7 @@ jobs:
     name: "Fuzz - ${{ matrix.fuzzer }}"
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 4
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +402,7 @@ jobs:
     needs: fuzz
     if: always() && needs.fuzz.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 1
 
     steps:
       - name: Checkout repository
