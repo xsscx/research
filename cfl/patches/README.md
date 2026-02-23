@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing OOM Mitigation
 
-Last Updated: 2026-02-23 16:09:58 UTC
+Last Updated: 2026-02-23 21:21:00 UTC
 
 These patches add allocation-size caps to iccDEV library code to prevent
 out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
@@ -28,6 +28,7 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 15 | `IccMpeBasic.cpp` | `CIccSingleSampledCurve::SetSize` | `malloc(nCount * sizeof(icFloatNumber))` — nCount from profile; 17 GB allocation in multitag fuzzer |
 | 16 | `IccTagLut.cpp` | `CIccTagCurve::Apply` | UBSAN: `-nan` cast to `unsigned int` — NaN bypasses `<0`/`>1` clamp, reaches `(icUInt32Number)(v * m_nMaxIndex)` |
 | 17 | `IccTagLut.cpp` | `CIccTagCurve::SetSize` | `malloc(nSize * sizeof(icFloatNumber))` — nSize from XML/profile data; 12.4 GB allocation in fromxml fuzzer |
+| 18 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::SetSize` | `calloc(m_size, sizeof(icFloatNumber))` — numVectors()*range.steps uncapped; 8 GB RSS accumulation in multitag fuzzer |
 
 ## Allocation Cap
 
@@ -86,6 +87,12 @@ Patch 017 caps `CIccTagCurve::SetSize()` at 128 MB.  Triggered by
 `icc_fromxml_fuzzer` — `malloc(12408970272)` (12.4 GB) from a crafted
 XML profile with oversized curve entry count parsed via
 `CIccTagXmlCurve::ParseXml()` → `icMBBFromXml()`.
+
+Patch 018 caps `CIccMpeSpectralMatrix::SetSize()` at 128 MB.  Triggered
+by `icc_multitag_fuzzer` — RSS grew to 8,129 MB over 19M iterations via
+119,197 allocations (~1 MB each, 90% of heap) in `calloc(m_size, ...)`.
+`m_size = numVectors() * range.steps` where both are `icUInt16Number`
+parsed from profile data, product up to 4.29 billion × 4 bytes = ~16 GB.
 
 ## Application
 
