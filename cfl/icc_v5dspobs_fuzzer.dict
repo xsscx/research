@@ -977,3 +977,6 @@
 "\x01<"
 "\x01\x01\x00\x01"
 "[\x00\x00P"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00Q\x90\x00\xd7\xf1\x18"
