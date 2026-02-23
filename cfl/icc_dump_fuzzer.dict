@@ -964,3 +964,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "U\xc0+\xa5\x99\xa4\xfb\x8e'=\x18@\xce\xc2\xd3\xfd"
+
+# --- added by convert-libfuzzer-dict.py ---
+"&\x00\xa4\xff"
+"\x93\x04\x0e\x00\x10Q\x00\x00"
