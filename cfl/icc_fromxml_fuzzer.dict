@@ -140,3 +140,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x1a"
+
+# --- added by convert-libfuzzer-dict.py ---
+"iso2022cncns"
