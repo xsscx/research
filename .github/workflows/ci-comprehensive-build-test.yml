@@ -425,7 +425,8 @@ jobs:
           unset GITHUB_TOKEN || true
           cd cfl/bin 2>/dev/null || { echo "[WARN] cfl/bin not found"; exit 0; }
 
-          EXPECTED_FUZZERS="icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer icc_calculator_fuzzer icc_dump_fuzzer icc_fromcube_fuzzer icc_fromxml_fuzzer icc_io_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer icc_roundtrip_fuzzer icc_spectral_fuzzer icc_toxml_fuzzer icc_v5dspobs_fuzzer"
+          EXPECTED_FUZZERS="icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer icc_calculator_fuzzer icc_dump_fuzzer icc_fromcube_fuzzer icc_fromxml_fuzzer icc_io_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer icc_roundtrip_fuzzer icc_toxml_fuzzer icc_v5dspobs_fuzzer"
+          # icc_spectral_fuzzer removed: excessive logging, under internal review
 
           PASS=0
           FAIL=0
