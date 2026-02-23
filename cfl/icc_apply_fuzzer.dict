@@ -505,3 +505,10 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "$\x02"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x05\x83"
+"\x01\x00\x7f\x9fu/\xadT"
+"\xff\xff~\x9fu,U0"
+"Z  "
+"\x81\x00"
