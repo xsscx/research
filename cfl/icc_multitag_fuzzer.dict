@@ -398,3 +398,6 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x034"
 "\x8c%\xdd\xa5\x9c]a\xbd"
+
+# --- added by convert-libfuzzer-dict.py ---
+"1\x00\x00\x00\x00\x00\x00\x00"
