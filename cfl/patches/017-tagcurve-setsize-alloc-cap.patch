@@ -1,0 +1,13 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -450,6 +450,11 @@
+ bool CIccTagCurve::SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt/*=icInitZero*/)
+ {
++  // CFL patch: cap curve allocation to 128 MB to prevent OOM.
++  // nSize comes from profile/XML data and can be arbitrarily large.
++  if (nSize && (icUInt64Number)nSize * sizeof(icFloatNumber) > 134217728ULL)
++    return false;
++
+   if (nSize==m_nSize)
+     return true;
+ 
