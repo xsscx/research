@@ -25,10 +25,6 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'cfl/patches/**'
-      - '.github/workflows/ci-build-test-no-fuzzers.yml'
 
 concurrency:
   group: no-fuzzers-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
