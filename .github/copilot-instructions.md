@@ -40,7 +40,7 @@ You MUST accurately report failures. Do NOT claim success when errors occur.
 ## Fuzzing
 
 ```bash
-# Ramdisk workflow (mounts 4GB tmpfs, seeds corpus, runs all 17 fuzzers)
+# Ramdisk workflow (mounts 4GB tmpfs, seeds corpus, runs all 18 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
 # Ramdisk management scripts (in .github/scripts/)
@@ -205,7 +205,7 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 
 ### CI workflows
 26 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
-- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 17 fuzzers
+- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 18 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
 - `iccanalyzer-cli-release.yml` — CLI test suite + release artifacts
