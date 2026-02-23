@@ -512,3 +512,6 @@
 "\xff\xff~\x9fu,U0"
 "Z  "
 "\x81\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xfd\x01"

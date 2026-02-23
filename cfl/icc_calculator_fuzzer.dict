@@ -622,3 +622,6 @@
 "\xa0W\xbd;"
 "lpe)"
 "\xb5`\xf1\xe6\xbf\x7f\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"nAB\x1d"
