@@ -264,3 +264,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xff\xff\xff\x0e\x08"
 "YYZ\x0a"
+
+# --- added by convert-libfuzzer-dict.py ---
+"[\x06\x00\x00\x00\x00\x00\x00"
+"\xe4."
