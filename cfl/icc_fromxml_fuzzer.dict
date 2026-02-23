@@ -134,3 +134,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "N10__cxxabiv117__class_type_infoE"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xf4\x01\x00\x00\x00\x00\x00\x00"

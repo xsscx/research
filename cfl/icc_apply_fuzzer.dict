@@ -502,3 +502,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x19\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"$\x02"
