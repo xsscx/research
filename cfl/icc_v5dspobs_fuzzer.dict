@@ -993,3 +993,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xff\xff\xff\x00l"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x83\xd1\x02\x00pQ\x00\x00"
