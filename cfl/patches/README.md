@@ -26,6 +26,7 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 13 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | Enum range check on `m_Op[i].extra` for `icSigChannelFunction` |
 | 14 | `IccMpeCalc.cpp` | `CIccCalcOpMgr::IsValidOp` | Infinite loop when `SeqNeedTempReset()` called with `nOps==0` |
 | 15 | `IccMpeBasic.cpp` | `CIccSingleSampledCurve::SetSize` | `malloc(nCount * sizeof(icFloatNumber))` — nCount from profile; 17 GB allocation in multitag fuzzer |
+| 16 | `IccTagLut.cpp` | `CIccTagCurve::Apply` | UBSAN: `-nan` cast to `unsigned int` — NaN bypasses `<0`/`>1` clamp, reaches `(icUInt32Number)(v * m_nMaxIndex)` |
 
 ## Allocation Cap
 
@@ -73,3 +74,19 @@ by `icc_multitag_fuzzer` — `malloc(17179689408)` (17 GB) from a crafted
 A2B0 tag with nested `CIccMpeCalculator::Read()` calling
 `CIccMpeCurveSet::Read()` → `CIccSingleSampledCurve::Read()`.
 Same pattern as patch 002 (`CIccSampledCurveSegment`) but different class.
+
+Patch 016 guards `CIccTagCurve::Apply()` against NaN input.  The existing
+clamp (`if(v<0.0) ... else if(v>1.0)`) does not catch NaN because IEEE 754
+comparisons with NaN are always false.  NaN propagates to the cast
+`(icUInt32Number)(v * m_nMaxIndex)` which is undefined behavior.
+Fix: `if (std::isnan(v)) v = 0.0;` before the clamp.
+
+## Application
+
+Patches are applied automatically by `build.sh`:
+
+```bash
+for p in "$SCRIPT_DIR"/patches/*.patch; do
+  patch -p1 -d "$ICCDEV_DIR" < "$p"
+done
+```

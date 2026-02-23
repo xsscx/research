@@ -55,6 +55,7 @@ CORE_FUZZERS=(
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
   icc_deep_dump_fuzzer
+  icc_fromcube_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)
@@ -243,7 +244,7 @@ build_fuzzer() {
   fi
 }
 
-echo "Core fuzzers (12):"
+echo "Core fuzzers (13):"
 for f in "${CORE_FUZZERS[@]}"; do
   if [ "$f" = "icc_deep_dump_fuzzer" ]; then
     build_fuzzer "$f" "-Wl,--allow-multiple-definition"

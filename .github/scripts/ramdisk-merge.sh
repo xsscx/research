@@ -3,7 +3,7 @@
 # ramdisk-merge.sh — Deduplicate and minimize fuzzer corpus on the ramdisk
 #
 # Usage:
-#   .github/scripts/ramdisk-merge.sh                    # merge all 17 fuzzers
+#   .github/scripts/ramdisk-merge.sh                    # merge all 18 fuzzers
 #   .github/scripts/ramdisk-merge.sh icc_profile_fuzzer  # merge one fuzzer
 #   .github/scripts/ramdisk-merge.sh --jobs 4            # limit parallelism
 #
@@ -30,6 +30,7 @@ ALL_FUZZERS=(
   icc_calculator_fuzzer
   icc_deep_dump_fuzzer
   icc_dump_fuzzer
+  icc_fromcube_fuzzer
   icc_fromxml_fuzzer
   icc_io_fuzzer
   icc_link_fuzzer

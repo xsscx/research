@@ -3,7 +3,7 @@
 # ramdisk-seed.sh — Seed corpus from disk to ramdisk
 #
 # Usage:
-#   .github/scripts/ramdisk-seed.sh                    # seed all 17 fuzzers
+#   .github/scripts/ramdisk-seed.sh                    # seed all 18 fuzzers
 #   .github/scripts/ramdisk-seed.sh icc_profile_fuzzer # seed one fuzzer
 #   .github/scripts/ramdisk-seed.sh --mount            # mount ramdisk first
 #   .github/scripts/ramdisk-seed.sh --mount --size 8G  # custom size
@@ -34,6 +34,7 @@ ALL_FUZZERS=(
   icc_calculator_fuzzer
   icc_deep_dump_fuzzer
   icc_dump_fuzzer
+  icc_fromcube_fuzzer
   icc_fromxml_fuzzer
   icc_io_fuzzer
   icc_link_fuzzer
