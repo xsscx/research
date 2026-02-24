@@ -1279,3 +1279,7 @@
 "A\xad\x19\x00 Q\x00\x00"
 "\xff\xff\x00R"
 "\x01\x00P0\x00\x0d\xd80"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00CwR"
+"KCL-"

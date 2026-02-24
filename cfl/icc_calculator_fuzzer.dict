@@ -628,3 +628,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x88~"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x10a\xea\x07\x9d\x7f\x00\x00"
+"3\x88\xcc\x07\x9d\x7f\x00\x00"
+"acR"
