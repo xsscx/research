@@ -39,10 +39,18 @@ cat << 'EOF'
 ── 3. RUN A SINGLE FUZZER ─────────────────────────────────────────────
 
   # Quick 60-second smoke test on ramdisk
-  cfl/bin/icc_profile_fuzzer -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+  FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
+    cfl/bin/icc_profile_fuzzer -max_total_time=60 -detect_leaks=0 -timeout=30 \
+    -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 \
+    -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict \
+    /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
 
   # 5-minute run with coverage stats
-  cfl/bin/icc_profile_fuzzer -max_total_time=300 -print_final_stats=1 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+  FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
+    cfl/bin/icc_profile_fuzzer -max_total_time=300 -print_final_stats=1 \
+    -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 \
+    -max_len=65536 -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict \
+    /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
 
   # 4-hour XML toxml fuzzer run on ramdisk
   FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
