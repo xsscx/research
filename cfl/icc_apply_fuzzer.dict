@@ -515,3 +515,6 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xfd\x01"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00~\xfd\xf2\xc7\xaep"
