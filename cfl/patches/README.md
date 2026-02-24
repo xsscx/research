@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 16:24:00 UTC
+Last Updated: 2026-02-24 16:28:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -31,6 +31,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 18 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::SetSize` | `calloc(m_size, sizeof(icFloatNumber))` — numVectors()*range.steps uncapped; 8 GB RSS accumulation in multitag fuzzer |
 | 19 | `IccTagBasic.cpp` | `CIccTagColorantTable::Describe` | Heap-buffer-overflow: `strlen(m_pData[i].name)` on non-null-terminated `name[32]` reads 7 bytes past 38-byte `icColorantTableEntry` allocation |
 | 20 | `IccTagXml.cpp` | `CIccTagXmlColorantTable::ToXml`, `CIccTagXmlNamedColor2::ToXml` | Same strlen OOB via `icAnsiToUtf8()` on `name[32]`/`rootName[32]` in XML serialization path |
+| 21 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::Describe` | Heap-buffer-overflow: `data[i]` reads past `m_pMatrix` when `m_size==0` (from `numVectors()==0`) or stride mismatch between loop dimensions and allocation |
 
 ## Allocation Cap
 
@@ -118,6 +119,18 @@ Three call sites in `IccTagXml.cpp`:
 Fix: copy fixed-size field to `char safe[33]` with null terminator before
 passing to `icAnsiToUtf8()`.  Verified: both PoC files process cleanly
 with patched `iccToXml` and all 18 fuzzers (exit 0, no ASAN output).
+
+Patch 021 fixes heap-buffer-overflow in `CIccMpeSpectralMatrix::Describe()`.
+`m_pMatrix` is allocated as `calloc(m_size, sizeof(icFloatNumber))` where
+`m_size = numVectors() * range.steps`.  When `numVectors()` returns 0
+(e.g. `m_nInputChannels == 0` for `CIccMpeEmissionMatrix`), `calloc(0, 4)`
+returns a 1-byte allocation.  `Describe()` then iterates
+`m_nOutputChannels * m_Range.steps` elements, reading past the allocation.
+ASAN: READ of size 4 at 1-byte region.  Additionally, even with non-zero
+`m_size`, the loop advances `data` by `m_nInputChannels` per row but
+accesses `m_Range.steps` elements per row — if the total accessed region
+exceeds `m_size`, the read is OOB.  Fix: guard with `m_size > 0` and add
+per-row bounds check `(data - m_pMatrix) + steps <= m_size` before access.
 
 ## Application
 
