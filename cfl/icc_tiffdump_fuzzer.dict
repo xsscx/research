@@ -1283,3 +1283,10 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x00CwR"
 "KCL-"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xfe\xff\xff"
+"\x01\x00\x01%"
+"\xff\xbf\xff"
+"!xml"
+"\x00\x00\x00\x00\x00\x00\x01\x0d"
