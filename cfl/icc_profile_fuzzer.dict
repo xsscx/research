@@ -343,3 +343,10 @@
 "\x03\xc4c"
 "@@"
 "\x01\x00\x00\x00\x00\x00\x01\xd6"
+
+# --- added by convert-libfuzzer-dict.py ---
+"2cp"
+"AAA"
+"CC"
+"++"
+"\x00\x00\x00\x00\x00\x00\x02\x9d"
