@@ -321,3 +321,8 @@
 "mid "
 "mlnk"
 "mvis"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x0ch"
+"\x01\x00\x00\x00\x00\x00\x04\x9f"
+"m\\xfb"
