@@ -355,3 +355,6 @@
 "\xdd\xdf;"
 "\xb2\xb2\xb2"
 "\xbf\x80"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x7f\xbd\xfc\xe9+\xc0"
