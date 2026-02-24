@@ -2026,3 +2026,7 @@
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x02\xc4"
 
+
+# --- I/O Boundary & Truncation Coverage ---
+"\x00\x00\x00\x01"
+"\x00\x00\x00\x80"
