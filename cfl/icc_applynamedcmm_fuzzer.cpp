@@ -45,6 +45,7 @@
 #include "IccDefs.h"
 #include "IccApplyBPC.h"
 #include "IccEnvVar.h"
+#include <climits>
 
 // Fuzzer input structure (packed):
 // [0-3]: Profile data (remaining bytes)
@@ -107,7 +108,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const uint8_t *profile_data = data + 10;
   size_t profile_size = size - 10;
   
-  char tmp_profile[] = "/tmp/fuzz_namedcmm_XXXXXX.icc";
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
+  char tmp_profile[PATH_MAX];
+  snprintf(tmp_profile, sizeof(tmp_profile), "%s/fuzz_namedcmm_XXXXXX.icc", tmpdir);
   int fd = mkstemp(tmp_profile);
   if (fd == -1) return 0;
   
