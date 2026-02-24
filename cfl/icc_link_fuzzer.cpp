@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include "IccCmm.h"
 #include "IccUtil.h"
+#include <climits>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 258 || size > 2 * 1024 * 1024) return 0;
@@ -53,8 +54,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Split input into two profiles (no leading byte skip)
   size_t mid = size / 2;
   
-  char tmp1[] = "/tmp/fuzz_link1_XXXXXX";
-  char tmp2[] = "/tmp/fuzz_link2_XXXXXX";
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
+  char tmp1[PATH_MAX];
+  char tmp2[PATH_MAX];
+  snprintf(tmp1, sizeof(tmp1), "%s/fuzz_link1_XXXXXX", tmpdir);
+  snprintf(tmp2, sizeof(tmp2), "%s/fuzz_link2_XXXXXX", tmpdir);
   
   int fd1 = mkstemp(tmp1);
   int fd2 = mkstemp(tmp2);

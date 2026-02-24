@@ -45,6 +45,7 @@
 #include "IccProfileXml.h"
 #include "IccIO.h"
 #include "IccUtil.h"
+#include <climits>
 
 // Suppress libxml2 errors during fuzzing
 static void suppressXmlErrors(void *ctx, const char *msg, ...) {
@@ -64,7 +65,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 10 || size > 10 * 1024 * 1024) return 0;
 
   // Write fuzzer data to temp file (replaces argv[1])
-  char temp_input[] = "/tmp/fuzz_fromxml_tool_XXXXXX";
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
+  char temp_input[PATH_MAX];
+  snprintf(temp_input, sizeof(temp_input), "%s/fuzz_fromxml_tool_XXXXXX", tmpdir);
   int fd = mkstemp(temp_input);
   if (fd == -1) return 0;
   
@@ -107,7 +111,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     
     // Write to temp output file (replaces argv[2])
-    char temp_output[] = "/tmp/fuzz_fromxml_tool_out_XXXXXX";
+    char temp_output[PATH_MAX];
+    snprintf(temp_output, sizeof(temp_output), "%s/fuzz_fromxml_tool_out_XXXXXX", tmpdir);
     int out_fd = mkstemp(temp_output);
     if (out_fd != -1) {
       close(out_fd);
@@ -131,7 +136,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         break;
     }
     
-    char temp_output[] = "/tmp/fuzz_fromxml_tool_out_XXXXXX";
+    char temp_output[PATH_MAX];
+    snprintf(temp_output, sizeof(temp_output), "%s/fuzz_fromxml_tool_out_XXXXXX", tmpdir);
     int out_fd = mkstemp(temp_output);
     if (out_fd != -1) {
       close(out_fd);

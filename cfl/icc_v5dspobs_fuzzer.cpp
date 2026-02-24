@@ -87,6 +87,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cstdlib>
+#include <climits>
 
 // AST Gate logging macros - controlled by command line option
 static bool g_astGatesEnabled = false;
@@ -124,6 +125,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Parse input: Extract two profile sizes
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
   uint32_t dspSize = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | 
                      ((uint32_t)data[2] << 8) | data[3];
   
@@ -142,7 +145,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   AST_LOG_VERBOSE("Tool uses file-based I/O via ReadIccProfile(filename, true)");
   
   // Write display profile to temporary file
-  char dspTmpFile[] = "/tmp/fuzz_dsp_XXXXXX";
+  char dspTmpFile[PATH_MAX];
+  snprintf(dspTmpFile, sizeof(dspTmpFile), "%s/fuzz_dsp_XXXXXX", tmpdir);
   int dspFd = mkstemp(dspTmpFile);
   if (dspFd < 0) {
     AST_LOG(1, "Failed to create temp file for display profile");
@@ -157,7 +161,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   close(dspFd);
   
   // Write observer profile to temporary file
-  char obsTmpFile[] = "/tmp/fuzz_obs_XXXXXX";
+  char obsTmpFile[PATH_MAX];
+  snprintf(obsTmpFile, sizeof(obsTmpFile), "%s/fuzz_obs_XXXXXX", tmpdir);
   int obsFd = mkstemp(obsTmpFile);
   if (obsFd < 0) {
     AST_LOG(1, "Failed to create temp file for observer profile");
@@ -729,7 +734,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // TOOL FIDELITY: Write output to temp file like tool does
   // Tool: SaveIccProfile(argv[3], pIcc);
-  char outTmpFile[] = "/tmp/fuzz_v4out_XXXXXX";
+  char outTmpFile[PATH_MAX];
+  snprintf(outTmpFile, sizeof(outTmpFile), "%s/fuzz_v4out_XXXXXX", tmpdir);
   int outFd = mkstemp(outTmpFile);
   if (outFd >= 0) {
     close(outFd);
