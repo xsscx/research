@@ -81,6 +81,35 @@ echo "║                  Seed Disk → Ramdisk                           ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
+# Copy fuzzer binaries to ramdisk to reduce SSD I/O
+BIN_DIR="$CFL_DIR/bin"
+RAM_BIN="$RAMDISK/bin"
+if [ -d "$BIN_DIR" ]; then
+  mkdir -p "$RAM_BIN"
+  copied_bins=0
+  for f in "${FUZZERS[@]}"; do
+    if [ -x "$BIN_DIR/$f" ] && [ ! -f "$RAM_BIN/$f" ]; then
+      cp "$BIN_DIR/$f" "$RAM_BIN/$f"
+      copied_bins=$((copied_bins + 1))
+    fi
+  done
+  if [ "$copied_bins" -gt 0 ]; then
+    echo "  [OK] Copied $copied_bins binaries to ramdisk ($(du -sh "$RAM_BIN" | cut -f1))"
+  else
+    echo "  [OK] Binaries already on ramdisk ($(du -sh "$RAM_BIN" | cut -f1))"
+  fi
+fi
+
+# Copy dictionaries to ramdisk
+RAM_DICT="$RAMDISK/dict"
+mkdir -p "$RAM_DICT"
+dict_count=0
+for dict in "$CFL_DIR"/*.dict; do
+  [ -f "$dict" ] && cp "$dict" "$RAM_DICT/" && dict_count=$((dict_count + 1))
+done
+echo "  [OK] Copied $dict_count dictionaries to ramdisk"
+echo ""
+
 SEEDED=0
 for f in "${FUZZERS[@]}"; do
   ram_corpus="$RAMDISK/corpus-${f}"
