@@ -118,10 +118,24 @@ export FUZZ_TMPDIR="$RAMDISK"
 export LLVM_PROFILE_FILE="$RAMDISK/profraw/%m.profraw"
 mkdir -p "$RAMDISK/profraw"
 
+# ── Per-fuzzer dict mapping (shared base dicts) ────────────────────
+declare -A FUZZER_DICTS=(
+  [icc_toxml_fuzzer]="icc_xml_consolidated.dict"
+  [icc_fromxml_fuzzer]="icc_xml_consolidated.dict"
+  [icc_io_fuzzer]="icc_core.dict"
+  [icc_link_fuzzer]="icc_core.dict"
+  [icc_roundtrip_fuzzer]="icc_core.dict"
+  [icc_spectral_fuzzer]="icc_core.dict"
+  [icc_tiffdump_fuzzer]="icc_core.dict"
+  [icc_multitag_fuzzer]="icc_multitag.dict"
+  [icc_profile_fuzzer]="icc_profile.dict"
+)
+
 # ── Helper: resolve dictionary ──────────────────────────────────────
 resolve_dict() {
   local name="$1"
-  for dict in "$DICT_DIR/${name}.dict" "$DICT_DIR/icc_core.dict" "$DICT_DIR/icc.dict"; do
+  local mapped="${FUZZER_DICTS[$name]:-}"
+  for dict in "$DICT_DIR/${name}.dict" ${mapped:+"$DICT_DIR/$mapped"} "$DICT_DIR/icc_core.dict" "$DICT_DIR/icc.dict"; do
     if [ -f "$dict" ]; then
       echo "$dict"
       return
