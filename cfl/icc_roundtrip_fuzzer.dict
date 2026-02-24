@@ -593,3 +593,17 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 
+
+# --- Serialization Round-Trip Coverage ---
+"fl16"
+"fl32"
+"fl64"
+"ui08"
+"ui16"
+"utf8"
+"ut16"
+"zxml"
+"zut8"
+"\x00\x01\x00\x00"
+"\xff\xff\x00\x00"
+"\x00\x00\x80\x00"

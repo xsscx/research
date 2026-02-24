@@ -939,3 +939,13 @@
 "\xff\xffP@\x01\x18i\xfd"
 "\xff\xff\xff2"
 
+
+# --- Spectral Separation Coverage ---
+"spcr"
+"spec"
+"swpt"
+"sdin"
+"eobs"
+"\x01\x7c\x00\x00"
+"\x03\x0c\x00\x00"
+"\x00\x0a\x00\x00"

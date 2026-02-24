@@ -126,3 +126,26 @@
 # --- added by convert-libfuzzer-dict.py ---
 "iso2022cncns"
 
+
+# --- XML Parsing Attack Surface ---
+"<?xml version=\x221.0\x22"
+"<IccProfile>"
+"</IccProfile>"
+"<Header>"
+"</Header>"
+"<Tags>"
+"</Tags>"
+"<MultiProcessElementType>"
+"<CalculatorElement>"
+"<CLutElement>"
+"<CurveSetElement>"
+"<MatrixElement>"
+"<TintArrayElement>"
+"</>"
+"<Tag"
+"<a><a><a><a>"
+"&amp;"
+"<![CDATA["
+"<!-- -->"
+"<script>"
+"<?pi ?>"
