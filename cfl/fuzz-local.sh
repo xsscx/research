@@ -1,36 +1,35 @@
 #!/bin/bash
 #
-# fuzz-local.sh — Run ICC fuzzers on a pre-mounted ramdisk
+# fuzz-local.sh — Run ICC fuzzers sequentially on a pre-mounted ramdisk
 #
 # Runs one or more LibFuzzer harnesses entirely from ramdisk with zero
-# disk I/O.  Assumes ramdisk is already mounted and seeded (ramdisk-fuzz.sh
-# or .github/scripts/ramdisk-seed.sh).
+# disk I/O.  Fuzzers run ONE AT A TIME to prevent OOM on WSL/constrained
+# systems.  LibFuzzer -workers/-jobs handle per-fuzzer parallelism.
+#
+# Assumes ramdisk is already mounted and seeded (ramdisk-fuzz.sh or
+# .github/scripts/ramdisk-seed.sh).
 #
 # Usage:
-#   ./fuzz-local.sh                           # all 18 fuzzers, 16 workers, 4h
+#   ./fuzz-local.sh                           # all 18 fuzzers, 4 workers, 4h each
 #   ./fuzz-local.sh icc_dump_fuzzer           # single fuzzer
 #   ./fuzz-local.sh -t 3600 icc_dump_fuzzer icc_profile_fuzzer
-#   ./fuzz-local.sh -w 8 -t 600              # 8 workers, 10 min
-#   ./fuzz-local.sh -j 4 icc_dump_fuzzer     # 4 parallel jobs per fuzzer
+#   ./fuzz-local.sh -w 8 -t 600              # 8 workers per fuzzer, 10 min each
 #
 # Options:
 #   -t SECONDS   max_total_time per fuzzer (default: 14400 = 4h)
-#   -w WORKERS   number of worker processes (default: 16)
-#   -j JOBS      LibFuzzer -jobs per fuzzer (default: same as -w)
+#   -w WORKERS   LibFuzzer worker processes per fuzzer (default: 4)
 #   -r RAMDISK   ramdisk mount point (default: /tmp/fuzz-ramdisk)
-#   -m MB        RSS limit per fuzzer in MB (default: 4096)
-#   -s           sequential mode: run fuzzers one at a time (default: parallel)
+#   -m MB        RSS limit per worker in MB (default: 2048)
 #   -h           show this help
 
-set -euo pipefail
+# Do not use set -e: fuzzer non-zero exits are expected (crash findings)
+set -uo pipefail
 
 # ── Defaults ─────────────────────────────────────────────────────────
 RAMDISK="/tmp/fuzz-ramdisk"
 FUZZ_SECONDS=14400
-WORKERS=16
-JOBS=""
-RSS_LIMIT=4096
-SEQUENTIAL=false
+WORKERS=4
+RSS_LIMIT=2048
 
 ALL_FUZZERS=(
   icc_apply_fuzzer
@@ -55,31 +54,38 @@ ALL_FUZZERS=(
 
 # ── Parse options ────────────────────────────────────────────────────
 usage() {
-  sed -n '3,24p' "$0" | sed 's/^# \?//'
+  sed -n '3,23p' "$0" | sed 's/^# \?//'
   exit 0
 }
 
-while getopts "t:w:j:r:m:sh" opt; do
+while getopts "t:w:r:m:h" opt; do
   case $opt in
     t) FUZZ_SECONDS="$OPTARG" ;;
     w) WORKERS="$OPTARG" ;;
-    j) JOBS="$OPTARG" ;;
     r) RAMDISK="$OPTARG" ;;
     m) RSS_LIMIT="$OPTARG" ;;
-    s) SEQUENTIAL=true ;;
     h) usage ;;
     *) usage ;;
   esac
 done
 shift $((OPTIND - 1))
 
-JOBS="${JOBS:-$WORKERS}"
-
 # Remaining args are fuzzer names (default: all)
 if [ $# -gt 0 ]; then
   FUZZERS=("$@")
 else
   FUZZERS=("${ALL_FUZZERS[@]}")
+fi
+
+# ── Safety check: total memory demand ────────────────────────────────
+TOTAL_MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
+DEMAND_MB=$((WORKERS * RSS_LIMIT))
+if [ "$DEMAND_MB" -gt "$((TOTAL_MEM_MB * 80 / 100))" ]; then
+  echo "[FAIL] workers($WORKERS) x rss_limit(${RSS_LIMIT}MB) = ${DEMAND_MB}MB"
+  echo "       exceeds 80% of system memory (${TOTAL_MEM_MB}MB)"
+  echo "       Reduce -w or -m.  Example: -w $((TOTAL_MEM_MB * 70 / 100 / RSS_LIMIT)) -m $RSS_LIMIT"
+  exit 1
 fi
 
 # ── Preflight checks ────────────────────────────────────────────────
@@ -123,23 +129,45 @@ resolve_dict() {
   done
 }
 
-# ── Helper: run one fuzzer ──────────────────────────────────────────
-run_fuzzer() {
-  local name="$1"
-  local corpus="$RAMDISK/corpus-${name}"
+# ── Banner ───────────────────────────────────────────────────────────
+echo ""
+echo "ICC LibFuzzer — Local Ramdisk Session"
+echo "────────────────────────────────────────────────────────────────"
+echo "  Ramdisk:    $RAMDISK ($(df -h "$RAMDISK" | tail -1 | awk '{print $4}') free)"
+echo "  Fuzzers:    ${#FUZZERS[@]} (sequential, one at a time)"
+echo "  Workers:    $WORKERS per fuzzer"
+echo "  Time:       ${FUZZ_SECONDS}s per fuzzer"
+echo "  RSS limit:  ${RSS_LIMIT} MB per worker"
+echo "  Peak mem:   $((WORKERS * RSS_LIMIT)) MB (${WORKERS}w x ${RSS_LIMIT}MB)"
+echo "  System mem: ${TOTAL_MEM_MB} MB"
+echo "  Logs:       $LOG_DIR/"
+echo "  Artifacts:  $RAMDISK/"
+echo "  FUZZ_TMPDIR=$FUZZ_TMPDIR"
+echo "────────────────────────────────────────────────────────────────"
+echo ""
+
+# ── Run fuzzers sequentially ─────────────────────────────────────────
+TOTAL=0
+PASS=0
+
+for f in "${FUZZERS[@]}"; do
+  TOTAL=$((TOTAL + 1))
+
+  corpus="$RAMDISK/corpus-${f}"
   mkdir -p "$corpus"
 
-  local dict
-  dict="$(resolve_dict "$name")"
-  local dict_arg=""
+  dict="$(resolve_dict "$f")"
+  dict_arg=""
   [ -n "$dict" ] && dict_arg="-dict=$dict"
 
-  local log="$LOG_DIR/${name}.log"
+  log="$LOG_DIR/${f}.log"
 
-  echo "[*] $name  workers=$WORKERS  time=${FUZZ_SECONDS}s  dict=$(basename "${dict:-none}")"
+  echo "[${TOTAL}/${#FUZZERS[@]}] $f  workers=$WORKERS  time=${FUZZ_SECONDS}s  dict=$(basename "${dict:-none}")"
 
+  # Run fuzzer; capture exit code without aborting script
+  rc=0
   timeout --kill-after=10s $((FUZZ_SECONDS + 60))s \
-    "$BIN_DIR/$name" \
+    "$BIN_DIR/$f" \
       -max_total_time="$FUZZ_SECONDS" \
       -print_final_stats=1 \
       -detect_leaks=0 \
@@ -147,101 +175,45 @@ run_fuzzer() {
       -rss_limit_mb="$RSS_LIMIT" \
       -use_value_profile=1 \
       -max_len=65536 \
-      -jobs="$JOBS" \
+      -jobs="$WORKERS" \
       -workers="$WORKERS" \
       -artifact_prefix="$RAMDISK/" \
       $dict_arg \
       "$corpus" \
-      > "$log" 2>&1
-  local rc=$?
+      > "$log" 2>&1 || rc=$?
 
   # Extract final stats
-  local cov execs crashes
-  cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1 || echo "?")
-  execs=$(grep -oP 'stat::number_of_executed_units:\s*\K[0-9]+' "$log" 2>/dev/null | tail -1 || echo "?")
-  crashes=$(ls "$RAMDISK"/crash-* "$RAMDISK"/leak-* "$RAMDISK"/oom-* 2>/dev/null | wc -l)
+  cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1)
+  execs=$(grep -oP 'stat::number_of_executed_units:\s*\K[0-9]+' "$log" 2>/dev/null | sort -rn | head -1)
+  ubsan=$(grep -c 'runtime error' "$log" 2>/dev/null || true)
 
-  if [ $rc -eq 0 ]; then
-    printf "    [OK]   %-35s cov=%-6s execs=%-10s crashes=%s\n" "$name" "$cov" "$execs" "$crashes"
+  if [ "$rc" -eq 0 ]; then
+    printf "    [OK]   cov=%-6s execs=%-12s ubsan=%s\n" "${cov:-?}" "${execs:-?}" "${ubsan:-0}"
+    PASS=$((PASS + 1))
   else
-    printf "    [EXIT] %-35s exit=%d cov=%-6s crashes=%s\n" "$name" "$rc" "$cov" "$crashes"
+    printf "    [EXIT] exit=%-4d cov=%-6s execs=%-12s ubsan=%s\n" "$rc" "${cov:-?}" "${execs:-?}" "${ubsan:-0}"
   fi
-  return $rc
-}
+  echo ""
+done
 
-# ── Banner ───────────────────────────────────────────────────────────
+# ── Summary ──────────────────────────────────────────────────────────
+echo "── Summary ──────────────────────────────────────────────────"
+for f in "${FUZZERS[@]}"; do
+  log="$LOG_DIR/${f}.log"
+  if [ -f "$log" ]; then
+    cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1)
+    execs=$(grep -oP 'stat::number_of_executed_units:\s*\K[0-9]+' "$log" 2>/dev/null | sort -rn | head -1)
+    ubsan=$(grep -c 'runtime error' "$log" 2>/dev/null || true)
+    printf "  %-35s cov=%-6s execs=%-12s ubsan=%s\n" "$f" "${cov:-?}" "${execs:-?}" "${ubsan:-0}"
+  fi
+done
+
 echo ""
-echo "ICC LibFuzzer — Local Ramdisk Session"
-echo "────────────────────────────────────────────────────────────────"
-echo "  Ramdisk:    $RAMDISK ($(df -h "$RAMDISK" | tail -1 | awk '{print $4}') free)"
-echo "  Fuzzers:    ${#FUZZERS[@]}"
-echo "  Workers:    $WORKERS"
-echo "  Jobs:       $JOBS"
-echo "  Time:       ${FUZZ_SECONDS}s per fuzzer"
-echo "  RSS limit:  ${RSS_LIMIT} MB"
-echo "  Mode:       $([ "$SEQUENTIAL" = true ] && echo "sequential" || echo "parallel")"
-echo "  Logs:       $LOG_DIR/"
-echo "  Artifacts:  $RAMDISK/"
-echo "  FUZZ_TMPDIR=$FUZZ_TMPDIR"
-echo "  LLVM_PROFILE_FILE=$LLVM_PROFILE_FILE"
-echo "────────────────────────────────────────────────────────────────"
+artifacts=$(ls "$RAMDISK"/crash-* "$RAMDISK"/leak-* "$RAMDISK"/oom-* 2>/dev/null | wc -l)
+echo "  Artifacts: $artifacts crash/leak/oom files"
+echo "  Disk free: $(df -h "$RAMDISK" | tail -1 | awk '{print $4}')"
 echo ""
-
-# ── Run ──────────────────────────────────────────────────────────────
-PIDS=()
-NAMES=()
-
-if [ "$SEQUENTIAL" = true ]; then
-  TOTAL=0
-  PASS=0
-  for f in "${FUZZERS[@]}"; do
-    TOTAL=$((TOTAL + 1))
-    if run_fuzzer "$f"; then
-      PASS=$((PASS + 1))
-    fi
-  done
-  echo ""
-  echo "[*] Done. $PASS/$TOTAL fuzzers completed cleanly."
-else
-  for f in "${FUZZERS[@]}"; do
-    run_fuzzer "$f" &
-    PIDS+=($!)
-    NAMES+=("$f")
-  done
-
-  echo ""
-  echo "[*] Launched ${#PIDS[@]} fuzzers in background. Waiting..."
-  echo "    Logs: tail -f $LOG_DIR/<fuzzer>.log"
-  echo "    Monitor: watch -n5 'ls $RAMDISK/crash-* $RAMDISK/leak-* 2>/dev/null | wc -l'"
-  echo ""
-
-  FAIL=0
-  for i in "${!PIDS[@]}"; do
-    if ! wait "${PIDS[$i]}" 2>/dev/null; then
-      FAIL=$((FAIL + 1))
-    fi
-  done
-
-  echo ""
-  echo "── Summary ──────────────────────────────────────────────────"
-  for f in "${FUZZERS[@]}"; do
-    log="$LOG_DIR/${f}.log"
-    if [ -f "$log" ]; then
-      cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1)
-      execs=$(grep -oP 'stat::number_of_executed_units:\s*\K[0-9]+' "$log" 2>/dev/null | sort -rn | head -1)
-      ubsan=$(grep -c 'runtime error' "$log" 2>/dev/null || true)
-      printf "  %-35s cov=%-6s execs=%-12s ubsan=%s\n" "$f" "${cov:-?}" "${execs:-?}" "${ubsan:-0}"
-    fi
-  done
-  echo ""
-  crashes=$(ls "$RAMDISK"/crash-* "$RAMDISK"/leak-* "$RAMDISK"/oom-* 2>/dev/null | wc -l)
-  echo "  Artifacts: $crashes crash/leak/oom files"
-  echo "  Disk free: $(df -h "$RAMDISK" | tail -1 | awk '{print $4}')"
-  echo ""
-  echo "[*] Done. $((${#PIDS[@]} - FAIL))/${#PIDS[@]} fuzzers completed cleanly."
-fi
-
-# ── Reminder ─────────────────────────────────────────────────────────
+echo "[*] Done. $PASS/$TOTAL fuzzers completed cleanly."
 echo ""
 echo "Next steps:"
 echo "  Sync corpus to disk:  .github/scripts/ramdisk-sync-to-disk.sh"
