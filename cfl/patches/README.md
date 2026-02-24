@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 21:24:00 UTC
+Last Updated: 2026-02-24 21:48:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -34,6 +34,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 21 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::Describe` | Heap-buffer-overflow: `data[i]` reads past `m_pMatrix` when `m_size==0` (from `numVectors()==0`) or stride mismatch between loop dimensions and allocation |
 | 22 | `IccTagLut.cpp` | `CIccTagLut8::Validate`, `CIccTagLut16::Validate` | UBSAN signed integer overflow: `int sum += m_XYZMatrix[i]` accumulating 9 `icS15Fixed16Number` values overflows `int` |
 | 23 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | Heap-buffer-overflow: `ops[n+1]` reads 1 past `m_Op` array end when `n+1 == nOps` |
+| 24 | `IccMpeCalc.cpp` | `CIccOpDefEnvVar::Exec` | UBSAN invalid-enum-load: `(icSigCmmEnvVar) op->data.size` loads arbitrary uint32 (e.g. 3782042188) into enum type |
 
 ## Allocation Cap
 
@@ -162,6 +163,16 @@ When `n` reaches `nOps-1`, `ops[n+1]` is `ops[nOps]` — 1 element past the
 Same OOB in the subsequent `if (ops[n+1].sig==icSigDefaultOp)` check.
 Fix: change loop guard to `n+1<nOps` and add `n+1<nOps` bounds check before
 the `icSigDefaultOp` test.
+
+Patch 024 fixes UBSAN `invalid-enum-load` in `CIccOpDefEnvVar::Exec()`.
+`op->data.size` is an `icUInt32Number` from profile data, cast directly to
+`icSigCmmEnvVar` enum via `(icSigCmmEnvVar) op->data.size`.  Crafted profiles
+set this to arbitrary values (observed: 3782042188 = 0xE17B2E4C) which are
+not valid enumerators.  Fix: read into `icUInt32Number rawSig`, compare against
+`static_cast<icUInt32Number>(icSigTrueVar)` and `icSigNotDefVar` without
+casting into the enum.  Only cast to `icSigCmmEnvVar` for the `GetEnvVar()`
+call, which handles unknown values by returning false.  Same pattern as
+patches 008 and 013.
 
 ## Application
 
