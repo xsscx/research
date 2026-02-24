@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 17:11:00 UTC
+Last Updated: 2026-02-24 17:22:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -23,7 +23,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 10 | `IccTagComposite.cpp` | `CIccTagArray` copy ctor / `operator=` | Uninitialized `m_TagVals`/`m_nSize` when source has 0 elements → SEGV in `Cleanup()`; wrong loop var in `operator=` |
 | 11 | `IccTagBasic.cpp` | `CIccTagFloatNum/TagNum/FixedNum/XYZ/NamedColor2::SetSize` | `icRealloc()` with uncapped nSize from profile — 11.5 GB allocation in calculator fuzzer |
 | 12 | `IccTagComposite.cpp` | `CIccTagArray::Read` | Mismatched `new[]`/`free` in `Cleanup()` — ASAN alloc-dealloc-mismatch |
-| 13 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | Enum range check on `m_Op[i].extra` for `icSigChannelFunction` |
+| 13 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::Read` | UBSAN invalid-enum-load: `icChannelFuncSignature` loaded with arbitrary uint32 values (0xFFFFFFFF, 0xA3E00000, etc.) |
 | 14 | `IccMpeCalc.cpp` | `CIccCalcOpMgr::IsValidOp` | Infinite loop when `SeqNeedTempReset()` called with `nOps==0` |
 | 15 | `IccMpeBasic.cpp` | `CIccSingleSampledCurve::SetSize` | `malloc(nCount * sizeof(icFloatNumber))` — nCount from profile; 17 GB allocation in multitag fuzzer |
 | 16 | `IccTagLut.cpp` | `CIccTagCurve::Apply` | UBSAN: `-nan` cast to `unsigned int` — NaN bypasses `<0`/`>1` clamp, reaches `(icUInt32Number)(v * m_nMaxIndex)` |
@@ -77,6 +77,16 @@ Patch 011 caps all remaining uncapped `SetSize()` variants at 128 MB:
   in `icc_calculator_fuzzer` with 11,573 MB peak RSS
 - `CIccTagNum<T>::SetSize()`, `CIccTagFixedNum<T>::SetSize()` — same pattern
 - `CIccTagXYZ::SetSize()`, `CIccTagNamedColor2::SetSize()` — defensive cap
+
+Patch 013 fixes UBSAN `invalid-enum-load` in `CIccCalculatorFunc::Read()` for
+`icChannelFuncSignature`.  After reading the `icSigCalcOp` opcode (patch 008),
+the code reads a second `uint32` into `m_Op[i].extra` and casts it to
+`icChannelFuncSignature`.  Crafted profiles can set this field to arbitrary
+values (observed: `0xFFFFFFFF` = 4294967295, `0xA3E00000` = 2748792704,
+`0xD7EC9F57` = 3621246935) which are not valid enumerators.  Fix: read into
+`icUInt32Number rawChSig`, validate the cast via `static_cast`, and use the
+validated value.  Same pattern as patch 008 but for the channel function
+signature enum rather than the calculator opcode enum.
 
 Patch 015 caps `CIccSingleSampledCurve::SetSize()` at 128 MB.  Triggered
 by `icc_multitag_fuzzer` — `malloc(17179689408)` (17 GB) from a crafted
@@ -137,8 +147,9 @@ Patch 022 fixes UBSAN signed integer overflow in `CIccTagLut8::Validate()`
 and `CIccTagLut16::Validate()`.  Both functions accumulate 9
 `icS15Fixed16Number` (int32) `m_XYZMatrix` entries into `int sum` to check
 if the matrix is identity (`sum == 3*65536`).  Crafted profiles can set
-matrix entries to large values (e.g. `0x637574c2` + `0x63757276`) causing
-signed overflow.  Fix: widen `sum` and `s15dot16Unity` to `icInt64Number`.
+matrix entries to large values (e.g. `1668641986 + 1668641398` = `0x637574C2 +
+0x63757476`) causing signed overflow.  Fix: widen `sum` and `s15dot16Unity`
+to `icInt64Number`.
 
 ## Application
 
