@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 22:19:00 UTC
+Last Updated: 2026-02-24 23:12:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -37,6 +37,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 24 | `IccMpeCalc.cpp` | `CIccOpDefEnvVar::Exec` | UBSAN invalid-enum-load: `(icSigCmmEnvVar) op->data.size` loads arbitrary uint32 (e.g. 3782042188) into enum type |
 | 25 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read`, `Write` | UBSAN signed integer overflow: `m_NumberOfTriangles*3` overflows `int` when `m_NumberOfTriangles` is large (e.g. 2004119668*3) |
 | 26 | `IccTagLut.h` | `CIccTagCurve::operator[]`, `GetData` | UBSAN reference binding to null: `m_Curve[index]` when `m_Curve` is null |
+| 27 | `IccTagBasic.cpp` | `CIccTagNum::GetValues`, `CIccTagFixedNum::GetValues`, `CIccTagFloatNum::GetValues` | Stack-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` |
 
 ## Allocation Cap
 
@@ -196,6 +197,15 @@ behavior.  Triggered by `icc_calculator_fuzzer` via crafted profiles that
 exercise `CIccTagCurve` paths before the curve data is allocated.
 Fix: `operator[]` returns a static zero dummy when `m_Curve` is null;
 `GetData` returns `NULL`.
+
+Patch 027 fixes stack-buffer-overflow in `CIccTagNum::GetValues()`,
+`CIccTagFixedNum::GetValues()`, and `CIccTagFloatNum::GetValues()`
+(IccTagBasic.cpp).  All three loop over `m_nSize` (the total number of
+elements in the tag array) instead of `nVectorSize` (the caller-requested
+count), writing past the caller's buffer.  Triggered via
+`GetElemNumberValue()` which passes a 1-element stack buffer.
+Fix: use `nVectorSize` as the loop bound in all three template
+specializations.
 
 ## Application
 
