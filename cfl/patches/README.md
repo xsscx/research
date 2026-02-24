@@ -38,6 +38,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 25 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read`, `Write` | UBSAN signed integer overflow: `m_NumberOfTriangles*3` overflows `int` when `m_NumberOfTriangles` is large (e.g. 2004119668*3) |
 | 26 | `IccTagLut.h` | `CIccTagCurve::operator[]`, `GetData` | UBSAN reference binding to null: `m_Curve[index]` when `m_Curve` is null |
 | 27 | `IccTagBasic.cpp` | `CIccTagNum::GetValues`, `CIccTagFixedNum::GetValues`, `CIccTagFloatNum::GetValues` | Stack-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` |
+| 28 | `IccTagBasic.cpp` | `CIccTagNum::Interpolate`, `CIccTagFixedNum::Interpolate`, `CIccTagFloatNum::Interpolate` | Heap-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` (13 instances) |
 
 ## Allocation Cap
 
@@ -206,6 +207,18 @@ count), writing past the caller's buffer.  Triggered via
 `GetElemNumberValue()` which passes a 1-element stack buffer.
 Fix: use `nVectorSize` as the loop bound in all three template
 specializations.
+
+Patch 028 fixes heap-buffer-overflow in `CIccTagNum::Interpolate()`,
+`CIccTagFixedNum::Interpolate()`, and `CIccTagFloatNum::Interpolate()`
+(IccTagBasic.cpp).  Same root cause as patch 027: all interpolation
+loops use `m_nSize` (total tag array elements) instead of `nVectorSize`
+(caller-requested vector width), reading past `lo[]`/`hi[]` pointers
+and writing past `DstVector[]`.  13 loop instances fixed across all
+three template specializations (6 in CIccTagFixedNum, 6 in CIccTagNum,
+1 in CIccTagFloatNum).  Triggered by `icc_apply_fuzzer` via a crafted
+ColorSpaceClass profile with a tint-array sub-element containing a
+small float32 tag.
+Fix: use `nVectorSize` as the loop bound in all 13 instances.
 
 ## Application
 
