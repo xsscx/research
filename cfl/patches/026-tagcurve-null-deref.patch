@@ -1,0 +1,20 @@
+--- a/IccProfLib/IccTagLut.h	2026-02-24 17:20:16.751037136 -0500
++++ IccProfLib/IccTagLut.h	2026-02-24 17:20:23.831131713 -0500
+@@ -139,8 +139,15 @@
+   virtual bool Read(icUInt32Number size, CIccIO *pIO);
+   virtual bool Write(CIccIO *pIO);
+ 
+-  icFloatNumber &operator[](icUInt32Number index) {return m_Curve[index];}
+-  icFloatNumber *GetData(icUInt32Number index) {return &m_Curve[index];}
++  icFloatNumber &operator[](icUInt32Number index) {
++    static icFloatNumber dummy = 0;
++    if (!m_Curve) return dummy;
++    return m_Curve[index];
++  }
++  icFloatNumber *GetData(icUInt32Number index) {
++    if (!m_Curve) return NULL;
++    return &m_Curve[index];
++  }
+   icUInt32Number GetSize() const { return m_nSize; }
+   bool SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt=icInitZero);
+   bool SetGamma(icFloatNumber gamma);

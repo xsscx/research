@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 22:15:00 UTC
+Last Updated: 2026-02-24 22:19:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -36,6 +36,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 23 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | Heap-buffer-overflow: `ops[n+1]` reads 1 past `m_Op` array end when `n+1 == nOps` |
 | 24 | `IccMpeCalc.cpp` | `CIccOpDefEnvVar::Exec` | UBSAN invalid-enum-load: `(icSigCmmEnvVar) op->data.size` loads arbitrary uint32 (e.g. 3782042188) into enum type |
 | 25 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read`, `Write` | UBSAN signed integer overflow: `m_NumberOfTriangles*3` overflows `int` when `m_NumberOfTriangles` is large (e.g. 2004119668*3) |
+| 26 | `IccTagLut.h` | `CIccTagCurve::operator[]`, `GetData` | UBSAN reference binding to null: `m_Curve[index]` when `m_Curve` is null |
 
 ## Allocation Cap
 
@@ -185,6 +186,16 @@ the overflow occurs in the signed multiplication, which is undefined behavior.
 Fix: cast to `(icUInt32Number)m_NumberOfTriangles*3` to perform unsigned
 multiplication.  Defense-in-depth: the 128 MB allocation cap (patch 003)
 limits `m_NumberOfTriangles` to ~11M, so the unsigned product fits in uint32.
+
+Patch 026 fixes UBSAN "reference binding to null pointer" in
+`CIccTagCurve::operator[]()` and `GetData()` (IccTagLut.h:142-143).
+Both inline accessors dereference `m_Curve` without checking for null.
+When `m_Curve` is uninitialized or `SetSize()` failed/was never called,
+`m_Curve` is null and `m_Curve[index]` / `&m_Curve[index]` is undefined
+behavior.  Triggered by `icc_calculator_fuzzer` via crafted profiles that
+exercise `CIccTagCurve` paths before the curve data is allocated.
+Fix: `operator[]` returns a static zero dummy when `m_Curve` is null;
+`GetData` returns `NULL`.
 
 ## Application
 
