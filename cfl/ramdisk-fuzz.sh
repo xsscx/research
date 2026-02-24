@@ -123,6 +123,26 @@ mkdir -p "$RAM_DICT"
 for dict in "$SCRIPT_DIR"/*.dict; do
   [ -f "$dict" ] && cp "$dict" "$RAM_DICT/"
 done
+
+# Create per-fuzzer dict aliases for fuzzers that share a base dict
+declare -A FUZZER_DICTS=(
+  [icc_toxml_fuzzer]="icc_xml_consolidated.dict"
+  [icc_fromxml_fuzzer]="icc_xml_consolidated.dict"
+  [icc_io_fuzzer]="icc_core.dict"
+  [icc_link_fuzzer]="icc_core.dict"
+  [icc_roundtrip_fuzzer]="icc_core.dict"
+  [icc_spectral_fuzzer]="icc_core.dict"
+  [icc_tiffdump_fuzzer]="icc_core.dict"
+  [icc_multitag_fuzzer]="icc_multitag.dict"
+  [icc_profile_fuzzer]="icc_profile.dict"
+)
+for fuzzer in "${!FUZZER_DICTS[@]}"; do
+  base="${FUZZER_DICTS[$fuzzer]}"
+  if [ -f "$RAM_DICT/$base" ] && [ ! -f "$RAM_DICT/${fuzzer}.dict" ]; then
+    cp "$RAM_DICT/$base" "$RAM_DICT/${fuzzer}.dict"
+  fi
+done
+
 echo "    Copied $(ls "$RAM_DICT"/*.dict 2>/dev/null | wc -l) dictionaries"
 
 XIF_DIR="$SCRIPT_DIR/../xif"
