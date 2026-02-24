@@ -178,14 +178,24 @@ for f in "${FUZZERS[@]}"; do
 
   echo "[${TOTAL}/${#FUZZERS[@]}] $f  workers=$WORKERS  time=${FUZZ_SECONDS}s  dict=$(basename "${dict:-none}")"
 
+  # Per-fuzzer timeout from .options file, default 30s
+  FUZZER_TIMEOUT=30
+  for optf in "$(cd "$(dirname "$0")" && pwd)/${f}.options"; do
+    if [ -f "$optf" ]; then
+      val=$(grep -m1 '^timeout' "$optf" | sed 's/[^0-9]//g')
+      [ -n "$val" ] && FUZZER_TIMEOUT="$val"
+      break
+    fi
+  done
+
   # Run fuzzer; capture exit code without aborting script
   rc=0
-  timeout --kill-after=10s $((FUZZ_SECONDS + 60))s \
+  timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
     "$BIN_DIR/$f" \
       -max_total_time="$FUZZ_SECONDS" \
       -print_final_stats=1 \
       -detect_leaks=0 \
-      -timeout=30 \
+      -timeout="$FUZZER_TIMEOUT" \
       -rss_limit_mb="$RSS_LIMIT" \
       -use_value_profile=1 \
       -max_len=65536 \
