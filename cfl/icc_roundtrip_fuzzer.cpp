@@ -45,6 +45,7 @@
 #include "IccEval.h"
 #include "IccPrmg.h"
 #include "IccUtil.h"
+#include <climits>
 
 // Full implementation matching the tool (iccRoundTrip.cpp lines 79-146)
 class CIccMinMaxEval : public CIccEvalCompare {
@@ -116,7 +117,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool nUseMPE = (data[size - 2] % 2) == 1;
   
   // Create temp file (TOOL FIDELITY - matches tool's file-based I/O)
-  char tmp_file[] = "/tmp/fuzz_roundtrip_XXXXXX";
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
+  char tmp_file[PATH_MAX];
+  snprintf(tmp_file, sizeof(tmp_file), "%s/fuzz_roundtrip_XXXXXX", tmpdir);
   int fd = mkstemp(tmp_file);
   if (fd == -1) return 0;
   

@@ -52,6 +52,7 @@
 #include "IccProfile.h"
 #include "IccUtil.h"
 #include "TiffImg.h"
+#include <climits>
 
 static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
 static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
@@ -75,6 +76,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // [15-]: TIFF data + optional ICC profile
 
   uint8_t nFiles = (data[0] % 8) + 1;
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
   uint32_t width = ((data[1] % 64) + 1);
   uint32_t height = ((data[2] % 64) + 1);
   uint8_t bitsPerSample = (data[12] & 1) ? 16 : 8;
@@ -90,12 +93,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   std::vector<char*> tmpfiles;
   
   for (uint8_t i = 0; i < nFiles; i++) {
-    char *tmpfile = (char*)malloc(32);
+    char *tmpfile = (char*)malloc(PATH_MAX);
     if (!tmpfile) {
       for (auto tf : tmpfiles) { unlink(tf); free(tf); }
       return 0;
     }
-    snprintf(tmpfile, 32, "/tmp/fuzz_sep_%d_XXXXXX", i);
+    snprintf(tmpfile, PATH_MAX, "%s/fuzz_sep_%d_XXXXXX", tmpdir, i);
     int fd = mkstemp(tmpfile);
     if (fd < 0) {
       for (auto tf : tmpfiles) {
@@ -142,7 +145,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Create output file
-  char outfile[] = "/tmp/fuzz_out_XXXXXX";
+  char outfile[PATH_MAX];
+  snprintf(outfile, sizeof(outfile), "%s/fuzz_out_XXXXXX", tmpdir);
   int outfd = mkstemp(outfile);
   if (outfd < 0) {
     for (auto tf : tmpfiles) {
