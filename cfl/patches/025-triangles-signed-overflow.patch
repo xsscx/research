@@ -1,0 +1,20 @@
+--- a/IccProfLib/IccTagLut.cpp	2026-02-24 17:04:25.387481393 -0500
++++ IccProfLib/IccTagLut.cpp	2026-02-24 17:06:10.369679978 -0500
+@@ -5660,7 +5660,7 @@
+ 	}
+ 	m_Triangles = new icGamutBoundaryTriangle[m_NumberOfTriangles];
+ 	
+-	icUInt32Number nNum32 = m_NumberOfTriangles*3;
++	icUInt32Number nNum32 = (icUInt32Number)m_NumberOfTriangles*3;
+ 	
+ 	if (pIO->Read32(m_Triangles, nNum32)!=nNum32)
+ 		return false;		
+@@ -5717,7 +5717,7 @@
+ 		!pIO->Write32(&m_NumberOfTriangles))
+ 		return false;	
+ 	
+-	icUInt32Number nNum32 = m_NumberOfTriangles*3;
++	icUInt32Number nNum32 = (icUInt32Number)m_NumberOfTriangles*3;
+ 	
+ 	if (pIO->Write32(m_Triangles, nNum32)!=nNum32)
+ 		return false;	
