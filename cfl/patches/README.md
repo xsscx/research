@@ -1,9 +1,9 @@
-# CFL Library Patches — Fuzzing OOM Mitigation
+# CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-23 21:21:00 UTC
+Last Updated: 2026-02-24 16:24:00 UTC
 
-These patches add allocation-size caps to iccDEV library code to prevent
-out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
+These patches fix security vulnerabilities and harden iccDEV library code
+found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 
 **Scope:** CFL/LibFuzzer Testing — intended as potential upstream PRs.
 
@@ -29,8 +29,13 @@ out-of-memory conditions during LibFuzzer and ClusterFuzzLite campaigns.
 | 16 | `IccTagLut.cpp` | `CIccTagCurve::Apply` | UBSAN: `-nan` cast to `unsigned int` — NaN bypasses `<0`/`>1` clamp, reaches `(icUInt32Number)(v * m_nMaxIndex)` |
 | 17 | `IccTagLut.cpp` | `CIccTagCurve::SetSize` | `malloc(nSize * sizeof(icFloatNumber))` — nSize from XML/profile data; 12.4 GB allocation in fromxml fuzzer |
 | 18 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::SetSize` | `calloc(m_size, sizeof(icFloatNumber))` — numVectors()*range.steps uncapped; 8 GB RSS accumulation in multitag fuzzer |
+| 19 | `IccTagBasic.cpp` | `CIccTagColorantTable::Describe` | Heap-buffer-overflow: `strlen(m_pData[i].name)` on non-null-terminated `name[32]` reads 7 bytes past 38-byte `icColorantTableEntry` allocation |
+| 20 | `IccTagXml.cpp` | `CIccTagXmlColorantTable::ToXml`, `CIccTagXmlNamedColor2::ToXml` | Same strlen OOB via `icAnsiToUtf8()` on `name[32]`/`rootName[32]` in XML serialization path |
 
 ## Allocation Cap
+
+Patches 001–005, 007, 011, 015, 017–018 add allocation-size caps to prevent
+out-of-memory conditions during fuzzing.
 
 Patch 001 uses a 16 MB per-allocation cap (`16777216` bytes) for CLUT
 tables because `CIccCLUT::Init()` can be called many times per profile
@@ -93,6 +98,26 @@ by `icc_multitag_fuzzer` — RSS grew to 8,129 MB over 19M iterations via
 119,197 allocations (~1 MB each, 90% of heap) in `calloc(m_size, ...)`.
 `m_size = numVectors() * range.steps` where both are `icUInt16Number`
 parsed from profile data, product up to 4.29 billion × 4 bytes = ~16 GB.
+
+Patch 019 fixes heap-buffer-overflow in `CIccTagColorantTable::Describe()`.
+`icColorantTableEntry` is `{ icInt8Number name[32]; icUInt16Number data[3]; }`
+(38 bytes total).  `Read()` copies exactly 32 bytes into `name[]` via
+`Read8()`.  `Describe()` calls `strlen(m_pData[i].name)` unbounded — if
+`name` has no null terminator within 32 bytes, `strlen` reads 7 bytes past
+the 38-byte heap allocation (`data[3]` = 6 bytes + 1 byte into next entry
+or unmapped memory).  Fix: bounded scan with `strnlen()` + safe copy to a
+null-terminated local buffer before use.
+
+Patch 020 fixes the same strlen OOB class in the XML serialization path.
+Three call sites in `IccTagXml.cpp`:
+- `CIccTagXmlColorantTable::ToXml()` — passes `m_pData[i].name` to
+  `icAnsiToUtf8()` which calls `strlen()` via `std::string::operator=`
+- `CIccTagXmlNamedColor2::ToXml()` — passes `pEntry->rootName` (also
+  `icUInt8Number[32]`, same struct layout) to `icAnsiToUtf8()` in both
+  Lab and XYZ code paths
+Fix: copy fixed-size field to `char safe[33]` with null terminator before
+passing to `icAnsiToUtf8()`.  Verified: both PoC files process cleanly
+with patched `iccToXml` and all 18 fuzzers (exit 0, no ASAN output).
 
 ## Application
 
