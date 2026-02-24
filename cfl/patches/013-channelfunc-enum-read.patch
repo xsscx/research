@@ -1,5 +1,5 @@
 diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
-index f49da45..f2b1e90 100644
+index f49da45..a7c3d12 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
 @@ -3474,11 +3474,13 @@ bool CIccCalculatorFunc::Read(icUInt32Number size, CIccIO *pIO)
@@ -7,14 +7,16 @@ index f49da45..f2b1e90 100644
    }
  
 -  icChannelFuncSignature sig;
++  // CFL patch 013: read into uint32 and compare without casting to enum,
++  // avoiding UBSAN invalid-enum-load for icChannelFuncSignature.
 +  icUInt32Number rawChSig;
  
 -  if (!pIO->Read32(&sig))
 +  if (!pIO->Read32(&rawChSig))
      return false;
  
-+  icChannelFuncSignature sig = static_cast<icChannelFuncSignature>(rawChSig);
-+
-   if (sig!= GetType())
+-  if (sig!= GetType())
++  if (rawChSig != static_cast<icUInt32Number>(GetType()))
      return false;
  
+   if (!pIO->Read32(&m_nReserved))
