@@ -177,6 +177,69 @@ def validate_entry(entry):
     return True
 
 
+def _decode_entry_bytes(raw):
+    """Decode a raw dict entry string into bytes for quality filtering."""
+    result = bytearray()
+    i = 0
+    while i < len(raw):
+        if raw[i] == '\\' and i + 1 < len(raw):
+            nxt = raw[i + 1]
+            if nxt == 'x' and i + 3 < len(raw):
+                try:
+                    result.append(int(raw[i + 2:i + 4], 16))
+                    i += 4
+                    continue
+                except ValueError:
+                    pass
+            elif nxt == 'n':
+                result.append(0x0a)
+                i += 2
+                continue
+        result.append(ord(raw[i]))
+        i += 1
+    return bytes(result)
+
+
+def is_noise_entry(entry):
+    """Filter out corpus noise: address pointers, ASAN patterns, C++ ABI.
+
+    Returns (is_noise, reason) tuple.
+    """
+    inner = entry[1:-1]  # strip surrounding quotes
+    data = _decode_entry_bytes(inner)
+
+    # C++ ABI symbols
+    cxx_markers = ['__cxxabi', 'St9type_info', 'N10__', '_ZN', '_ZT']
+    if any(m in inner for m in cxx_markers):
+        return True, "cxx_abi"
+
+    # ASAN shadow memory patterns
+    poison = [b'\xf5\xf5', b'\xfa\xfa', b'\xf1\xf1', b'\xf2\xf2',
+              b'\xf3\xf3', b'\xf8\xf8']
+    if any(p in data for p in poison):
+        return True, "asan_shadow"
+
+    # Too long (>16 decoded bytes rarely useful as fuzzer tokens)
+    if len(data) > 16:
+        return True, "too_long"
+
+    # Address-like pointers (7-8 byte entries ending in null bytes)
+    if len(data) in (7, 8) and data.endswith(b'\x00\x00'):
+        non_null = data.rstrip(b'\x00')
+        if len(non_null) >= 2:
+            high_bytes = sum(1 for b in non_null if b > 0x40)
+            if high_bytes >= len(non_null) * 0.3:
+                return True, "address_ptr"
+
+    # High-entropy noise (>= 8 bytes, mostly non-ASCII)
+    if len(data) >= 8:
+        non_ascii = sum(1 for b in data if b > 127)
+        if non_ascii / len(data) > 0.5:
+            return True, "high_entropy"
+
+    return False, None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert LibFuzzer recommended dictionary to proper dict format"
@@ -246,6 +309,20 @@ def main():
         for e in invalid:
             print(f"  {e}", file=sys.stderr)
         entries = [e for e in entries if validate_entry(e)]
+
+    # Quality filter: remove corpus noise
+    noise_count = 0
+    clean_entries = []
+    for e in entries:
+        is_noise, reason = is_noise_entry(e)
+        if is_noise:
+            noise_count += 1
+        else:
+            clean_entries.append(e)
+    if noise_count:
+        print(f"Filtered: {noise_count} noise entries removed"
+              " (address ptrs, ASAN, C++ ABI, high entropy)")
+    entries = clean_entries
 
     # Deduplicate against existing dict
     existing = load_existing(args.output) if args.append else set()
