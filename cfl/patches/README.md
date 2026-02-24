@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 16:28:00 UTC
+Last Updated: 2026-02-24 17:11:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -32,6 +32,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 19 | `IccTagBasic.cpp` | `CIccTagColorantTable::Describe` | Heap-buffer-overflow: `strlen(m_pData[i].name)` on non-null-terminated `name[32]` reads 7 bytes past 38-byte `icColorantTableEntry` allocation |
 | 20 | `IccTagXml.cpp` | `CIccTagXmlColorantTable::ToXml`, `CIccTagXmlNamedColor2::ToXml` | Same strlen OOB via `icAnsiToUtf8()` on `name[32]`/`rootName[32]` in XML serialization path |
 | 21 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::Describe` | Heap-buffer-overflow: `data[i]` reads past `m_pMatrix` when `m_size==0` (from `numVectors()==0`) or stride mismatch between loop dimensions and allocation |
+| 22 | `IccTagLut.cpp` | `CIccTagLut8::Validate`, `CIccTagLut16::Validate` | UBSAN signed integer overflow: `int sum += m_XYZMatrix[i]` accumulating 9 `icS15Fixed16Number` values overflows `int` |
 
 ## Allocation Cap
 
@@ -131,6 +132,13 @@ ASAN: READ of size 4 at 1-byte region.  Additionally, even with non-zero
 accesses `m_Range.steps` elements per row — if the total accessed region
 exceeds `m_size`, the read is OOB.  Fix: guard with `m_size > 0` and add
 per-row bounds check `(data - m_pMatrix) + steps <= m_size` before access.
+
+Patch 022 fixes UBSAN signed integer overflow in `CIccTagLut8::Validate()`
+and `CIccTagLut16::Validate()`.  Both functions accumulate 9
+`icS15Fixed16Number` (int32) `m_XYZMatrix` entries into `int sum` to check
+if the matrix is identity (`sum == 3*65536`).  Crafted profiles can set
+matrix entries to large values (e.g. `0x637574c2` + `0x63757276`) causing
+signed overflow.  Fix: widen `sum` and `s15dot16Unity` to `icInt64Number`.
 
 ## Application
 
