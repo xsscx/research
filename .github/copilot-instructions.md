@@ -43,6 +43,9 @@ You MUST accurately report failures. Do NOT claim success when errors occur.
 # Ramdisk workflow (mounts 4GB tmpfs, seeds corpus, runs all 18 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
+# Local fuzzing (uses existing ramdisk, manages workers/timeouts)
+cd cfl && ./fuzz-local.sh
+
 # Ramdisk management scripts (in .github/scripts/)
 .github/scripts/ramdisk-status.sh       # Report ramdisk state
 .github/scripts/ramdisk-clean.sh        # Remove stray dirs (dry-run default)
@@ -51,9 +54,17 @@ cd cfl && ./ramdisk-fuzz.sh
 .github/scripts/ramdisk-seed.sh         # Seed corpus disk → ramdisk
 .github/scripts/ramdisk-teardown.sh     # Orchestrate sync → clean → unmount
 
-# Single fuzzer on ramdisk
+# Single fuzzer on ramdisk (short smoke test)
 cfl/bin/icc_profile_fuzzer -max_total_time=60 -rss_limit_mb=4096 \
   -dict=cfl/icc_profile.dict /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+
+# Single fuzzer on ramdisk (extended 4-hour run with env vars)
+FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
+  /tmp/fuzz-ramdisk/bin/icc_toxml_fuzzer -max_total_time=14400 -detect_leaks=0 \
+  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 \
+  -artifact_prefix=/tmp/fuzz-ramdisk/ \
+  -dict=/tmp/fuzz-ramdisk/dict/icc_toxml_fuzzer.dict \
+  /tmp/fuzz-ramdisk/corpus-icc_toxml_fuzzer/
 
 # Corpus merge/minimize
 cfl/bin/icc_profile_fuzzer -merge=1 /tmp/fuzz-ramdisk/corpus-merged /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
@@ -134,7 +145,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **iccanalyzer-lite/** — 19-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 15 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — OOM mitigation patches (001–005+) applied to iccDEV before fuzzer builds. Patch 001 caps CLUT at 16MB; others cap at 128MB (patch 005 caps hex dumps at 256KB).
+- **cfl/patches/** — 23 security patches (001–023) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, infinite loop fixes, strlen OOB fixes, and alloc/dealloc mismatch corrections. See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
 
@@ -176,9 +187,22 @@ Each fuzzer must only exercise APIs reachable from its corresponding project too
 - Lookup order in CI: `cfl/${FUZZER_NAME}.dict` → `cfl/icc_core.dict` → `cfl/icc.dict`
 - Use `.github/scripts/convert-libfuzzer-dict.py` to convert raw LibFuzzer recommended dictionary output
 - CI auto-merges recommended dict entries after fuzzing (convert-libfuzzer-dict.py --append)
+- Several fuzzers share base dicts (e.g., `icc_toxml_fuzzer` → `icc_xml_consolidated.dict`, `icc_io_fuzzer` → `icc_core.dict`). The mapping is defined as `FUZZER_DICTS` in `ramdisk-fuzz.sh`, `fuzz-local.sh`, and `seed-corpus-setup.sh`. Per-fuzzer aliases are created on ramdisk so `-dict=${fuzzer}.dict` resolves correctly.
 
 ### OOM patches
 Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by `cfl/build.sh` AND all CI fuzzer workflows before cmake. Build alignment rule: local build.sh and CI workflows MUST apply identical patches/flags.
+
+### Patch creation workflow
+When creating a new patch for `cfl/patches/`:
+1. Reproduce the crash with the PoC profile against the existing iccDEV binary
+2. Create the `.patch` file in unified diff format (`diff -u a/path b/path`)
+3. Apply to the existing iccDEV checkout: `patch -p1 -d iccDEV --forward < cfl/patches/NNN-name.patch`
+4. Rebuild iccDEV libraries: `cd iccDEV/Build && cmake --build . -j$(nproc)`
+5. Rebuild fuzzers by linking against updated libraries (do NOT run `cfl/build.sh` — it reclones)
+6. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
+7. Rebuild ALL 18 fuzzers to confirm no regressions
+8. Update `cfl/patches/README.md` (table entry + description paragraph)
+9. Do NOT commit patched iccDEV source — only the `.patch` file in `cfl/patches/`
 
 ### Sanitizer flags
 - **Fuzzers**: `-fsanitize=fuzzer,address,undefined -fprofile-instr-generate -fcoverage-mapping`
