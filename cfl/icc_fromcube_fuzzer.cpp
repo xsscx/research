@@ -193,9 +193,12 @@ public:
   int sizeLut3D() { return m_sizeLut3D; }
   bool parse3DTable(icFloatNumber* toLut, icUInt32Number nSizeLut)
   {
-    icUInt32Number num = m_sizeLut3D * m_sizeLut3D * m_sizeLut3D;
+    if (m_sizeLut3D <= 0 || m_sizeLut3D > 1290)
+      return false;
+    icUInt32Number s = (icUInt32Number)m_sizeLut3D;
+    icUInt32Number num = s * s * s;
 
-    if (!m_sizeLut3D || nSizeLut != num*3)
+    if (nSizeLut != num*3)
       return false;
 
     const char* next;
