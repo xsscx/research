@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 17:22:00 UTC
+Last Updated: 2026-02-24 21:24:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -33,6 +33,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 20 | `IccTagXml.cpp` | `CIccTagXmlColorantTable::ToXml`, `CIccTagXmlNamedColor2::ToXml` | Same strlen OOB via `icAnsiToUtf8()` on `name[32]`/`rootName[32]` in XML serialization path |
 | 21 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::Describe` | Heap-buffer-overflow: `data[i]` reads past `m_pMatrix` when `m_size==0` (from `numVectors()==0`) or stride mismatch between loop dimensions and allocation |
 | 22 | `IccTagLut.cpp` | `CIccTagLut8::Validate`, `CIccTagLut16::Validate` | UBSAN signed integer overflow: `int sum += m_XYZMatrix[i]` accumulating 9 `icS15Fixed16Number` values overflows `int` |
+| 23 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | Heap-buffer-overflow: `ops[n+1]` reads 1 past `m_Op` array end when `n+1 == nOps` |
 
 ## Allocation Cap
 
@@ -152,6 +153,15 @@ if the matrix is identity (`sum == 3*65536`).  Crafted profiles can set
 matrix entries to large values (e.g. `1668641986 + 1668641398` = `0x637574C2 +
 0x63757476`) causing signed overflow.  Fix: widen `sum` and `s15dot16Unity`
 to `icInt64Number`.
+
+Patch 023 fixes heap-buffer-overflow in `CIccCalculatorFunc::InitSelectOp()`.
+The function iterates `ops[]` (a pointer into the `m_Op` array) counting
+`icSigCaseOp` entries via `for (n=0; n<nOps && ops[n+1].sig==icSigCaseOp; n++)`.
+When `n` reaches `nOps-1`, `ops[n+1]` is `ops[nOps]` — 1 element past the
+28,488-byte heap allocation.  ASAN: READ of size 4 at 0 bytes after region.
+Same OOB in the subsequent `if (ops[n+1].sig==icSigDefaultOp)` check.
+Fix: change loop guard to `n+1<nOps` and add `n+1<nOps` bounds check before
+the `icSigDefaultOp` test.
 
 ## Application
 
