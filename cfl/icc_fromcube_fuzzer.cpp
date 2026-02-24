@@ -42,6 +42,7 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <climits>
 #include "IccProfile.h"
 #include "IccTagBasic.h"
 #include "IccTagMPE.h"
@@ -316,7 +317,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 10 || size > 2 * 1024 * 1024) return 0;
 
   // Write fuzzer data to temp file (CubeFile reads from file)
-  char temp_input[] = "/tmp/fuzz_fromcube_XXXXXX";
+  // Use FUZZ_TMPDIR env var to redirect temp I/O to ramdisk
+  const char *tmpdir = getenv("FUZZ_TMPDIR");
+  if (!tmpdir) tmpdir = "/tmp";
+  char temp_input[PATH_MAX];
+  snprintf(temp_input, sizeof(temp_input), "%s/fuzz_fromcube_XXXXXX", tmpdir);
   int fd = mkstemp(temp_input);
   if (fd == -1) return 0;
 
@@ -444,7 +449,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Write to temp output file (replaces argv[2])
-  char temp_output[] = "/tmp/fuzz_fromcube_out_XXXXXX";
+  char temp_output[PATH_MAX];
+  snprintf(temp_output, sizeof(temp_output), "%s/fuzz_fromcube_out_XXXXXX", tmpdir);
   int out_fd = mkstemp(temp_output);
   if (out_fd != -1) {
     close(out_fd);
