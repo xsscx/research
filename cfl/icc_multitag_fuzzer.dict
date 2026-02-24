@@ -431,3 +431,7 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "w\xddu\x0dj\xc5\xb7p"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00\x14"
+"\xff\xff\xff\xff\xff\xff\x01}"
