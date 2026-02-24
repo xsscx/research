@@ -1,0 +1,35 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index ecd6b5d..1a23687 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -8935,7 +8935,10 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+   sDescription += buf;
+ 
+   for (i=0; i<m_nCount; i++) {
+-    nLen = (icUInt32Number)strlen(m_pData[i].name);
++    nLen = 0;
++    while (nLen < sizeof(m_pData[i].name) && m_pData[i].name[nLen] != '\0') {
++      nLen++;
++    }
+     if (nLen>nMaxLen)
+       nMaxLen =nLen;
+   }
+@@ -8950,10 +8953,16 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+     sDescription += buf;
+   }
+   for (i=0; i<m_nCount; i++) {
+-    snprintf(buf, bufSize, "%2u \"%s\"", i, m_pData[i].name);
++    char safeName[33];
++    memcpy(safeName, m_pData[i].name, sizeof(m_pData[i].name));
++    safeName[sizeof(m_pData[i].name)] = '\0';
++    icUInt32Number safeLen = 0;
++    while (safeLen < sizeof(m_pData[i].name) && m_pData[i].name[safeLen] != '\0')
++      safeLen++;
++    snprintf(buf, bufSize, "%2u \"%s\"", i, safeName);
+     sDescription += buf;
+     memset(buf, ' ', 128);
+-    buf[nMaxLen + 1 - strlen(m_pData[i].name)] ='\0';
++    buf[nMaxLen + 1 - safeLen] ='\0';
+     sDescription += buf;
+ 
+     if (m_PCS == icSigXYZData) {
