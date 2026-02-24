@@ -26,6 +26,9 @@ RAMDISK_SIZE="4G"
 FUZZ_SECONDS="${1:-300}"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 
+export FUZZ_TMPDIR="$RAMDISK"
+export LLVM_PROFILE_FILE=/dev/null
+
 # Shift past the seconds argument (if given) so $@ is fuzzer names only
 if [[ "${1:-}" =~ ^[0-9]+$ ]]; then shift; fi
 
