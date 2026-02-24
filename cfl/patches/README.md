@@ -83,10 +83,12 @@ Patch 013 fixes UBSAN `invalid-enum-load` in `CIccCalculatorFunc::Read()` for
 the code reads a second `uint32` into `m_Op[i].extra` and casts it to
 `icChannelFuncSignature`.  Crafted profiles can set this field to arbitrary
 values (observed: `0xFFFFFFFF` = 4294967295, `0xA3E00000` = 2748792704,
-`0xD7EC9F57` = 3621246935) which are not valid enumerators.  Fix: read into
-`icUInt32Number rawChSig`, validate the cast via `static_cast`, and use the
-validated value.  Same pattern as patch 008 but for the channel function
-signature enum rather than the calculator opcode enum.
+`0xD7EC9F57` = 3621246935, `0xFA78A56E` = 4201018734) which are not valid
+enumerators.  Fix: read into `icUInt32Number rawChSig`, compare directly
+against `static_cast<icUInt32Number>(GetType())` without ever casting the
+untrusted value into the enum type.  The original patch 013 used
+`static_cast<icChannelFuncSignature>(rawChSig)` which is itself UB when the
+value is out of enum range — this revision eliminates the cast entirely.
 
 Patch 015 caps `CIccSingleSampledCurve::SetSize()` at 128 MB.  Triggered
 by `icc_multitag_fuzzer` — `malloc(17179689408)` (17 GB) from a crafted
