@@ -104,6 +104,27 @@ fi
 # ── Mount + seed ────────────────────────────────────────────────────
 mount_ramdisk
 
+# Copy fuzzer binaries to ramdisk to reduce SSD I/O
+RAM_BIN="$RAMDISK/bin"
+mkdir -p "$RAM_BIN"
+echo "[*] Copying fuzzer binaries to ramdisk..."
+copied_bins=0
+for f in "${FUZZERS[@]}"; do
+  if [ -x "$BIN_DIR/$f" ]; then
+    cp "$BIN_DIR/$f" "$RAM_BIN/$f"
+    copied_bins=$((copied_bins + 1))
+  fi
+done
+echo "    Copied $copied_bins binaries ($(du -sh "$RAM_BIN" | cut -f1))"
+
+# Copy dictionaries to ramdisk
+RAM_DICT="$RAMDISK/dict"
+mkdir -p "$RAM_DICT"
+for dict in "$SCRIPT_DIR"/*.dict; do
+  [ -f "$dict" ] && cp "$dict" "$RAM_DICT/"
+done
+echo "    Copied $(ls "$RAM_DICT"/*.dict 2>/dev/null | wc -l) dictionaries"
+
 XIF_DIR="$SCRIPT_DIR/../xif"
 
 for f in "${FUZZERS[@]}"; do
@@ -146,7 +167,9 @@ echo ""
 
 PIDS=()
 for f in "${FUZZERS[@]}"; do
-  fuzzer_bin="$BIN_DIR/$f"
+  # Use ramdisk copy of binary (falls back to SSD if not copied)
+  fuzzer_bin="$RAM_BIN/$f"
+  [ -x "$fuzzer_bin" ] || fuzzer_bin="$BIN_DIR/$f"
   if [ ! -x "$fuzzer_bin" ]; then
     echo "    [WARN] Skipping $f (binary not found)"
     continue
@@ -154,9 +177,9 @@ for f in "${FUZZERS[@]}"; do
 
   ram_corpus="$RAMDISK/corpus-${f}"
 
-  # Resolve dictionary
+  # Resolve dictionary (prefer ramdisk copy)
   DICT_ARG=""
-  for dict in "$SCRIPT_DIR/${f}.dict" "$SCRIPT_DIR/icc.dict"; do
+  for dict in "$RAM_DICT/${f}.dict" "$RAM_DICT/icc.dict" "$SCRIPT_DIR/${f}.dict" "$SCRIPT_DIR/icc.dict"; do
     if [ -f "$dict" ]; then
       DICT_ARG="-dict=$dict"
       break
