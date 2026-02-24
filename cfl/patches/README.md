@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 21:48:00 UTC
+Last Updated: 2026-02-24 22:15:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -35,6 +35,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 22 | `IccTagLut.cpp` | `CIccTagLut8::Validate`, `CIccTagLut16::Validate` | UBSAN signed integer overflow: `int sum += m_XYZMatrix[i]` accumulating 9 `icS15Fixed16Number` values overflows `int` |
 | 23 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | Heap-buffer-overflow: `ops[n+1]` reads 1 past `m_Op` array end when `n+1 == nOps` |
 | 24 | `IccMpeCalc.cpp` | `CIccOpDefEnvVar::Exec` | UBSAN invalid-enum-load: `(icSigCmmEnvVar) op->data.size` loads arbitrary uint32 (e.g. 3782042188) into enum type |
+| 25 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read`, `Write` | UBSAN signed integer overflow: `m_NumberOfTriangles*3` overflows `int` when `m_NumberOfTriangles` is large (e.g. 2004119668*3) |
 
 ## Allocation Cap
 
@@ -173,6 +174,17 @@ not valid enumerators.  Fix: read into `icUInt32Number rawSig`, compare against
 casting into the enum.  Only cast to `icSigCmmEnvVar` for the `GetEnvVar()`
 call, which handles unknown values by returning false.  Same pattern as
 patches 008 and 013.
+
+Patch 025 fixes UBSAN signed integer overflow in
+`CIccTagGamutBoundaryDesc::Read()` and `Write()`.  Both functions compute
+`icUInt32Number nNum32 = m_NumberOfTriangles*3` where `m_NumberOfTriangles`
+is `icInt32Number` (signed).  When `m_NumberOfTriangles` is large (observed:
+2004119668), the product `2004119668*3 = 6,012,359,004` overflows signed
+`int` (max 2,147,483,647).  The result is assigned to `icUInt32Number` but
+the overflow occurs in the signed multiplication, which is undefined behavior.
+Fix: cast to `(icUInt32Number)m_NumberOfTriangles*3` to perform unsigned
+multiplication.  Defense-in-depth: the 128 MB allocation cap (patch 003)
+limits `m_NumberOfTriangles` to ~11M, so the unsigned product fits in uint32.
 
 ## Application
 
