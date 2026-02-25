@@ -3,9 +3,9 @@
 #
 # Intent: CodeQL security analysis for all research tools
 #
-# Last Updated: 2026-02-16 14:00:00 UTC by David Hoyt
+# Last Updated: 2026-02-25 14:00:00 UTC
 #
-# Targets: iccanalyzer-lite, colorbleed_tools, cfl (fuzzers), mcp-server (Python)
+# Targets: iccanalyzer-lite, colorbleed_tools, cfl (19 fuzzers), mcp-server (Python)
 # Queries: 17 custom C++ (per target) + 3 custom Python + security-and-quality + security-experimental
 ###############################################################
 
@@ -158,14 +158,31 @@ jobs:
       - name: Build for CodeQL - cfl (fuzzers)
         if: matrix.target == 'cfl'
         run: |
-          # Build representative fuzzers for CodeQL analysis (no fuzzer engine needed for static analysis)
+          # Build all 19 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
           cd cfl
-          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
-          # Build deep_dump_fuzzer (most comprehensive) and dump_fuzzer as compilation units
-          for fuzzer in icc_deep_dump_fuzzer icc_dump_fuzzer icc_profile_fuzzer; do
-            $CXX $CXXFLAGS $INCLUDES -c "${fuzzer}.cpp" -o "${fuzzer}.o" \
-              -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION 2>/dev/null || true
+          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
+          INC_CORE="-I../iccDEV/IccProfLib"
+          INC_XML="$INC_CORE -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          INC_TIFF="$INC_CORE -I../iccDEV/Tools/CmdLine/IccApplyProfiles"
+
+          # Core fuzzers (IccProfLib only)
+          CORE_FUZZERS="icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer
+            icc_calculator_fuzzer icc_deep_dump_fuzzer icc_dump_fuzzer icc_fromcube_fuzzer
+            icc_io_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer
+            icc_roundtrip_fuzzer icc_spectral_fuzzer icc_v5dspobs_fuzzer"
+          for f in $CORE_FUZZERS; do
+            $CXX $CXXFLAGS $INC_CORE -c "${f}.cpp" -o "${f}.o" 2>/dev/null || true
+          done
+
+          # XML fuzzers (IccProfLib + IccLibXML + libxml2)
+          for f in icc_fromxml_fuzzer icc_toxml_fuzzer; do
+            $CXX $CXXFLAGS $INC_XML -c "${f}.cpp" -o "${f}.o" 2>/dev/null || true
+          done
+
+          # TIFF fuzzers (IccProfLib + TiffImg)
+          $CXX $CXXFLAGS $INC_TIFF -c ../iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp -o TiffImg.o 2>/dev/null || true
+          for f in icc_specsep_fuzzer icc_spectral_b_fuzzer icc_tiffdump_fuzzer; do
+            $CXX $CXXFLAGS $INC_TIFF -c "${f}.cpp" -o "${f}.o" 2>/dev/null || true
           done
 
       - name: Perform CodeQL Analysis

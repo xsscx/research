@@ -1,6 +1,7 @@
 # CodeQL Configuration for CFL LibFuzzer Harnesses
-# Purpose: Security analysis of 17 LibFuzzer harnesses targeting iccDEV
+# Purpose: Security analysis of 19 LibFuzzer harnesses targeting iccDEV
 # Project: CFL (Clustered Fuzzing Lab)
+# Fuzzers: 14 core + 2 XML + 3 TIFF (including icc_spectral_b_fuzzer)
 
 name: "CFL LibFuzzer Security Analysis"
 
@@ -18,6 +19,7 @@ packs:
 paths:
   - IccProfLib/**
   - IccXML/**
+  - cfl/*.cpp
 
 paths-ignore:
   - Testing/**
