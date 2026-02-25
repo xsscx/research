@@ -241,8 +241,8 @@ jobs:
           unset GITHUB_TOKEN || true
 
           cd cfl/bin
-          # Exclude deep_dump and spectral fuzzers: long-running, causes runner timeouts
-          FUZZERS=$(ls *_fuzzer 2>/dev/null | grep -v -e icc_deep_dump_fuzzer -e icc_spectral_fuzzer | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin]))")
+          # Exclude deep_dump and spectral-A fuzzers: long-running, causes runner timeouts
+          FUZZERS=$(ls *_fuzzer 2>/dev/null | grep -v -e icc_deep_dump_fuzzer -e '^icc_spectral_fuzzer$' | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin]))")
           echo "fuzzers=$FUZZERS" >> $GITHUB_OUTPUT
           echo "Fuzzers for matrix: $FUZZERS"
 
