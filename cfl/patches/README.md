@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-24 23:12:00 UTC
+Last Updated: 2026-02-25 00:06:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -39,6 +39,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 26 | `IccTagLut.h` | `CIccTagCurve::operator[]`, `GetData` | UBSAN reference binding to null: `m_Curve[index]` when `m_Curve` is null |
 | 27 | `IccTagBasic.cpp` | `CIccTagNum::GetValues`, `CIccTagFixedNum::GetValues`, `CIccTagFloatNum::GetValues` | Stack-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` |
 | 28 | `IccTagBasic.cpp` | `CIccTagNum::Interpolate`, `CIccTagFixedNum::Interpolate`, `CIccTagFloatNum::Interpolate` | Heap-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` (13 instances) |
+| 29 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | UBSAN+SEGV: negative float→unsigned cast in CLUT grid index when `NoClip` passes negative values |
 
 ## Allocation Cap
 
@@ -219,6 +220,17 @@ three template specializations (6 in CIccTagFixedNum, 6 in CIccTagNum,
 ColorSpaceClass profile with a tint-array sub-element containing a
 small float32 tag.
 Fix: use `nVectorSize` as the loop bound in all 13 instances.
+
+Patch 029 fixes UBSAN undefined behavior and SEGV crash in all
+`CIccCLUT::Interp*d()` functions (IccTagLut.cpp).  When the CLUT is
+used via a Multi-Process Element (`CIccMpeCLUT`), the clip function is
+set to `NoClip` which handles NaN and Inf but passes negative values
+through.  A negative grid coordinate cast to `icUInt32Number` is
+undefined behavior (UBSAN: "−16 is outside the range of representable
+values of type 'unsigned int'") and produces a huge index, causing
+SEGV on the subsequent `m_pData[]` access.  `Interp2d` already had
+clamping; the fix adds `if (v < 0.0f) v = 0.0f;` guards to Interp1d,
+Interp3dTetra, Interp3d, Interp4d, Interp5d, Interp6d, and InterpND.
 
 ## Application
 
