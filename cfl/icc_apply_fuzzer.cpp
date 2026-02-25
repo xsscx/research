@@ -121,9 +121,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       }
       
       // Exercise CMM info methods
-      cmm.GetNumXforms();
-      cmm.GetSourceSpace();
-      cmm.GetDestSpace();
+      (void)cmm.GetNumXforms();
+      (void)cmm.GetSourceSpace();
+      (void)cmm.GetDestSpace();
     }
   }
   

@@ -103,8 +103,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         CIccTagLutAtoB *pLut = (CIccTagLutAtoB*)pTag;
         if (pLut) {
           // Trigger MPE chain validation and channel info
-          icUInt16Number nInputChannels = pLut->InputChannels();
-          icUInt16Number nOutputChannels = pLut->OutputChannels();
+          (void)pLut->InputChannels();
+          (void)pLut->OutputChannels();
           
           // Exercise tag description
           std::string desc;

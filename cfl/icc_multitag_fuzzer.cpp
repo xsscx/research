@@ -72,6 +72,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Deep validation (exercises tag consistency checks)
     std::string validationReport;
     icValidateStatus status = pProfile->Validate(validationReport);
+    (void)status;
 
     // Exercise tag lookup by signature (exercises tag retrieval and validation)
     for (icSignature sig : {
@@ -94,6 +95,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       CIccTag *pTag = pProfile->FindTag(sig);
       if (pTag) {
         icTagTypeSignature type = pTag->GetType();
+        (void)type;
         
         // Validate individual tag
         std::string sigPath = "";

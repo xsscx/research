@@ -1,0 +1,28 @@
+--- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp	2026-02-25 09:53:38.976504824 -0500
++++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp	2026-02-25 09:53:38.994753263 -0500
+@@ -221,7 +221,11 @@
+     }
+     m_nBytesPerLine = m_nWidth * m_nBytesPerSample * m_nSamples;
+ 
+-    m_pStripBuf = (unsigned char*)malloc(m_nStripSize*m_nStripSamples);
++    if (m_nStripSamples && m_nStripSize > SIZE_MAX / m_nStripSamples) {
++      Close();
++      return false;
++    }
++    m_pStripBuf = (unsigned char*)malloc((size_t)m_nStripSize * m_nStripSamples);
+ 
+     if (!m_pStripBuf) {
+       Close();
+@@ -312,7 +316,11 @@
+     m_nBytesPerLine = (m_nWidth * m_nBitsPerSample * m_nSamples + 7)>>3;
+   }
+ 
+-  m_pStripBuf = (unsigned char*)malloc(m_nStripSize*m_nStripSamples);
++  if (m_nStripSamples && m_nStripSize > SIZE_MAX / m_nStripSamples) {
++    Close();
++    return false;
++  }
++  m_pStripBuf = (unsigned char*)malloc((size_t)m_nStripSize * m_nStripSamples);
+ 
+   if (!m_pStripBuf) {
+     Close();
