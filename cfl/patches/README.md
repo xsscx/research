@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-25 02:43:00 UTC
+Last Updated: 2026-02-25 19:10:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -43,6 +43,8 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 30 | `IccMpeBasic.cpp` | `CIccSampledCurveSegment::Apply`, `CIccSingleSampledCurve::Apply`, `CIccSampledCalculatorCurve::Apply` | UBSAN: NaN/negative `pos` cast to `unsigned int` — division by zero `m_range` produces NaN; clamp `pos` to `[0, m_last]` before cast |
 | 31 | `IccMatrixMath.cpp` | `CIccMatrixMath::SetRange` | Heap-buffer-overflow: `r[srcRange.steps-1]` OOB when `srcRange.steps < 2` (uint16 underflow to 65535); also clamp interpolation index `p` to `[0, srcRange.steps-2]` to prevent `r[p+1]` OOB |
 | 32 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow: `select`/`case`/`default` op sub-sequence bounds not validated before recursive `ApplySequence` call; `ops[nDefOff].data.size` can exceed remaining ops, reading past `m_Op` buffer |
+| 33 | `TiffImg.cpp` | `CTiffImg::Open` | Multiplication overflow: `m_nStripSize * m_nStripSamples` overflow to small value, causing too-small malloc and heap-buffer-overflow |
+| 34 | `IccMpeCalc.cpp` | `CIccOpDefModulus::Exec` | UBSAN: float→int overflow in manual modulus `(int)(temp/tempN)` when quotient exceeds INT_MAX; replaced with `std::fmod` |
 
 ## Allocation Cap
 
@@ -253,6 +255,12 @@ Patch 033 fixes multiplication overflow in `CTiffImg::Open()` malloc
 and can overflow to a small value, causing a too-small allocation and
 subsequent heap-buffer-overflow.  The fix adds an overflow check before
 each of the two `malloc()` call sites.
+
+Patch 034 fixes UBSAN float-to-int overflow in `CIccOpDefModulus::Exec()`
+(IccMpeCalc.cpp).  The manual modulus `temp - (int)(temp/tempN)*tempN`
+casts the quotient to `int`, which is undefined behavior when the value
+exceeds INT_MAX (~2.1e9).  Replaced with `std::fmod()` which handles
+the full floating-point range correctly.
 
 ## Application
 

@@ -1,0 +1,12 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -950,7 +950,7 @@ public:
+       if (std::isnan(temp) || std::isinf(temp)
+         || std::isnan(tempN) || std::isinf(tempN) || fabs(tempN) < epsilon)
+         s[j] = 0.0;
+       else
+-        s[j] = temp - (icFloatNumber)((int)(temp / tempN))*tempN;
++        s[j] = (icFloatNumber)std::fmod((double)temp, (double)tempN);
+     }
+     OsShrinkArgs(n);
+     return true;
