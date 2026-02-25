@@ -605,3 +605,7 @@
 "\xbdL"
 "c2sT"
 "\xb7\x9c\xcal"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00P0\x00 \xcc\xc4"
+"2\xdc"
