@@ -1,0 +1,10 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -1212,7 +1212,7 @@
+       }
+       else
+-        s[j] = (icFloatNumber)((int)temp);
++        s[j] = (icFloatNumber)std::trunc(temp);
+     }
+     return true;
+   }
