@@ -64,85 +64,58 @@
 // [10+]: ICC profile data
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  // Minimum: 10 byte header + 128 byte minimal ICC profile
-  if (size < 138 || size > 2 * 1024 * 1024) return 0;
+  // Minimum: 4 byte control + 128 byte minimal ICC profile
+  if (size < 132 || size > 2 * 1024 * 1024) return 0;
 
-  // Parse fuzzing configuration from header
+  // Parse fuzzing configuration from first 4 bytes
   uint8_t flags = data[0];
   bool useBPC = (flags & 0x01) != 0;
   bool useD2BxB2Dx = (flags & 0x02) != 0;
   bool adjustPcsLuminance = (flags & 0x04) != 0;
   bool useV5SubProfile = (flags & 0x08) != 0;
   icXformInterp interp = ((flags >> 4) & 0x01) ? icInterpTetrahedral : icInterpLinear;
+  icRenderingIntent intent = (icRenderingIntent)(data[1] & 0x03);
+  icFloatColorEncoding srcEncoding = (icFloatColorEncoding)(data[2] % 7);
+  icFloatColorEncoding dstEncoding = (icFloatColorEncoding)(data[3] % 7);
 
-  // Rendering intent with modifiers
-  uint8_t intent_byte = data[1];
-  icRenderingIntent intent = (icRenderingIntent)(intent_byte & 0x03);
-  
-  // Color space signatures - map to common spaces
-  icColorSpaceSignature colorSpaces[] = {
-    icSigXYZData,      // 0
-    icSigLabData,      // 1
-    icSigRgbData,      // 2
-    icSigCmykData,     // 3
-    icSigGrayData,     // 4
-    icSigNamedData,    // 5
-    icSig2colorData,   // 6
-    icSig3colorData,   // 7
-    icSig4colorData,   // 8
-    icSig5colorData,   // 9
-    icSig6colorData,   // 10
-    icSigUnknownData   // 11 (fallback)
-  };
-  
-  uint16_t srcSpaceIdx = ((uint16_t)data[2] << 8) | data[3];
-  uint16_t dstSpaceIdx = ((uint16_t)data[4] << 8) | data[5];
-  
-  icColorSpaceSignature srcSpace = colorSpaces[srcSpaceIdx % 12];
-  icColorSpaceSignature dstSpace = colorSpaces[dstSpaceIdx % 12];
-  
-  // Interface type hint (not enforced, determined by profile)
-  (void)(data[6] & 0x03);
+  // Profile data starts at offset 4
+  const uint8_t *profile_data = data + 4;
+  size_t profile_size = size - 4;
 
-  // Write profile data to temporary file
-  const uint8_t *profile_data = data + 10;
-  size_t profile_size = size - 10;
-  
+  // Write profile to temporary file
   const char *tmpdir = getenv("FUZZ_TMPDIR");
   if (!tmpdir) tmpdir = "/tmp";
   char tmp_profile[PATH_MAX];
-  snprintf(tmp_profile, sizeof(tmp_profile), "%s/fuzz_namedcmm_XXXXXX.icc", tmpdir);
+  snprintf(tmp_profile, sizeof(tmp_profile), "%s/fuzz_namedcmm_XXXXXX", tmpdir);
   int fd = mkstemp(tmp_profile);
   if (fd == -1) return 0;
   
   ssize_t written = write(fd, profile_data, profile_size);
   close(fd);
-  
   if (written != (ssize_t)profile_size) {
     unlink(tmp_profile);
     return 0;
   }
 
-  // Determine if first profile should be treated as input profile
-  // (mirrors iccApplyNamedCmm.cpp logic at lines 329-337)
-  bool bFirstInput = true;
-  if (srcSpace == icSigXYZData || srcSpace == icSigLabData) {
-    // Source is PCS - check if profile is abstract or PCS-based
-    CIccProfile *pProf = OpenIccProfile(tmp_profile);
-    if (pProf) {
-      if (pProf->m_Header.deviceClass != icSigAbstractClass &&
-          (pProf->m_Header.colorSpace == icSigXYZData || 
-           pProf->m_Header.colorSpace == icSigLabData)) {
-        bFirstInput = true;
-      }
-      delete pProf;
-    }
-  } else {
-    bFirstInput = true;
+  // Read profile to determine source color space from its header
+  // (mirrors iccApplyNamedCmm.cpp: SrcspaceSig comes from profile)
+  CIccProfile *pProf = OpenIccProfile(tmp_profile);
+  if (!pProf) {
+    unlink(tmp_profile);
+    return 0;
   }
+  
+  icColorSpaceSignature srcSpace = pProf->m_Header.colorSpace;
+  bool srcIsPCS = (srcSpace == icSigXYZData || srcSpace == icSigLabData);
+  bool bInputProfile = !srcIsPCS;
+  if (!bInputProfile) {
+    if (pProf->m_Header.deviceClass != icSigAbstractClass && srcIsPCS)
+      bInputProfile = true;
+  }
+  delete pProf;
 
-  // Create CIccNamedColorCmm (mirrors line 340)
-  CIccNamedColorCmm namedCmm(srcSpace, dstSpace, bFirstInput);
+  // Tool uses icSigUnknownData for dst — CMM determines it from profile chain
+  CIccNamedColorCmm namedCmm(srcSpace, icSigUnknownData, bInputProfile);
 
   // Build hint manager for profile attachment (mirrors lines 354-389)
   CIccCreateXformHintManager Hint;
@@ -283,11 +256,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       namedCmm.Apply(dstPixel, srcPixel);
       
       // Test 8: Random values from remaining fuzz data
-      if (size > 138) {
-        size_t remaining = size - 138;
+      if (size > 132) {
+        size_t remaining = size - 132;
         for (int i = 0; i < nSrcSamples && i < (int)remaining; i++) {
-          // Normalize to 0.0-2.0 range to test clipping
-          srcPixel[i] = ((icFloatNumber)data[138 + i] / 127.5) - 1.0;
+          srcPixel[i] = ((icFloatNumber)data[132 + i] / 127.5) - 1.0;
         }
         namedCmm.Apply(dstPixel, srcPixel);
       }
