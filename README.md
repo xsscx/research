@@ -43,7 +43,7 @@ cat ramdisk-cheatsheet.sh       # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 26 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 32 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
