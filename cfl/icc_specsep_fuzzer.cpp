@@ -175,7 +175,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
   }
 
-  if (allOpened && nFiles > 0) {
+  if (allOpened) {
     CTiffImg *f = &infiles[0];
     long bytePerLine = f->GetBytesPerLine();
     long bytesPerSample_img = f->GetBitsPerSample() / 8;

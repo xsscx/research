@@ -367,40 +367,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icFloatNumber* minVal = cube.getMinInput();
     icFloatNumber* maxVal = cube.getMaxInput();
     CIccMpeCurveSet* pCurves = new CIccMpeCurveSet(3);
-    CIccSingleSampledCurve* pCurve0 = new CIccSingleSampledCurve(minVal[0], maxVal[0]);
 
-    pCurve0->SetSize(2);
-    pCurve0->GetSamples()[0] = 0;
-    pCurve0->GetSamples()[1] = 1;
-
-    pCurves->SetCurve(0, pCurve0);
-
-    CIccSingleSampledCurve* pCurve1 = pCurve0;
-    if (minVal[1] != minVal[0] || maxVal[1] != maxVal[0]) {
-      pCurve1 = new CIccSingleSampledCurve(minVal[1], maxVal[1]);
-
-      pCurve1->SetSize(2);
-      pCurve1->GetSamples()[0] = 0;
-      pCurve1->GetSamples()[1] = 1;
+    // Each channel gets its own curve to avoid double-free from shared ownership
+    for (int ch = 0; ch < 3; ch++) {
+      CIccSingleSampledCurve* pCurve = new CIccSingleSampledCurve(minVal[ch], maxVal[ch]);
+      pCurve->SetSize(2);
+      pCurve->GetSamples()[0] = 0;
+      pCurve->GetSamples()[1] = 1;
+      pCurves->SetCurve(ch, pCurve);
     }
-
-    pCurves->SetCurve(1, pCurve1);
-
-    CIccSingleSampledCurve* pCurve2 = pCurve0;
-
-    if (minVal[2] != minVal[0] || maxVal[2] != maxVal[0]) {
-      if (minVal[2] == minVal[1] && maxVal[2] == maxVal[1])
-        pCurve2 = pCurve1;
-      else {
-        pCurve2 = new CIccSingleSampledCurve(minVal[2], maxVal[2]);
-
-        pCurve2->SetSize(2);
-        pCurve2->GetSamples()[0] = 0;
-        pCurve2->GetSamples()[1] = 1;
-      }
-    }
-
-    pCurves->SetCurve(2, pCurve2);
 
     pTag->Attach(pCurves);
   }
