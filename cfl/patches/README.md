@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-25 20:45:00 UTC
+Last Updated: 2026-02-26 03:30:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -51,6 +51,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 38 | `IccTagDict.cpp` | `CIccTagDict::Read` | Memory leak: `new CIccTagMultiLocalizedUnicode` leaked when `pTag->Read()` fails (two sites: NameLocalized + ValueLocalized) |
 | 39 | `IccCmm.cpp` | `CIccCmm::CheckPCSConnections` | Memory leak: `new CIccPcsXform` leaked when `pPcs->Connect()` returns error (missing `delete pPcs` — compare ConnectFirst/ConnectLast which had it) |
 | 40 | `IccCmm.cpp` | `CIccPcsXform::Optimize` | Memory leak: identity PCS steps skipped from `newSteps` but never deleted — pointer dropped silently (two sites: inner loop + final element) |
+| 41 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/2d/3dTetra/3d/4d/5d/6d/ND` | Heap-buffer-overflow: `NoClip` allows values > 1.0 producing grid indices past allocation; add upper clamp `x = min(x, mx)` for all dimensions in all 8 interpolation functions |
 
 ## Allocation Cap
 
@@ -303,6 +304,15 @@ deleted — it was silently dropped when `ptr.ptr = next->ptr` overwrote
 it.  Two leak sites: the inner concat-failure path (line 2512) and the
 final-element check after the loop (line 2518).  Fix: add `else { delete
 ptr.ptr; }` at both sites.
+
+Patch 041 fixes heap-buffer-overflow in all 8 CLUT interpolation functions
+(Interp1d through InterpND) in IccTagLut.cpp.  The `NoClip` function
+(used by CIccMpeCLUT) allows input values > 1.0 (including +Inf which
+returns 1000).  After multiplying by `MaxGridPoint`, the resulting grid
+coordinate exceeds the allocated CLUT data size, producing OOB pointer
+arithmetic.  Patch 029 added lower clamps for negative values but missed
+the upper bound.  Fix: add `if (x > mx) x = mx` (and similarly for y, z,
+w, g0-g5, g[i]) in all 8 functions immediately after the negative clamps.
 
 ## Application
 
