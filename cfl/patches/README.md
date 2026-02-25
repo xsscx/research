@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-25 01:50:00 UTC
+Last Updated: 2026-02-25 02:43:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -42,6 +42,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 29 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | UBSAN+SEGV: negative float→unsigned cast in CLUT grid index when `NoClip` passes negative values |
 | 30 | `IccMpeBasic.cpp` | `CIccSampledCurveSegment::Apply`, `CIccSingleSampledCurve::Apply`, `CIccSampledCalculatorCurve::Apply` | UBSAN: NaN/negative `pos` cast to `unsigned int` — division by zero `m_range` produces NaN; clamp `pos` to `[0, m_last]` before cast |
 | 31 | `IccMatrixMath.cpp` | `CIccMatrixMath::SetRange` | Heap-buffer-overflow: `r[srcRange.steps-1]` OOB when `srcRange.steps < 2` (uint16 underflow to 65535); also clamp interpolation index `p` to `[0, srcRange.steps-2]` to prevent `r[p+1]` OOB |
+| 32 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow: `select`/`case`/`default` op sub-sequence bounds not validated before recursive `ApplySequence` call; `ops[nDefOff].data.size` can exceed remaining ops, reading past `m_Op` buffer |
 
 ## Allocation Cap
 
