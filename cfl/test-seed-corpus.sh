@@ -35,6 +35,7 @@ FUZZERS=(
     "icc_roundtrip_fuzzer"
     "icc_specsep_fuzzer"
     "icc_spectral_fuzzer"
+    "icc_spectral_b_fuzzer"
     "icc_toxml_fuzzer"
     "icc_v5dspobs_fuzzer"
 )
@@ -54,6 +55,7 @@ FUZZER_DICTS[icc_profile_fuzzer]="icc_profile.dict"
 FUZZER_DICTS[icc_roundtrip_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_specsep_fuzzer]="icc_specsep_fuzzer.dict"
 FUZZER_DICTS[icc_spectral_fuzzer]="icc_core.dict"
+FUZZER_DICTS[icc_spectral_b_fuzzer]="icc_spectral_b_fuzzer.dict"
 FUZZER_DICTS[icc_toxml_fuzzer]="icc_xml_consolidated.dict"
 FUZZER_DICTS[icc_v5dspobs_fuzzer]="icc_v5dspobs_fuzzer.dict"
 

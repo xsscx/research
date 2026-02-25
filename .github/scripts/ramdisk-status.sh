@@ -24,6 +24,7 @@ ALL_FUZZERS=(
   icc_calculator_fuzzer
   icc_deep_dump_fuzzer
   icc_dump_fuzzer
+  icc_fromcube_fuzzer
   icc_fromxml_fuzzer
   icc_io_fuzzer
   icc_link_fuzzer
@@ -32,6 +33,7 @@ ALL_FUZZERS=(
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_spectral_fuzzer
+  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer

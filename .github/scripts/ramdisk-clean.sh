@@ -63,6 +63,7 @@ ALL_FUZZERS=(
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_spectral_fuzzer
+  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
