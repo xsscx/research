@@ -109,6 +109,15 @@ def normalize_entry(line):
     # Match \" that is NOT at the start or end of the entry
     inner = entry[1:-1]  # strip surrounding quotes
     inner = inner.replace('\\"', '\\x22')
+
+    # Fix ambiguous hex escapes: \xNNC where C is a hex digit
+    # LibFuzzer parses \xNNC as a 3-digit hex escape, not \xNN + literal C
+    inner = re.sub(
+        r'(\\x[0-9A-Fa-f]{2})([0-9A-Fa-f])',
+        lambda m: m.group(1) + '\\x{:02X}'.format(ord(m.group(2))),
+        inner,
+    )
+
     entry = '"' + inner + '"'
 
     return entry
