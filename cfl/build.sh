@@ -227,9 +227,10 @@ build_fuzzer() {
     return
   fi
 
-  # Per-fuzzer profraw output path (unique via %p=PID, %m=merge-pool)
-  local PROFRAW_PATH="$PROFRAW_DIR/${name}-%p-%m.profraw"
-  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate=$PROFRAW_PATH -fcoverage-mapping -frtti"
+  # Coverage: use -fprofile-instr-generate (no =path) so LLVM_PROFILE_FILE
+  # env var controls output at runtime. Default: cwd/default.profraw.
+  # Ramdisk scripts set LLVM_PROFILE_FILE to /tmp/fuzz-ramdisk/profraw/.
+  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate -fcoverage-mapping -frtti"
 
   # Use --whole-archive to ensure all library objects are linked.
   # Without this, the linker only pulls objects resolving the harness's
@@ -296,8 +297,8 @@ if [ "$BUILT" -gt 0 ]; then
   echo "SHA256 fingerprints:"
   sha256sum "$OUTPUT_DIR"/icc_* 2>/dev/null || shasum -a 256 "$OUTPUT_DIR"/icc_* 2>/dev/null
   echo ""
-  echo "Profraw output: $PROFRAW_DIR/<fuzzer_name>-<pid>-<id>.profraw"
-  echo "  Merge:  llvm-profdata merge -sparse $PROFRAW_DIR/*.profraw -o merged.profdata"
+  echo "Profraw: set LLVM_PROFILE_FILE to control output (e.g. /tmp/fuzz-ramdisk/profraw/%m.profraw)"
+  echo "  Merge:  llvm-profdata merge -sparse /tmp/fuzz-ramdisk/profraw/*.profraw -o merged.profdata"
   echo "  Report: llvm-cov report \$(printf ' -object %s' $OUTPUT_DIR/icc_*) -instr-profile=merged.profdata"
 fi
 
