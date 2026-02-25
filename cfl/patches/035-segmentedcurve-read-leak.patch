@@ -1,0 +1,11 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -1311,7 +1311,8 @@ bool CIccTagSegmentedCurve::Read(icUInt32Number size, CIccIO *pIO)
+ 
+      return true;
+    }
+ 
+-   return false;
++   delete pCurve;
++   return false;
+ }
