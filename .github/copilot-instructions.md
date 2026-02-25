@@ -70,7 +70,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 cfl/bin/icc_profile_fuzzer -merge=1 /tmp/fuzz-ramdisk/corpus-merged /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
 
 # Validate seed corpus readiness
-cd cfl && ./test-seed-corpus.sh
+.github/scripts/test-seed-corpus.sh
 ```
 
 ## MCP Server
@@ -187,7 +187,7 @@ Each fuzzer must only exercise APIs reachable from its corresponding project too
 - Lookup order in CI: `cfl/${FUZZER_NAME}.dict` → `cfl/icc_core.dict` → `cfl/icc.dict`
 - Use `.github/scripts/convert-libfuzzer-dict.py` to convert raw LibFuzzer recommended dictionary output
 - CI auto-merges recommended dict entries after fuzzing (convert-libfuzzer-dict.py --append)
-- Several fuzzers share base dicts (e.g., `icc_toxml_fuzzer` → `icc_xml_consolidated.dict`, `icc_io_fuzzer` → `icc_core.dict`). The mapping is defined as `FUZZER_DICTS` in `ramdisk-fuzz.sh`, `fuzz-local.sh`, and `seed-corpus-setup.sh`. Per-fuzzer aliases are created on ramdisk so `-dict=${fuzzer}.dict` resolves correctly.
+- Several fuzzers share base dicts (e.g., `icc_toxml_fuzzer` → `icc_xml_consolidated.dict`, `icc_io_fuzzer` → `icc_core.dict`). The mapping is defined as `FUZZER_DICTS` in `ramdisk-fuzz.sh`, `fuzz-local.sh`, and `.github/scripts/seed-corpus-setup.sh`. Per-fuzzer aliases are created on ramdisk so `-dict=${fuzzer}.dict` resolves correctly.
 
 ### OOM patches
 Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by `cfl/build.sh` AND all CI fuzzer workflows before cmake. Build alignment rule: local build.sh and CI workflows MUST apply identical patches/flags.
