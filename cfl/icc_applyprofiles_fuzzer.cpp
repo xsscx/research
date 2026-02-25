@@ -68,7 +68,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const char *tmpdir = fuzz_tmpdir();
   char tmp_profile[PATH_MAX];
   if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_applyprofiles_XXXXXX.icc")) return 0;
-  int fd = mkstemp(tmp_profile);
+  int fd = mkstemps(tmp_profile, 4);
   if (fd == -1) return 0;
   write(fd, profile_data, profile_size);
   close(fd);
