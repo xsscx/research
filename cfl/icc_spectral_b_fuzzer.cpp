@@ -70,6 +70,8 @@
 
 #include "IccProfile.h"
 #include "IccUtil.h"
+#include "IccIO.h"
+#include "IccTagBasic.h"
 #include "TiffImg.h"
 
 static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
@@ -188,6 +190,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Embed ICC profile — tool: io.Open(argv[8]); io.Read8(); outfile.SetIccProfile()
   if (profileSize >= 128) {
     outimg.SetIccProfile((unsigned char*)data, (unsigned int)profileSize);
+
+    // Parse profile through IccProfLib for coverage of tag/MPE/validation paths
+    CIccMemIO memIO;
+    if (memIO.Attach((icUInt8Number*)data, (icUInt32Number)profileSize)) {
+      CIccProfile profile;
+      if (profile.Read(&memIO)) {
+        std::string report;
+        profile.Validate(report);
+
+        // Exercise spectral-relevant tag lookups
+        profile.FindTag(icSigSpectralViewingConditionsTag);
+        profile.FindTag(icSigSpectralDataInfoTag);
+        profile.FindTag(icSigSpectralWhitePointTag);
+        profile.FindTag(icSigProfileDescriptionTag);
+        profile.FindTag(icSigAToB0Tag);
+        profile.FindTag(icSigDToB0Tag);
+      }
+    }
   }
 
   // Interleave scanlines — exact match of tool's pixel loop
