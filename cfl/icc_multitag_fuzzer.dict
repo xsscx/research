@@ -358,3 +358,8 @@
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x7f\xbd\xfc\xe9+\xc0"
+
+# --- added by convert-libfuzzer-dict.py ---
+"Y:\xbd"
+"\x15\x00\x00\x00\x00\x00\x00\x00"
+"\xac\xac\xac"
