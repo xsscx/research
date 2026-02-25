@@ -43,14 +43,14 @@
 #include "IccUtil.h"
 #include "IccIO.h"
 #include <climits>
+#include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128 || size > 2 * 1024 * 1024) return 0;
   
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   char icc_file[PATH_MAX];
-  snprintf(icc_file, sizeof(icc_file), "%s/fuzz_icc_XXXXXX", tmpdir);
+  if (!fuzz_build_path(icc_file, sizeof(icc_file), tmpdir, "/fuzz_icc_XXXXXX")) return 0;
   int fd = mkstemp(icc_file);
   if (fd == -1) return 0;
   
@@ -75,7 +75,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           
           // Test write operations
           char out_file[PATH_MAX];
-          snprintf(out_file, sizeof(out_file), "%s/fuzz_out_XXXXXX", tmpdir);
+          if (!fuzz_build_path(out_file, sizeof(out_file), tmpdir, "/fuzz_out_XXXXXX")) {
+            delete pIcc;
+            free(profile_data);
+            io.Close();
+            unlink(icc_file);
+            return 0;
+          }
           int fd_out = mkstemp(out_file);
           if (fd_out != -1) {
             close(fd_out);
