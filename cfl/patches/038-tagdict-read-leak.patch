@@ -1,0 +1,18 @@
+--- a/IccProfLib/IccTagDict.cpp
++++ b/IccProfLib/IccTagDict.cpp
+@@ -757,6 +757,7 @@ bool CIccTagDict::Read(icUInt32Number size, CIccIO *pIO)
+       if (!pTag || !pTag->Read(pos[i].posNameLocalized.size, pIO)) {
+         free(pos);
+         free(buf);
++        delete pTag;
+         delete ptr.ptr;
+         return false;
+       }
+@@ -808,6 +809,7 @@ bool CIccTagDict::Read(icUInt32Number size, CIccIO *pIO)
+       if (!pTag || !pTag->Read(pos[i].posValueLocalized.size, pIO)) {
+         free(pos);
+         free(buf);
++        delete pTag;
+         delete ptr.ptr;
+         return false;
+       }
