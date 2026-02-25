@@ -1,0 +1,32 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3772,6 +3772,9 @@
+           if (os.idx+1 + ops[nDefOff].extra >= nOps)
+             return false;
+ 
++          if (os.idx+1 + ops[nDefOff].extra + ops[nDefOff].data.size > nOps)
++            return false;
++
+           if (!ApplySequence(pApply, ops[nDefOff].data.size, &ops[os.idx+1 + ops[nDefOff].extra]))
+             break;
+         }
+@@ -3782,6 +3785,9 @@
+         if (nOff >= nOps) 
+           return false;
+ 
++        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
++          return false;
++
+         if (!ApplySequence(pApply, ops[nOff].data.size, &ops[os.idx+1 + ops[nOff].extra]))
+           break;
+       }
+@@ -3795,6 +3801,9 @@
+       else if (op->extra) {
+         unsigned long nOff = os.idx + op->extra;
+ 
++        if (nOff >= nOps)
++          return false;
++
+         if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
+           return false;
+ 
