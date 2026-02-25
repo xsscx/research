@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-25 19:10:00 UTC
+Last Updated: 2026-02-25 20:45:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -45,6 +45,12 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 32 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow: `select`/`case`/`default` op sub-sequence bounds not validated before recursive `ApplySequence` call; `ops[nDefOff].data.size` can exceed remaining ops, reading past `m_Op` buffer |
 | 33 | `TiffImg.cpp` | `CTiffImg::Open` | Multiplication overflow: `m_nStripSize * m_nStripSamples` overflow to small value, causing too-small malloc and heap-buffer-overflow |
 | 34 | `IccMpeCalc.cpp` | `CIccOpDefModulus::Exec` | UBSAN: float→int overflow in manual modulus `(int)(temp/tempN)` when quotient exceeds INT_MAX; replaced with `std::fmod` |
+| 35 | `IccTagLut.cpp` | `CIccTagSegmentedCurve::Read` | Memory leak: `new CIccSegmentedCurve` leaked when `pCurve->Read()` fails |
+| 36 | `IccMpeCalc.cpp` | `CIccMpeCalculator::Read` | Memory leak: `new CIccMultiProcessElement` leaked when `pElem->Read()` fails |
+| 37 | `IccTagComposite.cpp` | `CIccTagArray::Read` | Memory leak: `CIccTagCreator::CreateTag()` result leaked when `pTag->Read()` fails |
+| 38 | `IccTagDict.cpp` | `CIccTagDict::Read` | Memory leak: `new CIccTagMultiLocalizedUnicode` leaked when `pTag->Read()` fails (two sites: NameLocalized + ValueLocalized) |
+| 39 | `IccCmm.cpp` | `CIccCmm::CheckPCSConnections` | Memory leak: `new CIccPcsXform` leaked when `pPcs->Connect()` returns error (missing `delete pPcs` — compare ConnectFirst/ConnectLast which had it) |
+| 40 | `IccCmm.cpp` | `CIccPcsXform::Optimize` | Memory leak: identity PCS steps skipped from `newSteps` but never deleted — pointer dropped silently (two sites: inner loop + final element) |
 
 ## Allocation Cap
 
@@ -261,6 +267,42 @@ Patch 034 fixes UBSAN float-to-int overflow in `CIccOpDefModulus::Exec()`
 casts the quotient to `int`, which is undefined behavior when the value
 exceeds INT_MAX (~2.1e9).  Replaced with `std::fmod()` which handles
 the full floating-point range correctly.
+
+Patch 035 fixes memory leak in `CIccTagSegmentedCurve::Read()`
+(IccTagLut.cpp).  `new CIccSegmentedCurve` is allocated but not deleted
+when `pCurve->Read()` fails — the function returns `false` without
+cleanup, leaking the curve object.
+
+Patch 036 fixes memory leak in `CIccMpeCalculator::Read()`
+(IccMpeCalc.cpp).  `new CIccMultiProcessElement` (via `CreateElement()`)
+is allocated but not deleted when `pElem->Read()` fails.  Same pattern
+as patch 035.
+
+Patch 037 fixes memory leak in `CIccTagArray::Read()`
+(IccTagComposite.cpp).  `CIccTagCreator::CreateTag()` allocates a tag
+object which is not deleted when `pTag->Read()` fails — the function
+returns `false` with `delete[] tagPos` but leaks the tag.
+
+Patch 038 fixes memory leak in `CIccTagDict::Read()` (IccTagDict.cpp).
+Two sites: `new CIccTagMultiLocalizedUnicode` for NameLocalized (line
+757) and ValueLocalized (line 808) — both leak when `pTag->Read()` fails
+because the error path does not `delete pTag`.  The `!pTag` null check
+and `!pTag->Read()` are combined in a single `if`, so `delete pTag` is
+safe (pTag is non-null when Read is reached).
+
+Patch 039 fixes memory leak in `CIccCmm::CheckPCSConnections()`
+(IccCmm.cpp).  When `pPcs->Connect()` returns an error status, the
+function returned without deleting `pPcs`.  The `ConnectFirst()` and
+`ConnectLast()` error paths already had `delete pPcs` — only the
+`Connect()` path was missing it.
+
+Patch 040 fixes memory leak in `CIccPcsXform::Optimize()` (IccCmm.cpp).
+The optimization loop identifies identity PCS steps and skips them from
+the `newSteps` list.  However, the skipped step's pointer was never
+deleted — it was silently dropped when `ptr.ptr = next->ptr` overwrote
+it.  Two leak sites: the inner concat-failure path (line 2512) and the
+final-element check after the loop (line 2518).  Fix: add `else { delete
+ptr.ptr; }` at both sites.
 
 ## Application
 

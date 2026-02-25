@@ -1,0 +1,9 @@
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1301,6 +1301,7 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+           if (!pTag->Read(tagPos[i].size, pIO)) {
+             delete [] tagPos;
++            delete pTag;
+             return false;
+           }
+           m_TagVals[i].ptr = pTag;

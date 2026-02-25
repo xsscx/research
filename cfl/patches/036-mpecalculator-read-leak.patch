@@ -1,0 +1,9 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -4739,6 +4739,7 @@ bool CIccMpeCalculator::Read(icUInt32Number size, CIccIO *pIO)
+       if (!pElem->Read(pos->size, pIO)) {
+         free(posvals);
++        delete pElem;
+         return false;
+       }
+       SetSubElem((icUInt16Number)n, pElem);

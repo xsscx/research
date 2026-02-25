@@ -1,0 +1,22 @@
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -2512,6 +2512,9 @@ icStatusCMM CIccPcsXform::Optimize()
+         if (!ptr.ptr->isIdentity()) {
+           newSteps.push_back(ptr);
+         }
++        else {
++          delete ptr.ptr;
++        }
+         ptr.ptr = next->ptr;
+       }
+     }
+@@ -2518,6 +2521,9 @@ icStatusCMM CIccPcsXform::Optimize()
+     if (!ptr.ptr->isIdentity()) {
+       newSteps.push_back(ptr);
+     }
++    else {
++      delete ptr.ptr;
++    }
+ 
+     steps = newSteps;
+ 
