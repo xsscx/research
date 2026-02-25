@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-26 03:30:00 UTC
+Last Updated: 2026-02-26 04:40:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -52,6 +52,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 39 | `IccCmm.cpp` | `CIccCmm::CheckPCSConnections` | Memory leak: `new CIccPcsXform` leaked when `pPcs->Connect()` returns error (missing `delete pPcs` — compare ConnectFirst/ConnectLast which had it) |
 | 40 | `IccCmm.cpp` | `CIccPcsXform::Optimize` | Memory leak: identity PCS steps skipped from `newSteps` but never deleted — pointer dropped silently (two sites: inner loop + final element) |
 | 41 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/2d/3dTetra/3d/4d/5d/6d/ND` | Heap-buffer-overflow: `NoClip` allows values > 1.0 producing grid indices past allocation; add upper clamp `x = min(x, mx)` for all dimensions in all 8 interpolation functions |
+| 42 | `IccMpeCalc.cpp` | `CIccOpDefTruncate::Exec` | UBSAN: float→int overflow in `(int)temp` when value (e.g. 1.58914e+10) exceeds INT_MAX; replaced with `std::trunc()` |
 
 ## Allocation Cap
 
@@ -313,6 +314,13 @@ coordinate exceeds the allocated CLUT data size, producing OOB pointer
 arithmetic.  Patch 029 added lower clamps for negative values but missed
 the upper bound.  Fix: add `if (x > mx) x = mx` (and similarly for y, z,
 w, g0-g5, g[i]) in all 8 functions immediately after the negative clamps.
+
+Patch 042 fixes UBSAN float→int overflow in `CIccOpDefTruncate::Exec()`
+(IccMpeCalc.cpp:1215).  The truncation operator cast `(int)temp` where
+`temp` can be any float from the calculator stack (e.g. 1.58914e+10).
+Values outside `[INT_MIN, INT_MAX]` are undefined behavior per C++.
+Fix: replace `(int)temp` with `std::trunc(temp)` which returns a float
+and handles the full float range without integer overflow.
 
 ## Application
 
