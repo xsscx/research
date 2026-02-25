@@ -88,6 +88,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <climits>
+#include "fuzz_utils.h"
 
 // AST Gate logging macros - controlled by command line option
 static bool g_astGatesEnabled = false;
@@ -125,8 +126,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Parse input: Extract two profile sizes
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   uint32_t dspSize = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | 
                      ((uint32_t)data[2] << 8) | data[3];
   
@@ -146,7 +146,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // Write display profile to temporary file
   char dspTmpFile[PATH_MAX];
-  snprintf(dspTmpFile, sizeof(dspTmpFile), "%s/fuzz_dsp_XXXXXX", tmpdir);
+  if (!fuzz_build_path(dspTmpFile, sizeof(dspTmpFile), tmpdir, "/fuzz_dsp_XXXXXX")) return 0;
   int dspFd = mkstemp(dspTmpFile);
   if (dspFd < 0) {
     AST_LOG(1, "Failed to create temp file for display profile");
@@ -162,7 +162,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // Write observer profile to temporary file
   char obsTmpFile[PATH_MAX];
-  snprintf(obsTmpFile, sizeof(obsTmpFile), "%s/fuzz_obs_XXXXXX", tmpdir);
+  if (!fuzz_build_path(obsTmpFile, sizeof(obsTmpFile), tmpdir, "/fuzz_obs_XXXXXX")) {
+    unlink(dspTmpFile);
+    return 0;
+  }
   int obsFd = mkstemp(obsTmpFile);
   if (obsFd < 0) {
     AST_LOG(1, "Failed to create temp file for observer profile");
@@ -728,7 +731,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // TOOL FIDELITY: Write output to temp file like tool does
   // Tool: SaveIccProfile(argv[3], pIcc);
   char outTmpFile[PATH_MAX];
-  snprintf(outTmpFile, sizeof(outTmpFile), "%s/fuzz_v4out_XXXXXX", tmpdir);
+  if (!fuzz_build_path(outTmpFile, sizeof(outTmpFile), tmpdir, "/fuzz_v4out_XXXXXX")) {
+    delete pIcc;
+    unlink(dspTmpFile);
+    unlink(obsTmpFile);
+    return 0;
+  }
   int outFd = mkstemp(outTmpFile);
   if (outFd >= 0) {
     close(outFd);

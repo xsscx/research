@@ -42,6 +42,7 @@
 #include "IccCmm.h"
 #include "IccUtil.h"
 #include <climits>
+#include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 130 || size > 1024 * 1024) return 0;
@@ -52,10 +53,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   icXformInterp interp = icInterpLinear;
   
   // Write the COMPLETE profile without modification
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   char tmp_file[PATH_MAX];
-  snprintf(tmp_file, sizeof(tmp_file), "%s/fuzz_apply_XXXXXX", tmpdir);
+  if (!fuzz_build_path(tmp_file, sizeof(tmp_file), tmpdir, "/fuzz_apply_XXXXXX")) return 0;
   int fd = mkstemp(tmp_file);
   if (fd == -1) return 0;
   write(fd, data, size);

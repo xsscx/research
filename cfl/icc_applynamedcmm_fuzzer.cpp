@@ -46,6 +46,7 @@
 #include "IccApplyBPC.h"
 #include "IccEnvVar.h"
 #include <climits>
+#include "fuzz_utils.h"
 
 // Fuzzer input structure (packed):
 // [0-3]: Profile data (remaining bytes)
@@ -75,18 +76,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool useV5SubProfile = (flags & 0x08) != 0;
   icXformInterp interp = ((flags >> 4) & 0x01) ? icInterpTetrahedral : icInterpLinear;
   icRenderingIntent intent = (icRenderingIntent)(data[1] & 0x03);
-  icFloatColorEncoding srcEncoding = (icFloatColorEncoding)(data[2] % 7);
-  icFloatColorEncoding dstEncoding = (icFloatColorEncoding)(data[3] % 7);
+  (void)(data[2] % 7);  // srcEncoding: reserved for future use
+  (void)(data[3] % 7);  // dstEncoding: reserved for future use
 
   // Profile data starts at offset 4
   const uint8_t *profile_data = data + 4;
   size_t profile_size = size - 4;
 
   // Write profile to temporary file
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   char tmp_profile[PATH_MAX];
-  snprintf(tmp_profile, sizeof(tmp_profile), "%s/fuzz_namedcmm_XXXXXX", tmpdir);
+  if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_namedcmm_XXXXXX")) return 0;
   int fd = mkstemp(tmp_profile);
   if (fd == -1) return 0;
   

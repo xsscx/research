@@ -49,6 +49,8 @@
 #include "IccMpeBasic.h"
 #include "IccUtil.h"
 
+#include "fuzz_utils.h"
+
 // ═══════════════════════════════════════════════════════════════════
 // CubeFile class — EXACT COPY from iccFromCube.cpp (iccDEV upstream)
 // Parses .cube 3D LUT files used in video/color grading
@@ -318,10 +320,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Write fuzzer data to temp file (CubeFile reads from file)
   // Use FUZZ_TMPDIR env var to redirect temp I/O to ramdisk
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   char temp_input[PATH_MAX];
-  snprintf(temp_input, sizeof(temp_input), "%s/fuzz_fromcube_XXXXXX", tmpdir);
+  if (!fuzz_build_path(temp_input, sizeof(temp_input), tmpdir, "/fuzz_fromcube_XXXXXX")) return 0;
   int fd = mkstemp(temp_input);
   if (fd == -1) return 0;
 
@@ -364,8 +365,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Create A2B0 Tag with LUT
   CIccTagMultiProcessElement* pTag = new CIccTagMultiProcessElement(3, 3);
   if (cube.isCustomInputRange()) {
-    icFloatNumber* minVal = cube.getMinInput();
-    icFloatNumber* maxVal = cube.getMaxInput();
+    // Copy values to avoid holding raw pointers to CubeFile internals
+    icFloatNumber minVal[3], maxVal[3];
+    memcpy(minVal, cube.getMinInput(), sizeof(minVal));
+    memcpy(maxVal, cube.getMaxInput(), sizeof(maxVal));
     CIccMpeCurveSet* pCurves = new CIccMpeCurveSet(3);
 
     // Each channel gets its own curve to avoid double-free from shared ownership
@@ -425,7 +428,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Write to temp output file (replaces argv[2])
   char temp_output[PATH_MAX];
-  snprintf(temp_output, sizeof(temp_output), "%s/fuzz_fromcube_out_XXXXXX", tmpdir);
+  if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromcube_out_XXXXXX")) {
+    unlink(temp_input);
+    return 0;
+  }
   int out_fd = mkstemp(temp_output);
   if (out_fd != -1) {
     close(out_fd);
