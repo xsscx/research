@@ -95,10 +95,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         cmm.Apply(bounds_out + 3, bounds + 3);
         
         // Exercise CMM chain info
-        cmm.GetNumXforms();
-        cmm.GetSourceSpace();
-        cmm.GetDestSpace();
-        cmm.Valid();
+        (void)cmm.GetNumXforms();
+        (void)cmm.GetSourceSpace();
+        (void)cmm.GetDestSpace();
+        (void)cmm.Valid();
       }
     }
   }

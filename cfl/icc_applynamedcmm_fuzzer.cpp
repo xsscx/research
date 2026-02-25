@@ -102,7 +102,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   icColorSpaceSignature dstSpace = colorSpaces[dstSpaceIdx % 12];
   
   // Interface type hint (not enforced, determined by profile)
-  uint8_t interfaceHint = data[6] & 0x03;
+  (void)(data[6] & 0x03);
 
   // Write profile data to temporary file
   const uint8_t *profile_data = data + 10;
@@ -344,12 +344,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Exercise CMM query methods (mirrors IccApplyNamedCmm usage)
-  namedCmm.GetNumXforms();
-  namedCmm.Valid();
-  namedCmm.GetSourceSpace();
-  namedCmm.GetDestSpace();
-  namedCmm.GetLastSpace();
-  namedCmm.GetLastParentSpace();
+  (void)namedCmm.GetNumXforms();
+  (void)namedCmm.Valid();
+  (void)namedCmm.GetSourceSpace();
+  (void)namedCmm.GetDestSpace();
+  (void)namedCmm.GetLastSpace();
+  (void)namedCmm.GetLastParentSpace();
   
   // Test encoding conversion functions (mirrors lines 489, 523, 541)
   // These are critical paths that handle different encoding formats

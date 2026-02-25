@@ -183,10 +183,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // Pre-validate ICC header before calling ReadIccProfile
   // Check that internal size field matches actual file size
-  if (dspSize >= 4) {
+  // Note: dspSize >= 128 is enforced earlier
+  {
     uint32_t internalSize = ((uint32_t)dspData[0] << 24) | ((uint32_t)dspData[1] << 16) |
                             ((uint32_t)dspData[2] << 8) | dspData[3];
-    if (internalSize != dspSize || internalSize > 50 * 1024 * 1024) {
+    if (internalSize != dspSize) {
       AST_LOG(2, "Profile size mismatch: header says %u, actual %u", internalSize, dspSize);
       AST_LOG(2, "Tool would reject during parse - prevents OOM from malformed headers");
       unlink(dspTmpFile);
@@ -204,14 +205,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (tagCount == 0 || tagCount > 256) {
       AST_LOG(2, "Invalid tag count: %u (must be 1-256)", tagCount);
       AST_LOG(2, "Tool would reject during parse - prevents malformed profile processing");
-      unlink(dspTmpFile);
-      unlink(obsTmpFile);
-      return 0;
-    }
-    
-    // Check for overflow before calculating tag table size
-    if (tagCount > 357913941u) {  // (UINT32_MAX - 132) / 12
-      AST_LOG(2, "Tag count would cause integer overflow: %u", tagCount);
       unlink(dspTmpFile);
       unlink(obsTmpFile);
       return 0;

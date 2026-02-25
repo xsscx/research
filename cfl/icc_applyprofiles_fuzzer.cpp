@@ -61,7 +61,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Extract fuzzing parameters from control data
   icRenderingIntent intent = (icRenderingIntent)(control_data[0] % 4);
   icXformInterp interp = (control_data[1] & 1) ? icInterpLinear : icInterpTetrahedral;
-  bool use_bpc = (control_data[2] & 1) != 0;
   bool use_d2bx = (control_data[3] & 1) != 0;
 
   // Write profile to temporary file
@@ -78,9 +77,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccCmm cmm(icSigUnknownData, icSigUnknownData, true);
   
   CIccCreateXformHintManager hint;
-  if (use_bpc) {
-    // BPC hint would be added here if available
-  }
 
   icStatusCMM stat = cmm.AddXform(tmp_profile, intent, interp, nullptr, 
                                    icXformLutColor, use_d2bx, &hint);
@@ -154,10 +150,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         cmm.Apply(dstPixel, srcPixel);
         
         // Exercise CMM query methods
-        cmm.GetNumXforms();
-        cmm.Valid();
-        cmm.GetLastParentSpace();
-        cmm.GetLastSpace();
+        (void)cmm.GetNumXforms();
+        (void)cmm.Valid();
+        (void)cmm.GetLastParentSpace();
+        (void)cmm.GetLastSpace();
       }
     }
   }

@@ -235,6 +235,25 @@ SEGV on the subsequent `m_pData[]` access.  `Interp2d` already had
 clamping; the fix adds `if (v < 0.0f) v = 0.0f;` guards to Interp1d,
 Interp3dTetra, Interp3d, Interp4d, Interp5d, Interp6d, and InterpND.
 
+Patch 030 fixes UBSAN NaN-to-unsigned cast in sampled curve Apply methods
+(IccMpeBasic.cpp).  `CIccSingleSampledCurve::Apply()` and
+`CIccSampledCalculatorCurve::Apply()` cast the result of curve evaluation
+directly to unsigned, which is undefined when the value is NaN or negative.
+
+Patch 031 fixes heap-buffer-overflow in `CIccMatrixMath::SetRange()`
+(IccMatrixMath.cpp).  The `SetRange()` method miscalculated the copy
+extent, reading beyond the allocated matrix buffer.
+
+Patch 032 fixes heap-buffer-overflow in `CIccCalculatorFunc::ApplySequence()`
+select/case/default operations (IccMpeCalc.cpp).  Array indexing for
+multi-opcode sequences accessed `ops[n+1]` without bounds checking.
+
+Patch 033 fixes multiplication overflow in `CTiffImg::Open()` malloc
+(TiffImg.cpp).  `m_nStripSize * m_nStripSamples` are both `unsigned int`
+and can overflow to a small value, causing a too-small allocation and
+subsequent heap-buffer-overflow.  The fix adds an overflow check before
+each of the two `malloc()` call sites.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
