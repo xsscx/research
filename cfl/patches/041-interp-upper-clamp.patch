@@ -1,0 +1,75 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -2494,6 +2494,7 @@
+   icFloatNumber x = UnitClip(srcPixel[0]) * mx;
+   if (x < 0.0f) x = 0.0f;
++  if (x > (icFloatNumber)mx) x = (icFloatNumber)mx;
+ 
+   icUInt32Number ix = (icUInt32Number)x;
+ 
+@@ -2543,8 +2544,12 @@
+   
+   if (x < 0.0)
+     x = 0.0;
++  if (x > (icFloatNumber)mx)
++    x = (icFloatNumber)mx;
+   if (y < 0.0)
+     y = 0.0;
++  if (y > (icFloatNumber)my)
++    y = (icFloatNumber)my;
+ 
+   icUInt32Number ix = (icUInt32Number)x;
+@@ -2611,6 +2616,9 @@
+   if (x < 0.0f) x = 0.0f;
+   if (y < 0.0f) y = 0.0f;
+   if (z < 0.0f) z = 0.0f;
++  if (x > (icFloatNumber)mx) x = (icFloatNumber)mx;
++  if (y > (icFloatNumber)my) y = (icFloatNumber)my;
++  if (z > (icFloatNumber)mz) z = (icFloatNumber)mz;
+ 
+   icUInt32Number ix = (icUInt32Number)x;
+@@ -2700,6 +2708,9 @@
+   if (x < 0.0f) x = 0.0f;
+   if (y < 0.0f) y = 0.0f;
+   if (z < 0.0f) z = 0.0f;
++  if (x > (icFloatNumber)mx) x = (icFloatNumber)mx;
++  if (y > (icFloatNumber)my) y = (icFloatNumber)my;
++  if (z > (icFloatNumber)mz) z = (icFloatNumber)mz;
+ 
+   icUInt32Number ix = (icUInt32Number)x;
+@@ -2776,6 +2787,10 @@
+   if (x < 0.0f) x = 0.0f;
+   if (y < 0.0f) y = 0.0f;
+   if (z < 0.0f) z = 0.0f;
++  if (w > (icFloatNumber)mw) w = (icFloatNumber)mw;
++  if (x > (icFloatNumber)mx) x = (icFloatNumber)mx;
++  if (y > (icFloatNumber)my) y = (icFloatNumber)my;
++  if (z > (icFloatNumber)mz) z = (icFloatNumber)mz;
+ 
+   icUInt32Number iw = (icUInt32Number)w;
+@@ -2867,6 +2882,11 @@
+   if (g3 < 0.0f) g3 = 0.0f;
+   if (g4 < 0.0f) g4 = 0.0f;
+ 
++  if (g0 > (icFloatNumber)m0) g0 = (icFloatNumber)m0;
++  if (g1 > (icFloatNumber)m1) g1 = (icFloatNumber)m1;
++  if (g2 > (icFloatNumber)m2) g2 = (icFloatNumber)m2;
++  if (g3 > (icFloatNumber)m3) g3 = (icFloatNumber)m3;
++  if (g4 > (icFloatNumber)m4) g4 = (icFloatNumber)m4;
+   icUInt32Number ig0 = (icUInt32Number)g0;
+@@ -2993,6 +3013,12 @@
+   if (g5 < 0.0f) g5 = 0.0f;
+ 
++  if (g0 > (icFloatNumber)m0) g0 = (icFloatNumber)m0;
++  if (g1 > (icFloatNumber)m1) g1 = (icFloatNumber)m1;
++  if (g2 > (icFloatNumber)m2) g2 = (icFloatNumber)m2;
++  if (g3 > (icFloatNumber)m3) g3 = (icFloatNumber)m3;
++  if (g4 > (icFloatNumber)m4) g4 = (icFloatNumber)m4;
++  if (g5 > (icFloatNumber)m5) g5 = (icFloatNumber)m5;
+   icUInt32Number ig0 = (icUInt32Number)g0;
+@@ -3135,6 +3161,7 @@
+     g[i] = UnitClip(srcPixel[i]) * m_MaxGridPoint[i];
+     if (g[i] < 0.0f) g[i] = 0.0f;
++    if (g[i] > (icFloatNumber)m_MaxGridPoint[i]) g[i] = (icFloatNumber)m_MaxGridPoint[i];
+     ig[i] = (icUInt32Number)g[i];
+     s[m_nInput-1-i] = g[i] - ig[i];
