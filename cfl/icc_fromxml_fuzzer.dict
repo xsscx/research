@@ -209,3 +209,9 @@ calc_else="<else>"
 calc_else_end="</else>"
 calc_select="<sel>"
 calc_select_end="</sel>"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00"
+"UTF-16BE"
+"\x01\x00"
+"$\x00\x00\x00\x00\x00\x00\x00"
