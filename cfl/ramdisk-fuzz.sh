@@ -48,7 +48,8 @@ ALL_FUZZERS=(
   icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
+  # icc_spectral_fuzzer  # Variant A — disabled for A/B test, retained in repo
+  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
@@ -135,6 +136,7 @@ declare -A FUZZER_DICTS=(
   [icc_link_fuzzer]="icc_core.dict"
   [icc_roundtrip_fuzzer]="icc_core.dict"
   [icc_spectral_fuzzer]="icc_core.dict"
+  [icc_spectral_b_fuzzer]="icc_core.dict"
   [icc_tiffdump_fuzzer]="icc_core.dict"
   [icc_multitag_fuzzer]="icc_multitag.dict"
   [icc_profile_fuzzer]="icc_profile.dict"

@@ -67,6 +67,7 @@ XML_FUZZERS=(
 # TIFF fuzzers (IccProfLib + TiffImg.o + libtiff)
 TIFF_FUZZERS=(
   icc_specsep_fuzzer
+  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
 )
 
