@@ -1,0 +1,35 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -1207,6 +1207,10 @@ icFloatNumber CIccSampledCurveSegment::Apply(icFloatNumber v) const
+     v=m_endPoint;
+ 
+   icFloatNumber pos = (v-m_startPoint)/m_range * m_last;
++  if (std::isnan(pos) || pos < 0.0f)
++    pos = 0.0f;
++  if (pos > m_last)
++    pos = m_last;
+   icUInt32Number index = (icUInt32Number) pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
+@@ -1830,6 +1834,10 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
+   }
+ 
+   icFloatNumber pos = (v-m_firstEntry)/m_range * m_last;
++  if (std::isnan(pos) || pos < 0.0f)
++    pos = 0.0f;
++  if (pos > m_last)
++    pos = m_last;
+   icUInt32Number index = (icUInt32Number) pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
+@@ -2440,6 +2448,10 @@ icFloatNumber CIccSampledCalculatorCurve::Apply(icFloatNumber v) const
+   }
+ 
+   icFloatNumber pos = (v - m_firstEntry) / m_range * m_last;
++  if (std::isnan(pos) || pos < 0.0f)
++    pos = 0.0f;
++  if (pos > m_last)
++    pos = m_last;
+   icUInt32Number index = (icUInt32Number)pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
