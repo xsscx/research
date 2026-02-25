@@ -80,20 +80,34 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (cmm.AddXform(tmp1, intent, interp) == icCmmStatOk) {
     if (cmm.AddXform(tmp2, intent, interp) == icCmmStatOk) {
       if (cmm.Begin() == icCmmStatOk) {
-        // Test varied color values through chain
-        icFloatNumber in[16] = {0.0, 0.25, 0.5, 0.75, 1.0, 0.0, 0.5, 1.0, 
-                                 0.5, 0.5, 0.5, 0.1, 0.9, 0.3, 0.7, 0.6};
-        icFloatNumber out[16];
-        for (int i = 0; i < 5; i++) {
-          cmm.Apply(out + i * 3, in + i * 3);
+        int nSrc = icGetSpaceSamples(cmm.GetSourceSpace());
+        int nDst = icGetSpaceSamples(cmm.GetDestSpace());
+        if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
+          unlink(tmp1);
+          unlink(tmp2);
+          return 0;
         }
-        
+
+        // Test varied color values through chain
+        icFloatNumber in[16], out[16];
+        for (int i = 0; i < nSrc; i++)
+          in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
+        cmm.Apply(out, in);
+
         // Test boundary values
-        icFloatNumber bounds[] = {-0.1f, 0.0f, 1.0f, 1.1f, 0.5f, 0.5f};
-        icFloatNumber bounds_out[6];
-        cmm.Apply(bounds_out, bounds);
-        cmm.Apply(bounds_out + 3, bounds + 3);
-        
+        for (int i = 0; i < nSrc; i++) in[i] = 0.0f;
+        cmm.Apply(out, in);
+        for (int i = 0; i < nSrc; i++) in[i] = 1.0f;
+        cmm.Apply(out, in);
+
+        // Test mid-range
+        for (int i = 0; i < nSrc; i++) in[i] = 0.5f;
+        cmm.Apply(out, in);
+
+        // Test out-of-gamut values
+        for (int i = 0; i < nSrc; i++) in[i] = (i % 2) ? -0.1f : 1.1f;
+        cmm.Apply(out, in);
+
         // Exercise CMM chain info
         (void)cmm.GetNumXforms();
         (void)cmm.GetSourceSpace();
