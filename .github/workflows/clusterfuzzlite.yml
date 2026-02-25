@@ -160,8 +160,8 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DENABLE_STATIC_LIBS=ON \
@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
-          clang++ -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -frtti \
+          clang++ -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
             -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \

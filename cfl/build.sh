@@ -25,7 +25,7 @@ CXX="${CXX:-clang++}"
 
 # Sanitizer + debug + instrumentation + coverage flags
 COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
-SANITIZER_FLAGS="-fsanitize=address,undefined"
+SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize=fuzzer-no-link"
 FUZZER_FLAGS="-fsanitize=fuzzer,address,undefined"
 COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 
