@@ -19,7 +19,7 @@ Last Updated: 2026-02-24 21:24:00 UTC by David Hoyt
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
 | **Fuzzers** | 17/17 | Build + smoke test pass, aligned to project tool scope |
-| **OOM Patches** | 29 patches | Security fixes in cfl/patches/ |
+| **OOM Patches** | 30 patches | Security fixes in cfl/patches/ |
 
 ## Build
 
