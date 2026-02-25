@@ -249,7 +249,7 @@ build_fuzzer() {
   fi
 }
 
-echo "Core fuzzers (13):"
+echo "Core fuzzers (14):"
 for f in "${CORE_FUZZERS[@]}"; do
   if [ "$f" = "icc_deep_dump_fuzzer" ]; then
     build_fuzzer "$f" "-Wl,--allow-multiple-definition"
@@ -265,7 +265,7 @@ for f in "${XML_FUZZERS[@]}"; do
 done
 
 echo ""
-echo "TIFF fuzzers (2):"
+echo "TIFF fuzzers (3):"
 if [ -f "$TIFFIMG_SRC" ]; then
   mkdir -p "$(dirname "$TIFFIMG_OBJ")"
   echo "  Compiling TiffImg.o..."
