@@ -44,6 +44,7 @@
 #include "IccUtil.h"
 #include "IccDefs.h"
 #include <climits>
+#include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 200 || size > 5 * 1024 * 1024) return 0;
@@ -64,10 +65,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool use_d2bx = (control_data[3] & 1) != 0;
 
   // Write profile to temporary file
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
   char tmp_profile[PATH_MAX];
-  snprintf(tmp_profile, sizeof(tmp_profile), "%s/fuzz_applyprofiles_XXXXXX.icc", tmpdir);
+  if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_applyprofiles_XXXXXX.icc")) return 0;
   int fd = mkstemp(tmp_profile);
   if (fd == -1) return 0;
   write(fd, profile_data, profile_size);

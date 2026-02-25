@@ -67,6 +67,7 @@
 #include <unistd.h>
 #include <climits>
 #include <tiffio.h>
+#include "fuzz_utils.h"
 
 #include "IccProfile.h"
 #include "IccUtil.h"
@@ -86,8 +87,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 4 || size > 1024 * 1024) return 0;
 
-  const char *tmpdir = getenv("FUZZ_TMPDIR");
-  if (!tmpdir) tmpdir = "/tmp";
+  const char *tmpdir = fuzz_tmpdir();
 
   // Parse control byte from end to preserve ICC header at start
   uint8_t ctrl = data[size - 1];
@@ -111,7 +111,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   for (uint8_t i = 0; i < nSamples; i++) {
     char *tf = (char*)malloc(PATH_MAX);
     if (!tf) break;
-    snprintf(tf, PATH_MAX, "%s/fuzz_specb_%d_XXXXXX", tmpdir, i);
+    char suffix[64];
+    snprintf(suffix, sizeof(suffix), "/fuzz_specb_%d_XXXXXX", i);
+    if (!fuzz_build_path(tf, PATH_MAX, tmpdir, suffix)) { free(tf); break; }
     int fd = mkstemp(tf);
     if (fd < 0) { free(tf); break; }
 
@@ -171,7 +173,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Create output TIFF — tool: outfile.Create(argv[1], ...)
   char outpath[PATH_MAX];
-  snprintf(outpath, sizeof(outpath), "%s/fuzz_specb_out_XXXXXX", tmpdir);
+  if (!fuzz_build_path(outpath, sizeof(outpath), tmpdir, "/fuzz_specb_out_XXXXXX")) {
+    for (auto tf : infiles) { unlink(tf); free(tf); }
+    return 0;
+  }
   int outfd = mkstemp(outpath);
   if (outfd < 0) {
     for (auto tf : infiles) { unlink(tf); free(tf); }
