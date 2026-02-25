@@ -215,7 +215,7 @@ jobs:
             fi
             set +e
             clang++ $CXXFLAGS $INCLUDES "$src" \
-              $EXTRA_OBJ $LIBS_BASE $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
+              $EXTRA_OBJ -Wl,--whole-archive $LIBS_BASE -Wl,--no-whole-archive $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
               -o "$OUTDIR/$FNAME" 2>&1
             RC=$?
             set -e

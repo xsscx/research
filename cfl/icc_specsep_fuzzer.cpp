@@ -51,6 +51,8 @@
 
 #include "IccProfile.h"
 #include "IccUtil.h"
+#include "IccIO.h"
+#include "IccTagBasic.h"
 #include "TiffImg.h"
 #include <climits>
 
@@ -198,6 +200,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         std::unique_ptr<unsigned char[]> profile(new unsigned char[profileSize]);
         memcpy(profile.get(), data + profileOffset, profileSize);
         outimg.SetIccProfile(profile.get(), (unsigned int)profileSize);
+
+        // Parse profile through IccProfLib for coverage of tag/validation paths
+        CIccMemIO memIO;
+        if (memIO.Attach(profile.get(), (icUInt32Number)profileSize)) {
+          CIccProfile iccProf;
+          if (iccProf.Read(&memIO)) {
+            std::string report;
+            iccProf.Validate(report);
+            iccProf.FindTag(icSigSpectralViewingConditionsTag);
+            iccProf.FindTag(icSigSpectralDataInfoTag);
+            iccProf.FindTag(icSigProfileDescriptionTag);
+            iccProf.FindTag(icSigAToB0Tag);
+          }
+        }
       }
 
       // Process scanlines

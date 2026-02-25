@@ -231,9 +231,13 @@ build_fuzzer() {
   local PROFRAW_PATH="$PROFRAW_DIR/${name}-%p-%m.profraw"
   local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate=$PROFRAW_PATH -fcoverage-mapping -frtti"
 
+  # Use --whole-archive to ensure all library objects are linked.
+  # Without this, the linker only pulls objects resolving the harness's
+  # direct references, missing coverage for indirectly-called library code
+  # (critical for TIFF fuzzers where TiffImg.o has zero IccProfLib refs).
   if $CXX $CXXFLAGS_THIS $INCLUDE_FLAGS \
     "$SCRIPT_DIR/${name}.cpp" \
-    "$LIB_PROF" \
+    -Wl,--whole-archive "$LIB_PROF" -Wl,--no-whole-archive \
     "${extra_libs[@]}" \
     -o "$OUTPUT_DIR/$name" 2>&1; then
     SIZE=$(ls -lh "$OUTPUT_DIR/$name" | awk '{print $5}')
