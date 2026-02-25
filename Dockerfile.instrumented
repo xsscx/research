@@ -45,8 +45,8 @@ RUN cd /opt/iccdev && mkdir -p build-asan && cd build-asan \
     -DCMAKE_C_COMPILER=clang-18 \
     -DCMAKE_CXX_COMPILER=clang++-18 \
     -DENABLE_TOOLS=ON -DENABLE_TESTS=OFF -Wno-dev \
-    -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \
-    -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \
+    -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer" \
+    -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer" \
     -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
     -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
  && make -j$(nproc)
