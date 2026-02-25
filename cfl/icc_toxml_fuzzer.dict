@@ -419,3 +419,908 @@
 "IccPr"
 "IccP"
 "ISO-1064"
+
+# =============================================================================
+# SECTION: ToXml Coverage Enhancement (auto-generated 2026-02-25)
+# 436 new entries targeting missing tag/type signatures,
+# LUT dimensions, MPE elements, struct members, and edge-case values
+# =============================================================================
+
+
+# --- sig ---
+# sig_icSigMCH1Data
+"1CLR"
+# sig_icSigMCH2Data
+"2CLR"
+# sig_icSigTheImagingFactory
+"32BT"
+# sig_icSigMCH3Data
+"3CLR"
+# sig_icSigMCH4Data
+"4CLR"
+# sig_icSigMCH5Data
+"5CLR"
+# sig_icSigMCH6Data
+"6CLR"
+# sig_icSigMCH7Data
+"7CLR"
+# sig_icSigMCH8Data
+"8CLR"
+# sig_icSigMCH9Data
+"9CLR"
+# sig_icSigUnknownData
+"????"
+# sig_icSigAToB0Tag
+"A2B0"
+# sig_icSigAToB1Tag
+"A2B1"
+# sig_icSigAToB2Tag
+"A2B2"
+# sig_icSigAToB3Tag
+"A2B3"
+# sig_icSigAToM0Tag
+"A2M0"
+# sig_icSigMCHAData
+"ACLR"
+# sig_icSigAgfa
+"ACMS"
+# sig_icSigAdobe
+"ADBE"
+# sig_icSigMacintosh
+"APPL"
+# sig_icSigBToA1Tag
+"B2A1"
+# sig_icSigBToA3Tag
+"B2A3"
+# sig_icSigBToD0Tag
+"B2D0"
+# sig_icSigBToD1Tag
+"B2D1"
+# sig_icSigBToD2Tag
+"B2D2"
+# sig_icSigBToD3Tag
+"B2D3"
+# sig_icSigMCHBData
+"BCLR"
+# sig_icSigBrdfTypeBlinnPhongMono
+"BPh0"
+# sig_icSigBrdfTypeBlinnPhongColor
+"BPh1"
+# sig_icSigMCHCData
+"CCLR"
+# sig_icSigColorGear
+"CCMS"
+# sig_icSigCmykData
+"CMYK"
+# sig_icSigBrdfTypeCookTorranceMono1Lobe
+"CT10"
+# sig_icSigBrdfTypeCookTorranceColor1Lobe
+"CT11"
+# sig_icSigBrdfTypeCookTorranceMono2Lobe
+"CT20"
+# sig_icSigBrdfTypeCookTorranceColor2Lobe
+"CT21"
+# sig_icSigBrdfTypeCookTorranceMono3Lobe
+"CT30"
+# sig_icSigBrdfTypeCookTorranceColor3Lobe
+"CT31"
+# sig_icSigDToB0Tag
+"D2B0"
+# sig_icSigDToB1Tag
+"D2B1"
+# sig_icSigDToB2Tag
+"D2B2"
+# sig_icSigDToB3Tag
+"D2B3"
+# sig_icSigMCHDData
+"DCLR"
+# sig_icSigDemoIccMAX
+"DIMX"
+# sig_icSigDNNP
+"DNNP"
+# sig_icSigMCHEData
+"ECLR"
+# sig_icSigExactScan
+"EXAC"
+# sig_icSigMCHFData
+"FCLR"
+# sig_icSigGrayData
+"GRAY"
+# sig_icSigHToS0Tag
+"H2S0"
+# sig_icSigHToS1Tag
+"H2S1"
+# sig_icSigHToS2Tag
+"H2S2"
+# sig_icSigHToS3Tag
+"H2S3"
+# sig_icSigHarlequinRIP
+"HCMM"
+# sig_icSigEmbeddedV5ProfileTag
+"ICC5"
+# sig_icSigIccDEV
+"ICCD"
+# sig_icSigJabToXYZElemType
+"JtoX"
+# sig_icSigKodak
+"KCMS"
+# sig_icSigPhotoCD
+"KPCD"
+# sig_icSigBrdfTypeLafortuneMono1Lobe
+"La10"
+# sig_icSigBrdfTypeLafortuneColor1Lobe
+"La11"
+# sig_icSigBrdfTypeLafortuneMono2Lobe
+"La20"
+# sig_icSigBrdfTypeLafortuneColor2Lobe
+"La21"
+# sig_icSigBrdfTypeLafortuneMono3Lobe
+"La30"
+# sig_icSigBrdfTypeLafortuneColor3Lobe
+"La31"
+# sig_icSigLogoSync
+"LgoS"
+# sig_icSigLinoColor
+"Lino"
+# sig_icSigMToA0Tag
+"M2A0"
+# sig_icSigMToB0Tag
+"M2B0"
+# sig_icSigMToB1Tag
+"M2B1"
+# sig_icSigMToB2Tag
+"M2B2"
+# sig_icSigMToB3Tag
+"M2B3"
+# sig_icSigMToS0Tag
+"M2S0"
+# sig_icSigMToS1Tag
+"M2S1"
+# sig_icSigMToS2Tag
+"M2S2"
+# sig_icSigMToS3Tag
+"M2S3"
+# sig_icSigKonicaMinolta
+"MCML"
+# sig_icSigMicrosoftCMM
+"MSFT"
+# sig_icSigOnyxGraphics
+"ONYX"
+# sig_icSigRolfGierling
+"RGMS"
+# sig_icSigRefIccMAX
+"RIMX"
+# sig_icSigSampleICC
+"SICC"
+# sig_icSigMutoh
+"SIGN"
+# sig_icSigSolaris
+"SUNW"
+# sig_icSigStatusA
+"StaA"
+# sig_icSigStatusE
+"StaE"
+# sig_icSigStatusI
+"StaI"
+# sig_icSigStatusM
+"StaM"
+# sig_icSigStatusT
+"StaT"
+# sig_icSigToshiba
+"TCMM"
+# sig_icSigTaligent
+"TGNT"
+# sig_icSigColorGearLite
+"UCCM"
+# sig_icSigColorGearC
+"UCMS"
+# sig_icSigVivo
+"VIVO"
+# sig_icSigBrdfTypeWardMono
+"War0"
+# sig_icSigBrdfTypeWardColor
+"War1"
+# sig_icSigXYZToJabElemType
+"XtoJ"
+# sig_icSigYCbCrData
+"YCbr"
+# sig_icSigAbstractClass
+"abst"
+# sig_acsp
+"acsp"
+# sig_icSigApple
+"appl"
+# sig_icSigArgyllCMS
+"argl"
+# sig_icSigPinfAttributesMbr
+"attr"
+# sig_icSigBRDFAToB0Tag
+"bAB0"
+# sig_icSigBRDFAToB1Tag
+"bAB1"
+# sig_icSigBRDFAToB2Tag
+"bAB2"
+# sig_icSigBRDFAToB3Tag
+"bAB3"
+# sig_icSigBAcsElemType
+"bACS"
+# sig_icSigBRDFDToB0Tag
+"bDB0"
+# sig_icSigBRDFDToB1Tag
+"bDB1"
+# sig_icSigBRDFDToB2Tag
+"bDB2"
+# sig_icSigBRDFDToB3Tag
+"bDB3"
+# sig_icSigBRDFMToB0Tag
+"bMB0"
+# sig_icSigBRDFMToB1Tag
+"bMB1"
+# sig_icSigBRDFMToB2Tag
+"bMB2"
+# sig_icSigBRDFMToB3Tag
+"bMB3"
+# sig_icSigBRDFMToS0Tag
+"bMS0"
+# sig_icSigBRDFMToS1Tag
+"bMS1"
+# sig_icSigBRDFMToS2Tag
+"bMS2"
+# sig_icSigBRDFMToS3Tag
+"bMS3"
+# sig_icSigBlueTRCTag
+"bTRC"
+# sig_icSigCeptBluePrimaryXYZMbr
+"bXYZ"
+# sig_icSigNmclBrdfColorimetricMbr
+"bcol"
+# sig_icSigBrdfColorimetricParameter0Tag
+"bcp0"
+# sig_icSigBrdfColorimetricParameter1Tag
+"bcp1"
+# sig_icSigBrdfColorimetricParameter2Tag
+"bcp2"
+# sig_icSigBrdfColorimetricParameter3Tag
+"bcp3"
+# sig_icSigNmclBrdfColorimetricParamsMbr
+"bcpr"
+# sig_icSigMediaBlackPointTag
+"bkpt"
+# sig_icSigBRDFStruct
+"brdf"
+# sig_icSigBrdfSpectralParameter0Tag
+"bsp0"
+# sig_icSigBrdfSpectralParameter1Tag
+"bsp1"
+# sig_icSigBrdfSpectralParameter2Tag
+"bsp2"
+# sig_icSigBrdfSpectralParameter3Tag
+"bsp3"
+# sig_icSigNmclBrdfSpectralMbr
+"bspc"
+# sig_icSigNmclBrdfSpectralParamsMbr
+"bspr"
+# sig_icSigCustomToStandardPccTag
+"c2sp"
+# sig_icSigCalibrationDateTimeTag
+"calt"
+# sig_icSigColorEncodingClass
+"cenc"
+# sig_icSigColorEncodingParamsSruct
+"cept"
+# sig_icSigChromaticAdaptationTag
+"chad"
+# sig_icSigChromaticityType
+"chrm"
+# sig_icSigCicpType
+"cicp"
+# sig_icSigColorimetricIntentImageStateTag
+"ciis"
+# sig_icSigColorantInfoArray
+"cinf"
+# sig_icSigSampledCalculatorCurve
+"clcf"
+# sig_icSigColorantInfoTag
+"clin"
+# sig_icSigColorantInfoOutTag
+"clio"
+# sig_icSigColorantOrderOutTag
+"cloo"
+# sig_icSigColorantTableOutTag
+"clot"
+# sig_icSigColorantOrderType
+"clro"
+# sig_icSigCLutElemType
+"clut"
+# sig_icSigBRDFFunctionColor
+"colr"
+# sig_icSigCopyrightTag
+"cprt"
+# sig_icSigColorSpaceNameTag
+"csnm"
+# sig_icSigCurveType
+"curv"
+# sig_icSigCurveSetElemType
+"cvst"
+# sig_icSigDevLabData
+"dLab"
+# sig_icSigDevXYZData
+"dXYZ"
+# sig_icSigDataType
+"data"
+# sig_icSigDigitalCamera
+"dcam"
+# sig_icSigDigitalCinemaProjector
+"dcpj"
+# sig_icSigTextDescriptionType
+"desc"
+# sig_icSigDictType
+"dict"
+# sig_icSigPinfModelDescMbr
+"dmdd"
+# sig_icSigPinfManufacturerDescMbr
+"dmnd"
+# sig_icSigPinfManufacturerSigMbr
+"dmns"
+# sig_icSigDigitalMotionPictureCamera
+"dmpc"
+# sig_icSigDeviceMediaWhitePointTag
+"dmwp"
+# sig_icSigDyeSublimationPrinter
+"dsub"
+# sig_icSigDateTimeType
+"dtim"
+# sig_icSigEAcsElemType
+"eACS"
+# sig_icSigEmissionCLUTElemType
+"eclt"
+# sig_icSigEmbeddedHeightImageType
+"ehim"
+# sig_icSigEmissionMatrixElemType
+"emtx"
+# sig_icSigEmbeddedNormalImageType
+"enim"
+# sig_icSigEmissionObserverElemType
+"eobs"
+# sig_icSigElectrophotographicPrinter
+"epho"
+# sig_icSigElectrostaticPrinter
+"esta"
+# sig_icSigFloat16ArrayType
+"fl16"
+# sig_icSigFloat32ArrayType
+"fl32"
+# sig_icSigFloat64ArrayType
+"fl64"
+# sig_icSigCeptViewingFlareMbr
+"flar"
+# sig_icSigFlexography
+"flex"
+# sig_icSigFocalPlaneColorimetryEstimates
+"fpce"
+# sig_icSigFilmWriter
+"fprn"
+# sig_icSigFilmScanner
+"fscn"
+# sig_icSigCeptTransferFunctionMbr
+"func"
+# sig_icSigGreenTRCTag
+"gTRC"
+# sig_icSigCeptGreenPrimaryXYZMbr
+"gXYZ"
+# sig_icSigGamutData
+"gamt"
+# sig_icSigGamutBoundaryDescription0Tag
+"gbd0"
+# sig_icSigGamutBoundaryDescription1Tag
+"gbd1"
+# sig_icSigGamutBoundaryDescription2Tag
+"gbd2"
+# sig_icSigGamutBoundaryDescription3Tag
+"gbd3"
+# sig_icSigGravure
+"grav"
+# sig_hftn
+"hftn"
+# sig_icSigInvEmissionMatrixElemType
+"iemx"
+# sig_icSigInkJetPrinter
+"ijet"
+# sig_icSigPhotoImageSetter
+"imgs"
+# sig_icSigGrayTRCTag
+"kTRC"
+# sig_icSigLittleCMS
+"lcms"
+# sig_icSigNmclLocalizedNameMbr
+"lcnm"
+# sig_icSigLinkClass
+"link"
+# sig_icSigBrdfLightTransformMbr
+"ltxf"
+# sig_icSigLuminanceTag
+"lumi"
+# sig_icSigToneMapFunction
+"mapf"
+# sig_icSigMatrixElemType
+"matf"
+# sig_icSigMeasBackingMbr
+"mbak"
+# sig_icSigMaterialTypeArrayTag
+"mcta"
+# sig_icSigMeasurementInfoStruct
+"meas"
+# sig_icSigMetaDataTag
+"meta"
+# sig_icSigMeasFlareMbr
+"mflr"
+# sig_icSigLut8Type
+"mft1"
+# sig_icSigMeasGeometryMbr
+"mgeo"
+# sig_icSigMeasIlluminantMbr
+"mill"
+# sig_icSigMeasIlluminantRangeMbr
+"miwr"
+# sig_icSigMaterialLinkClass
+"mlnk"
+# sig_icSigMultiLocalizedUnicodeType
+"mluc"
+# sig_icSigMeasModeMbr
+"mmod"
+# sig_icSigMonaco
+"mnco"
+# sig_icSigDisplayClass
+"mntr"
+# sig_icSigBRDFFunctionMonochrome
+"mono"
+# sig_icSigMotionPictureFilmRecorder
+"mpfr"
+# sig_icSigMotionPictureFilmScanner
+"mpfs"
+# sig_mtyp
+"mtyp"
+# sig_icSigMaterialVisualizationClass
+"mvis"
+# sig_icSigNmclNameMbr
+"name"
+# sig_icSigNotDefVar
+"ndef"
+# sig_icSigNmclNormalMapMbr
+"nmap"
+# sig_icSigNamedColorClass
+"nmcl"
+# sig_icSigBrdfParamsPerChannelMbr
+"nump"
+# sig_icSigOffsetLithography
+"offs"
+# sig_icSigBrdfOutputTransformMbr
+"outx"
+# sig_icSigParametricCurveType
+"para"
+# sig_icSigFormulaCurveSeg
+"parf"
+# sig_icSigPinfProfileDescMbr
+"pdsc"
+# sig_icSigProfileInfoStruct
+"pinf"
+# sig_icSigProjectionTelevision
+"pjtv"
+# sig_icSigPreview0Tag
+"pre0"
+# sig_icSigPreview1Tag
+"pre1"
+# sig_icSigPreview2Tag
+"pre2"
+# sig_icSigPerceptualReferenceMediumGamut
+"prmg"
+# sig_icSigOutputClass
+"prtr"
+# sig_icSigProfileSequceIdType
+"psid"
+# sig_icSigPrintConditionTag
+"ptcn"
+# sig_icSigRedTRCTag
+"rTRC"
+# sig_icSigCeptRedPrimaryXYZMbr
+"rXYZ"
+# sig_icSigReflectanceCLUTElemType
+"rclt"
+# sig_icSigResponseCurveSet16Type
+"rcs2"
+# sig_icSigOutputResponseTag
+"resp"
+# sig_icSigReferenceNameTag
+"rfnm"
+# sig_icSigReflectionHardcopyOriginalColorimet
+"rhoc"
+# sig_icSigPerceptualRenderingIntentGamutTag
+"rig0"
+# sig_icSigSaturationRenderingIntentGamutTag
+"rig2"
+# sig_icSigReflectanceObserverElemType
+"robs"
+# sig_icSigPhotographicPaperPrinter
+"rpho"
+# sig_icSigReflectionPrintOutputColorimetry
+"rpoc"
+# sig_icSigReflectiveScanner
+"rscn"
+# sig_rsln
+"rsln"
+# sig_icSigPinfRenderTransformMbr
+"rtrn"
+# sig_icSigStandardToCustomPccTag
+"s2cp"
+# sig_icSigSampledCurveSeg
+"samf"
+# sig_icSigSceneAppearanceEstimates
+"sape"
+# sig_icSigInputClass
+"scnr"
+# sig_icSigSceneColorimetryEstimates
+"scoe"
+# sig_icSigSpectralDataInfoType
+"sdin"
+# sig_icSigS15Fixed16ArrayType
+"sf32"
+# sig_icSigSilkscreen
+"silk"
+# sig_icSigSurfaceMapTag
+"smap"
+# sig_icSigSparseMatrixElemType
+"smet"
+# sig_icSigSingleSampledCurve
+"sngf"
+# sig_icSigColorSpaceClass
+"spac"
+# sig_icSigTnt0SpectralOverBlackMbr
+"spcb"
+# sig_icSigTnt0SpectralOverGrayMbr
+"spcg"
+# sig_icSigTnt0SpectralDataMbr
+"spec"
+# sig_icSigSpectralViewingConditionsType
+"svcn"
+# sig_icSigCharTargetTag
+"targ"
+# sig_icSigTagArrayType
+"tary"
+# sig_icSigPinfTechnologyMbr
+"tech"
+# sig_icSigTextType
+"text"
+# sig_icSigNmclTintMbr
+"tint"
+# sig_icSigToneMapElemType
+"tmap"
+# sig_icSigTintZeroStruct
+"tnt0"
+# sig_icSigTagStructType
+"tstr"
+# sig_icSigThermalWaxPrinter
+"twax"
+# sig_icSigBrdfTypeMbr
+"type"
+# sig_icSigU16Fixed16ArrayType
+"uf32"
+# sig_icSigUInt8ArrayType
+"ui08"
+# sig_icSigUInt16ArrayType
+"ui16"
+# sig_icSigUInt32ArrayType
+"ui32"
+# sig_icSigUInt64ArrayType
+"ui64"
+# sig_icSigUtf16TextType
+"ut16"
+# sig_icSigUtf8TextTypeArray
+"utf8"
+# sig_icSigVideoCamera
+"vidc"
+# sig_icSigVideoMonitor
+"vidm"
+# sig_icSigViewingConditionsType
+"view"
+# sig_icSigViewingCondDescTag
+"vued"
+# sig_icSigMediaWhitePointTag
+"wtpt"
+# sig_icSigExtCLutElemType
+"xclt"
+# sig_icSigBrdfTransformMbr
+"xfrm"
+# sig_icSigZoran
+"zc00"
+# sig_icSigZipXmlType
+"zxml"
+# sig_type_sf32
+"\x73\x66\x33\x32"
+# sig_type_uf32
+"\x75\x66\x33\x32"
+# sig_type_ui08
+"\x75\x69\x30\x38"
+# sig_type_ui16
+"\x75\x69\x31\x36"
+# sig_type_ui32
+"\x75\x69\x33\x32"
+# sig_type_ui64
+"\x75\x69\x36\x34"
+# sig_type_fl16
+"\x66\x6c\x31\x36"
+# sig_type_fl32
+"\x66\x6c\x33\x32"
+# sig_type_fl64
+"\x66\x6c\x36\x34"
+# sig_type_mAB
+"\x6d\x41\x42\x20"
+# sig_type_mBA
+"\x6d\x42\x41\x20"
+# sig_type_mft1
+"\x6d\x66\x74\x31"
+# sig_type_mft2
+"\x6d\x66\x74\x32"
+# sig_type_mpet
+"\x6d\x70\x65\x74"
+# sig_type_mluc
+"\x6d\x6c\x75\x63"
+# sig_type_ncl2
+"\x6e\x63\x6c\x32"
+# sig_type_nmcl
+"\x6e\x6d\x63\x6c"
+# sig_type_desc
+"\x64\x65\x73\x63"
+# sig_type_text
+"\x74\x65\x78\x74"
+# sig_type_sig
+"\x73\x69\x67\x20"
+# sig_type_XYZ
+"\x58\x59\x5a\x20"
+# sig_type_curv
+"\x63\x75\x72\x76"
+# sig_type_para
+"\x70\x61\x72\x61"
+# sig_type_dict
+"\x64\x69\x63\x74"
+# sig_type_dtim
+"\x64\x74\x69\x6d"
+# sig_type_meas
+"\x6d\x65\x61\x73"
+# sig_type_view
+"\x76\x69\x65\x77"
+# sig_type_chrm
+"\x63\x68\x72\x6d"
+# sig_type_cicp
+"\x63\x69\x63\x70"
+# sig_type_smAt
+"\x73\x6d\x41\x74"
+# sig_type_clro
+"\x63\x6c\x72\x6f"
+# sig_type_clrt
+"\x63\x6c\x72\x74"
+# sig_type_sdin
+"\x73\x64\x69\x6e"
+# sig_type_svcn
+"\x73\x76\x63\x6e"
+# sig_type_rcs2
+"\x72\x63\x73\x32"
+# sig_type_data
+"\x64\x61\x74\x61"
+# sig_type_psid
+"\x70\x73\x69\x64"
+# sig_type_psd
+"\x70\x73\x64\x20"
+# sig_type_strt
+"\x73\x74\x72\x74"
+# sig_type_arry
+"\x61\x72\x72\x79"
+# sig_type_ut8
+"\x75\x74\x38\x20"
+# sig_type_zt8
+"\x7a\x74\x38\x20"
+# sig_type_zxml
+"\x7a\x78\x6d\x6c"
+# sig_type_u16t
+"\x75\x31\x36\x74"
+# sig_type_embd
+"\x65\x6d\x62\x64"
+# sig_type_ehim
+"\x65\x68\x69\x6d"
+# sig_type_enim
+"\x65\x6e\x69\x6d"
+# sig_type_tmap
+"\x74\x6d\x61\x70"
+# sig_type_gbd
+"\x67\x62\x64\x20"
+
+# --- mpe ---
+# mpe_CurveSet
+"\x63\x76\x73\x74"
+# mpe_Matrix
+"\x6d\x61\x74\x66"
+# mpe_CLUT
+"\x63\x6c\x75\x74"
+# mpe_BAcs
+"\x62\x41\x43\x53"
+# mpe_EAcs
+"\x65\x41\x43\x53"
+# mpe_Calculator
+"\x63\x61\x6c\x63"
+# mpe_TintArray
+"\x74\x69\x6e\x74"
+# mpe_JabToXYZ
+"\x4a\x74\x6f\x58"
+# mpe_XYZToJab
+"\x58\x74\x6f\x4a"
+# mpe_EmissionMatrix
+"\x65\x6d\x74\x78"
+# mpe_InvEmMatrix
+"\x69\x65\x6d\x78"
+# mpe_EmissionCLUT
+"\x65\x63\x6c\x54"
+# mpe_ReflectanceCLUT
+"\x72\x63\x6c\x54"
+# mpe_EmissionObserver
+"\x65\x6f\x62\x73"
+# mpe_ReflObserver
+"\x72\x6f\x62\x73"
+# mpe_ExtCLUT
+"\x78\x63\x6c\x54"
+
+# --- para ---
+# para_func_1
+"\x00\x01"
+# para_func_3
+"\x00\x03"
+# para_func_4
+"\x00\x04"
+# para_func_5
+"\x00\x05"
+# para_func_6
+"\x00\x06"
+# para_func_7
+"\x00\x07"
+# para_func_8
+"\x00\x08"
+# para_func_9
+"\x00\x09"
+# para_func_10
+"\x00\x0a"
+# para_func_11
+"\x00\x0b"
+# para_func_12
+"\x00\x0c"
+
+# --- tagsize ---
+# tagsize_1
+"\x00\x00\x00\x01"
+# tagsize_4
+"\x00\x00\x00\x04"
+# tagsize_8
+"\x00\x00\x00\x08"
+# tagsize_12
+"\x00\x00\x00\x0c"
+# tagsize_16
+"\x00\x00\x00\x10"
+# tagsize_20
+"\x00\x00\x00\x14"
+# tagsize_24
+"\x00\x00\x00\x18"
+# tagsize_28
+"\x00\x00\x00\x1c"
+# tagsize_32
+"\x00\x00\x00\x20"
+# tagsize_44
+"\x00\x00\x00\x2c"
+# tagsize_48
+"\x00\x00\x00\x30"
+# tagsize_52
+"\x00\x00\x00\x34"
+# tagsize_128
+"\x00\x00\x00\x80"
+# tagsize_256
+"\x00\x00\x01\x00"
+# tagsize_512
+"\x00\x00\x02\x00"
+# tagsize_1024
+"\x00\x00\x04\x00"
+
+# --- lut ---
+# lut_dim_1
+"\x01"
+# lut_dim_2
+"\x02"
+# lut_dim_3
+"\x03"
+# lut_dim_4
+"\x04"
+# lut_dim_8
+"\x08"
+# lut_dim_16
+"\x10"
+# lut_dim_33
+"\x21"
+# lut_dim_51
+"\x33"
+# lut_dim_255
+"\xff"
+
+# --- channels ---
+# channels_5
+"\x05"
+# channels_6
+"\x06"
+# channels_7
+"\x07"
+# channels_9
+"\x09"
+# channels_10
+"\x0a"
+# channels_11
+"\x0b"
+# channels_12
+"\x0c"
+# channels_13
+"\x0d"
+# channels_14
+"\x0e"
+# channels_15
+"\x0f"
+
+# --- ncurves32 ---
+# ncurves32_3
+"\x00\x00\x00\x03"
+
+# --- ncurves ---
+# ncurves_16
+"\x00\x10"
+
+# --- grid ---
+# grid_17
+"\x11"
+# grid_65
+"\x41"
+# grid_129
+"\x81"
+
+# --- struct ---
+# struct_bref
+"\x62\x72\x65\x66"
+# struct_cept
+"\x63\x65\x70\x74"
+# struct_cinf
+"\x63\x69\x6e\x66"
+# struct_tnt0
+"\x74\x6e\x74\x30"
+# struct_tnt1
+"\x74\x6e\x74\x31"
+# struct_tnt2
+"\x74\x6e\x74\x32"
+
+# --- mluc ---
+# mluc_en_US
+"\x65\x6e\x55\x53"
+# mluc_de_DE
+"\x64\x65\x44\x45"
+# mluc_ja_JP
+"\x6a\x61\x4a\x50"
+# mluc_zh_CN
+"\x7a\x68\x43\x4e"
+
+# --- dict ---
+# dict_name_value
+"\x6e\x6d\x76\x6c"
+# dict_display
+"\x64\x73\x6e\x6d"
+
+# --- float ---
+# float_nan
+"\x7f\xc0\x00\x00"
+# float_inf
+"\x7f\x80\x00\x00"
+# float_neg_inf
+"\xff\x80\x00\x00"
+# float_neg_zero
+"\x80\x00\x00\x00"
+# float_max_float
+"\x7f\x7f\xff\xff"
