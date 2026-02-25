@@ -8,13 +8,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CFL_DIR="$REPO_ROOT/cfl"
 FUZZ_BASE="$REPO_ROOT/../fuzz"
 
 echo "═══════════════════════════════════════════════════════"
 echo "  Fuzzer Corpus Seeding - CFL Campaign"
 echo "═══════════════════════════════════════════════════════"
 echo ""
-echo "Script Dir: $SCRIPT_DIR"
+echo "CFL Dir: $CFL_DIR"
 echo "Repo Root: $REPO_ROOT"
 echo "Fuzz Base: $FUZZ_BASE"
 echo ""
@@ -50,7 +51,7 @@ FUZZERS=(
 
 echo "Creating seed corpus directories..."
 for fuzzer in "${FUZZERS[@]}"; do
-    mkdir -p "$SCRIPT_DIR/${fuzzer}_seed_corpus"
+    mkdir -p "$CFL_DIR/${fuzzer}_seed_corpus"
     echo "  [OK] $fuzzer"
 done
 echo ""
@@ -65,7 +66,7 @@ if [ -d "$FUZZ_BASE/graphics/icc" ]; then
             
             # Copy to profile-based fuzzers
             for fuzzer in icc_profile_fuzzer icc_io_fuzzer icc_dump_fuzzer icc_deep_dump_fuzzer icc_roundtrip_fuzzer icc_apply_fuzzer icc_applyprofiles_fuzzer icc_applynamedcmm_fuzzer icc_calculator_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_spectral_fuzzer icc_spectral_b_fuzzer icc_v5dspobs_fuzzer; do
-                cp "$icc_file" "$SCRIPT_DIR/${fuzzer}_seed_corpus/$basename_file"
+                cp "$icc_file" "$CFL_DIR/${fuzzer}_seed_corpus/$basename_file"
             done
             ICC_COUNT=$((ICC_COUNT + 1))
         fi
@@ -86,7 +87,7 @@ if [ -d "$FUZZ_BASE/xml/icc" ]; then
             
             # Copy to XML fuzzers
             for fuzzer in icc_fromxml_fuzzer icc_toxml_fuzzer; do
-                cp "$xml_file" "$SCRIPT_DIR/${fuzzer}_seed_corpus/$basename_file"
+                cp "$xml_file" "$CFL_DIR/${fuzzer}_seed_corpus/$basename_file"
             done
             XML_COUNT=$((XML_COUNT + 1))
         fi
@@ -102,7 +103,7 @@ echo "Seeding spectral fuzzer with TIFF files..."
 TIFF_COUNT=0
 if [ -d "$FUZZ_BASE/graphics/tiff" ]; then
     find "$FUZZ_BASE/graphics/tiff" -type f \( -name "*.tiff" -o -name "*.tif" \) -print0 2>/dev/null | while IFS= read -r -d '' tiff_file; do
-        cp "$tiff_file" "$SCRIPT_DIR/icc_specsep_fuzzer_seed_corpus/$(basename "$tiff_file")"
+        cp "$tiff_file" "$CFL_DIR/icc_specsep_fuzzer_seed_corpus/$(basename "$tiff_file")"
         TIFF_COUNT=$((TIFF_COUNT + 1))
     done
     echo "  [OK] Copied $TIFF_COUNT TIFF files to specsep fuzzer"
@@ -119,7 +120,7 @@ echo ""
 printf "%-35s %10s\n" "Fuzzer" "Files"
 echo "───────────────────────────────────────────────────────"
 for fuzzer in "${FUZZERS[@]}"; do
-    count=$(find "$SCRIPT_DIR/${fuzzer}_seed_corpus" -type f 2>/dev/null | wc -l)
+    count=$(find "$CFL_DIR/${fuzzer}_seed_corpus" -type f 2>/dev/null | wc -l)
     printf "%-35s %10d\n" "$fuzzer" "$count"
 done
 echo "───────────────────────────────────────────────────────"
@@ -156,8 +157,8 @@ printf "%-35s %-40s %s\n" "Fuzzer" "Dictionary" "Status"
 echo "───────────────────────────────────────────────────────────────────────────────"
 for fuzzer in "${FUZZERS[@]}"; do
     dict="${FUZZER_DICTS[$fuzzer]}"
-    if [ -f "$SCRIPT_DIR/$dict" ]; then
-        size=$(wc -l < "$SCRIPT_DIR/$dict")
+    if [ -f "$CFL_DIR/$dict" ]; then
+        size=$(wc -l < "$CFL_DIR/$dict")
         printf "%-35s %-40s [OK] (%d entries)\n" "$fuzzer" "$dict" "$size"
     else
         printf "%-35s %-40s [FAIL] MISSING\n" "$fuzzer" "$dict"
@@ -169,7 +170,7 @@ echo ""
 echo "[OK] Seed corpus setup complete!"
 echo ""
 echo "Next steps:"
-echo "  1. Test corpus with: ./test-seed-corpus.sh"
+echo "  1. Test corpus with: .github/scripts/test-seed-corpus.sh"
 echo "  2. Run fuzzers with: make -C ../../Build fuzzer-test"
 echo "  3. Monitor coverage and add more seeds as needed"
 echo ""

@@ -38,7 +38,7 @@ cd colorbleed_tools && make setup && make
 
 ```bash
 cd cfl && ./ramdisk-fuzz.sh     # automated tmpfs workflow
-cat ramdisk-cheatsheet.sh       # copy-paste one-liners
+cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 ```
 
 ## OOM Patch Kit

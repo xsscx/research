@@ -6,7 +6,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="$SCRIPT_DIR/../../Build/Testing/Fuzzing"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CFL_DIR="$REPO_ROOT/cfl"
+BUILD_DIR="$CFL_DIR/bin"
 
 echo "═══════════════════════════════════════════════════════"
 echo "  Fuzzer Seed Corpus Test"
@@ -83,7 +85,7 @@ for fuzzer in "${FUZZERS[@]}"; do
     
     # Check dictionary
     dict="${FUZZER_DICTS[$fuzzer]}"
-    if [ -f "$SCRIPT_DIR/$dict" ]; then
+    if [ -f "$CFL_DIR/$dict" ]; then
         DICT_STATUS="[OK]"
     else
         DICT_STATUS="[FAIL]"
@@ -91,7 +93,7 @@ for fuzzer in "${FUZZERS[@]}"; do
     fi
     
     # Check corpus
-    corpus_dir="$SCRIPT_DIR/${fuzzer}_seed_corpus"
+    corpus_dir="$CFL_DIR/${fuzzer}_seed_corpus"
     if [ -d "$corpus_dir" ]; then
         count=$(find "$corpus_dir" -type f | wc -l)
         if [ "$count" -gt 0 ]; then
@@ -105,7 +107,7 @@ for fuzzer in "${FUZZERS[@]}"; do
     fi
     
     # All checks passed?
-    if [ "$EXE_STATUS" = "[OK]" ] && [ "$DICT_STATUS" = "[OK]" ] && [[ "$CORPUS_STATUS" == [OK]* ]]; then
+    if [ "$EXE_STATUS" = "[OK]" ] && [ "$DICT_STATUS" = "[OK]" ] && [[ "$CORPUS_STATUS" == \[OK\]* ]]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
     fi
     
@@ -127,7 +129,7 @@ if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
     echo "  cd $BUILD_DIR"
     for fuzzer in "${FUZZERS[@]}"; do
         dict="${FUZZER_DICTS[$fuzzer]}"
-        echo "  ./$fuzzer -dict=$SCRIPT_DIR/$dict -max_total_time=5 $SCRIPT_DIR/${fuzzer}_seed_corpus"
+        echo "  ./$fuzzer -dict=$CFL_DIR/$dict -max_total_time=5 $CFL_DIR/${fuzzer}_seed_corpus"
     done
     exit 0
 else
