@@ -350,3 +350,7 @@
 "CC"
 "++"
 "\x00\x00\x00\x00\x00\x00\x02\x9d"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x18s"
+"\xbc\xbe"
