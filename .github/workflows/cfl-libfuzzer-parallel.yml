@@ -151,14 +151,17 @@ jobs:
           sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
           SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer"
+          # fuzzer-no-link adds SanitizerCoverage (trace-pc-guard) to library
+          # without linking fuzzer main — required for libfuzzer-guided coverage
+          LIB_SAN_FLAGS="${SAN_FLAGS} -fsanitize=fuzzer-no-link"
 
           cd Build
           cmake Cmake/ \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_FLAGS="${SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_CXX_FLAGS="${SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_C_FLAGS="${LIB_SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="${LIB_SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_EXE_LINKER_FLAGS="${SAN_FLAGS} -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="${SAN_FLAGS} -fprofile-instr-generate" \
             -DENABLE_STATIC_LIBS=ON \
@@ -173,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
-          SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer"
+          SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer -fsanitize=fuzzer-no-link"
           clang++ ${SAN_FLAGS} -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
