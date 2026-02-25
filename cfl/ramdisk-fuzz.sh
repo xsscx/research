@@ -131,13 +131,9 @@ done
 # Create per-fuzzer dict aliases for fuzzers that share a base dict
 declare -A FUZZER_DICTS=(
   [icc_toxml_fuzzer]="icc_xml_consolidated.dict"
-  [icc_fromxml_fuzzer]="icc_xml_consolidated.dict"
   [icc_io_fuzzer]="icc_core.dict"
-  [icc_link_fuzzer]="icc_core.dict"
   [icc_roundtrip_fuzzer]="icc_core.dict"
   [icc_spectral_fuzzer]="icc_core.dict"
-  [icc_spectral_b_fuzzer]="icc_core.dict"
-  [icc_tiffdump_fuzzer]="icc_core.dict"
   [icc_multitag_fuzzer]="icc_multitag.dict"
   [icc_profile_fuzzer]="icc_profile.dict"
 )
