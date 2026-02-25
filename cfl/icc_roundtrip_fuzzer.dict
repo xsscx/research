@@ -700,3 +700,8 @@
 "\x8c\x13\x03\x00"
 "\x00\x00\x7f\xa9]Y\x02\xf1"
 "MC "
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x03\x44"
+"L\x94\x62"
+"\x09\x00"
