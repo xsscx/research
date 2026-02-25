@@ -1,0 +1,21 @@
+--- a/IccProfLib/IccMatrixMath.cpp	2026-02-24 20:52:04.855344188 -0500
++++ IccProfLib/IccMatrixMath.cpp	2026-02-24 20:52:17.171116763 -0500
+@@ -356,6 +356,9 @@
+   if (m_nRows != dstRange.steps || m_nCols != srcRange.steps)
+     return false;
+ 
++  if (srcRange.steps < 2 || dstRange.steps < 2)
++    return false;
++
+   icUInt16Number d;
+   icFloatNumber srcStart = icF16toF(srcRange.start);
+   icFloatNumber srcEnd = icF16toF(srcRange.end);
+@@ -381,6 +384,8 @@
+     else {
+       icUInt16Number p = (icUInt16Number)((w - srcStart) / srcScale);
+       icFloatNumber p2 = (w - (srcStart + p * srcScale)) / srcScale;
++      if (p >= srcRange.steps - 1)
++        p = srcRange.steps - 2;
+ 
+       if (p2<0.00001) {
+         r[p] = 1.0f;
