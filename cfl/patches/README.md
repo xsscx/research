@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-26 04:40:00 UTC
+Last Updated: 2026-02-25 22:30:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -53,6 +53,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 40 | `IccCmm.cpp` | `CIccPcsXform::Optimize` | Memory leak: identity PCS steps skipped from `newSteps` but never deleted — pointer dropped silently (two sites: inner loop + final element) |
 | 41 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/2d/3dTetra/3d/4d/5d/6d/ND` | Heap-buffer-overflow: `NoClip` allows values > 1.0 producing grid indices past allocation; add upper clamp `x = min(x, mx)` for all dimensions in all 8 interpolation functions |
 | 42 | `IccMpeCalc.cpp` | `CIccOpDefTruncate::Exec` | UBSAN: float→int overflow in `(int)temp` when value (e.g. 1.58914e+10) exceeds INT_MAX; replaced with `std::trunc()` |
+| 43 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SequenceNeedTempReset` | Timeout: crafted calculator ops cause excessive iteration; add 1M ops-processed counter to bound computation |
 
 ## Allocation Cap
 
