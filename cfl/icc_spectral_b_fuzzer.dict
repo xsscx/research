@@ -357,3 +357,250 @@
 "BtoM"
 "MtoS"
 "StoM"
+
+# =============================================================================
+# SECTION 14: Spectral B Fuzzer - Profile Embed & TIFF Path (auto-generated)
+# =============================================================================
+
+# spectral_bsp0
+"\x62\x73\x70\x30"
+# spectral_bsp1
+"\x62\x73\x70\x31"
+# spectral_bsp2
+"\x62\x73\x70\x32"
+# spectral_bsp3
+"\x62\x73\x70\x33"
+# spectral_sdin
+"\x73\x64\x69\x6e"
+# spectral_swpt
+"\x73\x77\x70\x74"
+# spectral_svcn
+"\x73\x76\x63\x6e"
+# spectral_spec
+"\x73\x70\x65\x63"
+# spectral_spcb
+"\x73\x70\x63\x62"
+# spectral_spcg
+"\x73\x70\x63\x67"
+# spectral_bspc
+"\x62\x73\x70\x63"
+# spectral_bspr
+"\x62\x73\x70\x72"
+# specCS_reflectance
+"\x72\x73\x00\x00"
+# specCS_transmision
+"\x74\x73\x00\x00"
+# specCS_radiant
+"\x65\x73\x00\x00"
+# specCS_bispectral
+"\x62\x73\x00\x00"
+# wl_380_780_1
+"\x01\x7c\x03\x0c\x00\x01"
+# wl_380_780_5
+"\x01\x7c\x03\x0c\x00\x05"
+# wl_380_780_10
+"\x01\x7c\x03\x0c\x00\x0a"
+# wl_400_700_10
+"\x01\x90\x02\xbc\x00\x0a"
+# wl_360_830_1
+"\x01\x68\x03\x3e\x00\x01"
+# wl_380_730_10
+"\x01\x7c\x02\xda\x00\x0a"
+# wl_0_0_0
+"\x00\x00\x00\x00\x00\x00"
+# wl_65535_65535_65535
+"\xff\xff\xff\xff\xff\xff"
+# magic_acsp
+"\x61\x63\x73\x70"
+# ver_v2.1
+"\x02\x10\x00\x00"
+# ver_v4.2
+"\x04\x20\x00\x00"
+# ver_v4.3
+"\x04\x30\x00\x00"
+# ver_v4.4
+"\x04\x40\x00\x00"
+# ver_v5.1
+"\x05\x10\x00\x00"
+# class_input
+"\x73\x63\x6e\x72"
+# class_display
+"\x6d\x6e\x74\x72"
+# class_output
+"\x70\x72\x74\x72"
+# class_link
+"\x6c\x69\x6e\x6b"
+# class_abstract
+"\x61\x62\x73\x74"
+# class_colorspace
+"\x73\x70\x61\x63"
+# class_namedcolor
+"\x6e\x6d\x63\x6c"
+# d50_X
+"\x00\x00\xf6\xd6"
+# d50_Y
+"\x00\x01\x00\x00"
+# d50_Z
+"\x00\x00\xd3\x2d"
+# platform_APPL
+"\x41\x50\x50\x4c"
+# platform_MSFT
+"\x4d\x53\x46\x54"
+# platform_SGI
+"\x53\x47\x49\x20"
+# platform_SUNW
+"\x53\x55\x4e\x57"
+# cmm_appl
+"\x61\x70\x70\x6c"
+# cmm_ADBE
+"\x41\x44\x42\x45"
+# cmm_KCMS
+"\x4b\x43\x4d\x53"
+# cmm_lcms
+"\x6c\x63\x6d\x73"
+# type_multiProcessElement
+"\x6d\x70\x65\x74"
+# type_spectralViewingCond
+"\x73\x76\x63\x6e"
+# type_spectralDataInfo
+"\x73\x64\x69\x6e"
+# type_multiLocalizedUnicode
+"\x6d\x6c\x75\x63"
+# type_XYZType
+"\x58\x59\x5a\x20"
+# type_curveType
+"\x63\x75\x72\x76"
+# type_parametricCurve
+"\x70\x61\x72\x61"
+# type_lutAtoBType
+"\x6d\x41\x42\x20"
+# type_lutBtoAType
+"\x6d\x42\x41\x20"
+# type_textType
+"\x74\x65\x78\x74"
+# type_float16ArrayType
+"\x66\x6c\x31\x36"
+# type_float32ArrayType
+"\x66\x6c\x33\x32"
+# type_float64ArrayType
+"\x66\x6c\x36\x34"
+# type_utf8Type
+"\x75\x74\x38\x20"
+# type_sparseMatrixArray
+"\x73\x6d\x41\x74"
+# type_spectralViewCondType
+"\x73\x76\x63\x6e"
+# boundary_size_128
+"\x00\x00\x00\x80"
+# boundary_size_132
+"\x00\x00\x00\x84"
+# boundary_size_144
+"\x00\x00\x00\x90"
+# boundary_size_256
+"\x00\x00\x01\x00"
+# boundary_size_512
+"\x00\x00\x02\x00"
+# boundary_size_1024
+"\x00\x00\x04\x00"
+# boundary_size_4096
+"\x00\x00\x10\x00"
+# boundary_off_128
+"\x00\x00\x00\x80"
+# boundary_off_132
+"\x00\x00\x00\x84"
+# tiff_le
+"\x49\x49"
+# tiff_be
+"\x4d\x4d"
+# tifftag_icc
+"\x73\x87"
+# tifftag_icc_be
+"\x87\x73"
+# photo_palette
+"\x03\x00"
+# float_f_1
+"\x3f\x80\x00\x00"
+# float_f_neg1
+"\xbf\x80\x00\x00"
+# float_f_half
+"\x3f\x00\x00\x00"
+# float_f_100
+"\x42\xc8\x00\x00"
+# float_f_nan
+"\x7f\xc0\x00\x00"
+# float_f_inf
+"\x7f\x80\x00\x00"
+# float_f_neginf
+"\xff\x80\x00\x00"
+# float_f_tiny
+"\x00\x6c\xe3\xee"
+# float_f_huge
+"\x7e\x96\x76\x99"
+# float_f_d50x
+"\x3f\x73\x53\xf8"
+# float_f_d50y
+"\x3f\x80\x00\x00"
+# float_f_d50z
+"\x3f\x8b\x64\x5a"
+# ctrl_1ch_8bit_nocomp
+"\x00"
+# ctrl_8ch_8bit_nocomp
+"\x07"
+# ctrl_1ch_compress
+"\x08"
+# ctrl_1ch_sep
+"\x10"
+# ctrl_1ch_16bit
+"\x20"
+# ctrl_8ch_16bit_all
+"\x3f"
+# ctrl_1ch_dim12
+"\x80"
+# ctrl_1ch_dim16
+"\xc0"
+# ctrl_8ch_all_max
+"\xff"
+# ctrl_4ch_compress_sep
+"\x1b"
+# tagcount_5
+"\x00\x00\x00\x05"
+# tagcount_10
+"\x00\x00\x00\x0a"
+# tagcount_50
+"\x00\x00\x00\x32"
+# tagcount_100
+"\x00\x00\x00\x64"
+# tagcount_255
+"\x00\x00\x00\xff"
+# tagcount_65535
+"\x00\x00\xff\xff"
+# profsize_128
+"\x00\x00\x00\x80"
+# profsize_132
+"\x00\x00\x00\x84"
+# profsize_256
+"\x00\x00\x01\x00"
+# profsize_512
+"\x00\x00\x02\x00"
+# profsize_1024
+"\x00\x00\x04\x00"
+# profsize_2048
+"\x00\x00\x08\x00"
+# profsize_4096
+"\x00\x00\x10\x00"
+# profsize_8192
+"\x00\x00\x20\x00"
+# profsize_65536
+"\x00\x01\x00\x00"
+# s15f16_one
+"\x00\x01\x00\x00"
+# s15f16_half
+"\x00\x00\x80\x00"
+# s15f16_two
+"\x00\x02\x00\x00"
+# s15f16_negone
+"\xff\xff\x00\x00"
+# s15f16_max
+"\x7f\xff\xff\xff"
+# s15f16_min
+"\x80\x00\x00\x00"
