@@ -1,0 +1,359 @@
+# ICC Core Fuzzer Dictionary
+# Consolidated from 7 specialized dictionaries - 722 unique entries
+# Created: 2026-02-03
+# Format: LibFuzzer dictionary (hex escapes for binary data)
+# Governance: FUZZER_DICTIONARY_GOVERNANCE.md compliant
+# Backup: dictionary-backup-20260203-194505/
+
+# =============================================================================
+# SECTION 1: ICC Profile Header Signatures (4-byte tags)
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 2: Color Space Signatures
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 3: ICC Tag Signatures
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 4: Platform/Device Signatures
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 5: Rendering Intent Signatures
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 6: TIFF Byte Order Markers (for specsep fuzzer)
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 7: V5 DSP Observer Tags
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 8: Binary Patterns - 8-byte sequences
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 9: Binary Patterns - 4-byte sequences
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 10: Binary Patterns - 2-byte sequences
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 11: TIFF Tags (from specsep dictionary)
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 12: Mixed ASCII/Binary Patterns (high frequency)
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 13: Size/Length Values (common in ICC structures)
+# =============================================================================
+
+
+# =============================================================================
+# SECTION 14: High-Frequency Fuzzer-Discovered Patterns
+# =============================================================================
+
+
+# NOTE: This is a curated subset. Full 722 entries available in source dictionaries.
+# To regenerate complete list: cat fuzzers/*.dict | grep '^"' | sort -u
+" ab"
+"!YMC"
+"!ba"
+"!baL"
+"2CLR"
+"3CLR"
+"4CLR"
+"5CLR"
+"6CLR"
+"7CLR"
+"8CLR"
+"9CLR"
+";9\xc5\xc5"
+"A2B0"
+"A2B1"
+"A2B2"
+"A2B3"
+"ACLR"
+"ADBE"
+"APPL"
+"B2A0"
+"B2A1"
+"B2A2"
+"B2B1"
+"B2B3"
+"B2D0"
+"B2D1"
+"B2D2"
+"B2D3"
+"BCLR"
+"CCLR"
+"CL"
+"CLR "
+"CLR"
+"CMY "
+"CMYK"
+"DCLR"
+"ECLR"
+"FCLR"
+"Gray"
+"HLS "
+"HSV "
+"II"
+"II+"
+"II\x2a\x00"
+"J\x12\xbe\xa3"
+"LS"
+"Lab "
+"Lab"
+"Lba"
+"Luv "
+"MC"
+"MC7k"
+"MCH"
+"MM"
+"MM\x00+"
+"MM\x00\x2a"
+"MSFT"
+"O%\xb4/"
+"RGB "
+"SGI "
+"SUNW"
+"TGNT"
+"XYZ "
+"YCbr"
+"Yxy "
+"\x00\x00"
+"\x00\x00\x00\x00"
+"\x00\x00\x00\x00\x00\x00\x00\x00"
+"\x00\x00\x00\x00\x00\x00\x00\x10"
+"\x00\x00\x00\x00\x00\x00\x00\x11"
+"\x00\x00\x00\x00\x00\x00\x00\xf6"
+"\x00\x00\x00\x00\x00\x00\x04\x04"
+"\x00\x00\x00\x01"
+"\x00\x00\x00\x02"
+"\x00\x00\x00\x03"
+"\x00\x00\x00\x04"
+"\x00\x01"
+"\x00\x2a"
+"\x00\x2b"
+"\x01\x00"
+"\x01\x00\x00\x00"
+"\x01\x00\x00\x00\x00\x00\x00G"
+"\x01\x00\x00\x00\x00\x00\x00\x00"
+"\x01\x00\x00\x00\x00\x00\x00\x07"
+"\x01\x00\x00\x00\x00\x00\x00\x10"
+"\x01\x00\x00\x00\x00\x00\x00\x14"
+"\x01\x00\x00\x00\x00\x00\x01\x81"
+"\x01\x00\x00\x00\x00\x00\xc7\x7f"
+"\x01\x01"
+"\x02\x00"
+"\x02\x00\x00\x00"
+"\x02\x00\x00\x00\x00\x00\x00\x00"
+"\x02\x01"
+"\x03\x00\x00\x00"
+"\x03\x00\x00\x00\x00\x00\x00\x00"
+"\x03\x01"
+"\x04\x00\x00\x00"
+"\x04\x00\x00\x00\x00\x00\x00\x00"
+"\x05\x00\x00\x00"
+"\x05\x00\x00\x00\x00\x00\x00\x00"
+"\x06\x00\x00\x00"
+"\x06\x00\x00\x00\x00\x00\x00\x00"
+"\x06\x01"
+"\x07\x00\x00\x00\x00\x00\x00\x00"
+"\x08\x00"
+"\x08\x00\x00\x00"
+"\x08\x00\x00\x00\x00\x00\x00\x00"
+"\x0c\x0c\x0c\x0c"
+"\x0e\x00\x00\x00\x00\x00\x00\x00"
+"\x0f\x00\x00\x00\x00\x00\x00\x00"
+"\x10\x00"
+"\x10\x00\x00\x00"
+"\x10\x00\x00\x00\x00\x00\x00\x00"
+"\x10\xff\xff\xff\xff\xff\xff\xff"
+"\x11\x01"
+"\x12\x00\x00\x00\x00\x00\x00\x00"
+"\x12\x01"
+"\x14\x00\x00\x00"
+"\x15\x01"
+"\x16\x01"
+"\x17\x01"
+"\x18\x00\x00\x00"
+"\x18\x00\x00\x00\x00\x00\x00\x00"
+"\x1a\x01"
+"\x1b\x01"
+"\x1c\x00\x00\x00"
+"\x1c\x01"
+"\x20\x00\x00\x00"
+"\x24\x00\x00\x00"
+"\x28\x00\x00\x00"
+"\x28\x01"
+"\x2a\x00"
+"\x2b\x00"
+"\x2c\x00\x00\x00"
+"\x30\x00\x00\x00"
+"\x3c\x00\x00\x00"
+"\x3f\x3f\x3f\x3f"
+"\x3f\xff\xff\xff\xff\xff\xfcg"
+"\x40\x00\x00\x00"
+"\x44\x00\x00\x00"
+"\x48\x00\x00\x00"
+"\x4c\x00\x00\x00"
+"\x50\x00\x00\x00"
+"\x52\x01"
+"\x53\x01"
+"\x89\x9fYG"
+"\xa7\xa6\xa6\x00"
+"\xab\xf0\xff\xff\xff\xff\xff\x3f"
+"\xbc$3"
+"\xbc\x17h"
+"\xbd\xf2\xc4"
+"\xc6\xc5\xc5\xc5"
+"\xfe\x00"
+"\xff\x00"
+"\xff\x02\x00d"
+"\xff\xff"
+"\xff\xff\x0f\x00\x00\x00\x00\x00"
+"\xff\xff\xff\xff"
+"\xff\xff\xff\xff\xff\xff\xff0"
+"\xff\xff\xff\xff\xff\xff\xff\x01"
+"\xff\xff\xff\xff\xff\xff\xff\x02"
+"\xff\xff\xff\xff\xff\xff\xff\x03"
+"\xff\xff\xff\xff\xff\xff\xff\x0f"
+"\xff\xff\xff\xff\xff\xff\xff\xff"
+"aO\x85\xff"
+"ab"
+"abst"
+"acsp"
+"bACS"
+"bTRC"
+"bXYZ"
+"baL"
+"bacs"
+"ch"
+"chad"
+"chrm"
+"clot"
+"clro"
+"clrt"
+"clut"
+"cprt"
+"crdi"
+"dLab"
+"dLuv"
+"desc"
+"dmdd"
+"dmnd"
+"dtim"
+"ecpf"
+"fl64"
+"gTRC"
+"gXYZ"
+"gamt"
+"gbd "
+"gmrp"
+"h\x01\x00\x00"
+"hdrc"
+"i\xe5\xb1"
+"kTRC"
+"lf"
+"link"
+"lkni"
+"lumi"
+"meas"
+"meta"
+"mntr"
+"mpet"
+"mvis"
+"ncl2"
+"ncol"
+"nmcl"
+"osca"
+"para"
+"pre0"
+"pre1"
+"pre2"
+"prtr"
+"ps2i"
+"ps2s"
+"psca"
+"psd0"
+"psd1"
+"psd2"
+"psd3"
+"qsca"
+"qtnm"
+"rTRC"
+"rXYZ"
+"ra"
+"scnr"
+"sf32"
+"spac"
+"srpc"
+"svcn"
+"targ"
+"tech"
+"tr"
+"u\xb4\x9c8"
+"ui32"
+"uidm"
+"vcgt"
+"view"
+"vued"
+"wtpt"
+"zxml"
+"|\x00\x00\x00\x00\x00\x00\x00"
+
+# ICC v5 / iccMAX signatures (missing coverage)
+"cicn"
+"ndin"
+"MID "
+"ciin"
+"eACS"
+"PCSM"
+"dAB "
+"dBA "
+"gmps"
+"rfnm"
+"cxfm"
+"JtoB"
+"BtoJ"
+"nMCL"
+"CXYZ"
+"psvm"
+"cipv"
+"gamm"
+"sRGB"
+"ACES"
+
+# ICC tag type signatures
+"ui16"
+"StoB"
+"BtoS"
+"MtoA"
+"AtoM"
+"MtoB"
+"BtoM"
+"MtoS"
+"StoM"
