@@ -389,6 +389,19 @@ outside the range of representable values of type 'unsigned short'".
 Fix: compute intermediate `fIdx`, guard against NaN and clamp to
 `0..65535` before casting to `icUInt16Number`.  Adds `#include <cmath>`.
 
+Patch 052 fixes null-pointer dereference (SEGV) in
+`CIccXformNDLut::Apply()` (IccCmm.cpp:6553).  Both CLUT switch blocks
+in `Apply()` only dispatch dimensions 5 and 6 to dedicated `Interp5d`/
+`Interp6d`; dimensions 1–4 fall through to the `default` case which
+calls `InterpND()` with `pNDApply->m_pApply`.  But `GetNewApply()` only
+allocates `CIccApplyCLUT` when `m_nNumInput > 6`, so `m_pApply` is NULL
+for dimensions ≤ 6.  ASAN: SEGV at `IccTagLut.cpp:3157` dereferencing
+NULL `CIccApplyCLUT*`.
+Reproducer: `crash-889703d7e209eb6ffc143fc802ef1f7f8e78e539` (crafted
+mft2 profile with 2-channel input CLUT via `RG s` colorspace).
+Fix: add `case 1`–`case 4` dispatching to `Interp1d`–`Interp4d`, and
+add NULL guard on `pNDApply->m_pApply` in the `default` fallback.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
