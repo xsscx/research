@@ -208,7 +208,7 @@ jobs:
           LIBS_SYS="-lxml2 -lz"
 
           # Fuzzers that need TiffImg.o and libtiff
-          TIFF_FUZZERS="icc_applyprofiles_fuzzer icc_tiffdump_fuzzer icc_specsep_fuzzer"
+          TIFF_FUZZERS="icc_applyprofiles_fuzzer icc_tiffdump_fuzzer icc_specsep_fuzzer icc_spectral_b_fuzzer"
 
           BUILT=0
           SKIPPED=0
