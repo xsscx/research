@@ -1,0 +1,256 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index ecd6b5d..c5722d0 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -344,6 +344,12 @@ bool CIccTagUnknown::Write(CIccIO *pIO)
+ void CIccTagUnknown::Describe(std::string &sDescription, int nVerboseness)
+ {
+   const size_t bufSize = 128;
++
++  if (m_nSize <= 4) {
++    sDescription = "Unknown Tag Type of 0 Bytes.";
++    return;
++  }
++
+   icChar buf[bufSize];
+ 
+   sDescription = "Unknown Tag Type of ";
+@@ -2845,6 +2851,10 @@ bool CIccTagNamedColor2::SetSize(icUInt32Number nSize, icInt32Number nDeviceCoor
+   if (nDeviceCoords<0)
+     nDeviceCoords = m_nDeviceCoords;
+ 
++  // CFL patch 011: cap NamedColor2 allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * (32 + 4 * sizeof(icFloatNumber)) > 134217728ULL)
++    return false;
++
+   icInt32Number nNewCoords=nDeviceCoords;
+ 
+   if (nDeviceCoords>0)
+@@ -2852,6 +2862,11 @@ bool CIccTagNamedColor2::SetSize(icUInt32Number nSize, icInt32Number nDeviceCoor
+ 
+   size_t nColorEntrySize = 32/*rootName*/ + (3/*PCS*/ + 1/*iAny*/ + (size_t)nDeviceCoords)*sizeof(icFloatNumber);
+ 
++  // CFL patch: cap NamedColor2 allocation to 128 MB to prevent OOM.
++  // nSize comes from profile tag data and can be arbitrarily large.
++  if ((icUInt64Number)nSize * nColorEntrySize > 134217728ULL)
++    return false;
++
+   SIccNamedColorEntry* pNamedColor = (SIccNamedColorEntry*)calloc(nSize, nColorEntrySize);
+ 
+   if (!pNamedColor)
+@@ -3751,6 +3766,10 @@ bool CIccTagXYZ::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap XYZ allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(icXYZNumber) > 134217728ULL)
++    return false;
++
+   m_XYZ = (icXYZNumber*)icRealloc(m_XYZ, nSize*sizeof(icXYZNumber));
+ 
+   if (!m_XYZ) {
+@@ -4605,6 +4624,10 @@ bool CIccTagSparseMatrixArray::Read(icUInt32Number size, CIccIO *pIO)
+   if (nNeededSize > (icUInt64Number)nSizeLeft)
+     return false;
+ 
++  // CFL patch 044: cap allocation to 16 MB to prevent OOM from crafted profiles
++  if (nNeededSize > 16777216)
++    return false;
++
+   // this sets the sizes, and allocates a huge chunk of memory for matrix storage in m_RawData
+   Reset(nNumMatrices, nChannels);
+   
+@@ -5468,6 +5491,10 @@ bool CIccTagFixedNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=tru
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap FixedNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
+@@ -5504,12 +5531,12 @@ bool CIccTagFixedNum<T, Tsig>::GetValues(icFloatNumber *DstVector, icUInt32Numbe
+ 
+   switch (Tsig) {
+     case icSigS15Fixed16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = (icFloatNumber)icFtoD(m_Num[i+nStart]);
+       }
+       break;
+     case icSigU16Fixed16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = (icFloatNumber)icUFtoD(m_Num[i+nStart]);
+       }
+       break;
+@@ -5582,18 +5609,18 @@ bool CIccTagFixedNum<T, Tsig>::Interpolate(icFloatNumber *DstVector, icFloatNumb
+     case icSigS15Fixed16ArrayType:
+       if (!lo) {
+         if (zeroVals) {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = (icFloatNumber)(zeroVals[i] * (1.0f - x) + icFtoD(hi[i]) * x);
+           }
+         }
+         else {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = (icFloatNumber)(icFtoD(hi[i]) * x);
+           }
+         }
+       }
+       else {
+-        for (i=0; i<m_nSize; i++) {
++        for (i=0; i<nVectorSize; i++) {
+           DstVector[i] = (icFloatNumber)(icFtoD(lo[i])*(1.0-x) + icFtoD(hi[i])*x);
+         }
+       }
+@@ -5601,18 +5628,18 @@ bool CIccTagFixedNum<T, Tsig>::Interpolate(icFloatNumber *DstVector, icFloatNumb
+     case icSigU16Fixed16ArrayType:
+       if (!lo) {
+         if (zeroVals) {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = (icFloatNumber)(zeroVals[i] * (1.0 - x) + icUFtoD(hi[i]) * x);
+           }
+         }
+         else {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = (icFloatNumber)(icUFtoD(hi[i]) * x);
+           }
+         }
+       }
+       else {
+-        for (i=0; i<m_nSize; i++) {
++        for (i=0; i<nVectorSize; i++) {
+           DstVector[i] = (icFloatNumber)(icUFtoD(lo[i])*(1.0-x) + icUFtoD(hi[i])*x);
+         }
+       }
+@@ -6031,6 +6058,10 @@ bool CIccTagNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap TagNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
+@@ -6067,12 +6098,12 @@ bool CIccTagNum<T, Tsig>::GetValues(icFloatNumber *DstVector, icUInt32Number nSt
+   
+   switch (Tsig) {
+     case icSigUInt8ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = icU8toF((icUInt8Number)(m_Num[i+nStart]));
+       }
+       break;
+     case icSigUInt16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = icU16toF((icUInt16Number)(m_Num[i+nStart]));
+       }
+       break;
+@@ -6158,18 +6189,18 @@ bool CIccTagNum<T, Tsig>::Interpolate(icFloatNumber *DstVector, icFloatNumber po
+     case icSigUInt8ArrayType:
+       if (!lo) {
+         if (zeroVals) {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = zeroVals[i] * (1.0f - x) + icU8toF((icUInt8Number)hi[i]) * x;
+           }
+         }
+         else {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = icU8toF((icUInt8Number)hi[i]) * x;
+           }
+         }
+       }
+       else {
+-        for (i=0; i<m_nSize; i++) {
++        for (i=0; i<nVectorSize; i++) {
+           DstVector[i] = icU8toF((icUInt8Number)lo[i])*(1.0f-x) + icU8toF((icUInt8Number)hi[i])*x;
+         }
+       }
+@@ -6177,18 +6208,18 @@ bool CIccTagNum<T, Tsig>::Interpolate(icFloatNumber *DstVector, icFloatNumber po
+     case icSigUInt16ArrayType:
+       if (!lo) {
+         if (zeroVals) {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = zeroVals[i] * (1.0f - x) + icU16toF((icUInt16Number)hi[i]) * x;
+           }
+         }
+         else {
+-          for (i = 0; i < m_nSize; i++) {
++          for (i = 0; i < nVectorSize; i++) {
+             DstVector[i] = icU16toF((icUInt16Number)hi[i]) * x;
+           }
+         }
+       }
+       else {
+-        for (i=0; i<m_nSize; i++) {
++        for (i=0; i<nVectorSize; i++) {
+           DstVector[i] = icU16toF((icUInt16Number)lo[i])*(1.0f-x) + icU16toF((icUInt16Number)hi[i])*x;
+         }
+       }
+@@ -6603,6 +6634,10 @@ bool  CIccTagFloatNum<T, Tsig>::SetSize(icUInt32Number nSize, bool bZeroNew/*=tr
+   if (nSize==m_nSize)
+     return true;
+ 
++  // CFL patch 011: cap FloatNum allocation to 128 MB to prevent OOM
++  if ((icUInt64Number)nSize * sizeof(T) > 134217728ULL)
++    return false;
++
+   m_Num = (T*)icRealloc(m_Num, nSize*sizeof(T));
+ 
+   if (!m_Num) {
+@@ -8167,6 +8202,11 @@ bool CIccTagData::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (m_nSize == nSize)
+     return true;
+ 
++  // CFL patch: cap TagData allocation to 128 MB to prevent OOM.
++  // nSize comes from profile tag data and can be arbitrarily large.
++  if (nSize > 134217728)
++    return false;
++
+   m_pData = (icUInt8Number*)icRealloc(m_pData, nSize*sizeof(icUInt8Number));
+ 
+   if (!m_pData) {
+@@ -8935,7 +8975,10 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+   sDescription += buf;
+ 
+   for (i=0; i<m_nCount; i++) {
+-    nLen = (icUInt32Number)strlen(m_pData[i].name);
++    nLen = 0;
++    while (nLen < sizeof(m_pData[i].name) && m_pData[i].name[nLen] != '\0') {
++      nLen++;
++    }
+     if (nLen>nMaxLen)
+       nMaxLen =nLen;
+   }
+@@ -8950,10 +8993,16 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+     sDescription += buf;
+   }
+   for (i=0; i<m_nCount; i++) {
+-    snprintf(buf, bufSize, "%2u \"%s\"", i, m_pData[i].name);
++    char safeName[33];
++    memcpy(safeName, m_pData[i].name, sizeof(m_pData[i].name));
++    safeName[sizeof(m_pData[i].name)] = '\0';
++    icUInt32Number safeLen = 0;
++    while (safeLen < sizeof(m_pData[i].name) && m_pData[i].name[safeLen] != '\0')
++      safeLen++;
++    snprintf(buf, bufSize, "%2u \"%s\"", i, safeName);
+     sDescription += buf;
+     memset(buf, ' ', 128);
+-    buf[nMaxLen + 1 - strlen(m_pData[i].name)] ='\0';
++    buf[nMaxLen + 1 - safeLen] ='\0';
+     sDescription += buf;
+ 
+     if (m_PCS == icSigXYZData) {
