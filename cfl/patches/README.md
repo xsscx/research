@@ -342,6 +342,16 @@ not large finite floats.  Same class of bug as patch 042 (truncate).
 Fix: replace with `std::round(temp)` which returns a float and handles
 the full range without integer overflow.
 
+Patch 047 fixes stack-overflow (infinite recursion) in
+`CIccCalculatorFunc::SequenceNeedTempReset()` (IccMpeCalc.cpp).
+Patch 043 added a 1M ops-processed counter to limit computation, but
+deeply nested `icSigIfOp`/`icSigElseOp` chains cause unbounded recursion
+(246+ frames) that exhausts the stack before the ops counter triggers.
+Each recursive frame allocates heap (`malloc(nMaxTemp)`) plus a large
+stack frame.  ASAN: `stack-overflow` on address in `malloc`.
+Fix: add `nRecurseDepth` parameter (default 0) with a 100-level cap.
+Recursive calls pass `nRecurseDepth + 1`; returns `true` when exceeded.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
