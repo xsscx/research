@@ -92,8 +92,7 @@ fi
 # ── Preflight checks ────────────────────────────────────────────────
 if ! mountpoint -q "$RAMDISK" 2>/dev/null; then
   echo "[FAIL] Ramdisk not mounted at $RAMDISK"
-  echo "       Run: sudo mount -t tmpfs -o size=4G tmpfs $RAMDISK"
-  echo "       Then: cd cfl && sudo ./ramdisk-fuzz.sh   (to seed)"
+  echo "       Run: .github/scripts/ramdisk-seed.sh --mount"
   exit 1
 fi
 
@@ -110,7 +109,7 @@ for f in "${FUZZERS[@]}"; do
   fi
 done
 if [ "$missing" -gt 0 ]; then
-  echo "       Copy binaries: sudo cp cfl/bin/icc_*_fuzzer $BIN_DIR/"
+  echo "       Run: .github/scripts/ramdisk-seed.sh"
   exit 1
 fi
 
