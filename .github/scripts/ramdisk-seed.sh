@@ -1,20 +1,27 @@
 #!/bin/bash
 #
-# ramdisk-seed.sh — Seed corpus from disk to ramdisk
+# ramdisk-seed.sh — Prepare ramdisk for fuzzing (one-stop setup)
 #
 # Usage:
-#   .github/scripts/ramdisk-seed.sh                    # seed all 18 fuzzers
+#   .github/scripts/ramdisk-seed.sh                    # seed all fuzzers
 #   .github/scripts/ramdisk-seed.sh icc_profile_fuzzer # seed one fuzzer
 #   .github/scripts/ramdisk-seed.sh --mount            # mount ramdisk first
 #   .github/scripts/ramdisk-seed.sh --mount --size 8G  # custom size
 #
-# Seeds ramdisk corpus dirs from:
-#   1. cfl/<fuzzer>_seed_corpus/      (hand-curated seeds)
-#   2. cfl/corpus-<fuzzer>/           (on-disk grown corpus)
-#   3. test-profiles/                 (shared ICC test profiles)
-#   4. extended-test-profiles/        (additional profiles)
+# Performs all setup needed before fuzzing:
+#   1. (Optional) Mount tmpfs ramdisk (--mount, requires root)
+#   2. Copy fuzzer binaries from cfl/bin/ → ramdisk/bin/
+#   3. Copy fuzzing dictionaries from cfl/*.dict → ramdisk/dict/
+#   4. Create working directories (profraw/, logs/)
+#   5. Seed corpus from disk sources:
+#      - cfl/<fuzzer>_seed_corpus/      (hand-curated seeds)
+#      - cfl/corpus-<fuzzer>/           (on-disk grown corpus)
+#      - test-profiles/                 (shared ICC test profiles)
+#      - extended-test-profiles/        (additional profiles)
 #
-# If --mount is passed, mounts a tmpfs ramdisk first (requires root).
+# After this script completes, run:
+#   cfl/fuzz-local.sh -t 60       # sequential with coverage
+#   cfl/ramdisk-fuzz.sh 60        # parallel, no coverage
 
 set -euo pipefail
 
@@ -109,6 +116,10 @@ for dict in "$CFL_DIR"/*.dict; do
   [ -f "$dict" ] && cp "$dict" "$RAM_DICT/" && dict_count=$((dict_count + 1))
 done
 echo "  [OK] Copied $dict_count dictionaries to ramdisk"
+
+# Create working directories for profraw (coverage) and logs
+mkdir -p "$RAMDISK/profraw" "$RAMDISK/logs"
+echo "  [OK] Created profraw/ and logs/ directories"
 echo ""
 
 SEEDED=0
