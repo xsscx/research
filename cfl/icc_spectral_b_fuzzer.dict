@@ -7,74 +7,19 @@
 
 # =============================================================================
 # SECTION 1: ICC Profile Header Signatures (4-byte tags)
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 2: Color Space Signatures
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 3: ICC Tag Signatures
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 4: Platform/Device Signatures
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 5: Rendering Intent Signatures
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 6: TIFF Byte Order Markers (for specsep fuzzer)
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 7: V5 DSP Observer Tags
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 8: Binary Patterns - 8-byte sequences
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 9: Binary Patterns - 4-byte sequences
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 10: Binary Patterns - 2-byte sequences
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 11: TIFF Tags (from specsep dictionary)
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 12: Mixed ASCII/Binary Patterns (high frequency)
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 13: Size/Length Values (common in ICC structures)
-# =============================================================================
-
-
-# =============================================================================
 # SECTION 14: High-Frequency Fuzzer-Discovered Patterns
-# =============================================================================
-
-
 # NOTE: This is a curated subset. Full 722 entries available in source dictionaries.
 # To regenerate complete list: cat fuzzers/*.dict | grep '^"' | sort -u
 " ab"
@@ -324,7 +269,6 @@
 "wtpt"
 "zxml"
 "|\x00\x00\x00\x00\x00\x00\x00"
-
 # ICC v5 / iccMAX signatures (missing coverage)
 "cicn"
 "ndin"
@@ -346,7 +290,6 @@
 "gamm"
 "sRGB"
 "ACES"
-
 # ICC tag type signatures
 "ui16"
 "StoB"
@@ -357,11 +300,7 @@
 "BtoM"
 "MtoS"
 "StoM"
-
-# =============================================================================
 # SECTION 14: Spectral B Fuzzer - Profile Embed & TIFF Path (auto-generated)
-# =============================================================================
-
 # spectral_bsp0
 "\x62\x73\x70\x30"
 # spectral_bsp1
@@ -461,9 +400,7 @@
 # type_multiProcessElement
 "\x6d\x70\x65\x74"
 # type_spectralViewingCond
-"\x73\x76\x63\x6e"
 # type_spectralDataInfo
-"\x73\x64\x69\x6e"
 # type_multiLocalizedUnicode
 "\x6d\x6c\x75\x63"
 # type_XYZType
@@ -489,7 +426,6 @@
 # type_sparseMatrixArray
 "\x73\x6d\x41\x74"
 # type_spectralViewCondType
-"\x73\x76\x63\x6e"
 # boundary_size_128
 "\x00\x00\x00\x80"
 # boundary_size_132
@@ -505,9 +441,7 @@
 # boundary_size_4096
 "\x00\x00\x10\x00"
 # boundary_off_128
-"\x00\x00\x00\x80"
 # boundary_off_132
-"\x00\x00\x00\x84"
 # tiff_le
 "\x49\x49"
 # tiff_be
@@ -539,7 +473,6 @@
 # float_f_d50x
 "\x3f\x73\x53\xf8"
 # float_f_d50y
-"\x3f\x80\x00\x00"
 # float_f_d50z
 "\x3f\x8b\x64\x5a"
 # ctrl_1ch_8bit_nocomp
@@ -575,25 +508,17 @@
 # tagcount_65535
 "\x00\x00\xff\xff"
 # profsize_128
-"\x00\x00\x00\x80"
 # profsize_132
-"\x00\x00\x00\x84"
 # profsize_256
-"\x00\x00\x01\x00"
 # profsize_512
-"\x00\x00\x02\x00"
 # profsize_1024
-"\x00\x00\x04\x00"
 # profsize_2048
 "\x00\x00\x08\x00"
 # profsize_4096
-"\x00\x00\x10\x00"
 # profsize_8192
 "\x00\x00\x20\x00"
 # profsize_65536
-"\x00\x01\x00\x00"
 # s15f16_one
-"\x00\x01\x00\x00"
 # s15f16_half
 "\x00\x00\x80\x00"
 # s15f16_two
@@ -604,7 +529,6 @@
 "\x7f\xff\xff\xff"
 # s15f16_min
 "\x80\x00\x00\x00"
-
 # --- added by convert-libfuzzer-dict.py ---
 "pac"
 "\xba\xba\xba"
@@ -787,8 +711,6 @@
 "z\x00\x00\x00"
 "2B0"
 "\x19\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "1erp"
 "B "
 "\x07\xe9"
@@ -923,8 +845,6 @@
 "\x01\x00Q\xb0\x00\x38\xe7\x80"
 "0LR"
 "\x00\x00Q \x00\x07\x45\xc0"
-
-# --- added by convert-libfuzzer-dict.py ---
 "L\x00"
 "rcnr"
 "\x00\x00\x00\x00\x00\x00\x00\x04"
@@ -1017,8 +937,6 @@
 "\xff\xffP\x90\x00\x16q\xab"
 "ng"
 "te\xff"
-
-# --- added by convert-libfuzzer-dict.py ---
 "lntr"
 "nr"
 "\xfe\xff\xff~"
@@ -1078,8 +996,6 @@
 "\xa8\x00"
 "case"
 ":clot"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x0f\x00\x00\x00"
 "\xff\xff\xff\x09"
 "\x00\x00\x00\x00\x00\x00\x00\x7f"
@@ -1093,8 +1009,6 @@
 "\x00\x00P\x80\x00\x07\x1e\xff"
 "\x00\x00\x7f\x90\x62\xcb\xf2\xf3"
 "\x00\x00P\x80\x00\x0e#s"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\xff\xfe\xfe"
 "\xff\xffP\x10\x00\x07\xbd\x14"
 "\x00\x00\x7f\x87\xfc)r\xe8"
@@ -1103,8 +1017,6 @@
 "\xbfii\x9f\xa4*\x0d\xf4"
 "\x01\x00P\x80\x00\x13\xe5\xed"
 "\x00\x00P \x00\x13_\x1d"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x7f\x94\xbfM\x12\xef"
 "\x01\x00Q\x10\x00\x06\x10|"
 "\xff\xffO`\x00\x15\xc3\xb6"
@@ -1263,8 +1175,6 @@
 "\x00\x04"
 "\x00\x00Q\x80\x00\x04l\x00"
 "Efo"
-
-# --- added by convert-libfuzzer-dict.py ---
 "lpw"
 "\x00\x00\x00\x00\x00\x00\x00)"
 "\x9d\xeb\xeb\xeb"
@@ -1333,3 +1243,11 @@
 "\xff\xff\xff\x04"
 "\x01\x00\x7f\x7f\x12\x89\x32\xe9"
 "lnil"
+"emtx"
+"iemx"
+"eclt"
+"rclt"
+"eobs"
+"robs"
+"smet"
+"sdin"
