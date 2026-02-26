@@ -367,11 +367,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (cube.isCustomInputRange()) {
     // Copy input range values to local stack arrays
     icFloatNumber minVal[3], maxVal[3];
-    const icFloatNumber *srcMin = cube.getMinInput();
-    const icFloatNumber *srcMax = cube.getMaxInput();
     for (int i = 0; i < 3; i++) {
-      minVal[i] = srcMin[i];
-      maxVal[i] = srcMax[i];
+      minVal[i] = cube.getMinInput()[i];
+      maxVal[i] = cube.getMaxInput()[i];
     }
     CIccMpeCurveSet* pCurves = new CIccMpeCurveSet(3);
 

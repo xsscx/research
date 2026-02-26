@@ -95,6 +95,11 @@ jobs:
           set -euo pipefail
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
+            # Skip comment-only patches (upstream-adopted fixes)
+            if head -1 "$p" | grep -q '^#'; then
+              echo "  [NOOP] $(basename "$p") (upstream)"
+              continue
+            fi
             if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
               echo "  [OK] $(basename "$p")"
             else

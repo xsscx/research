@@ -141,6 +141,11 @@ class UnsafeXmlParsing extends FunctionCall {
     not exists(XmlParserOptionSet opts |
       opts.hasSafeOptions() and
       DataFlow::localExprFlow(opts, this.getQualifier())
+    ) and
+    // Check if the enclosing function does NOT call xmlSubstituteEntitiesDefault(0)
+    not exists(FunctionCall disableCall |
+      disableCall.getTarget().hasName("xmlSubstituteEntitiesDefault") and
+      disableCall.getEnclosingFunction() = this.getEnclosingFunction()
     )
   }
   
