@@ -140,10 +140,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // TOOL FIDELITY: Exit on first error (tool lines 172-174)
   if (stat != icCmmStatOk) {
-    // Round-trip evaluation failed
-    // (error path)
     unlink(tmp_file);
-    return 0;  // Fuzzer equivalent of tool's early exit
+    return 0;
   }
   
   // TOOL FIDELITY: Run PRMG analysis (tool lines 177-184)
@@ -152,10 +150,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // TOOL FIDELITY: Check PRMG status (tool exits on PRMG failure)
   if (stat != icCmmStatOk) {
-    // PRMG analysis failed
-    // (error path)
     unlink(tmp_file);
-    return 0;  // Fuzzer equivalent of tool's early exit
+    return 0;
   }
   
   // TOOL FIDELITY: Access eval members (tool lines 194-206)

@@ -103,10 +103,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   xmlLoadExtDtdDefaultValue = 0;
 
   if (!profile.LoadXml(temp_input, szRelaxNGDir.c_str(), &reason)) {
-    // XML parse error reason available
-    // XML parse failure
     unlink(temp_input);
-    return 0;  // Original tool returned -1 on error
+    return 0;
   }
 
   std::string valid_report;
@@ -129,14 +127,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (out_fd != -1) {
       close(out_fd);
       
-      if (SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
-        // Profile parsed and saved
-      }
-      else {
-        // Profile save failure
-        // (error path)
-      }
-      
+      SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID));
       unlink(temp_output);
     }
   }
@@ -156,22 +147,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     int out_fd = mkstemp(temp_output);
     if (out_fd != -1) {
       close(out_fd);
-      
-      if (SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID))) {
-        // Profile invalid but saved
-      }
-      else {
-        // Invalid profile, save failed
-        // (error path)
-      }
-      // Validation report available
-      
+      SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID));
+      std::string discard;
+      profile.Validate(discard);
       unlink(temp_output);
     }
   }
-
-  // (end of output)
-  // (success path)
 
   // ═══════════════════════════════════════════════════════════════════
   // TOOL CODE ENDS HERE
