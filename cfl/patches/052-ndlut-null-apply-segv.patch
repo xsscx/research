@@ -1,0 +1,66 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index a1b2c3d..e4f5g6h 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -6542,13 +6542,25 @@ void CIccXformNDLut::Apply(CIccApplyXform *pApply, icFloatNumber *DstPixel, cons
+     if (m_pTag->m_CLUT) {
+       switch(nInput) {
++      case 1:
++        m_pTag->m_CLUT->Interp1d(Pixel, Pixel);
++        break;
++      case 2:
++        m_pTag->m_CLUT->Interp2d(Pixel, Pixel);
++        break;
++      case 3:
++        m_pTag->m_CLUT->Interp3d(Pixel, Pixel);
++        break;
++      case 4:
++        m_pTag->m_CLUT->Interp4d(Pixel, Pixel);
++        break;
+       case 5:
+         m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
+         break;
+       case 6:
+         m_pTag->m_CLUT->Interp6d(Pixel, Pixel);
+         break;
+       default:
+         {
+           CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
+-          m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
++          if (pNDApply && pNDApply->m_pApply)
++            m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
+           break;
+         }
+       }
+@@ -6573,13 +6585,25 @@ void CIccXformNDLut::Apply(CIccApplyXform *pApply, icFloatNumber *DstPixel, cons
+     if (m_pTag->m_CLUT) {
+       switch(m_nNumInput) {
++      case 1:
++        m_pTag->m_CLUT->Interp1d(Pixel, Pixel);
++        break;
++      case 2:
++        m_pTag->m_CLUT->Interp2d(Pixel, Pixel);
++        break;
++      case 3:
++        m_pTag->m_CLUT->Interp3d(Pixel, Pixel);
++        break;
++      case 4:
++        m_pTag->m_CLUT->Interp4d(Pixel, Pixel);
++        break;
+       case 5:
+         m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
+         break;
+       case 6:
+         m_pTag->m_CLUT->Interp6d(Pixel, Pixel);
+         break;
+       default:
+       {
+         CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
+-        m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
++        if (pNDApply && pNDApply->m_pApply)
++          m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
+         break;
+       }
+-      break;
+       }
+     }
