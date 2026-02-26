@@ -7,10 +7,8 @@
 "LUT_1D_SiZE "
 "DOMAIN_MIN "
 "DOMAIN_MAX "
-
 # Comment prefix
 "# "
-
 # Common LUT sizes
 "2"
 "3"
@@ -24,7 +22,6 @@
 "33"
 "64"
 "65"
-
 # Numeric values (float triplets in LUT entries)
 "0.0 0.0 0.0"
 "1.0 1.0 1.0"
@@ -34,14 +31,11 @@
 "0.5"
 "0.25"
 "0.75"
-
 # Domain range values
 "0.0 1.0"
 "-1.0 1.0"
-
 # Title with quotes
 "\"Test LUT\""
-
 # --- added by convert-libfuzzer-dict.py ---
 "\xfe\xff\xff\xd7"
 "\x00\x00\x00\xec"
@@ -120,8 +114,6 @@
 "\x01\x00\x00\x00"
 "*\x00\x00\x00\x00\x00\x00\x00"
 "\x14\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x9b\x00"
 "\x01\x00\x00\x00\x00\x00\x00-"
 "\x0b\x00\x00\x00"
@@ -174,8 +166,6 @@
 "\x01\x22"
 "\x01\x00\x00\x05"
 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x0b"
 "\x0d\x00"
 "\x00\x00\x00\x07"
@@ -233,8 +223,6 @@
 "\x01\x00\x7f\x91\xae\xd9\xf0\x31"
 "\x12\x00"
 "\xff\x06"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x17"
 "DOMAIN0.* 0"
 "Identity 2x"
@@ -279,8 +267,6 @@
 "\xff#"
 "\x22\x00\x00\x00"
 "LUT_IN_VIDE"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xfe\xff\xff\xfe"
 "\x05\x01\x00\x00\x00\x00\x00\x00"
 "\x14\x00"
@@ -390,9 +376,6 @@
 "\xff\x0b"
 "\xdb\x00M\xce;\x05\x89\x02"
 "\xb7\x00\x00\x00\x00\x00\x00\x00"
-
-
-# --- added by convert-libfuzzer-dict.py ---
 "DOM\xb3\x19\x00\x00\x30Q\x00\x00"
 "\x00\x09"
 "\x00L"
@@ -435,8 +418,6 @@
 "8\x00\x00\x00"
 "\x00\x1c"
 "\x01\x00\x00\x14"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xffP0\x00\x00q("
 "\x01\x00P0\x00\x01\x9f`"
 "\x00\x00\x00\x0b"
@@ -525,8 +506,6 @@
 "\xff\xffO`\x00\x38s\x82"
 "\x00\x00\x7f\x8f<\x98^^"
 "' Te\xf4 doma0"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x08 Test TITL"
 "LUT_3D\xa0_NzIU"
 "\x00\x85"
@@ -553,8 +532,6 @@
 "#NG\x00_I"
 "\x04\x00"
 "\x01\x1c"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q0\x00\x01\x83\x10"
 "\x8f\x00"
 "\x00\x0c"
@@ -567,8 +544,6 @@
 "\xff/"
 "LUT_3D_SI~.9"
 "TIm n\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "LUT_LUT_3D_ "
 "}\x00\x00\x00"
 "\x00\x00\x00\x11"
@@ -580,8 +555,6 @@
 "\x00k"
 "\xff\xff\xff\x1c"
 "r\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xef\xff\xff\xff"
 "# F# F"
 "\xff\x17"
@@ -593,8 +566,6 @@
 ":\x00\x00\x00"
 "\xff\x10"
 "\x01\x00\x00~"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x91"
 "\x01\x00\x7f\x8a\xf7\xb3Q\xd8"
 "\x7f\x00"
@@ -605,8 +576,6 @@
 "DOMAI;N\xff\xff\xff\xff"
 "\xff\xff\xff#"
 "TIT\x1c\x1c\x1c\x1c\x1c\x1cTIT"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xf7\xff\xff\xff"
 "TIDO@AIE\xa4AIE"
 "\x00\x00\x02\x9b"
@@ -619,8 +588,6 @@
 "#\x01"
 "\x16\x01"
 "\x01\xb2"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xfd\x02\x00\x00"
 "\x01\x00\x02\xfd"
 "\xef\x02\x00\x00"
@@ -636,8 +603,6 @@
 "TI,#_I"
 "\x01\x00\x00'"
 "\xad\x02"
-
-# --- added by convert-libfuzzer-dict.py ---
 "6\x00\x00\x00\x00\x00\x00\x00"
 "'\x00\x00\x00"
 "ILTITLE i/b"
@@ -649,8 +614,6 @@
 "# Te\xff\xff"
 "A\x00"
 "\x00\x00\x00\x0c"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xbc>\xfb\xffM)>|"
 "8\x00"
 "/ITE# testL"
@@ -660,8 +623,6 @@
 "\x00\x00t{mR08"
 "\xff\xff\xff\xdb"
 "\xff\xff\xff'"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xfeIDEO_RA"
 "TLUT_IN_VID"
 "\x17\x00"
@@ -670,8 +631,6 @@
 "T \xb2\xfe\xff\xff"
 "TIT\xbc\x45 "
 "\x16\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "[\x01"
 "\\ITL\x00\x01"
 "LUT_3D_SIZI"
@@ -687,8 +646,6 @@
 "mulates warm"
 "\x00\x00\x7f\xbb\xd8\x45\x30 "
 "F\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "ODMAIN\x22Warmo"
 "TIT \x0b\x00\x00\x00\x31\x31L."
 "D\x00"
@@ -697,8 +654,6 @@
 "N\x00"
 "\xff\xffO0\x00!h\xb1"
 "\x00\x00\x00\xaf"
-
-# --- added by convert-libfuzzer-dict.py ---
 "TITLET"
 "D1OMAIN_MIN"
 "\x01\x00\x7f\xe7\xa2\x88\xd8 "
@@ -708,8 +663,6 @@
 "DOM\xb8\xb6\xb1\xa0MIN "
 "\x01\x00\x00\x00\x00\x00\x00\x38# S"
 "S\x0a"
-
-# --- added by convert-libfuzzer-dict.py ---
 "TITLEgggggg"
 "\xf8LUT_3"
 "\x90\x00\x00\x00"
@@ -722,3 +675,28 @@
 "TI\xecTLE"
 "\xff\x04"
 "DOMAILUT_3D"
+# ── Coverage-gap keywords (added 2026-02-26) ──────────────────────
+# LUT_3D_INPUT_RANGE — separate from DOMAIN_MIN/MAX
+"LUT_3D_INPUT_RANGE "
+# Video range flags (boolean, no value after keyword)
+"LUT_IN_VIDEO_RANGE"
+"LUT_OUT_VIDEO_RANGE"
+# Negative and large domain values
+"-0.5"
+"-1.0"
+"2.0"
+"1.5"
+"3.0"
+# Edge-case LUT sizes
+"1"
+"6"
+"7"
+"10"
+"15"
+"48"
+# Quoted title
+"\"Title\""
+# Blank line between comment blocks (triggers bAddBlankLine)
+"\n\n"
+# Comment with no space after #
+"#comment"
