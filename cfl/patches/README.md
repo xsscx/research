@@ -352,6 +352,17 @@ stack frame.  ASAN: `stack-overflow` on address in `malloc`.
 Fix: add `nRecurseDepth` parameter (default 0) with a 100-level cap.
 Recursive calls pass `nRecurseDepth + 1`; returns `true` when exceeded.
 
+Patch 048 fixes stack-overflow (infinite recursion) in
+`CIccCalculatorFunc::CheckUnderflowOverflow()` (IccMpeCalc.cpp:4082).
+Crafted ICC profiles with deeply nested `if/else` or `select/case/default`
+calculator opcodes cause unbounded recursion (200+ frames) that exhausts
+the stack.  ASAN: `stack-overflow` at `IccMpeCalc.cpp:4083`.
+Reproducer: `crash-e130055931f00b2bdff2ec6151d7bdbe88ef1ac9` (v5 RGB
+monitor profile with MPE calc element containing nested if/else chains).
+Fix: add `nRecurseDepth` parameter (default 0) with a 100-level cap.
+All 5 recursive call sites pass `nRecurseDepth + 1`; returns `-1` when
+exceeded, which propagates as `icFuncParseStackUnderflow`.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
