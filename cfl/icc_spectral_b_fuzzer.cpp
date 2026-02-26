@@ -106,7 +106,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   size_t profileSize = size - 1;               // rest is ICC profile data
 
   // Create nSamples input TIFFs with single-channel spectral data
-  // Tool: for (int i=0; i<nSamples; i++) { infile[i].Open(filename); }
+  // Open spectral sample files (handled by fuzzer input)
   std::vector<char*> infiles;
   for (uint8_t i = 0; i < nSamples; i++) {
     char *tf = (char*)malloc(PATH_MAX);
@@ -169,7 +169,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   long bytePerLine = f->GetBytesPerLine();
   long bps_img = f->GetBitsPerSample() / 8;
 
-  // Tool: unique_ptr<icUInt8Number> inbufffer(new icUInt8Number[bytePerLine*nSamples]);
+  // Input buffer allocation (handled differently in fuzzer)
   std::unique_ptr<icUInt8Number[]> inbuf(new icUInt8Number[bytePerLine * nSamples]);
   std::unique_ptr<icUInt8Number[]> outbuf(new icUInt8Number[f->GetWidth() * bps_img * nSamples]);
 
@@ -240,7 +240,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     outimg.WriteLine(outbuf.get());
   }
 
-  // Tool: outfile.Close()
+  // Output file close (not needed in fuzzer)
   outimg.Close();
 
   // Cleanup temp files

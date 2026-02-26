@@ -121,7 +121,7 @@ public:
         bAddBlankLine = false;
       }
       else if (line.substr(0, 12) == "LUT_1D_SiZE ") {
-        // Tool: printf("1DLUTs are not supported\n");
+        // 1D LUTs not supported — reject
         return false;
       }
       else if (line.substr(0, 12) == "LUT_3D_SIZE ") {
@@ -171,7 +171,7 @@ public:
       else if (line.substr(0, 19) == "LUT_OUT_VIDEO_RANGE")
         m_bLutOutVideoRange = true;
       else {
-        // Tool: printf("Unknown keyword '%s'\n", line.c_str());
+        // Unknown keyword — reject
         return false;
       }
     }
@@ -213,13 +213,13 @@ public:
       *toLut++ = (icFloatNumber)atof(line.c_str());
       next = getNext(line.c_str());
       if (!next) {
-        // Tool: printf("Invalid 3DLUT entry\n");
+        // Invalid 3D LUT entry
         return false;
       }
       *toLut++ = (icFloatNumber)atof(next);
       next = getNext(next);
       if (!next) {
-        // Tool: printf("Invalid 3DLUT entry\n");
+        // Invalid 3D LUT entry
         return false;
       }
       *toLut++ = (icFloatNumber)atof(next);
@@ -314,6 +314,10 @@ protected:
 // FUZZER HARNESS
 // ═══════════════════════════════════════════════════════════════════
 
+/// @brief LibFuzzer entry point — parses CUBE LUT data into an ICC profile.
+/// @param data Fuzz input bytes (treated as CUBE text format).
+/// @param size Length of the fuzz input.
+/// @return 0 (required by LibFuzzer API).
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // .cube files are text; reject empty or excessively large inputs
   if (size < 10 || size > 2 * 1024 * 1024) return 0;
@@ -341,13 +345,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CubeFile cube(temp_input);
 
   if (!cube.parseHeader()) {
-    // Tool: printf("Unable to parse '%s'\n", argv[1]); return -2;
+    // Parse failure
     unlink(temp_input);
     return 0;
   }
 
   if (!cube.sizeLut3D() || cube.sizeLut3D() > 64) {
-    // Tool: printf("3DLUT not found in '%s'\n", argv[1]); return -3;
+    // 3D LUT not found
     // Limit LUT size to prevent excessive memory allocation during fuzzing
     unlink(temp_input);
     return 0;
@@ -405,7 +409,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   cube.close();
 
   if (!bSuccess) {
-    // Tool: printf("Unable to parse LUT from '%s'\n", argv[1]); return -4;
+    // Parse failure
     unlink(temp_input);
     return 0;
   }
@@ -439,7 +443,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     close(out_fd);
 
     SaveIccProfile(temp_output, &profile);
-    // Tool: printf("'%s' successfully created\n", argv[2]);
+    // Profile saved successfully
 
     unlink(temp_output);
   }

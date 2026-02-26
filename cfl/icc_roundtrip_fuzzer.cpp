@@ -135,13 +135,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   CIccMinMaxEval eval;
   
-  // Tool: line 170: stat = eval.EvaluateProfile(argv[1], 0, nIntent, icInterpLinear, (nUseMPE!=0));
+  // Evaluate profile round-trip accuracy
   icStatusCMM stat = eval.EvaluateProfile(tmp_file, 0, nIntent, icInterpLinear, nUseMPE);
   
   // TOOL FIDELITY: Exit on first error (tool lines 172-174)
   if (stat != icCmmStatOk) {
-    // Tool: printf("Unable to perform round trip on '%s'\n", argv[1]);
-    // Tool: return -1;
+    // Round-trip evaluation failed
+    // (error path)
     unlink(tmp_file);
     return 0;  // Fuzzer equivalent of tool's early exit
   }
@@ -152,8 +152,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // TOOL FIDELITY: Check PRMG status (tool exits on PRMG failure)
   if (stat != icCmmStatOk) {
-    // Tool: printf("Unable to perform PRMG analysis on '%s'\n", argv[1]);
-    // Tool: return -1;
+    // PRMG analysis failed
+    // (error path)
     unlink(tmp_file);
     return 0;  // Fuzzer equivalent of tool's early exit
   }

@@ -179,7 +179,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Apply transformations based on interface type
   // (mirrors iccApplyNamedCmm.cpp lines 470-560)
   
-  switch (interface) {
+  switch (interface) { // NOLINT — long switch mirrors upstream tool structure
     case icApplyNamed2Pixel: {
       // Named color to pixel transformation
       icFloatNumber dstPixel[16];
