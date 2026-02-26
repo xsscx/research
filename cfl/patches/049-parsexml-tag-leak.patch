@@ -1,0 +1,25 @@
+diff --git a/IccXML/IccLibXML/IccProfileXml.cpp b/IccXML/IccLibXML/IccProfileXml.cpp
+index a1b2c3d..e4f5g6h 100644
+--- a/IccXML/IccLibXML/IccProfileXml.cpp
++++ b/IccXML/IccLibXML/IccProfileXml.cpp
+@@ -753,13 +753,18 @@ bool CIccProfileXml::ParseTag(xmlNode *pNode, std::string &parseStr)
+           sscanf(icXmlAttrValue(attr), "%u", &pTag->m_nReserved);
+         }
+ 
+-        for (xmlNode *tagSigNode = pNode->children; tagSigNode; tagSigNode = tagSigNode->next) {
++        bool bAttached = false;
++        for (xmlNode *tagSigNode = pNode->children; tagSigNode; tagSigNode = tagSigNode->next) {
+           if (tagSigNode->type == XML_ELEMENT_NODE && !icXmlStrCmp(tagSigNode->name, "TagSignature")) {
+             if ((const icChar*)tagSigNode->children != NULL) {
+               sigTag = (icTagSignature)icGetSigVal((const icChar*)tagSigNode->children->content);
+               AttachTag(sigTag, pTag);
++              bAttached = true;
+             }
+           }
+         }
++        if (!bAttached) {
++          delete pTag;
++          return false;
++        }
+       }
+       else {
