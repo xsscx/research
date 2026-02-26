@@ -1,0 +1,55 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index e893cfe..41c8e46 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3975,7 +3975,7 @@ bool CIccCalculatorFunc::NeedTempReset(icUInt8Number *tempUsage, icUInt32Number
+ * 
+ * Return: 
+ ******************************************************************************/
+-bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed)
++bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed, icUInt32Number nRecurseDepth)
+ {
+   icUInt32Number i, j;
+   icUInt32Number nLocalOps = 0;
+@@ -3984,6 +3984,10 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+ 
+   // Guard against excessive computation from crafted calculator ops
+   static const icUInt32Number kMaxOpsProcessed = 1000000;
++  static const icUInt32Number kMaxRecurseDepth = 100;
++
++  if (nRecurseDepth > kMaxRecurseDepth)
++    return true;
+ 
+   for (i=0; i<nOps; i++) {
+     if (++(*pOpsProcessed) > kMaxOpsProcessed)
+@@ -4022,7 +4026,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+         free(ifTemps);
+         return true;
+       }
+-      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp, pOpsProcessed);
++      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp, pOpsProcessed, nRecurseDepth + 1);
+ 
+       if (i<nOps && op[i+1].sig==icSigElseOp) {
+         icUInt8Number *elseTemps = (icUInt8Number *)malloc(nMaxTemp);
+@@ -4039,7 +4043,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+           free(elseTemps);
+           return true;
+         }
+-        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp, pOpsProcessed);
++        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp, pOpsProcessed, nRecurseDepth + 1);
+ 
+         if (!rv) {
+           for (j=0; j<nMaxTemp; j++) {
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
+index 2e38c24..ad1e40c 100644
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -402,7 +402,7 @@ protected:
+   bool InitSelectOps();
+   bool InitSelectOp(SIccCalcOp *ops, icUInt32Number nOps);
+ 
+-  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed = NULL);
++  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed = NULL, icUInt32Number nRecurseDepth = 0);
+ 
+   void InsertBlanks(std::string &sDescription, int nBlanks);
+   void DescribeSequence(std::string &sDescription,
