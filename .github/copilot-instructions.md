@@ -66,8 +66,18 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
   -dict=/tmp/fuzz-ramdisk/dict/icc_toxml_fuzzer.dict \
   /tmp/fuzz-ramdisk/corpus-icc_toxml_fuzzer/
 
+# Link fuzzer needs quarantine cap (2 profiles per input = 2x ASAN memory)
+ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256 \
+FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
+  /tmp/fuzz-ramdisk/bin/icc_link_fuzzer -max_total_time=14400 -detect_leaks=0 \
+  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 \
+  -artifact_prefix=/tmp/fuzz-ramdisk/ \
+  -dict=/tmp/fuzz-ramdisk/dict/icc_link_fuzzer.dict \
+  /tmp/fuzz-ramdisk/corpus-icc_link_fuzzer/
+
 # Corpus merge/minimize
-cfl/bin/icc_profile_fuzzer -merge=1 /tmp/fuzz-ramdisk/corpus-merged /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+.github/scripts/ramdisk-merge.sh              # all fuzzers
+.github/scripts/ramdisk-merge.sh --jobs 32    # parallel
 
 # Validate seed corpus readiness
 .github/scripts/test-seed-corpus.sh
