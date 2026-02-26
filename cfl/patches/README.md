@@ -346,6 +346,14 @@ addition that wraps at 2³².  Fix: use `icUInt64Number` casts in all
 bounds checks and validate both block sizes unconditionally.
 Crash artifact: `crash-3741ab3832437d29b96592fb2624d07367740893`.
 
+Patch 046 fixes UBSAN float→int overflow in `CIccOpDefRound::Exec()`
+(IccMpeCalc.cpp:1274).  The round operator cast `(int)(temp+0.5)` /
+`(int)(temp-0.5)` where `temp` can be any float from the calculator
+stack (e.g. 4.61169e+19).  The `std::isinf` guard only caught infinity,
+not large finite floats.  Same class of bug as patch 042 (truncate).
+Fix: replace with `std::round(temp)` which returns a float and handles
+the full range without integer overflow.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
