@@ -1,123 +1,8 @@
 diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
-index 90cf8a8..277c68f 100644
+index 7bb3a4a..b8d6159 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -329,18 +329,18 @@ class CIccOpDefEnvVar : public IIccOpDef
- public:
-   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
-   {
--    icSigCmmEnvVar sig = (icSigCmmEnvVar) op->data.size;
-+    icUInt32Number rawSig = op->data.size;
-     icFloatNumber val=0.0;
- 
--    if (sig==icSigTrueVar) {
-+    if (rawSig==static_cast<icUInt32Number>(icSigTrueVar)) {
-       OsPushArg((icFloatNumber)1.0);
-       OsPushArg((icFloatNumber)1.0);
-     }
--    else if (sig==icSigNotDefVar) {
-+    else if (rawSig==static_cast<icUInt32Number>(icSigNotDefVar)) {
-       OsPushArg((icFloatNumber)0.0);
-       OsPushArg((icFloatNumber)0.0);
-     }
--    else if (os.pApply->GetEnvVar(sig, val)) {
-+    else if (os.pApply->GetEnvVar(static_cast<icSigCmmEnvVar>(rawSig), val)) {
-       OsPushArg((icFloatNumber)val);
-       OsPushArg((icFloatNumber)1.0);
-     }
-@@ -950,7 +950,7 @@ public:
-         || std::isnan(tempN) || std::isinf(tempN) || fabs(tempN) < epsilon)
-         s[j] = 0.0;
-       else
--        s[j] = temp - (icFloatNumber)((int)(temp / tempN))*tempN;
-+        s[j] = (icFloatNumber)std::fmod((double)temp, (double)tempN);
-     }
-     OsShrinkArgs(n);
-     return true;
-@@ -1212,7 +1212,7 @@ public:
-             s[j] = (icFloatNumber)std::numeric_limits<int>::lowest();
-       }
-       else
--        s[j] = (icFloatNumber)((int)temp);
-+        s[j] = (icFloatNumber)std::trunc(temp);
-     }
-     return true;
-   }
-@@ -3474,12 +3474,14 @@ bool CIccCalculatorFunc::Read(icUInt32Number size, CIccIO *pIO)
-     return false;
-   }
- 
--  icChannelFuncSignature sig;
-+  // CFL patch 013: read into uint32 and compare without casting to enum,
-+  // avoiding UBSAN invalid-enum-load for icChannelFuncSignature.
-+  icUInt32Number rawChSig;
- 
--  if (!pIO->Read32(&sig))
-+  if (!pIO->Read32(&rawChSig))
-     return false;
- 
--  if (sig!= GetType())
-+  if (rawChSig != static_cast<icUInt32Number>(GetType()))
-     return false;
- 
-   if (!pIO->Read32(&m_nReserved))
-@@ -3505,8 +3507,12 @@ bool CIccCalculatorFunc::Read(icUInt32Number size, CIccIO *pIO)
- 
-     icUInt32Number i;
-     for (i=0; i<m_nOps; i++) {
--      if (!pIO->Read32(&m_Op[i].sig))
-+      // CFL patch: read sig into a uint32 to avoid UB from loading
-+      // an arbitrary value into an enum type (icSigCalcOp).
-+      icUInt32Number rawSig;
-+      if (!pIO->Read32(&rawSig))
-         return false;
-+      m_Op[i].sig = static_cast<icSigCalcOp>(rawSig);
-       if (!pIO->Read32(&m_Op[i].data.num))
-         return false;
-     }
-@@ -3660,9 +3666,9 @@ bool CIccCalculatorFunc::InitSelectOp(SIccCalcOp *ops, icUInt32Number nOps)
- 
- 
-   icUInt32Number i, n, pos;
--  for (n=0; n<nOps && ops[n+1].sig==icSigCaseOp; n++);
-+  for (n=0; n+1<nOps && ops[n+1].sig==icSigCaseOp; n++);
-   ops->extra=n;
--  if (ops[n+1].sig==icSigDefaultOp) {
-+  if (n+1<nOps && ops[n+1].sig==icSigDefaultOp) {
-     n++;
-   }
-   pos = n;
-@@ -3766,6 +3772,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
-           if (os.idx+1 + ops[nDefOff].extra >= nOps)
-             return false;
- 
-+          if (os.idx+1 + ops[nDefOff].extra + ops[nDefOff].data.size > nOps)
-+            return false;
-+
-           if (!ApplySequence(pApply, ops[nDefOff].data.size, &ops[os.idx+1 + ops[nDefOff].extra]))
-             break;
-         }
-@@ -3776,6 +3785,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
-         if (nOff >= nOps) 
-           return false;
- 
-+        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
-+          return false;
-+
-         if (!ApplySequence(pApply, ops[nOff].data.size, &ops[os.idx+1 + ops[nOff].extra]))
-           break;
-       }
-@@ -3789,6 +3801,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
-       else if (op->extra) {
-         unsigned long nOff = os.idx + op->extra;
- 
-+        if (nOff >= nOps)
-+          return false;
-+
-         if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
-           return false;
- 
-@@ -3959,11 +3974,20 @@ bool CIccCalculatorFunc::NeedTempReset(icUInt8Number *tempUsage, icUInt32Number
+@@ -3976,11 +3976,19 @@ bool CIccCalculatorFunc::NeedTempReset(icUInt8Number *tempUsage, icUInt32Number
  * 
  * Return: 
  ******************************************************************************/
@@ -131,7 +16,6 @@ index 90cf8a8..277c68f 100644
 +
 +  // Guard against excessive computation from crafted calculator ops
 +  static const icUInt32Number kMaxOpsProcessed = 1000000;
-+
  
    for (i=0; i<nOps; i++) {
 +    if (++(*pOpsProcessed) > kMaxOpsProcessed)
@@ -139,7 +23,7 @@ index 90cf8a8..277c68f 100644
      icSigCalcOp sig = op[i].sig;
      if (sig==icSigTempGetChanOp) {
        icUInt32Number p = op[i].data.select.v1;
-@@ -3998,7 +4022,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+@@ -4015,7 +4023,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
          free(ifTemps);
          return true;
        }
@@ -148,7 +32,7 @@ index 90cf8a8..277c68f 100644
  
        if (i<nOps && op[i+1].sig==icSigElseOp) {
          icUInt8Number *elseTemps = (icUInt8Number *)malloc(nMaxTemp);
-@@ -4015,7 +4039,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+@@ -4032,7 +4040,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
            free(elseTemps);
            return true;
          }
@@ -157,25 +41,6 @@ index 90cf8a8..277c68f 100644
  
          if (!rv) {
            for (j=0; j<nMaxTemp; j++) {
-@@ -4028,7 +4052,9 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
-         i += 1 + op[i].data.size + op[i+1].data.size;
-       }
-       else {
--        i += op[i].data.size;
-+        // CFL patch 014: guard against infinite loop when op[i].data.size == 0.
-+        icUInt32Number step = op[i].data.size;
-+        i += (step > 0) ? step : 1;
-       }
- 
-       free(ifTemps);
-@@ -4721,6 +4747,7 @@ bool CIccMpeCalculator::Read(icUInt32Number size, CIccIO *pIO)
-       pIO->Seek(startPos + pos->offset, icSeekSet);
-       if (!pElem->Read(pos->size, pIO)) {
-         free(posvals);
-+        delete pElem;
-         return false;
-       }
-       SetSubElem((icUInt16Number)n, pElem);
 diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
 index 3d93ac5..2e38c24 100644
 --- a/IccProfLib/IccMpeCalc.h

@@ -1,20 +1,9 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 52bf175..c5722d0 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -6094,12 +6094,12 @@
-   switch (Tsig) {
-     case icSigUInt8ArrayType:
--      for (i=0; i<m_nSize; i++) {
-+      for (i=0; i<nVectorSize; i++) {
-         DstVector[i] = icU8toF((icUInt8Number)(m_Num[i+nStart]));
-       }
-       break;
-     case icSigUInt16ArrayType:
--      for (i=0; i<m_nSize; i++) {
-+      for (i=0; i<nVectorSize; i++) {
-         DstVector[i] = icU16toF((icUInt16Number)(m_Num[i+nStart]));
-       }
-       break;
-@@ -5528,12 +5528,12 @@
+@@ -5531,12 +5531,12 @@ bool CIccTagFixedNum<T, Tsig>::GetValues(icFloatNumber *DstVector, icUInt32Numbe
+ 
    switch (Tsig) {
      case icSigS15Fixed16ArrayType:
 -      for (i=0; i<m_nSize; i++) {
@@ -28,7 +17,18 @@
          DstVector[i] = (icFloatNumber)icUFtoD(m_Num[i+nStart]);
        }
        break;
-@@ -6671,2 +6671,2 @@
--  for (i=0; i<m_nSize; i++) {   // always used the vector size passed in, so we don't overrun an output array
-+  for (i=0; i<nVectorSize; i++) {
-     DstVector[i] = (icFloatNumber)m_Num[i+nStart];
+@@ -6098,12 +6098,12 @@ bool CIccTagNum<T, Tsig>::GetValues(icFloatNumber *DstVector, icUInt32Number nSt
+   
+   switch (Tsig) {
+     case icSigUInt8ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = icU8toF((icUInt8Number)(m_Num[i+nStart]));
+       }
+       break;
+     case icSigUInt16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = icU16toF((icUInt16Number)(m_Num[i+nStart]));
+       }
+       break;

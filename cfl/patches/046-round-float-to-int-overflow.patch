@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 289e401..e893cfe 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -1265,13 +1265,10 @@
+@@ -1265,13 +1265,9 @@ public:
      for (j=0; j<n; j++) {
        icFloatNumber temp = s[j];
        if (std::isnan(temp))
