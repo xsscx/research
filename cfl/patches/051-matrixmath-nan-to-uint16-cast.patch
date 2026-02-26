@@ -1,0 +1,25 @@
+diff --git a/IccProfLib/IccMatrixMath.cpp b/IccProfLib/IccMatrixMath.cpp
+index a1b2c3d..d4e5f6g 100644
+--- a/IccProfLib/IccMatrixMath.cpp
++++ b/IccProfLib/IccMatrixMath.cpp
+@@ -74,6 +74,7 @@
+ 
+ #include "IccMatrixMath.h"
+ #include "IccUtil.h"
++#include <cmath>
+ #include <cstring>
+ #include <cstdio>
+ 
+@@ -382,7 +383,11 @@ void CIccMatrixMath::VectorScale(const icFloatNumber *vec)
+     }
+     else {
+-      icUInt16Number p = (icUInt16Number)((w - srcStart) / srcScale);
++      icFloatNumber fIdx = (w - srcStart) / srcScale;
++      if (std::isnan(fIdx) || fIdx < 0.0f)
++        fIdx = 0.0f;
++      else if (fIdx > 65535.0f)
++        fIdx = 65535.0f;
++      icUInt16Number p = (icUInt16Number)fIdx;
+       icFloatNumber p2 = (w - (srcStart + p * srcScale)) / srcScale;
+       if (p >= srcRange.steps - 1)
+         p = srcRange.steps - 2;
