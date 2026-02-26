@@ -502,3 +502,7 @@ calc_select_end="</sel>"
 "windows57005"
 "JEF"
 "US-ASCII"
+
+# --- added by convert-libfuzzer-dict.py ---
+"UTF-16LE"
+"utf32"
