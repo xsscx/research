@@ -363,6 +363,17 @@ Fix: add `nRecurseDepth` parameter (default 0) with a 100-level cap.
 All 5 recursive call sites pass `nRecurseDepth + 1`; returns `-1` when
 exceeded, which propagates as `icFuncParseStackUnderflow`.
 
+Patch 049 fixes memory leak in `CIccProfileXml::ParseTag()`
+(IccProfileXml.cpp:756). When XML tag content parses successfully but
+no valid `<TagSignature>` child element is found, the allocated `CIccTag`
+is never attached to the profile and never freed.  Over thousands of
+fuzzer iterations this leak accumulates → OOM.  LSAN: 192 byte(s) leaked
+per invocation (32 direct + 160 indirect via CIccLocalizedUnicode).
+Reproducer: `oom-442f59c9478c618234a29a3c3e7dbeaa91c0d235` (fuzzed XML
+with corrupted TagSignature element).
+Fix: track `bAttached` flag; `delete pTag` and `return false` if no
+`AttachTag()` was called after the TagSignature scan loop.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
