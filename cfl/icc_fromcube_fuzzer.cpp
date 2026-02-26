@@ -365,10 +365,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Create A2B0 Tag with LUT
   CIccTagMultiProcessElement* pTag = new CIccTagMultiProcessElement(3, 3);
   if (cube.isCustomInputRange()) {
-    // Copy values to avoid holding raw pointers to CubeFile internals
+    // Copy input range values to local stack arrays
     icFloatNumber minVal[3], maxVal[3];
-    memcpy(minVal, cube.getMinInput(), sizeof(minVal));
-    memcpy(maxVal, cube.getMaxInput(), sizeof(maxVal));
+    const icFloatNumber *srcMin = cube.getMinInput();
+    const icFloatNumber *srcMax = cube.getMaxInput();
+    for (int i = 0; i < 3; i++) {
+      minVal[i] = srcMin[i];
+      maxVal[i] = srcMax[i];
+    }
     CIccMpeCurveSet* pCurves = new CIccMpeCurveSet(3);
 
     // Each channel gets its own curve to avoid double-free from shared ownership

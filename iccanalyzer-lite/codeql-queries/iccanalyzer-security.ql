@@ -44,12 +44,16 @@ class UnsafeBufferAllocation extends NewArrayExpr {
 }
 
 // Find resource leaks (fopen without fclose on all paths)
+// Allows fclose in the same class (e.g. destructor) or same function
 class ResourceLeak extends FunctionCall {
   ResourceLeak() {
     this.getTarget().getName() = "fopen" and
     not exists(FunctionCall close |
       close.getTarget().getName() = "fclose" and
-      close.getEnclosingFunction() = this.getEnclosingFunction()
+      (
+        close.getEnclosingFunction() = this.getEnclosingFunction() or
+        close.getEnclosingFunction().getDeclaringType() = this.getEnclosingFunction().getDeclaringType()
+      )
     )
   }
 }

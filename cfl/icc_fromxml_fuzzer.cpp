@@ -98,6 +98,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // NOTE: Schema validation and -noid flag skipped (fuzzer doesn't use args)
   // This matches tool behavior when called without optional flags
 
+  // Disable XXE: prevent external entity loading in untrusted XML
+  xmlSubstituteEntitiesDefault(0);
+  xmlLoadExtDtdDefaultValue = 0;
+
   if (!profile.LoadXml(temp_input, szRelaxNGDir.c_str(), &reason)) {
     // Tool: printf("%s", reason.c_str());
     // Tool: printf("Unable to Parse '%s'\n", argv[1]);

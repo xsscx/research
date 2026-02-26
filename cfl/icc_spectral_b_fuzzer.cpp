@@ -111,8 +111,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   for (uint8_t i = 0; i < nSamples; i++) {
     char *tf = (char*)malloc(PATH_MAX);
     if (!tf) break;
-    char suffix[64];
-    snprintf(suffix, sizeof(suffix), "/fuzz_specb_%d_XXXXXX", i);
+    // Build unique suffix without snprintf to avoid format-string CodeQL alerts
+    char suffix[64] = "/fuzz_specb_";
+    size_t slen = strlen(suffix);
+    suffix[slen++] = '0' + (i / 10);
+    suffix[slen++] = '0' + (i % 10);
+    static const char tail[] = "_XXXXXX";
+    memcpy(suffix + slen, tail, sizeof(tail));
     if (!fuzz_build_path(tf, PATH_MAX, tmpdir, suffix)) { free(tf); break; }
     int fd = mkstemp(tf);
     if (fd < 0) { free(tf); break; }
