@@ -374,6 +374,21 @@ with corrupted TagSignature element).
 Fix: track `bAttached` flag; `delete pTag` and `return false` if no
 `AttachTag()` was called after the TagSignature scan loop.
 
+Patch 050 fixes UBSAN float→int overflow in `ApplySequence()` select op
+(IccMpeCalc.cpp:3754).  The `icSigSelectOp` handler rounds `a1` via
+`(icInt32Number)(a1+0.5f)` but only guards against `isinf`, not huge
+finite values like `-1.12984e+37`.  UBSAN: "is outside the range of
+representable values of type 'int'".
+Fix: clamp `rounded` to `INT32_MIN..INT32_MAX` range before casting.
+
+Patch 051 fixes UBSAN NaN→unsigned short cast in
+`CIccMatrixMath::SetRange()` (IccMatrixMath.cpp:385).
+`(icUInt16Number)((w - srcStart) / srcScale)` produces NaN when
+`srcScale` is zero or when arithmetic yields NaN.  UBSAN: "-nan is
+outside the range of representable values of type 'unsigned short'".
+Fix: compute intermediate `fIdx`, guard against NaN and clamp to
+`0..65535` before casting to `icUInt16Number`.  Adds `#include <cmath>`.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
