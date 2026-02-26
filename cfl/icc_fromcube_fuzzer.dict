@@ -708,3 +708,17 @@
 "DOM\xb8\xb6\xb1\xa0MIN "
 "\x01\x00\x00\x00\x00\x00\x00\x38# S"
 "S\x0a"
+
+# --- added by convert-libfuzzer-dict.py ---
+"TITLEgggggg"
+"\xf8LUT_3"
+"\x90\x00\x00\x00"
+"U9L_3D_SIZE "
+"\x00\x10"
+"P\x0a"
+"\x83\x00\x00\x00"
+"\x1aITLE \x22Idm\x0e"
+"\x01@"
+"TI\xecTLE"
+"\xff\x04"
+"DOMAILUT_3D"

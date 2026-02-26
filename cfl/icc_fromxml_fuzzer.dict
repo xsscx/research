@@ -506,3 +506,6 @@ calc_select_end="</sel>"
 # --- added by convert-libfuzzer-dict.py ---
 "UTF-16LE"
 "utf32"
+
+# --- added by convert-libfuzzer-dict.py ---
+"IccProfile"
