@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>A
+    <ProfileVersion>3.0</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>nou</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </PCSIlluminant>
+    <ProfileCreator>ICC </ProfileCreator>
+    <ProfileID>Duclare34562ABF994CCD066D2C5721D0D68C5D</ProfileID>
+  </Header>
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[sRGB calc tester]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+    <multiProcessElementType>
+      <TagSignature>A2B1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+			  <CalculatorElement InputChannels="3" OutputChannels="3">
+				  <SubElements>
+					  <!--Element 0 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 0.5 0.0			</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 1 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity"egment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 2 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+								1.00000000 1.00000000 -1.00000000
+								2.00000000 1.00000000 -1.00000000
+								1.00000000 -1.00000000 1.00000000
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 3 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+							 0.4660 0.3851 0.1431
+							 0.2225 0.7169 0.0606
+							 0.0139 0.0971 0.7139
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 4 -->
+						<CLutElement InputChannels="3" OutputChannels="3">
+							<GridPoints>2 2 2</GridPoints>
+							<TableData>
+								0.0 0.0 0.0 
+								0.0 0.0 0.75
+								0.0 0.5 0.0
+								0.0 0.5 0.75
+								0.25 0.0 0.0
+								0.25 0.0 0.75
+								0.25 0.5 0.0
+								0.25 0.5 0.75
+							</TableData>
+						</CLutElement>
+					  <!--Element 5 -->
+						<CalculatorElement InputChannels="3" OutputChannels="3">
+							<MainFunction>{ in(0,3) 1 1 1 add(3) out(0,3) }</MainFunction>
+						</CalculatorElement>
+					  <!--Elemen 8 -->
+						<TintArrayElement InputChannels="1" OutputChannels="3">
+						  <float32NumberType>
+							  <Data>
+									0  2  4
+									2  8 4  
+				              </Data>
+							</float32NumberType>
+						</TintArrayElement>
+          </SubElements>
+          <MainFunction>
+{
+1 1 1
+tput(0,3)
+
+tget(0, 3)
+sum(3)
+3 eq
+tput(3)
+
+1 1 1
+tsav(4, 3)
+sum(3)
+3 eq
+tput(7)
+
+1 1 1
+curv(0) %y=.5x; y=x; y=1.5x
+sum(3)
+3 eq
+tput(8)
+
+1 2 3
+mtx(2) %[1 1 -1; 2 1 -1; 1 -1 1]
+0 1 2
+sub(3)
+sum(3)
+0 eq
+tput(9)
+
+1 1 1
+clut(4) %clut with 0.25 0.5 t
+tput(31)
+
+NaN NaN eq
+tput(32)
+
+1 2 3 4
+-1 -2 -3 -4
+add(4)
+sum(4)
+0 eq
+tput(33)
+
+1 2 3 4 1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(34)
+
+2 4 6 8
+0.5 0.5 0.5 0.5
+mul(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(35)
+
+2 4 6 8
+2 2 2 2
+div(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(36)
+
+5 11 3.25 2 4 1
+mod(3)
+1 3 0.25
+sub(3)
+sum(3)
+0 eq
+tput(37)
+
+2 2 2 2
+2 3 4 5
+pow(4)
+4 8 16 32
+sub(4)
+sum(4)
+0 eq
+tput(38)
+
+2 3 4 2
+gama(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(39)
+
+2 3 4 2
+sadd(3)
+4 5 6
+sub(3)
+sum(3)
+0 eq
+tput(40)
+
+3 4 5 2
+ssub(3)
+1 2 3
+sub(3)
+sum(39
+0 eq
+tput(opy(1,2)
+}
+else {
+  in(0,3)
+  curv(1)
+  mtx(3)
+}
+out(0,3)
+}
+else {
+0 0 0
+out(0,3)
+}
+
+}
+          </MainFunction>					
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <multiProcessElementType>
+      <TagSignature>B2A1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						 3.134578  -0.978957   0.072119
+						-1.617306   1.916218  -0.229142
+						-0.491034   0.033570   1.405751
+					</MatrixData>
+				</MatrixElement>
+				<CurveSetElement InputChannels="3" OutputChannels="3">
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -*aMess*391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+				</CurveSetElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </XYZType>
+    <multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 1007 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+  </Tags>
+</IccProfile>
