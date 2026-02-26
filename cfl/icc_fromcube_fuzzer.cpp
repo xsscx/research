@@ -74,6 +74,11 @@ public:
     m_f = nullptr;
   }
 
+  /// Parses .cube file header fields: TITLE, LUT_3D_SIZE, DOMAIN_MIN/MAX,
+  /// LUT_3D_INPUT_RANGE, LUT_IN_VIDEO_RANGE, LUT_OUT_VIDEO_RANGE, and comments.
+  /// Stops at the first line that begins with a digit, dot, or minus sign
+  /// (start of 3D LUT data). Returns false if the file cannot be opened,
+  /// contains a 1D LUT, has an unknown keyword, or reaches EOF prematurely.
   bool parseHeader()
   {
     if (!open())
