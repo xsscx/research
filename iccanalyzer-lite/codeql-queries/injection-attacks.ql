@@ -104,6 +104,7 @@ class CommandInjection extends FunctionCall {
 
 /**
  * Format string vulnerability — format arg is NOT a string literal
+ * Excludes fuzz_build_path which uses memcpy, not format strings.
  */
 class FormatStringVulnerability extends FunctionCall {
   FormatStringVulnerability() {
@@ -112,6 +113,7 @@ class FormatStringVulnerability extends FunctionCall {
       "vprintf", "vfprintf", "vsprintf", "vsnprintf",
       "syslog"
     ]) and
+    not this.getTarget().getName() = "fuzz_build_path" and
     (
       (
         this.getTarget().getName().matches(["fprintf", "sprintf", "snprintf", "vfprintf", "vsprintf", "vsnprintf"]) and
