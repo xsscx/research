@@ -175,14 +175,9 @@ matrix entries to large values (e.g. `1668641986 + 1668641398` = `0x637574C2 +
 0x63757476`) causing signed overflow.  Fix: widen `sum` and `s15dot16Unity`
 to `icInt64Number`.
 
-Patch 023 fixes heap-buffer-overflow in `CIccCalculatorFunc::InitSelectOp()`.
-The function iterates `ops[]` (a pointer into the `m_Op` array) counting
-`icSigCaseOp` entries via `for (n=0; n<nOps && ops[n+1].sig==icSigCaseOp; n++)`.
-When `n` reaches `nOps-1`, `ops[n+1]` is `ops[nOps]` — 1 element past the
-28,488-byte heap allocation.  ASAN: READ of size 4 at 0 bytes after region.
-Same OOB in the subsequent `if (ops[n+1].sig==icSigDefaultOp)` check.
-Fix: change loop guard to `n+1<nOps` and add `n+1<nOps` bounds check before
-the `icSigDefaultOp` test.
+Patch 023 *(upstream-adopted — no-op)* fixed heap-buffer-overflow in
+`CIccCalculatorFunc::InitSelectOp()`. The fix was adopted upstream using
+`n<(nOps-1)` with an explicit bounds check. This patch is now a no-op.
 
 Patch 024 fixes UBSAN `invalid-enum-load` in `CIccOpDefEnvVar::Exec()`.
 `op->data.size` is an `icUInt32Number` from profile data, cast directly to
@@ -224,17 +219,10 @@ count), writing past the caller's buffer.  Triggered via
 Fix: use `nVectorSize` as the loop bound in all three template
 specializations.
 
-Patch 028 fixes heap-buffer-overflow in `CIccTagNum::Interpolate()`,
-`CIccTagFixedNum::Interpolate()`, and `CIccTagFloatNum::Interpolate()`
-(IccTagBasic.cpp).  Same root cause as patch 027: all interpolation
-loops use `m_nSize` (total tag array elements) instead of `nVectorSize`
-(caller-requested vector width), reading past `lo[]`/`hi[]` pointers
-and writing past `DstVector[]`.  13 loop instances fixed across all
-three template specializations (6 in CIccTagFixedNum, 6 in CIccTagNum,
-1 in CIccTagFloatNum).  Triggered by `icc_apply_fuzzer` via a crafted
-ColorSpaceClass profile with a tint-array sub-element containing a
-small float32 tag.
-Fix: use `nVectorSize` as the loop bound in all 13 instances.
+Patch 028 *(upstream-adopted — no-op)* fixed heap-buffer-overflow in
+`CIccTagNum::Interpolate()`, `CIccTagFixedNum::Interpolate()`, and
+`CIccTagFloatNum::Interpolate()`. The fix was adopted upstream; all
+Interpolate loops now use `nVectorSize` instead of `m_nSize`.
 
 Patch 029 fixes UBSAN undefined behavior and SEGV crash in all
 `CIccCLUT::Interp*d()` functions (IccTagLut.cpp).  When the CLUT is

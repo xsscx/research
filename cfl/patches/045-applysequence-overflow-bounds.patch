@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index b8d6159..289e401 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -3719,20 +3719,19 @@
+@@ -3720,27 +3720,26 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
  
        if (os.idx+1<nOps && ops[os.idx+1].sig==icSigElseOp) {
          os.idx++;
@@ -36,7 +38,7 @@
            if (!ApplySequence(pApply, op->data.size, &ops[os.idx+1]))
              return false;
          }
-@@ -3756,14 +3755,19 @@
+@@ -3764,17 +3763,19 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
          return false;
        }
        
@@ -53,13 +55,14 @@
          if (ops[nDefOff].sig==icSigDefaultOp) {
 -          if (os.idx+1 + ops[nDefOff].extra >= nOps)
 +          if ((icUInt64Number)os.idx+1 + ops[nDefOff].extra >= nOps)
-+            return false;
-+
+             return false;
+ 
+-          if (os.idx+1 + ops[nDefOff].extra + ops[nDefOff].data.size > nOps)
 +          if ((icUInt64Number)os.idx+1 + ops[nDefOff].extra + ops[nDefOff].data.size > nOps)
              return false;
  
            if (!ApplySequence(pApply, ops[nDefOff].data.size, &ops[os.idx+1 + ops[nDefOff].extra]))
-@@ -3771,9 +3775,13 @@
+@@ -3782,12 +3783,13 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
          }
        }
        else {
@@ -68,14 +71,15 @@
  
 -        if (nOff >= nOps) 
 +        if (nOff64 >= nOps) 
-+          return false;
+           return false;
 +        icUInt32Number nOff = (icUInt32Number)nOff64;
-+
+ 
+-        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
 +        if ((icUInt64Number)os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
            return false;
  
          if (!ApplySequence(pApply, ops[nOff].data.size, &ops[os.idx+1 + ops[nOff].extra]))
-@@ -3781,15 +3789,19 @@
+@@ -3795,18 +3797,19 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
        }
  
        if (ops[nDefOff].sig==icSigDefaultOp) {
@@ -89,11 +93,12 @@
 -        unsigned long nOff = os.idx + op->extra;
 +        icUInt64Number nOff64 = (icUInt64Number)os.idx + op->extra;
  
--        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
+-        if (nOff >= nOps)
 +        if (nOff64 >= nOps)
-+          return false;
+           return false;
 +        icUInt32Number nOff = (icUInt32Number)nOff64;
-+
+ 
+-        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
 +        if ((icUInt64Number)os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
            return false;
  
