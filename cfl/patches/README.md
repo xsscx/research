@@ -324,6 +324,28 @@ Values outside `[INT_MIN, INT_MAX]` are undefined behavior per C++.
 Fix: replace `(int)temp` with `std::trunc(temp)` which returns a float
 and handles the full float range without integer overflow.
 
+Patch 043 fixes timeout in `CIccCalculatorFunc::SequenceNeedTempReset()`
+(IccMpeCalc.cpp).  Crafted calculator ops cause the function's linear
+for-loop (not deep recursion — stack shows only 2 levels) to process
+millions of ops.  Fix: add a shared `icUInt32Number *pOpsProcessed`
+counter passed across recursion levels, capped at 1,000,000.
+
+Patch 044 fixes OOM in `CIccTagSparseMatrixArray::Read()` (IccTagBasic.cpp).
+`Reset()` calls `icRealloc(m_RawData, nNeededSize)` where `nNeededSize`
+comes from the profile's declared tag size — crafted profiles trigger
+4+ GB allocations via `icRealloc`.  Fix: add a 16 MB allocation cap
+before the `Reset()` call.
+
+Patch 045 fixes heap-buffer-overflow in `CIccCalculatorFunc::ApplySequence()`
+(IccMpeCalc.cpp).  Bounds checks for if/else and select/case/default ops
+used uint32 arithmetic that overflows with crafted `data.size` values,
+allowing READ past the ops array.  Two sub-bugs: (1) the if-true branch
+validated only the if-block size but not the else-block size before
+advancing `os.idx` by both; (2) all bounds checks used `icUInt32Number`
+addition that wraps at 2³².  Fix: use `icUInt64Number` casts in all
+bounds checks and validate both block sizes unconditionally.
+Crash artifact: `crash-3741ab3832437d29b96592fb2624d07367740893`.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
