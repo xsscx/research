@@ -100,8 +100,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       for (auto tf : tmpfiles) { unlink(tf); free(tf); }
       return 0;
     }
-    char suffix[64];
-    snprintf(suffix, sizeof(suffix), "/fuzz_sep_%d_XXXXXX", i);
+    // Build unique suffix without snprintf to avoid format-string CodeQL alerts
+    char suffix[64] = "/fuzz_sep_";
+    size_t slen = strlen(suffix);
+    suffix[slen++] = '0' + (i / 10);
+    suffix[slen++] = '0' + (i % 10);
+    static const char tail[] = "_XXXXXX";
+    memcpy(suffix + slen, tail, sizeof(tail));
     if (!fuzz_build_path(tmpfile, PATH_MAX, tmpdir, suffix)) {
       for (auto tf : tmpfiles) {
         unlink(tf);

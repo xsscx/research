@@ -76,8 +76,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool useV5SubProfile = (flags & 0x08) != 0;
   icXformInterp interp = ((flags >> 4) & 0x01) ? icInterpTetrahedral : icInterpLinear;
   icRenderingIntent intent = (icRenderingIntent)(data[1] & 0x03);
-  (void)(data[2] % 7);  // srcEncoding: reserved for future use
-  (void)(data[3] % 7);  // dstEncoding: reserved for future use
 
   // Profile data starts at offset 4
   const uint8_t *profile_data = data + 4;
