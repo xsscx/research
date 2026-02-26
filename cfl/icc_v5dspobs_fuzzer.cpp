@@ -658,7 +658,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     curveMpe->Apply(curveApply, out, in);
     
     // TOOL FIDELITY: Direct assignment like tool (no NaN/Inf checks)
-    // Tool: (*pTrcR)[i] = out[0]; (*pTrcG)[i] = out[1]; (*pTrcB)[i] = out[2];
+    // Assign TRC curve values for R, G, B channels
     (*pTrcR)[i] = out[0];
     (*pTrcG)[i] = out[1];
     (*pTrcB)[i] = out[2];
@@ -710,12 +710,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   AST_LOG_VERBOSE("Tool extracts description from input profile");
   
   // TOOL FIDELITY: Extract description from input profile like tool does
-  // Tool: CIccTag* pDesc = dspIcc->FindTag(icSigProfileDescriptionTag);
+  // Extract description from input profile
   CIccTag* pDesc = dspIcc->FindTag(icSigProfileDescriptionTag);
   
   CIccTagMultiLocalizedUnicode* pDspText = new CIccTagMultiLocalizedUnicode();
   std::string text;
-  // Tool: if (!icGetTagText(pDesc, text)) text = "Display profile from '...'";
+  // Description tag text extraction (not needed in fuzzer)
   if (!icGetTagText(pDesc, text))
     text = "Fuzzed V5 to V4 display conversion";
   pDspText->SetText(text.c_str());
@@ -729,7 +729,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   AST_LOG_VERBOSE("Tool calls: SaveIccProfile(argv[3], pIcc)");
   
   // TOOL FIDELITY: Write output to temp file like tool does
-  // Tool: SaveIccProfile(argv[3], pIcc);
+  // Save output profile to disk
   char outTmpFile[PATH_MAX];
   if (!fuzz_build_path(outTmpFile, sizeof(outTmpFile), tmpdir, "/fuzz_v4out_XXXXXX")) {
     delete pIcc;
