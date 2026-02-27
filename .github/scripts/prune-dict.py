@@ -144,6 +144,29 @@ def is_too_long(data):
     return len(data) > 16
 
 
+def sanitize_escapes(line):
+    """Convert C-style escapes to hex-only form for LibFuzzer compatibility.
+
+    LibFuzzer only supports \\xNN, \\\\, and \\" in dict entries.
+    Convert \\n→\\x0a, \\r→\\x0d, \\t→\\x09, \\0→\\x00.
+    Also strip inline comments after the closing quote.
+    """
+    stripped = line.rstrip('\n')
+    m = re.match(r'^((?:\w+=)?)"(.*)"(\s*#.*)?$', stripped)
+    if not m:
+        return line  # not a dict entry
+    prefix = m.group(1)  # optional key=
+    inner = m.group(2)
+
+    # Convert C-style escapes to hex
+    inner = inner.replace('\\n', '\\x0a')
+    inner = inner.replace('\\r', '\\x0d')
+    inner = inner.replace('\\t', '\\x09')
+    inner = inner.replace('\\0', '\\x00')
+
+    return f'{prefix}"{inner}"\n'
+
+
 def classify_entry(raw):
     """Classify an entry and return (keep, reason)."""
     data = decode_entry(raw)
@@ -195,6 +218,10 @@ def prune_dict(input_path, output_path=None, dry_run=False, show_stats=False):
             stats["comments"] += 1
             kept_lines.append(line)
             continue
+
+        # Sanitize escapes (convert \n/\r/\t to \xNN, strip inline comments)
+        line = sanitize_escapes(line)
+        stripped = line.rstrip('\n')
 
         # Extract entry content
         m = re.match(r'^(?:\w+=)?"(.*)"$', stripped)
