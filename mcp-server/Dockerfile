@@ -98,6 +98,7 @@ COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test
 ENV ASAN_OPTIONS=detect_leaks=0
 ENV MallocNanoZone=0
 ENV ICC_MCP_ROOT=/app
+ENV GCOV_PREFIX=/dev/null
 
 # Entrypoint script supports: mcp (default), web, or custom command
 COPY <<'ENTRYPOINT' /app/entrypoint.sh
