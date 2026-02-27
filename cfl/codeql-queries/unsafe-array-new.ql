@@ -17,12 +17,26 @@
 
 import cpp
 
+/**
+ * Holds when a NewArrayExpr uses std::nothrow placement.
+ */
+predicate hasNothrowArray(NewArrayExpr alloc) {
+  exists(alloc.getPlacementPointer())
+  or
+  alloc.toString().matches("%nothrow%")
+  or
+  exists(Expr arg |
+    arg = alloc.getAChild() and
+    arg.getType().stripType().getName() = "nothrow_t"
+  )
+}
+
 from NewArrayExpr alloc
 where
   // Only flag array new (variable-size), not scalar new
   exists(alloc.getArraySize()) and
   // Not using nothrow placement
-  not exists(alloc.getPlacementPointer()) and
+  not hasNothrowArray(alloc) and
   // Exclude upstream iccDEV code (not ours to fix)
   not alloc.getFile().toString().matches("%iccDEV%") and
   // Exclude test files

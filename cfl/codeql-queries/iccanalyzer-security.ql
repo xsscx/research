@@ -49,12 +49,12 @@ class IntegerOverflowMultiply extends MulExpr {
 class UnsafeBufferAllocation extends NewArrayExpr {
   UnsafeBufferAllocation() {
     this.getFile().getBaseName().matches("IccAnalyzer%") and
-    // Exclude allocations using std::nothrow that have a null check after
-    not exists(IfStmt nullCheck |
-      nullCheck.getCondition().getAChild*().(VariableAccess).getTarget() =
-        this.getParent().(AssignExpr).getLValue().(VariableAccess).getTarget() and
-      nullCheck.getLocation().getStartLine() > this.getLocation().getStartLine() and
-      nullCheck.getLocation().getStartLine() < this.getLocation().getStartLine() + 5
+    // Exclude allocations using std::nothrow (they return nullptr on failure)
+    not this.toString().matches("%nothrow%") and
+    not exists(this.getPlacementPointer()) and
+    not exists(Expr arg |
+      arg = this.getAChild() and
+      arg.getType().stripType().getName() = "nothrow_t"
     ) and
     // Must not have any size/bounds guard within 30 lines before
     not exists(IfStmt check |
