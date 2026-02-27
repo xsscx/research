@@ -1,0 +1,15 @@
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -2978,6 +2978,12 @@ bool CIccTagNamedColor2::Read(icUInt32Number size, CIccIO *pIO)
+     return false;
+   }
+ 
++  // CFL patch 055: null-terminate prefix/suffix to prevent stack buffer
++  // overflow in icFixXml when unterminated strings full of XML-special
++  // characters (e.g. 0x27 = ') expand beyond the destination buffer.
++  m_szPrefix[sizeof(m_szPrefix)-1] = '\0';
++  m_szSufix[sizeof(m_szSufix)-1] = '\0';
++
+   size -= nTagHdrSize;
+ 
+   size_t nCount = size / (32+(3+(size_t)nCoords)*sizeof(icUInt16Number));
