@@ -452,7 +452,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
     log << "ERROR: Memory allocation failed\n";
     return -1;
   }
-  file.read((char*)data, fileSize);
+  file.read(reinterpret_cast<char*>(data), fileSize);
   file.close();
   
   std::ostringstream xml;
@@ -638,7 +638,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
             
             std::ofstream binOut(binFile, std::ios::binary);
             if (binOut) {
-              binOut.write((char*)(data + tagOffset), tagSize);
+              binOut.write(reinterpret_cast<const char*>(data + tagOffset), tagSize);
               binOut.close();
               
               xml << "      <DataFile size=\"" << dataSize << "\">" 

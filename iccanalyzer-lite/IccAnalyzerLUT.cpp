@@ -139,7 +139,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
       
       for (icUInt32Number i = 0; i < totalEntries; i++) {
         ICC_TRACE_NAN(data[i], "mpeCLUT.data");
-        icUInt16Number val = (icUInt16Number)(data[i] * 65535.0f + 0.5f);
+        icUInt16Number val = static_cast<icUInt16Number>(data[i] * 65535.0f + 0.5f);
         icUInt16Number bigEndian = ((val >> 8) & 0xff) | ((val << 8) & 0xff00);
         if (fwrite(&bigEndian, sizeof(icUInt16Number), 1, fBin) != 1) {
           printf("    Warning: Write error at entry %u\n", i);
@@ -453,7 +453,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        if ((long)clutSize != fileSize) {
+        if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
           fclose(f);
@@ -476,7 +476,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         size_t bytesRead = fread(buffer, 1, fileSize, f);
         fclose(f);
         
-        if ((long)bytesRead != fileSize) {
+        if (static_cast<long>(bytesRead) != fileSize) {
           printf("Read error: expected %ld bytes, got %zu\n", fileSize, bytesRead);
           delete[] buffer;
           continue;
@@ -525,7 +525,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        if ((long)clutSize != fileSize) {
+        if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
           fclose(f);
@@ -548,7 +548,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
         fclose(f);
         
-        if ((long)itemsRead != fileSize / 2) {
+        if (static_cast<long>(itemsRead) != fileSize / 2) {
           printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
           delete[] buffer;
           continue;
@@ -649,7 +649,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
   fclose(f);
   
-  if ((long)itemsRead != fileSize / 2) {
+  if (static_cast<long>(itemsRead) != fileSize / 2) {
     printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
     delete[] buffer;
     delete pIcc;

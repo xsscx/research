@@ -202,7 +202,7 @@ static int AnalyzeMpeTags(CIccProfile *pIcc)
 
       icElemTypeSignature elemType = pElem->GetType();
       char typeStr[5];
-      SigToStr((icUInt32Number)elemType, typeStr);
+      SigToStr(static_cast<icUInt32Number>(elemType), typeStr);
       printf("        [%u] type='%s' in=%u out=%u\n",
              e, typeStr, pElem->NumInputChannels(), pElem->NumOutputChannels());
 
@@ -516,7 +516,7 @@ static int AnalyzeTagSizes(CIccProfile *pIcc)
     IccTagEntry *e = &(*it);
     if (e->TagInfo.size > TAG_SIZE_WARN) {
       char sigStr[5];
-      SigToStr((icUInt32Number)e->TagInfo.sig, sigStr);
+      SigToStr(static_cast<icUInt32Number>(e->TagInfo.sig), sigStr);
       printf("      %s[WARN] '%s' size=%u bytes (%.1f MB)%s\n",
              ColorWarning(), sigStr, e->TagInfo.size,
              e->TagInfo.size / (1024.0 * 1024.0), ColorReset());
