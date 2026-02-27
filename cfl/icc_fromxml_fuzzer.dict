@@ -509,3 +509,6 @@ calc_select_end="</sel>"
 
 # --- added by convert-libfuzzer-dict.py ---
 "IccProfile"
+
+# --- added by convert-libfuzzer-dict.py ---
+"CHROMA"
