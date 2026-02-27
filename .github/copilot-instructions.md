@@ -1,19 +1,77 @@
 # Copilot Instructions — ICC Security Research
 
-## STOP — DO NOT BUILD ANYTHING
+## Environment Detection
 
-**The tools are ALREADY BUILT.** The `copilot-setup-steps.yml` Docker image provides pre-built binaries.
+This repo is used in two contexts. Detect which one you are in:
 
-**NEVER run**: `build.sh`, `local_build.sh`, `make setup`, `make`, `cmake`, `git clone` for iccDEV, or any compilation command.
-
-**NEVER clone iccDEV.** It is already built into the Docker image.
-
-The binaries are ready NOW at these paths:
-- `iccanalyzer-lite/iccanalyzer-lite` — security analyzer (ASAN+UBSAN instrumented)
+### GitHub Copilot Coding Agent (cloud)
+If `copilot-setup-steps.yml` ran, binaries are pre-built in the Docker image.
+**Do NOT run** `build.sh`, `cmake`, or `git clone` for iccDEV — they are already built.
+Binaries:
+- `iccanalyzer-lite/iccanalyzer-lite` — security analyzer (ASAN+UBSAN)
 - `colorbleed_tools/iccToXml_unsafe` — ICC to XML converter
 - `colorbleed_tools/iccFromXml_unsafe` — XML to ICC converter
 
-**Your first action** on any analysis issue: run `ls -la iccanalyzer-lite/iccanalyzer-lite` to confirm the binary exists, then run it. If the binary does not exist, report the error — do NOT try to build it.
+### Local / Copilot CLI
+Binaries must be built before use. See **Local Build** section below.
+
+**First action** on any analysis issue: run `ls -la iccanalyzer-lite/iccanalyzer-lite` to confirm the binary exists. If missing, build it (local) or report the error (cloud).
+
+## Local Build
+
+```bash
+# Prerequisites: clang/clang++ 18+, cmake 3.15+, libxml2-dev, libtiff-dev,
+#                libclang-rt-18-dev (provides ASan/UBSan/fuzzer runtimes)
+
+# Build iccanalyzer-lite (ASAN + UBSAN + coverage)
+cd iccanalyzer-lite && ./build.sh
+
+# Build CFL fuzzers (clones iccDEV, applies 52 patches, builds 19 fuzzers)
+cd cfl && ./build.sh
+
+# Build colorbleed_tools
+cd colorbleed_tools && make setup && make
+```
+
+`cfl/build.sh` reuses an existing `cfl/iccDEV/` checkout if present — it does NOT reclone unless the directory is missing.
+
+## Ramdisk Fuzzing Setup
+
+All fuzzing should run on a tmpfs ramdisk to avoid SSD wear and maximize I/O speed.
+
+```bash
+# One-stop setup: mount ramdisk, copy binaries + dicts + corpus
+.github/scripts/ramdisk-seed.sh --mount
+
+# Status check
+.github/scripts/ramdisk-status.sh
+
+# Run a single fuzzer (smoke test, 60 seconds)
+LLVM_PROFILE_FILE=/tmp/fuzz-ramdisk/profraw/%m.profraw \
+ASAN_OPTIONS=detect_leaks=0 \
+FUZZ_TMPDIR=/tmp/fuzz-ramdisk \
+  /tmp/fuzz-ramdisk/bin/icc_profile_fuzzer \
+  -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 \
+  -use_value_profile=1 -max_len=65536 \
+  -artifact_prefix=/tmp/fuzz-ramdisk/ \
+  -dict=/tmp/fuzz-ramdisk/dict/icc_profile_fuzzer.dict \
+  /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer/
+
+# Corpus merge/minimize (after extended fuzzing)
+.github/scripts/ramdisk-merge.sh
+
+# Sync minimized corpus back to disk
+.github/scripts/ramdisk-sync-to-disk.sh
+
+# Generate coverage report
+.github/scripts/merge-profdata.sh
+.github/scripts/generate-coverage-report.sh
+```
+
+Special fuzzer notes:
+- **icc_link_fuzzer** needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2x ASAN memory)
+- Coverage collection: `LLVM_PROFILE_FILE=$RAMDISK/profraw/%m_%p.profraw`
+- Suppress profile errors during fuzzing: `LLVM_PROFILE_FILE=/dev/null`
 
 ## FAILURE IDENTIFICATION — READ THIS
 
@@ -37,10 +95,12 @@ You MUST accurately report failures. Do NOT claim success when errors occur.
 
 ## Build Commands (REFERENCE ONLY — do NOT run these)
 
+These commands are for CI documentation. For local builds, see **Local Build** above.
+
 ## Fuzzing
 
 ```bash
-# Ramdisk workflow (mounts 4GB tmpfs, seeds corpus, runs all 18 fuzzers)
+# Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 19 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
 # Local fuzzing (uses existing ramdisk, manages workers/timeouts)
@@ -151,11 +211,11 @@ Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-pr
 
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
-- **cfl/** — 17 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
+- **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 19-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 15 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — 23 security patches (001–023) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, infinite loop fixes, strlen OOB fixes, and alloc/dealloc mismatch corrections. See `cfl/patches/README.md` for full details.
+- **cfl/patches/** — 52 security patches (001–052) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, and alloc/dealloc mismatch corrections. See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
 
@@ -206,13 +266,14 @@ Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by 
 When creating a new patch for `cfl/patches/`:
 1. Reproduce the crash with the PoC profile against the existing iccDEV binary
 2. Create the `.patch` file in unified diff format (`diff -u a/path b/path`)
-3. Apply to the existing iccDEV checkout: `patch -p1 -d iccDEV --forward < cfl/patches/NNN-name.patch`
-4. Rebuild iccDEV libraries: `cd iccDEV/Build && cmake --build . -j$(nproc)`
-5. Rebuild fuzzers by linking against updated libraries (do NOT run `cfl/build.sh` — it reclones)
-6. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
-7. Rebuild ALL 18 fuzzers to confirm no regressions
-8. Update `cfl/patches/README.md` (table entry + description paragraph)
-9. Do NOT commit patched iccDEV source — only the `.patch` file in `cfl/patches/`
+3. Apply to the existing iccDEV checkout: `patch -p1 -d cfl/iccDEV --forward < cfl/patches/NNN-name.patch`
+4. Rebuild iccDEV libraries: `cd cfl/iccDEV/Build && cmake --build . --target IccProfLib2-static -j$(nproc)`
+5. Rebuild fuzzers: `cd cfl && ./build.sh` (reuses existing checkout, applies all patches)
+6. Copy rebuilt binaries to ramdisk: `cp cfl/bin/* /tmp/fuzz-ramdisk/bin/`
+7. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
+8. Run a smoke test across all 19 fuzzers to confirm no regressions
+9. Update `cfl/patches/README.md` (table entry + description paragraph)
+10. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
 
 ### Sanitizer flags
 - **Fuzzers**: `-fsanitize=fuzzer,address,undefined -fprofile-instr-generate -fcoverage-mapping`
@@ -239,7 +300,7 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 
 ### CI workflows
 26 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
-- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 18 fuzzers
+- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 19 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
 - `iccanalyzer-cli-release.yml` — CLI test suite + release artifacts
