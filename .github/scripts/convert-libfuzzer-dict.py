@@ -59,16 +59,21 @@ FUZZER_DICT_MAP = {
     "icc_calculator_fuzzer":    "icc_calculator_fuzzer.dict",
     "icc_deep_dump_fuzzer":     "icc_deep_dump_fuzzer.dict",
     "icc_dump_fuzzer":          "icc_dump_fuzzer.dict",
+    "icc_fromcube_fuzzer":      "icc_fromcube_fuzzer.dict",
     "icc_fromxml_fuzzer":       "icc_fromxml_fuzzer.dict",
     "icc_io_fuzzer":            "icc_io_fuzzer.dict",
     "icc_link_fuzzer":          "icc_link_fuzzer.dict",
     "icc_multitag_fuzzer":      "icc_multitag_fuzzer.dict",
+    "icc_multitagarray_fuzzer": "icc_multitagarray_fuzzer.dict",
     "icc_profile_fuzzer":       "icc_profile_fuzzer.dict",
     "icc_roundtrip_fuzzer":     "icc_roundtrip_fuzzer.dict",
     "icc_specsep_fuzzer":       "icc_specsep_fuzzer.dict",
+    "icc_spectral_b_fuzzer":    "icc_spectral_b_fuzzer.dict",
     "icc_spectral_fuzzer":      "icc_spectral_fuzzer.dict",
+    "icc_spectral_separator_fuzzer": "icc_spectral_separator_fuzzer.dict",
     "icc_tiffdump_fuzzer":      "icc_tiffdump_fuzzer.dict",
     "icc_toxml_fuzzer":         "icc_toxml_fuzzer.dict",
+    "icc_v5_fuzzer":            "icc_v5_fuzzer.dict",
     "icc_v5dspobs_fuzzer":      "icc_v5dspobs_fuzzer.dict",
 }
 
@@ -105,9 +110,14 @@ def normalize_entry(line):
     # Convert single-escaped octal: \NNN (but not \xNN which is already hex)
     entry = re.sub(r'\\(\d{3})', octal_to_hex, entry)
 
-    # Convert escaped quotes inside entries to \x22
-    # Match \" that is NOT at the start or end of the entry
+    # Convert C-style escapes to hex (LibFuzzer only supports \xNN, \\, \")
     inner = entry[1:-1]  # strip surrounding quotes
+    inner = inner.replace('\\n', '\\x0a')
+    inner = inner.replace('\\r', '\\x0d')
+    inner = inner.replace('\\t', '\\x09')
+    inner = inner.replace('\\0', '\\x00')
+
+    # Convert escaped quotes inside entries to \x22
     inner = inner.replace('\\"', '\\x22')
 
     # Fix ambiguous hex escapes: \xNNC where C is a hex digit
@@ -169,19 +179,39 @@ def load_existing(path):
 
 
 def validate_entry(entry):
-    """Basic validation that entry is well-formed."""
+    """Basic validation that entry is well-formed for LibFuzzer.
+
+    LibFuzzer only supports these escape sequences inside dict entries:
+      \\xNN  (hex byte)
+      \\\\   (literal backslash)
+      \\"    (literal quote — normalized to \\x22 by normalize_entry)
+    """
     if not entry.startswith('"') or not entry.endswith('"'):
         return False
     if len(entry) < 2:
         return False
-    # Check for unescaped quotes in the middle
     inner = entry[1:-1]
     i = 0
     while i < len(inner):
         if inner[i] == '"':
             return False  # unescaped quote
         if inner[i] == '\\':
-            i += 1  # skip escaped char
+            if i + 1 >= len(inner):
+                return False  # trailing backslash
+            nxt = inner[i + 1]
+            if nxt == 'x':
+                # Must have exactly 2 hex digits
+                if i + 3 >= len(inner):
+                    return False
+                if not all(c in '0123456789abcdefABCDEF'
+                           for c in inner[i + 2:i + 4]):
+                    return False
+                i += 4
+            elif nxt == '\\':
+                i += 2
+            else:
+                return False  # invalid escape (e.g., \n, \t, \r)
+            continue
         i += 1
     return True
 
