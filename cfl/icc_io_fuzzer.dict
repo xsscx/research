@@ -4226,3 +4226,6 @@
 "srrr"
 "%\x00\x00\x00\x00\x00\x00\x00"
 "\xff\xffP\x10"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xe1\x07"

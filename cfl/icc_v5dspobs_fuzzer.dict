@@ -2709,3 +2709,6 @@
 "!\xf7\xa6\x06"
 "\x00\x00P0\x00\x08\xfc\xb8"
 "7\xff\xff\xff"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00Z\x98"
