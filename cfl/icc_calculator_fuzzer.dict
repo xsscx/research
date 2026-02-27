@@ -2936,3 +2936,6 @@
 "\x21"
 "\x33"
 "\xff"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x32"

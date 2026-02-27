@@ -3545,3 +3545,8 @@
 "clin"
 "clot"
 "cloo"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00Q\x10\x00\xa7=<"
+"\x01\x00\x7fr\x05\x86%1"
+"\xff\xffP0\x00\x02\xd6\xfc"

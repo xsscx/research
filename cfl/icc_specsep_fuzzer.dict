@@ -2204,3 +2204,8 @@
 "Illuminant D65"
 "Illuminant F7"
 "Illuminant Unknown"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x7fJ\xd2\xca\xb1\x95"
+"\xff\xffO0\x00%\x12m"
+"\x00\x16\x00\x0a"
