@@ -1,7 +1,7 @@
 # ICC Master Curated Fuzzer Dictionary
 # Consolidated from icc_core.dict + icc_recommended.dict + ICC spec signatures
 # Noise-free, deduplicated, organized by category
-# Entries: 319
+# Entries: 319 + edge-case additions
 #
 # To regenerate: see .github/scripts/prune-dict.py
 # To prune per-fuzzer dicts: python3 .github/scripts/prune-dict.py --all
@@ -681,3 +681,410 @@
 "<MatrixElement>"
 "<MultiProcessElementType>"
 "<Tags>"
+
+# =============================================================================
+# EDGE CASES: IEEE 754 Float Boundaries
+# =============================================================================
+# These trigger overflow/underflow/NaN paths in LUT interpolation,
+# curve evaluation, matrix multiply, and ToneMap functions.
+
+# float 1.0 — identity/passthrough in curves and matrices
+"\x3f\x80\x00\x00"
+# float -1.0 — negative clamp paths
+"\xbf\x80\x00\x00"
+# float FLT_MAX — overflow triggers in Apply/Interp
+"\x7f\x7f\xff\xff"
+# float FLT_MIN (smallest normal) — denormalized boundary
+"\x00\x80\x00\x00"
+# float epsilon (smallest > 1.0 difference) — precision edge
+"\x3f\x80\x00\x01"
+# float 0.5 — midpoint for curve/LUT interpolation
+"\x3f\x00\x00\x00"
+# float 2.0 — out-of-range for normalized values
+"\x40\x00\x00\x00"
+# float 100.0 — Lab L* max
+"\x42\xc8\x00\x00"
+# float 128.0 — Lab a*/b* offset
+"\x43\x00\x00\x00"
+# float -128.0 — Lab a*/b* negative limit
+"\xc3\x00\x00\x00"
+# Signaling NaN (triggers UBSAN float-cast-overflow)
+"\x7f\xa0\x00\x00"
+# Negative signaling NaN
+"\xff\xa0\x00\x00"
+# Very small denormalized float
+"\x00\x00\x00\x01"
+
+# =============================================================================
+# EDGE CASES: s15Fixed16Number Values (ICC fixed-point)
+# =============================================================================
+# ICC uses s15Fixed16 for XYZ values, matrices, and white/black points.
+# Format: 16-bit signed integer + 16-bit fraction (big-endian).
+
+# s15Fixed16 0.0
+"\x00\x00\x00\x00"
+# s15Fixed16 -32768.0 (minimum)
+"\x80\x00\x00\x00"
+# s15Fixed16 32767.9999 (maximum)
+"\x7f\xff\xff\xff"
+# s15Fixed16 0.00003 (smallest positive fraction)
+"\x00\x00\x00\x01"
+
+# =============================================================================
+# WHITE POINT / BLACK POINT / ILLUMINANT VALUES
+# =============================================================================
+# D50 illuminant (PCS white point — mandatory in every ICC profile)
+# D50 X = 0.9642 (s15Fixed16: 0x0000F6D6)
+"\x00\x00\xf6\xd6"
+# D50 Y = 1.0000 (s15Fixed16: 0x00010000)
+"\x00\x01\x00\x00"
+# D50 Z = 0.8249 (s15Fixed16: 0x0000D32D)
+"\x00\x00\xd3\x2d"
+# D65 illuminant (common source white)
+# D65 X = 0.9505 (s15Fixed16: 0x0000F351)
+"\x00\x00\xf3\x51"
+# D65 Y = 1.0000
+# D65 Z = 1.0890 (s15Fixed16: 0x000116CC)
+"\x00\x01\x16\xcc"
+# Black point all zeros
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+# Perceptual black point (typical)
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+
+# =============================================================================
+# ICC VERSION NUMBERS (header offset 8, 4 bytes)
+# =============================================================================
+# v2.1
+"\x02\x10\x00\x00"
+# v2.4
+"\x02\x40\x00\x00"
+# v4.2
+"\x04\x20\x00\x00"
+# v4.3
+"\x04\x30\x00\x00"
+# v4.4
+"\x04\x40\x00\x00"
+# v5.0
+"\x05\x00\x00\x00"
+# v5.1
+"\x05\x10\x00\x00"
+# Invalid future version (triggers version checks)
+"\x06\x00\x00\x00"
+"\x09\x90\x00\x00"
+
+# =============================================================================
+# LUT / CLUT STRUCTURAL VALUES
+# =============================================================================
+# Grid point counts (1 byte each in mft1/mft2 CLUT)
+"\x02"
+"\x03"
+"\x05"
+"\x07"
+"\x09"
+"\x11"
+"\x15"
+"\x19"
+"\x21"
+"\x33"
+"\x41"
+"\x51"
+"\xff"
+# Input/output channel counts
+"\x01"
+"\x03"
+"\x04"
+"\x06"
+"\x08"
+"\x0f"
+"\x10"
+# LUT 8 entry count (256 entries, 1 byte each = 256 bytes)
+"\x00\x01\x00\x00"
+# LUT 16 entry count (common: 256, 4096)
+"\x01\x00"
+"\x10\x00"
+# mft1 input/output table size (256 entries)
+"\x01\x00"
+# mft2 input table entries
+"\x00\x02"
+"\x00\x04"
+"\x01\x00"
+"\x10\x00"
+# CLUT precision byte (1=8-bit, 2=16-bit)
+"\x01"
+"\x02"
+
+# =============================================================================
+# PREVIEW LUT TAGS (pre0-pre2)
+# =============================================================================
+"pre0"
+"pre1"
+"pre2"
+
+# =============================================================================
+# BRDF TAGS (v5 / iccMAX)
+# =============================================================================
+"bAB0"
+"bAB1"
+"bAB2"
+"bAB3"
+"bDB0"
+"bDB1"
+"bDB2"
+"bDB3"
+"bMB0"
+"bMB1"
+"bMB2"
+"bMB3"
+"bMS0"
+"bMS1"
+"bMS2"
+"bMS3"
+"bcp0"
+"bcp1"
+"bcp2"
+"bcp3"
+"bsp0"
+"bsp1"
+"bsp2"
+"bsp3"
+"BPh0"
+"BPh1"
+"CT10"
+"CT11"
+"CT20"
+"CT21"
+"CT30"
+"CT31"
+"La10"
+"La11"
+"La20"
+"La21"
+"La30"
+"La31"
+
+# =============================================================================
+# HEXACHROME / MATERIAL TRANSFORM TAGS (v5)
+# =============================================================================
+"H2S0"
+"H2S1"
+"H2S2"
+"H2S3"
+"M2A0"
+"M2B0"
+"M2B1"
+"M2B2"
+"M2B3"
+"M2S0"
+"M2S1"
+"M2S2"
+"M2S3"
+"A2M0"
+"B2A3"
+
+# =============================================================================
+# SPECTRAL & VIEWING CONDITION TAGS (v5)
+# =============================================================================
+"sdin"
+"swpt"
+"svcn"
+"c2sp"
+"s2cp"
+
+# =============================================================================
+# COLORANT TAGS (often missed)
+# =============================================================================
+"clin"
+"clio"
+"clot"
+"cloo"
+
+# =============================================================================
+# ADDITIONAL CMM / PLATFORM SIGNATURES
+# =============================================================================
+"AMD "
+"CCMS"
+"DIMX"
+"EFI "
+"EXAC"
+"HCMM"
+"HDM "
+"ICC5"
+"ICCD"
+"ICCp"
+"KCMS"
+"KPCD"
+"Lino"
+"MCMD"
+"ONYX"
+"PMD "
+"RGMS"
+"RICC"
+"SICC"
+"WTG "
+"ZRIF"
+"acms"
+
+# =============================================================================
+# STRUCTURE / TYPE MEMBER SIGNATURES (v5)
+# =============================================================================
+"bcol"
+"bspc"
+"bspr"
+"lcnm"
+"nmap"
+"spcb"
+"spcg"
+"pinf"
+"attr"
+"pdsc"
+"pid "
+"rtrn"
+"vivo"
+"vidc"
+"vidm"
+"pjtv"
+
+# =============================================================================
+# MEASUREMENT STRUCTURE MEMBERS
+# =============================================================================
+"mbak"
+"mflr"
+"mgeo"
+"mill"
+"miwr"
+"mmod"
+
+# =============================================================================
+# TYPE SIGNATURES (less common)
+# =============================================================================
+"gbd "
+"sm\x00\x00"
+"rs\x00\x00"
+"ts\x00\x00"
+"zut8"
+"zxml"
+"zc00"
+"uf32"
+"ui08"
+"ui16"
+"ui32"
+"ui64"
+"ut16"
+"sngf"
+"samf"
+
+# =============================================================================
+# PROFILE FLAGS & RENDERING INTENTS (boundary values)
+# =============================================================================
+# Rendering intent 0-3
+"\x00\x00\x00\x00"
+"\x00\x00\x00\x01"
+"\x00\x00\x00\x02"
+"\x00\x00\x00\x03"
+# Invalid rendering intent (triggers validation)
+"\x00\x00\x00\x04"
+"\x00\x00\x00\xff"
+# Profile flags: embedded + independent
+"\x00\x00\x00\x01"
+"\x00\x00\x00\x02"
+"\x00\x00\x00\x03"
+
+# =============================================================================
+# CUBE FILE FORMAT TOKENS (for icc_fromcube_fuzzer)
+# =============================================================================
+"LUT_1D"
+"LUT_3D"
+"LUT_1D_SIZE"
+"LUT_3D_SIZE"
+"DOMAIN_MIN"
+"DOMAIN_MAX"
+"TITLE"
+"LUT_1D_INPUT_RANGE"
+"LUT_3D_INPUT_RANGE"
+
+# =============================================================================
+# ICC XML ELEMENT NAMES (expanded for fromxml/toxml fuzzers)
+# =============================================================================
+"<ToneMapElement>"
+"<BRDFElement>"
+"<SpectralElement>"
+"<GamutBoundaryDescElement>"
+"<NamedColor>"
+"<NamedColors>"
+"<ViewingConditions>"
+"<MeasurementType>"
+"<ColorantTable>"
+"<ColorantOrder>"
+"<ProfileSequenceDescType>"
+"<lut8Type>"
+"<lut16Type>"
+"<lutAtoBType>"
+"<lutBtoAType>"
+"<parametricCurveType>"
+"<namedColor2Type>"
+"<multiLocalizedUnicodeType>"
+"<XYZNumber>"
+"<mediaWhitePoint>"
+"<mediaBlackPoint>"
+
+# =============================================================================
+# TAG TABLE EDGE CASES (header offset 128+)
+# =============================================================================
+# Tag count = 0 (empty tag table)
+"\x00\x00\x00\x00"
+# Tag count = 1
+"\x00\x00\x00\x01"
+# Tag count = 0xFFFF (absurdly large)
+"\x00\x00\xff\xff"
+# Tag offset pointing before header
+"\x00\x00\x00\x04"
+# Tag offset = profile size (out of bounds)
+"\xff\xff\xff\xfc"
+# Tag size = 0
+"\x00\x00\x00\x00"
+# Tag size = 1 (too small for any type)
+"\x00\x00\x00\x01"
+
+# =============================================================================
+# TONE MAP FUNCTION PARAMETERS (patch 053 attack surface)
+# =============================================================================
+# ToneMap function type 0x0000 (needs 3 params)
+"\x00\x00"
+# ToneMap function type 0x0001
+"\x00\x01"
+# Truncated params — triggers the OOB read fixed by patch 053
+"\x00\x00\x00\x00\x3f\x80\x00\x00"
+# 3 valid params (gamma=2.4, offset=0.055, threshold=0.04)
+"\x40\x19\x99\x9a\x3d\x61\x47\xae\x3d\x23\xd7\x0a"
+
+# =============================================================================
+# CALCULATOR / MPE EDGE CASES
+# =============================================================================
+# Opcode: noop (0x0000)
+"\x00\x00"
+# Opcode: if (triggers recursion)
+"\x00\x36"
+# Opcode: sel (select — recursion path)
+"\x00\x37"
+# Stack depth 0
+"\x00\x00\x00\x00"
+# Stack depth 1
+"\x00\x00\x00\x01"
+# Stack depth 0xFFFF (stack overflow trigger)
+"\x00\x00\xff\xff"
+# Sequence with 0 elements
+"\x00\x00\x00\x00"
+# Sequence with 1 element
+"\x00\x00\x00\x01"
+
+# =============================================================================
+# SPARSE MATRIX EDGE CASES (patch 044 attack surface)
+# =============================================================================
+# Matrix rows = 0
+"\x00\x00"
+# Matrix rows = 0xFFFF (OOM trigger)
+"\xff\xff"
+# Matrix cols = 0
+"\x00\x00"
+# Matrix entries per row = 0xFFFF
+"\xff\xff"
