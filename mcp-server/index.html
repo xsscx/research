@@ -288,6 +288,35 @@ footer {
   .toolbar { gap: 0.3rem; }
   .toolbar button { font-size: 0.78rem; padding: 0.35rem 0.6rem; }
 }
+
+/* ── Focus-visible (keyboard nav) ──────────────────────── */
+.toolbar button:focus-visible,
+.btn-run:focus-visible,
+.btn-save:focus-visible,
+.btn-save-xml:focus-visible,
+.btn-upload:focus-visible,
+.copy-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Copy button visibility ────────────────────────────── */
+.copy-hidden { display: none; }
+
+/* ── Loading animation ─────────────────────────────────── */
+.status.running::before {
+  content: "";
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border: 2px solid var(--yellow);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -299,7 +328,7 @@ footer {
   </header>
 
   <!-- Tool selector -->
-  <nav class="toolbar" id="toolbar">
+  <nav class="toolbar" id="toolbar" role="navigation" aria-label="Analysis tools">
     <button data-tool="list"      class="active">List Profiles</button>
     <button data-tool="inspect"  >Inspect</button>
     <button data-tool="security" >Security Scan</button>
@@ -322,11 +351,11 @@ footer {
   </section>
 
   <!-- Status -->
-  <div class="status" id="status"></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
 
   <!-- Output -->
-  <section class="output" id="output">
-    <button class="copy-btn hidden-input" id="copyBtn">Copy</button>
+  <section class="output" id="output" role="region" aria-label="Analysis output">
+    <button class="copy-btn copy-hidden" id="copyBtn" aria-label="Copy output to clipboard">Copy</button>
     <div class="placeholder" id="placeholder">Select a tool and click <strong>Run</strong></div>
     <pre id="outputPre" class="hidden-input"></pre>
   </section>
@@ -865,7 +894,7 @@ function setStatus(cls, msg) {
 function showOutput(text) {
   if (!text) {
     $pre.classList.add("hidden-input");
-    $copyBtn.classList.add("hidden-input");
+    $copyBtn.classList.add("copy-hidden");
     $placeholder.classList.remove("hidden-input");
     // Remove any existing download link
     const old = document.getElementById("downloadLink");
@@ -874,8 +903,9 @@ function showOutput(text) {
   }
   $placeholder.classList.add("hidden-input");
   $pre.classList.remove("hidden-input");
-  $copyBtn.classList.remove("hidden-input");
+  $copyBtn.classList.remove("copy-hidden");
   $pre.textContent = sanitize(text);
+  $output.scrollTop = 0;
 
   // Show download link if XML output was truncated
   const old = document.getElementById("downloadLink");
