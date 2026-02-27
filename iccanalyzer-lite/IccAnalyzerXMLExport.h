@@ -49,7 +49,7 @@ class IccAnalyzerXMLExport
 {
 public:
   /**
-   * Export heuristics analysis to XML with embedded XSLT
+   * Export heuristics analysis to XML with companion XSLT
    * @param filename Output XML filename
    * @param profilePath Path to analyzed ICC profile
    * @param heuristics Heuristic results (from IccAnalyzerHeuristics.h)
@@ -60,7 +60,7 @@ public:
                                      const void* heuristics);
 
   /**
-   * Export comprehensive analysis to XML with embedded XSLT
+   * Export comprehensive analysis to XML with companion XSLT
    * @param filename Output XML filename
    * @param profilePath Path to analyzed ICC profile
    * @param analysis Comprehensive results
@@ -70,10 +70,8 @@ public:
                                         const char* profilePath,
                                         const void* analysis);
 
-private:
   /**
-   * Write embedded XSLT stylesheet
-   * Transforms XML to HTML in browser
+   * Write XSLT stylesheet to a stream (used by companion .xsl writer)
    */
   static void WriteXSLTStylesheet(std::ofstream& xml);
   
