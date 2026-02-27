@@ -382,8 +382,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccTagMultiProcessElement* pTag = new (std::nothrow) CIccTagMultiProcessElement(3, 3);
   if (!pTag) { unlink(temp_input); return 0; }
   if (cube.isCustomInputRange()) {
-    icFloatNumber* minVal = cube.getMinInput();
-    icFloatNumber* maxVal = cube.getMaxInput();
+    icFloatNumber minVal[3], maxVal[3];
+    memcpy(minVal, cube.getMinInput(), sizeof(minVal));
+    memcpy(maxVal, cube.getMaxInput(), sizeof(maxVal));
     CIccMpeCurveSet* pCurves = new (std::nothrow) CIccMpeCurveSet(3);
     if (!pCurves) { delete pTag; unlink(temp_input); return 0; }
 
@@ -395,7 +396,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     pCurves->SetCurve(0, pCurve0);
 
     CIccSingleSampledCurve* pCurve1 = pCurve0;
-    if (minVal[1] != minVal[0] || maxVal[1] != maxVal[0]) {
+    if (memcmp(&minVal[1], &minVal[0], sizeof(icFloatNumber)) != 0 ||
+        memcmp(&maxVal[1], &maxVal[0], sizeof(icFloatNumber)) != 0) {
       pCurve1 = new (std::nothrow) CIccSingleSampledCurve(minVal[1], maxVal[1]);
       if (!pCurve1) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
       pCurve1->SetSize(2);
@@ -405,8 +407,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     pCurves->SetCurve(1, pCurve1);
 
     CIccSingleSampledCurve* pCurve2 = pCurve0;
-    if (minVal[2] != minVal[0] || maxVal[2] != maxVal[0]) {
-      if (minVal[2] == minVal[1] && maxVal[2] == maxVal[1])
+    if (memcmp(&minVal[2], &minVal[0], sizeof(icFloatNumber)) != 0 ||
+        memcmp(&maxVal[2], &maxVal[0], sizeof(icFloatNumber)) != 0) {
+      if (memcmp(&minVal[2], &minVal[1], sizeof(icFloatNumber)) == 0 &&
+          memcmp(&maxVal[2], &maxVal[1], sizeof(icFloatNumber)) == 0)
         pCurve2 = pCurve1;
       else {
         pCurve2 = new (std::nothrow) CIccSingleSampledCurve(minVal[2], maxVal[2]);

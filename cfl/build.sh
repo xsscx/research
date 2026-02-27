@@ -212,9 +212,7 @@ banner "Step 4: Build fuzzers"
 mkdir -p "$OUTPUT_DIR" "$PROFRAW_DIR"
 cd "$SCRIPT_DIR"
 
-BUILT=0
-FAILED=0
-SKIPPED=0
+BUILD_RESULTS=$(mktemp)
 
 build_fuzzer() {
   local name="$1"
@@ -223,7 +221,7 @@ build_fuzzer() {
 
   if [ ! -f "$SCRIPT_DIR/${name}.cpp" ]; then
     echo "  SKIP $name (no source)"
-    SKIPPED=$((SKIPPED + 1))
+    echo "SKIP" >> "$BUILD_RESULTS"
     return
   fi
 
@@ -243,27 +241,29 @@ build_fuzzer() {
     -o "$OUTPUT_DIR/$name" 2>&1; then
     SIZE=$(ls -lh "$OUTPUT_DIR/$name" | awk '{print $5}')
     echo "  [OK] $name ($SIZE)"
-    BUILT=$((BUILT + 1))
+    echo "OK" >> "$BUILD_RESULTS"
   else
     echo "  [FAIL] $name FAILED"
-    FAILED=$((FAILED + 1))
+    echo "FAIL" >> "$BUILD_RESULTS"
   fi
 }
 
-echo "Core fuzzers (14):"
+echo "Core fuzzers (14) — parallel build with $NPROC cores:"
 for f in "${CORE_FUZZERS[@]}"; do
   if [ "$f" = "icc_deep_dump_fuzzer" ]; then
-    build_fuzzer "$f" "-Wl,--allow-multiple-definition"
+    build_fuzzer "$f" "-Wl,--allow-multiple-definition" &
   else
-    build_fuzzer "$f"
+    build_fuzzer "$f" &
   fi
 done
+wait
 
 echo ""
 echo "XML fuzzers (2):"
 for f in "${XML_FUZZERS[@]}"; do
-  build_fuzzer "$f" "$LIB_XML" -lxml2 -lz
+  build_fuzzer "$f" "$LIB_XML" -lxml2 -lz &
 done
+wait
 
 echo ""
 echo "TIFF fuzzers (3):"
@@ -274,16 +274,23 @@ if [ -f "$TIFFIMG_SRC" ]; then
     -I"$(dirname "$TIFFIMG_SRC")" \
     -c "$TIFFIMG_SRC" -o "$TIFFIMG_OBJ" 2>&1
   for f in "${TIFF_FUZZERS[@]}"; do
-    build_fuzzer "$f" "$TIFFIMG_OBJ" $TIFF_LIBS
+    build_fuzzer "$f" "$TIFFIMG_OBJ" $TIFF_LIBS &
   done
+  wait
   rm -rf "$SCRIPT_DIR/.build_tmp"
 else
   echo "  SKIP (TiffImg.cpp not found)"
-  SKIPPED=$((SKIPPED + 2))
+  echo "SKIP" >> "$BUILD_RESULTS"
+  echo "SKIP" >> "$BUILD_RESULTS"
 fi
 
 # --- Summary ---
 banner "Build Summary"
+BUILT=$(grep -c '^OK$' "$BUILD_RESULTS" || true)
+FAILED=$(grep -c '^FAIL$' "$BUILD_RESULTS" || true)
+SKIPPED=$(grep -c '^SKIP$' "$BUILD_RESULTS" || true)
+BUILT=${BUILT:-0}; FAILED=${FAILED:-0}; SKIPPED=${SKIPPED:-0}
+rm -f "$BUILD_RESULTS"
 TOTAL=$((BUILT + FAILED + SKIPPED))
 echo "  Built:   $BUILT / $TOTAL"
 echo "  Failed:  $FAILED"
