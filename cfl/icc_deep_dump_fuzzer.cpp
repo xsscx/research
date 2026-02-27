@@ -156,7 +156,7 @@ static void DiagTagContext(const char *phase, icTagSignature sig,
                            icTagTypeSignature type, uint32_t offset,
                            uint32_t size, uint32_t fileSize) {
   if (!g_diagEnabled) return;
-  const size_t bs = 16;
+  const size_t bs = 20;
   char sBuf[bs], tBuf[bs];
   fprintf(stderr, "[DIAG] %s: tag=%s type=%s offset=%u size=%u fileSize=%u",
           phase,
@@ -204,22 +204,17 @@ static void DiagEnumLoad(const char *enumName, uint32_t rawValue,
 
 // Log dynamic_cast result — tracks type confusion and null deref risk
 // Mirrors iccanalyzer-lite VulnMetadata pattern for variable tracking
+// Only logs successful casts (cast-ok) to reduce noise; failed casts are
+// expected for most tag/type combinations and are not logged.
 static void DiagCast(const char *targetType, const void *result,
                      icTagSignature sig, icTagTypeSignature type) {
-  if (!g_diagEnabled) return;
-  const size_t bs = 16;
+  if (!g_diagEnabled || !result) return;
+  const size_t bs = 20;
   char sBuf[bs], tBuf[bs];
-  if (!result) {
-    fprintf(stderr, "[DIAG] cast-fail: %s=nullptr tag=%s type=%s\n",
-            targetType,
-            icGetSig(sBuf, bs, sig),
-            icGetSig(tBuf, bs, type));
-  } else {
-    fprintf(stderr, "[DIAG] cast-ok: %s=%p tag=%s type=%s\n",
-            targetType, result,
-            icGetSig(sBuf, bs, sig),
-            icGetSig(tBuf, bs, type));
-  }
+  fprintf(stderr, "[DIAG] cast-ok: %s=%p tag=%s type=%s\n",
+          targetType, result,
+          icGetSig(sBuf, bs, sig),
+          icGetSig(tBuf, bs, type));
 }
 
 // Log pre-crash state snapshot — frame-like context for ASAN correlation
@@ -1021,6 +1016,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Global profile methods (iccDumpProfile calls these)
   pIcc->GetSpaceSamples();
   pIcc->AreTagsUnique();
+
+  DIAG("=== RESULT: exit=0 tags=%zu version=0x%08x class=0x%08x ===",
+       pIcc->m_Tags.size(), pIcc->m_Header.version,
+       pIcc->m_Header.deviceClass);
 
   delete pIcc;
 
