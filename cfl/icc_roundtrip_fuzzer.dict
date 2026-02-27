@@ -861,3 +861,18 @@
 # --- Rendering Intent Strings ---
 "Absolute Colorimetric"
 "Saturation"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xdb\x03"
+"csed"
+"U\x00\x00\x00"
+"\xff\xff\xff\x03"
+"\x00\x00Q\x90\x00\x04\x0e\xb5"
+"!\x01"
+"\xff\xff\xff\x06"
+"}\x00\x00\x00"
+"\x16\x00\x00\x00"
+"\xff\xff\xff\x04"
+"HCCp"
+"t2cp"
+"\x03\xbf"
