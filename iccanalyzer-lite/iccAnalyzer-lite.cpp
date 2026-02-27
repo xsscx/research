@@ -144,12 +144,28 @@ int main(int argc, char **argv) {
   
   // Extract LUT
   if (strcmp(mode, "-x") == 0 && argc >= 4) {
+    auto lutPathResult = IccAnalyzerSecurity::ValidateFilePath(
+        argv[3], IccAnalyzerSecurity::PathValidationMode::STRICT,
+        false, {});
+    if (lutPathResult != IccAnalyzerSecurity::PathValidationResult::VALID) {
+      fprintf(stderr, "[ERR] Invalid output path: %s\n",
+              IccAnalyzerSecurity::GetValidationErrorMessage(lutPathResult, argv[3]).c_str());
+      return ICC_EXIT_ERROR;
+    }
     return NormalizeExit(ExtractLutData(profilePath, argv[3]));
   }
   
   // XML report export
   if (strcmp(mode, "-xml") == 0 && argc >= 4) {
     const char *outXml = argv[3];
+    auto xmlPathResult = IccAnalyzerSecurity::ValidateFilePath(
+        outXml, IccAnalyzerSecurity::PathValidationMode::STRICT,
+        false, {".xml"});
+    if (xmlPathResult != IccAnalyzerSecurity::PathValidationResult::VALID) {
+      fprintf(stderr, "[ERR] Invalid output path: %s\n",
+              IccAnalyzerSecurity::GetValidationErrorMessage(xmlPathResult, outXml).c_str());
+      return ICC_EXIT_ERROR;
+    }
     // Run heuristic analysis to collect findings
     HeuristicReport report;
     int result = HeuristicAnalyze(profilePath, nullptr);

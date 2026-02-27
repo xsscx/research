@@ -163,6 +163,10 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
         proc.kill()
         await proc.wait()
         return f"[TIMEOUT after {timeout}s]"
+    except asyncio.CancelledError:
+        proc.kill()
+        await proc.wait()
+        raise
 
     # Enforce output size limit
     if len(stdout) > MAX_OUTPUT_BYTES:
