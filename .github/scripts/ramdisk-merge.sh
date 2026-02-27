@@ -3,7 +3,7 @@
 # ramdisk-merge.sh — Deduplicate and minimize fuzzer corpus on the ramdisk
 #
 # Usage:
-#   .github/scripts/ramdisk-merge.sh                    # merge all 18 fuzzers
+#   .github/scripts/ramdisk-merge.sh                    # merge all 18 fuzzers (uses all CPUs)
 #   .github/scripts/ramdisk-merge.sh icc_profile_fuzzer  # merge one fuzzer
 #   .github/scripts/ramdisk-merge.sh --jobs 4            # limit parallelism
 #
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CFL_DIR="$REPO_ROOT/cfl"
 BIN_DIR="$CFL_DIR/bin"
-MAX_JOBS=1
+MAX_JOBS=$(nproc 2>/dev/null || echo 4)
 
 ALL_FUZZERS=(
   icc_apply_fuzzer
@@ -68,50 +68,50 @@ echo ""
 echo "  Ramdisk:  $RAMDISK"
 echo "  Binaries: $BIN_DIR"
 echo "  Fuzzers:  ${#FUZZERS[@]}"
-echo "  Jobs:     $MAX_JOBS (sequential per fuzzer — merge is single-threaded)"
+echo "  Jobs:     $MAX_JOBS (parallel merge workers)"
 echo ""
 
-MERGED=0
-SKIPPED=0
-FAILED=0
+RESULTS_DIR="$RAMDISK/.merge-results"
+rm -rf "$RESULTS_DIR"
+mkdir -p "$RESULTS_DIR"
 
-for f in "${FUZZERS[@]}"; do
-  fuzzer_bin="$BIN_DIR/$f"
-  corpus_dir="$RAMDISK/corpus-${f}"
-  merge_dir="$RAMDISK/merged-${f}"
-  seed_dir="$CFL_DIR/${f}_seed_corpus"
+# ── Per-fuzzer merge function (runs as background job) ──
+merge_one() {
+  local f="$1"
+  local fuzzer_bin="$BIN_DIR/$f"
+  local corpus_dir="$RAMDISK/corpus-${f}"
+  local merge_dir="$RAMDISK/merged-${f}"
+  local seed_dir="$CFL_DIR/${f}_seed_corpus"
 
   if [ ! -x "$fuzzer_bin" ]; then
+    echo "skip" > "$RESULTS_DIR/$f"
     echo "  [WARN] $f — binary not found, skipping"
-    SKIPPED=$((SKIPPED + 1))
-    continue
+    return
   fi
 
   if [ ! -d "$corpus_dir" ]; then
+    echo "skip" > "$RESULTS_DIR/$f"
     echo "  ○ $f — no corpus dir, skipping"
-    SKIPPED=$((SKIPPED + 1))
-    continue
+    return
   fi
 
+  local before
   before=$(find "$corpus_dir" -type f 2>/dev/null | wc -l)
   if [ "$before" -eq 0 ]; then
+    echo "skip" > "$RESULTS_DIR/$f"
     echo "  ○ $f — empty corpus, skipping"
-    SKIPPED=$((SKIPPED + 1))
-    continue
+    return
   fi
 
-  echo -n "  → $f ($before inputs) ... "
+  echo "  → $f ($before inputs) merging..."
 
-  # Create temp merge dir
   rm -rf "$merge_dir"
   mkdir -p "$merge_dir"
 
-  # Build source list: current corpus + seed corpus (if exists)
-  SOURCES=("$corpus_dir")
+  local SOURCES=("$corpus_dir")
   [ -d "$seed_dir" ] && SOURCES+=("$seed_dir")
 
-  # Run merge (suppress output — only care about exit code)
-  if LLVM_PROFILE_FILE=/dev/null "$fuzzer_bin" \
+  if ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null "$fuzzer_bin" \
        -merge=1 \
        -detect_leaks=0 \
        -rss_limit_mb=4096 \
@@ -120,32 +120,88 @@ for f in "${FUZZERS[@]}"; do
        "${SOURCES[@]}" \
        > "$RAMDISK/${f}-merge.log" 2>&1; then
 
+    local after
     after=$(find "$merge_dir" -type f 2>/dev/null | wc -l)
 
-    # Swap: replace corpus with merged result
     rm -rf "$corpus_dir"
     mv "$merge_dir" "$corpus_dir"
 
-    reduction=$((before - after))
-    pct=0
+    local reduction=$((before - after))
+    local pct=0
     [ "$before" -gt 0 ] && pct=$((reduction * 100 / before))
-    echo "[OK] $after inputs (removed $reduction, -${pct}%)"
-    MERGED=$((MERGED + 1))
+    echo "  ✓ $f [OK] $before → $after inputs (removed $reduction, -${pct}%)"
+    echo "ok $before $after" > "$RESULTS_DIR/$f"
+    rm -f "$RAMDISK/${f}-merge.log"
   else
-    echo "[FAIL] merge failed (see ${f}-merge.log)"
+    echo "  ✗ $f [FAIL] merge failed (see ${f}-merge.log)"
     rm -rf "$merge_dir"
-    FAILED=$((FAILED + 1))
+    echo "fail" > "$RESULTS_DIR/$f"
   fi
+}
 
-  # Clean up merge log on success
-  [ -f "$RAMDISK/${f}-merge.log" ] && [ "$FAILED" -eq 0 ] && rm -f "$RAMDISK/${f}-merge.log"
+# ── Launch merges in parallel, limited by MAX_JOBS ──
+ACTIVE_PIDS=()
+
+for f in "${FUZZERS[@]}"; do
+  # Wait if at job limit
+  while [ "${#ACTIVE_PIDS[@]}" -ge "$MAX_JOBS" ]; do
+    # Wait for any one child to finish, then reap completed PIDs
+    wait -n 2>/dev/null || true
+    local_new=()
+    for pid in "${ACTIVE_PIDS[@]}"; do
+      if kill -0 "$pid" 2>/dev/null; then
+        local_new+=("$pid")
+      fi
+    done
+    ACTIVE_PIDS=("${local_new[@]}")
+  done
+
+  merge_one "$f" &
+  ACTIVE_PIDS+=($!)
 done
+
+# Wait for all remaining jobs
+wait
+
+# ── Tally results ──
+MERGED=0
+SKIPPED=0
+FAILED=0
+TOTAL_BEFORE=0
+TOTAL_AFTER=0
+
+for f in "${FUZZERS[@]}"; do
+  result_file="$RESULTS_DIR/$f"
+  if [ ! -f "$result_file" ]; then
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+  status=$(head -1 "$result_file" | cut -d' ' -f1)
+  case "$status" in
+    ok)
+      MERGED=$((MERGED + 1))
+      before=$(head -1 "$result_file" | cut -d' ' -f2)
+      after=$(head -1 "$result_file" | cut -d' ' -f3)
+      TOTAL_BEFORE=$((TOTAL_BEFORE + before))
+      TOTAL_AFTER=$((TOTAL_AFTER + after))
+      ;;
+    fail) FAILED=$((FAILED + 1)) ;;
+    skip) SKIPPED=$((SKIPPED + 1)) ;;
+  esac
+done
+
+rm -rf "$RESULTS_DIR"
 
 echo ""
 echo "── Summary ──────────────────────────────────────────────────────"
 echo "  Merged:  $MERGED"
 echo "  Skipped: $SKIPPED"
 echo "  Failed:  $FAILED"
+if [ "$TOTAL_BEFORE" -gt 0 ]; then
+  TOTAL_RED=$((TOTAL_BEFORE - TOTAL_AFTER))
+  TOTAL_PCT=$((TOTAL_RED * 100 / TOTAL_BEFORE))
+  echo "  Total:   $TOTAL_BEFORE → $TOTAL_AFTER inputs (removed $TOTAL_RED, -${TOTAL_PCT}%)"
+fi
 
 if mountpoint -q "$RAMDISK" 2>/dev/null; then
   echo "  Ramdisk: $(df -h "$RAMDISK" | tail -1 | awk '{print $4 " free"}')"
