@@ -59,7 +59,7 @@ jobs:
           path: |
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+          key: ${{ runner.os }}-apt-coverage-v1
 
       - name: Install dependencies
         env:
@@ -144,6 +144,8 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
+          # Force reconfigure to ensure coverage flags are applied
+          rm -f CMakeCache.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=gcc \
@@ -404,6 +406,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          mkdir -p coverage-report
           cd coverage-report
 
           cat > index.html << 'HTMLEOF'
