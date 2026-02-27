@@ -44,6 +44,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <new>
 #include <memory>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -197,8 +198,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     long bytePerLine = f->GetBytesPerLine();
     long bytesPerSample_img = f->GetBitsPerSample() / 8;
 
-    std::unique_ptr<icUInt8Number[]> inbuffer(new icUInt8Number[bytePerLine * nFiles]);
-    std::unique_ptr<icUInt8Number[]> outbuffer(new icUInt8Number[f->GetWidth() * bytesPerSample_img * nFiles]);
+    std::unique_ptr<icUInt8Number[]> inbuffer(new (std::nothrow) icUInt8Number[bytePerLine * nFiles]);
+    std::unique_ptr<icUInt8Number[]> outbuffer(new (std::nothrow) icUInt8Number[f->GetWidth() * bytesPerSample_img * nFiles]);
+    if (!inbuffer || !outbuffer) { unlink(outfile); return 0; }
     
     icUInt8Number *inbuf = inbuffer.get();
     icUInt8Number *outbuf = outbuffer.get();
@@ -214,7 +216,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       size_t profileOffset = 15 + minDataSize;
       if (size > profileOffset + 128) {
         size_t profileSize = std::min(size - profileOffset, (size_t)1024 * 1024);
-        std::unique_ptr<unsigned char[]> profile(new unsigned char[profileSize]);
+        std::unique_ptr<unsigned char[]> profile(new (std::nothrow) unsigned char[profileSize]);
+        if (!profile) { goto cleanup; }
         memcpy(profile.get(), data + profileOffset, profileSize);
         outimg.SetIccProfile(profile.get(), (unsigned int)profileSize);
 
@@ -261,6 +264,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
   }
 
+cleanup:
   // Cleanup
   unlink(outfile);
   for (auto tf : tmpfiles) {

@@ -63,6 +63,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <new>
 #include <memory>
 #include <unistd.h>
 #include <climits>
@@ -170,8 +171,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   long bps_img = f->GetBitsPerSample() / 8;
 
   // Input buffer allocation (handled differently in fuzzer)
-  std::unique_ptr<icUInt8Number[]> inbuf(new icUInt8Number[bytePerLine * nSamples]);
-  std::unique_ptr<icUInt8Number[]> outbuf(new icUInt8Number[f->GetWidth() * bps_img * nSamples]);
+  std::unique_ptr<icUInt8Number[]> inbuf(new (std::nothrow) icUInt8Number[bytePerLine * nSamples]);
+  std::unique_ptr<icUInt8Number[]> outbuf(new (std::nothrow) icUInt8Number[f->GetWidth() * bps_img * nSamples]);
+  if (!inbuf || !outbuf) { return 0; }
 
   float xRes = f->GetXRes() > 1 ? f->GetXRes() : 72;
   float yRes = f->GetYRes() > 1 ? f->GetYRes() : 72;
