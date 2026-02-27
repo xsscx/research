@@ -40,6 +40,8 @@ class IccTagSubclass extends Class {
 from CStyleCast cast, IccTagSubclass targetType
 where
   targetType = cast.getType().getUnspecifiedType().(PointerType).getBaseType() and
+  // Must be an explicit cast in source, not compiler-generated
+  not cast.isCompilerGenerated() and
   // Exclude iccDEV upstream
   not cast.getFile().toString().matches("%iccDEV%") and
   // Exclude test files
