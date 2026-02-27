@@ -106,7 +106,13 @@ static int AnalyzeLutTags(CIccProfile *pIcc)
     // CLUT geometry
     CIccCLUT *pCLUT = pMBB->GetCLUT();
     if (pCLUT) {
-      printf("      CLUT:            present\n");
+      icFloatNumber *pData = pCLUT->GetData(0);
+      printf("      CLUT:            %s\n", pData ? "present" : "present (no data!)");
+      if (!pData) {
+        printf("        %s[WARN] CLUT has no data pointer — possible corruption%s\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
       printf("        Grid points:   ");
       uint64_t totalEntries = 1;
       bool overflow = false;
