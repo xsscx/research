@@ -1088,3 +1088,116 @@
 "\x00\x00"
 # Matrix entries per row = 0xFFFF
 "\xff\xff"
+
+# =============================================================================
+# HARVESTED FROM FUZZER RUNS (latest.dict) — 2026-02-27
+# Tokens discovered by LibFuzzer that improved coverage.
+# =============================================================================
+
+# --- C++ RTTI Mangled Class Names (used by dynamic_cast/typeid) ---
+"7CIccMBB"
+"7CIccTag"
+"9CIccCurve"
+"11CIccTagCicp"
+"11CIccTagData"
+"11CIccTagDict"
+"11CIccTagLut8"
+"11CIccTagText"
+"12CIccTagCurve"
+"12CIccTagLut16"
+"12CIccTagArray"
+"13CIccTagStruct"
+"14CIccTagLutAto"
+"14CIccTagUnknow"
+"15CIccTagFloat"
+"15CIccTagUtf8Text"
+"16CIccTagSignature"
+"18CIccTagNamedColor2"
+"20CIccTagColorantTable"
+"22CIccTagParametricCurve"
+"22CIccTagTextDescription"
+"26CIccTagMultiProcessElement"
+"28CIccTagMultiLocalizedUnico"
+"32CIccTagSpectralViewingCond"
+
+# --- Illuminant Names (XML string values) ---
+"Illuminant"
+"Illuminant A"
+"Illuminant B"
+"Illuminant D"
+"Illuminant D50"
+"Illuminant D65"
+"Illuminant D93"
+"Illuminant Daylight"
+"Illuminant E"
+"Illuminant EquiPowerE"
+"Illuminant F"
+"Illuminant F1"
+"Illuminant F11"
+"Illuminant F3"
+"Illuminant F4"
+"Illuminant F5"
+"Illuminant F6"
+"Illuminant F7"
+"Illuminant F9"
+"Illuminant Unknown"
+"PCSIlluminan"
+"StdIllumina"
+
+# --- Rendering Intent Strings ---
+"Absolute Colorimetric"
+"Saturation"
+
+# --- ICC v5 / iccMAX Element Names (XML) ---
+"BAcsElement"
+"EAcsElement"
+"CalculatorElement"
+"EmissionCLutElement"
+"EmissionMatrixElement"
+"EmissionObserverElement"
+"InvEmissionMatrixElement"
+"ReflectanceCLutElement"
+"ReflectanceObserverElement"
+"UnknownElement"
+"InvertMatrix"
+"CIccMpeXmlMatrix"
+"Spectral"
+"BiSpectralRang"
+"SpectralRan"
+
+# --- BRDF Tag Names (full XML) ---
+"BRDFAToB"
+"BRDFDToB"
+"brdfColorimetricParameter0Tag"
+"brdfMToS0Tag"
+"HToS3Tag"
+
+# --- Type Names (XML) ---
+"ParametricCurveType"
+"namedColor2Type"
+"responseCurveSet16Type"
+"float32NumberType"
+"multiLocalizedUnicodeType"
+"embeddedHeightImageType"
+"embeddedNormalImageType"
+"materialType"
+"spectralDataInfoType"
+
+# --- Tag Names (XML) ---
+"calibrationDateTimeTag"
+"spectralDataInfoTag"
+"spectralViewingConditionsTag"
+"standardToCustomPccTag"
+"surfaceMapTag"
+"profileDesc"
+"colorantTabl"
+"luminanc"
+
+# --- CUBE Format Edge Cases (fuzzer-mutated) ---
+"LUT_3D_SIZE1"
+"LUT_3D_SIZE5"
+"LUT_3D_SIZEb"
+"lutAtoBTy"
+
+# --- NamedColor Variants ---
+"ncl0"
