@@ -1,0 +1,26 @@
+# Exclude local iccDEV builds — Dockerfile clones fresh copies
+iccanalyzer-lite/iccDEV
+colorbleed_tools/iccDEV
+
+# Exclude fuzzer corpora and artifacts (huge)
+cfl/corpus*
+cfl/oom-*
+cfl/crash-*
+cfl/bin/
+cfl/iccDEV/
+cfl/nohup.out
+cfl/profraw/
+cfl/default.profraw
+cfl/findings/
+
+# Git and CI artifacts
+.git
+.github/codeql-databases
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+
+# Build artifacts
+build/
+*.o

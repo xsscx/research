@@ -21,21 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CC=clang-18 CXX=clang++-18
 
-RUN git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /opt/iccdev \
- && cd /opt/iccdev \
- && echo "HEAD: $(git log --oneline -1)" \
- && sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
-
-# Apply CFL library patches (OOM caps, crash fixes)
-COPY cfl-patches/ /tmp/cfl-patches/
-RUN echo "Applying CFL library patches..." \
- && for p in /tmp/cfl-patches/*.patch; do \
-      if patch -p1 -d /opt/iccdev --forward -s < "$p" 2>/dev/null; then \
-        echo "  Applied $(basename $p)"; \
-      else \
-        echo "  Skipped $(basename $p) (already applied or N/A)"; \
-      fi; \
-    done \
+# Unified clone + patch
+COPY cfl/patches/ /tmp/cfl-patches/
+COPY docker/apply-patches.sh /usr/local/bin/apply-patches.sh
+RUN apply-patches.sh /opt/iccdev /tmp/cfl-patches \
  && rm -rf /tmp/cfl-patches
 
 # Build 1: ASAN + UBSAN (sanitizer testing, no coverage)

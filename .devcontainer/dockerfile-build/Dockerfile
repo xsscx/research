@@ -27,23 +27,16 @@ ENV CC=clang-18 CXX=clang++-18
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=1000
-RUN groupadd --gid ${USER_GID} ${USERNAME} \
-    && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} -s /bin/bash \
-    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
+RUN groupadd --force --gid ${USER_GID} ${USERNAME} \
+    && useradd -o --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} -s /bin/bash 2>/dev/null; \
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME}
 
-# Clone and patch iccDEV
-RUN git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /opt/iccdev \
-    && cd /opt/iccdev \
-    && find . -name '*.h' -o -name '*.cpp' | xargs sed -i "s/$(printf '\xef\xb8\x8f')//g" 2>/dev/null || true \
-    && sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)/g' \
-         Build/Cmake/CMakeLists.txt \
-    && sed -i 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' \
-         Build/Cmake/CMakeLists.txt \
-    && sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' \
-         Build/Cmake/CMakeLists.txt \
-    && sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' \
-         Build/Cmake/CMakeLists.txt
+# Unified clone + patch via shared script
+COPY cfl/patches/ /tmp/cfl-patches/
+COPY docker/apply-patches.sh /usr/local/bin/apply-patches.sh
+RUN apply-patches.sh /opt/iccdev /tmp/cfl-patches \
+    && rm -rf /tmp/cfl-patches
 
 # Build iccDEV — Debug + ASAN + UBSAN + Tools
 RUN cd /opt/iccdev && mkdir -p Build/build && cd Build/build \
