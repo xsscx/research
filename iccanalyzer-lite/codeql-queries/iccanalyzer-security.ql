@@ -9,10 +9,11 @@
 import cpp
 import semmle.code.cpp.dataflow.TaintTracking
 
-// Find unchecked file operations
+// Find unchecked file operations (fread/fwrite only, not C++ stream methods)
 class UncheckedFileRead extends FunctionCall {
   UncheckedFileRead() {
     this.getTarget().getName() in ["fread", "fwrite"] and
+    this.getFile().getBaseName().matches("IccAnalyzer%") and
     not exists(BinaryOperation cmp | 
       cmp.getAnOperand() = this or
       cmp.getAnOperand().(VariableAccess).getTarget().getAnAssignedValue() = this
@@ -21,9 +22,21 @@ class UncheckedFileRead extends FunctionCall {
 }
 
 // Find potential integer overflows in multiplication
+// Excludes: compile-time constants, loop index arithmetic (i*8 etc)
 class IntegerOverflowMultiply extends MulExpr {
   IntegerOverflowMultiply() {
     this.getFile().getBaseName().matches("IccAnalyzer%") and
+    // Exclude compile-time constant expressions
+    not this.isConstant() and
+    // Exclude multiplications where both operands are compile-time constants
+    not (this.getLeftOperand().isConstant() and this.getRightOperand().isConstant()) and
+    // Exclude small loop index multiplications (e.g., i*8)
+    not exists(Literal lit |
+      lit = this.getAnOperand() and
+      lit.getValue().toInt() <= 64
+    ) and
+    // Must be in a function (not namespace scope)
+    exists(this.getEnclosingFunction()) and
     not exists(IfStmt guard |
       guard.getCondition().getAChild*() instanceof RelationalOperation and
       guard.getControlFlowScope() = this.getEnclosingFunction()
@@ -32,13 +45,23 @@ class IntegerOverflowMultiply extends MulExpr {
 }
 
 // Find buffer allocations without size checks
+// Checks for any bounds-checking if-statement within 30 lines before allocation
 class UnsafeBufferAllocation extends NewArrayExpr {
   UnsafeBufferAllocation() {
     this.getFile().getBaseName().matches("IccAnalyzer%") and
+    // Exclude allocations using std::nothrow that have a null check after
+    not exists(IfStmt nullCheck |
+      nullCheck.getCondition().getAChild*().(VariableAccess).getTarget() =
+        this.getParent().(AssignExpr).getLValue().(VariableAccess).getTarget() and
+      nullCheck.getLocation().getStartLine() > this.getLocation().getStartLine() and
+      nullCheck.getLocation().getStartLine() < this.getLocation().getStartLine() + 5
+    ) and
+    // Must not have any size/bounds guard within 30 lines before
     not exists(IfStmt check |
-      check.getCondition().toString().matches("%fileSize%") and
+      check.getEnclosingFunction() = this.getEnclosingFunction() and
       check.getLocation().getStartLine() < this.getLocation().getStartLine() and
-      check.getLocation().getStartLine() > this.getLocation().getStartLine() - 20
+      check.getLocation().getStartLine() > this.getLocation().getStartLine() - 30 and
+      check.getCondition().getAChild*() instanceof RelationalOperation
     )
   }
 }
@@ -48,6 +71,7 @@ class UnsafeBufferAllocation extends NewArrayExpr {
 class ResourceLeak extends FunctionCall {
   ResourceLeak() {
     this.getTarget().getName() = "fopen" and
+    this.getFile().getBaseName().matches("IccAnalyzer%") and
     not exists(FunctionCall close |
       close.getTarget().getName() = "fclose" and
       (

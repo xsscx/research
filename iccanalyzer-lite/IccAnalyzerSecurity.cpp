@@ -599,7 +599,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         if (!overflow) SafeMul64(&entries, entries, pCLUT->GetOutputChannels());
         if (overflow || entries > ICCANALYZER_MAX_CLUT_ENTRIES) {
           char sig4[5];
-          SignatureToFourCC((icUInt32Number)clutSigs[li], sig4);
+          SignatureToFourCC(static_cast<icUInt32Number>(clutSigs[li]), sig4);
           printf("      %s[WARN] CLUT in '%s': %llu entries (limit %llu)%s\n",
                  ColorWarning(), sig4, (unsigned long long)entries,
                  (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES, ColorReset());
@@ -635,7 +635,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         icUInt32Number nElem = pMPE->NumElements();
         if (nElem > ICCANALYZER_MAX_MPE_ELEMENTS) {
           char sig4[5];
-          SignatureToFourCC((icUInt32Number)mpeSigs[mi], sig4);
+          SignatureToFourCC(static_cast<icUInt32Number>(mpeSigs[mi]), sig4);
           printf("      %s[WARN] MPE '%s' has %u elements (limit %u)%s\n",
                  ColorWarning(), sig4, nElem, ICCANALYZER_MAX_MPE_ELEMENTS, ColorReset());
           heuristicCount++;
@@ -662,7 +662,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         IccTagEntry *e = &(*tit);
         if (e->TagInfo.size > ICCANALYZER_MAX_TAG_SIZE) {
           char sig4[5];
-          SignatureToFourCC((icUInt32Number)e->TagInfo.sig, sig4);
+          SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sig4);
           printf("      %s[WARN] Tag '%s' size=%u bytes (%.1f MB) exceeds limit%s\n",
                  ColorWarning(), sig4, e->TagInfo.size,
                  e->TagInfo.size / (1024.0 * 1024.0), ColorReset());
@@ -769,14 +769,14 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (pTechTag) {
         CIccTagSignature *pSigTag = dynamic_cast<CIccTagSignature*>(pTechTag);
         if (pSigTag) {
-          icTechnologySignature techSig = (icTechnologySignature)pSigTag->GetValue();
+          icTechnologySignature techSig = static_cast<icTechnologySignature>(pSigTag->GetValue());
           if (IsValidTechnologySignature(techSig)) {
             CIccInfo techInfo;
             printf("      %s[OK] Valid technology: %s%s\n", ColorSuccess(),
                    techInfo.GetTechnologySigName(techSig), ColorReset());
           } else {
             printf("      %s[WARN]  HEURISTIC: Unknown technology signature: 0x%08X%s\n",
-                   ColorWarning(), (unsigned)techSig, ColorReset());
+                   ColorWarning(), static_cast<unsigned>(techSig), ColorReset());
             printf("       %sRisk: Non-standard technology, possible parser issue%s\n",
                    ColorWarning(), ColorReset());
             heuristicCount++;
@@ -799,7 +799,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       TagEntryList::iterator it;
       for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
         IccTagEntry *e = &(*it);
-        ranges.push_back({(icUInt32Number)e->TagInfo.sig, e->TagInfo.offset, e->TagInfo.size});
+        ranges.push_back({static_cast<icUInt32Number>(e->TagInfo.sig), e->TagInfo.offset, e->TagInfo.size});
       }
       int overlapCount = 0;
       for (size_t a = 0; a < ranges.size(); a++) {
