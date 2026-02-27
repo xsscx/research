@@ -41,18 +41,17 @@
 // Convert 4-byte signature to ASCII string (FourCC format)
 void SignatureToFourCC(icUInt32Number sig, char *fourcc)
 {
-  fourcc[0] = static_cast<char>((sig >> 24) & 0xFF);
-  fourcc[1] = static_cast<char>((sig >> 16) & 0xFF);
-  fourcc[2] = static_cast<char>((sig >> 8) & 0xFF);
-  fourcc[3] = static_cast<char>(sig & 0xFF);
-  fourcc[4] = '\0';
+  unsigned char uc[4];
+  uc[0] = (sig >> 24) & 0xFF;
+  uc[1] = (sig >> 16) & 0xFF;
+  uc[2] = (sig >> 8) & 0xFF;
+  uc[3] = sig & 0xFF;
   
   // Replace non-printable characters with '.'
   for (int i = 0; i < 4; i++) {
-    if (fourcc[i] < 32 || fourcc[i] > 126) {
-      fourcc[i] = '.';
-    }
+    fourcc[i] = (uc[i] >= 32 && uc[i] <= 126) ? (char)uc[i] : '.';
   }
+  fourcc[4] = '\0';
 }
 
 // Check if signature contains non-printable characters

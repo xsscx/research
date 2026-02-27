@@ -29,6 +29,7 @@ set(SOURCES
     IccAnalyzerLUT.cpp
     IccAnalyzerXMLExport.cpp
     IccAnalyzerCallGraph.cpp
+    IccAnalyzerTagDetails.cpp
 )
 
 # Build executable

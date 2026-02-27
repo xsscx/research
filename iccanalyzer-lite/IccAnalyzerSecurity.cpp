@@ -571,60 +571,115 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
     printf("\n");
     
-    // 11. CLUT Size Limit Check (Resource Exhaustion)
+    // 11. CLUT Size Limit Check (Resource Exhaustion) — walk actual LUT tags
     printf("[H11] CLUT Entry Limit Check\n");
     printf("      Max safe CLUT entries per tag: %llu (16M)\n",
            (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES);
     
-    // Theoretical maximum based on tag count
-    uint64_t max_clut_theoretical = 0;
-    if (!SafeMul64(&max_clut_theoretical, tagCount, ICCANALYZER_MAX_CLUT_ENTRIES)) {
-      printf("      %s[WARN]  HEURISTIC: Overflow calculating total CLUT capacity%s\n", ColorCritical(), ColorReset());
-      printf("       %sRisk: Tag count × CLUT limit exceeds 64-bit integer%s\n", ColorWarning(), ColorReset());
-      heuristicCount++;
-    } else if (tagCount > 10) {
-      printf("      %sINFO: Profile has %d tags%s\n", ColorInfo(), tagCount, ColorReset());
-      printf("      Theoretical max CLUT: %llu entries (%llu per tag)\n",
-             (unsigned long long)max_clut_theoretical,
-             (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES);
-    } else {
-      printf("      %s[OK] Low tag count reduces CLUT exhaustion risk%s\n", ColorSuccess(), ColorReset());
+    {
+      static const icTagSignature clutSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+      };
+      int clutCount = 0;
+      for (size_t li = 0; li < sizeof(clutSigs)/sizeof(clutSigs[0]); li++) {
+        CIccTag *pLTag = pIcc->FindTag(clutSigs[li]);
+        if (!pLTag) continue;
+        CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pLTag);
+        if (!pMBB) continue;
+        CIccCLUT *pCLUT = pMBB->GetCLUT();
+        if (!pCLUT) continue;
+        clutCount++;
+        icUInt8Number nIn = pMBB->InputChannels();
+        uint64_t entries = 1;
+        bool overflow = false;
+        for (int ch = 0; ch < nIn && ch < 16; ch++) {
+          if (!SafeMul64(&entries, entries, pCLUT->GridPoint(ch))) { overflow = true; break; }
+        }
+        if (!overflow) SafeMul64(&entries, entries, pCLUT->GetOutputChannels());
+        if (overflow || entries > ICCANALYZER_MAX_CLUT_ENTRIES) {
+          char sig4[5];
+          SignatureToFourCC((icUInt32Number)clutSigs[li], sig4);
+          printf("      %s[WARN] CLUT in '%s': %llu entries (limit %llu)%s\n",
+                 ColorWarning(), sig4, (unsigned long long)entries,
+                 (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES, ColorReset());
+          heuristicCount++;
+        }
+      }
+      if (clutCount == 0) {
+        printf("      %s[OK] No CLUT tags to check%s\n", ColorSuccess(), ColorReset());
+      } else {
+        printf("      Inspected %d CLUT tag(s)\n", clutCount);
+      }
     }
     printf("\n");
     
-    // 12. MPE Element Chain Depth Limit
-    printf("[H12] MPE Chain Depth Limit\n");
+    // 12. MPE Element Chain Depth — walk actual MPE tags
+    printf("[H12] MPE Chain Depth Check\n");
     printf("      Max MPE elements per chain: %u\n", ICCANALYZER_MAX_MPE_ELEMENTS);
-    printf("      Note: Full MPE analysis requires tag-level parsing\n");
-    printf("      %s[OK] Limit defined (%u elements max)%s\n", ColorSuccess(), ICCANALYZER_MAX_MPE_ELEMENTS, ColorReset());
+    
+    {
+      static const icTagSignature mpeSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        icSigDToB0Tag, icSigDToB1Tag,
+        icSigBToD0Tag, icSigBToD1Tag,
+      };
+      int mpeCount = 0;
+      for (size_t mi = 0; mi < sizeof(mpeSigs)/sizeof(mpeSigs[0]); mi++) {
+        CIccTag *pMTag = pIcc->FindTag(mpeSigs[mi]);
+        if (!pMTag) continue;
+        CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pMTag);
+        if (!pMPE) continue;
+        mpeCount++;
+        icUInt32Number nElem = pMPE->NumElements();
+        if (nElem > ICCANALYZER_MAX_MPE_ELEMENTS) {
+          char sig4[5];
+          SignatureToFourCC((icUInt32Number)mpeSigs[mi], sig4);
+          printf("      %s[WARN] MPE '%s' has %u elements (limit %u)%s\n",
+                 ColorWarning(), sig4, nElem, ICCANALYZER_MAX_MPE_ELEMENTS, ColorReset());
+          heuristicCount++;
+        }
+      }
+      if (mpeCount == 0) {
+        printf("      %s[OK] No MPE tags to check%s\n", ColorSuccess(), ColorReset());
+      } else {
+        printf("      Inspected %d MPE tag(s)\n", mpeCount);
+      }
+    }
     printf("\n");
     
-    // 13. Per-Tag Size Limit Check
-    printf("[H13] Per-Tag Size Limit\n");
+    // 13. Per-Tag Size Check — inspect actual tag sizes
+    printf("[H13] Per-Tag Size Check\n");
     printf("      Max tag size: %llu MB (%llu bytes)\n",
            (unsigned long long)(ICCANALYZER_MAX_TAG_SIZE >> 20),
            (unsigned long long)ICCANALYZER_MAX_TAG_SIZE);
     
-    // Calculate theoretical maximum profile size
-    uint64_t max_profile_theoretical = 0;
-    if (!SafeMul64(&max_profile_theoretical, tagCount, ICCANALYZER_MAX_TAG_SIZE)) {
-      printf("      %s[WARN]  HEURISTIC: Overflow calculating max profile size%s\n", ColorCritical(), ColorReset());
-      printf("       %sRisk: Tag count × tag size exceeds addressable memory%s\n", ColorWarning(), ColorReset());
-      heuristicCount++;
-    } else if (max_profile_theoretical > ICCANALYZER_MAX_PROFILE_SIZE) {
-      printf("      %s[WARN]  WARNING: Theoretical max (%llu bytes) > profile limit (%llu)%s\n",
-             ColorWarning(),
-             (unsigned long long)max_profile_theoretical,
-             (unsigned long long)ICCANALYZER_MAX_PROFILE_SIZE,
-             ColorReset());
-      printf("       Tag count: %d, Max per tag: %llu bytes\n",
-             tagCount, (unsigned long long)ICCANALYZER_MAX_TAG_SIZE);
-      heuristicCount++;
-    } else {
-      printf("      [OK] Theoretical max within limits: %llu bytes\n",
-             (unsigned long long)max_profile_theoretical);
+    {
+      int oversizedCount = 0;
+      TagEntryList::iterator tit;
+      for (tit = pIcc->m_Tags.begin(); tit != pIcc->m_Tags.end(); tit++) {
+        IccTagEntry *e = &(*tit);
+        if (e->TagInfo.size > ICCANALYZER_MAX_TAG_SIZE) {
+          char sig4[5];
+          SignatureToFourCC((icUInt32Number)e->TagInfo.sig, sig4);
+          printf("      %s[WARN] Tag '%s' size=%u bytes (%.1f MB) exceeds limit%s\n",
+                 ColorWarning(), sig4, e->TagInfo.size,
+                 e->TagInfo.size / (1024.0 * 1024.0), ColorReset());
+          oversizedCount++;
+        }
+      }
+      if (oversizedCount > 0) {
+        printf("      %s[WARN] %d tag(s) exceed size limit%s\n",
+               ColorCritical(), oversizedCount, ColorReset());
+        heuristicCount++;
+      } else {
+        printf("      %s[OK] All %d tags within size limits%s\n",
+               ColorSuccess(), tagCount, ColorReset());
+      }
     }
     printf("\n");
+
     
     // 14. TagArrayType Detection (CRITICAL - Heap-Use-After-Free)
     // Based on fuzzer findings 2026-01-30: TagArray can appear under ANY signature

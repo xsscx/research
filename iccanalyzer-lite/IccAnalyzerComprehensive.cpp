@@ -42,6 +42,7 @@
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerColors.h"
+#include "IccAnalyzerTagDetails.h"
 
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
@@ -92,38 +93,42 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
   }
   
   CIccProfile *pIcc = new CIccProfile;
-  if (pIcc->Read(&io)) {
-    AnalyzeSignatures(pIcc);
-    delete pIcc;
-  } else {
-    printf("%s[ERROR] Profile failed to load - skipping signature analysis%s\n", ColorCritical(), ColorReset());
+  if (!pIcc->Read(&io)) {
+    printf("%s[ERROR] Profile failed to load - skipping phases 3-5%s\n", ColorCritical(), ColorReset());
     printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());
     delete pIcc;
+    io.Close();
+    return totalIssues > 0 ? totalIssues : -1;
   }
   io.Close();
+  
+  AnalyzeSignatures(pIcc);
   
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE 4: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
-  if (!io.Open(filename, "rb")) {
-    printf("%s[ERROR] Cannot reopen file for dump%s\n", ColorCritical(), ColorReset());
-    return -1;
+  CIccFileIO io2;
+  if (io2.Open(filename, "rb")) {
+    printf("%s=== ICC Profile Header ===%s\n", ColorInfo(), ColorReset());
+    DumpProfileHeader(pIcc, &io2);
+    printf("\n%s=== Tag Table ===%s\n", ColorInfo(), ColorReset());
+    DumpTagTable(pIcc, &io2);
+    io2.Close();
   }
   
-  pIcc = new CIccProfile;
-  if (pIcc->Read(&io)) {
-    printf("%s=== ICC Profile Header ===%s\n", ColorInfo(), ColorReset());
-    DumpProfileHeader(pIcc, &io);
-    printf("\n%s=== Tag Table ===%s\n", ColorInfo(), ColorReset());
-    DumpTagTable(pIcc, &io);
-    delete pIcc;
-  } else {
-    printf("%s[ERROR] Profile failed to load for structure dump%s\n", ColorCritical(), ColorReset());
-    delete pIcc;
+  printf("\n");
+  printf("=======================================================================\n");
+  printf("%sPHASE 5: TAG CONTENT ANALYSIS%s\n", ColorHeader(), ColorReset());
+  printf("=======================================================================\n\n");
+  
+  int tagIssues = TagDetailAnalyze(pIcc, filename);
+  if (tagIssues > 0) {
+    totalIssues += tagIssues;
   }
-  io.Close();
+  
+  delete pIcc;
   
   printf("\n");
   printf("=======================================================================\n");
