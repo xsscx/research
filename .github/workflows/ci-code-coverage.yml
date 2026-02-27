@@ -252,7 +252,7 @@ jobs:
           llvm-cov-18 report \
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
-            -ignore-filename-regex='(third_party|/usr/|test)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
             2>&1 | tee coverage-report/coverage-summary.txt
 
           # Generate HTML report
@@ -263,7 +263,7 @@ jobs:
             -output-dir=coverage-report/html \
             -show-line-counts-or-regions \
             -show-expansions \
-            -ignore-filename-regex='(third_party|/usr/|test)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
             2>&1 | tail -5
 
           # Generate lcov-compatible export
@@ -271,7 +271,7 @@ jobs:
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -format=lcov \
-            -ignore-filename-regex='(third_party|/usr/|test)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
             > coverage-report/lcov.info 2>/dev/null || true
 
           # Summary stats

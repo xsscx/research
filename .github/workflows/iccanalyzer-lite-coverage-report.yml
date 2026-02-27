@@ -371,6 +371,14 @@ jobs:
                  --output-file filtered.info \
                  --ignore-errors source,empty 2>/dev/null || cp combined.info filtered.info
 
+            # Remove CMake build artifacts from coverage data
+            if [ -f filtered.info ] && grep -q 'CMakeFiles' filtered.info; then
+              lcov --remove filtered.info \
+                   '*/CMakeFiles/*' \
+                   --output-file filtered.info \
+                   --ignore-errors source,empty 2>/dev/null || true
+            fi
+
             FILTERED_RECORDS=$(grep -c "^SF:" filtered.info 2>/dev/null || echo 0)
             echo "Filtered coverage: $FILTERED_RECORDS source file records"
 
