@@ -244,13 +244,9 @@ jobs:
           BUILD_DIR="${{ env.build_dir }}"
           MAIN_BIN="${{ env.tool_path }}"
 
-          # Build object list for llvm-cov (all tool binaries)
+          # Use only the main binary for coverage to avoid mismatched-data
+          # warnings from shared IccProfLib functions across multiple tools
           OBJECT_ARGS=""
-          for bin in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable); do
-            if [ "$bin" != "$MAIN_BIN" ]; then
-              OBJECT_ARGS="$OBJECT_ARGS -object=$bin"
-            fi
-          done
 
           # Generate text report
           llvm-cov-18 report \
