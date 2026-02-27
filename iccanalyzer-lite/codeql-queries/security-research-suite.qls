@@ -33,6 +33,8 @@
 - queries: ./argv-output-path.ql
 - queries: ./null-pointer-deref.ql
 - queries: ./uninitialized-read.ql
+- queries: ./unsafe-array-new.ql
+- queries: ./icc-tag-cstyle-cast.ql
 
 # Built-in security queries
 - queries: .

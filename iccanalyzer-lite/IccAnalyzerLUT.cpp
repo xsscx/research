@@ -40,6 +40,7 @@
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSecurity.h"
 #include <cstring>
+#include <new>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -462,7 +463,12 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        icUInt8Number *buffer = new icUInt8Number[fileSize];
+        icUInt8Number *buffer = new (std::nothrow) icUInt8Number[fileSize];
+        if (!buffer) {
+          printf("Allocation failed (%ld bytes)\n", fileSize);
+          fclose(f);
+          continue;
+        }
         size_t bytesRead = fread(buffer, 1, fileSize, f);
         fclose(f);
         
@@ -529,7 +535,12 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        icUInt16Number *buffer = new icUInt16Number[fileSize / 2];
+        icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
+        if (!buffer) {
+          printf("Allocation failed (%ld bytes)\n", fileSize);
+          fclose(f);
+          continue;
+        }
         size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
         fclose(f);
         
@@ -624,7 +635,13 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
     return -1;
   }
   
-  icUInt16Number *buffer = new icUInt16Number[fileSize / 2];
+  icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
+  if (!buffer) {
+    printf("Allocation failed (%ld bytes)\n", fileSize);
+    fclose(f);
+    delete pIcc;
+    return -1;
+  }
   size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
   fclose(f);
   
