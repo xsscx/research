@@ -57,8 +57,8 @@ RUN cd /build/iccdev/Build \
 # Symlink shared iccDEV into iccanalyzer-lite so build.sh finds it
 RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
 
-# Build iccanalyzer-lite (build.sh auto-detects libs)
-RUN cd iccanalyzer-lite && bash build.sh
+# Build iccanalyzer-lite (NO_COVERAGE=1: no gcda noise in container)
+RUN cd iccanalyzer-lite && NO_COVERAGE=1 bash build.sh
 
 # Build colorbleed_tools against shared iccDEV (no second clone)
 RUN cd colorbleed_tools \
