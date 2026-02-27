@@ -402,6 +402,21 @@ mft2 profile with 2-channel input CLUT via `RG s` colorspace).
 Fix: add `case 1`–`case 4` dispatching to `Interp1d`–`Interp4d`, and
 add NULL guard on `pNDApply->m_pApply` in the `default` fallback.
 
+Patch 053 fixes heap-buffer-overflow in `CIccToneMapFunc::Describe()`
+(IccMpeBasic.cpp:3984).  `Describe()` unconditionally accesses
+`m_params[0]`, `m_params[1]`, `m_params[2]` when `m_nFunctionType == 0`,
+but `Read()` allocates `m_params` based on the file's declared size
+without validating it matches `NumArgs()` (which returns 3 for type 0).
+A crafted profile can declare fewer parameters (e.g. 1), causing READ
+past the 4-byte heap allocation.  Also fixes `Apply()` which had the
+same unchecked access pattern.
+ASAN: READ of size 4 at 0 bytes after 4-byte region in
+`CIccToneMapFunc::Describe()`.
+Reproducer: `crash-e2bf6aa3825f575b3fe6bb62c5c597e81d6c118c` (HLG
+narrow-range RGB profile with truncated ToneMapFunction parameters).
+Fix: guard `case 0x0000` in `Describe()` with `m_nParameters >= 3 &&
+m_params`; guard `Apply()` with `m_nParameters >= 3`.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
