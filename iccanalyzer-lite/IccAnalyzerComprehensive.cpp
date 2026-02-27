@@ -47,6 +47,15 @@
 
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
+//
+// Runs all analysis phases sequentially on a single ICC profile:
+//   Phase 1: Security heuristic checks (fingerprint matching, structure validation)
+//   Phase 2: Round-trip validation (encode/decode fidelity for non-DeviceLink profiles)
+//   Phase 3: Signature and structure verification (magic bytes, required tags)
+//   Phase 4: Deep tag content dump (LUT, curve, MPE, named color inspection)
+//
+// Returns: total number of issues detected across all phases (0 = clean profile).
+// The fingerprint_db parameter is optional; pass NULL to skip DB lookups.
 //==============================================================================
 
 int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
