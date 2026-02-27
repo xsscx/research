@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string>
+#include <new>
 #include "IccProfile.h"
 #include "IccUtil.h"
 #include "IccIO.h"
@@ -119,7 +120,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         icUInt32Number len = io.GetLength();
         if (len > 0 && len < 200000) {
           io.Seek(0, icSeekSet);
-          icUInt8Number *buf = new icUInt8Number[len];
+          icUInt8Number *buf = new (std::nothrow) icUInt8Number[len];
+          if (!buf) { delete pIcc; return 0; }
           io.Read8(buf, len);
           delete[] buf;
         }
