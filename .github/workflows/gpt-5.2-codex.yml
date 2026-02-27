@@ -145,7 +145,7 @@ jobs:
             FINDINGS=$(jq '.runs[0].results | length' "$SARIF_FILE" 2>/dev/null || echo 0)
             
             sarif html "$SARIF_FILE" -o reports/${{ matrix.target }}-report.html 2>/dev/null || \
-              echo "<html><body><h1>CodeQL Analysis: ${{ matrix.target }}</h1><p>Findings: $FINDINGS</p></body></html>" > reports/${{ matrix.target }}-report.html
+              echo "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>CodeQL: ${{ matrix.target }}</title></head><body><h1>CodeQL Analysis: ${{ matrix.target }}</h1><p>Findings: $FINDINGS</p></body></html>" > reports/${{ matrix.target }}-report.html
             
             sarif csv "$SARIF_FILE" -o reports/${{ matrix.target }}-findings.csv 2>/dev/null || \
               echo "File,Location,Rule,Severity,Message" > reports/${{ matrix.target }}-findings.csv
