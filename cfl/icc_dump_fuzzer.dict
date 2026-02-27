@@ -3063,3 +3063,59 @@
 "F\xd9\xf8-<\x02\x43\x9c\xc1k\xec\xd0i\xafr\xbc"
 "a\x7f\x96\x30\x8a\xady\xdd\xe2\\x1d\xeb'\x19\xd9\xc9"
 "K\xb6+)\x14\xc7\xa9\x7fV\xffHq\xcd\x39\xe5\x9a"
+
+# === Baseline edge-case tokens (auto-added 2026-02-27) ===
+# --- C++ RTTI Class Names ---
+"7CIccMBB"
+"7CIccTag"
+"9CIccCurve"
+"11CIccTagLut8"
+"12CIccTagCurve"
+"12CIccTagLut16"
+"14CIccTagLutAto"
+"15CIccTagFloat"
+"16CIccTagSignature"
+"18CIccTagNamedColor2"
+"20CIccTagColorantTable"
+"22CIccTagParametricCurve"
+"26CIccTagMultiProcessElement"
+"32CIccTagSpectralViewingCond"
+# --- IEEE 754 Float Edge Cases ---
+"\x3f\x80\x00\x00"
+"\xbf\x80\x00\x00"
+"\x7f\x7f\xff\xff"
+"\x7f\xa0\x00\x00"
+"\x42\xc8\x00\x00"
+"\x43\x00\x00\x00"
+"\xc3\x00\x00\x00"
+"\x00\x00\x00\x01"
+# --- D50/D65 Illuminant (s15Fixed16) ---
+"\x00\x00\xf6\xd6"
+"\x00\x00\xd3\x2d"
+"\x00\x00\xf3\x51"
+"\x00\x01\x16\xcc"
+# --- ICC Version Numbers ---
+"\x02\x40\x00\x00"
+"\x04\x30\x00\x00"
+"\x04\x40\x00\x00"
+"\x05\x10\x00\x00"
+# --- LUT Grid Points ---
+"\x02"
+"\x09"
+"\x11"
+"\x21"
+"\x33"
+"\xff"
+# --- ToneMap Edge Cases ---
+# --- Calculator Opcodes ---
+"\x00\x36"
+"\x00\x37"
+"calc"
+# --- Preview LUT Tags ---
+"pre1"
+"pre2"
+# --- Colorant Tags ---
+"clin"
+"clio"
+"clot"
+"cloo"

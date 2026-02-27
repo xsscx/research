@@ -1891,3 +1891,25 @@
 "\xff\xffO@\x00*\x81\x90"
 "\xff\xffO@\x00_\xc1o"
 "\x00\x00P`\x00I\xcb^"
+
+# === Baseline edge-case tokens (auto-added 2026-02-27) ===
+# --- IEEE 754 Float Edge Cases ---
+"\x7f\x7f\xff\xff"
+"\x7f\xa0\x00\x00"
+"\x43\x00\x00\x00"
+"\xc3\x00\x00\x00"
+# --- Spectral Tags ---
+"swpt"
+"c2sp"
+"s2cp"
+# --- Illuminant Names ---
+"Illuminant D50"
+"Illuminant D65"
+"Illuminant F7"
+"Illuminant Unknown"
+# --- Material Transform Tags ---
+"H2S0"
+"M2A0"
+"M2B0"
+"M2S0"
+"A2M0"
