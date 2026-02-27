@@ -4,13 +4,11 @@
 
 # ICC header magic
 icc_magic="acsp"
-
 # Profile version bytes
 ver2="\x02\x00\x00\x00"
 ver4="\x04\x00\x00\x00"
 ver5="\x05\x00\x00\x00"
 ver5_1="\x05\x01\x00\x00"
-
 # Profile/device class signatures
 cls_input="scnr"
 cls_display="mntr"
@@ -19,7 +17,6 @@ cls_link="link"
 cls_abstract="abst"
 cls_colorspace="spac"
 cls_namedcolor="nmcl"
-
 # Color space signatures (src space comes from profile header offset 16-19)
 cs_xyz="XYZ "
 cs_lab="Lab "
@@ -46,17 +43,14 @@ cs_hsv="HSV "
 cs_ycbcr="YCbr"
 cs_yxy="Yxy "
 cs_luv="Luv "
-
 # PCS (profile connection space)
 pcs_xyz="XYZ "
 pcs_lab="Lab "
-
 # Rendering intents (byte values)
 intent_perceptual="\x00\x00\x00\x00"
 intent_relative="\x00\x00\x00\x01"
 intent_saturation="\x00\x00\x00\x02"
 intent_absolute="\x00\x00\x00\x03"
-
 # CMM type signatures (common CMM IDs)
 cmm_appl="appl"
 cmm_adbe="ADBE"
@@ -71,14 +65,12 @@ cmm_wcgm="WcGM"
 cmm_lcms="lcms"
 cmm_argl="argl"
 cmm_littlecms="lcms"
-
 # Named color tag types
 tag_ncl2="ncl2"
 tag_ncol="ncol"
 tag_nmcl="nmcl"
 tag_clrs="clrs"
 tag_ciis="ciis"
-
 # Common tag signatures
 tag_desc="desc"
 tag_wtpt="wtpt"
@@ -101,14 +93,12 @@ tag_chrm="chrm"
 tag_clrt="clrt"
 tag_clot="clot"
 tag_cicp="cicp"
-
 # Multi-localized unicode type
 mluc="mluc"
 # Text type
 text="text"
 # Signature type
 sig="sig "
-
 # A2B/B2A LUT tags
 tag_a2b0="A2B0"
 tag_a2b1="A2B1"
@@ -116,7 +106,6 @@ tag_a2b2="A2B2"
 tag_b2a0="B2A0"
 tag_b2a1="B2A1"
 tag_b2a2="B2A2"
-
 # Multi-process element tags
 tag_d2b0="D2B0"
 tag_d2b1="D2B1"
@@ -126,18 +115,15 @@ tag_b2d0="B2D0"
 tag_b2d1="B2D1"
 tag_b2d2="B2D2"
 tag_b2d3="B2D3"
-
 # LUT types
 lut_mAB="mAB "
 lut_mBA="mBA "
 lut_mft1="mft1"
 lut_mft2="mft2"
-
 # Curve types
 curv="curv"
 para="para"
 samf="samf"
-
 # ICC header size (128 bytes) and tag table
 hdr_size="\x00\x00\x00\x80"
 # Tag count (various)
@@ -145,32 +131,26 @@ tag_cnt_1="\x00\x00\x00\x01"
 tag_cnt_4="\x00\x00\x00\x04"
 tag_cnt_8="\x00\x00\x00\x08"
 tag_cnt_16="\x00\x00\x00\x10"
-
 # Profile flags
 flags_embed="\x00\x00\x00\x01"
 flags_independent="\x00\x00\x00\x02"
 flags_extpcs="\x00\x00\x00\x04"
-
 # D50 illuminant XYZ (fixed in ICC headers)
 d50_x="\x00\x00\xf6\xd6"
 d50_y="\x00\x01\x00\x00"
 d50_z="\x00\x00\xd3\x2d"
-
 # Platform signatures
 plat_apple="APPL"
 plat_microsoft="MSFT"
 plat_sgi="SGI "
 plat_sun="SUNW"
-
 # Date/time structure (12 bytes)
 datetime="\x07\xe2\x00\x08\x00\x0f\x00\x0a\x00\x16\x00\x12"
-
 # Size values common in profiles
 size_256="\x00\x00\x01\x00"
 size_512="\x00\x00\x02\x00"
 size_1024="\x00\x00\x04\x00"
 size_4096="\x00\x00\x10\x00"
-
 # Spectral tags (for spectral-aware NamedCmm paths)
 tag_svcn="svcn"
 tag_swpt="swpt"
@@ -180,17 +160,14 @@ tag_c2sp="c2sp"
 tag_bsp0="bsp0"
 tag_bsp1="bsp1"
 tag_bsp2="bsp2"
-
 # Environment variable signatures
 env1="\x65\x6e\x76\x31"
-
 # Boundary/edge values
 zero_4="\x00\x00\x00\x00"
 max_4="\xff\xff\xff\xff"
 one_fixed="\x00\x01\x00\x00"
 neg_one="\xff\xff\x00\x00"
 half_fixed="\x00\x00\x80\x00"
-
 # --- added by convert-libfuzzer-dict.py ---
 "\xf9\xf9\xf9\xf9"
 "JCCp"
@@ -724,8 +701,6 @@ half_fixed="\x00\x00\x80\x00"
 "\xff\xff\xff'"
 "\x01\x00Q\x10\x00\xa5\xf5\xad"
 "\x01\x00Q\x10\x00}\xb0\xef"
-
-# --- added by convert-libfuzzer-dict.py ---
 "@2B3"
 "\xff\xff\x00\x32"
 "gbd "
@@ -901,8 +876,6 @@ half_fixed="\x00\x00\x80\x00"
 "\x01\x00Q\x10\x00\x07\x81\xc0"
 "4\x09\x00\x00"
 "\xbc\xbd\xdf"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Pp\x00-?*"
 "\x07\x00\x00p"
 "XY\xa0"
@@ -1024,8 +997,6 @@ half_fixed="\x00\x00\x80\x00"
 "{xml"
 "scs2"
 "dXYZ"
-
-# --- added by convert-libfuzzer-dict.py ---
 "X\xcd\x02"
 "RG`"
 "y\x00"
@@ -1145,8 +1116,6 @@ half_fixed="\x00\x00\x80\x00"
 "\xff\xffP\x10\x00=\x17v"
 "\x01\x1a"
 "\xff\x1a"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x0a\xff"
 "B\xb2\xb1\x1a"
 "yra"
@@ -1213,9 +1182,6 @@ half_fixed="\x00\x00\x80\x00"
 "\x00\x00Q\x10\x00\x05\xb8p"
 "\x01\x00\x00\x86"
 "\x07\xdd"
-
-# --- added by convert-libfuzzer-dict.py ---
-<<<<<<< Updated upstream
 "\x01\x00Q\x10\x00\x41\x45x"
 "+\x00"
 "\x13\x00"
@@ -1294,7 +1260,6 @@ half_fixed="\x00\x00\x80\x00"
 "\xcf\x08\x00\x00"
 "\x00\x00\x7f\x15\xe5{\x8e "
 "A\x00"
-=======
 "\x18\x01\x00\x01"
 "\x01\x00\x00\x00\x00\x00\x01\x17"
 "5\x00\x00\x00\x00\x00\x00\x00"
@@ -1334,7 +1299,6 @@ half_fixed="\x00\x00\x80\x00"
 "X Y"
 "\x17\x00\x00\x00\x00\x00\x00\x00"
 "GB#"
-"\x00\x12"
 "RG\x1c"
 "\x0b\x00\x00\x00\x00\x00\x00\x00"
 "Q\x10"
@@ -1428,7 +1392,6 @@ half_fixed="\x00\x00\x80\x00"
 "\x1c\x02"
 "\xff\xffo?G2\xe1\x90"
 "\x12\x11\x43\xa4Q)X\x12"
-"CL "
 "\x00\x00P \x0e\xb7\xad\x98"
 "\x00\x00\x01\x1c"
 "p\x01"
@@ -1557,7 +1520,6 @@ half_fixed="\x00\x00\x80\x00"
 ";\x00\x00\x00"
 "\x8e\x05"
 "\x10H"
-"rYZ"
 "\x0d\x04\x00\x00\x00\x00\x00\x00"
 "\x1a\x00\x00\x00"
 "\xff\xffo?G|\xe0\x31"
@@ -1669,7 +1631,6 @@ half_fixed="\x00\x00\x80\x00"
 "\xfe\xff\xff\xa1"
 "\x00trp"
 "\xad\xc2\x42"
-"\x01\x00\x00\x00\x00\x00\x00\x30"
 "enim"
 "vmax"
 "????"
@@ -1758,4 +1719,3 @@ half_fixed="\x00\x00\x80\x00"
 "\x01\x00\x04\x45"
 "\x01\x00\x00\x00\x00\x00s\x06"
 "\x06\x02\xff\x00"
->>>>>>> Stashed changes

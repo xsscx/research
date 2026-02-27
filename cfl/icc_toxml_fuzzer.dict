@@ -7,7 +7,6 @@
 # - IccFromXml (XML to ICC profile conversion)
 # - IccToXml (ICC profile to XML conversion)
 # - XML parsing and serialization
-
 "!  }"
 "-->"
 "<!--"
@@ -419,14 +418,10 @@
 "IccPr"
 "IccP"
 "ISO-1064"
-
 # =============================================================================
 # SECTION: ToXml Coverage Enhancement (auto-generated 2026-02-25)
 # 436 new entries targeting missing tag/type signatures,
 # LUT dimensions, MPE elements, struct members, and edge-case values
-# =============================================================================
-
-
 # --- sig ---
 # sig_icSigMCH1Data
 "1CLR"
@@ -1132,7 +1127,6 @@
 "\x74\x6d\x61\x70"
 # sig_type_gbd
 "\x67\x62\x64\x20"
-
 # --- mpe ---
 # mpe_CurveSet
 "\x63\x76\x73\x74"
@@ -1166,7 +1160,6 @@
 "\x72\x6f\x62\x73"
 # mpe_ExtCLUT
 "\x78\x63\x6c\x54"
-
 # --- para ---
 # para_func_1
 "\x00\x01"
@@ -1190,7 +1183,6 @@
 "\x00\x0b"
 # para_func_12
 "\x00\x0c"
-
 # --- tagsize ---
 # tagsize_1
 "\x00\x00\x00\x01"
@@ -1224,7 +1216,6 @@
 "\x00\x00\x02\x00"
 # tagsize_1024
 "\x00\x00\x04\x00"
-
 # --- lut ---
 # lut_dim_1
 "\x01"
@@ -1244,7 +1235,6 @@
 "\x33"
 # lut_dim_255
 "\xff"
-
 # --- channels ---
 # channels_5
 "\x05"
@@ -1266,15 +1256,12 @@
 "\x0e"
 # channels_15
 "\x0f"
-
 # --- ncurves32 ---
 # ncurves32_3
 "\x00\x00\x00\x03"
-
 # --- ncurves ---
 # ncurves_16
 "\x00\x10"
-
 # --- grid ---
 # grid_17
 "\x11"
@@ -1282,7 +1269,6 @@
 "\x41"
 # grid_129
 "\x81"
-
 # --- struct ---
 # struct_bref
 "\x62\x72\x65\x66"
@@ -1296,7 +1282,6 @@
 "\x74\x6e\x74\x31"
 # struct_tnt2
 "\x74\x6e\x74\x32"
-
 # --- mluc ---
 # mluc_en_US
 "\x65\x6e\x55\x53"
@@ -1306,13 +1291,11 @@
 "\x6a\x61\x4a\x50"
 # mluc_zh_CN
 "\x7a\x68\x43\x4e"
-
 # --- dict ---
 # dict_name_value
 "\x6e\x6d\x76\x6c"
 # dict_display
 "\x64\x73\x6e\x6d"
-
 # --- float ---
 # float_nan
 "\x7f\xc0\x00\x00"
@@ -1324,7 +1307,6 @@
 "\x80\x00\x00\x00"
 # float_max_float
 "\x7f\x7f\xff\xff"
-
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\x7f"
 "2B2A"
@@ -1830,7 +1812,6 @@
 "\x00\x00\x00\x16"
 "\xff\x65"
 "\xff\x42"
-
 # Fuzzer-recommended entries from corpus analysis (136 new)
 "I\x00"
 "\xff\xff\xffr"
@@ -1968,8 +1949,6 @@
 "\x01\x00\x00\x00\x00\x00\x00\x1d"
 "\xff\x0f"
 "tpac"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xd4\x00\x00\x00\x00\x00\x00\x00"
 "\x01\x00\x00\x00\x00\x00\x00!"
 "aTRC"
@@ -1992,8 +1971,6 @@
 "-\xcd"
 "\x00\x00q\xaa\x35zj\x87"
 "B2B1"
-
-# --- added by convert-libfuzzer-dict.py ---
 "ctop"
 "\x1a\x00\x00\x00\x00\x00\x00\x00"
 "\x07\x00\x00p"
@@ -2016,8 +1993,6 @@
 "\x00\x00\x00\x05"
 "\x00\x00Q\xe0\x00q@\x80"
 "\xfe\xd7"
-
-# --- added by convert-libfuzzer-dict.py ---
 "colorantOrd"
 "e\x00\x00\x00"
 "\x02\x0f:\x8f"
@@ -2059,8 +2034,6 @@
 "\x01\x00r-\xed\xf5\xe4\xf2"
 "\x00v"
 "3A2B"
-
-# --- added by convert-libfuzzer-dict.py ---
 "screeningTy"
 "\x92\x05"
 "\x01\x00P \x00\x09\xf5\xdb"
@@ -2169,8 +2142,6 @@
 "\x01\x00\x7f\xcc!KC\x95"
 "\x01\x00P0\x00\x08\x31\xb5"
 "\xff\xffO`\x00(\xdd\x98"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x7f\x05\xbd\x8f\xe9\xb3"
 "\x00\x00\x00\x00\x00\x00\x00\x80"
 "\x00\x00\x00M"
@@ -2254,8 +2225,6 @@
 "\x01\x00\x00+"
 "\x01\x00\x7f\x05\xbd\xec\x02\xb1"
 "qqqq"
-
-# --- added by convert-libfuzzer-dict.py ---
 "psca"
 "4\xff\xff\x34"
 "I\x00\x00\x00"
@@ -2320,8 +2289,6 @@
 "B\x8d"
 "\x01\x00\x00\x00\x00\x00\x00,"
 "\x00\x00\x7f'\xd6\x00\x08\xa7"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x0d"
 "yclt"
 "\x01\x00P \x00\x05\xb5\xf7"
@@ -2356,9 +2323,6 @@
 "\x00\x00\x7fy\x95\x04\xa2\xb8"
 "\x00\x00Pp\x00\xee|;"
 "\xdd\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
-<<<<<<< Updated upstream
 "\x00\x00\x7f%2\xc6\xa2\x38"
 "\x01\x00\x7f%3-\x22\xb0"
 "\x01\x00m\xfd"
@@ -2411,7 +2375,6 @@
 "\x81\x00\x00\x00\x00\x00\x00\x00"
 "f\x00\x00\x00"
 "\xff\xff~%3'\x22\xb3"
-=======
 "\xffW"
 "\x00\x00p@\xab\xd1\xc4\xf0"
 "\x00\x00P0\x00\x09\x94\xc0"
@@ -2552,7 +2515,6 @@
 "\x00\x00p@\xab\xd1\xa4\xf0"
 "\x00\x00\x00\x00\x00\x00\x00\x1b"
 "\x7f\x00\x00\x00\x00\x00\x00\x00"
-"f\x00\x00\x00"
 "\x01\x90"
 "\x00\x00Pp\x00\x1e\xc1("
 "\x00\x00\x00\x00\x00\x00\x05K"
@@ -2634,8 +2596,6 @@
 "\xff\xffO`\x00;\x1a\xa0"
 "r\x01\x00\x00"
 "\x00\x00\x00\x00\x00\x00\x00\x18"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x87\x22"
 "\x01\x01\x00\x00"
 "\xec\x01\x00\x00"
@@ -2703,8 +2663,6 @@
 "\xff\xff\xff\x64"
 "\x01\x00Pp\x00\x17\x9e="
 "\x00\x00u\x92\x9e\x32\xc4\xf4"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xfe\x00\x01\x35"
 "\xff\xad\x01\x00"
 "\x00\x00\x7f\x17\xc5\x96\x84\xf4"
@@ -2726,7 +2684,6 @@
 "$\x9c\x33j\xb1>x7"
 "*l"
 "\x00\x00\x7f\x17\xc5\x9b\xc6\x33"
-"namedCol"
 "\x01\x00\x04\x35"
 "B\x00"
 "\x00\x00\x04\xaa"
@@ -2783,4 +2740,3 @@
 "\x02U"
 "\x85\x00"
 "\x01\x00\x7f\x17\xc5\x93\xe6\x39"
->>>>>>> Stashed changes

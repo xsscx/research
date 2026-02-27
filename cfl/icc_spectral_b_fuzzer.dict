@@ -1251,9 +1251,6 @@
 "robs"
 "smet"
 "sdin"
-
-# --- added by convert-libfuzzer-dict.py ---
-<<<<<<< Updated upstream
 "\xff~\x94"
 "fB2"
 "\xff\xff\xff$"
@@ -1286,7 +1283,6 @@
 "\x8cZ|"
 "CMY"
 "\x01\x00\x7f\xb2\x42\xc2\x12\xf4"
-=======
 "t\xf0t"
 "T\x22"
 "\x0f\xcf\xff"
@@ -1332,7 +1328,6 @@
 "\x01\xfa"
 "\x01\x00P0\x00I\x1d)"
 "\x01\x00Q\x10\x00\x08{6"
-"CMY"
 "\x0f\x0e"
 "\x00\x00\x02\x88"
 "9\x02\x00\x00"
@@ -1629,8 +1624,6 @@
 "cYZ"
 "\xbd\xe0 "
 "\x01\x00P\x80\x00 \xcc\xf4"
-
-# --- added by convert-libfuzzer-dict.py ---
 "rZ}"
 "YK"
 "uech"
@@ -1777,8 +1770,6 @@
 "\x00\x00P \x00,A\xb2"
 "c\x03"
 "\xa6\x85"
-
-# --- added by convert-libfuzzer-dict.py ---
 "llia"
 "\x00\x00P \x00\x31q\x14"
 "\x99ZK"
@@ -1900,4 +1891,3 @@
 "\xff\xffO@\x00*\x81\x90"
 "\xff\xffO@\x00_\xc1o"
 "\x00\x00P`\x00I\xcb^"
->>>>>>> Stashed changes
