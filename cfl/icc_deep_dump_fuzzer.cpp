@@ -53,6 +53,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <new>
 #include <cmath>
 #include <map>
 #include <string>
@@ -960,12 +961,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (doOpenPath) {
     DIAG("path=OpenIccProfile (non-validating)");
     // Non-validating read path (matches tool's OpenIccProfile, line 218)
-    CIccMemIO *pIO = new CIccMemIO();
+    CIccMemIO *pIO = new (std::nothrow) CIccMemIO();
+    if (!pIO) return 0;
     if (!pIO->Attach(const_cast<uint8_t*>(data), (icUInt32Number)size)) {
       delete pIO;
       return 0;
     }
-    pIcc = new CIccProfile();
+    pIcc = new (std::nothrow) CIccProfile();
     if (!pIcc->Read(pIO)) {
       delete pIcc;
       delete pIO;

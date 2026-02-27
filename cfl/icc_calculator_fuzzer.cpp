@@ -42,6 +42,7 @@
 #include "IccMpeFactory.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 #include <vector>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
@@ -52,7 +53,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccMemIO *pIO = nullptr;
 
   try {
-    pIO = new CIccMemIO;
+    pIO = new (std::nothrow) CIccMemIO;
     if (!pIO) return 0;
 
     if (!pIO->Attach((icUInt8Number*)data, size)) {
@@ -60,7 +61,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       return 0;
     }
 
-    pProfile = new CIccProfile;
+    pProfile = new (std::nothrow) CIccProfile;
     if (!pProfile) {
       delete pIO;
       return 0;
@@ -89,7 +90,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       pTag->Validate(sigPath, report, pProfile);
 
       // Attempt to write (exercises serialization) - BEFORE CMM ops
-      CIccMemIO *pOutIO = new CIccMemIO;
+      CIccMemIO *pOutIO = new (std::nothrow) CIccMemIO;
       if (pOutIO) {
         pOutIO->Alloc(size + 4096);
         pTag->Write(pOutIO);
@@ -100,7 +101,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       icTagTypeSignature tagType = pTag->GetType();
       if (tagType == icSigLutAtoBType || tagType == icSigLutBtoAType) {
         // Exercise MPE chain traversal and calculator elements
-        CIccTagLutAtoB *pLut = (CIccTagLutAtoB*)pTag;
+        CIccTagLutAtoB *pLut = dynamic_cast<CIccTagLutAtoB*>(pTag);
         if (pLut) {
           // Trigger MPE chain validation and channel info
           (void)pLut->InputChannels();
