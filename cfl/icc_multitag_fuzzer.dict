@@ -1876,3 +1876,10 @@
 # --- ToneMap Edge Cases ---
 "\x00\x01"
 "tmap"
+
+# --- added by convert-libfuzzer-dict.py ---
+"TGNT"
+"\xff\xffP\x10\x00\x66\\w"
+"\xff\xff~C\xfb!s1"
+"\x00\x00\x00\x00\x00\x00\x00\x06"
+"sca\x00"

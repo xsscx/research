@@ -1484,3 +1484,10 @@
 "pre0"
 "pre1"
 "pre2"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff\xff\x91"
+"\x9a\x99\x99>"
+"ZYB"
+"\x00\x00\x7f\x43\x35\xaf\xa9\x92"
+"\x01\x00\x00\x96"
