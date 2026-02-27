@@ -465,7 +465,7 @@ jobs:
           cd -
 
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
-          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp"
+          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp"
 
           echo "Compiling static release binary..."
           for src in $SOURCES; do

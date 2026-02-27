@@ -135,7 +135,8 @@ jobs:
           SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
                 IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
                 IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
-                IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp"
+                IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp \
+                IccAnalyzerTagDetails.cpp"
           for src in $SRCS; do
             $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
           done
