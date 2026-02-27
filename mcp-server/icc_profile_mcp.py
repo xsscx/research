@@ -173,17 +173,22 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
     output = stdout.decode(errors="replace")
     if stderr:
         stderr_text = stderr.decode(errors="replace")
-        remaining = MAX_OUTPUT_BYTES - len(stdout)
-        if remaining > 0:
-            # Truncate by encoded byte length to respect the limit accurately
-            stderr_encoded = stderr_text.encode("utf-8")
-            if len(stderr_encoded) > remaining:
-                stderr_text = stderr_encoded[:remaining].decode("utf-8", errors="ignore")
+        # Filter out gcov/gcda profiling noise from --coverage builds
+        stderr_text = "\n".join(
+            line for line in stderr_text.splitlines()
+            if not line.startswith("profiling:")
+        )
+        if stderr_text.strip():
+            remaining = MAX_OUTPUT_BYTES - len(stdout)
+            if remaining > 0:
+                stderr_encoded = stderr_text.encode("utf-8")
+                if len(stderr_encoded) > remaining:
+                    stderr_text = stderr_encoded[:remaining].decode("utf-8", errors="ignore")
+                    truncated = True
+            else:
+                stderr_text = ""
                 truncated = True
-        else:
-            stderr_text = ""
-            truncated = True
-        output += "\n--- stderr ---\n" + stderr_text
+            output += "\n--- stderr ---\n" + stderr_text
     if truncated:
         output += "\n[OUTPUT TRUNCATED at 10MB]"
     return _sanitize_output(output.strip())
