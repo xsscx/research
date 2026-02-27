@@ -1,0 +1,29 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 1fdc89e..a15c772 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -3981,8 +3981,13 @@ void CIccToneMapFunc::Describe(std::string& sDescription, int /* nVerboseness */
+ 
+   switch (m_nFunctionType) {
+   case 0x0000:
+-    snprintf(buf, bufSize, "Y = %.8f * M * ( X + %.8f) + %.8f\n\n", m_params[0], m_params[1], m_params[2]);
+-    sDescription += buf;
++    if (m_nParameters >= 3 && m_params) {
++      snprintf(buf, bufSize, "Y = %.8f * M * ( X + %.8f) + %.8f\n\n", m_params[0], m_params[1], m_params[2]);
++      sDescription += buf;
++    } else {
++      snprintf(buf, bufSize, "Invalid: expected 3 parameters, got %d\n\n", m_nParameters);
++      sDescription += buf;
++    }
+     return;
+ 
+   default:
+@@ -4097,7 +4102,7 @@ bool CIccToneMapFunc::Begin()
+ 
+ icFloatNumber CIccToneMapFunc::Apply(icFloatNumber lumValue, icFloatNumber pixelValue) const
+ {
+-  if (!m_nFunctionType && m_params) {
++  if (!m_nFunctionType && m_params && m_nParameters >= 3) {
+     return m_params[0] * lumValue * (pixelValue + m_params[1]) + m_params[2];
+   }
+ 
