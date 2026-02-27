@@ -271,7 +271,9 @@ static int AnalyzeCurveTags(CIccProfile *pIcc)
           printf("      %s[WARN] NaN detected in curve data%s\n", ColorCritical(), ColorReset());
           issues++;
         }
-        if (first == last && first == mid) {
+        // Check for degenerate flat curve (all sampled values effectively equal)
+        const icFloatNumber kEpsilon = 1e-7f;
+        if (std::fabs(first - last) < kEpsilon && std::fabs(first - mid) < kEpsilon) {
           printf("      %s[WARN] Flat/degenerate curve (all values equal)%s\n",
                  ColorWarning(), ColorReset());
           issues++;
