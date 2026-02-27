@@ -13,6 +13,8 @@
 #include "IccAnalyzerCallGraph.h"
 #include "IccAnalyzerConfig.h"
 #include "IccAnalyzerErrors.h"
+#include "IccAnalyzerXMLExport.h"
+#include "IccAnalyzerHeuristics.h"
 
 #include <cstdio>
 #include <cstring>
@@ -77,6 +79,7 @@ void PrintUsage() {
   
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
+  printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
   
   printf("\nExit Codes:\n");
   printf("  0  Clean    - Profile analyzed, no issues detected\n");
@@ -142,6 +145,36 @@ int main(int argc, char **argv) {
   // Extract LUT
   if (strcmp(mode, "-x") == 0 && argc >= 4) {
     return NormalizeExit(ExtractLutData(profilePath, argv[3]));
+  }
+  
+  // XML report export
+  if (strcmp(mode, "-xml") == 0 && argc >= 4) {
+    const char *outXml = argv[3];
+    // Run heuristic analysis to collect findings
+    HeuristicReport report;
+    int result = HeuristicAnalyze(profilePath, nullptr);
+
+    // Populate report summary from exit code
+    HeuristicFinding f;
+    f.check_name = "Heuristic Analysis";
+    f.status = (result == 0) ? "PASS" : "FAIL";
+    f.severity = (result == 0) ? "LOW" : "HIGH";
+    f.message = (result == 0) ? "No security issues detected"
+                              : "Security heuristic findings detected";
+    report.findings.push_back(f);
+    report.totalChecks = 1;
+    report.passedChecks = (result == 0) ? 1 : 0;
+    report.failedChecks = (result == 0) ? 0 : 1;
+
+    if (IccAnalyzerXMLExport::ExportHeuristicsToXML(outXml, profilePath, &report)) {
+      printf("\n[OK] XML report written to: %s\n", outXml);
+      printf("[OK] XSLT stylesheet written alongside XML\n");
+      printf("[OK] Open the XML file in a browser to view the styled report\n");
+      return ICC_EXIT_CLEAN;
+    } else {
+      fprintf(stderr, "[ERR] Failed to write XML report to: %s\n", outXml);
+      return ICC_EXIT_ERROR;
+    }
   }
   
   // Version
