@@ -2,7 +2,7 @@
 """
 ICC Profile MCP Server — Web UI Backend
 
-Thin REST API wrapping the 12 MCP tool functions (7 analysis + 5 maintainer + 1 windows).
+Thin REST API wrapping the 15 MCP tool functions (9 analysis + 6 maintainer).
 Uses Starlette + uvicorn (already installed as MCP SDK dependencies).
 
 Usage:
@@ -347,7 +347,7 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
-    return JSONResponse({"ok": True, "tools": 13})
+    return JSONResponse({"ok": True, "tools": 15})
 
 
 # ---------------------------------------------------------------------------
