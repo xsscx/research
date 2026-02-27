@@ -23,7 +23,7 @@ class UncheckedFileRead extends FunctionCall {
 // Find potential integer overflows in multiplication
 class IntegerOverflowMultiply extends MulExpr {
   IntegerOverflowMultiply() {
-    this.getFile().getBaseName() = "iccAnalyzer.cpp" and
+    this.getFile().getBaseName().matches("IccAnalyzer%") and
     not exists(IfStmt guard |
       guard.getCondition().getAChild*() instanceof RelationalOperation and
       guard.getControlFlowScope() = this.getEnclosingFunction()
@@ -34,7 +34,7 @@ class IntegerOverflowMultiply extends MulExpr {
 // Find buffer allocations without size checks
 class UnsafeBufferAllocation extends NewArrayExpr {
   UnsafeBufferAllocation() {
-    this.getFile().getBaseName() = "iccAnalyzer.cpp" and
+    this.getFile().getBaseName().matches("IccAnalyzer%") and
     not exists(IfStmt check |
       check.getCondition().toString().matches("%fileSize%") and
       check.getLocation().getStartLine() < this.getLocation().getStartLine() and

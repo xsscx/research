@@ -34,6 +34,9 @@
 - queries: ./null-pointer-deref.ql
 - queries: ./uninitialized-read.ql
 - queries: ./unsafe-array-new.ql
+- queries: ./unsafe-scalar-new.ql
+- queries: ./unaligned-pointer-cast.ql
+- queries: ./signed-shift-overflow.ql
 - queries: ./icc-tag-cstyle-cast.ql
 
 # Built-in security queries
