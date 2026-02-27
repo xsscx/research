@@ -389,14 +389,18 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
     return -1;
   }
   
-  CIccProfile *pIcc = new CIccProfile;
+  CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+  if (!pIcc) {
+    printf("Error: memory allocation failed\n");
+    return -1;
+  }
   if (!pIcc->Read(&io)) {
     printf("Error reading ICC profile\n");
     delete pIcc;
     return -1;
   }
   io.Close();
-  
+
   bool modified = false;
   CIccInfo info;
   
@@ -754,7 +758,11 @@ int ExtractLutData(const char *filename, const char *baseFilename)
     return -1;
   }
   
-  CIccProfile *pIcc = new CIccProfile;
+  CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+  if (!pIcc) {
+    printf("Error: memory allocation failed\n");
+    return -1;
+  }
   if (!pIcc->Read(&io)) {
     printf("Error reading ICC profile\n");
     delete pIcc;

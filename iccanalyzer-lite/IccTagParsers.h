@@ -111,7 +111,7 @@ inline const char* GetTagXMLName(uint32_t sig) {
 }
 
 inline uint32_t Read32(const unsigned char* data) {
-  return (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+  return ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) | (uint32_t)data[3];
 }
 
 inline uint16_t Read16(const unsigned char* data) {

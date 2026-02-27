@@ -130,6 +130,11 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     return -1;
   }
   size_t fileSize = st.st_size;
+  if (fileSize == 0) {
+    printf("Error: File is empty (0 bytes)\n");
+    fclose(fp);
+    return -1;
+  }
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
   
   icUInt8Number *rawData = (icUInt8Number*)malloc(fileSize);
@@ -344,7 +349,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
 //==============================================================================
 
 static icUInt32Number read32(const unsigned char* data) {
-  return (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+  return ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) | (uint32_t)data[3];
 }
 
 static icUInt16Number read16(const unsigned char* data) {

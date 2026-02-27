@@ -38,6 +38,7 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerValidation.h"
 #include "IccAnalyzerSignatures.h"
+#include <new>
 
 //==============================================================================
 // Round-Trip Tag Validation
@@ -54,7 +55,12 @@ int RoundTripAnalyze(const char *filename)
     return -1;
   }
   
-  CIccProfile *pIcc = new CIccProfile;
+  CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+  if (!pIcc) {
+    printf("Error: memory allocation failed\n");
+    io.Close();
+    return -1;
+  }
   if (!pIcc->Read(&io)) {
     printf("Error reading ICC profile\n\n");
     printf("Profile failed validation. Try ninja mode: iccAnalyzer -n %s\n", filename);
@@ -163,8 +169,14 @@ int RoundTripAnalyze(const char *filename)
 // Recursive Directory Scanning
 //==============================================================================
 
-int RecursiveScan(const char *directory, bool quiet)
+int RecursiveScan(const char *directory, bool quiet, int depth)
 {
+  const int kMaxDepth = 64;
+  if (depth > kMaxDepth) {
+    if (!quiet) printf("Warning: max recursion depth (%d) reached at: %s\n", kMaxDepth, directory);
+    return -1;
+  }
+
   DIR *dir = opendir(directory);
   if (!dir) {
     if (!quiet) {
@@ -194,7 +206,7 @@ int RecursiveScan(const char *directory, bool quiet)
     
     if (S_ISDIR(st.st_mode)) {
       // Recurse into subdirectory
-      int subResult = RecursiveScan(fullPath.c_str(), quiet);
+      int subResult = RecursiveScan(fullPath.c_str(), quiet, depth + 1);
       if (subResult >= 0) {
         (void)subResult; // Results printed by recursive call
       }
@@ -223,7 +235,13 @@ int RecursiveScan(const char *directory, bool quiet)
         continue;
       }
       
-      CIccProfile *pIcc = new CIccProfile;
+      CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+      if (!pIcc) {
+        if (!quiet) printf("  [FAIL] %s (memory allocation failed)\n", fullPath.c_str());
+        invalid++;
+        io.Close();
+        continue;
+      }
       if (!pIcc->Read(&io)) {
         if (!quiet) printf("  [FAIL] %s (invalid ICC)\n", fullPath.c_str());
         invalid++;

@@ -50,8 +50,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <spawn.h>
+#include <stdexcept>
 
 extern char **environ;
+
+static int safe_stoi(const std::string& s, int fallback = 0) {
+  try { return std::stoi(s); }
+  catch (const std::exception&) { return fallback; }
+}
 
 // Parse ASAN crash log and extract stack frames
 bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file, 
@@ -86,7 +92,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
   std::regex access_regex("(READ|WRITE) of size (\\d+)");
   if (std::regex_search(content, match, access_regex)) {
     metadata.m_access_type = match[1];
-    metadata.m_access_size = std::stoi(match[2]);
+    metadata.m_access_size = safe_stoi(match[2]);
   }
   
   // Extract address
@@ -98,11 +104,11 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
   // Extract stack variable overflow details
   std::regex var_regex("\\[(\\d+), (\\d+)\\) '([^']+)'.*<== Memory access at offset (\\d+)");
   if (std::regex_search(content, match, var_regex)) {
-    unsigned int var_start = std::stoi(match[1]);
-    unsigned int var_end = std::stoi(match[2]);
+    unsigned int var_start = safe_stoi(match[1]);
+    unsigned int var_end = safe_stoi(match[2]);
     metadata.m_var_name = match[3];
     metadata.m_var_size = var_end - var_start;
-    unsigned int overflow_offset = std::stoi(match[4]);
+    unsigned int overflow_offset = safe_stoi(match[4]);
     metadata.m_overflow_bytes = (overflow_offset > var_end) ? (overflow_offset - var_end) : 0;
   }
   
@@ -112,7 +118,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
   
   while (std::regex_search(search_start, content.cend(), match, frame_regex)) {
     ASANFrame frame;
-    frame.m_frame_num = std::stoi(match[1]);
+    frame.m_frame_num = safe_stoi(match[1]);
     
     // Extract function name (remove template parameters)
     std::string func = match[2];
@@ -130,7 +136,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
       file_path = file_path.substr(slash_pos + 1);
     }
     frame.m_file_path = file_path;
-    frame.m_line_number = std::stoi(match[4]);
+    frame.m_line_number = safe_stoi(match[4]);
     frame.m_is_crash = (frame.m_frame_num == 0);
     
     frames.push_back(frame);

@@ -24,13 +24,14 @@ DO_MERGE=false
 DO_UNMOUNT=true
 
 # ── Parse args ───────────────────────────────────────────────────────
-for arg in "$@"; do
-  case "$arg" in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --merge) DO_MERGE=true ;;
     --no-unmount) DO_UNMOUNT=false ;;
     --ramdisk) RAMDISK="$2"; shift ;;
-    *) die "Unknown argument: $arg" ;;
+    *) die "Unknown argument: $1" ;;
   esac
+  shift
 done
 
 [ -d "$RAMDISK" ] || die "Ramdisk not found: $RAMDISK"
