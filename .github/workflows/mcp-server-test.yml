@@ -56,7 +56,7 @@ jobs:
           path: |
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
+          key: ${{ runner.os }}-apt-mcp-v1
 
       - name: Install dependencies
         run: |
@@ -80,6 +80,16 @@ jobs:
             iccDEV/Build/CMakeCache.txt
             iccDEV/Build/CMakeFiles
           key: ${{ runner.os }}-iccdev-build-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+
+      - name: Cache native tools
+        id: cache-native-tools
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            iccanalyzer-lite/iccanalyzer-lite
+            colorbleed_tools/iccToXml_unsafe
+            colorbleed_tools/iccFromXml_unsafe
+          key: ${{ runner.os }}-native-tools-mcp-${{ hashFiles('cfl/patches/*.patch', 'iccanalyzer-lite/*.cpp', 'iccanalyzer-lite/*.h', 'colorbleed_tools/*.cpp') }}
 
       - name: Install iccDEV + iccanalyzer-lite
         env:
@@ -128,32 +138,39 @@ jobs:
           fi
 
           # Build colorbleed_tools (needed for XML roundtrip tests)
-          cd colorbleed_tools
-          make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
-          cd ..
+          if [ "${{ steps.cache-native-tools.outputs.cache-hit }}" != 'true' ]; then
+            cd colorbleed_tools
+            make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
+            cd ..
 
-          # Build iccanalyzer-lite
-          cd iccanalyzer-lite
-          export CXX=clang++
-          export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
-          SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
-                IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
-                IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
-                IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp \
-                IccAnalyzerTagDetails.cpp"
-          for src in $SRCS; do
-            $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
-          done
-          OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
-          $CXX $OBJS \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm \
-            -Wl,--allow-multiple-definition \
-            -o iccanalyzer-lite
-          cd ..
+            # Build iccanalyzer-lite
+            cd iccanalyzer-lite
+            export CXX=clang++
+            export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
+            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+            SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
+                  IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
+                  IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
+                  IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp \
+                  IccAnalyzerTagDetails.cpp"
+            for src in $SRCS; do
+              $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
+            done
+            OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
+            $CXX $OBJS \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+              -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm \
+              -Wl,--allow-multiple-definition \
+              -o iccanalyzer-lite
+            cd ..
+          else
+            echo "Using cached native tools (iccanalyzer-lite + colorbleed_tools)"
+            ls -la iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe
+          fi
 
       - name: Run MCP Server Tests
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
@@ -161,6 +178,8 @@ jobs:
           python test_mcp.py
 
       - name: Run Web UI Tests
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
