@@ -81,7 +81,7 @@ void ErrorFileNotFound(const char *path) {
   fprintf(stderr, "\n%sERROR:%s File not found: %s%s%s\n\n", COLOR_BOLD_RED, COLOR_RESET, COLOR_YELLOW, path, COLOR_RESET);
   
   // Check if it's a relative path issue
-  char cwd[1024];
+  char cwd[1024] = {0};
   if (getcwd(cwd, sizeof(cwd))) {
     fprintf(stderr, "%sCurrent directory:%s %s\n", COLOR_CYAN, COLOR_RESET, cwd);
   }

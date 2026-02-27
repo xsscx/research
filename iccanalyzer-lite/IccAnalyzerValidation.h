@@ -39,6 +39,6 @@
 #define _ICCANALYZERVALIDATION_H
 
 int RoundTripAnalyze(const char *filename);
-int RecursiveScan(const char *directory, bool quiet = false);
+int RecursiveScan(const char *directory, bool quiet = false, int depth = 0);
 
 #endif
