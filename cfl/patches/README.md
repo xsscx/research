@@ -55,6 +55,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 42 | `IccMpeCalc.cpp` | `CIccOpDefTruncate::Exec` | UBSAN: float→int overflow in `(int)temp` when value (e.g. 1.58914e+10) exceeds INT_MAX; replaced with `std::trunc()` |
 | 43 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SequenceNeedTempReset` | Timeout: crafted calculator ops cause excessive iteration; add 1M ops-processed counter to bound computation |
 | 44 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Read` | OOM: `Reset()` allocates `nNumMatrices * nChannels * 4` bytes uncapped; add 16 MB allocation cap |
+| 54 | `IccMpeCalc.cpp` | `CIccFuncTokenizer::GetEnvSig` | UBSAN invalid-enum-load: `(icSigCmmEnvVar)sig` loads arbitrary uint32 (e.g. 2254504802) into 2-member enum |
 
 ## Allocation Cap
 
@@ -416,6 +417,19 @@ Reproducer: `crash-e2bf6aa3825f575b3fe6bb62c5c597e81d6c118c` (HLG
 narrow-range RGB profile with truncated ToneMapFunction parameters).
 Fix: guard `case 0x0000` in `Describe()` with `m_nParameters >= 3 &&
 m_params`; guard `Apply()` with `m_nParameters >= 3`.
+
+Patch 054 fixes UBSAN `invalid-enum-load` in `CIccFuncTokenizer::GetEnvSig()`
+(IccMpeCalc.cpp:2813,2827,2831).  `GetEnvSig()` parses arbitrary 4-byte
+signatures from calculator expression text and casts the raw `icUInt32Number`
+directly to `icSigCmmEnvVar` — an enum with only two valid members
+(`icSigTrueVar = 0x74727565`, `icSigNotDefVar = 0x6e646566`).  Any other
+value (observed: 2254504802 = 0x865E2362) is undefined behavior per C++.
+Three cast sites: line 2813 (hex path), line 2827 (text path), and
+line 2831 (error path with `(icSigCmmEnvVar)0`).
+Fix: use `memcpy(&envSig, &sig, sizeof(envSig))` at all three sites to
+transfer the raw bit pattern without going through an enum load.  This
+preserves the value semantics while avoiding UBSAN.  Same bug class as
+patches 008, 013, and 024.
 
 ## Application
 

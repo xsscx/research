@@ -1,0 +1,26 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -2810,7 +2810,7 @@
+     if (l==10) {
+       sscanf(szToken+1, "%x", &sig);
+ 
+-      envSig = (icSigCmmEnvVar)sig;
++      memcpy(&envSig, &sig, sizeof(envSig));
+       return true;
+     }
+ 
+@@ -2824,11 +2824,12 @@
+       sig |= 0x20;
+     }
+ 
+-    envSig = (icSigCmmEnvVar)sig;
++    memcpy(&envSig, &sig, sizeof(envSig));
+   }
+   else {
+     SetPos(pos); //Undo get token
+-    envSig = (icSigCmmEnvVar)0;
++    icUInt32Number zero = 0;
++    memcpy(&envSig, &zero, sizeof(envSig));
+     return false;
+   }
+ 
