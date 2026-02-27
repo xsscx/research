@@ -65,9 +65,14 @@ venv/
 
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
+leak-*
 oom-*
+timeout-*
 !test-profiles/oom-*
 slow-unit-*
+latestcrash-*
+latestslow-unit-*
+updatedslow-unit-*
 *:Zone.Identifier
 dd.log
 fuzz
@@ -108,6 +113,10 @@ cfl/default.profraw
 cfl/fuzz-*.log
 cfl/findings/
 cfl/oom-*
+
+# Root-level build checkouts
+/iccDEV/
+/bin/
 
 # Source-of-truth build
 source-of-truth/
