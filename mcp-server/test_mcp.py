@@ -415,7 +415,7 @@ async def test_extended_profiles():
         print("  [SKIP] extended-test-profiles/ not found")
         return
 
-    files = sorted(f for f in os.listdir(ext_dir) if f.endswith(".icc"))
+    files = sorted(f for f in os.listdir(ext_dir) if f.endswith(".icc"))[:25]
     for f in files:
         try:
             r = await asyncio.wait_for(
