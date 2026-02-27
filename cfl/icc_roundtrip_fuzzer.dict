@@ -16,7 +16,6 @@
 # Custom dictionary entries for icc_roundtrip_fuzzer
 # Format: LibFuzzer-compliant hex escape sequences only
 # NO inline comments after dictionary entries (governance requirement)
-
 ###### Recommended dictionary. ######
 # psca - Uses: 3790
 # ds%a - Uses: 2597
@@ -60,21 +59,6 @@
 # \377\000\000\000\000\000\000\000 - Uses: 20
 # ui64 - Uses: 4
 ###### End of recommended dictionary. ######
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
-
 # --- added by convert-libfuzzer-dict.py ---
 " R"
 " les"
@@ -462,36 +446,20 @@
 "vued"
 "wtpt"
 "|\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x9d\xb0\x0b\xe7G\x0d\xc5\x43"
 "\x01\x00Q\xf0\x00\x05\xf6\x80"
 "\xff\xff"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00R\x00\x00\x02 \x80"
 "\xff\xffPp\x00\x00\x19\x00"
 "\xff\xffO\xd0\x00\x00\xb3\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x04`"
 "\x01\x00\x00\x01"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x99\x89^;\xf8\x64QN"
 "\x00\x00\x00\x00\x00\x00\x00\xb4"
 "\x00\x00\x10\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xffO\xf0\x00\x00\x01\xdf"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00R\xd0\x01\xa1d\x1e"
 "L\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x81\x00\x00\x00\x00\x00\x00\x00"
 "\xff\xffQ\x00\x00\x8eo\xd8"
 "\x00\x00Q\xe0\x00\x15\xbe\x15"
@@ -500,100 +468,60 @@
 "RCL"
 "MC7"
 "\x00\x00Q\xe0\x00\x0a,\x80"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x1b\x42 "
 "\x01\x00P\xd0\x00\x0fH\xf1"
 "\xd4\x42 "
 "\x01\x00R\xf0\x00\x87\x94h"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x85\x00\x00\x00\x00\x00\x00\x00"
 "\x82\x00\x00\x00\x00\x00\x00\x00"
 "\x00\x00\x00\x00\x00\x00\x99h"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x82"
 "\x01\x00\x00\x03"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xffQ \x00,\xe9\x00"
 "\x01\x00R\x00\x00T\xaf\xd5"
-
-# --- added by convert-libfuzzer-dict.py ---
 "CL}"
 "\x02\x00\x00\x00"
 "M)\x10"
 "\x00\x00R\x10\x04\x89P\x8c"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00R\x00\x00\x1d\x80\x80"
 "MC3"
 "\x00\x00\x00\x00\x00\x00\x00\x90"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q\x10\x00\x0a\x8f\x97"
 "\x00\x00Q\x10\x00WM\xc5"
 "\x01\x00Q0\x00\x00\xc2\x32"
 "\x9c\x00\x00\x00\x00\x00\x00\x00"
 "\xff\xffR\x00\x00\x07\x04\x00"
 "\x00\x00R\xd0\x00\xf4\xff\xfe"
-
-# --- added by convert-libfuzzer-dict.py ---
 "CL\xad"
 "C7 "
 "\xff\xffQ\xa0\x00?_\xf0"
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00R\x90\x00\x19\xf2\x00"
 "\xbd\xa9 "
-
-# --- added by convert-libfuzzer-dict.py ---
 ")\x10 "
 "\x00\x00\x00\x00\x00\x00\xedx"
 "CH"
 "\xbc\xca\xdf"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00R\x10\x03\xe8a\x08"
 "\xff\xffPP\x00u\xed\xf1"
 "CLZ"
 "\x00\x00\x00\x00\x00\x10\x00\x00"
 "\x01\x00\x10\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00R\x10\x04\xdd\xdb?"
 "\x01\x00R\xc0\x00i\xfb\x11"
 "\x04\x00"
 "MOH"
 "\x02 \x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "M\xb7H"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Qp\x00\x069\x00"
 "\xff\xffQp\x00\x00\xa0\xef"
 "MC\xb7"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00P\xd0\x00\x0d\x1b\x92"
 "\xff\xffP0\x00\x04W="
 "\x00\x00\x00\x00\x00\x00\xa6\xb5"
 "MCL"
 ",\x10 "
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\xa4"
 "\x01\x00\x00\x00\x00\x00\x00\xed"
-
-# --- added by convert-libfuzzer-dict.py ---
-
-
 # --- Serialization Round-Trip Coverage ---
 "fl16"
 "fl32"
@@ -607,8 +535,6 @@
 "\x00\x01\x00\x00"
 "\xff\xff\x00\x00"
 "\x00\x00\x80\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xffP\xf0\x00\x03T\xe4"
 "\x00\x03"
 "\x02\x08\x00\x00\x00\x00\x00\x00"
@@ -622,8 +548,6 @@
 "\x00\x00Q\xa0\x00\x08\x99\x31"
 "\xff\xffQ\x10\x03~6\x0c"
 "\x00\x00Q\xf0\x00\xd7\xbe\x80"
-
-# --- added by convert-libfuzzer-dict.py ---
 "SGB"
 "\x01\x00Q\xe0\x00.\xc6\xdc"
 "\x00\x00\x00\x00\x00\x00\x01H"
@@ -635,8 +559,6 @@
 "'HH"
 "\x0d\x05\x00\x00\x00\x00\x00\x00"
 "\x01\x00Q\xd0\x00M\xf8\x80"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x00\x01"
 "=90"
 "\x01\x00R\x10\x04H\x00\xba"
@@ -645,8 +567,6 @@
 "\x06\x00"
 "MEL"
 "\x00\x00P\xd0\x00\x1d\xea\x10"
-
-# --- added by convert-libfuzzer-dict.py ---
 "ncvs"
 "\x07\x00"
 "\x15\x00"
@@ -700,18 +620,12 @@
 "\x8c\x13\x03\x00"
 "\x00\x00\x7f\xa9]Y\x02\xf1"
 "MC "
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x03\x44"
 "L\x94\x62"
 "\x09\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "burv"
 "\x00\x00\x00\x00\x00\x00\x00\x34"
 "\x01\x00\x00\x09"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\x1a"
 "\x01\x00Q\x10\x00\x0d\xa3\xfa"
 "\xff\xff\xff\x01"
@@ -739,8 +653,6 @@
 "mmxz"
 "\x00\x00\x7f&B\xa7\xed\x90"
 "mcvs"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\xff\x02"
 "\x1e\x04"
 "\x00\x00P \x00\x0a\xa1\x17"
@@ -763,8 +675,6 @@
 "\x09\x00\x00\x00"
 "\xff\xff\x07\xe0"
 "uulc"
-
-# --- added by convert-libfuzzer-dict.py ---
 "CE0"
 "\x01 "
 "\xff\xff\xff\x1e"
@@ -781,8 +691,6 @@
 "\x15<\x12\x00\x10Q\x00\x00"
 "\x0a\x00"
 "\x00\x00\x00\x08"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x01\x00Q\x10\x00\x06\xcf\x33"
 "\x00\x00\x00S"
 "\xffs"
@@ -799,9 +707,6 @@
 "\xff\xffO0\x00P\x1d\xfe"
 "\x00\x19"
 "m'H"
-
-# --- added by convert-libfuzzer-dict.py ---
-<<<<<<< Updated upstream
 "\xff\xffP\x10\x00\x08\xf7\xb4"
 "\x00\x00\x00\x0f"
 "cnav"
@@ -816,7 +721,6 @@
 "\xff\xff\xff\x08"
 "\xff\xffO0\x00#\xc5\x9e"
 "\xd4\x0e"
-=======
 "\x01\x00\x00\x00\x00\x00\x00\x1b"
 "\x01\x00Q\x80\x00\x07\x30\x80"
 "\x01\x00\x00\x00\x00\x00\x00\x1d"
@@ -853,8 +757,6 @@
 "O\x00\x00\x00"
 "\xff\xffO@\x01\xaf>r"
 "f\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "qsca"
 "\x01\x00P`\x00\x04\xda\x80"
 "trpc"
@@ -894,8 +796,6 @@
 "\x1fvid"
 "\x01\x00\x00\x00\x00\x00\x00S"
 "\x01\x0c"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x06\xff"
 "!dfb"
 "\x00\x00\x00\x00\x00\x00\x00\x35"
@@ -918,4 +818,3 @@
 "\x00\x00R \x00H1\x00"
 "\x01\x00P@\x02\x1e\xacx"
 "L*b"
->>>>>>> Stashed changes

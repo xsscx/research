@@ -5,11 +5,9 @@
 xml_decl="<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 xml_enc_utf8="UTF-8"
 xml_enc_ascii="ASCII"
-
 # Root element
 icc_profile="<IccProfile>"
 icc_profile_end="</IccProfile>"
-
 # Header elements
 header="<Header>"
 header_end="</Header>"
@@ -49,11 +47,9 @@ mcs="<MCS>"
 mcs_end="</MCS>"
 sub_class="<ProfileDeviceSubClass>"
 sub_class_end="</ProfileDeviceSubClass>"
-
 # Tag table
 tags="<Tags>"
 tags_end="</Tags>"
-
 # Common tag types
 desc_tag="<ProfileDescription>"
 desc_tag_end="</ProfileDescription>"
@@ -63,7 +59,6 @@ wtpt_tag="<mediaWhitePoint>"
 wtpt_tag_end="</mediaWhitePoint>"
 chad_tag="<chromaticAdaptation>"
 chad_tag_end="</chromaticAdaptation>"
-
 # Curve elements
 curve="<Curve>"
 curve_end="</Curve>"
@@ -72,7 +67,6 @@ param_curve_end="</ParametricCurve>"
 sampled_curve="<SampledCurve>"
 sampled_curve_end="</SampledCurve>"
 func_type="FunctionType"
-
 # LUT elements
 a2b="<AToB0Tag>"
 a2b_end="</AToB0Tag>"
@@ -82,7 +76,6 @@ clut="<CLUT>"
 clut_end="</CLUT>"
 matrix="<Matrix>"
 matrix_end="</Matrix>"
-
 # MPE elements
 mpe="<MultiProcessElements>"
 mpe_end="</MultiProcessElements>"
@@ -106,14 +99,12 @@ mpe_bacs="<BAcsElement>"
 mpe_bacs_end="</BAcsElement>"
 mpe_eacs="<EAcsElement>"
 mpe_eacs_end="</EAcsElement>"
-
 # XYZ data
 xyz_data="<XYZNumber>"
 xyz_data_end="</XYZNumber>"
 xyz_x="X="
 xyz_y="Y="
 xyz_z="Z="
-
 # Named color
 named_colors="<NamedColors>"
 named_colors_end="</NamedColors>"
@@ -124,23 +115,19 @@ color_coords="<DeviceCoords>"
 color_coords_end="</DeviceCoords>"
 pcs_coords="<PCSCoords>"
 pcs_coords_end="</PCSCoords>"
-
 # Multilocalized unicode
 mluc="<LocalizedText>"
 mluc_end="</LocalizedText>"
 lang_attr="LanguageCountry="
 en_us="enUS"
-
 # Data values
 data="<Data>"
 data_end="</Data>"
 float_data="<FloatData>"
 float_data_end="</FloatData>"
-
 # Tag attributes
 tag_sig="TagSignature="
 tag_type="TagType="
-
 # Profile class values
 cls_input="scnr"
 cls_display="mntr"
@@ -149,7 +136,6 @@ cls_link="link"
 cls_abstract="abst"
 cls_colorspace="spac"
 cls_namedcolor="nmcl"
-
 # Color space values
 rgb_val="RGB "
 cmyk_val="CMYK"
@@ -157,13 +143,11 @@ gray_val="GRAY"
 lab_val="Lab "
 xyz_val="XYZ "
 named_val="nmcl"
-
 # Rendering intent values
 perceptual="Perceptual"
 rel_colorimetric="Relative Colorimetric"
 saturation="Saturation"
 abs_colorimetric="Absolute Colorimetric"
-
 # Numeric edge values
 zero="0"
 one="1"
@@ -174,7 +158,6 @@ neg_large="-99999"
 nan_val="NaN"
 inf_val="Infinity"
 neg_inf="-Infinity"
-
 # XML entity references
 amp="&amp;"
 lt="&lt;"
@@ -183,13 +166,11 @@ quot="&quot;"
 apos="&apos;"
 cdata_start="<![CDATA["
 cdata_end="]]>"
-
 # Common attributes
 input_ch="InputChannels="
 output_ch="OutputChannels="
 grid_pts="GridPoints="
 precision="Precision="
-
 # Spectral elements
 spectral_data="<SpectralData>"
 spectral_data_end="</SpectralData>"
@@ -197,7 +178,6 @@ wavelength="<Wavelengths>"
 wavelength_end="</Wavelengths>"
 observer="<Observer>"
 observer_end="</Observer>"
-
 # Calculator elements  
 calc_var="<Variable>"
 calc_var_end="</Variable>"
@@ -209,14 +189,11 @@ calc_else="<else>"
 calc_else_end="</else>"
 calc_select="<sel>"
 calc_select_end="</sel>"
-
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00"
 "UTF-16BE"
 "\x01\x00"
 "$\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "*a*"
 "PCSIlluminant"
 "dictType"
@@ -294,8 +271,6 @@ calc_select_end="</sel>"
 "ProfileSu"
 "\xff\xff\xff\xff"
 ">???"
-
-# --- added by convert-libfuzzer-dict.py ---
 "-nan"
 "supt"
 "wtpt"
@@ -352,8 +327,6 @@ calc_select_end="</sel>"
 "denc"
 "cur"
 "\x0b\x00\x00\x00\x00\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "eata"
 "multiLocalized"
 "\x01\x00\x00\x03"
@@ -415,8 +388,6 @@ calc_select_end="</sel>"
 "add "
 "Macros"
 "\x04\x00\x00\x00"
-
-# --- added by convert-libfuzzer-dict.py ---
 "HCCp"
 "lluc"
 "chromaticAdap"
@@ -466,8 +437,6 @@ calc_select_end="</sel>"
 "mart"
 "ProfileCreator"
 "sub"
-
-# --- added by convert-libfuzzer-dict.py ---
 "\x1c\x00\x00\x00\x00\x00\x00\x00"
 "utaf"
 "scsu"
@@ -502,18 +471,10 @@ calc_select_end="</sel>"
 "windows57005"
 "JEF"
 "US-ASCII"
-
-# --- added by convert-libfuzzer-dict.py ---
 "UTF-16LE"
 "utf32"
-
-# --- added by convert-libfuzzer-dict.py ---
 "IccProfile"
-
-# --- added by convert-libfuzzer-dict.py ---
-<<<<<<< Updated upstream
 "CHROMA"
-=======
 "mtxW{"
 "|   "
 "mrcs"
@@ -643,8 +604,6 @@ calc_select_end="</sel>"
 "-0."
 "segx"
 "28."
-
-# --- added by convert-libfuzzer-dict.py ---
 "ucrBgTyp"
 "npet"
 "dlem"
@@ -721,8 +680,6 @@ calc_select_end="</sel>"
 "tu]t"
 "tams"
 "ExtendedRangePCS"
-
-# --- added by convert-libfuzzer-dict.py ---
 "chad"
 "gmrp"
 "\xca\x17\x00\x00"
@@ -806,13 +763,10 @@ calc_select_end="</sel>"
 "?\x00"
 ")\x00\x00\x00\x00\x00\x00\x00"
 "\x03\x00\x00\x00\x00\x00\x00\x00"
->>>>>>> Stashed changes
-
 # --- Harvested ICC XML tokens (2026-02-27) ---
 illuminant_d50="Illuminant D50"
 illuminant_d65="Illuminant D65"
 illuminant_unknown="Illuminant Unknown"
-abs_colorimetric="Absolute Colorimetric"
 saturation_ri="Saturation"
 bacs_elem="BAcsElement"
 eacs_elem="EAcsElement"
