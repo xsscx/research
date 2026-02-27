@@ -37,6 +37,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstring>
@@ -119,11 +120,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccCreateXformHintManager Hint;
   
   if (useBPC) {
-    Hint.AddHint(new CIccApplyBPCHint());
+    auto *bpcHint = new (std::nothrow) CIccApplyBPCHint();
+    if (bpcHint) Hint.AddHint(bpcHint);
   }
   
   if (adjustPcsLuminance) {
-    Hint.AddHint(new CIccLuminanceMatchingHint());
+    auto *lumHint = new (std::nothrow) CIccLuminanceMatchingHint();
+    if (lumHint) Hint.AddHint(lumHint);
   }
 
   // Add environment variable hints (exercise IccEnvVar.h)
@@ -131,7 +134,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if ((flags & 0x80) != 0) {
     icCmmEnvSigMap envVars;
     envVars[0x656E7631] = 1.0; // 'env1' -> 1.0
-    Hint.AddHint(new CIccCmmEnvVarHint(envVars));
+    auto *envHint = new (std::nothrow) CIccCmmEnvVarHint(envVars);
+    if (envHint) Hint.AddHint(envHint);
   }
 
   // Add profile to CMM (mirrors lines 382-392)

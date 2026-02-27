@@ -40,6 +40,7 @@
 #include "IccUtil.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 #include <cstring>
 #include <stdio.h>
 
@@ -66,7 +67,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   try {
     AST_LOG(1, "GATE 1: Creating CIccMemIO wrapper");
     // Create memory I/O wrapper
-    pIO = new CIccMemIO;
+    pIO = new (std::nothrow) CIccMemIO;
     if (!pIO) {
       AST_LOG(1, "CIccMemIO allocation failed");
       return 0;
@@ -81,7 +82,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     AST_LOG(2, "GATE 2: Creating CIccProfile object");
     // Parse ICC profile
-    pProfile = new CIccProfile;
+    pProfile = new (std::nothrow) CIccProfile;
     if (!pProfile) {
       AST_LOG(2, "CIccProfile allocation failed");
       delete pIO;
@@ -113,7 +114,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       
       // Attempt to write (triggers NULL deref if not fixed)
       AST_LOG_VERBOSE("  Writing tag to test output");
-      CIccMemIO *pOutIO = new CIccMemIO;
+      CIccMemIO *pOutIO = new (std::nothrow) CIccMemIO;
       if (pOutIO) {
         pOutIO->Alloc(size + 1024);
         pTag->Write(pOutIO);

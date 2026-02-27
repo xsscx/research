@@ -40,6 +40,7 @@
 #include "IccUtil.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128) return 0;
@@ -49,7 +50,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccMemIO *pIO = nullptr;
 
   try {
-    pIO = new CIccMemIO;
+    pIO = new (std::nothrow) CIccMemIO;
     if (!pIO) return 0;
 
     if (!pIO->Attach((icUInt8Number*)data, size)) {
@@ -57,7 +58,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       return 0;
     }
 
-    pProfile = new CIccProfile;
+    pProfile = new (std::nothrow) CIccProfile;
     if (!pProfile) {
       delete pIO;
       return 0;

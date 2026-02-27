@@ -60,6 +60,8 @@
 
 int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
 {
+  // Multi-phase ICC profile analysis: heuristics, round-trip, signatures,
+  // tag content inspection, and deep LUT/MPE/curve dump.
   printf("\n");
   printf("=======================================================================\n");
   printf("  %sICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)%s\n", ColorHeader(), ColorReset());
@@ -78,6 +80,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     totalIssues += heuristicCount;
   }
   
+  // Phase 2: Round-trip tag validation (serialize → deserialize → compare)
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE 2: ROUND-TRIP TAG VALIDATION%s\n", ColorHeader(), ColorReset());
@@ -91,6 +94,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     printf("%sResult: Round-trip capable [OK]%s\n", ColorSuccess(), ColorReset());
   }
   
+  // Phase 3: Signature analysis — validate tag/type/class signatures against spec
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE 3: SIGNATURE ANALYSIS%s\n", ColorHeader(), ColorReset());
@@ -133,6 +137,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     io2.Close();
   }
   
+  // Phase 5: Deep tag content analysis (LUT, curve, MPE, named color)
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE 5: TAG CONTENT ANALYSIS%s\n", ColorHeader(), ColorReset());

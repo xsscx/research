@@ -40,6 +40,7 @@
 #include <string>
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 #include <unistd.h>
 #include <fcntl.h>
 #include <climits>
@@ -372,7 +373,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   profile.m_Header.deviceClass = icSigLinkClass;
 
   // Create A2B0 Tag with LUT
-  CIccTagMultiProcessElement* pTag = new CIccTagMultiProcessElement(3, 3);
+  CIccTagMultiProcessElement* pTag = new (std::nothrow) CIccTagMultiProcessElement(3, 3);
+  if (!pTag) { unlink(temp_input); return 0; }
   if (cube.isCustomInputRange()) {
     // Copy input range values to local stack arrays
     icFloatNumber minVal[3], maxVal[3];
@@ -380,11 +382,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       minVal[i] = cube.getMinInput()[i];
       maxVal[i] = cube.getMaxInput()[i];
     }
-    CIccMpeCurveSet* pCurves = new CIccMpeCurveSet(3);
+    CIccMpeCurveSet* pCurves = new (std::nothrow) CIccMpeCurveSet(3);
+    if (!pCurves) { delete pTag; unlink(temp_input); return 0; }
 
     // Each channel gets its own curve to avoid double-free from shared ownership
     for (int ch = 0; ch < 3; ch++) {
-      CIccSingleSampledCurve* pCurve = new CIccSingleSampledCurve(minVal[ch], maxVal[ch]);
+      CIccSingleSampledCurve* pCurve = new (std::nothrow) CIccSingleSampledCurve(minVal[ch], maxVal[ch]);
+      if (!pCurve) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
       pCurve->SetSize(2);
       pCurve->GetSamples()[0] = 0;
       pCurve->GetSamples()[1] = 1;
@@ -394,8 +398,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     pTag->Attach(pCurves);
   }
 
-  CIccMpeCLUT* pMpeCLUT = new CIccMpeCLUT();
-  CIccCLUT* pCLUT = new CIccCLUT(3, 3);
+  CIccMpeCLUT* pMpeCLUT = new (std::nothrow) CIccMpeCLUT();
+  if (!pMpeCLUT) { delete pTag; unlink(temp_input); return 0; }
+  CIccCLUT* pCLUT = new (std::nothrow) CIccCLUT(3, 3);
+  if (!pCLUT) { delete pMpeCLUT; delete pTag; unlink(temp_input); return 0; }
   pCLUT->Init(cube.sizeLut3D());
   icFloatNumber *lutData = pCLUT->GetData(0);
   if (!lutData) {
@@ -420,7 +426,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // Add description Tag
-  CIccTagMultiLocalizedUnicode* pTextTag = new CIccTagMultiLocalizedUnicode();
+  CIccTagMultiLocalizedUnicode* pTextTag = new (std::nothrow) CIccTagMultiLocalizedUnicode();
+  if (!pTextTag) { unlink(temp_input); return 0; }
   std::string desc = cube.getDescription();
   if (desc.size()) {
     pTextTag->SetText(desc.c_str());
@@ -432,7 +439,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Add copyright Tag
   if (cube.getCopyright().size()) {
-    pTextTag = new CIccTagMultiLocalizedUnicode();
+    pTextTag = new (std::nothrow) CIccTagMultiLocalizedUnicode();
+    if (!pTextTag) { unlink(temp_input); return 0; }
     pTextTag->SetText(cube.getCopyright().c_str());
     profile.AttachTag(icSigCopyrightTag, pTextTag);
   }

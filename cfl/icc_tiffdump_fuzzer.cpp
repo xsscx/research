@@ -180,12 +180,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           CIccTag *pDesc = pProfile->FindTag(icSigProfileDescriptionTag);
           if (pDesc) {
             if (pDesc->GetType() == icSigTextDescriptionType) {
-              CIccTagTextDescription *pText = (CIccTagTextDescription*)pDesc;
-              (void)pText->GetText();
+              CIccTagTextDescription *pText = dynamic_cast<CIccTagTextDescription*>(pDesc);
+              if (pText) (void)pText->GetText();
             }
             else if (pDesc->GetType() == icSigMultiLocalizedUnicodeType) {
-              CIccTagMultiLocalizedUnicode *pStrs = (CIccTagMultiLocalizedUnicode*)pDesc;
-              if (pStrs->m_Strings && !pStrs->m_Strings->empty()) {
+              CIccTagMultiLocalizedUnicode *pStrs = dynamic_cast<CIccTagMultiLocalizedUnicode*>(pDesc);
+              if (pStrs && pStrs->m_Strings && !pStrs->m_Strings->empty()) {
                 std::string line;
                 pStrs->m_Strings->begin()->GetText(line);
               }
@@ -195,7 +195,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           // Exercise embedded profile tag (recursive extraction)
           CIccTag *pEmbedded = pProfile->FindTag(icSigEmbeddedV5ProfileTag);
           if (pEmbedded && pEmbedded->GetType() == icSigEmbeddedProfileType) {
-            CIccTagEmbeddedProfile *pEmbeddedTag = (CIccTagEmbeddedProfile*)pEmbedded;
+            CIccTagEmbeddedProfile *pEmbeddedTag = dynamic_cast<CIccTagEmbeddedProfile*>(pEmbedded);
+            if (!pEmbeddedTag) continue;
             CIccProfile *pSubProfile = pEmbeddedTag->GetProfile();
             if (pSubProfile) {
               icHeader *pSubHdr = &pSubProfile->m_Header;
