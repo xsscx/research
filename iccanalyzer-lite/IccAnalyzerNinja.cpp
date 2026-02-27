@@ -38,8 +38,10 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerNinja.h"
 #include "IccAnalyzerInspect.h"
+#include "IccAnalyzerSafeArithmetic.h"
 #include "IccTagParsers.h"
 #include <cstring>
+#include <new>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -431,8 +433,20 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
     return -1;
   }
   
+  if (fileSize > ICCANALYZER_MAX_PROFILE_SIZE) {
+    printf("[ERR] ERROR: File too large (%zu bytes, max %llu)\n",
+           fileSize, (unsigned long long)ICCANALYZER_MAX_PROFILE_SIZE);
+    log << "ERROR: File too large for safe processing\n";
+    return -1;
+  }
+  
   // Read entire file into memory for raw byte-level header/tag parsing
-  unsigned char* data = new unsigned char[fileSize];
+  unsigned char* data = new (std::nothrow) unsigned char[fileSize];
+  if (!data) {
+    printf("[ERR] ERROR: Allocation failed (%zu bytes)\n", fileSize);
+    log << "ERROR: Memory allocation failed\n";
+    return -1;
+  }
   file.read((char*)data, fileSize);
   file.close();
   

@@ -37,6 +37,7 @@
 
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerInspect.h"
+#include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSignatures.h"
 #include <new>
 
@@ -176,8 +177,17 @@ void DumpTagData(CIccProfile *pIcc, CIccIO *pIO, icTagSignature sig)
              entry->TagInfo.offset,
              entry->TagInfo.offset + entry->TagInfo.size);
       
+      if (entry->TagInfo.size > ICCANALYZER_MAX_TAG_SIZE) {
+        printf("Tag size too large (%u > %llu)\n",
+               entry->TagInfo.size, (unsigned long long)ICCANALYZER_MAX_TAG_SIZE);
+        break;
+      }
       pIO->Seek(entry->TagInfo.offset, icSeekSet);
-      icUInt8Number *tagData = new icUInt8Number[entry->TagInfo.size];
+      icUInt8Number *tagData = new (std::nothrow) icUInt8Number[entry->TagInfo.size];
+      if (!tagData) {
+        printf("Error: Allocation failed for tag data (%u bytes)\n", entry->TagInfo.size);
+        break;
+      }
       if (pIO->Read8(tagData, entry->TagInfo.size) == entry->TagInfo.size) {
         printf("Type: %s\n", info.GetTagTypeSigName(pTag->GetType()));
         PrintHexDump(tagData, entry->TagInfo.size, entry->TagInfo.offset);
