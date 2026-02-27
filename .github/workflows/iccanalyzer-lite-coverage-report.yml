@@ -411,6 +411,7 @@ jobs:
           <html lang="en">
           <head>
             <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'unsafe-inline'">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>iccAnalyzer-lite Coverage Report</title>
             <style>
@@ -441,7 +442,7 @@ jobs:
           if [ -f coverage-summary.txt ]; then
             echo "<h2>Coverage Summary</h2>" >> index.html
             echo "<pre>" >> index.html
-            cat coverage-summary.txt >> index.html
+            sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' coverage-summary.txt >> index.html
             echo "</pre>" >> index.html
           fi
 
@@ -453,7 +454,7 @@ jobs:
 
           echo "<h2>Test Summary</h2>" >> index.html
           echo "<pre>" >> index.html
-          cat test-summary.txt >> index.html 2>/dev/null || echo "No test summary available"
+          sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' test-summary.txt >> index.html 2>/dev/null || echo "No test summary available"
           echo "</pre>" >> index.html
 
           echo "</div></body></html>" >> index.html

@@ -406,6 +406,7 @@ jobs:
           <html lang="en">
           <head>
             <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'unsafe-inline'">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>iccAnalyzer-lite CLI Test Suite Results (Cached)</title>
             <style>
@@ -456,6 +457,8 @@ jobs:
           echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$grand_failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
           echo "</div>" >> $INDEX_FILE
 
+          html_esc() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'; }
+
           for MODE_NAME in heuristics roundtrip comprehensive ninja ninja-full; do
             if [ -d "outputs/${MODE_NAME}" ]; then
               case "${MODE_NAME}" in
@@ -490,9 +493,9 @@ jobs:
 
                   echo "<tr>" >> $INDEX_FILE
                   echo "<td>$NUM</td>" >> $INDEX_FILE
-                  echo "<td><code>$PROFILE_NAME</code></td>" >> $INDEX_FILE
+                  echo "<td><code>$(html_esc "$PROFILE_NAME")</code></td>" >> $INDEX_FILE
                   echo "<td>$STATUS</td>" >> $INDEX_FILE
-                  echo "<td><a class='profile-link' href='$OUTPUT_FILE'>View Output</a></td>" >> $INDEX_FILE
+                  echo "<td><a class='profile-link' href='$(html_esc "$OUTPUT_FILE")'>View Output</a></td>" >> $INDEX_FILE
                   echo "<td>$FILE_SIZE bytes</td>" >> $INDEX_FILE
                   echo "</tr>" >> $INDEX_FILE
 
