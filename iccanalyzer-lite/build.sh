@@ -46,12 +46,22 @@ export CXX=clang++
 SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fno-sanitize-recover=undefined"
 DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common"
 HARDENING="-ftrapv -fstack-protector-strong -D_FORTIFY_SOURCE=0"
-COVERAGE="-fprofile-arcs -ftest-coverage --coverage"
+# NO_COVERAGE=1 disables gcov instrumentation (e.g. Docker containers)
+if [ "${NO_COVERAGE:-0}" = "1" ]; then
+  COVERAGE=""
+  echo "[INFO] Coverage disabled (NO_COVERAGE=1)"
+else
+  COVERAGE="-fprofile-arcs -ftest-coverage --coverage"
+fi
 STANDARD="-std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter"
 DIAGNOSTICS="-DICC_LOG_SAFE -DICC_TRACE_NAN_ENABLED"
 
 export CXXFLAGS="${SANITIZERS} ${DEBUG_FLAGS} ${HARDENING} ${COVERAGE} ${STANDARD} ${DIAGNOSTICS}"
-export LDFLAGS="${SANITIZERS} -fprofile-arcs --coverage"
+if [ "${NO_COVERAGE:-0}" = "1" ]; then
+  export LDFLAGS="${SANITIZERS}"
+else
+  export LDFLAGS="${SANITIZERS} -fprofile-arcs --coverage"
+fi
 
 echo "CXXFLAGS: $CXXFLAGS"
 echo ""
@@ -60,13 +70,21 @@ echo ""
 INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
 
 # Libraries
-LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -lz -llzma -lm -lssl -lcrypto -lgcov"
+GCOV_LIB=""
+if [ "${NO_COVERAGE:-0}" != "1" ]; then
+  GCOV_LIB="-lgcov"
+fi
+LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -lz -llzma -lm -lssl -lcrypto ${GCOV_LIB}"
 
 # Source files
 SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp"
 
 NPROC=$(nproc)
-echo "Building iccAnalyzer-lite with ASAN+UBSAN+Coverage using $NPROC cores..."
+if [ "${NO_COVERAGE:-0}" = "1" ]; then
+  echo "Building iccAnalyzer-lite with ASAN+UBSAN (no coverage) using $NPROC cores..."
+else
+  echo "Building iccAnalyzer-lite with ASAN+UBSAN+Coverage using $NPROC cores..."
+fi
 
 # Compile sources in parallel
 for src in $SOURCES; do
@@ -83,7 +101,9 @@ echo ""
 echo "[OK] Build complete"
 ls -lh iccanalyzer-lite
 file iccanalyzer-lite
-echo ""
-echo "Coverage output: .gcda files written alongside .gcno files at runtime"
-echo "  Library coverage: iccDEV/Build/**/*.gcda"
-echo "  Analyzer coverage: *.gcda (current directory)"
+if [ "${NO_COVERAGE:-0}" != "1" ]; then
+  echo ""
+  echo "Coverage output: .gcda files written alongside .gcno files at runtime"
+  echo "  Library coverage: iccDEV/Build/**/*.gcda"
+  echo "  Analyzer coverage: *.gcda (current directory)"
+fi
