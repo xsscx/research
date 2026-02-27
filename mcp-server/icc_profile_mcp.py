@@ -140,6 +140,7 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "ASAN_OPTIONS": "detect_leaks=0",
         "MallocNanoZone": "0",
+        "GCOV_PREFIX": "/dev/null",
     }
     if sys.platform != "win32":
         env["HOME"] = "/nonexistent"
@@ -545,6 +546,7 @@ async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
     env = os.environ.copy()
     env["ASAN_OPTIONS"] = "detect_leaks=0"
     env["MallocNanoZone"] = "0"
+    env["GCOV_PREFIX"] = "/dev/null"
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -963,6 +965,7 @@ async def create_all_profiles(build_dir: str = "") -> str:
     env["PATH"] = _build_tool_path(target_dir)
     env["ASAN_OPTIONS"] = "detect_leaks=0"
     env["MallocNanoZone"] = "0"
+    env["GCOV_PREFIX"] = "/dev/null"
 
     # Count profiles before
     before_count = len(list(testing_dir.glob("**/*.icc")))
@@ -1057,6 +1060,7 @@ async def run_iccdev_tests(build_dir: str = "") -> str:
     env["PATH"] = _build_tool_path(target_dir)
     env["ASAN_OPTIONS"] = "detect_leaks=0"
     env["MallocNanoZone"] = "0"
+    env["GCOV_PREFIX"] = "/dev/null"
 
     proc = await asyncio.create_subprocess_exec(
         "bash", str(script),
