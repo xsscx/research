@@ -697,7 +697,6 @@
 # Quoted title
 "\"Title\""
 # Blank line between comment blocks (triggers bAddBlankLine)
-"\n\n"
 "\x0a\x0a"
 # Comment with no space after #
 "#comment"

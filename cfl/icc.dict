@@ -66,122 +66,122 @@
 # ── Coverage-gap signatures (added 2026-02-26) ──────────────────
 # Target: IccCmmSearch.cpp (0% coverage)
 # Profile class signatures needed for CMM search paths
-"scnr"  # icSigInputClass
-"mntr"  # icSigDisplayClass
-"prtr"  # icSigOutputClass
-"link"  # icSigLinkClass
-"abst"  # icSigAbstractClass
-"spac"  # icSigColorSpaceClass
-"nmcl"  # icSigNamedColorClass
-"cenc"  # icSigColorEncodingClass
-"mid "  # icSigMaterialIdentificationClass
-"mlnk"  # icSigMaterialLinkClass
-"mvis"  # icSigMaterialVisualizationClass
+"scnr"
+"mntr"
+"prtr"
+"link"
+"abst"
+"spac"
+"nmcl"
+"cenc"
+"mid "
+"mlnk"
+"mvis"
 
 # Target: IccPrmg.cpp (0% coverage) — PRMG tag
-"rig0"  # icSigPerceptualRenderingIntentGamutTag
-"prmg"  # icSigPerceptualReferenceMediumGamut (value)
+"rig0"
+"prmg"
 
 # Target: IccEval.cpp (0% coverage) — needs AToB tags
-"A2B0"  # icSigAToB0Tag
-"A2B1"  # icSigAToB1Tag
-"A2B2"  # icSigAToB2Tag
-"A2B3"  # icSigAToB3Tag
-"B2A0"  # icSigBToA0Tag
-"B2A1"  # icSigBToA1Tag
-"B2A2"  # icSigBToA2Tag
-"B2A3"  # icSigBToA3Tag
+"A2B0"
+"A2B1"
+"A2B2"
+"A2B3"
+"B2A0"
+"B2A1"
+"B2A2"
+"B2A3"
 
 # Target: IccApplyBPC.cpp (23% coverage) — BPC triggers
-"bkpt"  # icSigMediaBlackPointTag
-"bXYZ"  # icSigBlueMatrixColumnTag — matrix profile path
-"gXYZ"  # icSigGreenMatrixColumnTag
-"rXYZ"  # icSigRedMatrixColumnTag
-"wtpt"  # icSigMediaWhitePointTag
+"bkpt"
+"bXYZ"
+"gXYZ"
+"rXYZ"
+"wtpt"
 
 # Target: IccSparseMatrix.cpp (17% coverage) — sparse matrix types
-"smat"  # icSigSparseMatrixArrayType
-"smet"  # icSigSparseMatrixElemType
+"smat"
+"smet"
 
 # Target: IccMpeSpectral.cpp (25% coverage) — spectral MPE
-"emtx"  # icSigEmissionMatrixElemType
-"iemx"  # icSigInvEmissionMatrixElemType
-"eclt"  # icSigEmissionCLUTElemType
-"rclt"  # icSigReflectanceCLUTElemType
-"eobs"  # icSigEmissionObserverElemType
-"robs"  # icSigReflectanceObserverElemType
+"emtx"
+"iemx"
+"eclt"
+"rclt"
+"eobs"
+"robs"
 
 # Target: IccArrayBasic.cpp (19% coverage) — array/struct types
-"cinf"  # icSigColorantInfoArray/Struct
-"utf8"  # icSigUtf8TextTypeArray
-"tnt0"  # icSigTintZeroStruct
+"cinf"
+"utf8"
+"tnt0"
 
 # Target: IccStructBasic.cpp (38% coverage) — struct member sigs
-"brdf"  # icSigBRDFStruct
-"meas"  # icSigMeasurementInfoStruct
-"pinf"  # icSigProfileInfoStruct
+"brdf"
+"meas"
+"pinf"
 
 # Target: IccPcc.cpp (20% coverage) — PCC/spectral tags
-"c2sp"  # icSigCustomToStandardPccTag
-"sdin"  # icSigSpectralDataInfoTag/Type
-"swpt"  # icSigSpectralWhitePointTag
-"svcn"  # icSigSpectralViewingConditionsTag/Type
+"c2sp"
+"sdin"
+"swpt"
+"svcn"
 
 # MPE element types (general coverage boost)
-"cvst"  # icSigCurveSetElemType
-"matf"  # icSigMatrixElemType
-"clut"  # icSigCLutElemType
-"bACS"  # icSigBAcsElemType
-"eACS"  # icSigEAcsElemType
-"calc"  # icSigCalculatorElemType
-"xclt"  # icSigExtCLutElemType
-"XtoJ"  # icSigXYZToJabElemType
-"JtoX"  # icSigJabToXYZElemType
-"tint"  # icSigTintArrayElemType
-"tmap"  # icSigToneMapElemType
+"cvst"
+"matf"
+"clut"
+"bACS"
+"eACS"
+"calc"
+"xclt"
+"XtoJ"
+"JtoX"
+"tint"
+"tmap"
 
 # Tag types (low coverage paths)
-"mpet"  # icSigMultiProcessElementType
-"mAB "  # icSigLutAtoBType
-"mBA "  # icSigLutBtoAType
-"mft1"  # icSigLut8Type
-"mft2"  # icSigLut16Type
-"ncl2"  # icSigNamedColor2Type
-"dict"  # icSigDictType
-"fl16"  # icSigFloat16ArrayType
-"fl32"  # icSigFloat32ArrayType
-"fl64"  # icSigFloat64ArrayType
-"gbd "  # icSigGamutBoundaryDescType
-"chrm"  # icSigChromaticityType
-"cicp"  # icSigCicpType
-"clro"  # icSigColorantOrderType
-"clrt"  # icSigColorantTableType
-"curv"  # icSigCurveType
-"para"  # icSigParametricCurveType
-"mluc"  # icSigMultiLocalizedUnicodeType
-"psid"  # icSigProfileSequceIdType
-"data"  # icSigDataType
-"dtim"  # icSigDateTimeType
+"mpet"
+"mAB "
+"mBA "
+"mft1"
+"mft2"
+"ncl2"
+"dict"
+"fl16"
+"fl32"
+"fl64"
+"gbd "
+"chrm"
+"cicp"
+"clro"
+"clrt"
+"curv"
+"para"
+"mluc"
+"psid"
+"data"
+"dtim"
 
 # Rendering intent bytes (little-endian u32)
-"\x00\x00\x00\x00"  # icPerceptual
-"\x01\x00\x00\x00"  # icRelativeColorimetric
-"\x02\x00\x00\x00"  # icSaturation
-"\x03\x00\x00\x00"  # icAbsoluteColorimetric
+"\x00\x00\x00\x00"
+"\x01\x00\x00\x00"
+"\x02\x00\x00\x00"
+"\x03\x00\x00\x00"
 
 # ICC header magic number
-"acsp"  # Profile file signature
+"acsp"
 
 # Color space signatures
-"XYZ "  # icSigXYZData
-"Lab "  # icSigLabData
-"RGB "  # icSigRgbData
-"GRAY"  # icSigGrayData
-"CMYK"  # icSigCmykData
+"XYZ "
+"Lab "
+"RGB "
+"GRAY"
+"CMYK"
 
 # Sparse matrix type bytes (u16 LE)
-"\x00\x00"  # icSparseMatrixUInt8
-"\x01\x00"  # icSparseMatrixUInt16
-"\x02\x00"  # icSparseMatrixFloat16
-"\x03\x00"  # icSparseMatrixFloat32
-"\x04\x00"  # icSparseMatrixFloatNum
+"\x00\x00"
+"\x01\x00"
+"\x02\x00"
+"\x03\x00"
+"\x04\x00"

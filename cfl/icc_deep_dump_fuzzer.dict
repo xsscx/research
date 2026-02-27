@@ -451,3 +451,61 @@
 "\xff\xff\xff\x00\x00\x00\x00\x00\x00\x46\x458f\xbaS}"
 "\x8c\xc6\xfb\xe4\x1b\xffG\xd9U\xdb\x10o\xd8\x1a,;"
 "\x1f\x42GR"
+
+# === Baseline edge-case tokens (auto-added 2026-02-27) ===
+# --- IEEE 754 Float Edge Cases ---
+"\x3f\x80\x00\x00"
+"\xbf\x80\x00\x00"
+"\x7f\x7f\xff\xff"
+"\x7f\xa0\x00\x00"
+"\x42\xc8\x00\x00"
+"\x43\x00\x00\x00"
+"\xc3\x00\x00\x00"
+"\x00\x00\x00\x01"
+# --- D50/D65 Illuminant (s15Fixed16) ---
+"\x00\x00\xf6\xd6"
+"\x00\x01\x00\x00"
+"\x00\x00\xd3\x2d"
+"\x00\x00\xf3\x51"
+"\x00\x01\x16\xcc"
+# --- ICC Version Numbers ---
+"\x02\x40\x00\x00"
+"\x04\x30\x00\x00"
+"\x04\x40\x00\x00"
+"\x05\x10\x00\x00"
+# --- LUT Grid Points ---
+"\x02"
+"\x09"
+"\x11"
+"\x21"
+"\x33"
+"\xff"
+# --- ToneMap Edge Cases ---
+"tmap"
+# --- Calculator Opcodes ---
+"\x00\x36"
+"\x00\x37"
+"calc"
+# --- Preview LUT Tags ---
+"pre0"
+"pre1"
+"pre2"
+# --- BRDF Tags ---
+"bAB0"
+"bDB0"
+"bMB0"
+"bMS0"
+"bcp0"
+"bsp0"
+"BPh0"
+# --- Spectral Tags ---
+"sdin"
+"swpt"
+"svcn"
+"c2sp"
+"s2cp"
+# --- Colorant Tags ---
+"clin"
+"clio"
+"clot"
+"cloo"
