@@ -431,6 +431,19 @@ transfer the raw bit pattern without going through an enum load.  This
 preserves the value semantics while avoiding UBSAN.  Same bug class as
 patches 008, 013, and 024.
 
+Patch 055 fixes a **stack buffer overflow** in `CIccTagNamedColor2::Read()`
+(IccTagBasic.cpp).  The `m_szPrefix[32]` and `m_szSufix[32]` fields are
+read from the ICC file via `Read8()` without null-termination.  When
+`ToXml()` passes these unterminated strings through `icFixXml(char *szDest,
+const char *szStr)`, XML-special characters (e.g. `0x27` = `'`) expand to
+6-byte entities (`&apos;`).  With 64+ bytes of `'` read past the buffer
+boundary, the expansion produces 384+ bytes into a 256-byte stack buffer
+`fix[256]`, smashing the stack canary.  Crash signature:
+`*** stack smashing detected ***: terminated` (SIGABRT, exit 134).
+Fix: null-terminate both `m_szPrefix` and `m_szSufix` immediately after
+`Read8()`, consistent with the existing `rootName` null-termination at
+line 2998.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
