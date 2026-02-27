@@ -18,8 +18,6 @@ import cpp
 
 from NewExpr alloc
 where
-  // Only scalar new (not array new, which is covered by unsafe-array-new.ql)
-  not alloc instanceof NewArrayExpr and
   // Not using nothrow placement
   not exists(alloc.getPlacementPointer()) and
   // Only flag ICC-related types (CIccProfile, CIccTag*, etc.)
