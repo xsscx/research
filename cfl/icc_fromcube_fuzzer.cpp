@@ -131,7 +131,10 @@ public:
         return false;
       }
       else if (line.substr(0, 12) == "LUT_3D_SIZE ") {
-        m_sizeLut3D = atoi(line.c_str() + 12);
+        int64_t temp = atoll(line.c_str() + 12);
+        if (temp >= INT_MAX || temp <= 0)
+            return false;
+        m_sizeLut3D = (int)temp;
       }
       else if (line.substr(0, 19) == "LUT_3D_INPUT_RANGE ") {
         m_fMinInput[0] = m_fMinInput[1] = m_fMinInput[2] = (icFloatNumber)atof(line.c_str() + 19);
@@ -202,10 +205,13 @@ public:
   int sizeLut3D() { return m_sizeLut3D; }
   bool parse3DTable(icFloatNumber* toLut, icUInt32Number nSizeLut)
   {
-    if (m_sizeLut3D <= 0 || m_sizeLut3D > 1290)
-      return false;
-    icUInt32Number s = (icUInt32Number)m_sizeLut3D;
-    icUInt32Number num = s * s * s;
+    if (m_sizeLut3D < 2 || nSizeLut <= 0)
+        return false;
+
+    uint64_t temp = (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D;
+    if (temp > UINT_MAX)
+        return false;
+    icUInt32Number num = (icUInt32Number)temp;
 
     if (nSizeLut != num*3)
       return false;
@@ -376,24 +382,41 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccTagMultiProcessElement* pTag = new (std::nothrow) CIccTagMultiProcessElement(3, 3);
   if (!pTag) { unlink(temp_input); return 0; }
   if (cube.isCustomInputRange()) {
-    // Copy input range values to local stack arrays
-    icFloatNumber minVal[3], maxVal[3];
-    for (int i = 0; i < 3; i++) {
-      minVal[i] = cube.getMinInput()[i];
-      maxVal[i] = cube.getMaxInput()[i];
-    }
+    icFloatNumber* minVal = cube.getMinInput();
+    icFloatNumber* maxVal = cube.getMaxInput();
     CIccMpeCurveSet* pCurves = new (std::nothrow) CIccMpeCurveSet(3);
     if (!pCurves) { delete pTag; unlink(temp_input); return 0; }
 
-    // Each channel gets its own curve to avoid double-free from shared ownership
-    for (int ch = 0; ch < 3; ch++) {
-      CIccSingleSampledCurve* pCurve = new (std::nothrow) CIccSingleSampledCurve(minVal[ch], maxVal[ch]);
-      if (!pCurve) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
-      pCurve->SetSize(2);
-      pCurve->GetSamples()[0] = 0;
-      pCurve->GetSamples()[1] = 1;
-      pCurves->SetCurve(ch, pCurve);
+    CIccSingleSampledCurve* pCurve0 = new (std::nothrow) CIccSingleSampledCurve(minVal[0], maxVal[0]);
+    if (!pCurve0) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+    pCurve0->SetSize(2);
+    pCurve0->GetSamples()[0] = 0;
+    pCurve0->GetSamples()[1] = 1;
+    pCurves->SetCurve(0, pCurve0);
+
+    CIccSingleSampledCurve* pCurve1 = pCurve0;
+    if (minVal[1] != minVal[0] || maxVal[1] != maxVal[0]) {
+      pCurve1 = new (std::nothrow) CIccSingleSampledCurve(minVal[1], maxVal[1]);
+      if (!pCurve1) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+      pCurve1->SetSize(2);
+      pCurve1->GetSamples()[0] = 0;
+      pCurve1->GetSamples()[1] = 1;
     }
+    pCurves->SetCurve(1, pCurve1);
+
+    CIccSingleSampledCurve* pCurve2 = pCurve0;
+    if (minVal[2] != minVal[0] || maxVal[2] != maxVal[0]) {
+      if (minVal[2] == minVal[1] && maxVal[2] == maxVal[1])
+        pCurve2 = pCurve1;
+      else {
+        pCurve2 = new (std::nothrow) CIccSingleSampledCurve(minVal[2], maxVal[2]);
+        if (!pCurve2) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+        pCurve2->SetSize(2);
+        pCurve2->GetSamples()[0] = 0;
+        pCurve2->GetSamples()[1] = 1;
+      }
+    }
+    pCurves->SetCurve(2, pCurve2);
 
     pTag->Attach(pCurves);
   }
@@ -402,7 +425,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!pMpeCLUT) { delete pTag; unlink(temp_input); return 0; }
   CIccCLUT* pCLUT = new (std::nothrow) CIccCLUT(3, 3);
   if (!pCLUT) { delete pMpeCLUT; delete pTag; unlink(temp_input); return 0; }
-  pCLUT->Init(cube.sizeLut3D());
+  if (!pCLUT->Init(cube.sizeLut3D())) {
+    delete pMpeCLUT;
+    delete pTag;
+    unlink(temp_input);
+    return 0;
+  }
   icFloatNumber *lutData = pCLUT->GetData(0);
   if (!lutData) {
     delete pMpeCLUT;
