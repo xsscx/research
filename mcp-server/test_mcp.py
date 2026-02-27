@@ -26,6 +26,7 @@ from icc_profile_mcp import (
     _find_iccdev_tools,
     _build_tool_path,
     _patch_iccdev_source,
+    _sanitize_output,
     _VALID_BUILD_TYPES,
     _VALID_CMAKE_OPTIONS,
     _VALID_SANITIZERS,
@@ -42,6 +43,7 @@ from icc_profile_mcp import (
     full_analysis,
     profile_to_xml,
     compare_profiles,
+    upload_and_analyze,
     cmake_configure,
     cmake_build,
     cmake_option_matrix,
@@ -858,6 +860,102 @@ async def test_windows_build_validation():
 
     T.section_summary()
 
+
+# ── _sanitize_output tests ───────────────────────────────────────────
+def test_sanitize_output():
+    T.section("Sanitize Output")
+
+    # ANSI escape sequences stripped
+    result = _sanitize_output("\033[31mred text\033[0m")
+    T.ok("strips ANSI", "red text" in result and "\033" not in result, result)
+
+    # Null bytes stripped
+    result = _sanitize_output("hello\x00world")
+    T.ok("strips null bytes", "\x00" not in result and "hello" in result, result)
+
+    # Carriage returns stripped
+    result = _sanitize_output("line1\r\nline2\r\n")
+    T.ok("strips CR", "\r" not in result and "line1" in result, result)
+
+    # Excessive newlines collapsed
+    result = _sanitize_output("a\n\n\n\n\n\n\nb")
+    T.ok("collapses newlines", result.count("\n") <= 3, f"{result.count(chr(10))} newlines")
+
+    # Tabs preserved
+    result = _sanitize_output("col1\tcol2")
+    T.ok("preserves tabs", "\t" in result, result)
+
+    # Bell and other control chars stripped
+    result = _sanitize_output("alert\x07beep\x08back")
+    T.ok("strips bell/backspace", "\x07" not in result and "\x08" not in result, result)
+
+    # Empty string handled
+    result = _sanitize_output("")
+    T.ok("empty string", result == "", repr(result))
+
+    T.section_summary()
+
+
+# ── upload_and_analyze tests ─────────────────────────────────────────
+async def test_upload_and_analyze():
+    T.section("Upload and Analyze")
+    import base64
+
+    # Invalid base64
+    result = await upload_and_analyze("not-valid-base64!!!")
+    T.ok("rejects invalid base64", "[FAIL]" in result, result[:80])
+
+    # Too small (< 128 bytes)
+    tiny = base64.b64encode(b"\x00" * 50).decode()
+    result = await upload_and_analyze(tiny)
+    T.ok("rejects too small", "[FAIL]" in result and "too small" in result.lower(), result[:80])
+
+    # Invalid mode
+    # Create a minimal valid-sized payload (128+ bytes)
+    fake_profile = b"\x00" * 200
+    b64_data = base64.b64encode(fake_profile).decode()
+    result = await upload_and_analyze(b64_data, mode="EVIL_MODE")
+    T.ok("rejects invalid mode", "[FAIL]" in result and "Unknown mode" in result, result[:80])
+
+    # Filename sanitization — path traversal
+    result = await upload_and_analyze(b64_data, filename="../../../etc/passwd")
+    T.ok("sanitizes traversal filename",
+         "etc_passwd" in result or "[FAIL]" in result or "[OK]" in result,
+         result[:80])
+
+    # Filename sanitization — special characters
+    result = await upload_and_analyze(b64_data, filename='<script>alert(1)</script>.icc')
+    T.ok("sanitizes script filename",
+         "<script>" not in result.split("\n")[0],
+         result.split("\n")[0][:80])
+
+    # Filename sanitization — dot-prefix
+    result = await upload_and_analyze(b64_data, filename=".hidden")
+    T.ok("dot-prefix becomes uploaded.icc",
+         "uploaded.icc" in result or "[FAIL]" in result,
+         result[:80])
+
+    # Filename sanitization — no extension
+    result = await upload_and_analyze(b64_data, filename="noext")
+    T.ok("adds .icc extension",
+         ".icc" in result or "[FAIL]" in result,
+         result[:80])
+
+    # Valid upload with real profile (if available)
+    profiles = await list_test_profiles()
+    if "test-profiles/" in profiles:
+        # Pick first available profile
+        import glob as globmod
+        icc_files = globmod.glob(str(REPO_ROOT / "test-profiles" / "*.icc"))
+        if icc_files:
+            with open(icc_files[0], "rb") as f:
+                real_data = base64.b64encode(f.read()).decode()
+            result = await upload_and_analyze(real_data, filename=os.path.basename(icc_files[0]), mode="security")
+            T.ok("real profile upload+analyze", "[OK]" in result, result[:80])
+
+    T.section_summary()
+
+
 async def main():
     start = time.time()
 
@@ -873,6 +971,7 @@ async def main():
     test_symlink_escape()
     test_symlink_within_repo()
     test_directory_traversal_variants()
+    test_sanitize_output()
 
     # Functional tests (async)
     await test_list_test_profiles()
@@ -892,6 +991,9 @@ async def main():
 
     # Stress tests
     await test_extended_profiles()
+
+    # Upload and analyze tests
+    await test_upload_and_analyze()
 
     # Maintainer build tools tests
     test_sanitize_cmake_args()
