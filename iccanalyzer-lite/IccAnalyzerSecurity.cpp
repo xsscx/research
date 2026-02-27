@@ -1101,8 +1101,9 @@ bool ValidateBinaryDatabaseFormat(
     return false;
   }
   
-  // Read version (bytes 8-11, little-endian)
-  uint32_t version = *reinterpret_cast<const uint32_t*>(data + 8);
+  // Read version (bytes 8-11, little-endian) — use memcpy for alignment safety
+  uint32_t version;
+  memcpy(&version, data + 8, sizeof(version));
   
   // Validate version range (0x00000001 - 0x00000003)
   if (version < 0x00000001 || version > 0x00000003) {
@@ -1113,7 +1114,8 @@ bool ValidateBinaryDatabaseFormat(
   }
   
   // Read flags (bytes 12-15, little-endian) — parsed for future validation
-  uint32_t flags = *reinterpret_cast<const uint32_t*>(data + 12);
+  uint32_t flags;
+  memcpy(&flags, data + 12, sizeof(flags));
   (void)flags;
   
   // If version >= 2, check uncompressed size
@@ -1123,7 +1125,8 @@ bool ValidateBinaryDatabaseFormat(
       return false;
     }
     
-    uint32_t uncompressed_size = *reinterpret_cast<const uint32_t*>(data + 16);
+    uint32_t uncompressed_size;
+    memcpy(&uncompressed_size, data + 16, sizeof(uncompressed_size));
     
     // Validate uncompressed size (prevent OOM attacks)
     if (uncompressed_size > MAX_BINARY_DB_UNCOMPRESSED_SIZE) {
@@ -1143,7 +1146,8 @@ bool ValidateBinaryDatabaseFormat(
       return false;
     }
     
-    uint32_t bloom_size = *reinterpret_cast<const uint32_t*>(data + 20);
+    uint32_t bloom_size;
+    memcpy(&bloom_size, data + 20, sizeof(bloom_size));
     
     // Validate Bloom filter size (prevent absurd allocations)
     if (bloom_size > MAX_BLOOM_FILTER_SIZE) {

@@ -40,6 +40,7 @@
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerValidation.h"
 #include "IccAnalyzerSignatures.h"
+#include <new>
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerTagDetails.h"
@@ -92,7 +93,12 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     return -1;
   }
   
-  CIccProfile *pIcc = new CIccProfile;
+  CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+  if (!pIcc) {
+    printf("%s[ERROR] Memory allocation failed%s\n", ColorCritical(), ColorReset());
+    io.Close();
+    return -1;
+  }
   if (!pIcc->Read(&io)) {
     printf("%s[ERROR] Profile failed to load - skipping phases 3-5%s\n", ColorCritical(), ColorReset());
     printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());

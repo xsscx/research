@@ -44,13 +44,14 @@ ALL_FUZZERS=(
 
 # ── Parse args ───────────────────────────────────────────────────────
 SELECTED_FUZZERS=()
-for arg in "$@"; do
-  case "$arg" in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --dry-run) DRY_RUN=true ;;
     --ramdisk) RAMDISK="$2"; shift ;;
-    icc_*) SELECTED_FUZZERS+=("$arg") ;;
-    *) die "Unknown argument: $arg" ;;
+    icc_*) SELECTED_FUZZERS+=("$1") ;;
+    *) die "Unknown argument: $1" ;;
   esac
+  shift
 done
 
 FUZZERS=("${SELECTED_FUZZERS[@]:-${ALL_FUZZERS[@]}}")

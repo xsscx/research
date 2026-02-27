@@ -55,7 +55,7 @@ void* icRealloc(void *ptr, size_t size) {
   }
   void *nptr = realloc(ptr, size);
   // realloc guarantees: on failure, original ptr is NOT freed (C11 §7.22.3.5)
-  if (!nptr) free(ptr);
+  // Callers must handle NULL return and still have access to original ptr.
   return nptr;
 }
 
