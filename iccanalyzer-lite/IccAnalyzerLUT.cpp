@@ -37,6 +37,8 @@
 
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerLUT.h"
+#include "IccAnalyzerSafeArithmetic.h"
+#include "IccAnalyzerSecurity.h"
 #include <cstring>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -169,7 +171,8 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
              info.GetTagSigName((*i).TagInfo.sig),
              info.GetTagTypeSigName(tagType));
       
-      CIccTagMultiProcessElement *pMPE = (CIccTagMultiProcessElement*)pTag;
+      CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+      if (!pMPE) continue;
       icUInt32Number numElements = pMPE->NumElements();
       
       printf("  MultiProcessElement: %u elements\n", numElements);
@@ -185,7 +188,8 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
         
         if (elemType == icSigCLutElemType) {
           printf("  Element[%u]: CLUT\n", elem);
-          CIccMpeCLUT *pMpeCLUT = (CIccMpeCLUT*)pElem;
+          CIccMpeCLUT *pMpeCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
+          if (!pMpeCLUT) continue;
           ExtractMpeCLUT(pMpeCLUT, info.GetTagSigName((*i).TagInfo.sig), baseFilename, clutCount);
           clutCount++;
         } else {
@@ -231,10 +235,11 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
       CIccTagLut16 *pLut16 = NULL;
       
       if (tagType == icSigLut8Type) {
-        pLut8 = (CIccTagLut8*)pTag;
+        pLut8 = dynamic_cast<CIccTagLut8*>(pTag);
       } else {
-        pLut16 = (CIccTagLut16*)pTag;
+        pLut16 = dynamic_cast<CIccTagLut16*>(pTag);
       }
+      if (!pLut8 && !pLut16) continue;
       
       char filename[512];
       
@@ -365,6 +370,17 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
 /** Inject CLUT data into a profile LUT tag and save to output file. */
 int InjectLutDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
+  // Validate input file paths
+  if (IccAnalyzerSecurity::ValidateFilePath(profileFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, true, {".icc", ".icm"})
+        != IccAnalyzerSecurity::PathValidationResult::VALID ||
+      IccAnalyzerSecurity::ValidateFilePath(clutFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, true)
+        != IccAnalyzerSecurity::PathValidationResult::VALID) {
+    printf("Error: invalid input file path\n");
+    return -1;
+  }
+
   // Open source profile and deserialize into CIccProfile for tag manipulation
   CIccFileIO io;
   if (!io.Open(profileFile, "rb")) {
@@ -405,8 +421,8 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
       
       // Validate CLUT grid dimensions with overflow-safe multiplication
       if (tagType == icSigLut8Type) {
-        CIccTagLut8 *pLut8 = (CIccTagLut8*)pTag;
-        CIccCLUT *pCLUT = pLut8->GetCLUT();
+        CIccTagLut8 *pLut8 = dynamic_cast<CIccTagLut8*>(pTag);
+        CIccCLUT *pCLUT = pLut8 ? pLut8->GetCLUT() : nullptr;
         
         if (!pCLUT) {
           printf("No CLUT in tag\n");
@@ -414,26 +430,27 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        icUInt32Number clutSize = 1;
+        uint64_t clutSize = 1;
+        bool clutOverflow = false;
         for (int j = 0; j < pCLUT->GetInputDim(); j++) {
-          icUInt32Number dimSize = pCLUT->GetDimSize(j);
-          if (dimSize > 0 && clutSize > UINT32_MAX / dimSize) {
-            printf("CLUT size overflow detected\n");
-            fclose(f);
-            continue;
+          if (!SafeMul64(&clutSize, clutSize, pCLUT->GetDimSize(j))) {
+            clutOverflow = true;
+            break;
           }
-          clutSize *= dimSize;
         }
-        icUInt32Number outChannels = pCLUT->GetOutputChannels();
-        if (outChannels > 0 && clutSize > UINT32_MAX / outChannels) {
+        if (!clutOverflow) {
+          if (!SafeMul64(&clutSize, clutSize, pCLUT->GetOutputChannels()))
+            clutOverflow = true;
+        }
+        if (clutOverflow) {
           printf("CLUT size overflow detected\n");
           fclose(f);
           continue;
         }
-        clutSize *= outChannels;
         
         if ((long)clutSize != fileSize) {
-          printf("CLUT size mismatch: expected %u, got %ld\n", clutSize, fileSize);
+          printf("CLUT size mismatch: expected %llu, got %ld\n",
+                 (unsigned long long)clutSize, fileSize);
           fclose(f);
           continue;
         }
@@ -467,8 +484,8 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         
       // Handle Lut16 type: 16-bit CLUT data with big-endian byte swap
       } else if (tagType == icSigLut16Type) {
-        CIccTagLut16 *pLut16 = (CIccTagLut16*)pTag;
-        CIccCLUT *pCLUT = pLut16->GetCLUT();
+        CIccTagLut16 *pLut16 = dynamic_cast<CIccTagLut16*>(pTag);
+        CIccCLUT *pCLUT = pLut16 ? pLut16->GetCLUT() : nullptr;
         
         if (!pCLUT) {
           printf("No CLUT in tag\n");
@@ -476,32 +493,31 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           continue;
         }
         
-        icUInt32Number clutSize = 1;
+        uint64_t clutSize = 1;
+        bool clutOverflow = false;
         for (int j = 0; j < pCLUT->GetInputDim(); j++) {
-          icUInt32Number dimSize = pCLUT->GetDimSize(j);
-          if (dimSize > 0 && clutSize > UINT32_MAX / dimSize) {
-            printf("CLUT size overflow detected\n");
-            fclose(f);
-            continue;
+          if (!SafeMul64(&clutSize, clutSize, pCLUT->GetDimSize(j))) {
+            clutOverflow = true;
+            break;
           }
-          clutSize *= dimSize;
         }
-        icUInt32Number outChannels = pCLUT->GetOutputChannels();
-        if (outChannels > 0 && clutSize > UINT32_MAX / outChannels) {
+        if (!clutOverflow) {
+          if (!SafeMul64(&clutSize, clutSize, pCLUT->GetOutputChannels()))
+            clutOverflow = true;
+        }
+        if (!clutOverflow) {
+          if (!SafeMul64(&clutSize, clutSize, 2))
+            clutOverflow = true;
+        }
+        if (clutOverflow) {
           printf("CLUT size overflow detected\n");
           fclose(f);
           continue;
         }
-        clutSize *= outChannels;
-        if (clutSize > UINT32_MAX / 2) {
-          printf("CLUT size overflow detected (×2)\n");
-          fclose(f);
-          continue;
-        }
-        clutSize *= 2;
         
         if ((long)clutSize != fileSize) {
-          printf("CLUT size mismatch: expected %u, got %ld\n", clutSize, fileSize);
+          printf("CLUT size mismatch: expected %llu, got %ld\n",
+                 (unsigned long long)clutSize, fileSize);
           fclose(f);
           continue;
         }
@@ -570,6 +586,17 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
 /** Inject MPE CLUT binary data into a profile and save to output file. */
 int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const char *clutFile)
 {
+  // Validate input file paths
+  if (IccAnalyzerSecurity::ValidateFilePath(profileFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, true, {".icc", ".icm"})
+        != IccAnalyzerSecurity::PathValidationResult::VALID ||
+      IccAnalyzerSecurity::ValidateFilePath(clutFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, true)
+        != IccAnalyzerSecurity::PathValidationResult::VALID) {
+    printf("Error: invalid input file path\n");
+    return -1;
+  }
+
   // Load profile, read CLUT binary, inject into MultiProcessElement CLUT tags
   printf("=== Injecting MPE CLUT data ===\n");
   printf("Input profile: %s\n", profileFile);
@@ -617,37 +644,50 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
     if (!pTag) continue;
     
     if (pTag->GetType() == icSigMultiProcessElementType) {
-      CIccTagMultiProcessElement *pMPE = (CIccTagMultiProcessElement*)pTag;
+      CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+      if (!pMPE) continue;
       
       for (icUInt32Number elem = 0; elem < pMPE->NumElements(); elem++) {
         CIccMultiProcessElement *pElem = pMPE->GetElement(elem);
         if (!pElem || pElem->GetType() != icSigCLutElemType) continue;
         
-        CIccMpeCLUT *pMpeCLUT = (CIccMpeCLUT*)pElem;
+        CIccMpeCLUT *pMpeCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
+        if (!pMpeCLUT) continue;
         CIccCLUT *pCLUT = pMpeCLUT->GetCLUT();
         if (!pCLUT) continue;
         
         int inputDim = pCLUT->GetInputDim();
         int outputChannels = pCLUT->GetOutputChannels();
-        long long expectedSize = outputChannels; bool sizeOverflow = false;
+        uint64_t expectedSize = outputChannels;
+        bool sizeOverflow = false;
         for (int d = 0; d < inputDim; d++) {
-          long long dimSz = pCLUT->GetDimSize(d); if (dimSz > 0 && expectedSize > INT32_MAX / dimSz) { sizeOverflow = true; break; } expectedSize *= dimSz;
+          if (!SafeMul64(&expectedSize, expectedSize, pCLUT->GetDimSize(d))) {
+            sizeOverflow = true;
+            break;
+          }
         }
         
         if (sizeOverflow) { continue; }
         long actualSize = fileSize / 2;
-        if (actualSize != expectedSize) {
-          printf("  Tag %s Element[%u]: Size mismatch (expected %lld, got %ld)\n",
-                 info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize, actualSize);
+        if ((uint64_t)actualSize != expectedSize) {
+          printf("  Tag %s Element[%u]: Size mismatch (expected %llu, got %ld)\n",
+                 info.GetTagSigName((*i).TagInfo.sig), elem,
+                 (unsigned long long)expectedSize, actualSize);
           continue;
         }
         
-        printf("  Tag %s Element[%u]: Injecting CLUT (%lld entries)\n",
-               info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
+        printf("  Tag %s Element[%u]: Injecting CLUT (%llu entries)\n",
+               info.GetTagSigName((*i).TagInfo.sig), elem,
+               (unsigned long long)expectedSize);
         
         // Byte-swap 16-bit big-endian CLUT entries and normalize to float [0.0, 1.0]
         icFloatNumber *data = pCLUT->GetData(0);
-        for (int idx = 0; idx < expectedSize; idx++) {
+        if (!data) {
+          printf("  Tag %s Element[%u]: No CLUT data available\n",
+                 info.GetTagSigName((*i).TagInfo.sig), elem);
+          continue;
+        }
+        for (uint64_t idx = 0; idx < expectedSize; idx++) {
           icUInt16Number bigEndian = buffer[idx];
           icUInt16Number littleEndian = ((bigEndian >> 8) & 0xff) | ((bigEndian << 8) & 0xff00);
           data[idx] = littleEndian / 65535.0f;
@@ -750,119 +790,8 @@ int InjectMpeLutData(int argc, char *argv[])
   return InjectMpeDataInternal(profileFile, outputFile, clutFile);
 }
 
-/** Inject MPE CLUT data into profile, with progress logging. */
+/** Inject MPE CLUT data into profile — delegates to InjectMpeDataInternal. */
 int InjectMpeData(const char *profileFile, const char *outputFile, const char *clutFile)
 {
-  // Load profile and CLUT binary data as 16-bit samples for MPE injection
-  printf("=== Injecting MPE CLUT data ===\n");
-  printf("Input profile: %s\n", profileFile);
-  printf("CLUT file: %s\n", clutFile);
-  printf("Output profile: %s\n\n", outputFile);
-  
-  CIccProfile *pIcc = OpenIccProfile(profileFile);
-  if (!pIcc) return -1;
-  
-  FILE *f = fopen(clutFile, "rb");
-  if (!f) {
-    printf("Error opening CLUT file: %s\n", clutFile);
-    delete pIcc;
-    return -1;
-  }
-  
-  fseek(f, 0, SEEK_END);
-  long fileSize = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  
-  if (fileSize == 0 || fileSize > 100000000) {
-    printf("Invalid CLUT file size: %ld\n", fileSize);
-    fclose(f);
-    delete pIcc;
-    return -1;
-  }
-  
-  icUInt16Number *buffer = new icUInt16Number[fileSize / 2];
-  size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
-  fclose(f);
-  
-  if ((long)itemsRead != fileSize / 2) {
-    printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
-    delete[] buffer;
-    delete pIcc;
-    return -1;
-  }
-  
-  int tagsModified = 0;
-  CIccInfo info;
-  
-  // Iterate MPE tags, find CLUT elements, validate grid size with overflow checks
-  TagEntryList::iterator i;
-  for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
-    CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
-    if (!pTag) continue;
-    
-    if (pTag->GetType() == icSigMultiProcessElementType) {
-      CIccTagMultiProcessElement *pMPE = (CIccTagMultiProcessElement*)pTag;
-      
-      for (icUInt32Number elem = 0; elem < pMPE->NumElements(); elem++) {
-        CIccMultiProcessElement *pElem = pMPE->GetElement(elem);
-        if (!pElem || pElem->GetType() != icSigCLutElemType) continue;
-        
-        CIccMpeCLUT *pMpeCLUT = (CIccMpeCLUT*)pElem;
-        CIccCLUT *pCLUT = pMpeCLUT->GetCLUT();
-        if (!pCLUT) continue;
-        
-        int inputDim = pCLUT->GetInputDim();
-        int outputChannels = pCLUT->GetOutputChannels();
-        long long expectedSize = outputChannels; bool sizeOverflow = false;
-        for (int d = 0; d < inputDim; d++) {
-          long long dimSz = pCLUT->GetDimSize(d); if (dimSz > 0 && expectedSize > INT32_MAX / dimSz) { sizeOverflow = true; break; } expectedSize *= dimSz;
-        }
-        
-        if (sizeOverflow) { continue; }
-        long actualSize = fileSize / 2;
-        if (actualSize != expectedSize) {
-          printf("  Tag %s Element[%u]: Size mismatch (expected %lld, got %ld)\n",
-                 info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize, actualSize);
-          continue;
-        }
-        
-        printf("  Tag %s Element[%u]: Injecting CLUT (%lld entries)\n",
-               info.GetTagSigName((*i).TagInfo.sig), elem, expectedSize);
-        
-        icFloatNumber *data = pCLUT->GetData(0);
-        // Byte-swap 16-bit big-endian CLUT entries and normalize to float [0.0, 1.0]
-        for (int idx = 0; idx < expectedSize; idx++) {
-          icUInt16Number bigEndian = buffer[idx];
-          icUInt16Number littleEndian = ((bigEndian >> 8) & 0xff) | ((bigEndian << 8) & 0xff00);
-          data[idx] = littleEndian / 65535.0f;
-        }
-        
-        tagsModified++;
-      }
-    }
-  }
-  
-  delete[] buffer;
-  
-  if (tagsModified > 0) {
-    CIccFileIO io;
-    if (!io.Open(outputFile, "wb")) {
-      printf("Error creating output file: %s\n", outputFile);
-      delete pIcc;
-      return -1;
-    }
-    
-    if (!pIcc->Write(&io)) {
-      printf("Error writing profile\n");
-      delete pIcc;
-      return -1;
-    }
-    
-    printf("\nSuccessfully wrote modified profile\n");
-  } else {
-    printf("No MPE CLUT elements modified\n");
-  }
-  
-  delete pIcc;
-  return 0;
+  return InjectMpeDataInternal(profileFile, outputFile, clutFile);
 }
