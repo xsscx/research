@@ -3743,3 +3743,7 @@
 "=\x01\x00\x00\x00\x00\x00\x00"
 "\x08  a"
 "ZYXr"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x17\x04\x00\x00\x00\x00\x00\x00"
+"MB2"
