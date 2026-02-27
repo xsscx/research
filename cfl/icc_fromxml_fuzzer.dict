@@ -799,3 +799,6 @@ surface_map_tag="surfaceMapTag"
 brdf_colorimetric="brdfColorimetricParameter0Tag"
 brdf_mtos0="brdfMToS0Tag"
 htos3_tag="HToS3Tag"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\x0a"
