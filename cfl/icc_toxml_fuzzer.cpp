@@ -47,10 +47,14 @@
 #include "IccMpeXmlFactory.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <new>
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
-  CIccTagCreator::PushFactory(new CIccTagXmlFactory());
-  CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+  auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
+  auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+  if (!tagFactory || !mpeFactory) { delete tagFactory; delete mpeFactory; return -1; }
+  CIccTagCreator::PushFactory(tagFactory);
+  CIccMpeCreator::PushFactory(mpeFactory);
   return 0;
 }
 
@@ -61,7 +65,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccMemIO *pIO = nullptr;
 
   try {
-    pIO = new CIccMemIO;
+    pIO = new (std::nothrow) CIccMemIO;
     if (!pIO) return 0;
 
     if (!pIO->Attach((icUInt8Number*)data, size)) {

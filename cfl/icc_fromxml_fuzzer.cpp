@@ -37,6 +37,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <new>
 #include <unistd.h>
 #include <fcntl.h>
 #include <libxml/parser.h>
@@ -55,8 +56,11 @@ static void suppressXmlErrors(void *ctx, const char *msg, ...) {
 
 // Initialize factories once
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
-  CIccTagCreator::PushFactory(new CIccTagXmlFactory());
-  CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+  auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
+  auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+  if (!tagFactory || !mpeFactory) { delete tagFactory; delete mpeFactory; return -1; }
+  CIccTagCreator::PushFactory(tagFactory);
+  CIccMpeCreator::PushFactory(mpeFactory);
   xmlSetGenericErrorFunc(nullptr, suppressXmlErrors);
 
   // XXE protection: disable external entity loading and substitution
