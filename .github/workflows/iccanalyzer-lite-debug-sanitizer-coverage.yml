@@ -502,6 +502,7 @@ jobs:
           <html lang="en">
           <head>
             <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'unsafe-inline'">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>iccAnalyzer-lite Debug + Sanitizer + Coverage Report</title>
             <style>
@@ -547,7 +548,7 @@ jobs:
           if [ -f coverage/coverage-summary.txt ]; then
             echo "<h2>Code Coverage Summary (llvm-cov)</h2>" >> index.html
             echo "<pre>" >> index.html
-            cat coverage/coverage-summary.txt >> index.html
+            sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' coverage/coverage-summary.txt >> index.html
             echo "</pre>" >> index.html
           fi
 
@@ -556,6 +557,8 @@ jobs:
             echo "<h2>Detailed Coverage</h2>" >> index.html
             echo "<p><a href='coverage/html/index.html'>View detailed llvm-cov HTML report</a></p>" >> index.html
           fi
+
+          html_esc() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'; }
 
           # Per-mode results
           for MODE_NAME in heuristics roundtrip comprehensive ninja ninja-full; do
@@ -588,7 +591,7 @@ jobs:
                     STATUS="<span class='clean'>CLEAN</span>"
                   fi
 
-                  echo "<tr><td>$NUM</td><td><code>$PROFILE_NAME</code></td><td>$STATUS</td><td><a href='$OUTPUT_FILE'>View</a></td><td>$FILE_SIZE bytes</td></tr>" >> index.html
+                  echo "<tr><td>$NUM</td><td><code>$(html_esc "$PROFILE_NAME")</code></td><td>$STATUS</td><td><a href='$(html_esc "$OUTPUT_FILE")'>View</a></td><td>$FILE_SIZE bytes</td></tr>" >> index.html
                   NUM=$((NUM + 1))
                 fi
               done < selected-profiles.txt
