@@ -2777,3 +2777,9 @@
 # --- Rendering Intent Strings ---
 "Absolute Colorimetric"
 "Saturation"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xffO\xd0\x00\x08Y\xf0"
+">1\xe4\xf7"
+"\x02\x18"
+"\xff\xffO@\x00\x36\xd0<"
