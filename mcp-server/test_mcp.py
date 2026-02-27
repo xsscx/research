@@ -418,8 +418,13 @@ async def test_extended_profiles():
     files = sorted(f for f in os.listdir(ext_dir) if f.endswith(".icc"))
     for f in files:
         try:
-            r = await full_analysis(f"extended-test-profiles/{f}")
+            r = await asyncio.wait_for(
+                full_analysis(f"extended-test-profiles/{f}"),
+                timeout=30
+            )
             T.ok(f"ext_full", len(r) > 50)
+        except asyncio.TimeoutError:
+            T.ok(f"ext_full", False, f"{f[:30]}: timeout (30s)")
         except Exception as e:
             T.ok(f"ext_full", False, f"{f[:30]}: {e}")
 
