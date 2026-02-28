@@ -38,8 +38,12 @@ static const char *ValidateProfilePath(const char *path) {
 // (IccUtil.cpp:112). Malicious profiles can trigger 4GB+ allocations via
 // CIccTagXYZ::SetSize, CIccTagData::SetSize, CIccMpeTintArray::Read, etc.
 // By providing our own definition, the linker picks this over the library's
-// version, capping single allocations at 256MB.
-static constexpr size_t kMaxSingleAlloc = 256 * 1024 * 1024; // 256 MB
+// version, capping single allocations at 256MB and cumulative at 1GB.
+static constexpr size_t kMaxSingleAlloc = 256 * 1024 * 1024;  // 256 MB
+static constexpr size_t kMaxTotalAlloc  = 1ULL << 30;          // 1 GB cumulative
+
+// Track cumulative allocation to prevent death-by-a-thousand-cuts OOM
+static thread_local size_t g_total_alloc = 0;
 
 void* icRealloc(void *ptr, size_t size) {
   if (size == 0) {
@@ -50,10 +54,19 @@ void* icRealloc(void *ptr, size_t size) {
     fprintf(stderr, "[OOM-guard] icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
             ptr, size, (double)size / (1024.0*1024.0),
             kMaxSingleAlloc / (1024*1024));
-    free(ptr);  // free(NULL) is safe per C standard
+    // Do NOT free(ptr) — caller may still reference the old buffer
+    return nullptr;
+  }
+  if (g_total_alloc + size > kMaxTotalAlloc) {
+    fprintf(stderr, "[OOM-guard] icRealloc cumulative limit exceeded "
+            "(total=%.1fMB + %.1fMB > %zuMB)\n",
+            (double)g_total_alloc / (1024.0*1024.0),
+            (double)size / (1024.0*1024.0),
+            kMaxTotalAlloc / (1024*1024));
     return nullptr;
   }
   void *nptr = realloc(ptr, size);
+  if (nptr) g_total_alloc += size;
   // realloc guarantees: on failure, original ptr is NOT freed (C11 §7.22.3.5)
   // Callers must handle NULL return and still have access to original ptr.
   return nptr;
