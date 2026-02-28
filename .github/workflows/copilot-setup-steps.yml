@@ -26,6 +26,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -34,6 +40,7 @@ jobs:
 
       - name: Pull pre-built MCP image
         run: |
+          set -euo pipefail
           docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 
       - name: Extract binaries from container
@@ -51,11 +58,13 @@ jobs:
       # Create the expected directory so .gcda writes succeed silently.
       - name: Suppress gcov profiling stderr
         run: |
+          set -euo pipefail
           sudo mkdir -p /build/iccanalyzer-lite
           sudo chmod 755 /build/iccanalyzer-lite
 
       - name: Install MCP server
         run: |
+          set -euo pipefail
           pip install --quiet ./mcp-server[dev]
 
       - name: Verify tools
