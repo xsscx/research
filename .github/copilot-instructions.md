@@ -168,19 +168,38 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 3. Run the analysis tools against the renamed file
 
 ### Required analysis workflow for ICC profile issues
-When an issue asks to analyze an ICC profile, run this ONE command:
+When an issue asks to analyze an ICC profile, perform **two phases**:
+
+#### Phase 1 — MCP tool analysis (Copilot's independent review)
+Use the MCP tools to perform your own analysis of the profile before running the script:
+
+1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
+2. **`analyze_security`** — Run the 19-heuristic security scan (H1–H19)
+3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
+4. **`profile_to_xml`** — Convert to XML for human-readable inspection
+
+Write a summary of your independent findings in the PR description under a **"## MCP Tool Analysis"** heading. Include:
+- Profile class, color space, PCS, version, creator
+- Any heuristic warnings or critical findings from `analyze_security`
+- Round-trip validation status
+- Notable structural observations (unusual tags, suspicious sizes, etc.)
+
+#### Phase 2 — iccanalyzer-lite report (automated script)
+Run the analysis script to generate the full report:
 
 ```bash
 ./analyze-profile.sh test-profiles/<filename>.icc
 ```
 
-This script runs all 3 analysis commands (`-a`, `-nf`, `-r`), captures exit codes and ASAN/UBSAN output, and writes the complete report to `analysis-reports/`. Do NOT run the commands individually.
+This script runs all 3 analysis commands (`-a`, `-nf`, `-r`), captures exit codes and ASAN/UBSAN output, and writes the complete report to `analysis-reports/`. Do NOT run the 3 commands individually.
 
-Then:
+#### Commit and PR
 1. `git add analysis-reports/ && git commit -m "Analysis: <profile-name>"`
-2. Update the PR description with the exit code summary from the script output
-3. If ASAN/UBSAN findings were detected, note them prominently in the PR description
-4. Post each report as a comment on the originating issue:
+2. Update the PR description with:
+   - **MCP Tool Analysis** section (from Phase 1)
+   - **iccanalyzer-lite Results** section with exit code summary from the script
+   - ASAN/UBSAN findings noted prominently if detected
+3. Post each report as a comment on the originating issue:
    ```bash
    gh issue comment <ISSUE_NUMBER> --body "$(cat analysis-reports/<profile>-analysis.md)"
    ```
@@ -254,17 +273,14 @@ Open http://localhost:8080/ — provides browser-based access to all analysis to
 - ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
 
 **Automated issue→PR→merge pipeline**: When Copilot coding agent processes an analysis issue:
-1. Create issue with ICC profile to analyze, then assign Copilot:
-   ```bash
-   gh issue create --title "Analyze <profile>.icc" --body "..." --repo xsscx/research
-   gh api repos/xsscx/research/issues/<N>/assignees --method POST --field "assignees[]=Copilot"
-   ```
-   Note: `gh issue create --assignee copilot` does **not** work (case-sensitive App identity). Use the REST API.
-2. Agent downloads/locates the ICC profile, runs `./analyze-profile.sh`
-3. Agent commits the report to `analysis-reports/` and opens a draft PR
-4. When the agent's workflow run completes, `copilot-auto-merge.yml` triggers via `workflow_run[completed]`
-5. The auto-merge workflow finds the PR by branch, marks it ready, and squash-merges it
-6. The originating issue is closed via `Fixes #N` in the PR body
+1. Create issue with ICC profile to analyze, then assign Copilot via GitHub UI (Assignees sidebar)
+   Note: `gh issue create --assignee copilot` and REST API assignment do **not** work. Use the GitHub web UI.
+2. Agent uses MCP tools (`inspect_profile`, `analyze_security`, `validate_roundtrip`, `profile_to_xml`) for independent analysis
+3. Agent runs `./analyze-profile.sh` for the full iccanalyzer-lite report
+4. Agent commits the report to `analysis-reports/`, opens a draft PR with both MCP and script findings
+5. When the agent's workflow run completes, `copilot-auto-merge.yml` triggers via `workflow_run[completed]`
+6. The auto-merge workflow finds the PR by branch, marks it ready, and squash-merges it
+7. The originating issue is closed via `Fixes #N` in the PR body
 
 No manual intervention required — the entire pipeline is hands-free from issue to merge.
 
