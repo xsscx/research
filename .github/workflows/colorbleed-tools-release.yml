@@ -121,7 +121,7 @@ jobs:
 
           cd colorbleed_tools
           make setup
-          make -j"$(nproc)" clean all test
+          make test
 
       - name: Verify binaries
         working-directory: colorbleed_tools
