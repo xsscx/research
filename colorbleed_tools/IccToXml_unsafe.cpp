@@ -36,6 +36,7 @@
 #include "IccIO.h"
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
+#include "ColorBleedPreflight.h"
 #include "ColorBleedSandbox.h"
 
 // Global state for signal recovery — write partial XML on crash
@@ -81,10 +82,20 @@ int main(int argc, char* argv[])
   printf("[ColorBleed] Input:  %s\n", src_path);
   printf("[ColorBleed] Output: %s\n", dst_path);
 
+  // Pre-flight validation (pure binary read, no iccDEV calls)
+  PreflightResult preflight = PreflightValidateICC(src_path);
+  preflight.Report(src_path);
+
   SandboxLimits limits;
   limits.max_mem_mb  = 4096;
   limits.max_cpu_sec = 120;
   limits.max_fsize_mb = 512;
+
+  // Tighten resource limits for profiles with critical pre-flight warnings
+  if (preflight.worst == PreflightSeverity::CRITICAL) {
+    limits.max_cpu_sec  = 30;   // reduce CPU budget for suspicious profiles
+    limits.max_fsize_mb = 128;  // reduce output budget
+  }
 
   SandboxResult result = RunSandboxed([&]() -> int {
     CIccTagCreator::PushFactory(new CIccTagXmlFactory());
