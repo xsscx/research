@@ -575,7 +575,7 @@ async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
 # ── Helpers for cmake / iccDEV maintainer tools ─────────────────────
 
 # Allowed cmake arg patterns — reject shell metacharacters
-_CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-/:]*$")
+_CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-]*$")
 _CMAKE_FLAG_RE = re.compile(r"^-W[a-z\-]+$")
 
 _VALID_BUILD_TYPES = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"}

@@ -29,6 +29,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -69,6 +75,7 @@ jobs:
 
       - name: Smoke test — MCP stdio
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
           echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
@@ -77,6 +84,7 @@ jobs:
 
       - name: Smoke test — tool count
         run: |
+          set -euo pipefail
           IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
           cat > /tmp/check_tools.py << 'PYEOF'
           import sys, json
@@ -125,6 +133,7 @@ jobs:
 
       - name: Summary
         run: |
+          set -euo pipefail
           {
             echo "## MCP Server Docker Build"
             echo ""

@@ -29,6 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -60,6 +66,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           cd mcp-server
           pip install -r requirements.txt
 
@@ -172,6 +179,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
         run: |
+          set -euo pipefail
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
           export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
@@ -181,6 +189,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
         run: |
+          set -euo pipefail
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
           export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
@@ -189,6 +198,7 @@ jobs:
       - name: Test Summary
         if: always()
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "## MCP Server Test Results" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
