@@ -2,18 +2,23 @@
 # Copyright (c) 2021-2026 David H Hoyt LLC
 # ColorBleed Tooling: Unsafe Load & Store Makefile
 #
-# Last Updated: 09-FEB-2026 by David Hoyt | h02332@gmail.com
+# Last Updated: 28-FEB-2026 by David Hoyt | h02332@gmail.com
 # URL https://hoyt.net
 #
-# Makefile for ColorBleed XML Tools
-# Research Tooling for Load & Store of ICC Profiles
+# Thin delegator to build.sh which handles all compilation.
+# Three build configurations: release, debug, sanitizer.
 #
 # Usage:
-#   make setup        # clone iccDEV, patch wxWidgets, build static libs
-#   make              # build both unsafe tools
-#   make test         # build and run basic tests
-#   make clean        # remove built binaries and test files
+#   make setup        # build via build.sh (auto-detects config)
+#   make              # same as setup (ensures binaries exist)
+#   make test         # run roundtrip tests
+#   make clean        # remove test artifacts (keeps binaries)
 #   make distclean    # remove everything including iccDEV clone
+#
+# Config selection (auto-detected from CXX, or override):
+#   make CONFIG=sanitizer setup    # ASan+UBSan+coverage (clang only)
+#   make CONFIG=release setup      # optimized, no sanitizers
+#   make CONFIG=debug setup        # debug symbols, no sanitizers
 #
 # Requirements (Ubuntu/Debian):
 #   sudo apt install -y build-essential cmake clang clang-tools \
@@ -25,81 +30,36 @@
 #
 ###############################################################################
 
-# Detect build directory
 REPO_ROOT ?= iccDEV
-BUILD_DIR ?= $(REPO_ROOT)/Build
-NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Compiler settings — full instrumentation: ASan + UBSan + coverage (recoverable)
-COMMON_CFLAGS = -g -O1 -fno-omit-frame-pointer
-SANITIZER_FLAGS = -fsanitize=address,undefined -fsanitize-recover=address,undefined
-COVERAGE_FLAGS = -fprofile-instr-generate -fcoverage-mapping
-CXXFLAGS = $(COMMON_CFLAGS) $(SANITIZER_FLAGS) $(COVERAGE_FLAGS) -std=gnu++17 -Wall -frtti
-INCLUDES = -I$(REPO_ROOT)/IccProfLib \
-           -I$(REPO_ROOT)/IccXML/IccLibXML \
-           $(shell pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')
+# Default to clang/clang++ to match build.sh (override via environment: CXX=g++ CC=gcc make setup)
+ifeq ($(origin CXX),default)
+CXX := clang++
+endif
+ifeq ($(origin CC),default)
+CC := clang
+endif
 
-# Static libraries
-LIB_PROF = $(BUILD_DIR)/IccProfLib/libIccProfLib2-static.a
-LIB_XML  = $(BUILD_DIR)/IccXML/libIccXML2-static.a
+# Auto-detect config: sanitizer for clang (needs llvm runtime), release for gcc
+CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
-# Linker flags — static iccDEV + compression libs, dynamic libxml2/libc
-LDFLAGS = $(SANITIZER_FLAGS) $(COVERAGE_FLAGS)
-LINK_LIBS = -lxml2 -lz -llzma -lm -lpthread
-
-# Targets
 TARGETS = iccToXml_unsafe iccFromXml_unsafe
 
-.PHONY: all clean distclean test setup preflight help
+.PHONY: all clean distclean test setup help
 
-all: preflight $(TARGETS)
-	@echo ""
-	@echo "=== Unsafe XML Tools Built ==="
-	@ls -lh $(TARGETS)
-	@echo ""
-	@echo "ColorBleed Tooling: Unsafe Load & Store for ICC Profiles"
-	@echo "Copyright (c) 2021-2026 David H Hoyt LLC"
-	@echo ""
-
-preflight:
-	@command -v $(CXX) >/dev/null 2>&1 || { echo "[FAIL] ERROR: $(CXX) not found"; exit 1; }
-	@command -v cmake >/dev/null 2>&1 || { echo "[FAIL] ERROR: cmake not found"; exit 1; }
-	@test -f "$(LIB_PROF)" || { echo "[FAIL] ERROR: $(LIB_PROF) not found. Run 'make setup' first."; exit 1; }
-	@test -f "$(LIB_XML)" || { echo "[FAIL] ERROR: $(LIB_XML) not found. Run 'make setup' first."; exit 1; }
+# Default target: ensure binaries exist
+all: setup
 
 setup:
-	@echo "Delegating to build.sh (clones iccDEV, applies CFL patches, builds libs + tools)..."
-	@./build.sh
-
-iccToXml_unsafe: IccToXml_unsafe.cpp $(LIB_PROF) $(LIB_XML)
-	@echo "Building iccToXml_unsafe..."
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(INCLUDES) $< \
-		$(LIB_PROF) $(LIB_XML) \
-		$(LINK_LIBS) \
-		-o $@
-	@chmod +x $@
-	@echo "  [OK] iccToXml_unsafe built"
-
-iccFromXml_unsafe: IccFromXml_unsafe.cpp $(LIB_PROF) $(LIB_XML)
-	@echo "Building iccFromXml_unsafe..."
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(INCLUDES) $< \
-		$(LIB_PROF) $(LIB_XML) \
-		$(LINK_LIBS) \
-		-o $@
-	@chmod +x $@
-	@echo "  [OK] iccFromXml_unsafe built"
+	@CXX=$(CXX) CC=$(CC) ./build.sh $(CONFIG)
 
 clean:
-	@echo "Cleaning unsafe tools..."
-	rm -f $(TARGETS)
-	rm -f *.o
-	rm -f test.xml roundtrip.icc SHA256SUMS
-	@echo "  [OK] Clean complete"
+	@echo "Cleaning test artifacts..."
+	rm -f test.xml roundtrip.icc SHA256SUMS *.o *.profraw *.profdata
+	@echo "  [OK] Clean complete (binaries preserved in bin/)"
 
 distclean: clean
-	@echo "Removing iccDEV clone..."
-	rm -rf $(REPO_ROOT)
-	@echo "  [OK] Distclean complete"
+	@CXX=$(CXX) CC=$(CC) ./build.sh clean
 
 test: all
 	@echo ""
@@ -126,12 +86,17 @@ help:
 	@echo "ColorBleed Unsafe XML Tools Makefile"
 	@echo ""
 	@echo "Targets:"
-	@echo "  setup     - Clone iccDEV, patch wxWidgets, build static libraries"
-	@echo "  all       - Build both unsafe tools (default)"
-	@echo "  clean     - Remove built binaries and test files"
+	@echo "  setup     - Build via build.sh (default config: $(CONFIG))"
+	@echo "  all       - Same as setup"
+	@echo "  clean     - Remove test artifacts (keeps binaries)"
 	@echo "  distclean - Remove everything including iccDEV clone"
 	@echo "  test      - Build and run basic tests"
 	@echo "  help      - Show this help message"
+	@echo ""
+	@echo "Config override:"
+	@echo "  make CONFIG=sanitizer setup   # ASan+UBSan+coverage (clang only)"
+	@echo "  make CONFIG=release setup     # optimized, no sanitizers"
+	@echo "  make CONFIG=debug setup       # debug symbols, no sanitizers"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make setup && make test"
