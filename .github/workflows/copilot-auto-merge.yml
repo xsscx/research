@@ -1,0 +1,40 @@
+---
+# Auto-merge Copilot coding agent PRs
+# Triggers when a Copilot PR transitions from draft → ready for review,
+# then squash-merges it automatically.
+name: Copilot Auto-Merge
+
+on:
+  pull_request_target:
+    types: [ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'Copilot'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+
+    steps:
+      - name: Squash merge Copilot PR
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "Auto-merging Copilot PR #${PR_NUMBER}: ${PR_TITLE}"
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --subject "${PR_TITLE} (#${PR_NUMBER})" \
+            --body "Auto-merged by Copilot Auto-Merge workflow.
+          Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          echo "[OK] PR #${PR_NUMBER} merged"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
