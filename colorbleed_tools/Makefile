@@ -67,66 +67,8 @@ preflight:
 	@test -f "$(LIB_XML)" || { echo "[FAIL] ERROR: $(LIB_XML) not found. Run 'make setup' first."; exit 1; }
 
 setup:
-	@echo ""
-	@echo "════════════════════════════════════════"
-	@echo "  ColorBleed Setup: iccDEV Libraries"
-	@echo "════════════════════════════════════════"
-	@command -v $(CXX) >/dev/null 2>&1 || { echo "[FAIL] ERROR: $(CXX) not found"; exit 1; }
-	@command -v cmake >/dev/null 2>&1 || { echo "[FAIL] ERROR: cmake not found"; exit 1; }
-	@if [ ! -d "$(REPO_ROOT)/.git" ]; then \
-		echo "Cloning iccDEV..."; \
-		git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git $(REPO_ROOT); \
-	else \
-		echo "Using existing checkout: $$(cd $(REPO_ROOT) && git rev-parse --short HEAD)"; \
-	fi
-	@SIGUTILS="$(REPO_ROOT)/IccProfLib/IccSignatureUtils.h"; \
-	if grep -qP '\xef\xb8\x8f' "$$SIGUTILS" 2>/dev/null; then \
-		sed -i 's/\xef\xb8\x8f//g' "$$SIGUTILS"; \
-		echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"; \
-	else \
-		echo "[INFO] IccSignatureUtils.h already clean"; \
-	fi
-	@echo "Patching wxWidgets and LTO out..."
-	@CMAKELISTS="$(REPO_ROOT)/Build/Cmake/CMakeLists.txt"; \
-	if grep -q 'find_package(wxWidgets' "$$CMAKELISTS" 2>/dev/null; then \
-		sed -i 's/find_package(wxWidgets/#find_package(wxWidgets/' "$$CMAKELISTS"; \
-		sed -i 's/if(wxWidgets_FOUND)/if(FALSE AND wxWidgets_FOUND)/' "$$CMAKELISTS"; \
-		sed -i '/wx_/ s/^/#/' "$$CMAKELISTS" 2>/dev/null || true; \
-		echo "  Patched wxWidgets"; \
-	else \
-		echo "  wxWidgets already patched"; \
-	fi; \
-	if grep -q 'set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)' "$$CMAKELISTS" 2>/dev/null; then \
-		sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' "$$CMAKELISTS"; \
-		echo "  Patched LTO (disabled)"; \
-	else \
-		echo "  LTO already patched"; \
-	fi
-	@echo "Building static libraries..."
-	@mkdir -p $(BUILD_DIR)
-	@echo "  Clearing cmake cache (prevent stale configs)..."
-	@rm -rf $(BUILD_DIR)/CMakeCache.txt $(BUILD_DIR)/CMakeFiles
-	@cd $(BUILD_DIR) && cmake Cmake/ \
-		-DCMAKE_CXX_COMPILER=clang++ \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
-		-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-		-DENABLE_STATIC_LIBS=ON \
-		-DENABLE_SHARED_LIBS=ON \
-		-DENABLE_TOOLS=OFF \
-		-Wno-dev 2>&1 | tail -5
-	@cd $(BUILD_DIR) && $(MAKE) -j$(NPROC) IccProfLib2-static IccXML2-static 2>&1 | tail -3
-	@echo ""
-	@echo "Libraries:"
-	@ls -lh $(LIB_PROF) $(LIB_XML)
-	@ASAN_COUNT=$$(nm $(LIB_PROF) 2>/dev/null | grep -c '__asan_\|__ubsan_'); \
-	if [ "$$ASAN_COUNT" -gt 0 ]; then \
-		echo ""; \
-		echo "⚠️  WARNING: Libraries contain $$ASAN_COUNT sanitizer symbols."; \
-		echo "  This will cause linker errors with g++. Run 'make distclean && make setup' to rebuild clean."; \
-	fi
-	@echo ""
-	@echo "✅ Setup complete — run 'make' to build tools"
+	@echo "Delegating to build.sh (clones iccDEV, applies CFL patches, builds libs + tools)..."
+	@./build.sh
 
 iccToXml_unsafe: IccToXml_unsafe.cpp $(LIB_PROF) $(LIB_XML)
 	@echo "Building iccToXml_unsafe..."

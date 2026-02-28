@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-28 08:50:00 UTC
+Last Updated: 2026-02-28 14:30:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -61,6 +61,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 57 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SetFunction` | UBSAN: invalid enum load when reading `icSigCmmEnvVar` value — replaced with `memcpy` to copy raw bytes |
 | 58 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | **NO-OP** (upstream-adopted via PR #622) — heap-buffer-overflow in select op initialization |
 | 59 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Describe` | Heap-buffer-overflow: `mtx.GetData()->get(c)` iterates using `start[r]`/`start[r+1]` row ranges from untrusted data without validating against `GetNumEntries()` |
+| 60 | `IccTagXml.cpp` | `CIccTagXmlSparseMatrixArray::ToXml` | Heap-buffer-overflow: `DumpArray` called with `getPtr(rowOffset)` where `rowOffset + n` exceeds `GetNumEntries()` — same sparse matrix OOB as 059 but in XML serialization path |
 
 ## Allocation Cap
 
@@ -493,6 +494,18 @@ header data.  When `start[r+1]` exceeds the actual entry count
 returned by `mtx.GetNumEntries()`, `mtx.GetData()->get(c)` performs
 an out-of-bounds read on the data buffer (`m_pData[index]`).
 Fix: clamp `re` to `nEntries = mtx.GetNumEntries()` before the inner loop.
+Crash artifact: `crash-7dd85cf499f0fc5553cfc69a199835fa985777a3`.
+
+### 060 — Heap-buffer-overflow in `SparseMatrix::ToXml` (IccTagXml.cpp)
+
+Patch 060 fixes the same class of **heap-buffer-overflow** as 059, but
+in the XML serialization path `CIccTagXmlSparseMatrixArray::ToXml()`
+(IccTagXml.cpp).  `DumpArray()` is called with a pointer from
+`mtx.GetData()->getPtr(rowOffset)` and count `n = GetNumRowColumns(j)`,
+where both `rowOffset` and `n` derive from untrusted `m_RowStart[]` data.
+When `rowOffset + n` exceeds `GetNumEntries()`, the DumpArray read
+overflows the data buffer.
+Fix: clamp `n` so `rowOffset + n <= nEntries`; skip DumpArray when `n == 0`.
 Crash artifact: `crash-7dd85cf499f0fc5553cfc69a199835fa985777a3`.
 
 ## Application
