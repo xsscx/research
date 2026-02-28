@@ -1,9 +1,13 @@
 /*!
  *  @file IccToXml_unsafe.cpp
- *  @brief Unsafe ICC Blob Reader
+ *  @brief Sandboxed Unsafe ICC Blob Reader
  *  @author David Hoyt
- *  @date 03 FEB 2026
- *  @version 5.0.1
+ *  @date 28 FEB 2026
+ *  @version 6.0.0
+ *
+ *  Fork-isolated ICC→XML conversion using vanilla (unpatched) iccDEV.
+ *  Each profile operation runs in a child process with resource limits.
+ *  Library crashes are caught and reported as security findings.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +24,7 @@
  *
  *  @section CHANGES
  *  - 12/06/2021, h02332: Initial commit
+ *  - 28/02/2026, h02332: Fork/exec sandbox isolation
  *
  */
 
@@ -31,6 +36,7 @@
 #include "IccIO.h"
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
+#include "ColorBleedSandbox.h"
 
 int main(int argc, char* argv[])
 {
@@ -38,11 +44,10 @@ int main(int argc, char* argv[])
     printf("IccToXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
     printf("Usage: IccToXml_unsafe src_icc_profile dest_xml_file\n");
+    printf("  Sandboxed: each conversion runs in an isolated child process\n");
     printf("\n");
     return -1;
   }
-  CIccTagCreator::PushFactory(new CIccTagXmlFactory());
-  CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 
   // Reject output paths with traversal sequences
   if (strstr(argv[2], "..") != NULL) {
@@ -50,42 +55,69 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  CIccProfileXml profile;
-  CIccFileIO srcIO, dstIO;
+  // Capture args before fork (child inherits full address space)
+  const char* src_path = argv[1];
+  const char* dst_path = argv[2];
 
-  if (!srcIO.Open(argv[1], "r")) {
-    printf("Unable to open '%s'\n", argv[1]);
-    return -1;
+  printf("[ColorBleed] Sandboxed ICC→XML conversion\n");
+  printf("[ColorBleed] Input:  %s\n", src_path);
+  printf("[ColorBleed] Output: %s\n", dst_path);
+
+  SandboxLimits limits;
+  limits.max_mem_mb  = 4096;
+  limits.max_cpu_sec = 120;
+  limits.max_fsize_mb = 512;
+
+  SandboxResult result = RunSandboxed([&]() -> int {
+    CIccTagCreator::PushFactory(new CIccTagXmlFactory());
+    CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+
+    CIccProfileXml profile;
+    CIccFileIO srcIO, dstIO;
+
+    if (!srcIO.Open(src_path, "r")) {
+      fprintf(stderr, "Unable to open '%s'\n", src_path);
+      return 1;
+    }
+
+    if (!profile.Read(&srcIO)) {
+      fprintf(stderr, "Unable to read '%s'\n", src_path);
+      return 2;
+    }
+
+    std::string xml;
+    xml.reserve(40000000);
+
+    if (!profile.ToXml(xml)) {
+      fprintf(stderr, "Unable to convert '%s' to xml\n", src_path);
+      return 3;
+    }
+
+    if (!dstIO.Open(dst_path, "wb")) {
+      fprintf(stderr, "Unable to open '%s'\n", dst_path);
+      return 4;
+    }
+
+    if (dstIO.Write8((char*)xml.c_str(), xml.size()) == xml.size()) {
+      printf("XML successfully created (%zu bytes)\n", xml.size());
+      printf("[ColorBleed] Sanitize the outputs of Sensitive Information\n");
+    } else {
+      fprintf(stderr, "Unable to write '%s'\n", dst_path);
+      return 5;
+    }
+
+    dstIO.Close();
+    return 0;
+  }, limits);
+
+  result.Report("ICC → XML", src_path);
+
+  if (result.crashed) {
+    printf("[ColorBleed] FINDING: Profile triggered library crash\n");
+    printf("[ColorBleed] Exit code: %d  Signal: %s\n",
+           result.exit_code, result.SignalName());
+    return 100 + result.signal_num;
   }
 
-  if (!profile.Read(&srcIO)) {
-    printf("Unable to read '%s'\n", argv[1]);
-    return -1;
-  }
-
-  std::string xml;
-  xml.reserve(40000000);
-
-  if (!profile.ToXml(xml)) {
-    printf("Unable to convert '%s' to xml\n", argv[1]);
-    return -1;
-  }
-
-  if (!dstIO.Open(argv[2], "wb")) {
-    printf("unable to open '%s'\n", argv[2]);
-    return -1;
-  }
-
-  if (dstIO.Write8((char*)xml.c_str(), xml.size())== xml.size()) {
-    printf("XML successfully created (%zu bytes)\n", xml.size());
-    printf("[ColorBleed] Sanitize the outputs of Sensitive Information\n");
-  }
-  else {
-    printf("Unable to write '%s'\n", argv[2]);
-    return -1;
-  }
-
-  dstIO.Close();
-
-  return 0;
+  return result.exit_code;
 }

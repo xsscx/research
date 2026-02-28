@@ -1,9 +1,13 @@
 /*!
  *  @file IccFromXml_unsafe.cpp
- *  @brief Unsafe ICC Blob Writer
+ *  @brief Sandboxed Unsafe ICC Blob Writer
  *  @author David Hoyt
- *  @date 03 FEB 2026
- *  @version 5.0.1
+ *  @date 28 FEB 2026
+ *  @version 6.0.0
+ *
+ *  Fork-isolated XML→ICC conversion using vanilla (unpatched) iccDEV.
+ *  Each profile operation runs in a child process with resource limits.
+ *  Library crashes are caught and reported as security findings.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +24,7 @@
  *
  *  @section CHANGES
  *  - 12/06/2021, h02332: Initial commit
+ *  - 28/02/2026, h02332: Fork/exec sandbox isolation
  *
  */
 
@@ -31,25 +36,22 @@
 #include "IccUtil.h"
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
+#include "ColorBleedSandbox.h"
 #include <cstring>
 #include <climits>
 #include <cstdlib>
 
-/** Convert ICC XML profile to binary format, deliberately skipping safety checks. */
+/** Convert ICC XML profile to binary format in a sandboxed child process. */
 int main(int argc, char* argv[])
 {
-  // Parse args: input XML, output ICC binary, optional -noid and -v flags
   if (argc<=2) {
     printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
     printf("Usage: IccFromXml_unsafe xml_file saved_profile_file {-noid -v{=[relax_ng_schema_file]}}\n");
+    printf("  Sandboxed: each conversion runs in an isolated child process\n");
     printf("\n");
     return -1;
   }
-
-  // Register XML tag and MPE factories for ICC profile parsing
-  CIccTagCreator::PushFactory(new CIccTagXmlFactory());
-  CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 
   // Reject output paths with traversal sequences
   if (strstr(argv[2], "..") != NULL) {
@@ -57,15 +59,12 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  CIccProfileXml profile;
-  std::string reason;
-
-  std::string szRelaxNGDir;
+  // Parse optional flags before fork
   bool bNoId = false;
-
+  std::string szRelaxNGDir;
   const char* szRelaxNGFileName = "SampleIccRELAX.rng";
-  int i;
-  for (i=3; i<argc; i++) {
+
+  for (int i=3; i<argc; i++) {
     if (!stricmp(argv[i], "-noid")) {
       bNoId = true;
     }
@@ -73,9 +72,8 @@ int main(int argc, char* argv[])
       if (argv[i][2]=='=') {
         szRelaxNGDir = argv[i]+3;
       }
-      else  {
+      else {
         std::string path = argv[0];
-
 #ifdef WIN32
         if (path != "IccFromXml_unsafe.exe") {
           path = path.substr(0,path.find_last_of("\\"));
@@ -87,71 +85,89 @@ int main(int argc, char* argv[])
           path += "//";
         }
 #endif
-
         path += szRelaxNGFileName;
-
-        // Resolve to canonical path to mitigate path injection from argv[0]
         char resolved[PATH_MAX];
         if (!realpath(path.c_str(), resolved)) {
           resolved[0] = '\0';
         }
         FILE *f = fopen(resolved, "r");
-
         if (f) {
           fclose(f);
-
           szRelaxNGDir = path;
         }
       }
     }
   }
 
-  // Attempt XML parse; on failure, report reason and exit
-  if (!profile.LoadXml(argv[1], szRelaxNGDir.c_str(), &reason)) {
-    printf("%s", reason.c_str());
-#ifndef WIN32
-    printf("\n");
-#endif
-    printf("Unable to Parse '%s'\n", argv[1]);
-    return -1;
-  }
+  // Capture args for the child
+  const char* xml_path = argv[1];
+  const char* icc_path = argv[2];
 
-  std::string valid_report;
+  printf("[ColorBleed] Sandboxed XML→ICC conversion\n");
+  printf("[ColorBleed] Input:  %s\n", xml_path);
+  printf("[ColorBleed] Output: %s\n", icc_path);
 
-  if (profile.Validate(valid_report)<=icValidateWarning) {
+  SandboxLimits limits;
+  limits.max_mem_mb  = 4096;
+  limits.max_cpu_sec = 120;
+  limits.max_fsize_mb = 512;
+
+  SandboxResult result = RunSandboxed([&]() -> int {
+    CIccTagCreator::PushFactory(new CIccTagXmlFactory());
+    CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+
+    CIccProfileXml profile;
+    std::string reason;
+
+    if (!profile.LoadXml(xml_path, szRelaxNGDir.c_str(), &reason)) {
+      fprintf(stderr, "%s", reason.c_str());
+      fprintf(stderr, "\nUnable to Parse '%s'\n", xml_path);
+      return 1;
+    }
+
+    std::string valid_report;
+    icValidateStatus vs = profile.Validate(valid_report);
+
     int idx;
-
     for (idx=0; idx<16; idx++) {
       if (profile.m_Header.profileID.ID8[idx])
         break;
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
-      printf("Profile parsed and saved correctly\n");
-      printf("[ColorBleed] Review the outputs for Sensitive Information\n");
-    }
-    else {
-      printf("Unable to save profile as '%s'\n", argv[2]);
-      return -1;
-    }
-  }
-  else {
-    int idx;
 
-    for (idx=0; idx<16; idx++) {
-      if (profile.m_Header.profileID.ID8[idx])
-        break;
+    icProfileIDSaveMethod method = bNoId ? icNeverWriteID :
+      (idx<16 ? icAlwaysWriteID : icVersionBasedID);
+
+    if (vs <= icValidateWarning) {
+      if (SaveIccProfile(icc_path, &profile, method)) {
+        printf("Profile parsed and saved correctly\n");
+        printf("[ColorBleed] Review the outputs for Sensitive Information\n");
+      } else {
+        fprintf(stderr, "Unable to save profile as '%s'\n", icc_path);
+        return 2;
+      }
+    } else {
+      if (SaveIccProfile(icc_path, &profile, method)) {
+        printf("Profile parsed.  Profile is invalid, but saved correctly\n");
+        printf("[ColorBleed] Review the output for sensitive information\n");
+      } else {
+        fprintf(stderr, "Unable to save profile - profile is invalid!\n");
+        return 3;
+      }
+      fprintf(stderr, "%s", valid_report.c_str());
     }
-    if (SaveIccProfile(argv[2], &profile, bNoId ? icNeverWriteID : (idx<16 ? icAlwaysWriteID : icVersionBasedID))) {
-      printf("Profile parsed.  Profile is invalid, but saved correctly\n");
-      printf("[ColorBleed] Review the output for sensitive information\n");
-    }
-    else {
-      printf("Unable to save profile - profile is invalid!\n");
-      return -1;
-    }
-    printf("%s", valid_report.c_str());
+
+    return 0;
+  }, limits);
+
+  result.Report("XML → ICC", xml_path);
+
+  if (result.crashed) {
+    printf("[ColorBleed] FINDING: Input triggered library crash\n");
+    printf("[ColorBleed] Exit code: %d  Signal: %s\n",
+           result.exit_code, result.SignalName());
+    return 100 + result.signal_num;
   }
 
   printf("\n");
-  return 0;
+  return result.exit_code;
 }

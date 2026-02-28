@@ -1,9 +1,14 @@
 #!/bin/bash
 #
-# ColorBleed Tools Build — Patched iccDEV Libraries + Unsafe Tools
+# ColorBleed Tools Build — Vanilla iccDEV + Sandboxed Unsafe Tools
 #
-# Clones iccDEV, applies ALL CFL security patches, builds static
-# libraries, then compiles iccToXml_unsafe and iccFromXml_unsafe.
+# Clones vanilla upstream iccDEV (NO security patches), builds static
+# libraries with ASan+UBSan+coverage, then compiles the sandboxed
+# iccToXml_unsafe and iccFromXml_unsafe tools.
+#
+# The tools use fork/exec isolation: each profile operation runs in a
+# child process with resource limits. Crashes in the unpatched library
+# are caught and reported as security findings, not tool failures.
 #
 # Usage:  ./build.sh          # build everything
 #         ./build.sh clean    # remove build artifacts and start fresh
@@ -19,7 +24,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 ICCDEV_DIR="$REPO_ROOT/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
-PATCHES_DIR="$SCRIPT_DIR/../cfl/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CXX="${CXX:-clang++}"
@@ -82,32 +86,10 @@ else
 fi
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
-# --- Step 2: Apply CFL security patches ---
-banner "Step 2: Apply CFL security patches"
-if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
-  APPLIED=0
-  SKIPPED=0
-  for p in "$PATCHES_DIR"/*.patch; do
-    bn=$(basename "$p")
-    # Skip no-op markers (upstream-adopted patches start with '#')
-    if head -1 "$p" | grep -q '^#'; then
-      SKIPPED=$((SKIPPED + 1))
-      continue
-    fi
-    if patch -p1 -d "$ICCDEV_DIR" --forward -s --no-backup-if-mismatch < "$p" 2>/dev/null; then
-      echo "  [OK] $bn"
-      APPLIED=$((APPLIED + 1))
-    else
-      echo "  [SKIP] $bn (already applied or N/A)"
-      SKIPPED=$((SKIPPED + 1))
-    fi
-  done
-  echo ""
-  echo "Applied: $APPLIED  Skipped: $SKIPPED"
-else
-  echo "[WARN] No patches found at $PATCHES_DIR"
-  echo "  Tools will be built WITHOUT security patches."
-fi
+# --- Step 2: Vanilla upstream (NO patches) ---
+banner "Step 2: Vanilla upstream — no CFL patches applied"
+echo "ColorBleed tools deliberately use unpatched iccDEV to detect crashes."
+echo "Fork/exec sandboxing in the tool wrappers catches library crashes."
 
 # Strip stray U+FE0F (emoji variation selector) from upstream source
 SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
