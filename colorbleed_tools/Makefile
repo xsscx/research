@@ -30,10 +30,11 @@ REPO_ROOT ?= iccDEV
 BUILD_DIR ?= $(REPO_ROOT)/Build
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Compiler settings
-# On CI, CXX=g++ is set by the workflow; locally, Make defaults to g++
-# Both work: g++ can link clang-compiled ELF objects (make setup patches out LTO)
-CXXFLAGS = -O2 -DNDEBUG -std=gnu++17 -Wall
+# Compiler settings — full instrumentation: ASan + UBSan + coverage
+COMMON_CFLAGS = -g -O1 -fno-omit-frame-pointer
+SANITIZER_FLAGS = -fsanitize=address,undefined -fsanitize-recover=undefined
+COVERAGE_FLAGS = -fprofile-instr-generate -fcoverage-mapping
+CXXFLAGS = $(COMMON_CFLAGS) $(SANITIZER_FLAGS) $(COVERAGE_FLAGS) -std=gnu++17 -Wall -frtti
 INCLUDES = -I$(REPO_ROOT)/IccProfLib \
            -I$(REPO_ROOT)/IccXML/IccLibXML \
            $(shell pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')
@@ -43,8 +44,8 @@ LIB_PROF = $(BUILD_DIR)/IccProfLib/libIccProfLib2-static.a
 LIB_XML  = $(BUILD_DIR)/IccXML/libIccXML2-static.a
 
 # Linker flags — static iccDEV + compression libs, dynamic libxml2/libc
-LDFLAGS =
-LINK_LIBS = -Wl,-Bstatic -lz -llzma -Wl,-Bdynamic -lxml2 -lm -lpthread
+LDFLAGS = $(SANITIZER_FLAGS) $(COVERAGE_FLAGS)
+LINK_LIBS = -lxml2 -lz -llzma -lm -lpthread
 
 # Targets
 TARGETS = iccToXml_unsafe iccFromXml_unsafe
