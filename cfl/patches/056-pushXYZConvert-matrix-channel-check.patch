@@ -1,8 +1,8 @@
 diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
-index ee8cfeb..f33e3b5 100644
+index 7be4a0a..07a5f24 100644
 --- a/IccProfLib/IccCmm.cpp
 +++ b/IccProfLib/IccCmm.cpp
-@@ -2952,16 +2952,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
+@@ -2946,16 +2946,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
          if (pElem->GetType()==icSigMatrixElemType) {
            CIccMpeMatrix *pMatElem = (CIccMpeMatrix*)pElem;
  
@@ -28,7 +28,7 @@ index ee8cfeb..f33e3b5 100644
            }
          }
        }
-@@ -3000,16 +3002,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
+@@ -2994,16 +2996,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
          if (pElem->GetType()==icSigMatrixElemType) {
            CIccMpeMatrix *pMatElem = (CIccMpeMatrix*)pElem;
  

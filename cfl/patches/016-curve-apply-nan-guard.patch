@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 7033443..0189adb 100644
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -579,6 +579,10 @@
+@@ -578,6 +578,10 @@ bool CIccTagCurve::IsIdentity()
+ */
  icFloatNumber CIccTagCurve::Apply(icFloatNumber v) const
  {
 +  // CFL patch: guard against NaN before clamp and uint32 cast.

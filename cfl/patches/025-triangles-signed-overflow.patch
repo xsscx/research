@@ -1,6 +1,8 @@
---- a/IccProfLib/IccTagLut.cpp	2026-02-24 17:04:25.387481393 -0500
-+++ IccProfLib/IccTagLut.cpp	2026-02-24 17:06:10.369679978 -0500
-@@ -5660,7 +5660,7 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 6328394..b60b7a4 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -5660,7 +5660,7 @@ bool CIccTagGamutBoundaryDesc::Read(icUInt32Number size, CIccIO *pIO)
  	}
  	m_Triangles = new icGamutBoundaryTriangle[m_NumberOfTriangles];
  	
@@ -9,7 +11,7 @@
  	
  	if (pIO->Read32(m_Triangles, nNum32)!=nNum32)
  		return false;		
-@@ -5717,7 +5717,7 @@
+@@ -5717,7 +5717,7 @@ bool CIccTagGamutBoundaryDesc::Write(CIccIO *pIO)
  		!pIO->Write32(&m_NumberOfTriangles))
  		return false;	
  	

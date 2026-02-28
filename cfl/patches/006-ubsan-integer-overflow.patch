@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccProfile.cpp b/IccProfLib/IccProfile.cpp
+index 15ce65d..0242c64 100644
 --- a/IccProfLib/IccProfile.cpp
 +++ b/IccProfLib/IccProfile.cpp
-@@ -1308,7 +1308,8 @@
+@@ -1308,7 +1308,8 @@ bool CIccProfile::LoadTag(IccTagEntry *pTagEntry, CIccIO *pIO, bool bReadAll/*=f
    
    // if the tag claims to be longer than the actual file, return an error
    // NOTE - ccox - it would be nice to cache the file length instead of calculating it per tag
@@ -10,9 +12,11 @@
      return false;
  
    icTagTypeSignature sigType;
+diff --git a/IccProfLib/IccSignatureUtils.h b/IccProfLib/IccSignatureUtils.h
+index c526e2f..434da57 100644
 --- a/IccProfLib/IccSignatureUtils.h
 +++ b/IccProfLib/IccSignatureUtils.h
-@@ -399,10 +399,10 @@
+@@ -399,10 +399,10 @@ inline IccColorSpaceDescription DescribeColorSpaceSignature(icUInt32Number sig)
    IccColorSpaceDescription desc;
    desc.name = ColorSpaceSignatureToStr(sig);
    desc.isKnown = IsValidColorSpaceSignature(sig);
@@ -27,9 +31,11 @@
    desc.bytes[4] = '\0';
    return desc;
  }
+diff --git a/IccProfLib/IccUtil.cpp b/IccProfLib/IccUtil.cpp
+index 37465c5..542a3a3 100644
 --- a/IccProfLib/IccUtil.cpp
 +++ b/IccProfLib/IccUtil.cpp
-@@ -662,7 +662,7 @@
+@@ -662,7 +662,7 @@ icFloatNumber ICCPROFLIB_API icF16toF(icFloat16Number num)
          nummnt <<= 1;
        } while (!(nummnt & 0x0400)); // Shift until leading bit overflows into exponent bit
        rvsgn = ((icUInt32Number) numsgn) << 16;
@@ -38,7 +44,7 @@
        rvexp = (icUInt32Number) (tmpexp << 23);
        rvmnt = ((icUInt32Number) (nummnt & 0x03FFu)) << 13;
        rv = (rvsgn | rvexp | rvmnt);
-@@ -674,7 +674,7 @@
+@@ -674,7 +674,7 @@ icFloatNumber ICCPROFLIB_API icF16toF(icFloat16Number num)
        }
      } else {
        rvsgn = ((icUInt32Number) numsgn) << 16;
@@ -47,7 +53,7 @@
        rvexp = (icUInt32Number) (tmpexp << 23);
        rvmnt = ((icUInt32Number) nummnt) << 13;
        rv = (rvsgn | rvexp | rvmnt);
-@@ -1085,7 +1085,7 @@
+@@ -1092,7 +1092,7 @@ const icChar *icGetSig(icChar *pBuf, size_t bufSize, icUInt32Number nSig, bool b
        bGetHexVal = true;
      }
      pBuf[i]=c;

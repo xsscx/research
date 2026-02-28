@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 8a52c53..bb5c226 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -344,6 +344,12 @@
+@@ -344,6 +344,12 @@ bool CIccTagUnknown::Write(CIccIO *pIO)
  void CIccTagUnknown::Describe(std::string &sDescription, int nVerboseness)
  {
    const size_t bufSize = 128;

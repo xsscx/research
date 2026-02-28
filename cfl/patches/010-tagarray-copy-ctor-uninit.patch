@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index 3f86030..246831d 100644
 --- a/IccProfLib/IccTagComposite.cpp
 +++ b/IccProfLib/IccTagComposite.cpp
-@@ -1030,6 +1030,9 @@
+@@ -1030,6 +1030,9 @@ CIccTagArray::CIccTagArray(icArraySignature sigArrayType/* =icSigUndefinedArray
  ******************************************************************************/
  CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
  {
@@ -10,7 +12,7 @@
    if (tagAry.m_nSize) {
      m_TagVals = new IccTagPtr[tagAry.m_nSize];
  
-@@ -1071,7 +1074,7 @@
+@@ -1071,7 +1074,7 @@ CIccTagArray &CIccTagArray::operator=(const CIccTagArray &tagAry)
      m_TagVals = new IccTagPtr[tagAry.m_nSize];
  
      icUInt32Number i;

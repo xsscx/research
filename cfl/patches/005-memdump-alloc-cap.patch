@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccUtil.cpp b/IccProfLib/IccUtil.cpp
+index 4d2c0b0..37465c5 100644
 --- a/IccProfLib/IccUtil.cpp
 +++ b/IccProfLib/IccUtil.cpp
-@@ -974,6 +974,13 @@
+@@ -974,6 +974,13 @@ void icXyzToPcs(icFloatNumber *XYZ)
  void icMemDump(std::string &sDump, void *pBuf, size_t nNum)
  {
    icUInt8Number *pData = (icUInt8Number *)pBuf;

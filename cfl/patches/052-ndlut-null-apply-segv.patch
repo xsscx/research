@@ -1,8 +1,28 @@
 diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
-index a1b2c3d..e4f5g6h 100644
+index 07a5f24..90bc619 100644
 --- a/IccProfLib/IccCmm.cpp
 +++ b/IccProfLib/IccCmm.cpp
-@@ -6542,13 +6542,25 @@ void CIccXformNDLut::Apply(CIccApplyXform *pApply, icFloatNumber *DstPixel, cons
+@@ -2512,12 +2512,18 @@ icStatusCMM CIccPcsXform::Optimize()
+         if (!ptr.ptr->isIdentity()) {
+           newSteps.push_back(ptr);
+         }
++        else {
++          delete ptr.ptr;
++        }
+         ptr.ptr = next->ptr;
+       }
+     }
+     if (!ptr.ptr->isIdentity()) {
+       newSteps.push_back(ptr);
+     }
++    else {
++      delete ptr.ptr;
++    }
+ 
+     steps = newSteps;
+ 
+@@ -6539,6 +6545,18 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
+ 
      if (m_pTag->m_CLUT) {
        switch(nInput) {
 +      case 1:
@@ -20,9 +40,7 @@ index a1b2c3d..e4f5g6h 100644
        case 5:
          m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
          break;
-       case 6:
-         m_pTag->m_CLUT->Interp6d(Pixel, Pixel);
-         break;
+@@ -6548,7 +6566,8 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
        default:
          {
            CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
@@ -32,7 +50,8 @@ index a1b2c3d..e4f5g6h 100644
            break;
          }
        }
-@@ -6573,13 +6585,25 @@ void CIccXformNDLut::Apply(CIccApplyXform *pApply, icFloatNumber *DstPixel, cons
+@@ -6569,6 +6588,18 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
+ 
      if (m_pTag->m_CLUT) {
        switch(m_nNumInput) {
 +      case 1:
@@ -50,9 +69,7 @@ index a1b2c3d..e4f5g6h 100644
        case 5:
          m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
          break;
-       case 6:
-         m_pTag->m_CLUT->Interp6d(Pixel, Pixel);
-         break;
+@@ -6578,10 +6609,10 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
        default:
        {
          CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
@@ -64,3 +81,16 @@ index a1b2c3d..e4f5g6h 100644
 -      break;
        }
      }
+ 
+@@ -8579,8 +8610,10 @@ icStatusCMM CIccCmm::CheckPCSConnections(bool bUsePCSConversions/*=false*/)
+ 
+         rv = pPcs->Connect(last->ptr, next->ptr);
+ 
+-        if (rv!=icCmmStatOk && rv!=icCmmStatIdentityXform)
++        if (rv!=icCmmStatOk && rv!=icCmmStatIdentityXform) {
++          delete pPcs;
+           return rv;
++        }
+ 
+         if (rv!=icCmmStatIdentityXform) {
+           ptr.ptr = pPcs;

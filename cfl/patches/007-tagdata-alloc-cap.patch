@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 8a4e05c..8a52c53 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -8170,6 +8170,11 @@
+@@ -8172,6 +8172,11 @@ bool CIccTagData::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
    if (m_nSize == nSize)
      return true;
  
