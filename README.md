@@ -68,7 +68,7 @@ Run via Actions → CodeQL Security Analysis.
 
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:dev
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev icc-profile-web --host 0.0.0.0 --port 8080
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
 ```
 
 Open http://localhost:8080/

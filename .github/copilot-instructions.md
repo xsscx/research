@@ -157,7 +157,7 @@ Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools aut
 Prereq: `cd mcp-server && pip install -e .`
 
 ### 3. GitHub Copilot Coding Agent (cloud)
-Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow builds native deps automatically.
+Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 8 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
@@ -189,6 +189,9 @@ The script exits with the worst exit code across all 3 commands. Exit 0 = clean,
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
 
 ### Available MCP tools
+
+**Analysis tools (exposed to coding agent via `copilot-mcp-config.json`):**
+
 | Tool | Description |
 |------|-------------|
 | `inspect_profile` | Full structural dump (header, tags, values) |
@@ -199,6 +202,11 @@ Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-pr
 | `compare_profiles` | Side-by-side diff of two profiles |
 | `list_test_profiles` | List available test profiles |
 | `upload_and_analyze` | Accept base64-encoded ICC profile, analyze in any mode |
+
+**Maintainer build tools (local/VS Code only — NOT exposed to coding agent):**
+
+| Tool | Description |
+|------|-------------|
 | `build_tools` | Build native analysis tools from source |
 | `cmake_configure` | Configure iccDEV cmake (build type, sanitizers, generator, tools) |
 | `cmake_build` | Build iccDEV with cmake --build (cross-platform) |
