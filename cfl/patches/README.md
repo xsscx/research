@@ -483,6 +483,19 @@ valid enumerator.
 Fix: use `memcpy(&op.data.size, &envSig, sizeof(op.data.size))` to
 copy the raw bytes without loading the enum type.
 
+### 058 — Heap-buffer-overflow in `InitSelectOp` (IccMpeCalc.cpp)
+
+Patch 058 fixes a **heap-buffer-overflow** in
+`CIccCalculatorFunc::InitSelectOp()` (IccMpeCalc.cpp:3666).  The loop
+`for (n=0; n<nOps && ops[n+1].sig==icSigCaseOp; n++)` accesses
+`ops[n+1]` when `n` reaches `nOps-1`, reading one element past the
+allocated buffer.  The subsequent `ops[n+1].sig==icSigDefaultOp` check
+has the same off-by-one.
+Crash: `crash-ddd475988033f43dea3bb62ad3d6842ee525338b`
+Fuzzer: `icc_applynamedcmm_fuzzer`
+Fix: matches upstream PR #622 — bound the loop to `n<(nOps-1)` and
+return false early when no ops remain after the case list.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
