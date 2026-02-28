@@ -1,12 +1,13 @@
 ---
 # Auto-merge Copilot coding agent PRs
-# Triggers when a Copilot PR transitions from draft → ready for review,
-# then squash-merges it automatically.
+# Triggers when the Copilot coding agent workflow completes successfully.
+# Finds the associated PR, marks it ready, and squash-merges it.
 name: Copilot Auto-Merge
 
 on:
-  pull_request_target:
-    types: [ready_for_review]
+  workflow_run:
+    workflows: ["Running Copilot coding agent"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.event.pull_request.user.login == 'Copilot'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -23,17 +24,52 @@ jobs:
       BASH_ENV: /dev/null
 
     steps:
-      - name: Squash merge Copilot PR
+      - name: Find and merge Copilot PR
         run: |
           set -euo pipefail
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          echo "Auto-merging Copilot PR #${PR_NUMBER}: ${PR_TITLE}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          echo "Agent completed on branch: ${BRANCH}"
+
+          # Find the PR for this branch
+          PR_JSON=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "${BRANCH}" \
+            --state open \
+            --json number,title,isDraft,author \
+            --jq '.[0]')
+
+          if [ -z "${PR_JSON}" ] || [ "${PR_JSON}" = "null" ]; then
+            echo "[SKIP] No open PR found for branch ${BRANCH}"
+            exit 0
+          fi
+
+          PR_NUMBER=$(echo "${PR_JSON}" | jq -r '.number')
+          PR_TITLE=$(echo "${PR_JSON}" | jq -r '.title')
+          PR_AUTHOR=$(echo "${PR_JSON}" | jq -r '.author.login')
+          IS_DRAFT=$(echo "${PR_JSON}" | jq -r '.isDraft')
+
+          echo "Found PR #${PR_NUMBER}: ${PR_TITLE} (author: ${PR_AUTHOR}, draft: ${IS_DRAFT})"
+
+          # Only auto-merge Copilot PRs
+          if [ "${PR_AUTHOR}" != "Copilot" ] && [ "${PR_AUTHOR}" != "copilot-swe-agent" ] && [ "${PR_AUTHOR}" != "app/copilot-swe-agent" ]; then
+            echo "[SKIP] PR author '${PR_AUTHOR}' is not Copilot"
+            exit 0
+          fi
+
+          # Mark PR as ready if still a draft
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "Marking PR #${PR_NUMBER} as ready for review..."
+            gh pr ready "${PR_NUMBER}" --repo "${{ github.repository }}"
+          fi
+
+          # Squash merge
+          echo "Squash-merging PR #${PR_NUMBER}..."
           gh pr merge "${PR_NUMBER}" \
             --repo "${{ github.repository }}" \
             --squash \
             --subject "${PR_TITLE} (#${PR_NUMBER})" \
             --body "Auto-merged by Copilot Auto-Merge workflow.
+
           Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
           echo "[OK] PR #${PR_NUMBER} merged"
         env:

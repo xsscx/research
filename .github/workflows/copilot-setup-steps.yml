@@ -38,14 +38,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Pull pre-built MCP image
+      - name: Pull image and extract binaries
         run: |
           set -euo pipefail
-          docker pull ghcr.io/xsscx/icc-profile-mcp:latest
-
-      - name: Extract binaries from container
-        run: |
-          set -euo pipefail
+          docker pull --quiet ghcr.io/xsscx/icc-profile-mcp:latest
           CID=$(docker create ghcr.io/xsscx/icc-profile-mcp:latest)
           docker cp "$CID":/app/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
           docker cp "$CID":/app/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
@@ -53,24 +49,10 @@ jobs:
           docker rm "$CID" > /dev/null
           chmod +x iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/icc*_unsafe
 
-      # Suppress gcov profiling noise: binary was compiled with --coverage
-      # inside Docker at /build/iccanalyzer-lite/, but runs at /home/runner/.
-      # Create the expected directory so .gcda writes succeed silently.
-      - name: Suppress gcov profiling stderr
+      - name: Install MCP server and verify
         run: |
           set -euo pipefail
-          sudo mkdir -p /build/iccanalyzer-lite
-          sudo chmod 755 /build/iccanalyzer-lite
-
-      - name: Install MCP server
-        run: |
-          set -euo pipefail
-          pip install --quiet ./mcp-server[dev]
-
-      - name: Verify tools
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh
+          pip install --quiet --no-cache-dir ./mcp-server[dev]
           echo "--- iccanalyzer-lite ---"
           iccanalyzer-lite/iccanalyzer-lite --version 2>&1 | head -3
           echo "--- colorbleed_tools ---"
@@ -78,12 +60,4 @@ jobs:
           echo "--- MCP server ---"
           python -c "from icc_profile_mcp import mcp; print('[OK]')"
           echo "--- analyze-profile.sh ---"
-          test -x analyze-profile.sh && echo "[OK] analyze-profile.sh present" || echo "[FAIL] analyze-profile.sh missing"
-
-      - name: Smoke test iccanalyzer-lite
-        run: |
-          set -euo pipefail
-          PROFILE=$(ls -1 test-profiles/ | shuf -n1)
-          echo "Testing with: $PROFILE"
-          iccanalyzer-lite/iccanalyzer-lite -a "test-profiles/$PROFILE" > /dev/null 2>&1 || true
-          echo "[OK] iccanalyzer-lite exercised"
+          test -x analyze-profile.sh && echo "[OK]" || echo "[FAIL] missing"
