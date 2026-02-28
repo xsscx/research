@@ -471,6 +471,18 @@ pMatElem->NumOutputChannels()==3` before accessing the matrix data and
 constants buffers, at both sites.  When dimensions don't match 3×3,
 the code falls through to the safe `CIccPcsStepMpe` path.
 
+### 057 — UBSAN invalid enum load in `SetFunction` envvar op (IccMpeCalc.cpp)
+
+Patch 057 fixes a **UBSAN invalid-enum-load** in
+`CIccCalculatorFunc::SetFunction()` (IccMpeCalc.cpp:3254).  In the
+`icSigEnvVarOp` case, `GetEnvSig()` writes an arbitrary 4-byte value
+into an `icSigCmmEnvVar` variable via `memcpy` (patch 054).  The caller
+then reads the variable with `op.data.size = (icUInt32Number)envSig`,
+which loads the enum — triggering UBSAN when the stored value is not a
+valid enumerator.
+Fix: use `memcpy(&op.data.size, &envSig, sizeof(op.data.size))` to
+copy the raw bytes without loading the enum type.
+
 ## Application
 
 Patches are applied automatically by `build.sh`:
