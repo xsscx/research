@@ -524,6 +524,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite CLI Test Suite Results (Cached Build)
 

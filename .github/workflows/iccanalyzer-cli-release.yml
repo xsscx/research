@@ -578,6 +578,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY_EOF'
           ## iccAnalyzer-lite CLI Test Suite → Release
 

@@ -809,6 +809,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           {
             echo "# Comprehensive Build & Test Results"
             echo ""

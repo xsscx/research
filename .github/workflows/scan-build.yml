@@ -123,6 +123,7 @@ jobs:
         if: matrix.target == 'iccanalyzer-lite'
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cd iccanalyzer-lite
           mkdir -p /tmp/scan-build-results
 
@@ -189,6 +190,7 @@ jobs:
         if: matrix.target == 'colorbleed_tools'
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cd colorbleed_tools
           mkdir -p /tmp/scan-build-results
 

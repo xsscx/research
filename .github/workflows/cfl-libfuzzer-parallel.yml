@@ -443,6 +443,8 @@ jobs:
       - name: Extract recommended dict entries
         if: always()
         run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           mkdir -p dict-updates
           if [ -f /tmp/fuzz-output.log ]; then
             python3 .github/scripts/convert-libfuzzer-dict.py \
