@@ -28,6 +28,13 @@ on:
 
 permissions: {}
 
+defaults:
+  run:
+    shell: bash --noprofile --norc {0}
+
+env:
+  BASH_ENV: /dev/null
+
 jobs:
   codeql-analysis:
     name: CodeQL Security Analysis - ${{ matrix.target }}
@@ -83,6 +90,7 @@ jobs:
       - name: Clone iccDEV repository
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
+          set -euo pipefail
           if [ ! -d "iccDEV" ]; then
             git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
           fi
@@ -117,6 +125,7 @@ jobs:
 
       - name: Build iccDEV libraries
         run: |
+          set -euo pipefail
           cd iccDEV/Build
           cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=OFF
           make -j$(nproc) IccProfLib2 IccXML2
@@ -130,6 +139,7 @@ jobs:
       - name: Build for CodeQL - iccanalyzer-lite
         if: matrix.target == 'iccanalyzer-lite'
         run: |
+          set -euo pipefail
           cd iccanalyzer-lite
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
@@ -151,6 +161,7 @@ jobs:
       - name: Build for CodeQL - colorbleed_tools
         if: matrix.target == 'colorbleed_tools'
         run: |
+          set -euo pipefail
           cd colorbleed_tools
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
@@ -166,6 +177,7 @@ jobs:
       - name: Build for CodeQL - cfl (fuzzers)
         if: matrix.target == 'cfl'
         run: |
+          set -euo pipefail
           # Build all 19 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
           cd cfl
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
@@ -201,6 +213,7 @@ jobs:
 
       - name: Generate Reports
         run: |
+          set -euo pipefail
           mkdir -p reports analysis-bundle/${{ matrix.target }}
 
           SARIF_FILE=$(find codeql-results -name "*.sarif" | head -1)
@@ -238,6 +251,7 @@ jobs:
 
       - name: Generate Summary
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "## CodeQL Analysis: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -267,6 +281,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           cd mcp-server
           pip install -r requirements.txt
 
@@ -285,6 +300,7 @@ jobs:
 
       - name: Generate Reports
         run: |
+          set -euo pipefail
           mkdir -p reports analysis-bundle/mcp-server
           SARIF_FILE=$(find codeql-results-python -name "*.sarif" | head -1)
           if [ -z "$SARIF_FILE" ]; then
@@ -363,6 +379,7 @@ jobs:
     steps:
       - name: Generate Overall Summary
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "# CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
