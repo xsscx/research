@@ -307,7 +307,7 @@ jobs:
       - name: Run ${{ matrix.fuzzer }} (${{ env.FUZZ_SECONDS }}s)
         env:
           FUZZ_SECONDS: ${{ env.FUZZ_SECONDS }}
-          ASAN_OPTIONS: "symbolize=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
+          ASAN_OPTIONS: "symbolize=1:print_scariness=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
           UBSAN_OPTIONS: "symbolize=1:print_stacktrace=1:halt_on_error=0:report_error_type=1"
         run: |
           set -euo pipefail
