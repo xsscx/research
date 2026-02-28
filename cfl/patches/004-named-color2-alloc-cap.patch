@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index ecd6b5d..8a4e05c 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -2852,6 +2852,11 @@
+@@ -2852,6 +2852,11 @@ bool CIccTagNamedColor2::SetSize(icUInt32Number nSize, icInt32Number nDeviceCoor
  
    size_t nColorEntrySize = 32/*rootName*/ + (3/*PCS*/ + 1/*iAny*/ + (size_t)nDeviceCoords)*sizeof(icFloatNumber);
  

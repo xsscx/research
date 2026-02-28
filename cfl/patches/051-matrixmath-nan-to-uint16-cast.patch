@@ -1,8 +1,8 @@
 diff --git a/IccProfLib/IccMatrixMath.cpp b/IccProfLib/IccMatrixMath.cpp
-index a1b2c3d..d4e5f6g 100644
+index e3a7f16..2aa4075 100644
 --- a/IccProfLib/IccMatrixMath.cpp
 +++ b/IccProfLib/IccMatrixMath.cpp
-@@ -74,6 +74,7 @@
+@@ -76,6 +76,7 @@
  
  #include "IccMatrixMath.h"
  #include "IccUtil.h"
@@ -10,7 +10,8 @@ index a1b2c3d..d4e5f6g 100644
  #include <cstring>
  #include <cstdio>
  
-@@ -382,7 +383,11 @@ void CIccMatrixMath::VectorScale(const icFloatNumber *vec)
+@@ -382,7 +383,12 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
+       r[srcRange.steps-1] = 1.0;
      }
      else {
 -      icUInt16Number p = (icUInt16Number)((w - srcStart) / srcScale);

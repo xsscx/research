@@ -1,6 +1,8 @@
---- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp	2026-02-25 09:53:38.976504824 -0500
-+++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp	2026-02-25 09:53:38.994753263 -0500
-@@ -221,7 +221,11 @@
+diff --git a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
+index c8dd391..249860c 100644
+--- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
++++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
+@@ -221,7 +221,11 @@ bool CTiffImg::Create(const char *szFname, unsigned int nWidth, unsigned int nHe
      }
      m_nBytesPerLine = m_nWidth * m_nBytesPerSample * m_nSamples;
  
@@ -13,7 +15,7 @@
  
      if (!m_pStripBuf) {
        Close();
-@@ -312,7 +316,11 @@
+@@ -312,7 +316,11 @@ bool CTiffImg::Open(const char *szFname)
      m_nBytesPerLine = (m_nWidth * m_nBitsPerSample * m_nSamples + 7)>>3;
    }
  

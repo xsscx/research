@@ -1,8 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index d3b44f0..53084a8 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -3249,7 +3249,7 @@
-       case icSigEnvVarOp:
-         {
+@@ -3251,7 +3251,7 @@ const char *CIccCalculatorFunc::ParseFuncDef(const char *szFuncDef, CIccCalcOpLi
            icSigCmmEnvVar envSig;
            if (!scan.GetEnvSig(envSig))
              return NULL;

@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 27e68ba..7033443 100644
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -5617,6 +5617,14 @@
+@@ -5625,6 +5625,14 @@ bool CIccTagGamutBoundaryDesc::Read(icUInt32Number size, CIccIO *pIO)
  	if (m_Triangles)
  		delete [] m_Triangles;	
  	

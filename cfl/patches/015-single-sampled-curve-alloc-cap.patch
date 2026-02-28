@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index d5c898b..4fe041b 100644
 --- a/IccProfLib/IccMpeBasic.cpp
 +++ b/IccProfLib/IccMpeBasic.cpp
-@@ -1484,6 +1484,11 @@
+@@ -1483,6 +1483,11 @@ bool CIccSingleSampledCurve::SetStorageType(icUInt16Number nStorateType)
+ ******************************************************************************/
  bool CIccSingleSampledCurve::SetSize(icUInt32Number nCount, bool bZeroAlloc/*=true*/)
  {
 +  // CFL patch: cap single sampled curve allocation to 128 MB to prevent OOM.
