@@ -42,6 +42,9 @@
 #include <cstring>
 #include <climits>
 #include <cstdlib>
+#include <fcntl.h>
+#include <unistd.h>
+#include <libxml/parser.h>
 
 /** Convert ICC XML profile to binary format in a sandboxed child process. */
 int main(int argc, char* argv[])
@@ -92,16 +95,22 @@ int main(int argc, char* argv[])
         if (!realpath(path.c_str(), resolved)) {
           resolved[0] = '\0';
         }
-        FILE *f = fopen(resolved, "r");
-        if (f) {
-          fclose(f);
-          szRelaxNGDir = resolved;  // use resolved path to avoid TOCTOU
+        int schemaFd = open(resolved, O_RDONLY);
+        if (schemaFd >= 0) {
+          close(schemaFd);
+          szRelaxNGDir = resolved;
         }
       }
     }
   }
 
-  const char* xml_path = argv[1];
+  // Validate input path
+  char resolved_xml[PATH_MAX];
+  if (!realpath(argv[1], resolved_xml)) {
+    fprintf(stderr, "[ColorBleed] Cannot resolve input path: %s\n", argv[1]);
+    return -1;
+  }
+  const char* xml_path = resolved_xml;
   const char* icc_path = safe_dst.c_str();
 
   printf("[ColorBleed] Sandboxed XML→ICC conversion\n");
@@ -123,6 +132,10 @@ int main(int argc, char* argv[])
   }
 
   SandboxResult result = RunSandboxed([&]() -> int {
+    // Disable XXE: prevent external entity loading and network access
+    xmlSubstituteEntitiesDefault(0);
+    xmlLoadExtDtdDefaultValue = 0;
+
     CIccTagCreator::PushFactory(new CIccTagXmlFactory());
     CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 
