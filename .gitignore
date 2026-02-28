@@ -63,6 +63,11 @@ venv/
 *_coverage_report.txt
 **/coverage-report/
 
+# Scratch test artifacts in root
+hbo-*.icc
+sbo-*.icc
+output*.xml
+
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
 leak-*
@@ -107,6 +112,7 @@ colorbleed_tools/test.xml
 
 # CFL build artifacts
 cfl/bin/
+cfl/build/
 cfl/iccDEV/
 colorbleed_tools/iccDEV/
 cfl/default.profraw
