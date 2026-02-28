@@ -41,6 +41,8 @@ TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe)
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 LINK_LIBS="-lxml2 -lz -llzma -lm -lpthread"
+# Allow our icRealloc to override the library's (both are strong symbols)
+LINK_LIBS="-Wl,--allow-multiple-definition $LINK_LIBS"
 
 banner() {
   echo ""
@@ -209,6 +211,11 @@ build_config() {
   fi
 
   # -- Link tools --
+  # Compile OOM guard (icRealloc override) as separate object.
+  # Linked BEFORE static libs so our definition takes precedence.
+  local alloc_obj="$build_dir/ColorBleedAlloc.o"
+  $CXX $tool_flags -c "$REPO_ROOT/ColorBleedAlloc.cpp" -o "$alloc_obj"
+
   mkdir -p "$out_dir"
   cd "$REPO_ROOT"
 
@@ -223,6 +230,7 @@ build_config() {
 
     echo "  Building $bin..."
     $CXX $tool_flags $INCLUDE_FLAGS "$src" \
+      "$alloc_obj" \
       "$lib_prof" "$lib_xml" \
       $LINK_LIBS \
       -o "$out_dir/$bin"
