@@ -25,16 +25,19 @@ NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-# Release flags — no sanitizers (these are user-facing research tools)
-CFLAGS_LIB="-O2 -DNDEBUG"
-CXXFLAGS_TOOL="-O2 -DNDEBUG -std=gnu++17 -Wall"
+# Full instrumentation: ASan + UBSan + coverage (matches CFL fuzzer build)
+COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
+SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize-recover=undefined"
+COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
+CXXFLAGS_TOOL="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS -std=gnu++17 -Wall -frtti"
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
-LINK_LIBS="-Wl,-Bstatic -lz -llzma -Wl,-Bdynamic -lxml2 -lm -lpthread"
+LINK_LIBS="-lxml2 -lz -llzma -lm -lpthread"
 
 TARGETS=(iccToXml_unsafe iccFromXml_unsafe)
 
@@ -144,9 +147,9 @@ cd "$BUILD_DIR"
 cmake Cmake/ \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
-  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_FLAGS="$CFLAGS_LIB" \
-  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB" \
+  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB -frtti" \
   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
   -DENABLE_STATIC_LIBS=ON \
   -DENABLE_SHARED_LIBS=ON \
@@ -158,6 +161,21 @@ make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
 echo ""
 echo "Libraries:"
 ls -lh "$LIB_PROF" "$LIB_XML"
+
+# Verify instrumentation
+ASAN_SYM=$( nm "$LIB_PROF" | grep -c '__asan' || true )
+UBSAN_SYM=$( nm "$LIB_PROF" | grep -c '__ubsan' || true )
+COV_SYM=$(  nm "$LIB_PROF" | grep -c '__profc_\|__llvm_prf' || true )
+echo ""
+echo "Instrumentation (IccProfLib2-static):"
+echo "  ASan symbols:     $ASAN_SYM"
+echo "  UBSan symbols:    $UBSAN_SYM"
+echo "  Coverage symbols: $COV_SYM"
+
+if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ]; then
+  echo "[FAIL] ERROR: Missing instrumentation — aborting"
+  exit 1
+fi
 
 # --- Step 5: Build tools ---
 banner "Step 5: Build ColorBleed tools"
@@ -193,6 +211,11 @@ ls -lh "${TARGETS[@]}" 2>/dev/null || echo "  (none built)"
 echo ""
 echo "SHA256 fingerprints:"
 sha256sum "${TARGETS[@]}" 2>/dev/null || shasum -a 256 "${TARGETS[@]}" 2>/dev/null
+echo ""
+echo "Profraw: set LLVM_PROFILE_FILE to control coverage output"
+echo "  Example:  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw ASAN_OPTIONS=detect_leaks=0 ./iccToXml_unsafe in.icc out.xml"
+echo "  Merge:    llvm-profdata merge -sparse /tmp/colorbleed-*.profraw -o colorbleed.profdata"
+echo "  Report:   llvm-cov report -object ./iccToXml_unsafe -object ./iccFromXml_unsafe -instr-profile=colorbleed.profdata"
 echo ""
 echo "ColorBleed Tooling: Unsafe Load & Store for ICC Profiles"
 echo "Copyright (c) 2021-2026 David H Hoyt LLC"
