@@ -3179,3 +3179,7 @@
 "\x00\x00\x00 "
 "'uz\x00"
 "\x8b\x9atn"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xffQR"
+"\x01\x00Q\x10\x00&\xee\xf5"

@@ -1295,3 +1295,6 @@ htos3_tag="HToS3Tag"
 
 # --- added by convert-libfuzzer-dict.py ---
 "sjis78"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00\x0e"
