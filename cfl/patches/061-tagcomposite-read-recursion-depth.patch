@@ -1,0 +1,35 @@
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -346,6 +346,17 @@
+  ******************************************************************************/
+ bool CIccTagStruct::Read(icUInt32Number size, CIccIO *pIO)
+ {
++  // Guard against unbounded recursion from nested TagStruct/TagArray elements.
++  // A crafted profile can embed TagStruct inside TagStruct to exhaust the stack.
++  static thread_local int s_nReadDepth = 0;
++  const int kMaxReadDepth = 32;
++  if (s_nReadDepth >= kMaxReadDepth)
++    return false;
++  s_nReadDepth++;
++
++  // Use a scope guard to ensure depth is decremented on all return paths.
++  struct DepthGuard { ~DepthGuard() { s_nReadDepth--; } } guard;
++
+   icTagTypeSignature sig;
+ 
+   m_tagSize = size;
+@@ -1214,6 +1225,14 @@
+  ******************************************************************************/
+ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+ {
++  // Guard against unbounded recursion from nested TagArray/TagStruct elements.
++  static thread_local int s_nReadDepth = 0;
++  const int kMaxReadDepth = 32;
++  if (s_nReadDepth >= kMaxReadDepth)
++    return false;
++  s_nReadDepth++;
++  struct DepthGuard { ~DepthGuard() { s_nReadDepth--; } } guard;
++
+   icTagTypeSignature sig;
+ 
+   icUInt32Number headerSize = sizeof(icTagTypeSignature) + 
