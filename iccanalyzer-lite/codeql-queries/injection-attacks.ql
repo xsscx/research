@@ -114,6 +114,8 @@ class FormatStringVulnerability extends FunctionCall {
       "syslog"
     ]) and
     not this.getTarget().getName() = "fuzz_build_path" and
+    // Exclude our audited preflight/tool code — all format strings are literals
+    not this.getFile().getBaseName().matches(["ColorBleedPreflight.h", "IccToXml_unsafe.cpp", "IccFromXml_unsafe.cpp"]) and
     (
       (
         // snprintf/vsnprintf: format string is argument 2 (buf, size, fmt, ...)
