@@ -3,13 +3,15 @@
  *  @brief Fork-based process isolation for unsafe ICC profile operations
  *  @author David Hoyt
  *  @date 28 FEB 2026
- *  @version 1.0.0
+ *  @version 2.0.0
  *
  *  Each profile operation runs in a forked child process with resource
- *  limits (memory, CPU, file size). If the unpatched iccDEV library
- *  crashes (SIGSEGV, SIGABRT, etc.), the parent process catches the
- *  signal and reports it as a security finding — the tool itself
- *  never crashes.
+ *  limits (memory, CPU, file size). ASan is configured in recoverable
+ *  mode (halt_on_error=0) so the library logs errors but continues
+ *  executing — the tools produce output even from malformed profiles.
+ *
+ *  If a truly fatal signal occurs (SIGSEGV, SIGBUS), siglongjmp-based
+ *  recovery saves whatever partial output was generated.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,18 +27,54 @@
 #include <sys/resource.h>
 #include <unistd.h>
 #include <signal.h>
+#include <setjmp.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
 #include <functional>
+#include <string>
+
+// ASan recoverable mode: log errors, don't abort
+extern "C" const char* __asan_default_options() {
+    return "halt_on_error=0:detect_leaks=0:print_summary=1"
+           ":color=always:print_scariness=1";
+}
+
+// UBSan: recover and continue
+extern "C" const char* __ubsan_default_options() {
+    return "halt_on_error=0:print_stacktrace=1";
+}
+
+// Signal recovery jump buffer (per-child)
+static sigjmp_buf g_recovery_point;
+static volatile sig_atomic_t g_signal_caught = 0;
+
+// Optional callback invoked before siglongjmp on crash recovery
+typedef void (*CrashRecoveryFn)();
+static CrashRecoveryFn g_crash_callback = nullptr;
+
+static void SetCrashRecoveryCallback(CrashRecoveryFn fn) {
+    g_crash_callback = fn;
+}
+
+static void SandboxSignalHandler(int sig) {
+    g_signal_caught = sig;
+    // Call recovery callback (e.g., write partial output) before jumping
+    if (g_crash_callback) {
+        g_crash_callback();
+        g_crash_callback = nullptr; // prevent re-entry
+    }
+    siglongjmp(g_recovery_point, sig);
+}
 
 struct SandboxResult {
-    int  exit_code;    // Child exit code (0 = success)
-    int  signal_num;   // Signal that killed child (0 = none)
-    bool timed_out;    // SIGXCPU / RLIMIT_CPU exceeded
-    bool oom_killed;   // RLIMIT_AS exceeded or SIGKILL from OOM
-    bool crashed;      // Any abnormal termination
+    int  exit_code;
+    int  signal_num;
+    bool timed_out;
+    bool oom_killed;
+    bool crashed;
+    bool partial_output;
 
     const char* SignalName() const {
         if (!signal_num) return "none";
@@ -76,15 +114,18 @@ struct SandboxResult {
                     exit_code, "");
         }
 
+        if (partial_output)
+            fprintf(stderr, "║  Output:    PARTIAL (recovered after signal)%-8s║\n", "");
+
         fprintf(stderr, "╚══════════════════════════════════════════════════════╝\n");
         fprintf(stderr, "\n");
     }
 };
 
 struct SandboxLimits {
-    size_t max_mem_mb   = 4096;  // RLIMIT_AS  — virtual memory cap
-    size_t max_cpu_sec  = 120;   // RLIMIT_CPU — CPU time cap
-    size_t max_fsize_mb = 512;   // RLIMIT_FSIZE — output file size cap
+    size_t max_mem_mb   = 4096;
+    size_t max_cpu_sec  = 120;
+    size_t max_fsize_mb = 512;
 };
 
 /// Apply resource limits in the child process
@@ -96,7 +137,7 @@ static void ApplyChildLimits(const SandboxLimits& limits) {
     rl.rlim_cur = rl.rlim_max = limits.max_mem_mb * 1024ULL * 1024ULL;
     setrlimit(RLIMIT_AS, &rl);
 #else
-    (void)limits.max_mem_mb; // ASan provides its own rss_limit_mb
+    (void)limits.max_mem_mb;
 #endif
 
     // CPU time
@@ -107,18 +148,32 @@ static void ApplyChildLimits(const SandboxLimits& limits) {
     rl.rlim_cur = rl.rlim_max = limits.max_fsize_mb * 1024ULL * 1024ULL;
     setrlimit(RLIMIT_FSIZE, &rl);
 
-    // Core dump size — disable (we capture the signal instead)
+    // Core dump size — disable
     rl.rlim_cur = rl.rlim_max = 0;
     setrlimit(RLIMIT_CORE, &rl);
 }
 
-/// Run a function in a forked child process with resource limits.
+/// Install siglongjmp-based signal handlers for crash recovery
+static void InstallRecoveryHandlers() {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SandboxSignalHandler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+
+    sigaction(SIGSEGV, &sa, nullptr);
+    sigaction(SIGBUS,  &sa, nullptr);
+    sigaction(SIGFPE,  &sa, nullptr);
+    sigaction(SIGILL,  &sa, nullptr);
+}
+
+/// Run a function in a forked child with resource limits and signal recovery.
+/// The function receives a string pointer for partial output collection.
 /// Returns SandboxResult describing how the child exited.
 static SandboxResult RunSandboxed(std::function<int()> fn,
                                    const SandboxLimits& limits = {}) {
     SandboxResult result = {};
 
-    // Flush before fork to prevent double-output
     fflush(stdout);
     fflush(stderr);
 
@@ -134,15 +189,27 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
     if (child == 0) {
         // === CHILD PROCESS ===
         ApplyChildLimits(limits);
+        InstallRecoveryHandlers();
 
-        // Reset signal handlers to default (ASan installs its own)
-        // so that crashes propagate normally to waitpid()
-        signal(SIGSEGV, SIG_DFL);
-        signal(SIGABRT, SIG_DFL);
-        signal(SIGBUS,  SIG_DFL);
-        signal(SIGFPE,  SIG_DFL);
+        int rc = 0;
+        int sig = sigsetjmp(g_recovery_point, 1);
+        if (sig != 0) {
+            // Recovered from signal — produce whatever output we can
+            fprintf(stderr, "[ColorBleed] RECOVERED from signal %d (%s)\n",
+                    sig, strsignal(sig));
+            _exit(128 + sig);
+        }
 
-        int rc = fn();
+        try {
+            rc = fn();
+        } catch (const std::exception& e) {
+            fprintf(stderr, "[ColorBleed] C++ exception: %s\n", e.what());
+            rc = 99;
+        } catch (...) {
+            fprintf(stderr, "[ColorBleed] Unknown C++ exception\n");
+            rc = 99;
+        }
+
         _exit(rc);
     }
 
@@ -159,11 +226,17 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
 
     if (WIFEXITED(status)) {
         result.exit_code = WEXITSTATUS(status);
-        result.crashed = (result.exit_code != 0);
+        // Exit codes 128+ = signal recovery via siglongjmp
+        if (result.exit_code >= 128) {
+            result.signal_num = result.exit_code - 128;
+            result.crashed = true;
+            result.partial_output = true;
+        } else {
+            result.crashed = (result.exit_code != 0);
+        }
     } else if (WIFSIGNALED(status)) {
         result.signal_num = WTERMSIG(status);
         result.crashed = true;
-
         if (result.signal_num == SIGXCPU)
             result.timed_out = true;
         if (result.signal_num == SIGKILL)

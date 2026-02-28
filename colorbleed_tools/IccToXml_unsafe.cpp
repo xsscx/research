@@ -38,13 +38,32 @@
 #include "IccLibXMLVer.h"
 #include "ColorBleedSandbox.h"
 
+// Global state for signal recovery — write partial XML on crash
+static std::string* g_xml_output = nullptr;
+static const char*  g_dst_path   = nullptr;
+
+static void WritePartialOutput() {
+  if (!g_xml_output || g_xml_output->empty() || !g_dst_path) return;
+
+  // Append marker showing the XML was truncated by a crash
+  g_xml_output->append("\n<!-- [ColorBleed] XML TRUNCATED: library crash during conversion -->\n");
+
+  FILE* f = fopen(g_dst_path, "wb");
+  if (f) {
+    fwrite(g_xml_output->c_str(), 1, g_xml_output->size(), f);
+    fclose(f);
+    fprintf(stderr, "[ColorBleed] Wrote %zu bytes of partial XML to %s\n",
+            g_xml_output->size(), g_dst_path);
+  }
+}
+
 int main(int argc, char* argv[])
 {
   if (argc<=2) {
     printf("IccToXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
     printf("Usage: IccToXml_unsafe src_icc_profile dest_xml_file\n");
-    printf("  Sandboxed: each conversion runs in an isolated child process\n");
+    printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
     printf("\n");
     return -1;
   }
@@ -55,7 +74,6 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  // Capture args before fork (child inherits full address space)
   const char* src_path = argv[1];
   const char* dst_path = argv[2];
 
@@ -73,7 +91,7 @@ int main(int argc, char* argv[])
     CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 
     CIccProfileXml profile;
-    CIccFileIO srcIO, dstIO;
+    CIccFileIO srcIO;
 
     if (!srcIO.Open(src_path, "r")) {
       fprintf(stderr, "Unable to open '%s'\n", src_path);
@@ -85,20 +103,34 @@ int main(int argc, char* argv[])
       return 2;
     }
 
+    // Set up global state for crash recovery
     std::string xml;
     xml.reserve(40000000);
+    g_xml_output = &xml;
+    g_dst_path = dst_path;
+    SetCrashRecoveryCallback(WritePartialOutput);
 
     if (!profile.ToXml(xml)) {
       fprintf(stderr, "Unable to convert '%s' to xml\n", src_path);
+      // Still try to write whatever we got
+      WritePartialOutput();
+      g_xml_output = nullptr;
       return 3;
     }
 
-    if (!dstIO.Open(dst_path, "wb")) {
+    // Clean path — write full output
+    FILE* f = fopen(dst_path, "wb");
+    if (!f) {
       fprintf(stderr, "Unable to open '%s'\n", dst_path);
+      g_xml_output = nullptr;
       return 4;
     }
 
-    if (dstIO.Write8((char*)xml.c_str(), xml.size()) == xml.size()) {
+    size_t written = fwrite(xml.c_str(), 1, xml.size(), f);
+    fclose(f);
+    g_xml_output = nullptr;
+
+    if (written == xml.size()) {
       printf("XML successfully created (%zu bytes)\n", xml.size());
       printf("[ColorBleed] Sanitize the outputs of Sensitive Information\n");
     } else {
@@ -106,7 +138,6 @@ int main(int argc, char* argv[])
       return 5;
     }
 
-    dstIO.Close();
     return 0;
   }, limits);
 

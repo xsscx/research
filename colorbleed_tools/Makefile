@@ -30,9 +30,9 @@ REPO_ROOT ?= iccDEV
 BUILD_DIR ?= $(REPO_ROOT)/Build
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Compiler settings — full instrumentation: ASan + UBSan + coverage
+# Compiler settings — full instrumentation: ASan + UBSan + coverage (recoverable)
 COMMON_CFLAGS = -g -O1 -fno-omit-frame-pointer
-SANITIZER_FLAGS = -fsanitize=address,undefined -fsanitize-recover=undefined
+SANITIZER_FLAGS = -fsanitize=address,undefined -fsanitize-recover=address,undefined
 COVERAGE_FLAGS = -fprofile-instr-generate -fcoverage-mapping
 CXXFLAGS = $(COMMON_CFLAGS) $(SANITIZER_FLAGS) $(COVERAGE_FLAGS) -std=gnu++17 -Wall -frtti
 INCLUDES = -I$(REPO_ROOT)/IccProfLib \
