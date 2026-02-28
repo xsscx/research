@@ -151,6 +151,7 @@ jobs:
       - name: Apply CFL patches to iccDEV
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
+          set -euo pipefail
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
@@ -201,11 +202,13 @@ jobs:
       - name: Build iccanalyzer-lite
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           bash build.sh
 
       - name: Verify binary
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
           ./iccanalyzer-lite --version
@@ -230,6 +233,7 @@ jobs:
 
       - name: Run all CLI mode tests
         run: |
+          set -euo pipefail
           cd iccanalyzer-lite
           source ../.github/scripts/sanitize-sed.sh
           
@@ -353,6 +357,7 @@ jobs:
       - name: Generate results index
         if: always()
         run: |
+          set -euo pipefail
           cd cli-test-results
           
           INDEX_FILE="index.html"
@@ -470,6 +475,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite CLI Test Suite Results
@@ -511,6 +517,7 @@ jobs:
 
       - name: Check test success
         run: |
+          set -euo pipefail
           if [ "${{ env.grand_failed }}" -eq 0 ]; then
             echo "ALL CLEAN: ${{ env.grand_total }} tests across 5 CLI modes, no findings"
             exit 0

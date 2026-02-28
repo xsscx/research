@@ -38,6 +38,9 @@ jobs:
       run:
         shell: bash --noprofile --norc {0}
 
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -97,6 +100,7 @@ jobs:
 
       - name: Pull image for local testing
         run: |
+          set -euo pipefail
           docker pull ghcr.io/${{ github.repository_owner }}/iccdev-instrumented:latest
 
       - name: "Phase 1: ASAN/UBSAN testing"

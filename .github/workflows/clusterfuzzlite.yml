@@ -290,6 +290,9 @@ jobs:
       run:
         shell: bash --noprofile --norc {0}
 
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout scripts
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -378,6 +381,7 @@ jobs:
 
       - name: Extract recommended dict entries
         run: |
+          set -euo pipefail
           mkdir -p dict-updates
           if [ -f /tmp/fuzz-output.log ]; then
             python3 .github/scripts/convert-libfuzzer-dict.py \
@@ -404,6 +408,12 @@ jobs:
     if: always() && needs.fuzz.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 1
+
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
 
     steps:
       - name: Checkout repository

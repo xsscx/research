@@ -606,6 +606,7 @@ jobs:
 
       - name: Configure Git Environment
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
           if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
@@ -617,11 +618,13 @@ jobs:
 
       - name: Clone iccDEV
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git cfl/iccDEV
 
       - name: Install Dependencies
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
           if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
@@ -635,6 +638,7 @@ jobs:
         env:
           BUILD_TYPE: ${{ matrix.build_type }}
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
           if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
@@ -649,6 +653,7 @@ jobs:
         env:
           BUILD_TYPE: ${{ matrix.build_type }}
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
           if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
@@ -658,6 +663,7 @@ jobs:
 
       - name: Test
         run: |
+          set -euo pipefail
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
           if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
@@ -913,6 +919,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [standard-builds, sanitizer-builds, option-matrix, windows-build, version-header-test, clean-rebuild-test]
     if: always()
+
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
 
     steps:
       - name: Checkout

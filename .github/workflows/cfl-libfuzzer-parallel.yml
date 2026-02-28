@@ -57,6 +57,9 @@ jobs:
       run:
         shell: bash --noprofile --norc {0}
 
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -303,6 +306,9 @@ jobs:
       run:
         shell: bash --noprofile --norc {0}
 
+    env:
+      BASH_ENV: /dev/null
+
     steps:
       - name: Checkout scripts
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -433,6 +439,7 @@ jobs:
       - name: Generate crash checksums
         if: always()
         run: |
+          set -euo pipefail
           if [ -d crash-artifacts ] && [ "$(ls -A crash-artifacts 2>/dev/null)" ]; then
             cd crash-artifacts
             sha256sum * > checksums.sha256 2>/dev/null || true
@@ -499,6 +506,9 @@ jobs:
     defaults:
       run:
         shell: bash --noprofile --norc {0}
+
+    env:
+      BASH_ENV: /dev/null
 
     steps:
       - name: Download all crash artifacts
@@ -591,6 +601,12 @@ jobs:
     if: always() && needs.fuzz.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
 
     steps:
       - name: Checkout repository

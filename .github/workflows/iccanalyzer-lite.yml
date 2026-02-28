@@ -167,6 +167,7 @@ jobs:
       - name: Apply CFL patches to iccDEV
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
+          set -euo pipefail
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
