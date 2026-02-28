@@ -31,6 +31,10 @@ jobs:
     name: Extended ICC Profile Testing (25 profiles)
     runs-on: ubuntu-latest
     
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -123,6 +127,7 @@ jobs:
       - name: Apply CFL patches to iccDEV
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
+          set -euo pipefail
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
@@ -173,11 +178,13 @@ jobs:
       - name: Build iccanalyzer-lite
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           bash build.sh
 
       - name: Verify binary
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
           ./iccanalyzer-lite --version
@@ -188,6 +195,7 @@ jobs:
           INPUT_PROFILE_COUNT: ${{ github.event.inputs.profile_count || '25' }}
         run: |
           # Create test directory
+          set -euo pipefail
           mkdir -p profile-test-results
           
           # Count available profiles in extended-test-profiles directory
@@ -211,6 +219,7 @@ jobs:
 
       - name: Run iccanalyzer-lite on profiles
         run: |
+          set -euo pipefail
           cd iccanalyzer-lite
           
           # Create results directory
@@ -299,6 +308,7 @@ jobs:
 
       - name: Generate results index
         run: |
+          set -euo pipefail
           cd profile-test-results
           
           INDEX_FILE="index.html"
@@ -403,6 +413,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite Extended Testing Results (25 Security POC Profiles)
@@ -436,6 +447,7 @@ jobs:
 
       - name: Check test success
         run: |
+          set -euo pipefail
           if [ "${{ env.failed }}" -eq 0 ]; then
             echo "SUCCESS: All ${{ env.total }} profiles tested successfully"
             exit 0
