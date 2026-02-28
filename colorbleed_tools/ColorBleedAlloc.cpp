@@ -18,6 +18,11 @@
 #include <cstddef>
 
 static constexpr size_t CB_MAX_SINGLE_ALLOC = 256 * 1024 * 1024; // 256 MB
+static constexpr size_t CB_MAX_TOTAL_ALLOC  = 1ULL << 30;       // 1 GB cumulative
+
+// Track cumulative allocation across all icRealloc calls in this process.
+// Thread-local so forked children each get their own counter.
+static thread_local size_t g_total_alloc = 0;
 
 // Must match iccDEV signature: void* icRealloc(void*, size_t)
 void* icRealloc(void *ptr, size_t size) {
@@ -29,8 +34,19 @@ void* icRealloc(void *ptr, size_t size) {
     fprintf(stderr, "[ColorBleed] icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
             ptr, size, (double)size / (1024.0*1024.0),
             CB_MAX_SINGLE_ALLOC / (1024*1024));
-    free(ptr);
+    // Do NOT free(ptr) — caller may still reference the old buffer.
+    // Returning nullptr signals allocation failure without causing UAF.
     return nullptr;
   }
-  return realloc(ptr, size);
+  if (g_total_alloc + size > CB_MAX_TOTAL_ALLOC) {
+    fprintf(stderr, "[ColorBleed] icRealloc cumulative limit exceeded "
+            "(total=%.1fMB + %.1fMB > %zuMB)\n",
+            (double)g_total_alloc / (1024.0*1024.0),
+            (double)size / (1024.0*1024.0),
+            CB_MAX_TOTAL_ALLOC / (1024*1024));
+    return nullptr;
+  }
+  void *result = realloc(ptr, size);
+  if (result) g_total_alloc += size;
+  return result;
 }
