@@ -52,7 +52,7 @@ ASAN_OPTIONS=detect_leaks=0 \
 FUZZ_TMPDIR=/tmp/fuzz-ramdisk \
   /tmp/fuzz-ramdisk/bin/icc_profile_fuzzer \
   -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 \
-  -use_value_profile=1 -max_len=65536 \
+  -use_value_profile=1 -max_len=5242880 \
   -artifact_prefix=/tmp/fuzz-ramdisk/ \
   -dict=/tmp/fuzz-ramdisk/dict/icc_profile_fuzzer.dict \
   /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer/
@@ -121,7 +121,7 @@ cfl/bin/icc_profile_fuzzer -max_total_time=60 -rss_limit_mb=4096 \
 # Single fuzzer on ramdisk (extended 4-hour run with env vars)
 FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
   /tmp/fuzz-ramdisk/bin/icc_toxml_fuzzer -max_total_time=14400 -detect_leaks=0 \
-  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 \
+  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=5242880 \
   -artifact_prefix=/tmp/fuzz-ramdisk/ \
   -dict=/tmp/fuzz-ramdisk/dict/icc_toxml_fuzzer.dict \
   /tmp/fuzz-ramdisk/corpus-icc_toxml_fuzzer/
@@ -130,7 +130,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256 \
 FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
   /tmp/fuzz-ramdisk/bin/icc_link_fuzzer -max_total_time=14400 -detect_leaks=0 \
-  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=65536 \
+  -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 -max_len=5242880 \
   -artifact_prefix=/tmp/fuzz-ramdisk/ \
   -dict=/tmp/fuzz-ramdisk/dict/icc_link_fuzzer.dict \
   /tmp/fuzz-ramdisk/corpus-icc_link_fuzzer/

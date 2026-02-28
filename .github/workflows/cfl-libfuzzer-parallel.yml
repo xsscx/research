@@ -393,7 +393,7 @@ jobs:
             -timeout=30 \
             -rss_limit_mb=4096 \
             -use_value_profile=1 \
-            -max_len=65536 \
+            -max_len=5242880 \
             $DICT_ARG \
             corpus-${FUZZER_NAME} $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log
           EXIT_CODE=$?
