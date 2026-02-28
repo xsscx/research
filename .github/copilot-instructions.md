@@ -145,18 +145,20 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 15 tools (9 analysis + 6 maintainer build) for AI-assisted ICC profile security research. Three integration methods:
+The ICC Profile MCP server exposes 15 tools (8 analysis + 7 maintainer build) for AI-assisted ICC profile security research.
 
-### 1. Copilot CLI (`/mcp` command)
+### Setup — Three integration methods
+
+#### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
 - Command: `python3 mcp-server/icc_profile_mcp.py`
 - Prereq: `cd mcp-server && pip install -e .`
 
-### 2. VS Code Copilot Chat
+#### 2. VS Code Copilot Chat
 Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools auto-register.
 Prereq: `cd mcp-server && pip install -e .`
 
-### 3. GitHub Copilot Coding Agent (cloud)
+#### 3. GitHub Copilot Coding Agent (cloud)
 Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 8 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
 ### ICC file attachments on GitHub Issues
@@ -175,7 +177,7 @@ When an issue asks to analyze an ICC profile, run this ONE command:
 This script runs all 3 analysis commands (`-a`, `-nf`, `-r`), captures exit codes and ASAN/UBSAN output, and writes the complete report to `analysis-reports/`. Do NOT run the commands individually.
 
 Then:
-1. `git add analysis-reports/ && git commit -m "Analysis: <profile-name>"` 
+1. `git add analysis-reports/ && git commit -m "Analysis: <profile-name>"`
 2. Update the PR description with the exit code summary from the script output
 3. If ASAN/UBSAN findings were detected, note them prominently in the PR description
 4. Post each report as a comment on the originating issue:
@@ -188,32 +190,75 @@ The script exits with the worst exit code across all 3 commands. Exit 0 = clean,
 ### Code coverage for a single profile
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
 
-### Available MCP tools
+### Docker Web UI
+
+```bash
+docker pull ghcr.io/xsscx/icc-profile-mcp:dev
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
+```
+
+Open http://localhost:8080/ — provides browser-based access to all analysis tools. The entrypoint command is `web` (not `icc-profile-web`).
+
+### Available MCP Tools — Detailed Reference
 
 **Analysis tools (exposed to coding agent via `copilot-mcp-config.json`):**
 
-| Tool | Description |
-|------|-------------|
-| `inspect_profile` | Full structural dump (header, tags, values) |
-| `analyze_security` | 19-heuristic security scan |
-| `validate_roundtrip` | Bidirectional transform validation |
-| `full_analysis` | Combined security + validation + inspection |
-| `profile_to_xml` | ICC to XML conversion |
-| `compare_profiles` | Side-by-side diff of two profiles |
-| `list_test_profiles` | List available test profiles |
-| `upload_and_analyze` | Accept base64-encoded ICC profile, analyze in any mode |
+| Tool | Args | Description |
+|------|------|-------------|
+| `inspect_profile` | `path` | Full structural dump using ninja-full mode. Shows header fields, tag table, tag data values. Use for understanding what's inside a profile. |
+| `analyze_security` | `path` | 19-heuristic security scan (H1–H19). Detects size inflation, invalid signatures, tag overlaps, CLUT bombs, MPE chain depth, TagArrayType UAF risk, repeat-byte fuzz artifacts, spectral anomalies, date validation. |
+| `validate_roundtrip` | `path` | Check AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs. Validates bidirectional transform completeness required by ICC spec. |
+| `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `./analyze-profile.sh`. |
+| `profile_to_xml` | `path` | ICC→XML conversion via iccToXml. Falls back to iccToXml_unsafe for malformed profiles. Output is the XML representation of the profile. |
+| `compare_profiles` | `path_a`, `path_b` | Ninja-full dump of both profiles with unified diff. Use to spot structural differences between two ICC profiles. |
+| `list_test_profiles` | `directory` (default: `test-profiles`) | Lists `.icc` files in the given directory. Also accepts `extended-test-profiles`. |
+| `upload_and_analyze` | `data_base64`, `filename`, `mode` | Upload a base64-encoded ICC profile and analyze it. Modes: `security` (default), `inspect`, `roundtrip`, `full`, `xml`. Temp file auto-cleaned after analysis. |
 
 **Maintainer build tools (local/VS Code only — NOT exposed to coding agent):**
 
-| Tool | Description |
-|------|-------------|
-| `build_tools` | Build native analysis tools from source |
-| `cmake_configure` | Configure iccDEV cmake (build type, sanitizers, generator, tools) |
-| `cmake_build` | Build iccDEV with cmake --build (cross-platform) |
-| `create_all_profiles` | Run CreateAllProfiles.sh from Testing/ directory |
-| `run_iccdev_tests` | Run RunTests.sh test suite |
-| `cmake_option_matrix` | Test cmake option toggles independently |
-| `windows_build` | Windows MSVC + vcpkg build (native or script generation) |
+| Tool | Args | Description |
+|------|------|-------------|
+| `build_tools` | — | Build native analysis tools from source |
+| `cmake_configure` | build type, sanitizers, generator, tools | Configure iccDEV cmake |
+| `cmake_build` | build dir | Build iccDEV with cmake --build |
+| `create_all_profiles` | — | Run CreateAllProfiles.sh from Testing/ directory |
+| `run_iccdev_tests` | — | Run RunTests.sh test suite |
+| `cmake_option_matrix` | — | Test cmake option toggles independently |
+| `windows_build` | — | Windows MSVC + vcpkg build |
+
+### MCP Tool Usage — Best Practices
+
+**Path resolution**: All analysis tools accept either:
+- An absolute path: `/home/user/profiles/test.icc`
+- A filename from `test-profiles/`: just pass `sRGB_D65_MAT.icc` and the server resolves it
+- A relative path from the repo root: `test-profiles/sRGB_D65_MAT.icc`
+
+**Choosing the right tool**:
+- Start with `analyze_security` for quick security triage (fastest, most actionable)
+- Use `full_analysis` for complete reports destined for issues/PRs
+- Use `inspect_profile` to understand profile structure (what tags exist, header fields)
+- Use `validate_roundtrip` to check spec compliance (AToB↔BToA pairs)
+- Use `profile_to_xml` to get human-readable XML for manual inspection
+- Use `compare_profiles` when investigating regressions or differences between profile versions
+
+**Upload workflow**: When a user provides an ICC profile via an issue attachment:
+1. Download the attachment (may be `.icc.txt` — GitHub blocks `.icc`)
+2. Use `upload_and_analyze` with the file content base64-encoded and `mode: "full"`
+3. Alternatively, save to `test-profiles/` and use `full_analysis` with the path
+
+**Interpreting results**:
+- Exit code 0 = clean profile, no findings
+- Exit code 1 = heuristic finding(s) detected — review the `[WARN]` and `[CRITICAL]` lines
+- Exit code 2 = error (I/O failure, parse error, or profile too malformed to process)
+- Look for `[H1]`–`[H19]` prefixes to identify which heuristic triggered
+- ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
+
+**Automated issue→PR→merge workflow**: When Copilot coding agent processes an analysis issue:
+1. Downloads/locates the ICC profile
+2. Runs `./analyze-profile.sh` (or `full_analysis` MCP tool)
+3. Commits the report to `analysis-reports/`
+4. Opens a PR with exit code summary and ASAN/UBSAN status
+5. The PR can be reviewed and merged (squash merge preferred)
 
 ## Architecture
 
