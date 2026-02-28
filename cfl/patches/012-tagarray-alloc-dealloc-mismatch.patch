@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index 246831d..ed985f7 100644
 --- a/IccProfLib/IccTagComposite.cpp
 +++ b/IccProfLib/IccTagComposite.cpp
-@@ -1034,7 +1034,7 @@
+@@ -1034,7 +1034,7 @@ CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
    m_nSize = 0;
  
    if (tagAry.m_nSize) {
@@ -9,7 +11,7 @@
  
      icUInt32Number i;
      for (i=0; i<tagAry.m_nSize; i++) {
-@@ -1071,7 +1071,7 @@
+@@ -1071,7 +1071,7 @@ CIccTagArray &CIccTagArray::operator=(const CIccTagArray &tagAry)
    Cleanup();
  
    if (tagAry.m_nSize) {

@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 41c8e46..6d868ca 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -2810,7 +2810,7 @@
+@@ -2810,7 +2810,7 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
      if (l==10) {
        sscanf(szToken+1, "%x", &sig);
  
@@ -9,7 +11,7 @@
        return true;
      }
  
-@@ -2824,11 +2824,12 @@
+@@ -2824,11 +2824,12 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
        sig |= 0x20;
      }
  

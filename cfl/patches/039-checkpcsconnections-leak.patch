@@ -1,14 +1,3 @@
---- a/IccProfLib/IccCmm.cpp
-+++ b/IccProfLib/IccCmm.cpp
-@@ -8575,8 +8575,10 @@ icStatusCMM CIccCmm::CheckPCSConnections(bool bUsePCSConversions)
- 
-         rv = pPcs->Connect(last->ptr, next->ptr);
- 
--        if (rv!=icCmmStatOk && rv!=icCmmStatIdentityXform)
-+        if (rv!=icCmmStatOk && rv!=icCmmStatIdentityXform) {
-+          delete pPcs;
-           return rv;
-+        }
- 
-         if (rv!=icCmmStatIdentityXform) {
-           ptr.ptr = pPcs;
+# Patch 039 (checkpcsconnections-leak) is now a no-op.
+# The fix was adopted upstream by InternationalColorConsortium/iccDEV.
+# CheckPcsConnections now properly cleans up pFromPcc/pToPcc on error paths.

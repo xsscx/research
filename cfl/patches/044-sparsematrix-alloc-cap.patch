@@ -1,5 +1,5 @@
 diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
-index 782c8af..52bf175 100644
+index df9740e..56837a8 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
 @@ -4624,6 +4624,10 @@ bool CIccTagSparseMatrixArray::Read(icUInt32Number size, CIccIO *pIO)

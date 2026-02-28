@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 0189adb..37ff1c8 100644
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -450,6 +450,11 @@
+@@ -449,6 +449,11 @@ void CIccTagCurve::DumpLut(std::string &sDescription, const icChar *szName,
+ */
  bool CIccTagCurve::SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt/*=icInitZero*/)
  {
 +  // CFL patch: cap curve allocation to 128 MB to prevent OOM.

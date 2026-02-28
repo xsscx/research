@@ -1,6 +1,8 @@
---- a/IccProfLib/IccMatrixMath.cpp	2026-02-24 20:52:04.855344188 -0500
-+++ IccProfLib/IccMatrixMath.cpp	2026-02-24 20:52:17.171116763 -0500
-@@ -356,6 +356,9 @@
+diff --git a/IccProfLib/IccMatrixMath.cpp b/IccProfLib/IccMatrixMath.cpp
+index 40a7218..e3a7f16 100644
+--- a/IccProfLib/IccMatrixMath.cpp
++++ b/IccProfLib/IccMatrixMath.cpp
+@@ -356,6 +356,9 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
    if (m_nRows != dstRange.steps || m_nCols != srcRange.steps)
      return false;
  
@@ -10,7 +12,7 @@
    icUInt16Number d;
    icFloatNumber srcStart = icF16toF(srcRange.start);
    icFloatNumber srcEnd = icF16toF(srcRange.end);
-@@ -381,6 +384,8 @@
+@@ -381,6 +384,8 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
      else {
        icUInt16Number p = (icUInt16Number)((w - srcStart) / srcScale);
        icFloatNumber p2 = (w - (srcStart + p * srcScale)) / srcScale;

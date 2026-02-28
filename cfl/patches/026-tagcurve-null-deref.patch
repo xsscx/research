@@ -1,6 +1,8 @@
---- a/IccProfLib/IccTagLut.h	2026-02-24 17:20:16.751037136 -0500
-+++ IccProfLib/IccTagLut.h	2026-02-24 17:20:23.831131713 -0500
-@@ -139,8 +139,15 @@
+diff --git a/IccProfLib/IccTagLut.h b/IccProfLib/IccTagLut.h
+index 8dac8f4..fd1f8cb 100644
+--- a/IccProfLib/IccTagLut.h
++++ b/IccProfLib/IccTagLut.h
+@@ -139,8 +139,15 @@ public:
    virtual bool Read(icUInt32Number size, CIccIO *pIO);
    virtual bool Write(CIccIO *pIO);
  

@@ -1,24 +1,23 @@
 diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
-index 41c8e46..b1a2c3d 100644
+index 6d868ca..9b49de4 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -4079,11 +4079,15 @@ bool CIccCalculatorFunc::NeedTempReset(icUInt8Number *tempUsage, icUInt32Number
+@@ -4082,8 +4082,13 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+ * 
  * Return: 
  ******************************************************************************/
 -int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const
 +int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, icUInt32Number nRecurseDepth) const
  {
-   icUInt32Number i, p;
-   int nIfArgs, nElseArgs, nSelArgs, nCaseArgs;
- 
 +  static const icUInt32Number kMaxRecurseDepth = 100;
 +
 +  if (nRecurseDepth > kMaxRecurseDepth)
 +    return -1;
++
+   icUInt32Number i, p;
+   int nIfArgs, nElseArgs, nSelArgs, nCaseArgs;
  
-   for (i=0; i<nOps; i++) {
-     int nArgsUsed = op[i].ArgsUsed(m_pCalc);
-@@ -4128,7 +4132,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+@@ -4131,7 +4136,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
          p = i+2; 
          if (p > nOps)
            return -1;
@@ -27,7 +26,7 @@ index 41c8e46..b1a2c3d 100644
          if (nIfArgs<0)
            return -1;
          incI =op[i].data.size;
-@@ -4136,7 +4140,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+@@ -4139,7 +4144,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
          p = i+2+op[i].data.size;
          if (p > nOps)
            return -1;
@@ -36,7 +35,7 @@ index 41c8e46..b1a2c3d 100644
          if (nElseArgs<0)
            return -1;
          incI += op[i+1].data.size;
-@@ -4149,7 +4153,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+@@ -4152,7 +4157,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
          p = i+1; 
          if (p > nOps)
            return -1;
@@ -45,7 +44,8 @@ index 41c8e46..b1a2c3d 100644
          if (nIfArgs<0)
            return -1;
          nArgs = bCheckUnderflow ? icIntMin(nArgs, nIfArgs) : icIntMax(nArgs, nIfArgs);
-@@ -4185,7 +4189,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+@@ -4188,7 +4193,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+ 
          if (pos > nOps)
            return -1;
 -        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport);
@@ -54,10 +54,11 @@ index 41c8e46..b1a2c3d 100644
            return -1;
  
 diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
-index ad1e40c..f2c3e5a 100644
+index ad1e40c..3e123ed 100644
 --- a/IccProfLib/IccMpeCalc.h
 +++ b/IccProfLib/IccMpeCalc.h
-@@ -388,7 +388,7 @@ protected:
+@@ -388,7 +388,7 @@ public:
+   icFuncParseStatus SetFunction(CIccCalcOpList &opList, std::string &sReport);
  
    icUInt32Number GetMaxTemp() const;
 -  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const;

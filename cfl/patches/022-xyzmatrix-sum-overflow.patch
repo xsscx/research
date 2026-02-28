@@ -1,8 +1,8 @@
 diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
-index 7033443..06008bc 100644
+index 37ff1c8..6328394 100644
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -4919,8 +4919,8 @@ icValidateStatus CIccTagLut8::Validate(std::string sigPath, std::string &sReport
+@@ -4928,8 +4928,8 @@ icValidateStatus CIccTagLut8::Validate(std::string sigPath, std::string &sReport
          rv = icMaxStatus(rv, m_Matrix->Validate(sigPath + icGetSigPath(GetType()), sReport, pProfile));
        }
        else {
@@ -13,7 +13,7 @@ index 7033443..06008bc 100644
          for (icUInt32Number i=0; i<9; i++) {
            sum += m_XYZMatrix[i];
          }
-@@ -5357,8 +5357,8 @@ icValidateStatus CIccTagLut16::Validate(std::string sigPath, std::string &sRepor
+@@ -5366,8 +5366,8 @@ icValidateStatus CIccTagLut16::Validate(std::string sigPath, std::string &sRepor
          rv = icMaxStatus(rv, m_Matrix->Validate(sigPath + icGetSigPath(GetType()), sReport, pProfile));
        }
        else {

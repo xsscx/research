@@ -1,8 +1,8 @@
 diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
-index 1fdc89e..a15c772 100644
+index 2717270..e139037 100644
 --- a/IccProfLib/IccMpeBasic.cpp
 +++ b/IccProfLib/IccMpeBasic.cpp
-@@ -3981,8 +3981,13 @@ void CIccToneMapFunc::Describe(std::string& sDescription, int /* nVerboseness */
+@@ -4003,8 +4003,13 @@ void CIccToneMapFunc::Describe(std::string& sDescription, int /* nVerboseness */
  
    switch (m_nFunctionType) {
    case 0x0000:
@@ -18,7 +18,7 @@ index 1fdc89e..a15c772 100644
      return;
  
    default:
-@@ -4097,7 +4102,7 @@ bool CIccToneMapFunc::Begin()
+@@ -4119,7 +4124,7 @@ bool CIccToneMapFunc::Begin()
  
  icFloatNumber CIccToneMapFunc::Apply(icFloatNumber lumValue, icFloatNumber pixelValue) const
  {

@@ -1,7 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index b6818ba..18d20e0 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
 @@ -950,7 +950,7 @@ public:
-       if (std::isnan(temp) || std::isinf(temp)
          || std::isnan(tempN) || std::isinf(tempN) || fabs(tempN) < epsilon)
          s[j] = 0.0;
        else

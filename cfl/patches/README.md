@@ -285,19 +285,11 @@ because the error path does not `delete pTag`.  The `!pTag` null check
 and `!pTag->Read()` are combined in a single `if`, so `delete pTag` is
 safe (pTag is non-null when Read is reached).
 
-Patch 039 fixes memory leak in `CIccCmm::CheckPCSConnections()`
-(IccCmm.cpp).  When `pPcs->Connect()` returns an error status, the
-function returned without deleting `pPcs`.  The `ConnectFirst()` and
-`ConnectLast()` error paths already had `delete pPcs` — only the
-`Connect()` path was missing it.
+Patch 039 — **NO-OP** (upstream-adopted).  Originally fixed memory leak
+in `CIccCmm::CheckPCSConnections()`.
 
-Patch 040 fixes memory leak in `CIccPcsXform::Optimize()` (IccCmm.cpp).
-The optimization loop identifies identity PCS steps and skips them from
-the `newSteps` list.  However, the skipped step's pointer was never
-deleted — it was silently dropped when `ptr.ptr = next->ptr` overwrote
-it.  Two leak sites: the inner concat-failure path (line 2512) and the
-final-element check after the loop (line 2518).  Fix: add `else { delete
-ptr.ptr; }` at both sites.
+Patch 040 — **NO-OP** (upstream-adopted).  Originally fixed memory leak
+in `CIccPcsXform::Optimize()`.
 
 Patch 041 fixes heap-buffer-overflow in all 8 CLUT interpolation functions
 (Interp1d through InterpND) in IccTagLut.cpp.  The `NoClip` function
@@ -483,18 +475,10 @@ valid enumerator.
 Fix: use `memcpy(&op.data.size, &envSig, sizeof(op.data.size))` to
 copy the raw bytes without loading the enum type.
 
-### 058 — Heap-buffer-overflow in `InitSelectOp` (IccMpeCalc.cpp)
+### 058 — Heap-buffer-overflow in `InitSelectOp` (IccMpeCalc.cpp) — NO-OP
 
-Patch 058 fixes a **heap-buffer-overflow** in
-`CIccCalculatorFunc::InitSelectOp()` (IccMpeCalc.cpp:3666).  The loop
-`for (n=0; n<nOps && ops[n+1].sig==icSigCaseOp; n++)` accesses
-`ops[n+1]` when `n` reaches `nOps-1`, reading one element past the
-allocated buffer.  The subsequent `ops[n+1].sig==icSigDefaultOp` check
-has the same off-by-one.
-Crash: `crash-ddd475988033f43dea3bb62ad3d6842ee525338b`
-Fuzzer: `icc_applynamedcmm_fuzzer`
-Fix: matches upstream PR #622 — bound the loop to `n<(nOps-1)` and
-return false early when no ops remain after the case list.
+Patch 058 is a **NO-OP** (upstream-adopted via PR #622).  Originally
+fixed heap-buffer-overflow in `CIccCalculatorFunc::InitSelectOp()`.
 
 ## Application
 

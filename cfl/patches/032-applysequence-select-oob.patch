@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1b6f1be..b6818ba 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -3772,6 +3772,9 @@
+@@ -3774,6 +3774,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
            if (os.idx+1 + ops[nDefOff].extra >= nOps)
              return false;
  
@@ -10,7 +12,7 @@
            if (!ApplySequence(pApply, ops[nDefOff].data.size, &ops[os.idx+1 + ops[nDefOff].extra]))
              break;
          }
-@@ -3782,6 +3785,9 @@
+@@ -3784,6 +3787,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
          if (nOff >= nOps) 
            return false;
  
@@ -20,7 +22,7 @@
          if (!ApplySequence(pApply, ops[nOff].data.size, &ops[os.idx+1 + ops[nOff].extra]))
            break;
        }
-@@ -3795,6 +3801,9 @@
+@@ -3797,6 +3803,9 @@ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32N
        else if (op->extra) {
          unsigned long nOff = os.idx + op->extra;
  

@@ -1,3 +1,5 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 4fe041b..2717270 100644
 --- a/IccProfLib/IccMpeBasic.cpp
 +++ b/IccProfLib/IccMpeBasic.cpp
 @@ -1207,6 +1207,10 @@ icFloatNumber CIccSampledCurveSegment::Apply(icFloatNumber v) const
@@ -11,7 +13,7 @@
    icUInt32Number index = (icUInt32Number) pos;
    icFloatNumber remainder = pos - (icFloatNumber)index;
  
-@@ -1830,6 +1834,10 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
+@@ -1828,6 +1832,10 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
    }
  
    icFloatNumber pos = (v-m_firstEntry)/m_range * m_last;
@@ -22,7 +24,7 @@
    icUInt32Number index = (icUInt32Number) pos;
    icFloatNumber remainder = pos - (icFloatNumber)index;
  
-@@ -2440,6 +2448,10 @@ icFloatNumber CIccSampledCalculatorCurve::Apply(icFloatNumber v) const
+@@ -2438,6 +2446,10 @@ icFloatNumber CIccSampledCalculatorCurve::Apply(icFloatNumber v) const
    }
  
    icFloatNumber pos = (v - m_firstEntry) / m_range * m_last;

@@ -1,8 +1,8 @@
 diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
-index ecd6b5d..1a23687 100644
+index b0184cc..fc31cd7 100644
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -8935,7 +8935,10 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+@@ -8971,7 +8971,10 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
    sDescription += buf;
  
    for (i=0; i<m_nCount; i++) {
@@ -14,7 +14,7 @@ index ecd6b5d..1a23687 100644
      if (nLen>nMaxLen)
        nMaxLen =nLen;
    }
-@@ -8950,10 +8953,16 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
+@@ -8986,10 +8989,16 @@ void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerbosene
      sDescription += buf;
    }
    for (i=0; i<m_nCount; i++) {

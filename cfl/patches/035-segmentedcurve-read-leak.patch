@@ -1,11 +1,12 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 0cc06b1..f3d6c0d 100644
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -1311,7 +1311,8 @@ bool CIccTagSegmentedCurve::Read(icUInt32Number size, CIccIO *pIO)
- 
+@@ -1314,6 +1314,7 @@ bool CIccTagSegmentedCurve::Read(icUInt32Number size, CIccIO *pIO)
       return true;
     }
  
--   return false;
 +   delete pCurve;
-+   return false;
+    return false;
  }
+ 

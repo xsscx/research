@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 9a9819b..fb5c237 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -3505,8 +3505,12 @@
+@@ -3505,8 +3505,12 @@ bool CIccCalculatorFunc::Read(icUInt32Number size, CIccIO *pIO)
  
      icUInt32Number i;
      for (i=0; i<m_nOps; i++) {

@@ -1,6 +1,8 @@
---- a/IccProfLib/IccMpeCalc.cpp	2026-02-24 16:47:35.394174624 -0500
-+++ IccProfLib/IccMpeCalc.cpp	2026-02-24 16:47:44.901227925 -0500
-@@ -329,18 +329,18 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index fbc8c1f..1b6f1be 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -329,18 +329,18 @@ class CIccOpDefEnvVar : public IIccOpDef
  public:
    virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
    {

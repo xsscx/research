@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index ed985f7..4aaddc7 100644
 --- a/IccProfLib/IccTagComposite.cpp
 +++ b/IccProfLib/IccTagComposite.cpp
-@@ -1301,6 +1301,7 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+@@ -1300,6 +1300,7 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+         if (pTag) {
            if (!pTag->Read(tagPos[i].size, pIO)) {
              delete [] tagPos;
 +            delete pTag;

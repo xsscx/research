@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 18d20e0..2d2712f 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -4739,6 +4739,7 @@ bool CIccMpeCalculator::Read(icUInt32Number size, CIccIO *pIO)
+@@ -4740,6 +4740,7 @@ bool CIccMpeCalculator::Read(icUInt32Number size, CIccIO *pIO)
+       pIO->Seek(startPos + pos->offset, icSeekSet);
        if (!pElem->Read(pos->size, pIO)) {
          free(posvals);
 +        delete pElem;

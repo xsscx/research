@@ -1,6 +1,9 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 2d2712f..7bb3a4a 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -1212,7 +1212,7 @@
+@@ -1212,7 +1212,7 @@ public:
+             s[j] = (icFloatNumber)std::numeric_limits<int>::lowest();
        }
        else
 -        s[j] = (icFloatNumber)((int)temp);

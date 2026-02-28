@@ -1,3 +1,5 @@
+diff --git a/IccProfLib/IccTagDict.cpp b/IccProfLib/IccTagDict.cpp
+index 3943f9a..17f99ea 100644
 --- a/IccProfLib/IccTagDict.cpp
 +++ b/IccProfLib/IccTagDict.cpp
 @@ -757,6 +757,7 @@ bool CIccTagDict::Read(icUInt32Number size, CIccIO *pIO)
