@@ -195,7 +195,7 @@ for f in "${FUZZERS[@]}"; do
       -timeout="$FUZZER_TIMEOUT" \
       -rss_limit_mb="$RSS_LIMIT" \
       -use_value_profile=1 \
-      -max_len=65536 \
+      -max_len=5242880 \
       -jobs="$WORKERS" \
       -workers="$WORKERS" \
       -artifact_prefix="$RAMDISK/" \
