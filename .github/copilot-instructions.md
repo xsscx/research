@@ -223,7 +223,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **iccanalyzer-lite/** — 19-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 15 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — 52 security patches (001–052) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, and alloc/dealloc mismatch corrections. See `cfl/patches/README.md` for full details.
+- **cfl/patches/** — 61 security patches (001–061) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, and recursion depth limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
 
@@ -307,7 +307,7 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 - Default binding: 127.0.0.1 (not 0.0.0.0)
 
 ### CI workflows
-26 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
+30 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 19 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
@@ -327,3 +327,29 @@ With `set -euo pipefail`, non-zero exits from `timeout` abort the script. Use `E
 
 ### Compiler
 All C++ code requires clang/clang++. GCC is used only in the colorbleed_tools CI matrix build.
+
+### Workflow Shell Prologue
+All workflow `run:` steps must follow the governance shell prologue template:
+```yaml
+shell: bash --noprofile --norc {0}
+env:
+  BASH_ENV: /dev/null
+run: |
+  set -euo pipefail
+  source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+```
+- `shell` and `BASH_ENV` may be set at the job level via `defaults.run.shell` and job-level `env`
+- `set -euo pipefail` must be the first line of every `run:` block
+- `source .github/scripts/sanitize-sed.sh` is required in every step that writes to `$GITHUB_STEP_SUMMARY`
+- Reference: `https://github.com/xsscx/governance/blob/main/actions/hoyt-bash-shell-prologue-actions.md`
+
+### Workflow Output Sanitization
+All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized against injection:
+- Source `.github/scripts/sanitize-sed.sh` to make sanitization functions available
+- Use `sanitize_line()` for single-line user-controllable strings (strips control chars, HTML-escapes, truncates)
+- Use `sanitize_print()` for multi-line output (preserves LF, collapses blanks, HTML-escapes)
+- Use `sanitize_codeblock()` inside markdown fenced code blocks (strips control chars, no HTML escape)
+- Use `sanitize_ref()` for branch/tag names in filenames or concurrency groups
+- Use `sanitize_filename()` for safe filenames (no directory traversal)
+- User-controllable inputs include: `${{ inputs.* }}`, `${{ github.event.* }}`, `${{ steps.*.outputs.* }}`, command output via `$(...)`, file contents via `cat`
+- Static strings (hardcoded labels, job status values) are safe but the sanitizer should still be sourced for defense-in-depth

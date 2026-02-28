@@ -134,6 +134,7 @@ jobs:
       - name: Summary
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           {
             echo "## MCP Server Docker Build"
             echo ""

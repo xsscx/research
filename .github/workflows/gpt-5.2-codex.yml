@@ -185,6 +185,7 @@ jobs:
 
       - name: Generate Summary
         run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "## CodeQL Analysis: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
@@ -202,6 +203,7 @@ jobs:
     steps:
       - name: Generate Overall Summary
         run: |
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "# CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
