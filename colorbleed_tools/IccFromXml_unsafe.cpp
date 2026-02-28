@@ -36,6 +36,7 @@
 #include "IccUtil.h"
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
+#include "ColorBleedPreflight.h"
 #include "ColorBleedSandbox.h"
 #include <cstring>
 #include <climits>
@@ -106,10 +107,19 @@ int main(int argc, char* argv[])
   printf("[ColorBleed] Input:  %s\n", xml_path);
   printf("[ColorBleed] Output: %s\n", icc_path);
 
+  // Pre-flight validation (file size, XXE detection — no iccDEV calls)
+  PreflightResult preflight = PreflightValidateXML(xml_path);
+  preflight.Report(xml_path);
+
   SandboxLimits limits;
   limits.max_mem_mb  = 4096;
   limits.max_cpu_sec = 120;
   limits.max_fsize_mb = 512;
+
+  if (preflight.worst == PreflightSeverity::CRITICAL) {
+    limits.max_cpu_sec  = 30;
+    limits.max_fsize_mb = 128;
+  }
 
   SandboxResult result = RunSandboxed([&]() -> int {
     CIccTagCreator::PushFactory(new CIccTagXmlFactory());
