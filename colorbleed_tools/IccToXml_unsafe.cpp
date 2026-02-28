@@ -36,6 +36,7 @@
 #include "IccIO.h"
 #include "IccProfLibVer.h"
 #include "IccLibXMLVer.h"
+#define COLORBLEED_SKIP_XML_PREFLIGHT
 #include "ColorBleedPreflight.h"
 #include "ColorBleedSandbox.h"
 

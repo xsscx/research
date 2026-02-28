@@ -55,7 +55,7 @@ static volatile sig_atomic_t g_signal_caught = 0;
 typedef void (*CrashRecoveryFn)();
 static CrashRecoveryFn g_crash_callback = nullptr;
 
-static void SetCrashRecoveryCallback(CrashRecoveryFn fn) {
+static void __attribute__((unused)) SetCrashRecoveryCallback(CrashRecoveryFn fn) {
     g_crash_callback = fn;
 }
 
