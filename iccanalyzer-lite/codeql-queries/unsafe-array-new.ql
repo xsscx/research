@@ -19,6 +19,7 @@ import cpp
 
 /**
  * Holds when a NewArrayExpr uses std::nothrow placement.
+ * Multiple detection strategies needed — see unsafe-scalar-new.ql.
  */
 predicate hasNothrowArray(NewArrayExpr alloc) {
   exists(alloc.getPlacementPointer())
@@ -28,6 +29,12 @@ predicate hasNothrowArray(NewArrayExpr alloc) {
   exists(Expr arg |
     arg = alloc.getAChild() and
     arg.getType().stripType().getName() = "nothrow_t"
+  )
+  or
+  // Check allocator function signature: operator new[](size_t, const nothrow_t&)
+  exists(FunctionCall allocCall |
+    allocCall = alloc.getAllocatorCall() and
+    allocCall.getTarget().getAParameter().getType().stripType().getName() = "nothrow_t"
   )
 }
 
