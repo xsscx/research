@@ -34,6 +34,7 @@
 #include <cerrno>
 #include <functional>
 #include <string>
+#include <climits>
 
 // ASan recoverable mode: log errors, don't abort
 extern "C" const char* __asan_default_options() {
@@ -60,11 +61,9 @@ static void SetCrashRecoveryCallback(CrashRecoveryFn fn) {
 
 static void SandboxSignalHandler(int sig) {
     g_signal_caught = sig;
-    // Call recovery callback (e.g., write partial output) before jumping
-    if (g_crash_callback) {
-        g_crash_callback();
-        g_crash_callback = nullptr; // prevent re-entry
-    }
+    // Do NOT call g_crash_callback here — fopen/fwrite/fprintf are not
+    // async-signal-safe. The callback runs after siglongjmp returns
+    // in normal control flow (see RunSandboxed child block).
     siglongjmp(g_recovery_point, sig);
 }
 
@@ -151,6 +150,18 @@ static void ApplyChildLimits(const SandboxLimits& limits) {
     // Core dump size — disable
     rl.rlim_cur = rl.rlim_max = 0;
     setrlimit(RLIMIT_CORE, &rl);
+
+    // File descriptors — cap at 64 (stdin/stdout/stderr + input/output + library needs)
+    rl.rlim_cur = rl.rlim_max = 64;
+    setrlimit(RLIMIT_NOFILE, &rl);
+
+    // Child processes — prevent fork bombs from library code.
+    // Skip when ASan is active: ASan's symbolizer forks llvm-symbolizer
+    // and RLIMIT_NPROC counts ALL user processes, not just children.
+#if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
+    rl.rlim_cur = rl.rlim_max = 0;
+    setrlimit(RLIMIT_NPROC, &rl);
+#endif
 }
 
 /// Install siglongjmp-based signal handlers for crash recovery
@@ -194,7 +205,12 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
         int rc = 0;
         int sig = sigsetjmp(g_recovery_point, 1);
         if (sig != 0) {
-            // Recovered from signal — produce whatever output we can
+            // Recovered from signal — now in normal control flow,
+            // safe to do I/O (fopen/fwrite/fprintf)
+            if (g_crash_callback) {
+                g_crash_callback();
+                g_crash_callback = nullptr;
+            }
             fprintf(stderr, "[ColorBleed] RECOVERED from signal %d (%s)\n",
                     sig, strsignal(sig));
             _exit(128 + sig);
@@ -244,6 +260,55 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
     }
 
     return result;
+}
+
+/// Validate output path: no traversal, resolves to a regular file location,
+/// parent directory must exist. Returns empty string on failure.
+static std::string ValidateOutputPath(const char* raw_path) {
+    if (!raw_path || raw_path[0] == '\0') return "";
+
+    // Reject traversal sequences
+    if (strstr(raw_path, "..") != nullptr) {
+        fprintf(stderr, "[ColorBleed] ERROR: output path must not contain '..'\n");
+        return "";
+    }
+
+    // Reject null bytes (truncation attack)
+    if (strlen(raw_path) != strnlen(raw_path, PATH_MAX)) {
+        fprintf(stderr, "[ColorBleed] ERROR: output path contains null bytes\n");
+        return "";
+    }
+
+    // Resolve the parent directory to prevent symlink attacks
+    std::string path_str(raw_path);
+    size_t last_sep = path_str.find_last_of('/');
+    std::string parent = (last_sep != std::string::npos)
+        ? path_str.substr(0, last_sep) : ".";
+
+    char resolved_parent[PATH_MAX];
+    if (!realpath(parent.c_str(), resolved_parent)) {
+        fprintf(stderr, "[ColorBleed] ERROR: cannot resolve parent directory '%s': %s\n",
+                parent.c_str(), strerror(errno));
+        return "";
+    }
+
+    // Reject writes to sensitive system directories
+    const char* blocked_prefixes[] = {
+        "/etc", "/proc", "/sys", "/dev", "/boot", "/sbin", "/usr", "/var", nullptr
+    };
+    for (const char** bp = blocked_prefixes; *bp; bp++) {
+        if (strncmp(resolved_parent, *bp, strlen(*bp)) == 0) {
+            fprintf(stderr, "[ColorBleed] ERROR: output to system directory '%s' blocked\n",
+                    resolved_parent);
+            return "";
+        }
+    }
+
+    // Build resolved output path
+    std::string filename = (last_sep != std::string::npos)
+        ? path_str.substr(last_sep + 1) : path_str;
+    std::string resolved = std::string(resolved_parent) + "/" + filename;
+    return resolved;
 }
 
 #endif // COLORBLEED_SANDBOX_H
