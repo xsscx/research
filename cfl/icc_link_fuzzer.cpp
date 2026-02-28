@@ -41,16 +41,30 @@
 #include <fcntl.h>
 #include "IccCmm.h"
 #include "IccUtil.h"
+#include "IccProfile.h"
+#include "IccDefs.h"
+#include "IccApplyBPC.h"
 #include <climits>
 #include "fuzz_utils.h"
+
+// Aligned with iccDEV/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp:
+// Uses ReadIccProfile() + AddXform(CIccProfile*, ...) with full parameter set
+// including icXformLutType, bUseD2BxB2DxTags, BPC hints, and bUseSubProfile.
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 258 || size > 2 * 1024 * 1024) return 0;
   
   // Derive parameters from trailing bytes to preserve ICC header structure
+  // Matches iccApplyToLink parameter derivation from command-line args
   icRenderingIntent intent = (icRenderingIntent)(data[size - 1] % 4);
   icXformInterp interp = (data[size - 2] & 1) ? icInterpLinear : icInterpTetrahedral;
-  bool useAbsPCS = (data[size - 3] & 0x01);
+  uint8_t ctrl = data[size - 3];
+  bool bFirstTransform = (ctrl & 0x01);        // iccApplyToLink: first_transform arg
+  bool bUseD2BxB2DxTags = !(ctrl & 0x02);      // iccApplyToLink: nType==1 disables
+  bool bUseBPC = (ctrl & 0x04);                 // iccApplyToLink: nType==4 enables BPC
+  bool bUseLuminance = (ctrl & 0x08);           // iccApplyToLink: +100 intent modifier
+  bool bUseSubProfile = (ctrl & 0x10);          // iccApplyToLink: +1000 intent modifier
+  icXformLutType nLutType = (ctrl & 0x20) ? icXformLutPreview : icXformLutColor;
   
   // Split input into two profiles (no leading byte skip)
   size_t mid = size / 2;
@@ -75,46 +89,88 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   close(fd1);
   close(fd2);
   
-  // Test profile linking with varied parameters
-  CIccCmm cmm(icSigUnknownData, icSigUnknownData, useAbsPCS);
-  if (cmm.AddXform(tmp1, intent, interp) == icCmmStatOk) {
-    if (cmm.AddXform(tmp2, intent, interp) == icCmmStatOk) {
-      if (cmm.Begin() == icCmmStatOk) {
-        int nSrc = icGetSpaceSamples(cmm.GetSourceSpace());
-        int nDst = icGetSpaceSamples(cmm.GetDestSpace());
-        if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
-          unlink(tmp1);
-          unlink(tmp2);
-          return 0;
-        }
-
-        // Test varied color values through chain
-        icFloatNumber in[16], out[16];
-        for (int i = 0; i < nSrc; i++)
-          in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
-        cmm.Apply(out, in);
-
-        // Test boundary values
-        for (int i = 0; i < nSrc; i++) in[i] = 0.0f;
-        cmm.Apply(out, in);
-        for (int i = 0; i < nSrc; i++) in[i] = 1.0f;
-        cmm.Apply(out, in);
-
-        // Test mid-range
-        for (int i = 0; i < nSrc; i++) in[i] = 0.5f;
-        cmm.Apply(out, in);
-
-        // Test out-of-gamut values
-        for (int i = 0; i < nSrc; i++) in[i] = (i % 2) ? -0.1f : 1.1f;
-        cmm.Apply(out, in);
-
-        // Exercise CMM chain info
-        (void)cmm.GetNumXforms();
-        (void)cmm.GetSourceSpace();
-        (void)cmm.GetDestSpace();
-        (void)cmm.Valid();
-      }
+  // Use ReadIccProfile + AddXform(CIccProfile*,...) matching iccApplyToLink
+  CIccProfile *pProf1 = ReadIccProfile(tmp1, bUseSubProfile);
+  CIccProfile *pProf2 = ReadIccProfile(tmp2, bUseSubProfile);
+  
+  if (!pProf1 || !pProf2) {
+    delete pProf1;
+    delete pProf2;
+    unlink(tmp1);
+    unlink(tmp2);
+    return 0;
+  }
+  
+  // Matches iccApplyToLink: CIccCmm(icSigUnknownData, icSigUnknownData, bFirstTransform)
+  CIccCmm cmm(icSigUnknownData, icSigUnknownData, bFirstTransform);
+  
+  // Build hints matching iccApplyToLink hint construction
+  CIccCreateXformHintManager hint1, hint2;
+  if (bUseBPC) {
+    hint1.AddHint(new CIccApplyBPCHint());
+    hint2.AddHint(new CIccApplyBPCHint());
+  }
+  if (bUseLuminance) {
+    hint1.AddHint(new CIccLuminanceMatchingHint());
+    hint2.AddHint(new CIccLuminanceMatchingHint());
+  }
+  
+  // Note: AddXform(CIccProfile*,...) takes ownership of profile on success
+  icStatusCMM stat1 = cmm.AddXform(pProf1, intent, interp, NULL,
+                                    nLutType, bUseD2BxB2DxTags, &hint1);
+  if (stat1 != icCmmStatOk) {
+    delete pProf1;
+    delete pProf2;
+    unlink(tmp1);
+    unlink(tmp2);
+    return 0;
+  }
+  // pProf1 now owned by cmm
+  
+  icStatusCMM stat2 = cmm.AddXform(pProf2, intent, interp, NULL,
+                                    nLutType, bUseD2BxB2DxTags, &hint2);
+  if (stat2 != icCmmStatOk) {
+    delete pProf2;
+    unlink(tmp1);
+    unlink(tmp2);
+    return 0;
+  }
+  // pProf2 now owned by cmm
+  
+  if (cmm.Begin() == icCmmStatOk) {
+    int nSrc = icGetSpaceSamples(cmm.GetSourceSpace());
+    int nDst = icGetSpaceSamples(cmm.GetDestSpace());
+    if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
+      unlink(tmp1);
+      unlink(tmp2);
+      return 0;
     }
+
+    // Test varied color values through chain
+    icFloatNumber in[16], out[16];
+    for (int i = 0; i < nSrc; i++)
+      in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
+    cmm.Apply(out, in);
+
+    // Test boundary values
+    for (int i = 0; i < nSrc; i++) in[i] = 0.0f;
+    cmm.Apply(out, in);
+    for (int i = 0; i < nSrc; i++) in[i] = 1.0f;
+    cmm.Apply(out, in);
+
+    // Test mid-range
+    for (int i = 0; i < nSrc; i++) in[i] = 0.5f;
+    cmm.Apply(out, in);
+
+    // Test out-of-gamut values
+    for (int i = 0; i < nSrc; i++) in[i] = (i % 2) ? -0.1f : 1.1f;
+    cmm.Apply(out, in);
+
+    // Exercise CMM chain info matching iccApplyToLink post-Begin usage
+    (void)cmm.GetNumXforms();
+    (void)cmm.GetSourceSpace();
+    (void)cmm.GetDestSpace();
+    (void)cmm.Valid();
   }
   
   unlink(tmp1);
