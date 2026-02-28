@@ -45,6 +45,7 @@
 #include "IccDefs.h"
 #include "IccApplyBPC.h"
 #include <climits>
+#include <new>
 #include "fuzz_utils.h"
 
 // Aligned with iccDEV/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp:
@@ -107,12 +108,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Build hints matching iccApplyToLink hint construction
   CIccCreateXformHintManager hint1, hint2;
   if (bUseBPC) {
-    hint1.AddHint(new CIccApplyBPCHint());
-    hint2.AddHint(new CIccApplyBPCHint());
+    auto* h1 = new (std::nothrow) CIccApplyBPCHint();
+    auto* h2 = new (std::nothrow) CIccApplyBPCHint();
+    if (!h1 || !h2) { delete h1; delete h2; delete pProf1; delete pProf2; unlink(tmp1); unlink(tmp2); return 0; }
+    hint1.AddHint(h1);
+    hint2.AddHint(h2);
   }
   if (bUseLuminance) {
-    hint1.AddHint(new CIccLuminanceMatchingHint());
-    hint2.AddHint(new CIccLuminanceMatchingHint());
+    auto* h1 = new (std::nothrow) CIccLuminanceMatchingHint();
+    auto* h2 = new (std::nothrow) CIccLuminanceMatchingHint();
+    if (!h1 || !h2) { delete h1; delete h2; delete pProf1; delete pProf2; unlink(tmp1); unlink(tmp2); return 0; }
+    hint1.AddHint(h1);
+    hint2.AddHint(h2);
   }
   
   // Note: AddXform(CIccProfile*,...) takes ownership of profile on success

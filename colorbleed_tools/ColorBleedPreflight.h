@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // ── Resource limits (aligned with iccanalyzer-lite) ──
 static constexpr uint64_t CB_MAX_PROFILE_SIZE   = 1ULL << 30;   // 1 GiB
@@ -51,6 +53,15 @@ static inline bool SafeMul64(uint64_t *r, uint64_t a, uint64_t b) {
   if (a > UINT64_MAX / b) return false;
   *r = a * b;
   return true;
+}
+
+// ── Sanitize a 4-byte ICC signature for safe display ──
+static inline void SanitizeSig4(const uint8_t* raw, char out[5]) {
+  for (int i = 0; i < 4; i++) {
+    uint8_t c = raw[i];
+    out[i] = (c >= 0x20 && c <= 0x7E) ? static_cast<char>(c) : '?';
+  }
+  out[4] = '\0';
 }
 
 // ── Big-endian readers ──
@@ -107,11 +118,19 @@ struct PreflightResult {
 static PreflightResult PreflightValidateICC(const char* filename) {
   PreflightResult result;
 
-  // Get actual file size
+  // Open first, then fstat on the fd to avoid TOCTOU
+  int fd = open(filename, O_RDONLY);
+  if (fd < 0) {
+    result.AddWarning("H0", "Cannot open file",
+                      PreflightSeverity::CRITICAL);
+    return result;
+  }
+
   struct stat st;
-  if (stat(filename, &st) != 0 || !S_ISREG(st.st_mode)) {
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
     result.AddWarning("H0", "Cannot stat file or not a regular file",
                       PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
   size_t fileSize = st.st_size;
@@ -119,12 +138,14 @@ static PreflightResult PreflightValidateICC(const char* filename) {
   if (fileSize < 132) {
     result.AddWarning("H0", "File too small for ICC header + tag count (< 132 bytes)",
                       PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
 
-  FILE* fp = fopen(filename, "rb");
+  FILE* fp = fdopen(fd, "rb");
   if (!fp) {
-    result.AddWarning("H0", "Cannot open file", PreflightSeverity::CRITICAL);
+    result.AddWarning("H0", "Cannot open file stream", PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
 
@@ -292,7 +313,8 @@ static PreflightResult PreflightValidateICC(const char* filename) {
   for (const auto& t : tags) {
     if (t.size > CB_MAX_TAG_SIZE) {
       char buf[128];
-      char sig4[5] = {(char)(t.sig>>24),(char)(t.sig>>16),(char)(t.sig>>8),(char)t.sig,0};
+      uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+      char sig4[5]; SanitizeSig4(raw4, sig4);
       snprintf(buf, sizeof(buf), "Tag '%.4s' size=%u bytes (%.1f MB > 64 MB limit)",
                sig4, t.size, t.size / (1024.0 * 1024.0));
       result.AddWarning("H13", buf, PreflightSeverity::CRITICAL);
@@ -308,7 +330,8 @@ static PreflightResult PreflightValidateICC(const char* filename) {
       if (fread(typeBytes, 1, 4, fp) == 4) {
         uint32_t tagType = ReadBE32(typeBytes);
         if (tagType == 0x74617279) { // 'tary' = TagArrayType
-          char sig4[5] = {(char)(t.sig>>24),(char)(t.sig>>16),(char)(t.sig>>8),(char)t.sig,0};
+          uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+          char sig4[5]; SanitizeSig4(raw4, sig4);
           char buf[128];
           snprintf(buf, sizeof(buf),
                    "TagArrayType ('tary') under signature '%.4s' — UAF in CIccTagArray::Cleanup()",
@@ -334,8 +357,10 @@ static PreflightResult PreflightValidateICC(const char* filename) {
             tags[a].offset != tags[b].offset) {
           overlapCount++;
           if (overlapCount == 1) { // report first one
-            char s1[5] = {(char)(tags[a].sig>>24),(char)(tags[a].sig>>16),(char)(tags[a].sig>>8),(char)tags[a].sig,0};
-            char s2[5] = {(char)(tags[b].sig>>24),(char)(tags[b].sig>>16),(char)(tags[b].sig>>8),(char)tags[b].sig,0};
+            uint8_t ra[4] = {(uint8_t)(tags[a].sig>>24),(uint8_t)(tags[a].sig>>16),(uint8_t)(tags[a].sig>>8),(uint8_t)tags[a].sig};
+            uint8_t rb[4] = {(uint8_t)(tags[b].sig>>24),(uint8_t)(tags[b].sig>>16),(uint8_t)(tags[b].sig>>8),(uint8_t)tags[b].sig};
+            char s1[5]; SanitizeSig4(ra, s1);
+            char s2[5]; SanitizeSig4(rb, s2);
             char buf[128];
             snprintf(buf, sizeof(buf), "Tags '%.4s' and '%.4s' overlap: [%u+%u] vs [%u+%u]",
                      s1, s2, tags[a].offset, tags[a].size, tags[b].offset, tags[b].size);
@@ -356,7 +381,8 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     if (t.offset > 0 && t.size > 0) {
       uint64_t end = (uint64_t)t.offset + t.size;
       if (end > fileSize) {
-        char sig4[5] = {(char)(t.sig>>24),(char)(t.sig>>16),(char)(t.sig>>8),(char)t.sig,0};
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
         char buf[128];
         snprintf(buf, sizeof(buf), "Tag '%.4s' extends past EOF: offset=%u size=%u file=%zu",
                  sig4, t.offset, t.size, fileSize);
@@ -375,16 +401,26 @@ static PreflightResult PreflightValidateICC(const char* filename) {
 static PreflightResult PreflightValidateXML(const char* filename) {
   PreflightResult result;
 
+  // Open first, then fstat on the fd to avoid TOCTOU
+  int fd = open(filename, O_RDONLY);
+  if (fd < 0) {
+    result.AddWarning("X0", "Cannot open XML file",
+                      PreflightSeverity::CRITICAL);
+    return result;
+  }
+
   struct stat st;
-  if (stat(filename, &st) != 0 || !S_ISREG(st.st_mode)) {
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
     result.AddWarning("X0", "Cannot stat file or not a regular file",
                       PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
   size_t fileSize = st.st_size;
 
   if (fileSize == 0) {
     result.AddWarning("X0", "Empty XML file", PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
 
@@ -392,13 +428,15 @@ static PreflightResult PreflightValidateXML(const char* filename) {
     char buf[128];
     snprintf(buf, sizeof(buf), "XML file %zu bytes exceeds 1 GiB limit", fileSize);
     result.AddWarning("X1", buf, PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
 
-  // Check for XXE indicators — scan up to 1MB (XXE can appear anywhere)
-  FILE* fp = fopen(filename, "rb");
+  // Check for XXE indicators — scan up to 1MB
+  FILE* fp = fdopen(fd, "rb");
   if (!fp) {
-    result.AddWarning("X0", "Cannot open XML file", PreflightSeverity::CRITICAL);
+    result.AddWarning("X0", "Cannot open file stream", PreflightSeverity::CRITICAL);
+    close(fd);
     return result;
   }
 
