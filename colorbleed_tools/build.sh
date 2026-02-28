@@ -3,17 +3,23 @@
 # ColorBleed Tools Build — Vanilla iccDEV + Sandboxed Unsafe Tools
 #
 # Clones vanilla upstream iccDEV (NO security patches), builds static
-# libraries with ASan+UBSan+coverage, then compiles the sandboxed
-# iccToXml_unsafe and iccFromXml_unsafe tools.
+# libraries in three configurations, then compiles the sandboxed
+# iccToXml_unsafe and iccFromXml_unsafe tools for each.
 #
-# The tools use fork/exec isolation: each profile operation runs in a
-# child process with resource limits. Crashes in the unpatched library
-# are caught and reported as security findings, not tool failures.
+# Configurations:
+#   release    — -O2 -DNDEBUG, no sanitizers, no coverage
+#   debug      — -g -O0, no sanitizers, no coverage
+#   sanitizer  — -g -O1 ASan+UBSan recoverable + coverage (default)
 #
-# Usage:  ./build.sh          # build everything
-#         ./build.sh clean    # remove build artifacts and start fresh
+# Usage:  ./build.sh              # build all three configurations
+#         ./build.sh sanitizer    # build only sanitizer config
+#         ./build.sh release      # build only release config
+#         ./build.sh debug        # build only debug config
+#         ./build.sh clean        # remove build artifacts
 #
-# Requirements: clang/clang++ 14+ (or g++), cmake 3.15+, libxml2-dev,
+# Output:  bin/release/    bin/debug/    bin/sanitizer/
+#
+# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev,
 #               libtiff-dev, zlib1g-dev, liblzma-dev, pkg-config
 #
 # Copyright (c) 2021-2026 David H Hoyt LLC
@@ -23,28 +29,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 ICCDEV_DIR="$REPO_ROOT/iccDEV"
-BUILD_DIR="$ICCDEV_DIR/Build"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+BIN_DIR="$REPO_ROOT/bin"
 
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-# Full instrumentation: ASan + UBSan + coverage, recoverable mode
-# -fsanitize-recover=address allows ASan to log errors and continue
-COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
-SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize-recover=address,undefined"
-COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
-CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
-CXXFLAGS_TOOL="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS -std=gnu++17 -Wall -frtti"
+TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe)
+TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe)
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
-
-LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
-LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
 LINK_LIBS="-lxml2 -lz -llzma -lm -lpthread"
-
-TARGETS=(iccToXml_unsafe iccFromXml_unsafe)
 
 banner() {
   echo ""
@@ -56,8 +52,11 @@ banner() {
 # --- Clean mode ---
 if [ "${1:-}" = "clean" ]; then
   banner "Cleaning build artifacts"
+  for d in release debug sanitizer; do
+    rm -rf "$ICCDEV_DIR/Build-$d" "$BIN_DIR/$d"
+  done
   rm -f "$REPO_ROOT/iccToXml_unsafe" "$REPO_ROOT/iccFromXml_unsafe"
-  rm -rf "$ICCDEV_DIR"
+  rm -rf "$ICCDEV_DIR" "$BIN_DIR"
   echo "[OK] Clean complete"
   exit 0
 fi
@@ -74,7 +73,19 @@ banner "ColorBleed Tools Build"
 echo "Compiler:  $($CXX --version | head -1)"
 echo "CMake:     $(cmake --version | head -1)"
 echo "Cores:     $NPROC"
-echo ""
+
+# --- Determine which configs to build ---
+CONFIGS_TO_BUILD=()
+case "${1:-all}" in
+  release|debug|sanitizer)
+    CONFIGS_TO_BUILD=("$1") ;;
+  all|"")
+    CONFIGS_TO_BUILD=(release debug sanitizer) ;;
+  *)
+    echo "Usage: $0 [release|debug|sanitizer|clean|all]"
+    exit 1 ;;
+esac
+echo "Configs:   ${CONFIGS_TO_BUILD[*]}"
 
 # --- Step 1: Clone iccDEV if needed ---
 banner "Step 1: iccDEV source"
@@ -90,7 +101,6 @@ echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 # --- Step 2: Vanilla upstream (NO patches) ---
 banner "Step 2: Vanilla upstream — no CFL patches applied"
 echo "ColorBleed tools deliberately use unpatched iccDEV to detect crashes."
-echo "Fork/exec sandboxing in the tool wrappers catches library crashes."
 
 # Strip stray U+FE0F (emoji variation selector) from upstream source
 SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
@@ -119,86 +129,160 @@ else
   echo "LTO already patched"
 fi
 
-# --- Step 4: Build static libraries ---
-banner "Step 4: Build IccProfLib2-static + IccXML2-static"
-mkdir -p "$BUILD_DIR"
+# ─────────────────────────────────────────────────────
+# Build function: cmake libs + link tools for one config
+# ─────────────────────────────────────────────────────
+build_config() {
+  local config="$1"
+  local build_dir="$ICCDEV_DIR/Build-$config"
+  local out_dir="$BIN_DIR/$config"
+  local cmake_type c_flags cxx_flags tool_flags
 
-# Clear cmake cache to prevent stale configs
-rm -rf "$BUILD_DIR/CMakeCache.txt" "$BUILD_DIR/CMakeFiles"
-
-cd "$BUILD_DIR"
-cmake Cmake/ \
-  -DCMAKE_C_COMPILER="$CC" \
-  -DCMAKE_CXX_COMPILER="$CXX" \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_C_FLAGS="$CFLAGS_LIB" \
-  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB -frtti" \
-  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-  -DENABLE_STATIC_LIBS=ON \
-  -DENABLE_SHARED_LIBS=ON \
-  -DENABLE_TOOLS=OFF \
-  -Wno-dev 2>&1 | tail -5
-
-make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
-
-echo ""
-echo "Libraries:"
-ls -lh "$LIB_PROF" "$LIB_XML"
-
-# Verify instrumentation
-ASAN_SYM=$( nm "$LIB_PROF" | grep -c '__asan' || true )
-UBSAN_SYM=$( nm "$LIB_PROF" | grep -c '__ubsan' || true )
-COV_SYM=$(  nm "$LIB_PROF" | grep -c '__profc_\|__llvm_prf' || true )
-echo ""
-echo "Instrumentation (IccProfLib2-static):"
-echo "  ASan symbols:     $ASAN_SYM"
-echo "  UBSan symbols:    $UBSAN_SYM"
-echo "  Coverage symbols: $COV_SYM"
-
-if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ]; then
-  echo "[FAIL] ERROR: Missing instrumentation — aborting"
-  exit 1
-fi
-
-# --- Step 5: Build tools ---
-banner "Step 5: Build ColorBleed tools"
-cd "$REPO_ROOT"
-
-for target in "${TARGETS[@]}"; do
-  src="${target}.cpp"
-  src_upper="$(echo "${target}" | sed 's/icc/Icc/' | sed 's/_u/U/')"
-  # Map target name to source file
-  case "$target" in
-    iccToXml_unsafe)  src="IccToXml_unsafe.cpp" ;;
-    iccFromXml_unsafe) src="IccFromXml_unsafe.cpp" ;;
+  case "$config" in
+    release)
+      cmake_type="Release"
+      c_flags="-O2 -DNDEBUG"
+      cxx_flags="$c_flags -frtti"
+      tool_flags="-O2 -DNDEBUG -std=gnu++17 -Wall -frtti"
+      ;;
+    debug)
+      cmake_type="Debug"
+      c_flags="-g -O0 -fno-omit-frame-pointer"
+      cxx_flags="$c_flags -frtti"
+      tool_flags="-g -O0 -fno-omit-frame-pointer -std=gnu++17 -Wall -frtti"
+      ;;
+    sanitizer)
+      cmake_type="Debug"
+      local san="-fsanitize=address,undefined -fsanitize-recover=address,undefined"
+      local cov="-fprofile-instr-generate -fcoverage-mapping"
+      c_flags="-g -O1 -fno-omit-frame-pointer $san $cov"
+      cxx_flags="$c_flags -frtti"
+      tool_flags="-g -O1 -fno-omit-frame-pointer $san $cov -std=gnu++17 -Wall -frtti"
+      ;;
   esac
 
-  if [ ! -f "$src" ]; then
-    echo "  [SKIP] $target ($src not found)"
-    continue
+  banner "Building [$config]"
+  echo "  Flags: $c_flags"
+
+  # -- cmake + make --
+  mkdir -p "$build_dir"
+  rm -rf "$build_dir/CMakeCache.txt" "$build_dir/CMakeFiles"
+
+  cd "$build_dir"
+  cmake "$ICCDEV_DIR/Build/Cmake/" \
+    -DCMAKE_C_COMPILER="$CC" \
+    -DCMAKE_CXX_COMPILER="$CXX" \
+    -DCMAKE_BUILD_TYPE="$cmake_type" \
+    -DCMAKE_C_FLAGS="$c_flags" \
+    -DCMAKE_CXX_FLAGS="$cxx_flags" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+    -DENABLE_STATIC_LIBS=ON \
+    -DENABLE_SHARED_LIBS=ON \
+    -DENABLE_TOOLS=OFF \
+    -Wno-dev 2>&1 | tail -3
+
+  make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
+
+  local lib_prof="$build_dir/IccProfLib/libIccProfLib2-static.a"
+  local lib_xml="$build_dir/IccXML/libIccXML2-static.a"
+
+  echo ""
+  echo "  Libraries:"
+  ls -lh "$lib_prof" "$lib_xml" | awk '{print "    "$0}'
+
+  # Verify instrumentation for sanitizer config
+  if [ "$config" = "sanitizer" ]; then
+    local asan_sym ubsan_sym cov_sym
+    asan_sym=$( nm "$lib_prof" | grep -c '__asan' || true )
+    ubsan_sym=$( nm "$lib_prof" | grep -c '__ubsan' || true )
+    cov_sym=$(  nm "$lib_prof" | grep -c '__profc_\|__llvm_prf' || true )
+    echo ""
+    echo "  Instrumentation:"
+    echo "    ASan:     $asan_sym symbols"
+    echo "    UBSan:    $ubsan_sym symbols"
+    echo "    Coverage: $cov_sym symbols"
+
+    if [ "$asan_sym" -eq 0 ] || [ "$ubsan_sym" -eq 0 ] || [ "$cov_sym" -eq 0 ]; then
+      echo "  [FAIL] Missing instrumentation — aborting"
+      exit 1
+    fi
   fi
 
-  echo "Building $target..."
-  $CXX $CXXFLAGS_TOOL $INCLUDE_FLAGS "$src" \
-    "$LIB_PROF" "$LIB_XML" \
-    $LINK_LIBS \
-    -o "$target"
-  chmod +x "$target"
-  echo "  [OK] $target ($(ls -lh "$target" | awk '{print $5}'))"
+  # -- Link tools --
+  mkdir -p "$out_dir"
+  cd "$REPO_ROOT"
+
+  for i in "${!TOOL_SOURCES[@]}"; do
+    local src="${TOOL_SOURCES[$i]}.cpp"
+    local bin="${TOOL_BINS[$i]}"
+
+    if [ ! -f "$src" ]; then
+      echo "  [SKIP] $bin ($src not found)"
+      continue
+    fi
+
+    echo "  Building $bin..."
+    $CXX $tool_flags $INCLUDE_FLAGS "$src" \
+      "$lib_prof" "$lib_xml" \
+      $LINK_LIBS \
+      -o "$out_dir/$bin"
+    chmod +x "$out_dir/$bin"
+    echo "    [OK] $(ls -lh "$out_dir/$bin" | awk '{print $5}') → $out_dir/$bin"
+  done
+
+  # Symlink as default if this is the only config being built,
+  # or always for sanitizer when building all configs
+  local create_symlink=false
+  if [ "${#CONFIGS_TO_BUILD[@]}" -eq 1 ]; then
+    create_symlink=true
+  elif [ "$config" = "sanitizer" ]; then
+    create_symlink=true
+  fi
+
+  if [ "$create_symlink" = true ]; then
+    for bin in "${TOOL_BINS[@]}"; do
+      ln -sf "bin/$config/$bin" "$REPO_ROOT/$bin"
+    done
+    echo "  Symlinked $config → ./iccToXml_unsafe, ./iccFromXml_unsafe"
+  fi
+}
+
+# ─────────────────────────────────────────────────────
+# Build each requested configuration
+# ─────────────────────────────────────────────────────
+for cfg in "${CONFIGS_TO_BUILD[@]}"; do
+  build_config "$cfg"
 done
 
-# --- Summary ---
+# ─────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────
 banner "Build Summary"
-echo "Tools:"
-ls -lh "${TARGETS[@]}" 2>/dev/null || echo "  (none built)"
+
+for cfg in release debug sanitizer; do
+  d="$BIN_DIR/$cfg"
+  if [ -d "$d" ]; then
+    echo ""
+    echo "  [$cfg]"
+    ls -lh "$d"/icc* 2>/dev/null | awk '{print "    "$0}'
+    sha256sum "$d"/icc* 2>/dev/null | awk '{print "    "$0}'
+  fi
+done
+
 echo ""
-echo "SHA256 fingerprints:"
-sha256sum "${TARGETS[@]}" 2>/dev/null || shasum -a 256 "${TARGETS[@]}" 2>/dev/null
+echo "Usage:"
+echo "  # Release (fastest, no diagnostics)"
+echo "  bin/release/iccToXml_unsafe input.icc output.xml"
 echo ""
-echo "Profraw: set LLVM_PROFILE_FILE to control coverage output"
-echo "  Example:  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw ASAN_OPTIONS=detect_leaks=0 ./iccToXml_unsafe in.icc out.xml"
-echo "  Merge:    llvm-profdata merge -sparse /tmp/colorbleed-*.profraw -o colorbleed.profdata"
-echo "  Report:   llvm-cov report -object ./iccToXml_unsafe -object ./iccFromXml_unsafe -instr-profile=colorbleed.profdata"
+echo "  # Debug (symbols, assertions, no sanitizers)"
+echo "  bin/debug/iccToXml_unsafe input.icc output.xml"
+echo ""
+echo "  # Sanitizer (ASan+UBSan recoverable + coverage)"
+echo "  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw \\"
+echo "    bin/sanitizer/iccToXml_unsafe input.icc output.xml"
+echo ""
+echo "  # Default symlinks point to sanitizer build"
+echo "  ./iccToXml_unsafe input.icc output.xml"
 echo ""
 echo "ColorBleed Tooling: Unsafe Load & Store for ICC Profiles"
 echo "Copyright (c) 2021-2026 David H Hoyt LLC"

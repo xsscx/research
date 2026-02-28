@@ -1,0 +1,8 @@
+# Build artifacts
+iccDEV/
+bin/
+iccToXml_unsafe
+iccFromXml_unsafe
+*.o
+*.profraw
+*.profdata
