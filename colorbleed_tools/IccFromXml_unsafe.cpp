@@ -54,9 +54,9 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  // Reject output paths with traversal sequences
-  if (strstr(argv[2], "..") != NULL) {
-    printf("ERROR: output path must not contain '..'\n");
+  // Validate output path (traversal, symlinks, system directories)
+  std::string safe_dst = ValidateOutputPath(argv[2]);
+  if (safe_dst.empty()) {
     return -1;
   }
 
@@ -94,14 +94,14 @@ int main(int argc, char* argv[])
         FILE *f = fopen(resolved, "r");
         if (f) {
           fclose(f);
-          szRelaxNGDir = path;
+          szRelaxNGDir = resolved;  // use resolved path to avoid TOCTOU
         }
       }
     }
   }
 
   const char* xml_path = argv[1];
-  const char* icc_path = argv[2];
+  const char* icc_path = safe_dst.c_str();
 
   printf("[ColorBleed] Sandboxed XML→ICC conversion\n");
   printf("[ColorBleed] Input:  %s\n", xml_path);

@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
+#include <cctype>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
@@ -391,27 +392,42 @@ static PreflightResult PreflightValidateXML(const char* filename) {
     return result;
   }
 
-  // Check for XXE indicators in first 4KB
+  // Check for XXE indicators — scan up to 1MB (XXE can appear anywhere)
   FILE* fp = fopen(filename, "rb");
   if (!fp) {
     result.AddWarning("X0", "Cannot open XML file", PreflightSeverity::CRITICAL);
     return result;
   }
 
-  size_t checkSize = (fileSize < 4096) ? fileSize : 4096;
+  size_t checkSize = (fileSize < (1024*1024)) ? fileSize : (1024*1024);
   std::vector<uint8_t> head(checkSize);
   if (fread(head.data(), 1, checkSize, fp) == checkSize) {
-    // Search for DOCTYPE with ENTITY (XXE pattern)
+    // Case-insensitive search for XXE patterns
     std::string preview(head.begin(), head.end());
-    if (preview.find("<!ENTITY") != std::string::npos ||
-        preview.find("<!entity") != std::string::npos) {
+    // Convert to lowercase for case-insensitive matching
+    std::string lower = preview;
+    for (auto& c : lower) c = (char)tolower((unsigned char)c);
+
+    if (lower.find("<!entity") != std::string::npos) {
       result.AddWarning("X2", "XML contains <!ENTITY declaration (XXE risk)",
                         PreflightSeverity::CRITICAL);
     }
-    if (preview.find("SYSTEM") != std::string::npos &&
-        preview.find("<!DOCTYPE") != std::string::npos) {
+    if (lower.find("system") != std::string::npos &&
+        lower.find("<!doctype") != std::string::npos) {
       result.AddWarning("X2", "XML DOCTYPE references SYSTEM entity (XXE risk)",
                         PreflightSeverity::WARNING);
+    }
+    // XInclude: <xi:include href="file:///etc/passwd"/>
+    if (lower.find("<xi:include") != std::string::npos ||
+        lower.find("xinclude") != std::string::npos) {
+      result.AddWarning("X3", "XML contains XInclude directive (file inclusion risk)",
+                        PreflightSeverity::CRITICAL);
+    }
+    // Parameter entities: <!ENTITY % name "value">
+    if (lower.find("<!entity %") != std::string::npos ||
+        lower.find("<!entity%") != std::string::npos) {
+      result.AddWarning("X4", "XML contains parameter entity (XXE amplification risk)",
+                        PreflightSeverity::CRITICAL);
     }
   }
 
