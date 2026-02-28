@@ -253,12 +253,17 @@ Open http://localhost:8080/ — provides browser-based access to all analysis to
 - Look for `[H1]`–`[H19]` prefixes to identify which heuristic triggered
 - ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
 
-**Automated issue→PR→merge workflow**: When Copilot coding agent processes an analysis issue:
-1. Issue opened with ICC profile to analyze (assign `@copilot` or mention in comment)
+**Automated issue→PR→merge pipeline**: When Copilot coding agent processes an analysis issue:
+1. Create issue with ICC profile to analyze, then assign Copilot:
+   ```bash
+   gh issue create --title "Analyze <profile>.icc" --body "..." --repo xsscx/research
+   gh api repos/xsscx/research/issues/<N>/assignees --method POST --field "assignees[]=Copilot"
+   ```
+   Note: `gh issue create --assignee copilot` does **not** work (case-sensitive App identity). Use the REST API.
 2. Agent downloads/locates the ICC profile, runs `./analyze-profile.sh`
 3. Agent commits the report to `analysis-reports/` and opens a draft PR
-4. When the agent finishes, the PR transitions from draft → ready for review
-5. The `copilot-auto-merge.yml` workflow triggers on `ready_for_review` and squash-merges the PR automatically
+4. When the agent's workflow run completes, `copilot-auto-merge.yml` triggers via `workflow_run[completed]`
+5. The auto-merge workflow finds the PR by branch, marks it ready, and squash-merges it
 6. The originating issue is closed via `Fixes #N` in the PR body
 
 No manual intervention required — the entire pipeline is hands-free from issue to merge.
@@ -356,7 +361,7 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 
 ### CI workflows
 31 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
-- `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on `ready_for_review`
+- `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on agent `workflow_run` completion
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 19 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
