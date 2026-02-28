@@ -29,9 +29,10 @@ NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-# Full instrumentation: ASan + UBSan + coverage (matches CFL fuzzer build)
+# Full instrumentation: ASan + UBSan + coverage, recoverable mode
+# -fsanitize-recover=address allows ASan to log errors and continue
 COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
-SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize-recover=undefined"
+SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize-recover=address,undefined"
 COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 CXXFLAGS_TOOL="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS -std=gnu++17 -Wall -frtti"
