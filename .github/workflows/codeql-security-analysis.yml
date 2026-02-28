@@ -118,7 +118,7 @@ jobs:
       - name: Build iccDEV libraries
         run: |
           cd iccDEV/Build
-          cmake Cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=OFF
+          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=OFF
           make -j$(nproc) IccProfLib2 IccXML2
 
       - name: Initialize CodeQL
@@ -131,7 +131,7 @@ jobs:
         if: matrix.target == 'iccanalyzer-lite'
         run: |
           cd iccanalyzer-lite
-          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
+          export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
           SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
                 IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
@@ -152,7 +152,7 @@ jobs:
         if: matrix.target == 'colorbleed_tools'
         run: |
           cd colorbleed_tools
-          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0"
+          export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
           $CXX $CXXFLAGS $INCLUDES IccFromXml_unsafe.cpp -c -o IccFromXml_unsafe.o
           $CXX $CXXFLAGS $INCLUDES IccToXml_unsafe.cpp -c -o IccToXml_unsafe.o
@@ -168,7 +168,7 @@ jobs:
         run: |
           # Build all 19 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
           cd cfl
-          export CXX="g++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
+          export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
           INC_CORE="-I../iccDEV/IccProfLib"
           INC_XML="$INC_CORE -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
           INC_TIFF="$INC_CORE -I../iccDEV/Tools/CmdLine/IccApplyProfiles"
