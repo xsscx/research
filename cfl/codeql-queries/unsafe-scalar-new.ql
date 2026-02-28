@@ -18,9 +18,8 @@ import cpp
 
 /**
  * Holds when a NewExpr uses std::nothrow placement (i.e. `new (std::nothrow) T`).
- * CodeQL's getPlacementPointer() may not match the nothrow_t& argument,
- * so we also check the source text for the nothrow keyword and check
- * whether any allocator argument references std::nothrow_t.
+ * Multiple detection strategies are needed because CodeQL's AST representation
+ * varies across compiler front-ends and extraction modes.
  */
 predicate hasNothrow(NewExpr alloc) {
   exists(alloc.getPlacementPointer())
@@ -30,6 +29,12 @@ predicate hasNothrow(NewExpr alloc) {
   exists(Expr arg |
     arg = alloc.getAChild() and
     arg.getType().stripType().getName() = "nothrow_t"
+  )
+  or
+  // Check allocator function signature: operator new(size_t, const nothrow_t&)
+  exists(FunctionCall allocCall |
+    allocCall = alloc.getAllocatorCall() and
+    allocCall.getTarget().getAParameter().getType().stripType().getName() = "nothrow_t"
   )
 }
 

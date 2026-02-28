@@ -35,6 +35,18 @@ class IntegerOverflowMultiply extends MulExpr {
 class UnsafeBufferAllocation extends NewArrayExpr {
   UnsafeBufferAllocation() {
     this.getFile().getBaseName() = "iccAnalyzer.cpp" and
+    // Exclude allocations using std::nothrow
+    not this.toString().matches("%nothrow%") and
+    not exists(this.getPlacementPointer()) and
+    not exists(Expr arg |
+      arg = this.getAChild() and
+      arg.getType().stripType().getName() = "nothrow_t"
+    ) and
+    // Check allocator function signature: operator new[](size_t, const nothrow_t&)
+    not exists(FunctionCall allocCall |
+      allocCall = this.getAllocatorCall() and
+      allocCall.getTarget().getAParameter().getType().stripType().getName() = "nothrow_t"
+    ) and
     not exists(IfStmt check |
       check.getCondition().toString().matches("%fileSize%") and
       check.getLocation().getStartLine() < this.getLocation().getStartLine() and
