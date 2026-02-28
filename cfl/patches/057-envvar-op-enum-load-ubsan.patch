@@ -1,0 +1,13 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3249,7 +3249,7 @@
+       case icSigEnvVarOp:
+         {
+           icSigCmmEnvVar envSig;
+           if (!scan.GetEnvSig(envSig))
+             return NULL;
+-          op.data.size = (icUInt32Number)envSig;
++          memcpy(&op.data.size, &envSig, sizeof(op.data.size));
+           scanList.push_back(op);
+         }
+         break;
