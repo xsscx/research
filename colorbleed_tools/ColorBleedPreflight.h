@@ -103,6 +103,7 @@ struct PreflightResult {
 
 // ── Core pre-flight validation ──
 // Reads only raw bytes — no iccDEV library calls.
+#ifndef COLORBLEED_SKIP_ICC_PREFLIGHT
 static PreflightResult PreflightValidateICC(const char* filename) {
   PreflightResult result;
 
@@ -367,8 +368,10 @@ static PreflightResult PreflightValidateICC(const char* filename) {
   fclose(fp);
   return result;
 }
+#endif // COLORBLEED_SKIP_ICC_PREFLIGHT
 
 // ── XML pre-flight for IccFromXml ──
+#ifndef COLORBLEED_SKIP_XML_PREFLIGHT
 static PreflightResult PreflightValidateXML(const char* filename) {
   PreflightResult result;
 
@@ -434,5 +437,6 @@ static PreflightResult PreflightValidateXML(const char* filename) {
   fclose(fp);
   return result;
 }
+#endif // COLORBLEED_SKIP_XML_PREFLIGHT
 
 #endif // COLORBLEED_PREFLIGHT_H
