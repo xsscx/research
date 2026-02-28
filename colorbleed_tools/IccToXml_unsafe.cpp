@@ -136,7 +136,8 @@ int main(int argc, char* argv[])
     }
 
     // Set up global state for crash recovery
-    std::string xml;
+    static std::string xml;
+    xml.clear();
     xml.reserve(40000000);
     g_xml_output = &xml;
     snprintf(g_dst_path, sizeof(g_dst_path), "%s", dst_path);
