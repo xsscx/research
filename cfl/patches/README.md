@@ -56,6 +56,8 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 43 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SequenceNeedTempReset` | Timeout: crafted calculator ops cause excessive iteration; add 1M ops-processed counter to bound computation |
 | 44 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Read` | OOM: `Reset()` allocates `nNumMatrices * nChannels * 4` bytes uncapped; add 16 MB allocation cap |
 | 54 | `IccMpeCalc.cpp` | `CIccFuncTokenizer::GetEnvSig` | UBSAN invalid-enum-load: `(icSigCmmEnvVar)sig` loads arbitrary uint32 (e.g. 2254504802) into 2-member enum |
+| 55 | `IccTagBasic.cpp` | `CIccTagNamedColor2::Read` | Stack buffer overflow: `m_szPrefix`/`m_szSufix` not null-terminated after `Read8()`, causing `icFixXml` stack overflow via XML entity expansion |
+| 56 | `IccCmm.cpp` | `CIccPcsXform::pushXYZConvert` | Heap-buffer-overflow: `pOffset[0..2]` accesses `CIccMpeMatrix` constants buffer without validating element has 3 output channels |
 
 ## Allocation Cap
 
@@ -443,6 +445,31 @@ boundary, the expansion produces 384+ bytes into a 256-byte stack buffer
 Fix: null-terminate both `m_szPrefix` and `m_szSufix` immediately after
 `Read8()`, consistent with the existing `rootName` null-termination at
 line 2998.
+
+Patch 056 fixes a **heap-buffer-overflow** in
+`CIccPcsXform::pushXYZConvert()` (IccCmm.cpp:2958,3006).  When a PCC
+tag contains a single `CIccMpeMatrix` element, the optimization path
+casts it and accesses `pOffset[0]`, `pOffset[1]`, `pOffset[2]` (3
+floats) without verifying the matrix element's actual output channel
+count.  The outer `CIccTagMultiProcessElement` is validated as 3×3
+(`NumInputChannels()==3 && NumOutputChannels()==3`), but the inner
+`CIccMpeMatrix` element can have different dimensions — a crafted
+profile can have an MPE tag claiming 3 channels while containing a
+matrix element with only 1 output channel (4 bytes for constants),
+causing a READ of size 4 past the allocation.  Both the
+`customToStandardPcc` (line 2958) and `standardToCustomPcc` (line 3006)
+code paths are affected.
+ASAN: READ of size 4 at 0 bytes after 4-byte region in
+`CIccPcsXform::pushXYZConvert()`.
+Reproducer: `printf "'RGB '\nicEncodeFloat\n0.5\t0.5\t0.5\n" |
+ASAN_OPTIONS=detect_leaks=0
+iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm /dev/stdin 3 1
+crash-pushXYZConvert-heap-oob-profile1.icc 1
+crash-pushXYZConvert-heap-oob-profile2.icc 1`
+Fix: validate `pMatElem->NumInputChannels()==3 &&
+pMatElem->NumOutputChannels()==3` before accessing the matrix data and
+constants buffers, at both sites.  When dimensions don't match 3×3,
+the code falls through to the safe `CIccPcsStepMpe` path.
 
 ## Application
 

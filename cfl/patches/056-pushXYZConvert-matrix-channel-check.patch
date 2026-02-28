@@ -1,0 +1,56 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index ee8cfeb..f33e3b5 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -2952,16 +2952,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
+         if (pElem->GetType()==icSigMatrixElemType) {
+           CIccMpeMatrix *pMatElem = (CIccMpeMatrix*)pElem;
+ 
+-          icFloatNumber *pMat = pMatElem->GetMatrix();
+-          icFloatNumber *pOffset = pMatElem->GetConstants();
++          if (pMatElem->NumInputChannels()==3 && pMatElem->NumOutputChannels()==3) {
++            icFloatNumber *pMat = pMatElem->GetMatrix();
++            icFloatNumber *pOffset = pMatElem->GetConstants();
+ 
+-          if (pMat && (!pOffset || (pOffset[0]==0.0 && pOffset[1]==0.0 && pOffset[2]==0.0))) {
+-            CIccPcsStepMatrix *pStepMtx = new CIccPcsStepMatrix(3, 3);
++            if (pMat && (!pOffset || (pOffset[0]==0.0 && pOffset[1]==0.0 && pOffset[2]==0.0))) {
++              CIccPcsStepMatrix *pStepMtx = new CIccPcsStepMatrix(3, 3);
+ 
+-            if (pStepMtx ) {
+-              memcpy(pStepMtx->entry(0,0), pMat, 9*sizeof(icFloatNumber));
++              if (pStepMtx ) {
++                memcpy(pStepMtx->entry(0,0), pMat, 9*sizeof(icFloatNumber));
++              }
++              ptr.ptr = pStepMtx;
+             }
+-            ptr.ptr = pStepMtx;
+           }
+         }
+       }
+@@ -3000,16 +3002,18 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
+         if (pElem->GetType()==icSigMatrixElemType) {
+           CIccMpeMatrix *pMatElem = (CIccMpeMatrix*)pElem;
+ 
+-          icFloatNumber *pMat = pMatElem->GetMatrix();
+-          icFloatNumber *pOffset = pMatElem->GetConstants();
++          if (pMatElem->NumInputChannels()==3 && pMatElem->NumOutputChannels()==3) {
++            icFloatNumber *pMat = pMatElem->GetMatrix();
++            icFloatNumber *pOffset = pMatElem->GetConstants();
+ 
+-          if (pMat && (!pOffset || (pOffset[0]==0.0 && pOffset[1]==0.0 && pOffset[2]==0.0))) {
+-            CIccPcsStepMatrix *pStepMtx = new CIccPcsStepMatrix(3, 3);
++            if (pMat && (!pOffset || (pOffset[0]==0.0 && pOffset[1]==0.0 && pOffset[2]==0.0))) {
++              CIccPcsStepMatrix *pStepMtx = new CIccPcsStepMatrix(3, 3);
+ 
+-            if (pStepMtx ) {
+-              memcpy(pStepMtx->entry(0,0), pMat, 9*sizeof(icFloatNumber));
++              if (pStepMtx ) {
++                memcpy(pStepMtx->entry(0,0), pMat, 9*sizeof(icFloatNumber));
++              }
++              ptr.ptr = pStepMtx;
+             }
+-            ptr.ptr = pStepMtx;
+           }
+         }
+       }
