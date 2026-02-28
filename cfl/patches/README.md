@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-28 14:30:00 UTC
+Last Updated: 2026-02-28 17:20:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -62,6 +62,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 58 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | **NO-OP** (upstream-adopted via PR #622) — heap-buffer-overflow in select op initialization |
 | 59 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Describe` | Heap-buffer-overflow: `mtx.GetData()->get(c)` iterates using `start[r]`/`start[r+1]` row ranges from untrusted data without validating against `GetNumEntries()` |
 | 60 | `IccTagXml.cpp` | `CIccTagXmlSparseMatrixArray::ToXml` | Heap-buffer-overflow: `DumpArray` called with `getPtr(rowOffset)` where `rowOffset + n` exceeds `GetNumEntries()` — same sparse matrix OOB as 059 but in XML serialization path |
+| 61 | `IccTagComposite.cpp` | `CIccTagStruct::Read` / `CIccTagArray::Read` | Stack overflow: unbounded recursion via nested TagStruct/TagArray elements — crafted profile embeds `tstr` inside `tstr` to exhaust stack |
 
 ## Allocation Cap
 
@@ -507,6 +508,18 @@ When `rowOffset + n` exceeds `GetNumEntries()`, the DumpArray read
 overflows the data buffer.
 Fix: clamp `n` so `rowOffset + n <= nEntries`; skip DumpArray when `n == 0`.
 Crash artifact: `crash-7dd85cf499f0fc5553cfc69a199835fa985777a3`.
+
+Patch 061 fixes a **stack overflow** caused by unbounded recursion in
+`CIccTagStruct::Read()` and `CIccTagArray::Read()` (IccTagComposite.cpp).
+A crafted ICC profile can embed a `TagStruct` (`tstr`) element whose child
+elements are themselves `TagStruct` tags, creating infinite mutual recursion:
+`Read()` → `LoadElem()` → `Read()` → `LoadElem()` → ... until the stack is
+exhausted.  The same pattern applies to `CIccTagArray`, since array elements
+can be composite tag types.
+Fix: add a `thread_local` recursion depth counter with a limit of 32.  A RAII
+scope guard (`DepthGuard`) ensures the counter is decremented on all return
+paths, including early-return errors.
+Crash artifact: `CIccTagStruct-Read-recursive-stack-overflow.icc`.
 
 ## Application
 
