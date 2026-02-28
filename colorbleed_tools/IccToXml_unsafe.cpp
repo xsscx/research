@@ -30,6 +30,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
+#include <climits>
+#include <cstdlib>
 #include "IccTagXmlFactory.h"
 #include "IccMpeXmlFactory.h"
 #include "IccProfileXml.h"
@@ -42,20 +46,30 @@
 
 // Global state for signal recovery — write partial XML on crash
 static std::string* g_xml_output = nullptr;
-static const char*  g_dst_path   = nullptr;
+static char         g_dst_path[PATH_MAX] = {0};
 
 static void WritePartialOutput() {
-  if (!g_xml_output || g_xml_output->empty() || !g_dst_path) return;
+  if (!g_xml_output || g_xml_output->empty() || g_dst_path[0] == '\0') return;
 
   // Append marker showing the XML was truncated by a crash
   g_xml_output->append("\n<!-- [ColorBleed] XML TRUNCATED: library crash during conversion -->\n");
 
-  FILE* f = fopen(g_dst_path, "wb");
-  if (f) {
-    fwrite(g_xml_output->c_str(), 1, g_xml_output->size(), f);
-    fclose(f);
-    fprintf(stderr, "[ColorBleed] Wrote %zu bytes of partial XML to %s\n",
-            g_xml_output->size(), g_dst_path);
+  int fd = open(g_dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd >= 0) {
+    FILE* f = fdopen(fd, "wb");
+    if (f) {
+      size_t written = fwrite(g_xml_output->c_str(), 1, g_xml_output->size(), f);
+      fclose(f);
+      if (written == g_xml_output->size()) {
+        fprintf(stderr, "[ColorBleed] Wrote %zu bytes of partial XML to %s\n",
+                g_xml_output->size(), g_dst_path);
+      } else {
+        fprintf(stderr, "[ColorBleed] Partial write: %zu of %zu bytes to %s\n",
+                written, g_xml_output->size(), g_dst_path);
+      }
+    } else {
+      close(fd);
+    }
   }
 }
 
@@ -76,7 +90,13 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  const char* src_path = argv[1];
+  // Validate input path
+  char resolved_src[PATH_MAX];
+  if (!realpath(argv[1], resolved_src)) {
+    fprintf(stderr, "[ColorBleed] Cannot resolve input path: %s\n", argv[1]);
+    return -1;
+  }
+  const char* src_path = resolved_src;
   const char* dst_path = safe_dst.c_str();
 
   printf("[ColorBleed] Sandboxed ICC→XML conversion\n");
@@ -119,7 +139,7 @@ int main(int argc, char* argv[])
     std::string xml;
     xml.reserve(40000000);
     g_xml_output = &xml;
-    g_dst_path = dst_path;
+    snprintf(g_dst_path, sizeof(g_dst_path), "%s", dst_path);
     SetCrashRecoveryCallback(WritePartialOutput);
 
     if (!profile.ToXml(xml)) {
@@ -130,9 +150,16 @@ int main(int argc, char* argv[])
       return 3;
     }
 
-    // Clean path — write full output
-    FILE* f = fopen(dst_path, "wb");
+    // Clean path — write full output with restricted permissions
+    int fd = open(dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+      fprintf(stderr, "Unable to open '%s'\n", dst_path);
+      g_xml_output = nullptr;
+      return 4;
+    }
+    FILE* f = fdopen(fd, "wb");
     if (!f) {
+      close(fd);
       fprintf(stderr, "Unable to open '%s'\n", dst_path);
       g_xml_output = nullptr;
       return 4;
