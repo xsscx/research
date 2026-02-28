@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc]
+        compiler: [clang]
     steps:
       - name: Checkout master
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -58,9 +58,9 @@ jobs:
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            echo "CC=gcc" >> "$GITHUB_ENV"
-            echo "CXX=g++" >> "$GITHUB_ENV"
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
           fi
       - name: Print Compiler Version
         shell: bash --noprofile --norc {0}
@@ -102,7 +102,7 @@ jobs:
             sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
             echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
           fi
-          cd colorbleed_tools/iccDEV && cd Build && cmake Cmake && make -j"$(nproc)"
+          cd colorbleed_tools/iccDEV && cd Build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ Cmake && make -j"$(nproc)"
           cd ../../ && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
