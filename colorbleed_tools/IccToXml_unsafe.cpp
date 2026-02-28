@@ -69,14 +69,14 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  // Reject output paths with traversal sequences
-  if (strstr(argv[2], "..") != NULL) {
-    printf("ERROR: output path must not contain '..'\n");
+  // Validate output path (traversal, symlinks, system directories)
+  std::string safe_dst = ValidateOutputPath(argv[2]);
+  if (safe_dst.empty()) {
     return -1;
   }
 
   const char* src_path = argv[1];
-  const char* dst_path = argv[2];
+  const char* dst_path = safe_dst.c_str();
 
   printf("[ColorBleed] Sandboxed ICC→XML conversion\n");
   printf("[ColorBleed] Input:  %s\n", src_path);
