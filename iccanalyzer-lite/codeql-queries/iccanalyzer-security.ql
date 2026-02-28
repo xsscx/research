@@ -56,6 +56,11 @@ class UnsafeBufferAllocation extends NewArrayExpr {
       arg = this.getAChild() and
       arg.getType().stripType().getName() = "nothrow_t"
     ) and
+    // Check allocator function signature: operator new[](size_t, const nothrow_t&)
+    not exists(FunctionCall allocCall |
+      allocCall = this.getAllocatorCall() and
+      allocCall.getTarget().getAParameter().getType().stripType().getName() = "nothrow_t"
+    ) and
     // Must not have any size/bounds guard within 30 lines before
     not exists(IfStmt check |
       check.getEnclosingFunction() = this.getEnclosingFunction() and
