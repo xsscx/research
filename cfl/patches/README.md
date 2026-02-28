@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-26 00:28:00 UTC
+Last Updated: 2026-02-28 08:50:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -58,6 +58,9 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 54 | `IccMpeCalc.cpp` | `CIccFuncTokenizer::GetEnvSig` | UBSAN invalid-enum-load: `(icSigCmmEnvVar)sig` loads arbitrary uint32 (e.g. 2254504802) into 2-member enum |
 | 55 | `IccTagBasic.cpp` | `CIccTagNamedColor2::Read` | Stack buffer overflow: `m_szPrefix`/`m_szSufix` not null-terminated after `Read8()`, causing `icFixXml` stack overflow via XML entity expansion |
 | 56 | `IccCmm.cpp` | `CIccPcsXform::pushXYZConvert` | Heap-buffer-overflow: `pOffset[0..2]` accesses `CIccMpeMatrix` constants buffer without validating element has 3 output channels |
+| 57 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SetFunction` | UBSAN: invalid enum load when reading `icSigCmmEnvVar` value — replaced with `memcpy` to copy raw bytes |
+| 58 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | **NO-OP** (upstream-adopted via PR #622) — heap-buffer-overflow in select op initialization |
+| 59 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Describe` | Heap-buffer-overflow: `mtx.GetData()->get(c)` iterates using `start[r]`/`start[r+1]` row ranges from untrusted data without validating against `GetNumEntries()` |
 
 ## Allocation Cap
 
@@ -479,6 +482,18 @@ copy the raw bytes without loading the enum type.
 
 Patch 058 is a **NO-OP** (upstream-adopted via PR #622).  Originally
 fixed heap-buffer-overflow in `CIccCalculatorFunc::InitSelectOp()`.
+
+### 059 — Heap-buffer-overflow in `SparseMatrix::Describe` (IccTagBasic.cpp)
+
+Patch 059 fixes a **heap-buffer-overflow** in
+`CIccTagSparseMatrixArray::Describe()` (IccTagBasic.cpp).  The
+`Describe()` loop iterates column/data entries using row-start
+indices (`start[r]`/`start[r+1]`) sourced from untrusted sparse matrix
+header data.  When `start[r+1]` exceeds the actual entry count
+returned by `mtx.GetNumEntries()`, `mtx.GetData()->get(c)` performs
+an out-of-bounds read on the data buffer (`m_pData[index]`).
+Fix: clamp `re` to `nEntries = mtx.GetNumEntries()` before the inner loop.
+Crash artifact: `crash-7dd85cf499f0fc5553cfc69a199835fa985777a3`.
 
 ## Application
 

@@ -1,0 +1,15 @@
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -4923,9 +4923,12 @@
+ 
+     icUInt16Number *start = mtx.GetRowStart();
+     icUInt16Number *cols = mtx.GetColumnsForRow(0);
++    icUInt16Number nEntries = mtx.GetNumEntries();
+     for (r=0; r<mtx.Rows(); r++) {
+       icUInt16Number rs = start[r];
+       icUInt16Number re = start[r+1];
++      if (re > nEntries)
++        re = nEntries;
+       snprintf(buf, bufSize, "Row%d:", r);
+       sDescription += buf;
+ 
