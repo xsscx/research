@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
     printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
     printf("Usage: IccFromXml_unsafe xml_file saved_profile_file {-noid -v{=[relax_ng_schema_file]}}\n");
-    printf("  Sandboxed: each conversion runs in an isolated child process\n");
+    printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
     printf("\n");
     return -1;
   }
@@ -99,7 +99,6 @@ int main(int argc, char* argv[])
     }
   }
 
-  // Capture args for the child
   const char* xml_path = argv[1];
   const char* icc_path = argv[2];
 
@@ -137,23 +136,17 @@ int main(int argc, char* argv[])
     icProfileIDSaveMethod method = bNoId ? icNeverWriteID :
       (idx<16 ? icAlwaysWriteID : icVersionBasedID);
 
-    if (vs <= icValidateWarning) {
-      if (SaveIccProfile(icc_path, &profile, method)) {
+    if (SaveIccProfile(icc_path, &profile, method)) {
+      if (vs <= icValidateWarning) {
         printf("Profile parsed and saved correctly\n");
-        printf("[ColorBleed] Review the outputs for Sensitive Information\n");
       } else {
-        fprintf(stderr, "Unable to save profile as '%s'\n", icc_path);
-        return 2;
-      }
-    } else {
-      if (SaveIccProfile(icc_path, &profile, method)) {
         printf("Profile parsed.  Profile is invalid, but saved correctly\n");
-        printf("[ColorBleed] Review the output for sensitive information\n");
-      } else {
-        fprintf(stderr, "Unable to save profile - profile is invalid!\n");
-        return 3;
+        fprintf(stderr, "%s", valid_report.c_str());
       }
-      fprintf(stderr, "%s", valid_report.c_str());
+      printf("[ColorBleed] Review the outputs for Sensitive Information\n");
+    } else {
+      fprintf(stderr, "Unable to save profile as '%s'\n", icc_path);
+      return 2;
     }
 
     return 0;
