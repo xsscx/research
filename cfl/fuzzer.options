@@ -19,7 +19,7 @@ use_value_profile=1
 fork=4
 
 # Reduce depth for faster iteration
-max_len=65536
+max_len=5242880
 
 # Memory limit per run (MB) - increased for complex ICC profiles
 rss_limit_mb=4096
