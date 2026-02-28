@@ -192,6 +192,8 @@ class NetworkAccessInXmlContext extends FunctionCall {
 class FileAccessInXmlContext extends FunctionCall {
   FileAccessInXmlContext() {
     this.getTarget() instanceof FileAccessFunction and
+    // Exclude our audited preflight code
+    not this.getFile().getBaseName().matches(["ColorBleedPreflight.h"]) and
     
     exists(Function f | f = this.getEnclosingFunction() |
       (
