@@ -49,6 +49,12 @@ jobs:
       matrix:
         target: [iccanalyzer-lite, colorbleed_tools, cfl]
 
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -267,6 +273,12 @@ jobs:
       contents: read
       security-events: write
 
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -324,6 +336,12 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -375,6 +393,12 @@ jobs:
     if: always()
     permissions:
       contents: read
+
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
 
     steps:
       - name: Generate Overall Summary

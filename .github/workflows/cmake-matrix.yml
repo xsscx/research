@@ -544,6 +544,7 @@ jobs:
       - name: Configure Git Environment
         shell: pwsh
         run: |
+          set -euo pipefail
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
@@ -557,6 +558,7 @@ jobs:
       - name: Install Dependencies
         shell: pwsh
         run: |
+          set -euo pipefail
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
@@ -568,6 +570,7 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
+          set -euo pipefail
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
@@ -582,6 +585,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
+          set -euo pipefail
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
@@ -593,6 +597,7 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
+          set -euo pipefail
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $ProgressPreference = 'SilentlyContinue'
@@ -801,6 +806,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [standard-builds, sanitizer-builds, option-matrix, windows-build, version-header-test, clean-rebuild-test]
     if: always()
+
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
 
     steps:
       - name: Generate Summary
