@@ -27,6 +27,10 @@ jobs:
     name: Cached ICC Profile Testing (25 profiles)
     runs-on: ubuntu-latest
     
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -79,6 +83,7 @@ jobs:
       - name: Get iccDEV commit hash
         id: iccdev-version
         run: |
+          set -euo pipefail
           ICCDEV_COMMIT=$(git ls-remote https://github.com/InternationalColorConsortium/iccDEV.git HEAD | cut -f1)
           echo "commit=$ICCDEV_COMMIT" >> $GITHUB_OUTPUT
           echo "iccDEV latest commit: $ICCDEV_COMMIT"
@@ -120,6 +125,7 @@ jobs:
       - name: Verify cached iccDEV
         if: steps.cache-iccdev.outputs.cache-hit == 'true'
         run: |
+          set -euo pipefail
           echo "Using cached iccDEV repository"
           cd iccanalyzer-lite/iccDEV
           git config --add safe.directory "$PWD"
@@ -127,6 +133,7 @@ jobs:
 
       - name: Apply CFL patches to iccDEV
         run: |
+          set -euo pipefail
           echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
           for p in cfl/patches/*.patch; do
             if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
@@ -189,6 +196,7 @@ jobs:
       - name: Verify cached iccDEV build
         if: steps.cache-iccdev-build.outputs.cache-hit == 'true'
         run: |
+          set -euo pipefail
           echo "Using cached iccDEV build"
           ls -lh iccanalyzer-lite/iccDEV/Build/IccProfLib/libIccProfLib2-static.a
           ls -lh iccanalyzer-lite/iccDEV/Build/IccXML/libIccXML2-static.a
@@ -196,6 +204,7 @@ jobs:
       - name: Build iccanalyzer-lite
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           bash build.sh
           
           echo "Build complete."
@@ -205,6 +214,7 @@ jobs:
       - name: Verify binary
         working-directory: iccanalyzer-lite
         run: |
+          set -euo pipefail
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
           ./iccanalyzer-lite --version
@@ -215,6 +225,7 @@ jobs:
           INPUT_PROFILE_COUNT: ${{ github.event.inputs.profile_count || '25' }}
         run: |
           # Create test directory
+          set -euo pipefail
           mkdir -p profile-test-results
           
           # Count available profiles in extended-test-profiles directory
@@ -238,6 +249,7 @@ jobs:
 
       - name: Run iccanalyzer-lite on profiles
         run: |
+          set -euo pipefail
           cd iccanalyzer-lite
           
           # Create results directory
@@ -326,6 +338,7 @@ jobs:
 
       - name: Generate cache statistics
         run: |
+          set -euo pipefail
           cd profile-test-results
           
           echo "==================================================================" > cache-stats.txt
@@ -341,6 +354,7 @@ jobs:
 
       - name: Generate results index
         run: |
+          set -euo pipefail
           cd profile-test-results
           
           INDEX_FILE="index.html"
@@ -456,6 +470,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite Cached Testing Results (25 Security POC Profiles)
@@ -496,6 +511,7 @@ jobs:
 
       - name: Check test success
         run: |
+          set -euo pipefail
           if [ "${{ env.failed || '0' }}" -eq 0 ]; then
             echo "SUCCESS: All ${{ env.total || '0' }} profiles tested successfully"
             exit 0

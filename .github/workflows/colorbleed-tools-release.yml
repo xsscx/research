@@ -297,6 +297,7 @@ jobs:
       - name: Generate checksums for binaries
         working-directory: colorbleed_tools
         run: |
+          set -euo pipefail
           sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
           cat SHA256SUMS
 
@@ -400,6 +401,7 @@ jobs:
       - name: Report to summary
         if: always()
         run: |
+          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << SUMMARY_EOF
           ## ColorBleed Tools Roundtrip Test → Release
@@ -426,6 +428,7 @@ jobs:
 
       - name: Final status
         run: |
+          set -euo pipefail
           echo "============================================"
           echo "  ColorBleed Tools → Release COMPLETE"
           echo "============================================"
