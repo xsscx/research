@@ -83,26 +83,8 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true 
           cd colorbleed_tools
-          if [ ! -d "iccDEV" ]; then
-            git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          fi
-          cd ..
-          echo "Applying CFL library patches..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
-            fi
-          done
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="colorbleed_tools/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
-          cd colorbleed_tools
-          make setup && make -j"$(nproc)" clean all test
+          make setup
+          make test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
         env:
