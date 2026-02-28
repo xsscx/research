@@ -6,7 +6,7 @@ name: Copilot Auto-Merge
 
 on:
   workflow_run:
-    workflows: ["Running Copilot coding agent"]
+    workflows: ["Copilot coding agent"]
     types: [completed]
 
 permissions:
