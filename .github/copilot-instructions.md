@@ -254,11 +254,14 @@ Open http://localhost:8080/ — provides browser-based access to all analysis to
 - ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
 
 **Automated issue→PR→merge workflow**: When Copilot coding agent processes an analysis issue:
-1. Downloads/locates the ICC profile
-2. Runs `./analyze-profile.sh` (or `full_analysis` MCP tool)
-3. Commits the report to `analysis-reports/`
-4. Opens a PR with exit code summary and ASAN/UBSAN status
-5. The PR can be reviewed and merged (squash merge preferred)
+1. Issue opened with ICC profile to analyze (assign `@copilot` or mention in comment)
+2. Agent downloads/locates the ICC profile, runs `./analyze-profile.sh`
+3. Agent commits the report to `analysis-reports/` and opens a draft PR
+4. When the agent finishes, the PR transitions from draft → ready for review
+5. The `copilot-auto-merge.yml` workflow triggers on `ready_for_review` and squash-merges the PR automatically
+6. The originating issue is closed via `Fixes #N` in the PR body
+
+No manual intervention required — the entire pipeline is hands-free from issue to merge.
 
 ## Architecture
 
@@ -352,7 +355,8 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 - Default binding: 127.0.0.1 (not 0.0.0.0)
 
 ### CI workflows
-30 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
+31 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
+- `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on `ready_for_review`
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 19 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
