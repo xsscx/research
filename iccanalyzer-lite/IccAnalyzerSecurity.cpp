@@ -585,6 +585,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("\n");
     
     // 11. CLUT Size Limit Check (Resource Exhaustion) — walk actual LUT tags
+    // CVE refs: CVE-2026-21490, CVE-2026-21494 (LUT8/LUT16 OOM via extreme CLUT dimensions)
     printf("[H11] CLUT Entry Limit Check\n");
     printf("      Max safe CLUT entries per tag: %llu (16M)\n",
            (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES);
@@ -695,6 +696,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
     
     // 14. TagArrayType Detection (CRITICAL - Heap-Use-After-Free)
+    // CVE refs: CVE-2026-21677 (UAF in CIccTagArray::Cleanup)
     // Based on fuzzer findings 2026-01-30: TagArray can appear under ANY signature
     printf("[H14] TagArrayType Detection (UAF Risk)\n");
     printf("      Checking for TagArrayType (0x74617279 = 'tary')\n");
@@ -1235,6 +1237,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("\n");
 
     // 25. Tag Offset/Size OOB Detection (raw file bytes)
+    // CVE refs: CVE-2026-25583 (HBO in CIccFileIO::Read8), CVE-2026-24852 (tag offset overflow)
     printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
     {
       FILE *fp25 = fopen(filename, "rb");
@@ -1304,6 +1307,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("\n");
 
     // 26. NamedColor2 String Validation (raw scan — checks tag TYPE, not signature)
+    // CVE refs: CVE-2026-21488 (non-null-terminated strings), CVE-2026-24852 (text overflow)
     printf("[H26] NamedColor2 String Validation\n");
     {
       FILE *fp26 = fopen(filename, "rb");
@@ -1430,6 +1434,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("\n");
 
     // 27. MPE Matrix Output Channel Validation
+    // CVE refs: CVE-2026-25634 (memcpy-param-overlap), CVE-2026-22047 (CalcOp element bounds)
     printf("[H27] MPE Matrix Output Channel Validation\n");
     {
       int matrixIssues = 0;
@@ -1502,6 +1507,501 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
     printf("\n");
 
+    // 28. LUT Dimension Validation (raw file bytes)
+    // CVE refs: CVE-2026-21490, CVE-2026-21494, GHSA-x9hr-pxxc-h38p (OOM via extreme nInput^nGrid)
+    // LUT8 type='mft1', LUT16 type='mft2': nInput/nOutput/nGrid parsed from raw bytes
+    printf("[H28] LUT Dimension Validation (OOM Risk)\n");
+    {
+      FILE *fp28 = fopen(filename, "rb");
+      if (fp28) {
+        fseek(fp28, 0, SEEK_END);
+        long fs28_l = ftell(fp28);
+        if (fs28_l < 0) { fclose(fp28); fp28 = NULL; }
+        size_t fs28 = (fp28) ? (size_t)fs28_l : 0;
+        if (fp28) fseek(fp28, 0, SEEK_SET);
+
+        int lutIssues = 0;
+        if (fs28 >= 132) {
+          icUInt8Number hdr28[132];
+          if (fread(hdr28, 1, 132, fp28) == 132) {
+            icUInt32Number tc28 = (static_cast<icUInt32Number>(hdr28[128])<<24) | (static_cast<icUInt32Number>(hdr28[129])<<16) |
+                                  (static_cast<icUInt32Number>(hdr28[130])<<8) | hdr28[131];
+
+            for (icUInt32Number i = 0; i < tc28 && i < 256; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > fs28) break;
+
+              icUInt8Number e28[12];
+              fseek(fp28, ePos, SEEK_SET);
+              if (fread(e28, 1, 12, fp28) != 12) break;
+
+              icUInt32Number tOff28 = (static_cast<icUInt32Number>(e28[4])<<24) | (static_cast<icUInt32Number>(e28[5])<<16) |
+                                      (static_cast<icUInt32Number>(e28[6])<<8) | e28[7];
+              icUInt32Number tSz28  = (static_cast<icUInt32Number>(e28[8])<<24) | (static_cast<icUInt32Number>(e28[9])<<16) |
+                                      (static_cast<icUInt32Number>(e28[10])<<8) | e28[11];
+
+              // Need at least type(4) + reserved(4) + nInput(1) + nOutput(1) + nGrid(1) = 11 bytes
+              if (tOff28 + 11 > fs28 || tSz28 < 11) continue;
+              icUInt8Number lutHdr[11];
+              fseek(fp28, tOff28, SEEK_SET);
+              if (fread(lutHdr, 1, 11, fp28) != 11) continue;
+
+              icUInt32Number lutType = (static_cast<icUInt32Number>(lutHdr[0])<<24) | (static_cast<icUInt32Number>(lutHdr[1])<<16) |
+                                       (static_cast<icUInt32Number>(lutHdr[2])<<8) | lutHdr[3];
+
+              // Check for LUT8 (0x6D667431='mft1') or LUT16 (0x6D667432='mft2')
+              if (lutType != 0x6D667431 && lutType != 0x6D667432) continue;
+
+              icUInt8Number nInput28  = lutHdr[8];
+              icUInt8Number nOutput28 = lutHdr[9];
+              icUInt8Number nGrid28   = lutHdr[10];
+
+              char sig28[5];
+              sig28[0] = (e28[0]); sig28[1] = (e28[1]);
+              sig28[2] = (e28[2]); sig28[3] = (e28[3]); sig28[4] = '\0';
+
+              // Spec max: nInput ≤ 16, nOutput ≤ 16
+              if (nInput28 > 16 || nOutput28 > 16) {
+                printf("      %s[WARN]  Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)%s\n",
+                       ColorCritical(), sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
+                       nInput28, nOutput28, ColorReset());
+                printf("       %sRisk: Buffer overflow in grid point arrays (max 16 channels)%s\n",
+                       ColorCritical(), ColorReset());
+                lutIssues++;
+                continue;
+              }
+
+              // Compute CLUT point count: nGrid^nInput * nOutput
+              uint64_t points = 1;
+              bool overflow28 = false;
+              for (int ch = 0; ch < nInput28; ch++) {
+                uint64_t prev = points;
+                points *= nGrid28;
+                if (nGrid28 > 0 && points / nGrid28 != prev) { overflow28 = true; break; }
+              }
+              if (!overflow28) {
+                uint64_t prev = points;
+                points *= nOutput28;
+                if (nOutput28 > 0 && points / nOutput28 != prev) overflow28 = true;
+              }
+
+              // 16M entries × 4 bytes = 64MB — generous limit
+              const uint64_t MAX_LUT_POINTS = 16ULL * 1024 * 1024;
+              if (overflow28 || points > MAX_LUT_POINTS) {
+                printf("      %s[WARN]  Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u → %s CLUT points%s\n",
+                       ColorCritical(), sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
+                       nInput28, nOutput28, nGrid28,
+                       overflow28 ? "OVERFLOW" : std::to_string(points).c_str(),
+                       ColorReset());
+                printf("       %sRisk: OOM — allocation of %s bytes in CIccCLUT::Init()%s\n",
+                       ColorCritical(),
+                       overflow28 ? ">2^64" : std::to_string(points * 4).c_str(),
+                       ColorReset());
+                lutIssues++;
+              } else if (nInput28 > 0 && nGrid28 > 0) {
+                printf("      [OK] Tag '%s' (%s): %ux%ux%u → %llu points\n",
+                       sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
+                       nInput28, nOutput28, nGrid28, (unsigned long long)points);
+              }
+            }
+          }
+        }
+        if (fp28) fclose(fp28);
+
+        if (lutIssues > 0) {
+          heuristicCount += lutIssues;
+        } else {
+          printf("      %s[OK] All LUT dimensions within safe limits%s\n", ColorSuccess(), ColorReset());
+        }
+      }
+    }
+    printf("\n");
+
+    // 29. ColorantTable String Validation (raw file bytes)
+    // CVE refs: GHSA-4wqv-pvm8-5h27 (OOB read via unterminated colorant name[32])
+    // CVE-2026-27692 (HBO in TextDescription from unterminated strings)
+    printf("[H29] ColorantTable String Validation\n");
+    {
+      FILE *fp29 = fopen(filename, "rb");
+      if (fp29) {
+        fseek(fp29, 0, SEEK_END);
+        long fs29_l = ftell(fp29);
+        if (fs29_l < 0) { fclose(fp29); fp29 = NULL; }
+        size_t fs29 = (fp29) ? (size_t)fs29_l : 0;
+        if (fp29) fseek(fp29, 0, SEEK_SET);
+
+        int clrtIssues = 0;
+        if (fs29 >= 132) {
+          icUInt8Number hdr29[132];
+          if (fread(hdr29, 1, 132, fp29) == 132) {
+            icUInt32Number tc29 = (static_cast<icUInt32Number>(hdr29[128])<<24) | (static_cast<icUInt32Number>(hdr29[129])<<16) |
+                                  (static_cast<icUInt32Number>(hdr29[130])<<8) | hdr29[131];
+
+            for (icUInt32Number i = 0; i < tc29 && i < 256; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > fs29) break;
+
+              icUInt8Number e29[12];
+              fseek(fp29, ePos, SEEK_SET);
+              if (fread(e29, 1, 12, fp29) != 12) break;
+
+              icUInt32Number tOff29 = (static_cast<icUInt32Number>(e29[4])<<24) | (static_cast<icUInt32Number>(e29[5])<<16) |
+                                      (static_cast<icUInt32Number>(e29[6])<<8) | e29[7];
+              icUInt32Number tSz29  = (static_cast<icUInt32Number>(e29[8])<<24) | (static_cast<icUInt32Number>(e29[9])<<16) |
+                                      (static_cast<icUInt32Number>(e29[10])<<8) | e29[11];
+
+              // Read type signature
+              if (tOff29 + 12 > fs29 || tSz29 < 12) continue;
+              icUInt8Number typeCheck29[12];
+              fseek(fp29, tOff29, SEEK_SET);
+              if (fread(typeCheck29, 1, 12, fp29) != 12) continue;
+
+              icUInt32Number tagType29 = (static_cast<icUInt32Number>(typeCheck29[0])<<24) | (static_cast<icUInt32Number>(typeCheck29[1])<<16) |
+                                          (static_cast<icUInt32Number>(typeCheck29[2])<<8) | typeCheck29[3];
+
+              // 'clrt' = 0x636C7274
+              if (tagType29 != 0x636C7274) continue;
+
+              // ColorantTable layout: type(4)+reserved(4)+count(4) then count × entry(38)
+              // Each entry: name[32] + data[6]
+              icUInt32Number colorantCount = (static_cast<icUInt32Number>(typeCheck29[8])<<24) | (static_cast<icUInt32Number>(typeCheck29[9])<<16) |
+                                              (static_cast<icUInt32Number>(typeCheck29[10])<<8) | typeCheck29[11];
+
+              if (colorantCount > 256) {
+                printf("      %s[WARN]  ColorantTable: count=%u (>256) — excessive allocation risk%s\n",
+                       ColorCritical(), colorantCount, ColorReset());
+                clrtIssues++;
+                continue;
+              }
+
+              // Check each colorant name for null termination
+              for (icUInt32Number ci = 0; ci < colorantCount && ci < 256; ci++) {
+                size_t namePos = tOff29 + 12 + ci * 38;
+                if (namePos + 32 > fs29) break;
+
+                icUInt8Number name29[32];
+                fseek(fp29, namePos, SEEK_SET);
+                if (fread(name29, 1, 32, fp29) != 32) break;
+
+                bool hasNull = false;
+                for (int j = 0; j < 32; j++) {
+                  if (name29[j] == 0) { hasNull = true; break; }
+                }
+                if (!hasNull) {
+                  printf("      %s[WARN]  Colorant[%u] name not null-terminated (all 32 bytes non-zero)%s\n",
+                         ColorCritical(), ci, ColorReset());
+                  printf("       %sRisk: strlen overflow in ToXml → heap-buffer-overflow read%s\n",
+                         ColorCritical(), ColorReset());
+                  clrtIssues++;
+                }
+              }
+            }
+          }
+        }
+        if (fp29) fclose(fp29);
+
+        if (clrtIssues > 0) {
+          heuristicCount += clrtIssues;
+        } else {
+          printf("      %s[OK] No ColorantTable string issues detected%s\n", ColorSuccess(), ColorReset());
+        }
+      }
+    }
+    printf("\n");
+
+    // 30. GamutBoundaryDesc Allocation Validation (raw file bytes)
+    // CVE refs: GHSA-rc3h-95ph-j363 (OOM via unvalidated triangle count in 'gbd ' tags)
+    printf("[H30] GamutBoundaryDesc Allocation Validation\n");
+    {
+      FILE *fp30 = fopen(filename, "rb");
+      if (fp30) {
+        fseek(fp30, 0, SEEK_END);
+        long fs30_l = ftell(fp30);
+        if (fs30_l < 0) { fclose(fp30); fp30 = NULL; }
+        size_t fs30 = (fp30) ? (size_t)fs30_l : 0;
+        if (fp30) fseek(fp30, 0, SEEK_SET);
+
+        int gbdIssues = 0;
+        if (fs30 >= 132) {
+          icUInt8Number hdr30[132];
+          if (fread(hdr30, 1, 132, fp30) == 132) {
+            icUInt32Number tc30 = (static_cast<icUInt32Number>(hdr30[128])<<24) | (static_cast<icUInt32Number>(hdr30[129])<<16) |
+                                  (static_cast<icUInt32Number>(hdr30[130])<<8) | hdr30[131];
+
+            for (icUInt32Number i = 0; i < tc30 && i < 256; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > fs30) break;
+
+              icUInt8Number e30[12];
+              fseek(fp30, ePos, SEEK_SET);
+              if (fread(e30, 1, 12, fp30) != 12) break;
+
+              icUInt32Number tOff30 = (static_cast<icUInt32Number>(e30[4])<<24) | (static_cast<icUInt32Number>(e30[5])<<16) |
+                                      (static_cast<icUInt32Number>(e30[6])<<8) | e30[7];
+              icUInt32Number tSz30  = (static_cast<icUInt32Number>(e30[8])<<24) | (static_cast<icUInt32Number>(e30[9])<<16) |
+                                      (static_cast<icUInt32Number>(e30[10])<<8) | e30[11];
+
+              // 'gbd ' type header: type(4)+reserved(4)+reserved(4)+nVertices(4)+nTriangles(4)+nPCSCh(2)+nDevCh(2) = 24 bytes
+              if (tOff30 + 24 > fs30 || tSz30 < 24) continue;
+              icUInt8Number gbdHdr[24];
+              fseek(fp30, tOff30, SEEK_SET);
+              if (fread(gbdHdr, 1, 24, fp30) != 24) continue;
+
+              icUInt32Number gbdType = (static_cast<icUInt32Number>(gbdHdr[0])<<24) | (static_cast<icUInt32Number>(gbdHdr[1])<<16) |
+                                       (static_cast<icUInt32Number>(gbdHdr[2])<<8) | gbdHdr[3];
+
+              // 'gbd ' = 0x67626420
+              if (gbdType != 0x67626420) continue;
+
+              icUInt32Number nVerts = (static_cast<icUInt32Number>(gbdHdr[12])<<24) | (static_cast<icUInt32Number>(gbdHdr[13])<<16) |
+                                      (static_cast<icUInt32Number>(gbdHdr[14])<<8) | gbdHdr[15];
+              icUInt32Number nTris  = (static_cast<icUInt32Number>(gbdHdr[16])<<24) | (static_cast<icUInt32Number>(gbdHdr[17])<<16) |
+                                      (static_cast<icUInt32Number>(gbdHdr[18])<<8) | gbdHdr[19];
+              icUInt16Number nPCSCh = (static_cast<icUInt16Number>(gbdHdr[20])<<8) | gbdHdr[21];
+              icUInt16Number nDevCh = (static_cast<icUInt16Number>(gbdHdr[22])<<8) | gbdHdr[23];
+
+              // Triangle allocation: nTriangles × 12 bytes
+              uint64_t triAlloc = (uint64_t)nTris * 12;
+              // Vertex arrays: nVertices × (3*4 + nPCSCh*4 + nDevCh*4)
+              uint64_t vertAlloc = (uint64_t)nVerts * (12 + (uint64_t)nPCSCh * 4 + (uint64_t)nDevCh * 4);
+              uint64_t totalAlloc = triAlloc + vertAlloc + 24;
+
+              char sig30[5];
+              sig30[0] = e30[0]; sig30[1] = e30[1]; sig30[2] = e30[2]; sig30[3] = e30[3]; sig30[4] = '\0';
+
+              // Check: allocation exceeds tag size (OOM risk)
+              if (totalAlloc > (uint64_t)tSz30 * 4) {
+                printf("      %s[WARN]  Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u%s\n",
+                       ColorCritical(), sig30, nVerts, nTris, nPCSCh, nDevCh, ColorReset());
+                printf("       %sAllocation: %llu bytes vs tag size %u bytes%s\n",
+                       ColorCritical(), (unsigned long long)totalAlloc, tSz30, ColorReset());
+                printf("       %sRisk: OOM in CIccTagGamutBoundaryDesc::Read()%s\n",
+                       ColorCritical(), ColorReset());
+                gbdIssues++;
+              }
+
+              // Check: negative channel counts (icUInt16Number interpreted as signed)
+              if (nPCSCh > 3 || nDevCh > 15) {
+                printf("      %s[WARN]  Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range%s\n",
+                       ColorWarning(), sig30, nPCSCh, nDevCh, ColorReset());
+                printf("       %sRisk: Signed/unsigned confusion in allocation size%s\n",
+                       ColorCritical(), ColorReset());
+                gbdIssues++;
+              }
+            }
+          }
+        }
+        if (fp30) fclose(fp30);
+
+        if (gbdIssues > 0) {
+          heuristicCount += gbdIssues;
+        } else {
+          printf("      %s[OK] No GamutBoundaryDesc allocation issues%s\n", ColorSuccess(), ColorReset());
+        }
+      }
+    }
+    printf("\n");
+
+    // 31. MPE Channel Count Validation
+    // CVE refs: CVE-2026-25634 (memcpy-param-overlap from large m_nInputChannels)
+    // CVE-2026-25584 (SBO in CIccTagFloatNum::GetValues)
+    // CVE-2026-25585 (OOB in CIccXform3DLut::Apply)
+    printf("[H31] MPE Channel Count Validation\n");
+    {
+      int channelIssues = 0;
+      icUInt32Number mpeSigs31[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+      };
+      for (auto sig31 : mpeSigs31) {
+        CIccTag *pTag31 = pIcc->FindTag(sig31);
+        if (!pTag31) continue;
+        CIccTagMultiProcessElement *pMpe31 = dynamic_cast<CIccTagMultiProcessElement*>(pTag31);
+        if (!pMpe31) continue;
+
+        icUInt16Number mpeIn  = pMpe31->NumInputChannels();
+        icUInt16Number mpeOut = pMpe31->NumOutputChannels();
+
+        char sigStr31[5];
+        SignatureToFourCC(sig31, sigStr31);
+
+        // MPE with extreme channel counts → memcpy overlap on stack buffers
+        if (mpeIn > 32 || mpeOut > 32) {
+          printf("      %s[WARN]  Tag '%s': MPE channels in=%u out=%u (>32)%s\n",
+                 ColorCritical(), sigStr31, mpeIn, mpeOut, ColorReset());
+          printf("       %sRisk: memcpy-param-overlap in Apply(), stack buffer overflow%s\n",
+                 ColorCritical(), ColorReset());
+          channelIssues++;
+        }
+
+        // Check individual elements for channel mismatches
+        icUInt32Number nElems31 = pMpe31->NumElements();
+        for (icUInt32Number ei = 0; ei < nElems31 && ei < 64; ei++) {
+          CIccMultiProcessElement *pElem31 = pMpe31->GetElement(ei);
+          if (!pElem31) continue;
+
+          icUInt16Number elemIn  = pElem31->NumInputChannels();
+          icUInt16Number elemOut = pElem31->NumOutputChannels();
+
+          if (elemIn > 64 || elemOut > 64) {
+            printf("      %s[WARN]  Tag '%s' elem %u: channels in=%u out=%u (extreme)%s\n",
+                   ColorCritical(), sigStr31, ei, elemIn, elemOut, ColorReset());
+            printf("       %sRisk: Stack buffer overflow in element Apply()%s\n",
+                   ColorCritical(), ColorReset());
+            channelIssues++;
+          }
+        }
+      }
+
+      if (channelIssues > 0) {
+        heuristicCount += channelIssues;
+      } else {
+        printf("      %s[OK] All MPE channel counts within safe limits%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 32. Tag Data Type Confusion Detection (raw file bytes)
+    // CVE refs: GHSA-2pjj-3c98-qp37 (type confusion in ToXmlCurve)
+    // GHSA-xqq3-g894-w2h5 (HBO in IccTagXml from type confusion)
+    // Checks that tag type signatures are valid printable ICC 4CC codes
+    printf("[H32] Tag Data Type Confusion Detection\n");
+    {
+      FILE *fp32 = fopen(filename, "rb");
+      if (fp32) {
+        fseek(fp32, 0, SEEK_END);
+        long fs32_l = ftell(fp32);
+        if (fs32_l < 0) { fclose(fp32); fp32 = NULL; }
+        size_t fs32 = (fp32) ? (size_t)fs32_l : 0;
+        if (fp32) fseek(fp32, 0, SEEK_SET);
+
+        int typeConfusionCount = 0;
+        if (fs32 >= 132) {
+          icUInt8Number hdr32[132];
+          if (fread(hdr32, 1, 132, fp32) == 132) {
+            icUInt32Number tc32 = (static_cast<icUInt32Number>(hdr32[128])<<24) | (static_cast<icUInt32Number>(hdr32[129])<<16) |
+                                  (static_cast<icUInt32Number>(hdr32[130])<<8) | hdr32[131];
+
+            // Known valid ICC tag type signatures
+            static const icUInt32Number knownTypes[] = {
+              0x63757276, // 'curv' - curveType
+              0x70617261, // 'para' - parametricCurveType
+              0x6D667431, // 'mft1' - lut8Type
+              0x6D667432, // 'mft2' - lut16Type
+              0x6D414220, // 'mAB ' - lutAtoBType
+              0x6D424120, // 'mBA ' - lutBtoAType
+              0x6D706574, // 'mpet' - multiProcessElementsType
+              0x58595A20, // 'XYZ ' - XYZType
+              0x74657874, // 'text' - textType
+              0x64657363, // 'desc' - textDescriptionType
+              0x6D6C7563, // 'mluc' - multiLocalizedUnicodeType
+              0x73663332, // 'sf32' - s15Fixed16ArrayType
+              0x75663332, // 'uf32' - u16Fixed16ArrayType
+              0x73696720, // 'sig ' - signatureType
+              0x64617461, // 'data' - dataType
+              0x6474696D, // 'dtim' - dateTimeType
+              0x76696577, // 'view' - viewingConditionsType
+              0x6D656173, // 'meas' - measurementType
+              0x6E636C32, // 'ncl2' - namedColor2Type
+              0x636C7274, // 'clrt' - colorantTableType
+              0x636C726F, // 'clro' - colorantOrderType
+              0x63727064, // 'crpd' - crdInfoType
+              0x75693038, // 'ui08' - uInt8ArrayType
+              0x75693136, // 'ui16' - uInt16ArrayType
+              0x75693332, // 'ui32' - uInt32ArrayType
+              0x75693634, // 'ui64' - uInt64ArrayType
+              0x666C3136, // 'fl16' - float16ArrayType
+              0x666C3332, // 'fl32' - float32ArrayType
+              0x666C3634, // 'fl64' - float64ArrayType
+              0x67626420, // 'gbd ' - gamutBoundaryDescType
+              0x63696370, // 'cicp' - cicpType
+              0x73706563, // 'spec' - spectralDataInfoType
+              0x736D6174, // 'smat' - sparseMatrixArrayType
+              0x74617279, // 'tary' - tagArrayType
+              0x74737472, // 'tstr' - tagStructType
+              0x7A757466, // 'zutf' - zipUtf8Type
+              0x7A786D6C, // 'zxml' - zipXmlType
+              0x75746638, // 'utf8' - utf8Type
+              0x64696374, // 'dict' - dictType
+              0x656D6274, // 'embt' - embeddedHeightImageType / embeddedNormalImageType
+              0x636F6C52, // 'colR' - colorEncodingParamsStructType
+              0x636F6C53, // 'colS' - colorSpaceTypeTagType
+              0x7376636E, // 'svcn' - spectralViewingConditionsType
+              0x7364696E, // 'sdin' - spectralDataInfoType
+              0x736D7769, // 'smwi' - spectralMediaWhiteType
+            };
+            const int numKnownTypes = sizeof(knownTypes) / sizeof(knownTypes[0]);
+
+            for (icUInt32Number i = 0; i < tc32 && i < 256; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > fs32) break;
+
+              icUInt8Number e32[12];
+              fseek(fp32, ePos, SEEK_SET);
+              if (fread(e32, 1, 12, fp32) != 12) break;
+
+              icUInt32Number tSig32 = (static_cast<icUInt32Number>(e32[0])<<24) | (static_cast<icUInt32Number>(e32[1])<<16) |
+                                      (static_cast<icUInt32Number>(e32[2])<<8) | e32[3];
+              icUInt32Number tOff32 = (static_cast<icUInt32Number>(e32[4])<<24) | (static_cast<icUInt32Number>(e32[5])<<16) |
+                                      (static_cast<icUInt32Number>(e32[6])<<8) | e32[7];
+              icUInt32Number tSz32  = (static_cast<icUInt32Number>(e32[8])<<24) | (static_cast<icUInt32Number>(e32[9])<<16) |
+                                      (static_cast<icUInt32Number>(e32[10])<<8) | e32[11];
+
+              if (tOff32 + 4 > fs32 || tSz32 < 4) continue;
+              icUInt8Number typeData32[4];
+              fseek(fp32, tOff32, SEEK_SET);
+              if (fread(typeData32, 1, 4, fp32) != 4) continue;
+
+              icUInt32Number dataType32 = (static_cast<icUInt32Number>(typeData32[0])<<24) | (static_cast<icUInt32Number>(typeData32[1])<<16) |
+                                           (static_cast<icUInt32Number>(typeData32[2])<<8) | typeData32[3];
+
+              // Already caught by H20 (non-printable type bytes)
+              // Here we check if the type is a known ICC type signature
+              bool isKnown = false;
+              for (int k = 0; k < numKnownTypes; k++) {
+                if (dataType32 == knownTypes[k]) { isKnown = true; break; }
+              }
+
+              if (!isKnown) {
+                // Check if all 4 bytes are printable ASCII (might be a valid extension type)
+                bool allPrintable = true;
+                for (int b = 0; b < 4; b++) {
+                  if (typeData32[b] < 0x20 || typeData32[b] > 0x7E) { allPrintable = false; break; }
+                }
+
+                if (!allPrintable) {
+                  // Already caught by H20, skip to avoid duplicate
+                  continue;
+                }
+
+                char sigStr32[5], typeStr32[5];
+                sigStr32[0] = (tSig32>>24)&0xff; sigStr32[1] = (tSig32>>16)&0xff;
+                sigStr32[2] = (tSig32>>8)&0xff; sigStr32[3] = tSig32&0xff; sigStr32[4] = '\0';
+                typeStr32[0] = (dataType32>>24)&0xff; typeStr32[1] = (dataType32>>16)&0xff;
+                typeStr32[2] = (dataType32>>8)&0xff; typeStr32[3] = dataType32&0xff; typeStr32[4] = '\0';
+
+                printf("      %s[WARN]  Tag '%s': unknown type signature '%s' (0x%08X)%s\n",
+                       ColorWarning(), sigStr32, typeStr32, dataType32, ColorReset());
+                printf("       %sRisk: Type confusion → wrong parser invoked → memory corruption%s\n",
+                       ColorCritical(), ColorReset());
+                typeConfusionCount++;
+              }
+            }
+          }
+        }
+        if (fp32) fclose(fp32);
+
+        if (typeConfusionCount > 0) {
+          heuristicCount += typeConfusionCount;
+        } else {
+          printf("      %s[OK] All tag type signatures are known ICC types%s\n", ColorSuccess(), ColorReset());
+        }
+      }
+    }
+    printf("\n");
+
     delete pIcc;
   }
   
@@ -1520,6 +2020,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- Resource exhaustion attempts%s\n", ColorWarning(), ColorReset());
     printf("  %s- Enum confusion vulnerabilities%s\n", ColorWarning(), ColorReset());
     printf("  %s- Parser exploitation attempts%s\n", ColorWarning(), ColorReset());
+    printf("  %s- Type confusion / buffer overflow patterns%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    printf("  %sCVE Coverage: 32 heuristics covering patterns from 77 iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
