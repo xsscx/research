@@ -19,6 +19,9 @@
 - queries: ./subprocess-command-injection.ql
 - queries: ./path-traversal-build-dir.ql
 - queries: ./missing-output-sanitization.ql
+- queries: ./api-path-traversal.ql
+- queries: ./unsafe-env-server-bind.ql
+- queries: ./unvalidated-file-upload.ql
 
 # Built-in high-value queries
 - queries: .

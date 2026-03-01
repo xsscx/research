@@ -6,7 +6,7 @@
 # Last Updated: 2026-02-25 14:00:00 UTC
 #
 # Targets: iccanalyzer-lite, colorbleed_tools, cfl (19 fuzzers), mcp-server (Python)
-# Queries: 17 custom C++ (per target) + 3 custom Python + security-and-quality + security-experimental
+# Queries: 17 custom C++ (per target) + 6 custom Python + security-and-quality + security-experimental
 ###############################################################
 
 name: CodeQL Security Analysis
@@ -410,7 +410,7 @@ jobs:
           echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Targets:** iccanalyzer-lite, colorbleed_tools, cfl, mcp-server, devcontainer" >> $GITHUB_STEP_SUMMARY
-          echo "**Total Queries:** 51 C++ (17 per target) + 3 custom Python + security-and-quality" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Queries:** 51 C++ (17 per target) + 6 custom Python + security-and-quality" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Repository Security Posture" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA-pinned actions:** 83/83 (100%)" >> $GITHUB_STEP_SUMMARY
