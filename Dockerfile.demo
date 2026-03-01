@@ -132,9 +132,17 @@ from starlette.responses import HTMLResponse
 from starlette.routing import Route
 import uvicorn
 
-from web_ui import app
+from web_ui import app, _INDEX_HTML, _CSP_NONCE_TEMPLATE, _SECURITY_HEADERS
 
 demo_html = Path('/app/dev-demo/index.html').read_text()
+webui_html = _INDEX_HTML.read_text(encoding='utf-8') if _INDEX_HTML.is_file() else ''
+
+# Hide maintainer tools in demo mode
+DEMO_HIDE_CSS = '''
+[data-tool=\"cmake_configure\"],[data-tool=\"cmake_build\"],[data-tool=\"create_profiles\"],
+[data-tool=\"run_tests\"],[data-tool=\"option_matrix\"],[data-tool=\"windows_build\"],
+[data-separator]{display:none!important}
+'''
 
 import secrets
 async def demo_home(request):
@@ -147,8 +155,18 @@ async def demo_home(request):
     )
     return HTMLResponse(html, headers={'Content-Security-Policy': csp})
 
+async def demo_webui(request):
+    nonce = secrets.token_urlsafe(32)
+    html = webui_html.replace('<style>', f'<style nonce=\"{nonce}\">', 1)
+    html = html.replace('<script>', f'<script nonce=\"{nonce}\">', 1)
+    html = html.replace('</style>', DEMO_HIDE_CSS + '</style>', 1)
+    headers = dict(_SECURITY_HEADERS)
+    headers['Content-Security-Policy'] = _CSP_NONCE_TEMPLATE.format(nonce=nonce)
+    return HTMLResponse(html, headers=headers)
+
 app.routes.insert(0, Route('/', demo_home))
 app.routes.insert(1, Route('/demo', demo_home))
+app.routes.insert(2, Route('/ui', demo_webui))
 
 host = os.environ.get('HOST', '0.0.0.0')
 port = int(os.environ.get('PORT', '8080'))
