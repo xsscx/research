@@ -2,6 +2,10 @@
 # Auto-merge Copilot coding agent PRs
 # Triggers when the Copilot coding agent workflow completes successfully.
 # Finds the associated PR, marks it ready, and squash-merges it.
+#
+# SECURITY: All user-controllable inputs (head_branch, PR title) are passed
+# via env: blocks — NEVER interpolated directly in run: steps. This prevents
+# hidden-character injection attacks (see: aquasecurity/trivy#10253).
 name: Copilot Auto-Merge
 
 on:
@@ -24,15 +28,28 @@ jobs:
       BASH_ENV: /dev/null
 
     steps:
+      - name: Checkout (for sanitizer script)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
       - name: Find and merge Copilot PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RAW_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          source .github/scripts/sanitize-sed.sh
+
+          # Sanitize the branch name — strip hidden Unicode, control chars, shell metacharacters
+          BRANCH="$(sanitize_ref "$RAW_HEAD_BRANCH")"
           echo "Agent completed on branch: ${BRANCH}"
 
           # Find the PR for this branch
           PR_JSON=$(gh pr list \
-            --repo "${{ github.repository }}" \
+            --repo "${RAW_REPOSITORY}" \
             --head "${BRANCH}" \
             --state open \
             --json number,title,isDraft,author \
@@ -44,9 +61,12 @@ jobs:
           fi
 
           PR_NUMBER=$(echo "${PR_JSON}" | jq -r '.number')
-          PR_TITLE=$(echo "${PR_JSON}" | jq -r '.title')
+          PR_TITLE_RAW=$(echo "${PR_JSON}" | jq -r '.title')
           PR_AUTHOR=$(echo "${PR_JSON}" | jq -r '.author.login')
           IS_DRAFT=$(echo "${PR_JSON}" | jq -r '.isDraft')
+
+          # Sanitize PR title before using in log output or merge subject
+          PR_TITLE="$(sanitize_line "$PR_TITLE_RAW")"
 
           echo "Found PR #${PR_NUMBER}: ${PR_TITLE} (author: ${PR_AUTHOR}, draft: ${IS_DRAFT})"
 
@@ -59,18 +79,16 @@ jobs:
           # Mark PR as ready if still a draft
           if [ "${IS_DRAFT}" = "true" ]; then
             echo "Marking PR #${PR_NUMBER} as ready for review..."
-            gh pr ready "${PR_NUMBER}" --repo "${{ github.repository }}"
+            gh pr ready "${PR_NUMBER}" --repo "${RAW_REPOSITORY}"
           fi
 
           # Squash merge
           echo "Squash-merging PR #${PR_NUMBER}..."
           gh pr merge "${PR_NUMBER}" \
-            --repo "${{ github.repository }}" \
+            --repo "${RAW_REPOSITORY}" \
             --squash \
             --subject "${PR_TITLE} (#${PR_NUMBER})" \
             --body "Auto-merged by Copilot Auto-Merge workflow.
 
           Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
           echo "[OK] PR #${PR_NUMBER} merged"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
