@@ -93,6 +93,13 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 .webui-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.4rem 0.75rem; color: var(--text); font-family: var(--mono); font-size: 0.82rem; width: 100%; margin-bottom: 0.75rem; }
 .webui-run { background: var(--green); color: var(--bg); border: none; padding: 0.4rem 1.2rem; border-radius: 5px; font-weight: 600; font-size: 0.85rem; cursor: default; display: inline-block; margin-bottom: 0.75rem; }
 
+/* Inline-style replacements (CSP compliance) */
+.webui-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.webui-title { font-size: 1.2rem; font-weight: 600; }
+.upload-hint { font-size: 0.78rem; color: var(--muted); margin-left: 0.5rem; }
+.output-short { max-height: 200px; margin-top: 0.75rem; }
+.output-tall { max-height: 800px; }
+
 .footer { text-align: center; padding: 2rem 0; margin-top: 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 768px) {
   .cards { grid-template-columns: 1fr; }
@@ -215,8 +222,8 @@ content-type: text/html; charset=utf-8
 <div class="webui-url">http://127.0.0.1:8080</div>
 </div>
 <div class="webui-content">
-<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap">
-<span style="font-size:1.2rem;font-weight:600">ICC Profile Analyzer</span>
+<div class="webui-header">
+<span class="webui-title">ICC Profile Analyzer</span>
 <span class="badge b-blue">MCP Web UI</span>
 </div>
 <div class="webui-toolbar">
@@ -236,8 +243,8 @@ content-type: text/html; charset=utf-8
 </div>
 <div class="webui-input">sRGB_D65_MAT.icc</div>
 <div class="webui-run">▶ Run</div>
-<span style="font-size:0.78rem;color:var(--muted);margin-left:0.5rem">or <u>Choose File</u> to upload</span>
-<div class="output" style="max-height:200px;margin-top:0.75rem">=========================================================================
+<span class="upload-hint">or <u>Choose File</u> to upload</span>
+<div class="output output-short">=========================================================================
 |              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
 =========================================================================
 
@@ -840,7 +847,7 @@ Idx  Signature    FourCC       Offset       Size         TagType      Status
 <div class="demo-hdr"><h4>GET /api/full?path=sRGB_D65_MAT.icc</h4><span class="badge b-blue">3 Phases</span></div>
 <div class="demo-body">
 <div class="cmd">curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'</div>
-<div class="output" style="max-height:800px">=======================================================================
+<div class="output output-tall">=======================================================================
   ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
 =======================================================================
 

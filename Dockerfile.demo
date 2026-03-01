@@ -136,8 +136,16 @@ from web_ui import app
 
 demo_html = Path('/app/dev-demo/index.html').read_text()
 
+import secrets
 async def demo_home(request):
-    return HTMLResponse(demo_html)
+    nonce = secrets.token_urlsafe(32)
+    html = demo_html.replace('<style>', f'<style nonce=\"{nonce}\">', 1)
+    csp = (
+        \"default-src 'self' blob:; \"
+        \"style-src 'self' 'nonce-\" + nonce + \"'; \"
+        \"script-src 'self'\"
+    )
+    return HTMLResponse(html, headers={'Content-Security-Policy': csp})
 
 app.routes.insert(0, Route('/', demo_home))
 app.routes.insert(1, Route('/demo', demo_home))
