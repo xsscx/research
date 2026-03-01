@@ -9,7 +9,7 @@ tl;dr ICC Profile Analysis Tool for Security Research
 - NVD Analyst
 - Developer
 
-## Security Heuristics (H1–H24)
+## Security Heuristics (H1–H27)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -46,6 +46,13 @@ tl;dr ICC Profile Analysis Tool for Security Research
 | H22 | NumArray scalar expectation | Multi-value array in scalar context → **SBO** (patch 027, SCARINESS:51) |
 | H23 | NumArray value ranges | NaN/Inf values → FPE/div-by-zero |
 | H24 | Nesting depth | Recursive struct/array depth >4 → stack overflow (patch 061) |
+
+### Raw File Analysis (H25–H27)
+| ID | Check | Risk |
+|----|-------|------|
+| H25 | Tag offset/size OOB | Tag data extends past file/profile bounds → **HBO** (issues #623, #625) |
+| H26 | NamedColor2 string validation | Prefix/suffix with XML-expandable chars overflow icFixXml 256-byte buffer → **SBO** (issue #624, SCARINESS:55) |
+| H27 | MPE matrix dimensions | Matrix with <3 output channels → **HBO** in pushXYZConvert (issue #625) |
 
 ## Build
 
