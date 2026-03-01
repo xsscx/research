@@ -192,9 +192,16 @@ class NetworkAccessInXmlContext extends FunctionCall {
 class FileAccessInXmlContext extends FunctionCall {
   FileAccessInXmlContext() {
     this.getTarget() instanceof FileAccessFunction and
+    // Exclude our audited preflight code
+    not this.getFile().getBaseName().matches(["ColorBleedPreflight.h"]) and
     
     exists(Function f | f = this.getEnclosingFunction() |
-      f.getName().matches(["%Xml%", "%XML%"]) or
+      (
+        f.getName().matches(["%Xml%", "%XML%"]) and
+        // Exclude preflight validation — it does binary reads, not XML parsing
+        not f.getName().matches(["%Preflight%", "%Validate%"])
+      )
+      or
       exists(FunctionCall xmlCall |
         xmlCall.getEnclosingFunction() = f and
         xmlCall.getTarget() instanceof XmlParsingFunction

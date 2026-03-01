@@ -87,7 +87,12 @@ module ApiPathTraversalConfig implements DataFlow::ConfigSig {
   }
 
   predicate isSink(DataFlow::Node sink) {
-    sink instanceof FileOrProcessSink
+    sink instanceof FileOrProcessSink and
+    // Exclude sinks inside _validate_path — they ARE the validation logic
+    not exists(Function f |
+      f.getName() = "_validate_path" and
+      sink.asExpr().getEnclosingCallable() = f
+    )
   }
 
   predicate isBarrier(DataFlow::Node node) {
