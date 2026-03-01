@@ -42,6 +42,8 @@
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerColors.h"
 #include "IccTagBasic.h"
+#include "IccTagComposite.h"
+#include "IccProfile.h"
 #include <cmath>
 
 //==============================================================================
@@ -827,6 +829,396 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         heuristicCount++;
       } else {
         printf("      %s[OK] No tag overlaps detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 20. Tag Type Signature Validation
+    printf("[H20] Tag Type Signature Validation\n");
+    {
+      int invalidTypeCount = 0;
+      FILE *fp = fopen(filename, "rb");
+      if (fp) {
+        TagEntryList::iterator it;
+        for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+          IccTagEntry *e = &(*it);
+          icUInt32Number tagOffset = e->TagInfo.offset;
+          icUInt32Number tagSize = e->TagInfo.size;
+          if (tagSize < 8) continue; // Too small for type+reserved
+
+          icUInt8Number typeBuf[4] = {0};
+          if (fseek(fp, tagOffset, SEEK_SET) == 0 &&
+              fread(typeBuf, 1, 4, fp) == 4) {
+            bool allPrintable = true;
+            bool allZero = true;
+            for (int b = 0; b < 4; b++) {
+              if (typeBuf[b] != 0) allZero = false;
+              if (typeBuf[b] < 0x20 || typeBuf[b] > 0x7E) allPrintable = false;
+            }
+
+            char sigFCC[5];
+            SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
+
+            if (allZero) {
+              printf("      %s[WARN]  Tag '%s' has null type signature (0x00000000)%s\n",
+                     ColorWarning(), sigFCC, ColorReset());
+              printf("       %sRisk: Corrupted tag data — parser may misinterpret%s\n",
+                     ColorWarning(), ColorReset());
+              invalidTypeCount++;
+            } else if (!allPrintable) {
+              printf("      %s[WARN]  Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X%s\n",
+                     ColorWarning(), sigFCC,
+                     typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3], ColorReset());
+              printf("       %sRisk: Malformed type bytes — possible type confusion%s\n",
+                     ColorWarning(), ColorReset());
+              invalidTypeCount++;
+            }
+          }
+        }
+        fclose(fp);
+      }
+      if (invalidTypeCount > 0) {
+        heuristicCount += invalidTypeCount;
+      } else {
+        printf("      %s[OK] All tag type signatures are valid ASCII%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 21. tagStruct Member Inspection
+    printf("[H21] tagStruct Member Inspection\n");
+    {
+      int structIssues = 0;
+      bool foundStruct = false;
+      TagEntryList::iterator it;
+      for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        IccTagEntry *e = &(*it);
+        CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+        if (!pTag) continue;
+
+        CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct*>(pTag);
+        if (!pStruct) continue;
+        foundStruct = true;
+
+        char sigFCC[5];
+        SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
+        icStructSignature structType = pStruct->GetTagStructType();
+        char structFCC[5];
+        SignatureToFourCC(static_cast<icUInt32Number>(structType), structFCC);
+
+        TagEntryList *pElems = pStruct->GetElemList();
+        int memberCount = 0;
+        if (pElems) {
+          memberCount = (int)pElems->size();
+        }
+
+        printf("      Tag '%s' is tagStruct (type='%s', %d members)\n",
+               sigFCC, structFCC, memberCount);
+
+        if (memberCount > 100) {
+          printf("      %s[WARN]  Excessive member count: %d (limit 100)%s\n",
+                 ColorCritical(), memberCount, ColorReset());
+          printf("       %sRisk: Resource exhaustion via struct expansion%s\n",
+                 ColorCritical(), ColorReset());
+          structIssues++;
+        }
+
+        if (pElems) {
+          TagEntryList::iterator eit;
+          for (eit = pElems->begin(); eit != pElems->end(); eit++) {
+            IccTagEntry *me = &(*eit);
+            char mFCC[5];
+            SignatureToFourCC(static_cast<icUInt32Number>(me->TagInfo.sig), mFCC);
+
+            CIccTag *mTag = pStruct->FindElem(me->TagInfo.sig);
+            if (mTag) {
+              icTagTypeSignature mType = mTag->GetType();
+              char mtFCC[5];
+              SignatureToFourCC(static_cast<icUInt32Number>(mType), mtFCC);
+              printf("        Member '%s': type='%s' size=%u",
+                     mFCC, mtFCC, me->TagInfo.size);
+
+              if (mTag->IsNumArrayType()) {
+                CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(mTag);
+                if (pNum) {
+                  printf(" values=%u", pNum->GetNumValues());
+                }
+              }
+              printf("\n");
+
+              // Check member type signature for non-printable bytes
+              icUInt32Number mTypeVal = static_cast<icUInt32Number>(mType);
+              icUInt8Number tb[4];
+              tb[0] = (mTypeVal >> 24) & 0xFF;
+              tb[1] = (mTypeVal >> 16) & 0xFF;
+              tb[2] = (mTypeVal >> 8) & 0xFF;
+              tb[3] = mTypeVal & 0xFF;
+              bool mAllPrint = true;
+              bool mAllZero = (mTypeVal == 0);
+              for (int b = 0; b < 4; b++) {
+                if (tb[b] < 0x20 || tb[b] > 0x7E) mAllPrint = false;
+              }
+              if (mAllZero) {
+                printf("        %s[WARN]  Member '%s' has null type (0x00000000)%s\n",
+                       ColorWarning(), mFCC, ColorReset());
+                structIssues++;
+              } else if (!mAllPrint) {
+                printf("        %s[WARN]  Member '%s' has non-ASCII type: 0x%08X%s\n",
+                       ColorWarning(), mFCC, mTypeVal, ColorReset());
+                structIssues++;
+              }
+            } else {
+              printf("        Member '%s': size=%u %s[UNREADABLE]%s\n",
+                     mFCC, me->TagInfo.size, ColorWarning(), ColorReset());
+              structIssues++;
+            }
+          }
+        }
+      }
+      if (!foundStruct) {
+        printf("      %s[OK] No tagStruct tags present%s\n", ColorSuccess(), ColorReset());
+      } else if (structIssues > 0) {
+        heuristicCount += structIssues;
+      } else {
+        printf("      %s[OK] tagStruct members appear well-formed%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 22. NumArray Scalar Expectation Validation (cept-specific)
+    printf("[H22] NumArray Scalar Expectation (cept struct)\n");
+    {
+      int scalarIssues = 0;
+      CIccTag *pCeptTag = pIcc->FindTag(icSigColorEncodingParamsTag);
+      CIccTagStruct *pCept = pCeptTag ? dynamic_cast<CIccTagStruct*>(pCeptTag) : nullptr;
+
+      if (!pCept) {
+        printf("      %s[OK] No cept (ColorEncodingParams) tag — check not applicable%s\n",
+               ColorSuccess(), ColorReset());
+      } else {
+        // Members consumed as scalars by GetElemNumberValue() in IccEncoding.cpp
+        struct ScalarMember {
+          icSignature sig;
+          const char *name;
+        };
+        const ScalarMember scalarMembers[] = {
+          { icSigCeptWhitePointLuminanceMbr,           "wlum (WhitePointLuminance)" },
+          { icSigCeptAmbientWhitePointLuminanceMbr,    "awlm (AmbientWPLuminance)" },
+          { icSigCeptViewingSurroundMbr,               "srnd (ViewingSurround)" },
+          { icSigCeptMediumWhitePointLuminanceMbr,     "mwpl (MediumWPLuminance)" },
+        };
+
+        for (size_t s = 0; s < sizeof(scalarMembers)/sizeof(scalarMembers[0]); s++) {
+          CIccTag *mTag = pCept->FindElem(scalarMembers[s].sig);
+          if (!mTag) continue;
+          if (!mTag->IsNumArrayType()) continue;
+
+          CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(mTag);
+          if (!pNum) continue;
+
+          icUInt32Number numVals = pNum->GetNumValues();
+          if (numVals > 1) {
+            printf("      %s[HIGH]  %s has %u values (expected 1 scalar)%s\n",
+                   ColorCritical(), scalarMembers[s].name, numVals, ColorReset());
+            printf("       %sRisk: Stack buffer overflow in GetElemNumberValue → GetValues%s\n",
+                   ColorCritical(), ColorReset());
+            printf("       %s(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL patch 027)%s\n",
+                   ColorCritical(), ColorReset());
+            scalarIssues++;
+          } else {
+            printf("      [OK] %s: %u value (scalar)\n", scalarMembers[s].name, numVals);
+          }
+        }
+      }
+      if (scalarIssues > 0) {
+        heuristicCount += scalarIssues;
+      }
+    }
+    printf("\n");
+
+    // 23. NumArray Value Range Validation
+    printf("[H23] NumArray Value Range Validation\n");
+    {
+      int rangeIssues = 0;
+      TagEntryList::iterator it;
+      for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        IccTagEntry *e = &(*it);
+        CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+        if (!pTag || !pTag->IsNumArrayType()) continue;
+
+        CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(pTag);
+        if (!pNum) continue;
+
+        icUInt32Number numVals = pNum->GetNumValues();
+        if (numVals == 0 || numVals > 1048576) {
+          char sigFCC[5];
+          SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
+          if (numVals == 0) {
+            printf("      %s[WARN]  Tag '%s': empty NumArray (0 values)%s\n",
+                   ColorWarning(), sigFCC, ColorReset());
+          } else {
+            printf("      %s[WARN]  Tag '%s': excessive NumArray (%u values)%s\n",
+                   ColorCritical(), sigFCC, numVals, ColorReset());
+          }
+          rangeIssues++;
+          continue;
+        }
+
+        // Allocate full numVals buffer — unpatched GetValues loops over m_nSize
+        icUInt32Number sampleSize = (numVals < 64) ? numVals : 64;
+        icFloatNumber *vals = new(std::nothrow) icFloatNumber[numVals];
+        if (!vals) continue;
+
+        if (pNum->GetValues(vals, 0, numVals)) {
+          int nanCount = 0, infCount = 0;
+          for (icUInt32Number v = 0; v < sampleSize; v++) {
+            if (std::isnan(vals[v])) nanCount++;
+            if (std::isinf(vals[v])) infCount++;
+          }
+          if (nanCount > 0 || infCount > 0) {
+            char sigFCC[5];
+            SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
+            if (nanCount > 0) {
+              printf("      %s[WARN]  Tag '%s': %d NaN value(s) in NumArray%s\n",
+                     ColorCritical(), sigFCC, nanCount, ColorReset());
+            }
+            if (infCount > 0) {
+              printf("      %s[WARN]  Tag '%s': %d Inf value(s) in NumArray%s\n",
+                     ColorCritical(), sigFCC, infCount, ColorReset());
+            }
+            printf("       %sRisk: Floating-point exceptions, division-by-zero%s\n",
+                   ColorWarning(), ColorReset());
+            rangeIssues++;
+          }
+        }
+        delete[] vals;
+      }
+
+      // Also check NumArrays inside tagStruct members
+      for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        IccTagEntry *e = &(*it);
+        CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+        if (!pTag) continue;
+        CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct*>(pTag);
+        if (!pStruct) continue;
+
+        TagEntryList *pElems = pStruct->GetElemList();
+        if (!pElems) continue;
+
+        char parentFCC[5];
+        SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), parentFCC);
+
+        TagEntryList::iterator eit;
+        for (eit = pElems->begin(); eit != pElems->end(); eit++) {
+          IccTagEntry *me = &(*eit);
+          CIccTag *mTag = pStruct->FindElem(me->TagInfo.sig);
+          if (!mTag || !mTag->IsNumArrayType()) continue;
+
+          CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(mTag);
+          if (!pNum) continue;
+
+          icUInt32Number numVals = pNum->GetNumValues();
+          if (numVals == 0 || numVals > 1048576) continue; // Already flagged or skip
+
+          icUInt32Number sampleSize = (numVals < 64) ? numVals : 64;
+          icFloatNumber *vals = new(std::nothrow) icFloatNumber[numVals];
+          if (!vals) continue;
+
+          if (pNum->GetValues(vals, 0, numVals)) {
+            int nanCount = 0, infCount = 0;
+            for (icUInt32Number v = 0; v < sampleSize; v++) {
+              if (std::isnan(vals[v])) nanCount++;
+              if (std::isinf(vals[v])) infCount++;
+            }
+            if (nanCount > 0 || infCount > 0) {
+              char mFCC[5];
+              SignatureToFourCC(static_cast<icUInt32Number>(me->TagInfo.sig), mFCC);
+              printf("      %s[WARN]  Struct '%s' member '%s': ", ColorCritical(), parentFCC, mFCC);
+              if (nanCount > 0) printf("%d NaN ", nanCount);
+              if (infCount > 0) printf("%d Inf ", infCount);
+              printf("value(s)%s\n", ColorReset());
+              rangeIssues++;
+            }
+          }
+          delete[] vals;
+        }
+      }
+
+      if (rangeIssues > 0) {
+        heuristicCount += rangeIssues;
+      } else {
+        printf("      %s[OK] All NumArray values within normal ranges%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 24. tagStruct/tagArray Nesting Depth Check
+    printf("[H24] tagStruct/tagArray Nesting Depth\n");
+    {
+      int nestIssues = 0;
+      const int MAX_SAFE_DEPTH = 4;
+
+      // Lambda-like depth walk using iterative approach with stack
+      struct DepthEntry { CIccTag *tag; int depth; };
+      std::vector<DepthEntry> stack;
+
+      TagEntryList::iterator it;
+      for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        IccTagEntry *e = &(*it);
+        CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+        if (!pTag) continue;
+        stack.push_back({pTag, 0});
+      }
+
+      int maxDepth = 0;
+      while (!stack.empty()) {
+        DepthEntry cur = stack.back();
+        stack.pop_back();
+
+        if (cur.depth > maxDepth) maxDepth = cur.depth;
+
+        if (cur.depth > MAX_SAFE_DEPTH) {
+          printf("      %s[WARN]  Nesting depth %d exceeds safe limit (%d)%s\n",
+                 ColorCritical(), cur.depth, MAX_SAFE_DEPTH, ColorReset());
+          printf("       %sRisk: Stack overflow via recursive Read/Describe (CFL patch 061)%s\n",
+                 ColorCritical(), ColorReset());
+          nestIssues++;
+          continue; // Don't descend further
+        }
+
+        CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct*>(cur.tag);
+        if (pStruct) {
+          TagEntryList *pElems = pStruct->GetElemList();
+          if (pElems) {
+            TagEntryList::iterator eit;
+            for (eit = pElems->begin(); eit != pElems->end(); eit++) {
+              CIccTag *mTag = pStruct->FindElem((*eit).TagInfo.sig);
+              if (mTag) {
+                stack.push_back({mTag, cur.depth + 1});
+              }
+            }
+          }
+        }
+
+        CIccTagArray *pArr = dynamic_cast<CIccTagArray*>(cur.tag);
+        if (pArr) {
+          icUInt32Number arrSize = pArr->GetSize();
+          // Limit iteration to prevent runaway
+          icUInt32Number checkLimit = (arrSize < 64) ? arrSize : 64;
+          for (icUInt32Number idx = 0; idx < checkLimit; idx++) {
+            CIccTag *aTag = pArr->GetIndex(idx);
+            if (aTag) {
+              stack.push_back({aTag, cur.depth + 1});
+            }
+          }
+        }
+      }
+
+      if (nestIssues > 0) {
+        heuristicCount += nestIssues;
+      } else {
+        printf("      %s[OK] Max nesting depth: %d (safe limit: %d)%s\n",
+               ColorSuccess(), maxDepth, MAX_SAFE_DEPTH, ColorReset());
       }
     }
     printf("\n");
