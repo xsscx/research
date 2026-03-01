@@ -218,6 +218,15 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
 
 Open http://localhost:8080/ — provides browser-based access to all analysis tools. The entrypoint command is `web` (not `icc-profile-web`).
 
+### Developer Demo Container
+
+```bash
+docker pull ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+```
+
+Open http://localhost:8080/ — self-contained HTML demo report with live API at `/api/*`. Three modes: `demo` (default), `api` (production WebUI), `mcp` (stdio). Build locally with `docker build -f Dockerfile.demo -t icc-profile-demo .`
+
 **REST API endpoints** (same parameter names as MCP tools):
 
 | Endpoint | Method | Parameters |
