@@ -74,3 +74,22 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
 Open http://localhost:8080/
 
 <img width="3742" height="1936" alt="image" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />
+
+## Developer Demo Container
+
+Self-contained demo with interactive HTML report, live API, and pre-loaded test profiles:
+
+```bash
+docker pull ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+```
+
+Open http://localhost:8080/ for the demo report, or use the API directly:
+
+```bash
+curl http://localhost:8080/api/health
+curl 'http://localhost:8080/api/security?path=sRGB_D65_MAT.icc'
+```
+
+Three modes: `demo` (default — HTML report + API), `api` (production WebUI), `mcp` (stdio server).
+See [dev-demo/README.md](dev-demo/README.md) for full usage.

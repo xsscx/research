@@ -171,6 +171,29 @@ docker run --rm -p 8080:8080 icc-profile-mcp web
 }
 ```
 
+### Developer Demo Container
+
+A self-contained demo image with an interactive HTML report, live REST API, and 218 pre-loaded test profiles:
+
+```bash
+# Pull and run the demo (HTML report at / with live API at /api/*)
+docker pull ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+
+# API mode (production WebUI)
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+
+# MCP stdio mode
+docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp
+```
+
+Or build locally:
+
+```bash
+docker build -f Dockerfile.demo -t icc-profile-demo .
+docker run --rm -p 8080:8080 icc-profile-demo
+```
+
 ---
 
 ## Web UI
