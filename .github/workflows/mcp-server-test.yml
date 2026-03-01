@@ -10,10 +10,12 @@ on:
   push:
     paths:
       - 'mcp-server/**'
+      - '!mcp-server/**/*.md'
       - '.github/workflows/mcp-server-test.yml'
   pull_request:
     paths:
       - 'mcp-server/**'
+      - '!mcp-server/**/*.md'
   workflow_dispatch:
 
 permissions:
