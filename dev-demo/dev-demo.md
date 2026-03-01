@@ -154,7 +154,7 @@ docker run --rm -i ghcr.io/xsscx/icc-profile-demo:latest mcp
 
 ```bash
 curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
-# {"ok": true, "tools": 15}
+# {"ok": true, "tools": 16}
 ```
 
 ### API Examples — curl
@@ -445,7 +445,7 @@ curl -s 'http://127.0.0.1:8080/api/roundtrip?path=my-output-profile.icc'
 # Step 1: Raw structure (header bytes, tag table)
 curl -s 'http://127.0.0.1:8080/api/inspect?path=suspicious.icc'
 
-# Step 2: Security heuristics (27 checks)
+# Step 2: Security heuristics (32 checks)
 curl -s 'http://127.0.0.1:8080/api/security?path=suspicious.icc'
 
 # Step 3: Human-readable XML (every tag value)
@@ -499,7 +499,7 @@ All endpoints return plain text or JSON. Base URL: `http://127.0.0.1:8080`
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
 | `GET` | `/` | — | WebUI single-page app |
-| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 15}` |
+| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 16}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
 | `GET` | `/api/security` | `path` | 32-heuristic security scan |
@@ -591,25 +591,155 @@ EOF
 }
 ```
 
-### Available MCP Tools (15)
+### Available MCP Tools (16)
 
 | # | Tool | Category | Description |
 |---|------|----------|-------------|
-| 1 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 2 | `analyze_security` | Analysis | 32-heuristic security scan |
-| 3 | `validate_roundtrip` | Analysis | AToB/BToA completeness |
-| 4 | `full_analysis` | Analysis | All modes combined |
-| 5 | `profile_to_xml` | Analysis | ICC → XML conversion |
-| 6 | `compare_profiles` | Analysis | Unified diff of two profiles |
-| 7 | `list_test_profiles` | Analysis | Browse available profiles |
-| 8 | `upload_and_analyze` | Analysis | Base64 upload + analysis |
-| 9 | `build_tools` | Maintainer | Build C++ analysis tools |
-| 10 | `cmake_configure` | Maintainer | Configure iccDEV cmake |
-| 11 | `cmake_build` | Maintainer | Compile cmake build |
-| 12 | `create_all_profiles` | Maintainer | Generate ~80+ ICC test profiles |
-| 13 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
-| 14 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
-| 15 | `windows_build` | Maintainer | MSVC + vcpkg build |
+| 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
+| 2 | `inspect_profile` | Analysis | Header, tag table, field values |
+| 3 | `analyze_security` | Analysis | 32-heuristic security scan |
+| 4 | `validate_roundtrip` | Analysis | AToB/BToA completeness |
+| 5 | `full_analysis` | Analysis | All modes combined |
+| 6 | `profile_to_xml` | Analysis | ICC → XML conversion |
+| 7 | `compare_profiles` | Analysis | Unified diff of two profiles |
+| 8 | `list_test_profiles` | Analysis | Browse available profiles |
+| 9 | `upload_and_analyze` | Analysis | Base64 upload + analysis |
+| 10 | `build_tools` | Maintainer | Build C++ analysis tools |
+| 11 | `cmake_configure` | Maintainer | Configure iccDEV cmake |
+| 12 | `cmake_build` | Maintainer | Compile cmake build |
+| 13 | `create_all_profiles` | Maintainer | Generate ~80+ ICC test profiles |
+| 14 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
+| 15 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
+| 16 | `windows_build` | Maintainer | MSVC + vcpkg build |
+
+### Reusable Prompts
+
+Four pre-built prompt templates in [`.github/prompts/`](https://github.com/xsscx/research/tree/main/.github/prompts/) guide AI through standard analysis workflows:
+
+| Prompt | Purpose | Variables |
+|---|---|---|
+| `analyze-icc-profile` | Full 32-heuristic security scan | `{{profile_path}}` |
+| `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
+| `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
+| `health-check` | MCP server verification | (none) |
+
+---
+
+## Reproduce the Demo — Step-by-Step Walkthrough
+
+This walkthrough mirrors the demo report page section by section. Each step can be reproduced with curl commands or the WebUI at `/ui`.
+
+### Step 1: Start the Server
+
+```bash
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+```
+
+### Step 2: Verify Health
+
+```bash
+curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
+```
+
+Expected: `{"ok": true, "tools": 16}`
+
+Or open the WebUI: <http://127.0.0.1:8080/ui>
+
+### Step 3: List Profiles
+
+```bash
+# List test profiles
+curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
+
+# List extended test profiles (includes CVE PoCs)
+curl -s 'http://127.0.0.1:8080/api/list?directory=extended-test-profiles'
+```
+
+**WebUI:** Navigate to <http://127.0.0.1:8080/ui#list>
+
+### Step 4: Security Scan — Clean Profile
+
+```bash
+# Scan a known-good profile (expect exit_code: 0)
+curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+```
+
+Look for `[OK]` on all 32 heuristics (H1–H32). **WebUI:** <http://127.0.0.1:8080/ui#security>
+
+### Step 5: Security Scan — Malformed Profile
+
+```bash
+# Scan a profile with findings (expect exit_code: 1)
+curl -s 'http://127.0.0.1:8080/api/security?path=sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc'
+```
+
+Look for `[WARN]` and `[CRITICAL]` flags. Compare output with the clean profile scan.
+
+### Step 6: Security Scan — CVE PoC
+
+```bash
+# Analyze a CVE-2022-26730 proof-of-concept
+curl -s 'http://127.0.0.1:8080/api/security?path=cve-2022-26730-poc-sample-004.icc'
+```
+
+This profile triggers multiple heuristic warnings. The `exit_code: 1` confirms a finding.
+
+### Step 7: Structural Inspection
+
+```bash
+# Inspect header, tag table, and parsed values
+curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/ui#inspect>
+
+### Step 8: Full Analysis
+
+```bash
+# Combined security + round-trip + structural inspection
+curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/ui#full>
+
+### Step 9: Round-Trip Validation
+
+```bash
+# Check bidirectional transform support
+curl -s 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/ui#roundtrip>
+
+### Step 10: XML Conversion
+
+```bash
+# Convert binary ICC to human-readable XML
+curl -s 'http://127.0.0.1:8080/api/xml?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/ui#xml>
+
+### Step 11: Compare Two Profiles
+
+```bash
+# Side-by-side diff between two profiles
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&path_b=sRGB_v4_ICC_preference.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/ui#compare> — click Profile A input, select a profile, then click Profile B input and select another.
+
+### Step 12: Upload Your Own Profile
+
+```bash
+# Upload a local ICC file
+curl -s -X POST 'http://127.0.0.1:8080/api/upload' -F 'file=@myprofile.icc'
+
+# Then analyze it
+curl -s 'http://127.0.0.1:8080/api/security?path=myprofile.icc'
+```
+
+**WebUI:** Click **📂 Choose File** on any tool page, select your `.icc` file — it uploads and becomes available for all tools.
 
 ---
 
