@@ -22,6 +22,11 @@
 #ifndef COLORBLEED_SANDBOX_H
 #define COLORBLEED_SANDBOX_H
 
+// GCC lacks __has_feature; define a fallback so preprocessor checks compile
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
