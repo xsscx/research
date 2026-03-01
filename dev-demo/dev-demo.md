@@ -137,8 +137,12 @@ Skip all builds. The Docker image includes pre-built binaries and the REST API s
 # Developer demo (recommended — includes interactive HTML report + all API endpoints)
 docker pull ghcr.io/xsscx/icc-profile-demo:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+# Routes: / (demo report), /ui (interactive WebUI), /api (endpoint index), /api/* (analysis)
 
-# Production image (API-only, no demo report)
+# Custom port
+docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo:latest --port 8083
+
+# Production image (WebUI at /, API at /api/*)
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 
