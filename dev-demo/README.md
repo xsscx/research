@@ -11,6 +11,8 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 
 Then open <http://127.0.0.1:8080> in your browser. That's it — no build steps, no dependencies.
 
+<img width="2060" height="1966" alt="image" src="https://github.com/user-attachments/assets/ffa9c95e-f865-430a-89b2-15312cd3ebe8" />
+
 Use `--port N` to listen on a custom port:
 
 ```bash
