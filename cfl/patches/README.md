@@ -546,3 +546,28 @@ for p in "$SCRIPT_DIR"/patches/*.patch; do
   patch -p1 -d "$ICCDEV_DIR" < "$p"
 done
 ```
+
+### 032 — ApplySequence select OOB (IccMpeCalc.cpp) — NO-OP
+
+Patch 032 is a **NO-OP** (upstream-adopted via PR #635). Originally added
+bounds checks in `CIccCalculatorFunc::ApplySequence()` for select-op
+offset/size validation.
+
+### 045 — ApplySequence overflow bounds (IccMpeCalc.cpp) — NO-OP
+
+Patch 045 is a **NO-OP** (upstream-adopted via PR #635). Originally
+used 64-bit arithmetic to prevent uint32 overflow in ApplySequence
+bounds checks.
+
+### 055 — NamedColor2 prefix/suffix null-terminate (IccTagBasic.cpp) — NO-OP
+
+Patch 055 is a **NO-OP** (upstream-adopted via PR #634). Originally
+null-terminated `m_szPrefix` and `m_szSufix` after `Read8()` to prevent
+stack buffer overflow in `icFixXml()` from XML entity expansion.
+
+### 056 — pushXYZConvert matrix channel check (IccCmm.cpp) — NO-OP
+
+Patch 056 is a **NO-OP** (upstream-adopted via PR #632). Originally
+added `NumInputChannels()==3 && NumOutputChannels()==3` guard in
+`CIccPcsXform::pushXYZConvert()` to prevent heap-buffer-overflow
+when accessing `pOffset[0..2]` on matrices with fewer output channels.

@@ -1240,8 +1240,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       FILE *fp25 = fopen(filename, "rb");
       if (fp25) {
         fseek(fp25, 0, SEEK_END);
-        size_t realSize = ftell(fp25);
-        fseek(fp25, 0, SEEK_SET);
+        long realSize_l = ftell(fp25);
+        if (realSize_l < 0) { fclose(fp25); fp25 = NULL; }
+        size_t realSize = (fp25) ? (size_t)realSize_l : 0;
+        if (fp25) fseek(fp25, 0, SEEK_SET);
         
         int oobCount = 0;
         if (realSize >= 132) {
@@ -1286,7 +1288,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             }
           }
         }
-        fclose(fp25);
+        if (fp25) fclose(fp25);
         
         if (oobCount > 0) {
           printf("      %s%d tag(s) reference data beyond file/profile bounds%s\n",
@@ -1307,8 +1309,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       FILE *fp26 = fopen(filename, "rb");
       if (fp26) {
           fseek(fp26, 0, SEEK_END);
-          size_t fs26 = ftell(fp26);
-          fseek(fp26, 0, SEEK_SET);
+          long fs26_l = ftell(fp26);
+          if (fs26_l < 0) { fclose(fp26); fp26 = NULL; }
+          size_t fs26 = (fp26) ? (size_t)fs26_l : 0;
+          if (fp26) fseek(fp26, 0, SEEK_SET);
           
           int nc2Issues = 0;
           if (fs26 >= 132) {
@@ -1414,7 +1418,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
               }
             }
           }
-          fclose(fp26);
+          if (fp26) fclose(fp26);
           
           if (nc2Issues > 0) {
             heuristicCount += nc2Issues;
