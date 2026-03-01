@@ -138,11 +138,12 @@ jobs:
           done
           HEALTH=$(curl -sf http://127.0.0.1:8081/api/health)
           echo "[OK] API health: $HEALTH"
-          # Verify WebUI serves
-          WEBUI=$(curl -sf http://127.0.0.1:8081/ | head -1)
-          echo "[OK] WebUI home: $WEBUI"
+          # Verify WebUI serves (capture full output to avoid SIGPIPE with pipefail)
+          WEBUI=$(curl -sf http://127.0.0.1:8081/)
+          echo "[OK] WebUI home: $(echo "$WEBUI" | head -1)"
           # Verify security headers
-          CSP=$(curl -sI http://127.0.0.1:8081/ | grep -i content-security-policy | head -1)
+          HEADERS=$(curl -sI http://127.0.0.1:8081/)
+          CSP=$(echo "$HEADERS" | grep -i content-security-policy | head -1)
           echo "[OK] CSP header: ${CSP:0:80}..."
           docker stop api-smoke
           echo "api_test=pass" >> $GITHUB_ENV
