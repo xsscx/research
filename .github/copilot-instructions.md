@@ -161,6 +161,14 @@ Prereq: `cd mcp-server && pip install -e .`
 #### 3. GitHub Copilot Coding Agent (cloud)
 Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 9 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
+### Reusable Prompts
+
+Four prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+- `analyze-icc-profile.prompt.yml` — full 32-heuristic security scan
+- `compare-icc-profiles.prompt.yml` — side-by-side structural diff
+- `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
+- `health-check.prompt.yml` — MCP server verification
+
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
 1. Download the attachment
