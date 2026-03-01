@@ -136,3 +136,5 @@ now/
 # XNU Image Fuzzer corpus (manually managed)
 xif/
 macos-research/
+xnuimagefuzzer/
+xnuimagetools/
