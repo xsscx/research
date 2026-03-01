@@ -1446,3 +1446,10 @@ multi_sig="mwpmcl1l"
 "es2"
 "\xfe\xff\xff\xff"
 "\x05\x19\x00\x00\x00\x00\x00\x00"
+
+# --- added by convert-libfuzzer-dict.py ---
+"ISO-4Y"
+"\xff\xff"
+"utf1"
+"lmbk"
+"u8"
