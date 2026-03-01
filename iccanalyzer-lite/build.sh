@@ -6,10 +6,16 @@
 #   -O0          : No optimization — preserves all code paths for analysis
 #   -g3          : Maximum debug info (includes macro definitions)
 #   -DDEBUG      : Enable library-level debug assertions
-#   ASAN+UBSAN   : Runtime memory and undefined-behavior detection
+#   ASAN+UBSAN   : Runtime memory and undefined-behavior detection (RECOVERABLE)
 #   Coverage     : gcov-compatible instrumentation for code profiling
-#   -ftrapv      : Trap on signed integer overflow
 #   -fstack-protector-strong : Stack buffer overflow detection
+#
+# Recovery architecture:
+#   -fsanitize-recover=address,undefined : ASAN/UBSAN continue after findings
+#   __asan_default_options()  : allocator_may_return_null=1, halt_on_error=0
+#   __ubsan_default_options() : print_stacktrace=1, halt_on_error=0
+#   icRealloc override        : 256MB single / 1GB cumulative allocation caps
+#   Signal handler            : SIGSEGV/SIGBUS/SIGFPE crash recovery via siglongjmp
 
 set -e
 
@@ -43,9 +49,9 @@ find . -name "*.gcda" -delete 2>/dev/null || true
 export CXX=clang++
 
 # ── Debug + Sanitizer + Coverage flags ────────────────────────────────
-SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fno-sanitize-recover=undefined"
+SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
 DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common"
-HARDENING="-ftrapv -fstack-protector-strong -D_FORTIFY_SOURCE=0"
+HARDENING="-fstack-protector-strong -D_FORTIFY_SOURCE=0"
 # NO_COVERAGE=1 disables gcov instrumentation (e.g. Docker containers)
 if [ "${NO_COVERAGE:-0}" = "1" ]; then
   COVERAGE=""
