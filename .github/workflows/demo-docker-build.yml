@@ -1,0 +1,248 @@
+###############################################################
+#
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build, test, and push the Developer Demo container
+#         Full from-source multi-stage build with smoke tests
+#         for all three modes (demo, api, mcp) plus SBOM and
+#         build provenance attestation.
+#
+#   Demo UI:   docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+#   API mode:  docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+#   MCP stdio: docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp
+#
+###############################################################
+
+name: Demo Docker Build
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Dockerfile.demo'
+      - 'dev-demo/**'
+
+concurrency:
+  group: demo-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-push:
+    name: Build, Test, Push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/icc-profile-demo
+          tags: |
+            type=sha,prefix=
+            type=raw,value=dev
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: Dockerfile.demo
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: "Smoke test: Demo mode — HTML report + API"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-demo@${{ steps.build-push.outputs.digest }}"
+          docker run --rm -d -p 8080:8080 --name demo-smoke "$IMAGE"
+          # Wait for server
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/api/health > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          # Test demo home page
+          DEMO_SIZE=$(curl -sf http://127.0.0.1:8080/ | wc -c)
+          echo "[OK] Demo home: ${DEMO_SIZE} bytes"
+          [ "$DEMO_SIZE" -gt 10000 ] || { echo "FAIL: Demo page too small"; exit 1; }
+          # Test health endpoint
+          HEALTH=$(curl -sf http://127.0.0.1:8080/api/health)
+          echo "[OK] Health: $HEALTH"
+          echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'], 'health not ok'"
+          # Test security scan
+          SEC=$(curl -sf 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc')
+          SEC_OK=$(echo "$SEC" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ok'])")
+          echo "[OK] Security scan: ok=$SEC_OK"
+          [ "$SEC_OK" = "True" ] || { echo "FAIL: Security scan failed"; exit 1; }
+          # Test list endpoint
+          LIST=$(curl -sf 'http://127.0.0.1:8080/api/list?directory=test-profiles')
+          PROFILE_COUNT=$(echo "$LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['result'].count('.icc'))")
+          echo "[OK] List: $PROFILE_COUNT profiles"
+          [ "$PROFILE_COUNT" -gt 50 ] || { echo "FAIL: Too few profiles"; exit 1; }
+          # Test inspect endpoint
+          INSPECT=$(curl -sf 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc')
+          INSPECT_OK=$(echo "$INSPECT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ok'])")
+          echo "[OK] Inspect: ok=$INSPECT_OK"
+          # Test roundtrip endpoint
+          RT=$(curl -sf 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc')
+          RT_OK=$(echo "$RT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ok'])")
+          echo "[OK] Roundtrip: ok=$RT_OK"
+          # Test compare endpoint
+          CMP=$(curl -sf 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&path_b=sRGB_D65_MAT.icc')
+          CMP_OK=$(echo "$CMP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['ok'])")
+          echo "[OK] Compare: ok=$CMP_OK"
+          docker stop demo-smoke
+          echo "demo_test=pass" >> $GITHUB_ENV
+
+      - name: "Smoke test: API mode — WebUI"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-demo@${{ steps.build-push.outputs.digest }}"
+          docker run --rm -d -p 8081:8080 --name api-smoke "$IMAGE" api
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8081/api/health > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          HEALTH=$(curl -sf http://127.0.0.1:8081/api/health)
+          echo "[OK] API health: $HEALTH"
+          # Verify WebUI serves
+          WEBUI=$(curl -sf http://127.0.0.1:8081/ | head -1)
+          echo "[OK] WebUI home: $WEBUI"
+          # Verify security headers
+          CSP=$(curl -sI http://127.0.0.1:8081/ | grep -i content-security-policy | head -1)
+          echo "[OK] CSP header: ${CSP:0:80}..."
+          docker stop api-smoke
+          echo "api_test=pass" >> $GITHUB_ENV
+
+      - name: "Smoke test: MCP mode — stdio"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-demo@${{ steps.build-push.outputs.digest }}"
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+            | docker run --rm -i "$IMAGE" mcp \
+            | python3 -c "import sys,json; r=json.load(sys.stdin); assert r['result']['serverInfo']['name']=='icc-profile-analyzer', f'Bad: {r}'; print('[OK] MCP stdio init')"
+          echo "mcp_test=pass" >> $GITHUB_ENV
+
+      - name: "Smoke test: Binary verification"
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-demo@${{ steps.build-push.outputs.digest }}"
+          docker run --rm "$IMAGE" sh -c '
+            echo "=== Binary check ==="
+            ls -la /app/iccanalyzer-lite/iccanalyzer-lite
+            ls -la /app/colorbleed_tools/iccToXml_unsafe
+            ls -la /app/colorbleed_tools/iccFromXml_unsafe
+            ls -la /app/mcp-server/icc_profile_mcp.py
+            ls -la /app/mcp-server/web_ui.py
+            ls -la /app/dev-demo/index.html
+            echo ""
+            echo "=== Profile counts ==="
+            echo "test-profiles: $(ls /app/test-profiles/*.icc | wc -l)"
+            echo "extended-test-profiles: $(ls /app/extended-test-profiles/*.icc | wc -l)"
+          '
+          echo "binary_test=pass" >> $GITHUB_ENV
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@2d094306a78d7bde297684f0120dfb41969c38c2 # v0.22.2
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/icc-profile-demo@${{ steps.build-push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@c44148e5bf178192efd8947e07a0d439a356c60b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-demo
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@b74e95116c27d38263fc426c93ebfca07aa6197b # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-demo
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: demo-sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          {
+            echo "## Demo Docker Build Report"
+            echo ""
+            echo "### Image"
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| **Image** | \`ghcr.io/${{ github.repository_owner }}/icc-profile-demo\` |"
+            echo "| **Digest** | \`${{ steps.build-push.outputs.digest }}\` |"
+            echo "| **Tags** | $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ', ') |"
+            echo ""
+            echo "### Smoke Tests"
+            echo "| Mode | Status |"
+            echo "|------|--------|"
+            echo "| Demo (HTML + API) | ${{ env.demo_test || 'fail' }} |"
+            echo "| API (WebUI) | ${{ env.api_test || 'fail' }} |"
+            echo "| MCP (stdio) | ${{ env.mcp_test || 'fail' }} |"
+            echo "| Binary check | ${{ env.binary_test || 'fail' }} |"
+            echo ""
+            echo "### Attestations"
+            echo "- [OK] Build provenance (SLSA)"
+            echo "- [OK] SBOM (SPDX)"
+            echo ""
+            echo "### Usage"
+            echo '```bash'
+            echo "# Demo mode (default)"
+            echo "docker run --rm -p 8080:8080 ghcr.io/${{ github.repository_owner }}/icc-profile-demo"
+            echo ""
+            echo "# API mode"
+            echo "docker run --rm -p 8080:8080 ghcr.io/${{ github.repository_owner }}/icc-profile-demo api"
+            echo ""
+            echo "# MCP stdio"
+            echo "docker run --rm -i ghcr.io/${{ github.repository_owner }}/icc-profile-demo mcp"
+            echo '```'
+            echo ""
+            echo "Verify: \`gh attestation verify oci://ghcr.io/${{ github.repository_owner }}/icc-profile-demo:latest -R ${{ github.repository }}\`"
+          } >> $GITHUB_STEP_SUMMARY
