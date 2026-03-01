@@ -2,7 +2,7 @@
 
 **Profile**: `test-profiles/sRGB_D65_MAT.icc`
 **File Size**: 24712 bytes
-**Date**: 2026-02-28T18:14:18Z
+**Date**: 2026-03-01T17:20:39Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
