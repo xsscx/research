@@ -113,6 +113,22 @@ ENV GCOV_PREFIX=/dev/null
 COPY <<'ENTRYPOINT' /app/entrypoint.sh
 #!/bin/sh
 set -e
+
+# Parse --port flag from any position
+for arg in "$@"; do
+  case "$prev" in --port) PORT="$arg"; export PORT ;; esac
+  prev="$arg"
+done
+# Strip --port N from positional args
+args=""
+skip=0
+for arg in "$@"; do
+  if [ "$skip" = 1 ]; then skip=0; continue; fi
+  if [ "$arg" = "--port" ]; then skip=1; continue; fi
+  args="$args $arg"
+done
+set -- $args
+
 case "${1:-demo}" in
   demo)
     echo "═══════════════════════════════════════════════════════════"
@@ -123,6 +139,9 @@ case "${1:-demo}" in
     echo "    demo  — HTML demo report at / with live API at /api/*"
     echo "    api   — Production WebUI + REST API"
     echo "    mcp   — MCP stdio server"
+    echo ""
+    echo "  Options:"
+    echo "    --port N  — Listen on port N (default: 8080)"
     echo "═══════════════════════════════════════════════════════════"
     exec /app/mcp-venv/bin/python3 -c "
 import os, sys
@@ -133,6 +152,7 @@ from starlette.routing import Route
 import uvicorn
 
 from web_ui import app, _INDEX_HTML, _CSP_NONCE_TEMPLATE, _SECURITY_HEADERS
+from starlette.responses import JSONResponse
 
 demo_html = Path('/app/dev-demo/index.html').read_text()
 webui_html = _INDEX_HTML.read_text(encoding='utf-8') if _INDEX_HTML.is_file() else ''
@@ -164,9 +184,28 @@ async def demo_webui(request):
     headers['Content-Security-Policy'] = _CSP_NONCE_TEMPLATE.format(nonce=nonce)
     return HTMLResponse(html, headers=headers)
 
+async def api_index(request):
+    return JSONResponse({
+        'ok': True,
+        'endpoints': {
+            'GET /api/health': 'Health check',
+            'GET /api/list?directory=test-profiles': 'List available profiles',
+            'GET /api/inspect?path=<file>': 'Structural inspection',
+            'GET /api/security?path=<file>': '32-heuristic security scan',
+            'GET /api/roundtrip?path=<file>': 'Round-trip tag validation',
+            'GET /api/full?path=<file>': 'Full analysis (all modes)',
+            'GET /api/xml?path=<file>': 'ICC to XML conversion',
+            'GET /api/compare?path_a=<a>&path_b=<b>': 'Profile comparison',
+            'POST /api/upload': 'Upload ICC profile (multipart)',
+        },
+        'ui': '/ui',
+        'demo': '/',
+    })
+
 app.routes.insert(0, Route('/', demo_home))
 app.routes.insert(1, Route('/demo', demo_home))
 app.routes.insert(2, Route('/ui', demo_webui))
+app.routes.insert(3, Route('/api', api_index, methods=['GET']))
 
 host = os.environ.get('HOST', '0.0.0.0')
 port = int(os.environ.get('PORT', '8080'))
