@@ -64,9 +64,16 @@ jobs:
       - name: Run seed-pipeline.sh
         env:
           BASH_ENV: /dev/null
+          INPUT_IMAGE_SOURCE: ${{ inputs.image_source || 'test-profiles' }}
         run: |
           set -euo pipefail
-          image_dir="${{ inputs.image_source || 'test-profiles' }}"
+          # Sanitize user-controllable input — strip hidden Unicode, path traversal, etc.
+          image_dir="${INPUT_IMAGE_SOURCE}"
+          # Reject path traversal attempts
+          if [[ "$image_dir" == *..* ]] || [[ "$image_dir" == /* ]]; then
+            echo "ERROR: Invalid image_source path"
+            exit 1
+          fi
           if [ ! -d "$image_dir" ]; then
             echo "Image directory '$image_dir' not found, using test-profiles/"
             image_dir="test-profiles"

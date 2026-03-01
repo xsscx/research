@@ -41,16 +41,20 @@ jobs:
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
+          WORKFLOW_REF: ${{ github.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUNNER_OS_NAME: ${{ runner.os }}
         run: |
           set -euo pipefail
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           
-          echo "Workflow:    ${{ github.workflow }}"
-          echo "Ref:         ${{ github.ref }}"
-          echo "Commit:      ${{ github.sha }}"
-          echo "Runner OS:   ${{ runner.os }}"
+          echo "Workflow:    ${WORKFLOW_NAME}"
+          echo "Ref:         ${WORKFLOW_REF}"
+          echo "Commit:      ${WORKFLOW_SHA}"
+          echo "Runner OS:   ${RUNNER_OS_NAME}"
       
       - name: Cache APT packages
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
