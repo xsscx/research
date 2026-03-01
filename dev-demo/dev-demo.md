@@ -225,7 +225,7 @@ curl -s 'http://127.0.0.1:8080/api/security?path=my-profile.icc'
 # Save tool output as a file
 curl -s -X POST 'http://127.0.0.1:8080/api/output/download' \
   -H 'Content-Type: application/json' \
-  -d '{"content": "...", "filename": "report.txt"}' \
+  -d '{"text": "...", "filename": "report.txt"}' \
   -o report.txt
 ```
 
@@ -504,7 +504,7 @@ All endpoints return plain text or JSON. Base URL: `http://127.0.0.1:8080`
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
 | `GET` | `/api/compare` | `path_a`, `path_b` | Unified diff of two profiles |
 | `POST` | `/api/upload` | `file` (multipart) | Upload `.icc` file (20 MB max) |
-| `POST` | `/api/output/download` | `content`, `filename` (JSON) | Download tool output as file |
+| `POST` | `/api/output/download` | `text`, `filename` (JSON) | Download tool output as file |
 | `POST` | `/api/cmake/configure` | JSON body | Configure iccDEV cmake build |
 | `POST` | `/api/cmake/build` | JSON body | Compile configured build |
 | `POST` | `/api/cmake/option-matrix` | JSON body | Test cmake option toggles |
