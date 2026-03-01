@@ -1388,3 +1388,6 @@ htos3_tag="HToS3Tag"
 
 # --- added by convert-libfuzzer-dict.py ---
 "\xff\xff\xff\xff"
+
+# --- added by convert-libfuzzer-dict.py ---
+"mac"
