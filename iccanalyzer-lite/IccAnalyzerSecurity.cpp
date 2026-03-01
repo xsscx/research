@@ -848,8 +848,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("[H20] Tag Type Signature Validation\n");
     {
       int invalidTypeCount = 0;
-      FILE *fp = fopen(filename, "rb");
-      if (fp) {
+      FILE *fp20 = fopen(filename, "rb");
+      if (fp20) {
         TagEntryList::iterator it;
         for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
           IccTagEntry *e = &(*it);
@@ -858,8 +858,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           if (tagSize < 8) continue; // Too small for type+reserved
 
           icUInt8Number typeBuf[4] = {0};
-          if (fseek(fp, tagOffset, SEEK_SET) == 0 &&
-              fread(typeBuf, 1, 4, fp) == 4) {
+          if (fseek(fp20, tagOffset, SEEK_SET) == 0 &&
+              fread(typeBuf, 1, 4, fp20) == 4) {
             bool allPrintable = true;
             bool allZero = true;
             for (int b = 0; b < 4; b++) {
@@ -886,7 +886,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             }
           }
         }
-        fclose(fp);
+        fclose(fp20);
       }
       if (invalidTypeCount > 0) {
         heuristicCount += invalidTypeCount;
