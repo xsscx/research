@@ -1391,3 +1391,52 @@ htos3_tag="HToS3Tag"
 
 # --- added by convert-libfuzzer-dict.py ---
 "mac"
+
+# --- Patch 062 POC + source-code coverage gap tokens ---
+# Struct/composite XML elements (from POC & IccTagXml.cpp)
+tag_struct_type="<tagStructureType>"
+tag_struct_type_end="</tagStructureType>"
+struct_sig="<StructureSignature>"
+struct_sig_end="</StructureSignature>"
+member_tags="<MemberTags>"
+member_tags_end="</MemberTags>"
+float16_num_type="<float16NumberType>"
+float16_num_type_end="</float16NumberType>"
+empty_tagsig="<TagSignature></TagSignature>"
+empty_tagsig_self="<TagSignature/>"
+
+# XML element names from icXmlStrCmp in IccTagXml.cpp/IccMpeXml.cpp
+bcurves="BCurves"
+channel_resp="ChannelResponses"
+colorant="Colorant"
+dev_attr="DeviceAttributes"
+dev_mfr_sig="DeviceManufacturerSignature"
+dev_model_sig="DeviceModelSignature"
+formula_seg="FormulaSegment"
+full_matrix="FullMatrix"
+hex_compressed="HexCompressedData"
+lab_named="LabNamedColor"
+local_val="LocalizedValue"
+mcurves="MCurves"
+mac_script="MacScript"
+measurement="Measurement"
+prof_subclass_ver="ProfileSubClassVersion"
+resp_curve="ResponseCurve"
+sampled_seg="SampledSegment"
+sparse_matrix="SparseMatrix"
+sparse_row="SparseRow"
+technology="Technology"
+xyz_named="XYZNamedColor"
+
+# Type element names from source
+ext_type="ExtensionType"
+illum_type="IllumType"
+storage_type="StorageType"
+matrix_type="matrixType"
+text_desc_type="textDescriptionType"
+
+# POC-specific edge-case values
+malformed_sig="tJa*a*"
+malformed_struct_sig="+version=\"1."
+call_fixe="0call{Fixe"
+multi_sig="mwpmcl1l"
