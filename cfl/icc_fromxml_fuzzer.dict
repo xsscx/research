@@ -1440,3 +1440,9 @@ malformed_sig="tJa*a*"
 malformed_struct_sig="+version=\"1."
 call_fixe="0call{Fixe"
 multi_sig="mwpmcl1l"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00\x63"
+"es2"
+"\xfe\xff\xff\xff"
+"\x05\x19\x00\x00\x00\x00\x00\x00"
