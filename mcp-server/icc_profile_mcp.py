@@ -215,7 +215,7 @@ async def inspect_profile(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security(path: str) -> str:
-    """Run 19-phase security heuristic analysis on an ICC profile.
+    """Run 27-heuristic security analysis on an ICC profile.
 
     Detects: fingerprint matches, tag anomalies, overflow indicators,
     malformed signatures, fuzzing vectors, memory safety issues, and more.
