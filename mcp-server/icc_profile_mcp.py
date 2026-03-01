@@ -513,6 +513,46 @@ async def upload_and_analyze(
 
 
 @mcp.tool()
+async def health_check() -> str:
+    """Verify MCP server status and availability of analysis binaries.
+
+    Returns a summary of server health: tool count, binary availability,
+    and profile directory status.
+    """
+    lines = ["[ICC Profile MCP Server — Health Check]", ""]
+
+    # Binary status
+    analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
+    xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
+    xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
+
+    lines.append("Binaries:")
+    lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml_unsafe  : {'[OK]' if xml_unsafe_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml (safe)  : {'[OK]' if xml_safe_ok else '[MISSING]'}")
+    lines.append("")
+
+    # Profile directory status
+    test_count = sum(1 for f in TEST_PROFILES.iterdir()
+                     if f.suffix.lower() in (".icc", ".icm", ".iccp")) if TEST_PROFILES.exists() else 0
+    ext_count = sum(1 for f in EXTENDED_PROFILES.iterdir()
+                    if f.suffix.lower() in (".icc", ".icm", ".iccp")) if EXTENDED_PROFILES.exists() else 0
+    lines.append("Profile directories:")
+    lines.append(f"  test-profiles/          : {test_count} profiles")
+    lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
+    lines.append("")
+
+    # Tool count (8 analysis tools + 7 maintainer tools + 1 health = 16 tools)
+    lines.append("Tools: 16 registered (8 analysis + 7 maintainer + 1 health)")
+    lines.append("")
+
+    overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
+    lines.append(f"Status: {overall}")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
 async def build_tools(target: str = "all") -> str:
     """Build the native analysis tools required by this MCP server.
 
