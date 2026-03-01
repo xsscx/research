@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICC Profile MCP Server — Developer Demo Report</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #010409; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+  --green: #3fb950; --red: #f85149; --yellow: #d29922; --purple: #bc8cff;
+  --mono: 'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+}
+html { font-size: 15px; scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+/* Typography */
+h1 { font-size: 2.2rem; font-weight: 700; }
+h2 { font-size: 1.4rem; font-weight: 600; margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+p { margin-bottom: 0.75rem; color: var(--muted); }
+.lead { font-size: 1.05rem; max-width: 800px; }
+
+/* Badges */
+.badge { display: inline-block; font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 10px; font-weight: 600; margin: 0 0.15rem; }
+.b-blue { background: var(--accent); color: var(--bg); }
+.b-green { background: var(--green); color: var(--bg); }
+.b-red { background: var(--red); color: var(--bg); }
+.b-yellow { background: var(--yellow); color: var(--bg); }
+.b-purple { background: var(--purple); color: var(--bg); }
+
+/* Hero */
+.hero { text-align: center; padding: 3rem 0 2rem; }
+.hero .sub { color: var(--muted); font-size: 0.95rem; margin-top: 0.5rem; }
+.badges { margin-top: 1rem; display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card p { font-size: 0.88rem; }
+
+/* Demo sections */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 1.25rem 0; overflow: hidden; }
+.demo-hdr { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; background: rgba(88,166,255,0.06); border-bottom: 1px solid var(--border); }
+.demo-hdr h4 { font-size: 0.9rem; margin: 0; font-family: var(--mono); font-weight: 500; }
+.demo-body { padding: 1rem; }
+.cmd { font-family: var(--mono); font-size: 0.82rem; color: var(--green); margin-bottom: 0.5rem; }
+.cmd::before { content: "$ "; color: var(--muted); }
+.output { max-height: 500px; overflow-y: auto; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.88rem; }
+th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border); color: var(--muted); font-weight: 600; }
+td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+tr:hover { background: rgba(110,118,129,0.04); }
+code { font-family: var(--mono); font-size: 0.82rem; background: rgba(110,118,129,0.15); padding: 0.1rem 0.35rem; border-radius: 4px; }
+pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; margin: 0.75rem 0; }
+
+/* Steps */
+.steps { counter-reset: step; }
+.step { display: flex; gap: 1rem; margin: 0.75rem 0; align-items: flex-start; }
+.step::before { counter-increment: step; content: counter(step); background: var(--accent); color: var(--bg); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
+
+/* TOC */
+.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+.toc ol { padding-left: 1.5rem; columns: 2; column-gap: 2rem; }
+.toc li { margin: 0.25rem 0; font-size: 0.9rem; }
+
+/* Highlight boxes */
+.note { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.9rem; }
+.warn { background: rgba(210,153,34,0.08); border-left: 3px solid var(--yellow); padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.9rem; }
+.crit { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.9rem; }
+
+/* WebUI preview */
+.webui-frame { background: var(--surface); border: 2px solid var(--border); border-radius: 10px; overflow: hidden; margin: 1rem 0; }
+.webui-titlebar { background: #1c2128; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); }
+.webui-dot { width: 12px; height: 12px; border-radius: 50%; }
+.webui-dot.r { background: #f85149; }
+.webui-dot.y { background: #d29922; }
+.webui-dot.g { background: #3fb950; }
+.webui-url { margin-left: 0.75rem; background: var(--surface2); padding: 0.25rem 0.75rem; border-radius: 4px; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); flex: 1; }
+.webui-content { padding: 1rem; }
+.webui-toolbar { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.webui-btn { padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); font-size: 0.78rem; font-family: var(--sans); cursor: default; }
+.webui-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.webui-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.4rem 0.75rem; color: var(--text); font-family: var(--mono); font-size: 0.82rem; width: 100%; margin-bottom: 0.75rem; }
+.webui-run { background: var(--green); color: var(--bg); border: none; padding: 0.4rem 1.2rem; border-radius: 5px; font-weight: 600; font-size: 0.85rem; cursor: default; display: inline-block; margin-bottom: 0.75rem; }
+
+.footer { text-align: center; padding: 2rem 0; margin-top: 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 768px) {
+  .cards { grid-template-columns: 1fr; }
+  .toc ol { columns: 1; }
+  .container { padding: 1rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ════════════════ HERO ════════════════ -->
+<div class="hero">
+<h1>🔬 ICC Profile MCP Server</h1>
+<p class="lead">Developer Demo Report — Live API captures from <code>ghcr.io/xsscx/icc-profile-mcp:dev</code></p>
+<p class="sub">All output below was captured from a running Docker container on 2026-03-01 13:52 UTC</p>
+<div class="badges">
+<span class="badge b-blue">Docker :dev</span>
+<span class="badge b-green">15 Tools</span>
+<span class="badge b-yellow">27 Heuristics</span>
+<span class="badge b-red">ASAN+UBSAN</span>
+<span class="badge b-purple">REST API + WebUI</span>
+</div>
+</div>
+
+<!-- ════════════════ TOC ════════════════ -->
+<nav class="toc">
+<strong>Developer Walkthrough</strong>
+<ol>
+<li><a href="#start">Quick Start — Docker</a></li>
+<li><a href="#health">Health Check &amp; Headers</a></li>
+<li><a href="#webui">WebUI — Browser Interface</a></li>
+<li><a href="#list">List Profiles</a></li>
+<li><a href="#sec-clean">Security Scan — Clean Profile</a></li>
+<li><a href="#sec-mal">Security Scan — Malformed Profile</a></li>
+<li><a href="#sec-stack">Security Scan — Stack Overflow PoC</a></li>
+<li><a href="#inspect">Structural Inspection</a></li>
+<li><a href="#full">Full Analysis (All Modes)</a></li>
+<li><a href="#roundtrip">Round-Trip Validation</a></li>
+<li><a href="#xml">XML Conversion</a></li>
+<li><a href="#compare">Profile Comparison (diff)</a></li>
+<li><a href="#upload">File Upload</a></li>
+<li><a href="#csp">CSP Nonce Rotation</a></li>
+<li><a href="#api">API Reference</a></li>
+<li><a href="#mcp">MCP Integration</a></li>
+</ol>
+</nav>
+
+<!-- ════════════════ 1. QUICK START ════════════════ -->
+<h2 id="start">1. Quick Start — Docker</h2>
+
+<div class="demo">
+<div class="demo-hdr"><h4>Pull &amp; Run</h4><span class="badge b-green">2 commands</span></div>
+<div class="demo-body">
+<div class="cmd">docker pull ghcr.io/xsscx/icc-profile-mcp:dev</div>
+<div class="cmd">docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web</div>
+<div class="note">The container starts a Starlette/uvicorn server on port 8080 with all 15 tools, 123 test profiles, and 95 extended test profiles pre-loaded. Open <code>http://127.0.0.1:8080</code> in your browser.</div>
+</div>
+</div>
+
+<!-- ════════════════ 2. HEALTH ════════════════ -->
+<h2 id="health">2. Health Check &amp; Security Headers</h2>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/health</h4><span class="badge b-green">200 OK</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool</div>
+<div class="output">{
+    &quot;ok&quot;: true,
+    &quot;tools&quot;: 15
+}
+</div>
+</div>
+</div>
+
+<div class="demo">
+<div class="demo-hdr"><h4>HTTP Response Headers</h4><span class="badge b-purple">10 Security Headers</span></div>
+<div class="demo-body">
+<div class="cmd">curl -sD - http://127.0.0.1:8080/ -o /dev/null</div>
+<div class="output">HTTP/1.1 200 OK
+date: Sun, 01 Mar 2026 13:51:04 GMT
+server: uvicorn
+x-frame-options: DENY
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+referrer-policy: no-referrer
+permissions-policy: camera=(), microphone=(), geolocation=()
+cache-control: no-store
+cross-origin-opener-policy: same-origin
+content-security-policy: default-src &#x27;self&#x27; blob:; style-src &#x27;self&#x27; &#x27;nonce-ef0XuKKrGR4WORNG33VPdclfctK_C2bPgUjCcvJHOcM&#x27;; script-src &#x27;self&#x27; &#x27;nonce-ef0XuKKrGR4WORNG33VPdclfctK_C2bPgUjCcvJHOcM&#x27;
+content-length: 37348
+content-type: text/html; charset=utf-8
+
+</div>
+</div>
+</div>
+
+<h3>Security Headers Breakdown</h3>
+<table>
+<tr><th>Header</th><th>Value</th><th>Purpose</th></tr>
+<tr><td><code>x-frame-options</code></td><td>DENY</td><td>Prevents clickjacking via iframes</td></tr>
+<tr><td><code>x-content-type-options</code></td><td>nosniff</td><td>Blocks MIME-type sniffing</td></tr>
+<tr><td><code>referrer-policy</code></td><td>no-referrer</td><td>Prevents URL leakage in Referer header</td></tr>
+<tr><td><code>permissions-policy</code></td><td>camera=(), microphone=(), geolocation=()</td><td>Disables device APIs</td></tr>
+<tr><td><code>cache-control</code></td><td>no-store</td><td>Prevents caching of analysis results</td></tr>
+<tr><td><code>cross-origin-opener-policy</code></td><td>same-origin</td><td>Isolates browsing context</td></tr>
+<tr><td><code>content-security-policy</code></td><td>Per-request nonce</td><td>Blocks inline script injection (see <a href="#csp">§14</a>)</td></tr>
+</table>
+
+<!-- ════════════════ 3. WEBUI ════════════════ -->
+<h2 id="webui">3. WebUI — Browser Interface</h2>
+
+<p>The WebUI is a single-page app served at <code>/</code>. Here is what it looks like:</p>
+
+<div class="webui-frame">
+<div class="webui-titlebar">
+<div class="webui-dot r"></div>
+<div class="webui-dot y"></div>
+<div class="webui-dot g"></div>
+<div class="webui-url">http://127.0.0.1:8080</div>
+</div>
+<div class="webui-content">
+<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap">
+<span style="font-size:1.2rem;font-weight:600">ICC Profile Analyzer</span>
+<span class="badge b-blue">MCP Web UI</span>
+</div>
+<div class="webui-toolbar">
+<div class="webui-btn">List Profiles</div>
+<div class="webui-btn">Inspect</div>
+<div class="webui-btn active">Security Scan</div>
+<div class="webui-btn">Round-Trip</div>
+<div class="webui-btn">Full Analysis</div>
+<div class="webui-btn">To XML</div>
+<div class="webui-btn">Compare</div>
+<div class="webui-btn">CMake Configure</div>
+<div class="webui-btn">CMake Build</div>
+<div class="webui-btn">Create Profiles</div>
+<div class="webui-btn">Run Tests</div>
+<div class="webui-btn">Option Matrix</div>
+<div class="webui-btn">Windows Build</div>
+</div>
+<div class="webui-input">sRGB_D65_MAT.icc</div>
+<div class="webui-run">▶ Run</div>
+<span style="font-size:0.78rem;color:var(--muted);margin-left:0.5rem">or <u>Choose File</u> to upload</span>
+<div class="output" style="max-height:200px;margin-top:0.75rem">=========================================================================
+|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
+=========================================================================
+
+File: /app/test-profiles/sRGB_D65_MAT.icc
+
+=======================================================================
+HEADER VALIDATION HEURISTICS
+=======================================================================
+
+[H1] Profile Size: 24712 bytes (0x00006088)  [actual file: 24712 bytes]
+     [OK] Size within normal range
+
+[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
+     [OK] Valid ICC magic signature
+
+[H3] Data ColorSpace: 0x52474220 (RGB )
+     [OK] Valid colorSpace: RgbData
+
+[H4] PCS ColorSpace: 0x58595A20 (XYZ )
+     [OK] Valid PCS: XYZData
+
+[H5] Platform: 0x00000000 (....)
+     [OK] Known platform code
+
+[H6] Rendering Intent: 1 (0x00000001)
+     [OK] Valid intent: Relative Colorimetric
+
+[H7] Profile Class: 0x6D6E7472 (mntr)
+     [OK] Known class: DisplayClass
+
+[H8] Illuminant XYZ: (0.950394, 1.000000, 1.088898)
+     [OK] Illuminant values within physical range
+
+[H15] Date Validation: 2026-02-17 08:38:13
+      [OK] Date values within valid ranges
+
+[H16] Signature Pattern Analysis
+      [OK] No suspicious signature patterns detected
+
+[H17] Spectral Range Validation
+      [OK] No spectral data (standard profile)
+
+=======================================================================
+TAG-LEVEL HEURISTICS
+============================================
+…</div>
+</div>
+</div>
+
+<h3>WebUI Features</h3>
+<div class="cards">
+<div class="card"><h4>🛠️ 13 Tool Buttons</h4><p>One-click access to every analysis and build function. 7 analysis tools + 6 maintainer tools.</p></div>
+<div class="card"><h4>📂 Profile Browser</h4><p>Lists <code>test-profiles/</code> (123 profiles), <code>extended-test-profiles/</code> (95 profiles), and <code>xif/</code> crash samples.</p></div>
+<div class="card"><h4>📤 File Upload</h4><p>Drag-and-drop or click to upload your own <code>.icc</code> files. 20 MB max. Files are sanitized and immediately available.</p></div>
+<div class="card"><h4>💾 Save Results</h4><p><strong>Copy</strong> to clipboard, <strong>Save As</strong> to download as .txt, <strong>Save XML</strong> for XML conversions.</p></div>
+<div class="card"><h4>🔗 Deep Linking</h4><p>URL hashes for bookmarks: <code>#security</code>, <code>#compare</code>, <code>#xml</code>, <code>#inspect</code></p></div>
+<div class="card"><h4>🔒 Per-Request CSP</h4><p>Every response has a unique nonce. No inline scripts allowed. See <a href="#csp">§14</a> for proof.</p></div>
+</div>
+
+<!-- ════════════════ 4. LIST ════════════════ -->
+<h2 id="list">4. List Available Profiles</h2>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/list?directory=test-profiles</h4><span class="badge b-green">123 profiles</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'</div>
+<div class="output">test-profiles/ — 123 profiles:
+17ChanWithSpots-MVIS.icc  (540,368 bytes)
+18ChanWithSpots-MVIS.icc  (1,042,160 bytes)
+6ChanSelect-MID.icc  (748 bytes)
+BlacklightPoster_411039.icc  (16,680 bytes)
+CIccMpeToneMap_IccProfLib_IccMpeBasic.cpp-L4532.icc  (2,368 bytes)
+CIccTagStruct-Read-recursive-stack-overflow.icc  (1,326 bytes)
+CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc  (2,368 bytes)
+DoubleFree_IccUtil.cpp-L121.icc  (2,368 bytes)
+GrayGSDF.icc  (33,924 bytes)
+LCDDisplay.icc  (30,428 bytes)
+Rec2020rgbColorimetric.icc  (2,660 bytes)
+Rec2020rgbSpectral.icc  (24,620 bytes)
+Rec2100HlgFull.icc  (4,304 bytes)
+Rec2100HlgNarrow.icc  (4,336 bytes)
+RgbGSDF.icc  (34,160 bytes)
+calcOverMem_tget.icc  (3,928 bytes)
+calcOverMem_tput.icc  (3,928 bytes)
+calcOverMem_tsav.icc  (3,928 bytes)
+calcUnderStack_abs.icc  (3,932 bytes)
+calcUnderStack_acos.icc  (3,936 bytes)
+calcUnderStack_add.icc  (3,932 bytes)
+calcUnderStack_and.icc  (3,932 bytes)
+calcUnderStack_asin.icc  (3,936 bytes)
+calcUnderStack_atan.icc  (3,936 bytes)
+calcUnderStack_atn2.icc  (3,936 bytes)
+calcUnderStack_calc.icc  (3,936 bytes)
+calcUnderStack_cb.icc  (3,932 bytes)
+calcUnderStack_cbrt.icc  (3,936 bytes)
+calcUnderStack_ceil.icc  (3,936 bytes)
+calcUnderStack_clut.icc  (3,936 bytes)
+calcUnderStack_copy.icc  (3,936 bytes)
+calcUnderStack_cos.icc  (3,932 bytes)
+calcUnderStack_ctop.icc  (3,936 bytes)
+calcUnderStack_curv.icc  (3,936 bytes)
+… (90 more lines)</div>
+</div>
+</div>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/list?directory=extended-test-profiles</h4><span class="badge b-yellow">95 profiles</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/list?directory=extended-test-profiles'</div>
+<div class="output">extended-test-profiles/ — 95 profiles:
+Argyll_V302_null_byte_read-icmTable_setup_bwd-cve-2023-46867-variant-argyle-001.icc  (4,060 bytes)
+BlacklightPoster_202143.icc  (16,680 bytes)
+BlacklightPoster_411039.icc  (16,680 bytes)
+CIccMpeCalculatorSetElem_StackOverflow_IccMpeCalc.cpp-L4963.icc  (3,579 bytes)
+CIccMpeToneMap_IccProfLib_IccMpeBasic.cpp-L4532.icc  (2,368 bytes)
+Cat8Lab-D65_2degMeta.icc  (2,600 bytes)
+Crash-CoreFoundation-CFDataGetLength.icc  (7,460 bytes)
+DoubleFree_IccUtil.cpp-L121.icc  (2,368 bytes)
+IccTagBasic_cpp-Line-8163-runtime-error-type-icDataBlockType.icc  (2,638,280 bytes)
+PSSwopCustom22228.icc  (724,088 bytes)
+SC_paper_eci.icc  (1,829,087 bytes)
+SIccCalcOp-Describe-IccProfLib-IccMpeCalc_cpp_L1816.icc  (3,936 bytes)
+SIccCalcOpDescribe_.IccMpeCalc.cpp-L1790.icc  (3,556 bytes)
+Tek350Monaco2.icc  (414,588 bytes)
+argyle-beta303-buffer-overflow-icmXYZNumber_and_Lab2str-icc_c_line_2294.icc  (514 bytes)
+argyle-beta303-stack-overflow-icheck_c_line_121.icc  (514 bytes)
+colorsync-poc-x86_64-CGSColorMaskSoverARGB8888_sse-crash-sample-x86_64-04142022-variant-002.icc  (7,460 bytes)
+cve-2022-26730-colorsync-0x10ef92785-0x10ef8f000-hoyt-03172023-baseline-poc-0012.icc  (762,952 bytes)
+cve-2022-26730-poc-sample-002.icc  (7,524 bytes)
+cve-2022-26730-poc-sample-003.icc  (10,148 bytes)
+cve-2022-26730-poc-sample-004.icc  (147,564 bytes)
+cve-2022-26730-variant-1.icc  (9,856 bytes)
+cve-2022-26730-variant-3.icc  (7,524 bytes)
+cve-2023-32443-variant-020.icc  (7,460 bytes)
+… (72 more lines)</div>
+</div>
+</div>
+
+<!-- ════════════════ 5. SECURITY CLEAN ════════════════ -->
+<h2 id="sec-clean">5. Security Scan — Clean Profile ✅</h2>
+
+<p>All 27 heuristics pass on the well-formed <code>sRGB_D65_MAT.icc</code> monitor profile.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/security?path=sRGB_D65_MAT.icc</h4><span class="badge b-green">NO WARNINGS</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'</div>
+<div class="output">=========================================================================
+|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
+=========================================================================
+
+File: /app/test-profiles/sRGB_D65_MAT.icc
+
+=======================================================================
+HEADER VALIDATION HEURISTICS
+=======================================================================
+
+[H1] Profile Size: 24712 bytes (0x00006088)  [actual file: 24712 bytes]
+     [OK] Size within normal range
+
+[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
+     [OK] Valid ICC magic signature
+
+[H3] Data ColorSpace: 0x52474220 (RGB )
+     [OK] Valid colorSpace: RgbData
+
+[H4] PCS ColorSpace: 0x58595A20 (XYZ )
+     [OK] Valid PCS: XYZData
+
+[H5] Platform: 0x00000000 (....)
+     [OK] Known platform code
+
+[H6] Rendering Intent: 1 (0x00000001)
+     [OK] Valid intent: Relative Colorimetric
+
+[H7] Profile Class: 0x6D6E7472 (mntr)
+     [OK] Known class: DisplayClass
+
+[H8] Illuminant XYZ: (0.950394, 1.000000, 1.088898)
+     [OK] Illuminant values within physical range
+
+[H15] Date Validation: 2026-02-17 08:38:13
+      [OK] Date values within valid ranges
+
+[H16] Signature Pattern Analysis
+      [OK] No suspicious signature patterns detected
+
+[H17] Spectral Range Validation
+      [OK] No spectral data (standard profile)
+
+=======================================================================
+TAG-LEVEL HEURISTICS
+=======================================================================
+
+[H9] Critical Text Tags:
+     Description: Present [OK]
+     Copyright: Present [OK]
+     Manufacturer: Missing
+     Device Model: Missing
+
+[H10] Tag Count: 9
+      [OK] Tag count within normal range
+
+[H11] CLUT Entry Limit Check
+      Max safe CLUT entries per tag: 16777216 (16M)
+      [OK] No CLUT tags to check
+
+[H12] MPE Chain Depth Check
+      Max MPE elements per chain: 1024
+      Inspected 2 MPE tag(s)
+
+[H13] Per-Tag Size Check
+      Max tag size: 64 MB (67108864 bytes)
+      [OK] All 9 tags within size limits
+
+[H14] TagArrayType Detection (UAF Risk)
+      Checking for TagArrayType (0x74617279 = &#x27;tary&#x27;)
+      Note: Tag signature ≠ tag type - must check tag DATA
+      [OK] No TagArrayType tags detected
+
+[H18] Technology Signature Validation
+      INFO: No technology tag present
+
+[H19] Tag Offset/Size Overlap Detection
+      [OK] No tag overlaps detected
+
+=======================================================================
+HEURISTIC SUMMARY
+=======================================================================
+
+[OK] NO HEURISTIC WARNINGS DETECTED
+  Profile appears well-formed with no obvious security concerns.
+
+
+--- stderr ---
+ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
+</div>
+</div>
+</div>
+
+<!-- ════════════════ 6. SECURITY MALFORMED ════════════════ -->
+<h2 id="sec-mal">6. Security Scan — Malformed Profile ⚠️</h2>
+
+<p>Crafted profile from Argyll CMS fuzzing — known buffer overflow vector at <code>icmXYZNumber</code>.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/security?path=extended-test-profiles/argyle-beta303-buffer-overflow-*.icc</h4><span class="badge b-yellow">7 WARNINGS</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/security?path=extended-test-profiles/argyle-beta303-buffer-overflow-icmXYZNumber_and_Lab2str-icc_c_line_2294.icc'</div>
+<div class="output">=========================================================================
+|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
+=========================================================================
+
+File: /app/extended-test-profiles/argyle-beta303-buffer-overflow-icmXYZNumber_and_Lab2str-icc_c_line_2294.icc
+
+=======================================================================
+HEADER VALIDATION HEURISTICS
+=======================================================================
+
+[H1] Profile Size: 504 bytes (0x000001F8)  [actual file: 514 bytes]
+     [OK] Size within normal range
+
+[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
+     [OK] Valid ICC magic signature
+
+[H3] Data ColorSpace: 0x52474220 (RGB )
+     [OK] Valid colorSpace: RgbData
+
+[H4] PCS ColorSpace: 0x4C616220 (Lab )
+     [OK] Valid PCS: LabData
+
+[H5] Platform: 0x97F3A081 (....)
+     [WARN]  HEURISTIC: Unknown platform signature
+     Risk: Platform-specific code path exploitation
+
+[H6] Rendering Intent: 2543255703 (0x97970097)
+     [WARN]  HEURISTIC: Invalid rendering intent (&gt; 3)
+     Risk: Out-of-bounds enum access
+
+[H7] Profile Class: 0x73636E72 (scnr)
+     [OK] Known class: InputClass
+
+[H8] Illuminant XYZ: (-26728.408203, -26879.998047, 1.000000)
+     [WARN]  HEURISTIC: Negative illuminant values (non-physical)
+     Risk: Undefined behavior in color calculations
+
+[H15] Date Validation: 2003-07-151 38807:38807:38807
+      [WARN]  HEURISTIC: Invalid day: 151
+      [WARN]  HEURISTIC: Invalid hours: 38807
+      [WARN]  HEURISTIC: Invalid minutes: 38807
+      [WARN]  HEURISTIC: Invalid seconds: 38807
+      Risk: Malformed date may indicate crafted/corrupted profile
+
+[H16] Signature Pattern Analysis
+      [WARN]  manufacturer: 0x97979797 repeat-byte pattern (fuzz artifact?)
+      Risk: 1 repeat-byte signature(s) — likely crafted/fuzzed profile
+
+[H17] Spectral Range Validation
+      [OK] No spectral data (standard profile)
+
+=======================================================================
+TAG-LEVEL HEURISTICS
+=======================================================================
+
+[H9] Critical Text Tags:
+     Description: Missing
+     Copyright: Missing
+     Manufacturer: Missing
+     Device Model: Missing
+     [WARN]  HEURISTIC: Multiple required text tags missing
+       Risk: Incomplete/malformed profile
+
+[H10] Tag Count: 0
+      [WARN]  HEURISTIC: Zero tags (invalid profile)
+       Risk: Parser confusion, empty profile attack
+
+[H11] CLUT Entry Limit Check
+      Max safe CLUT entries per tag: 16777216 (16M)
+      [OK] No CLUT tags to check
+
+[H12] MPE Chain Depth Check
+      Max MPE elements per chain: 1024
+      [OK] No MPE tags to check
+
+[H13] Per-Tag Size Check
+      Max tag size: 64 MB (67108864 bytes)
+      [OK] All 0 tags within size limits
+
+[H14] TagArrayType Detection (UAF Risk)
+      Checking for TagArrayType (0x74617279 = &#x27;tary&#x27;)
+      Note: Tag signature ≠ tag type - must check tag DATA
+      [OK] No TagArrayType tags detected
+
+[H18] Technology Signature Validation
+      INFO: No technology tag present
+
+[H19] Tag Offset/Size Overlap Detection
+      [OK] No tag overlaps detected
+
+=======================================================================
+HEURISTIC SUMMARY
+=======================================================================
+
+[WARN]  7 HEURISTIC WARNING(S) DETECTED
+
+  This profile exhibits patterns associated with:
+  - Malformed/corrupted data
+  - Resource exhaustion attempts
+  - Enum confusion vulnerabilities
+  - Parser exploitation attempts
+
+  Recommendations:
+  • Validate profile with official ICC tools
+  • Use -n (ninja mode) for detailed byte-level analysis
+  • Do NOT use in production color workflows
+  • Consider as potential security test case
+
+
+--- stderr ---
+ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
+</div>
+</div>
+</div>
+
+<h3>Findings Detail</h3>
+<table>
+<tr><th>Heuristic</th><th>Finding</th><th>Severity</th></tr>
+<tr><td><code>H5</code></td><td>Unknown platform: <code>0x97F3A081</code></td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H6</code></td><td>Rendering intent = 2,543,255,703 (max valid: 3)</td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H8</code></td><td>Negative illuminant: (-26728.4, -26880.0, 1.0)</td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H15</code></td><td>Invalid date — day:151, hours:38807, mins:38807, secs:38807</td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H16</code></td><td>Repeat-byte manufacturer: <code>0x97979797</code> (fuzz artifact)</td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H9</code></td><td>Missing description &amp; copyright text tags</td><td><span class="badge b-yellow">WARN</span></td></tr>
+<tr><td><code>H10</code></td><td>Zero tags — invalid/empty profile</td><td><span class="badge b-yellow">WARN</span></td></tr>
+</table>
+
+<!-- ════════════════ 7. SECURITY STACK OVERFLOW ════════════════ -->
+<h2 id="sec-stack">7. Security Scan — Stack Overflow PoC 🔴</h2>
+
+<p>Recursive <code>CIccTagStruct::Read()</code> crash sample — triggers unbounded recursion in the parser. Detected by H24 (nesting depth) and upstream patch 061.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/security?path=CIccTagStruct-Read-recursive-stack-overflow.icc</h4><span class="badge b-red">3 WARNINGS</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/security?path=CIccTagStruct-Read-recursive-stack-overflow.icc'</div>
+<div class="output">=========================================================================
+|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
+=========================================================================
+
+File: /app/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+
+=======================================================================
+HEADER VALIDATION HEURISTICS
+=======================================================================
+
+[H1] Profile Size: 720 bytes (0x000002D0)  [actual file: 1326 bytes]
+     [OK] Size within normal range
+
+[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
+     [OK] Valid ICC magic signature
+
+[H3] Data ColorSpace: 0x52474220 (RGB )
+     [OK] Valid colorSpace: RgbData
+
+[H4] PCS ColorSpace: 0x4E554C4C (NULL)
+     [WARN]  HEURISTIC: Invalid PCS signature (must be Lab, XYZ, or spectral)
+     Risk: Colorimetric transform failures
+     Name: Unknown  Bytes: &#x27;NULL&#x27;
+
+[H5] Platform: 0x00000000 (....)
+     [OK] Known platform code
+
+[H6] Rendering Intent: 0 (0x00000000)
+     [OK] Valid intent: Perceptual
+
+[H7] Profile Class: 0x63656E63 (cenc)
+     [OK] Known class: ColorEncodingClass
+
+[H8] Illuminant XYZ: (0.000000, 0.000000, 0.000000)
+     [OK] Illuminant values within physical range
+
+[H15] Date Validation: 0-00-00 00:00:00
+      [WARN]  HEURISTIC: Invalid month: 0
+      [WARN]  HEURISTIC: Invalid day: 0
+      [WARN]  HEURISTIC: Suspicious year: 0 (expected 1900-2100)
+      Risk: Malformed date may indicate crafted/corrupted profile
+
+[H16] Signature Pattern Analysis
+      [OK] No suspicious signature patterns detected
+
+[H17] Spectral Range Validation
+      [OK] No spectral data (standard profile)
+
+=======================================================================
+TAG-LEVEL HEURISTICS
+=======================================================================
+
+[H9] Critical Text Tags:
+     Description: Missing
+     Copyright: Missing
+     Manufacturer: Missing
+     Device Model: Missing
+     [WARN]  HEURISTIC: Multiple required text tags missing
+       Risk: Incomplete/malformed profile
+
+[H10] Tag Count: 3
+      [OK] Tag count within normal range
+
+[H11] CLUT Entry Limit Check
+      Max safe CLUT entries per tag: 16777216 (16M)
+      [OK] No CLUT tags to check
+
+[H12] MPE Chain Depth Check
+      Max MPE elements per chain: 1024
+      [OK] No MPE tags to check
+
+[H13] Per-Tag Size Check
+      Max tag size: 64 MB (67108864 bytes)
+      [OK] All 3 tags within size limits
+
+[H14] TagArrayType Detection (UAF Risk)
+      Checking for TagArrayType (0x74617279 = &#x27;tary&#x27;)
+      Note: Tag signature ≠ tag type - must check tag DATA
+      [OK] No TagArrayType tags detected
+
+[H18] Technology Signature Validation
+      INFO: No technology tag present
+
+[H19] Tag Offset/Size Overlap Detection
+      [OK] No tag overlaps detected
+
+=======================================================================
+HEURISTIC SUMMARY
+=======================================================================
+
+[WARN]  3 HEURISTIC WARNING(S) DETECTED
+
+  This profile exhibits patterns associated with:
+  - Malformed/corrupted data
+  - Resource exhaustion attempts
+  - Enum confusion vulnerabilities
+  - Parser exploitation attempts
+
+  Recommendations:
+  • Validate profile with official ICC tools
+  • Use -n (ninja mode) for detailed byte-level analysis
+  • Do NOT use in production color workflows
+  • Consider as potential security test case
+
+
+--- stderr ---
+ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
+ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x4e554c4c (Unknown)
+ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: ColorSpace signature: 0x4e554c4c (Unknown)
+</div>
+</div>
+</div>
+
+<div class="crit"><strong>Note:</strong> The <code>--- stderr ---</code> section shows iccDEV debug output including unknown colorspace <code>0x4e554c4c</code> — this is the analyzer running against <em>unpatched upstream</em> code to detect real library bugs.</div>
+
+<!-- ════════════════ 8. INSPECT ════════════════ -->
+<h2 id="inspect">8. Structural Inspection</h2>
+
+<p>Raw header dump with hex bytes, tag table, and parsed field values. Full output is 1,609 lines.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/inspect?path=sRGB_D65_MAT.icc</h4><span class="badge b-blue">1609 lines</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'</div>
+<div class="output">=========================================================================
+|                   *** REDUCED SECURITY MODE ***                       |
+|                                                                       |
+|             Copyright (c) 2021-2026 David H Hoyt LLC                 |
+|                          hoyt.net                                     |
+=========================================================================
+
+WARNING: Analyzing malformed/corrupted ICC profile without validation.
+         This mode bypasses all safety checks and may expose parser bugs.
+         Use only for security research, fuzzing, or forensic analysis.
+
+File: /app/test-profiles/sRGB_D65_MAT.icc
+Mode: FULL DUMP (entire file will be displayed)
+
+Raw file size: 24712 bytes (0x6088)
+
+=== RAW HEADER DUMP (0x0000-0x007F) ===
+0x0000: 00 00 60 88 00 00 00 00  05 00 00 00 6D 6E 74 72  |..`.........mntr|
+0x0010: 52 47 42 20 58 59 5A 20  07 EA 00 02 00 11 00 08  |RGB XYZ ........|
+0x0020: 00 26 00 0D 61 63 73 70  00 00 00 00 00 00 00 01  |.&amp;..acsp........|
+0x0030: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0x0040: 00 00 00 01 00 00 F3 4D  00 01 00 00 00 01 16 C2  |.......M........|
+0x0050: 49 43 43 20 33 17 4F 15  AB B4 D7 91 A2 AC E1 BF  |ICC 3.O.........|
+0x0060: 69 49 96 C1 00 00 00 00  00 00 00 00 00 00 00 00  |iI..............|
+0x0070: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+
+Header Fields (RAW - no validation):
+  Profile Size:    0x00006088 (24712 bytes) OK
+  CMM:             0x00000000  &#x27;....&#x27;
+  Version:         0x05000000
+  Device Class:    0x6D6E7472  &#x27;mntr&#x27;
+  Color Space:     0x52474220  &#x27;RGB &#x27;
+  PCS:             0x58595A20  &#x27;XYZ &#x27;
+
+=== RAW TAG TABLE (0x0080+) ===
+Tag Count: 9 (0x00000009)
+
+Tag Table Raw Data:
+0x0080: 00 00 00 09 64 65 73 63  00 00 00 F0 00 00 00 36  |....desc.......6|
+0x0090: 63 70 72 74 00 00 01 28  00 00 00 78 41 32 42 31  |cprt...(...xA2B1|
+0x00A0: 00 00 01 A0 00 00 01 58  42 32 41 31 00 00 02 F8  |.......XB2A1....|
+0x00B0: 00 00 01 64 63 32 73 70  00 00 04 5C 00 00 00 54  |...dc2sp...\...T|
+0x00C0: 73 32 63 70 00 00 04 B0  00 00 00 54 73 76 63 6E  |s2cp.......Tsvcn|
+0x00D0: 00 00 05 04 00 00 05 4C  77 74 70 74 00 00 0A 50  |.......Lwtpt...P|
+0x00E0: 00 00 00 14 67 62 64 31  00 00 0A 64 00 00 56 24  |....gbd1...d..V$|
+
+Tag Entries (RAW - no validation):
+Idx  Signature    FourCC       Offset       Size         TagType      Status
+---  ------------ ------------ ------------ ------------ ------------ ------
+0    0x64657363   &#x27;desc&#x27;        0x000000F0   0x00000036   &#x27;mluc&#x27;        OK
+1    0x63707274   &#x27;cprt&#x27;        0x00000128   0x00000078   &#x27;mluc&#x27;        OK
+2    0x41324231   &#x27;A2B1&#x27;        0x000001A0   0x00000158   &#x27;mpet&#x27;        OK
+3    0x42324131   &#x27;B2A1&#x27;        0x000002F8   0x00000164   &#x27;mpet&#x27;        OK
+4    0x63327370   &#x27;c2sp&#x27;        0x0000045C   0x00000054   &#x27;mpet&#x27;        OK
+5    0x73326370   &#x27;s2cp&#x27;        0x000004B0   0x00000054   &#x27;mpet&#x27;        OK
+6    0x7376636E   &#x27;svcn&#x27;        0x00000504   0x0000054C   &#x27;svcn&#x27;        OK
+7    0x77747074   &#x27;wtpt&#x27;        0x00000A50   0x00000014   &#x27;XYZ &#x27;        OK
+8    0x67626431   &#x27;gbd1&#x27;        0x00000A64   0x00005624   &#x27;gbd &#x27;        OK
+
+=== FULL FILE HEX DUMP (all 24712 bytes) ===
+0x0000: 00 00 60 88 00 00 00 00  05 00 00 00 6D 6E 74 72  |..`.........mntr|
+0x0010: 52 47 42 20 58 59 5A 20  07 EA 00 02 00 11 00 08  |RGB XYZ ........|
+0x0020: 00 26 00 0D 61 63 73 70  00 00 00 00 00 00 00 01  |.&amp;..acsp........|
+0x0030: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0x0040: 00 00 00 01 00 00 F3 4D  00 01 00 00 00 01 16 C2  |.......M........|
+0x0050: 49 43 43 20 33 17 4F 15  AB B4 D7 91 A2 AC E1 BF  |ICC 3.O.........|
+0x0060: 69 49 96 C1 00 00 00 00  00 00 00 00 00 00 00 00  |iI..............|
+0x0070: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0x0080: 00 00 00 09 64 65 73 63  00 00 00 F0 00 00 00 36  |....desc.......6|
+0x0090: 63 70 72 74 00 00 01 28  00 00 00 78 41 32 42 31  |cprt...(...xA2B1|
+0x00A0: 00 00 01 A0 00 00 01 58  42 32 41 31 00 00 02 F8  |.......XB2A1....|
+0x00B0: 00 00 01 64 63 32 73 70  00 00 04 5C 00 00 00 54  |...dc2sp...\...T|
+0x00C0: 73 32 63 70 00 00 04 B0  00 00 00 54 73 76 63 6E  |s2cp.......Tsvcn|
+0x00D0: 00 00 05 04 00 00 05 4C  77 74 70 74 00 00 0A 50  |.......Lwtpt...P|
+0x00E0: 00 00 00 14 67 62 64 31  00 00 0A 64 00 00 56 24  |....gbd1...d..V$|
+0x00F0: 6D 6C 75 63 00 00 00 00  00 00 00 01 00 00 00 0C  |mluc............|
+0x0100: 65 6E 55 53 00 00 00 1A  00 00 00 1C 00 73 00 52  |enUS.........s.R|
+0x0110: 00 47 00 42 00 20 00 44  00 36 00 35 00 20 00 4D  |.G.B. .D.6.5. .M|
+0x0120: 00 41 00 54 00 00 00 00  6D 6C 75 63 00 00 00 00  |.A.T....mluc....|
+0x0130: 00 00 00 01 00 00 00 0C  65 6E 55 53 00 00 00 5C  |........enUS...\|
+… (1530 more lines)</div>
+</div>
+</div>
+
+<!-- ════════════════ 9. FULL ════════════════ -->
+<h2 id="full">9. Full Analysis (All Modes Combined)</h2>
+
+<p>Runs security heuristics, round-trip validation, and structural inspection in a single pass.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/full?path=sRGB_D65_MAT.icc</h4><span class="badge b-blue">3 Phases</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'</div>
+<div class="output">=======================================================================
+  ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
+=======================================================================
+
+File: /app/test-profiles/sRGB_D65_MAT.icc
+
+=======================================================================
+PHASE 1: SECURITY HEURISTIC ANALYSIS
+=======================================================================
+
+
+=========================================================================
+|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
+=========================================================================
+
+File: /app/test-profiles/sRGB_D65_MAT.icc
+
+=======================================================================
+HEADER VALIDATION HEURISTICS
+=======================================================================
+
+[H1] Profile Size: 24712 bytes (0x00006088)  [actual file: 24712 bytes]
+     [OK] Size within normal range
+
+[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
+     [OK] Valid ICC magic signature
+
+[H3] Data ColorSpace: 0x52474220 (RGB )
+     [OK] Valid colorSpace: RgbData
+
+[H4] PCS ColorSpace: 0x58595A20 (XYZ )
+     [OK] Valid PCS: XYZData
+
+[H5] Platform: 0x00000000 (....)
+     [OK] Known platform code
+
+[H6] Rendering Intent: 1 (0x00000001)
+     [OK] Valid intent: Relative Colorimetric
+
+[H7] Profile Class: 0x6D6E7472 (mntr)
+     [OK] Known class: DisplayClass
+
+[H8] Illuminant XYZ: (0.950394, 1.000000, 1.088898)
+     [OK] Illuminant values within physical range
+
+[H15] Date Validation: 2026-02-17 08:38:13
+      [OK] Date values within valid ranges
+
+[H16] Signature Pattern Analysis
+      [OK] No suspicious signature patterns detected
+
+[H17] Spectral Range Validation
+      [OK] No spectral data (standard profile)
+
+=======================================================================
+TAG-LEVEL HEURISTICS
+=======================================================================
+
+[H9] Critical Text Tags:
+     Description: Present [OK]
+     Copyright: Present [OK]
+     Manufacturer: Missing
+     Device Model: Missing
+
+[H10] Tag Count: 9
+      [OK] Tag count within normal range
+
+[H11] CLUT Entry Limit Check
+      Max safe CLUT entries per tag: 16777216 (16M)
+      [OK] No CLUT tags to check
+
+[H12] MPE Chain Depth Check
+      Max MPE elements per chain: 1024
+      Inspected 2 MPE tag(s)
+
+[H13] Per-Tag Size Check
+      Max tag size: 64 MB (67108864 bytes)
+      [OK] All 9 tags within size limits
+
+[H14] TagArrayType Detection (UAF Risk)
+      Checking for TagArrayType (0x74617279 = &#x27;tary&#x27;)
+      Note: Tag signature ≠ tag type - must check tag DATA
+      [OK] No TagArrayType tags detected
+
+[H18] Technology Signature Validation
+      INFO: No technology tag present
+
+[H19] Tag Offset/Size Overlap Detection
+      [OK] No tag overlaps detected
+
+=======================================================================
+HEURISTIC SUMMARY
+=======================================================================
+
+[OK] NO HEURISTIC WARNINGS DETECTED
+  Profile appears well-formed with no obvious security concerns.
+
+
+=======================================================================
+PHASE 2: ROUND-TRIP TAG VALIDATION
+=======================================================================
+
+
+=== Round-Trip Tag Pair Analysis ===
+Profile: /app/test-profiles/sRGB_D65_MAT.icc
+
+Device Class: 0x6D6E7472
+
+Tag Pair Analysis:
+  AToB0/BToA0 (Perceptual):        [ ] [ ]  
+  AToB1/BToA1 (Rel. Colorimetric): [[X]] [[X]]  [X] Round-trip capable
+  AToB2/BToA2 (Saturation):        [ ] [ ]  
+
+  DToB0/BToD0 (Perceptual):        [ ] [ ]  
+  DToB1/BToD1 (Rel. Colorimetric): [ ] [ ]  
+  DToB2/BToD2 (Saturation):        [ ] [ ]  
+
+  Matrix/TRC Tags:                 [ ]  
+
+[OK] RESULT: Profile supports round-trip validation
+
+Result: Round-trip capable [OK]
+
+=======================================================================
+PHASE 3: SIGNATURE ANALYSIS
+=======================================================================
+
+
+=== Signature Analysis ===
+
+Header Signatures:
+  Device Class:    0x6D6E7472  &#x27;&#x27;  DisplayClass
+  Color Space:     0x52474220  &#x27;RGB &#x27;  RgbData
+  PCS:             0x58595A20  &#x27;XYZ &#x27;  XYZData
+  Manufacturer:    0x00000000  &#x27;....&#x27;
+  Model:           0x00000000  &#x27;....&#x27;
+
+Tag Signatures:
+Idx  Tag          FourCC     Type         Issues
+---  ------------ ---------- ------------ ------
+0    profileDescriptionTag &#x27;desc    &#x27;  multiLocalizedUnicodeType
+1    copyrightTag &#x27;cprt    &#x27;  multiLocalizedUnicodeType
+2    AToB1Tag     &#x27;A2B1    &#x27;  multiProcessElementType
+3    BToA1Tag     &#x27;B2A1    &#x27;  multiProcessElementType
+4    customToStandardPccTag &#x27;c2sp    &#x27;  multiProcessElementType
+5    standardToCustomPccTag &#x27;s2cp    &#x27;  multiProcessElementType
+6    spectralViewingConditionsTag &#x27;svcn    &#x27;  spectralViewingConditionsType
+7    mediaWhitePointTag &#x27;wtpt    &#x27;  XYZArrayType
+8    gamutBoundaryDescription1Tag &#x27;gbd1    &#x27;  gamutBoundaryDescType
+
+Summary: 0 signature issue(s) detected
+
+=======================================================================
+PHASE 4: PROFILE STRUCTURE DUMP
+=======================================================================
+
+=== ICC Profile Header ===
+
+=== ICC Profile Header (0x0000-0x007F) ===
+0x0000: 00 00 60 88 00 00 00 00  05 00 00 00 6D 6E 74 72  |..`.........mntr|
+0x0010: 52 47 42 20 58 59 5A 20  07 EA 00 02 00 11 00 08  |RGB XYZ ........|
+0x0020: 00 26 00 0D 61 63 73 70  00 00 00 00 00 00 00 01  |.&amp;..acsp........|
+0x0030: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0x0040: 00 00 00 01 00 00 F3 4D  00 01 00 00 00 01 16 C2  |.......M........|
+0x0050: 49 43 43 20 33 17 4F 15  AB B4 D7 91 A2 AC E1 BF  |ICC 3.O.........|
+0x0060: 69 49 96 C1 00 00 00 00  00 00 00 00 00 00 00 00  |iI..............|
+0x0070: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+
+Header Fields:
+  Size:            0x00006088 (24712 bytes)
+  CMM:             
+  Version:         0x05000000
+  Device Class:    DisplayClass
+  Color Space:     RgbData
+  PCS:             XYZData
+
+=== Tag Table ===
+
+=== Tag Table ===
+Tag Count: 9
+
+Tag Table Raw Data (0x0080-0x00F0):
+0x0080: 00 00 00 09 64 65 73 63  00 00 00 F0 00 00 00 36  |....desc.......6|
+0x0090: 63 70 72 74 00 00 01 28  00 00 00 78 41 32 42 31  |cprt...(...xA2B1|
+0x00A0: 00 00 01 A0 00 00 01 58  42 32 41 31 00 00 02 F8  |.......XB2A1....|
+0x00B0: 00 00 01 64 63 32 73 70  00 00 04 5C 00 00 00 54  |...dc2sp...\...T|
+0x00C0: 73 32 63 70 00 00 04 B0  00 00 00 54 73 76 63 6E  |s2cp.......Tsvcn|
+0x00D0: 00 00 05 04 00 00 05 4C  77 74 70 74 00 00 0A 50  |.......Lwtpt...P|
+0x00E0: 00 00 00 14 67 62 64 31  00 00 0A 64 00 00 56 24  |....gbd1...d..V$|
+
+Tag Entries:
+Idx  Signature    FourCC       Offset     Size
+---  ------------ ------------ ---------- ----
+0    profileDescriptionTag &#x27;desc      &#x27;  0x000000F0  54
+1    copyrightTag &#x27;cprt      &#x27;  0x00000128  120
+2    AToB1Tag     &#x27;A2B1      &#x27;  0x000001A0  344
+3    BToA1Tag     &#x27;B2A1      &#x27;  0x000002F8  356
+4    customToStandardPccTag &#x27;c2sp      &#x27;  0x0000045C  84
+5    standardToCustomPccTag &#x27;s2cp      &#x27;  0x000004B0  84
+6    spectralViewingConditionsTag &#x27;svcn      &#x27;  0x00000504  1356
+7    mediaWhitePointTag &#x27;wtpt      &#x27;  0x00000A50  20
+8    gamutBoundaryDescription1Tag &#x27;gbd1      &#x27;  0x00000A64  22052
+
+=======================================================================
+PHASE 5: TAG CONTENT ANALYSIS
+=======================================================================
+
+--- 5A: LUT Tag Geometry ---
+
+  No legacy LUT tags (A2B/B2A/D2B/B2D) found
+
+--- 5B: MPE Element Chains ---
+
+  [A2B1] MPE Tag &#x27;A2B1&#x27;
+      Input channels:  3
+      Output channels: 3
+      Elements:        2
+        [0] type=&#x27;cvst&#x27; in=3 out=3
+        [1] type=&#x27;matf&#x27; in=3 out=3
+
+  [B2A1] MPE Tag &#x27;B2A1&#x27;
+      Input channels:  3
+      Output channels: 3
+      Elements:        2
+        [0] type=&#x27;matf&#x27; in=3 out=3
+        [1] type=&#x27;cvst&#x27; in=3 out=3
+
+--- 5C: TRC Curve Analysis ---
+
+  No TRC curve tags found
+
+--- 5D: NamedColor2 Validation ---
+
+  No NamedColor2 tag
+
+</div>
+</div>
+</div>
+
+<!-- ════════════════ 10. ROUNDTRIP ════════════════ -->
+<h2 id="roundtrip">10. Round-Trip Validation</h2>
+
+<p>Checks AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs for bidirectional color transform support.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/roundtrip?path=sRGB_D65_MAT.icc</h4><span class="badge b-green">Round-trip capable</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc'</div>
+<div class="output">=== Round-Trip Tag Pair Analysis ===
+Profile: /app/test-profiles/sRGB_D65_MAT.icc
+
+Device Class: 0x6D6E7472
+
+Tag Pair Analysis:
+  AToB0/BToA0 (Perceptual):        [ ] [ ]  
+  AToB1/BToA1 (Rel. Colorimetric): [[X]] [[X]]  [X] Round-trip capable
+  AToB2/BToA2 (Saturation):        [ ] [ ]  
+
+  DToB0/BToD0 (Perceptual):        [ ] [ ]  
+  DToB1/BToD1 (Rel. Colorimetric): [ ] [ ]  
+  DToB2/BToD2 (Saturation):        [ ] [ ]  
+
+  Matrix/TRC Tags:                 [ ]  
+
+[OK] RESULT: Profile supports round-trip validation
+</div>
+</div>
+</div>
+
+<!-- ════════════════ 11. XML ════════════════ -->
+<h2 id="xml">11. XML Conversion</h2>
+
+<p>Converts binary ICC → structured XML showing every tag, element, and data value.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/xml?path=sRGB_D65_MAT.icc</h4><span class="badge b-blue">XML</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/xml?path=sRGB_D65_MAT.icc'</div>
+<div class="output">[Converted with iccToXml_unsafe]
+
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;IccProfile&gt;
+  &lt;Header&gt;
+    &lt;PreferredCMMType&gt;NULL&lt;/PreferredCMMType&gt;
+    &lt;ProfileVersion&gt;5.00&lt;/ProfileVersion&gt;
+    &lt;ProfileDeviceClass&gt;mntr&lt;/ProfileDeviceClass&gt;
+    &lt;DataColourSpace&gt;RGB &lt;/DataColourSpace&gt;
+    &lt;PCS&gt;XYZ &lt;/PCS&gt;
+    &lt;CreationDateTime&gt;2026-02-17T08:38:13&lt;/CreationDateTime&gt;
+    &lt;ProfileFlags EmbeddedInFile=&quot;true&quot; UseWithEmbeddedDataOnly=&quot;false&quot;/&gt;
+    &lt;DeviceAttributes ReflectiveOrTransparency=&quot;reflective&quot; GlossyOrMatte=&quot;glossy&quot; MediaPolarity=&quot;positive&quot; MediaColour=&quot;colour&quot;/&gt;
+    &lt;RenderingIntent&gt;Relative&lt;/RenderingIntent&gt;
+    &lt;PCSIlluminant&gt;
+      &lt;XYZNumber X=&quot;0.950393676758&quot; Y=&quot;1.000000000000&quot; Z=&quot;1.088897705078&quot;/&gt;
+    &lt;/PCSIlluminant&gt;
+    &lt;ProfileCreator&gt;ICC &lt;/ProfileCreator&gt;
+    &lt;ProfileID&gt;33174F15ABB4D791A2ACE1BF694996C1&lt;/ProfileID&gt;
+  &lt;/Header&gt;
+  &lt;Tags&gt;
+    &lt;profileDescriptionTag&gt; &lt;multiLocalizedUnicodeType&gt;
+      &lt;LocalizedText LanguageCountry=&quot;enUS&quot;&gt;&lt;![CDATA[sRGB D65 MAT]]&gt;&lt;/LocalizedText&gt;
+    &lt;/multiLocalizedUnicodeType&gt; &lt;/profileDescriptionTag&gt;
+
+    &lt;copyrightTag&gt; &lt;multiLocalizedUnicodeType&gt;
+      &lt;LocalizedText LanguageCountry=&quot;enUS&quot;&gt;&lt;![CDATA[Copyright 2017 International Color Consortium]]&gt;&lt;/LocalizedText&gt;
+    &lt;/multiLocalizedUnicodeType&gt; &lt;/copyrightTag&gt;
+
+    &lt;AToB1Tag&gt; &lt;multiProcessElementType&gt;
+      &lt;MultiProcessElements InputChannels=&quot;3&quot; OutputChannels=&quot;3&quot;&gt;
+        &lt;CurveSetElement InputChannels=&quot;3&quot; OutputChannels=&quot;3&quot;&gt;
+          &lt;SegmentedCurve&gt;
+            &lt;FormulaSegment Start=&quot;-infinity&quot; End=&quot;0.04050000&quot; FunctionType=&quot;0&quot;&gt;
+              1.000000000000 0.077399380505 0.000000000000 0.000000000000
+            &lt;/FormulaSegment&gt;
+            &lt;FormulaSegment Start=&quot;0.04050000&quot; End=&quot;+infinity&quot; FunctionType=&quot;0&quot;&gt;
+              2.400000095367 0.947867274284 0.052132699639 0.000000000000
+            &lt;/FormulaSegment&gt;
+          &lt;/SegmentedCurve&gt;
+… (422 more lines)</div>
+</div>
+</div>
+
+<!-- ════════════════ 12. COMPARE ════════════════ -->
+<h2 id="compare">12. Profile Comparison (diff)</h2>
+
+<p>Unified diff between <code>sRGB_D65_MAT.icc</code> (RGB monitor) and <code>BlacklightPoster_411039.icc</code> (Lab abstract). Shows structural differences at the byte level.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>GET /api/compare?path_a=sRGB_D65_MAT.icc&amp;path_b=BlacklightPoster_411039.icc</h4><span class="badge b-yellow">diff</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&amp;path_b=BlacklightPoster_411039.icc'</div>
+<div class="output">--- sRGB_D65_MAT.icc
++++ BlacklightPoster_411039.icc
+@@ -9,1600 +9,1090 @@
+          This mode bypasses all safety checks and may expose parser bugs.
+          Use only for security research, fuzzing, or forensic analysis.
+ 
+-File: /app/test-profiles/sRGB_D65_MAT.icc
++File: /app/test-profiles/BlacklightPoster_411039.icc
+ Mode: FULL DUMP (entire file will be displayed)
+ 
+-Raw file size: 24712 bytes (0x6088)
++Raw file size: 16680 bytes (0x4128)
+ 
+ === RAW HEADER DUMP (0x0000-0x007F) ===
+-0x0000: 00 00 60 88 00 00 00 00  05 00 00 00 6D 6E 74 72  |..`.........mntr|
+-0x0010: 52 47 42 20 58 59 5A 20  07 EA 00 02 00 11 00 08  |RGB XYZ ........|
+-0x0020: 00 26 00 0D 61 63 73 70  00 00 00 00 00 00 00 01  |.&amp;..acsp........|
+-0x0030: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-0x0040: 00 00 00 01 00 00 F3 4D  00 01 00 00 00 01 16 C2  |.......M........|
+-0x0050: 49 43 43 20 33 17 4F 15  AB B4 D7 91 A2 AC E1 BF  |ICC 3.O.........|
+-0x0060: 69 49 96 C1 00 00 00 00  00 00 00 00 00 00 00 00  |iI..............|
++0x0000: 00 00 41 28 41 44 42 45  02 10 00 00 61 62 73 74  |..A(ADBE....abst|
++0x0010: 4C 61 62 20 4C 61 62 20  07 DB 00 0B 00 07 00 02  |Lab Lab ........|
++0x0020: 00 31 00 01 61 63 73 70  41 50 50 4C 00 00 00 00  |.1..acspAPPL....|
++0x0030: 6E 6F 6E 65 00 00 00 00  00 00 00 00 00 00 00 00  |none............|
++0x0040: 00 00 00 01 00 00 F6 D6  00 01 00 00 00 00 D3 2D  |...............-|
++0x0050: 41 44 42 45 00 00 00 00  00 00 00 00 00 00 00 00  |ADBE............|
++0x0060: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ 0x0070: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ 
+ Header Fields (RAW - no validation):
+-  Profile Size:    0x00006088 (24712 bytes) OK
+-  CMM:             0x00000000  &#x27;....&#x27;
+-  Version:         0x05000000
+-  Device Class:    0x6D6E7472  &#x27;mntr&#x27;
+-  Color Space:     0x52474220  &#x27;RGB &#x27;
+-  PCS:             0x58595A20  &#x27;XYZ &#x27;
++  Profile Size:    0x00004128 (16680 bytes) OK
++  CMM:             0x41444245  &#x27;ADBE&#x27;
++  Version:         0x02100000
++  Device Class:    0x61627374  &#x27;abst&#x27;
++  Color Space:     0x4C616220  &#x27;Lab &#x27;
++  PCS:             0x4C616220  &#x27;Lab &#x27;
+ 
+ === RAW TAG TABLE (0x0080+) ===
+-Tag Count: 9 (0x00000009)
++Tag Count: 4 (0x00000004)
+ 
+ Tag Table Raw Data:
+-0x0080: 00 00 00 09 64 65 73 63  00 00 00 F0 00 00 00 36  |....desc.......6|
+-0x0090: 63 70 72 74 00 00 01 28  00 00 00 78 41 32 42 31  |cprt...(...xA2B1|
+-0x00A0: 00 00 01 A0 00 00 01 58  42 32 41 31 00 00 02 F8  |.......XB2A1....|
+-0x00B0: 00 00 01 64 63 32 73 70  00 00 04 5C 00 00 00 54  |...dc2sp...\...T|
+-0x00C0: 73 32 63 70 00 00 04 B0  00 00 00 54 73 76 63 6E  |s2cp.......Tsvcn|
+-0x00D0: 00 00 05 04 00 00 05 4C  77 74 70 74 00 00 0A 50  |.......Lwtpt...P|
+-0x00E0: 00 00 00 14 67 62 64 31  00 00 0A 64 00 00 56 24  |....gbd1...d..V$|
++0x0080: 00 00 00 04 64 65 73 63  00 00 00 B4 00 00 00 6D  |....desc.......m|
++0x0090: 63 70 72 74 00 00 01 24  00 00 00 2A 77 74 70 74  |cprt...$...*wtpt|
++0x00A0: 00 00 01 50 00 00 00 14  41 32 42 30 00 00 01 64  |...P....A2B0...d|
++0x00B0: 00 00 3F C3                                       |..?.|
+… (2611 more lines)</div>
+</div>
+</div>
+
+<!-- ════════════════ 13. UPLOAD ════════════════ -->
+<h2 id="upload">13. File Upload</h2>
+
+<p>Upload any ICC profile from your machine (up to 20 MB). The file is validated, sanitized, and available for all tools.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>POST /api/upload (multipart/form-data)</h4><span class="badge b-green">200 OK</span></div>
+<div class="demo-body">
+<div class="cmd">curl -s -X POST 'http://127.0.0.1:8080/api/upload' -F 'file=@sRGB_D65_MAT.icc' | python3 -m json.tool</div>
+<div class="output">{
+    &quot;ok&quot;: true,
+    &quot;path&quot;: &quot;/tmp/mcp_uploads_0oijof0z/01a6a1976acb5220_sRGB_D65_MAT.icc&quot;,
+    &quot;filename&quot;: &quot;sRGB_D65_MAT.icc&quot;,
+    &quot;size&quot;: 24712
+}
+</div>
+</div>
+</div>
+
+<div class="note"><strong>After upload</strong>, use the returned path in any analysis endpoint:<br><code>curl -s 'http://127.0.0.1:8080/api/security?path=/tmp/mcp_uploads_.../sRGB_D65_MAT.icc'</code></div>
+
+<!-- ════════════════ 14. CSP ════════════════ -->
+<h2 id="csp">14. CSP Nonce Rotation (Security Proof)</h2>
+
+<p>Every request to <code>/</code> generates a unique CSP nonce. This prevents inline script injection attacks.</p>
+
+<div class="demo">
+<div class="demo-hdr"><h4>Request 1</h4><span class="badge b-purple">nonce-1</span></div>
+<div class="demo-body">
+<div class="cmd">curl -sD - http://127.0.0.1:8080/ -o /dev/null | grep content-security-policy</div>
+<div class="output">content-security-policy: ... script-src 'self' 'nonce-ef0XuKKrGR4WORNG33VPdclfctK_C2bPgUjCcvJHOcM' ...</div>
+</div>
+</div>
+
+<div class="demo">
+<div class="demo-hdr"><h4>Request 2 (different nonce)</h4><span class="badge b-purple">nonce-2</span></div>
+<div class="demo-body">
+<div class="cmd">curl -sD - http://127.0.0.1:8080/ -o /dev/null | grep content-security-policy</div>
+<div class="output">content-security-policy: ... script-src 'self' 'nonce-Xec6QHfXtMvv0EVJbHOxQkiSWbBKHxQCEc8dj8tLPs8' ...</div>
+</div>
+</div>
+
+<div class="note"><strong>Proof:</strong> Nonce 1 = <code>nonce-ef0XuKKrGR4WOR…</code> ≠ Nonce 2 = <code>nonce-Xec6QHfXtMvv0E…</code> — fresh nonce per request.</div>
+
+<!-- ════════════════ 15. API REF ════════════════ -->
+<h2 id="api">15. API Reference</h2>
+
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Parameters</th><th>Description</th></tr>
+<tr><td><code>GET</code></td><td><code>/</code></td><td>—</td><td>WebUI single-page app</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/health</code></td><td>—</td><td>Health check → <code>{"ok":true,"tools":15}</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/api/list</code></td><td><code>directory</code></td><td>List profiles in directory</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/inspect</code></td><td><code>path</code></td><td>Structural dump (header + tags)</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/security</code></td><td><code>path</code></td><td>27-heuristic security scan</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/roundtrip</code></td><td><code>path</code></td><td>Round-trip transform validation</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/full</code></td><td><code>path</code></td><td>Combined: security + roundtrip + inspect</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/xml</code></td><td><code>path</code></td><td>Binary ICC → XML conversion</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/compare</code></td><td><code>path_a</code>, <code>path_b</code></td><td>Unified diff of two profiles</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/upload</code></td><td><code>file</code> (multipart)</td><td>Upload .icc file (20 MB max)</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/output/download</code></td><td><code>content</code>, <code>filename</code> (JSON)</td><td>Download tool output as file</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/cmake/configure</code></td><td>JSON body</td><td>Configure iccDEV cmake build</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/cmake/build</code></td><td>JSON body</td><td>Compile configured build</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/cmake/option-matrix</code></td><td>JSON body</td><td>Test cmake option toggles</td></tr>
+<tr><td><code>POST</code></td><td><code>/api/cmake/windows-build</code></td><td>JSON body</td><td>Windows MSVC + vcpkg config</td></tr>
+</table>
+
+<!-- ════════════════ 16. MCP ════════════════ -->
+<h2 id="mcp">16. MCP Integration</h2>
+
+<p>The MCP server exposes all 15 tools via stdio protocol for AI assistant integration.</p>
+
+<div class="cards">
+<div class="card">
+<h4>🐳 Docker (Any Client)</h4>
+<pre>{
+  "mcpServers": {
+    "icc-profile-analyzer": {
+      "command": "docker",
+      "args": ["run","--rm","-i",
+        "ghcr.io/xsscx/icc-profile-mcp:dev"]
+    }
+  }
+}</pre>
+</div>
+<div class="card">
+<h4>💻 VS Code Copilot</h4>
+<pre>// .vscode/mcp.json (auto-configured)
+{
+  "servers": {
+    "icc-profile-analyzer": {
+      "command": "icc-profile-mcp"
+    }
+  }
+}</pre>
+</div>
+<div class="card">
+<h4>🤖 Copilot CLI</h4>
+<pre>// ~/.config/github-copilot/mcp.json
+{
+  "mcpServers": {
+    "icc-profile-analyzer": {
+      "command": "icc-profile-mcp"
+    }
+  }
+}</pre>
+</div>
+</div>
+
+<h3>All 15 MCP Tools</h3>
+<table>
+<tr><th>#</th><th>Tool</th><th>Type</th><th>Description</th></tr>
+<tr><td>1</td><td><code>inspect_profile</code></td><td><span class="badge b-blue">Analysis</span></td><td>Header, tag table, field values</td></tr>
+<tr><td>2</td><td><code>analyze_security</code></td><td><span class="badge b-blue">Analysis</span></td><td>27-heuristic security scan (H1–H27)</td></tr>
+<tr><td>3</td><td><code>validate_roundtrip</code></td><td><span class="badge b-blue">Analysis</span></td><td>AToB/BToA tag pair completeness</td></tr>
+<tr><td>4</td><td><code>full_analysis</code></td><td><span class="badge b-blue">Analysis</span></td><td>All modes combined in one pass</td></tr>
+<tr><td>5</td><td><code>profile_to_xml</code></td><td><span class="badge b-blue">Analysis</span></td><td>Binary ICC → XML conversion</td></tr>
+<tr><td>6</td><td><code>compare_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Unified diff of two profiles</td></tr>
+<tr><td>7</td><td><code>list_test_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Browse available profiles by directory</td></tr>
+<tr><td>8</td><td><code>upload_and_analyze</code></td><td><span class="badge b-blue">Analysis</span></td><td>Base64 upload + any analysis mode</td></tr>
+<tr><td>9</td><td><code>build_tools</code></td><td><span class="badge b-purple">Build</span></td><td>Build C++ analysis tools from source</td></tr>
+<tr><td>10</td><td><code>cmake_configure</code></td><td><span class="badge b-purple">Build</span></td><td>Configure iccDEV cmake (sanitizers, compiler)</td></tr>
+<tr><td>11</td><td><code>cmake_build</code></td><td><span class="badge b-purple">Build</span></td><td>Compile with parallel jobs</td></tr>
+<tr><td>12</td><td><code>create_all_profiles</code></td><td><span class="badge b-purple">Build</span></td><td>Generate ~80+ ICC test profiles</td></tr>
+<tr><td>13</td><td><code>run_iccdev_tests</code></td><td><span class="badge b-purple">Build</span></td><td>Validate generated profiles</td></tr>
+<tr><td>14</td><td><code>cmake_option_matrix</code></td><td><span class="badge b-purple">Build</span></td><td>Test 17 cmake toggles independently</td></tr>
+<tr><td>15</td><td><code>windows_build</code></td><td><span class="badge b-purple">Build</span></td><td>MSVC + vcpkg cross-platform build</td></tr>
+</table>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<div class="footer">
+<p><strong>ICC Profile MCP Server</strong> — <a href="https://github.com/xsscx/research">github.com/xsscx/research</a></p>
+<p>Docker Image: <code>ghcr.io/xsscx/icc-profile-mcp:dev</code></p>
+<p>Generated 2026-03-01 13:52 UTC • All output captured live from running container</p>
+<p>© 2021–2026 David H Hoyt LLC</p>
+</div>
+
+</div>
+</body>
+</html>
