@@ -101,7 +101,8 @@ jobs:
             iccanalyzer-lite/iccanalyzer-lite
             colorbleed_tools/iccToXml_unsafe
             colorbleed_tools/iccFromXml_unsafe
-          key: ${{ runner.os }}-native-tools-mcp-${{ hashFiles('cfl/patches/*.patch', 'iccanalyzer-lite/*.cpp', 'iccanalyzer-lite/*.h', 'colorbleed_tools/*.cpp') }}
+            colorbleed_tools/bin/
+          key: ${{ runner.os }}-native-tools-mcp-v2-${{ hashFiles('cfl/patches/*.patch', 'iccanalyzer-lite/*.cpp', 'iccanalyzer-lite/*.h', 'colorbleed_tools/*.cpp') }}
 
       - name: Install iccDEV + iccanalyzer-lite
         env:
