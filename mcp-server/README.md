@@ -11,7 +11,7 @@ ICC color profiles control how colors are translated between devices (cameras, m
 **You say:**
 > "Analyze the security of the CVE-2022-26730 proof-of-concept profile"
 
-**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 19-phase heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, and tag overlap detection.
+**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 27-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, and raw file boundary checks.
 
 ---
 
@@ -246,7 +246,7 @@ The toolbar across the top provides all 13 tools — 7 analysis and 6 maintainer
 |--------|-------------|
 | **List Profiles** | Browse available ICC profiles by directory (`test-profiles`, `extended-test-profiles`, `xif`) |
 | **Inspect** | Dump raw header bytes, tag table, and parsed field values |
-| **Security Scan** | Run 19-phase heuristic security analysis |
+| **Security Scan** | Run 27-heuristic security analysis |
 | **Round-Trip** | Validate bidirectional color transform support |
 | **Full Analysis** | Combined security + round-trip + structural inspection |
 | **To XML** | Convert binary ICC profile to human-readable XML |
@@ -318,7 +318,7 @@ Header Fields (RAW - no validation):
 
 ### `analyze_security`
 
-**What it does:** Runs a 19-phase security heuristic scan checking for fingerprint matches, tag anomalies, overflow indicators, malformed signatures, known attack patterns, date validation, repeat-byte signatures, spectral range anomalies, technology signatures, and tag offset/size overlap detection.
+**What it does:** Runs a 27-heuristic security scan checking for fingerprint matches, tag anomalies, overflow indicators, malformed signatures, known attack patterns, date validation, repeat-byte signatures, spectral range anomalies, technology signatures, tag offset/size overlap detection, deep content analysis (type signatures, struct members, scalar expectations, NaN/Inf, nesting depth), and raw file boundary checks (tag OOB, NamedColor2 strings, MPE matrix dimensions).
 
 **When to use:** You want to know if a profile is suspicious, malformed, or potentially malicious.
 
@@ -831,7 +831,7 @@ When filing an issue to analyze a profile, the agent should run these steps in o
 | Step | Command / MCP Tool | What to include |
 |------|--------------------|-----------------|
 | 1 | Rename `.icc.txt` → `.icc` | — |
-| 2 | `iccanalyzer-lite -a <file>` or `analyze_security` | Complete raw output (security heuristics `[H1]`–`[H19]` + round-trip + structural) |
+| 2 | `iccanalyzer-lite -a <file>` or `analyze_security` | Complete raw output (security heuristics `[H1]`–`[H27]` + round-trip + structural) |
 | 3 | `iccanalyzer-lite -nf <file>` or `inspect_profile` | Complete raw full dump — no truncation |
 | 4 | `iccanalyzer-lite -r <file>` or `validate_roundtrip` | Complete raw round-trip accuracy output |
 | 5 | Check exit code + stderr | Exit code per command (0=clean, 1=finding, 2=error) and any ASAN/UBSAN output |

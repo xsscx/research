@@ -218,6 +218,20 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
 
 Open http://localhost:8080/ — provides browser-based access to all analysis tools. The entrypoint command is `web` (not `icc-profile-web`).
 
+**REST API endpoints** (same parameter names as MCP tools):
+
+| Endpoint | Method | Parameters |
+|----------|--------|------------|
+| `/api/health` | GET | — |
+| `/api/list` | GET | `directory` |
+| `/api/inspect` | GET | `path` |
+| `/api/security` | GET | `path` |
+| `/api/roundtrip` | GET | `path` |
+| `/api/full` | GET | `path` |
+| `/api/xml` | GET | `path` |
+| `/api/compare` | GET | `path_a`, `path_b` |
+| `/api/upload` | POST | `file` (multipart) |
+
 ### Available MCP Tools — Detailed Reference
 
 **Analysis tools (exposed to coding agent via `copilot-mcp-config.json`):**
