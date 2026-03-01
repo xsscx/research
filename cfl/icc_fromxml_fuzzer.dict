@@ -1453,3 +1453,7 @@ multi_sig="mwpmcl1l"
 "utf1"
 "lmbk"
 "u8"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00^"
+"e3"
