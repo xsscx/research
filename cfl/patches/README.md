@@ -225,7 +225,11 @@ elements in the tag array) instead of `nVectorSize` (the caller-requested
 count), writing past the caller's buffer.  Triggered via
 `GetElemNumberValue()` which passes a 1-element stack buffer.
 Fix: use `nVectorSize` as the loop bound in all three template
-specializations.
+specializations.  SCARINESS: 51 (4-byte-write-stack-buffer-overflow).
+Crash artifact:
+`sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc`
+(720 bytes, v5.0 ColorEncodingClass, reproduces via `iccApplyNamedCmm`
+with encoding input).
 
 Patch 028 *(upstream-adopted — no-op)* fixed heap-buffer-overflow in
 `CIccTagNum::Interpolate()`, `CIccTagFixedNum::Interpolate()`, and
