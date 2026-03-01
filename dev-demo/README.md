@@ -92,6 +92,14 @@ curl -X POST -F 'file=@myprofile.icc' http://127.0.0.1:8080/api/upload
 | `dev-demo.md` | 18 KB developer guide: 3 integration paths, 6 use cases, API reference |
 | `README.md` | This file |
 
+## Reusable Prompts
+
+Four prompt templates in [`.github/prompts/`](../.github/prompts/) for AI-assisted analysis:
+- `analyze-icc-profile` — Full 32-heuristic security scan
+- `compare-icc-profiles` — Side-by-side structural diff
+- `triage-cve-poc` — CVE PoC analysis with CVE mapping
+- `health-check` — MCP server verification
+
 ## Security
 
 The WebUI includes 10 security headers:
