@@ -108,7 +108,7 @@ cd colorbleed_tools && make setup && make && cd ..
 Run analysis directly:
 
 ```bash
-# Comprehensive analysis (all 27 heuristics + structure + round-trip)
+# Comprehensive analysis (all 32 heuristics + structure + round-trip)
 ./iccanalyzer-lite/iccanalyzer-lite -a path/to/profile.icc
 
 # Full analysis via orchestration script (generates markdown report)
@@ -165,7 +165,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles' | python3 -m js
 #### Security Scan
 
 ```bash
-# Run 27-heuristic security scan on a profile
+# Run 32-heuristic security scan on a profile
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
@@ -334,7 +334,7 @@ Select a profile from the dropdown (or type a filename), click any tool button:
 | Button | What You Get |
 |--------|-------------|
 | **Inspect** | Raw header bytes, tag table, parsed field values |
-| **Security Scan** | 27-heuristic security report with `[OK]`/`[WARN]`/`[FAIL]`/`[CRITICAL]` labels |
+| **Security Scan** | 32-heuristic security report with `[OK]`/`[WARN]`/`[FAIL]`/`[CRITICAL]` labels |
 | **Round-Trip** | AToB/BToA and DToB/BToD tag pair completeness check |
 | **Full Analysis** | Combined security + round-trip + structural inspection |
 | **To XML** | Human-readable XML conversion of all tags and values |
@@ -498,7 +498,7 @@ All endpoints return plain text or JSON. Base URL: `http://127.0.0.1:8080`
 | `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 15}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `path` | 27-heuristic security scan |
+| `GET` | `/api/security` | `path` | 32-heuristic security scan |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
@@ -592,7 +592,7 @@ EOF
 | # | Tool | Category | Description |
 |---|------|----------|-------------|
 | 1 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 2 | `analyze_security` | Analysis | 27-heuristic security scan |
+| 2 | `analyze_security` | Analysis | 32-heuristic security scan |
 | 3 | `validate_roundtrip` | Analysis | AToB/BToA completeness |
 | 4 | `full_analysis` | Analysis | All modes combined |
 | 5 | `profile_to_xml` | Analysis | ICC → XML conversion |

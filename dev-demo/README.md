@@ -37,7 +37,7 @@ curl http://127.0.0.1:8080/api/health
 # List available profiles
 curl 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
-# Security scan (27 heuristics H1–H27)
+# Security scan (32 heuristics H1–H32)
 curl 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 
 # Profile inspection
