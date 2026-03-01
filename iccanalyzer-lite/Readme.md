@@ -1,6 +1,6 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-01 01:55:00 UTC
+Last Updated: 2026-03-08 00:00:00 UTC
 
 tl;dr ICC Profile Analysis Tool for Security Research
 
@@ -9,7 +9,7 @@ tl;dr ICC Profile Analysis Tool for Security Research
 - NVD Analyst
 - Developer
 
-## Security Heuristics (H1–H27)
+## Security Heuristics (H1–H32)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -31,10 +31,10 @@ tl;dr ICC Profile Analysis Tool for Security Research
 |----|-------|------|
 | H9 | Text tag presence | Missing description/copyright |
 | H10 | Tag count | Excessive (>200) or zero tags |
-| H11 | CLUT entry limit | >16M CLUT entries (OOM) |
+| H11 | CLUT entry limit | >16M CLUT entries (OOM) — CVE-2026-21490, CVE-2026-21494 |
 | H12 | MPE chain depth | Excessive element chains |
 | H13 | Per-tag size | Tags >64MB |
-| H14 | TagArrayType (tary) | UAF via type confusion |
+| H14 | TagArrayType (tary) | UAF via type confusion — CVE-2026-21677 |
 | H18 | Technology signature | Non-standard technology |
 | H19 | Tag offset overlap | Overlapping tag data regions |
 
@@ -47,12 +47,17 @@ tl;dr ICC Profile Analysis Tool for Security Research
 | H23 | NumArray value ranges | NaN/Inf values → FPE/div-by-zero |
 | H24 | Nesting depth | Recursive struct/array depth >4 → stack overflow (patch 061) |
 
-### Raw File Analysis (H25–H27)
-| ID | Check | Risk |
-|----|-------|------|
-| H25 | Tag offset/size OOB | Tag data extends past file/profile bounds → **HBO** (issues #623, #625) |
-| H26 | NamedColor2 string validation | Prefix/suffix with XML-expandable chars overflow icFixXml 256-byte buffer → **SBO** (issue #624, SCARINESS:55) |
-| H27 | MPE matrix dimensions | Matrix with <3 output channels → **HBO** in pushXYZConvert (issue #625) |
+### Raw File Analysis (H25–H32)
+| ID | Check | Risk | CVE Coverage |
+|----|-------|------|-------------|
+| H25 | Tag offset/size OOB | Tag data extends past file/profile bounds → **HBO** | CVE-2026-25583, CVE-2026-24852 |
+| H26 | NamedColor2 string validation | Prefix/suffix with XML-expandable chars overflow icFixXml 256-byte buffer → **SBO** | CVE-2026-21488 |
+| H27 | MPE matrix dimensions | Matrix with <3 output channels → **HBO** in pushXYZConvert | CVE-2026-25634, CVE-2026-22047 |
+| H28 | LUT dimension validation | LUT8/LUT16 nInput^nGrid CLUT points → **OOM** in CIccCLUT::Init | GHSA-x9hr-pxxc-h38p, GHSA-x6gg-j72w-jc9w |
+| H29 | ColorantTable string validation | Unterminated name[32] → strlen overflow → **HBO** read in ToXml | GHSA-4wqv-pvm8-5h27, CVE-2026-27692 |
+| H30 | GamutBoundaryDesc allocation | Triangle/vertex count vs tag size → **OOM** | GHSA-rc3h-95ph-j363 |
+| H31 | MPE channel count validation | Input/output channels >32 → memcpy overlap, **SBO** | CVE-2026-25634, CVE-2026-25584, CVE-2026-25585 |
+| H32 | Tag type confusion detection | Unknown type signature → wrong parser → memory corruption | GHSA-2pjj-3c98-qp37, GHSA-xqq3-g894-w2h5 |
 
 ## Build
 
