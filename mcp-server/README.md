@@ -2,6 +2,26 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI assistants interactively analyze ICC color profiles for security research, validation, and forensic inspection.
 
+<img width="3742" height="1936" alt="ICC Profile MCP Server WebUI" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />
+
+---
+
+## Quick Start — Docker (No Build Required)
+
+```bash
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
+```
+
+Open <http://127.0.0.1:8080> — that's it. 126 test profiles are pre-loaded, no dependencies needed.
+
+### Verify
+
+```bash
+curl -s http://127.0.0.1:8080/api/health
+# {"ok":true,"tools":16}
+```
+
 ---
 
 ## What This Does
@@ -15,62 +35,82 @@ ICC color profiles control how colors are translated between devices (cameras, m
 
 ---
 
-## I Just Want to Test a Profile (No Setup Required)
+## Ways to Use It
 
-If you have an ICC profile and just want a report, here are the fastest paths — no C++ builds, no cloning, no terminal commands.
-
-### Option A: GitHub Issue (easiest)
-
-1. Rename your file from `profile.icc` to `profile.icc.txt` (GitHub does not allow `.icc` or `.bin` attachments)
-2. Open an issue at [github.com/xsscx/research/issues](https://github.com/xsscx/research/issues)
-3. Attach the `.icc.txt` file to the issue
-4. Use this prompt (or similar):
-
-> **Analyze the attached ICC profile**
->
-> Run the full analysis workflow:
-> 1. Rename the attached `.icc.txt` to `.icc`
-> 2. Run `iccanalyzer-lite -a` (comprehensive analysis) and include the **complete raw output**
-> 3. Run `iccanalyzer-lite -nf` (ninja full dump) and include the **complete raw output**
-> 4. Run `iccanalyzer-lite -r` (round-trip test) and include the **complete raw output**
-> 5. Include the exit code from each command and any ASAN/UBSAN stderr
-> 6. Add your analysis **after** the raw tool output — do not replace it with a summary
-
-5. The Copilot coding agent picks up the issue, runs the tools, and posts the report as a PR
-
-### Option B: Web UI (browser-based)
+### Option A: WebUI (browser-based)
 
 ```bash
-# If Docker is installed, one command:
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
-Then open `http://127.0.0.1:8080` in your browser:
+Open `http://127.0.0.1:8080`:
 1. Click **Security Scan** (or any tool button)
-2. Click **Choose File** and select your `.icc` file from your computer
+2. Click **📋 Server Profiles** and select a profile, or **📂 Choose File** to upload your own
 3. Click **Run**
 4. Read the report — click **Copy** or **Save As** to keep it
 
-### Option C: Copilot CLI or VS Code Chat
+Deep link to any tool: `http://127.0.0.1:8080/#security`, `#inspect`, `#compare`, `#xml`, etc.
 
-If you have [Copilot CLI](https://github.com/github/copilot-cli) or VS Code with Copilot Chat:
+### Option B: REST API
 
-1. Open a terminal in this repo (or open the repo in VS Code)
-2. Say: *"Analyze the security of my-profile.icc"* — if the file is in `test-profiles/`
-3. Or provide your own file: *"Here is my ICC profile (base64-encoded): [paste]. Run a security scan."*
-
-To base64-encode a file on your machine:
 ```bash
-# macOS/Linux:
-base64 < my-profile.icc | pbcopy    # copies to clipboard
+# Health check
+curl -s http://127.0.0.1:8080/api/health
 
-# Windows PowerShell:
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-profile.icc")) | Set-Clipboard
+# List available profiles
+curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
+
+# 32-heuristic security scan
+curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+
+# Structural inspection
+curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
+
+# Round-trip validation
+curl -s 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc'
+
+# Full analysis (all modes combined)
+curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'
+
+# XML conversion
+curl -s 'http://127.0.0.1:8080/api/xml?path=sRGB_D65_MAT.icc'
+
+# Compare two profiles
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&path_b=sRGB_v4_ICC_preference.icc'
+
+# Upload your own profile
+curl -s -X POST -F 'file=@myprofile.icc' http://127.0.0.1:8080/api/upload
 ```
 
-### Option D: Reusable Prompts (GitHub Models)
+### Option C: GitHub Issue (easiest — no Docker)
 
-Four pre-built prompt templates are available in [`.github/prompts/`](.github/prompts/):
+1. Rename your file from `profile.icc` to `profile.icc.txt` (GitHub blocks `.icc` attachments)
+2. Open an issue at [github.com/xsscx/research/issues](https://github.com/xsscx/research/issues)
+3. Attach the `.icc.txt` file and describe the analysis you want
+4. The Copilot coding agent picks up the issue, runs the tools, and posts a full report as a PR
+
+### Option D: MCP stdio (for AI assistants)
+
+```bash
+# Docker (any MCP client — Claude Desktop, Copilot CLI, VS Code, Cursor)
+docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:latest
+```
+
+Client config (Claude Desktop, Copilot CLI, etc.):
+```json
+{
+  "mcpServers": {
+    "icc-profile-analyzer": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:latest"]
+    }
+  }
+}
+```
+
+### Option E: Reusable Prompts (GitHub Models)
+
+Four pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
 
 | Prompt | Purpose | Variables |
 |---|---|---|
@@ -79,807 +119,210 @@ Four pre-built prompt templates are available in [`.github/prompts/`](.github/pr
 | `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
 | `health-check` | MCP server verification | (none) |
 
-These appear in the GitHub prompt UI on the repository and can be referenced from Copilot Chat. Each prompt guides the model through the correct MCP tool sequence.
-
-### What You Get Back
-
-Every analysis mode produces a plain-text report. Here is what a security scan looks like:
-
-```
-[H1] Profile Size: 16680 bytes — [OK] Size within normal range
-[H2] Magic Bytes: acsp — [OK] Valid ICC magic signature
-[H3] Data ColorSpace: Lab — [OK] Valid colorSpace
-...
-[H16] Signature Pattern Analysis — [WARN] repeat-byte pattern (fuzz artifact?)
-
-HEURISTIC SUMMARY: 12 WARNING(S) DETECTED
-  - Malformed/corrupted data
-  - Resource exhaustion attempts
-  - Enum confusion vulnerabilities
-```
-
 ---
 
-## Quick Start
+## Reproduce the Demo — Step by Step
 
-### 1. Build the analysis tools
-
-```bash
-# From the repository root:
-
-# Clone and build iccDEV, then build iccanalyzer-lite
-cd iccanalyzer-lite
-git clone https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
-cd iccDEV/Build
-cmake Cmake \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
-  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -std=c++17" \
-  -DENABLE_TOOLS=OFF \
-  -DENABLE_STATIC_LIBS=ON \
-  -Wno-dev
-make -j$(nproc)
-cd ../..
-./build.sh
-cd ..
-
-# Build the XML conversion tools
-cd colorbleed_tools
-make setup && make
-cd ..
-```
-
-### 2. Install the MCP server
+Start the server, then follow each step with curl or the WebUI.
 
 ```bash
-cd mcp-server
-pip install -e ".[dev]"
-```
-
-Or install from PyPI (once published):
-```bash
-pip install icc-profile-mcp
-```
-
-### 3. Connect to your AI assistant
-
-See [Client Configuration](#client-configuration) below for your specific tool.
-
----
-
-## Docker
-
-Skip the C++ build entirely by using the pre-built Docker image:
-
-```bash
-# Pull from GitHub Container Registry
-docker pull ghcr.io/xsscx/icc-profile-mcp:latest
-
-# Run as MCP stdio server
-docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:latest
-
-# Run the Web UI on port 8080
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
-Or build locally:
+### 1. Health Check
 
 ```bash
-docker build -t icc-profile-mcp .
-docker run --rm -p 8080:8080 icc-profile-mcp web
+curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
 ```
 
-### Docker with Claude Desktop
+Expected: `{"ok": true, "tools": 16}`
 
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:latest"]
-    }
-  }
-}
-```
+**WebUI:** Open <http://127.0.0.1:8080>
 
-### Developer Demo Container
-
-A self-contained demo image with an interactive HTML report, live REST API, and 218 pre-loaded test profiles:
+### 2. List Profiles
 
 ```bash
-# Pull and run the demo (HTML report at / with live API at /api/*)
+curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#list>
+
+### 3. Security Scan — Clean Profile
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+```
+
+All 32 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
+
+### 4. Security Scan — CVE PoC
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/security?path=cve-2022-26730-poc-sample-004.icc'
+```
+
+Look for `[WARN]` and `[CRITICAL]` flags — this profile triggers multiple heuristic warnings.
+
+### 5. Structural Inspection
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#inspect>
+
+### 6. Full Analysis
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#full>
+
+### 7. Round-Trip Validation
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#roundtrip>
+
+### 8. XML Conversion
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/xml?path=sRGB_D65_MAT.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#xml>
+
+### 9. Compare Two Profiles
+
+```bash
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&path_b=sRGB_v4_ICC_preference.icc'
+```
+
+**WebUI:** <http://127.0.0.1:8080/#compare> — click Profile A, select a file, then click Profile B and select another.
+
+### 10. Upload Your Own Profile
+
+```bash
+curl -s -X POST -F 'file=@myprofile.icc' http://127.0.0.1:8080/api/upload
+curl -s 'http://127.0.0.1:8080/api/security?path=myprofile.icc'
+```
+
+**WebUI:** Click **📂 Choose File** on any tool page.
+
+---
+
+## Developer Demo Container
+
+A self-contained demo with an interactive HTML report, live REST API, and 218 pre-loaded test profiles:
+
+```bash
 docker pull ghcr.io/xsscx/icc-profile-demo:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
-
-# API mode (production WebUI)
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
-
-# MCP stdio mode
-docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp
 ```
 
-Or build locally:
+| Route | Description |
+|-------|-------------|
+| `/` | Demo report — static showcase with sample outputs |
+| `/ui` | Interactive WebUI — select profiles, run tools |
+| `/api` | REST API index (JSON) |
+| `/api/*` | All analysis endpoints |
 
-```bash
-docker build -f Dockerfile.demo -t icc-profile-demo .
-docker run --rm -p 8080:8080 icc-profile-demo
-```
+Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port 8083`
 
 ---
 
-## Web UI
+## All 16 MCP Tools
 
-A browser-based interface for interactive ICC profile analysis — no AI assistant required.
-
-### Prerequisites
-
-The Web UI requires the same C++ analysis tools as the MCP server. If you haven't built them yet, follow [Quick Start → Build the analysis tools](#1-build-the-analysis-tools) first.
-
-Install the Python dependencies:
-
-```bash
-cd mcp-server
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### Start the server
-
-**Method 1 — Build script (recommended):**
-
-```bash
-cd mcp-server
-./build.sh web              # http://0.0.0.0:8000 (all interfaces)
-./build.sh web 8080         # custom port
-./build.sh web 8080 1.2.3.4 # specific IP and port
-```
-
-**Method 2 — Direct (development):**
-
-```bash
-cd mcp-server
-source .venv/bin/activate
-ASAN_OPTIONS=detect_leaks=0 python web_ui.py
-```
-
-Server starts at `http://0.0.0.0:8000` (all interfaces).
-
-**Method 3 — Entry point (after pip install):**
-
-```bash
-ASAN_OPTIONS=detect_leaks=0 icc-profile-web
-```
-
-**Method 4 — Docker (no build required):**
-
-```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
-```
-
-Then open `http://127.0.0.1:8080`.
-
-**Options:**
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--host` | `0.0.0.0` | Bind address. Use `127.0.0.1` for localhost only |
-| `--port` | `8000` | Port number |
-
-> **Note:** `ASAN_OPTIONS=detect_leaks=0` is required — the C++ analysis binaries are built with AddressSanitizer, and the leak checker can crash the Python process on intentionally malformed inputs.
-
-### Using the Web UI
-
-Open `http://127.0.0.1:8000` (local) or `http://127.0.0.1:8080` (Docker) in your browser.
-
-#### Tool selector
-
-The toolbar across the top provides all 13 tools — 7 analysis and 6 maintainer:
-
-| Button | What it does |
-|--------|-------------|
-| **List Profiles** | Browse available ICC profiles by directory (`test-profiles`, `extended-test-profiles`, `xif`) |
-| **Inspect** | Dump raw header bytes, tag table, and parsed field values |
-| **Security Scan** | Run 32-heuristic security analysis |
-| **Round-Trip** | Validate bidirectional color transform support |
-| **Full Analysis** | Combined security + round-trip + structural inspection |
-| **To XML** | Convert binary ICC profile to human-readable XML |
-| **Compare** | Unified diff of two profiles side by side |
-| **CMake Configure** | Configure iccDEV with cmake (build type, sanitizers, compiler, generator) |
-| **CMake Build** | Compile a previously configured iccDEV build |
-| **Create Profiles** | Run CreateAllProfiles.sh to generate the ICC test corpus |
-| **Run Tests** | Run the iccDEV test suite against generated profiles |
-| **Option Matrix** | Test cmake option toggles independently |
-| **Windows Build** | Generate or run a Windows MSVC + vcpkg build |
-
-#### Typical workflow
-
-1. **Select a tool** — click a button in the toolbar (e.g., *Security Scan*)
-2. **Choose a profile** — type a filename or select from the dropdown (auto-populated from *List Profiles*)
-3. **Run** — click the green **▶ Run** button
-4. **Read the output** — results appear in the output pane below
-5. **Copy or save** — use **Copy** (top-right of output) or **Save As** to download results as a text file
-
-#### Upload your own profiles
-
-Any tool that takes a profile path also has a **Choose File** button. Click it to upload an ICC profile from your local machine (up to 20 MB). The uploaded file is placed in a secure temp directory and becomes immediately available for analysis.
-
-#### Save XML
-
-When using **To XML**, an additional **Save XML** button appears. Click it to download the full XML conversion as a `.xml` file — useful for offline inspection or diffing.
-
-#### Deep linking
-
-Every tool has a URL hash (e.g., `#security`, `#xml`, `#compare`). You can bookmark or share direct links:
-
-```
-http://127.0.0.1:8000/#security
-http://127.0.0.1:8000/#compare
-```
-
-#### Security
-
-The Web UI enforces the same security protections as the MCP server — path traversal prevention, symlink boundary checks, null byte rejection, output size caps, and subprocess isolation. All responses include strict security headers (CSP with per-request nonce, X-Content-Type-Options, X-Frame-Options, Referrer-Policy).
+| # | Tool | Type | Description |
+|---|------|------|-------------|
+| 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
+| 2 | `inspect_profile` | Analysis | Header, tag table, field values |
+| 3 | `analyze_security` | Analysis | 32-heuristic security scan (H1–H32) |
+| 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
+| 5 | `full_analysis` | Analysis | All modes combined in one pass |
+| 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
+| 7 | `compare_profiles` | Analysis | Unified diff of two profiles |
+| 8 | `list_test_profiles` | Analysis | Browse available profiles by directory |
+| 9 | `upload_and_analyze` | Analysis | Base64 upload + any analysis mode |
+| 10 | `build_tools` | Maintainer | Build C++ analysis tools from source |
+| 11 | `cmake_configure` | Maintainer | Configure iccDEV cmake |
+| 12 | `cmake_build` | Maintainer | Compile cmake build |
+| 13 | `create_all_profiles` | Maintainer | Generate ~80+ ICC test profiles |
+| 14 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
+| 15 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
+| 16 | `windows_build` | Maintainer | MSVC + vcpkg cross-platform build |
 
 ---
 
-## Tools Reference
-
-### `inspect_profile`
-
-**What it does:** Dumps the complete internal structure of an ICC profile — raw header bytes, tag table, and parsed field values.
-
-**When to use:** You want to see what's actually inside a profile at the byte level.
-
-**Example request:**
-> "Inspect the structure of BlacklightPoster_411039.icc"
-
-**Sample output:**
-```
-=== RAW HEADER DUMP (0x0000-0x007F) ===
-0x0000: 00 00 41 28 41 44 42 45  02 10 00 00 61 62 73 74  |..A(ADBE....abst|
-0x0010: 4C 61 62 20 4C 61 62 20  07 DB 00 0B 00 07 00 02  |Lab Lab ........|
-0x0020: 00 31 00 01 61 63 73 70  41 50 50 4C 00 00 00 00  |.1..acspAPPL....|
-
-Header Fields (RAW - no validation):
-  Profile Size:    0x00004128 (16680 bytes) OK
-  CMM:             0x41444245  'ADBE'
-  Version:         0x02100000
-  Device Class:    0x61627374  'abst'
-```
-
----
-
-### `analyze_security`
-
-**What it does:** Runs a 32-heuristic security scan checking for fingerprint matches, tag anomalies, overflow indicators, malformed signatures, known attack patterns, date validation, repeat-byte signatures, spectral range anomalies, technology signatures, tag offset/size overlap detection, deep content analysis (type signatures, struct members, scalar expectations, NaN/Inf, nesting depth), raw file boundary checks (tag OOB, NamedColor2 strings, MPE matrix dimensions), LUT dimension validation, ColorantTable string termination, GamutBoundaryDesc allocation limits, MPE channel count validation, and tag type confusion detection.
-
-**When to use:** You want to know if a profile is suspicious, malformed, or potentially malicious.
-
-**Example request:**
-> "Run a security scan on cve-2022-26730-poc-sample-004.icc"
-
-**Sample output:**
-```
-=========================================================================
-|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
-=========================================================================
-
-[H1] Profile Size: 16680 bytes (0x00004128)
-     [OK] Size within normal range
-
-[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
-     [OK] Valid ICC magic signature
-
-[H3] Data ColorSpace: 0x4C616220 (Lab )
-     [OK] Known colorSpace: LabData
-```
-
----
-
-### `validate_roundtrip`
-
-**What it does:** Checks whether a profile supports bidirectional color transforms by looking for symmetric tag pairs (AToB/BToA, DToB/BToD, Matrix/TRC).
-
-**When to use:** You want to verify a profile can convert colors in both directions without data loss.
-
-**Example request:**
-> "Can the fidelity test profile do round-trip transforms?"
-
-**Sample output:**
-```
-Tag Pair Analysis:
-  AToB0/BToA0 (Perceptual):        [[X]] [[X]]  [X] Round-trip capable
-  AToB1/BToA1 (Rel. Colorimetric): [[X]] [[X]]  [X] Round-trip capable
-  AToB2/BToA2 (Saturation):        [[X]] [[X]]  [X] Round-trip capable
-
-[OK] RESULT: Profile supports round-trip validation
-```
-
----
-
-### `full_analysis`
-
-**What it does:** Runs all analysis modes combined — security heuristics, round-trip validation, and structural inspection in one pass.
-
-**When to use:** You want the most thorough analysis of a single profile.
-
-**Example request:**
-> "Give me a complete analysis of this suspicious ICC profile"
-
----
-
-### `profile_to_xml`
-
-**What it does:** Converts a binary ICC profile into human-readable XML showing all tags, elements, and data values.
-
-**When to use:** You want to read the actual content of tags (color values, curves, descriptions) rather than just structural metadata.
-
-**Example request:**
-> "Convert BlacklightPoster_411039.icc to XML so I can read the tag contents"
-
-**Sample output:**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<IccProfile>
-  <Header>
-    <PreferredCMMType>ADBE</PreferredCMMType>
-    <ProfileVersion>4.20</ProfileVersion>
-    <DataColourSpace>RGB </DataColourSpace>
-    <PCS>XYZ </PCS>
-  </Header>
-  <Tags>
-    <copyrightTag>
-      <multiLocalizedUnicodeType>
-        <LocalizedText LanguageCountry="enUS">
-          <![CDATA[Copyright 2007 Adobe Systems Incorporated]]>
-        </LocalizedText>
-      </multiLocalizedUnicodeType>
-    </copyrightTag>
-    ...
-```
-
----
-
-### `compare_profiles`
-
-**What it does:** Runs structural inspection on two profiles and produces a unified diff showing exactly what differs between them.
-
-**When to use:** You want to understand how two profiles (or two versions of the same profile) differ at a structural level.
-
-**Example request:**
-> "Compare the CVE PoC profile with the BlacklightPoster profile"
-
-**Sample output:**
-```diff
---- cve-2022-26730-poc-sample-004.icc
-+++ BlacklightPoster_411039.icc
-@@ -5,7 +5,7 @@
--Raw file size: 147564 bytes (0x2406C)
-+Raw file size: 16680 bytes (0x4128)
-
--  Device Class:    0x6D6E7472  'mntr'
-+  Device Class:    0x61627374  'abst'
-```
-
----
-
-### `list_test_profiles`
-
-**What it does:** Lists all available ICC profiles in one of three directories, with file sizes.
-
-**When to use:** You want to see what's available to analyze.
-
-**Directories:**
-| Directory | Contents |
-|-----------|----------|
-| `test-profiles` | 18 curated test cases — clean profiles and known-bug reproductions |
-| `extended-test-profiles` | 54 profiles — CVE PoCs, crash samples, edge cases |
-| `xif` | ~3,500 fuzzer-generated crash samples for regression testing |
-
-**Example request:**
-> "List the extended test profiles"
-
----
-
-### `upload_and_analyze`
-
-**What it does:** Accepts a base64-encoded ICC profile from any source, saves it to a secure temp directory, runs the requested analysis, and cleans up the file afterward.
-
-**When to use:** You have your own ICC profile that is not already in the repository.
-
-**Parameters:**
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `data_base64` | Yes | — | Base64-encoded ICC profile data |
-| `filename` | No | `uploaded.icc` | Original filename (for display only, sanitized) |
-| `mode` | No | `security` | Analysis mode: `security`, `inspect`, `roundtrip`, `full`, `xml`, or `all` |
-
-**Example requests:**
-> "Here is my ICC profile (base64): AABBCCdd... — run a security scan"
-
-> "Analyze this uploaded profile in all modes"
-
-**How to get base64 from a file:**
-```bash
-# macOS / Linux
-base64 < my-profile.icc
-
-# Windows PowerShell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-profile.icc"))
-```
-
-**Security:** 20 MB size cap, 128-byte minimum, filename sanitization, secure temp dir (mode 700), auto-cleanup after analysis.
-
----
-
-### `build_tools`
-
-**What it does:** Builds the native C++ analysis tools (iccanalyzer-lite and/or colorbleed_tools) from source.
-
-**When to use:** First-time setup, or after code changes to the analysis tools. For more control over cmake configuration, use `cmake_configure` + `cmake_build` instead.
-
-**Parameters:**
-| Parameter | Default | Options |
-|-----------|---------|---------|
-| `target` | `all` | `all`, `iccanalyzer-lite`, `colorbleed_tools` |
-
-**Example request:**
-> "Build all the analysis tools"
-
----
-
-### `cmake_configure`
-
-**What it does:** Configures iccDEV with cmake, allowing control over build type, sanitizers, compiler, and whether to build CLI tools.
-
-**When to use:** Maintainers who need different build configurations — Release builds, coverage instrumentation, or `ENABLE_TOOLS=ON` to run CreateAllProfiles.sh and the iccDEV test suite.
-
-**Parameters:**
-| Parameter | Default | Options |
-|-----------|---------|---------|
-| `build_type` | `Debug` | `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
-| `enable_tools` | `False` | `True` / `False` — builds iccDEV CLI tools (iccFromXml, iccApplyProfiles, etc.) |
-| `sanitizers` | `asan+ubsan` | `asan+ubsan`, `asan`, `ubsan`, `coverage`, `none` |
-| `compiler` | `clang` | `clang`, `gcc` |
-| `generator` | `default` | `default` (auto-detect), `Ninja`, `Xcode` (macOS), `Unix Makefiles` |
-| `extra_cmake_args` | `""` | Additional `-DVAR=VALUE` flags (sanitized) |
-| `build_dir` | auto | Name for build directory under `iccDEV/Build/` |
-
-**Cross-platform:** Supports Unix Makefiles (Linux), Xcode (macOS), and Ninja generators.
-Source patches are applied automatically (U+FE0F strip, wxWidgets removal if unavailable).
-Uses iccDEV native cmake options (`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_COVERAGE`).
-
-**Example requests:**
-> "Configure iccDEV with tools enabled for profile generation"
-
-> "Set up a Release build with no sanitizers"
-
-> "Configure a coverage build so I can measure code coverage"
-
----
-
-### `cmake_build`
-
-**What it does:** Runs `cmake --build` in a previously configured iccDEV build directory. Uses the cross-platform cmake build driver (works with Unix Makefiles, Ninja, Xcode, etc.).
-
-**When to use:** After `cmake_configure` to compile the configured build.
-
-**Parameters:**
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `build_dir` | (required) | Build directory name from `cmake_configure` |
-| `target` | `""` (all) | Make target (e.g. `install`) |
-| `jobs` | nproc | Parallel jobs |
-
-**Example request:**
-> "Build the configured iccDEV project"
-
----
-
-### `create_all_profiles`
-
-**What it does:** Runs iccDEV's `Testing/CreateAllProfiles.sh` to generate the full ICC profile corpus (~80+ profiles) from XML specifications.
-
-**When to use:** After building with `enable_tools=True` to generate ICC test profiles for validation, testing, or fuzzing seed corpus.
-
-**Parameters:**
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `build_dir` | (required) | Build directory that was configured with `enable_tools=True` |
-
-**Prerequisite workflow:**
-```
-cmake_configure(enable_tools=True)  →  cmake_build(build_dir="...")  →  create_all_profiles(build_dir="...")
-```
-
-**Example request:**
-> "Generate all ICC test profiles using the tools build"
-
----
-
-### `run_iccdev_tests`
-
-**What it does:** Runs iccDEV's `Testing/RunTests.sh` test suite against generated profiles, validating round-trip fidelity, profile application, and tool interoperability.
-
-**When to use:** After `create_all_profiles` to validate the generated profiles.
-
-**Parameters:**
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `build_dir` | (required) | Build directory that was configured with `enable_tools=True` |
-
-**Full maintainer workflow:**
-```
-cmake_configure(enable_tools=True)
-cmake_build(build_dir="...")
-create_all_profiles(build_dir="...")
-run_iccdev_tests(build_dir="...")
-```
-
-**Example request:**
-> "Run the iccDEV test suite against the generated profiles"
-
----
-
-### `cmake_option_matrix`
-
-**What it does:** Tests multiple cmake option toggles independently by running a quick configure+build for each option to verify it compiles cleanly.
-
-**When to use:** After code changes to verify that all cmake options (`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_COVERAGE`, `ICC_ENABLE_ASSERTS`, etc.) still build successfully.
-
-**Parameters:**
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `options` | `""` | Comma-separated list of cmake options to test (empty = test all known options) |
-| `compiler` | `clang` | `clang` or `gcc` |
-| `build_dir` | auto | Base build directory name |
-
-**Known options (17):**
-`ENABLE_ASAN`, `ENABLE_UBSAN`, `ENABLE_TSAN`, `ENABLE_MSAN`, `ENABLE_LSAN`, `ENABLE_SANITIZERS`, `ENABLE_COVERAGE`, `ENABLE_FUZZING`, `ENABLE_TESTS`, `ENABLE_TOOLS`, `ENABLE_ICCXML`, `ENABLE_STATIC_LIBS`, `ENABLE_SHARED_LIBS`, `ICC_LOG_SAFE`, `ICC_TRACE_NAN_ENABLED`, `ICC_CLUT_DEBUG`, `ICC_ENABLE_ASSERTS`
-
-**Example request:**
-> "Test all cmake options to see which ones build cleanly"
-
----
-
-### `windows_build`
-
-**What it does:** Builds iccDEV on Windows using MSVC and vcpkg dependencies. On Windows, runs the build natively. On Unix/macOS, generates a PowerShell script that can be copied to a Windows machine.
-
-**When to use:** When you need a Windows build of iccDEV, or want to generate build instructions for a Windows CI/CD pipeline.
-
-**Parameters:**
-| Parameter | Default | Options |
-|-----------|---------|---------|
-| `build_type` | `Debug` | `Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel` |
-| `compiler` | `msvc` | `msvc` |
-| `vcpkg_source` | `github_release` | `github_release` (pre-built deps from iccDEV v2.3.1 release), `git_clone` (clone vcpkg and install) |
-
-**Example requests:**
-> "Build iccDEV on Windows with Debug configuration"
-
-> "Generate a Windows build script I can run on my Windows machine"
-
----
-
-## Profile Path Resolution
-
-You can reference profiles by:
-
-- **Filename only:** `BlacklightPoster_411039.icc` — searches `test-profiles/`, `extended-test-profiles/`, `xif/`, and the repo root
-- **Directory-qualified:** `extended-test-profiles/cve-2023-46602.icc`
-- **Absolute path:** `/full/path/to/profile.icc` (must be within the repository)
-
-Paths that attempt to escape the repository (e.g., `../../etc/passwd`) are blocked by the security boundary validation.
-
----
-
-## Client Configuration
-
-### GitHub Copilot CLI
-
-Add to `~/.config/github-copilot/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "<REPO_ROOT>/mcp-server/.venv/bin/python",
-      "args": ["<REPO_ROOT>/mcp-server/icc_profile_mcp.py"]
-    }
-  }
-}
-```
-
-Or if installed via `pip install icc-profile-mcp`:
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "icc-profile-mcp",
-      "args": []
-    }
-  }
-}
-```
-
-### VS Code (GitHub Copilot)
-
-Add to `.vscode/mcp.json` in the workspace:
-
-```json
-{
-  "servers": {
-    "icc-profile-analyzer": {
-      "command": "${workspaceFolder}/mcp-server/.venv/bin/python",
-      "args": ["${workspaceFolder}/mcp-server/icc_profile_mcp.py"]
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json` (typically at `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
-
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "<REPO_ROOT>/mcp-server/.venv/bin/python",
-      "args": ["<REPO_ROOT>/mcp-server/icc_profile_mcp.py"]
-    }
-  }
-}
-```
-
-Or with Docker (no C++ build required):
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/xsscx/icc-profile-mcp:latest"]
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to Cursor settings → MCP Servers, or `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "icc-profile-analyzer": {
-      "command": "<REPO_ROOT>/mcp-server/.venv/bin/python",
-      "args": ["<REPO_ROOT>/mcp-server/icc_profile_mcp.py"]
-    }
-  }
-}
-```
-
-> Replace `<REPO_ROOT>` with the absolute path to the repository root in all configs above.
+## API Reference
+
+| Method | Endpoint | Parameters | Description |
+|--------|----------|------------|-------------|
+| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 16}` |
+| `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
+| `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
+| `GET` | `/api/security` | `path` | 32-heuristic security scan |
+| `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
+| `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
+| `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
+| `GET` | `/api/compare` | `path_a`, `path_b` | Unified diff of two profiles |
+| `POST` | `/api/upload` | `file` (multipart) | Upload `.icc` file (20 MB max) |
+| `POST` | `/api/output/download` | `text`, `filename` (JSON) | Download tool output as file |
 
 ---
 
 ## Security Model
 
-This server processes untrusted binary files (fuzzer-generated crash samples, CVE PoCs). The following protections are in place:
+This server processes untrusted binary files (fuzzer-generated crash samples, CVE PoCs):
 
 | Protection | Detail |
 |------------|--------|
-| **Path traversal prevention** | All paths are resolved and validated against allowed base directories using `Path.resolve()` + `relative_to()` |
-| **Symlink boundary enforcement** | Symlinks are followed but the resolved target must remain within the repository |
-| **Null byte rejection** | Paths containing null bytes are rejected before any filesystem access |
-| **Command injection prevention** | All subprocess calls use `exec` (argument list), never `shell=True` |
-| **Output size cap** | Combined stdout+stderr limited to 10 MB to prevent memory exhaustion |
-| **Process timeout** | All tool invocations have timeouts (60–120s) with proper process cleanup |
-| **Temp file safety** | Temp files created with `mkstemp()` (secure, no race window) and cleaned up in `finally` blocks |
-| **Sanitizer isolation** | `ASAN_OPTIONS=detect_leaks=0` prevents leak-checker noise on intentionally malformed inputs |
+| **Path traversal prevention** | `Path.resolve()` + `relative_to()` validation |
+| **Symlink boundary enforcement** | Resolved target must remain within the repository |
+| **Null byte rejection** | Paths containing null bytes are rejected |
+| **Command injection prevention** | `exec` (argument list), never `shell=True` |
+| **Output size cap** | 10 MB limit on subprocess output |
+| **Process timeout** | 60–120s with proper cleanup |
+| **Upload limits** | 20 MB max, filename sanitization |
+| **CSP nonce rotation** | Per-request nonce, strict security headers |
+
+---
+
+## Profile Path Resolution
+
+Reference profiles by:
+- **Filename:** `sRGB_D65_MAT.icc` — searches `test-profiles/`, `extended-test-profiles/`, and repo root
+- **Directory-qualified:** `extended-test-profiles/cve-2023-46602.icc`
+- **Mounted directory:** `my-profiles/custom.icc` (via `-v` Docker mount)
+
+Paths attempting to escape the repository are blocked.
 
 ---
 
 ## Troubleshooting
 
-### "iccanalyzer-lite not found"
-
-The analysis binary hasn't been built. Run:
-```bash
-cd iccanalyzer-lite && ./build.sh
-```
-This requires `clang++`, `libxml2-dev`, `libssl-dev`, `liblzma-dev`, and iccDEV libraries built first.
-
-### "iccToXml_unsafe not found"
-
-The XML conversion tool hasn't been built. Run:
-```bash
-cd colorbleed_tools && make setup && make
-```
-
 ### "Profile not found"
+The server searches `test-profiles/`, `extended-test-profiles/`, `xif/`, and the repo root. Mount your own directory:
+```bash
+docker run --rm -p 8080:8080 -v /path/to/profiles:/app/my-profiles:ro \
+  ghcr.io/xsscx/icc-profile-mcp:latest web
+```
+Then: `curl 'http://127.0.0.1:8080/api/security?path=my-profiles/custom.icc'`
 
-The server only looks in `test-profiles/`, `extended-test-profiles/`, `xif/`, and the repo root. Provide an absolute path for profiles stored elsewhere (must be within the repository).
-
-### Tool returns stderr with ASAN output
-
-This is expected — the binaries are compiled with AddressSanitizer instrumentation. ASAN output in stderr indicates the tool detected a memory safety issue in the profile being analyzed (which is useful information for security research).
+### ASAN/UBSAN output in stderr
+This is **expected** — analysis binaries use AddressSanitizer instrumentation. ASAN output means the profile triggered a real memory safety bug — that's a finding, not an error.
 
 ### Large profiles produce truncated XML
+XML output is capped at 50,000 characters. The full size is reported in the truncation notice.
 
-XML output is capped at 50,000 characters to avoid overwhelming AI context windows. The full XML size is reported in the truncation notice.
+### Exit codes
 
----
-
-## Example Workflows
-
-### Triage a suspicious ICC profile
-
-```
-You: "List the extended test profiles"
-You: "Run a security scan on cve-2023-46602.icc"
-You: "Now inspect its raw structure — I want to see the tag table"
-You: "Convert it to XML so I can read the actual tag contents"
-```
-
-### Analyze your own ICC profile
-
-```
-You: "Here is my ICC profile (base64-encoded): [paste base64 data]
-      Run a full analysis."
-```
-
-Or in all modes at once:
-```
-You: "Upload and analyze this profile in all modes: [paste base64 data]"
-```
-
-### Compare a CVE PoC with a known-good profile
-
-```
-You: "Compare cve-2022-26730-poc-sample-004.icc with BlacklightPoster_411039.icc"
-You: "What are the key structural differences?"
-```
-
-### Batch review crash samples
-
-```
-You: "List profiles in xif"
-You: "Analyze the security of the first few crash samples"
-You: "Which ones have malformed signatures or suspicious tags?"
-```
-
-### Validate a profile for production use
-
-```
-You: "Can xml-to-icc-to-xml-fidelity-test-001.icc do round-trip transforms?"
-You: "Give me a full analysis to check for any issues"
-```
-
-### Full analysis workflow (for GitHub Issues / Copilot coding agent)
-
-When filing an issue to analyze a profile, the agent should run these steps in order and include all raw output:
-
-| Step | Command / MCP Tool | What to include |
-|------|--------------------|-----------------|
-| 1 | Rename `.icc.txt` → `.icc` | — |
-| 2 | `iccanalyzer-lite -a <file>` or `analyze_security` | Complete raw output (security heuristics `[H1]`–`[H32]` + round-trip + structural) |
-| 3 | `iccanalyzer-lite -nf <file>` or `inspect_profile` | Complete raw full dump — no truncation |
-| 4 | `iccanalyzer-lite -r <file>` or `validate_roundtrip` | Complete raw round-trip accuracy output |
-| 5 | Check exit code + stderr | Exit code per command (0=clean, 1=finding, 2=error) and any ASAN/UBSAN output |
-| 6 | Written analysis | Your interpretation — placed **after** raw output, never replacing it |
-
-**iccanalyzer-lite modes reference:**
-| Flag | Mode | Description |
-|------|------|-------------|
-| `-a` | Comprehensive | All modes combined (security + round-trip + structural) |
-| `-nf` | Ninja full | Full structural dump, no truncation |
-| `-n` | Ninja | Structural dump (truncated) |
-| `-r` | Round-trip | Bidirectional transform accuracy test |
-| `-h` | Heuristics | Security heuristics only |
-
-The raw iccanalyzer-lite output uses `[OK]`, `[WARN]`, `[FAIL]`, `[CRITICAL]` labels. This output MUST appear verbatim in the report — do not summarize or omit it.
+| Code | Meaning |
+|------|---------|
+| `0` | Clean — no findings |
+| `1` | Finding — security heuristic triggered |
+| `2` | Error — malformed input (profile fails to load) |
+| `3` | Usage — incorrect arguments |
