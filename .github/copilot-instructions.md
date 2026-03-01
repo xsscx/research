@@ -145,7 +145,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 15 tools (8 analysis + 7 maintainer build) for AI-assisted ICC profile security research.
+The ICC Profile MCP server exposes 16 tools (9 analysis + 7 maintainer build) for AI-assisted ICC profile security research.
 
 ### Setup — Three integration methods
 
@@ -159,7 +159,7 @@ Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools aut
 Prereq: `cd mcp-server && pip install -e .`
 
 #### 3. GitHub Copilot Coding Agent (cloud)
-Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 8 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
+Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 9 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
@@ -314,7 +314,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 32-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
-- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 15 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
+- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 16 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 61 security patches (001–061) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, and recursion depth limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.

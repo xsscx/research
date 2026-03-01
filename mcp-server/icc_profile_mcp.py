@@ -200,6 +200,43 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
 
 
 @mcp.tool()
+async def health_check() -> str:
+    """Check MCP server health and available tool capabilities.
+
+    Returns server status, binary availability, and profile counts.
+    No arguments required.
+    """
+    binaries = {
+        "iccanalyzer-lite": ANALYZER_BIN.is_file(),
+        "iccToXml_unsafe": TO_XML_UNSAFE_BIN.is_file(),
+    }
+    profiles = {
+        "test-profiles": len(list(TEST_PROFILES.glob("*.icc"))) if TEST_PROFILES.is_dir() else 0,
+        "extended-test-profiles": len(list(EXTENDED_PROFILES.glob("*.icc"))) if EXTENDED_PROFILES.is_dir() else 0,
+    }
+    tools_available = sum(1 for v in binaries.values() if v)
+    total_profiles = sum(profiles.values())
+
+    lines = [
+        "ICC Profile MCP Server — Health Check",
+        "",
+        f"Status: OK",
+        f"Tools:  {tools_available + 1}/{len(binaries) + 1} binaries available",
+        "",
+        "Binaries:",
+    ]
+    for name, available in binaries.items():
+        lines.append(f"  {'✅' if available else '❌'} {name}")
+    lines.append(f"  ✅ list/compare (built-in)")
+    lines.append("")
+    lines.append("Profiles:")
+    for name, count in profiles.items():
+        lines.append(f"  {count:>4} in {name}/")
+    lines.append(f"  {total_profiles:>4} total")
+    return "\n".join(lines)
+
+
+@mcp.tool()
 async def inspect_profile(path: str) -> str:
     """Inspect an ICC profile's header, tag table, and structure.
 
