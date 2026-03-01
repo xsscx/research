@@ -2,29 +2,29 @@
 
 ## Quick Start
 
+Copy and paste these two commands to get started:
+
 ```bash
-# Pull and run the demo container
-docker pull icc-profile-demo       # or build locally (see below)
-docker run --rm -p 8080:8080 icc-profile-demo
-# Open http://127.0.0.1:8080
+docker pull ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 ```
+
+Then open <http://127.0.0.1:8080> in your browser. That's it — no build steps, no dependencies.
 
 ## Three Modes
 
 | Mode | Command | Description |
 |------|---------|-------------|
-| **demo** (default) | `docker run --rm -p 8080:8080 icc-profile-demo` | Self-contained HTML report at `/`, full API at `/api/*` |
-| **api** | `docker run --rm -p 8080:8080 icc-profile-demo api` | Production WebUI + REST API |
-| **mcp** | `docker run --rm -i icc-profile-demo mcp` | MCP stdio server for AI tools |
+| **demo** (default) | `docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo` | Self-contained HTML report at `/`, full API at `/api/*` |
+| **api** | `docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api` | Production WebUI + REST API |
+| **mcp** | `docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp` | MCP stdio server for AI tools |
 
-## Build Locally
+## Build Locally (Optional)
 
 ```bash
 # From repository root
 docker build -f Dockerfile.demo -t icc-profile-demo .
 ```
-
-**Prerequisite:** The base image `ghcr.io/xsscx/icc-profile-mcp:dev` must be available (pulled automatically during build).
 
 ## API Endpoints
 
@@ -58,7 +58,7 @@ curl -X POST -F 'file=@myprofile.icc' http://127.0.0.1:8080/api/upload
 
 ## Container Contents
 
-- **123 test profiles** in `/app/test-profiles/`
+- **126 test profiles** in `/app/test-profiles/`
 - **95 extended test profiles** in `/app/extended-test-profiles/`
 - Self-contained HTML demo report at `/app/dev-demo/index.html`
 - Developer guide markdown at `/app/dev-demo/dev-demo.md`

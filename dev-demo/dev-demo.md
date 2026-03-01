@@ -6,8 +6,37 @@
 
 ---
 
+## 🚀 Quickstart — Try It in 60 Seconds
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+**Step 1 — Pull and run** (copy-paste this into your terminal):
+
+```bash
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+```
+
+**Step 2 — Open your browser** to <http://127.0.0.1:8080>
+
+You'll see an interactive demo page with built-in ICC profile security analysis tools. Click any button to start — 126 test profiles are included, no setup needed.
+
+**Step 3 — Try the API** (open a new terminal tab):
+
+```bash
+# Check the server is running
+curl http://127.0.0.1:8080/api/health
+
+# Run a security scan on a sample profile
+curl 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+```
+
+**To stop:** press `Ctrl+C` in the terminal where Docker is running, or run `docker stop $(docker ps -q --filter ancestor=ghcr.io/xsscx/icc-profile-demo)`.
+
+---
+
 ## Table of Contents
 
+- [Quickstart](#-quickstart--try-it-in-60-seconds)
 - [Path 1 — Clone the Repo & Use GitHub Issues](#path-1--clone-the-repo--use-github-issues)
 - [Path 2 — Docker Image & REST API](#path-2--docker-image--rest-api)
 - [Path 3 — WebUI (Browser-Based)](#path-3--webui-browser-based)
@@ -105,14 +134,16 @@ Skip all builds. The Docker image includes pre-built binaries and the REST API s
 ### Pull & Run
 
 ```bash
-# Pull the image
-docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+# Developer demo (recommended — includes interactive HTML report + all API endpoints)
+docker pull ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 
-# Start the REST API + WebUI on port 8080
+# Production image (API-only, no demo report)
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 
-# Or run as MCP stdio server (for AI assistants)
-docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:latest
+# MCP stdio server (for AI assistants — works with either image)
+docker run --rm -i ghcr.io/xsscx/icc-profile-demo:latest mcp
 ```
 
 ### Health Check
@@ -135,42 +166,42 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles' | python3 -m js
 
 ```bash
 # Run 27-heuristic security scan on a profile
-curl -s 'http://127.0.0.1:8080/api/security?profile=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
 #### Inspect Profile Structure
 
 ```bash
 # Dump header, tag table, and parsed field values
-curl -s 'http://127.0.0.1:8080/api/inspect?profile=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
 ```
 
 #### Round-Trip Validation
 
 ```bash
 # Check bidirectional transform support
-curl -s 'http://127.0.0.1:8080/api/roundtrip?profile=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/roundtrip?path=sRGB_D65_MAT.icc'
 ```
 
 #### Full Analysis (All Modes Combined)
 
 ```bash
 # Security + round-trip + structural inspection
-curl -s 'http://127.0.0.1:8080/api/full?profile=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'
 ```
 
 #### Convert to XML
 
 ```bash
 # Binary ICC → human-readable XML
-curl -s 'http://127.0.0.1:8080/api/xml?profile=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/xml?path=sRGB_D65_MAT.icc'
 ```
 
 #### Compare Two Profiles
 
 ```bash
 # Unified diff between two profiles
-curl -s 'http://127.0.0.1:8080/api/compare?profile1=sRGB2014.icc&profile2=sRGBv4.icc'
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=sRGB_D65_MAT.icc&path_b=sRGB_v4_ICC_preference.icc'
 ```
 
 #### Upload & Analyze Your Own Profile
@@ -185,7 +216,7 @@ After upload, the profile is available for all tools:
 
 ```bash
 # Run security scan on uploaded file
-curl -s 'http://127.0.0.1:8080/api/security?profile=my-profile.icc'
+curl -s 'http://127.0.0.1:8080/api/security?path=my-profile.icc'
 ```
 
 #### Download Results
@@ -218,7 +249,7 @@ for line in data.get('output','').split('\n'):
 # Run security scan on each
 for p in $profiles; do
     echo "=== Scanning: $p ==="
-    curl -s "$API/security?profile=$p" | head -20
+    curl -s "$API/security?path=$p" | head -20
     echo ""
 done
 ```
@@ -233,7 +264,7 @@ set -euo pipefail
 PROFILE="$1"
 API="http://127.0.0.1:8080/api"
 
-result=$(curl -s "$API/security?profile=$PROFILE")
+result=$(curl -s "$API/security?path=$PROFILE")
 
 if echo "$result" | grep -q "CRITICAL"; then
     echo "BLOCKED: Critical security finding in $PROFILE"
@@ -253,11 +284,9 @@ fi
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
 services:
   icc-analyzer:
-    image: ghcr.io/xsscx/icc-profile-mcp:latest
-    command: web
+    image: ghcr.io/xsscx/icc-profile-demo:latest
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -269,7 +298,7 @@ services:
 ```bash
 docker compose up -d
 # Now your profiles in ./my-profiles/ are accessible via the API
-curl -s 'http://127.0.0.1:8080/api/security?profile=my-profiles/custom.icc'
+curl -s 'http://127.0.0.1:8080/api/security?path=my-profiles/custom.icc'
 ```
 
 ---
@@ -282,7 +311,7 @@ A single-page dark-themed interface for interactive analysis — no terminal req
 
 ```bash
 # Docker (recommended — no dependencies)
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 
 # Local (after pip install)
 cd mcp-server
@@ -347,10 +376,10 @@ http://127.0.0.1:8080/#xml
 
 ```bash
 # Start the analyzer
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web &
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest &
 
 # In your upload handler, validate the profile
-curl -s "http://127.0.0.1:8080/api/security?profile=user-upload.icc" \
+curl -s "http://127.0.0.1:8080/api/security?path=user-upload.icc" \
   | grep -c "CRITICAL"
 # 0 = safe to use, >0 = reject
 ```
@@ -365,10 +394,10 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=extended-test-profiles' \
   | grep -i cve
 
 # Analyze the CVE-2022-26730 PoC
-curl -s 'http://127.0.0.1:8080/api/full?profile=cve-2022-26730-poc-sample-004.icc'
+curl -s 'http://127.0.0.1:8080/api/full?path=cve-2022-26730-poc-sample-004.icc'
 
 # Compare PoC with a clean profile to see what's different
-curl -s 'http://127.0.0.1:8080/api/compare?profile1=cve-2022-26730-poc-sample-004.icc&profile2=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=cve-2022-26730-poc-sample-004.icc&path_b=sRGB_D65_MAT.icc'
 ```
 
 ### Use Case 3: Fuzzing Triage
@@ -379,13 +408,13 @@ curl -s 'http://127.0.0.1:8080/api/compare?profile1=cve-2022-26730-poc-sample-00
 # Copy crash samples into the container
 docker run --rm -p 8080:8080 \
   -v ./crash-samples:/app/crash-samples:ro \
-  ghcr.io/xsscx/icc-profile-mcp:latest web &
+  ghcr.io/xsscx/icc-profile-demo:latest &
 
 # Batch security scan
 for f in crash-samples/*.icc; do
     name=$(basename "$f")
     echo "--- $name ---"
-    curl -s "http://127.0.0.1:8080/api/security?profile=crash-samples/$name" \
+    curl -s "http://127.0.0.1:8080/api/security?path=crash-samples/$name" \
       | grep -E "CRITICAL|WARN|FAIL"
 done
 ```
@@ -396,7 +425,7 @@ done
 
 ```bash
 # Check if a profile can convert colors bidirectionally
-curl -s 'http://127.0.0.1:8080/api/roundtrip?profile=my-output-profile.icc'
+curl -s 'http://127.0.0.1:8080/api/roundtrip?path=my-output-profile.icc'
 
 # Look for:
 #   "Round-trip capable" = good
@@ -410,16 +439,16 @@ curl -s 'http://127.0.0.1:8080/api/roundtrip?profile=my-output-profile.icc'
 
 ```bash
 # Step 1: Raw structure (header bytes, tag table)
-curl -s 'http://127.0.0.1:8080/api/inspect?profile=suspicious.icc'
+curl -s 'http://127.0.0.1:8080/api/inspect?path=suspicious.icc'
 
 # Step 2: Security heuristics (27 checks)
-curl -s 'http://127.0.0.1:8080/api/security?profile=suspicious.icc'
+curl -s 'http://127.0.0.1:8080/api/security?path=suspicious.icc'
 
 # Step 3: Human-readable XML (every tag value)
-curl -s 'http://127.0.0.1:8080/api/xml?profile=suspicious.icc'
+curl -s 'http://127.0.0.1:8080/api/xml?path=suspicious.icc'
 
 # Step 4: Compare with a known-good profile
-curl -s 'http://127.0.0.1:8080/api/compare?profile1=suspicious.icc&profile2=sRGB2014.icc'
+curl -s 'http://127.0.0.1:8080/api/compare?path_a=suspicious.icc&path_b=sRGB_D65_MAT.icc'
 ```
 
 ### Use Case 6: GitHub Issue Automation
@@ -468,12 +497,12 @@ All endpoints return plain text or JSON. Base URL: `http://127.0.0.1:8080`
 | `GET` | `/` | — | WebUI single-page app |
 | `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 15}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
-| `GET` | `/api/inspect` | `profile` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `profile` | 27-heuristic security scan |
-| `GET` | `/api/roundtrip` | `profile` | Round-trip transform validation |
-| `GET` | `/api/full` | `profile` | Combined analysis (security + round-trip + structure) |
-| `GET` | `/api/xml` | `profile` | Binary ICC → XML conversion |
-| `GET` | `/api/compare` | `profile1`, `profile2` | Unified diff of two profiles |
+| `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
+| `GET` | `/api/security` | `path` | 27-heuristic security scan |
+| `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
+| `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
+| `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
+| `GET` | `/api/compare` | `path_a`, `path_b` | Unified diff of two profiles |
 | `POST` | `/api/upload` | `file` (multipart) | Upload `.icc` file (20 MB max) |
 | `POST` | `/api/output/download` | `content`, `filename` (JSON) | Download tool output as file |
 | `POST` | `/api/cmake/configure` | JSON body | Configure iccDEV cmake build |
@@ -488,7 +517,7 @@ Analysis endpoints return JSON:
 ```json
 {
   "tool": "analyze_security",
-  "profile": "sRGB2014.icc",
+  "profile": "sRGB_D65_MAT.icc",
   "output": "[H1] Profile Size: 3212 bytes...\n[H2] Magic Bytes: acsp...",
   "exit_code": 0
 }
@@ -522,7 +551,7 @@ Already configured in `.vscode/mcp.json` — open the repo in VS Code and tools 
 cd mcp-server && pip install -e .
 ```
 
-Then in Copilot Chat: *"Analyze the security of sRGB2014.icc"*
+Then in Copilot Chat: *"Analyze the security of sRGB_D65_MAT.icc"*
 
 ### Copilot CLI
 
@@ -592,7 +621,7 @@ Requires: `clang++` 18+, `cmake` 3.15+, `libxml2-dev`, `libtiff-dev`
 
 Or use Docker to skip the build entirely:
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 ```
 
 ### ASAN/UBSAN output in stderr
@@ -619,7 +648,7 @@ Mount your profile directory:
 ```bash
 docker run --rm -p 8080:8080 \
   -v /path/to/my-profiles:/app/my-profiles:ro \
-  ghcr.io/xsscx/icc-profile-mcp:latest web
+  ghcr.io/xsscx/icc-profile-demo:latest
 ```
 
 Then reference as `my-profiles/filename.icc` in API calls.
