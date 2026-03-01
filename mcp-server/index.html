@@ -670,8 +670,8 @@ function renderInputs() {
     inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
   });
 
-  // profile picker starts hidden — user toggles via "Server Profiles" button
-  if (currentTool !== "list") loadProfilePicker(false);
+  // Auto-show profile picker for all analysis tools
+  if (currentTool !== "list") loadProfilePicker(true);
 }
 
 /* ── Profile quick-pick list ───────────────────────────── */
