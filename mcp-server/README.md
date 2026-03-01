@@ -68,6 +68,19 @@ base64 < my-profile.icc | pbcopy    # copies to clipboard
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("my-profile.icc")) | Set-Clipboard
 ```
 
+### Option D: Reusable Prompts (GitHub Models)
+
+Four pre-built prompt templates are available in [`.github/prompts/`](.github/prompts/):
+
+| Prompt | Purpose | Variables |
+|---|---|---|
+| `analyze-icc-profile` | Full 32-heuristic security scan | `{{profile_path}}` |
+| `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
+| `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
+| `health-check` | MCP server verification | (none) |
+
+These appear in the GitHub prompt UI on the repository and can be referenced from Copilot Chat. Each prompt guides the model through the correct MCP tool sequence.
+
 ### What You Get Back
 
 Every analysis mode produces a plain-text report. Here is what a security scan looks like:
