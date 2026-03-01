@@ -1385,3 +1385,6 @@ htos3_tag="HToS3Tag"
 "pre1"
 "smbb"
 "swpt"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff\xff\xff"
