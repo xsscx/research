@@ -82,14 +82,15 @@ Self-contained demo with interactive HTML report, live API, and pre-loaded test 
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-demo:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+# Custom port: docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port 8083
 ```
 
-Open http://localhost:8080/ for the demo report, or use the API directly:
+Routes: `/` (demo report), `/ui` (interactive WebUI), `/api` (endpoint index), `/api/*` (analysis).
 
 ```bash
 curl http://localhost:8080/api/health
 curl 'http://localhost:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-Three modes: `demo` (default — HTML report + API), `api` (production WebUI), `mcp` (stdio server).
+Other modes: `api` (WebUI at `/` + REST API), `mcp` (stdio server for AI agents).
 See [dev-demo/README.md](dev-demo/README.md) for full usage.

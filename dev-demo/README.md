@@ -11,13 +11,27 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
 
 Then open <http://127.0.0.1:8080> in your browser. That's it — no build steps, no dependencies.
 
-## Three Modes
+Use `--port N` to listen on a custom port:
+
+```bash
+docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo:latest --port 8083
+```
+
+## Demo Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Demo report — static showcase with sample outputs |
+| `/ui` | Interactive analysis WebUI — select profiles, run tools |
+| `/api` | REST API index (JSON) |
+| `/api/*` | Analysis endpoints (health, list, inspect, security, roundtrip, full, xml, compare, upload) |
+
+## Other Modes
 
 | Mode | Command | Description |
 |------|---------|-------------|
-| **demo** (default) | `docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo` | Self-contained HTML report at `/`, full API at `/api/*` |
-| **api** | `docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api` | Production WebUI + REST API |
-| **mcp** | `docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp` | MCP stdio server for AI tools |
+| **api** | `docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api` | Interactive WebUI at `/` with REST API at `/api/*` |
+| **mcp** | `docker run --rm -i ghcr.io/xsscx/icc-profile-demo mcp` | MCP stdio server (for AI agent integration) |
 
 ## Build Locally (Optional)
 
@@ -31,6 +45,9 @@ docker build -f Dockerfile.demo -t icc-profile-demo .
 All endpoints are available under `/api/` in both `demo` and `api` modes:
 
 ```bash
+# API index (list all endpoints)
+curl http://127.0.0.1:8080/api
+
 # Health check
 curl http://127.0.0.1:8080/api/health
 
