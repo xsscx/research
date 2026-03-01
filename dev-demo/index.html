@@ -34,6 +34,8 @@ p { margin-bottom: 0.75rem; color: var(--muted); }
 .b-red { background: var(--red); color: var(--bg); }
 .b-yellow { background: var(--yellow); color: var(--bg); }
 .b-purple { background: var(--purple); color: var(--bg); }
+.try-live { display: inline-block; font-size: 0.78rem; padding: 0.2rem 0.65rem; border-radius: 10px; font-weight: 600; background: var(--accent); color: var(--bg); margin-left: 0.5rem; vertical-align: middle; }
+.try-live:hover { text-decoration: none; opacity: 0.85; }
 
 /* Hero */
 .hero { text-align: center; padding: 3rem 0 2rem; }
@@ -127,7 +129,7 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 
 <!-- ════════════════ TOC ════════════════ -->
 <nav class="toc" aria-label="Table of contents">
-<strong>Developer Walkthrough</strong>
+<strong>Developer Walkthrough</strong> · <a href="/ui" class="try-live">Open Interactive WebUI →</a>
 <ol>
 <li><a href="#start">Quick Start — Docker</a></li>
 <li><a href="#health">Health Check &amp; Headers</a></li>
@@ -210,7 +212,7 @@ content-type: text/html; charset=utf-8
 </table>
 
 <!-- ════════════════ 3. WEBUI ════════════════ -->
-<h2 id="webui">3. WebUI — Browser Interface</h2>
+<h2 id="webui">3. WebUI — Browser Interface <a href="/ui" class="try-live">Open WebUI →</a></h2>
 
 <p>The WebUI is a single-page app served at <code><a href="/ui">/ui</a></code>. Here is what it looks like:</p>
 
@@ -300,7 +302,7 @@ TAG-LEVEL HEURISTICS
 </div>
 
 <!-- ════════════════ 4. LIST ════════════════ -->
-<h2 id="list">4. List Available Profiles</h2>
+<h2 id="list">4. List Available Profiles <a href="/ui#list" class="try-live">Try it live →</a></h2>
 
 <div class="demo">
 <div class="demo-hdr"><h4>GET /api/list?directory=test-profiles</h4><span class="badge b-green">123 profiles</span></div>
@@ -379,7 +381,7 @@ cve-2023-32443-variant-020.icc  (7,460 bytes)
 </div>
 
 <!-- ════════════════ 5. SECURITY CLEAN ════════════════ -->
-<h2 id="sec-clean">5. Security Scan — Clean Profile ✅</h2>
+<h2 id="sec-clean">5. Security Scan — Clean Profile ✅ <a href="/ui#security" class="try-live">Try it live →</a></h2>
 
 <p>All 32 heuristics pass on the well-formed <code>sRGB_D65_MAT.icc</code> monitor profile.</p>
 
@@ -481,7 +483,7 @@ ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignatur
 </div>
 
 <!-- ════════════════ 6. SECURITY MALFORMED ════════════════ -->
-<h2 id="sec-mal">6. Security Scan — Malformed Profile ⚠️</h2>
+<h2 id="sec-mal">6. Security Scan — Malformed Profile ⚠️ <a href="/ui#security" class="try-live">Try it live →</a></h2>
 
 <p>Crafted profile from Argyll CMS fuzzing — known buffer overflow vector at <code>icmXYZNumber</code>.</p>
 
@@ -617,7 +619,7 @@ ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignatur
 </table>
 
 <!-- ════════════════ 7. SECURITY STACK OVERFLOW ════════════════ -->
-<h2 id="sec-stack">7. Security Scan — Stack Overflow PoC 🔴</h2>
+<h2 id="sec-stack">7. Security Scan — Stack Overflow PoC 🔴 <a href="/ui#security" class="try-live">Try it live →</a></h2>
 
 <p>Recursive <code>CIccTagStruct::Read()</code> crash sample — triggers unbounded recursion in the parser. Detected by H24 (nesting depth) and upstream patch 061.</p>
 
@@ -741,7 +743,7 @@ ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: Color
 <div class="crit"><strong>Note:</strong> The <code>--- stderr ---</code> section shows iccDEV debug output including unknown colorspace <code>0x4e554c4c</code> — this is the analyzer running against <em>unpatched upstream</em> code to detect real library bugs.</div>
 
 <!-- ════════════════ 8. INSPECT ════════════════ -->
-<h2 id="inspect">8. Structural Inspection</h2>
+<h2 id="inspect">8. Structural Inspection <a href="/ui#inspect" class="try-live">Try it live →</a></h2>
 
 <p>Raw header dump with hex bytes, tag table, and parsed field values. Full output is 1,609 lines.</p>
 
@@ -834,7 +836,7 @@ Idx  Signature    FourCC       Offset       Size         TagType      Status
 </div>
 
 <!-- ════════════════ 9. FULL ════════════════ -->
-<h2 id="full">9. Full Analysis (All Modes Combined)</h2>
+<h2 id="full">9. Full Analysis (All Modes Combined) <a href="/ui#full" class="try-live">Try it live →</a></h2>
 
 <p>Runs security heuristics, round-trip validation, and structural inspection in a single pass.</p>
 
@@ -1082,7 +1084,7 @@ PHASE 5: TAG CONTENT ANALYSIS
 </div>
 
 <!-- ════════════════ 10. ROUNDTRIP ════════════════ -->
-<h2 id="roundtrip">10. Round-Trip Validation</h2>
+<h2 id="roundtrip">10. Round-Trip Validation <a href="/ui#roundtrip" class="try-live">Try it live →</a></h2>
 
 <p>Checks AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs for bidirectional color transform support.</p>
 
@@ -1112,7 +1114,7 @@ Tag Pair Analysis:
 </div>
 
 <!-- ════════════════ 11. XML ════════════════ -->
-<h2 id="xml">11. XML Conversion</h2>
+<h2 id="xml">11. XML Conversion <a href="/ui#xml" class="try-live">Try it live →</a></h2>
 
 <p>Converts binary ICC → structured XML showing every tag, element, and data value.</p>
 
@@ -1165,7 +1167,7 @@ Tag Pair Analysis:
 </div>
 
 <!-- ════════════════ 12. COMPARE ════════════════ -->
-<h2 id="compare">12. Profile Comparison (diff)</h2>
+<h2 id="compare">12. Profile Comparison (diff) <a href="/ui#compare" class="try-live">Try it live →</a></h2>
 
 <p>Unified diff between <code>sRGB_D65_MAT.icc</code> (RGB monitor) and <code>BlacklightPoster_411039.icc</code> (Lab abstract). Shows structural differences at the byte level.</p>
 
