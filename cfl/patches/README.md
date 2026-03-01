@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-02-28 17:20:00 UTC
+Last Updated: 2026-03-01 00:45:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -520,6 +520,17 @@ Fix: add a `thread_local` recursion depth counter with a limit of 32.  A RAII
 scope guard (`DepthGuard`) ensures the counter is decremented on all return
 paths, including early-return errors.
 Crash artifact: `CIccTagStruct-Read-recursive-stack-overflow.icc`.
+
+### 062 — UBSAN null pointer dereference in `CIccTagXmlStruct::ParseTag` (IccTagXml.cpp)
+
+Null pointer dereference at `IccTagXml.cpp:4738` when parsing a
+`<TagSignature>` XML element with no text children.  The code accesses
+`tagSigNode->children->content` without checking whether `children` is null.
+A crafted XML profile with an empty `<TagSignature/>` element triggers
+`member access within null pointer of type 'struct _xmlNode'`.
+Fix: guard `tagSigNode->children` and `tagSigNode->children->content`; skip
+the element with `continue` when either is null.
+Reproducer: `segv-CIccTagXmlStruct-ParseTag-IccTagXml_cpp-Line4738.xml`.
 
 ## Application
 
