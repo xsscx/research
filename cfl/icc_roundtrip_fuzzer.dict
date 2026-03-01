@@ -1674,3 +1674,6 @@
 "\xff\xff"
 "\xff\xff~~B\xd6R "
 "\x01\x00\x00&"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xae\x38\xc1?"
