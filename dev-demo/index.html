@@ -52,7 +52,7 @@ p { margin-bottom: 0.75rem; color: var(--muted); }
 .demo-body { padding: 1rem; }
 .cmd { font-family: var(--mono); font-size: 0.82rem; color: var(--green); margin-bottom: 0.5rem; }
 .cmd::before { content: "$ "; color: var(--muted); }
-.output { max-height: 500px; overflow-y: auto; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+.output { max-height: 500px; overflow-y: auto; overflow-x: auto; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.55; white-space: pre; word-break: normal; tab-size: 4; }
 
 /* Tables */
 table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.88rem; }
@@ -839,7 +839,7 @@ Idx  Signature    FourCC       Offset       Size         TagType      Status
 <div class="demo-hdr"><h4>GET /api/full?path=sRGB_D65_MAT.icc</h4><span class="badge b-blue">3 Phases</span></div>
 <div class="demo-body">
 <div class="cmd">curl -s 'http://127.0.0.1:8080/api/full?path=sRGB_D65_MAT.icc'</div>
-<div class="output">=======================================================================
+<div class="output" style="max-height:800px">=======================================================================
   ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
 =======================================================================
 
