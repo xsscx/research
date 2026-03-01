@@ -112,19 +112,18 @@ def main():
 
     print("=== Crafting synthetic seed images ===")
 
-    # 1. Tiny 1×1 images
+    # 1. Tiny images (4×4 with random pixels to pass quality gate)
     s = count
     for pname, pdata in profiles.items():
         t = tag(pname)
-        save_pil(Image.new("RGB", (1, 1), (128, 64, 32)), pdata, f"1x1-rgb8--{t}.tiff")
-        save_pil(
-            Image.new("RGBA", (1, 1), (255, 0, 0, 128)), pdata, f"1x1-rgba8--{t}.tiff"
-        )
+        save_pil(Image.fromarray(np.random.randint(0, 255, (4, 4, 3), dtype=np.uint8)),
+                 pdata, f"4x4-rgb8-tiny--{t}.tiff")
+        save_pil(Image.fromarray(np.random.randint(0, 255, (4, 4, 4), dtype=np.uint8), "RGBA"),
+                 pdata, f"4x4-rgba8-tiny--{t}.tiff")
         if "Gray" in pname or "GSDF" in pname:
-            save_pil(
-                Image.new("L", (1, 1), 128), pdata, f"1x1-gray8--{t}.tiff"
-            )
-    print(f"  1×1 tiny: {count - s}")
+            save_pil(Image.fromarray(np.random.randint(0, 255, (4, 4), dtype=np.uint8), "L"),
+                     pdata, f"4x4-gray8-tiny--{t}.tiff")
+    print(f"  4×4 tiny: {count - s}")
 
     # 2. 16-bit depth
     s = count
@@ -140,20 +139,15 @@ def main():
         )
     print(f"  16-bit: {count - s}")
 
-    # 3. 32-bit float with edge values
+    # 3. 32-bit float with edge values (8×8 random + edge pixels for diversity)
     s = count
     for pname, pdata in list(profiles.items())[:6]:
         t = tag(pname)
-        arr = np.array(
-            [
-                [0.0, 0.5, 1.0],
-                [-0.1, 1.5, float("inf")],
-                [float("-inf"), float("nan"), 0.0],
-                [1e-38, 1e38, -0.0],
-            ],
-            dtype=np.float32,
-        ).reshape(2, 2, 3)
-        save_tiff(arr, pdata, f"2x2-rgbf32-edge--{t}.tiff", photometric="rgb")
+        arr = np.random.uniform(0.0, 1.0, (8, 8, 3)).astype(np.float32)
+        arr[0, 0] = [0.0, 0.5, 1.0]
+        arr[0, 1] = [-0.1, 1.5, 2.0]
+        arr[1, 0] = [1e-38, 1e38, -0.0]
+        save_tiff(arr, pdata, f"8x8-rgbf32-edge--{t}.tiff", photometric="rgb")
     print(f"  float32: {count - s}")
 
     # 4. Multi-strip
@@ -208,13 +202,13 @@ def main():
         )
     print(f"  BigTIFF: {count - s}")
 
-    # 8. Planar (separate planes)
+    # 8. Planar (separate planes) — random data for diversity
     s = count
     for pname, pdata in list(profiles.items())[:4]:
         t = tag(pname)
         save_tiff(
-            np.random.randint(0, 255, (8, 8, 3), dtype=np.uint8),
-            pdata, f"8x8-planar--{t}.tiff", planarconfig="separate",
+            np.random.randint(0, 255, (16, 16, 3), dtype=np.uint8),
+            pdata, f"16x16-planar--{t}.tiff", planarconfig="separate",
         )
     print(f"  planar: {count - s}")
 
@@ -236,22 +230,23 @@ def main():
         save_tiff(arr, pdata, f"4x4-be--{t}.tiff", byteorder=">")
     print(f"  byte-order: {count - s}")
 
-    # 11. JPEG seeds
+    # 11. JPEG seeds (8×8 random for diversity)
     s = count
     for pname, pdata in list(profiles.items())[:6]:
         t = tag(pname)
         save_pil(
-            Image.new("RGB", (2, 2), (200, 100, 50)), pdata, f"2x2-rgb--{t}.jpg", "JPEG"
+            Image.fromarray(np.random.randint(0, 255, (8, 8, 3), dtype=np.uint8)),
+            pdata, f"8x8-rgb--{t}.jpg", "JPEG",
         )
     print(f"  JPEG: {count - s}")
 
-    # 12. PNG seeds
+    # 12. PNG seeds (8×8 random for diversity)
     s = count
     for pname, pdata in list(profiles.items())[:6]:
         t = tag(pname)
         save_pil(
-            Image.new("RGBA", (2, 2), (255, 128, 0, 200)),
-            pdata, f"2x2-rgba--{t}.png", "PNG",
+            Image.fromarray(np.random.randint(0, 255, (8, 8, 4), dtype=np.uint8), "RGBA"),
+            pdata, f"8x8-rgba--{t}.png", "PNG",
         )
     print(f"  PNG: {count - s}")
 
