@@ -44,6 +44,7 @@ from icc_profile_mcp import (
     profile_to_xml,
     compare_profiles,
     upload_and_analyze,
+    health_check,
     cmake_configure,
     cmake_build,
     cmake_option_matrix,
@@ -963,6 +964,25 @@ async def test_upload_and_analyze():
     T.section_summary()
 
 
+# ── health_check tests ───────────────────────────────────────────────
+async def test_health_check():
+    T.section("Health Check")
+
+    result = await health_check()
+
+    T.ok("returns non-empty string", bool(result), result[:80])
+    T.ok("contains health check header", "Health Check" in result, result[:80])
+    T.ok("reports iccanalyzer-lite binary status", "iccanalyzer-lite" in result, result[:80])
+    T.ok("reports iccToXml_unsafe binary status", "iccToXml_unsafe" in result, result[:80])
+    T.ok("reports profile directory counts", "test-profiles" in result, result[:80])
+    T.ok("reports tool count", "16" in result, result[:80])
+    T.ok("reports overall status", "Status:" in result, result[:80])
+    # The status should be "ok" when binaries are present, "degraded" otherwise
+    T.ok("status is ok or degraded", "ok" in result or "degraded" in result, result[:80])
+
+    T.section_summary()
+
+
 async def main():
     start = time.time()
 
@@ -1001,6 +1021,9 @@ async def main():
 
     # Upload and analyze tests
     await test_upload_and_analyze()
+
+    # Health check tests
+    await test_health_check()
 
     # Maintainer build tools tests
     test_sanitize_cmake_args()
