@@ -149,19 +149,33 @@ jobs:
             cd ../..
           fi
 
-          # Build colorbleed_tools (needed for XML roundtrip tests)
+          # Build colorbleed_tools and iccanalyzer-lite (critical for demo)
           if [ "${{ steps.cache-native-tools.outputs.cache-hit }}" != 'true' ]; then
+            export CXX=clang++
+            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+
+            echo "Building colorbleed_tools against cached iccDEV..."
             cd colorbleed_tools
-            if ! make REPO_ROOT=../iccDEV all; then
-              echo "::warning::colorbleed_tools build failed — XML roundtrip tests will be skipped"
-            fi
+            $CXX -std=c++17 -O2 $INCLUDES \
+              -c ColorBleedAlloc.cpp -o ColorBleedAlloc.o
+            $CXX -std=c++17 -O2 $INCLUDES \
+              IccToXml_unsafe.cpp ColorBleedAlloc.o \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+              -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm \
+              -Wl,--allow-multiple-definition \
+              -o iccToXml_unsafe
+            $CXX -std=c++17 -O2 $INCLUDES \
+              IccFromXml_unsafe.cpp ColorBleedAlloc.o \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+              -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm \
+              -Wl,--allow-multiple-definition \
+              -o iccFromXml_unsafe
+            ls -la iccToXml_unsafe iccFromXml_unsafe
             cd ..
 
             # Build iccanalyzer-lite
             cd iccanalyzer-lite
-            export CXX=clang++
             export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
-            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
             SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
                   IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
                   IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
