@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ICC Profile MCP Server — 32-heuristic security analyzer with ASAN/UBSAN, REST API, and WebUI for ICC color profile research">
 <title>ICC Profile MCP Server — Developer Demo Report</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -111,14 +112,14 @@ pre { background: var(--surface); border: 1px solid var(--border); border-radius
 <div class="badges">
 <span class="badge b-blue">Docker :dev</span>
 <span class="badge b-green">15 Tools</span>
-<span class="badge b-yellow">27 Heuristics</span>
+<span class="badge b-yellow">32 Heuristics</span>
 <span class="badge b-red">ASAN+UBSAN</span>
 <span class="badge b-purple">REST API + WebUI</span>
 </div>
 </div>
 
 <!-- ════════════════ TOC ════════════════ -->
-<nav class="toc">
+<nav class="toc" aria-label="Table of contents">
 <strong>Developer Walkthrough</strong>
 <ol>
 <li><a href="#start">Quick Start — Docker</a></li>
@@ -378,7 +379,7 @@ cve-2023-32443-variant-020.icc  (7,460 bytes)
 <!-- ════════════════ 5. SECURITY CLEAN ════════════════ -->
 <h2 id="sec-clean">5. Security Scan — Clean Profile ✅</h2>
 
-<p>All 27 heuristics pass on the well-formed <code>sRGB_D65_MAT.icc</code> monitor profile.</p>
+<p>All 32 heuristics pass on the well-formed <code>sRGB_D65_MAT.icc</code> monitor profile.</p>
 
 <div class="demo">
 <div class="demo-hdr"><h4>GET /api/security?path=sRGB_D65_MAT.icc</h4><span class="badge b-green">NO WARNINGS</span></div>
@@ -1287,7 +1288,7 @@ Tag Pair Analysis:
 <tr><td><code>GET</code></td><td><code>/api/health</code></td><td>—</td><td>Health check → <code>{"ok":true,"tools":15}</code></td></tr>
 <tr><td><code>GET</code></td><td><code>/api/list</code></td><td><code>directory</code></td><td>List profiles in directory</td></tr>
 <tr><td><code>GET</code></td><td><code>/api/inspect</code></td><td><code>path</code></td><td>Structural dump (header + tags)</td></tr>
-<tr><td><code>GET</code></td><td><code>/api/security</code></td><td><code>path</code></td><td>27-heuristic security scan</td></tr>
+<tr><td><code>GET</code></td><td><code>/api/security</code></td><td><code>path</code></td><td>32-heuristic security scan</td></tr>
 <tr><td><code>GET</code></td><td><code>/api/roundtrip</code></td><td><code>path</code></td><td>Round-trip transform validation</td></tr>
 <tr><td><code>GET</code></td><td><code>/api/full</code></td><td><code>path</code></td><td>Combined: security + roundtrip + inspect</td></tr>
 <tr><td><code>GET</code></td><td><code>/api/xml</code></td><td><code>path</code></td><td>Binary ICC → XML conversion</td></tr>
@@ -1346,7 +1347,7 @@ Tag Pair Analysis:
 <table>
 <tr><th>#</th><th>Tool</th><th>Type</th><th>Description</th></tr>
 <tr><td>1</td><td><code>inspect_profile</code></td><td><span class="badge b-blue">Analysis</span></td><td>Header, tag table, field values</td></tr>
-<tr><td>2</td><td><code>analyze_security</code></td><td><span class="badge b-blue">Analysis</span></td><td>27-heuristic security scan (H1–H27)</td></tr>
+<tr><td>2</td><td><code>analyze_security</code></td><td><span class="badge b-blue">Analysis</span></td><td>32-heuristic security scan (H1–H32)</td></tr>
 <tr><td>3</td><td><code>validate_roundtrip</code></td><td><span class="badge b-blue">Analysis</span></td><td>AToB/BToA tag pair completeness</td></tr>
 <tr><td>4</td><td><code>full_analysis</code></td><td><span class="badge b-blue">Analysis</span></td><td>All modes combined in one pass</td></tr>
 <tr><td>5</td><td><code>profile_to_xml</code></td><td><span class="badge b-blue">Analysis</span></td><td>Binary ICC → XML conversion</td></tr>
