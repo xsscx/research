@@ -1347,24 +1347,35 @@ Tag Pair Analysis:
 </div>
 </div>
 
-<h3>All 15 MCP Tools</h3>
+<h3>All 16 MCP Tools</h3>
 <table>
 <tr><th>#</th><th>Tool</th><th>Type</th><th>Description</th></tr>
-<tr><td>1</td><td><code>inspect_profile</code></td><td><span class="badge b-blue">Analysis</span></td><td>Header, tag table, field values</td></tr>
-<tr><td>2</td><td><code>analyze_security</code></td><td><span class="badge b-blue">Analysis</span></td><td>32-heuristic security scan (H1–H32)</td></tr>
-<tr><td>3</td><td><code>validate_roundtrip</code></td><td><span class="badge b-blue">Analysis</span></td><td>AToB/BToA tag pair completeness</td></tr>
-<tr><td>4</td><td><code>full_analysis</code></td><td><span class="badge b-blue">Analysis</span></td><td>All modes combined in one pass</td></tr>
-<tr><td>5</td><td><code>profile_to_xml</code></td><td><span class="badge b-blue">Analysis</span></td><td>Binary ICC → XML conversion</td></tr>
-<tr><td>6</td><td><code>compare_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Unified diff of two profiles</td></tr>
-<tr><td>7</td><td><code>list_test_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Browse available profiles by directory</td></tr>
-<tr><td>8</td><td><code>upload_and_analyze</code></td><td><span class="badge b-blue">Analysis</span></td><td>Base64 upload + any analysis mode</td></tr>
-<tr><td>9</td><td><code>build_tools</code></td><td><span class="badge b-purple">Build</span></td><td>Build C++ analysis tools from source</td></tr>
-<tr><td>10</td><td><code>cmake_configure</code></td><td><span class="badge b-purple">Build</span></td><td>Configure iccDEV cmake (sanitizers, compiler)</td></tr>
-<tr><td>11</td><td><code>cmake_build</code></td><td><span class="badge b-purple">Build</span></td><td>Compile with parallel jobs</td></tr>
-<tr><td>12</td><td><code>create_all_profiles</code></td><td><span class="badge b-purple">Build</span></td><td>Generate ~80+ ICC test profiles</td></tr>
-<tr><td>13</td><td><code>run_iccdev_tests</code></td><td><span class="badge b-purple">Build</span></td><td>Validate generated profiles</td></tr>
-<tr><td>14</td><td><code>cmake_option_matrix</code></td><td><span class="badge b-purple">Build</span></td><td>Test 17 cmake toggles independently</td></tr>
-<tr><td>15</td><td><code>windows_build</code></td><td><span class="badge b-purple">Build</span></td><td>MSVC + vcpkg cross-platform build</td></tr>
+<tr><td>1</td><td><code>health_check</code></td><td><span class="badge b-blue">Analysis</span></td><td>Server status, binary availability, profile counts</td></tr>
+<tr><td>2</td><td><code>inspect_profile</code></td><td><span class="badge b-blue">Analysis</span></td><td>Header, tag table, field values</td></tr>
+<tr><td>3</td><td><code>analyze_security</code></td><td><span class="badge b-blue">Analysis</span></td><td>32-heuristic security scan (H1–H32)</td></tr>
+<tr><td>4</td><td><code>validate_roundtrip</code></td><td><span class="badge b-blue">Analysis</span></td><td>AToB/BToA tag pair completeness</td></tr>
+<tr><td>5</td><td><code>full_analysis</code></td><td><span class="badge b-blue">Analysis</span></td><td>All modes combined in one pass</td></tr>
+<tr><td>6</td><td><code>profile_to_xml</code></td><td><span class="badge b-blue">Analysis</span></td><td>Binary ICC → XML conversion</td></tr>
+<tr><td>7</td><td><code>compare_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Unified diff of two profiles</td></tr>
+<tr><td>8</td><td><code>list_test_profiles</code></td><td><span class="badge b-blue">Analysis</span></td><td>Browse available profiles by directory</td></tr>
+<tr><td>9</td><td><code>upload_and_analyze</code></td><td><span class="badge b-blue">Analysis</span></td><td>Base64 upload + any analysis mode</td></tr>
+<tr><td>10</td><td><code>build_tools</code></td><td><span class="badge b-purple">Build</span></td><td>Build C++ analysis tools from source</td></tr>
+<tr><td>11</td><td><code>cmake_configure</code></td><td><span class="badge b-purple">Build</span></td><td>Configure iccDEV cmake (sanitizers, compiler)</td></tr>
+<tr><td>12</td><td><code>cmake_build</code></td><td><span class="badge b-purple">Build</span></td><td>Compile with parallel jobs</td></tr>
+<tr><td>13</td><td><code>create_all_profiles</code></td><td><span class="badge b-purple">Build</span></td><td>Generate ~80+ ICC test profiles</td></tr>
+<tr><td>14</td><td><code>run_iccdev_tests</code></td><td><span class="badge b-purple">Build</span></td><td>Validate generated profiles</td></tr>
+<tr><td>15</td><td><code>cmake_option_matrix</code></td><td><span class="badge b-purple">Build</span></td><td>Test 17 cmake toggles independently</td></tr>
+<tr><td>16</td><td><code>windows_build</code></td><td><span class="badge b-purple">Build</span></td><td>MSVC + vcpkg cross-platform build</td></tr>
+</table>
+
+<h3>Reusable Prompts</h3>
+<p>Pre-built prompt templates in <a href="https://github.com/xsscx/research/tree/main/.github/prompts"><code>.github/prompts/</code></a> for use with the GitHub prompt UI or Copilot Chat:</p>
+<table>
+<tr><th>Prompt</th><th>Purpose</th><th>Variables</th></tr>
+<tr><td><code>analyze-icc-profile</code></td><td>Full 32-heuristic security scan workflow</td><td><code>{{profile_path}}</code></td></tr>
+<tr><td><code>compare-icc-profiles</code></td><td>Side-by-side structural &amp; security diff</td><td><code>{{profile_a}}</code>, <code>{{profile_b}}</code></td></tr>
+<tr><td><code>triage-cve-poc</code></td><td>CVE PoC analysis with CVE cross-referencing</td><td><code>{{profile_path}}</code></td></tr>
+<tr><td><code>health-check</code></td><td>MCP server operational verification</td><td>(none)</td></tr>
 </table>
 
 <!-- ════════════════ FOOTER ════════════════ -->

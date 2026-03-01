@@ -94,3 +94,12 @@ curl 'http://localhost:8080/api/security?path=sRGB_D65_MAT.icc'
 
 Other modes: `api` (WebUI at `/` + REST API), `mcp` (stdio server for AI agents).
 See [dev-demo/README.md](dev-demo/README.md) for full usage.
+
+## Reusable Prompts
+
+Pre-built prompt templates for AI-assisted analysis in [`.github/prompts/`](.github/prompts/):
+
+- **analyze-icc-profile** — Full 32-heuristic security scan
+- **compare-icc-profiles** — Side-by-side structural diff
+- **triage-cve-poc** — CVE PoC analysis with CVE cross-referencing
+- **health-check** — MCP server verification
