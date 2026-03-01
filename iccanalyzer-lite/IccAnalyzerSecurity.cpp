@@ -192,6 +192,28 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     return -1;
   }
   
+  // Read raw tag count from offset 128 (4 bytes big-endian) for early gating
+  bool skipLibraryPhase = false;
+  icUInt32Number rawTagCount = 0;
+  {
+    icUInt8Number tcBytes[4] = {};
+    io.Seek(128, icSeekSet);
+    if (io.Read8(tcBytes, 4) == 4) {
+      rawTagCount = (static_cast<icUInt32Number>(tcBytes[0])<<24) |
+                    (static_cast<icUInt32Number>(tcBytes[1])<<16) |
+                    (static_cast<icUInt32Number>(tcBytes[2])<<8) | tcBytes[3];
+    }
+    if (rawTagCount > 1000) {
+      skipLibraryPhase = true;
+      printf("=======================================================================\n");
+      printf("[PREFLIGHT] Tag count = %u (>1000) — profile is severely malformed\n", rawTagCount);
+      printf("            Library-API heuristics will be skipped to avoid crash/hang\n");
+      printf("=======================================================================\n\n");
+    }
+  }
+  
+  static constexpr int kCriticalHeuristicThreshold = 5;
+
   printf("=======================================================================\n");
   printf("%sHEADER VALIDATION HEURISTICS%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
@@ -522,6 +544,18 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
   io.Close();
   
+  // Gate: skip library-API phase if profile is too malformed.
+  // Raw-file heuristics (H1-H8, H15-H17, H25-H32) are safe (they read bytes directly).
+  // Library-API heuristics (H9-H14, H18-H24) call into unpatched iccDEV which can
+  // infinite-recurse, stack-overflow, or OOM on severely malformed profiles.
+  if (skipLibraryPhase || heuristicCount >= kCriticalHeuristicThreshold) {
+    printf("=======================================================================\n");
+    printf("[SKIP] Profile too malformed for library analysis (%d warnings, %u tags)\n",
+           heuristicCount, rawTagCount);
+    printf("       Library-API heuristics skipped to avoid crash/hang\n");
+    printf("       Use -n (ninja mode) for byte-level raw analysis\n");
+    printf("=======================================================================\n\n");
+  } else {
   // Now open profile with IccProfLib for tag-level analysis
   CIccProfile *pIcc = OpenIccProfile(filename);
   if (!pIcc) {
@@ -2004,6 +2038,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
     delete pIcc;
   }
+  } // end of critical-threshold gate
   
   // Summary
   printf("=======================================================================\n");

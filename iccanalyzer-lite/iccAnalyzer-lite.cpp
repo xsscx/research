@@ -20,6 +20,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <climits>
+#include <csignal>
+#include <csetjmp>
 #include <sys/stat.h>
 
 // Resolve and validate a user-supplied file path.
@@ -72,11 +74,113 @@ void* icRealloc(void *ptr, size_t size) {
   return nptr;
 }
 
-// ─── ASAN options ───
-// When analyzing malicious profiles, library may request huge allocations.
-// allocator_may_return_null=1 makes ASAN return NULL instead of aborting.
+// Reset cumulative allocator state between analysis runs or after recovery.
+void ResetAllocGuard() {
+  g_total_alloc = 0;
+}
+
+// ─── Sanitizer options ───
+// allocator_may_return_null=1: ASAN returns NULL instead of aborting on OOM
+// halt_on_error=0: ASAN continues after finding (recoverable mode)
+// handle_segv/sigbus/sigfpe=0: let OUR signal handler run, not ASAN's
+//   (ASAN's handler aborts; ours recovers via siglongjmp)
 extern "C" const char *__asan_default_options() {
-  return "allocator_may_return_null=1:detect_leaks=0";
+  return "allocator_may_return_null=1:detect_leaks=0:halt_on_error=0"
+         ":handle_segv=0:handle_sigbus=0:handle_sigfpe=0:handle_abort=0";
+}
+
+// print_stacktrace=1: show where UB occurred
+// halt_on_error=0: continue after UB (recoverable mode)
+extern "C" const char *__ubsan_default_options() {
+  return "print_stacktrace=1:halt_on_error=0";
+}
+
+// ─── Crash recovery ───
+// When the unpatched iccDEV library hits a CVE (SIGSEGV, SIGBUS, SIGFPE),
+// we recover and report partial results instead of dying silently.
+static sigjmp_buf g_recovery_jmp;
+static volatile sig_atomic_t g_recovery_active = 0;
+static volatile sig_atomic_t g_crash_signal = 0;
+
+static const char *SignalName(int sig) {
+  switch (sig) {
+    case SIGSEGV: return "SIGSEGV (segmentation fault)";
+    case SIGBUS:  return "SIGBUS (bus error)";
+    case SIGFPE:  return "SIGFPE (floating-point exception)";
+    case SIGALRM: return "SIGALRM (analysis timeout)";
+    case SIGABRT: return "SIGABRT (abort)";
+    default:      return "unknown signal";
+  }
+}
+
+static void CrashRecoveryHandler(int sig) {
+  if (g_recovery_active) {
+    g_crash_signal = sig;
+    siglongjmp(g_recovery_jmp, sig);
+  }
+  // Recovery not active — restore default handler and re-raise
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+static void InstallCrashRecovery() {
+  // 256KB alternate stack — ASAN needs space for error reporting in signal context
+  static char alt_stack[262144];
+  stack_t ss = {};
+  ss.ss_sp = alt_stack;
+  ss.ss_size = sizeof(alt_stack);
+  ss.ss_flags = 0;
+  sigaltstack(&ss, nullptr);
+
+  struct sigaction sa = {};
+  sa.sa_handler = CrashRecoveryHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_NODEFER | SA_ONSTACK;
+  sigaction(SIGSEGV, &sa, nullptr);
+  sigaction(SIGBUS,  &sa, nullptr);
+  sigaction(SIGFPE,  &sa, nullptr);
+  sigaction(SIGABRT, &sa, nullptr);
+
+  // SIGALRM for analysis timeout — uses default flags (no SA_ONSTACK needed)
+  struct sigaction sa_alrm = {};
+  sa_alrm.sa_handler = CrashRecoveryHandler;
+  sigemptyset(&sa_alrm.sa_mask);
+  sa_alrm.sa_flags = SA_NODEFER;
+  sigaction(SIGALRM, &sa_alrm, nullptr);
+}
+
+// Normalize raw analysis return values to deterministic exit codes.
+// Raw: -1 = I/O error, 0 = clean, >0 = findings (count or flag)
+static int NormalizeExit(int raw) {
+  if (raw < 0)  return ICC_EXIT_ERROR;
+  if (raw == 0) return ICC_EXIT_CLEAN;
+  return ICC_EXIT_FINDING;
+}
+
+// Run an analysis function with crash recovery. If the library crashes
+// or hangs, print a diagnostic and return ICC_EXIT_FINDING instead of dying.
+static constexpr unsigned kAnalysisTimeoutSec = 15;
+
+template<typename Fn>
+static int RecoverableRun(const char *label, Fn fn) {
+  g_recovery_active = 1;
+  alarm(kAnalysisTimeoutSec);  // watchdog: recover if analysis hangs
+  int sig = sigsetjmp(g_recovery_jmp, 1);
+  if (sig != 0) {
+    alarm(0);  // cancel watchdog
+    g_recovery_active = 0;
+    fprintf(stderr, "\n╔══════════════════════════════════════════════════════╗\n");
+    fprintf(stderr, "║  [RECOVERY] Library crashed: %s\n", SignalName(sig));
+    fprintf(stderr, "║  During: %s\n", label);
+    fprintf(stderr, "║  Partial results above may be incomplete\n");
+    fprintf(stderr, "╚══════════════════════════════════════════════════════╝\n");
+    ResetAllocGuard();
+    return ICC_EXIT_FINDING;
+  }
+  int result = fn();
+  alarm(0);  // cancel watchdog on success
+  g_recovery_active = 0;
+  return NormalizeExit(result);
 }
 
 void PrintUsage() {
@@ -104,15 +208,9 @@ void PrintUsage() {
   printf("      For full version with all features, use regular iccAnalyzer\n");
 }
 
-// Normalize raw analysis return values to deterministic exit codes.
-// Raw: -1 = I/O error, 0 = clean, >0 = findings (count or flag)
-static int NormalizeExit(int raw) {
-  if (raw < 0)  return ICC_EXIT_ERROR;
-  if (raw == 0) return ICC_EXIT_CLEAN;
-  return ICC_EXIT_FINDING;
-}
-
 int main(int argc, char **argv) {
+  InstallCrashRecovery();
+
   if (argc < 2) {
     PrintUsage();
     return ICC_EXIT_USAGE;
@@ -132,27 +230,27 @@ int main(int argc, char **argv) {
   
   // Heuristics mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-h") == 0 && argc >= 3) {
-    return NormalizeExit(HeuristicAnalyze(profilePath, nullptr));
+    return RecoverableRun("heuristic analysis", [&]{ return HeuristicAnalyze(profilePath, nullptr); });
   }
   
   // Round-trip mode
   if (strcmp(mode, "-r") == 0 && argc >= 3) {
-    return NormalizeExit(RoundTripAnalyze(profilePath));
+    return RecoverableRun("round-trip analysis", [&]{ return RoundTripAnalyze(profilePath); });
   }
   
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-a") == 0 && argc >= 3) {
-    return NormalizeExit(ComprehensiveAnalyze(profilePath, nullptr));
+    return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr); });
   }
   
   // Ninja mode
   if (strcmp(mode, "-n") == 0 && argc >= 3) {
-    return NormalizeExit(NinjaModeAnalyze(profilePath, false));
+    return RecoverableRun("ninja analysis", [&]{ return NinjaModeAnalyze(profilePath, false); });
   }
   
   // Ninja mode (full dump)
   if (strcmp(mode, "-nf") == 0 && argc >= 3) {
-    return NormalizeExit(NinjaModeAnalyze(profilePath, true));
+    return RecoverableRun("ninja analysis (full)", [&]{ return NinjaModeAnalyze(profilePath, true); });
   }
   
   // Extract LUT
@@ -165,7 +263,7 @@ int main(int argc, char **argv) {
               IccAnalyzerSecurity::GetValidationErrorMessage(lutPathResult, argv[3]).c_str());
       return ICC_EXIT_ERROR;
     }
-    return NormalizeExit(ExtractLutData(profilePath, argv[3]));
+    return RecoverableRun("LUT extraction", [&]{ return ExtractLutData(profilePath, argv[3]); });
   }
   
   // XML report export
@@ -179,9 +277,21 @@ int main(int argc, char **argv) {
               IccAnalyzerSecurity::GetValidationErrorMessage(xmlPathResult, outXml).c_str());
       return ICC_EXIT_ERROR;
     }
-    // Run heuristic analysis to collect findings
+    // Run heuristic analysis with crash recovery
     HeuristicReport report;
-    int result = HeuristicAnalyze(profilePath, nullptr);
+    g_recovery_active = 1;
+    int sig = sigsetjmp(g_recovery_jmp, 1);
+    int result;
+    if (sig != 0) {
+      g_recovery_active = 0;
+      fprintf(stderr, "\n[RECOVERY] Library crashed (%s) during XML export analysis\n",
+              SignalName(sig));
+      result = -1;
+      ResetAllocGuard();
+    } else {
+      result = HeuristicAnalyze(profilePath, nullptr);
+      g_recovery_active = 0;
+    }
 
     // Populate report summary from exit code
     HeuristicFinding f;
