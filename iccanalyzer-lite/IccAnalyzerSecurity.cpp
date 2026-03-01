@@ -44,6 +44,9 @@
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
 #include "IccProfile.h"
+#include "IccMpeBasic.h"
+#include "IccMpeCalc.h"
+#include "IccTagMPE.h"
 #include <cmath>
 
 //==============================================================================
@@ -211,10 +214,18 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   } else {
     printf("     %s[OK] Size within normal range%s\n", ColorSuccess(), ColorReset());
   }
-  // Size inflation: header claims much larger than actual file
+  // Truncation: header claims larger than actual file — tags will read OOB
+  if (actualFileSize > 0 && profileSize > 0 && profileSize > actualFileSize) {
+    printf("     %s[WARN]  HEURISTIC: Profile TRUNCATED — header claims %u bytes but file is only %zu bytes%s\n",
+           ColorCritical(), profileSize, actualFileSize, ColorReset());
+    printf("     %sRisk: Tags referencing past EOF will cause heap-buffer-overflow reads%s\n",
+           ColorCritical(), ColorReset());
+    heuristicCount++;
+  }
+  // Size inflation: header claims much larger than actual file (extreme)
   if (actualFileSize > 0 && profileSize > 0 &&
       profileSize > actualFileSize * 16 && profileSize > (128u << 20)) {
-    printf("     %s[WARN]  HEURISTIC: Header claims %u bytes but file is %zu bytes (%.0fx inflation)%s\n",
+    printf("     %s[WARN]  HEURISTIC: Extreme inflation — header claims %u bytes but file is %zu bytes (%.0fx)%s\n",
            ColorCritical(), profileSize, actualFileSize,
            (double)profileSize / actualFileSize, ColorReset());
     printf("     %sRisk: OOM via tag-internal allocations sized from inflated header%s\n",
@@ -1219,6 +1230,270 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       } else {
         printf("      %s[OK] Max nesting depth: %d (safe limit: %d)%s\n",
                ColorSuccess(), maxDepth, MAX_SAFE_DEPTH, ColorReset());
+      }
+    }
+    printf("\n");
+
+    // 25. Tag Offset/Size OOB Detection (raw file bytes)
+    printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
+    {
+      FILE *fp25 = fopen(filename, "rb");
+      if (fp25) {
+        fseek(fp25, 0, SEEK_END);
+        size_t realSize = ftell(fp25);
+        fseek(fp25, 0, SEEK_SET);
+        
+        int oobCount = 0;
+        if (realSize >= 132) {
+          icUInt8Number hdr25[132];
+          if (fread(hdr25, 1, 132, fp25) == 132) {
+            icUInt32Number hdrProfileSize = (static_cast<icUInt32Number>(hdr25[0])<<24) | (static_cast<icUInt32Number>(hdr25[1])<<16) |
+                                            (static_cast<icUInt32Number>(hdr25[2])<<8) | hdr25[3];
+            icUInt32Number tc = (static_cast<icUInt32Number>(hdr25[128])<<24) | (static_cast<icUInt32Number>(hdr25[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr25[130])<<8) | hdr25[131];
+            size_t bound = (realSize < hdrProfileSize) ? realSize : hdrProfileSize;
+            
+            for (icUInt32Number i = 0; i < tc && i < 256; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > realSize) break;
+              
+              icUInt8Number e25[12];
+              fseek(fp25, ePos, SEEK_SET);
+              if (fread(e25, 1, 12, fp25) != 12) break;
+              
+              icUInt32Number tSig = (static_cast<icUInt32Number>(e25[0])<<24) | (static_cast<icUInt32Number>(e25[1])<<16) |
+                                    (static_cast<icUInt32Number>(e25[2])<<8) | e25[3];
+              icUInt32Number tOff = (static_cast<icUInt32Number>(e25[4])<<24) | (static_cast<icUInt32Number>(e25[5])<<16) |
+                                    (static_cast<icUInt32Number>(e25[6])<<8) | e25[7];
+              icUInt32Number tSz  = (static_cast<icUInt32Number>(e25[8])<<24) | (static_cast<icUInt32Number>(e25[9])<<16) |
+                                    (static_cast<icUInt32Number>(e25[10])<<8) | e25[11];
+              
+              uint64_t tagEnd = (uint64_t)tOff + tSz;
+              char sig25[5];
+              sig25[0] = (tSig>>24)&0xff; sig25[1] = (tSig>>16)&0xff;
+              sig25[2] = (tSig>>8)&0xff;  sig25[3] = tSig&0xff; sig25[4] = '\0';
+              
+              if (tOff >= bound) {
+                printf("      %s[WARN]  Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)%s\n",
+                       ColorCritical(), sig25, tOff, bound, ColorReset());
+                oobCount++;
+              } else if (tagEnd > bound) {
+                printf("      %s[WARN]  Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)%s\n",
+                       ColorCritical(), sig25, tOff, tSz,
+                       (unsigned long long)(tagEnd - bound), bound, ColorReset());
+                oobCount++;
+              }
+            }
+          }
+        }
+        fclose(fp25);
+        
+        if (oobCount > 0) {
+          printf("      %s%d tag(s) reference data beyond file/profile bounds%s\n",
+                 ColorCritical(), oobCount, ColorReset());
+          printf("      %sRisk: Heap-buffer-overflow when loading OOB tags%s\n",
+                 ColorCritical(), ColorReset());
+          heuristicCount++;
+        } else {
+          printf("      %s[OK] All tag offsets/sizes within bounds%s\n", ColorSuccess(), ColorReset());
+        }
+      }
+    }
+    printf("\n");
+
+    // 26. NamedColor2 String Validation (raw scan — checks tag TYPE, not signature)
+    printf("[H26] NamedColor2 String Validation\n");
+    {
+      FILE *fp26 = fopen(filename, "rb");
+      if (fp26) {
+          fseek(fp26, 0, SEEK_END);
+          size_t fs26 = ftell(fp26);
+          fseek(fp26, 0, SEEK_SET);
+          
+          int nc2Issues = 0;
+          if (fs26 >= 132) {
+            icUInt8Number hdr26[132];
+            if (fread(hdr26, 1, 132, fp26) == 132) {
+              icUInt32Number tc26 = (static_cast<icUInt32Number>(hdr26[128])<<24) | (static_cast<icUInt32Number>(hdr26[129])<<16) |
+                                    (static_cast<icUInt32Number>(hdr26[130])<<8) | hdr26[131];
+              
+              for (icUInt32Number i = 0; i < tc26 && i < 256; i++) {
+                size_t ePos = 132 + i * 12;
+                if (ePos + 12 > fs26) break;
+                
+                icUInt8Number e26[12];
+                fseek(fp26, ePos, SEEK_SET);
+                if (fread(e26, 1, 12, fp26) != 12) break;
+                
+                icUInt32Number tOff26 = (static_cast<icUInt32Number>(e26[4])<<24) | (static_cast<icUInt32Number>(e26[5])<<16) |
+                                        (static_cast<icUInt32Number>(e26[6])<<8) | e26[7];
+                icUInt32Number tSz26  = (static_cast<icUInt32Number>(e26[8])<<24) | (static_cast<icUInt32Number>(e26[9])<<16) |
+                                        (static_cast<icUInt32Number>(e26[10])<<8) | e26[11];
+                
+                // Read first 4 bytes of tag data to check type
+                if (tOff26 + 4 > fs26 || tSz26 < 84) continue;
+                icUInt8Number typeCheck[4];
+                fseek(fp26, tOff26, SEEK_SET);
+                if (fread(typeCheck, 1, 4, fp26) != 4) continue;
+                icUInt32Number tagType26 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
+                                           (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
+                if (tagType26 != 0x6E636C32) continue;  // Not 'ncl2' type
+                if (tOff26 + 84 > fs26) continue;
+                
+                // NamedColor2: type(4)+reserved(4)+vendorFlags(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
+                icUInt8Number prefix[32], suffix[32];
+                fseek(fp26, tOff26 + 20, SEEK_SET);
+                if (fread(prefix, 1, 32, fp26) != 32) continue;
+                if (fread(suffix, 1, 32, fp26) != 32) continue;
+                
+                // Count XML-expandable chars: ' " & < > expand to 4-6 chars in icFixXml
+                auto countXmlExpand = [](const icUInt8Number *buf, int len) -> int {
+                  int ct = 0;
+                  for (int j = 0; j < len && buf[j] != 0; j++) {
+                    if (buf[j] == '\'' || buf[j] == '"' || buf[j] == '&' ||
+                        buf[j] == '<'  || buf[j] == '>')
+                      ct++;
+                  }
+                  return ct;
+                };
+                
+                int prefixLen = 0, suffixLen = 0;
+                for (int j = 0; j < 32 && prefix[j]; j++) prefixLen++;
+                for (int j = 0; j < 32 && suffix[j]; j++) suffixLen++;
+                
+                int prefixExpand = countXmlExpand(prefix, 32);
+                int suffixExpand = countXmlExpand(suffix, 32);
+                
+                // icFixXml destination is char[256]. Expandable chars grow up to 6x (&apos; etc.)
+                int prefixExpanded = prefixLen + prefixExpand * 5;
+                int suffixExpanded = suffixLen + suffixExpand * 5;
+                
+                if (prefixExpanded > 255) {
+                  printf("      %s[HIGH] Prefix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)%s\n",
+                         ColorCritical(), prefixLen, prefixExpand, prefixExpanded, ColorReset());
+                  printf("       %sRisk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)%s\n",
+                         ColorCritical(), ColorReset());
+                  nc2Issues++;
+                } else if (prefixExpand > 0 && prefixLen > 20) {
+                  printf("      %s[WARN]  Prefix has %d XML-expandable chars in %d-byte string (expanded: %d)%s\n",
+                         ColorWarning(), prefixExpand, prefixLen, prefixExpanded, ColorReset());
+                  nc2Issues++;
+                }
+                
+                if (suffixExpanded > 255) {
+                  printf("      %s[HIGH] Suffix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)%s\n",
+                         ColorCritical(), suffixLen, suffixExpand, suffixExpanded, ColorReset());
+                  printf("       %sRisk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)%s\n",
+                         ColorCritical(), ColorReset());
+                  nc2Issues++;
+                } else if (suffixExpand > 0 && suffixLen > 20) {
+                  printf("      %s[WARN]  Suffix has %d XML-expandable chars in %d-byte string (expanded: %d)%s\n",
+                         ColorWarning(), suffixExpand, suffixLen, suffixExpanded, ColorReset());
+                  nc2Issues++;
+                }
+                
+                // Check for non-null-terminated strings
+                bool prefixUnterminated = true, suffixUnterminated = true;
+                for (int j = 0; j < 32; j++) { if (prefix[j] == 0) { prefixUnterminated = false; break; } }
+                for (int j = 0; j < 32; j++) { if (suffix[j] == 0) { suffixUnterminated = false; break; } }
+                
+                if (prefixUnterminated) {
+                  printf("      %s[WARN]  Prefix not null-terminated (all 32 bytes non-zero)%s\n",
+                         ColorCritical(), ColorReset());
+                  printf("       %sRisk: strlen overflow, icFixXml reads past buffer boundary%s\n",
+                         ColorCritical(), ColorReset());
+                  nc2Issues++;
+                }
+                if (suffixUnterminated) {
+                  printf("      %s[WARN]  Suffix not null-terminated (all 32 bytes non-zero)%s\n",
+                         ColorCritical(), ColorReset());
+                  printf("       %sRisk: strlen overflow, icFixXml reads past buffer boundary%s\n",
+                         ColorCritical(), ColorReset());
+                  nc2Issues++;
+                }
+              }
+            }
+          }
+          fclose(fp26);
+          
+          if (nc2Issues > 0) {
+            heuristicCount += nc2Issues;
+          } else {
+            printf("      %s[OK] No NamedColor2 tags with risky strings%s\n", ColorSuccess(), ColorReset());
+          }
+        }
+      }
+    printf("\n");
+
+    // 27. MPE Matrix Output Channel Validation
+    printf("[H27] MPE Matrix Output Channel Validation\n");
+    {
+      int matrixIssues = 0;
+      icUInt32Number mpeSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+      };
+      for (auto sig : mpeSigs) {
+        CIccTag *pTag = pIcc->FindTag(sig);
+        if (!pTag) continue;
+        CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+        if (!pMpe) continue;
+        
+        icUInt32Number numElements = pMpe->NumElements();
+        
+        int elemIdx = 0;
+        for (icUInt32Number ei = 0; ei < numElements && elemIdx < 64; ei++, elemIdx++) {
+          CIccMultiProcessElement *pElem = pMpe->GetElement(ei);
+          if (!pElem) continue;
+          
+          // Check for matrix elements with 0 output channels
+          CIccMpeMatrix *pMatrix = dynamic_cast<CIccMpeMatrix*>(pElem);
+          if (pMatrix) {
+            icUInt16Number numOut = pMatrix->NumOutputChannels();
+            icUInt16Number numIn = pMatrix->NumInputChannels();
+            
+            char sigStr27[5];
+            SignatureToFourCC(sig, sigStr27);
+            
+            if (numOut == 0 || numIn == 0) {
+              printf("      %s[WARN]  Tag '%s' elem %d: Matrix %ux%u — zero dimension%s\n",
+                     ColorCritical(), sigStr27, elemIdx, numIn, numOut, ColorReset());
+              printf("       %sRisk: Division by zero or null-pointer in matrix operations%s\n",
+                     ColorCritical(), ColorReset());
+              matrixIssues++;
+            } else if (numOut < 3) {
+              printf("      %s[WARN]  Tag '%s' elem %d: Matrix has %u output channels (XYZ needs 3)%s\n",
+                     ColorWarning(), sigStr27, elemIdx, numOut, ColorReset());
+              printf("       %sRisk: HBO in pushXYZConvert accessing pOffset[0..2] on %u-channel matrix%s\n",
+                     ColorCritical(), numOut, ColorReset());
+              matrixIssues++;
+            }
+          }
+          
+          // Check calculator elements for sub-element count
+          CIccMpeCalculator *pCalc = dynamic_cast<CIccMpeCalculator*>(pElem);
+          if (pCalc) {
+            icUInt16Number calcOut = pCalc->NumOutputChannels();
+            icUInt16Number calcIn = pCalc->NumInputChannels();
+            
+            char sigStr27c[5];
+            SignatureToFourCC(sig, sigStr27c);
+            
+            if (calcOut == 0 || calcIn == 0) {
+              printf("      %s[WARN]  Tag '%s' elem %d: Calculator %ux%u — zero dimension%s\n",
+                     ColorCritical(), sigStr27c, elemIdx, calcIn, calcOut, ColorReset());
+              matrixIssues++;
+            }
+          }
+        }
+      }
+      
+      if (matrixIssues > 0) {
+        heuristicCount += matrixIssues;
+      } else {
+        printf("      %s[OK] All MPE matrix/calculator dimensions valid%s\n", ColorSuccess(), ColorReset());
       }
     }
     printf("\n");
