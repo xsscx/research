@@ -11,11 +11,15 @@ on:
     paths:
       - 'mcp-server/**'
       - '!mcp-server/**/*.md'
+      - '!mcp-server/codeql-queries/**'
+      - '!mcp-server/codeql-config.yml'
       - '.github/workflows/mcp-server-test.yml'
   pull_request:
     paths:
       - 'mcp-server/**'
       - '!mcp-server/**/*.md'
+      - '!mcp-server/codeql-queries/**'
+      - '!mcp-server/codeql-config.yml'
   workflow_dispatch:
 
 permissions:
