@@ -415,6 +415,7 @@ const $copyBtn    = document.getElementById("copyBtn");
 function selectTool(toolName) {
   if (!TOOLS[toolName]) return;
   currentTool = toolName;
+  activePathInput = null;
   location.hash = toolName;
   $toolbar.querySelectorAll("button").forEach(b => b.classList.remove("active"));
   const active = $toolbar.querySelector(`button[data-tool="${toolName}"]`);
@@ -710,13 +711,22 @@ async function loadProfilePicker(visible) {
   picker.innerHTML = html;
 }
 
+/* ── Track which path input was last focused (for compare tool) ── */
+let activePathInput = null;
+$inputPanel.addEventListener("focusin", e => {
+  if (e.target.matches("input[id^='inp-path']")) {
+    activePathInput = e.target;
+  }
+});
+
 /* ── Profile picker delegation (single handler, never duplicated) ── */
 $inputPanel.addEventListener("click", e => {
   const item = e.target.closest(".item[data-name]");
   if (!item) return;
   const name = item.dataset.name;
-  // Target path inputs specifically, not file/hidden inputs
-  const pathInput = document.getElementById("inp-path")
+  // Use last-focused path input, fall back to first available
+  const pathInput = activePathInput
+                 || document.getElementById("inp-path")
                  || document.getElementById("inp-path_a");
   if (pathInput) {
     pathInput.value = name;
