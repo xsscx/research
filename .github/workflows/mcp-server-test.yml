@@ -13,7 +13,6 @@ on:
       - '!mcp-server/**/*.md'
       - '!mcp-server/codeql-queries/**'
       - '!mcp-server/codeql-config.yml'
-      - '.github/workflows/mcp-server-test.yml'
   pull_request:
     paths:
       - 'mcp-server/**'
@@ -153,7 +152,9 @@ jobs:
           # Build colorbleed_tools (needed for XML roundtrip tests)
           if [ "${{ steps.cache-native-tools.outputs.cache-hit }}" != 'true' ]; then
             cd colorbleed_tools
-            make REPO_ROOT=../iccDEV all || echo "colorbleed_tools build skipped (non-critical)"
+            if ! make REPO_ROOT=../iccDEV all; then
+              echo "::warning::colorbleed_tools build failed — XML roundtrip tests will be skipped"
+            fi
             cd ..
 
             # Build iccanalyzer-lite
