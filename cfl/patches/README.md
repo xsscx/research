@@ -531,6 +531,7 @@ A crafted XML profile with an empty `<TagSignature/>` element triggers
 Fix: guard `tagSigNode->children` and `tagSigNode->children->content`; skip
 the element with `continue` when either is null.
 Reproducer: `segv-CIccTagXmlStruct-ParseTag-IccTagXml_cpp-Line4738.xml`.
+Crash artifact alias: `crash-b1286b17ba029aa915714027d60469eadafa2313`.
 
 ## Application
 
