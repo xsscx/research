@@ -1,0 +1,10 @@
+--- a/IccXML/IccLibXML/IccTagXml.cpp
++++ b/IccXML/IccLibXML/IccTagXml.cpp
+@@ -4736,6 +4736,8 @@
+         for (xmlNode *tagSigNode = pNode->children; tagSigNode; tagSigNode = tagSigNode->next) {
+           if (tagSigNode->type == XML_ELEMENT_NODE && !icXmlStrCmp(tagSigNode->name, "TagSignature")) {
++            if (!tagSigNode->children || !tagSigNode->children->content)
++              continue;
+             sigTag = (icTagSignature)icGetSigVal((const icChar*)tagSigNode->children->content);
+             AttachElem(sigTag, pTag);
+           }
