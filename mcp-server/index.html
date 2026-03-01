@@ -715,12 +715,12 @@ $inputPanel.addEventListener("click", e => {
   const item = e.target.closest(".item[data-name]");
   if (!item) return;
   const name = item.dataset.name;
-  const inputs = $inputPanel.querySelectorAll("input");
-  let filled = false;
-  for (const inp of inputs) {
-    if (!inp.value.trim()) { inp.value = name; filled = true; break; }
+  // Target path inputs specifically, not file/hidden inputs
+  const pathInput = document.getElementById("inp-path")
+                 || document.getElementById("inp-path_a");
+  if (pathInput) {
+    pathInput.value = name;
   }
-  if (!filled && inputs.length) inputs[0].value = name;
 });
 
 /* ── Toggle server profile picker ──────────────────────── */
