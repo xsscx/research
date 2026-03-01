@@ -9,7 +9,7 @@
  *  Runs BEFORE calling any iccDEV library functions to detect malformed
  *  profiles that would trigger crashes in unpatched code.
  *
- *  Adapted from iccanalyzer-lite heuristics (H1-H19) for use in
+ *  Adapted from iccanalyzer-lite heuristics (H1-H30) for use in
  *  colorbleed tools. Unlike iccanalyzer-lite, this does NOT reject
  *  profiles — it logs warnings and returns a risk assessment so the
  *  sandbox can make informed decisions about resource limits.
@@ -377,16 +377,147 @@ static PreflightResult PreflightValidateICC(const char* filename) {
   }
 
   // ── Tag bounds check: offsets within file ──
+  // CVE refs: CVE-2026-25583 (HBO in CIccFileIO::Read8), CVE-2026-24852
   for (const auto& t : tags) {
     if (t.offset > 0 && t.size > 0) {
       uint64_t end = (uint64_t)t.offset + t.size;
-      if (end > fileSize) {
+      size_t bound = (fileSize < profileSize) ? fileSize : profileSize;
+      if (end > bound) {
         uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
         char sig4[5]; SanitizeSig4(raw4, sig4);
         char buf[128];
-        snprintf(buf, sizeof(buf), "Tag '%.4s' extends past EOF: offset=%u size=%u file=%zu",
-                 sig4, t.offset, t.size, fileSize);
-        result.AddWarning("H0", buf, PreflightSeverity::WARNING);
+        snprintf(buf, sizeof(buf), "Tag '%.4s' extends past bounds: offset=%u size=%u bound=%zu",
+                 sig4, t.offset, t.size, bound);
+        result.AddWarning("H25", buf, PreflightSeverity::WARNING);
+      }
+    }
+  }
+
+  // ── H28: LUT Dimension Validation (OOM Risk) ──
+  // CVE refs: GHSA-x9hr-pxxc-h38p (OOM in CIccCLUT::Init via extreme nInput^nGrid)
+  for (const auto& t : tags) {
+    if (t.offset >= 128 && t.size >= 11 && t.size <= fileSize &&
+        t.offset <= fileSize - t.size) {
+      uint8_t lutHdr[11];
+      fseek(fp, t.offset, SEEK_SET);
+      if (fread(lutHdr, 1, 11, fp) != 11) continue;
+      uint32_t lutType = ReadBE32(lutHdr);
+      // LUT8='mft1' (0x6D667431), LUT16='mft2' (0x6D667432)
+      if (lutType != 0x6D667431 && lutType != 0x6D667432) continue;
+
+      uint8_t nInput  = lutHdr[8];
+      uint8_t nOutput = lutHdr[9];
+      uint8_t nGrid   = lutHdr[10];
+
+      if (nInput > 16 || nOutput > 16) {
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Tag '%.4s' LUT nInput=%u nOutput=%u exceeds spec max 16",
+                 sig4, nInput, nOutput);
+        result.AddWarning("H28", buf, PreflightSeverity::CRITICAL);
+        continue;
+      }
+
+      uint64_t points = 1;
+      bool overflow = false;
+      for (int ch = 0; ch < nInput; ch++) {
+        uint64_t prev = points;
+        points *= nGrid;
+        if (nGrid > 0 && points / nGrid != prev) { overflow = true; break; }
+      }
+      if (!overflow && nOutput > 0) {
+        uint64_t prev = points;
+        points *= nOutput;
+        if (points / nOutput != prev) overflow = true;
+      }
+      if (overflow || points > CB_MAX_CLUT_ENTRIES) {
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
+        char buf[160];
+        snprintf(buf, sizeof(buf), "Tag '%.4s' LUT %ux%ux%u = %s CLUT points (OOM in CIccCLUT::Init)",
+                 sig4, nInput, nOutput, nGrid, overflow ? "OVERFLOW" : "excessive");
+        result.AddWarning("H28", buf, PreflightSeverity::CRITICAL);
+      }
+    }
+  }
+
+  // ── H29: ColorantTable String Validation ──
+  // CVE refs: GHSA-4wqv-pvm8-5h27 (OOB read via unterminated colorant name[32])
+  for (const auto& t : tags) {
+    if (t.offset >= 128 && t.size >= 12 && t.size <= fileSize &&
+        t.offset <= fileSize - t.size) {
+      uint8_t typeCheck[12];
+      fseek(fp, t.offset, SEEK_SET);
+      if (fread(typeCheck, 1, 12, fp) != 12) continue;
+      uint32_t tagType = ReadBE32(typeCheck);
+      if (tagType != 0x636C7274) continue; // 'clrt'
+
+      uint32_t colorantCount = ReadBE32(typeCheck + 8);
+      if (colorantCount > 256) {
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Tag '%.4s' ColorantTable count=%u (>256)", sig4, colorantCount);
+        result.AddWarning("H29", buf, PreflightSeverity::CRITICAL);
+        continue;
+      }
+      for (uint32_t ci = 0; ci < colorantCount; ci++) {
+        size_t namePos = t.offset + 12 + ci * 38;
+        if (namePos + 32 > fileSize) break;
+        uint8_t name[32];
+        fseek(fp, namePos, SEEK_SET);
+        if (fread(name, 1, 32, fp) != 32) break;
+        bool hasNull = false;
+        for (int j = 0; j < 32; j++) { if (name[j] == 0) { hasNull = true; break; } }
+        if (!hasNull) {
+          uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+          char sig4[5]; SanitizeSig4(raw4, sig4);
+          char buf[128];
+          snprintf(buf, sizeof(buf), "Tag '%.4s' colorant[%u] name not null-terminated (HBO in ToXml)",
+                   sig4, ci);
+          result.AddWarning("H29", buf, PreflightSeverity::CRITICAL);
+          break; // one warning per tag is enough
+        }
+      }
+    }
+  }
+
+  // ── H30: GamutBoundaryDesc Allocation Validation ──
+  // CVE refs: GHSA-rc3h-95ph-j363 (OOM via unvalidated triangle count)
+  for (const auto& t : tags) {
+    if (t.offset >= 128 && t.size >= 24 && t.size <= fileSize &&
+        t.offset <= fileSize - t.size) {
+      uint8_t gbdHdr[24];
+      fseek(fp, t.offset, SEEK_SET);
+      if (fread(gbdHdr, 1, 24, fp) != 24) continue;
+      uint32_t gbdType = ReadBE32(gbdHdr);
+      if (gbdType != 0x67626420) continue; // 'gbd '
+
+      uint32_t nVerts = ReadBE32(gbdHdr + 12);
+      uint32_t nTris  = ReadBE32(gbdHdr + 16);
+      uint16_t nPCSCh = ReadBE16(gbdHdr + 20);
+      uint16_t nDevCh = ReadBE16(gbdHdr + 22);
+
+      uint64_t triAlloc  = (uint64_t)nTris * 12;
+      uint64_t vertAlloc = (uint64_t)nVerts * (12 + (uint64_t)nPCSCh * 4 + (uint64_t)nDevCh * 4);
+      uint64_t totalAlloc = triAlloc + vertAlloc + 24;
+
+      if (totalAlloc > (uint64_t)t.size * 4) {
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
+        char buf[160];
+        snprintf(buf, sizeof(buf), "Tag '%.4s' gbd: %u verts, %u tris → alloc %llu vs tag %u bytes",
+                 sig4, nVerts, nTris, (unsigned long long)totalAlloc, t.size);
+        result.AddWarning("H30", buf, PreflightSeverity::CRITICAL);
+      }
+      if (nPCSCh > 3 || nDevCh > 15) {
+        uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
+        char sig4[5]; SanitizeSig4(raw4, sig4);
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Tag '%.4s' gbd: PCS=%u Dev=%u out of range (signed confusion)",
+                 sig4, nPCSCh, nDevCh);
+        result.AddWarning("H30", buf, PreflightSeverity::WARNING);
       }
     }
   }
