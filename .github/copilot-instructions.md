@@ -423,3 +423,45 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 - Use `sanitize_filename()` for safe filenames (no directory traversal)
 - User-controllable inputs include: `${{ inputs.* }}`, `${{ github.event.* }}`, `${{ steps.*.outputs.* }}`, command output via `$(...)`, file contents via `cat`
 - Static strings (hardcoded labels, job status values) are safe but the sanitizer should still be sourced for defense-in-depth
+
+## Image+ICC Seed Pipeline
+
+### Tool Ecosystem
+| Tool | Repo | Platform | Purpose |
+|------|------|----------|---------|
+| xnuimagetools | github.com/xsscx/xnuimagetools | iOS/macOS/watchOS/visionOS | Create baseline images across XNU platforms |
+| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Fuzz images via 12 CGCreateBitmap functions |
+| iOSOnMac CLI | macos-research/code/iOSOnMac | macOS (CLI) | Run xnuimagefuzzer at scale via posix_spawn |
+| colorbleed_tools | research/colorbleed_tools | Linux/macOS | Build ICC profiles (iccToXml/iccFromXml) |
+| seed-pipeline.sh | .github/scripts/seed-pipeline.sh | Linux | Validate, embed ICC, distribute seeds |
+| craft-seeds.py | .github/scripts/craft-seeds.py | Linux | Generate synthetic edge-case image seeds |
+
+### Workflow
+1. Create baseline images → **xnuimagetools** (macOS)
+2. Fuzz images → **xnuimagefuzzer** (macOS) — produces 9 pixel formats × 6 output formats
+3. Transfer fuzzed images to Linux (place in `temp/`)
+4. Validate + embed ICC → **seed-pipeline.sh** `temp/ --distribute --ramdisk`
+5. Generate synthetic seeds → **craft-seeds.py** `--outdir temp/icc-crafted`
+6. Re-seed ramdisk → `.github/scripts/ramdisk-seed.sh`
+
+### Pipeline Scripts
+
+```bash
+# Validate images, embed 15 ICC profiles, distribute to seed corpuses
+.github/scripts/seed-pipeline.sh <image-dir> [--distribute] [--ramdisk]
+
+# Generate synthetic edge-case seeds (tiny, 16-bit, float, tiled, BigTIFF, etc.)
+python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test-profiles
+```
+
+### Quality Gates (seed-pipeline.sh)
+- Reject files < 64 bytes (truncated)
+- Reject images with < 5 unique pixel values (flat/degenerate)
+- Validate TIFF magic bytes (II\*/MM\* or BigTIFF)
+- Deduplicate by MD5 content hash
+- Enforce max size = 5MB (max\_len limit)
+
+### Known Issues with xnuimagefuzzer Output
+- 32BitFloat and HDR float fuzzed variants produce all-zero pixels (CoreGraphics clamps float→8-bit)
+- `LittleEndian-image.tiff` is actually big-endian (MM) — name refers to CGColorSpace component order
+- Base images have NO embedded ICC profiles by design — the pipeline adds them

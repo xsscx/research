@@ -1,0 +1,106 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Generate ICC-embedded image seeds for fuzzer corpuses
+#
+# Last Updated: 2026-03-01 by David Hoyt
+###############################################################
+
+name: Seed Pipeline
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_source:
+        description: 'Directory containing source images (relative to repo root)'
+        required: false
+        default: 'temp'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - 'test-profiles/*.icc'
+      - '.github/scripts/seed-pipeline.sh'
+      - '.github/scripts/craft-seeds.py'
+
+jobs:
+  generate-seeds:
+    name: Generate ICC-embedded seeds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq exiftool
+          pip3 install --quiet tifffile Pillow
+
+      - name: Run craft-seeds.py
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/craft-seeds.py \
+            --outdir seed-output/crafted \
+            --profiles test-profiles
+          echo "### Crafted Seeds" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(ls seed-output/crafted/ | wc -l) synthetic seeds generated" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run seed-pipeline.sh
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          image_dir="${{ inputs.image_source || 'test-profiles' }}"
+          if [ ! -d "$image_dir" ]; then
+            echo "Image directory '$image_dir' not found, using test-profiles/"
+            image_dir="test-profiles"
+          fi
+          .github/scripts/seed-pipeline.sh "$image_dir"
+          echo "### Pipeline Seeds" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(ls temp/pipeline-staging/embedded/ 2>/dev/null | wc -l) ICC-embedded seeds" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(ls temp/pipeline-staging/rejected/ 2>/dev/null | wc -l) rejected files" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package seed corpus
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p seed-output/tiff seed-output/icc
+          # Collect TIFF seeds
+          cp seed-output/crafted/*.tiff seed-output/tiff/ 2>/dev/null || true
+          cp temp/pipeline-staging/embedded/*.tiff seed-output/tiff/ 2>/dev/null || true
+          cp temp/pipeline-staging/embedded/*.tif seed-output/tiff/ 2>/dev/null || true
+          # Collect ICC seeds (extracted from embedded images)
+          for f in seed-output/crafted/*.tiff; do
+            [ -f "$f" ] || continue
+            bn=$(basename "$f" .tiff)
+            exiftool -ICC_Profile -b "$f" > "seed-output/icc/${bn}.icc" 2>/dev/null || true
+            [ -s "seed-output/icc/${bn}.icc" ] || rm -f "seed-output/icc/${bn}.icc"
+          done
+          echo "### Packaged Output" >> "$GITHUB_STEP_SUMMARY"
+          echo "- TIFF seeds: $(ls seed-output/tiff/ | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ICC seeds: $(ls seed-output/icc/ | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          tar czf seed-corpus.tar.gz -C seed-output .
+
+      - name: Upload seed corpus artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: seed-corpus-${{ github.sha }}
+          path: seed-corpus.tar.gz
+          retention-days: 30
