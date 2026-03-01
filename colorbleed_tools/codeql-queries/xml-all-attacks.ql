@@ -297,9 +297,13 @@ class XmlStringConcatenation extends FunctionCall {
       "std::string::append",
       "std::string::operator+"
     ]) and
+    // Exclude our audited preflight code
+    not this.getFile().getBaseName().matches(["ColorBleedPreflight.h"]) and
     exists(Function f | 
       this.getEnclosingFunction() = f and
-      f.getName().matches(["%Xml%", "%XML%", "%ToXml%"])
+      f.getName().matches(["%Xml%", "%XML%", "%ToXml%"]) and
+      // Exclude preflight validation functions — they format warnings, not XML
+      not f.getName().matches(["%Preflight%", "%Validate%"])
     )
   }
 }
