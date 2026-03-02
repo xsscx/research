@@ -461,7 +461,7 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 | Tool | Repo | Platform | Purpose |
 |------|------|----------|---------|
 | xnuimagetools | github.com/xsscx/xnuimagetools | iOS/macOS/watchOS/visionOS | Create baseline images across XNU platforms |
-| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Fuzz images via 12 CGCreateBitmap functions |
+| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Fuzz images via 15 CGCreateBitmap functions |
 | iOSOnMac CLI | macos-research/code/iOSOnMac | macOS (CLI) | Run xnuimagefuzzer at scale via posix_spawn |
 | colorbleed_tools | research/colorbleed_tools | Linux/macOS | Build ICC profiles (iccToXml/iccFromXml) |
 | seed-pipeline.sh | .github/scripts/seed-pipeline.sh | Linux | Validate, embed ICC, distribute seeds |
@@ -496,3 +496,51 @@ python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test
 - 32BitFloat and HDR float fuzzed variants produce all-zero pixels (CoreGraphics clamps float→8-bit)
 - `LittleEndian-image.tiff` is actually big-endian (MM) — name refers to CGColorSpace component order
 - Base images have NO embedded ICC profiles by design — the pipeline adds them
+
+## macOS CI Patterns (xnuimagefuzzer / xnuimagetools)
+
+These patterns apply to the `xnuimagefuzzer/` and `xnuimagetools/` sub-repos within this workspace.
+
+### SIGPIPE Prevention
+NEVER pipe macOS/BSD tools (`ls`, `file`, `find`, `xcodebuild`, `xcrun`) through `| head`.
+They use NSFileHandle for stdout and crash with `NSFileHandleOperationException` (SIGABRT exit 134)
+or `stdout: Undefined error: 0` when the reader closes early.
+```bash
+# ❌ Crashes: ls -la /tmp/output/ | head -20
+# ✅ Safe:   ls -la /tmp/output/ | sed -n '1,20p'
+# ❌ Crashes: xcodebuild -version | head -1
+# ✅ Safe:   xcodebuild -version | sed -n '1p'
+# ❌ Crashes: file -b "$f" | head -c 40
+# ✅ Safe:   file -b "$f" | cut -c1-40
+```
+
+### LLVM Profraw Coverage Symbols
+Use `dlsym(RTLD_DEFAULT, "__llvm_profile_write_file")` instead of `__attribute__((weak)) extern`.
+Weak extern works on Mac Catalyst with `-fprofile-instr-generate` but causes linker failures on
+iOS Simulator builds without coverage flags. The `dlsym()` approach works across all configurations.
+
+### Mac Catalyst App Launch in CI
+Mac Catalyst binaries must be launched via `open "$APP_BUNDLE"` (bare Mach-O exits immediately).
+- `open` blocks until app exits → use `open "$APP_BUNDLE" & ; disown $!`
+- Pass env vars via `open --env KEY=VALUE` (macOS 13+) — `launchctl setenv` is unreliable
+- Mac Catalyst ignores `osascript quit` — use `pgrep -f "App Name"` + `kill`
+- SIGTERM does NOT trigger `atexit()` → send SIGINT first for profraw flush
+
+### VideoToolbox ASAN Performance
+VideoToolbox fuzzer runs 10-50x slower under ASAN. Never call `malloc_zone_print()` in hot
+loops under ASAN — it dumps entire memory zone per call. The VT instrumented CI job is disabled
+(`if: false` in `xnuimagetools/.github/workflows/instrumented.yml`). Run VT ASAN testing on
+local macOS hardware with extended timeouts (10+ minutes).
+
+### xnuimagefuzzer Output Expectations
+17 seed specs × 6 files each (seed + corrupted + 4 format variants) = 102 expected files.
+CI polling threshold must be ≥80 with 120s timeout. The app uses `FUZZ_OUTPUT_DIR` env var
+for output directory and generates PNG, JPEG, GIF, BMP, TIFF, HEIF formats.
+
+### Pinned Action SHAs (both sub-repos)
+```yaml
+actions/checkout: 11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+actions/upload-artifact: ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+actions/cache: 5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+actions/download-artifact: d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+```
