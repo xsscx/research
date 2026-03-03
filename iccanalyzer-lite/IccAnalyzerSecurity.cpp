@@ -3352,6 +3352,880 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
 
+  // =========================================================================
+  // Raw-file heuristics H46-H54 (CWE-driven gap analysis from 77 CVEs)
+  // All use raw file I/O — no library API calls.
+  // =========================================================================
+
+  // 46. TextDescription Unicode Length Validation (raw file bytes)
+  // desc tag: type(4) + reserved(4) + ASCII_count(4) + ASCII_data(ASCII_count) +
+  //           unicode_lang(4) + unicode_count(4) + unicode_data(unicode_count*2) + ...
+  // CVE-2026-21491: Unicode buffer overflow in CIccTagTextDescription
+  // CVE-2026-21488: OOB read + improper null termination
+  // CWE-122, CWE-170, CWE-130
+  printf("[H46] TextDescription Unicode Length Validation\n");
+  {
+    FILE *fp46 = fopen(filename, "rb");
+    if (fp46) {
+      fseek(fp46, 0, SEEK_END);
+      long fs46_l = ftell(fp46);
+      if (fs46_l < 0) { fclose(fp46); fp46 = NULL; }
+      size_t fs46 = (fp46) ? (size_t)fs46_l : 0;
+
+      int descIssues = 0;
+      if (fp46 && fs46 >= 132) {
+        // Read tag count
+        icUInt8Number tc46[4];
+        fseek(fp46, 128, SEEK_SET);
+        if (fread(tc46, 1, 4, fp46) == 4) {
+          uint32_t tagCount46 = ((uint32_t)tc46[0]<<24)|((uint32_t)tc46[1]<<16)|
+                                ((uint32_t)tc46[2]<<8)|tc46[3];
+          if (tagCount46 > 1000) tagCount46 = 1000;
+
+          for (uint32_t t = 0; t < tagCount46 && fp46; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp46, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp46) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            // desc type = 0x64657363
+            if (tOff + 12 > fs46 || tSz < 12) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp46, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp46) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            if (typeVal != 0x64657363) continue; // not 'desc' type
+
+            // Read ASCII count (offset +8)
+            icUInt8Number ascBuf[4];
+            fseek(fp46, tOff + 8, SEEK_SET);
+            if (fread(ascBuf, 1, 4, fp46) != 4) continue;
+            uint32_t asciiCount = ((uint32_t)ascBuf[0]<<24)|((uint32_t)ascBuf[1]<<16)|
+                                  ((uint32_t)ascBuf[2]<<8)|ascBuf[3];
+
+            // Unicode section starts at tOff + 12 + asciiCount
+            uint64_t unicodeStart = (uint64_t)tOff + 12 + asciiCount;
+            if (unicodeStart + 8 > fs46 || unicodeStart + 8 > (uint64_t)tOff + tSz) continue;
+
+            icUInt8Number uniBuf[8];
+            fseek(fp46, (long)unicodeStart, SEEK_SET);
+            if (fread(uniBuf, 1, 8, fp46) != 8) continue;
+
+            uint32_t unicodeLang = ((uint32_t)uniBuf[0]<<24)|((uint32_t)uniBuf[1]<<16)|
+                                   ((uint32_t)uniBuf[2]<<8)|uniBuf[3];
+            uint32_t unicodeCount = ((uint32_t)uniBuf[4]<<24)|((uint32_t)uniBuf[5]<<16)|
+                                    ((uint32_t)uniBuf[6]<<8)|uniBuf[7];
+
+            // Validate: unicode data = unicodeCount * 2 bytes
+            uint64_t unicodeDataEnd = unicodeStart + 8 + (uint64_t)unicodeCount * 2;
+            char sig46[5]; SignatureToFourCC(tSig, sig46);
+
+            if (unicodeCount > 0 && unicodeDataEnd > (uint64_t)tOff + tSz) {
+              printf("      %s[WARN]  Tag '%s' (desc): unicode count %u × 2 = %llu bytes exceeds tag bounds%s\n",
+                     ColorCritical(), sig46, unicodeCount,
+                     (unsigned long long)(unicodeCount * 2), ColorReset());
+              printf("       %sCWE-122/CWE-170: Heap buffer overflow via unicode length (CVE-2026-21491 pattern)%s\n",
+                     ColorCritical(), ColorReset());
+              descIssues++;
+            }
+
+            // Check ASCII count vs tag size too
+            if (asciiCount > tSz - 12) {
+              printf("      %s[WARN]  Tag '%s' (desc): ASCII count %u exceeds available tag data%s\n",
+                     ColorCritical(), sig46, asciiCount, ColorReset());
+              descIssues++;
+            }
+          }
+        }
+      }
+      if (fp46) fclose(fp46);
+
+      if (descIssues > 0) {
+        heuristicCount += descIssues;
+      } else {
+        printf("      %s[OK] TextDescription unicode lengths valid (or no desc tags)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 47. NamedColor2 Size Overflow Detection (raw file bytes)
+  // ncl2 tag: type(4) + reserved(4) + vendorFlag(4) + count(4) + nDeviceCoords(4) +
+  //           prefix(32) + suffix(32) = 84-byte header
+  //           Each entry: name(32) + PCS(6) + deviceCoords(nDeviceCoords*2)
+  // CVE-2026-24406: HBO in CIccTagNamedColor2::SetSize() (CVSS 8.8)
+  // CWE-122, CWE-190, CWE-787
+  printf("[H47] NamedColor2 Size Overflow Detection\n");
+  {
+    FILE *fp47 = fopen(filename, "rb");
+    if (fp47) {
+      fseek(fp47, 0, SEEK_END);
+      long fs47_l = ftell(fp47);
+      if (fs47_l < 0) { fclose(fp47); fp47 = NULL; }
+      size_t fs47 = (fp47) ? (size_t)fs47_l : 0;
+
+      int ncl2Issues = 0;
+      if (fp47 && fs47 >= 132) {
+        icUInt8Number tc47[4];
+        fseek(fp47, 128, SEEK_SET);
+        if (fread(tc47, 1, 4, fp47) == 4) {
+          uint32_t tagCount47 = ((uint32_t)tc47[0]<<24)|((uint32_t)tc47[1]<<16)|
+                                ((uint32_t)tc47[2]<<8)|tc47[3];
+          if (tagCount47 > 1000) tagCount47 = 1000;
+
+          for (uint32_t t = 0; t < tagCount47 && fp47; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp47, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp47) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 84 > fs47 || tSz < 84) continue;
+
+            // Read type signature
+            icUInt8Number typeSig[4];
+            fseek(fp47, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp47) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            if (typeVal != 0x6E636C32) continue; // not 'ncl2' type
+
+            // Read count and nDeviceCoords
+            icUInt8Number ncl2Hdr[8];
+            fseek(fp47, tOff + 16, SEEK_SET); // skip type(4)+reserved(4)+vendorFlag(4)+count starts at +16
+            // Actually: type(4)+reserved(4)+vendorFlag(4) = 12, count at +12, nDeviceCoords at +16
+            fseek(fp47, tOff + 12, SEEK_SET);
+            if (fread(ncl2Hdr, 1, 8, fp47) != 8) continue;
+
+            uint32_t ncl2Count = ((uint32_t)ncl2Hdr[0]<<24)|((uint32_t)ncl2Hdr[1]<<16)|
+                                 ((uint32_t)ncl2Hdr[2]<<8)|ncl2Hdr[3];
+            uint32_t nDevCoords = ((uint32_t)ncl2Hdr[4]<<24)|((uint32_t)ncl2Hdr[5]<<16)|
+                                  ((uint32_t)ncl2Hdr[6]<<8)|ncl2Hdr[7];
+
+            char sig47[5]; SignatureToFourCC(tSig, sig47);
+
+            // Each entry: rootName(32) + PCS_coords(6) + deviceCoords(nDevCoords*2)
+            uint64_t entrySize = 32 + 6 + (uint64_t)nDevCoords * 2;
+            uint64_t totalData = (uint64_t)ncl2Count * entrySize;
+            uint64_t headerSize = 84; // type(4)+reserved(4)+vendorFlag(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
+            uint64_t neededSize = headerSize + totalData;
+
+            if (ncl2Count > 0 && entrySize > 0 && totalData / entrySize != ncl2Count) {
+              printf("      %s[WARN]  Tag '%s' (ncl2): count %u × entry_size %llu overflows uint64%s\n",
+                     ColorCritical(), sig47, ncl2Count, (unsigned long long)entrySize, ColorReset());
+              printf("       %sCRITICAL: CWE-190 integer overflow → HBO (CVE-2026-24406 pattern)%s\n",
+                     ColorCritical(), ColorReset());
+              ncl2Issues++;
+            } else if (neededSize > tSz) {
+              printf("      %s[WARN]  Tag '%s' (ncl2): %u entries × %llu bytes = %llu, but tag is only %u bytes%s\n",
+                     ColorCritical(), sig47, ncl2Count, (unsigned long long)entrySize,
+                     (unsigned long long)neededSize, tSz, ColorReset());
+              printf("       %sCWE-122: Heap buffer overflow via NamedColor2 size mismatch%s\n",
+                     ColorCritical(), ColorReset());
+              ncl2Issues++;
+            }
+
+            if (nDevCoords > 100) {
+              printf("      %s[WARN]  Tag '%s' (ncl2): nDeviceCoords = %u (suspicious, >100)%s\n",
+                     ColorCritical(), sig47, nDevCoords, ColorReset());
+              ncl2Issues++;
+            }
+          }
+        }
+      }
+      if (fp47) fclose(fp47);
+
+      if (ncl2Issues > 0) {
+        heuristicCount += ncl2Issues;
+      } else {
+        printf("      %s[OK] NamedColor2 sizes valid (or no ncl2 tags)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 48. CLUT Grid Dimension Product Overflow (raw file bytes)
+  // mAB/mBA (mft2): type(4)+reserved(4)+nInput(1)+nOutput(1)+pad(2)+offsets... CLUT grid at CLUT_offset
+  // mft1 (lut8): type(4)+reserved(4)+nInput(1)+nOutput(1)+gridPoints(1)+pad(1)+matrix(36)+...
+  // mft2 (lut16): type(4)+reserved(4)+nInput(1)+nOutput(1)+gridPoints(1)+pad(1)+matrix(36)+...
+  // Grid product = gridPoints^nInput × nOutput — must not overflow
+  // CVE-2026-22255: HBO in CIccCLUT::Init() (CVSS 8.8)
+  // CVE-2026-21677: UB in CIccCLUT::Init() (CVSS 8.8)
+  // CWE-131, CWE-190, CWE-400
+  printf("[H48] CLUT Grid Dimension Product Overflow\n");
+  {
+    FILE *fp48 = fopen(filename, "rb");
+    if (fp48) {
+      fseek(fp48, 0, SEEK_END);
+      long fs48_l = ftell(fp48);
+      if (fs48_l < 0) { fclose(fp48); fp48 = NULL; }
+      size_t fs48 = (fp48) ? (size_t)fs48_l : 0;
+
+      int clutOvfIssues = 0;
+      if (fp48 && fs48 >= 132) {
+        icUInt8Number tc48[4];
+        fseek(fp48, 128, SEEK_SET);
+        if (fread(tc48, 1, 4, fp48) == 4) {
+          uint32_t tagCount48 = ((uint32_t)tc48[0]<<24)|((uint32_t)tc48[1]<<16)|
+                                ((uint32_t)tc48[2]<<8)|tc48[3];
+          if (tagCount48 > 1000) tagCount48 = 1000;
+
+          for (uint32_t t = 0; t < tagCount48 && fp48; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp48, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp48) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 12 > fs48 || tSz < 12) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp48, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp48) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            char sig48[5]; SignatureToFourCC(tSig, sig48);
+
+            // lut8 (0x6D667431) and lut16 (0x6D667432): uniform grid
+            if (typeVal == 0x6D667431 || typeVal == 0x6D667432) {
+              if (tOff + 12 > fs48) continue;
+              icUInt8Number lutHdr[4];
+              fseek(fp48, tOff + 8, SEEK_SET);
+              if (fread(lutHdr, 1, 4, fp48) != 4) continue;
+
+              uint8_t nInput = lutHdr[0];
+              uint8_t nOutput = lutHdr[1];
+              uint8_t gridPts = lutHdr[2];
+
+              if (nInput > 0 && gridPts > 0 && nOutput > 0) {
+                // Product = gridPts^nInput × nOutput
+                uint64_t product = 1;
+                bool overflow = false;
+                for (int d = 0; d < nInput; d++) {
+                  product *= gridPts;
+                  if (product > 256ULL * 1024 * 1024) { overflow = true; break; }
+                }
+                if (!overflow) product *= nOutput;
+                if (product > 256ULL * 1024 * 1024) overflow = true;
+
+                if (overflow) {
+                  printf("      %s[WARN]  Tag '%s' (%s): grid %u^%u × %u output = overflow%s\n",
+                         ColorCritical(), sig48,
+                         (typeVal == 0x6D667431) ? "lut8" : "lut16",
+                         gridPts, nInput, nOutput, ColorReset());
+                  printf("       %sCRITICAL: CWE-131/CWE-190 CLUT allocation overflow (CVE-2026-22255 pattern)%s\n",
+                         ColorCritical(), ColorReset());
+                  clutOvfIssues++;
+                }
+              }
+            }
+
+            // mAB (0x6D414220) / mBA (0x6D424120): per-dimension grid points in CLUT sub-element
+            if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
+              if (tOff + 32 > fs48) continue;
+              icUInt8Number mbaHdr[24];
+              fseek(fp48, tOff + 8, SEEK_SET);
+              if (fread(mbaHdr, 1, 24, fp48) != 24) continue;
+
+              uint8_t nInput = mbaHdr[0];
+              uint8_t nOutput = mbaHdr[1];
+              // CLUT offset is at +20 in the header (bytes 12-15 relative to mbaHdr start)
+              uint32_t clutOff = ((uint32_t)mbaHdr[12]<<24)|((uint32_t)mbaHdr[13]<<16)|
+                                 ((uint32_t)mbaHdr[14]<<8)|mbaHdr[15];
+
+              if (clutOff > 0 && clutOff < tSz && tOff + clutOff + 16 <= fs48 && nInput <= 16) {
+                // CLUT sub-element: 16 bytes of grid dimensions (1 per input channel)
+                icUInt8Number gridDims[16];
+                fseek(fp48, tOff + clutOff, SEEK_SET);
+                if (fread(gridDims, 1, 16, fp48) == 16) {
+                  uint64_t product = 1;
+                  bool overflow = false;
+                  bool hasZeroDim = false;
+                  for (int d = 0; d < nInput; d++) {
+                    if (gridDims[d] == 0) { hasZeroDim = true; break; }
+                    product *= gridDims[d];
+                    if (product > 256ULL * 1024 * 1024) { overflow = true; break; }
+                  }
+                  if (!overflow && !hasZeroDim && nOutput > 0) {
+                    product *= nOutput;
+                    if (product > 256ULL * 1024 * 1024) overflow = true;
+                  }
+
+                  if (overflow) {
+                    printf("      %s[WARN]  Tag '%s' (%s): CLUT grid product overflows (>256M entries)%s\n",
+                           ColorCritical(), sig48,
+                           (typeVal == 0x6D414220) ? "mAB" : "mBA", ColorReset());
+                    printf("       %sCRITICAL: CWE-131/CWE-190 CLUT allocation overflow (CVE-2026-22255 pattern)%s\n",
+                           ColorCritical(), ColorReset());
+                    clutOvfIssues++;
+                  }
+                  // hasZeroDim is checked in H54
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp48) fclose(fp48);
+
+      if (clutOvfIssues > 0) {
+        heuristicCount += clutOvfIssues;
+      } else {
+        printf("      %s[OK] CLUT grid dimension products within bounds%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 49. Float/s15Fixed16 NaN/Inf Detection (raw file bytes)
+  // Scan XYZ (0x58595A20), sf32 (0x73663332), fl32 (0x666C3332) tag data
+  // for IEEE 754 NaN (exponent=0xFF, mantissa≠0) and Inf (exponent=0xFF, mantissa=0)
+  // CVE-2026-21681: UB runtime error: nan is outside the range (CVSS 7.1)
+  // CWE-758, CWE-682
+  printf("[H49] Float/s15Fixed16 NaN/Inf Detection\n");
+  {
+    FILE *fp49 = fopen(filename, "rb");
+    if (fp49) {
+      fseek(fp49, 0, SEEK_END);
+      long fs49_l = ftell(fp49);
+      if (fs49_l < 0) { fclose(fp49); fp49 = NULL; }
+      size_t fs49 = (fp49) ? (size_t)fs49_l : 0;
+
+      int nanInfIssues = 0;
+      if (fp49 && fs49 >= 132) {
+        icUInt8Number tc49[4];
+        fseek(fp49, 128, SEEK_SET);
+        if (fread(tc49, 1, 4, fp49) == 4) {
+          uint32_t tagCount49 = ((uint32_t)tc49[0]<<24)|((uint32_t)tc49[1]<<16)|
+                                ((uint32_t)tc49[2]<<8)|tc49[3];
+          if (tagCount49 > 1000) tagCount49 = 1000;
+
+          for (uint32_t t = 0; t < tagCount49 && fp49; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp49, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp49) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 8 > fs49 || tSz < 8) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp49, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp49) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            // fl32 (0x666C3332): IEEE 754 float array
+            // sf32 (0x73663332): s15Fixed16 array (check for 0x7FFFFFFF/0x80000000 extremes)
+            // XYZ (0x58595A20): 3 × s15Fixed16 values
+            bool isFloat = (typeVal == 0x666C3332);
+            bool isSf32  = (typeVal == 0x73663332);
+            bool isXYZ   = (typeVal == 0x58595A20);
+            if (!isFloat && !isSf32 && !isXYZ) continue;
+
+            char sig49[5]; SignatureToFourCC(tSig, sig49);
+
+            // Scan data portion (after type + reserved = 8 bytes)
+            size_t dataStart = tOff + 8;
+            size_t dataEnd = (size_t)tOff + tSz;
+            if (dataEnd > fs49) dataEnd = fs49;
+            size_t maxScan = 4096; // limit scan to first 4KB of data
+            if (dataEnd - dataStart > maxScan) dataEnd = dataStart + maxScan;
+
+            fseek(fp49, dataStart, SEEK_SET);
+            for (size_t pos = dataStart; pos + 4 <= dataEnd; pos += 4) {
+              icUInt8Number val4[4];
+              if (fread(val4, 1, 4, fp49) != 4) break;
+
+              if (isFloat) {
+                // IEEE 754: exponent bits [30:23]
+                uint8_t exponent = ((val4[0] & 0x7F) << 1) | ((val4[1] >> 7) & 0x01);
+                uint32_t mantissa = (((uint32_t)val4[1] & 0x7F) << 16) |
+                                    ((uint32_t)val4[2] << 8) | val4[3];
+                if (exponent == 0xFF) {
+                  const char *kind = (mantissa == 0) ? "Inf" : "NaN";
+                  printf("      %s[WARN]  Tag '%s' (fl32): %s detected at offset +%zu%s\n",
+                         ColorCritical(), sig49, kind, pos - tOff, ColorReset());
+                  printf("       %sCWE-758: Undefined behavior when converting %s to integer (CVE-2026-21681)%s\n",
+                         ColorCritical(), kind, ColorReset());
+                  nanInfIssues++;
+                  break; // one warning per tag is enough
+                }
+              } else {
+                // s15Fixed16: check for extreme sentinel values
+                uint32_t fixVal = ((uint32_t)val4[0]<<24)|((uint32_t)val4[1]<<16)|
+                                  ((uint32_t)val4[2]<<8)|val4[3];
+                if (fixVal == 0x7FFFFFFF || fixVal == 0x80000000) {
+                  printf("      %s[WARN]  Tag '%s': s15Fixed16 extreme value 0x%08X at offset +%zu%s\n",
+                         ColorCritical(), sig49, fixVal, pos - tOff, ColorReset());
+                  printf("       %sCWE-758: Potential undefined behavior in fixed-point conversion%s\n",
+                         ColorCritical(), ColorReset());
+                  nanInfIssues++;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp49) fclose(fp49);
+
+      if (nanInfIssues > 0) {
+        heuristicCount += nanInfIssues;
+      } else {
+        printf("      %s[OK] No NaN/Inf/extreme values in float/fixed-point tags%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 50. Profile Size Zero / Zero-Size Tag Detection (raw file bytes)
+  // CVE-2026-21507: Infinite loop in CalcProfileID() when profile size = 0 (CVSS 7.5)
+  // Also: any tag with size = 0 may cause div-by-zero or infinite loops in parsers
+  // CWE-835, CWE-369
+  printf("[H50] Zero-Size Profile/Tag Detection (Infinite Loop)\n");
+  {
+    FILE *fp50 = fopen(filename, "rb");
+    if (fp50) {
+      fseek(fp50, 0, SEEK_END);
+      long fs50_l = ftell(fp50);
+      if (fs50_l < 0) { fclose(fp50); fp50 = NULL; }
+      size_t fs50 = (fp50) ? (size_t)fs50_l : 0;
+
+      int zeroIssues = 0;
+      if (fp50 && fs50 >= 132) {
+        // Check profile size field (bytes 0-3)
+        icUInt8Number psz[4];
+        fseek(fp50, 0, SEEK_SET);
+        if (fread(psz, 1, 4, fp50) == 4) {
+          uint32_t profileSize = ((uint32_t)psz[0]<<24)|((uint32_t)psz[1]<<16)|
+                                 ((uint32_t)psz[2]<<8)|psz[3];
+          if (profileSize == 0) {
+            printf("      %s[WARN]  Profile size field = 0%s\n", ColorCritical(), ColorReset());
+            printf("       %sCRITICAL: CWE-835 infinite loop in CalcProfileID() (CVE-2026-21507)%s\n",
+                   ColorCritical(), ColorReset());
+            zeroIssues++;
+          }
+        }
+
+        // Check for zero-size tags
+        icUInt8Number tc50[4];
+        fseek(fp50, 128, SEEK_SET);
+        if (fread(tc50, 1, 4, fp50) == 4) {
+          uint32_t tagCount50 = ((uint32_t)tc50[0]<<24)|((uint32_t)tc50[1]<<16)|
+                                ((uint32_t)tc50[2]<<8)|tc50[3];
+          if (tagCount50 > 1000) tagCount50 = 1000;
+
+          int zeroSizeTags = 0;
+          for (uint32_t t = 0; t < tagCount50 && fp50; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp50, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp50) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tSz == 0) {
+              char sig50[5]; SignatureToFourCC(tSig, sig50);
+              printf("      %s[WARN]  Tag '%s': size = 0 (may cause infinite loop or div-by-zero)%s\n",
+                     ColorCritical(), sig50, ColorReset());
+              zeroSizeTags++;
+            }
+          }
+          if (zeroSizeTags > 0) {
+            zeroIssues += zeroSizeTags;
+          }
+        }
+      }
+      if (fp50) fclose(fp50);
+
+      if (zeroIssues > 0) {
+        heuristicCount += zeroIssues;
+      } else {
+        printf("      %s[OK] No zero-size profile or tags detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 51. LUT I/O Channel Count Consistency (raw file bytes)
+  // lut8 (mft1) and lut16 (mft2): inputChan at +8, outputChan at +9
+  // These must match the profile's colorSpace (input) and PCS (output) channel counts.
+  // Off-by-one in these causes HBO during Validate().
+  // CVE-2026-21490: HBO in CIccTagLut16::Validate() (off-by-one)
+  // CVE-2026-21494: HBO in CIccTagLut8::Validate() (off-by-one)
+  // CWE-193, CWE-122
+  printf("[H51] LUT I/O Channel Count Consistency\n");
+  {
+    FILE *fp51 = fopen(filename, "rb");
+    if (fp51) {
+      fseek(fp51, 0, SEEK_END);
+      long fs51_l = ftell(fp51);
+      if (fs51_l < 0) { fclose(fp51); fp51 = NULL; }
+      size_t fs51 = (fp51) ? (size_t)fs51_l : 0;
+
+      int lutChanIssues = 0;
+      if (fp51 && fs51 >= 132) {
+        icUInt8Number tc51[4];
+        fseek(fp51, 128, SEEK_SET);
+        if (fread(tc51, 1, 4, fp51) == 4) {
+          uint32_t tagCount51 = ((uint32_t)tc51[0]<<24)|((uint32_t)tc51[1]<<16)|
+                                ((uint32_t)tc51[2]<<8)|tc51[3];
+          if (tagCount51 > 1000) tagCount51 = 1000;
+
+          for (uint32_t t = 0; t < tagCount51 && fp51; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp51, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp51) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 12 > fs51 || tSz < 12) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp51, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp51) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            // mft1 (lut8) or mft2 (lut16) or mAB or mBA
+            bool isLut8  = (typeVal == 0x6D667431);
+            bool isLut16 = (typeVal == 0x6D667432);
+            bool isMab   = (typeVal == 0x6D414220 || typeVal == 0x6D424120);
+            if (!isLut8 && !isLut16 && !isMab) continue;
+
+            icUInt8Number chanHdr[2];
+            fseek(fp51, tOff + 8, SEEK_SET);
+            if (fread(chanHdr, 1, 2, fp51) != 2) continue;
+
+            uint8_t nInput = chanHdr[0];
+            uint8_t nOutput = chanHdr[1];
+            char sig51[5]; SignatureToFourCC(tSig, sig51);
+
+            // Sanity limits: ICC spec allows max 16 input channels, 16 output
+            if (nInput == 0 || nOutput == 0) {
+              printf("      %s[WARN]  Tag '%s': %s has zero %s channels%s\n",
+                     ColorCritical(), sig51,
+                     isLut8 ? "lut8" : isLut16 ? "lut16" : "mAB/mBA",
+                     (nInput == 0) ? "input" : "output", ColorReset());
+              printf("       %sCWE-193: Off-by-one/zero channel count → HBO in Validate() (CVE-2026-21490)%s\n",
+                     ColorCritical(), ColorReset());
+              lutChanIssues++;
+            } else if (nInput > 16 || nOutput > 16) {
+              printf("      %s[WARN]  Tag '%s': %s has %u input, %u output channels (max 16)%s\n",
+                     ColorCritical(), sig51,
+                     isLut8 ? "lut8" : isLut16 ? "lut16" : "mAB/mBA",
+                     nInput, nOutput, ColorReset());
+              printf("       %sCWE-122: Excessive channel count → potential buffer overflow%s\n",
+                     ColorCritical(), ColorReset());
+              lutChanIssues++;
+            }
+          }
+        }
+      }
+      if (fp51) fclose(fp51);
+
+      if (lutChanIssues > 0) {
+        heuristicCount += lutChanIssues;
+      } else {
+        printf("      %s[OK] LUT I/O channel counts within valid range%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 52. Integer Underflow in Tag Size Subtraction (raw file bytes)
+  // Tags have minimum header sizes: desc=12, curv=12, text=8, XYZ=20, mluc=16, ncl2=84
+  // When tag_size < minimum_header, subtraction (tag_size - header) wraps negative as uint
+  // CVE-2026-21489: OOB Read + Integer Underflow
+  // CWE-191, CWE-125
+  printf("[H52] Integer Underflow in Tag Size Subtraction\n");
+  {
+    FILE *fp52 = fopen(filename, "rb");
+    if (fp52) {
+      fseek(fp52, 0, SEEK_END);
+      long fs52_l = ftell(fp52);
+      if (fs52_l < 0) { fclose(fp52); fp52 = NULL; }
+      size_t fs52 = (fp52) ? (size_t)fs52_l : 0;
+
+      int underflowIssues = 0;
+      if (fp52 && fs52 >= 132) {
+        icUInt8Number tc52[4];
+        fseek(fp52, 128, SEEK_SET);
+        if (fread(tc52, 1, 4, fp52) == 4) {
+          uint32_t tagCount52 = ((uint32_t)tc52[0]<<24)|((uint32_t)tc52[1]<<16)|
+                                ((uint32_t)tc52[2]<<8)|tc52[3];
+          if (tagCount52 > 1000) tagCount52 = 1000;
+
+          for (uint32_t t = 0; t < tagCount52 && fp52; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp52, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp52) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 4 > fs52 || tSz < 4) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp52, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp52) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            // Minimum sizes by type
+            uint32_t minSize = 8; // default: type(4) + reserved(4)
+            if (typeVal == 0x64657363) minSize = 12;      // desc: +count(4)
+            else if (typeVal == 0x63757276) minSize = 12;  // curv: +count(4)
+            else if (typeVal == 0x58595A20) minSize = 20;  // XYZ: +X(4)+Y(4)+Z(4)
+            else if (typeVal == 0x6D6C7563) minSize = 16;  // mluc: +count(4)+recSize(4)
+            else if (typeVal == 0x6E636C32) minSize = 84;  // ncl2: full header
+            else if (typeVal == 0x6D667431) minSize = 48;  // lut8: header+matrix
+            else if (typeVal == 0x6D667432) minSize = 52;  // lut16: header+matrix+in/outTableEntries
+            else if (typeVal == 0x6D414220 || typeVal == 0x6D424120) minSize = 32; // mAB/mBA
+            else if (typeVal == 0x70617261) minSize = 12;  // para: +funcType(2)+reserved(2)
+            else if (typeVal == 0x73663332) minSize = 12;  // sf32: at least one value
+            else if (typeVal == 0x666C3332) minSize = 12;  // fl32: at least one value
+
+            if (tSz > 0 && tSz < minSize) {
+              char sig52[5]; SignatureToFourCC(tSig, sig52);
+              char type52[5]; SignatureToFourCC(typeVal, type52);
+              printf("      %s[WARN]  Tag '%s' (type '%s'): size %u < minimum %u bytes%s\n",
+                     ColorCritical(), sig52, type52, tSz, minSize, ColorReset());
+              printf("       %sCWE-191: size - header underflows → OOB read (CVE-2026-21489 pattern)%s\n",
+                     ColorCritical(), ColorReset());
+              underflowIssues++;
+            }
+          }
+        }
+      }
+      if (fp52) fclose(fp52);
+
+      if (underflowIssues > 0) {
+        heuristicCount += underflowIssues;
+      } else {
+        printf("      %s[OK] All tag sizes meet minimum requirements%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 53. Embedded Profile Recursion Detection (raw file bytes)
+  // Scan profile data for 'acsp' magic (0x61637370) at offset 36 within embedded data,
+  // indicating nested ICC profiles that could trigger recursive parsing → stack overflow/UAF
+  // CWE-674, CWE-416
+  printf("[H53] Embedded Profile Recursion Detection\n");
+  {
+    FILE *fp53 = fopen(filename, "rb");
+    if (fp53) {
+      fseek(fp53, 0, SEEK_END);
+      long fs53_l = ftell(fp53);
+      if (fs53_l < 0) { fclose(fp53); fp53 = NULL; }
+      size_t fs53 = (fp53) ? (size_t)fs53_l : 0;
+
+      int recursionIssues = 0;
+      if (fp53 && fs53 >= 132) {
+        // The main profile has 'acsp' at offset 36. Search for additional 'acsp' signatures
+        // at positions > 128 (inside tag data) that could indicate embedded profiles.
+        // Look for the pattern: at position P, bytes P-36..P form a plausible profile header
+        // Simpler: just scan for 0x61637370 at any 4-byte-aligned position after the tag table
+        icUInt8Number tc53[4];
+        fseek(fp53, 128, SEEK_SET);
+        if (fread(tc53, 1, 4, fp53) == 4) {
+          uint32_t tagCount53 = ((uint32_t)tc53[0]<<24)|((uint32_t)tc53[1]<<16)|
+                                ((uint32_t)tc53[2]<<8)|tc53[3];
+          if (tagCount53 > 1000) tagCount53 = 1000;
+          size_t tagTableEnd = 132 + tagCount53 * 12;
+
+          // Scan tag data area for 'acsp' magic
+          size_t scanLimit = fs53;
+          if (scanLimit > 1024 * 1024) scanLimit = 1024 * 1024; // limit to first 1MB
+          int embeddedCount = 0;
+
+          fseek(fp53, tagTableEnd, SEEK_SET);
+          for (size_t pos = tagTableEnd; pos + 40 <= scanLimit; pos += 4) {
+            icUInt8Number scanBuf[40];
+            fseek(fp53, pos, SEEK_SET);
+            if (fread(scanBuf, 1, 40, fp53) != 40) break;
+
+            // Check for 'acsp' at byte 36 of a potential embedded profile header
+            uint32_t magic = ((uint32_t)scanBuf[36]<<24)|((uint32_t)scanBuf[37]<<16)|
+                             ((uint32_t)scanBuf[38]<<8)|scanBuf[39];
+            if (magic == 0x61637370) {
+              // Verify it looks like a profile (has plausible size field)
+              uint32_t embSize = ((uint32_t)scanBuf[0]<<24)|((uint32_t)scanBuf[1]<<16)|
+                                 ((uint32_t)scanBuf[2]<<8)|scanBuf[3];
+              if (embSize >= 128 && embSize <= 64 * 1024 * 1024) {
+                embeddedCount++;
+                if (embeddedCount <= 3) {
+                  printf("      %s[WARN]  Embedded ICC profile detected at offset %zu (size %u)%s\n",
+                         ColorCritical(), pos, embSize, ColorReset());
+                }
+              }
+            }
+          }
+          if (embeddedCount > 0) {
+            printf("       %sCWE-674: %d embedded profile(s) — recursive parsing risk (UAF/stack overflow)%s\n",
+                   ColorCritical(), embeddedCount, ColorReset());
+            recursionIssues += embeddedCount;
+          }
+        }
+      }
+      if (fp53) fclose(fp53);
+
+      if (recursionIssues > 0) {
+        heuristicCount += recursionIssues;
+      } else {
+        printf("      %s[OK] No embedded profiles detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 54. Division-by-Zero Trigger Detection (raw file bytes)
+  // Check for structural values that cause division by zero in parsers:
+  // - CLUT grid dimension = 0 in any channel (mAB/mBA/lut8/lut16)
+  // - Spectral step = 0 (partially covered in H43, reinforced here)
+  // - curv with count = 1 (identity) is valid, but count field itself = 0 with data is suspicious
+  // CVE-2026-21495: Division by Zero in iccDEV TIFF Image Reader
+  // CWE-369
+  printf("[H54] Division-by-Zero Trigger Detection\n");
+  {
+    FILE *fp54 = fopen(filename, "rb");
+    if (fp54) {
+      fseek(fp54, 0, SEEK_END);
+      long fs54_l = ftell(fp54);
+      if (fs54_l < 0) { fclose(fp54); fp54 = NULL; }
+      size_t fs54 = (fp54) ? (size_t)fs54_l : 0;
+
+      int divZeroIssues = 0;
+      if (fp54 && fs54 >= 132) {
+        icUInt8Number tc54[4];
+        fseek(fp54, 128, SEEK_SET);
+        if (fread(tc54, 1, 4, fp54) == 4) {
+          uint32_t tagCount54 = ((uint32_t)tc54[0]<<24)|((uint32_t)tc54[1]<<16)|
+                                ((uint32_t)tc54[2]<<8)|tc54[3];
+          if (tagCount54 > 1000) tagCount54 = 1000;
+
+          for (uint32_t t = 0; t < tagCount54 && fp54; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp54, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp54) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 12 > fs54 || tSz < 12) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp54, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp54) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            char sig54[5]; SignatureToFourCC(tSig, sig54);
+
+            // lut8/lut16: gridPoints at +10 must be > 0
+            if (typeVal == 0x6D667431 || typeVal == 0x6D667432) {
+              icUInt8Number lutInfo[4];
+              fseek(fp54, tOff + 8, SEEK_SET);
+              if (fread(lutInfo, 1, 4, fp54) == 4) {
+                uint8_t gridPts = lutInfo[2];
+                if (gridPts == 0 && lutInfo[0] > 0) {
+                  printf("      %s[WARN]  Tag '%s' (%s): gridPoints = 0 with %u input channels%s\n",
+                         ColorCritical(), sig54,
+                         (typeVal == 0x6D667431) ? "lut8" : "lut16",
+                         lutInfo[0], ColorReset());
+                  printf("       %sCWE-369: Division by zero in CLUT interpolation%s\n",
+                         ColorCritical(), ColorReset());
+                  divZeroIssues++;
+                }
+              }
+            }
+
+            // mAB/mBA: CLUT sub-element grid dimensions
+            if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
+              if (tOff + 32 > fs54) continue;
+              icUInt8Number mbaInfo[24];
+              fseek(fp54, tOff + 8, SEEK_SET);
+              if (fread(mbaInfo, 1, 24, fp54) != 24) continue;
+
+              uint8_t nInput = mbaInfo[0];
+              uint32_t clutOff = ((uint32_t)mbaInfo[12]<<24)|((uint32_t)mbaInfo[13]<<16)|
+                                 ((uint32_t)mbaInfo[14]<<8)|mbaInfo[15];
+
+              if (clutOff > 0 && clutOff < tSz && tOff + clutOff + 16 <= fs54 && nInput > 0 && nInput <= 16) {
+                icUInt8Number gridDims[16];
+                fseek(fp54, tOff + clutOff, SEEK_SET);
+                if (fread(gridDims, 1, 16, fp54) == 16) {
+                  for (int d = 0; d < nInput; d++) {
+                    if (gridDims[d] == 0) {
+                      printf("      %s[WARN]  Tag '%s' (%s): CLUT grid dimension[%d] = 0%s\n",
+                             ColorCritical(), sig54,
+                             (typeVal == 0x6D414220) ? "mAB" : "mBA",
+                             d, ColorReset());
+                      printf("       %sCWE-369: Division by zero in CLUT interpolation%s\n",
+                             ColorCritical(), ColorReset());
+                      divZeroIssues++;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp54) fclose(fp54);
+
+      if (divZeroIssues > 0) {
+        heuristicCount += divZeroIssues;
+      } else {
+        printf("      %s[OK] No division-by-zero triggers detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
   // Summary
   printf("=======================================================================\n");
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
@@ -3373,10 +4247,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 45 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 54 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
