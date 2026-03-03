@@ -6,7 +6,7 @@ Last Updated: 2026-02-24 21:24:00 UTC by David Hoyt
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 6,228 | 32-heuristic security analyzer with ASAN/UBSAN, OOM protection, Ninja mode |
+| **iccanalyzer-lite** | 7,100+ | 54-heuristic security analyzer with ASAN/UBSAN, OOM protection, Ninja mode |
 | **cfl** (17 fuzzers) | 4,537 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
 | **mcp-server** | — | ICC Profile MCP server with web UI |
@@ -99,7 +99,7 @@ See [dev-demo/README.md](dev-demo/README.md) for full usage.
 
 Pre-built prompt templates for AI-assisted analysis in [`.github/prompts/`](.github/prompts/):
 
-- **analyze-icc-profile** — Full 32-heuristic security scan
+- **analyze-icc-profile** — Full 54-heuristic security scan
 - **compare-icc-profiles** — Side-by-side structural diff
 - **triage-cve-poc** — CVE PoC analysis with CVE cross-referencing
 - **health-check** — MCP server verification
