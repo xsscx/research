@@ -2042,14 +2042,14 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
   // =========================================================================
   // Raw-file heuristics H33-H36 (safe on all inputs — no library API calls)
-  // Derived from arm64 macOS hardware testing: sips SIGBUS, write primitive,
-  // integer overflow via 32-bit truncation in sub-element offset bounds checks.
+  // Derived from ICC profile structural analysis and fuzzer coverage gaps:
+  // OOB sub-element offsets, integer overflow via 32-bit truncation in bounds checks.
   // =========================================================================
 
   // 33. mBA/mAB Sub-Element Offset Validation (raw file bytes)
-  // Detects the sips SIGBUS pattern: OOB M/CLUT/A curve offsets within mBA tags
-  // cause reads past mmap boundary. The parser follows B→M→CLUT→A offsets without
-  // bounds checking against tag size.
+  // Detects OOB M/CLUT/A curve offsets within mBA/mAB tags that cause reads past
+  // mmap boundary. Parsers following B→M→CLUT→A offsets without bounds checking
+  // against tag size are vulnerable to SIGBUS/SIGSEGV.
   printf("[H33] mBA/mAB Sub-Element Offset Validation\n");
   {
     FILE *fp33 = fopen(filename, "rb");
@@ -2131,7 +2131,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (mbaOobCount > 0) {
         printf("      %s%d mBA/mAB sub-element offset(s) reference data beyond tag bounds%s\n",
                ColorCritical(), mbaOobCount, ColorReset());
-        printf("      %sRisk: OOB read past mmap boundary → SIGBUS/SIGSEGV (sips crash pattern)%s\n",
+        printf("      %sRisk: OOB read past mmap boundary → SIGBUS/SIGSEGV on ICC parsers%s\n",
                ColorCritical(), ColorReset());
         heuristicCount += mbaOobCount;
       } else {
@@ -2142,7 +2142,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   printf("\n");
 
   // 34. 32-bit Integer Overflow in Sub-Element Offset Bounds Checks
-  // The sips parser does: add w9, w11, #0x14 (32-bit) then compares to file_size.
+  // Common ICC parser pattern: offset + element_size computed in 32-bit arithmetic.
   // When CLUT offset ≥ 0xFFFFFFEC, the add wraps: 0xFFFFFFFF + 0x14 = 0x13 (truncated)
   // which passes the bounds check, leading to OOB access.
   printf("[H34] 32-bit Integer Overflow in Sub-Element Bounds\n");
@@ -2226,7 +2226,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (overflowCount > 0) {
         printf("      %s%d sub-element offset(s) trigger 32-bit integer overflow%s\n",
                ColorCritical(), overflowCount, ColorReset());
-        printf("      %sRisk: Bounds check bypass via uint32 truncation (confirmed sips exploit pattern)%s\n",
+        printf("      %sRisk: Bounds check bypass via uint32 truncation (common ICC parser vulnerability)%s\n",
                ColorCritical(), ColorReset());
         heuristicCount += overflowCount;
       } else {
@@ -2425,6 +2425,933 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
 
+  // 37. Calculator Element Complexity Validation (raw file bytes)
+  // Calculator elements (0x63616C63 'calc') are Turing-complete: if/sel opcodes enable
+  // arbitrary branching, tget/tput/tsav access stack memory. #1 UBSAN source in fuzzing.
+  // CVE refs: CVE-2026-22047, calcOverMem/calcUnderStack test profiles
+  printf("[H37] Calculator Element Complexity Validation\n");
+  {
+    FILE *fp37 = fopen(filename, "rb");
+    if (fp37) {
+      fseek(fp37, 0, SEEK_END);
+      long fs37_l = ftell(fp37);
+      if (fs37_l < 0) { fclose(fp37); fp37 = NULL; }
+      size_t fs37 = (fp37) ? (size_t)fs37_l : 0;
+      if (fp37) fseek(fp37, 0, SEEK_SET);
+
+      int calcIssues = 0;
+      if (fs37 >= 132) {
+        icUInt8Number hdr37[132];
+        if (fread(hdr37, 1, 132, fp37) == 132) {
+          icUInt32Number tc37 = (static_cast<icUInt32Number>(hdr37[128])<<24) | (static_cast<icUInt32Number>(hdr37[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr37[130])<<8) | hdr37[131];
+
+          for (icUInt32Number i = 0; i < tc37 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs37) break;
+
+            icUInt8Number e37[12];
+            fseek(fp37, ePos, SEEK_SET);
+            if (fread(e37, 1, 12, fp37) != 12) break;
+
+            icUInt32Number tSig37 = (static_cast<icUInt32Number>(e37[0])<<24) | (static_cast<icUInt32Number>(e37[1])<<16) |
+                                    (static_cast<icUInt32Number>(e37[2])<<8) | e37[3];
+            icUInt32Number tOff37 = (static_cast<icUInt32Number>(e37[4])<<24) | (static_cast<icUInt32Number>(e37[5])<<16) |
+                                    (static_cast<icUInt32Number>(e37[6])<<8) | e37[7];
+            icUInt32Number tSz37  = (static_cast<icUInt32Number>(e37[8])<<24) | (static_cast<icUInt32Number>(e37[9])<<16) |
+                                    (static_cast<icUInt32Number>(e37[10])<<8) | e37[11];
+
+            if (tOff37 + 4 > fs37 || tSz37 < 4) continue;
+
+            // Check if tag contains mpet type
+            icUInt8Number typeCheck37[4];
+            fseek(fp37, tOff37, SEEK_SET);
+            if (fread(typeCheck37, 1, 4, fp37) != 4) continue;
+            icUInt32Number tagType37 = (static_cast<icUInt32Number>(typeCheck37[0])<<24) | (static_cast<icUInt32Number>(typeCheck37[1])<<16) |
+                                       (static_cast<icUInt32Number>(typeCheck37[2])<<8) | typeCheck37[3];
+            // mpet = 0x6D706574
+            if (tagType37 != 0x6D706574) continue;
+
+            // Scan tag data for 'calc' sub-element signatures (0x63616C63)
+            // and count occurrences + check for extreme indices
+            size_t scanLen = (tSz37 < 4096) ? tSz37 : 4096;
+            if (tOff37 + scanLen > fs37) scanLen = fs37 - tOff37;
+            if (scanLen < 8) continue;
+
+            icUInt8Number *scanBuf = new icUInt8Number[scanLen];
+            fseek(fp37, tOff37, SEEK_SET);
+            if (fread(scanBuf, 1, scanLen, fp37) != scanLen) { delete[] scanBuf; continue; }
+
+            char sig37[5];
+            sig37[0] = (tSig37>>24)&0xff; sig37[1] = (tSig37>>16)&0xff;
+            sig37[2] = (tSig37>>8)&0xff;  sig37[3] = tSig37&0xff; sig37[4] = '\0';
+
+            int calcCount = 0;
+            int ifSelCount = 0;
+            for (size_t b = 0; b + 3 < scanLen; b++) {
+              icUInt32Number w = (static_cast<icUInt32Number>(scanBuf[b])<<24) | (static_cast<icUInt32Number>(scanBuf[b+1])<<16) |
+                                 (static_cast<icUInt32Number>(scanBuf[b+2])<<8) | scanBuf[b+3];
+              if (w == 0x63616C63) calcCount++; // 'calc'
+              if (w == 0x69660000 || w == 0x73656C00) ifSelCount++; // 'if\0\0' or 'sel\0' patterns
+            }
+
+            if (calcCount > 100) {
+              printf("      %s[WARN]  Tag '%s': %d calculator sub-elements (limit 100)%s\n",
+                     ColorCritical(), sig37, calcCount, ColorReset());
+              printf("       %sRisk: Stack exhaustion / OOM via calculator element recursion%s\n",
+                     ColorCritical(), ColorReset());
+              calcIssues++;
+            }
+
+            // Check for zero-length MPE (tag size < 16 means no elements)
+            if (tSz37 >= 8 && tSz37 < 16) {
+              printf("      %s[WARN]  Tag '%s': MPE tag size %u too small for any elements%s\n",
+                     ColorWarning(), sig37, tSz37, ColorReset());
+              printf("       %sRisk: Crash on empty element list traversal%s\n",
+                     ColorCritical(), ColorReset());
+              calcIssues++;
+            }
+
+            // Check for extreme sub-element count in mpet header
+            // mpet: type(4) + reserved(4) + nInput(2) + nOutput(2) + nElements(4) = 16 bytes
+            if (scanLen >= 16) {
+              icUInt32Number nElems = (static_cast<icUInt32Number>(scanBuf[12])<<24) | (static_cast<icUInt32Number>(scanBuf[13])<<16) |
+                                      (static_cast<icUInt32Number>(scanBuf[14])<<8) | scanBuf[15];
+              if (nElems > 256) {
+                printf("      %s[WARN]  Tag '%s': MPE has %u elements (limit 256)%s\n",
+                       ColorCritical(), sig37, nElems, ColorReset());
+                printf("       %sRisk: DoS via excessive element processing%s\n",
+                       ColorCritical(), ColorReset());
+                calcIssues++;
+              }
+            }
+
+            delete[] scanBuf;
+          }
+        }
+      }
+      if (fp37) fclose(fp37);
+
+      if (calcIssues > 0) {
+        heuristicCount += calcIssues;
+      } else {
+        printf("      %s[OK] No calculator complexity issues%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 38. Curve Degenerate Value Detection (raw file bytes)
+  // TRC curves with all-zero, all-max, or NaN values cause undefined behavior
+  // in color math. Applies to curv (0x63757276) and para (0x70617261) tags.
+  printf("[H38] Curve Degenerate Value Detection\n");
+  {
+    FILE *fp38 = fopen(filename, "rb");
+    if (fp38) {
+      fseek(fp38, 0, SEEK_END);
+      long fs38_l = ftell(fp38);
+      if (fs38_l < 0) { fclose(fp38); fp38 = NULL; }
+      size_t fs38 = (fp38) ? (size_t)fs38_l : 0;
+      if (fp38) fseek(fp38, 0, SEEK_SET);
+
+      int curveIssues = 0;
+      if (fs38 >= 132) {
+        icUInt8Number hdr38[132];
+        if (fread(hdr38, 1, 132, fp38) == 132) {
+          icUInt32Number tc38 = (static_cast<icUInt32Number>(hdr38[128])<<24) | (static_cast<icUInt32Number>(hdr38[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr38[130])<<8) | hdr38[131];
+
+          for (icUInt32Number i = 0; i < tc38 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs38) break;
+
+            icUInt8Number e38[12];
+            fseek(fp38, ePos, SEEK_SET);
+            if (fread(e38, 1, 12, fp38) != 12) break;
+
+            icUInt32Number tSig38 = (static_cast<icUInt32Number>(e38[0])<<24) | (static_cast<icUInt32Number>(e38[1])<<16) |
+                                    (static_cast<icUInt32Number>(e38[2])<<8) | e38[3];
+            icUInt32Number tOff38 = (static_cast<icUInt32Number>(e38[4])<<24) | (static_cast<icUInt32Number>(e38[5])<<16) |
+                                    (static_cast<icUInt32Number>(e38[6])<<8) | e38[7];
+            icUInt32Number tSz38  = (static_cast<icUInt32Number>(e38[8])<<24) | (static_cast<icUInt32Number>(e38[9])<<16) |
+                                    (static_cast<icUInt32Number>(e38[10])<<8) | e38[11];
+
+            if (tOff38 + 12 > fs38 || tSz38 < 12) continue;
+            icUInt8Number curveHdr[12];
+            fseek(fp38, tOff38, SEEK_SET);
+            if (fread(curveHdr, 1, 12, fp38) != 12) continue;
+
+            icUInt32Number curveType = (static_cast<icUInt32Number>(curveHdr[0])<<24) | (static_cast<icUInt32Number>(curveHdr[1])<<16) |
+                                       (static_cast<icUInt32Number>(curveHdr[2])<<8) | curveHdr[3];
+
+            char sig38[5];
+            sig38[0] = (tSig38>>24)&0xff; sig38[1] = (tSig38>>16)&0xff;
+            sig38[2] = (tSig38>>8)&0xff;  sig38[3] = tSig38&0xff; sig38[4] = '\0';
+
+            if (curveType == 0x63757276) { // 'curv'
+              // curv: type(4) + reserved(4) + count(4) + entries(2*count)
+              icUInt32Number count = (static_cast<icUInt32Number>(curveHdr[8])<<24) | (static_cast<icUInt32Number>(curveHdr[9])<<16) |
+                                     (static_cast<icUInt32Number>(curveHdr[10])<<8) | curveHdr[11];
+              if (count > 1 && count <= 65535) {
+                size_t dataStart = tOff38 + 12;
+                size_t dataLen = count * 2;
+                if (dataLen > 512) dataLen = 512; // sample first 256 entries
+                if (dataStart + dataLen > fs38) continue;
+
+                icUInt8Number *cData = new icUInt8Number[dataLen];
+                fseek(fp38, dataStart, SEEK_SET);
+                if (fread(cData, 1, dataLen, fp38) == dataLen) {
+                  bool allZero = true, allMax = true;
+                  for (size_t b = 0; b < dataLen; b += 2) {
+                    uint16_t val = (static_cast<uint16_t>(cData[b]) << 8) | cData[b+1];
+                    if (val != 0) allZero = false;
+                    if (val != 0xFFFF) allMax = false;
+                  }
+                  if (allZero) {
+                    printf("      %s[WARN]  Tag '%s' (curv): all %u entries are zero — degenerate TRC%s\n",
+                           ColorCritical(), sig38, count, ColorReset());
+                    printf("       %sRisk: All color channels collapse to black — division by zero in inverse%s\n",
+                           ColorCritical(), ColorReset());
+                    curveIssues++;
+                  }
+                  if (allMax) {
+                    printf("      %s[WARN]  Tag '%s' (curv): all %u entries are 0xFFFF — saturated TRC%s\n",
+                           ColorWarning(), sig38, count, ColorReset());
+                    curveIssues++;
+                  }
+                }
+                delete[] cData;
+              }
+            } else if (curveType == 0x70617261) { // 'para'
+              // para: type(4) + reserved(4) + funcType(2) + reserved(2) + params...
+              // funcType 0: Y = X^g  (1 param: g)
+              // funcType 1-4: increasingly complex (a,b,c,d,e,f params)
+              if (tSz38 >= 16) {
+                icUInt8Number paraHdr[4];
+                fseek(fp38, tOff38 + 8, SEEK_SET);
+                if (fread(paraHdr, 1, 4, fp38) == 4) {
+                  uint16_t funcType = (static_cast<uint16_t>(paraHdr[0]) << 8) | paraHdr[1];
+                  if (funcType > 4) {
+                    printf("      %s[WARN]  Tag '%s' (para): funcType %u > 4 (invalid)%s\n",
+                           ColorCritical(), sig38, funcType, ColorReset());
+                    printf("       %sRisk: Parser reads uninitialized coefficients%s\n",
+                           ColorCritical(), ColorReset());
+                    curveIssues++;
+                  }
+                  // Check first param (gamma) for zero — causes pow(x, 0) flattening
+                  if (tSz38 >= 16 && tOff38 + 16 <= fs38) {
+                    icUInt8Number gamma38[4];
+                    fseek(fp38, tOff38 + 12, SEEK_SET);
+                    if (fread(gamma38, 1, 4, fp38) == 4) {
+                      int32_t gammaFixed = (static_cast<int32_t>(gamma38[0])<<24) | (gamma38[1]<<16) |
+                                            (gamma38[2]<<8) | gamma38[3];
+                      if (gammaFixed == 0) {
+                        printf("      %s[WARN]  Tag '%s' (para): gamma = 0 (s15Fixed16) — degenerate%s\n",
+                               ColorWarning(), sig38, ColorReset());
+                        curveIssues++;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp38) fclose(fp38);
+
+      if (curveIssues > 0) {
+        heuristicCount += curveIssues;
+      } else {
+        printf("      %s[OK] No degenerate curve values detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 39. Shared Tag Data Aliasing Detection (raw file bytes)
+  // Multiple tag entries pointing to the same offset+size is ICC-legal (shared data).
+  // However, shared mutable types (mBA/mAB/calc/tary) can cause UAF.
+  printf("[H39] Shared Tag Data Aliasing Detection\n");
+  {
+    FILE *fp39 = fopen(filename, "rb");
+    if (fp39) {
+      fseek(fp39, 0, SEEK_END);
+      long fs39_l = ftell(fp39);
+      if (fs39_l < 0) { fclose(fp39); fp39 = NULL; }
+      size_t fs39 = (fp39) ? (size_t)fs39_l : 0;
+      if (fp39) fseek(fp39, 0, SEEK_SET);
+
+      int aliasIssues = 0;
+      if (fs39 >= 132) {
+        icUInt8Number hdr39[132];
+        if (fread(hdr39, 1, 132, fp39) == 132) {
+          icUInt32Number tc39 = (static_cast<icUInt32Number>(hdr39[128])<<24) | (static_cast<icUInt32Number>(hdr39[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr39[130])<<8) | hdr39[131];
+          if (tc39 > 256) tc39 = 256;
+
+          struct TagEntry39 { icUInt32Number sig; icUInt32Number off; icUInt32Number sz; };
+          std::vector<TagEntry39> tags39;
+
+          for (icUInt32Number i = 0; i < tc39; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs39) break;
+            icUInt8Number e39[12];
+            fseek(fp39, ePos, SEEK_SET);
+            if (fread(e39, 1, 12, fp39) != 12) break;
+            TagEntry39 te;
+            te.sig = (static_cast<icUInt32Number>(e39[0])<<24) | (static_cast<icUInt32Number>(e39[1])<<16) | (static_cast<icUInt32Number>(e39[2])<<8) | e39[3];
+            te.off = (static_cast<icUInt32Number>(e39[4])<<24) | (static_cast<icUInt32Number>(e39[5])<<16) | (static_cast<icUInt32Number>(e39[6])<<8) | e39[7];
+            te.sz  = (static_cast<icUInt32Number>(e39[8])<<24) | (static_cast<icUInt32Number>(e39[9])<<16) | (static_cast<icUInt32Number>(e39[10])<<8) | e39[11];
+            tags39.push_back(te);
+          }
+
+          int sharedCount = 0;
+          for (size_t a = 0; a < tags39.size(); a++) {
+            for (size_t b = a+1; b < tags39.size(); b++) {
+              if (tags39[a].off == tags39[b].off && tags39[a].sz == tags39[b].sz && tags39[a].sig != tags39[b].sig) {
+                char s1[5], s2[5];
+                s1[0] = (tags39[a].sig>>24)&0xff; s1[1] = (tags39[a].sig>>16)&0xff; s1[2] = (tags39[a].sig>>8)&0xff; s1[3] = tags39[a].sig&0xff; s1[4] = '\0';
+                s2[0] = (tags39[b].sig>>24)&0xff; s2[1] = (tags39[b].sig>>16)&0xff; s2[2] = (tags39[b].sig>>8)&0xff; s2[3] = tags39[b].sig&0xff; s2[4] = '\0';
+
+                sharedCount++;
+                if (sharedCount <= 5) {
+                  printf("      [INFO]  Tags '%s' and '%s' share data at offset 0x%X (%u bytes)\n",
+                         s1, s2, tags39[a].off, tags39[a].sz);
+                }
+
+                // Check if shared type is mutable (mBA, mAB, calc, tary — higher UAF risk)
+                if (tags39[a].off + 4 <= fs39) {
+                  icUInt8Number sharedType[4];
+                  fseek(fp39, tags39[a].off, SEEK_SET);
+                  if (fread(sharedType, 1, 4, fp39) == 4) {
+                    icUInt32Number st = (static_cast<icUInt32Number>(sharedType[0])<<24) | (static_cast<icUInt32Number>(sharedType[1])<<16) |
+                                        (static_cast<icUInt32Number>(sharedType[2])<<8) | sharedType[3];
+                    if (st == 0x6D424120 || st == 0x6D414220 || st == 0x6D706574 || st == 0x74617279) {
+                      printf("      %s[WARN]  Shared data is mutable type (0x%08X) — UAF risk%s\n",
+                             ColorCritical(), st, ColorReset());
+                      aliasIssues++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (sharedCount > 5) {
+            printf("      ... and %d more shared tag pair(s)\n", sharedCount - 5);
+          }
+          if (sharedCount > 0 && aliasIssues == 0) {
+            printf("      %s[OK] %d shared tag pair(s) — all immutable types (safe)%s\n",
+                   ColorSuccess(), sharedCount, ColorReset());
+          }
+        }
+      }
+      if (fp39) fclose(fp39);
+
+      if (aliasIssues > 0) {
+        heuristicCount += aliasIssues;
+      } else if (aliasIssues == 0) {
+        printf("      %s[OK] No risky shared tag data aliasing%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 40. Tag Alignment & Padding Validation (raw file bytes)
+  // ICC spec requires tag data offsets to be 4-byte aligned. Misalignment causes
+  // SIGBUS on strict-alignment platforms (arm64). Non-zero padding can leak data.
+  printf("[H40] Tag Alignment & Padding Validation\n");
+  {
+    FILE *fp40 = fopen(filename, "rb");
+    if (fp40) {
+      fseek(fp40, 0, SEEK_END);
+      long fs40_l = ftell(fp40);
+      if (fs40_l < 0) { fclose(fp40); fp40 = NULL; }
+      size_t fs40 = (fp40) ? (size_t)fs40_l : 0;
+      if (fp40) fseek(fp40, 0, SEEK_SET);
+
+      int alignIssues = 0;
+      if (fs40 >= 132) {
+        icUInt8Number hdr40[132];
+        if (fread(hdr40, 1, 132, fp40) == 132) {
+          icUInt32Number tc40 = (static_cast<icUInt32Number>(hdr40[128])<<24) | (static_cast<icUInt32Number>(hdr40[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr40[130])<<8) | hdr40[131];
+          if (tc40 > 256) tc40 = 256;
+
+          int misaligned = 0;
+          int nonZeroPad = 0;
+
+          for (icUInt32Number i = 0; i < tc40; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs40) break;
+            icUInt8Number e40[12];
+            fseek(fp40, ePos, SEEK_SET);
+            if (fread(e40, 1, 12, fp40) != 12) break;
+
+            icUInt32Number tOff40 = (static_cast<icUInt32Number>(e40[4])<<24) | (static_cast<icUInt32Number>(e40[5])<<16) |
+                                    (static_cast<icUInt32Number>(e40[6])<<8) | e40[7];
+            icUInt32Number tSz40  = (static_cast<icUInt32Number>(e40[8])<<24) | (static_cast<icUInt32Number>(e40[9])<<16) |
+                                    (static_cast<icUInt32Number>(e40[10])<<8) | e40[11];
+
+            // Check 4-byte alignment
+            if (tOff40 % 4 != 0) {
+              if (misaligned < 3) {
+                char sig40[5];
+                sig40[0] = e40[0]; sig40[1] = e40[1]; sig40[2] = e40[2]; sig40[3] = e40[3]; sig40[4] = '\0';
+                printf("      %s[WARN]  Tag '%s' offset 0x%X not 4-byte aligned%s\n",
+                       ColorWarning(), sig40, tOff40, ColorReset());
+              }
+              misaligned++;
+            }
+
+            // Check padding bytes after tag data (up to next 4-byte boundary)
+            size_t tagEnd = (size_t)tOff40 + tSz40;
+            size_t padEnd = (tagEnd + 3) & ~3UL;
+            if (padEnd > tagEnd && padEnd <= fs40) {
+              size_t padLen = padEnd - tagEnd;
+              icUInt8Number padBuf[4];
+              fseek(fp40, tagEnd, SEEK_SET);
+              size_t toRead = (padLen < 4) ? padLen : 4;
+              if (fread(padBuf, 1, toRead, fp40) == toRead) {
+                for (size_t p = 0; p < toRead; p++) {
+                  if (padBuf[p] != 0x00) {
+                    nonZeroPad++;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (misaligned > 3) {
+            printf("      ... and %d more misaligned tag(s)\n", misaligned - 3);
+          }
+          if (misaligned > 0) {
+            printf("      %s%d tag(s) with non-aligned offsets%s\n", ColorWarning(), misaligned, ColorReset());
+            printf("      %sRisk: SIGBUS on strict-alignment platforms (arm64)%s\n",
+                   ColorWarning(), ColorReset());
+            alignIssues += misaligned;
+          }
+          if (nonZeroPad > 0) {
+            printf("      %s[WARN]  %d tag(s) have non-zero padding bytes%s\n",
+                   ColorWarning(), nonZeroPad, ColorReset());
+            printf("      %sRisk: Potential data leakage in padding%s\n", ColorInfo(), ColorReset());
+            alignIssues++;
+          }
+        }
+      }
+      if (fp40) fclose(fp40);
+
+      if (alignIssues > 0) {
+        heuristicCount++;
+      } else {
+        printf("      %s[OK] All tags properly aligned with zero padding%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 41. Version/Type Consistency Check (raw file bytes)
+  // Flag v5-only types/tags in v2/v4 profiles (type confusion risk) and
+  // deprecated v2-only types in v4+ profiles.
+  printf("[H41] Version/Type Consistency Check\n");
+  {
+    FILE *fp41 = fopen(filename, "rb");
+    if (fp41) {
+      fseek(fp41, 0, SEEK_END);
+      long fs41_l = ftell(fp41);
+      if (fs41_l < 0) { fclose(fp41); fp41 = NULL; }
+      size_t fs41 = (fp41) ? (size_t)fs41_l : 0;
+      if (fp41) fseek(fp41, 0, SEEK_SET);
+
+      int versionIssues = 0;
+      if (fs41 >= 132) {
+        icUInt8Number hdr41[132];
+        if (fread(hdr41, 1, 132, fp41) == 132) {
+          // Profile version: byte 8 = major, byte 9 = minor.sub
+          uint8_t verMajor = hdr41[8];
+          uint8_t verMinor = hdr41[9];
+          printf("      Profile version: %u.%u.%u\n", verMajor, (verMinor >> 4), (verMinor & 0x0F));
+
+          icUInt32Number tc41 = (static_cast<icUInt32Number>(hdr41[128])<<24) | (static_cast<icUInt32Number>(hdr41[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr41[130])<<8) | hdr41[131];
+          if (tc41 > 256) tc41 = 256;
+
+          // v5-only type signatures
+          static const icUInt32Number v5OnlyTypes[] = {
+            0x736D6174, // 'smat' sparseMatrixArrayType
+            0x7A757466, // 'zutf' zipUtf8Type
+            0x7A786D6C, // 'zxml' zipXmlType
+            0x63696370, // 'cicp' cicpType
+            0x75746638, // 'utf8' utf8Type
+            0x666C3136, // 'fl16' float16ArrayType
+            0x666C3332, // 'fl32' float32ArrayType
+            0x666C3634, // 'fl64' float64ArrayType
+            0x62726466, // 'brdf' brdfType
+          };
+          // v5-only tag signatures
+          static const icUInt32Number v5OnlyTags[] = {
+            0x7364696E, // 'sdin' spectralDataInfo
+            0x73777074, // 'swpt' spectralWhitePoint
+            0x7376636E, // 'svcn' spectralViewingConditions
+            0x656F6273, // 'eobs' emissionObserver
+            0x726F6273, // 'robs' reflectanceObserver
+          };
+
+          for (icUInt32Number i = 0; i < tc41; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs41) break;
+            icUInt8Number e41[12];
+            fseek(fp41, ePos, SEEK_SET);
+            if (fread(e41, 1, 12, fp41) != 12) break;
+
+            icUInt32Number tSig41 = (static_cast<icUInt32Number>(e41[0])<<24) | (static_cast<icUInt32Number>(e41[1])<<16) |
+                                    (static_cast<icUInt32Number>(e41[2])<<8) | e41[3];
+            icUInt32Number tOff41 = (static_cast<icUInt32Number>(e41[4])<<24) | (static_cast<icUInt32Number>(e41[5])<<16) |
+                                    (static_cast<icUInt32Number>(e41[6])<<8) | e41[7];
+
+            char sig41[5];
+            sig41[0] = (tSig41>>24)&0xff; sig41[1] = (tSig41>>16)&0xff;
+            sig41[2] = (tSig41>>8)&0xff;  sig41[3] = tSig41&0xff; sig41[4] = '\0';
+
+            // Check tag signature against v5-only list
+            if (verMajor < 5) {
+              for (int k = 0; k < (int)(sizeof(v5OnlyTags)/sizeof(v5OnlyTags[0])); k++) {
+                if (tSig41 == v5OnlyTags[k]) {
+                  printf("      %s[WARN]  v5-only tag '%s' in v%u profile%s\n",
+                         ColorWarning(), sig41, verMajor, ColorReset());
+                  versionIssues++;
+                  break;
+                }
+              }
+            }
+
+            // Check tag data type against v5-only list
+            if (verMajor < 5 && tOff41 + 4 <= fs41) {
+              icUInt8Number typeBytes41[4];
+              fseek(fp41, tOff41, SEEK_SET);
+              if (fread(typeBytes41, 1, 4, fp41) == 4) {
+                icUInt32Number dataType41 = (static_cast<icUInt32Number>(typeBytes41[0])<<24) | (static_cast<icUInt32Number>(typeBytes41[1])<<16) |
+                                             (static_cast<icUInt32Number>(typeBytes41[2])<<8) | typeBytes41[3];
+                for (int k = 0; k < (int)(sizeof(v5OnlyTypes)/sizeof(v5OnlyTypes[0])); k++) {
+                  if (dataType41 == v5OnlyTypes[k]) {
+                    char typeStr41[5];
+                    typeStr41[0] = (dataType41>>24)&0xff; typeStr41[1] = (dataType41>>16)&0xff;
+                    typeStr41[2] = (dataType41>>8)&0xff;  typeStr41[3] = dataType41&0xff; typeStr41[4] = '\0';
+                    printf("      %s[WARN]  Tag '%s' uses v5-only type '%s' in v%u profile%s\n",
+                           ColorWarning(), sig41, typeStr41, verMajor, ColorReset());
+                    printf("       %sRisk: Type confusion — v4 parser may misinterpret v5 data%s\n",
+                           ColorCritical(), ColorReset());
+                    versionIssues++;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp41) fclose(fp41);
+
+      if (versionIssues > 0) {
+        printf("      %s%d version/type inconsistency(ies) detected%s\n",
+               ColorWarning(), versionIssues, ColorReset());
+        heuristicCount += versionIssues;
+      } else {
+        printf("      %s[OK] All tags/types consistent with declared version%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 42. Matrix Singularity Detection (raw file bytes)
+  // Read rXYZ, gXYZ, bXYZ tags (s15Fixed16 × 3 each) and compute 3×3 determinant.
+  // Near-zero determinant → division by zero in color transforms.
+  printf("[H42] Matrix Singularity Detection\n");
+  {
+    FILE *fp42 = fopen(filename, "rb");
+    if (fp42) {
+      fseek(fp42, 0, SEEK_END);
+      long fs42_l = ftell(fp42);
+      if (fs42_l < 0) { fclose(fp42); fp42 = NULL; }
+      size_t fs42 = (fp42) ? (size_t)fs42_l : 0;
+      if (fp42) fseek(fp42, 0, SEEK_SET);
+
+      int matrixIssues = 0;
+      if (fs42 >= 132) {
+        icUInt8Number hdr42[132];
+        if (fread(hdr42, 1, 132, fp42) == 132) {
+          icUInt32Number tc42 = (static_cast<icUInt32Number>(hdr42[128])<<24) | (static_cast<icUInt32Number>(hdr42[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr42[130])<<8) | hdr42[131];
+          if (tc42 > 256) tc42 = 256;
+
+          // Find rXYZ (0x7258595A), gXYZ (0x6758595A), bXYZ (0x6258595A)
+          static const icUInt32Number xyzSigs[] = {0x7258595A, 0x6758595A, 0x6258595A};
+          double mat[3][3] = {{0}};
+          int found = 0;
+
+          for (int col = 0; col < 3; col++) {
+            for (icUInt32Number i = 0; i < tc42; i++) {
+              size_t ePos = 132 + i * 12;
+              if (ePos + 12 > fs42) break;
+              icUInt8Number e42[12];
+              fseek(fp42, ePos, SEEK_SET);
+              if (fread(e42, 1, 12, fp42) != 12) break;
+
+              icUInt32Number tSig42 = (static_cast<icUInt32Number>(e42[0])<<24) | (static_cast<icUInt32Number>(e42[1])<<16) |
+                                      (static_cast<icUInt32Number>(e42[2])<<8) | e42[3];
+              if (tSig42 != xyzSigs[col]) continue;
+
+              icUInt32Number tOff42 = (static_cast<icUInt32Number>(e42[4])<<24) | (static_cast<icUInt32Number>(e42[5])<<16) |
+                                      (static_cast<icUInt32Number>(e42[6])<<8) | e42[7];
+              // XYZ type: type(4) + reserved(4) + X(4) + Y(4) + Z(4) = 20 bytes
+              if (tOff42 + 20 > fs42) break;
+              icUInt8Number xyzData[12];
+              fseek(fp42, tOff42 + 8, SEEK_SET);
+              if (fread(xyzData, 1, 12, fp42) != 12) break;
+
+              for (int row = 0; row < 3; row++) {
+                int32_t fixed = (static_cast<int32_t>(xyzData[row*4])<<24) | (xyzData[row*4+1]<<16) |
+                                 (xyzData[row*4+2]<<8) | xyzData[row*4+3];
+                mat[row][col] = fixed / 65536.0;
+              }
+              found++;
+              break;
+            }
+          }
+
+          if (found == 3) {
+            // Compute determinant: det = a(ei-fh) - b(di-fg) + c(dh-eg)
+            double det = mat[0][0] * (mat[1][1]*mat[2][2] - mat[1][2]*mat[2][1])
+                       - mat[0][1] * (mat[1][0]*mat[2][2] - mat[1][2]*mat[2][0])
+                       + mat[0][2] * (mat[1][0]*mat[2][1] - mat[1][1]*mat[2][0]);
+
+            printf("      Matrix determinant: %.8f\n", det);
+
+            if (det == 0.0 || (det > -1e-7 && det < 1e-7)) {
+              printf("      %s[WARN]  Near-singular matrix (det ≈ 0) — non-invertible%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sRisk: Division by zero in inverse color transforms%s\n",
+                     ColorCritical(), ColorReset());
+              matrixIssues++;
+            } else if (det < 0) {
+              printf("      %s[WARN]  Negative determinant (%.6f) — inverted color space%s\n",
+                     ColorWarning(), det, ColorReset());
+              matrixIssues++;
+            }
+          } else {
+            printf("      [INFO]  rXYZ/gXYZ/bXYZ tags not all present (%d/3 found)\n", found);
+          }
+        }
+      }
+      if (fp42) fclose(fp42);
+
+      if (matrixIssues > 0) {
+        heuristicCount += matrixIssues;
+      } else {
+        printf("      %s[OK] Color matrix is well-conditioned%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 43. Spectral/BRDF Tag Structural Validation (raw file bytes)
+  // ICC v5/iccMAX adds 24+ BRDF signatures and spectral tags. Check for
+  // structural presence and pairing issues.
+  printf("[H43] Spectral/BRDF Tag Structural Validation\n");
+  {
+    FILE *fp43 = fopen(filename, "rb");
+    if (fp43) {
+      fseek(fp43, 0, SEEK_END);
+      long fs43_l = ftell(fp43);
+      if (fs43_l < 0) { fclose(fp43); fp43 = NULL; }
+      size_t fs43 = (fp43) ? (size_t)fs43_l : 0;
+      if (fp43) fseek(fp43, 0, SEEK_SET);
+
+      int spectralIssues = 0;
+      if (fs43 >= 132) {
+        icUInt8Number hdr43[132];
+        if (fread(hdr43, 1, 132, fp43) == 132) {
+          icUInt32Number tc43 = (static_cast<icUInt32Number>(hdr43[128])<<24) | (static_cast<icUInt32Number>(hdr43[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr43[130])<<8) | hdr43[131];
+          if (tc43 > 256) tc43 = 256;
+
+          bool hasSdin = false, hasSwpt = false, hasSvcn = false;
+          bool hasEobs = false, hasRobs = false;
+          int brdfCount = 0;
+
+          for (icUInt32Number i = 0; i < tc43; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs43) break;
+            icUInt8Number e43[12];
+            fseek(fp43, ePos, SEEK_SET);
+            if (fread(e43, 1, 12, fp43) != 12) break;
+
+            icUInt32Number tSig43 = (static_cast<icUInt32Number>(e43[0])<<24) | (static_cast<icUInt32Number>(e43[1])<<16) |
+                                    (static_cast<icUInt32Number>(e43[2])<<8) | e43[3];
+            icUInt32Number tOff43 = (static_cast<icUInt32Number>(e43[4])<<24) | (static_cast<icUInt32Number>(e43[5])<<16) |
+                                    (static_cast<icUInt32Number>(e43[6])<<8) | e43[7];
+            icUInt32Number tSz43  = (static_cast<icUInt32Number>(e43[8])<<24) | (static_cast<icUInt32Number>(e43[9])<<16) |
+                                    (static_cast<icUInt32Number>(e43[10])<<8) | e43[11];
+
+            if (tSig43 == 0x7364696E) hasSdin = true; // 'sdin'
+            if (tSig43 == 0x73777074) hasSwpt = true; // 'swpt'
+            if (tSig43 == 0x7376636E) hasSvcn = true; // 'svcn'
+            if (tSig43 == 0x656F6273) hasEobs = true; // 'eobs'
+            if (tSig43 == 0x726F6273) hasRobs = true; // 'robs'
+
+            // Count BRDF tags (bAB, bDB, bMB, bMS, bcp, bsp, BPh)
+            char s43[5];
+            s43[0] = (tSig43>>24)&0xff; s43[1] = (tSig43>>16)&0xff;
+            s43[2] = (tSig43>>8)&0xff;  s43[3] = tSig43&0xff; s43[4] = '\0';
+            if ((s43[0] == 'b' && (s43[1] == 'A' || s43[1] == 'D' || s43[1] == 'M' || s43[1] == 'c' || s43[1] == 's')) ||
+                (s43[0] == 'B' && s43[1] == 'P')) {
+              brdfCount++;
+              // Check for zero-size BRDF tag
+              if (tSz43 < 8) {
+                printf("      %s[WARN]  BRDF tag '%s' has size %u < 8 (too small for any data)%s\n",
+                       ColorWarning(), s43, tSz43, ColorReset());
+                spectralIssues++;
+              }
+            }
+
+            // Validate sdin structure: spectralDataInfo must have valid wavelength data
+            if (tSig43 == 0x7364696E && tOff43 + 20 <= fs43 && tSz43 >= 20) {
+              icUInt8Number sdinData[12];
+              fseek(fp43, tOff43 + 8, SEEK_SET);
+              if (fread(sdinData, 1, 12, fp43) == 12) {
+                // Spectral range: start(4), end(4), steps(2)
+                int32_t specStart = (static_cast<int32_t>(sdinData[0])<<24) | (sdinData[1]<<16) | (sdinData[2]<<8) | sdinData[3];
+                int32_t specEnd   = (static_cast<int32_t>(sdinData[4])<<24) | (sdinData[5]<<16) | (sdinData[6]<<8) | sdinData[7];
+                uint16_t specSteps = (static_cast<uint16_t>(sdinData[8])<<8) | sdinData[9];
+                double startNm = specStart / 65536.0;
+                double endNm   = specEnd / 65536.0;
+                if (endNm < startNm) {
+                  printf("      %s[WARN]  sdin: spectral end (%.1f nm) < start (%.1f nm)%s\n",
+                         ColorCritical(), endNm, startNm, ColorReset());
+                  spectralIssues++;
+                }
+                if (specSteps == 0 || specSteps > 1000) {
+                  printf("      %s[WARN]  sdin: spectral steps = %u (expected 1-1000)%s\n",
+                         ColorWarning(), specSteps, ColorReset());
+                  spectralIssues++;
+                }
+              }
+            }
+          }
+
+          // Report BRDF presence
+          if (brdfCount > 0) {
+            printf("      [INFO]  %d BRDF tag(s) present\n", brdfCount);
+          }
+
+          // Check spectral tag consistency
+          if (hasSdin && !hasSwpt) {
+            printf("      %s[WARN]  sdin present but swpt (spectral white) missing%s\n",
+                   ColorWarning(), ColorReset());
+            spectralIssues++;
+          }
+          if (hasEobs && !hasRobs && hasSdin) {
+            printf("      [INFO]  eobs present without robs — emission-only profile\n");
+          }
+        }
+      }
+      if (fp43) fclose(fp43);
+
+      if (spectralIssues > 0) {
+        heuristicCount += spectralIssues;
+      } else {
+        printf("      %s[OK] Spectral/BRDF tags structurally valid%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 44. Embedded Image Validation (raw file bytes, ICC v5)
+  // v5 embeddedHeightImageType / embeddedNormalImageType (embt = 0x656D6274)
+  // can contain PNG or TIFF data. Check magic bytes and size.
+  printf("[H44] Embedded Image Validation\n");
+  {
+    FILE *fp44 = fopen(filename, "rb");
+    if (fp44) {
+      fseek(fp44, 0, SEEK_END);
+      long fs44_l = ftell(fp44);
+      if (fs44_l < 0) { fclose(fp44); fp44 = NULL; }
+      size_t fs44 = (fp44) ? (size_t)fs44_l : 0;
+      if (fp44) fseek(fp44, 0, SEEK_SET);
+
+      int embedIssues = 0;
+      if (fs44 >= 132) {
+        icUInt8Number hdr44[132];
+        if (fread(hdr44, 1, 132, fp44) == 132) {
+          icUInt32Number tc44 = (static_cast<icUInt32Number>(hdr44[128])<<24) | (static_cast<icUInt32Number>(hdr44[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr44[130])<<8) | hdr44[131];
+          if (tc44 > 256) tc44 = 256;
+
+          int embedFound = 0;
+          for (icUInt32Number i = 0; i < tc44; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs44) break;
+            icUInt8Number e44[12];
+            fseek(fp44, ePos, SEEK_SET);
+            if (fread(e44, 1, 12, fp44) != 12) break;
+
+            icUInt32Number tOff44 = (static_cast<icUInt32Number>(e44[4])<<24) | (static_cast<icUInt32Number>(e44[5])<<16) |
+                                    (static_cast<icUInt32Number>(e44[6])<<8) | e44[7];
+            icUInt32Number tSz44  = (static_cast<icUInt32Number>(e44[8])<<24) | (static_cast<icUInt32Number>(e44[9])<<16) |
+                                    (static_cast<icUInt32Number>(e44[10])<<8) | e44[11];
+
+            if (tOff44 + 4 > fs44 || tSz44 < 12) continue;
+            icUInt8Number typeBytes44[4];
+            fseek(fp44, tOff44, SEEK_SET);
+            if (fread(typeBytes44, 1, 4, fp44) != 4) continue;
+
+            icUInt32Number tagType44 = (static_cast<icUInt32Number>(typeBytes44[0])<<24) | (static_cast<icUInt32Number>(typeBytes44[1])<<16) |
+                                       (static_cast<icUInt32Number>(typeBytes44[2])<<8) | typeBytes44[3];
+            if (tagType44 != 0x656D6274) continue; // 'embt'
+
+            embedFound++;
+            char sig44[5];
+            sig44[0] = e44[0]; sig44[1] = e44[1]; sig44[2] = e44[2]; sig44[3] = e44[3]; sig44[4] = '\0';
+
+            // Size check: > 10MB is suspicious
+            if (tSz44 > 10 * 1024 * 1024) {
+              printf("      %s[WARN]  Tag '%s' (embt): embedded image %u bytes (>10MB)%s\n",
+                     ColorWarning(), sig44, tSz44, ColorReset());
+              printf("       %sRisk: Resource exhaustion via large embedded image%s\n",
+                     ColorWarning(), ColorReset());
+              embedIssues++;
+            }
+
+            // Check embedded image magic (skip type(4) + reserved(4) + flags(4) = offset 12)
+            if (tOff44 + 16 <= fs44) {
+              icUInt8Number imgMagic[4];
+              fseek(fp44, tOff44 + 12, SEEK_SET);
+              if (fread(imgMagic, 1, 4, fp44) == 4) {
+                bool validPNG = (imgMagic[0] == 0x89 && imgMagic[1] == 0x50 &&
+                                 imgMagic[2] == 0x4E && imgMagic[3] == 0x47);
+                bool validTIFF_LE = (imgMagic[0] == 0x49 && imgMagic[1] == 0x49 &&
+                                      imgMagic[2] == 0x2A && imgMagic[3] == 0x00);
+                bool validTIFF_BE = (imgMagic[0] == 0x4D && imgMagic[1] == 0x4D &&
+                                      imgMagic[2] == 0x00 && imgMagic[3] == 0x2A);
+                if (!validPNG && !validTIFF_LE && !validTIFF_BE) {
+                  printf("      %s[WARN]  Tag '%s' (embt): invalid image magic 0x%02X%02X%02X%02X%s\n",
+                         ColorWarning(), sig44, imgMagic[0], imgMagic[1], imgMagic[2], imgMagic[3], ColorReset());
+                  printf("       %sExpected PNG (89504E47) or TIFF (49492A00/4D4D002A)%s\n",
+                         ColorInfo(), ColorReset());
+                  embedIssues++;
+                }
+              }
+            }
+          }
+
+          if (embedFound > 0) {
+            printf("      [INFO]  %d embedded image tag(s) found\n", embedFound);
+          }
+        }
+      }
+      if (fp44) fclose(fp44);
+
+      if (embedIssues > 0) {
+        heuristicCount += embedIssues;
+      } else {
+        printf("      %s[OK] Embedded images valid (or none present)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 45. Sparse Matrix Bounds Validation (raw file bytes, ICC v5)
+  // smat (0x736D6174) tags specify rows × cols for sparse matrix data.
+  // Extreme dimensions cause OOM. CFL patch 044.
+  printf("[H45] Sparse Matrix Bounds Validation\n");
+  {
+    FILE *fp45 = fopen(filename, "rb");
+    if (fp45) {
+      fseek(fp45, 0, SEEK_END);
+      long fs45_l = ftell(fp45);
+      if (fs45_l < 0) { fclose(fp45); fp45 = NULL; }
+      size_t fs45 = (fp45) ? (size_t)fs45_l : 0;
+      if (fp45) fseek(fp45, 0, SEEK_SET);
+
+      int sparseIssues = 0;
+      if (fs45 >= 132) {
+        icUInt8Number hdr45[132];
+        if (fread(hdr45, 1, 132, fp45) == 132) {
+          icUInt32Number tc45 = (static_cast<icUInt32Number>(hdr45[128])<<24) | (static_cast<icUInt32Number>(hdr45[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr45[130])<<8) | hdr45[131];
+          if (tc45 > 256) tc45 = 256;
+
+          for (icUInt32Number i = 0; i < tc45; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs45) break;
+            icUInt8Number e45[12];
+            fseek(fp45, ePos, SEEK_SET);
+            if (fread(e45, 1, 12, fp45) != 12) break;
+
+            icUInt32Number tOff45 = (static_cast<icUInt32Number>(e45[4])<<24) | (static_cast<icUInt32Number>(e45[5])<<16) |
+                                    (static_cast<icUInt32Number>(e45[6])<<8) | e45[7];
+            icUInt32Number tSz45  = (static_cast<icUInt32Number>(e45[8])<<24) | (static_cast<icUInt32Number>(e45[9])<<16) |
+                                    (static_cast<icUInt32Number>(e45[10])<<8) | e45[11];
+
+            if (tOff45 + 4 > fs45 || tSz45 < 16) continue;
+            icUInt8Number typeBytes45[4];
+            fseek(fp45, tOff45, SEEK_SET);
+            if (fread(typeBytes45, 1, 4, fp45) != 4) continue;
+
+            icUInt32Number tagType45 = (static_cast<icUInt32Number>(typeBytes45[0])<<24) | (static_cast<icUInt32Number>(typeBytes45[1])<<16) |
+                                       (static_cast<icUInt32Number>(typeBytes45[2])<<8) | typeBytes45[3];
+            if (tagType45 != 0x736D6174) continue; // 'smat'
+
+            char sig45[5];
+            sig45[0] = e45[0]; sig45[1] = e45[1]; sig45[2] = e45[2]; sig45[3] = e45[3]; sig45[4] = '\0';
+
+            // smat: type(4) + reserved(4) + nChannels(2) + encoding(2) + ...
+            // Read channel count and encoding
+            if (tOff45 + 12 <= fs45) {
+              icUInt8Number smatHdr[4];
+              fseek(fp45, tOff45 + 8, SEEK_SET);
+              if (fread(smatHdr, 1, 4, fp45) == 4) {
+                uint16_t nChannels = (static_cast<uint16_t>(smatHdr[0])<<8) | smatHdr[1];
+                uint16_t encoding  = (static_cast<uint16_t>(smatHdr[2])<<8) | smatHdr[3];
+
+                if (nChannels == 0) {
+                  printf("      %s[WARN]  Tag '%s' (smat): zero channels%s\n",
+                         ColorCritical(), sig45, ColorReset());
+                  sparseIssues++;
+                }
+
+                // Estimated matrix size: nChannels² entries
+                uint64_t estEntries = (uint64_t)nChannels * nChannels;
+                const uint64_t MAX_SPARSE_ENTRIES = 16ULL * 1024 * 1024;
+                if (estEntries > MAX_SPARSE_ENTRIES) {
+                  printf("      %s[WARN]  Tag '%s' (smat): %u channels → %llu potential entries (limit %llu)%s\n",
+                         ColorCritical(), sig45, nChannels,
+                         (unsigned long long)estEntries, (unsigned long long)MAX_SPARSE_ENTRIES, ColorReset());
+                  printf("       %sRisk: OOM via sparse matrix allocation (CFL patch 044)%s\n",
+                         ColorCritical(), ColorReset());
+                  sparseIssues++;
+                } else if (nChannels > 0) {
+                  printf("      [INFO]  Tag '%s' (smat): %u channels, encoding %u\n",
+                         sig45, nChannels, encoding);
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp45) fclose(fp45);
+
+      if (sparseIssues > 0) {
+        heuristicCount += sparseIssues;
+      } else {
+        printf("      %s[OK] Sparse matrix bounds valid (or none present)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
   // Summary
   printf("=======================================================================\n");
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
@@ -2446,9 +3373,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 36 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 45 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
-    printf("  %sH33-H36: arm64 macOS hardware testing (sips SIGBUS, write primitive, truncation bypass)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
