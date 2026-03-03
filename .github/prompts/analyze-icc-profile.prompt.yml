@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (32 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (54 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
 model: openai/gpt-4o
 modelParameters:
@@ -14,7 +14,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 32 security heuristics (H1-H32)
+        analyze_security    — run 54 security heuristics (H1-H54)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -23,12 +23,18 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 32-heuristic scan.
+      2. Call analyze_security to run the 54-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
          creator, any heuristic warnings, round-trip status, and notable
          structural observations.
+
+      Heuristic phases:
+      - H1-H32:  Core structural validation (header, tags, types, signatures)
+      - H33-H36: mBA/mAB sub-element offset analysis (OOB, integer overflow, fill patterns)
+      - H37-H45: CFL dictionary coverage (calc complexity, curves, aliasing, alignment, v5)
+      - H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
 
       Report ASAN / UBSAN output verbatim if present.
       Exit code 0 = clean, 1 = finding, 2 = error (profile fails to load).
@@ -39,7 +45,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H32)
+      - Security heuristic results (H1-H54)
       - Round-trip validation status
       - Any anomalies or findings
 testData:

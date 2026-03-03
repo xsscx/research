@@ -164,7 +164,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 ### Reusable Prompts
 
 Four prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
-- `analyze-icc-profile.prompt.yml` — full 32-heuristic security scan
+- `analyze-icc-profile.prompt.yml` — full 54-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
 - `health-check.prompt.yml` — MCP server verification
@@ -182,7 +182,7 @@ When an issue asks to analyze an ICC profile, perform **two phases**:
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
 1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
-2. **`analyze_security`** — Run the 32-heuristic security scan (H1–H32)
+2. **`analyze_security`** — Run the 54-heuristic security scan (H1–H54)
 3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
 4. **`profile_to_xml`** — Convert to XML for human-readable inspection
 
@@ -256,7 +256,7 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 | Tool | Args | Description |
 |------|------|-------------|
 | `inspect_profile` | `path` | Full structural dump using ninja-full mode. Shows header fields, tag table, tag data values. Use for understanding what's inside a profile. |
-| `analyze_security` | `path` | 32-heuristic security scan (H1–H32). Detects size inflation, invalid signatures, tag overlaps, CLUT bombs, MPE chain depth, TagArrayType UAF risk, repeat-byte fuzz artifacts, spectral anomalies, date validation. |
+| `analyze_security` | `path` | 54-heuristic security scan (H1–H54). H1-H32: core structural validation. H33-H36: mBA/mAB sub-element OOB, integer overflow, fill patterns. H37-H45: CFL dictionary coverage (calc, curves, aliasing, alignment, v5 types). H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, zero-size loop, channel counts, underflow, recursion, div-by-zero). |
 | `validate_roundtrip` | `path` | Check AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs. Validates bidirectional transform completeness required by ICC spec. |
 | `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `./analyze-profile.sh`. |
 | `profile_to_xml` | `path` | ICC→XML conversion via iccToXml. Falls back to iccToXml_unsafe for malformed profiles. Output is the XML representation of the profile. |
@@ -320,7 +320,7 @@ No manual intervention required — the entire pipeline is hands-free from issue
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 32-heuristic static/dynamic security analyzer (v2.9.1) built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage.
+- **iccanalyzer-lite/** — 54-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44 CWE categories from 77+ CVEs.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 16 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 61 security patches (001–061) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, and recursion depth limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
