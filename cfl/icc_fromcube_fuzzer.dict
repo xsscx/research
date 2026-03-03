@@ -952,3 +952,10 @@
 "r\x00"
 "\x00\x00\x7f\x9d\x92\xda\x96p"
 "\xff\x15"
+
+# --- added by convert-libfuzzer-dict.py ---
+"T<ITE "
+"\xdc\xff\xff\xff"
+"LDOMAIN_MIN"
+"LUT_8D"
+"\x01\x00\x7fV\xd7\x35Q\xcc"
