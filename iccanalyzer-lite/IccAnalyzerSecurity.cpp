@@ -2039,7 +2039,392 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     delete pIcc;
   }
   } // end of critical-threshold gate
-  
+
+  // =========================================================================
+  // Raw-file heuristics H33-H36 (safe on all inputs — no library API calls)
+  // Derived from arm64 macOS hardware testing: sips SIGBUS, write primitive,
+  // integer overflow via 32-bit truncation in sub-element offset bounds checks.
+  // =========================================================================
+
+  // 33. mBA/mAB Sub-Element Offset Validation (raw file bytes)
+  // Detects the sips SIGBUS pattern: OOB M/CLUT/A curve offsets within mBA tags
+  // cause reads past mmap boundary. The parser follows B→M→CLUT→A offsets without
+  // bounds checking against tag size.
+  printf("[H33] mBA/mAB Sub-Element Offset Validation\n");
+  {
+    FILE *fp33 = fopen(filename, "rb");
+    if (fp33) {
+      fseek(fp33, 0, SEEK_END);
+      long fs33_l = ftell(fp33);
+      if (fs33_l < 0) { fclose(fp33); fp33 = NULL; }
+      size_t fs33 = (fp33) ? (size_t)fs33_l : 0;
+      if (fp33) fseek(fp33, 0, SEEK_SET);
+
+      int mbaOobCount = 0;
+      if (fs33 >= 132) {
+        icUInt8Number hdr33[132];
+        if (fread(hdr33, 1, 132, fp33) == 132) {
+          icUInt32Number tc33 = (static_cast<icUInt32Number>(hdr33[128])<<24) | (static_cast<icUInt32Number>(hdr33[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr33[130])<<8) | hdr33[131];
+
+          for (icUInt32Number i = 0; i < tc33 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs33) break;
+
+            icUInt8Number e33[12];
+            fseek(fp33, ePos, SEEK_SET);
+            if (fread(e33, 1, 12, fp33) != 12) break;
+
+            icUInt32Number tSig33 = (static_cast<icUInt32Number>(e33[0])<<24) | (static_cast<icUInt32Number>(e33[1])<<16) |
+                                    (static_cast<icUInt32Number>(e33[2])<<8) | e33[3];
+            icUInt32Number tOff33 = (static_cast<icUInt32Number>(e33[4])<<24) | (static_cast<icUInt32Number>(e33[5])<<16) |
+                                    (static_cast<icUInt32Number>(e33[6])<<8) | e33[7];
+            icUInt32Number tSz33  = (static_cast<icUInt32Number>(e33[8])<<24) | (static_cast<icUInt32Number>(e33[9])<<16) |
+                                    (static_cast<icUInt32Number>(e33[10])<<8) | e33[11];
+
+            // Read tag type signature at the tag data offset
+            if (tOff33 + 32 > fs33 || tSz33 < 32) continue;
+            icUInt8Number tagData33[32];
+            fseek(fp33, tOff33, SEEK_SET);
+            if (fread(tagData33, 1, 32, fp33) != 32) continue;
+
+            icUInt32Number tagType33 = (static_cast<icUInt32Number>(tagData33[0])<<24) | (static_cast<icUInt32Number>(tagData33[1])<<16) |
+                                       (static_cast<icUInt32Number>(tagData33[2])<<8) | tagData33[3];
+
+            // Check for mAB (0x6D414220) or mBA (0x6D424120)
+            if (tagType33 != 0x6D414220 && tagType33 != 0x6D424120) continue;
+
+            char sig33[5];
+            sig33[0] = (tSig33>>24)&0xff; sig33[1] = (tSig33>>16)&0xff;
+            sig33[2] = (tSig33>>8)&0xff;  sig33[3] = tSig33&0xff; sig33[4] = '\0';
+            const char *typeName33 = (tagType33 == 0x6D414220) ? "mAB" : "mBA";
+
+            // mBA/mAB internal structure (offsets from tag start):
+            // +0: type sig (4), +4: reserved (4), +8: nInput(1)+nOutput(1)+pad(2)
+            // +12: B offset (4), +16: matrix offset (4), +20: M offset (4)
+            // +24: CLUT offset (4), +28: A offset (4)
+            struct { const char *name; size_t pos; } subElems[] = {
+              {"B_curves", 12}, {"Matrix", 16}, {"M_curves", 20}, {"CLUT", 24}, {"A_curves", 28}
+            };
+
+            for (int se = 0; se < 5; se++) {
+              size_t p = subElems[se].pos;
+              icUInt32Number subOff = (static_cast<icUInt32Number>(tagData33[p])<<24) | (static_cast<icUInt32Number>(tagData33[p+1])<<16) |
+                                      (static_cast<icUInt32Number>(tagData33[p+2])<<8) | tagData33[p+3];
+              if (subOff == 0) continue; // not present
+
+              if (subOff > tSz33) {
+                printf("      %s[WARN]  Tag '%s' (%s): %s offset 0x%08X exceeds tag size %u%s\n",
+                       ColorCritical(), sig33, typeName33, subElems[se].name, subOff, tSz33, ColorReset());
+                if (subOff >= 0xFFFF0000) {
+                  printf("       %sCRITICAL: Offset near uint32 max — OOB read/write past mmap boundary%s\n",
+                         ColorCritical(), ColorReset());
+                }
+                mbaOobCount++;
+              }
+            }
+          }
+        }
+      }
+      if (fp33) fclose(fp33);
+
+      if (mbaOobCount > 0) {
+        printf("      %s%d mBA/mAB sub-element offset(s) reference data beyond tag bounds%s\n",
+               ColorCritical(), mbaOobCount, ColorReset());
+        printf("      %sRisk: OOB read past mmap boundary → SIGBUS/SIGSEGV (sips crash pattern)%s\n",
+               ColorCritical(), ColorReset());
+        heuristicCount += mbaOobCount;
+      } else {
+        printf("      %s[OK] All mBA/mAB sub-element offsets within tag bounds%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 34. 32-bit Integer Overflow in Sub-Element Offset Bounds Checks
+  // The sips parser does: add w9, w11, #0x14 (32-bit) then compares to file_size.
+  // When CLUT offset ≥ 0xFFFFFFEC, the add wraps: 0xFFFFFFFF + 0x14 = 0x13 (truncated)
+  // which passes the bounds check, leading to OOB access.
+  printf("[H34] 32-bit Integer Overflow in Sub-Element Bounds\n");
+  {
+    FILE *fp34 = fopen(filename, "rb");
+    if (fp34) {
+      fseek(fp34, 0, SEEK_END);
+      long fs34_l = ftell(fp34);
+      if (fs34_l < 0) { fclose(fp34); fp34 = NULL; }
+      size_t fs34 = (fp34) ? (size_t)fs34_l : 0;
+      if (fp34) fseek(fp34, 0, SEEK_SET);
+
+      int overflowCount = 0;
+      if (fs34 >= 132) {
+        icUInt8Number hdr34[132];
+        if (fread(hdr34, 1, 132, fp34) == 132) {
+          icUInt32Number tc34 = (static_cast<icUInt32Number>(hdr34[128])<<24) | (static_cast<icUInt32Number>(hdr34[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr34[130])<<8) | hdr34[131];
+
+          for (icUInt32Number i = 0; i < tc34 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs34) break;
+
+            icUInt8Number e34[12];
+            fseek(fp34, ePos, SEEK_SET);
+            if (fread(e34, 1, 12, fp34) != 12) break;
+
+            icUInt32Number tOff34 = (static_cast<icUInt32Number>(e34[4])<<24) | (static_cast<icUInt32Number>(e34[5])<<16) |
+                                    (static_cast<icUInt32Number>(e34[6])<<8) | e34[7];
+            icUInt32Number tSz34  = (static_cast<icUInt32Number>(e34[8])<<24) | (static_cast<icUInt32Number>(e34[9])<<16) |
+                                    (static_cast<icUInt32Number>(e34[10])<<8) | e34[11];
+
+            if (tOff34 + 32 > fs34 || tSz34 < 32) continue;
+            icUInt8Number tagData34[32];
+            fseek(fp34, tOff34, SEEK_SET);
+            if (fread(tagData34, 1, 32, fp34) != 32) continue;
+
+            icUInt32Number tagType34 = (static_cast<icUInt32Number>(tagData34[0])<<24) | (static_cast<icUInt32Number>(tagData34[1])<<16) |
+                                       (static_cast<icUInt32Number>(tagData34[2])<<8) | tagData34[3];
+
+            if (tagType34 != 0x6D414220 && tagType34 != 0x6D424120) continue;
+
+            icUInt32Number tSig34 = (static_cast<icUInt32Number>(e34[0])<<24) | (static_cast<icUInt32Number>(e34[1])<<16) |
+                                    (static_cast<icUInt32Number>(e34[2])<<8) | e34[3];
+            char sig34[5];
+            sig34[0] = (tSig34>>24)&0xff; sig34[1] = (tSig34>>16)&0xff;
+            sig34[2] = (tSig34>>8)&0xff;  sig34[3] = tSig34&0xff; sig34[4] = '\0';
+
+            // Check sub-element offsets at +20 (M), +24 (CLUT), +28 (A)
+            // These are the offsets parsers add small constants to for header traversal
+            static const uint32_t addConstants[] = {0x14, 0x30, 0x0C};
+            static const char *subNames34[] = {"M_curves", "CLUT", "A_curves"};
+            static const size_t subPos34[] = {20, 24, 28};
+
+            for (int se = 0; se < 3; se++) {
+              size_t p = subPos34[se];
+              icUInt32Number subOff = (static_cast<icUInt32Number>(tagData34[p])<<24) | (static_cast<icUInt32Number>(tagData34[p+1])<<16) |
+                                      (static_cast<icUInt32Number>(tagData34[p+2])<<8) | tagData34[p+3];
+              if (subOff == 0) continue;
+
+              // Check if offset + any common addend overflows 32 bits
+              for (int ac = 0; ac < 3; ac++) {
+                uint64_t sum64 = (uint64_t)subOff + addConstants[ac];
+                uint32_t sum32 = (uint32_t)(subOff + addConstants[ac]);
+                if (sum64 != sum32) {
+                  printf("      %s[WARN]  Tag '%s': %s offset 0x%08X + 0x%X = 0x%08X (truncated from 0x%llX)%s\n",
+                         ColorCritical(), sig34, subNames34[se], subOff, addConstants[ac],
+                         sum32, (unsigned long long)sum64, ColorReset());
+                  printf("       %sCRITICAL: 32-bit truncation bypasses bounds check → OOB access%s\n",
+                         ColorCritical(), ColorReset());
+                  overflowCount++;
+                  break; // one overflow per sub-element is enough
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp34) fclose(fp34);
+
+      if (overflowCount > 0) {
+        printf("      %s%d sub-element offset(s) trigger 32-bit integer overflow%s\n",
+               ColorCritical(), overflowCount, ColorReset());
+        printf("      %sRisk: Bounds check bypass via uint32 truncation (confirmed sips exploit pattern)%s\n",
+               ColorCritical(), ColorReset());
+        heuristicCount += overflowCount;
+      } else {
+        printf("      %s[OK] No 32-bit integer overflow in sub-element offsets%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 35. Suspicious Fill Pattern Detection in mBA/mAB B-Curve Data
+  // All-0xFF fill in B-curve data (bytes 32+) creates parseable curve structures that
+  // the parser processes without error, then follows OOB M/CLUT/A offsets into unmapped memory.
+  // Changing fill to 0x00 or 0x41 causes "Data overruns tag length" early exit.
+  printf("[H35] Suspicious Fill Pattern in mBA/mAB Data\n");
+  {
+    FILE *fp35 = fopen(filename, "rb");
+    if (fp35) {
+      fseek(fp35, 0, SEEK_END);
+      long fs35_l = ftell(fp35);
+      if (fs35_l < 0) { fclose(fp35); fp35 = NULL; }
+      size_t fs35 = (fp35) ? (size_t)fs35_l : 0;
+      if (fp35) fseek(fp35, 0, SEEK_SET);
+
+      int fillCount = 0;
+      if (fs35 >= 132) {
+        icUInt8Number hdr35[132];
+        if (fread(hdr35, 1, 132, fp35) == 132) {
+          icUInt32Number tc35 = (static_cast<icUInt32Number>(hdr35[128])<<24) | (static_cast<icUInt32Number>(hdr35[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr35[130])<<8) | hdr35[131];
+
+          for (icUInt32Number i = 0; i < tc35 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs35) break;
+
+            icUInt8Number e35[12];
+            fseek(fp35, ePos, SEEK_SET);
+            if (fread(e35, 1, 12, fp35) != 12) break;
+
+            icUInt32Number tSig35 = (static_cast<icUInt32Number>(e35[0])<<24) | (static_cast<icUInt32Number>(e35[1])<<16) |
+                                    (static_cast<icUInt32Number>(e35[2])<<8) | e35[3];
+            icUInt32Number tOff35 = (static_cast<icUInt32Number>(e35[4])<<24) | (static_cast<icUInt32Number>(e35[5])<<16) |
+                                    (static_cast<icUInt32Number>(e35[6])<<8) | e35[7];
+            icUInt32Number tSz35  = (static_cast<icUInt32Number>(e35[8])<<24) | (static_cast<icUInt32Number>(e35[9])<<16) |
+                                    (static_cast<icUInt32Number>(e35[10])<<8) | e35[11];
+
+            if (tOff35 + 32 > fs35 || tSz35 < 48) continue; // need at least 32-byte header + 16 data bytes
+            icUInt8Number typeCheck[4];
+            fseek(fp35, tOff35, SEEK_SET);
+            if (fread(typeCheck, 1, 4, fp35) != 4) continue;
+
+            icUInt32Number tagType35 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
+                                       (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
+            if (tagType35 != 0x6D414220 && tagType35 != 0x6D424120) continue;
+
+            // Read B-curve data region (bytes 32+ within the tag, up to 256 bytes)
+            size_t dataStart = tOff35 + 32;
+            size_t dataLen = tSz35 - 32;
+            if (dataLen > 256) dataLen = 256;
+            if (dataStart + dataLen > fs35) dataLen = fs35 - dataStart;
+            if (dataLen < 16) continue;
+
+            icUInt8Number bData[256];
+            fseek(fp35, dataStart, SEEK_SET);
+            if (fread(bData, 1, dataLen, fp35) != dataLen) continue;
+
+            // Check for runs of identical bytes ≥ 16
+            int runLen = 1;
+            for (size_t b = 1; b < dataLen; b++) {
+              if (bData[b] == bData[b-1]) {
+                runLen++;
+              } else {
+                if (runLen >= 16) {
+                  char sig35[5];
+                  sig35[0] = (tSig35>>24)&0xff; sig35[1] = (tSig35>>16)&0xff;
+                  sig35[2] = (tSig35>>8)&0xff;  sig35[3] = tSig35&0xff; sig35[4] = '\0';
+                  printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
+                         ColorWarning(), sig35, runLen, bData[b-1], b - runLen, ColorReset());
+                  if (bData[b-1] == 0xFF) {
+                    printf("       %s0xFF fill creates parseable curve structure → enables OOB offset traversal%s\n",
+                           ColorCritical(), ColorReset());
+                  }
+                  fillCount++;
+                }
+                runLen = 1;
+              }
+            }
+            // Check final run
+            if (runLen >= 16) {
+              char sig35[5];
+              sig35[0] = (tSig35>>24)&0xff; sig35[1] = (tSig35>>16)&0xff;
+              sig35[2] = (tSig35>>8)&0xff;  sig35[3] = tSig35&0xff; sig35[4] = '\0';
+              printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
+                     ColorWarning(), sig35, runLen, bData[dataLen-1], dataLen - runLen, ColorReset());
+              if (bData[dataLen-1] == 0xFF) {
+                printf("       %s0xFF fill creates parseable curve structure → enables OOB offset traversal%s\n",
+                       ColorCritical(), ColorReset());
+              }
+              fillCount++;
+            }
+          }
+        }
+      }
+      if (fp35) fclose(fp35);
+
+      if (fillCount > 0) {
+        printf("      %s%d suspicious fill pattern(s) in mBA/mAB B-curve data%s\n",
+               ColorWarning(), fillCount, ColorReset());
+        heuristicCount += fillCount;
+      } else {
+        printf("      %s[OK] No suspicious fill patterns in mBA/mAB data%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // 36. LUT Tag Pair Completeness
+  // Check A2B↔B2A and D2B↔B2D pairing. Unpaired LUT tags may indicate crafted
+  // profiles targeting only one transform direction.
+  printf("[H36] LUT Tag Pair Completeness\n");
+  {
+    FILE *fp36 = fopen(filename, "rb");
+    if (fp36) {
+      fseek(fp36, 0, SEEK_END);
+      long fs36_l = ftell(fp36);
+      if (fs36_l < 0) { fclose(fp36); fp36 = NULL; }
+      size_t fs36 = (fp36) ? (size_t)fs36_l : 0;
+      if (fp36) fseek(fp36, 0, SEEK_SET);
+
+      int pairIssues = 0;
+      if (fs36 >= 132) {
+        icUInt8Number hdr36[132];
+        if (fread(hdr36, 1, 132, fp36) == 132) {
+          icUInt32Number tc36 = (static_cast<icUInt32Number>(hdr36[128])<<24) | (static_cast<icUInt32Number>(hdr36[129])<<16) |
+                                (static_cast<icUInt32Number>(hdr36[130])<<8) | hdr36[131];
+
+          // Collect all tag signatures
+          bool hasA2B[4] = {false}, hasB2A[4] = {false};
+          bool hasD2B[4] = {false}, hasB2D[4] = {false};
+
+          for (icUInt32Number i = 0; i < tc36 && i < 256; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fs36) break;
+
+            icUInt8Number e36[12];
+            fseek(fp36, ePos, SEEK_SET);
+            if (fread(e36, 1, 12, fp36) != 12) break;
+
+            icUInt32Number tSig36 = (static_cast<icUInt32Number>(e36[0])<<24) | (static_cast<icUInt32Number>(e36[1])<<16) |
+                                    (static_cast<icUInt32Number>(e36[2])<<8) | e36[3];
+
+            // A2B0-A2B3: 0x41324230 - 0x41324233
+            // B2A0-B2A3: 0x42324130 - 0x42324133
+            // D2B0-D2B3: 0x44324230 - 0x44324233
+            // B2D0-B2D3: 0x42324430 - 0x42324433
+            if (tSig36 >= 0x41324230 && tSig36 <= 0x41324233) hasA2B[tSig36 - 0x41324230] = true;
+            if (tSig36 >= 0x42324130 && tSig36 <= 0x42324133) hasB2A[tSig36 - 0x42324130] = true;
+            if (tSig36 >= 0x44324230 && tSig36 <= 0x44324233) hasD2B[tSig36 - 0x44324230] = true;
+            if (tSig36 >= 0x42324430 && tSig36 <= 0x42324433) hasB2D[tSig36 - 0x42324430] = true;
+          }
+
+          // Check pairing
+          for (int idx = 0; idx < 4; idx++) {
+            if (hasA2B[idx] && !hasB2A[idx]) {
+              printf("      %s[INFO]  A2B%d present but B2A%d missing — forward-only LUT%s\n",
+                     ColorInfo(), idx, idx, ColorReset());
+              pairIssues++;
+            }
+            if (hasB2A[idx] && !hasA2B[idx]) {
+              printf("      %s[INFO]  B2A%d present but A2B%d missing — reverse-only LUT%s\n",
+                     ColorInfo(), idx, idx, ColorReset());
+              pairIssues++;
+            }
+            if (hasD2B[idx] && !hasB2D[idx]) {
+              printf("      %s[INFO]  D2B%d present but B2D%d missing — forward-only device LUT%s\n",
+                     ColorInfo(), idx, idx, ColorReset());
+              pairIssues++;
+            }
+            if (hasB2D[idx] && !hasD2B[idx]) {
+              printf("      %s[INFO]  B2D%d present but D2B%d missing — reverse-only device LUT%s\n",
+                     ColorInfo(), idx, idx, ColorReset());
+              pairIssues++;
+            }
+          }
+        }
+      }
+      if (fp36) fclose(fp36);
+
+      if (pairIssues > 0) {
+        printf("      %s%d unpaired LUT tag(s) — may indicate crafted profile%s\n",
+               ColorInfo(), pairIssues, ColorReset());
+        // Informational only — do not increment heuristicCount for missing pairs
+      } else {
+        printf("      %s[OK] All LUT tags properly paired%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
   // Summary
   printf("=======================================================================\n");
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
@@ -2057,8 +2442,13 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- Parser exploitation attempts%s\n", ColorWarning(), ColorReset());
     printf("  %s- Type confusion / buffer overflow patterns%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 32 heuristics covering patterns from 77 iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %s- Sub-element offset OOB (mBA/mAB SIGBUS pattern)%s\n", ColorWarning(), ColorReset());
+    printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
+    printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    printf("  %sCVE Coverage: 36 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
+    printf("  %sH33-H36: arm64 macOS hardware testing (sips SIGBUS, write primitive, truncation bypass)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
