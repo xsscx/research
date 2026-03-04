@@ -145,7 +145,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 16 tools (9 analysis + 7 maintainer build) for AI-assisted ICC profile security research.
+The ICC Profile MCP server exposes 22 tools (9 analysis + 7 maintainer + 6 operations) for AI-assisted ICC profile security research.
 
 ### Setup — Three integration methods
 
@@ -276,6 +276,17 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 | `cmake_option_matrix` | — | Test cmake option toggles independently |
 | `windows_build` | — | Windows MSVC + vcpkg build |
 
+**Operations tools (local/VS Code only — NOT exposed to coding agent):**
+
+| Tool | Args | Description |
+|------|------|-------------|
+| `check_dependencies` | — | Check build dependencies installed on the current system (apt/brew/vcpkg). Reports missing packages with install commands. |
+| `find_build_artifacts` | `build_dir` | Find built binaries under iccDEV/Build/, list SHA-256 checksums, verify static vs dynamic ICC linkage. |
+| `batch_test_profiles` | `directory`, `tool`, `build_dir` | Run iccDumpProfile/iccToXml/iccRoundTrip over all .icc files in a directory with per-file pass/fail results and sanitizer detection. |
+| `validate_xml` | `directory`, `checks` | Run xmllint validation on ICC XML files: well-formedness, encoding, size limits (100 MB), entity safety. |
+| `coverage_report` | `build_dir` | Merge .profraw files with llvm-profdata and generate llvm-cov coverage report. Requires a build with `sanitizers="coverage"`. |
+| `scan_logs` | `directory`, `categories` | Grep build/test .log files for 6 pattern categories: errors, signals, invalid data, overflow, memory issues, hangs. |
+
 ### MCP Tool Usage — Best Practices
 
 **Path resolution**: All analysis tools accept either:
@@ -290,6 +301,14 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 - Use `validate_roundtrip` to check spec compliance (AToB↔BToA pairs)
 - Use `profile_to_xml` to get human-readable XML for manual inspection
 - Use `compare_profiles` when investigating regressions or differences between profile versions
+
+**Operations workflow** (for maintainers doing build/test/debug cycles):
+- Start with `check_dependencies` to verify the build environment is ready
+- After `cmake_build`, use `find_build_artifacts` to see what was produced and verify checksums
+- Use `batch_test_profiles` to run tools over all .icc files (more granular than `run_iccdev_tests`)
+- After `profile_to_xml`, use `validate_xml` to check XML well-formedness and encoding
+- After instrumented test runs, use `coverage_report` to merge profraw and see coverage
+- Use `scan_logs` to search .log files for errors, crashes, and sanitizer findings
 
 **Upload workflow**: When a user provides an ICC profile via an issue attachment:
 1. Download the attachment (may be `.icc.txt` — GitHub blocks `.icc`)
@@ -322,7 +341,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 54-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44 CWE categories from 77+ CVEs.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
-- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 16 tools: 9 analysis + 6 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
+- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 61 security patches (001–061) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, and recursion depth limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
