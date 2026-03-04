@@ -82,7 +82,7 @@ curl -X POST -F 'file=@myprofile.icc' http://127.0.0.1:8080/api/upload
 - Self-contained HTML demo report at `/app/dev-demo/index.html`
 - Developer guide markdown at `/app/dev-demo/dev-demo.md`
 - iccanalyzer-lite with ASAN+UBSAN instrumentation
-- 16 MCP tools (9 analysis + 7 maintainer build)
+- 22 MCP tools (9 analysis + 7 maintainer + 6 operations)
 
 ## Files
 

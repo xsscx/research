@@ -19,7 +19,7 @@ Open <http://127.0.0.1:8080> — that's it. 126 test profiles are pre-loaded, no
 
 ```bash
 curl -s http://127.0.0.1:8080/api/health
-# {"ok":true,"tools":16}
+# {"ok":true,"tools":22}
 ```
 
 ---
@@ -135,7 +135,7 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
 ```
 
-Expected: `{"ok": true, "tools": 16}`
+Expected: `{"ok": true, "tools": 22}`
 
 **WebUI:** Open <http://127.0.0.1:8080>
 
@@ -234,7 +234,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 
 ---
 
-## All 16 MCP Tools
+## All 22 MCP Tools
 
 | # | Tool | Type | Description |
 |---|------|------|-------------|
@@ -254,6 +254,12 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 | 14 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
 | 15 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
 | 16 | `windows_build` | Maintainer | MSVC + vcpkg cross-platform build |
+| 17 | `check_dependencies` | Operations | Check build dependency availability |
+| 18 | `find_build_artifacts` | Operations | Find binaries, checksums, linkage |
+| 19 | `batch_test_profiles` | Operations | Run tools over all .icc files |
+| 20 | `validate_xml` | Operations | xmllint validation of ICC XML |
+| 21 | `coverage_report` | Operations | Merge profraw + llvm-cov report |
+| 22 | `scan_logs` | Operations | Grep logs for errors/crashes/sanitizer |
 
 ---
 
@@ -261,7 +267,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 16}` |
+| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 22}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
 | `GET` | `/api/security` | `path` | 32-heuristic security scan |
