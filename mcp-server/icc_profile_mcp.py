@@ -542,8 +542,8 @@ async def health_check() -> str:
     lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
     lines.append("")
 
-    # Tool count (8 analysis tools + 7 maintainer tools + 1 health = 16 tools)
-    lines.append("Tools: 16 registered (8 analysis + 7 maintainer + 1 health)")
+    # Tool count (8 analysis tools + 7 maintainer + 6 operations + 1 health = 22 tools)
+    lines.append("Tools: 22 registered (8 analysis + 7 maintainer + 6 operations + 1 health)")
     lines.append("")
 
     overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
@@ -1475,6 +1475,700 @@ async def windows_build(
         results.append("[WARN] No tool executables found")
 
     return summary + "\n" + "\n".join(results)
+
+
+# ── Operations tools (from iccDEV shell helpers) ────────────────────
+
+
+# Grep pattern categories for scan_logs (from Unix helpers)
+_LOG_PATTERNS = {
+    "errors": r"ERROR|WARN|WARNING|FAIL|FAILED|FATAL|ASSERT|ABORT|PANIC|EXCEPTION|CRASH|CORE|RUNTIME",
+    "signals": r"SEGFAULT|SIG(SEGV|ABRT|BUS|ILL)",
+    "invalid": r"INVALID|CORRUPT|MALFORMED|TRUNCATED|UNSUPPORTED|UNKNOWN|UNDEFINED",
+    "overflow": r"OVERFLOW|UNDERFLOW|OUT OF RANGE",
+    "memory": r"ALLOC|FREE|LEAK|OOM|OUT OF MEMORY|NULL",
+    "hangs": r"TIMEOUT|DEADLOCK|HANG",
+}
+
+
+@mcp.tool()
+async def check_dependencies() -> str:
+    """Check whether iccDEV build dependencies are installed on the current system.
+
+    Detects the platform (Ubuntu/Debian, macOS, or Windows) and checks for
+    required packages: cmake, compilers, libpng, libtiff, libxml2,
+    nlohmann-json, wxwidgets, and more.
+
+    Returns a table of dependency status with install commands for missing ones.
+    """
+    lines = ["[iccDEV Dependency Check]", ""]
+    is_linux = sys.platform.startswith("linux")
+    is_mac = sys.platform == "darwin"
+    is_win = sys.platform == "win32"
+
+    if is_linux:
+        lines.append("Platform: Linux")
+        # Check for apt-based distro
+        has_apt = shutil.which("apt") is not None or shutil.which("dpkg") is not None
+        if has_apt:
+            lines.append("Package manager: apt (Debian/Ubuntu)")
+            apt_pkgs = {
+                "cmake": "cmake",
+                "make": "make",
+                "clang": "clang",
+                "clang++": "clang",
+                "g++": "g++",
+                "git": "git",
+                "curl": "curl",
+                "xmllint": "libxml2-utils",
+            }
+            # Library checks via dpkg
+            lib_pkgs = [
+                "libpng-dev", "libjpeg-dev", "libtiff-dev",
+                "libxml2-dev", "nlohmann-json3-dev",
+                "build-essential", "clang-tools",
+            ]
+        else:
+            lines.append("Package manager: unknown (not apt-based)")
+            apt_pkgs = {}
+            lib_pkgs = []
+
+        results: list[tuple[str, bool]] = []
+        for binary, pkg in apt_pkgs.items():
+            found = shutil.which(binary) is not None
+            results.append((f"{binary} ({pkg})", found))
+
+        if has_apt:
+            # Check dpkg for library packages
+            for pkg in lib_pkgs:
+                proc = await asyncio.create_subprocess_exec(
+                    "dpkg", "-s", pkg,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await proc.wait()
+                results.append((pkg, proc.returncode == 0))
+
+        missing = [name for name, ok in results if not ok]
+        for name, ok in results:
+            lines.append(f"  {'[OK]' if ok else '[MISSING]':>10}  {name}")
+
+        if missing:
+            lines.append("")
+            missing_pkgs = " ".join(
+                name.split("(")[-1].rstrip(")") if "(" in name else name
+                for name in missing
+            )
+            lines.append(f"Install missing: sudo apt install -y {missing_pkgs}")
+
+    elif is_mac:
+        lines.append("Platform: macOS")
+        lines.append("Package manager: Homebrew")
+        brew_pkgs = {
+            "cmake": "cmake",
+            "clang++": "(Xcode CLT)",
+            "git": "git",
+            "xmllint": "(system)",
+        }
+        brew_libs = ["libpng", "nlohmann-json", "libxml2", "wxwidgets", "libtiff", "jpeg"]
+
+        results = []
+        for binary, pkg in brew_pkgs.items():
+            found = shutil.which(binary) is not None
+            results.append((f"{binary} {pkg}", found))
+
+        has_brew = shutil.which("brew") is not None
+        if has_brew:
+            # Check brew for library packages
+            proc = await asyncio.create_subprocess_exec(
+                "brew", "list", "--formula",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            stdout, _ = await proc.communicate()
+            installed = stdout.decode().split()
+            for lib in brew_libs:
+                results.append((f"brew:{lib}", lib in installed))
+
+        missing = [name for name, ok in results if not ok]
+        for name, ok in results:
+            lines.append(f"  {'[OK]' if ok else '[MISSING]':>10}  {name}")
+
+        if missing:
+            brew_missing = [
+                n.replace("brew:", "") for n in missing if n.startswith("brew:")
+            ]
+            if brew_missing:
+                lines.append(f"\nInstall missing: brew install {' '.join(brew_missing)}")
+
+    elif is_win:
+        lines.append("Platform: Windows")
+        win_bins = ["cmake", "git", "cl", "msbuild"]
+        results = []
+        for b in win_bins:
+            results.append((b, shutil.which(b) is not None))
+
+        vcpkg = shutil.which("vcpkg")
+        results.append(("vcpkg", vcpkg is not None))
+
+        for name, ok in results:
+            lines.append(f"  {'[OK]' if ok else '[MISSING]':>10}  {name}")
+
+        if not vcpkg:
+            lines.append("\nvcpkg setup:")
+            lines.append("  git clone https://github.com/microsoft/vcpkg.git")
+            lines.append("  .\\vcpkg\\bootstrap-vcpkg.bat -disableMetrics")
+            lines.append("  .\\vcpkg\\vcpkg.exe integrate install")
+    else:
+        lines.append(f"Platform: {sys.platform} (unknown)")
+
+    # Common tools
+    lines.append("")
+    lines.append("Common tools:")
+    for tool in ["llvm-profdata", "llvm-cov", "llvm-objdump", "ar", "readelf"]:
+        found = shutil.which(tool) is not None
+        lines.append(f"  {'[OK]' if found else '[---]':>10}  {tool}")
+
+    ok_count = sum(1 for _, ok in results if ok) if results else 0
+    total = len(results) if results else 0
+    lines.append(f"\nSummary: {ok_count}/{total} dependencies found")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def find_build_artifacts(build_dir: str = "") -> str:
+    """Find built binaries, libraries, and checksums in an iccDEV build directory.
+
+    Discovers executables, static/shared libraries, and generates SHA-256
+    checksums. Optionally verifies static vs dynamic linkage.
+
+    Useful after cmake_build() to see what was produced.
+
+    Args:
+        build_dir: Build directory name under iccDEV/Build/ (e.g., "build-debug-asan-ubsan").
+                   If empty, searches all build-* directories.
+    """
+    try:
+        iccdev = _resolve_iccdev_dir()
+    except FileNotFoundError as e:
+        return f"[FAIL] {e}"
+
+    base = iccdev / "Build"
+    search_dirs: list[Path] = []
+
+    if build_dir:
+        try:
+            target = _resolve_build_dir(build_dir)
+        except (FileNotFoundError, ValueError) as e:
+            return f"[FAIL] {e}"
+        if not target.is_dir():
+            return f"[FAIL] Build directory does not exist: {target}"
+        search_dirs.append(target)
+    else:
+        # Find all build-* directories
+        if base.is_dir():
+            search_dirs = sorted(
+                d for d in base.iterdir()
+                if d.is_dir() and d.name.startswith("build")
+            )
+        if not search_dirs:
+            return "[FAIL] No build directories found under iccDEV/Build/"
+
+    lines = ["[iccDEV Build Artifacts]", ""]
+    total_exes = 0
+    total_libs = 0
+
+    for search_dir in search_dirs:
+        lines.append(f"── {search_dir.name}/ ──")
+        exes: list[Path] = []
+        libs: list[Path] = []
+
+        for root, _dirs, files in os.walk(str(search_dir)):
+            if "CMakeFiles" in root or ".git" in root:
+                continue
+            for f in files:
+                fp = Path(root) / f
+                if f.endswith((".exe", "")) and os.access(str(fp), os.X_OK) and not f.endswith((".a", ".so", ".dylib", ".sh", ".cmake", ".txt", ".log")):
+                    # Verify it's actually an executable (not a script or data file)
+                    if fp.suffix in ("", ".exe") and fp.stat().st_size > 1024:
+                        exes.append(fp)
+                if f.endswith((".a", ".so", ".dylib", ".lib", ".dll")):
+                    libs.append(fp)
+
+        if exes:
+            lines.append(f"  Executables ({len(exes)}):")
+            for exe in sorted(exes)[:30]:
+                size = exe.stat().st_size
+                sha = hashlib.sha256(exe.read_bytes()).hexdigest()[:16]
+                rel = exe.relative_to(search_dir)
+                lines.append(f"    {rel}  ({size:,} bytes)  sha256:{sha}…")
+            if len(exes) > 30:
+                lines.append(f"    ... and {len(exes) - 30} more")
+
+        if libs:
+            lines.append(f"  Libraries ({len(libs)}):")
+            for lib in sorted(libs)[:20]:
+                size = lib.stat().st_size
+                rel = lib.relative_to(search_dir)
+                lines.append(f"    {rel}  ({size:,} bytes)")
+            if len(libs) > 20:
+                lines.append(f"    ... and {len(libs) - 20} more")
+
+        # Check linkage on Unix
+        if sys.platform != "win32" and exes and shutil.which("ldd"):
+            lines.append("  Linkage check (ICC libs):")
+            for exe in sorted(exes)[:5]:
+                proc = await asyncio.create_subprocess_exec(
+                    "ldd", str(exe),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                stdout, _ = await proc.communicate()
+                ldd_out = stdout.decode(errors="replace")
+                icc_refs = [
+                    line.strip() for line in ldd_out.splitlines()
+                    if "Icc" in line or "icc" in line
+                ]
+                rel = exe.relative_to(search_dir)
+                if icc_refs:
+                    lines.append(f"    {rel.name}: dynamic ({', '.join(icc_refs[:3])})")
+                else:
+                    lines.append(f"    {rel.name}: static ICC linkage")
+
+        total_exes += len(exes)
+        total_libs += len(libs)
+        lines.append("")
+
+    lines.append(f"Total: {total_exes} executables, {total_libs} libraries across {len(search_dirs)} build dir(s)")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def batch_test_profiles(
+    directory: str = "",
+    tool: str = "all",
+    build_dir: str = "",
+) -> str:
+    """Run iccDEV CLI tools over all ICC profiles in a directory with per-file results.
+
+    Iterates over .icc/.icm files and runs the selected tool(s) against each,
+    capturing exit codes and error output. Much more detailed than run_iccdev_tests
+    which only runs RunTests.sh.
+
+    Args:
+        directory: Directory containing .icc profiles to test.
+                   Defaults to iccDEV/Testing/ tree.
+        tool: Which tool to run — "dump" (iccDumpProfile), "toxml" (iccToXml),
+              "fromxml" (iccFromXml), "roundtrip" (iccRoundTrip), or "all".
+        build_dir: Build directory with tool executables (from cmake_build).
+    """
+    if not build_dir:
+        return (
+            "[FAIL] build_dir is required. First build with enable_tools=True:\n"
+            "  1. cmake_configure(enable_tools=True)\n"
+            "  2. cmake_build(build_dir='...')\n"
+            "  3. batch_test_profiles(build_dir='...')"
+        )
+
+    try:
+        iccdev = _resolve_iccdev_dir()
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+
+    tool_dirs = _find_iccdev_tools(target_dir)
+    if not tool_dirs:
+        return f"[FAIL] No tools found in {target_dir}. Build with enable_tools=True first."
+
+    env = os.environ.copy()
+    env["PATH"] = _build_tool_path(target_dir)
+    env["ASAN_OPTIONS"] = "detect_leaks=0"
+    env["MallocNanoZone"] = "0"
+
+    # Resolve test directory
+    if directory:
+        test_dir = Path(directory).resolve()
+        if not test_dir.is_dir():
+            return f"[FAIL] Directory not found: {directory}"
+    else:
+        test_dir = iccdev / "Testing"
+        if not test_dir.is_dir():
+            return f"[FAIL] Testing directory not found: {test_dir}"
+
+    # Find profiles
+    profiles = sorted(
+        p for p in test_dir.rglob("*")
+        if p.suffix.lower() in (".icc", ".icm") and p.is_file()
+    )
+    if not profiles:
+        return f"[FAIL] No .icc/.icm files found in {test_dir}"
+
+    valid_tools = {"dump", "toxml", "fromxml", "roundtrip", "all"}
+    if tool not in valid_tools:
+        return f"[FAIL] Invalid tool '{tool}'. Choose: {', '.join(sorted(valid_tools))}"
+
+    tool_cmds = {
+        "dump": ("iccDumpProfile", ["-v"]),
+        "toxml": ("iccToXml", []),
+        "roundtrip": ("iccRoundTrip", []),
+    }
+    if tool == "all":
+        run_tools = ["dump", "toxml", "roundtrip"]
+    else:
+        run_tools = [tool]
+
+    lines = [f"[Batch Profile Testing — {len(profiles)} profiles]", ""]
+    summary: dict[str, dict[str, int]] = {}
+
+    for t in run_tools:
+        if t == "fromxml":
+            continue  # fromxml needs XML input, skip in batch ICC testing
+        binary_name, base_args = tool_cmds[t]
+        binary = shutil.which(binary_name, path=env["PATH"])
+        if not binary:
+            lines.append(f"[SKIP] {binary_name}: not found in PATH")
+            continue
+
+        lines.append(f"── {binary_name} ──")
+        passed = 0
+        failed = 0
+        errors: list[str] = []
+
+        for prof in profiles[:200]:  # Cap at 200 to avoid timeout
+            args = [binary] + base_args + [str(prof)]
+            if t == "toxml":
+                xml_out = str(prof) + ".xml"
+                args.append(xml_out)
+
+            proc = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                errors.append(f"  [TIMEOUT] {prof.name}")
+                failed += 1
+                continue
+
+            if proc.returncode == 0:
+                passed += 1
+            else:
+                failed += 1
+                stderr_text = stderr.decode(errors="replace")[:200]
+                # Check for sanitizer findings
+                if "ERROR: AddressSanitizer" in stderr_text or "runtime error:" in stderr_text:
+                    errors.append(f"  [SANITIZER] {prof.name}: {stderr_text[:100]}")
+                else:
+                    errors.append(f"  [EXIT {proc.returncode}] {prof.name}")
+
+            # Clean up XML output files
+            if t == "toxml":
+                Path(xml_out).unlink(missing_ok=True)
+
+        lines.append(f"  Passed: {passed}/{passed + failed}")
+        if errors:
+            lines.append(f"  Failures ({len(errors)}):")
+            for e in errors[:20]:
+                lines.append(e)
+            if len(errors) > 20:
+                lines.append(f"  ... and {len(errors) - 20} more")
+        summary[binary_name] = {"passed": passed, "failed": failed}
+        lines.append("")
+
+    if len(profiles) > 200:
+        lines.append(f"[NOTE] Capped at 200 profiles (found {len(profiles)})")
+
+    # Overall summary
+    total_pass = sum(s["passed"] for s in summary.values())
+    total_fail = sum(s["failed"] for s in summary.values())
+    lines.append(f"Overall: {total_pass} passed, {total_fail} failed across {len(summary)} tool(s)")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def validate_xml(
+    directory: str = "",
+    checks: str = "all",
+) -> str:
+    """Validate ICC XML files using xmllint with multiple check types.
+
+    Runs well-formedness, encoding, size limit, and entity safety checks
+    on XML files generated by iccToXml. Useful for catching malformed
+    output from profile conversion.
+
+    Args:
+        directory: Directory containing .xml files to validate.
+                   Defaults to iccDEV/Testing/.
+        checks: Comma-separated check types — "wellformed", "encoding",
+                "size", "safety", or "all" (default).
+    """
+    xmllint = shutil.which("xmllint")
+    if not xmllint:
+        return "[FAIL] xmllint not found. Install: apt install libxml2-utils (Linux) or brew install libxml2 (macOS)"
+
+    # Resolve directory
+    if directory:
+        xml_dir = Path(directory).resolve()
+    else:
+        try:
+            iccdev = _resolve_iccdev_dir()
+            xml_dir = iccdev / "Testing"
+        except FileNotFoundError:
+            xml_dir = REPO_ROOT / "test-profiles"
+
+    if not xml_dir.is_dir():
+        return f"[FAIL] Directory not found: {xml_dir}"
+
+    xml_files = sorted(xml_dir.rglob("*.xml"))
+    if not xml_files:
+        return f"[FAIL] No .xml files found in {xml_dir}"
+
+    valid_checks = {"wellformed", "encoding", "size", "safety", "all"}
+    if checks == "all":
+        run_checks = ["wellformed", "encoding", "size", "safety"]
+    else:
+        run_checks = [c.strip() for c in checks.split(",")]
+        invalid = [c for c in run_checks if c not in valid_checks]
+        if invalid:
+            return f"[FAIL] Unknown check(s): {', '.join(invalid)}. Choose: {', '.join(sorted(valid_checks))}"
+
+    check_args: dict[str, list[str]] = {
+        "wellformed": ["--noout"],
+        "encoding": ["--noout", "--encode", "UTF-8"],
+        "size": ["--noout", "--maxmem", "104857600"],
+        "safety": ["--noout", "--noent", "--nonet"],
+    }
+
+    lines = [f"[XML Validation — {len(xml_files)} files, {len(run_checks)} check(s)]", ""]
+    cap = min(len(xml_files), 100)
+
+    for check_name in run_checks:
+        args = check_args[check_name]
+        passed = 0
+        failed = 0
+        failures: list[str] = []
+
+        for xf in xml_files[:cap]:
+            cmd = [xmllint] + args + [str(xf)]
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                _, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                failures.append(f"  [TIMEOUT] {xf.name}")
+                failed += 1
+                continue
+
+            if proc.returncode == 0:
+                passed += 1
+            else:
+                failed += 1
+                err_text = stderr.decode(errors="replace").strip()[:150]
+                failures.append(f"  [FAIL] {xf.name}: {err_text}")
+
+        lines.append(f"── {check_name} ──")
+        lines.append(f"  Passed: {passed}/{passed + failed}")
+        if failures:
+            for f in failures[:10]:
+                lines.append(f)
+            if len(failures) > 10:
+                lines.append(f"  ... and {len(failures) - 10} more")
+        lines.append("")
+
+    if len(xml_files) > cap:
+        lines.append(f"[NOTE] Capped at {cap} files (found {len(xml_files)})")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def coverage_report(build_dir: str = "") -> str:
+    """Merge profraw data and generate an LLVM coverage report.
+
+    Finds all .profraw files in the build directory, merges them with
+    llvm-profdata, and runs llvm-cov report to show line/function
+    coverage percentages.
+
+    Requires a build with sanitizers="coverage" or manual
+    -fprofile-instr-generate -fcoverage-mapping flags.
+
+    Args:
+        build_dir: Build directory containing .profraw files and instrumented
+                   binaries (from cmake_build with coverage config).
+    """
+    profdata_bin = shutil.which("llvm-profdata")
+    cov_bin = shutil.which("llvm-cov")
+    if not profdata_bin:
+        return "[FAIL] llvm-profdata not found. Install: apt install llvm (Linux) or Xcode CLT (macOS)"
+    if not cov_bin:
+        return "[FAIL] llvm-cov not found. Install: apt install llvm (Linux) or Xcode CLT (macOS)"
+
+    if not build_dir:
+        return (
+            "[FAIL] build_dir is required. Build with coverage first:\n"
+            "  1. cmake_configure(sanitizers='coverage')\n"
+            "  2. cmake_build(build_dir='...')\n"
+            "  3. (run tools to generate .profraw files)\n"
+            "  4. coverage_report(build_dir='...')"
+        )
+
+    try:
+        target_dir = _resolve_build_dir(build_dir)
+    except (FileNotFoundError, ValueError) as e:
+        return f"[FAIL] {e}"
+
+    if not target_dir.is_dir():
+        return f"[FAIL] Build directory not found: {target_dir}"
+
+    # Find profraw files
+    profraw_files = sorted(target_dir.rglob("*.profraw"))
+    if not profraw_files:
+        return (
+            f"[FAIL] No .profraw files found in {target_dir}.\n"
+            "  Run instrumented tools first to generate profile data.\n"
+            "  Set LLVM_PROFILE_FILE=path/%m.profraw when running tools."
+        )
+
+    # Find instrumented binaries
+    tool_dirs = _find_iccdev_tools(target_dir)
+    binaries: list[Path] = []
+    for d in tool_dirs:
+        for f in os.listdir(d):
+            fp = Path(d) / f
+            if fp.is_file() and os.access(str(fp), os.X_OK):
+                binaries.append(fp)
+
+    if not binaries:
+        return f"[FAIL] No instrumented binaries found in {target_dir}"
+
+    # Merge profraw → profdata
+    profdata_out = target_dir / "merged.profdata"
+    merge_cmd = [
+        profdata_bin, "merge", "-sparse",
+        *[str(p) for p in profraw_files],
+        "-o", str(profdata_out),
+    ]
+
+    merge_result = await _run_build(merge_cmd, cwd=str(target_dir), timeout=120)
+    if not profdata_out.is_file():
+        return f"[FAIL] Merge failed:\n{merge_result}"
+
+    lines = [
+        "[Coverage Report]",
+        "",
+        f"  Profraw files:  {len(profraw_files)}",
+        f"  Merged output:  {profdata_out.name} ({profdata_out.stat().st_size:,} bytes)",
+        f"  Binaries:       {len(binaries)}",
+        "",
+    ]
+
+    # Run llvm-cov report against the first binary (usually the main tool)
+    primary = binaries[0]
+    cov_cmd = [
+        cov_bin, "report", str(primary),
+        f"-instr-profile={profdata_out}",
+    ]
+    # Add additional object files
+    for b in binaries[1:5]:
+        cov_cmd.extend(["-object", str(b)])
+
+    cov_result = await _run_build(cov_cmd, cwd=str(target_dir), timeout=60)
+    lines.append("── Coverage Summary ──")
+    lines.append(cov_result)
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def scan_logs(
+    directory: str = "",
+    categories: str = "all",
+) -> str:
+    """Scan build/test log files for errors, crashes, and sanitizer findings.
+
+    Searches .log files using pattern categories derived from iccDEV maintainer
+    experience: errors, signals, invalid data, overflow, memory issues, hangs.
+
+    Args:
+        directory: Directory containing .log files to scan.
+                   Defaults to current working directory.
+        categories: Comma-separated categories — "errors", "signals", "invalid",
+                    "overflow", "memory", "hangs", or "all" (default).
+    """
+    if categories == "all":
+        active = list(_LOG_PATTERNS.keys())
+    else:
+        active = [c.strip() for c in categories.split(",")]
+        invalid = [c for c in active if c not in _LOG_PATTERNS]
+        if invalid:
+            return f"[FAIL] Unknown category: {', '.join(invalid)}. Choose: {', '.join(sorted(_LOG_PATTERNS.keys()))}, all"
+
+    # Resolve directory
+    if directory:
+        scan_dir = Path(directory).resolve()
+    else:
+        try:
+            iccdev = _resolve_iccdev_dir()
+            scan_dir = iccdev / "Testing"
+        except FileNotFoundError:
+            scan_dir = Path.cwd()
+
+    if not scan_dir.is_dir():
+        return f"[FAIL] Directory not found: {scan_dir}"
+
+    log_files = sorted(scan_dir.rglob("*.log"))
+    if not log_files:
+        return f"[FAIL] No .log files found in {scan_dir}"
+
+    lines = [f"[Log Scanner — {len(log_files)} files, {len(active)} categories]", ""]
+    total_matches = 0
+    cap = min(len(log_files), 50)
+
+    for cat in active:
+        pattern = _LOG_PATTERNS[cat]
+        cat_matches: list[str] = []
+
+        for lf in log_files[:cap]:
+            try:
+                content = lf.read_text(errors="replace")
+            except OSError:
+                continue
+            for i, line in enumerate(content.splitlines(), 1):
+                if re.search(pattern, line, re.IGNORECASE):
+                    cat_matches.append(f"  {lf.name}:{i}: {line.strip()[:120]}")
+                    if len(cat_matches) >= 50:
+                        break
+            if len(cat_matches) >= 50:
+                break
+
+        lines.append(f"── {cat} ({len(cat_matches)} matches) ──")
+        if cat_matches:
+            for m in cat_matches[:15]:
+                lines.append(m)
+            if len(cat_matches) > 15:
+                lines.append(f"  ... and {len(cat_matches) - 15} more")
+        else:
+            lines.append("  (none)")
+        lines.append("")
+        total_matches += len(cat_matches)
+
+    if len(log_files) > cap:
+        lines.append(f"[NOTE] Capped at {cap} files (found {len(log_files)})")
+    lines.append(f"Total: {total_matches} findings across {len(active)} categories")
+
+    return "\n".join(lines)
 
 
 def run_server() -> None:
