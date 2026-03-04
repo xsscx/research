@@ -3607,3 +3607,8 @@
 "offs"
 "5\x00\x00\x00\x00\x00\x00\x00"
 "\x00\x00P \x00\x09\x66\x93"
+
+# --- added by convert-libfuzzer-dict.py ---
+"baaa"
+"Ep\x90"
+"\xfa\xff\xbf"
