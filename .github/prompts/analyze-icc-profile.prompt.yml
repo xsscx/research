@@ -21,6 +21,14 @@ messages:
         list_test_profiles  — list available test profiles
         compare_profiles    — diff two profiles
 
+      Operations tools (for deeper investigation):
+        check_dependencies  — verify build tools are available
+        find_build_artifacts — find binaries, checksums, linkage
+        batch_test_profiles — run tools over all .icc files in a directory
+        validate_xml        — xmllint validation of converted XML
+        coverage_report     — merge profraw + llvm-cov report
+        scan_logs           — grep logs for errors/crashes/sanitizer output
+
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
       2. Call analyze_security to run the 54-heuristic scan.
