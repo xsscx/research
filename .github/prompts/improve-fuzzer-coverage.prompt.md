@@ -107,13 +107,34 @@ git commit -m "coverage: <description of improvements>"
 | io | IccIO |
 | spectral, v5dspobs | IccMpeSpectral |
 
-## Coverage Baseline (March 2026)
+## Coverage Baseline (March 2026, extended run)
 | Metric | Value |
 |--------|-------|
-| Lines | 58.85% |
-| Branches | 56.56% |
-| Functions | 59.71% |
-| Regions | 60.88% |
+| Lines | 59.01% |
+| Branches | 56.76% |
+| Functions | 59.81% |
+| Regions | 61.06% |
+
+## Top Coverage Gaps (by missed lines)
+| File | Missed | Coverage | Priority | Target Fuzzers |
+|------|--------|----------|----------|----------------|
+| IccCmm.cpp | 4,063 | 36.6% | CRITICAL | apply, applyprofiles, link (needs profile PAIRS) |
+| IccTagBasic.cpp | 2,327 | 60.8% | HIGH | deep_dump, profile, dump |
+| IccTagXml.cpp | 2,185 | 46.5% | HIGH | toxml, fromxml |
+| IccMpeSpectral.cpp | 828 | 31.8% | HIGH | spectral, spectral_b, v5dspobs |
+| IccPcc.cpp | 359 | 16.5% | HIGH | spectral, v5dspobs (needs differing viewing conditions) |
+| IccSparseMatrix.cpp | 314 | 26.8% | HIGH | deep_dump, profile (needs sparse matrix tags) |
+| IccCmmSearch.cpp | 275 | 0.0% | LOW | NONE — no fuzzer exercises this API |
+| IccEval.cpp | 95 | 0.0% | LOW | NONE — needs new fuzzer |
+
+### Key Insight: IccCmm.cpp
+IccCmm.cpp has the most missed lines but requires profile PAIRS (not single profiles) to
+trigger the CMM pipeline (AddXform→Begin→Apply). Fuzzers like `icc_apply_fuzzer` process
+two profiles together. Seed corpora for these fuzzers need matched pairs:
+- sRGB + CMYK (3DLut/4DLut paths)
+- Lab + Lab with different whitepoints (PCS step chain)
+- v5 MPE profile pairs (CIccXformMpe)
+- NamedColor + device profile (CIccNamedColorCmm)
 
 ## CodeQL Status (March 2026)
 | Metric | Value |
