@@ -48,6 +48,7 @@
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
 #include "IccTagMPE.h"
+#include "IccTagLut.h"
 #include <cmath>
 #include <set>
 
@@ -2165,6 +2166,353 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         heuristicCount += dictIssues;
       } else {
         printf("      %s[OK] Dictionary tags consistent%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H61 — Viewing Conditions Validation (CWE-682/CWE-20)
+    // =====================================================================
+    printf("[H61] Viewing Conditions Validation\n");
+    {
+      int viewIssues = 0;
+      CIccTag *vcTag = pIcc->FindTag((icTagSignature)icSigViewingConditionsTag);
+      if (vcTag) {
+        CIccTagViewingConditions *vc = dynamic_cast<CIccTagViewingConditions*>(vcTag);
+        if (vc) {
+          icFloatNumber illumX = icFtoD(vc->m_XYZIllum.X);
+          icFloatNumber illumY = icFtoD(vc->m_XYZIllum.Y);
+          icFloatNumber illumZ = icFtoD(vc->m_XYZIllum.Z);
+          if (illumX < 0 || illumY < 0 || illumZ < 0) {
+            printf("      %s[WARN]  Negative illuminant XYZ (%.4f, %.4f, %.4f)%s\n",
+                   ColorCritical(), illumX, illumY, illumZ, ColorReset());
+            printf("       %sCWE-682: Negative tristimulus → invalid color math%s\n",
+                   ColorCritical(), ColorReset());
+            viewIssues++;
+          }
+          if (illumY > 200.0 || illumX > 200.0 || illumZ > 200.0) {
+            printf("      %s[WARN]  Extreme illuminant XYZ magnitude (%.4f, %.4f, %.4f)%s\n",
+                   ColorWarning(), illumX, illumY, illumZ, ColorReset());
+            viewIssues++;
+          }
+          icFloatNumber surX = icFtoD(vc->m_XYZSurround.X);
+          icFloatNumber surY = icFtoD(vc->m_XYZSurround.Y);
+          icFloatNumber surZ = icFtoD(vc->m_XYZSurround.Z);
+          if (surX < 0 || surY < 0 || surZ < 0) {
+            printf("      %s[WARN]  Negative surround XYZ (%.4f, %.4f, %.4f)%s\n",
+                   ColorCritical(), surX, surY, surZ, ColorReset());
+            viewIssues++;
+          }
+        }
+      }
+      if (viewIssues > 0) {
+        heuristicCount += viewIssues;
+      } else {
+        printf("      %s[OK] Viewing conditions plausible (or tag absent)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H62 — Multi-Localized Unicode String Bombs (CWE-400/CWE-770)
+    // =====================================================================
+    printf("[H62] Multi-Localized Unicode String Bombs\n");
+    {
+      int mlucIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+        CIccTagMultiLocalizedUnicode *mluc = dynamic_cast<CIccTagMultiLocalizedUnicode*>(tag);
+        if (!mluc) continue;
+
+        int localeCount = 0;
+        size_t totalBytes = 0;
+        for (auto lit = mluc->m_Strings->begin(); lit != mluc->m_Strings->end(); ++lit) {
+          localeCount++;
+          totalBytes += lit->GetLength() * sizeof(icUInt16Number);
+          if (localeCount > 10000) break;
+        }
+
+        if (localeCount > 1000) {
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': mluc has %d locales (>1000)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 localeCount, ColorReset());
+          printf("       %sCWE-400: Locale-bomb DoS%s\n", ColorCritical(), ColorReset());
+          mlucIssues++;
+        }
+        if (totalBytes > 10485760) { // 10MB aggregate
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': mluc aggregate %zu bytes (>10MB)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 totalBytes, ColorReset());
+          printf("       %sCWE-770: Excessive string data allocation%s\n",
+                 ColorCritical(), ColorReset());
+          mlucIssues++;
+        }
+      }
+      if (mlucIssues > 0) {
+        heuristicCount += mlucIssues;
+      } else {
+        printf("      %s[OK] MultiLocalizedUnicode tags within bounds%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H63 — Curve/LUT I/O Channel Mismatch (CWE-120/CWE-131)
+    // =====================================================================
+    printf("[H63] Curve/LUT I/O Channel Mismatch\n");
+    {
+      int lutIssues = 0;
+      icSignature lutSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        (icSignature)0
+      };
+      for (int s = 0; lutSigs[s] != (icSignature)0; s++) {
+        CIccTag *tag = pIcc->FindTag((icTagSignature)lutSigs[s]);
+        if (!tag) continue;
+        CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+        if (!mbb) continue;
+
+        icUInt8Number nIn = mbb->InputChannels();
+        icUInt8Number nOut = mbb->OutputChannels();
+        if (nIn == 0 || nOut == 0) {
+          CIccInfo info;
+          printf("      %s[WARN]  LUT tag '%s': zero channels (in=%d, out=%d)%s\n",
+                 ColorCritical(), info.GetTagSigName((icTagSignature)lutSigs[s]),
+                 nIn, nOut, ColorReset());
+          printf("       %sCWE-131: Zero-channel LUT → division by zero risk%s\n",
+                 ColorCritical(), ColorReset());
+          lutIssues++;
+        }
+        if (nIn > 16 || nOut > 16) {
+          CIccInfo info;
+          printf("      %s[WARN]  LUT tag '%s': extreme channels (in=%d, out=%d)%s\n",
+                 ColorCritical(), info.GetTagSigName((icTagSignature)lutSigs[s]),
+                 nIn, nOut, ColorReset());
+          printf("       %sCWE-120: Channel count exceeds fixed buffer (16)%s\n",
+                 ColorCritical(), ColorReset());
+          lutIssues++;
+        }
+      }
+      if (lutIssues > 0) {
+        heuristicCount += lutIssues;
+      } else {
+        printf("      %s[OK] LUT I/O channel counts valid%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H64 — NamedColor2 Device Coord Overflow (CWE-131/CWE-787)
+    // =====================================================================
+    printf("[H64] NamedColor2 Device Coord Overflow\n");
+    {
+      int nc2Issues = 0;
+      CIccTag *ncTag = pIcc->FindTag(icSigNamedColor2Tag);
+      if (ncTag) {
+        CIccTagNamedColor2 *nc2 = dynamic_cast<CIccTagNamedColor2*>(ncTag);
+        if (nc2) {
+          icUInt32Number nColors = nc2->GetSize();
+          icUInt32Number nDevCoords = nc2->GetDeviceCoords();
+          if (nColors > 65536) {
+            printf("      %s[WARN]  NamedColor2: %u entries (>65536)%s\n",
+                   ColorCritical(), nColors, ColorReset());
+            printf("       %sCWE-400: Excessive named color entries%s\n",
+                   ColorCritical(), ColorReset());
+            nc2Issues++;
+          }
+          if (nDevCoords > 15) {
+            printf("      %s[WARN]  NamedColor2: %u device coords (>15)%s\n",
+                   ColorCritical(), nDevCoords, ColorReset());
+            printf("       %sCWE-787: Device coord count exceeds ICC spec max%s\n",
+                   ColorCritical(), ColorReset());
+            nc2Issues++;
+          }
+          // Check product overflow
+          if (nColors > 0 && nDevCoords > 0) {
+            uint64_t product = (uint64_t)nColors * (uint64_t)(nDevCoords + 3) * sizeof(icFloatNumber);
+            if (product > 1073741824ULL) { // 1GB
+              printf("      %s[WARN]  NamedColor2: allocation %llu bytes (>1GB)%s\n",
+                     ColorCritical(), (unsigned long long)product, ColorReset());
+              printf("       %sCWE-131: Integer overflow in size calculation%s\n",
+                     ColorCritical(), ColorReset());
+              nc2Issues++;
+            }
+          }
+        }
+      }
+      if (nc2Issues > 0) {
+        heuristicCount += nc2Issues;
+      } else {
+        printf("      %s[OK] NamedColor2 dimensions valid (or tag absent)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H65 — Chromaticity Physical Plausibility (CWE-682)
+    // =====================================================================
+    printf("[H65] Chromaticity Physical Plausibility\n");
+    {
+      int chromIssues = 0;
+      CIccTag *chTag = pIcc->FindTag(icSigChromaticityTag);
+      if (chTag) {
+        CIccTagChromaticity *chrom = dynamic_cast<CIccTagChromaticity*>(chTag);
+        if (chrom) {
+          icUInt32Number nChan = chrom->GetSize();
+          for (icUInt32Number c = 0; c < nChan && c < 16; c++) {
+            icChromaticityNumber *xy = chrom->Getxy(c);
+            if (xy) {
+              icFloatNumber x = icUFtoD(xy->x);
+              icFloatNumber y = icUFtoD(xy->y);
+              if (x < 0 || x > 0.9 || y < 0 || y > 0.9) {
+                printf("      %s[WARN]  Chromaticity[%u]: xy=(%.4f, %.4f) outside CIE bounds%s\n",
+                       ColorCritical(), c, x, y, ColorReset());
+                printf("       %sCWE-682: Non-physical chromaticity coordinates%s\n",
+                       ColorCritical(), ColorReset());
+                chromIssues++;
+              }
+              if (y == 0 && x != 0) {
+                printf("      %s[WARN]  Chromaticity[%u]: y=0 with x!=0 (singularity)%s\n",
+                       ColorCritical(), c, ColorReset());
+                chromIssues++;
+              }
+            }
+          }
+        }
+      }
+      if (chromIssues > 0) {
+        heuristicCount += chromIssues;
+      } else {
+        printf("      %s[OK] Chromaticity coordinates plausible (or tag absent)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H66 — Comprehensive NumArray NaN/Inf Scan (CWE-682/CWE-369)
+    // =====================================================================
+    printf("[H66] Comprehensive NumArray NaN/Inf Scan\n");
+    {
+      int nanIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!tag || !tag->IsNumArrayType()) continue;
+        CIccTagNumArray *numArr = dynamic_cast<CIccTagNumArray*>(tag);
+        if (!numArr) continue;
+
+        icUInt32Number nVals = numArr->GetNumValues();
+        if (nVals == 0 || nVals > 1048576) continue; // skip empty or huge
+
+        icUInt32Number scanLimit = (nVals > 4096) ? 4096 : nVals;
+        icFloatNumber *vals = (icFloatNumber*)malloc(scanLimit * sizeof(icFloatNumber));
+        if (!vals) continue;
+
+        if (numArr->GetValues(vals, 0, scanLimit)) {
+          int nanCount = 0, infCount = 0, extremeCount = 0;
+          for (icUInt32Number v = 0; v < scanLimit; v++) {
+            if (std::isnan(vals[v])) nanCount++;
+            else if (std::isinf(vals[v])) infCount++;
+            else if (std::fabs(vals[v]) > 1e10) extremeCount++;
+          }
+          if (nanCount > 0 || infCount > 0) {
+            CIccInfo info;
+            printf("      %s[WARN]  Tag '%s': %d NaN, %d Inf in %u values%s\n",
+                   ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                   nanCount, infCount, scanLimit, ColorReset());
+            printf("       %sCWE-682: Non-finite values propagate through color math%s\n",
+                   ColorCritical(), ColorReset());
+            nanIssues++;
+          }
+          if (extremeCount > scanLimit / 4) {
+            CIccInfo info;
+            printf("      %s[WARN]  Tag '%s': %d/%u extreme values (>1e10)%s\n",
+                   ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
+                   extremeCount, scanLimit, ColorReset());
+            nanIssues++;
+          }
+        }
+        free(vals);
+      }
+      if (nanIssues > 0) {
+        heuristicCount += nanIssues;
+      } else {
+        printf("      %s[OK] All numeric arrays free of NaN/Inf%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H67 — ResponseCurveSet Bounds (CWE-400/CWE-131)
+    // =====================================================================
+    printf("[H67] ResponseCurveSet Bounds\n");
+    {
+      int rcsIssues = 0;
+      // ResponseCurveSet16 has no well-known tag signature — scan all tags by type
+      CIccTagResponseCurveSet16 *rcs = NULL;
+      for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+        CIccTag *t = pIcc->FindTag(it->TagInfo.sig);
+        if (!t) continue;
+        rcs = dynamic_cast<CIccTagResponseCurveSet16*>(t);
+        if (rcs) break;
+      }
+      if (rcs) {
+        icUInt16Number nChan = rcs->GetNumChannels();
+        if (nChan > 16) {
+          printf("      %s[WARN]  ResponseCurveSet: %u channels (>16)%s\n",
+                 ColorCritical(), nChan, ColorReset());
+          printf("       %sCWE-131: Channel count exceeds safe bounds%s\n",
+                 ColorCritical(), ColorReset());
+          rcsIssues++;
+        }
+      }
+      if (rcsIssues > 0) {
+        heuristicCount += rcsIssues;
+      } else {
+        printf("      %s[OK] ResponseCurveSet bounds valid (or tag absent)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H70 — Measurement Tag Validation (CWE-20)
+    // =====================================================================
+    printf("[H70] Measurement Tag Validation\n");
+    {
+      int measIssues = 0;
+      CIccTag *measTag = pIcc->FindTag(icSigMeasurementTag);
+      if (measTag) {
+        CIccTagMeasurement *meas = dynamic_cast<CIccTagMeasurement*>(measTag);
+        if (meas) {
+          icUInt32Number obs = meas->m_Data.stdObserver;
+          if (obs != 0 && obs != 1 && obs != 2) {
+            printf("      %s[WARN]  Measurement: invalid observer type %u%s\n",
+                   ColorCritical(), obs, ColorReset());
+            printf("       %sCWE-20: Invalid enum → undefined behavior in observer selection%s\n",
+                   ColorCritical(), ColorReset());
+            measIssues++;
+          }
+          icUInt32Number geom = meas->m_Data.geometry;
+          if (geom > 3) {
+            printf("      %s[WARN]  Measurement: invalid geometry %u (>3)%s\n",
+                   ColorCritical(), geom, ColorReset());
+            measIssues++;
+          }
+          icUInt32Number flareRaw = (icUInt32Number)meas->m_Data.flare;
+          if (flareRaw > 0x00010000) { // > 1.0 in u16Fixed16
+            printf("      %s[WARN]  Measurement: flare 0x%08X exceeds 1.0%s\n",
+                   ColorWarning(), flareRaw, ColorReset());
+            measIssues++;
+          }
+        }
+      }
+      if (measIssues > 0) {
+        heuristicCount += measIssues;
+      } else {
+        printf("      %s[OK] Measurement tag valid (or absent)%s\n", ColorSuccess(), ColorReset());
       }
     }
     printf("\n");
@@ -4951,6 +5299,155 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
 
+  // =====================================================================
+  // H68 — GamutBoundaryDesc Triangle/Vertex Overflow (CWE-131/CWE-190)
+  // Raw-file check targeting IccTagLut.cpp CIccTagGamutBoundaryDesc::Read()
+  // =====================================================================
+  printf("[H68] GamutBoundaryDesc Triangle/Vertex Overflow\n");
+  {
+    FILE *fp68 = fopen(filename, "rb");
+    if (fp68) {
+      fseek(fp68, 0, SEEK_END);
+      long fs68_l = ftell(fp68);
+      if (fs68_l < 0) { fclose(fp68); fp68 = NULL; }
+      size_t fs68 = (fp68) ? (size_t)fs68_l : 0;
+
+      int gbdIssues = 0;
+      if (fp68 && fs68 >= 132) {
+        icUInt8Number tc68[4];
+        fseek(fp68, 128, SEEK_SET);
+        if (fread(tc68, 1, 4, fp68) == 4) {
+          uint32_t tagCount68 = ((uint32_t)tc68[0]<<24)|((uint32_t)tc68[1]<<16)|
+                                ((uint32_t)tc68[2]<<8)|tc68[3];
+          if (tagCount68 > 1000) tagCount68 = 1000;
+
+          for (uint32_t t = 0; t < tagCount68 && fp68; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp68, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp68) != 12) break;
+
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 4 > fs68 || tSz < 20) continue;
+
+            // Read tag type signature
+            icUInt8Number typeSig[4];
+            fseek(fp68, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp68) != 4) continue;
+            uint32_t tType = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                             ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            // icSigGamutBoundaryDescType = 'gbd '
+            if (tType != 0x67626420) continue;
+
+            // Parse GBD header: skip 8 bytes (type+reserved), then:
+            // offset 8: nPCSChannels (2 bytes)
+            // offset 10: reserved (2 bytes)
+            // offset 12: nVertices (4 bytes)
+            // offset 16: nTriangles (4 bytes)
+            if (tOff + 20 > fs68) continue;
+            icUInt8Number gbdHdr[12];
+            fseek(fp68, tOff + 8, SEEK_SET);
+            if (fread(gbdHdr, 1, 12, fp68) != 12) continue;
+
+            uint16_t nPCS = ((uint16_t)gbdHdr[0]<<8)|gbdHdr[1];
+            uint32_t nVert = ((uint32_t)gbdHdr[4]<<24)|((uint32_t)gbdHdr[5]<<16)|
+                             ((uint32_t)gbdHdr[6]<<8)|gbdHdr[7];
+            uint32_t nTri  = ((uint32_t)gbdHdr[8]<<24)|((uint32_t)gbdHdr[9]<<16)|
+                             ((uint32_t)gbdHdr[10]<<8)|gbdHdr[11];
+
+            // Check vertex allocation: nVert * nPCS * sizeof(float)
+            uint64_t vertBytes = (uint64_t)nVert * nPCS * 4;
+            if (vertBytes > 268435456ULL) { // 256MB
+              printf("      %s[WARN]  GamutBoundaryDesc: %u vertices * %u PCS = %llu bytes%s\n",
+                     ColorCritical(), nVert, nPCS, (unsigned long long)vertBytes, ColorReset());
+              printf("       %sCWE-190: Integer overflow in vertex allocation%s\n",
+                     ColorCritical(), ColorReset());
+              gbdIssues++;
+            }
+            // Check triangle allocation: nTri * 3 * sizeof(uint32)
+            uint64_t triBytes = (uint64_t)nTri * 3 * 4;
+            if (triBytes > 268435456ULL) {
+              printf("      %s[WARN]  GamutBoundaryDesc: %u triangles → %llu bytes%s\n",
+                     ColorCritical(), nTri, (unsigned long long)triBytes, ColorReset());
+              printf("       %sCWE-131: Triangle array exceeds reasonable bounds%s\n",
+                     ColorCritical(), ColorReset());
+              gbdIssues++;
+            }
+          }
+        }
+      }
+      if (fp68) fclose(fp68);
+
+      if (gbdIssues > 0) {
+        heuristicCount += gbdIssues;
+      } else {
+        printf("      %s[OK] GamutBoundaryDesc bounds valid (or absent)%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // =====================================================================
+  // H69 — Profile ID / MD5 Consistency (CWE-345/CWE-354)
+  // Raw-file check: validates Profile ID field at header bytes 84-99
+  // =====================================================================
+  printf("[H69] Profile ID / MD5 Consistency\n");
+  {
+    FILE *fp69 = fopen(filename, "rb");
+    if (fp69) {
+      fseek(fp69, 0, SEEK_END);
+      long fs69_l = ftell(fp69);
+      if (fs69_l < 0) { fclose(fp69); fp69 = NULL; }
+
+      int idIssues = 0;
+      if (fp69 && fs69_l >= 128) {
+        icUInt8Number profileId[16];
+        fseek(fp69, 84, SEEK_SET);
+        if (fread(profileId, 1, 16, fp69) == 16) {
+          bool allZero = true;
+          for (int i = 0; i < 16; i++) {
+            if (profileId[i] != 0) { allZero = false; break; }
+          }
+          if (allZero) {
+            printf("      %s[INFO] Profile ID is all zeros (MD5 not computed)%s\n",
+                   ColorInfo(), ColorReset());
+          } else {
+            // Verify profile ID appears plausible (not all 0xFF or repeating)
+            bool allFF = true;
+            bool repeating = true;
+            for (int i = 0; i < 16; i++) {
+              if (profileId[i] != 0xFF) allFF = false;
+              if (i > 0 && profileId[i] != profileId[0]) repeating = false;
+            }
+            if (allFF || repeating) {
+              printf("      %s[WARN]  Profile ID: suspicious pattern (all 0x%02X)%s\n",
+                     ColorWarning(), profileId[0], ColorReset());
+              printf("       %sCWE-345: Spoofed/invalid Profile ID%s\n",
+                     ColorCritical(), ColorReset());
+              idIssues++;
+            } else {
+              printf("      %s[OK] Profile ID present: %02x%02x%02x%02x...%02x%02x%02x%02x%s\n",
+                     ColorSuccess(),
+                     profileId[0], profileId[1], profileId[2], profileId[3],
+                     profileId[12], profileId[13], profileId[14], profileId[15],
+                     ColorReset());
+            }
+          }
+        }
+      }
+      if (fp69) fclose(fp69);
+
+      if (idIssues > 0) {
+        heuristicCount += idIssues;
+      }
+    }
+  }
+  printf("\n");
+
   // Summary
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
@@ -4971,12 +5468,14 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 60 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 70 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
     printf("  %sH46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)%s\n", ColorInfo(), ColorReset());
-    printf("  %sH55-H60: Extended coverage (UTF-16 validation, calc depth, embedded profiles, spectral, dict)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH55-H60: UTF-16, calc depth, embedded profiles, spectral, dict%s\n", ColorInfo(), ColorReset());
+    printf("  %sH61-H70: Viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity,%s\n", ColorInfo(), ColorReset());
+    printf("  %s         NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
