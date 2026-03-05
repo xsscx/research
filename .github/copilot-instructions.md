@@ -78,7 +78,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk \
 
 Special fuzzer notes:
 - **icc_link_fuzzer** needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2x ASAN memory)
-- Coverage collection: `LLVM_PROFILE_FILE=$RAMDISK/profraw/%m_%p.profraw`
+- Coverage collection: `LLVM_PROFILE_FILE=$RAMDISK/profraw/${fuzzer_name}_%m_%p.profraw` (include fuzzer name — `%m` is just a numeric hash)
 - Suppress profile errors during fuzzing: `LLVM_PROFILE_FILE=/dev/null`
 
 ## FAILURE IDENTIFICATION — READ THIS
@@ -173,7 +173,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 
 ### Reusable Prompts
 
-Seven prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Eight prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 86-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
@@ -181,6 +181,7 @@ Seven prompt templates in `.github/prompts/` guide AI through standard analysis 
 - `health-check.prompt.yml` — MCP server verification
 - `image-fuzzer-quality.prompt.md` — xnuimagefuzzer output quality assessment
 - `mac-catalyst-ci.prompt.md` — Mac Catalyst CI debugging guide
+- `improve-fuzzer-coverage.prompt.md` — Coverage gap analysis and seed creation workflow
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
@@ -456,7 +457,36 @@ When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
 - **Static vs shared libs**: Coverage reports using static libs only show tool `.cpp` coverage (~5K lines). Use `ENABLE_STATIC_LIBS=OFF` to build shared libs so llvm-cov sees all 46K library source lines.
 - **Shared lib collection**: Collect `.so` files with `find Build -name '*.so'` and pass each as `-object` arg to `llvm-cov`.
 - **Runtime**: Set `LD_LIBRARY_PATH` to the shared lib directory before running instrumented tools.
-- **Profraw management**: Use `LLVM_PROFILE_FILE=%m_%p.profraw` (not `default.profraw`) to avoid clobbering between tools.
+- **Profraw management**: Use `LLVM_PROFILE_FILE=${fuzzer_name}_%m_%p.profraw` (not `%m.profraw` or `default.profraw`) to avoid clobbering and to identify which fuzzer generated each profraw file. The `%m` specifier is a numeric module hash — there is NO LLVM specifier for the binary name, so it must be prepended manually.
+- **Fuzzer coverage collection**: `fuzz-local.sh` sets `LLVM_PROFILE_FILE` per-fuzzer inside the loop. To collect coverage from all 19 fuzzers manually:
+  ```bash
+  # Run all fuzzers with profraw collection (60s each, parallel)
+  for f in /mnt/g/fuzz-ssd/bin/icc_*_fuzzer; do
+    name=$(basename "$f")
+    ASAN_OPTIONS=detect_leaks=0 \
+    LLVM_PROFILE_FILE="/mnt/g/fuzz-ssd/profraw/${name}_%m_%p.profraw" \
+      "$f" -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 \
+      -use_value_profile=1 -max_len=5242880 \
+      -artifact_prefix=/mnt/g/fuzz-ssd/ \
+      -dict="cfl/${name}.dict" \
+      "/mnt/g/fuzz-ssd/corpus-${name}/" > /tmp/fuzz_${name}.log 2>&1 &
+  done
+  wait
+
+  # Merge and report
+  llvm-profdata-18 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
+  OBJS=$(printf ' -object %s' cfl/bin/icc_*_fuzzer)
+  llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
+  llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=html --output-dir=/mnt/g/fuzz-ssd/coverage-report/html
+  ```
+- **Coverage baseline** (as of March 2026, all 19 fuzzers): Lines 58.85%, Branches 56.56%, Functions 59.71%, Regions 60.88%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
+- **Seed corpus strategy**: Copy profiles from `test-profiles/` with novel tag types not already in fuzzer seed corpora. Set `doOpenPath` bit (`data[-2] |= 0x08`) on seeds to use the non-validating `Read()` path in deep_dump fuzzer. Minimal hand-crafted ICC profiles fail `ValidateIccProfile()` — always patch existing valid profiles instead.
+- **Fuzzer-specific coverage notes**:
+  - Only `toxml` and `fromxml` link IccXML — they provide all IccXML coverage
+  - Only `specsep`, `spectral_b`, `tiffdump` link TiffImg — they provide all TIFF coverage
+  - `toxml` may crash on large corpora — use a 100-200 file subset via `ls | shuf | head -200`
+  - `roundtrip` is very slow (5032+ corpus files, Read→Write→Read per input) — allow 120s+
+  - `link` needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input)
 
 ### Stale coverage files
 After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` auto-cleans them with `find . -name "*.gcda" -delete` before building.
