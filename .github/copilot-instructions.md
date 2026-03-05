@@ -55,7 +55,7 @@ Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (la
 .github/scripts/ramdisk-status.sh
 
 # Run a single fuzzer (smoke test, 60 seconds)
-LLVM_PROFILE_FILE=/tmp/fuzz-ramdisk/profraw/%m.profraw \
+LLVM_PROFILE_FILE=/tmp/fuzz-ramdisk/profraw/icc_profile_fuzzer_%m_%p.profraw \
 ASAN_OPTIONS=detect_leaks=0 \
 FUZZ_TMPDIR=/tmp/fuzz-ramdisk \
   /tmp/fuzz-ramdisk/bin/icc_profile_fuzzer \
