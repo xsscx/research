@@ -3753,3 +3753,10 @@ cs_mch4="4CLR"
 cs_mch5="5CLR"
 cs_mch7="7CLR"
 cs_mch9="9CLR"
+
+# --- BPC/PCC tokens ---
+bkpt_sig="\x62\x6B\x70\x74"
+chad_sig="\x63\x68\x61\x64"
+wtpt_sig="\x77\x74\x70\x74"
+pcc_d50="\x00\x00\x13\x33"
+pcc_d65="\x00\x00\x14\xB3"
