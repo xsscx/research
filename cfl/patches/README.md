@@ -67,7 +67,8 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 63 | `IccIO.cpp` | `CIccMemIO::Read8` | Stack-buffer-overflow: `m_nSize - m_nPos` underflows when `m_nPos > m_nSize` (unsigned), causing memcpy to write past buffer. Triggered via recursive `CIccTagEmbeddedProfile::Read` → `CIccProfile::LoadTag` chain. Not reachable via CLI tools (header validation gates prevent loading). CWE-121 |
 | 64 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow READ: `op->data.size` from malformed profile used unclamped as recursive `nOps`, walking past the `calloc`'d ops array. **Reachable via `iccApplyProfiles` CLI tool.** Fix: clamp `data.size` to remaining ops (mirrors `DescribeSequence` logic). CWE-125 |
 | 65 | `IccUtilXml.cpp` | `icFixXml` | Stack-buffer-overflow WRITE: unbounded XML entity expansion (`'`→`&apos;`, 6x) into fixed 256-byte stack buffer. SCARINESS 55. Reachable via `CIccTagXmlNamedColor2::ToXml` and any `ToXml` caller with user-controlled strings. Fix: cap output to 255 bytes. CWE-121 |
-| 66 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `CIccProfileXml::ParseXml`, `CIccTagXmlMultiLocalizedUnicode::ParseXml` | OOM: 304KB malformed XML with 910 tags and 291 LocalizedText entries per tag causes 3.1GB allocation via unbounded `CIccLocalizedUnicode` copy construction. Fix: cap tags at 256 per profile, LocalizedText at 100 per tag. CWE-789 |
+| 66 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `CIccProfileXml::ParseXml`, `CIccTagXmlMultiLocalizedUnicode::ParseXml` | **NO-OP** (superseded by 067) — OOM via unbounded tag/string allocation |
+| 67 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `ParseXml` (mluc, ProfileSeqId, Dict) | OOM: 433KB XML triggers 561K `CIccLocalizedUnicode` allocations (2.38GB). Fix: cap tags 256, strings 100/tag, text 64KB, ProfileIdDesc 256, DictEntry 1024. CWE-789 |
 
 ## Allocation Cap
 
@@ -649,28 +650,42 @@ Fuzzer: `icc_toxml_fuzzer`. CWE-121. SCARINESS: 55.
 ASAN_OPTIONS=detect_leaks=0:print_scariness=1 icc_toxml_fuzzer sbo-icFixXml-IccUtilXml_cpp-Line314.icc
 ```
 
-### 066 — FromXml OOM: tag count and LocalizedText limits (IccProfileXml.cpp, IccTagXml.cpp)
+### 066 — FromXml OOM: tag count and LocalizedText limits (IccProfileXml.cpp, IccTagXml.cpp) — NO-OP
 
-Out-of-memory via unbounded allocation in `CIccProfileXml::ParseXml` and
-`CIccTagXmlMultiLocalizedUnicode::ParseXml`. A 304KB malformed XML file
-contains 910 `<TagSignature>` elements with 291 `<LocalizedText>` entries
-per `multiLocalizedUnicodeType` tag. Each `LocalizedText` creates a
-`CIccLocalizedUnicode` object via `push_back` copy construction,
-totaling 1,026,077 allocations at 2.2GB (70% of 3.1GB RSS at OOM).
+Patch 066 is a **NO-OP** (superseded by patch 067). Original patch had
+context mismatch after patch 049 modified `IccProfileXml.cpp`. All fixes
+from 066 are included in 067 along with additional deep caps.
 
-The CLI tool (`iccFromXml`) rejects this file as malformed XML (libxml2
-parse errors). The fuzzer path bypasses XML validation and triggers
-`LoadXml` → `ParseXml` → `ParseTag` → `ParseXml` (tag) → `SetText`
-in an unbounded loop.
+### 067 — FromXml OOM: deep caps for mluc text, ProfileSeqId, Dict (IccProfileXml.cpp, IccTagXml.cpp)
 
-Fix: cap XML tags at 256 per profile (ICC spec rarely exceeds 100),
-cap `LocalizedText` entries at 100 per `multiLocalizedUnicodeType` tag
-(real profiles have at most ~50 language/country variants).
+Out-of-memory via unbounded `CIccLocalizedUnicode` allocation across
+multiple XML parsing paths. A 433KB malformed XML triggers 561,472
+`malloc` calls in `CIccLocalizedUnicode` copy constructor, consuming
+2.38GB (71% of 4.1GB RSS at OOM). Three uncapped allocation vectors:
 
-Reproducer: `oom-CIccLocalizedUnicode-IccTagBasic_cpp-Line7123.xml` (304KB).
+1. **mluc text size** — `CIccUTF16String(const char*)` allocates
+   `4×strlen` bytes with no cap. Large CDATA content ×25,600 strings
+   (256 tags × 100 per tag) = multi-GB allocation.
+2. **ProfileSequenceId** — `CIccTagXmlProfileSequenceId::ParseXml`
+   has unbounded `ProfileIdDesc` entries × unbounded `LocalizedText`
+   per entry (no caps).
+3. **DictType** — `CIccTagXmlDict::ParseXml` has unbounded
+   `DictEntry` entries × unbounded `LocalizedName`/`LocalizedValue`
+   children (no caps).
+
+Fix: Add caps to all three paths:
+- Cap XML tags at 256 per profile (IccProfileXml.cpp, from original 066)
+- Cap `LocalizedText` at 100 per mluc tag (from original 066)
+- Cap text content at 64KB per string (new — prevents mega-string alloc)
+- Cap `ProfileIdDesc` entries at 256, LocalizedText at 100 per entry
+- Cap `DictEntry` entries at 1024, LocalizedName/Value at 100 per entry
+
+Result: peak RSS drops from 4,100MB (OOM) to 56MB.
+
+Reproducer: `oom-7beea52affd357163946a6682b034d28913bd63c` (433KB).
 Fuzzer: `icc_fromxml_fuzzer`. CWE-789.
 
 1-liner:
 ```bash
-ASAN_OPTIONS=detect_leaks=0 icc_fromxml_fuzzer -rss_limit_mb=2048 oom-CIccLocalizedUnicode-IccTagBasic_cpp-Line7123.xml
+ASAN_OPTIONS=detect_leaks=0 icc_fromxml_fuzzer oom-7beea52affd357163946a6682b034d28913bd63c
 ```
