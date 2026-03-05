@@ -3448,3 +3448,39 @@
 "r\x00\x00\x00"
 "\x01\x00\x7f!G\xe9r\xef"
 "\x01\x00\x00\x00\x00\x00\x0d\x8b"
+
+# === TiffImg.cpp coverage gap tokens ===
+# TIFF magic
+tiff_le="II\x2a\x00"
+tiff_be="MM\x00\x2a"
+
+# Photometric values targeting uncovered branches
+photo_miniswhite="\x00\x00"
+photo_rgb="\x02\x00"
+photo_separated="\x05\x00"
+photo_cielab="\x08\x00"
+photo_icclab="\x09\x00"
+
+# PlanarConfiguration
+planar_separate="\x02\x00"
+
+# BitsPerSample
+bps_32="\x20\x00"
+
+# SampleFormat
+sf_ieeefp="\x03\x00"
+
+# SamplesPerPixel
+spp_4="\x04\x00"
+
+# TIFF tag IDs
+tag_photometric="\x06\x01"
+tag_planarconfig="\x1c\x01"
+tag_extrasamples="\x52\x01"
+tag_sampleformat="\x53\x01"
+tag_iccprofile="\x23\x87"
+
+# ICC profile header
+icc_acsp="acsp"
+icc_mntr="mntr"
+icc_rgb_space="RGB "
