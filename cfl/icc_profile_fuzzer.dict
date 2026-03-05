@@ -3125,3 +3125,17 @@ D2B0_sig="\x44\x32\x42\x30"
 D2B1_sig="\x44\x32\x42\x31"
 B2D0_sig="\x42\x32\x44\x30"
 B2D1_sig="\x42\x32\x44\x31"
+
+# --- Sparse matrix tokens ---
+smat_type="\x73\x6D\x61\x74"
+smat_uint8="\x00\x00"
+smat_float32="\x00\x03"
+sparse_3chan="\x00\x03"
+
+# --- Embedded profile tokens ---
+embed_v5_sig="\x49\x43\x43\x35"
+
+# --- PRMG tokens ---
+prmg_sig="\x70\x72\x6D\x67"
+rig0_sig="\x72\x69\x67\x30"
+rig2_sig="\x72\x69\x67\x32"
