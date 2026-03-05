@@ -38,6 +38,6 @@ Each seed generates: original + corrupted + 4 format variants.
 1. Download fuzzed-images artifact from CI
 2. Count files per format: `find . -name "*.png" | wc -l` (repeat for jpg, gif, bmp, tiff, heif)
 3. Validate with: `file -b "$f"` — should report image type, not "data"
-4. Check dimensions: `identify "$f"` or `sips -g pixelWidth -g pixelHeight "$f"`
+4. Check dimensions: `identify "$f"` or `exiftool -ImageWidth -ImageHeight "$f"`
 5. Check color diversity: `convert "$f" -unique-colors -format "%c" histogram:info:`
 6. Compute score against the 5 metrics above

@@ -44,6 +44,13 @@ messages:
       - H37-H45: CFL dictionary coverage (calc complexity, curves, aliasing, alignment, v5)
       - H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
 
+      When the iccDEV library fails to load a malformed profile, the analyzer
+      activates a raw-file fallback engine that runs H10, H13, H25, H28, H32
+      independently using direct file I/O.  This ensures even highly malformed
+      profiles get partial analysis coverage.
+
+      The analysis script is at .github/scripts/analyze-profile.sh
+
       Report ASAN / UBSAN output verbatim if present.
       Exit code 0 = clean, 1 = finding, 2 = error (profile fails to load).
 

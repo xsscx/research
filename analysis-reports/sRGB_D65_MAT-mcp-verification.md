@@ -201,7 +201,7 @@ Status: ok
 
 ## iccanalyzer-lite Report
 
-The base analyzer report was also regenerated via `analyze-profile.sh`:
+The base analyzer report was also regenerated via `.github/scripts/analyze-profile.sh`:
 
 | Command | Exit Code | Result |
 |---------|-----------|--------|

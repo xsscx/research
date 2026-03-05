@@ -26,7 +26,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 53 patches, builds 19 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 66 patches, builds 19 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -35,13 +35,21 @@ cd colorbleed_tools && make setup && make
 
 `cfl/build.sh` reuses an existing `cfl/iccDEV/` checkout if present — it does NOT reclone unless the directory is missing.
 
-## Ramdisk Fuzzing Setup
+## Fuzzing Storage Setup
 
-All fuzzing should run on a tmpfs ramdisk to avoid SSD wear and maximize I/O speed.
+Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (large capacity).
 
 ```bash
-# One-stop setup: mount ramdisk, copy binaries + dicts + corpus
+# Option A: tmpfs ramdisk (8GB default — good for short runs)
 .github/scripts/ramdisk-seed.sh --mount
+
+# Option B: External SSD at /mnt/g/fuzz-ssd (1TB — extended fuzzing)
+# Mount:  sudo mount -o defaults,noatime /dev/sde /mnt/g
+# Seed:   .github/scripts/ramdisk-seed.sh --ramdisk /mnt/g/fuzz-ssd
+# Fuzz:   cfl/fuzz-local.sh -r /mnt/g/fuzz-ssd
+# Merge:  .github/scripts/ramdisk-merge.sh --ramdisk /mnt/g/fuzz-ssd
+# Sync:   .github/scripts/ramdisk-sync-to-disk.sh --ramdisk /mnt/g/fuzz-ssd
+# Status: .github/scripts/ramdisk-status.sh /mnt/g/fuzz-ssd
 
 # Status check
 .github/scripts/ramdisk-status.sh
@@ -103,15 +111,17 @@ These commands are for CI documentation. For local builds, see **Local Build** a
 # Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 19 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
-# Local fuzzing (uses existing ramdisk, manages workers/timeouts)
-cd cfl && ./fuzz-local.sh
+# Local fuzzing (uses existing ramdisk or external SSD)
+cd cfl && ./fuzz-local.sh                      # default: /tmp/fuzz-ramdisk
+cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd   # external SSD
 
-# Ramdisk management scripts (in .github/scripts/)
-.github/scripts/ramdisk-status.sh       # Report ramdisk state
+# Storage management scripts (in .github/scripts/)
+# All accept --ramdisk PATH to override default /tmp/fuzz-ramdisk
+.github/scripts/ramdisk-status.sh       # Report storage state
 .github/scripts/ramdisk-clean.sh        # Remove stray dirs (dry-run default)
 .github/scripts/ramdisk-merge.sh        # LibFuzzer -merge=1 dedup
-.github/scripts/ramdisk-sync-to-disk.sh # Sync corpus ramdisk → cfl/corpus-*
-.github/scripts/ramdisk-seed.sh         # Seed corpus disk → ramdisk
+.github/scripts/ramdisk-sync-to-disk.sh # Sync corpus storage → cfl/corpus-*
+.github/scripts/ramdisk-seed.sh         # Seed corpus disk → storage
 .github/scripts/ramdisk-teardown.sh     # Orchestrate sync → clean → unmount
 
 # Single fuzzer on ramdisk (short smoke test)
@@ -196,7 +206,7 @@ Write a summary of your independent findings in the PR description under a **"##
 Run the analysis script to generate the full report:
 
 ```bash
-./analyze-profile.sh test-profiles/<filename>.icc
+.github/scripts/analyze-profile.sh test-profiles/<filename>.icc
 ```
 
 This script runs all 3 analysis commands (`-a`, `-nf`, `-r`), captures exit codes and ASAN/UBSAN output, and writes the complete report to `analysis-reports/`. Do NOT run the 3 commands individually.
@@ -258,7 +268,7 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 | `inspect_profile` | `path` | Full structural dump using ninja-full mode. Shows header fields, tag table, tag data values. Use for understanding what's inside a profile. |
 | `analyze_security` | `path` | 54-heuristic security scan (H1–H54). H1-H32: core structural validation. H33-H36: mBA/mAB sub-element OOB, integer overflow, fill patterns. H37-H45: CFL dictionary coverage (calc, curves, aliasing, alignment, v5 types). H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, zero-size loop, channel counts, underflow, recursion, div-by-zero). |
 | `validate_roundtrip` | `path` | Check AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs. Validates bidirectional transform completeness required by ICC spec. |
-| `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `./analyze-profile.sh`. |
+| `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `.github/scripts/analyze-profile.sh`. |
 | `profile_to_xml` | `path` | ICC→XML conversion via iccToXml. Falls back to iccToXml_unsafe for malformed profiles. Output is the XML representation of the profile. |
 | `compare_profiles` | `path_a`, `path_b` | Ninja-full dump of both profiles with unified diff. Use to spot structural differences between two ICC profiles. |
 | `list_test_profiles` | `directory` (default: `test-profiles`) | Lists `.icc` files in the given directory. Also accepts `extended-test-profiles`. |
@@ -326,7 +336,7 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 1. Create issue with ICC profile to analyze, then assign Copilot via GitHub UI (Assignees sidebar)
    Note: `gh issue create --assignee copilot` and REST API assignment do **not** work. Use the GitHub web UI.
 2. Agent uses MCP tools (`inspect_profile`, `analyze_security`, `validate_roundtrip`, `profile_to_xml`) for independent analysis
-3. Agent runs `./analyze-profile.sh` for the full iccanalyzer-lite report
+3. Agent runs `.github/scripts/analyze-profile.sh` for the full iccanalyzer-lite report
 4. Agent commits the report to `analysis-reports/`, opens a draft PR with both MCP and script findings
 5. When the agent's workflow run completes, `copilot-auto-merge.yml` triggers via `workflow_run[completed]`
 6. The auto-merge workflow finds the PR by branch, marks it ready, and squash-merges it
@@ -339,12 +349,13 @@ No manual intervention required — the entire pipeline is hands-free from issue
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 54-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44 CWE categories from 77+ CVEs.
+- **iccanalyzer-lite/** — 54-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44 CWE categories from 77+ CVEs. When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — 61 security patches (001–061) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, and recursion depth limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
+- **cfl/patches/** — 66 security patches (001–066) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, and XML parsing limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
-- **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing.
+- **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing. Includes crash reproducers (SBO, SEGV, SO, OOM) with descriptive filenames mapping to root cause function and source line.
+- **.github/scripts/** — Shell scripts for analysis, fuzzing, ramdisk management, coverage, and corpus handling. Key scripts: `analyze-profile.sh` (3-mode analysis), `batch-test-external.sh` (external profile batch testing), `ramdisk-seed.sh` (8GB tmpfs setup), `ramdisk-merge.sh` (corpus dedup).
 
 Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is an independent clone of the upstream library — they are not shared.
 
@@ -401,6 +412,20 @@ When creating a new patch for `cfl/patches/`:
 8. Run a smoke test across all 19 fuzzers to confirm no regressions
 9. Update `cfl/patches/README.md` (table entry + description paragraph)
 10. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
+
+### Crash reproducer testing
+To verify a crash reproducer against all 19 fuzzers:
+```bash
+# Single fuzzer test (1-liner)
+ASAN_OPTIONS=detect_leaks=0 /tmp/fuzz-ramdisk/bin/<fuzzer_name> test-profiles/<crash-file>.icc 2>&1 | grep -c "ERROR: AddressSanitizer"
+# Result: 0 = no crash (fixed), 1 = crash found
+
+# Batch test all fuzzers against a profile
+for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN_OPTIONS=detect_leaks=0 timeout 10 "$f" test-profiles/<file>.icc 2>&1 | grep -c "ERROR: AddressSanitizer" || true; done
+
+# Test external profiles (not committed)
+.github/scripts/batch-test-external.sh /path/to/profiles --timeout 15
+```
 
 ### Sanitizer flags
 - **Fuzzers**: `-fsanitize=fuzzer,address,undefined -fprofile-instr-generate -fcoverage-mapping`

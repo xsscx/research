@@ -1,0 +1,35 @@
+--- a/IccXML/IccLibXML/IccProfileXml.cpp
++++ b/IccXML/IccLibXML/IccProfileXml.cpp
+@@ -860,8 +860,15 @@ bool CIccProfileXml::ParseXml(xmlNode *pNode, std::string &parseStr)
+   if (!tagNode)
+     return false;
+ 
++  // Guard against OOM from malformed XML with excessive tag count.
++  // ICC profiles rarely exceed 100 tags; cap at 256 to prevent
++  // unbounded memory growth from fuzz-generated inputs (CWE-789).
++  const int MAX_XML_TAGS = 256;
++  int tagCount = 0;
+   for (tagNode = tagNode->children; tagNode; tagNode = tagNode->next) {
+     if (tagNode->type == XML_ELEMENT_NODE) {
++      if (++tagCount > MAX_XML_TAGS)
++        break;
+       if (!ParseTag(tagNode, parseStr))
+         return false;
+     }
+--- a/IccXML/IccLibXML/IccTagXml.cpp
++++ b/IccXML/IccLibXML/IccTagXml.cpp
+@@ -1749,7 +1749,14 @@ bool CIccTagXmlMultiLocalizedUnicode::ParseXml(xmlNode *pNode, std::string & /*p
+   xmlAttr *langCode;
+   int n = 0;
+ 
+-  for (pNode = icXmlFindNode(pNode, "LocalizedText"); pNode; pNode = icXmlFindNode(pNode->next, "LocalizedText")) {    
++  // Guard against OOM from malformed XML with excessive LocalizedText entries.
++  // Real profiles have at most ~50 language/country variants; cap at 100
++  // to prevent unbounded CIccLocalizedUnicode allocation (CWE-789).
++  const int MAX_LOCALIZED_STRINGS = 100;
++  for (pNode = icXmlFindNode(pNode, "LocalizedText"); pNode; pNode = icXmlFindNode(pNode->next, "LocalizedText")) {
++    if (n >= MAX_LOCALIZED_STRINGS)
++      break;
++
+     if ((langCode = icXmlFindAttr(pNode, "LanguageCountry"))) {
+       xmlNode *pText;

@@ -28,7 +28,7 @@ set -euo pipefail
 die() { echo "[FAIL] ERROR: $*" >&2; exit 1; }
 
 RAMDISK="/tmp/fuzz-ramdisk"
-RAMDISK_SIZE="4G"
+RAMDISK_SIZE="8G"
 DO_MOUNT=false
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -119,6 +119,11 @@ echo "  [OK] Copied $dict_count dictionaries to ramdisk"
 
 # Create working directories for profraw (coverage) and logs
 mkdir -p "$RAMDISK/profraw" "$RAMDISK/logs"
+# Ensure non-root user can write (script may run as root for --mount)
+if [ "$(id -u)" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+  chown -R "$SUDO_USER:$SUDO_USER" "$RAMDISK/profraw" "$RAMDISK/logs" \
+    "$RAMDISK/bin" "$RAMDISK/dict" 2>/dev/null || true
+fi
 echo "  [OK] Created profraw/ and logs/ directories"
 echo ""
 
@@ -184,5 +189,10 @@ echo "── Summary ───────────────────�
 echo "  Seeded: $SEEDED/${#FUZZERS[@]} fuzzers"
 if mountpoint -q "$RAMDISK" 2>/dev/null; then
   echo "  Ramdisk: $(df -h "$RAMDISK" | tail -1 | awk '{print $4 " free (" $3 " used)"}')"
+fi
+# Fix ownership of all ramdisk contents when run as root via sudo
+if [ "$(id -u)" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+  chown -R "$SUDO_USER:$SUDO_USER" "$RAMDISK"
+  echo "  Ownership: set to $SUDO_USER"
 fi
 echo ""

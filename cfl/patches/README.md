@@ -63,6 +63,11 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 59 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Describe` | Heap-buffer-overflow: `mtx.GetData()->get(c)` iterates using `start[r]`/`start[r+1]` row ranges from untrusted data without validating against `GetNumEntries()` |
 | 60 | `IccTagXml.cpp` | `CIccTagXmlSparseMatrixArray::ToXml` | Heap-buffer-overflow: `DumpArray` called with `getPtr(rowOffset)` where `rowOffset + n` exceeds `GetNumEntries()` — same sparse matrix OOB as 059 but in XML serialization path |
 | 61 | `IccTagComposite.cpp` | `CIccTagStruct::Read` / `CIccTagArray::Read` | Stack overflow: unbounded recursion via nested TagStruct/TagArray elements — crafted profile embeds `tstr` inside `tstr` to exhaust stack |
+| 62 | `IccTagXml.cpp` | `CIccTagXmlStruct::ParseTag` | UBSAN null pointer dereference when child element list is empty |
+| 63 | `IccIO.cpp` | `CIccMemIO::Read8` | Stack-buffer-overflow: `m_nSize - m_nPos` underflows when `m_nPos > m_nSize` (unsigned), causing memcpy to write past buffer. Triggered via recursive `CIccTagEmbeddedProfile::Read` → `CIccProfile::LoadTag` chain. Not reachable via CLI tools (header validation gates prevent loading). CWE-121 |
+| 64 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow READ: `op->data.size` from malformed profile used unclamped as recursive `nOps`, walking past the `calloc`'d ops array. **Reachable via `iccApplyProfiles` CLI tool.** Fix: clamp `data.size` to remaining ops (mirrors `DescribeSequence` logic). CWE-125 |
+| 65 | `IccUtilXml.cpp` | `icFixXml` | Stack-buffer-overflow WRITE: unbounded XML entity expansion (`'`→`&apos;`, 6x) into fixed 256-byte stack buffer. SCARINESS 55. Reachable via `CIccTagXmlNamedColor2::ToXml` and any `ToXml` caller with user-controlled strings. Fix: cap output to 255 bytes. CWE-121 |
+| 66 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `CIccProfileXml::ParseXml`, `CIccTagXmlMultiLocalizedUnicode::ParseXml` | OOM: 304KB malformed XML with 910 tags and 291 LocalizedText entries per tag causes 3.1GB allocation via unbounded `CIccLocalizedUnicode` copy construction. Fix: cap tags at 256 per profile, LocalizedText at 100 per tag. CWE-789 |
 
 ## Allocation Cap
 
@@ -534,7 +539,7 @@ A crafted XML profile with an empty `<TagSignature/>` element triggers
 `member access within null pointer of type 'struct _xmlNode'`.
 Fix: guard `tagSigNode->children` and `tagSigNode->children->content`; skip
 the element with `continue` when either is null.
-Reproducer: `segv-CIccTagXmlStruct-ParseTag-IccTagXml_cpp-Line4738.xml`.
+Reproducer: `test-profiles/segv-CIccTagXmlStruct-ParseTag-IccTagXml_cpp-Line4738.xml`.
 Crash artifact alias: `crash-b1286b17ba029aa915714027d60469eadafa2313`.
 
 ## Application
@@ -571,3 +576,101 @@ Patch 056 is a **NO-OP** (upstream-adopted via PR #632). Originally
 added `NumInputChannels()==3 && NumOutputChannels()==3` guard in
 `CIccPcsXform::pushXYZConvert()` to prevent heap-buffer-overflow
 when accessing `pOffset[0..2]` on matrices with fewer output channels.
+
+### 063 — CIccMemIO::Read8 unsigned underflow guard (IccIO.cpp)
+
+Stack-buffer-overflow in `CIccMemIO::Read8()` at `IccIO.cpp:787`.
+When `m_nPos > m_nSize` (both `icUInt32Number`), the subtraction
+`m_nSize - m_nPos` wraps to a large unsigned value, causing `__min`
+to select the caller's `nNum` rather than capping to 0. The subsequent
+`memcpy` writes past the destination buffer.
+
+Triggered via recursive embedded profile parsing:
+`CIccProfile::Read` → `CIccTagArray::Read` → `CIccTagEmbeddedProfile::Read`
+→ `CIccProfile::Read` (recursive) → `LoadTag` → `Read32` → `Read8`.
+
+**Not reachable via iccDEV CLI tools** — `iccDumpProfile`, `iccToXml`,
+`iccRoundTrip`, and `iccSpecSepToTiff` all reject the input at header
+validation before reaching `CIccProfile::Read`. Only reachable via
+`CIccMemIO::Attach` API (used by fuzzers and third-party integrations).
+
+Fix: add `if (m_nPos > m_nSize) return 0;` guard before the subtraction.
+Reproducer: `sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc`.
+Fuzzer: `icc_specsep_fuzzer`. CWE-121.
+
+### 064 — CIccCalculatorFunc::ApplySequence heap-buffer-overflow clamp (IccMpeCalc.cpp)
+
+Heap-buffer-overflow READ of 4 bytes in `CIccCalculatorFunc::ApplySequence()`
+at `IccMpeCalc.cpp:3714`. When processing `icSigIfOp`/`icSigElseOp`/`icSigSelectOp`
+operations, `op->data.size` (read directly from the profile) is passed as `nOps`
+to recursive `ApplySequence()` calls without clamping to the remaining array bounds.
+A malformed profile with inflated `data.size` values causes the recursive call to
+iterate past the `calloc`'d ops array (allocated at line 3498 in `Read()`).
+
+The `DescribeSequence()` function already uses `icIntMin(remaining, op->data.size)`
+for the same values — this patch applies equivalent clamping to `ApplySequence()`.
+
+**Reachable via `iccApplyProfiles` CLI tool** — unlike patch 063, this is not
+fuzzer-only. Any application that applies a malformed v5 calculator profile
+to an image via `CIccCmm::Apply()` will crash.
+
+Fix: clamp `data.size` to `nOps - (os.idx + 1)` for if/else/select branches.
+Reproducer: `hbo-CIccCalculatorFunc-ApplySequence-IccMpeCalc_cpp-Line3715.icc`.
+Fuzzers: `icc_apply_fuzzer`, `icc_applyprofiles_fuzzer`. CWE-125.
+SCARINESS: 20 (wild-addr-read).
+
+1-liner (unpatched):
+```bash
+ASAN_OPTIONS=detect_leaks=0:print_scariness=1 iccApplyProfiles foo.tif bar.tif 0 0 0 0 0 segv-CIccCalculatorFunc-ApplySequence-IccMpeCalc_cpp-Line3711.icc 1
+```
+
+### 065 — icFixXml stack-buffer-overflow cap (IccUtilXml.cpp)
+
+Stack-buffer-overflow WRITE of 7 bytes in `icFixXml(char*, const char*)`
+at `IccUtilXml.cpp:314`. The `char*` overload performs XML entity expansion
+(`'` → `&apos;` = 6 bytes, `&` → `&amp;` = 5 bytes, etc.) via `strcpy`
+into the caller-provided destination buffer with **no bounds checking**.
+
+Callers allocate 256-byte stack buffers (e.g., `char fix[256]` in
+`CIccTagXmlNamedColor2::ToXml` at `IccTagXml.cpp:700`). When `m_szPrefix`,
+`m_szSufix`, or color names from a malformed profile contain enough
+special characters, the 6x worst-case expansion overflows the buffer.
+
+The `std::string` overload at line 278 is safe. Multiple callers in
+`IccTagXml.cpp` (lines 708, 711, 730, 740, 1896, 4260, 4333, 4338, 4355)
+pass user-controlled profile data through the unsafe `char*` overload.
+
+Fix: cap output to 255 bytes with bounds-checked writes.
+Reproducer: `sbo-icFixXml-IccUtilXml_cpp-Line314.icc`.
+Fuzzer: `icc_toxml_fuzzer`. CWE-121. SCARINESS: 55.
+
+1-liner:
+```bash
+ASAN_OPTIONS=detect_leaks=0:print_scariness=1 icc_toxml_fuzzer sbo-icFixXml-IccUtilXml_cpp-Line314.icc
+```
+
+### 066 — FromXml OOM: tag count and LocalizedText limits (IccProfileXml.cpp, IccTagXml.cpp)
+
+Out-of-memory via unbounded allocation in `CIccProfileXml::ParseXml` and
+`CIccTagXmlMultiLocalizedUnicode::ParseXml`. A 304KB malformed XML file
+contains 910 `<TagSignature>` elements with 291 `<LocalizedText>` entries
+per `multiLocalizedUnicodeType` tag. Each `LocalizedText` creates a
+`CIccLocalizedUnicode` object via `push_back` copy construction,
+totaling 1,026,077 allocations at 2.2GB (70% of 3.1GB RSS at OOM).
+
+The CLI tool (`iccFromXml`) rejects this file as malformed XML (libxml2
+parse errors). The fuzzer path bypasses XML validation and triggers
+`LoadXml` → `ParseXml` → `ParseTag` → `ParseXml` (tag) → `SetText`
+in an unbounded loop.
+
+Fix: cap XML tags at 256 per profile (ICC spec rarely exceeds 100),
+cap `LocalizedText` entries at 100 per `multiLocalizedUnicodeType` tag
+(real profiles have at most ~50 language/country variants).
+
+Reproducer: `oom-CIccLocalizedUnicode-IccTagBasic_cpp-Line7123.xml` (304KB).
+Fuzzer: `icc_fromxml_fuzzer`. CWE-789.
+
+1-liner:
+```bash
+ASAN_OPTIONS=detect_leaks=0 icc_fromxml_fuzzer -rss_limit_mb=2048 oom-CIccLocalizedUnicode-IccTagBasic_cpp-Line7123.xml
+```
