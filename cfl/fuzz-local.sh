@@ -90,9 +90,10 @@ if [ "$DEMAND_MB" -gt "$((TOTAL_MEM_MB * 80 / 100))" ]; then
 fi
 
 # ── Preflight checks ────────────────────────────────────────────────
-if ! mountpoint -q "$RAMDISK" 2>/dev/null; then
-  echo "[FAIL] Ramdisk not mounted at $RAMDISK"
+if ! mountpoint -q "$RAMDISK" 2>/dev/null && [ ! -d "$RAMDISK/bin" ]; then
+  echo "[FAIL] Fuzz directory not ready at $RAMDISK"
   echo "       Run: .github/scripts/ramdisk-seed.sh --mount"
+  echo "       Or use -r /mnt/g/fuzz-ssd for external SSD"
   exit 1
 fi
 

@@ -194,6 +194,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   
   // Read raw tag count from offset 128 (4 bytes big-endian) for early gating
   bool skipLibraryPhase = false;
+  bool libraryAnalyzed = false;
   icUInt32Number rawTagCount = 0;
   {
     icUInt8Number tcBytes[4] = {};
@@ -242,6 +243,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
            ColorCritical(), profileSize, actualFileSize, ColorReset());
     printf("     %sRisk: Tags referencing past EOF will cause heap-buffer-overflow reads%s\n",
            ColorCritical(), ColorReset());
+    heuristicCount++;
+  }
+  // Appended data: file is larger than declared profile size
+  if (actualFileSize > 0 && profileSize > 0 && actualFileSize > profileSize + 3) {
+    size_t extraBytes = actualFileSize - profileSize;
+    printf("     %s[WARN]  HEURISTIC: %zu EXTRA BYTES appended past declared profile end%s\n",
+           ColorCritical(), extraBytes, ColorReset());
+    printf("     %sRisk: Data hiding / smuggling — parsers may ignore appended payload%s\n",
+           ColorWarning(), ColorReset());
+    printf("     %sNote: Some parsers observed in the wild read past declared size%s\n",
+           ColorWarning(), ColorReset());
     heuristicCount++;
   }
   // Size inflation: header claims much larger than actual file (extreme)
@@ -564,6 +576,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("   Use -n (ninja mode) for raw analysis of malformed profiles\n");
     printf("=======================================================================\n\n");
   } else {
+    libraryAnalyzed = true;
     printf("=======================================================================\n");
     printf("TAG-LEVEL HEURISTICS\n");
     printf("=======================================================================\n\n");
@@ -2041,6 +2054,264 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   } // end of critical-threshold gate
 
   // =========================================================================
+  // RAW-FILE FALLBACK ENGINE
+  // When the library fails to load a malformed profile, these raw-file
+  // implementations provide coverage for heuristics that would otherwise
+  // be skipped. The analyzer must NOT depend solely on iccDEV library
+  // code — it must support its own analysis engine for heuristics.
+  // =========================================================================
+  if (!libraryAnalyzed) {
+    printf("=======================================================================\n");
+    printf("RAW-FILE ANALYSIS ENGINE (library load failed)\n");
+    printf("=======================================================================\n\n");
+
+    FILE *fpRaw = fopen(filename, "rb");
+    if (fpRaw) {
+      fseek(fpRaw, 0, SEEK_END);
+      long fsRaw_l = ftell(fpRaw);
+      size_t fileSize = (fsRaw_l > 0) ? (size_t)fsRaw_l : 0;
+      fseek(fpRaw, 0, SEEK_SET);
+
+      // Read header + tag table
+      icUInt8Number rawHdr[132] = {};
+      bool hdrOk = (fileSize >= 132 && fread(rawHdr, 1, 132, fpRaw) == 132);
+
+      if (hdrOk) {
+        icUInt32Number tagCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) |
+                                  (static_cast<icUInt32Number>(rawHdr[129])<<16) |
+                                  (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
+
+        // Declared profile size from header bytes 0-3
+        icUInt32Number declaredSize = (static_cast<icUInt32Number>(rawHdr[0])<<24) |
+                                      (static_cast<icUInt32Number>(rawHdr[1])<<16) |
+                                      (static_cast<icUInt32Number>(rawHdr[2])<<8) | rawHdr[3];
+
+        // --- H10 fallback: Tag Count ---
+        printf("[H10] Tag Count: %u (raw)\n", tagCount);
+        if (tagCount == 0) {
+          printf("      %s[WARN]  Zero tags — empty or severely malformed profile%s\n",
+                 ColorCritical(), ColorReset());
+          heuristicCount++;
+        } else if (tagCount > 256) {
+          printf("      %s[WARN]  Excessive tag count: %u (>256) — potential DoS%s\n",
+                 ColorCritical(), ColorReset());
+          heuristicCount++;
+        }
+
+        // --- H13 fallback: Per-Tag Size vs File Size ---
+        printf("[H13] Per-Tag Size Check (raw)\n");
+        {
+          int tagSizeIssues = 0;
+          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          for (size_t i = 0; i < safeTagCount; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fileSize) break;
+
+            icUInt8Number entry[12];
+            fseek(fpRaw, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fpRaw) != 12) break;
+
+            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
+                                     (static_cast<icUInt32Number>(entry[5])<<16) |
+                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
+                                     (static_cast<icUInt32Number>(entry[9])<<16) |
+                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+
+            char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
+
+            // Check offset + size overflow
+            uint64_t endPos = (uint64_t)tOffset + tSize;
+            if (endPos > fileSize) {
+              printf("      %s[WARN]  Tag '%s': offset=0x%X size=0x%X extends past file (0x%lX)%s\n",
+                     ColorCritical(), tagSig, tOffset, tSize, (unsigned long)fileSize, ColorReset());
+              tagSizeIssues++;
+            }
+
+            // Check oversized tags (>16MB is suspicious)
+            if (tSize > 16777216) {
+              printf("      %s[WARN]  Tag '%s': size %u bytes (>16MB) — potential OOM%s\n",
+                     ColorWarning(), tagSig, tSize, ColorReset());
+              tagSizeIssues++;
+            }
+          }
+          if (tagSizeIssues > 0) {
+            heuristicCount += tagSizeIssues;
+          } else {
+            printf("      %s[OK] All tag sizes within file bounds%s\n", ColorSuccess(), ColorReset());
+          }
+        }
+
+        // --- H25 fallback: Tag Offset/Size OOB ---
+        printf("[H25] Tag Offset/Size Out-of-Bounds Detection (raw)\n");
+        {
+          int oobIssues = 0;
+          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          for (size_t i = 0; i < safeTagCount; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fileSize) break;
+
+            icUInt8Number entry[12];
+            fseek(fpRaw, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fpRaw) != 12) break;
+
+            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
+                                     (static_cast<icUInt32Number>(entry[5])<<16) |
+                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
+                                     (static_cast<icUInt32Number>(entry[9])<<16) |
+                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+
+            char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
+
+            // Offset past file
+            if (tOffset > fileSize) {
+              printf("      %s[WARN]  Tag '%s': offset 0x%08X past file end (0x%lX)%s\n",
+                     ColorCritical(), tagSig, tOffset, (unsigned long)fileSize, ColorReset());
+              printf("       %sCRITICAL: OOB read if parser follows this offset%s\n",
+                     ColorCritical(), ColorReset());
+              oobIssues++;
+            }
+
+            // Size inconsistency with declared profile size
+            if (declaredSize > 0 && tOffset + tSize > declaredSize && tOffset + tSize > fileSize) {
+              printf("      %s[WARN]  Tag '%s': extends past declared profile size (%u)%s\n",
+                     ColorWarning(), tagSig, declaredSize, ColorReset());
+              oobIssues++;
+            }
+          }
+          if (oobIssues > 0) {
+            heuristicCount += oobIssues;
+          } else {
+            printf("      %s[OK] All tag offsets within file bounds%s\n", ColorSuccess(), ColorReset());
+          }
+        }
+
+        // --- H28 fallback: LUT Dimension Validation ---
+        printf("[H28] LUT Dimension Validation (raw)\n");
+        {
+          int lutIssues = 0;
+          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          for (size_t i = 0; i < safeTagCount; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fileSize) break;
+
+            icUInt8Number entry[12];
+            fseek(fpRaw, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fpRaw) != 12) break;
+
+            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
+                                     (static_cast<icUInt32Number>(entry[5])<<16) |
+                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
+                                     (static_cast<icUInt32Number>(entry[9])<<16) |
+                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+
+            if (tOffset + 12 > fileSize || tSize < 12) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fpRaw, tOffset, SEEK_SET);
+            if (fread(typeSig, 1, 4, fpRaw) != 4) continue;
+
+            char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
+
+            // LUT8 (mft1) or LUT16 (mft2)
+            bool isLut8  = (typeSig[0]=='m' && typeSig[1]=='f' && typeSig[2]=='t' && typeSig[3]=='1');
+            bool isLut16 = (typeSig[0]=='m' && typeSig[1]=='f' && typeSig[2]=='t' && typeSig[3]=='2');
+            if (!isLut8 && !isLut16) continue;
+
+            if (tOffset + 12 > fileSize) continue;
+            icUInt8Number lutHdr[12];
+            fseek(fpRaw, tOffset + 8, SEEK_SET);
+            if (fread(lutHdr, 1, 4, fpRaw) != 4) continue;
+
+            uint8_t nInput = lutHdr[0];
+            uint8_t nOutput = lutHdr[1];
+            uint8_t nGrid = lutHdr[2];
+
+            if (nInput == 0 || nOutput == 0) {
+              printf("      %s[WARN]  Tag '%s': LUT has 0 channels (in=%u out=%u)%s\n",
+                     ColorCritical(), tagSig, nInput, nOutput, ColorReset());
+              lutIssues++;
+            }
+            if (nGrid > 0 && nInput > 0) {
+              uint64_t clutSize = 1;
+              for (int d = 0; d < nInput; d++) {
+                clutSize *= nGrid;
+                if (clutSize > 1073741824ULL) { // >1GB
+                  printf("      %s[WARN]  Tag '%s': CLUT %u^%u×%u entries → >1GB allocation%s\n",
+                         ColorCritical(), tagSig, nGrid, nInput, nOutput, ColorReset());
+                  printf("       %sRisk: OOM crash in CLUT allocation%s\n",
+                         ColorCritical(), ColorReset());
+                  lutIssues++;
+                  break;
+                }
+              }
+            }
+          }
+          if (lutIssues > 0) {
+            heuristicCount += lutIssues;
+          } else {
+            printf("      %s[OK] No LUT dimension issues%s\n", ColorSuccess(), ColorReset());
+          }
+        }
+
+        // --- H32 fallback: Tag Type Confusion ---
+        printf("[H32] Tag Data Type Confusion Detection (raw)\n");
+        {
+          int typeIssues = 0;
+          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          for (size_t i = 0; i < safeTagCount; i++) {
+            size_t ePos = 132 + i * 12;
+            if (ePos + 12 > fileSize) break;
+
+            icUInt8Number entry[12];
+            fseek(fpRaw, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fpRaw) != 12) break;
+
+            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
+                                     (static_cast<icUInt32Number>(entry[5])<<16) |
+                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+
+            if (tOffset + 4 > fileSize) continue;
+
+            icUInt8Number typeBuf[4];
+            fseek(fpRaw, tOffset, SEEK_SET);
+            if (fread(typeBuf, 1, 4, fpRaw) != 4) continue;
+
+            char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
+
+            // Check if type signature contains non-printable characters
+            bool validType = true;
+            for (int b = 0; b < 4; b++) {
+              if (typeBuf[b] != 0 && (typeBuf[b] < 0x20 || typeBuf[b] > 0x7E)) {
+                validType = false;
+                break;
+              }
+            }
+            if (!validType) {
+              printf("      %s[WARN]  Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable%s\n",
+                     ColorCritical(), tagSig, tOffset,
+                     typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3], ColorReset());
+              printf("       %sRisk: Type confusion → wrong parser invoked → memory corruption%s\n",
+                     ColorCritical(), ColorReset());
+              typeIssues++;
+            }
+          }
+          if (typeIssues > 0) {
+            heuristicCount += typeIssues;
+          } else {
+            printf("      %s[OK] All tag type signatures are printable ICC 4CC codes%s\n", ColorSuccess(), ColorReset());
+          }
+        }
+
+        printf("\n");
+      }
+      fclose(fpRaw);
+    }
+  }
+
+  // =========================================================================
   // Raw-file heuristics H33-H36 (safe on all inputs — no library API calls)
   // Derived from ICC profile structural analysis and fuzzer coverage gaps:
   // OOB sub-element offsets, integer overflow via 32-bit truncation in bounds checks.
@@ -2133,6 +2404,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
                ColorCritical(), mbaOobCount, ColorReset());
         printf("      %sRisk: OOB read past mmap boundary → SIGBUS/SIGSEGV on ICC parsers%s\n",
                ColorCritical(), ColorReset());
+        printf("      %sNote: Parsers observed in the wild follow B→M→CLUT→A offsets without bounds%s\n",
+               ColorWarning(), ColorReset());
+        printf("      %s       checking against tag size — OOB crash confirmed on arm64%s\n",
+               ColorWarning(), ColorReset());
         heuristicCount += mbaOobCount;
       } else {
         printf("      %s[OK] All mBA/mAB sub-element offsets within tag bounds%s\n", ColorSuccess(), ColorReset());
@@ -2206,7 +2481,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
               // Check if offset + any common addend overflows 32 bits
               for (int ac = 0; ac < 3; ac++) {
                 uint64_t sum64 = (uint64_t)subOff + addConstants[ac];
-                uint32_t sum32 = (uint32_t)(subOff + addConstants[ac]);
+                uint32_t sum32 = (uint32_t)sum64;
                 if (sum64 != sum32) {
                   printf("      %s[WARN]  Tag '%s': %s offset 0x%08X + 0x%X = 0x%08X (truncated from 0x%llX)%s\n",
                          ColorCritical(), sig34, subNames34[se], subOff, addConstants[ac],

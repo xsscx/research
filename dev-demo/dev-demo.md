@@ -87,7 +87,7 @@ Run the full analysis workflow:
 
 1. The **Copilot coding agent** picks up the issue automatically
 2. It downloads the attachment, renames `.icc.txt` → `.icc`
-3. Runs `analyze-profile.sh` which executes all 3 analysis commands
+3. Runs `.github/scripts/analyze-profile.sh` which executes all 3 analysis commands
 4. Posts the complete report as a **pull request**
 5. Report includes raw output, exit codes, ASAN/UBSAN findings, and analysis summary
 
@@ -112,7 +112,7 @@ Run analysis directly:
 ./iccanalyzer-lite/iccanalyzer-lite -a path/to/profile.icc
 
 # Full analysis via orchestration script (generates markdown report)
-./analyze-profile.sh path/to/profile.icc
+.github/scripts/analyze-profile.sh path/to/profile.icc
 # Report written to analysis-reports/
 ```
 

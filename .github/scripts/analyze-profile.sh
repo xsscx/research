@@ -13,10 +13,10 @@ fi
 
 PROFILE="$1"
 
-# Reject path traversal attempts
+# Reject path traversal attempts (allow absolute paths for external profiles)
 case "$PROFILE" in
-  *..* | /*)
-    echo "[FAIL] Invalid path: must be relative and not contain '..'"
+  *..*)
+    echo "[FAIL] Invalid path: must not contain '..'"
     exit 3
     ;;
 esac
