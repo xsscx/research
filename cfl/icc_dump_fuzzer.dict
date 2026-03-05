@@ -5416,3 +5416,67 @@ cs_mch4="4CLR"
 cs_mch5="5CLR"
 cs_mch7="7CLR"
 cs_mch9="9CLR"
+
+# === Missing tag type signatures for coverage ===
+ttype_chrm="chrm"
+ttype_clro="clro"
+ttype_clrt="clrt"
+ttype_dtim="dtim"
+ttype_meas="meas"
+ttype_view="view"
+ttype_pseq="pseq"
+ttype_psid="psid"
+ttype_rcs2="rcs2"
+ttype_ui08="ui08"
+ttype_ui32="ui32"
+ttype_ui64="ui64"
+ttype_uf32="uf32"
+ttype_fl32="fl32"
+ttype_fl64="fl64"
+ttype_data="data"
+ttype_ICCp="ICCp"
+ttype_zut8="zut8"
+ttype_ZXML="ZXML"
+ttype_ehim="ehim"
+ttype_enim="enim"
+
+# LUT v1/v2 tag types
+mft1_type="mft1"
+mft2_type="mft2"
+
+# ColorantTable
+clrt_type="clrt"
+
+# NamedColor2
+ncl2_type="ncl2"
+
+# GamutBoundaryDesc
+gbd_type="gbd "
+
+# Dictionary
+dict_type="dict"
+
+# TagArray
+tary_type="tary"
+
+# UInt16Array
+ut16_type="ut16"
+
+# SparseMatrix
+smat_type="smat"
+
+# ColorantIndex
+cInd_type="cInd"
+
+# B2A2 (nonstandard AToB/BToA)
+B2A2_type="B2A2"
+
+# Tag signatures for LUT processing
+A2B0_sig="\x41\x32\x42\x30"
+A2B1_sig="\x41\x32\x42\x31"
+B2A0_sig="\x42\x32\x41\x30"
+B2A1_sig="\x42\x32\x41\x31"
+D2B0_sig="\x44\x32\x42\x30"
+D2B1_sig="\x44\x32\x42\x31"
+B2D0_sig="\x42\x32\x44\x30"
+B2D1_sig="\x42\x32\x44\x31"
