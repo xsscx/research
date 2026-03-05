@@ -174,7 +174,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 ### Reusable Prompts
 
 Eight prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
-- `analyze-icc-profile.prompt.yml` — full 86-heuristic security scan
+- `analyze-icc-profile.prompt.yml` — full 94-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
 - `triage-fuzzer-oom.prompt.yml` — LibFuzzer OOM triage and patch workflow
@@ -196,7 +196,7 @@ When an issue asks to analyze an ICC profile, perform **two phases**:
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
 1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
-2. **`analyze_security`** — Run the 86-heuristic security scan (H1–H86)
+2. **`analyze_security`** — Run the 94-heuristic security scan (H1–H94)
 3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
 4. **`profile_to_xml`** — Convert to XML for human-readable inspection
 
@@ -270,7 +270,7 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 | Tool | Args | Description |
 |------|------|-------------|
 | `inspect_profile` | `path` | Full structural dump using ninja-full mode. Shows header fields, tag table, tag data values. Use for understanding what's inside a profile. |
-| `analyze_security` | `path` | 86-heuristic security scan (H1–H86). H1-H32: core structural validation. H33-H36: mBA/mAB sub-element OOB, integer overflow, fill patterns. H37-H45: CFL dictionary coverage (calc, curves, aliasing, alignment, v5 types). H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, zero-size loop, channel counts, underflow, recursion, div-by-zero). H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict. H61-H70: viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity, NumArray, ResponseCurveSet, GBD, Profile ID, measurement. H71-H78: ColorantTable, SparseMatrix, nesting, type confusion, small tags, data flags, calculator, CLUT grid overflow. H79-H86: LoadTag overflow, UAF patterns, MPE channels, I/O bit-shift, float SBO, 3D LUT OOB, memcpy overlap, mluc HBO. |
+| `analyze_security` | `path` | 94-heuristic security scan (H1–H94). H1-H32: core structural validation. H33-H36: mBA/mAB sub-element OOB, integer overflow, fill patterns. H37-H45: CFL dictionary coverage (calc, curves, aliasing, alignment, v5 types). H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, zero-size loop, channel counts, underflow, recursion, div-by-zero). H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict. H61-H70: viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity, NumArray, ResponseCurveSet, GBD, Profile ID, measurement. H71-H78: ColorantTable, SparseMatrix, nesting, type confusion, small tags, data flags, calculator, CLUT grid overflow. H79-H86: LoadTag overflow, UAF patterns, MPE channels, I/O bit-shift, float SBO, 3D LUT OOB, memcpy overlap, mluc HBO. H87-H94: TRC curve anomalies, chromatic adaptation matrix, profile sequence descriptions, preview tag channels, colorant order, spectral viewing conditions, embedded profile flags, matrix/TRC colorant consistency. |
 | `validate_roundtrip` | `path` | Check AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs. Validates bidirectional transform completeness required by ICC spec. |
 | `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `.github/scripts/analyze-profile.sh`. |
 | `profile_to_xml` | `path` | ICC→XML conversion via iccToXml. Falls back to iccToXml_unsafe for malformed profiles. Output is the XML representation of the profile. |
@@ -353,7 +353,7 @@ No manual intervention required — the entire pipeline is hands-free from issue
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 86-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 16 C++ modules (13,200+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories from 77+ CVEs. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Dual build systems**: `build.sh` (primary, local) and `CMakeLists.txt` (CI/IDE) — both must be updated when adding new .cpp modules. Heuristic code is split across 3 modules: `IccAnalyzerSecurity.cpp` (orchestrator + H1-H8, H15-H17), `IccHeuristicsLibrary.cpp` (H9-H32, H56-H86 via CIccProfile API), `IccHeuristicsRawPost.cpp` (H33-H69 raw file + fallback engine).
+- **iccanalyzer-lite/** — 94-heuristic static/dynamic security analyzer (v3.2.0) built with full sanitizer instrumentation. 16 C++ modules (13,700+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories from 77+ CVEs. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Dual build systems**: `build.sh` (primary, local) and `CMakeLists.txt` (CI/IDE) — both must be updated when adding new .cpp modules. Heuristic code is split across 3 modules: `IccAnalyzerSecurity.cpp` (orchestrator + H1-H8, H15-H17), `IccHeuristicsLibrary.cpp` (H9-H32, H56-H94 via CIccProfile API), `IccHeuristicsRawPost.cpp` (H33-H69 raw file + fallback engine). **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 67 security patches (001–067) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, and XML parsing limits (tags, strings, text content, ProfileSeqId entries, Dict entries). 10 no-op patches (023, 028, 032, 039, 040, 045, 055, 056 — upstream-adopted; 058 — upstream-adopted via PR #622; 066 — superseded by 067). See `cfl/patches/README.md` for full details.
@@ -490,6 +490,16 @@ When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
 
 ### Stale coverage files
 After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` auto-cleans them with `find . -name "*.gcda" -delete` before building.
+
+### CodeQL static analysis
+- **Setup**: Download CodeQL v2.24.2+ bundle to `/tmp/codeql/`. Run from `iccanalyzer-lite/` directory.
+- **Create DB**: `/tmp/codeql/codeql database create /tmp/codeql-db --language=cpp --source-root=. --command=./build.sh --overwrite`
+- **Analyze**: `/tmp/codeql/codeql database analyze /tmp/codeql-db /tmp/codeql/qlpacks/codeql/cpp-queries/1.5.11/codeql-suites/cpp-security-and-quality.qls --format=sarif-latest --output=/tmp/codeql-results.sarif --threads=4`
+- **Parse SARIF**: `python3 -c "import json; [print(r['ruleId'], r['locations'][0]['physicalLocation']['artifactLocation']['uri']) for r in json.load(open('/tmp/codeql-results.sarif'))['runs'][0]['results']]"`
+- **Status** (March 2026): 0 alerts in analyzer code. 4 in iccDEV upstream (`cpp/assignment-does-not-return-this` in IccTagBasic.h — not modifiable).
+- **Path-injection pattern**: CodeQL recognizes `realpath()` as a sanitizer for `cpp/path-injection`. For output files that don't exist yet, resolve parent directory with `realpath(dirname)` + sanitize basename via character whitelist. Custom validators (IsPathSafe, etc.) are NOT recognized by CodeQL.
+- **Constant-comparison**: CodeQL flags `x >= N` as always-true when an earlier guard already constrains `x`. Remove the redundant inner check.
+- **Complex-condition**: Extract helper functions to reduce condition complexity below CodeQL's threshold.
 
 ### Byte-shift patterns
 `(data[i] << 24)` causes signed integer overflow when `data[i] >= 128`. Fix: `static_cast<icUInt32Number>(data[i]) << 24`. Similarly, use `tagOffset <= fileSize - tagSize` instead of `tagOffset + tagSize <= fileSize`.
