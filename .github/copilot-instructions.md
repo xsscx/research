@@ -333,7 +333,7 @@ Open http://localhost:8080/ — self-contained HTML demo report with live API at
 - Exit code 0 = clean profile, no findings
 - Exit code 1 = heuristic finding(s) detected — review the `[WARN]` and `[CRITICAL]` lines
 - Exit code 2 = error (I/O failure, parse error, or profile too malformed to process)
-- Look for `[H1]`–`[H86]` prefixes to identify which heuristic triggered
+- Look for `[H1]`–`[H102]` prefixes to identify which heuristic triggered
 - ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
 
 **Automated issue→PR→merge pipeline**: When Copilot coding agent processes an analysis issue:
@@ -441,6 +441,22 @@ for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN
 - Both the iccDEV libs AND the tool linking them must use matching sanitizer flags
 - Suppress LLVM profile errors during fuzzing: `LLVM_PROFILE_FILE=/dev/null`
 - iccDEV diagnostic flags: `-DICC_LOG_SAFE=ON -DICC_TRACE_NAN_ENABLED=ON` (cmake) or `-DICC_LOG_SAFE -DICC_TRACE_NAN_ENABLED` (CXXFLAGS)
+
+### UBSAN fix patterns (iccanalyzer-lite code)
+- ICC 4-byte signatures use values >127 (e.g. 0xBD = 189). Extracting to `char` triggers UBSAN implicit-conversion. ALWAYS use `static_cast<char>()`.
+- Prefer `SignatureToFourCC()` helper — handles cast correctly AND trims trailing spaces.
+- For `tOffset + tSize` (both `icUInt32Number`), widen to `(uint64_t)` before adding to prevent unsigned overflow.
+- When adding new heuristics with raw signature display, grep for existing patterns: `SignatureToFourCC(sig, fourcc)` → `printf("(%s)", fourcc)`.
+
+### CMM fuzzer seed creation
+CMM fuzzers need special input formats (not just raw ICC profiles):
+| Fuzzer | Format | Seed Dir |
+|--------|--------|----------|
+| `icc_link_fuzzer` | profile1 (padded) + profile2 (padded) + 3 ctrl bytes | `cfl/seeds-link-pairs/` |
+| `icc_applyprofiles_fuzzer` | 75% profile + 25% control data | `cfl/seeds-applyprofiles/` |
+| `icc_applynamedcmm_fuzzer` | 4-byte header + profile | `cfl/seeds-applynamedcmm/` |
+
+`ramdisk-seed.sh` Source 3 auto-seeds these directories. See `improve-fuzzer-coverage.prompt.md` for format details.
 
 ### OOM triage workflow
 When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
