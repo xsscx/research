@@ -3612,3 +3612,11 @@
 "baaa"
 "Ep\x90"
 "\xfa\xff\xbf"
+
+# --- added by convert-libfuzzer-dict.py ---
+"kmxz"
+"\x00\x00\x12x"
+"\x01\x00\x7f\xf1\xa4G\x92\xf1"
+"w\x90\x94"
+"\x00\x00P@\x00\x0b`\xf4"
+"blrt"
