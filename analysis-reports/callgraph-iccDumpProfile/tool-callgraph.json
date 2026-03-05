@@ -1,0 +1,852 @@
+{
+  "source": "iccDumpProfile.cpp",
+  "functions": [
+    {
+      "name": "DumpTagCore",
+      "lines": [
+        93,
+        114
+      ],
+      "params": "CIccTag *pTag, icTagSignature sig, int nVerboseness",
+      "return_type": "void",
+      "call_count": 8,
+      "gate_count": 2
+    },
+    {
+      "name": "DumpTagSig",
+      "lines": [
+        117,
+        121
+      ],
+      "params": "CIccProfile *pIcc, icTagSignature sig, int nVerboseness",
+      "return_type": "void",
+      "call_count": 2,
+      "gate_count": 0
+    },
+    {
+      "name": "DumpTagEntry",
+      "lines": [
+        124,
+        128
+      ],
+      "params": "CIccProfile *pIcc, IccTagEntry &entry, int nVerboseness",
+      "return_type": "void",
+      "call_count": 2,
+      "gate_count": 0
+    },
+    {
+      "name": "printUsage",
+      "lines": [
+        130,
+        136
+      ],
+      "params": "void",
+      "return_type": "void",
+      "call_count": 0,
+      "gate_count": 0
+    },
+    {
+      "name": "main",
+      "lines": [
+        139,
+        496
+      ],
+      "params": "int argc, char* argv[]",
+      "return_type": "int",
+      "call_count": 42,
+      "gate_count": 22
+    }
+  ],
+  "call_sites": [
+    {
+      "caller": "DumpTagCore",
+      "callee": "Fmt.GetTagSigName",
+      "line": 102,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "icGetSig [tag sig]",
+      "line": 102,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "pTag->IsArrayType",
+      "line": 104,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "Fmt.GetTagTypeSigName",
+      "line": 107,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "pTag->GetType",
+      "line": 107,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "icGetSig [tag type]",
+      "line": 107,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "pTag->Describe",
+      "line": 108,
+      "gate": "pTag != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagCore",
+      "callee": "icGetSig [not found]",
+      "line": 112,
+      "gate": "pTag == NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagSig",
+      "callee": "pIcc->FindTag(sig)",
+      "line": 119,
+      "gate": null,
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagSig",
+      "callee": "DumpTagCore",
+      "line": 120,
+      "gate": null,
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagEntry",
+      "callee": "pIcc->FindTag(entry)",
+      "line": 126,
+      "gate": null,
+      "cli_only": false
+    },
+    {
+      "caller": "DumpTagEntry",
+      "callee": "DumpTagCore",
+      "line": 127,
+      "gate": null,
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "printUsage",
+      "line": 163,
+      "gate": "argc <= 1",
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "strncmp [-V/-v]",
+      "line": 172,
+      "gate": null,
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "strtol [verbosity]",
+      "line": 181,
+      "gate": "-v flag present",
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "ValidateIccProfile",
+      "line": 198,
+      "gate": "-v flag present",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "strtol [verbosity]",
+      "line": 204,
+      "gate": "-v flag absent",
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "OpenIccProfile",
+      "line": 218,
+      "gate": "-v flag absent",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.IsProfileIDCalculated",
+      "line": 236,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetProfileID",
+      "line": 237,
+      "gate": "pIcc && profileID calculated",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetDeviceAttrName",
+      "line": 244,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetCmmSigName",
+      "line": 245,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icGetSig [creator]",
+      "line": 249,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icGetSig [manufacturer]",
+      "line": 250,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetColorSpaceSigName [data]",
+      "line": 251,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetProfileFlagsName",
+      "line": 252,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetColorSpaceSigName [PCS]",
+      "line": 253,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetPlatformSigName",
+      "line": 254,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetRenderingIntentName",
+      "line": 255,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetProfileClassSigName",
+      "line": 256,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icGetSig [deviceSubClass]",
+      "line": 258,
+      "gate": "pHdr->deviceSubClass != 0",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetVersionName",
+      "line": 261,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetSubClassVersionName",
+      "line": 263,
+      "gate": "version >= v5 && deviceSubClass",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icFtoD [illuminant X/Y/Z]",
+      "line": 266,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetSpectralColorSigName",
+      "line": 269,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icF16toF [spectralRange]",
+      "line": 272,
+      "gate": "spectralRange defined",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icF16toF [biSpectralRange]",
+      "line": 281,
+      "gate": "biSpectralRange defined",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetColorSpaceSigName [MCS]",
+      "line": 291,
+      "gate": "pHdr->mcs != 0",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "std::sort [offsets]",
+      "line": 315,
+      "gate": "pIcc != NULL",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "std::upper_bound [display]",
+      "line": 323,
+      "gate": "tag iteration",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetTagSigName [table]",
+      "line": 334,
+      "gate": "tag iteration",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icGetSig [tag table]",
+      "line": 335,
+      "gate": "tag iteration",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "unordered_map::find",
+      "line": 346,
+      "gate": "tag iteration",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icMaxStatus [dup warning]",
+      "line": 349,
+      "gate": "duplicate sig found",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icMaxStatus [size align]",
+      "line": 380,
+      "gate": "bDumpValidation && version>=4.2 && size%4!=0",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "std::upper_bound [validate]",
+      "line": 403,
+      "gate": "bDumpValidation",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetTagSigName [OOB]",
+      "line": 391,
+      "gate": "bDumpValidation && offset+size > EOF",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetTagSigName [overlap]",
+      "line": 414,
+      "gate": "bDumpValidation && overlap detected",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetTagSigName [gap]",
+      "line": 422,
+      "gate": "bDumpValidation && gap detected",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icMaxStatus [non-compliant]",
+      "line": 436,
+      "gate": "bDumpValidation && first tag gap",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "DumpTagEntry [ALL]",
+      "line": 443,
+      "gate": "argv has tag arg && arg=='ALL'",
+      "cli_only": false
+    },
+    {
+      "caller": "main",
+      "callee": "icGetSigVal",
+      "line": 447,
+      "gate": "argv has tag arg && arg!='ALL'",
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "DumpTagSig",
+      "line": 447,
+      "gate": "argv has tag arg && arg!='ALL'",
+      "cli_only": true
+    },
+    {
+      "caller": "main",
+      "callee": "Fmt.GetVersionName [report]",
+      "line": 461,
+      "gate": "bDumpValidation",
+      "cli_only": false
+    }
+  ],
+  "ast_gates": [
+    {
+      "condition": "pTag != NULL",
+      "line": 101,
+      "type": "if",
+      "parent_func": "DumpTagCore",
+      "true_calls": [
+        "GetTagSigName",
+        "icGetSig",
+        "IsArrayType",
+        "GetTagTypeSigName",
+        "GetType",
+        "Describe"
+      ],
+      "false_calls": [
+        "icGetSig [not found]"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "NULL deref guard \u2014 fuzzer must exercise both paths"
+    },
+    {
+      "condition": "pTag->IsArrayType()",
+      "line": 104,
+      "type": "if",
+      "parent_func": "DumpTagCore",
+      "true_calls": [
+        "printf('Array of')"
+      ],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "TagArrayType formatting gate"
+    },
+    {
+      "condition": "argc <= 1",
+      "line": 162,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "printUsage"
+      ],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Early exit \u2014 no profile to parse"
+    },
+    {
+      "condition": "-V/-v flag in argv[1]",
+      "line": 172,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "ValidateIccProfile"
+      ],
+      "false_calls": [
+        "OpenIccProfile"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "CRITICAL: Controls validation vs non-validating read path. Fuzzer must exercise BOTH to match tool fidelity."
+    },
+    {
+      "condition": "strtol verbosity parse success",
+      "line": 182,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "verbosity clamp"
+      ],
+      "false_calls": [
+        "verbosity = 100 default"
+      ],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Integer parse of verbosity argument"
+    },
+    {
+      "condition": "pIcc != NULL",
+      "line": 226,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "header dump",
+        "tag table",
+        "tag content"
+      ],
+      "false_calls": [
+        "printf('Unable to parse')"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "Profile load failure \u2014 sets icValidateCriticalError"
+    },
+    {
+      "condition": "Fmt.IsProfileIDCalculated()",
+      "line": 236,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "GetProfileID"
+      ],
+      "false_calls": [
+        "printf('not calculated')"
+      ],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Profile ID presence check"
+    },
+    {
+      "condition": "pHdr->deviceSubClass != 0",
+      "line": 257,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icGetSig(deviceSubClass)"
+      ],
+      "false_calls": [
+        "printf('Not Defined')"
+      ],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "SubClass presence gate"
+    },
+    {
+      "condition": "version >= v5 && deviceSubClass",
+      "line": 262,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "GetSubClassVersionName"
+      ],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "V5 sub-class version gate"
+    },
+    {
+      "condition": "spectralRange.start || .end || .steps",
+      "line": 270,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icF16toF \u00d7 2"
+      ],
+      "false_calls": [
+        "printf('Not Defined')"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "Spectral range parsing \u2014 icF16toF can produce anomalous floats"
+    },
+    {
+      "condition": "biSpectralRange defined",
+      "line": 280,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icF16toF \u00d7 2"
+      ],
+      "false_calls": [
+        "printf('Not Defined')"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "BiSpectral range parsing"
+    },
+    {
+      "condition": "pHdr->mcs != 0",
+      "line": 290,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "GetColorSpaceSigName(mcs)"
+      ],
+      "false_calls": [
+        "printf('Not Defined')"
+      ],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "MCS color space gate"
+    },
+    {
+      "condition": "upper_bound == cend()",
+      "line": 324,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "closest = pHdr->size"
+      ],
+      "false_calls": [
+        "closest = *match"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "Tag overlap boundary \u2014 last tag edge case"
+    },
+    {
+      "condition": "duplicate sig found in unordered_map",
+      "line": 347,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(warning)"
+      ],
+      "false_calls": [
+        "tag_lookup[sig] = n"
+      ],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Duplicate tag detection"
+    },
+    {
+      "condition": "bDumpValidation",
+      "line": 369,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "CRITICAL: Entire validation block gated on -v flag. Contains 5 sub-gates for structural integrity checks."
+    },
+    {
+      "condition": "version >= v4.2 && size % 4 != 0",
+      "line": 377,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(NonCompliant)"
+      ],
+      "false_calls": [],
+      "depth": 1,
+      "security_relevant": true,
+      "note": "File size alignment check \u2014 spec clause 7.2.1(c)"
+    },
+    {
+      "condition": "offset + size > pHdr->size",
+      "line": 388,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(NonCompliant)"
+      ],
+      "false_calls": [],
+      "depth": 1,
+      "security_relevant": true,
+      "note": "Tag data beyond EOF \u2014 buffer overread risk"
+    },
+    {
+      "condition": "closest < offset+size && closest < EOF",
+      "line": 411,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(Warning)"
+      ],
+      "false_calls": [],
+      "depth": 1,
+      "security_relevant": true,
+      "note": "Tag data overlap \u2014 data confusion / type confusion risk"
+    },
+    {
+      "condition": "closest > offset + rndup",
+      "line": 420,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(Warning)"
+      ],
+      "false_calls": [],
+      "depth": 1,
+      "security_relevant": false,
+      "note": "Unnecessary gap between tags"
+    },
+    {
+      "condition": "smallest_offset > expected_first",
+      "line": 431,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "icMaxStatus(NonCompliant)"
+      ],
+      "false_calls": [],
+      "depth": 1,
+      "security_relevant": true,
+      "note": "First tag not immediately after tag table \u2014 spec clause 7.2.1(b)"
+    },
+    {
+      "condition": "argv has tag argument",
+      "line": 440,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "DumpTagEntry or DumpTagSig"
+      ],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Tag content dump gate"
+    },
+    {
+      "condition": "stricmp(arg, 'ALL') == 0",
+      "line": 441,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [
+        "DumpTagEntry (loop over all)"
+      ],
+      "false_calls": [
+        "icGetSigVal + DumpTagSig (single tag)"
+      ],
+      "depth": 0,
+      "security_relevant": true,
+      "note": "ALL path iterates every tag \u2192 wider attack surface"
+    },
+    {
+      "condition": "bDumpValidation [report]",
+      "line": 454,
+      "type": "if",
+      "parent_func": "main",
+      "true_calls": [],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "Validation status report output"
+    },
+    {
+      "condition": "switch(nStatus)",
+      "line": 457,
+      "type": "switch",
+      "parent_func": "main",
+      "true_calls": [],
+      "false_calls": [],
+      "depth": 0,
+      "security_relevant": false,
+      "note": "4 cases: OK, Warning, NonCompliant, CriticalError + default"
+    }
+  ],
+  "summary": {
+    "functions": 5,
+    "call_sites": 54,
+    "unique_callees": 52,
+    "cli_only_calls": 6,
+    "fuzzable_calls": 48,
+    "ast_gates": 24,
+    "security_gates": 12
+  },
+  "fidelity": {
+    "matched": 45,
+    "fuzzable": 48,
+    "percentage": 93.8,
+    "matched_calls": [
+      "DumpTagCore",
+      "DumpTagEntry [ALL]",
+      "Fmt.GetCmmSigName",
+      "Fmt.GetColorSpaceSigName [MCS]",
+      "Fmt.GetColorSpaceSigName [PCS]",
+      "Fmt.GetColorSpaceSigName [data]",
+      "Fmt.GetDeviceAttrName",
+      "Fmt.GetPlatformSigName",
+      "Fmt.GetProfileClassSigName",
+      "Fmt.GetProfileFlagsName",
+      "Fmt.GetProfileID",
+      "Fmt.GetRenderingIntentName",
+      "Fmt.GetSpectralColorSigName",
+      "Fmt.GetSubClassVersionName",
+      "Fmt.GetTagSigName",
+      "Fmt.GetTagSigName [OOB]",
+      "Fmt.GetTagSigName [gap]",
+      "Fmt.GetTagSigName [overlap]",
+      "Fmt.GetTagSigName [table]",
+      "Fmt.GetTagTypeSigName",
+      "Fmt.GetVersionName",
+      "Fmt.GetVersionName [report]",
+      "Fmt.IsProfileIDCalculated",
+      "OpenIccProfile",
+      "ValidateIccProfile",
+      "icF16toF [biSpectralRange]",
+      "icF16toF [spectralRange]",
+      "icFtoD [illuminant X/Y/Z]",
+      "icGetSig [creator]",
+      "icGetSig [deviceSubClass]",
+      "icGetSig [manufacturer]",
+      "icGetSig [not found]",
+      "icGetSig [tag sig]",
+      "icGetSig [tag table]",
+      "icGetSig [tag type]",
+      "pIcc->FindTag(entry)",
+      "pIcc->FindTag(sig)",
+      "pTag->Describe",
+      "pTag->GetType",
+      "pTag->IsArrayType",
+      "std::sort [offsets]",
+      "std::upper_bound [display]",
+      "std::upper_bound [validate]",
+      "unordered_map::find"
+    ],
+    "missed_calls": [
+      "icMaxStatus [dup warning]",
+      "icMaxStatus [non-compliant]",
+      "icMaxStatus [size align]"
+    ],
+    "cli_excluded": [
+      "printUsage",
+      "strncmp [-V/-v]",
+      "strtol [verbosity]",
+      "strtol [verbosity]",
+      "icGetSigVal",
+      "DumpTagSig"
+    ]
+  }
+}

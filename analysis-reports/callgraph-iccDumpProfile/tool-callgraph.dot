@@ -1,0 +1,114 @@
+digraph iccDumpProfile {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  // Function definitions
+  DumpTagCore [label="DumpTagCore()\nL93-114 (8 calls)", fillcolor=lightyellow];
+  DumpTagSig [label="DumpTagSig()\nL117-121 (2 calls)", fillcolor=lightyellow];
+  DumpTagEntry [label="DumpTagEntry()\nL124-128 (2 calls)", fillcolor=lightyellow];
+  printUsage [label="printUsage()\nL130-136 (0 calls)", fillcolor=lightgray];
+  main [label="main()\nL139-496 (42 calls)", fillcolor=lightgreen];
+
+  // Library API nodes (deduplicated)
+  Fmt_GetTagSigName [label="Fmt.GetTagSigName\nL102,334,391,414,422", fillcolor=lightblue, shape=ellipse];
+  icGetSig [label="icGetSig\nL102,107,112,249,250,258,335", fillcolor=salmon, shape=ellipse];
+  pTag__IsArrayType [label="pTag->IsArrayType\nL104", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetTagTypeSigName [label="Fmt.GetTagTypeSigName\nL107", fillcolor=lightblue, shape=ellipse];
+  pTag__GetType [label="pTag->GetType\nL107", fillcolor=lightblue, shape=ellipse];
+  pTag__Describe [label="pTag->Describe\nL108", fillcolor=lightblue, shape=ellipse];
+  pIcc__FindTag_sig_ [label="pIcc->FindTag(sig)\nL119", fillcolor=lightblue, shape=ellipse];
+  pIcc__FindTag_entry_ [label="pIcc->FindTag(entry)\nL126", fillcolor=lightblue, shape=ellipse];
+  strncmp [label="strncmp\nL172", fillcolor=lightgray, shape=ellipse];
+  strtol [label="strtol\nL181,204", fillcolor=lightgray, shape=ellipse];
+  ValidateIccProfile [label="ValidateIccProfile\nL198", fillcolor=salmon, shape=ellipse];
+  OpenIccProfile [label="OpenIccProfile\nL218", fillcolor=salmon, shape=ellipse];
+  Fmt_IsProfileIDCalculated [label="Fmt.IsProfileIDCalculated\nL236", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetProfileID [label="Fmt.GetProfileID\nL237", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetDeviceAttrName [label="Fmt.GetDeviceAttrName\nL244", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetCmmSigName [label="Fmt.GetCmmSigName\nL245", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetColorSpaceSigName [label="Fmt.GetColorSpaceSigName\nL251,253,291", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetProfileFlagsName [label="Fmt.GetProfileFlagsName\nL252", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetPlatformSigName [label="Fmt.GetPlatformSigName\nL254", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetRenderingIntentName [label="Fmt.GetRenderingIntentName\nL255", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetProfileClassSigName [label="Fmt.GetProfileClassSigName\nL256", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetVersionName [label="Fmt.GetVersionName\nL261,461", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetSubClassVersionName [label="Fmt.GetSubClassVersionName\nL263", fillcolor=lightblue, shape=ellipse];
+  icFtoD [label="icFtoD\nL266", fillcolor=lightblue, shape=ellipse];
+  Fmt_GetSpectralColorSigName [label="Fmt.GetSpectralColorSigName\nL269", fillcolor=lightblue, shape=ellipse];
+  icF16toF [label="icF16toF\nL272,281", fillcolor=lightblue, shape=ellipse];
+  std__sort [label="std::sort\nL315", fillcolor=lightblue, shape=ellipse];
+  std__upper_bound [label="std::upper_bound\nL323,403", fillcolor=lightblue, shape=ellipse];
+  unordered_map__find [label="unordered_map::find\nL346", fillcolor=lightblue, shape=ellipse];
+  icMaxStatus [label="icMaxStatus\nL349,380,436", fillcolor=lightblue, shape=ellipse];
+  DumpTagEntry [label="DumpTagEntry\nL443", fillcolor=lightblue, shape=ellipse];
+  icGetSigVal [label="icGetSigVal\nL447", fillcolor=lightgray, shape=ellipse];
+
+  // Call edges
+  DumpTagCore -> Fmt_GetTagSigName [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagCore -> icGetSig [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagCore -> pTag__IsArrayType [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagCore -> Fmt_GetTagTypeSigName [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagCore -> pTag__GetType [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagCore -> pTag__Describe [label="pTag != NULL", color=red, penwidth=2.0];
+  DumpTagSig -> pIcc__FindTag_sig_;
+  DumpTagSig -> DumpTagCore;
+  DumpTagEntry -> pIcc__FindTag_entry_;
+  DumpTagEntry -> DumpTagCore;
+  main -> printUsage [label="argc <= 1", style=dashed, color=gray];
+  main -> strncmp [style=dashed, color=gray];
+  main -> strtol [label="-v flag present", style=dashed, color=gray];
+  main -> ValidateIccProfile [label="-v flag present"];
+  main -> OpenIccProfile [label="-v flag absent"];
+  main -> Fmt_IsProfileIDCalculated [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetProfileID [label="pIcc && profileID calculated"];
+  main -> Fmt_GetDeviceAttrName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetCmmSigName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> icGetSig [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetColorSpaceSigName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetProfileFlagsName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetPlatformSigName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetRenderingIntentName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetProfileClassSigName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetVersionName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetSubClassVersionName [label="version >= v5 && deviceSubClass"];
+  main -> icFtoD [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> Fmt_GetSpectralColorSigName [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> icF16toF [label="spectralRange defined"];
+  main -> std__sort [label="pIcc != NULL", color=red, penwidth=2.0];
+  main -> std__upper_bound [label="tag iteration"];
+  main -> Fmt_GetTagSigName [label="tag iteration"];
+  main -> unordered_map__find [label="tag iteration"];
+  main -> icMaxStatus [label="duplicate sig found"];
+  main -> DumpTagEntry [label="argv has tag arg && arg=='ALL'"];
+  main -> icGetSigVal [label="argv has tag arg && arg!='ALL'", style=dashed, color=gray];
+  main -> DumpTagSig [label="argv has tag arg && arg!='ALL'", style=dashed, color=gray];
+
+  // Security-relevant AST gates
+  gate_0 [label="GATE L101\npTag != NULL", shape=diamond, fillcolor=orange, fontsize=8];
+  DumpTagCore -> gate_0 [style=dashed, color=gray];
+  gate_0 -> icGetSig [style=dashed, color=darkgreen, label="true"];
+  gate_3 [label="GATE L172\n-V/-v flag in argv[1]", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_3 [style=dashed, color=gray];
+  gate_3 -> ValidateIccProfile [style=dashed, color=darkgreen, label="true"];
+  gate_5 [label="GATE L226\npIcc != NULL", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_5 [style=dashed, color=gray];
+  gate_9 [label="GATE L270\nspectralRange.start || .end || .steps", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_9 [style=dashed, color=gray];
+  gate_10 [label="GATE L280\nbiSpectralRange defined", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_10 [style=dashed, color=gray];
+  gate_12 [label="GATE L324\nupper_bound == cend()", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_12 [style=dashed, color=gray];
+  gate_14 [label="GATE L369\nbDumpValidation", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_14 [style=dashed, color=gray];
+  gate_15 [label="GATE L377\nversion >= v4.2 && size % 4 != 0  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_15 [style=dashed, color=gray];
+  gate_16 [label="GATE L388\noffset + size > pHdr->size  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_16 [style=dashed, color=gray];
+  gate_17 [label="GATE L411\nclosest < offset+size && closest < EOF  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_17 [style=dashed, color=gray];
+  gate_19 [label="GATE L431\nsmallest_offset > expected_first  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_19 [style=dashed, color=gray];
+  gate_21 [label="GATE L441\nstricmp(arg, 'ALL') == 0", shape=diamond, fillcolor=orange, fontsize=8];
+  main -> gate_21 [style=dashed, color=gray];
+}
