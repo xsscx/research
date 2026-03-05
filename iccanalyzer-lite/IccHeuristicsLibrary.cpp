@@ -2711,5 +2711,522 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
     }
     printf("\n");
 
+    // =====================================================================
+    // H87 — TRC Curve Anomaly Detection (CWE-125/CWE-787)
+    // TRC (Tone Reproduction Curve) tags define gamma/response curves for
+    // each channel. Malformed curves with excessive point counts, invalid
+    // parametric function types, or degenerate values can trigger OOB
+    // reads in CIccTagCurve::Apply() and stack overflows in interpolation.
+    // =====================================================================
+    printf("[H87] TRC Curve Anomaly Detection\n");
+    {
+      int trcIssues = 0;
+      icTagSignature trcSigs[] = {
+        icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
+        (icTagSignature)0
+      };
+      for (int t = 0; trcSigs[t] != (icTagSignature)0; t++) {
+        CIccTag *pTag = pIcc->FindTag(trcSigs[t]);
+        if (!pTag) continue;
+
+        // Check CIccTagCurve (tabulated TRC)
+        CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
+        if (pCurve) {
+          icUInt32Number nSize = pCurve->GetSize();
+          if (nSize > 65536) {
+            printf("      %s[WARN]  Tag '%s': TRC curve with %u points (>65536) — excessive allocation%s\n",
+                   ColorCritical(), info.GetTagSigName(trcSigs[t]), nSize, ColorReset());
+            printf("       %sCWE-400: Oversized curve table → OOM in Apply()%s\n",
+                   ColorCritical(), ColorReset());
+            trcIssues++;
+          }
+          // Size=0 means embedded gamma (valid), size=1 means identity curve (valid)
+          // Check for degenerate values in tabulated curves
+          if (nSize > 1) {
+            bool allZero = true;
+            for (icUInt32Number i = 0; i < nSize && i < 16; i++) {
+              icFloatNumber v = (*pCurve)[i];
+              if (v != 0.0f) allZero = false;
+            }
+            if (allZero && nSize > 2) {
+              printf("      %s[WARN]  Tag '%s': TRC curve all-zero (%u points) — clipped output%s\n",
+                     ColorWarning(), info.GetTagSigName(trcSigs[t]), nSize, ColorReset());
+              trcIssues++;
+            }
+          }
+        }
+
+        // Check CIccTagParametricCurve
+        CIccTagParametricCurve *pParam = dynamic_cast<CIccTagParametricCurve*>(pTag);
+        if (pParam) {
+          icUInt16Number funcType = pParam->GetFunctionType();
+          if (funcType > 4) {
+            printf("      %s[WARN]  Tag '%s': parametric curve function type %u (>4, spec violation)%s\n",
+                   ColorCritical(), info.GetTagSigName(trcSigs[t]), funcType, ColorReset());
+            printf("       %sCWE-843: Invalid function type → unpredictable Apply() behavior%s\n",
+                   ColorCritical(), ColorReset());
+            trcIssues++;
+          }
+          icUInt16Number nParams = pParam->GetNumParam();
+          icFloatNumber *params = pParam->GetParams();
+          if (params && nParams > 0) {
+            for (icUInt16Number p = 0; p < nParams; p++) {
+              if (std::isnan(params[p]) || std::isinf(params[p])) {
+                printf("      %s[WARN]  Tag '%s': parametric curve param[%u] = NaN/Inf%s\n",
+                       ColorCritical(), info.GetTagSigName(trcSigs[t]), p, ColorReset());
+                printf("       %sCWE-682: NaN/Inf in curve parameters → undefined math%s\n",
+                       ColorCritical(), ColorReset());
+                trcIssues++;
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (trcIssues > 0) {
+        heuristicCount += trcIssues;
+      } else {
+        printf("      %s[OK] TRC curves within bounds (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H88 — Chromatic Adaptation Matrix Validation (CWE-682/CWE-125)
+    // The chad (chromatic adaptation) tag contains a 3×3 s15Fixed16 matrix.
+    // A singular matrix (det≈0) causes division-by-zero in PCS conversions.
+    // NaN/Inf values or extreme magnitudes indicate crafted profiles.
+    // =====================================================================
+    printf("[H88] Chromatic Adaptation Matrix Validation\n");
+    {
+      int chadIssues = 0;
+      CIccTag *pTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+      if (pTag) {
+        CIccTagS15Fixed16 *pChad = dynamic_cast<CIccTagS15Fixed16*>(pTag);
+        if (pChad) {
+          icUInt32Number nSize = pChad->GetSize();
+          if (nSize < 9) {
+            printf("      %s[WARN]  chad tag has %u elements (need 9 for 3×3 matrix)%s\n",
+                   ColorCritical(), nSize, ColorReset());
+            printf("       %sCWE-125: Undersized chad → OOB read in PCS conversion%s\n",
+                   ColorCritical(), ColorReset());
+            chadIssues++;
+          } else {
+            // Extract 3×3 matrix and compute determinant
+            icFloatNumber m[9];
+            for (int i = 0; i < 9; i++) {
+              m[i] = icFtoD((*pChad)[i]);
+            }
+            // Check for NaN/Inf
+            bool hasNanInf = false;
+            for (int i = 0; i < 9; i++) {
+              if (std::isnan(m[i]) || std::isinf(m[i])) {
+                hasNanInf = true;
+                break;
+              }
+            }
+            if (hasNanInf) {
+              printf("      %s[WARN]  chad matrix contains NaN/Inf values%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sCWE-682: NaN/Inf in adaptation matrix → undefined PCS transform%s\n",
+                     ColorCritical(), ColorReset());
+              chadIssues++;
+            } else {
+              // Determinant of 3×3: a(ei−fh) − b(di−fg) + c(dh−eg)
+              double det = (double)m[0] * ((double)m[4]*m[8] - (double)m[5]*m[7])
+                         - (double)m[1] * ((double)m[3]*m[8] - (double)m[5]*m[6])
+                         + (double)m[2] * ((double)m[3]*m[7] - (double)m[4]*m[6]);
+              if (std::fabs(det) < 1e-10) {
+                printf("      %s[WARN]  chad matrix near-singular (det=%.2e)%s\n",
+                       ColorCritical(), det, ColorReset());
+                printf("       %sCWE-369: Singular chad → division-by-zero in PCS inversion%s\n",
+                       ColorCritical(), ColorReset());
+                chadIssues++;
+              }
+              // Check for extreme values (s15Fixed16 range ±32768)
+              for (int i = 0; i < 9; i++) {
+                if (std::fabs(m[i]) > 100.0) {
+                  printf("      %s[WARN]  chad matrix element[%d] = %.4f (extreme, >100)%s\n",
+                         ColorWarning(), i, m[i], ColorReset());
+                  chadIssues++;
+                  break;
+                }
+              }
+            }
+          }
+        } else {
+          printf("      %s[WARN]  chad tag present but unexpected type%s\n",
+                 ColorWarning(), ColorReset());
+          chadIssues++;
+        }
+      } else {
+        printf("      %s[OK] No chromatic adaptation tag (standard D50)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      if (chadIssues > 0) {
+        heuristicCount += chadIssues;
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H89 — Profile Sequence Description Validation (CWE-400/CWE-131)
+    // The pseq tag stores a sequence of profile descriptions (used in
+    // device link profiles). An excessive count can trigger OOM; count
+    // × entry_size overflow can cause heap corruption during Read().
+    // =====================================================================
+    printf("[H89] Profile Sequence Description Validation\n");
+    {
+      int pseqIssues = 0;
+      CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+      if (pTag) {
+        CIccTagProfileSeqDesc *pSeq = dynamic_cast<CIccTagProfileSeqDesc*>(pTag);
+        if (pSeq && pSeq->m_Descriptions) {
+          size_t descCount = pSeq->m_Descriptions->size();
+          if (descCount > 256) {
+            printf("      %s[WARN]  Profile sequence has %zu descriptions (>256) — OOM risk%s\n",
+                   ColorCritical(), descCount, ColorReset());
+            printf("       %sCWE-400: Excessive sequence entries → large allocations in Read()%s\n",
+                   ColorCritical(), ColorReset());
+            pseqIssues++;
+          }
+          if (descCount == 0) {
+            printf("      %s[WARN]  Profile sequence has 0 descriptions (empty)%s\n",
+                   ColorWarning(), ColorReset());
+            pseqIssues++;
+          }
+        } else if (pTag) {
+          printf("      %s[WARN]  pseq tag present but wrong type or NULL descriptions%s\n",
+                 ColorWarning(), ColorReset());
+          pseqIssues++;
+        }
+      }
+      // Also check psid (profile sequence identifier)
+      CIccTag *pIdTag = pIcc->FindTag((icTagSignature)icSigProfileSequceIdTag);
+      if (pIdTag) {
+        // psid should be a ResponseCurveSet16 or similar
+        // Just verify it loaded successfully (non-null)
+        printf("      ProfileSequenceId tag present\n");
+      }
+      if (pseqIssues > 0) {
+        heuristicCount += pseqIssues;
+      } else {
+        printf("      %s[OK] Profile sequence descriptions within bounds (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H90 — Preview Tag Channel Consistency (CWE-125/CWE-787)
+    // Preview0/1/2 tags contain transforms for soft-proofing. If their
+    // CLUT dimensions don't match the profile's color space channels,
+    // Apply() will read/write out of bounds during interpolation.
+    // =====================================================================
+    printf("[H90] Preview Tag Channel Consistency\n");
+    {
+      int previewIssues = 0;
+      icUInt32Number pcsChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
+      icTagSignature previewSigs[] = {
+        icSigPreview0Tag, icSigPreview1Tag, icSigPreview2Tag,
+        (icTagSignature)0
+      };
+      for (int p = 0; previewSigs[p] != (icTagSignature)0; p++) {
+        CIccTag *pTag = pIcc->FindTag(previewSigs[p]);
+        if (!pTag) continue;
+
+        CIccMBB *pMbb = dynamic_cast<CIccMBB*>(pTag);
+        if (pMbb) {
+          icUInt8Number mbbIn = pMbb->InputChannels();
+          icUInt8Number mbbOut = pMbb->OutputChannels();
+          // Preview tags should map PCS→PCS (same channels in and out)
+          if (pcsChannels > 0 && mbbIn != pcsChannels) {
+            printf("      %s[WARN]  Tag '%s': input channels=%u != PCS channels=%u%s\n",
+                   ColorCritical(), info.GetTagSigName(previewSigs[p]),
+                   mbbIn, pcsChannels, ColorReset());
+            printf("       %sCWE-125: Channel mismatch → OOB in preview transform%s\n",
+                   ColorCritical(), ColorReset());
+            previewIssues++;
+          }
+          if (pcsChannels > 0 && mbbOut != pcsChannels) {
+            printf("      %s[WARN]  Tag '%s': output channels=%u != PCS channels=%u%s\n",
+                   ColorCritical(), info.GetTagSigName(previewSigs[p]),
+                   mbbOut, pcsChannels, ColorReset());
+            printf("       %sCWE-787: Output channel mismatch → buffer overwrite%s\n",
+                   ColorCritical(), ColorReset());
+            previewIssues++;
+          }
+        }
+      }
+      if (previewIssues > 0) {
+        heuristicCount += previewIssues;
+      } else {
+        printf("      %s[OK] Preview tag channels consistent (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H91 — Colorant Order Validation (CWE-125/CWE-787)
+    // ColorantOrder tag stores permutation indices for colorant channels.
+    // If indices exceed the ColorantTable entry count, array OOB occurs
+    // when the CMM maps channels. Duplicate indices indicate confusion.
+    // =====================================================================
+    printf("[H91] Colorant Order Validation\n");
+    {
+      int orderIssues = 0;
+      icTagSignature orderSigs[] = {
+        icSigColorantOrderTag, icSigColorantOrderOutTag, (icTagSignature)0
+      };
+      icTagSignature tableSigs[] = {
+        icSigColorantTableTag, icSigColorantTableOutTag, (icTagSignature)0
+      };
+      for (int o = 0; orderSigs[o] != (icTagSignature)0; o++) {
+        CIccTag *pOrderTag = pIcc->FindTag(orderSigs[o]);
+        if (!pOrderTag) continue;
+        CIccTagColorantOrder *pOrder = dynamic_cast<CIccTagColorantOrder*>(pOrderTag);
+        if (!pOrder) continue;
+
+        icUInt32Number orderCount = pOrder->GetSize();
+        // Get matching colorant table count
+        icUInt32Number tableCount = 0;
+        CIccTag *pTableTag = pIcc->FindTag(tableSigs[o]);
+        if (pTableTag) {
+          CIccTagColorantTable *pTable = dynamic_cast<CIccTagColorantTable*>(pTableTag);
+          if (pTable) tableCount = pTable->GetSize();
+        }
+
+        if (tableCount > 0 && orderCount != tableCount) {
+          printf("      %s[WARN]  ColorantOrder has %u entries but ColorantTable has %u%s\n",
+                 ColorWarning(), orderCount, tableCount, ColorReset());
+          orderIssues++;
+        }
+
+        // Check indices within bounds and for duplicates
+        std::set<icUInt8Number> seen;
+        for (icUInt32Number i = 0; i < orderCount; i++) {
+          icUInt8Number idx = (*pOrder)[i];
+          if (tableCount > 0 && idx >= tableCount) {
+            printf("      %s[WARN]  ColorantOrder[%u]=%u >= table count %u — OOB%s\n",
+                   ColorCritical(), i, idx, tableCount, ColorReset());
+            printf("       %sCWE-125: Index out-of-bounds in colorant mapping%s\n",
+                   ColorCritical(), ColorReset());
+            orderIssues++;
+            break;
+          }
+          if (seen.count(idx)) {
+            printf("      %s[WARN]  ColorantOrder has duplicate index %u%s\n",
+                   ColorWarning(), idx, ColorReset());
+            orderIssues++;
+            break;
+          }
+          seen.insert(idx);
+        }
+      }
+      if (orderIssues > 0) {
+        heuristicCount += orderIssues;
+      } else {
+        printf("      %s[OK] Colorant order indices valid (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H92 — Spectral Viewing Conditions Validation (CWE-20/CWE-682)
+    // PCC (Profile Connection Conditions) profiles use spectral viewing
+    // conditions to define illuminant/observer. Invalid spectral ranges
+    // or unknown illuminant/observer types can crash IccPcc.cpp transforms.
+    // =====================================================================
+    printf("[H92] Spectral Viewing Conditions Validation\n");
+    {
+      int svcIssues = 0;
+      CIccTag *pTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+      if (pTag) {
+        CIccTagSpectralViewingConditions *pSvc =
+            dynamic_cast<CIccTagSpectralViewingConditions*>(pTag);
+        if (pSvc) {
+          // Check illuminant XYZ for NaN/Inf
+          if (std::isnan(pSvc->m_illuminantXYZ.X) || std::isnan(pSvc->m_illuminantXYZ.Y) ||
+              std::isnan(pSvc->m_illuminantXYZ.Z) || std::isinf(pSvc->m_illuminantXYZ.X) ||
+              std::isinf(pSvc->m_illuminantXYZ.Y) || std::isinf(pSvc->m_illuminantXYZ.Z)) {
+            printf("      %s[WARN]  Spectral viewing conditions: illuminant XYZ contains NaN/Inf%s\n",
+                   ColorCritical(), ColorReset());
+            printf("       %sCWE-682: NaN/Inf in PCC illuminant → undefined PCS transform%s\n",
+                   ColorCritical(), ColorReset());
+            svcIssues++;
+          }
+          // Check illuminant Y > 0 (physical requirement)
+          if (pSvc->m_illuminantXYZ.Y <= 0.0f && pSvc->m_illuminantXYZ.Y != 0.0f) {
+            printf("      %s[WARN]  Spectral viewing conditions: illuminant Y=%.4f (non-positive)%s\n",
+                   ColorWarning(), pSvc->m_illuminantXYZ.Y, ColorReset());
+            svcIssues++;
+          }
+          // Check surround XYZ
+          if (std::isnan(pSvc->m_surroundXYZ.X) || std::isnan(pSvc->m_surroundXYZ.Y) ||
+              std::isnan(pSvc->m_surroundXYZ.Z)) {
+            printf("      %s[WARN]  Spectral viewing conditions: surround XYZ contains NaN%s\n",
+                   ColorWarning(), ColorReset());
+            svcIssues++;
+          }
+          // Check CCT (correlated color temperature) range
+          icFloatNumber cct = pSvc->getIlluminantCCT();
+          if (cct < 0.0f || cct > 100000.0f) {
+            printf("      %s[WARN]  Illuminant CCT=%.1f (outside 0-100000K range)%s\n",
+                   ColorWarning(), cct, ColorReset());
+            svcIssues++;
+          }
+        } else {
+          printf("      %s[WARN]  Spectral viewing conditions tag has unexpected type%s\n",
+                 ColorWarning(), ColorReset());
+          svcIssues++;
+        }
+      } else {
+        printf("      %s[OK] No spectral viewing conditions tag (standard PCC)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      if (svcIssues > 0) {
+        heuristicCount += svcIssues;
+      } else if (pTag) {
+        printf("      %s[OK] Spectral viewing conditions valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H93 — Embedded Profile Flag Consistency (CWE-345/CWE-20)
+    // The profile flags field (header offset 44) has defined bits:
+    //   bit 0: Embedded profile (0=not embedded, 1=embedded in file)
+    //   bit 1: Profile cannot be used independently
+    // Bits 2-15 are reserved and should be zero per ICC spec.
+    // Non-zero reserved bits indicate spec violation or crafted profile.
+    // =====================================================================
+    printf("[H93] Embedded Profile Flag Consistency\n");
+    {
+      int flagIssues = 0;
+      icUInt32Number flags = pIcc->m_Header.flags;
+      // Check reserved bits (bits 16-31 are reserved for ICC, bits 2-15 per spec)
+      icUInt32Number reservedMask = 0xFFFFFFFC; // All bits except 0 and 1
+      if (flags & reservedMask) {
+        printf("      %s[WARN]  Profile flags=0x%08X: reserved bits set (mask=0x%08X)%s\n",
+               ColorWarning(), flags, flags & reservedMask, ColorReset());
+        printf("       %sCWE-20: Non-zero reserved flag bits → spec violation or crafted profile%s\n",
+               ColorWarning(), ColorReset());
+        flagIssues++;
+      }
+      // Check consistency: bit 1 (cannot use independently) only makes sense with bit 0 (embedded)
+      bool embedded = (flags & 0x01) != 0;
+      bool notIndependent = (flags & 0x02) != 0;
+      if (notIndependent && !embedded) {
+        printf("      %s[WARN]  Flag conflict: 'cannot use independently' set but 'embedded' not set%s\n",
+               ColorWarning(), ColorReset());
+        flagIssues++;
+      }
+      // Check attributes field too (rendering attributes at header offset 56)
+      icUInt64Number attributes = pIcc->m_Header.attributes;
+      // Bits 0-3: Reflective/Transparency, Glossy/Matte, Media positive/negative, B&W/Color
+      // Bits 4-63: reserved (should be zero)
+      uint64_t attrReserved = attributes & 0xFFFFFFFFFFFFFFF0ULL;
+      if (attrReserved) {
+        printf("      %s[WARN]  Attributes=0x%016llX: reserved bits set%s\n",
+               ColorWarning(), (unsigned long long)attributes, ColorReset());
+        flagIssues++;
+      }
+      if (flagIssues > 0) {
+        heuristicCount += flagIssues;
+      } else {
+        printf("      %s[OK] Profile flags and attributes consistent%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H94 — Matrix/TRC Colorant Consistency (CWE-682/CWE-125)
+    // For matrix/TRC-based profiles (Display class with RGB colorSpace),
+    // the Red/Green/Blue MatrixColumn tags define a 3×3 matrix. The sum
+    // of columns should approximate D50 whitepoint (0.9505, 1.0, 1.0890).
+    // Large deviations indicate malformed profiles that produce extreme
+    // values during PCS transforms, potentially triggering overflows.
+    // =====================================================================
+    printf("[H94] Matrix/TRC Colorant Consistency\n");
+    {
+      int matrixIssues = 0;
+      // Only check RGB display/input profiles (matrix/TRC architecture)
+      if (pIcc->m_Header.colorSpace == icSigRgbData) {
+        CIccTag *pRedCol = pIcc->FindTag(icSigRedMatrixColumnTag);
+        CIccTag *pGrnCol = pIcc->FindTag(icSigGreenMatrixColumnTag);
+        CIccTag *pBluCol = pIcc->FindTag(icSigBlueMatrixColumnTag);
+        CIccTag *pWP = pIcc->FindTag(icSigMediaWhitePointTag);
+
+        if (pRedCol && pGrnCol && pBluCol) {
+          CIccTagXYZ *rXYZ = dynamic_cast<CIccTagXYZ*>(pRedCol);
+          CIccTagXYZ *gXYZ = dynamic_cast<CIccTagXYZ*>(pGrnCol);
+          CIccTagXYZ *bXYZ = dynamic_cast<CIccTagXYZ*>(pBluCol);
+
+          if (rXYZ && gXYZ && bXYZ &&
+              rXYZ->GetSize() >= 1 && gXYZ->GetSize() >= 1 && bXYZ->GetSize() >= 1) {
+            icFloatNumber sumX = icFtoD((*rXYZ)[0].X) + icFtoD((*gXYZ)[0].X) + icFtoD((*bXYZ)[0].X);
+            icFloatNumber sumY = icFtoD((*rXYZ)[0].Y) + icFtoD((*gXYZ)[0].Y) + icFtoD((*bXYZ)[0].Y);
+            icFloatNumber sumZ = icFtoD((*rXYZ)[0].Z) + icFtoD((*gXYZ)[0].Z) + icFtoD((*bXYZ)[0].Z);
+
+            // D50 whitepoint: X=0.9505, Y=1.0000, Z=1.0890
+            double devX = std::fabs(sumX - 0.9505);
+            double devY = std::fabs(sumY - 1.0000);
+            double devZ = std::fabs(sumZ - 1.0890);
+
+            if (devX > 0.1 || devY > 0.1 || devZ > 0.1) {
+              printf("      %s[WARN]  Matrix column sum (%.4f, %.4f, %.4f) deviates from D50%s\n",
+                     ColorWarning(), sumX, sumY, sumZ, ColorReset());
+              printf("       %sExpected ≈ (0.9505, 1.0000, 1.0890), deviation (%.4f, %.4f, %.4f)%s\n",
+                     ColorWarning(), devX, devY, devZ, ColorReset());
+              matrixIssues++;
+            }
+            // Check for NaN/Inf in any column
+            for (int c = 0; c < 3; c++) {
+              CIccTagXYZ *col = (c == 0) ? rXYZ : (c == 1) ? gXYZ : bXYZ;
+              if (std::isnan(icFtoD((*col)[0].X)) || std::isnan(icFtoD((*col)[0].Y)) ||
+                  std::isnan(icFtoD((*col)[0].Z))) {
+                printf("      %s[WARN]  Matrix column %d contains NaN — corrupted colorant%s\n",
+                       ColorCritical(), c, ColorReset());
+                printf("       %sCWE-682: NaN in matrix → undefined PCS output%s\n",
+                       ColorCritical(), ColorReset());
+                matrixIssues++;
+              }
+            }
+            // Check for negative XYZ values (physically impossible)
+            if (icFtoD((*rXYZ)[0].Y) < -0.01 || icFtoD((*gXYZ)[0].Y) < -0.01 || icFtoD((*bXYZ)[0].Y) < -0.01) {
+              printf("      %s[WARN]  Matrix column Y value negative — non-physical colorant%s\n",
+                     ColorWarning(), ColorReset());
+              matrixIssues++;
+            }
+          }
+        }
+
+        // Also check whitepoint tag if present
+        if (pWP) {
+          CIccTagXYZ *wpXYZ = dynamic_cast<CIccTagXYZ*>(pWP);
+          if (wpXYZ && wpXYZ->GetSize() >= 1) {
+            icFloatNumber wpY = icFtoD((*wpXYZ)[0].Y);
+            if (std::fabs(wpY - 1.0) > 0.1) {
+              printf("      %s[WARN]  Media whitepoint Y=%.4f (expected ≈1.0 for D50)%s\n",
+                     ColorWarning(), wpY, ColorReset());
+              matrixIssues++;
+            }
+          }
+        }
+      }
+      if (matrixIssues > 0) {
+        heuristicCount += matrixIssues;
+      } else {
+        printf("      %s[OK] Matrix/TRC colorant consistency valid (or non-RGB)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
   return heuristicCount;
 }
