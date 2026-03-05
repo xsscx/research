@@ -1,12 +1,12 @@
 # Security Research Tools for ICC Color Profiles
 
-Last Updated: 2026-03-05 14:50:00 UTC by David Hoyt
+Last Updated: 2026-03-05 15:10:00 UTC by David Hoyt
 
 ## Tools
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 7,100+ | 86-heuristic security analyzer with ASAN/UBSAN, OOM protection, Ninja mode |
+| **iccanalyzer-lite** | 13,000+ | 86-heuristic security analyzer with ASAN/UBSAN, callgraph, OOM protection, Ninja mode |
 | **cfl** (19 fuzzers) | 4,537 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
 | **mcp-server** | — | ICC Profile MCP server with web UI |
