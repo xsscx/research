@@ -201,38 +201,41 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
 
 @mcp.tool()
 async def health_check() -> str:
-    """Check MCP server health and available tool capabilities.
+    """Verify MCP server status and availability of analysis binaries.
 
-    Returns server status, binary availability, and profile counts.
-    No arguments required.
+    Returns a summary of server health: tool count, binary availability,
+    and profile directory status.
     """
-    binaries = {
-        "iccanalyzer-lite": ANALYZER_BIN.is_file(),
-        "iccToXml_unsafe": TO_XML_UNSAFE_BIN.is_file(),
-    }
-    profiles = {
-        "test-profiles": len(list(TEST_PROFILES.glob("*.icc"))) if TEST_PROFILES.is_dir() else 0,
-        "extended-test-profiles": len(list(EXTENDED_PROFILES.glob("*.icc"))) if EXTENDED_PROFILES.is_dir() else 0,
-    }
-    tools_available = sum(1 for v in binaries.values() if v)
-    total_profiles = sum(profiles.values())
+    lines = ["[ICC Profile MCP Server — Health Check]", ""]
 
-    lines = [
-        "ICC Profile MCP Server — Health Check",
-        "",
-        f"Status: OK",
-        f"Tools:  {tools_available + 1}/{len(binaries) + 1} binaries available",
-        "",
-        "Binaries:",
-    ]
-    for name, available in binaries.items():
-        lines.append(f"  {'✅' if available else '❌'} {name}")
-    lines.append(f"  ✅ list/compare (built-in)")
+    # Binary status
+    analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
+    xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
+    xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
+
+    lines.append("Binaries:")
+    lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml_unsafe  : {'[OK]' if xml_unsafe_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml (safe)  : {'[OK]' if xml_safe_ok else '[MISSING]'}")
     lines.append("")
-    lines.append("Profiles:")
-    for name, count in profiles.items():
-        lines.append(f"  {count:>4} in {name}/")
-    lines.append(f"  {total_profiles:>4} total")
+
+    # Profile directory status
+    test_count = sum(1 for f in TEST_PROFILES.iterdir()
+                     if f.suffix.lower() in (".icc", ".icm", ".iccp")) if TEST_PROFILES.exists() else 0
+    ext_count = sum(1 for f in EXTENDED_PROFILES.iterdir()
+                    if f.suffix.lower() in (".icc", ".icm", ".iccp")) if EXTENDED_PROFILES.exists() else 0
+    lines.append("Profile directories:")
+    lines.append(f"  test-profiles/          : {test_count} profiles")
+    lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
+    lines.append("")
+
+    # Tool count (8 analysis tools + 7 maintainer + 6 operations + 1 health = 22 tools)
+    lines.append("Tools: 22 registered (8 analysis + 7 maintainer + 6 operations + 1 health)")
+    lines.append("")
+
+    overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
+    lines.append(f"Status: {overall}")
+
     return "\n".join(lines)
 
 
@@ -511,45 +514,6 @@ async def upload_and_analyze(
     finally:
         dest.unlink(missing_ok=True)
 
-
-@mcp.tool()
-async def health_check() -> str:
-    """Verify MCP server status and availability of analysis binaries.
-
-    Returns a summary of server health: tool count, binary availability,
-    and profile directory status.
-    """
-    lines = ["[ICC Profile MCP Server — Health Check]", ""]
-
-    # Binary status
-    analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
-    xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
-    xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
-
-    lines.append("Binaries:")
-    lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
-    lines.append(f"  iccToXml_unsafe  : {'[OK]' if xml_unsafe_ok else '[MISSING]'}")
-    lines.append(f"  iccToXml (safe)  : {'[OK]' if xml_safe_ok else '[MISSING]'}")
-    lines.append("")
-
-    # Profile directory status
-    test_count = sum(1 for f in TEST_PROFILES.iterdir()
-                     if f.suffix.lower() in (".icc", ".icm", ".iccp")) if TEST_PROFILES.exists() else 0
-    ext_count = sum(1 for f in EXTENDED_PROFILES.iterdir()
-                    if f.suffix.lower() in (".icc", ".icm", ".iccp")) if EXTENDED_PROFILES.exists() else 0
-    lines.append("Profile directories:")
-    lines.append(f"  test-profiles/          : {test_count} profiles")
-    lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
-    lines.append("")
-
-    # Tool count (8 analysis tools + 7 maintainer + 6 operations + 1 health = 22 tools)
-    lines.append("Tools: 22 registered (8 analysis + 7 maintainer + 6 operations + 1 health)")
-    lines.append("")
-
-    overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
-    lines.append(f"Status: {overall}")
-
-    return "\n".join(lines)
 
 
 @mcp.tool()
