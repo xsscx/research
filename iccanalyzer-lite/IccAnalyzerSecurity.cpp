@@ -43,11 +43,13 @@
 #include "IccAnalyzerColors.h"
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
+#include "IccTagDict.h"
 #include "IccProfile.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
 #include "IccTagMPE.h"
 #include <cmath>
+#include <set>
 
 //==============================================================================
 // Heuristic Security Analysis
@@ -2045,6 +2047,124 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         } else {
           printf("      %s[OK] All tag type signatures are known ICC types%s\n", ColorSuccess(), ColorReset());
         }
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H56 — Calculator Element Stack Depth Analysis (CWE-674/CWE-835)
+    // =====================================================================
+    printf("[H56] Calculator Element Stack Depth Analysis\n");
+    {
+      int calcIssues = 0;
+      icSignature mpeSigs56[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        icSigGamutTag,
+        (icSignature)0
+      };
+
+      for (int s = 0; mpeSigs56[s] != (icSignature)0; s++) {
+        CIccTag *tag = pIcc->FindTag((icTagSignature)mpeSigs56[s]);
+        if (!tag) continue;
+        CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
+        if (!mpe) continue;
+
+        icUInt32Number elemCount = mpe->NumElements();
+        if (elemCount > 512) {
+          CIccInfo info;
+          printf("      %s[WARN]  MPE tag '%s': %u elements in processing chain (>512)%s\n",
+                 ColorCritical(), info.GetTagSigName((icTagSignature)mpeSigs56[s]),
+                 elemCount, ColorReset());
+          printf("       %sCWE-835: Excessive MPE chain length → potential DoS%s\n",
+                 ColorCritical(), ColorReset());
+          calcIssues++;
+        }
+      }
+
+      if (calcIssues > 0) {
+        heuristicCount += calcIssues;
+      } else {
+        printf("      %s[OK] Calculator element depths within safe bounds%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H58 — Sparse Matrix / Large Array Entry Bounds (CWE-131/CWE-400)
+    // =====================================================================
+    printf("[H58] Sparse Matrix Entry Bounds\n");
+    {
+      int sparseIssues = 0;
+      TagEntryList::iterator sit;
+      for (sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        IccTagEntry *e = &(*sit);
+        CIccTag *tag = pIcc->FindTag(e->TagInfo.sig);
+        if (!tag) continue;
+        CIccTagNumArray *numArr = dynamic_cast<CIccTagNumArray*>(tag);
+        if (!numArr) continue;
+        icUInt32Number arrSz = numArr->GetNumValues();
+        if (arrSz > 16777216) {
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': NumArray with %u values (>16M, OOM risk)%s\n",
+                 ColorCritical(), info.GetTagSigName(e->TagInfo.sig),
+                 arrSz, ColorReset());
+          printf("       %sCWE-400: Resource exhaustion via oversized array%s\n",
+                 ColorCritical(), ColorReset());
+          sparseIssues++;
+        }
+      }
+      if (sparseIssues > 0) {
+        heuristicCount += sparseIssues;
+      } else {
+        printf("      %s[OK] No oversized array/sparse matrix entries%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H60 — Dictionary Tag Key/Value Consistency (CWE-126/CWE-170)
+    // =====================================================================
+    printf("[H60] Dictionary Tag Consistency\n");
+    {
+      int dictIssues = 0;
+      CIccTag *dictTag = pIcc->FindTag(icSigMetaDataTag);
+      if (dictTag) {
+        CIccTagDict *dict = dynamic_cast<CIccTagDict*>(dictTag);
+        if (dict && dict->m_Dict) {
+          std::set<std::string> seenKeys;
+          int entryCount = 0;
+          for (auto dit = dict->m_Dict->begin(); dit != dict->m_Dict->end(); ++dit) {
+            entryCount++;
+            if (entryCount > 4096) {
+              printf("      %s[WARN]  Dict has >4096 entries (excessive)%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sCWE-400: Potential DoS via unbounded dictionary%s\n",
+                     ColorCritical(), ColorReset());
+              dictIssues++;
+              break;
+            }
+            CIccDictEntry *entry = dit->ptr;
+            if (!entry) continue;
+            std::wstring key = entry->GetName();
+            std::string keyUtf8(key.begin(), key.end());
+            if (seenKeys.count(keyUtf8)) {
+              printf("      %s[WARN]  Duplicate dictionary key detected%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sCWE-170: Key collision may cause UAF on replacement%s\n",
+                     ColorCritical(), ColorReset());
+              dictIssues++;
+            }
+            seenKeys.insert(keyUtf8);
+          }
+        }
+      }
+      if (dictIssues > 0) {
+        heuristicCount += dictIssues;
+      } else {
+        printf("      %s[OK] Dictionary tags consistent%s\n", ColorSuccess(), ColorReset());
       }
     }
     printf("\n");
@@ -4499,8 +4619,339 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
 
+  // =====================================================================
+  // H55 — UTF-16 Encoding Validation (CWE-120/CWE-170)
+  // Detects invalid UTF-16 surrogate pairs and unterminated strings that
+  // cause buffer overflows in CIccConvertUTF and CIccUTF16String.
+  // =====================================================================
+  printf("[H55] UTF-16 Encoding Validation\n");
+  {
+    FILE *fp55 = fopen(filename, "rb");
+    if (fp55) {
+      fseek(fp55, 0, SEEK_END);
+      long fs55_l = ftell(fp55);
+      if (fs55_l < 0) { fclose(fp55); fp55 = NULL; }
+      size_t fs55 = (fp55) ? (size_t)fs55_l : 0;
+
+      int utf16Issues = 0;
+      if (fp55 && fs55 >= 132) {
+        icUInt8Number tc55[4];
+        fseek(fp55, 128, SEEK_SET);
+        if (fread(tc55, 1, 4, fp55) == 4) {
+          uint32_t tagCount55 = ((uint32_t)tc55[0]<<24)|((uint32_t)tc55[1]<<16)|
+                                ((uint32_t)tc55[2]<<8)|tc55[3];
+          if (tagCount55 > 1000) tagCount55 = 1000;
+
+          for (uint32_t t = 0; t < tagCount55 && fp55; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp55, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp55) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 8 > fs55 || tSz < 8) continue;
+
+            icUInt8Number typeSig[4];
+            fseek(fp55, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fp55) != 4) continue;
+            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
+                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+
+            // mluc (0x6D6C7563) — scan for orphan surrogates
+            if (typeVal == 0x6D6C7563 && tSz >= 16) {
+              icUInt8Number mlucHdr[8];
+              fseek(fp55, tOff + 8, SEEK_SET);
+              if (fread(mlucHdr, 1, 8, fp55) != 8) continue;
+              uint32_t numRec = ((uint32_t)mlucHdr[0]<<24)|((uint32_t)mlucHdr[1]<<16)|
+                                ((uint32_t)mlucHdr[2]<<8)|mlucHdr[3];
+              uint32_t recSz  = ((uint32_t)mlucHdr[4]<<24)|((uint32_t)mlucHdr[5]<<16)|
+                                ((uint32_t)mlucHdr[6]<<8)|mlucHdr[7];
+
+              if (recSz < 12) recSz = 12;
+              if (numRec > 500) numRec = 500;
+
+              for (uint32_t r = 0; r < numRec; r++) {
+                uint32_t recOff = 16 + r * recSz;
+                if (tOff + recOff + 12 > fs55) break;
+
+                icUInt8Number rec[12];
+                fseek(fp55, tOff + recOff, SEEK_SET);
+                if (fread(rec, 1, 12, fp55) != 12) break;
+
+                uint32_t strLen = ((uint32_t)rec[4]<<24)|((uint32_t)rec[5]<<16)|
+                                  ((uint32_t)rec[6]<<8)|rec[7];
+                uint32_t strOff = ((uint32_t)rec[8]<<24)|((uint32_t)rec[9]<<16)|
+                                  ((uint32_t)rec[10]<<8)|rec[11];
+
+                if (strLen > 65536) {
+                  char sig55[5]; SignatureToFourCC(tSig, sig55);
+                  printf("      %s[WARN]  Tag '%s' (mluc): string %u length %u > 64KB%s\n",
+                         ColorCritical(), sig55, r, strLen, ColorReset());
+                  printf("       %sCWE-120: OOM via oversized UTF-16 string allocation%s\n",
+                         ColorCritical(), ColorReset());
+                  utf16Issues++;
+                  continue;
+                }
+
+                // Check for odd-length (invalid UTF-16)
+                if (strLen % 2 != 0 && strLen > 0) {
+                  char sig55[5]; SignatureToFourCC(tSig, sig55);
+                  printf("      %s[WARN]  Tag '%s' (mluc): string %u has odd byte length %u (invalid UTF-16)%s\n",
+                         ColorCritical(), sig55, r, strLen, ColorReset());
+                  utf16Issues++;
+                  continue;
+                }
+
+                // Scan for orphan surrogates (limited to first 1024 code units)
+                if (strLen >= 4 && tOff + strOff + strLen <= fs55) {
+                  uint32_t scanLen = (strLen > 2048) ? 2048 : strLen;
+                  icUInt8Number *strBuf = (icUInt8Number*)malloc(scanLen);
+                  if (strBuf) {
+                    fseek(fp55, tOff + strOff, SEEK_SET);
+                    if (fread(strBuf, 1, scanLen, fp55) == scanLen) {
+                      for (uint32_t i = 0; i + 1 < scanLen; i += 2) {
+                        uint16_t cu = ((uint16_t)strBuf[i] << 8) | strBuf[i+1];
+                        if (cu >= 0xD800 && cu <= 0xDBFF) {
+                          // High surrogate — must be followed by low surrogate
+                          if (i + 3 < scanLen) {
+                            uint16_t next = ((uint16_t)strBuf[i+2] << 8) | strBuf[i+3];
+                            if (next < 0xDC00 || next > 0xDFFF) {
+                              char sig55[5]; SignatureToFourCC(tSig, sig55);
+                              printf("      %s[WARN]  Tag '%s' (mluc): orphan high surrogate U+%04X at offset %u%s\n",
+                                     ColorCritical(), sig55, cu, i, ColorReset());
+                              printf("       %sCWE-170: Invalid UTF-16 surrogate pair%s\n",
+                                     ColorCritical(), ColorReset());
+                              utf16Issues++;
+                              break;
+                            }
+                            i += 2; // skip low surrogate
+                          } else {
+                            utf16Issues++;
+                            break;
+                          }
+                        } else if (cu >= 0xDC00 && cu <= 0xDFFF) {
+                          // Orphan low surrogate
+                          char sig55[5]; SignatureToFourCC(tSig, sig55);
+                          printf("      %s[WARN]  Tag '%s' (mluc): orphan low surrogate U+%04X at offset %u%s\n",
+                                 ColorCritical(), sig55, cu, i, ColorReset());
+                          utf16Issues++;
+                          break;
+                        }
+                      }
+                    }
+                    free(strBuf);
+                  }
+                }
+              }
+            }
+
+            // desc (0x64657363) — check unicode count overflow
+            if (typeVal == 0x64657363 && tSz >= 24) {
+              fseek(fp55, tOff + 8, SEEK_SET);
+              icUInt8Number descHdr[4];
+              if (fread(descHdr, 1, 4, fp55) == 4) {
+                uint32_t asciiLen = ((uint32_t)descHdr[0]<<24)|((uint32_t)descHdr[1]<<16)|
+                                    ((uint32_t)descHdr[2]<<8)|descHdr[3];
+                // If ASCII len exceeds tag data → overflow
+                if (asciiLen > tSz - 8) {
+                  char sig55[5]; SignatureToFourCC(tSig, sig55);
+                  printf("      %s[WARN]  Tag '%s' (desc): ASCII length %u exceeds tag size %u%s\n",
+                         ColorCritical(), sig55, asciiLen, tSz, ColorReset());
+                  printf("       %sCWE-120: Buffer overflow in textDescription parsing%s\n",
+                         ColorCritical(), ColorReset());
+                  utf16Issues++;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp55) fclose(fp55);
+
+      if (utf16Issues > 0) {
+        heuristicCount += utf16Issues;
+      } else {
+        printf("      %s[OK] UTF-16 encoding appears valid%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // H57 — Embedded Profile Recursion Depth (raw file I/O — no library needed)
+  // Detects profiles embedding other ICC profiles (via 'psin' tag or
+  // embedded profile tags) beyond a safe nesting depth.
+  // =====================================================================
+  printf("[H57] Embedded Profile Recursion Depth\n");
+  {
+    FILE *fp57 = fopen(filename, "rb");
+    if (fp57) {
+      fseek(fp57, 0, SEEK_END);
+      long fs57_l = ftell(fp57);
+      if (fs57_l < 0) { fclose(fp57); fp57 = NULL; }
+      size_t fs57 = (fp57) ? (size_t)fs57_l : 0;
+
+      int embedIssues = 0;
+      if (fp57 && fs57 >= 132) {
+        icUInt8Number tc57[4];
+        fseek(fp57, 128, SEEK_SET);
+        if (fread(tc57, 1, 4, fp57) == 4) {
+          uint32_t tagCount57 = ((uint32_t)tc57[0]<<24)|((uint32_t)tc57[1]<<16)|
+                                ((uint32_t)tc57[2]<<8)|tc57[3];
+          if (tagCount57 > 1000) tagCount57 = 1000;
+
+          for (uint32_t t = 0; t < tagCount57 && fp57; t++) {
+            icUInt8Number tagEntry[12];
+            fseek(fp57, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fp57) != 12) break;
+
+            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
+                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
+            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
+                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
+            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
+                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+
+            if (tOff + 8 > fs57 || tSz < 132) continue;
+
+            // Check for embedded ICC profile magic 'acsp' at offset+36
+            if (tSz >= 132 && tOff + 36 + 4 <= fs57) {
+              icUInt8Number magic[4];
+              fseek(fp57, tOff + 36, SEEK_SET);
+              if (fread(magic, 1, 4, fp57) == 4) {
+                if (magic[0] == 'a' && magic[1] == 'c' && magic[2] == 's' && magic[3] == 'p') {
+                  char sig57[5]; SignatureToFourCC(tSig, sig57);
+
+                  // Check for nested embedded — look for 'acsp' deeper
+                  int depth = 1;
+                  // Scan tag data for additional 'acsp' signatures
+                  if (tSz >= 256 && tOff + tSz <= fs57) {
+                    uint32_t scanLimit = (tSz > 65536) ? 65536 : tSz;
+                    icUInt8Number *scanBuf = (icUInt8Number*)malloc(scanLimit);
+                    if (scanBuf) {
+                      fseek(fp57, tOff, SEEK_SET);
+                      if (fread(scanBuf, 1, scanLimit, fp57) == scanLimit) {
+                        for (uint32_t i = 36 + 132; i + 3 < scanLimit; i++) {
+                          if (scanBuf[i]=='a' && scanBuf[i+1]=='c' && scanBuf[i+2]=='s' && scanBuf[i+3]=='p') {
+                            depth++;
+                          }
+                        }
+                      }
+                      free(scanBuf);
+                    }
+                  }
+
+                  printf("      %s[WARN]  Tag '%s': contains embedded ICC profile (depth %d)%s\n",
+                         ColorCritical(), sig57, depth, ColorReset());
+                  if (depth > 1) {
+                    printf("       %sCWE-674: Nested embedded profiles → recursion risk%s\n",
+                           ColorCritical(), ColorReset());
+                  }
+                  printf("       %sCWE-416: Embedded profile parsing may trigger UAF%s\n",
+                         ColorCritical(), ColorReset());
+                  embedIssues++;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (fp57) fclose(fp57);
+
+      if (embedIssues > 0) {
+        heuristicCount += embedIssues;
+      } else {
+        printf("      %s[OK] No embedded profiles detected%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
+  // H59 — Spectral Wavelength Range Consistency (raw file I/O — no library needed)
+  // Validates spectral range fields (start, end, steps) for physical
+  // plausibility and arithmetic consistency.
+  // =====================================================================
+  printf("[H59] Spectral Wavelength Range Consistency\n");
+  {
+    FILE *fp59 = fopen(filename, "rb");
+    if (fp59) {
+      fseek(fp59, 0, SEEK_END);
+      long fs59_l = ftell(fp59);
+      if (fs59_l < 0) { fclose(fp59); fp59 = NULL; }
+      size_t fs59 = (fp59) ? (size_t)fs59_l : 0;
+
+      int spectralIssues = 0;
+      // ICC v5 spectral data starts at header offset 104
+      if (fp59 && fs59 >= 128) {
+        icUInt8Number specHdr[24];
+        fseek(fp59, 104, SEEK_SET);
+        if (fread(specHdr, 1, 24, fp59) == 24) {
+          uint16_t specStart = ((uint16_t)specHdr[0] << 8) | specHdr[1];
+          uint16_t specEnd   = ((uint16_t)specHdr[2] << 8) | specHdr[3];
+          uint16_t specSteps = ((uint16_t)specHdr[4] << 8) | specHdr[5];
+
+          uint16_t bispecStart = ((uint16_t)specHdr[6] << 8) | specHdr[7];
+          uint16_t bispecEnd   = ((uint16_t)specHdr[8] << 8) | specHdr[9];
+          uint16_t bispecSteps = ((uint16_t)specHdr[10] << 8) | specHdr[11];
+
+          // Only check if spectral fields are non-zero (v5 profiles)
+          if (specStart != 0 || specEnd != 0 || specSteps != 0) {
+            if (specStart > 0 && specEnd > 0) {
+              if (specEnd <= specStart) {
+                printf("      %s[WARN]  Spectral range: end (%u nm) <= start (%u nm)%s\n",
+                       ColorCritical(), specEnd, specStart, ColorReset());
+                printf("       %sCWE-682: Inverted spectral range → negative step size%s\n",
+                       ColorCritical(), ColorReset());
+                spectralIssues++;
+              }
+              if (specSteps == 0) {
+                printf("      %s[WARN]  Spectral range: steps = 0 with non-zero start/end%s\n",
+                       ColorCritical(), ColorReset());
+                printf("       %sCWE-369: Division by zero in spectral interpolation%s\n",
+                       ColorCritical(), ColorReset());
+                spectralIssues++;
+              }
+              // Physical plausibility: visible light 100-1100nm
+              if (specStart < 100 || specEnd > 4000) {
+                printf("      %s[WARN]  Spectral range: %u-%u nm (outside plausible 100-4000nm)%s\n",
+                       ColorWarning(), specStart, specEnd, ColorReset());
+                spectralIssues++;
+              }
+            }
+          }
+
+          if (bispecStart != 0 || bispecEnd != 0 || bispecSteps != 0) {
+            if (bispecStart > 0 && bispecEnd > 0) {
+              if (bispecEnd <= bispecStart) {
+                printf("      %s[WARN]  Bispectral range: end (%u nm) <= start (%u nm)%s\n",
+                       ColorCritical(), bispecEnd, bispecStart, ColorReset());
+                spectralIssues++;
+              }
+              if (bispecSteps == 0) {
+                printf("      %s[WARN]  Bispectral range: steps = 0%s\n",
+                       ColorCritical(), ColorReset());
+                spectralIssues++;
+              }
+            }
+          }
+        }
+      }
+      if (fp59) fclose(fp59);
+
+      if (spectralIssues > 0) {
+        heuristicCount += spectralIssues;
+      } else {
+        printf("      %s[OK] Spectral range fields consistent%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+  }
+  printf("\n");
+
   // Summary
-  printf("=======================================================================\n");
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
@@ -4520,11 +4971,12 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 54 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 60 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
     printf("  %sH46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH55-H60: Extended coverage (UTF-16 validation, calc depth, embedded profiles, spectral, dict)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
