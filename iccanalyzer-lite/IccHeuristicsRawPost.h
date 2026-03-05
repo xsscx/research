@@ -14,4 +14,11 @@
 /// @return Number of heuristic warnings detected
 int RunRawPostLibraryHeuristics(const char *filename);
 
+/// Run raw-file fallback heuristics (H10, H13, H25, H28, H32) when
+/// the library failed to load the profile.
+/// @param filename Path to the ICC profile to analyze
+/// @param libraryAnalyzed true if CIccProfile loaded successfully
+/// @return Number of heuristic warnings detected
+int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed);
+
 #endif // _ICCHEURISTICSRAWPOST_H
