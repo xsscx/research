@@ -81,12 +81,13 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
     return false;
   }
   
-  // Extract error type
+  // Require ASAN signature — if not present, this is not an ASAN log
   std::regex error_regex("ERROR: AddressSanitizer: ([^\\s]+)");
   std::smatch match;
-  if (std::regex_search(content, match, error_regex)) {
-    metadata.m_error_type = match[1];
+  if (!std::regex_search(content, match, error_regex)) {
+    return false;
   }
+  metadata.m_error_type = match[1];
   
   // Extract access type and size
   std::regex access_regex("(READ|WRITE) of size (\\d+)");
@@ -112,15 +113,27 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
     metadata.m_overflow_bytes = (overflow_offset > var_end) ? (overflow_offset - var_end) : 0;
   }
   
-  // Parse stack frames
-  std::regex frame_regex("\\s*#(\\d+)\\s+0x[0-9a-f]+\\s+in\\s+(.+?)\\s+(.+?):(\\d+)");
-  std::string::const_iterator search_start(content.cbegin());
+  // Parse stack frames — only from the crash stack, stop at "allocated by" section
+  // ASAN format: "#N 0xADDR in FUNC_SIG FILE_PATH:LINE[:COL]"
+  std::regex frame_regex("\\s*#(\\d+)\\s+0x[0-9a-f]+\\s+in\\s+(.+?)\\s+([^\\s:]+\\.(?:cpp|c|cc|cxx|h|hpp)):(\\d+)");
   
-  while (std::regex_search(search_start, content.cend(), match, frame_regex)) {
+  // Find crash stack boundaries — stop before "allocated by" or "freed by" sections
+  std::string::size_type stack_end = content.size();
+  for (const char* boundary : {"allocated by thread", "freed by thread", "previously allocated by"}) {
+    std::string::size_type pos = content.find(boundary);
+    if (pos != std::string::npos && pos < stack_end) {
+      stack_end = pos;
+    }
+  }
+  
+  std::string crash_stack = content.substr(0, stack_end);
+  std::string::const_iterator search_start(crash_stack.cbegin());
+  
+  while (std::regex_search(search_start, crash_stack.cend(), match, frame_regex)) {
     ASANFrame frame;
     frame.m_frame_num = safe_stoi(match[1]);
     
-    // Extract function name (remove template parameters)
+    // Extract function name (remove template parameters and signature)
     std::string func = match[2];
     func = std::regex_replace(func, std::regex("<[^>]*>"), "<>");
     size_t paren_pos = func.find('(');
@@ -129,7 +142,7 @@ bool CIccAnalyzerCallGraph::ParseASANLog(const char* log_file,
     }
     frame.m_function_name = func;
     
-    // Extract file and line
+    // Extract file basename
     std::string file_path = match[3];
     size_t slash_pos = file_path.find_last_of("/\\");
     if (slash_pos != std::string::npos) {
@@ -386,41 +399,73 @@ bool CIccAnalyzerCallGraph::AnalyzeExploitability(const VulnMetadata& metadata,
 {
   printf("\n=== Exploitability Analysis ===\n\n");
   
-  // Check error type
   bool is_exploitable = false;
-  
-  if (metadata.m_error_type == "stack-buffer-overflow") {
+  const std::string& etype = metadata.m_error_type;
+
+  if (etype == "stack-buffer-overflow") {
     printf("[CRITICAL] Stack buffer overflow detected\n");
-    printf("  → Can overwrite return address\n");
-    printf("  → RCE possible\n");
+    printf("  Impact: Can overwrite return address, RCE possible\n");
     is_exploitable = true;
-  } else if (metadata.m_error_type == "heap-buffer-overflow") {
-    printf("[WARN] Heap buffer overflow detected\n");
-    printf("  → Can corrupt heap metadata\n");
-    printf("  → RCE possible with heap grooming\n");
+  } else if (etype == "heap-buffer-overflow") {
+    printf("[CRITICAL] Heap buffer overflow detected\n");
+    printf("  Impact: Can corrupt heap metadata, RCE with heap grooming\n");
     is_exploitable = true;
-  } else if (metadata.m_error_type == "heap-use-after-free") {
+  } else if (etype == "heap-use-after-free") {
     printf("[CRITICAL] Use-after-free detected\n");
-    printf("  → Can control freed object\n");
-    printf("  → RCE highly likely\n");
+    printf("  Impact: Can control freed object, RCE highly likely\n");
     is_exploitable = true;
+  } else if (etype == "stack-use-after-return") {
+    printf("[CRITICAL] Stack use-after-return detected\n");
+    printf("  Impact: Can read/write dangling stack frame\n");
+    is_exploitable = true;
+  } else if (etype == "double-free") {
+    printf("[CRITICAL] Double-free detected\n");
+    printf("  Impact: Heap corruption, RCE with allocator exploitation\n");
+    is_exploitable = true;
+  } else if (etype == "stack-overflow") {
+    printf("[HIGH] Stack overflow (unbounded recursion)\n");
+    printf("  Impact: Denial of service, potential stack pivot\n");
+    is_exploitable = false;
+  } else if (etype == "alloc-dealloc-mismatch") {
+    printf("[MEDIUM] Allocation/deallocation mismatch\n");
+    printf("  Impact: Undefined behavior, potential heap corruption\n");
+    is_exploitable = false;
+  } else if (etype == "SEGV" || etype == "null-dereference") {
+    printf("[HIGH] NULL pointer dereference / SEGV\n");
+    printf("  Impact: Denial of service, potential info leak\n");
+    is_exploitable = false;
+  } else if (etype == "global-buffer-overflow") {
+    printf("[HIGH] Global buffer overflow detected\n");
+    printf("  Impact: Can corrupt global data, potential code execution\n");
+    is_exploitable = true;
+  } else if (etype.find("runtime error") != std::string::npos) {
+    printf("[MEDIUM] Undefined behavior (UBSAN finding)\n");
+    printf("  Detail: %s\n", etype.c_str());
+    is_exploitable = false;
+  } else if (!etype.empty()) {
+    printf("[INFO] ASAN error: %s\n", etype.c_str());
   }
   
-  // Check overflow size
   if (metadata.m_overflow_bytes > 0) {
-    printf("\nOverflow bytes: %u\n", metadata.m_overflow_bytes);
+    printf("\nOverflow: %u bytes beyond buffer\n", metadata.m_overflow_bytes);
     if (metadata.m_overflow_bytes >= 8) {
-      printf("  → Sufficient to overwrite pointers\n");
+      printf("  Sufficient to overwrite pointers (64-bit)\n");
+    }
+    if (metadata.m_overflow_bytes >= 4) {
+      printf("  Sufficient to overwrite pointers (32-bit)\n");
     }
   }
   
-  // Check call depth
   unsigned int depth = GetCallChainDepth(frames);
   printf("\nCall chain depth: %u\n", depth);
-  if (depth > 5) {
-    printf("  → Deep call chain increases exploitation complexity\n");
+  if (depth > 10) {
+    printf("  Deep call chain — likely recursive or deeply nested API\n");
+  } else if (depth > 5) {
+    printf("  Moderate call chain depth\n");
   }
   
+  // Summary verdict
+  printf("\nVerdict: %s\n", is_exploitable ? "EXPLOITABLE" : "NOT DIRECTLY EXPLOITABLE");
   printf("\n");
   return is_exploitable;
 }
@@ -433,9 +478,11 @@ bool CIccAnalyzerCallGraph::MapCrashToSource(const char* asan_log,
   std::vector<ASANFrame> frames;
   VulnMetadata metadata;
   
-  // Parse ASAN log
+  // Try ASAN log first, fall back to UBSAN
   if (!ParseASANLog(asan_log, frames, metadata)) {
-    return false;
+    if (!ParseUBSANLog(asan_log, frames, metadata)) {
+      return false;
+    }
   }
   
   // Generate call chain visualization
@@ -450,6 +497,10 @@ bool CIccAnalyzerCallGraph::MapCrashToSource(const char* asan_log,
     return false;
   }
   
+  // Export JSON alongside DOT
+  std::string json_file = std::string(output_file) + ".json";
+  ExportJSON(frames, metadata, json_file.c_str());
+  
   // Export to PNG
   if (!ExportGraph(dot_file.c_str(), output_file, "png")) {
     fprintf(stderr, "WARNING: PNG export failed, DOT file available: %s\n", SanitizeForLog(dot_file).c_str());
@@ -458,29 +509,144 @@ bool CIccAnalyzerCallGraph::MapCrashToSource(const char* asan_log,
   return true;
 }
 
+// Parse UBSAN runtime error log
+bool CIccAnalyzerCallGraph::ParseUBSANLog(const char* log_file,
+                                            std::vector<ASANFrame>& frames,
+                                            VulnMetadata& metadata)
+{
+  std::ifstream file(log_file);
+  if (!file.is_open()) {
+    fprintf(stderr, "ERROR: Cannot open log file: %s\n", SanitizeForLog(log_file).c_str());
+    return false;
+  }
+  
+  std::string content((std::istreambuf_iterator<char>(file)),
+                       std::istreambuf_iterator<char>());
+  file.close();
+  
+  if (content.empty()) return false;
+  
+  // UBSAN errors: "<file>:<line>:<col>: runtime error: <message>"
+  std::regex ubsan_regex("([^:\\s]+):(\\d+):(\\d+): runtime error: (.+)");
+  std::smatch match;
+  if (!std::regex_search(content, match, ubsan_regex)) {
+    return false;
+  }
+  
+  metadata.m_error_type = "runtime error: " + std::string(match[4]);
+  
+  // Build a synthetic frame from the UBSAN location
+  ASANFrame frame;
+  frame.m_frame_num = 0;
+  frame.m_file_path = match[1];
+  frame.m_line_number = safe_stoi(match[2]);
+  frame.m_is_crash = true;
+  frame.m_function_name = "<ubsan-location>";
+  
+  // Try to find a stack trace after the UBSAN error
+  std::regex stack_regex("\\s*#(\\d+)\\s+0x[0-9a-f]+\\s+in\\s+(.+?)\\s+(.+?):(\\d+)");
+  std::string::const_iterator search_start(content.cbegin());
+  bool found_stack = false;
+  
+  while (std::regex_search(search_start, content.cend(), match, stack_regex)) {
+    ASANFrame sframe;
+    sframe.m_frame_num = safe_stoi(match[1]);
+    std::string func = match[2];
+    func = std::regex_replace(func, std::regex("<[^>]*>"), "<>");
+    size_t paren_pos = func.find('(');
+    if (paren_pos != std::string::npos) func = func.substr(0, paren_pos);
+    sframe.m_function_name = func;
+    
+    std::string fpath = match[3];
+    size_t slash_pos = fpath.find_last_of("/\\");
+    if (slash_pos != std::string::npos) fpath = fpath.substr(slash_pos + 1);
+    sframe.m_file_path = fpath;
+    sframe.m_line_number = safe_stoi(match[4]);
+    sframe.m_is_crash = (sframe.m_frame_num == 0);
+    
+    frames.push_back(sframe);
+    search_start = match.suffix().first;
+    found_stack = true;
+  }
+  
+  // If no stack trace, use the single UBSAN location
+  if (!found_stack) {
+    frames.push_back(frame);
+  }
+  
+  return !frames.empty();
+}
+
+// Export call graph as JSON
+bool CIccAnalyzerCallGraph::ExportJSON(const std::vector<ASANFrame>& frames,
+                                        const VulnMetadata& metadata,
+                                        const char* output_file)
+{
+  std::ofstream jf(output_file);
+  if (!jf.is_open()) {
+    fprintf(stderr, "ERROR: Cannot create JSON file: %s\n", SanitizeForLog(output_file).c_str());
+    return false;
+  }
+  
+  jf << "{\n";
+  jf << "  \"error_type\": \"" << metadata.m_error_type << "\",\n";
+  jf << "  \"access_type\": \"" << metadata.m_access_type << "\",\n";
+  jf << "  \"access_size\": " << metadata.m_access_size << ",\n";
+  if (!metadata.m_var_name.empty()) {
+    jf << "  \"variable\": \"" << metadata.m_var_name << "\",\n";
+    jf << "  \"var_size\": " << metadata.m_var_size << ",\n";
+    jf << "  \"overflow_bytes\": " << metadata.m_overflow_bytes << ",\n";
+  }
+  jf << "  \"call_chain_depth\": " << frames.size() << ",\n";
+  jf << "  \"frames\": [\n";
+  
+  for (size_t i = 0; i < frames.size(); i++) {
+    const ASANFrame& f = frames[i];
+    jf << "    {\"frame\": " << f.m_frame_num
+       << ", \"function\": \"" << f.m_function_name
+       << "\", \"file\": \"" << f.m_file_path
+       << "\", \"line\": " << f.m_line_number
+       << ", \"is_crash\": " << (f.m_is_crash ? "true" : "false")
+       << "}";
+    if (i + 1 < frames.size()) jf << ",";
+    jf << "\n";
+  }
+  
+  jf << "  ]\n}\n";
+  jf.close();
+  
+  printf("[OK] JSON report generated: %s\n", SanitizeForLog(output_file).c_str());
+  return true;
+}
+
 // Command-line mode handler
 int RunCallGraphMode(int argc, char* argv[])
 {
   if (argc < 3) {
-    fprintf(stderr, "Usage: iccAnalyzer -callgraph <asan.log> [output.png]\n");
-    fprintf(stderr, "\nGenerates call graph from ASAN crash log\n");
-    fprintf(stderr, "Output: PNG visualization + DOT file\n");
+    fprintf(stderr, "Usage: iccAnalyzer-lite -cg <asan_or_ubsan.log> [output.png]\n");
+    fprintf(stderr, "\nGenerates call graph from ASAN/UBSAN crash log\n");
+    fprintf(stderr, "Output: PNG visualization + DOT file + JSON report\n");
+    fprintf(stderr, "\nSupported log formats:\n");
+    fprintf(stderr, "  - ASAN: stack-buffer-overflow, heap-buffer-overflow,\n");
+    fprintf(stderr, "          heap-use-after-free, double-free, SEGV, etc.\n");
+    fprintf(stderr, "  - UBSAN: runtime error (signed overflow, shift, etc.)\n");
     return 1;
   }
   
-  const char* asan_log = argv[2];
+  const char* log_file = argv[2];
   const char* output_file = (argc >= 4) ? argv[3] : "callgraph.png";
   
   CIccAnalyzerCallGraph analyzer;
   
-  if (!analyzer.MapCrashToSource(asan_log, ".", output_file)) {
+  if (!analyzer.MapCrashToSource(log_file, ".", output_file)) {
     fprintf(stderr, "ERROR: Call graph generation failed\n");
     return 1;
   }
   
   printf("\n[OK] Call graph analysis complete\n");
-  printf("  Output: %s\n", output_file);
-  printf("  DOT file: %s.dot\n", output_file);
+  printf("  PNG:  %s\n", output_file);
+  printf("  DOT:  %s.dot\n", output_file);
+  printf("  JSON: %s.json\n", output_file);
   
   return 0;
 }
