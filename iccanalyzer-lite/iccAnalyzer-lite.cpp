@@ -184,7 +184,7 @@ static int RecoverableRun(const char *label, Fn fn) {
 }
 
 void PrintUsage() {
-  printf("iccAnalyzer-lite v3.0.0 - Static Build (No Database Features)\n\n");
+  printf("iccAnalyzer-lite v3.1.0 - Static Build (No Database Features)\n\n");
   printf("Usage: iccAnalyzer-lite [OPTIONS] <profile.icc>\n\n");
   
   printf("Analysis Modes:\n");
@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
   // Version
   if (strcmp(mode, "--version") == 0 || strcmp(mode, "-version") == 0) {
     printf("=======================================================================\n");
-    printf("|                     iccAnalyzer-lite v3.0.0                         |\n");
+    printf("|                     iccAnalyzer-lite v3.1.0                         |\n");
     printf("|                                                                     |\n");
     printf("|             Copyright (c) 2021-2026 David H Hoyt LLC               |\n");
     printf("|                         hoyt.net                                    |\n");
