@@ -23,6 +23,7 @@
 #include <csignal>
 #include <csetjmp>
 #include <sys/stat.h>
+#include <libgen.h>
 
 // Resolve and validate a user-supplied file path.
 // Returns resolved path or nullptr on error.
@@ -284,6 +285,22 @@ int main(int argc, char **argv) {
               IccAnalyzerSecurity::GetValidationErrorMessage(xmlPathResult, outXml).c_str());
       return ICC_EXIT_ERROR;
     }
+    // Resolve output path via realpath on parent directory
+    char xmlPathCopy[PATH_MAX];
+    strncpy(xmlPathCopy, outXml, PATH_MAX - 1);
+    xmlPathCopy[PATH_MAX - 1] = '\0';
+    char *xmlDir = dirname(xmlPathCopy);
+    char resolvedXmlDir[PATH_MAX];
+    if (!realpath(xmlDir, resolvedXmlDir)) {
+      fprintf(stderr, "[ERR] Cannot resolve output directory: %s\n", xmlDir);
+      return ICC_EXIT_ERROR;
+    }
+    char xmlPathCopy2[PATH_MAX];
+    strncpy(xmlPathCopy2, outXml, PATH_MAX - 1);
+    xmlPathCopy2[PATH_MAX - 1] = '\0';
+    char resolvedXml[PATH_MAX];
+    snprintf(resolvedXml, PATH_MAX, "%s/%s", resolvedXmlDir, basename(xmlPathCopy2));
+    outXml = resolvedXml;
     // Run heuristic analysis with crash recovery
     HeuristicReport report;
     g_recovery_active = 1;
