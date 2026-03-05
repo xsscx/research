@@ -24,17 +24,20 @@ iccAnalyzer-lite [MODE] <file>
   -xml <file.icc> <out.xml>   Export heuristics report as XML + XSLT
 ```
 
-## Architecture (13 modules, 13,000+ LOC)
+## Architecture (16 modules, 13,200+ LOC)
 
 | Module | LOC | Purpose |
 |--------|-----|---------|
-| IccAnalyzerSecurity.cpp | 6,591 | Core: 86 heuristics (H1–H86), path validation |
-| IccAnalyzerCallGraph.cpp | 652 | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
+| IccHeuristicsRawPost.cpp | 2,955 | Raw-file heuristics H33–H69, fallback engine |
+| IccHeuristicsLibrary.cpp | 2,715 | Library-API heuristics H9–H32, H56–H86 |
 | IccAnalyzerLUT.cpp | 833 | LUT extraction and analysis |
 | IccAnalyzerNinja.cpp | 727 | Ninja mode (compact dump) |
+| IccAnalyzerSecurity.cpp | 652 | Orchestrator: header heuristics H1–H8, H15–H17 |
+| IccAnalyzerCallGraph.cpp | 652 | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
 | IccAnalyzerTagDetails.cpp | 569 | Tag-level detailed output |
 | IccAnalyzerXMLExport.cpp | 378 | XML + XSLT report export |
-| iccAnalyzer-lite.cpp | 341 | Main entry, crash recovery, mode dispatch |
+| IccAnalyzerPathValidation.cpp | 359 | Path validation, sanitization, DB format |
+| iccAnalyzer-lite.cpp | 348 | Main entry, crash recovery, mode dispatch |
 | IccAnalyzerValidation.cpp | 302 | Profile validation and round-trip |
 | IccAnalyzerErrors.cpp | 231 | Error formatting and reporting |
 | IccAnalyzerInspect.cpp | 201 | Profile inspection utilities |
