@@ -2529,7 +2529,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
         else if (tagType == (icTagTypeSignature)icSigFloat64ArrayType) elemSize = 8;
         else if (tagType == (icTagTypeSignature)icSigFloat16ArrayType) elemSize = 2;
 
-        if (elemSize > 0 && payloadSize / elemSize > 16777216U) { // 16M elements
+        if (payloadSize / elemSize > 16777216U) { // 16M elements
           printf("      %s[WARN]  Tag '%s': %u elements in float array (>16M)%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  payloadSize / elemSize, ColorReset());
