@@ -71,10 +71,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 16 || size > 10 * 1024 * 1024) return 0;
 
   // Parse fuzzer input:
-  // [0-3]: number of input files (1-8)
-  // [4-7]: width (1-1024)
-  // [8-11]: height (1-1024)
-  // [12]: bits per sample (8 or 16)
+  // [0]: number of input files (1-8)
+  // [1]: width
+  // [2]: height
+  // [3]: photometric mode + extra samples + float flag
+  // [4-11]: reserved
+  // [12]: bits per sample (8 or 16, overridden by float flag)
   // [13]: compress flag
   // [14]: separate flag
   // [15-]: TIFF data + optional ICC profile
@@ -87,8 +89,22 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool compress = data[13] & 1;
   bool separate = data[14] & 1;
 
+  // Photometric mode from byte 3 — exercises TiffImg.cpp Create()/GetPhoto() branches
+  static const unsigned int photoModes[] = {
+    PHOTO_MINISBLACK, PHOTO_MINISWHITE, PHOTO_RGB, PHOTO_CIELAB, PHOTO_ICCLAB
+  };
+  unsigned int nPhoto = photoModes[data[3] % 5];
+  unsigned int nExtraSamples = (data[3] >> 4) & 1;
+  bool bFloat = (data[3] >> 5) & 1;
+  if (bFloat) { bitsPerSample = 32; }
+
+  // Samples per pixel depends on photometric
+  unsigned int inputSpp = 1;
+  if (nPhoto == PHOTO_RGB || nPhoto == PHOTO_CIELAB || nPhoto == PHOTO_ICCLAB)
+    inputSpp = 3;
+
   size_t bytesPerSample = bitsPerSample / 8;
-  size_t minDataSize = width * height * bytesPerSample * nFiles;
+  size_t minDataSize = width * height * bytesPerSample * inputSpp * nFiles;
 
   if (size < 15 + minDataSize) return 0;
 
@@ -128,9 +144,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     tmpfiles.push_back(tmpfile);
 
-    // Create simple single-channel TIFF
+    // Create TIFF with fuzzer-selected photometric mode
     CTiffImg tiff;
-    if (!tiff.Create(tmpfile, width, height, bitsPerSample, PHOTO_MINISBLACK, 1, 0, 72, 72, false, false)) {
+    if (!tiff.Create(tmpfile, width, height, bitsPerSample,
+                     nPhoto, inputSpp + nExtraSamples, nExtraSamples,
+                     72, 72, false, separate)) {
       close(fd);
       for (auto tf : tmpfiles) {
         unlink(tf);
@@ -140,12 +158,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     // Write pixel data from fuzzer input
-    size_t offset = 15 + (i * width * height * bytesPerSample);
+    size_t pixelsPerRow = width * bytesPerSample * (inputSpp + nExtraSamples);
+    size_t offset = 15 + (i * width * height * bytesPerSample * inputSpp);
     const uint8_t *pixelData = data + offset;
     
     for (uint32_t row = 0; row < height; row++) {
-      size_t rowOffset = row * width * bytesPerSample;
-      if (offset + rowOffset + width * bytesPerSample > size) {
+      size_t rowOffset = row * pixelsPerRow;
+      if (offset + rowOffset + pixelsPerRow > size) {
         tiff.Close();
         close(fd);
         for (auto tf : tmpfiles) {
@@ -210,7 +229,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     CTiffImg outimg;
     if (outimg.Create(outfile, f->GetWidth(), f->GetHeight(), f->GetBitsPerSample(),
-                      PHOTO_MINISBLACK, nFiles, 0, xRes, yRes, compress, separate)) {
+                      nPhoto, nFiles + nExtraSamples, nExtraSamples,
+                      xRes, yRes, compress, separate)) {
       
       // Optional ICC profile embedding
       size_t profileOffset = 15 + minDataSize;
