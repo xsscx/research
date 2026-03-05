@@ -648,7 +648,7 @@ jobs:
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -show-branch-summary \
-            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles|CompilerId)' \
             2>&1 | tee coverage-report/coverage-summary.txt
 
           # Generate HTML report
@@ -660,7 +660,7 @@ jobs:
             -show-line-counts-or-regions \
             -show-expansions \
             -show-branches=count \
-            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles|CompilerId)' \
             2>&1 | tail -5
 
           # Generate lcov-compatible export
@@ -669,7 +669,7 @@ jobs:
             -instr-profile=coverage-report/merged.profdata \
             -format=lcov \
             -skip-functions \
-            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles)' \
+            -ignore-filename-regex='(third_party|/usr/|test|CMakeFiles|CompilerId)' \
             > coverage-report/lcov.info 2>/dev/null || true
 
           # Summary stats
