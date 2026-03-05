@@ -1271,7 +1271,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
               uint64_t totalAlloc = triAlloc + vertAlloc + 24;
 
               char sig30[5];
-              sig30[0] = e30[0]; sig30[1] = e30[1]; sig30[2] = e30[2]; sig30[3] = e30[3]; sig30[4] = '\0';
+              sig30[0] = static_cast<char>(e30[0]); sig30[1] = static_cast<char>(e30[1]); sig30[2] = static_cast<char>(e30[2]); sig30[3] = static_cast<char>(e30[3]); sig30[4] = '\0';
 
               // Check: allocation exceeds tag size (OOM risk)
               if (totalAlloc > (uint64_t)tSz30 * 4) {

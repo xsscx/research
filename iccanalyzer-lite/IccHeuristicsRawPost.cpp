@@ -80,8 +80,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (tagType33 != 0x6D414220 && tagType33 != 0x6D424120) continue;
 
             char sig33[5];
-            sig33[0] = (tSig33>>24)&0xff; sig33[1] = (tSig33>>16)&0xff;
-            sig33[2] = (tSig33>>8)&0xff;  sig33[3] = tSig33&0xff; sig33[4] = '\0';
+            sig33[0] = static_cast<char>((tSig33>>24)&0xff); sig33[1] = static_cast<char>((tSig33>>16)&0xff);
+            sig33[2] = static_cast<char>((tSig33>>8)&0xff);  sig33[3] = static_cast<char>(tSig33&0xff); sig33[4] = '\0';
             const char *typeName33 = (tagType33 == 0x6D414220) ? "mAB" : "mBA";
 
             // mBA/mAB internal structure (offsets from tag start):
@@ -177,8 +177,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSig34 = (static_cast<icUInt32Number>(e34[0])<<24) | (static_cast<icUInt32Number>(e34[1])<<16) |
                                     (static_cast<icUInt32Number>(e34[2])<<8) | e34[3];
             char sig34[5];
-            sig34[0] = (tSig34>>24)&0xff; sig34[1] = (tSig34>>16)&0xff;
-            sig34[2] = (tSig34>>8)&0xff;  sig34[3] = tSig34&0xff; sig34[4] = '\0';
+            sig34[0] = static_cast<char>((tSig34>>24)&0xff); sig34[1] = static_cast<char>((tSig34>>16)&0xff);
+            sig34[2] = static_cast<char>((tSig34>>8)&0xff);  sig34[3] = static_cast<char>(tSig34&0xff); sig34[4] = '\0';
 
             // Check sub-element offsets at +20 (M), +24 (CLUT), +28 (A)
             // These are the offsets parsers add small constants to for header traversal
@@ -289,8 +289,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
               } else {
                 if (runLen >= 16) {
                   char sig35[5];
-                  sig35[0] = (tSig35>>24)&0xff; sig35[1] = (tSig35>>16)&0xff;
-                  sig35[2] = (tSig35>>8)&0xff;  sig35[3] = tSig35&0xff; sig35[4] = '\0';
+                  sig35[0] = static_cast<char>((tSig35>>24)&0xff); sig35[1] = static_cast<char>((tSig35>>16)&0xff);
+                  sig35[2] = static_cast<char>((tSig35>>8)&0xff);  sig35[3] = static_cast<char>(tSig35&0xff); sig35[4] = '\0';
                   printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
                          ColorWarning(), sig35, runLen, bData[b-1], b - runLen, ColorReset());
                   if (bData[b-1] == 0xFF) {
@@ -305,8 +305,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
             // Check final run
             if (runLen >= 16) {
               char sig35[5];
-              sig35[0] = (tSig35>>24)&0xff; sig35[1] = (tSig35>>16)&0xff;
-              sig35[2] = (tSig35>>8)&0xff;  sig35[3] = tSig35&0xff; sig35[4] = '\0';
+              sig35[0] = static_cast<char>((tSig35>>24)&0xff); sig35[1] = static_cast<char>((tSig35>>16)&0xff);
+              sig35[2] = static_cast<char>((tSig35>>8)&0xff);  sig35[3] = static_cast<char>(tSig35&0xff); sig35[4] = '\0';
               printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
                      ColorWarning(), sig35, runLen, bData[dataLen-1], dataLen - runLen, ColorReset());
               if (bData[dataLen-1] == 0xFF) {
@@ -472,8 +472,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (fread(scanBuf, 1, scanLen, fp37) != scanLen) { delete[] scanBuf; continue; }
 
             char sig37[5];
-            sig37[0] = (tSig37>>24)&0xff; sig37[1] = (tSig37>>16)&0xff;
-            sig37[2] = (tSig37>>8)&0xff;  sig37[3] = tSig37&0xff; sig37[4] = '\0';
+            sig37[0] = static_cast<char>((tSig37>>24)&0xff); sig37[1] = static_cast<char>((tSig37>>16)&0xff);
+            sig37[2] = static_cast<char>((tSig37>>8)&0xff);  sig37[3] = static_cast<char>(tSig37&0xff); sig37[4] = '\0';
 
             int calcCount = 0;
             int ifSelCount = 0;
@@ -574,8 +574,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
                                        (static_cast<icUInt32Number>(curveHdr[2])<<8) | curveHdr[3];
 
             char sig38[5];
-            sig38[0] = (tSig38>>24)&0xff; sig38[1] = (tSig38>>16)&0xff;
-            sig38[2] = (tSig38>>8)&0xff;  sig38[3] = tSig38&0xff; sig38[4] = '\0';
+            sig38[0] = static_cast<char>((tSig38>>24)&0xff); sig38[1] = static_cast<char>((tSig38>>16)&0xff);
+            sig38[2] = static_cast<char>((tSig38>>8)&0xff);  sig38[3] = static_cast<char>(tSig38&0xff); sig38[4] = '\0';
 
             if (curveType == 0x63757276) { // 'curv'
               // curv: type(4) + reserved(4) + count(4) + entries(2*count)
@@ -700,8 +700,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
             for (size_t b = a+1; b < tags39.size(); b++) {
               if (tags39[a].off == tags39[b].off && tags39[a].sz == tags39[b].sz && tags39[a].sig != tags39[b].sig) {
                 char s1[5], s2[5];
-                s1[0] = (tags39[a].sig>>24)&0xff; s1[1] = (tags39[a].sig>>16)&0xff; s1[2] = (tags39[a].sig>>8)&0xff; s1[3] = tags39[a].sig&0xff; s1[4] = '\0';
-                s2[0] = (tags39[b].sig>>24)&0xff; s2[1] = (tags39[b].sig>>16)&0xff; s2[2] = (tags39[b].sig>>8)&0xff; s2[3] = tags39[b].sig&0xff; s2[4] = '\0';
+                s1[0] = static_cast<char>((tags39[a].sig>>24)&0xff); s1[1] = static_cast<char>((tags39[a].sig>>16)&0xff); s1[2] = static_cast<char>((tags39[a].sig>>8)&0xff); s1[3] = static_cast<char>(tags39[a].sig&0xff); s1[4] = '\0';
+                s2[0] = static_cast<char>((tags39[b].sig>>24)&0xff); s2[1] = static_cast<char>((tags39[b].sig>>16)&0xff); s2[2] = static_cast<char>((tags39[b].sig>>8)&0xff); s2[3] = static_cast<char>(tags39[b].sig&0xff); s2[4] = '\0';
 
                 sharedCount++;
                 if (sharedCount <= 5) {
@@ -787,7 +787,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (tOff40 % 4 != 0) {
               if (misaligned < 3) {
                 char sig40[5];
-                sig40[0] = e40[0]; sig40[1] = e40[1]; sig40[2] = e40[2]; sig40[3] = e40[3]; sig40[4] = '\0';
+                sig40[0] = static_cast<char>(e40[0]); sig40[1] = static_cast<char>(e40[1]); sig40[2] = static_cast<char>(e40[2]); sig40[3] = static_cast<char>(e40[3]); sig40[4] = '\0';
                 printf("      %s[WARN]  Tag '%s' offset 0x%X not 4-byte aligned%s\n",
                        ColorWarning(), sig40, tOff40, ColorReset());
               }
@@ -901,8 +901,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
                                     (static_cast<icUInt32Number>(e41[6])<<8) | e41[7];
 
             char sig41[5];
-            sig41[0] = (tSig41>>24)&0xff; sig41[1] = (tSig41>>16)&0xff;
-            sig41[2] = (tSig41>>8)&0xff;  sig41[3] = tSig41&0xff; sig41[4] = '\0';
+            sig41[0] = static_cast<char>((tSig41>>24)&0xff); sig41[1] = static_cast<char>((tSig41>>16)&0xff);
+            sig41[2] = static_cast<char>((tSig41>>8)&0xff);  sig41[3] = static_cast<char>(tSig41&0xff); sig41[4] = '\0';
 
             // Check tag signature against v5-only list
             if (verMajor < 5) {
@@ -1092,8 +1092,8 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             // Count BRDF tags (bAB, bDB, bMB, bMS, bcp, bsp, BPh)
             char s43[5];
-            s43[0] = (tSig43>>24)&0xff; s43[1] = (tSig43>>16)&0xff;
-            s43[2] = (tSig43>>8)&0xff;  s43[3] = tSig43&0xff; s43[4] = '\0';
+            s43[0] = static_cast<char>((tSig43>>24)&0xff); s43[1] = static_cast<char>((tSig43>>16)&0xff);
+            s43[2] = static_cast<char>((tSig43>>8)&0xff);  s43[3] = static_cast<char>(tSig43&0xff); s43[4] = '\0';
             if ((s43[0] == 'b' && (s43[1] == 'A' || s43[1] == 'D' || s43[1] == 'M' || s43[1] == 'c' || s43[1] == 's')) ||
                 (s43[0] == 'B' && s43[1] == 'P')) {
               brdfCount++;
@@ -1202,7 +1202,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             embedFound++;
             char sig44[5];
-            sig44[0] = e44[0]; sig44[1] = e44[1]; sig44[2] = e44[2]; sig44[3] = e44[3]; sig44[4] = '\0';
+            sig44[0] = static_cast<char>(e44[0]); sig44[1] = static_cast<char>(e44[1]); sig44[2] = static_cast<char>(e44[2]); sig44[3] = static_cast<char>(e44[3]); sig44[4] = '\0';
 
             // Size check: > 10MB is suspicious
             if (tSz44 > 10 * 1024 * 1024) {
@@ -1294,7 +1294,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (tagType45 != 0x736D6174) continue; // 'smat'
 
             char sig45[5];
-            sig45[0] = e45[0]; sig45[1] = e45[1]; sig45[2] = e45[2]; sig45[3] = e45[3]; sig45[4] = '\0';
+            sig45[0] = static_cast<char>(e45[0]); sig45[1] = static_cast<char>(e45[1]); sig45[2] = static_cast<char>(e45[2]); sig45[3] = static_cast<char>(e45[3]); sig45[4] = '\0';
 
             // smat: type(4) + reserved(4) + nChannels(2) + encoding(2) + ...
             // Read channel count and encoding
@@ -2423,7 +2423,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                   // Check for nested embedded — look for 'acsp' deeper
                   int depth = 1;
                   // Scan tag data for additional 'acsp' signatures
-                  if (tSz >= 256 && tOff + tSz <= fs57) {
+                  if (tSz >= 256 && (uint64_t)tOff + tSz <= fs57) {
                     uint32_t scanLimit = (tSz > 65536) ? 65536 : tSz;
                     icUInt8Number *scanBuf = (icUInt8Number*)malloc(scanLimit);
                     if (scanBuf) {
@@ -2814,7 +2814,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             }
 
             // Size inconsistency with declared profile size
-            if (declaredSize > 0 && tOffset + tSize > declaredSize && tOffset + tSize > fileSize) {
+            if (declaredSize > 0 && (uint64_t)tOffset + tSize > declaredSize && (uint64_t)tOffset + tSize > fileSize) {
               printf("      %s[WARN]  Tag '%s': extends past declared profile size (%u)%s\n",
                      ColorWarning(), tagSig, declaredSize, ColorReset());
               oobIssues++;
