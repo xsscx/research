@@ -217,7 +217,7 @@ Config: `codeql-config.yml`
 
 | Component | Path | Description |
 |-----------|------|-------------|
-| iccanalyzer-lite | `iccanalyzer-lite/` | 86-heuristic security analyzer (v3.1.0) |
+| iccanalyzer-lite | `iccanalyzer-lite/` | 102-heuristic security analyzer (v3.3.0) |
 | colorbleed_tools | `colorbleed_tools/` | Unsafe ICC↔XML converters for mutation testing |
 | MCP Server | `mcp-server/` | ICC Profile MCP server (22 tools) |
 | CI Workflows | `.github/workflows/` | CodeQL, coverage, Docker build, MCP tests |
