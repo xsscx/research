@@ -2,7 +2,7 @@
 
 **Date**: 2026-02-12 (original), updated 2026-03-05
 **Tool commit**: 6c44e39 (iccDumpProfile callgraph analysis)
-**Current state**: 19 fuzzers, 67 patches, 86 security heuristics (v3.1.0)
+**Current state**: 19 fuzzers, 67 patches, 102 security heuristics (v3.3.0)
 
 ---
 

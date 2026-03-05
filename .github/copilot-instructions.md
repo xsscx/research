@@ -174,7 +174,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 ### Reusable Prompts
 
 Eight prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
-- `analyze-icc-profile.prompt.yml` — full 94-heuristic security scan
+- `analyze-icc-profile.prompt.yml` — full 102-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
 - `triage-fuzzer-oom.prompt.yml` — LibFuzzer OOM triage and patch workflow
@@ -196,7 +196,7 @@ When an issue asks to analyze an ICC profile, perform **two phases**:
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
 1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
-2. **`analyze_security`** — Run the 94-heuristic security scan (H1–H94)
+2. **`analyze_security`** — Run the 102-heuristic security scan (H1–H102)
 3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
 4. **`profile_to_xml`** — Convert to XML for human-readable inspection
 
