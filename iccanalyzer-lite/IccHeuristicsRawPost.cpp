@@ -628,7 +628,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                     curveIssues++;
                   }
                   // Check first param (gamma) for zero — causes pow(x, 0) flattening
-                  if (tSz38 >= 16 && tOff38 + 16 <= fs38) {
+                  if (tOff38 + 16 <= fs38) {
                     icUInt8Number gamma38[4];
                     fseek(fp38, tOff38 + 12, SEEK_SET);
                     if (fread(gamma38, 1, 4, fp38) == 4) {
@@ -1510,7 +1510,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint64_t headerSize = 84; // type(4)+reserved(4)+vendorFlag(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
             uint64_t neededSize = headerSize + totalData;
 
-            if (ncl2Count > 0 && entrySize > 0 && totalData / entrySize != ncl2Count) {
+            if (ncl2Count > 0 && totalData / entrySize != ncl2Count) {
               printf("      %s[WARN]  Tag '%s' (ncl2): count %u × entry_size %llu overflows uint64%s\n",
                      ColorCritical(), sig47, ncl2Count, (unsigned long long)entrySize, ColorReset());
               printf("       %sCRITICAL: CWE-190 integer overflow → HBO (CVE-2026-24406 pattern)%s\n",
@@ -2009,7 +2009,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             else if (typeVal == 0x73663332) minSize = 12;  // sf32: at least one value
             else if (typeVal == 0x666C3332) minSize = 12;  // fl32: at least one value
 
-            if (tSz > 0 && tSz < minSize) {
+            if (tSz < minSize) {
               char sig52[5]; SignatureToFourCC(tSig, sig52);
               char type52[5]; SignatureToFourCC(typeVal, type52);
               printf("      %s[WARN]  Tag '%s' (type '%s'): size %u < minimum %u bytes%s\n",
@@ -2413,7 +2413,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (tOff + 8 > fs57 || tSz < 132) continue;
 
             // Check for embedded ICC profile magic 'acsp' at offset+36
-            if (tSz >= 132 && tOff + 36 + 4 <= fs57) {
+            if (tOff + 36 + 4 <= fs57) {
               icUInt8Number magic[4];
               fseek(fp57, tOff + 36, SEEK_SET);
               if (fread(magic, 1, 4, fp57) == 4) {

@@ -43,6 +43,9 @@
 #include "IccAnalyzerSecurity.h"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+#include <climits>
+#include <libgen.h>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -635,7 +638,46 @@ int RunCallGraphMode(int argc, char* argv[])
   
   const char* log_file = argv[2];
   const char* output_file = (argc >= 4) ? argv[3] : "callgraph.png";
-  
+
+  // Validate log_file: must exist and resolve to a real path
+  char resolvedLog[PATH_MAX];
+  if (!realpath(log_file, resolvedLog)) {
+    fprintf(stderr, "ERROR: Cannot resolve log file path: %s\n", log_file);
+    return 1;
+  }
+  log_file = resolvedLog;
+
+  // Validate output_file: resolve directory via realpath, sanitize basename
+  // Extract and resolve directory component
+  char resolvedOutDir[PATH_MAX];
+  {
+    char *outDup = strdup(output_file);
+    char *dirPart = dirname(outDup);
+    if (!realpath(dirPart, resolvedOutDir)) {
+      fprintf(stderr, "ERROR: Cannot resolve output directory: %s\n", dirPart);
+      free(outDup);
+      return 1;
+    }
+    free(outDup);
+  }
+  // Extract and sanitize basename: only allow safe filename characters
+  char resolvedOutPath[PATH_MAX];
+  {
+    char *outDup2 = strdup(output_file);
+    const char *basePart = basename(outDup2);
+    std::string safeName;
+    for (size_t i = 0; basePart[i] && safeName.size() < 255; ++i) {
+      unsigned char c = static_cast<unsigned char>(basePart[i]);
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+          (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_')
+        safeName += static_cast<char>(c);
+    }
+    free(outDup2);
+    if (safeName.empty()) safeName = "callgraph.png";
+    snprintf(resolvedOutPath, PATH_MAX, "%s/%s", resolvedOutDir, safeName.c_str());
+  }
+  output_file = resolvedOutPath;
+
   CIccAnalyzerCallGraph analyzer;
   
   if (!analyzer.MapCrashToSource(log_file, ".", output_file)) {

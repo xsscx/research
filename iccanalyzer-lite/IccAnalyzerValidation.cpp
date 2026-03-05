@@ -40,6 +40,29 @@
 #include "IccAnalyzerSignatures.h"
 #include <new>
 
+// Check if a profile supports round-trip color transforms via any of the
+// standard tag pair mechanisms (AToB/BToA, DToB/BToD, or Matrix/TRC).
+static bool HasRoundTripSupport(CIccProfile *pIcc) {
+  auto has = [pIcc](icTagSignature sig) { return pIcc->FindTag(sig) != nullptr; };
+
+  bool hasAToB_BToA =
+    (has(icSigAToB0Tag) && has(icSigBToA0Tag)) ||
+    (has(icSigAToB1Tag) && has(icSigBToA1Tag)) ||
+    (has(icSigAToB2Tag) && has(icSigBToA2Tag));
+
+  bool hasDToB_BToD =
+    (has(icSigDToB0Tag) && has(icSigBToD0Tag)) ||
+    (has(icSigDToB1Tag) && has(icSigBToD1Tag)) ||
+    (has(icSigDToB2Tag) && has(icSigBToD2Tag));
+
+  bool hasMatrixTRC =
+    has(icSigRedMatrixColumnTag) && has(icSigGreenMatrixColumnTag) &&
+    has(icSigBlueMatrixColumnTag) && has(icSigRedTRCTag) &&
+    has(icSigGreenTRCTag) && has(icSigBlueTRCTag);
+
+  return hasAToB_BToA || hasDToB_BToD || hasMatrixTRC;
+}
+
 //==============================================================================
 // Round-Trip Tag Validation
 //==============================================================================
@@ -143,14 +166,7 @@ int RoundTripAnalyze(const char *filename)
          hasMatrix ? "[X] Round-trip capable" : "");
   
   // Overall result
-  bool roundTripable =
-    (hasAToB0 && hasBToA0) ||
-    (hasAToB1 && hasBToA1) ||
-    (hasAToB2 && hasBToA2) ||
-    (hasDToB0 && hasBToD0) ||
-    (hasDToB1 && hasBToD1) ||
-    (hasDToB2 && hasBToD2) ||
-    hasMatrix;
+  bool roundTripable = HasRoundTripSupport(pIcc);
   
   printf("\n");
   if (roundTripable) {
@@ -258,24 +274,7 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
       bool isRoundTrip = false;
       
       if (pHdr->deviceClass != icSigLinkClass) {
-        auto hasTag = [pIcc](icTagSignature sig) -> bool {
-          return (pIcc->FindTag(sig) != nullptr);
-        };
-        
-        isRoundTrip =
-          (hasTag(icSigAToB0Tag) && hasTag(icSigBToA0Tag)) ||
-          (hasTag(icSigAToB1Tag) && hasTag(icSigBToA1Tag)) ||
-          (hasTag(icSigAToB2Tag) && hasTag(icSigBToA2Tag)) ||
-          (hasTag(icSigDToB0Tag) && hasTag(icSigBToD0Tag)) ||
-          (hasTag(icSigDToB1Tag) && hasTag(icSigBToD1Tag)) ||
-          (hasTag(icSigDToB2Tag) && hasTag(icSigBToD2Tag)) ||
-          (hasTag(icSigRedMatrixColumnTag) &&
-           hasTag(icSigGreenMatrixColumnTag) &&
-           hasTag(icSigBlueMatrixColumnTag) &&
-           hasTag(icSigRedTRCTag) &&
-           hasTag(icSigGreenTRCTag) &&
-           hasTag(icSigBlueTRCTag));
-        
+        isRoundTrip = HasRoundTripSupport(pIcc);
         if (isRoundTrip) roundtrip++;
       }
       
