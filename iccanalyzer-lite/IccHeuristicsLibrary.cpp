@@ -5,7 +5,7 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-// Library-API heuristics (H9-H32, H56-H86).
+// Library-API heuristics (H9-H32, H56-H86, H95-H102).
 // These heuristics use the CIccProfile API for tag-level analysis.
 // Extracted from IccAnalyzerSecurity.cpp for modularity.
 
@@ -23,6 +23,10 @@
 #include "IccMpeCalc.h"
 #include "IccTagMPE.h"
 #include "IccTagLut.h"
+#include "IccSparseMatrix.h"
+#include "IccTagEmbedIcc.h"
+#include "IccMpeSpectral.h"
+#include "IccTagProfSeqId.h"
 
 #include <cmath>
 #include <map>
@@ -3225,6 +3229,514 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
         printf("      %s[OK] Matrix/TRC colorant consistency valid (or non-RGB)%s\n",
                ColorSuccess(), ColorReset());
       }
+    }
+    printf("\n");
+
+    // H95 — Sparse Matrix Array Bounds Validation (CWE-125/CWE-787)
+    // Exercises: IccSparseMatrix.cpp (26.8% coverage → Init, GetSparseMatrix, Rows, Cols)
+    //            IccTagBasic.cpp CIccTagSparseMatrixArray
+    {
+      printf("[H95] Sparse Matrix Array Bounds Validation\n");
+      int sparseIssues = 0;
+      bool foundSparse = false;
+
+      // Scan all tags for CIccTagSparseMatrixArray (type icSigSparseMatrixArrayType)
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); ++sit) {
+        CIccTag *pSmaTag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!pSmaTag) continue;
+        if (pSmaTag->GetType() != icSigSparseMatrixArrayType) continue;
+
+        CIccTagSparseMatrixArray *pSma = dynamic_cast<CIccTagSparseMatrixArray *>(pSmaTag);
+        if (pSma) {
+          foundSparse = true;
+          icUInt32Number nChannels = pSma->GetChannelsPerMatrix();
+          icUInt32Number nBytesPerMatrix = pSma->GetBytesPerMatrix();
+
+          printf("      Sparse matrix array '%s': channels=%u, bytes/matrix=%u\n",
+                 info.GetTagSigName(sit->TagInfo.sig), nChannels, nBytesPerMatrix);
+
+          if (nChannels == 0) {
+            printf("      %s[CRIT]  Zero channels per matrix — potential division-by-zero%s\n",
+                   ColorCritical(), ColorReset());
+            sparseIssues++;
+          }
+
+          if (nChannels > 65535) {
+            printf("      %s[WARN]  Channels per matrix=%u exceeds reasonable limit%s\n",
+                   ColorWarning(), nChannels, ColorReset());
+            sparseIssues++;
+          }
+
+          // Try to get first sparse matrix and validate dimensions
+          CIccSparseMatrix mtx;
+          if (pSma->GetSparseMatrix(mtx, 0, true)) {
+            icUInt16Number rows = mtx.Rows();
+            icUInt16Number cols = mtx.Cols();
+            printf("      Matrix[0]: rows=%u, cols=%u\n", rows, cols);
+
+            if (rows == 0 || cols == 0) {
+              printf("      %s[CRIT]  Zero-dimension sparse matrix (rows=%u, cols=%u)%s\n",
+                     ColorCritical(), rows, cols, ColorReset());
+              sparseIssues++;
+            }
+          }
+
+          if (sparseIssues == 0) {
+            printf("      %s[OK] Sparse matrix array bounds valid%s\n",
+                   ColorSuccess(), ColorReset());
+          }
+        } else {
+          printf("      %s[WARN]  SparseMatrix tag present but wrong type — type confusion risk%s\n",
+                 ColorWarning(), ColorReset());
+          sparseIssues++;
+        }
+      }
+
+      if (!foundSparse) {
+        printf("      [SKIP] No sparse matrix array tags present\n");
+      }
+      heuristicCount += sparseIssues;
+    }
+    printf("\n");
+
+    // H96 — Embedded Profile Validation (CWE-674/CWE-400)
+    // Exercises: IccTagEmbedIcc.cpp (30.9% coverage → GetProfile, Read, Validate)
+    {
+      printf("[H96] Embedded Profile Validation\n");
+      int embedIssues = 0;
+
+      CIccTag *pEmbedTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+      if (pEmbedTag) {
+        CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmbedTag);
+        if (pEmbed) {
+          CIccProfile *pEmbeddedProfile = pEmbed->GetProfile();
+
+          if (!pEmbeddedProfile) {
+            printf("      %s[WARN]  Embedded profile tag present but profile is NULL%s\n",
+                   ColorWarning(), ColorReset());
+            embedIssues++;
+          } else {
+            // Validate embedded profile header
+            icHeader &embedHdr = pEmbeddedProfile->m_Header;
+
+            printf("      Embedded profile: class=%s, colorSpace=%s, version=%u.%u\n",
+                   info.GetProfileClassSigName(embedHdr.deviceClass),
+                   info.GetColorSpaceSigName(embedHdr.colorSpace),
+                   embedHdr.version >> 24, (embedHdr.version >> 20) & 0xF);
+
+            // Check for recursive embedding — potential infinite recursion (CWE-674)
+            CIccTag *pInnerEmbed = pEmbeddedProfile->FindTag(icSigEmbeddedV5ProfileTag);
+            if (pInnerEmbed) {
+              printf("      %s[CRIT]  Recursively embedded profile — infinite recursion risk (CWE-674)%s\n",
+                     ColorCritical(), ColorReset());
+              embedIssues++;
+            }
+
+            // Check embedded profile size vs parent
+            icUInt32Number parentSize = pIcc->m_Header.size;
+            icUInt32Number embedSize = embedHdr.size;
+            if (embedSize > 0 && parentSize > 0 && embedSize >= parentSize) {
+              printf("      %s[WARN]  Embedded profile size (%u) >= parent size (%u) — suspicious%s\n",
+                     ColorWarning(), embedSize, parentSize, ColorReset());
+              embedIssues++;
+            }
+
+            // Check embedded profile count > tag count (resource exhaustion)
+            icUInt32Number embedTagCount = (icUInt32Number)pEmbeddedProfile->m_Tags.size();
+            if (embedTagCount > 200) {
+              printf("      %s[WARN]  Embedded profile has %u tags — potential resource exhaustion%s\n",
+                     ColorWarning(), embedTagCount, ColorReset());
+              embedIssues++;
+            }
+          }
+        } else {
+          printf("      %s[WARN]  Embedded profile tag wrong type — type confusion risk%s\n",
+                 ColorWarning(), ColorReset());
+          embedIssues++;
+        }
+      } else {
+        printf("      [SKIP] No embedded profile tag present\n");
+      }
+
+      if (embedIssues == 0 && pIcc->FindTag(icSigEmbeddedV5ProfileTag)) {
+        printf("      %s[OK] Embedded profile structure valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += embedIssues;
+    }
+    printf("\n");
+
+    // H97 — Profile Sequence Identifier Validation (CWE-125/CWE-400)
+    // Exercises: IccTagProfSeqId.cpp (27.7% coverage → GetFirst, GetLast, begin/end iterators)
+    {
+      printf("[H97] Profile Sequence Identifier Validation\n");
+      int seqIdIssues = 0;
+
+      CIccTag *pSeqIdTag = pIcc->FindTag(icSigProfileSequceIdTag);
+      if (pSeqIdTag) {
+        CIccTagProfileSequenceId *pSeqId = dynamic_cast<CIccTagProfileSequenceId *>(pSeqIdTag);
+        if (pSeqId) {
+          // Iterate entries to count and validate
+          int entryCount = 0;
+          bool hasNullId = false;
+          bool hasDupId = false;
+          std::set<std::string> seenIds;
+
+          for (auto it = pSeqId->begin(); it != pSeqId->end(); ++it) {
+            entryCount++;
+
+            // Check for null profile ID (all zeros)
+            icProfileID &pid = it->m_profileID;
+            bool allZero = true;
+            for (int k = 0; k < 16; k++) {
+              if (pid.ID8[k] != 0) { allZero = false; break; }
+            }
+            if (allZero) hasNullId = true;
+
+            // Check for duplicate profile IDs
+            std::string idStr(reinterpret_cast<const char *>(pid.ID8), 16);
+            if (!allZero && seenIds.count(idStr)) {
+              hasDupId = true;
+            }
+            seenIds.insert(idStr);
+
+            if (entryCount > 1000) {
+              printf("      %s[WARN]  Profile sequence >1000 entries — potential DoS (CWE-400)%s\n",
+                     ColorWarning(), ColorReset());
+              seqIdIssues++;
+              break;
+            }
+          }
+
+          printf("      Profile sequence: %d entries\n", entryCount);
+
+          if (hasNullId) {
+            printf("      %s[WARN]  Null profile ID (all zeros) in sequence%s\n",
+                   ColorWarning(), ColorReset());
+            seqIdIssues++;
+          }
+
+          if (hasDupId) {
+            printf("      %s[WARN]  Duplicate profile IDs in sequence%s\n",
+                   ColorWarning(), ColorReset());
+            seqIdIssues++;
+          }
+
+          // Validate first/last accessors
+          CIccProfileIdDesc *pFirst = pSeqId->GetFirst();
+          CIccProfileIdDesc *pLast = pSeqId->GetLast();
+          if (entryCount > 0 && (!pFirst || !pLast)) {
+            printf("      %s[CRIT]  Non-empty sequence but GetFirst/GetLast returns NULL%s\n",
+                   ColorCritical(), ColorReset());
+            seqIdIssues++;
+          }
+        } else {
+          printf("      %s[WARN]  ProfileSequenceId tag wrong type%s\n",
+                 ColorWarning(), ColorReset());
+          seqIdIssues++;
+        }
+      } else {
+        printf("      [SKIP] No profile sequence ID tag present\n");
+      }
+
+      if (seqIdIssues == 0 && pIcc->FindTag(icSigProfileSequceIdTag)) {
+        printf("      %s[OK] Profile sequence identifiers valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += seqIdIssues;
+    }
+    printf("\n");
+
+    // H98 — Spectral MPE Element Validation (CWE-125/CWE-682)
+    // Exercises: IccMpeSpectral.cpp (31.8% coverage → CIccMpeSpectralMatrix, CIccMpeSpectralCLUT,
+    //            CIccMpeSpectralObserver via CIccTagMultiProcessElement iteration)
+    {
+      printf("[H98] Spectral MPE Element Validation\n");
+      int spectralIssues = 0;
+
+      // Search MPE tags for spectral elements
+      icTagSignature mpeTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+      };
+
+      bool foundSpectral = false;
+      for (int i = 0; i < 16; i++) {
+        CIccTag *pTag = pIcc->FindTag(mpeTags[i]);
+        if (!pTag) continue;
+
+        CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+        if (!pMpe) continue;
+
+        icUInt32Number numElems = pMpe->NumElements();
+        if (numElems == 0) continue;
+
+        for (icUInt32Number e = 0; e < numElems; e++) {
+          CIccMultiProcessElement *pElem = pMpe->GetElement(e);
+          if (!pElem) continue;
+
+          icElemTypeSignature elemType = pElem->GetType();
+
+          // Check spectral matrix elements
+          CIccMpeSpectralMatrix *pSpecMtx = dynamic_cast<CIccMpeSpectralMatrix *>(pElem);
+          if (pSpecMtx) {
+            foundSpectral = true;
+            icUInt16Number numIn = pSpecMtx->NumInputChannels();
+            icUInt16Number numOut = pSpecMtx->NumOutputChannels();
+            printf("      Spectral matrix: in=%u, out=%u, type=0x%08x\n",
+                   numIn, numOut, elemType);
+
+            if (numIn == 0 || numOut == 0) {
+              printf("      %s[CRIT]  Zero-channel spectral matrix element%s\n",
+                     ColorCritical(), ColorReset());
+              spectralIssues++;
+            }
+
+            if (numIn > 256 || numOut > 256) {
+              printf("      %s[WARN]  Spectral matrix channels (%u→%u) exceed 256%s\n",
+                     ColorWarning(), numIn, numOut, ColorReset());
+              spectralIssues++;
+            }
+          }
+
+          // Check spectral CLUT elements
+          CIccMpeSpectralCLUT *pSpecClut = dynamic_cast<CIccMpeSpectralCLUT *>(pElem);
+          if (pSpecClut) {
+            foundSpectral = true;
+            icUInt16Number numIn = pSpecClut->NumInputChannels();
+            icUInt16Number numOut = pSpecClut->NumOutputChannels();
+            printf("      Spectral CLUT: in=%u, out=%u, type=0x%08x\n",
+                   numIn, numOut, elemType);
+
+            if (numIn == 0 || numOut == 0) {
+              printf("      %s[CRIT]  Zero-channel spectral CLUT element%s\n",
+                     ColorCritical(), ColorReset());
+              spectralIssues++;
+            }
+
+            // CLUT with high input channels → exponential memory
+            if (numIn > 16) {
+              printf("      %s[WARN]  Spectral CLUT input channels=%u — exponential grid risk%s\n",
+                     ColorWarning(), numIn, ColorReset());
+              spectralIssues++;
+            }
+          }
+
+          // Check spectral observer elements
+          CIccMpeSpectralObserver *pSpecObs = dynamic_cast<CIccMpeSpectralObserver *>(pElem);
+          if (pSpecObs) {
+            foundSpectral = true;
+            icUInt16Number numIn = pSpecObs->NumInputChannels();
+            icUInt16Number numOut = pSpecObs->NumOutputChannels();
+            printf("      Spectral observer: in=%u, out=%u, type=0x%08x\n",
+                   numIn, numOut, elemType);
+
+            if (numIn == 0 || numOut == 0) {
+              printf("      %s[CRIT]  Zero-channel spectral observer element%s\n",
+                     ColorCritical(), ColorReset());
+              spectralIssues++;
+            }
+          }
+        }
+      }
+
+      if (!foundSpectral) {
+        printf("      [SKIP] No spectral MPE elements present\n");
+      } else if (spectralIssues == 0) {
+        printf("      %s[OK] Spectral MPE elements valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += spectralIssues;
+    }
+    printf("\n");
+
+    // H99 — Embedded Height/Normal Image Validation (CWE-120/CWE-787)
+    // Exercises: IccTagEmbedIcc.cpp for non-profile embedded data types
+    {
+      printf("[H99] Embedded Image Tag Validation\n");
+      int embedImgIssues = 0;
+      bool foundEmbedImg = false;
+
+      // Scan all tags for embedded image types
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); ++sit) {
+        CIccTag *pTag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!pTag) continue;
+
+        icTagTypeSignature tagType = pTag->GetType();
+        if (tagType == icSigEmbeddedHeightImageType || tagType == icSigEmbeddedNormalImageType) {
+          foundEmbedImg = true;
+          const char *typeName = (tagType == icSigEmbeddedHeightImageType) ? "HeightImage" : "NormalImage";
+          printf("      Found %s tag in '%s'\n", typeName, info.GetTagSigName(sit->TagInfo.sig));
+
+          // Validate tag size is reasonable
+          if (sit->TagInfo.size > 100 * 1024 * 1024) {
+            printf("      %s[WARN]  %s tag size %u bytes (>100MB) — potential DoS%s\n",
+                   ColorWarning(), typeName, sit->TagInfo.size, ColorReset());
+            embedImgIssues++;
+          }
+        }
+      }
+
+      if (!foundEmbedImg) {
+        printf("      [SKIP] No embedded image tags present\n");
+      } else if (embedImgIssues == 0) {
+        printf("      %s[OK] Embedded image tags valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += embedImgIssues;
+    }
+    printf("\n");
+
+    // H100 — Profile Sequence Description Consistency (CWE-125/CWE-120)
+    // Exercises: IccTagBasic.cpp CIccTagProfileSeqDesc (different from H97 ProfileSequenceId)
+    {
+      printf("[H100] Profile Sequence Description Validation\n");
+      int pseqIssues = 0;
+
+      CIccTag *pPseqTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+      if (pPseqTag) {
+        printf("      Found ProfileSequenceDesc tag\n");
+
+        // Describe for size validation
+        std::string desc;
+        pPseqTag->Describe(desc, 1);
+
+        if (desc.empty()) {
+          printf("      %s[WARN]  ProfileSequenceDesc describes as empty%s\n",
+                 ColorWarning(), ColorReset());
+          pseqIssues++;
+        } else {
+          // Count entries by looking for pattern matches
+          size_t pos = 0;
+          int descEntries = 0;
+          while ((pos = desc.find("Device Manufacturer", pos)) != std::string::npos) {
+            descEntries++;
+            pos++;
+          }
+          printf("      Sequence description entries: ~%d\n", descEntries);
+
+          if (descEntries > 100) {
+            printf("      %s[WARN]  Excessive sequence entries (%d) — DoS risk%s\n",
+                   ColorWarning(), descEntries, ColorReset());
+            pseqIssues++;
+          }
+        }
+      } else {
+        printf("      [SKIP] No profile sequence description tag\n");
+      }
+
+      if (pseqIssues == 0 && pPseqTag) {
+        printf("      %s[OK] Profile sequence description valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += pseqIssues;
+    }
+    printf("\n");
+
+    // H101 — MPE Sub-Element Channel Continuity (CWE-125/CWE-787)
+    // Exercises: IccMpeBasic.cpp (64.4% → NumInputChannels/NumOutputChannels chain validation)
+    //            Verifies in[i+1] == out[i] across entire MPE processing pipeline
+    {
+      printf("[H101] MPE Sub-Element Channel Continuity\n");
+      int chainIssues = 0;
+
+      icTagSignature mpeTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+      };
+
+      for (int i = 0; i < 16; i++) {
+        CIccTag *pTag = pIcc->FindTag(mpeTags[i]);
+        if (!pTag) continue;
+
+        CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+        if (!pMpe) continue;
+
+        icUInt32Number numElems = pMpe->NumElements();
+        if (numElems == 0) continue;
+
+        icUInt16Number prevOut = 0;
+        bool first = true;
+
+        for (icUInt32Number e = 0; e < numElems; e++) {
+          CIccMultiProcessElement *pElem = pMpe->GetElement(e);
+          if (!pElem) continue;
+
+          icUInt16Number curIn = pElem->NumInputChannels();
+          icUInt16Number curOut = pElem->NumOutputChannels();
+
+          if (!first && curIn != prevOut) {
+            char tagSig[5];
+            icUInt32Number sig = (icUInt32Number)mpeTags[i];
+            tagSig[0] = (sig >> 24) & 0xFF;
+            tagSig[1] = (sig >> 16) & 0xFF;
+            tagSig[2] = (sig >> 8) & 0xFF;
+            tagSig[3] = sig & 0xFF;
+            tagSig[4] = '\0';
+            printf("      %s[CRIT]  Channel discontinuity in '%s' at element %u: "
+                   "prev_out=%u, cur_in=%u — buffer overflow risk (CWE-787)%s\n",
+                   ColorCritical(), tagSig, e, prevOut, curIn, ColorReset());
+            chainIssues++;
+          }
+
+          prevOut = curOut;
+          first = false;
+        }
+      }
+
+      if (chainIssues == 0) {
+        printf("      %s[OK] MPE sub-element channel continuity valid%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += chainIssues;
+    }
+    printf("\n");
+
+    // H102 — Tag Size vs Profile Size Cross-Check (CWE-125/CWE-120)
+    // Exercises: IccProfile.cpp (75.25% → tag table iteration, offset validation)
+    //            Direct binary-level validation independent of tag parsing
+    {
+      printf("[H102] Tag Size vs Profile Size Cross-Check\n");
+      int sizeIssues = 0;
+
+      icUInt32Number profileSize = pIcc->m_Header.size;
+      icUInt32Number tagCount = (icUInt32Number)pIcc->m_Tags.size();
+
+      printf("      Profile size: %u bytes, tag count: %u\n", profileSize, tagCount);
+
+      if (profileSize > 0 && profileSize < 128 + (tagCount * 12)) {
+        printf("      %s[CRIT]  Profile size %u too small for %u tags (min=%u) — truncation%s\n",
+               ColorCritical(), profileSize, tagCount, 128 + tagCount * 12, ColorReset());
+        sizeIssues++;
+      }
+
+      // Check each tag entry for offset/size validity
+      for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        icUInt32Number tagOffset = it->TagInfo.offset;
+        icUInt32Number tagSize = it->TagInfo.size;
+
+        if (profileSize > 0) {
+          if (tagOffset > profileSize) {
+            printf("      %s[CRIT]  Tag '%s' offset %u exceeds profile size %u%s\n",
+                   ColorCritical(), info.GetTagSigName(it->TagInfo.sig), tagOffset, profileSize, ColorReset());
+            sizeIssues++;
+          } else if (tagOffset + tagSize > profileSize) {
+            printf("      %s[WARN]  Tag '%s' extends past profile end: offset=%u size=%u total=%u%s\n",
+                   ColorWarning(), info.GetTagSigName(it->TagInfo.sig), tagOffset, tagSize, profileSize, ColorReset());
+            sizeIssues++;
+          }
+        }
+      }
+
+      if (sizeIssues == 0) {
+        printf("      %s[OK] Tag size vs profile size consistent%s\n",
+               ColorSuccess(), ColorReset());
+      }
+      heuristicCount += sizeIssues;
     }
     printf("\n");
 
