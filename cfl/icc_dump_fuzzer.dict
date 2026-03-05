@@ -5407,3 +5407,12 @@
 "\x84Ha\xdeL\x82\x8a^\xb4Qv\xcf\xaf%C\xde"
 "\x00\x00\x00l"
 "\x01\x00\x03\xe5"
+
+# === IccSignatureUtils.h: uncovered color space signatures ===
+cs_named="nmcl"
+cs_mch1="1CLR"
+cs_mch2="2CLR"
+cs_mch4="4CLR"
+cs_mch5="5CLR"
+cs_mch7="7CLR"
+cs_mch9="9CLR"
