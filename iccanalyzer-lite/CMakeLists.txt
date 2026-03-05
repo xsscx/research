@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(iccAnalyzer-lite VERSION 2.9.0 LANGUAGES CXX)
+project(iccAnalyzer-lite VERSION 3.1.0 LANGUAGES CXX)
 
 # C++17 required
 set(CMAKE_CXX_STANDARD 17)
@@ -21,6 +21,9 @@ set(SOURCES
     IccAnalyzerConfig.cpp
     IccAnalyzerErrors.cpp
     IccAnalyzerSecurity.cpp
+    IccAnalyzerPathValidation.cpp
+    IccHeuristicsRawPost.cpp
+    IccHeuristicsLibrary.cpp
     IccAnalyzerSignatures.cpp
     IccAnalyzerValidation.cpp
     IccAnalyzerComprehensive.cpp
