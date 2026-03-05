@@ -1,13 +1,13 @@
 # Security Research Tools for ICC Color Profiles
 
-Last Updated: 2026-02-24 21:24:00 UTC by David Hoyt
+Last Updated: 2026-03-05 14:50:00 UTC by David Hoyt
 
 ## Tools
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 7,100+ | 54-heuristic security analyzer with ASAN/UBSAN, OOM protection, Ninja mode |
-| **cfl** (17 fuzzers) | 4,537 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
+| **iccanalyzer-lite** | 7,100+ | 86-heuristic security analyzer with ASAN/UBSAN, OOM protection, Ninja mode |
+| **cfl** (19 fuzzers) | 4,537 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
 | **mcp-server** | — | ICC Profile MCP server with web UI |
 
@@ -18,8 +18,8 @@ Last Updated: 2026-02-24 21:24:00 UTC by David Hoyt
 | **CodeQL** | 0 alerts | v4, 3 targets × 14 custom queries + security-and-quality |
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
-| **Fuzzers** | 17/17 | Build + smoke test pass, aligned to project tool scope |
-| **OOM Patches** | 66 patches | Security fixes in cfl/patches/ |
+| **Fuzzers** | 19/19 | Build + smoke test pass, aligned to project tool scope |
+| **OOM Patches** | 67 patches (10 no-op) | Security fixes in cfl/patches/ |
 
 ## Build
 
@@ -43,7 +43,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 66 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes, stack-overflow fixes, IO underflow guards, XML parsing limits). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 67 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes, stack-overflow fixes, IO underflow guards, XML parsing limits). 10 are no-ops (upstream-adopted or superseded). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
@@ -54,8 +54,9 @@ The `cfl/patches/` directory contains 66 security patches for iccDEV (OOM caps, 
 | apply, applyprofiles | IccApplyProfiles | CIccCmm: AddXform, Begin, Apply |
 | applynamedcmm | IccApplyNamedCmm | CIccNamedColorCmm: all Apply variants |
 | link | IccApplyToLink | CIccCmm 2-profile link |
-| spectral, v5dspobs | IccV5DspObsToV4Dsp | MPE: Begin, GetNewApply, Apply |
+| spectral, spectral_b, v5dspobs | IccV5DspObsToV4Dsp | MPE: Begin, GetNewApply, Apply |
 | fromxml, toxml | XML tools | LoadXml, ToXml, Validate |
+| fromcube | IccFromCube | CUBE LUT import pipeline |
 | specsep | IccSpecSepToTiff | CTiffImg pipeline |
 | tiffdump | IccTiffDump | CTiffImg, OpenIccProfile, FindTag |
 
@@ -99,7 +100,7 @@ See [dev-demo/README.md](dev-demo/README.md) for full usage.
 
 Pre-built prompt templates for AI-assisted analysis in [`.github/prompts/`](.github/prompts/):
 
-- **analyze-icc-profile** — Full 54-heuristic security scan
+- **analyze-icc-profile** — Full 86-heuristic security scan
 - **compare-icc-profiles** — Side-by-side structural diff
 - **triage-cve-poc** — CVE PoC analysis with CVE cross-referencing
 - **health-check** — MCP server verification
