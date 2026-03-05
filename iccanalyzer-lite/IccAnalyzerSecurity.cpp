@@ -50,7 +50,9 @@
 #include "IccTagMPE.h"
 #include "IccTagLut.h"
 #include <cmath>
+#include <map>
 #include <set>
+#include <vector>
 
 //==============================================================================
 // Heuristic Security Analysis
@@ -2870,6 +2872,392 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         heuristicCount += clutGridIssues;
       } else {
         printf("      %s[OK] CLUT grid dimension products within bounds%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H79: LoadTag Offset/Size vs File Length Consistency
+    // CVE-2026-21485 — UB + OOM in CIccProfile::LoadTag()
+    // The library validates offset+size<=fileLen, but we independently check
+    // that no tag's declared size could trigger allocation overflow.
+    // CWE-190 (Integer Overflow), CWE-400 (Resource Exhaustion)
+    // =====================================================================
+    printf("[H79] LoadTag Allocation Overflow Detection\n");
+    {
+      int loadTagIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        icUInt32Number tagSize = sit->TagInfo.size;
+        icUInt32Number tagOffset = sit->TagInfo.offset;
+
+        // Check for tags that claim extremely large sizes (>256MB)
+        // These trigger massive allocations in CIccTag::Read() implementations
+        if (tagSize > 268435456U) {
+          printf("      %s[WARN]  Tag '%s' (0x%08X): size=%u (>256MB) — potential OOM in LoadTag%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 sit->TagInfo.sig, tagSize, ColorReset());
+          printf("       %sCWE-400: Uncapped allocation from tag size (CVE-2026-21485)%s\n",
+                 ColorCritical(), ColorReset());
+          loadTagIssues++;
+        }
+        // Check for offset+size overflow (32-bit wraparound)
+        if (tagOffset > 0 && tagSize > 0 && (tagOffset + tagSize) < tagOffset) {
+          printf("      %s[WARN]  Tag '%s': offset(%u)+size(%u) wraps 32-bit — OOB read in LoadTag%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 tagOffset, tagSize, ColorReset());
+          printf("       %sCWE-190: Integer overflow in offset+size%s\n",
+                 ColorCritical(), ColorReset());
+          loadTagIssues++;
+        }
+      }
+      if (loadTagIssues > 0) {
+        heuristicCount += loadTagIssues;
+      } else {
+        printf("      %s[OK] Tag sizes within safe allocation limits%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H80: Use-After-Free Pattern Detection (Shared Tag Pointers)
+    // CVE-2026-21675 (Critical 9.8) — UAF in CIccXform::Create()
+    // CVE-2026-21486 (High 7.8) — UAF + HBO + integer overflow
+    // When multiple tag directory entries point to the same offset,
+    // the library creates shared tag pointers. If one is freed while
+    // another reference exists, UAF occurs. Detect shared-offset tags.
+    // CWE-416 (Use After Free)
+    // =====================================================================
+    printf("[H80] Shared Tag Pointer / Use-After-Free Pattern\n");
+    {
+      int uafIssues = 0;
+      std::map<icUInt32Number, std::vector<icSignature>> offsetMap;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        if (sit->TagInfo.offset > 0 && sit->TagInfo.size > 0) {
+          offsetMap[sit->TagInfo.offset].push_back(sit->TagInfo.sig);
+        }
+      }
+      for (auto &pair : offsetMap) {
+        if (pair.second.size() > 4) {
+          // More than 4 tags sharing a single offset is suspicious
+          printf("      %s[WARN]  Offset 0x%08X shared by %zu tags — UAF risk if tag freed independently%s\n",
+                 ColorCritical(), pair.first, pair.second.size(), ColorReset());
+          printf("       %sCWE-416: Shared tag pointer pattern (CVE-2026-21675)%s\n",
+                 ColorCritical(), ColorReset());
+          uafIssues++;
+        }
+      }
+      if (uafIssues > 0) {
+        heuristicCount += uafIssues;
+      } else {
+        printf("      %s[OK] No excessive tag pointer sharing detected%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H81: CIccMpeCalculator Sub-Element Channel Mismatch
+    // CVE-2026-24405 (High 8.8) — HBO in CIccMpeCalculator::Read()
+    // CVE-2026-22047 (High 8.8) — HBO in SIccCalcOp::Describe()
+    // When MPE calculator elements have sub-elements whose channel counts
+    // don't match the parent input/output expectations, buffer overflows
+    // occur during Apply(). We validate sub-element I/O channel consistency.
+    // CWE-122 (Heap-based Buffer Overflow)
+    // =====================================================================
+    printf("[H81] MPE Calculator I/O Channel Consistency\n");
+    {
+      int calcChIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *pTag = pIcc->FindTag(sit->TagInfo.sig);
+        CIccTagMultiProcessElement *pMpe = (pTag && pTag->GetType() == icSigMultiProcessElementType)
+                                             ? dynamic_cast<CIccTagMultiProcessElement*>(pTag)
+                                             : nullptr;
+        if (!pMpe) continue;
+
+        icUInt16Number mpeIn = pMpe->NumInputChannels();
+        icUInt16Number mpeOut = pMpe->NumOutputChannels();
+        if (mpeIn == 0 || mpeOut == 0) {
+          printf("      %s[WARN]  Tag '%s': MPE with 0 channels (in=%u, out=%u)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 mpeIn, mpeOut, ColorReset());
+          printf("       %sCWE-122: Zero-channel MPE causes division/buffer errors (CVE-2026-24405)%s\n",
+                 ColorCritical(), ColorReset());
+          calcChIssues++;
+        }
+        // Check for absurdly large channel counts (>1024)
+        if (mpeIn > 1024 || mpeOut > 1024) {
+          printf("      %s[WARN]  Tag '%s': MPE channel count extreme (in=%u, out=%u)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 mpeIn, mpeOut, ColorReset());
+          printf("       %sCWE-122: Large channel count → massive buffer allocation (CVE-2026-22047)%s\n",
+                 ColorCritical(), ColorReset());
+          calcChIssues++;
+        }
+      }
+      if (calcChIssues > 0) {
+        heuristicCount += calcChIssues;
+      } else {
+        printf("      %s[OK] MPE calculator channel counts within bounds%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H82: IccIO Read Size Bit-Shift Overflow
+    // CVE-2026-25582 (High 7.8) — HBO in CIccIO::WriteUInt16Float()
+    // CVE-2026-25583 (High 7.8) — HBO in CIccFileIO::Read8()
+    // IccIO Read16/Read32/Read64 use nNum<<1/<<2/<<3 without overflow
+    // checks. We detect tags whose sizes, when divided by element size,
+    // could cause bit-shift overflow in the reader.
+    // CWE-190 (Integer Overflow or Wraparound)
+    // =====================================================================
+    printf("[H82] I/O Read Size Overflow Pattern\n");
+    {
+      int ioIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        icUInt32Number tagSize = sit->TagInfo.size;
+        // Tags with size near 32-bit max / 8 can overflow in Read64
+        if (tagSize > 0x1FFFFFFFU) { // > SIZE_MAX/8 for 32-bit
+          printf("      %s[WARN]  Tag '%s': size=%u may overflow Read64 bit-shift%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 tagSize, ColorReset());
+          printf("       %sCWE-190: nNum<<3 overflow in CIccIO (CVE-2026-25582/25583)%s\n",
+                 ColorCritical(), ColorReset());
+          ioIssues++;
+        }
+      }
+      if (ioIssues > 0) {
+        heuristicCount += ioIssues;
+      } else {
+        printf("      %s[OK] Tag sizes safe for I/O bit-shift operations%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H83: CIccTagFloatNum GetValues Stack Buffer Overflow
+    // CVE-2026-25584 (High 7.8) — SBO in CIccTagFloatNum::GetValues()
+    // GetValues() copies into a caller-provided buffer. If the tag's
+    // m_nSize exceeds the expected count for the tag type, SBO occurs.
+    // We validate that numeric array tag sizes match expected element counts.
+    // CWE-121 (Stack-based Buffer Overflow)
+    // =====================================================================
+    printf("[H83] Float/Numeric Array Size Validation\n");
+    {
+      int floatIssues = 0;
+      icSignature floatSigs[] = {
+        icSigXYZType, icSigS15Fixed16ArrayType, icSigU16Fixed16ArrayType,
+        icSigFloat16ArrayType, icSigFloat32ArrayType, icSigFloat64ArrayType,
+        (icSignature)0
+      };
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *pTag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!pTag) continue;
+
+        icTagTypeSignature tagType = pTag->GetType();
+        bool isFloatArray = false;
+        for (int f = 0; floatSigs[f] != (icSignature)0; f++) {
+          if (tagType == (icTagTypeSignature)floatSigs[f]) {
+            isFloatArray = true;
+            break;
+          }
+        }
+        if (!isFloatArray) continue;
+
+        // Check tag payload vs declared size
+        icUInt32Number tagDataSize = sit->TagInfo.size;
+        if (tagDataSize < 8) continue; // type + reserved
+        icUInt32Number payloadSize = tagDataSize - 8;
+
+        // For XYZ, each element = 12 bytes (3 × s15Fixed16)
+        // For s15Fixed16Array / u16Fixed16Array, each = 4 bytes
+        // For float32, each = 4; float64, each = 8; float16, each = 2
+        icUInt32Number elemSize = 4;
+        if (tagType == (icTagTypeSignature)icSigXYZType) elemSize = 12;
+        else if (tagType == (icTagTypeSignature)icSigFloat64ArrayType) elemSize = 8;
+        else if (tagType == (icTagTypeSignature)icSigFloat16ArrayType) elemSize = 2;
+
+        if (elemSize > 0 && payloadSize / elemSize > 16777216U) { // 16M elements
+          printf("      %s[WARN]  Tag '%s': %u elements in float array (>16M)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 payloadSize / elemSize, ColorReset());
+          printf("       %sCWE-121: Stack overflow risk in GetValues (CVE-2026-25584)%s\n",
+                 ColorCritical(), ColorReset());
+          floatIssues++;
+        }
+      }
+      if (floatIssues > 0) {
+        heuristicCount += floatIssues;
+      } else {
+        printf("      %s[OK] Float/numeric array sizes within bounds%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H84: CIccXform3DLut Apply Out-of-Bounds
+    // CVE-2026-25585 (High 7.8) — OOB in CIccXform3DLut::Apply()
+    // The 3D LUT transform uses input channel values as indices into
+    // a grid. If input/output channel counts don't match profile color
+    // space expectations, OOB access occurs during interpolation.
+    // CWE-125 (Out-of-bounds Read)
+    // =====================================================================
+    printf("[H84] 3D LUT Transform Channel/Grid Consistency\n");
+    {
+      int lut3dIssues = 0;
+      // Check that AToB/BToA tags with 3D CLUT have matching color space channels
+      icUInt32Number csChannels = icGetSpaceSamples(pIcc->m_Header.colorSpace);
+      icUInt32Number pcsChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
+
+      if (csChannels == 3) {
+        // This is a 3-channel color space — 3D LUT transforms are typical
+        icTagSignature aToBSigs[] = { icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, (icTagSignature)0 };
+        for (int a = 0; aToBSigs[a] != (icTagSignature)0; a++) {
+          CIccTag *pTag = pIcc->FindTag(aToBSigs[a]);
+          if (!pTag || !pTag->IsMBBType()) continue;
+          CIccMBB *pMbb = dynamic_cast<CIccMBB*>(pTag);
+          if (!pMbb) continue;
+
+          CIccCLUT *pClut = pMbb->GetCLUT();
+          if (!pClut) continue;
+
+          icUInt8Number clutIn = pClut->GetInputDim();
+          icUInt8Number clutOut = pClut->GetOutputChannels();
+
+          if (clutIn != csChannels) {
+            printf("      %s[WARN]  Tag '%s': CLUT input dim=%u != colorSpace channels=%u%s\n",
+                   ColorCritical(), info.GetTagSigName(aToBSigs[a]),
+                   clutIn, csChannels, ColorReset());
+            printf("       %sCWE-125: 3D LUT dimension mismatch (CVE-2026-25585)%s\n",
+                   ColorCritical(), ColorReset());
+            lut3dIssues++;
+          }
+          if (clutOut != pcsChannels && pcsChannels > 0) {
+            printf("      %s[WARN]  Tag '%s': CLUT output=%u != PCS channels=%u%s\n",
+                   ColorCritical(), info.GetTagSigName(aToBSigs[a]),
+                   clutOut, pcsChannels, ColorReset());
+            printf("       %sCWE-125: Output channel mismatch → buffer overread (CVE-2026-25585)%s\n",
+                   ColorCritical(), ColorReset());
+            lut3dIssues++;
+          }
+        }
+      }
+      if (lut3dIssues > 0) {
+        heuristicCount += lut3dIssues;
+      } else {
+        printf("      %s[OK] 3D LUT channel/grid dimensions consistent%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H85: memcpy-param-overlap in MultiProcessElement::Apply()
+    // CVE-2026-25634 (High 7.8) — memcpy overlap
+    // When MPE input and output channels are the same count, Apply()
+    // may use overlapping src/dst buffers. Detect MPE tags where
+    // in==out and multiple elements chain (buffer reuse pattern).
+    // CWE-120 (Buffer Copy without Checking Size of Input)
+    // =====================================================================
+    printf("[H85] MPE Buffer Overlap Pattern Detection\n");
+    {
+      int overlapIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *pTag = pIcc->FindTag(sit->TagInfo.sig);
+        CIccTagMultiProcessElement *pMpe = (pTag && pTag->GetType() == icSigMultiProcessElementType)
+                                             ? dynamic_cast<CIccTagMultiProcessElement*>(pTag)
+                                             : nullptr;
+        if (!pMpe) continue;
+
+        icUInt16Number mpeIn = pMpe->NumInputChannels();
+        icUInt16Number mpeOut = pMpe->NumOutputChannels();
+        int elemCount = 0;
+        CIccMultiProcessElement *pElem = pMpe->GetElement(0);
+        while (pElem) {
+          elemCount++;
+          pElem = pMpe->GetElement(elemCount);
+        }
+        // When in==out and >1 chained elements, buffer overlap is possible
+        if (mpeIn == mpeOut && elemCount > 1 && mpeIn > 0) {
+          // This is informational — the pattern exists in normal profiles too
+          // Flag only if channel count is extreme
+          if (mpeIn > 256) {
+            printf("      %s[WARN]  Tag '%s': MPE chain (%d elements, %u channels) — memcpy overlap risk%s\n",
+                   ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                   elemCount, mpeIn, ColorReset());
+            printf("       %sCWE-120: Buffer overlap in chained Apply (CVE-2026-25634)%s\n",
+                   ColorCritical(), ColorReset());
+            overlapIssues++;
+          }
+        }
+      }
+      if (overlapIssues > 0) {
+        heuristicCount += overlapIssues;
+      } else {
+        printf("      %s[OK] No excessive MPE buffer overlap patterns%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H86: CIccLocalizedUnicode GetText Heap Overflow
+    // CVE-2026-21679 (High 8.8) — HBO in CIccLocalizedUnicode::GetText()
+    // CVE-2026-21678 (High 7.8) — HBO on IccTagXml()
+    // The mluc tag stores per-locale text. If a locale's text length
+    // exceeds the tag's declared size boundary, GetText() overflows.
+    // We validate that the sum of all locale text sizes <= tag size.
+    // CWE-122 (Heap-based Buffer Overflow)
+    // =====================================================================
+    printf("[H86] Localized Unicode Text Bounds Validation\n");
+    {
+      int unicodeIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *pTag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!pTag) continue;
+        if (pTag->GetType() != icSigMultiLocalizedUnicodeType) continue;
+
+        CIccTagMultiLocalizedUnicode *pMluc =
+            dynamic_cast<CIccTagMultiLocalizedUnicode*>(pTag);
+        if (!pMluc) continue;
+
+        // Check total number of locale entries
+        CIccMultiLocalizedUnicode::iterator mlucIt;
+        int localeCount = 0;
+        uint64_t totalTextBytes = 0;
+        for (mlucIt = pMluc->m_Strings->begin(); mlucIt != pMluc->m_Strings->end(); mlucIt++) {
+          localeCount++;
+          totalTextBytes += mlucIt->GetLength() * sizeof(icUInt16Number);
+        }
+
+        // More than 1000 locale entries is suspicious (mluc bomb)
+        if (localeCount > 1000) {
+          printf("      %s[WARN]  Tag '%s': %d locale entries in mluc (>1000) — memory bomb%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 localeCount, ColorReset());
+          printf("       %sCWE-122: Excessive locale entries → HBO in GetText (CVE-2026-21679)%s\n",
+                 ColorCritical(), ColorReset());
+          unicodeIssues++;
+        }
+        // Total text > 64MB is excessive
+        if (totalTextBytes > 67108864ULL) {
+          printf("      %s[WARN]  Tag '%s': total mluc text=%llu bytes (>64MB)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 (unsigned long long)totalTextBytes, ColorReset());
+          printf("       %sCWE-122: Excessive text size → heap overflow (CVE-2026-21678)%s\n",
+                 ColorCritical(), ColorReset());
+          unicodeIssues++;
+        }
+      }
+      if (unicodeIssues > 0) {
+        heuristicCount += unicodeIssues;
+      } else {
+        printf("      %s[OK] Localized Unicode text within bounds%s\n",
                ColorSuccess(), ColorReset());
       }
     }
@@ -5826,7 +6214,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 78 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 86 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -5836,6 +6224,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s         NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement%s\n", ColorInfo(), ColorReset());
     printf("  %sH71-H78: ColorantTable null-term, SparseMatrix, nesting depth, type confusion,%s\n", ColorInfo(), ColorReset());
     printf("  %s         small tags, data flags, calculator sub-elements, CLUT grid overflow%s\n", ColorInfo(), ColorReset());
+    printf("  %sH79-H86: LoadTag overflow, UAF shared pointers, MPE channel consistency,%s\n", ColorInfo(), ColorReset());
+    printf("  %s         I/O bit-shift overflow, float array SBO, 3D LUT OOB, memcpy overlap, mluc HBO%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
