@@ -86,12 +86,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 4 || size > 1024 * 1024) return 0;
+  if (size < 5 || size > 1024 * 1024) return 0;
 
   const char *tmpdir = fuzz_tmpdir();
 
-  // Parse control byte from end to preserve ICC header at start
+  // Parse control bytes from end to preserve ICC header at start
   uint8_t ctrl = data[size - 1];
+  uint8_t ctrl2 = data[size - 2];             // second control byte
   uint8_t nSamples = (ctrl & 0x07) + 1;       // 1-8 channels
   bool bCompress = (ctrl >> 3) & 1;
   bool bSep = (ctrl >> 4) & 1;
@@ -99,12 +100,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   uint8_t bitsPerSample = bitsFlag ? 16 : 8;
   uint8_t dimBits = (ctrl >> 6) & 0x03;
 
+  // Photometric mode from ctrl2 — exercises TiffImg.cpp branches
+  static const unsigned int photoModes[] = {
+    PHOTO_MINISBLACK, PHOTO_MINISWHITE, PHOTO_RGB, PHOTO_CIELAB, PHOTO_ICCLAB
+  };
+  unsigned int nPhoto = photoModes[ctrl2 % 5];
+  unsigned int nExtraSamples = (ctrl2 >> 4) & 1; // exercises ExtraSamples path
+  bool bFloat = (ctrl2 >> 5) & 1;                // exercises 32-bit float path
+  if (bFloat) { bitsPerSample = 32; }
+
   // Small fixed dimensions for speed
   uint32_t width = 4 + dimBits * 4;            // 4, 8, 12, 16
   uint32_t height = 4 + dimBits * 4;
 
   size_t bytesPerSample = bitsPerSample / 8;
-  size_t profileSize = size - 1;               // rest is ICC profile data
+  size_t profileSize = size - 2;               // rest is ICC profile data (minus 2 ctrl bytes)
 
   // Create nSamples input TIFFs with single-channel spectral data
   // Open spectral sample files (handled by fuzzer input)
@@ -124,8 +134,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (fd < 0) { free(tf); break; }
 
     CTiffImg tiff;
+    // Vary photometric mode to exercise TiffImg.cpp Create() branches
+    unsigned int inputSpp = 1;
+    unsigned int inputExtra = 0;
+    unsigned int inputPhoto = PHOTO_MINISBLACK;
+    if (nSamples == 1) {
+      // Single-file mode: use fuzzer-selected photo + extra params
+      inputPhoto = nPhoto;
+      if (nPhoto == PHOTO_RGB || nPhoto == PHOTO_CIELAB || nPhoto == PHOTO_ICCLAB)
+        inputSpp = 3;
+      if (nExtraSamples && inputSpp > 1)
+        inputExtra = 1;
+    }
     if (!tiff.Create(tf, width, height, bitsPerSample,
-                     PHOTO_MINISBLACK, 1, 0, 72, 72, false, false)) {
+                     inputPhoto, inputSpp + inputExtra, inputExtra,
+                     72, 72, false, bSep)) {
       close(fd);
       unlink(tf);
       free(tf);
@@ -133,9 +156,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     // Fill with deterministic pattern derived from fuzzer input + channel
-    std::vector<icUInt8Number> row(width * bytesPerSample);
+    size_t rowBytes = width * bytesPerSample * (inputSpp + inputExtra);
+    std::vector<icUInt8Number> row(rowBytes);
     for (uint32_t r = 0; r < height; r++) {
-      for (uint32_t c = 0; c < width * bytesPerSample; c++) {
+      for (size_t c = 0; c < rowBytes; c++) {
         size_t idx = (i * height * width + r * width + c) % profileSize;
         row[c] = data[idx] ^ (uint8_t)i;
       }
@@ -193,7 +217,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   CTiffImg outimg;
   if (!outimg.Create(outpath, f->GetWidth(), f->GetHeight(), f->GetBitsPerSample(),
-                     PHOTO_MINISBLACK, nSamples, 0, xRes, yRes, bCompress, bSep)) {
+                     nPhoto, nSamples + nExtraSamples, nExtraSamples,
+                     xRes, yRes, bCompress, bSep)) {
     unlink(outpath);
     for (auto tf : infiles) { unlink(tf); free(tf); }
     return 0;
