@@ -2517,6 +2517,383 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
     printf("\n");
 
+    // =====================================================================
+    // H71 — ColorantTable Name Null-Termination (CWE-170/CWE-125)
+    // Targets patches 019/020, CVE-2026-21488: strlen OOB on name[32]
+    // =====================================================================
+    printf("[H71] ColorantTable Name Null-Termination\n");
+    {
+      int ctIssues = 0;
+      icTagSignature ctSigs[] = {icSigColorantTableTag, icSigColorantTableOutTag, (icTagSignature)0};
+      for (int s = 0; ctSigs[s] != (icTagSignature)0; s++) {
+        CIccTag *ctTag = pIcc->FindTag(ctSigs[s]);
+        if (!ctTag) continue;
+        CIccTagColorantTable *ct = dynamic_cast<CIccTagColorantTable*>(ctTag);
+        if (!ct) continue;
+
+        icUInt32Number nEntries = ct->GetSize();
+        if (nEntries > 65535) {
+          printf("      %s[WARN]  ColorantTable: %u entries (excessive)%s\n",
+                 ColorCritical(), nEntries, ColorReset());
+          printf("       %sCWE-400: Excessive colorant count%s\n",
+                 ColorCritical(), ColorReset());
+          ctIssues++;
+          continue;
+        }
+        for (icUInt32Number i = 0; i < nEntries && i < 256; i++) {
+          icColorantTableEntry *entry = ct->GetEntry(i);
+          if (!entry) continue;
+          // Check if name[32] has a null terminator within bounds
+          bool hasNull = false;
+          for (int j = 0; j < 32; j++) {
+            if (entry->name[j] == 0) { hasNull = true; break; }
+          }
+          if (!hasNull) {
+            printf("      %s[WARN]  Colorant[%u]: name[32] has no null terminator%s\n",
+                   ColorCritical(), i, ColorReset());
+            printf("       %sCWE-170: strlen OOB → heap-buffer-overflow (P019/P020)%s\n",
+                   ColorCritical(), ColorReset());
+            ctIssues++;
+            if (ctIssues >= 5) break; // limit output
+          }
+        }
+      }
+      if (ctIssues > 0) {
+        heuristicCount += ctIssues;
+      } else {
+        printf("      %s[OK] ColorantTable names properly terminated (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H72 — SparseMatrixArray Allocation Bounds (CWE-400/CWE-125)
+    // Targets patches 044/059/060: OOM + OOB in sparse matrix
+    // =====================================================================
+    printf("[H72] SparseMatrixArray Allocation Bounds\n");
+    {
+      int smaIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+        CIccTagSparseMatrixArray *sma = dynamic_cast<CIccTagSparseMatrixArray*>(tag);
+        if (!sma) continue;
+
+        icUInt32Number nMat = sma->GetNumMatrices();
+        icUInt32Number nCPM = sma->GetChannelsPerMatrix();
+        uint64_t product = (uint64_t)nMat * nCPM * sizeof(icFloatNumber);
+        if (product > 16777216ULL) { // 16MB cap per patch 044
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': SparseMatrix %u matrices × %u channels = %llu bytes%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 nMat, nCPM, (unsigned long long)product, ColorReset());
+          printf("       %sCWE-400: Exceeds 16MB allocation cap (P044)%s\n",
+                 ColorCritical(), ColorReset());
+          smaIssues++;
+        }
+      }
+      if (smaIssues > 0) {
+        heuristicCount += smaIssues;
+      } else {
+        printf("      %s[OK] SparseMatrixArray allocations within bounds (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H73 — TagArray/TagStruct Nesting Depth (CWE-674)
+    // Targets patch 061: stack overflow via nested tstr/tary elements
+    // =====================================================================
+    printf("[H73] TagArray/TagStruct Nesting Depth\n");
+    {
+      int nestIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+
+        // Check TagStruct nesting
+        CIccTagStruct *ts = dynamic_cast<CIccTagStruct*>(tag);
+        if (ts) {
+          TagEntryList *elems = ts->GetElemList();
+          if (elems) {
+            for (auto it = elems->begin(); it != elems->end(); it++) {
+              CIccTag *child = ts->FindElem(it->TagInfo.sig);
+              if (!child) continue;
+              CIccTagStruct *childStruct = dynamic_cast<CIccTagStruct*>(child);
+              CIccTagArray *childArray = dynamic_cast<CIccTagArray*>(child);
+              if (childStruct || childArray) {
+                CIccInfo info;
+                printf("      %s[WARN]  Tag '%s': nested TagStruct/TagArray detected%s\n",
+                       ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), ColorReset());
+                printf("       %sCWE-674: Potential recursive nesting → stack overflow (P061)%s\n",
+                       ColorCritical(), ColorReset());
+                nestIssues++;
+                break;
+              }
+            }
+          }
+        }
+
+        // Check TagArray nesting
+        CIccTagArray *ta = dynamic_cast<CIccTagArray*>(tag);
+        if (ta) {
+          icUInt32Number nSz = ta->GetSize();
+          if (nSz > 10000) {
+            CIccInfo info;
+            printf("      %s[WARN]  Tag '%s': TagArray with %u elements (excessive)%s\n",
+                   ColorCritical(), info.GetTagSigName(sit->TagInfo.sig), nSz, ColorReset());
+            printf("       %sCWE-400: Excessive array size%s\n",
+                   ColorCritical(), ColorReset());
+            nestIssues++;
+          } else {
+            for (icUInt32Number i = 0; i < nSz && i < 100; i++) {
+              CIccTag *child = ta->GetIndex(i);
+              if (!child) continue;
+              if (dynamic_cast<CIccTagStruct*>(child) || dynamic_cast<CIccTagArray*>(child)) {
+                CIccInfo info;
+                printf("      %s[WARN]  Tag '%s'[%u]: nested TagStruct/TagArray%s\n",
+                       ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), i, ColorReset());
+                printf("       %sCWE-674: Recursive nesting → stack overflow (P061)%s\n",
+                       ColorCritical(), ColorReset());
+                nestIssues++;
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (nestIssues > 0) {
+        heuristicCount += nestIssues;
+      } else {
+        printf("      %s[OK] No suspicious TagArray/TagStruct nesting%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H74 — Tag Type Signature Consistency (CWE-843)
+    // Targets CVEs 34, 39-44, 73: type confusion in tag processing
+    // =====================================================================
+    printf("[H74] Tag Type Signature Consistency\n");
+    {
+      int typeIssues = 0;
+      struct TagTypeExpectation {
+        icTagSignature tag;
+        icTagTypeSignature expected[5]; // up to 5 valid types, 0 = end
+      };
+      TagTypeExpectation expectations[] = {
+        {icSigAToB0Tag,        {icSigLutAtoBType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, (icTagTypeSignature)0}},
+        {icSigAToB1Tag,        {icSigLutAtoBType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, (icTagTypeSignature)0}},
+        {icSigBToA0Tag,        {icSigLutBtoAType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, (icTagTypeSignature)0}},
+        {icSigBToA1Tag,        {icSigLutBtoAType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, (icTagTypeSignature)0}},
+        {icSigMediaWhitePointTag, {icSigXYZType, (icTagTypeSignature)0}},
+        {icSigCopyrightTag,    {icSigTextType, icSigMultiLocalizedUnicodeType, (icTagTypeSignature)0}},
+        {(icTagSignature)0,    {(icTagTypeSignature)0}}
+      };
+
+      for (int e = 0; expectations[e].tag != (icTagSignature)0; e++) {
+        CIccTag *tag = pIcc->FindTag(expectations[e].tag);
+        if (!tag) continue;
+        icTagTypeSignature actualType = tag->GetType();
+        bool valid = false;
+        for (int t = 0; t < 5 && expectations[e].expected[t] != (icTagTypeSignature)0; t++) {
+          if (actualType == expectations[e].expected[t]) { valid = true; break; }
+        }
+        if (!valid) {
+          CIccInfo info;
+          char typeSig[5];
+          SignatureToFourCC((icUInt32Number)actualType, typeSig);
+          printf("      %s[WARN]  Tag '%s': unexpected type '%s'%s\n",
+                 ColorCritical(), info.GetTagSigName(expectations[e].tag),
+                 typeSig, ColorReset());
+          printf("       %sCWE-843: Type confusion → incorrect cast in processing%s\n",
+                 ColorCritical(), ColorReset());
+          typeIssues++;
+        }
+      }
+      if (typeIssues > 0) {
+        heuristicCount += typeIssues;
+      } else {
+        printf("      %s[OK] Tag type signatures consistent%s\n", ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H75 — Tags with Very Small Size (CWE-122/CWE-191)
+    // Targets patch 009: m_nSize ≤ 4 causes underflow in Describe
+    // =====================================================================
+    printf("[H75] Tags with Very Small Size\n");
+    {
+      int smallIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        // Tag data size from tag table (not including type sig)
+        if (sit->TagInfo.size <= 8 && sit->TagInfo.size > 0) {
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': size %u bytes (≤ 8, suspiciously small)%s\n",
+                 ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
+                 sit->TagInfo.size, ColorReset());
+          printf("       %sCWE-191: Unsigned underflow in size−N calculations (P009)%s\n",
+                 ColorCritical(), ColorReset());
+          smallIssues++;
+        }
+      }
+      if (smallIssues > 0) {
+        heuristicCount += smallIssues;
+      } else {
+        printf("      %s[OK] All tags have sufficient minimum size%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H76 — CIccTagData Type Flag Validation (CWE-843/CWE-20)
+    // Targets CVE-2026-21691: IsTypeCompressed type confusion
+    // =====================================================================
+    printf("[H76] CIccTagData Type Flag Validation\n");
+    {
+      int dataIssues = 0;
+      for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
+        CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+        CIccTagData *dataTag = dynamic_cast<CIccTagData*>(tag);
+        if (!dataTag) continue;
+
+        icUInt32Number dataSz = dataTag->GetSize();
+        if (dataSz > 134217728) { // 128MB
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': CIccTagData size %u bytes (>128MB)%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 dataSz, ColorReset());
+          printf("       %sCWE-400: Excessive data tag allocation (P007)%s\n",
+                 ColorCritical(), ColorReset());
+          dataIssues++;
+        }
+        if (dataTag->IsTypeCompressed()) {
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': compressed data flag set%s\n",
+                 ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), ColorReset());
+          printf("       %sCWE-843: Compressed type may trigger unsafe decompression%s\n",
+                 ColorCritical(), ColorReset());
+          dataIssues++;
+        }
+      }
+      if (dataIssues > 0) {
+        heuristicCount += dataIssues;
+      } else {
+        printf("      %s[OK] CIccTagData types valid (or absent)%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H77 — MPE Calculator Sub-Element Count (CWE-400/CWE-125)
+    // Targets patches 032/045/064: HBO in ApplySequence ops
+    // =====================================================================
+    printf("[H77] MPE Calculator Sub-Element Count\n");
+    {
+      int calcSubIssues = 0;
+      icTagSignature mpeSigs[] = {
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        (icTagSignature)0
+      };
+      for (int s = 0; mpeSigs[s] != (icTagSignature)0; s++) {
+        CIccTag *tag = pIcc->FindTag(mpeSigs[s]);
+        if (!tag) continue;
+        CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
+        if (!mpe) continue;
+
+        icUInt32Number nElems = mpe->NumElements();
+        if (nElems > 256) {
+          CIccInfo info;
+          printf("      %s[WARN]  Tag '%s': MPE with %u elements (>256)%s\n",
+                 ColorCritical(), info.GetTagSigName(mpeSigs[s]),
+                 nElems, ColorReset());
+          printf("       %sCWE-400: Excessive MPE elements → large op arrays%s\n",
+                 ColorCritical(), ColorReset());
+          calcSubIssues++;
+        }
+      }
+      if (calcSubIssues > 0) {
+        heuristicCount += calcSubIssues;
+      } else {
+        printf("      %s[OK] MPE calculator element counts within bounds%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
+    // =====================================================================
+    // H78 — CLUT Grid Dimension Product Overflow (CWE-190/CWE-131)
+    // Targets patch 001, CVE-2026-22255, CVE-2026-21677: grid dims overflow
+    // =====================================================================
+    printf("[H78] CLUT Grid Dimension Product Overflow\n");
+    {
+      int clutGridIssues = 0;
+      icTagSignature clutSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        (icTagSignature)0
+      };
+      for (int s = 0; clutSigs[s] != (icTagSignature)0; s++) {
+        CIccTag *tag = pIcc->FindTag(clutSigs[s]);
+        if (!tag) continue;
+        CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+        if (!mbb) continue;
+
+        CIccCLUT *clut = mbb->GetCLUT();
+        if (!clut) continue;
+
+        icUInt8Number nIn = mbb->InputChannels();
+        icUInt8Number nOut = mbb->OutputChannels();
+
+        if (nIn > 0) {
+          // Check grid dimension product for exponential blowup
+          uint64_t gridProduct = 1;
+          bool overflow = false;
+          for (int d = 0; d < nIn && d < 16; d++) {
+            icUInt8Number gridPt = clut->GridPoint(d);
+            if (gridPt == 0) { overflow = true; break; }
+            gridProduct *= gridPt;
+            if (gridProduct > 268435456ULL) { overflow = true; break; } // 256M entries
+          }
+          if (overflow) {
+            CIccInfo info;
+            printf("      %s[WARN]  Tag '%s': CLUT grid product overflow (%u inputs)%s\n",
+                   ColorCritical(), info.GetTagSigName(clutSigs[s]), nIn, ColorReset());
+            printf("       %sCWE-190: Exponential grid allocation (P001)%s\n",
+                   ColorCritical(), ColorReset());
+            clutGridIssues++;
+          } else {
+            uint64_t totalBytes = gridProduct * nOut * sizeof(icFloatNumber);
+            if (totalBytes > 16777216ULL) { // 16MB per-CLUT cap
+              CIccInfo info;
+              printf("      %s[WARN]  Tag '%s': CLUT alloc %llu bytes (>16MB)%s\n",
+                     ColorCritical(), info.GetTagSigName(clutSigs[s]),
+                     (unsigned long long)totalBytes, ColorReset());
+              printf("       %sCWE-131: CLUT exceeds per-allocation cap (P001)%s\n",
+                     ColorCritical(), ColorReset());
+              clutGridIssues++;
+            }
+          }
+        }
+      }
+      if (clutGridIssues > 0) {
+        heuristicCount += clutGridIssues;
+      } else {
+        printf("      %s[OK] CLUT grid dimension products within bounds%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+    printf("\n");
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -5468,7 +5845,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 70 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 78 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -5476,6 +5853,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %sH55-H60: UTF-16, calc depth, embedded profiles, spectral, dict%s\n", ColorInfo(), ColorReset());
     printf("  %sH61-H70: Viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity,%s\n", ColorInfo(), ColorReset());
     printf("  %s         NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement%s\n", ColorInfo(), ColorReset());
+    printf("  %sH71-H78: ColorantTable null-term, SparseMatrix, nesting depth, type confusion,%s\n", ColorInfo(), ColorReset());
+    printf("  %s         small tags, data flags, calculator sub-elements, CLUT grid overflow%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
