@@ -376,6 +376,7 @@ jobs:
           done
 
           echo "iccApplyToLink: $LINK_PASS link exercises"
+          CALC_PASS=0
           for xml in calcCheckInit.xml calcExercizeOps.xml; do
             [ -f "$xml" ] || continue
             icc_out="${xml%.xml}.icc"
