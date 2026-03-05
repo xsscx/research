@@ -48,10 +48,13 @@ void SignatureToFourCC(icUInt32Number sig, char *fourcc)
   uc[3] = sig & 0xFF;
   
   // Replace non-printable characters with '.'
+  int len = 4;
   for (int i = 0; i < 4; i++) {
     fourcc[i] = (uc[i] >= 32 && uc[i] <= 126) ? (char)uc[i] : '.';
   }
-  fourcc[4] = '\0';
+  // Trim trailing spaces
+  while (len > 0 && fourcc[len - 1] == ' ') len--;
+  fourcc[len] = '\0';
 }
 
 // Check if signature contains non-printable characters
