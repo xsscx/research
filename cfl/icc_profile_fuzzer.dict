@@ -3052,3 +3052,12 @@
 "\x01\x00\x00r"
 "\xd0\x00\x00\x00"
 "\xff\xffP\x10\x00+8x"
+
+# === IccSignatureUtils.h: uncovered color space signatures ===
+cs_named="nmcl"
+cs_mch1="1CLR"
+cs_mch2="2CLR"
+cs_mch4="4CLR"
+cs_mch5="5CLR"
+cs_mch7="7CLR"
+cs_mch9="9CLR"

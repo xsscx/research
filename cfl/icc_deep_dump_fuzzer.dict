@@ -1328,3 +1328,30 @@
 "k\x00\x00\x00"
 "daps"
 "\x00\x00\x00\x00\x00\x00\x00|"
+
+# === IccSignatureUtils.h coverage gap tokens ===
+# Uncovered color space signatures (big-endian 4CC at header offset 16)
+cs_named="nmcl"
+cs_mch1="1CLR"
+cs_mch2="2CLR"
+cs_mch4="4CLR"
+cs_mch5="5CLR"
+cs_mch7="7CLR"
+cs_mch9="9CLR"
+
+# Uncovered technology signatures (in 'tech' tag)
+tech_tag="tech"
+tech_dcam="dcam"
+tech_fscn="fscn"
+tech_rscn="rscn"
+tech_ijet="ijet"
+tech_twax="twax"
+tech_epho="epho"
+tech_esta="esta"
+tech_dsub="dsub"
+tech_rpho="rpho"
+tech_fprn="fprn"
+tech_vidm="vidm"
+
+# signatureType tag format (used for tech tag)
+sig_type="sig "
