@@ -86,6 +86,9 @@ public:
   // Parse ASAN crash log
   bool ParseASANLog(const char* log_file, std::vector<ASANFrame>& frames, VulnMetadata& metadata);
   
+  // Parse UBSAN runtime error log
+  bool ParseUBSANLog(const char* log_file, std::vector<ASANFrame>& frames, VulnMetadata& metadata);
+  
   // Generate call graph from ASAN frames
   bool GenerateCallGraphFromASAN(const std::vector<ASANFrame>& frames, const char* output_dot);
   
@@ -97,6 +100,9 @@ public:
   
   // Generate DOT format call graph
   bool GenerateDOTGraph(const std::vector<ASANFrame>& frames, const char* output_file);
+  
+  // Export call graph as JSON
+  bool ExportJSON(const std::vector<ASANFrame>& frames, const VulnMetadata& metadata, const char* output_file);
   
   // Analyze call chain depth
   unsigned int GetCallChainDepth(const std::vector<ASANFrame>& frames);
