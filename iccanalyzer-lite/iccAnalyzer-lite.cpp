@@ -193,6 +193,7 @@ void PrintUsage() {
   printf("  -a <file.icc>              Comprehensive analysis (all modes)\n");
   printf("  -n <file.icc>              Ninja mode (minimal output)\n");
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
+  printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
   
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
@@ -218,9 +219,10 @@ int main(int argc, char **argv) {
 
   const char *mode = argv[1];
   
-  // Validate profile path for modes that accept one
+  // Validate profile path for modes that accept one (skip -cg which takes log files)
   const char *profilePath = nullptr;
-  if (argc >= 3 && strcmp(mode, "--version") != 0 && strcmp(mode, "-version") != 0) {
+  if (argc >= 3 && strcmp(mode, "--version") != 0 && strcmp(mode, "-version") != 0
+      && strcmp(mode, "-cg") != 0) {
     profilePath = ValidateProfilePath(argv[2]);
     if (!profilePath) {
       fprintf(stderr, "[ERR] Invalid or inaccessible path: %s\n", argv[2]);
@@ -251,6 +253,11 @@ int main(int argc, char **argv) {
   // Ninja mode (full dump)
   if (strcmp(mode, "-nf") == 0 && argc >= 3) {
     return RecoverableRun("ninja analysis (full)", [&]{ return NinjaModeAnalyze(profilePath, true); });
+  }
+  
+  // Call graph mode (ASAN/UBSAN log analysis — no ICC profile needed)
+  if (strcmp(mode, "-cg") == 0) {
+    return RunCallGraphMode(argc, argv);
   }
   
   // Extract LUT
