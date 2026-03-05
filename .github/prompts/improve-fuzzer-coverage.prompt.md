@@ -129,12 +129,34 @@ git commit -m "coverage: <description of improvements>"
 
 ### Key Insight: IccCmm.cpp
 IccCmm.cpp has the most missed lines but requires profile PAIRS (not single profiles) to
-trigger the CMM pipeline (AddXform→Begin→Apply). Fuzzers like `icc_apply_fuzzer` process
-two profiles together. Seed corpora for these fuzzers need matched pairs:
+trigger the CMM pipeline (AddXform→Begin→Apply). Seed corpora need matched pairs:
 - sRGB + CMYK (3DLut/4DLut paths)
 - Lab + Lab with different whitepoints (PCS step chain)
 - v5 MPE profile pairs (CIccXformMpe)
 - NamedColor + device profile (CIccNamedColorCmm)
+
+### CMM Fuzzer Input Formats (CRITICAL for seed creation)
+| Fuzzer | Format | Min Size |
+|--------|--------|----------|
+| `icc_link_fuzzer` | profile1 (padded) + profile2 (padded) + 3 ctrl bytes | 258 |
+| `icc_applyprofiles_fuzzer` | 75% profile + 25% control [intent, interp, unused, flags] | 200 |
+| `icc_applynamedcmm_fuzzer` | 4-byte header [flags, intent, extra1, extra2] + profile | 132 |
+| `icc_apply_fuzzer` | entire input is one ICC profile | 130 |
+
+**Link fuzzer ctrl byte bits**: 0x01=firstTransform, 0x02=noD2Bx, 0x04=BPC, 0x08=luminance,
+0x10=subProfile, 0x20=previewLut. Seeds in `cfl/seeds-link-pairs/` (18 pairs).
+
+**ApplyNamedCmm flags byte bits**: 0x01=BPC, 0x02=D2Bx, 0x04=luminance, 0x08=subProfile,
+0x10=tetrahedral. Seeds in `cfl/seeds-applynamedcmm/` (16 files).
+
+Seeds in `cfl/seeds-applyprofiles/` (18 files). `ramdisk-seed.sh` Source 3 auto-seeds all.
+
+### UBSAN Fix Patterns (for iccanalyzer-lite code)
+When extracting 4-byte ICC signatures into `char[5]`:
+- ALWAYS use `static_cast<char>()` — values >127 trigger UBSAN implicit-conversion
+- Prefer `SignatureToFourCC()` helper which handles cast + trailing space trim
+- For `tOffset + tSize` additions, use `(uint64_t)` widening to prevent unsigned overflow
+- 18 sites fixed across IccHeuristicsRawPost.cpp and IccHeuristicsLibrary.cpp
 
 ## CodeQL Status (March 2026)
 | Metric | Value |
