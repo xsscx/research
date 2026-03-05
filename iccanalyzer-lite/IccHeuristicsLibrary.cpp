@@ -250,10 +250,10 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
                   tagArrayCount++;
                   
                   char sigStr[5], typeStr[5];
-                  sigStr[0] = (tagSig>>24)&0xff; sigStr[1] = (tagSig>>16)&0xff;
-                  sigStr[2] = (tagSig>>8)&0xff; sigStr[3] = tagSig&0xff; sigStr[4] = '\0';
-                  typeStr[0] = (tagType>>24)&0xff; typeStr[1] = (tagType>>16)&0xff;
-                  typeStr[2] = (tagType>>8)&0xff; typeStr[3] = tagType&0xff; typeStr[4] = '\0';
+                  sigStr[0] = static_cast<char>((tagSig>>24)&0xff); sigStr[1] = static_cast<char>((tagSig>>16)&0xff);
+                  sigStr[2] = static_cast<char>((tagSig>>8)&0xff); sigStr[3] = static_cast<char>(tagSig&0xff); sigStr[4] = '\0';
+                  typeStr[0] = static_cast<char>((tagType>>24)&0xff); typeStr[1] = static_cast<char>((tagType>>16)&0xff);
+                  typeStr[2] = static_cast<char>((tagType>>8)&0xff); typeStr[3] = static_cast<char>(tagType&0xff); typeStr[4] = '\0';
                   
                   printf("      [WARN]  CRITICAL: TagArrayType found!\n");
                   printf("       Tag %u: signature='%s' (0x%08X), type='%s' (0x%08X)\n",
@@ -779,8 +779,8 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
               
               uint64_t tagEnd = (uint64_t)tOff + tSz;
               char sig25[5];
-              sig25[0] = (tSig>>24)&0xff; sig25[1] = (tSig>>16)&0xff;
-              sig25[2] = (tSig>>8)&0xff;  sig25[3] = tSig&0xff; sig25[4] = '\0';
+              sig25[0] = static_cast<char>((tSig>>24)&0xff); sig25[1] = static_cast<char>((tSig>>16)&0xff);
+              sig25[2] = static_cast<char>((tSig>>8)&0xff);  sig25[3] = static_cast<char>(tSig&0xff); sig25[4] = '\0';
               
               if (tOff >= bound) {
                 printf("      %s[WARN]  Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)%s\n",
@@ -1481,10 +1481,10 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
                 }
 
                 char sigStr32[5], typeStr32[5];
-                sigStr32[0] = (tSig32>>24)&0xff; sigStr32[1] = (tSig32>>16)&0xff;
-                sigStr32[2] = (tSig32>>8)&0xff; sigStr32[3] = tSig32&0xff; sigStr32[4] = '\0';
-                typeStr32[0] = (dataType32>>24)&0xff; typeStr32[1] = (dataType32>>16)&0xff;
-                typeStr32[2] = (dataType32>>8)&0xff; typeStr32[3] = dataType32&0xff; typeStr32[4] = '\0';
+                sigStr32[0] = static_cast<char>((tSig32>>24)&0xff); sigStr32[1] = static_cast<char>((tSig32>>16)&0xff);
+                sigStr32[2] = static_cast<char>((tSig32>>8)&0xff); sigStr32[3] = static_cast<char>(tSig32&0xff); sigStr32[4] = '\0';
+                typeStr32[0] = static_cast<char>((dataType32>>24)&0xff); typeStr32[1] = static_cast<char>((dataType32>>16)&0xff);
+                typeStr32[2] = static_cast<char>((dataType32>>8)&0xff); typeStr32[3] = static_cast<char>(dataType32&0xff); typeStr32[4] = '\0';
 
                 printf("      %s[WARN]  Tag '%s': unknown type signature '%s' (0x%08X)%s\n",
                        ColorWarning(), sigStr32, typeStr32, dataType32, ColorReset());
