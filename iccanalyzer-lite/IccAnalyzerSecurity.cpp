@@ -2094,7 +2094,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           heuristicCount++;
         } else if (tagCount > 256) {
           printf("      %s[WARN]  Excessive tag count: %u (>256) — potential DoS%s\n",
-                 ColorCritical(), ColorReset());
+                 ColorCritical(), tagCount, ColorReset());
           heuristicCount++;
         }
 
@@ -2877,7 +2877,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
                 fseek(fp38, dataStart, SEEK_SET);
                 if (fread(cData, 1, dataLen, fp38) == dataLen) {
                   bool allZero = true, allMax = true;
-                  for (size_t b = 0; b < dataLen; b += 2) {
+                  for (size_t b = 0; b + 1 < dataLen; b += 2) {
                     uint16_t val = (static_cast<uint16_t>(cData[b]) << 8) | cData[b+1];
                     if (val != 0) allZero = false;
                     if (val != 0xFFFF) allMax = false;
@@ -3694,8 +3694,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             fseek(fp46, (long)unicodeStart, SEEK_SET);
             if (fread(uniBuf, 1, 8, fp46) != 8) continue;
 
-            uint32_t unicodeLang = ((uint32_t)uniBuf[0]<<24)|((uint32_t)uniBuf[1]<<16)|
-                                   ((uint32_t)uniBuf[2]<<8)|uniBuf[3];
             uint32_t unicodeCount = ((uint32_t)uniBuf[4]<<24)|((uint32_t)uniBuf[5]<<16)|
                                     ((uint32_t)uniBuf[6]<<8)|uniBuf[7];
 
@@ -4097,9 +4095,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         icUInt8Number psz[4];
         fseek(fp50, 0, SEEK_SET);
         if (fread(psz, 1, 4, fp50) == 4) {
-          uint32_t profileSize = ((uint32_t)psz[0]<<24)|((uint32_t)psz[1]<<16)|
+          uint32_t declaredProfileSize = ((uint32_t)psz[0]<<24)|((uint32_t)psz[1]<<16)|
                                  ((uint32_t)psz[2]<<8)|psz[3];
-          if (profileSize == 0) {
+          if (declaredProfileSize == 0) {
             printf("      %s[WARN]  Profile size field = 0%s\n", ColorCritical(), ColorReset());
             printf("       %sCRITICAL: CWE-835 infinite loop in CalcProfileID() (CVE-2026-21507)%s\n",
                    ColorCritical(), ColorReset());

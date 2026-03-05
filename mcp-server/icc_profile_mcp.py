@@ -1495,7 +1495,6 @@ async def check_dependencies() -> str:
         else:
             lines.append("Package manager: unknown (not apt-based)")
             apt_pkgs = {}
-            lib_pkgs = []
 
         results: list[tuple[str, bool]] = []
         for binary, pkg in apt_pkgs.items():
