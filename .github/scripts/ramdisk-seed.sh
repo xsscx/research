@@ -149,7 +149,29 @@ for f in "${FUZZERS[@]}"; do
     sources+="corpus "
   fi
 
-  # Source 3: shared test profiles (for non-XML, non-TIFF fuzzers)
+  # Source 3: targeted seed directories (profile pairs, control-byte seeds)
+  case "$f" in
+    icc_link_fuzzer)
+      if [ -d "$CFL_DIR/seeds-link-pairs" ]; then
+        rsync -a --quiet --ignore-existing "$CFL_DIR/seeds-link-pairs/" "$ram_corpus/"
+        sources+="link-pairs "
+      fi
+      ;;
+    icc_applyprofiles_fuzzer)
+      if [ -d "$CFL_DIR/seeds-applyprofiles" ]; then
+        rsync -a --quiet --ignore-existing "$CFL_DIR/seeds-applyprofiles/" "$ram_corpus/"
+        sources+="applyprofiles-seeds "
+      fi
+      ;;
+    icc_applynamedcmm_fuzzer)
+      if [ -d "$CFL_DIR/seeds-applynamedcmm" ]; then
+        rsync -a --quiet --ignore-existing "$CFL_DIR/seeds-applynamedcmm/" "$ram_corpus/"
+        sources+="namedcmm-seeds "
+      fi
+      ;;
+  esac
+
+  # Source 4: shared test profiles (for non-XML, non-TIFF fuzzers)
   case "$f" in
     icc_fromxml_fuzzer|icc_toxml_fuzzer|icc_tiffdump_fuzzer)
       # XML fuzzers need XML, TIFF fuzzer needs TIFF — skip ICC profiles
@@ -164,7 +186,7 @@ for f in "${FUZZERS[@]}"; do
       ;;
   esac
 
-  # Source 4: XML corpus for XML fuzzers
+  # Source 5: XML corpus for XML fuzzers
   if [ "$f" = "icc_fromxml_fuzzer" ] || [ "$f" = "icc_toxml_fuzzer" ]; then
     xml_corpus="$CFL_DIR/corpus-xml"
     if [ -d "$xml_corpus" ]; then
