@@ -1,15 +1,48 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-08 00:00:00 UTC
+Last Updated: 2026-03-05 15:10:00 UTC
 
-tl;dr ICC Profile Analysis Tool for Security Research
+tl;dr ICC Profile Security Analyzer — 86 heuristics, ASAN/UBSAN instrumented, callgraph analysis
 
 ## Target Audience
 - Security Researcher
 - NVD Analyst
 - Developer
 
-## Security Heuristics (H1–H32)
+## Analysis Modes
+
+```
+iccAnalyzer-lite [MODE] <file>
+
+  -h  <file.icc>              Security heuristics (86 checks)
+  -a  <file.icc>              Comprehensive analysis (all modes)
+  -r  <file.icc>              Round-trip accuracy test
+  -n  <file.icc>              Ninja mode (minimal output)
+  -nf <file.icc>              Ninja mode (full dump, no truncation)
+  -cg <crash.log> [out.png]   Call graph from ASAN/UBSAN crash log
+  -x  <file.icc> <basename>   Extract LUT tables
+  -xml <file.icc> <out.xml>   Export heuristics report as XML + XSLT
+```
+
+## Architecture (13 modules, 13,000+ LOC)
+
+| Module | LOC | Purpose |
+|--------|-----|---------|
+| IccAnalyzerSecurity.cpp | 6,591 | Core: 86 heuristics (H1–H86), path validation |
+| IccAnalyzerCallGraph.cpp | 652 | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
+| IccAnalyzerLUT.cpp | 833 | LUT extraction and analysis |
+| IccAnalyzerNinja.cpp | 727 | Ninja mode (compact dump) |
+| IccAnalyzerTagDetails.cpp | 569 | Tag-level detailed output |
+| IccAnalyzerXMLExport.cpp | 378 | XML + XSLT report export |
+| iccAnalyzer-lite.cpp | 341 | Main entry, crash recovery, mode dispatch |
+| IccAnalyzerValidation.cpp | 302 | Profile validation and round-trip |
+| IccAnalyzerErrors.cpp | 231 | Error formatting and reporting |
+| IccAnalyzerInspect.cpp | 201 | Profile inspection utilities |
+| IccAnalyzerConfig.cpp | 183 | Build config and version |
+| IccAnalyzerComprehensive.cpp | 172 | Comprehensive analysis orchestrator |
+| IccAnalyzerSignatures.cpp | 161 | Known signature database |
+
+## Security Heuristics (H1–H86)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -43,7 +76,7 @@ tl;dr ICC Profile Analysis Tool for Security Research
 |----|-------|------|
 | H20 | Tag type signature validation | Non-printable/null type bytes → corrupted tag data |
 | H21 | tagStruct member inspection | Malformed struct members, invalid member types |
-| H22 | NumArray scalar expectation | Multi-value array in scalar context → **SBO** (patch 027, SCARINESS:51) |
+| H22 | NumArray scalar expectation | Multi-value array in scalar context → **SBO** (patch 027) |
 | H23 | NumArray value ranges | NaN/Inf values → FPE/div-by-zero |
 | H24 | Nesting depth | Recursive struct/array depth >4 → stack overflow (patch 061) |
 
@@ -51,26 +84,93 @@ tl;dr ICC Profile Analysis Tool for Security Research
 | ID | Check | Risk | CVE Coverage |
 |----|-------|------|-------------|
 | H25 | Tag offset/size OOB | Tag data extends past file/profile bounds → **HBO** | CVE-2026-25583, CVE-2026-24852 |
-| H26 | NamedColor2 string validation | Prefix/suffix with XML-expandable chars overflow icFixXml 256-byte buffer → **SBO** | CVE-2026-21488 |
-| H27 | MPE matrix dimensions | Matrix with <3 output channels → **HBO** in pushXYZConvert | CVE-2026-25634, CVE-2026-22047 |
-| H28 | LUT dimension validation | LUT8/LUT16 nInput^nGrid CLUT points → **OOM** in CIccCLUT::Init | GHSA-x9hr-pxxc-h38p, GHSA-x6gg-j72w-jc9w |
-| H29 | ColorantTable string validation | Unterminated name[32] → strlen overflow → **HBO** read in ToXml | GHSA-4wqv-pvm8-5h27, CVE-2026-27692 |
+| H26 | NamedColor2 string validation | Prefix/suffix with XML-expandable chars → **SBO** | CVE-2026-21488 |
+| H27 | MPE matrix dimensions | Matrix with <3 output channels → **HBO** | CVE-2026-25634, CVE-2026-22047 |
+| H28 | LUT dimension validation | LUT8/LUT16 nInput^nGrid CLUT → **OOM** | GHSA-x9hr-pxxc-h38p |
+| H29 | ColorantTable string validation | Unterminated name[32] → strlen overflow | GHSA-4wqv-pvm8-5h27, CVE-2026-27692 |
 | H30 | GamutBoundaryDesc allocation | Triangle/vertex count vs tag size → **OOM** | GHSA-rc3h-95ph-j363 |
-| H31 | MPE channel count validation | Input/output channels >32 → memcpy overlap, **SBO** | CVE-2026-25634, CVE-2026-25584, CVE-2026-25585 |
-| H32 | Tag type confusion detection | Unknown type signature → wrong parser → memory corruption | GHSA-2pjj-3c98-qp37, GHSA-xqq3-g894-w2h5 |
+| H31 | MPE channel count validation | Input/output channels >32 → **SBO** | CVE-2026-25634, CVE-2026-25584 |
+| H32 | Tag type confusion detection | Unknown type signature → memory corruption | GHSA-2pjj-3c98-qp37 |
+
+### Library-API Heuristics (H33–H60)
+| ID | Check | Risk |
+|----|-------|------|
+| H33 | Dict tag deep analysis | DictEntry name/value/localized data integrity |
+| H34 | Named color validation | Oversized count/color entries → **HBO** |
+| H35 | MPE calculator opcode scan | Dangerous opcodes: tGet, tPut, tSave |
+| H36 | tagArray recursion guard | Recursive TagArray elements |
+| H37 | ResponseCurve measurements | Excessive measurement count → allocation bomb |
+| H38 | Tag data entropy analysis | Low-entropy = padding/repetition anomaly |
+| H39 | Tag alignment and padding | Misaligned tag offsets |
+| H40 | Profile class/colorspace consistency | Class vs spaces mismatch |
+| H41 | Rendering intent consistency | Tag presence vs declared intent |
+| H42–H54 | Library API surface | CIccProfile::Read, Validate, FindTag, Describe coverage |
+| H55 | CLUT precision validation | LUT bit-depth anomalies |
+| H56 | Curve function type validation | Invalid parametric curve types |
+| H57 | Profile ID / MD5 consistency | Missing or mismatched profile identifier |
+| H58 | MPE sub-element recursion guard | Infinite recursion in nested MPE elements |
+| H59 | XYZ value range validation | Out-of-range D50 illuminant values |
+| H60 | Viewing conditions validation | Malformed viewing condition tags |
+
+### Extended Library Coverage (H61–H78)
+| ID | Check | Risk |
+|----|-------|------|
+| H61 | Measurement type validation | Geometry, flare, illuminant fields |
+| H62 | Spectral data validation | Wavelength range, step, array consistency |
+| H63 | Profile sequence desc validation | Device manufacturer/model integrity |
+| H64 | Chromatic adaptation validation | 3×3 matrix determinant and conditioning |
+| H65 | Multi-localized Unicode | String length, language code validation |
+| H66 | Colorant order validation | Table index bounds |
+| H67 | CIccCmm transform validation | Transform chain initialization |
+| H68 | Screening descriptor validation | Frequency/angle per channel |
+| H69 | Profile ID / MD5 consistency | Computed vs stored ID comparison |
+| H70 | Device attributes validation | Reflective/transparency/matte/gloss flags |
+| H71–H78 | Tag type completeness | Coverage of all iccDEV tag type parsers |
+
+### Advanced Heuristics (H79–H86)
+| ID | Check | Risk |
+|----|-------|------|
+| H79 | CIccIO Read/Write validation | I/O operation error paths |
+| H80 | Tag table binary search | Sorted-order assumptions |
+| H81 | MPE formula element validation | Element type coverage |
+| H82 | BRDF/spectral structure validation | Complex nested structures |
+| H83 | Embedded profile validation | Recursion and size limits |
+| H84 | UTF-16 string handling | Surrogate pair, BOM validation |
+| H85 | Numeric conversion safety | Float-to-fixed overflow |
+| H86 | Comprehensive tag cross-references | Inter-tag dependency validation |
+
+## Call Graph Analysis (-cg)
+
+Parses ASAN/UBSAN crash logs and generates:
+- **DOT graph** — Graphviz visualization (entry→crash)
+- **PNG image** — Rendered call chain
+- **JSON report** — Machine-readable crash analysis
+
+Supports 10 ASAN error types + UBSAN runtime errors with exploitability assessment.
+
+```bash
+# From ASAN crash log
+iccanalyzer-lite -cg crash_log.txt output.png
+
+# From UBSAN runtime error
+iccanalyzer-lite -cg ubsan_log.txt output.png
+
+# Output: output.png, output.png.dot, output.png.json
+```
 
 ## Build
 
-The analyzer links against **unpatched upstream iccDEV** to detect bugs in the original library code.
+Links against **unpatched upstream iccDEV** to detect bugs in the original library.
 
 ```bash
 cd iccanalyzer-lite && ./build.sh
 ```
 
-## Run
+## Exit Codes
 
-```
-   docker pull ghcr.io/xsscx/icc-profile-mcp:dev
-   docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev icc-profile-web --host 0.0.0.0 --port 8080
-```
-<img width="3742" height="1936" alt="image" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />
+| Code | Meaning |
+|------|---------|
+| 0 | Clean — no issues detected |
+| 1 | Finding — security heuristic warnings |
+| 2 | Error — I/O failure |
+| 3 | Usage — bad arguments |
