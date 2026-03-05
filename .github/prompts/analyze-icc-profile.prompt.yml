@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (86 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (94 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
 model: openai/gpt-4o
 modelParameters:
@@ -14,7 +14,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 86 security heuristics (H1-H86)
+        analyze_security    — run 94 security heuristics (H1-H94)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -31,7 +31,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 86-heuristic scan.
+      2. Call analyze_security to run the 94-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -50,6 +50,10 @@ messages:
                  small tags, data flags, calculator sub-elements, CLUT grid overflow
       - H79-H86: LoadTag overflow, UAF shared pointers, MPE channel consistency,
                  I/O bit-shift overflow, float array SBO, 3D LUT OOB, memcpy overlap, mluc HBO
+      - H87-H94: TRC curve anomalies, chromatic adaptation matrix validation,
+                 profile sequence descriptions, preview tag channel consistency,
+                 colorant order validation, spectral viewing conditions,
+                 embedded profile flag consistency, matrix/TRC colorant consistency
 
       When the iccDEV library fails to load a malformed profile, the analyzer
       activates a raw-file fallback engine that runs H10, H13, H25, H28, H32
@@ -67,7 +71,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H86)
+      - Security heuristic results (H1-H94)
       - Round-trip validation status
       - Any anomalies or findings
 testData:

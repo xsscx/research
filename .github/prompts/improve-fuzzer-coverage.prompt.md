@@ -114,3 +114,11 @@ git commit -m "coverage: <description of improvements>"
 | Branches | 56.56% |
 | Functions | 59.71% |
 | Regions | 60.88% |
+
+## CodeQL Status (March 2026)
+| Metric | Value |
+|--------|-------|
+| Total alerts | 4 |
+| In analyzer code | 0 |
+| In iccDEV upstream | 4 (assignment-does-not-return-this) |
+| Fixed this session | 19 (constant-comparison, complex-condition, path-injection) |
