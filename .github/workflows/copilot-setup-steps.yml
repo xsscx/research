@@ -60,4 +60,4 @@ jobs:
           echo "--- MCP server ---"
           python -c "from icc_profile_mcp import mcp; print('[OK]')"
           echo "--- analyze-profile.sh ---"
-          test -x analyze-profile.sh && echo "[OK]" || echo "[FAIL] missing"
+          test -x .github/scripts/analyze-profile.sh && echo "[OK]" || echo "[FAIL] missing"
