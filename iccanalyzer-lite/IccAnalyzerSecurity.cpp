@@ -2075,7 +2075,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
         icUInt32Number elemCount = mpe->NumElements();
         if (elemCount > 512) {
-          CIccInfo info;
           printf("      %s[WARN]  MPE tag '%s': %u elements in processing chain (>512)%s\n",
                  ColorCritical(), info.GetTagSigName((icTagSignature)mpeSigs56[s]),
                  elemCount, ColorReset());
@@ -2108,7 +2107,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         if (!numArr) continue;
         icUInt32Number arrSz = numArr->GetNumValues();
         if (arrSz > 16777216) {
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': NumArray with %u values (>16M, OOM risk)%s\n",
                  ColorCritical(), info.GetTagSigName(e->TagInfo.sig),
                  arrSz, ColorReset());
@@ -2180,19 +2178,19 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       if (vcTag) {
         CIccTagViewingConditions *vc = dynamic_cast<CIccTagViewingConditions*>(vcTag);
         if (vc) {
-          icFloatNumber illumX = icFtoD(vc->m_XYZIllum.X);
-          icFloatNumber illumY = icFtoD(vc->m_XYZIllum.Y);
-          icFloatNumber illumZ = icFtoD(vc->m_XYZIllum.Z);
-          if (illumX < 0 || illumY < 0 || illumZ < 0) {
+          icFloatNumber vcIllumX = icFtoD(vc->m_XYZIllum.X);
+          icFloatNumber vcIllumY = icFtoD(vc->m_XYZIllum.Y);
+          icFloatNumber vcIllumZ = icFtoD(vc->m_XYZIllum.Z);
+          if (vcIllumX < 0 || vcIllumY < 0 || vcIllumZ < 0) {
             printf("      %s[WARN]  Negative illuminant XYZ (%.4f, %.4f, %.4f)%s\n",
-                   ColorCritical(), illumX, illumY, illumZ, ColorReset());
+                   ColorCritical(), vcIllumX, vcIllumY, vcIllumZ, ColorReset());
             printf("       %sCWE-682: Negative tristimulus → invalid color math%s\n",
                    ColorCritical(), ColorReset());
             viewIssues++;
           }
-          if (illumY > 200.0 || illumX > 200.0 || illumZ > 200.0) {
+          if (vcIllumY > 200.0 || vcIllumX > 200.0 || vcIllumZ > 200.0) {
             printf("      %s[WARN]  Extreme illuminant XYZ magnitude (%.4f, %.4f, %.4f)%s\n",
-                   ColorWarning(), illumX, illumY, illumZ, ColorReset());
+                   ColorWarning(), vcIllumX, vcIllumY, vcIllumZ, ColorReset());
             viewIssues++;
           }
           icFloatNumber surX = icFtoD(vc->m_XYZSurround.X);
@@ -2234,7 +2232,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         }
 
         if (localeCount > 1000) {
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': mluc has %d locales (>1000)%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  localeCount, ColorReset());
@@ -2242,7 +2239,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           mlucIssues++;
         }
         if (totalBytes > 10485760) { // 10MB aggregate
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': mluc aggregate %zu bytes (>10MB)%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  totalBytes, ColorReset());
@@ -2279,7 +2275,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         icUInt8Number nIn = mbb->InputChannels();
         icUInt8Number nOut = mbb->OutputChannels();
         if (nIn == 0 || nOut == 0) {
-          CIccInfo info;
           printf("      %s[WARN]  LUT tag '%s': zero channels (in=%d, out=%d)%s\n",
                  ColorCritical(), info.GetTagSigName((icTagSignature)lutSigs[s]),
                  nIn, nOut, ColorReset());
@@ -2288,7 +2283,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           lutIssues++;
         }
         if (nIn > 16 || nOut > 16) {
-          CIccInfo info;
           printf("      %s[WARN]  LUT tag '%s': extreme channels (in=%d, out=%d)%s\n",
                  ColorCritical(), info.GetTagSigName((icTagSignature)lutSigs[s]),
                  nIn, nOut, ColorReset());
@@ -2419,7 +2413,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             else if (std::fabs(vals[v]) > 1e10) extremeCount++;
           }
           if (nanCount > 0 || infCount > 0) {
-            CIccInfo info;
             printf("      %s[WARN]  Tag '%s': %d NaN, %d Inf in %u values%s\n",
                    ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                    nanCount, infCount, scanLimit, ColorReset());
@@ -2428,7 +2421,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             nanIssues++;
           }
           if (extremeCount > scanLimit / 4) {
-            CIccInfo info;
             printf("      %s[WARN]  Tag '%s': %d/%u extreme values (>1e10)%s\n",
                    ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
                    extremeCount, scanLimit, ColorReset());
@@ -2584,7 +2576,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         icUInt32Number nCPM = sma->GetChannelsPerMatrix();
         uint64_t product = (uint64_t)nMat * nCPM * sizeof(icFloatNumber);
         if (product > 16777216ULL) { // 16MB cap per patch 044
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': SparseMatrix %u matrices × %u channels = %llu bytes%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  nMat, nCPM, (unsigned long long)product, ColorReset());
@@ -2624,7 +2615,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
               CIccTagStruct *childStruct = dynamic_cast<CIccTagStruct*>(child);
               CIccTagArray *childArray = dynamic_cast<CIccTagArray*>(child);
               if (childStruct || childArray) {
-                CIccInfo info;
                 printf("      %s[WARN]  Tag '%s': nested TagStruct/TagArray detected%s\n",
                        ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), ColorReset());
                 printf("       %sCWE-674: Potential recursive nesting → stack overflow (P061)%s\n",
@@ -2641,7 +2631,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
         if (ta) {
           icUInt32Number nSz = ta->GetSize();
           if (nSz > 10000) {
-            CIccInfo info;
             printf("      %s[WARN]  Tag '%s': TagArray with %u elements (excessive)%s\n",
                    ColorCritical(), info.GetTagSigName(sit->TagInfo.sig), nSz, ColorReset());
             printf("       %sCWE-400: Excessive array size%s\n",
@@ -2652,7 +2641,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
               CIccTag *child = ta->GetIndex(i);
               if (!child) continue;
               if (dynamic_cast<CIccTagStruct*>(child) || dynamic_cast<CIccTagArray*>(child)) {
-                CIccInfo info;
                 printf("      %s[WARN]  Tag '%s'[%u]: nested TagStruct/TagArray%s\n",
                        ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), i, ColorReset());
                 printf("       %sCWE-674: Recursive nesting → stack overflow (P061)%s\n",
@@ -2703,7 +2691,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           if (actualType == expectations[e].expected[t]) { valid = true; break; }
         }
         if (!valid) {
-          CIccInfo info;
           char typeSig[5];
           SignatureToFourCC((icUInt32Number)actualType, typeSig);
           printf("      %s[WARN]  Tag '%s': unexpected type '%s'%s\n",
@@ -2732,7 +2719,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
         // Tag data size from tag table (not including type sig)
         if (sit->TagInfo.size <= 8 && sit->TagInfo.size > 0) {
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': size %u bytes (≤ 8, suspiciously small)%s\n",
                  ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
                  sit->TagInfo.size, ColorReset());
@@ -2765,7 +2751,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
         icUInt32Number dataSz = dataTag->GetSize();
         if (dataSz > 134217728) { // 128MB
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': CIccTagData size %u bytes (>128MB)%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  dataSz, ColorReset());
@@ -2774,7 +2759,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           dataIssues++;
         }
         if (dataTag->IsTypeCompressed()) {
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': compressed data flag set%s\n",
                  ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), ColorReset());
           printf("       %sCWE-843: Compressed type may trigger unsafe decompression%s\n",
@@ -2812,7 +2796,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
         icUInt32Number nElems = mpe->NumElements();
         if (nElems > 256) {
-          CIccInfo info;
           printf("      %s[WARN]  Tag '%s': MPE with %u elements (>256)%s\n",
                  ColorCritical(), info.GetTagSigName(mpeSigs[s]),
                  nElems, ColorReset());
@@ -2865,7 +2848,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
             if (gridProduct > 268435456ULL) { overflow = true; break; } // 256M entries
           }
           if (overflow) {
-            CIccInfo info;
             printf("      %s[WARN]  Tag '%s': CLUT grid product overflow (%u inputs)%s\n",
                    ColorCritical(), info.GetTagSigName(clutSigs[s]), nIn, ColorReset());
             printf("       %sCWE-190: Exponential grid allocation (P001)%s\n",
@@ -2874,7 +2856,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
           } else {
             uint64_t totalBytes = gridProduct * nOut * sizeof(icFloatNumber);
             if (totalBytes > 16777216ULL) { // 16MB per-CLUT cap
-              CIccInfo info;
               printf("      %s[WARN]  Tag '%s': CLUT alloc %llu bytes (>16MB)%s\n",
                      ColorCritical(), info.GetTagSigName(clutSigs[s]),
                      (unsigned long long)totalBytes, ColorReset());

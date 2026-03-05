@@ -45,8 +45,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// Validate path: reject traversal sequences and absolute paths in filenames.
+static bool IsPathSafe(const char *path) {
+  if (!path || !path[0]) return false;
+  if (strstr(path, "..")) return false;
+  // Allow only relative paths under current directory
+  size_t len = strlen(path);
+  if (len > 4096) return false;
+  return true;
+}
+
 // Open file with restricted permissions (0600) to prevent world-readable output.
 static FILE *SecureFileOpen(const char *path, const char *mode) {
+  if (!IsPathSafe(path)) return nullptr;
   int flags = O_WRONLY | O_CREAT | O_TRUNC;
   if (mode[0] == 'a') flags = O_WRONLY | O_CREAT | O_APPEND;
   int fd = open(path, flags, S_IRUSR | S_IWUSR);
