@@ -99,12 +99,12 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-18 \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=ON \
-            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_STATIC_LIBS=OFF \
             -DENABLE_TESTS=OFF \
             -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
             -Wno-dev
           make -j$(nproc)
 
@@ -117,6 +117,10 @@ jobs:
           echo "tool_path=$(pwd)/$TOOL" >> $GITHUB_ENV
           echo "build_dir=$(pwd)" >> $GITHUB_ENV
           echo "iccdev_root=/tmp/iccdev" >> $GITHUB_ENV
+
+          # Set LD_LIBRARY_PATH for shared library builds
+          LIB_DIRS=$(find "$(pwd)" -name "*.so" -exec dirname {} \; | sort -u | tr '\n' ':')
+          echo "LD_LIBRARY_PATH=${LIB_DIRS}${LD_LIBRARY_PATH:-}" >> $GITHUB_ENV
 
           # Verify instrumentation flags
           echo "Checking coverage flags..."
@@ -324,6 +328,74 @@ jobs:
             [ -f "$icc" ] || continue
             # These SHOULD fail — they test error handling paths
             timeout 10s iccDumpProfile "$icc" > /dev/null 2>&1 || true
+            timeout 10s iccRoundTrip "$icc" > /dev/null 2>&1 || true
+            timeout 10s iccToXml "$icc" "/tmp/calc-$$.xml" > /dev/null 2>&1 && rm -f "/tmp/calc-$$.xml"
+            INVALID_COUNT=$((INVALID_COUNT + 1))
+          done
+
+          echo "CalcTest: $CALC_PASS calc exercises, $INVALID_COUNT invalid profiles tested"
+
+      - name: Exercise iccApplyToLink (profile linking engine)
+        run: |
+          set -euo pipefail
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/link-%p-%m.profraw"
+
+          BUILD_DIR="${{ env.build_dir }}"
+          for d in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable -exec dirname {} \; | sort -u); do
+            PATH="$d:$PATH"
+          done
+          export PATH
+
+          ICCDEV="${{ env.iccdev_root }}"
+          cd "$ICCDEV/Testing"
+          LINK_PASS=0
+
+          # Exercise profile linking with different rendering intents
+          SRGB="sRGB_v4_ICC_preference.icc"
+          if [ -f "$SRGB" ]; then
+            # Link sRGB to sRGB (identity transform) with perceptual intent
+            timeout 15s iccApplyToLink /tmp/link_test.icc 3 "$SRGB" 0 "$SRGB" 1 > /dev/null 2>&1 && LINK_PASS=$((LINK_PASS + 1))
+            rm -f /tmp/link_test.icc
+            # Relative colorimetric
+            timeout 15s iccApplyToLink /tmp/link_test.icc 3 "$SRGB" 1 "$SRGB" 1 > /dev/null 2>&1 && LINK_PASS=$((LINK_PASS + 1))
+            rm -f /tmp/link_test.icc
+          fi
+
+          # Link Display profiles
+          for disp in Display/*.icc; do
+            [ -f "$disp" ] || continue
+            timeout 15s iccApplyToLink /tmp/link_test.icc 3 "$disp" 0 "$SRGB" 1 > /dev/null 2>&1 && LINK_PASS=$((LINK_PASS + 1))
+            rm -f /tmp/link_test.icc
+          done
+
+          # Link Calc profiles
+          for calc in Calc/*.icc; do
+            [ -f "$calc" ] || continue
+            timeout 15s iccApplyToLink /tmp/link_test.icc 3 "$calc" 0 "$SRGB" 1 > /dev/null 2>&1 && LINK_PASS=$((LINK_PASS + 1))
+            rm -f /tmp/link_test.icc
+          done
+
+          echo "iccApplyToLink: $LINK_PASS link exercises"
+          for xml in calcCheckInit.xml calcExercizeOps.xml; do
+            [ -f "$xml" ] || continue
+            icc_out="${xml%.xml}.icc"
+            timeout 10s iccFromXml "$xml" "$icc_out" > /dev/null 2>&1 || true
+          done
+
+          # Exercise calculator operations with debug
+          if [ -f calcCheckInit.icc ] && [ -f rgbExercise8bit.txt ]; then
+            timeout 15s iccApplyNamedCmm -debugcalc rgbExercise8bit.txt 0 1 calcCheckInit.icc 1 > /dev/null 2>&1 && CALC_PASS=$((CALC_PASS + 1))
+          fi
+          if [ -f calcExercizeOps.icc ] && [ -f rgbExercise8bit.txt ]; then
+            timeout 15s iccApplyNamedCmm -debugcalc rgbExercise8bit.txt 0 1 calcExercizeOps.icc 1 > /dev/null 2>&1 && CALC_PASS=$((CALC_PASS + 1))
+          fi
+
+          # Exercise invalid profile detection (understack tests)
+          INVALID_COUNT=0
+          for icc in calcUnderStack_*.icc calcOverMem_*.icc; do
+            [ -f "$icc" ] || continue
+            # These SHOULD fail — they test error handling paths
+            timeout 10s iccDumpProfile "$icc" > /dev/null 2>&1 || true
             INVALID_COUNT=$((INVALID_COUNT + 1))
           done
 
@@ -466,6 +538,45 @@ jobs:
 
           echo "Image container dumps: $IMG_PASS"
 
+      - name: Exercise iccFromCube and iccV5DspObsToV4Dsp
+        run: |
+          set -euo pipefail
+          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/misc-%p-%m.profraw"
+
+          BUILD_DIR="${{ env.build_dir }}"
+          for d in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable -exec dirname {} \; | sort -u); do
+            PATH="$d:$PATH"
+          done
+          export PATH
+
+          ICCDEV="${{ env.iccdev_root }}"
+          MISC_PASS=0
+
+          # Exercise iccFromCube with CMYK-3DLUTs test data
+          cd "$ICCDEV/Testing/CMYK-3DLUTs"
+          for xml in *.xml; do
+            [ -f "$xml" ] || continue
+            icc_out="${xml%.xml}.icc"
+            if timeout 15s iccFromXml "$xml" "$icc_out" > /dev/null 2>&1; then
+              MISC_PASS=$((MISC_PASS + 1))
+              timeout 10s iccDumpProfile "$icc_out" > /dev/null 2>&1 || true
+              timeout 10s iccRoundTrip "$icc_out" > /dev/null 2>&1 || true
+            fi
+          done
+
+          # Exercise iccV5DspObsToV4Dsp on Display profiles
+          V5TOOL=$(find "$BUILD_DIR" -name "iccV5DspObsToV4Dsp" -o -name "IccV5DspObsToV4Dsp" 2>/dev/null | head -1)
+          if [ -n "$V5TOOL" ] && [ -x "$V5TOOL" ]; then
+            cd "$ICCDEV/Testing"
+            for disp in Display/*.icc; do
+              [ -f "$disp" ] || continue
+              timeout 10s "$V5TOOL" "$disp" "/tmp/v4-out-$$.icc" > /dev/null 2>&1 && MISC_PASS=$((MISC_PASS + 1))
+              rm -f "/tmp/v4-out-$$.icc"
+            done
+          fi
+
+          echo "FromCube/V5toV4 exercises: $MISC_PASS"
+
       - name: Exercise research test profiles
         run: |
           set -euo pipefail
@@ -511,17 +622,25 @@ jobs:
 
           echo "Merged profdata: $(stat -c%s coverage-report/merged.profdata) bytes"
 
-          # Find all instrumented binaries
+          # Find all instrumented binaries and shared libraries
           BUILD_DIR="${{ env.build_dir }}"
           MAIN_BIN="${{ env.tool_path }}"
 
-          # Collect all tool binaries as -object args for comprehensive coverage
+          # Collect all tool binaries AND shared libs as -object args
           OBJECT_ARGS=""
+          OBJECT_COUNT=0
+          # Find all executable tool binaries
           while IFS= read -r bin; do
             [ "$bin" = "$MAIN_BIN" ] && continue
             OBJECT_ARGS="$OBJECT_ARGS -object=$bin"
-          done < <(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable 2>/dev/null)
-          echo "Coverage binaries: 1 main + $(echo $OBJECT_ARGS | grep -co '\-object=' || echo 0) additional"
+            OBJECT_COUNT=$((OBJECT_COUNT + 1))
+          done < <(find "$BUILD_DIR" -type f -executable \( -name "icc*" -o -name "Icc*" \) 2>/dev/null)
+          # Find shared libraries (contain library coverage data)
+          while IFS= read -r so; do
+            OBJECT_ARGS="$OBJECT_ARGS -object=$so"
+            OBJECT_COUNT=$((OBJECT_COUNT + 1))
+          done < <(find "$BUILD_DIR" -name "*.so" -type f 2>/dev/null)
+          echo "Coverage binaries: 1 main + $OBJECT_COUNT additional objects"
 
           # Generate text report
           llvm-cov-18 report \
