@@ -116,8 +116,8 @@ fi
 
 # ── Environment: suppress all disk I/O ──────────────────────────────
 export FUZZ_TMPDIR="$RAMDISK"
-export LLVM_PROFILE_FILE="$RAMDISK/profraw/%m.profraw"
 mkdir -p "$RAMDISK/profraw"
+# LLVM_PROFILE_FILE is set per-fuzzer in the loop below to include the fuzzer name
 
 # ── Per-fuzzer dict mapping (shared base dicts) ────────────────────
 declare -A FUZZER_DICTS=(
@@ -185,6 +185,9 @@ for f in "${FUZZERS[@]}"; do
       break
     fi
   done
+
+  # Set per-fuzzer profraw path so filenames include the fuzzer name
+  export LLVM_PROFILE_FILE="$RAMDISK/profraw/${f}_%m_%p.profraw"
 
   # Run fuzzer; capture exit code without aborting script
   rc=0

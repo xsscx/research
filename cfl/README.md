@@ -146,16 +146,17 @@ sudo mount -o defaults,noatime /dev/sde /mnt/g
 ### Coverage Collection
 
 ```bash
-# During fuzzing: collect profraw
-LLVM_PROFILE_FILE=/tmp/fuzz-ramdisk/profraw/%m_%p.profraw \
+# During fuzzing: set per-fuzzer profraw path (includes fuzzer name for identification)
+LLVM_PROFILE_FILE=/tmp/fuzz-ramdisk/profraw/icc_profile_fuzzer_%m_%p.profraw \
   /tmp/fuzz-ramdisk/bin/icc_profile_fuzzer ...
 
 # Suppress profraw (for merge ops — avoids 1GB+ stray files)
 LLVM_PROFILE_FILE=/dev/null
 
-# Generate coverage report
-.github/scripts/merge-profdata.sh
-.github/scripts/generate-coverage-report.sh
+# Merge profraw → profdata → HTML coverage report
+.github/scripts/merge-profdata.sh /tmp/fuzz-ramdisk/profraw
+.github/scripts/generate-coverage-report.sh \
+  /tmp/fuzz-ramdisk/merged.profdata /tmp/fuzz-ramdisk/coverage-report
 ```
 
 ## Special Fuzzer Notes
