@@ -171,6 +171,13 @@ for f in "${FUZZERS[@]}"; do
       ;;
   esac
 
+  # Source 3.5: per-fuzzer seed corpus directories (sparse matrix, spectral, PRMG seeds)
+  per_fuzzer_seeds="$CFL_DIR/${f}_seed_corpus"
+  if [ -d "$per_fuzzer_seeds" ]; then
+    rsync -a --quiet --ignore-existing "$per_fuzzer_seeds/" "$ram_corpus/"
+    sources+="per-fuzzer-seeds "
+  fi
+
   # Source 4: shared test profiles (for non-XML, non-TIFF fuzzers)
   case "$f" in
     icc_fromxml_fuzzer|icc_toxml_fuzzer|icc_tiffdump_fuzzer)

@@ -4258,3 +4258,15 @@
 "\x01\x00P0\x00\x45\xa7\x66"
 "o\x00\x00\x00"
 "\x91\x9c"
+
+# --- Spectral MPE element types ---
+emission_matrix="\x65\x6D\x74\x78"
+inv_emission_matrix="\x69\x65\x6D\x78"
+emission_clut="\x65\x63\x6C\x74"
+reflectance_clut="\x72\x63\x6C\x74"
+emission_observer="\x65\x6F\x62\x73"
+reflectance_observer="\x72\x6F\x62\x73"
+spectral_start_380="\x5D\xF0"
+spectral_end_780="\x62\x18"
+spectral_steps_81="\x00\x51"
+pcc_d65="\x00\x00\x14\xB3"
