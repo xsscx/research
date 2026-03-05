@@ -26,7 +26,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 66 patches, builds 19 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 67 patches, builds 19 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -173,11 +173,14 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 
 ### Reusable Prompts
 
-Four prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Seven prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 54-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
+- `triage-fuzzer-oom.prompt.yml` — LibFuzzer OOM triage and patch workflow
 - `health-check.prompt.yml` — MCP server verification
+- `image-fuzzer-quality.prompt.md` — xnuimagefuzzer output quality assessment
+- `mac-catalyst-ci.prompt.md` — Mac Catalyst CI debugging guide
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
@@ -352,7 +355,7 @@ This repo contains security research tools targeting the ICC color profile speci
 - **iccanalyzer-lite/** — 54-heuristic static/dynamic security analyzer built with full sanitizer instrumentation. 14 C++ modules compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44 CWE categories from 77+ CVEs. When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — 66 security patches (001–066) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, and XML parsing limits. 5 no-op patches (023, 028, 039, 040, 058 — upstream-adopted). See `cfl/patches/README.md` for full details.
+- **cfl/patches/** — 67 security patches (001–067) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, and XML parsing limits (tags, strings, text content, ProfileSeqId entries, Dict entries). 6 no-op patches (023, 028, 039, 040, 058 — upstream-adopted; 066 — superseded by 067). See `cfl/patches/README.md` for full details.
 - **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
 - **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing. Includes crash reproducers (SBO, SEGV, SO, OOM) with descriptive filenames mapping to root cause function and source line.
 - **.github/scripts/** — Shell scripts for analysis, fuzzing, ramdisk management, coverage, and corpus handling. Key scripts: `analyze-profile.sh` (3-mode analysis), `batch-test-external.sh` (external profile batch testing), `ramdisk-seed.sh` (8GB tmpfs setup), `ramdisk-merge.sh` (corpus dedup).
@@ -403,15 +406,19 @@ Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by 
 ### Patch creation workflow
 When creating a new patch for `cfl/patches/`:
 1. Reproduce the crash with the PoC profile against the existing iccDEV binary
-2. Create the `.patch` file in unified diff format (`diff -u a/path b/path`)
-3. Apply to the existing iccDEV checkout: `patch -p1 -d cfl/iccDEV --forward < cfl/patches/NNN-name.patch`
-4. Rebuild iccDEV libraries: `cd cfl/iccDEV/Build && cmake --build . --target IccProfLib2-static -j$(nproc)`
-5. Rebuild fuzzers: `cd cfl && ./build.sh` (reuses existing checkout, applies all patches)
-6. Copy rebuilt binaries to ramdisk: `cp cfl/bin/* /tmp/fuzz-ramdisk/bin/`
-7. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
-8. Run a smoke test across all 19 fuzzers to confirm no regressions
-9. Update `cfl/patches/README.md` (table entry + description paragraph)
-10. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
+2. **CRITICAL**: Reset iccDEV checkout, then apply ALL prior patches (001 through N-1) to establish the correct baseline. Never diff against raw upstream — intermediate patches shift context lines.
+3. Save a copy of the baseline source files you will modify
+4. Make your fixes in the patched checkout
+5. Create the `.patch` file: `diff -u baseline/path fixed/path > cfl/patches/NNN-name.patch`
+6. Verify clean application: reset checkout → apply 001 through N → confirm no rejects
+7. Rebuild fuzzers: `cd cfl && ./build.sh` (resets checkout, applies all patches, builds)
+8. Copy rebuilt binaries to ramdisk: `cp cfl/bin/* /tmp/fuzz-ramdisk/bin/` (or SSD)
+9. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
+10. Run a smoke test across all 19 fuzzers to confirm no regressions
+11. Update `cfl/patches/README.md` (table entry + description paragraph)
+12. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
+
+**Lesson learned (patch 066→067)**: Patch 066 failed to apply because patch 049 modified the same file (`IccProfileXml.cpp`), shifting context lines. The fix was to mark 066 as NO-OP and create 067 with correct context from the post-049 baseline.
 
 ### Crash reproducer testing
 To verify a crash reproducer against all 19 fuzzers:
@@ -433,6 +440,23 @@ for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN
 - Both the iccDEV libs AND the tool linking them must use matching sanitizer flags
 - Suppress LLVM profile errors during fuzzing: `LLVM_PROFILE_FILE=/dev/null`
 - iccDEV diagnostic flags: `-DICC_LOG_SAFE=ON -DICC_TRACE_NAN_ENABLED=ON` (cmake) or `-DICC_LOG_SAFE -DICC_TRACE_NAN_ENABLED` (CXXFLAGS)
+
+### OOM triage workflow
+When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
+1. Identify the allocation chain from the OOM stack trace (top frames show the hot allocator)
+2. Inspect the PoC file to understand the trigger (use `xxd | head`, `xmllint`, or `file`)
+3. Common OOM patterns in iccDEV XML parsing:
+   - Unbounded tag/element counts → add `MAX_*` caps (256–1024 entries)
+   - Unbounded string content → add byte-size cap (64KB for localized text)
+   - Unbounded list children (ProfileSeqId, Dict) → cap entries AND strings-per-entry
+4. After patching, verify: `ASAN_OPTIONS=detect_leaks=0 /path/to/fuzzer oom-file 2>&1` — RSS should drop 10x+
+5. Save reproducer to `test-profiles/` with descriptive name: `oom-<description>-<patch#>.icc`
+
+### Coverage workflow tips
+- **Static vs shared libs**: Coverage reports using static libs only show tool `.cpp` coverage (~5K lines). Use `ENABLE_STATIC_LIBS=OFF` to build shared libs so llvm-cov sees all 46K library source lines.
+- **Shared lib collection**: Collect `.so` files with `find Build -name '*.so'` and pass each as `-object` arg to `llvm-cov`.
+- **Runtime**: Set `LD_LIBRARY_PATH` to the shared lib directory before running instrumented tools.
+- **Profraw management**: Use `LLVM_PROFILE_FILE=%m_%p.profraw` (not `default.profraw`) to avoid clobbering between tools.
 
 ### Stale coverage files
 After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` auto-cleans them with `find . -name "*.gcda" -delete` before building.
