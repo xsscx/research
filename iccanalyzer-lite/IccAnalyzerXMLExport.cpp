@@ -335,6 +335,8 @@ bool IccAnalyzerXMLExport::ExportHeuristicsToXML(const char* filename,
 {
   if (!filename || !profilePath || !heuristics)
     return false;
+  if (strstr(filename, "..") || strlen(filename) > 4096)
+    return false;
 
   const auto* report = static_cast<const HeuristicReport*>(heuristics);
 
@@ -356,6 +358,8 @@ bool IccAnalyzerXMLExport::ExportComprehensiveToXML(const char* filename,
                                                      const void* analysis)
 {
   if (!filename || !profilePath || !analysis)
+    return false;
+  if (strstr(filename, "..") || strlen(filename) > 4096)
     return false;
 
   const auto* report = static_cast<const HeuristicReport*>(analysis);
