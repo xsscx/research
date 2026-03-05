@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (94 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (102 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
 model: openai/gpt-4o
 modelParameters:
@@ -54,6 +54,10 @@ messages:
                  profile sequence descriptions, preview tag channel consistency,
                  colorant order validation, spectral viewing conditions,
                  embedded profile flag consistency, matrix/TRC colorant consistency
+      - H95-H102: Sparse matrix array bounds validation, embedded profile recursion
+                  detection, profile sequence ID validation, spectral MPE element
+                  validation, embedded image tag checks, profile sequence description
+                  consistency, MPE sub-element channel continuity, tag size cross-check
 
       When the iccDEV library fails to load a malformed profile, the analyzer
       activates a raw-file fallback engine that runs H10, H13, H25, H28, H32
