@@ -84,7 +84,7 @@ Split input: `[4-byte BE size][display_profile][observer_profile]`
 ### Commands
 
 ```bash
-python3 cfl/iccV5DspObsToV4Dsp-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccV5DspObsToV4Dsp-callgraph.py --json report.json
-python3 cfl/iccV5DspObsToV4Dsp-callgraph.py --summary
+python3 .github/scripts/callgraphs/iccV5DspObsToV4Dsp-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccV5DspObsToV4Dsp-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccV5DspObsToV4Dsp-callgraph.py --summary
 ```

@@ -60,6 +60,6 @@ Note: Link fuzzer needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 
 ### Generate
 
 ```bash
-python3 cfl/iccApplyToLink-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccApplyToLink-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccApplyToLink-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccApplyToLink-callgraph.py --json report.json
 ```

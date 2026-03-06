@@ -64,7 +64,7 @@ ICC profile data with 2 trailing control bytes:
 ### Commands
 
 ```bash
-python3 cfl/iccRoundTrip-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccRoundTrip-callgraph.py --json report.json
-python3 cfl/iccRoundTrip-callgraph.py --summary
+python3 .github/scripts/callgraphs/iccRoundTrip-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccRoundTrip-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccRoundTrip-callgraph.py --summary
 ```

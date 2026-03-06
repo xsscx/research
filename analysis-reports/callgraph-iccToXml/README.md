@@ -60,7 +60,7 @@ Raw ICC profile binary data (entire fuzzer input is the profile).
 ### Commands
 
 ```bash
-python3 cfl/iccToXml-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccToXml-callgraph.py --json report.json
-python3 cfl/iccToXml-callgraph.py --summary
+python3 .github/scripts/callgraphs/iccToXml-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccToXml-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccToXml-callgraph.py --summary
 ```

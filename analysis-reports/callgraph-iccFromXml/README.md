@@ -75,6 +75,6 @@ LLVMFuzzerTestOneInput
 ### Generate
 
 ```bash
-python3 cfl/iccFromXml-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccFromXml-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccFromXml-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccFromXml-callgraph.py --json report.json
 ```

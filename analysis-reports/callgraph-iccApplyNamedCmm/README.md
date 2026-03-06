@@ -74,7 +74,7 @@ The fuzzer tests 10 distinct value patterns through Apply():
 ### Commands
 
 ```bash
-python3 cfl/iccApplyNamedCmm-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccApplyNamedCmm-callgraph.py --json report.json
-python3 cfl/iccApplyNamedCmm-callgraph.py --summary
+python3 .github/scripts/callgraphs/iccApplyNamedCmm-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccApplyNamedCmm-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccApplyNamedCmm-callgraph.py --summary
 ```

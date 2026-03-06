@@ -109,7 +109,7 @@ attack surface.
 ## 5. Fuzzer Coverage Map
 
 The 19 CFL fuzzers collectively cover all 11 iccDEV tool API surfaces.
-All tools have been analyzed with call graph scripts in `cfl/*-callgraph.py`.
+All tools have been analyzed with call graph scripts in `.github/scripts/callgraphs/`.
 
 | Tool | Fuzzer(s) | Fidelity | Fuzzable | Matched | API Surface |
 |------|-----------|----------|----------|---------|-------------|
@@ -149,8 +149,8 @@ dot -Tsvg tool-callgraph.dot -o tool-callgraph.svg
 ### Generate callgraph from source
 
 ```bash
-python3 cfl/iccDumpProfile-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccDumpProfile-callgraph.py --fuzzer cfl/icc_deep_dump_fuzzer.cpp --format json
+python3 .github/scripts/callgraphs/iccDumpProfile-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccDumpProfile-callgraph.py --fuzzer cfl/icc_deep_dump_fuzzer.cpp --format json
 ```
 
 ---
