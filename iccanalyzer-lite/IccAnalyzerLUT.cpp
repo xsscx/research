@@ -162,7 +162,11 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
       
       for (icUInt32Number i = 0; i < totalEntries; i++) {
         ICC_TRACE_NAN(data[i], "mpeCLUT.data");
-        icUInt16Number val = static_cast<icUInt16Number>(data[i] * 65535.0f + 0.5f);
+        icFloatNumber v = data[i];
+        if (std::isnan(v) || std::isinf(v)) v = 0.0f;
+        else if (v < 0.0f) v = 0.0f;
+        else if (v > 1.0f) v = 1.0f;
+        icUInt16Number val = static_cast<icUInt16Number>(v * 65535.0f + 0.5f);
         icUInt16Number bigEndian = ((val >> 8) & 0xff) | ((val << 8) & 0xff00);
         if (fwrite(&bigEndian, sizeof(icUInt16Number), 1, fBin) != 1) {
           printf("    Warning: Write error at entry %u\n", i);
