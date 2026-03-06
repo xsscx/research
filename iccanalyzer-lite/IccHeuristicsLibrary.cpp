@@ -33,6 +33,7 @@
 #include "IccPcc.h"
 
 #include <cmath>
+#include <new>
 #include <map>
 #include <set>
 #include <vector>
@@ -3390,7 +3391,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
             entryCount++;
 
             // Check for null profile ID (all zeros)
-            icProfileID &pid = it->m_profileID;
+            icProfileID pid = it->m_profileID;
             bool allZero = true;
             for (int k = 0; k < 16; k++) {
               if (pid.ID8[k] != 0) { allZero = false; break; }
@@ -3708,13 +3709,13 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
       int sizeIssues = 0;
 
       icUInt32Number profileSize = pIcc->m_Header.size;
-      icUInt32Number tagCount = (icUInt32Number)pIcc->m_Tags.size();
+      icUInt32Number h102TagCount = (icUInt32Number)pIcc->m_Tags.size();
 
-      printf("      Profile size: %u bytes, tag count: %u\n", profileSize, tagCount);
+      printf("      Profile size: %u bytes, tag count: %u\n", profileSize, h102TagCount);
 
-      if (profileSize > 0 && profileSize < 128 + (tagCount * 12)) {
+      if (profileSize > 0 && profileSize < 128 + (h102TagCount * 12)) {
         printf("      %s[CRIT]  Profile size %u too small for %u tags (min=%u) — truncation%s\n",
-               ColorCritical(), profileSize, tagCount, 128 + tagCount * 12, ColorReset());
+               ColorCritical(), profileSize, h102TagCount, 128 + h102TagCount * 12, ColorReset());
         sizeIssues++;
       }
 
@@ -4023,7 +4024,7 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
     }
   }
 
-  CIccMatrixMath *pInv = new CIccMatrixMath(mtx);
+  CIccMatrixMath *pInv = new (std::nothrow) CIccMatrixMath(mtx);
   if (pInv) {
     bool invertible = pInv->Invert();
     if (invertible) {
