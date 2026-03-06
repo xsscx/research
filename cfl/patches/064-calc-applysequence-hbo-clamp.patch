@@ -1,5 +1,5 @@
---- /tmp/IccMpeCalc.cpp.before	2026-03-04 14:44:55.758986657 -0500
-+++ IccProfLib/IccMpeCalc.cpp	2026-03-04 14:45:34.061631503 -0500
+--- a/IccProfLib/IccMpeCalc.cpp	2026-03-05 20:11:54.142153072 -0500
++++ b/IccProfLib/IccMpeCalc.cpp	2026-03-05 20:12:14.930061599 -0500
 @@ -3717,31 +3717,38 @@
  
        if (os.idx+1<nOps && ops[os.idx+1].sig==icSigElseOp) {
@@ -43,57 +43,7 @@
              return false;
          }
 -        os.idx+= op->data.size;
-+        os.idx+= ifSize;
++        os.idx += ifSize;
        }
      }
      else if (op->sig==icSigSelectOp) {
-@@ -3778,7 +3785,9 @@
-           if (os.idx+1 + ops[nDefOff].extra >= nOps)
-             return false;
- 
--          if (!ApplySequence(pApply, ops[nDefOff].data.size, &ops[os.idx+1 + ops[nDefOff].extra]))
-+          icUInt32Number selRemaining = nOps - (os.idx+1 + ops[nDefOff].extra);
-+          icUInt32Number selSize = (ops[nDefOff].data.size <= selRemaining) ? ops[nDefOff].data.size : selRemaining;
-+          if (selSize && !ApplySequence(pApply, selSize, &ops[os.idx+1 + ops[nDefOff].extra]))
-             break;
-         }
-       }
-@@ -3788,23 +3797,33 @@
-         if (nOff >= nOps) 
-           return false;
- 
--        if (!ApplySequence(pApply, ops[nOff].data.size, &ops[os.idx+1 + ops[nOff].extra]))
-+        if (os.idx+1 + ops[nOff].extra >= nOps)
-+          return false;
-+
-+        icUInt32Number selRemaining = nOps - (os.idx+1 + ops[nOff].extra);
-+        icUInt32Number selSize = (ops[nOff].data.size <= selRemaining) ? ops[nOff].data.size : selRemaining;
-+        if (selSize && !ApplySequence(pApply, selSize, &ops[os.idx+1 + ops[nOff].extra]))
-           break;
-       }
- 
-       if (ops[nDefOff].sig==icSigDefaultOp) {
--        if (os.idx+1 + ops[nDefOff].extra + ops[nDefOff].data.size >nOps)
-+        icUInt32Number totalAdv = ops[nDefOff].extra + ops[nDefOff].data.size;
-+        if (os.idx+1 + totalAdv > nOps)
-           return false;
- 
--        os.idx = (icUInt32Number)(os.idx + ops[nDefOff].extra + ops[nDefOff].data.size);
-+        os.idx = (icUInt32Number)(os.idx + totalAdv);
-       }
-       else if (op->extra) {
-         unsigned long nOff = os.idx + op->extra;
- 
--        if (os.idx+1 + ops[nOff].extra + ops[nOff].data.size > nOps)
-+        if (nOff >= nOps)
-+          return false;
-+
-+        icUInt32Number totalAdv = ops[nOff].extra + ops[nOff].data.size;
-+        if (os.idx+1 + totalAdv > nOps)
-           return false;
- 
--        os.idx = (icUInt32Number)(os.idx + ops[nOff].extra + ops[nOff].data.size);
-+        os.idx = (icUInt32Number)(os.idx + totalAdv);
-       }
-       else 
-         return false;

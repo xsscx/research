@@ -1,3 +1,0 @@
-# Patch 040 (optimize-identity-leak) is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV.
-# OptimizeStepChain properly deletes identity matrix steps to prevent leaks.
