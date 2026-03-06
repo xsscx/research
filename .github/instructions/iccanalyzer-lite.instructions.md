@@ -92,11 +92,25 @@ Every heuristic MUST follow this pattern:
 
 - `std::string(wstr.begin(), wstr.end())` triggers UBSAN when wchar_t > 127 —
   use `static_cast<char>(static_cast<unsigned char>(wc & 0xFF))`
+- When extracting ICC signatures into `char[5]`, always cast through `unsigned char`:
+  `sigCC[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));`
+  Direct assignment `sigCC[0] = (sig >> 24) & 0xFF` or C-cast `(char)(...)` triggers
+  UBSAN implicit-conversion when byte value > 127
 - `icGetSpaceSamples()` returns declared channel count, but malformed LUTs can
   have `m_nOutput > declared` — always use `tmpPixel[16]` sized buffers
 - H111 reserved bytes are 100-127 (NOT 84-127; 84-99 is Profile ID)
 - H112 D50 values are ICC s15Fixed16 (0.9642/1.0/0.8249), NOT CIE (0.9505/1.0/1.089)
 - Don't modify for-loop counter inside loop body (CodeQL cpp/loop-variable-changed)
+
+## Coverage Instrumentation
+
+- Uses clang source-based coverage: `-fprofile-instr-generate -fcoverage-mapping`
+- NOT gcov (`--coverage` / `-fprofile-arcs -ftest-coverage`)
+- Collect: `LLVM_PROFILE_FILE=output_%m_%p.profraw ./iccanalyzer-lite -a profile.icc`
+- Merge: `llvm-profdata-18 merge -sparse *.profraw -o merged.profdata`
+- Report: `llvm-cov-18 report ./iccanalyzer-lite -instr-profile=merged.profdata`
+- `%m` = binary hash (same for all runs of same binary — use sequential filenames for batch)
+- Baseline: Lines 70.54%, Functions 63.54%, Branches 61.21%
 
 ## UBSAN Status
 
