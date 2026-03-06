@@ -53,7 +53,6 @@ CORE_FUZZERS=(
   icc_spectral_fuzzer
   icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
   icc_deep_dump_fuzzer
   icc_fromcube_fuzzer
 )
@@ -66,6 +65,7 @@ XML_FUZZERS=(
 
 # TIFF fuzzers (IccProfLib + TiffImg.o + libtiff)
 TIFF_FUZZERS=(
+  icc_applyprofiles_fuzzer
   icc_specsep_fuzzer
   icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
