@@ -25,7 +25,7 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 113 unit tests, ~3s
+python3 iccanalyzer-lite/tests/run_tests.py   # 147 unit tests, ~3s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`

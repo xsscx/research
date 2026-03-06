@@ -6779,10 +6779,10 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
   for (size_t i = 1; i < sorted.size(); i++) {
     if (sorted[i] == sorted[i - 1]) {
       char sigCC[5] = {};
-      sigCC[0] = (sorted[i] >> 24) & 0xFF;
-      sigCC[1] = (sorted[i] >> 16) & 0xFF;
-      sigCC[2] = (sorted[i] >> 8) & 0xFF;
-      sigCC[3] = sorted[i] & 0xFF;
+      sigCC[0] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 24) & 0xFF));
+      sigCC[1] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 16) & 0xFF));
+      sigCC[2] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 8) & 0xFF));
+      sigCC[3] = static_cast<char>(static_cast<unsigned char>(sorted[i] & 0xFF));
       sigCC[4] = '\0';
       printf("      %s[WARN]  Duplicate tag signature: '%s' (0x%08X)%s\n",
              ColorWarning(), sigCC, sorted[i], ColorReset());
