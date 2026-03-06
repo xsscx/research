@@ -99,7 +99,7 @@ First 75% of fuzzer input is ICC profile data, last 25% is control data:
 ### Render DOT graph
 
 ```bash
-python3 cfl/iccApplyProfiles-callgraph.py --dot graph.dot --render svg
-python3 cfl/iccApplyProfiles-callgraph.py --json report.json
-python3 cfl/iccApplyProfiles-callgraph.py --summary
+python3 .github/scripts/callgraphs/iccApplyProfiles-callgraph.py --dot graph.dot --render svg
+python3 .github/scripts/callgraphs/iccApplyProfiles-callgraph.py --json report.json
+python3 .github/scripts/callgraphs/iccApplyProfiles-callgraph.py --summary
 ```
