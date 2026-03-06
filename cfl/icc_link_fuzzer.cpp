@@ -122,11 +122,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     hint2.AddHint(h2);
   }
   
-  // Note: AddXform(CIccProfile*,...) takes ownership of profile on success
+  // Note: AddXform → CIccXform::Create takes ownership of the profile pointer.
+  // On icCmmStatBadXform, Create already freed it; on other errors, it did not.
+  // To avoid double-free (heap-use-after-free), only delete on non-BadXform errors.
   icStatusCMM stat1 = cmm.AddXform(pProf1, intent, interp, NULL,
                                     nLutType, bUseD2BxB2DxTags, &hint1);
   if (stat1 != icCmmStatOk) {
-    delete pProf1;
+    if (stat1 != icCmmStatBadXform)
+      delete pProf1;
     delete pProf2;
     unlink(tmp1);
     unlink(tmp2);
@@ -137,7 +140,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   icStatusCMM stat2 = cmm.AddXform(pProf2, intent, interp, NULL,
                                     nLutType, bUseD2BxB2DxTags, &hint2);
   if (stat2 != icCmmStatOk) {
-    delete pProf2;
+    if (stat2 != icCmmStatBadXform)
+      delete pProf2;
     unlink(tmp1);
     unlink(tmp2);
     return 0;
