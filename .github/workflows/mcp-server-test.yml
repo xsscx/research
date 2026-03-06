@@ -177,11 +177,12 @@ jobs:
             # Build iccanalyzer-lite
             cd iccanalyzer-lite
             export CXXFLAGS="-std=c++17 -O2 -DICCANALYZER_LITE"
-            SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerNinja.cpp \
-                  IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerCallGraph.cpp \
-                  IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp \
-                  IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp \
-                  IccAnalyzerTagDetails.cpp"
+            SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp \
+                  IccAnalyzerNinja.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp \
+                  IccAnalyzerCallGraph.cpp IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp \
+                  IccAnalyzerErrors.cpp IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp \
+                  IccAnalyzerXMLExport.cpp IccAnalyzerTagDetails.cpp \
+                  IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp"
             for src in $SRCS; do
               $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
             done
