@@ -196,7 +196,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Input buffer allocation (handled differently in fuzzer)
   std::unique_ptr<icUInt8Number[]> inbuf(new (std::nothrow) icUInt8Number[bytePerLine * nSamples]);
-  std::unique_ptr<icUInt8Number[]> outbuf(new (std::nothrow) icUInt8Number[f->GetWidth() * bps_img * nSamples]);
+  long outSamplesPerPixel = nSamples + nExtraSamples;
+  std::unique_ptr<icUInt8Number[]> outbuf(new (std::nothrow) icUInt8Number[f->GetWidth() * bps_img * outSamplesPerPixel]);
   if (!inbuf || !outbuf) { return 0; }
 
   float xRes = f->GetXRes() > 1 ? f->GetXRes() : 72;
@@ -261,6 +262,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       for (uint8_t j = 0; j < nSamples; j++) {
         icUInt8Number *sptr = inbuf.get() + j * bytePerLine + k * bps_img;
         memcpy(tptr, sptr, bps_img);
+        tptr += bps_img;
+      }
+      // Zero-fill extra samples (alpha, etc.) to match output channel count
+      for (unsigned int j = 0; j < nExtraSamples; j++) {
+        memset(tptr, 0, bps_img);
         tptr += bps_img;
       }
     }
