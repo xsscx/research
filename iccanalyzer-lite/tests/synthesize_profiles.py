@@ -331,6 +331,275 @@ def synth_xyz_out_of_range():
     return build_profile(tags, device_class=b"mntr", color_space=b"RGB ", pcs=b"XYZ ")
 
 
+# --- New heuristic-targeted profiles ---
+
+
+def synth_null_colorspace():
+    """Profile with null colorSpace (triggers H3)."""
+    data = bytearray(synth_valid_srgb())
+    data[16:20] = b"\x00\x00\x00\x00"
+    return bytes(data)
+
+
+def synth_invalid_pcs():
+    """Profile with invalid PCS signature (triggers H4)."""
+    data = bytearray(synth_valid_srgb())
+    data[20:24] = b"XXXX"
+    return bytes(data)
+
+
+def synth_unknown_platform():
+    """Profile with unknown platform signature (triggers H5)."""
+    data = bytearray(synth_valid_srgb())
+    data[40:44] = b"ZZZZ"
+    return bytes(data)
+
+
+def synth_invalid_rendering_intent():
+    """Profile with invalid rendering intent value (triggers H6)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">I", data, 64, 99)
+    return bytes(data)
+
+
+def synth_unknown_device_class():
+    """Profile with unknown profile class (triggers H7)."""
+    data = bytearray(synth_valid_srgb())
+    data[12:16] = b"ZZZZ"
+    return bytes(data)
+
+
+def synth_negative_illuminant():
+    """Profile with negative illuminant values (triggers H8)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">i", data, 68, int(-1.0 * 65536))
+    return bytes(data)
+
+
+def synth_invalid_date():
+    """Profile with invalid date fields month=13, day=32 (triggers H15)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">HHH", data, 24, 2024, 13, 32)
+    return bytes(data)
+
+
+def synth_version_bcd_invalid():
+    """Profile with non-BCD nibble in version byte (triggers H128)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">I", data, 8, 0x044A0000)  # nibble A is non-BCD
+    return bytes(data)
+
+
+def synth_wrong_d50_illuminant():
+    """Profile with PCS illuminant not matching D50 (triggers H129)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">i", data, 68, int(0.5 * 65536))
+    struct.pack_into(">i", data, 72, int(0.5 * 65536))
+    struct.pack_into(">i", data, 76, int(0.5 * 65536))
+    return bytes(data)
+
+
+def synth_flags_reserved_bits():
+    """Profile with reserved flag bits set (triggers H133)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">I", data, 44, 0xFFFFFFFC)
+    return bytes(data)
+
+
+def synth_duplicate_tags():
+    """Profile with duplicate tag signatures (triggers H135)."""
+    desc = make_mluc_tag("Duplicate Tags Test")
+    cprt = make_mluc_tag("Copyright")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    # Build manually to allow duplicate sigs
+    tag_count = 4
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data = [
+        (b"desc", desc),
+        (b"desc", desc),  # duplicate!
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+    ]
+    offsets = []
+    current = data_offset
+    for sig, d in tag_data:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current)
+    table = struct.pack(">I", tag_count)
+    for i, (sig, d) in enumerate(tag_data):
+        table += make_tag_entry(sig, offsets[i], len(d))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, (sig, d) in enumerate(tag_data):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_tag_misaligned():
+    """Profile with tag offsets not 4-byte aligned (triggers H130/H40)."""
+    desc = make_mluc_tag("Misaligned Tags")
+    cprt = make_mluc_tag("Copyright")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    tag_count = 3
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    # Force misaligned offsets by adding 1 byte
+    offset1 = data_offset + 1  # NOT 4-byte aligned
+    offset2 = offset1 + len(desc) + 1
+    offset3 = offset2 + len(cprt) + 1
+
+    total_size = offset3 + len(wtpt) + 4
+
+    hdr = write_icc_header(total_size)
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offset1, len(desc))
+    table += make_tag_entry(b"cprt", offset2, len(cprt))
+    table += make_tag_entry(b"wtpt", offset3, len(wtpt))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < total_size:
+        profile += b"\x00"
+    profile[offset1:offset1 + len(desc)] = desc
+    profile[offset2:offset2 + len(cprt)] = cprt
+    profile[offset3:offset3 + len(wtpt)] = wtpt
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_extra_trailing_bytes():
+    """Profile with extra bytes appended past declared size (triggers H1)."""
+    data = bytearray(synth_valid_srgb())
+    data += b"\xDE\xAD" * 50  # 100 extra bytes
+    return bytes(data)
+
+
+def synth_null_tag_type():
+    """Profile with tag having null type signature (triggers H20)."""
+    desc = make_mluc_tag("Null Type Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+    # Tag with null type sig (first 4 bytes = 0x00000000)
+    null_cprt = b"\x00\x00\x00\x00" + b"\x00" * 4 + b"fake data here!!"
+    while len(null_cprt) % 4:
+        null_cprt += b"\x00"
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", null_cprt),
+        (b"wtpt", wtpt),
+    ]
+    return build_profile(tags)
+
+
+def synth_nan_float_tag():
+    """Profile with fl32 tag containing NaN/Inf values (triggers H49)."""
+    desc = make_mluc_tag("NaN Float Test")
+    cprt = make_mluc_tag("Copyright")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+    # fl32 tag with NaN and Inf values
+    fl32_data = b"fl32" + b"\x00" * 4
+    fl32_data += struct.pack(">I", 0x7FC00000)  # quiet NaN
+    fl32_data += struct.pack(">I", 0x7F800000)  # +Inf
+    fl32_data += struct.pack(">f", 1.0)          # normal
+    while len(fl32_data) % 4:
+        fl32_data += b"\x00"
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"fl32", fl32_data),
+    ]
+    return build_profile(tags)
+
+
+def synth_odd_utf16_mluc():
+    """Profile with mluc tag having odd-length UTF-16 string (triggers H55)."""
+    data = bytearray(synth_valid_srgb())
+    # Find cprt tag in the tag table and get its offset
+    tag_count = struct.unpack_from(">I", data, 128)[0]
+    for i in range(tag_count):
+        entry_off = 132 + i * 12
+        sig = data[entry_off:entry_off + 4]
+        if sig == b"cprt":
+            tag_offset = struct.unpack_from(">I", data, entry_off + 4)[0]
+            # Verify it's mluc type
+            if data[tag_offset:tag_offset + 4] == b"mluc":
+                # strLen is at tag_offset + 20 (after type+reserved+numRec+recSz+lang)
+                current_len = struct.unpack_from(">I", data, tag_offset + 20)[0]
+                # Set to odd value
+                struct.pack_into(">I", data, tag_offset + 20, current_len - 1)
+            break
+    return bytes(data)
+
+
+def synth_suspicious_profile_id():
+    """Profile with suspicious profile ID pattern (triggers H69)."""
+    data = bytearray(synth_valid_srgb())
+    data[84:100] = b"\xFF" * 16  # all 0xFF is suspicious
+    return bytes(data)
+
+
+def synth_tag_aliasing():
+    """Profile where multiple tags share the same offset (tag aliasing)."""
+    desc = make_mluc_tag("Tag Aliasing Test")
+    cprt = make_mluc_tag("Copyright")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    tag_count = 3
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    offsets = []
+    current = data_offset
+    tag_data_list = [desc, cprt, wtpt]
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current)
+    table = struct.pack(">I", tag_count)
+    # desc and cprt both point to same offset (aliasing)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[0], len(desc))  # same offset!
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -352,6 +621,25 @@ def main():
         "just_header.icc": synth_just_header(),
         "huge_tag_count.icc": synth_huge_tag_count(),
         "xyz_out_of_range.icc": synth_xyz_out_of_range(),
+        # New heuristic-targeted profiles
+        "null_colorspace.icc": synth_null_colorspace(),
+        "invalid_pcs.icc": synth_invalid_pcs(),
+        "unknown_platform.icc": synth_unknown_platform(),
+        "invalid_rendering_intent.icc": synth_invalid_rendering_intent(),
+        "unknown_device_class.icc": synth_unknown_device_class(),
+        "negative_illuminant.icc": synth_negative_illuminant(),
+        "invalid_date.icc": synth_invalid_date(),
+        "version_bcd_invalid.icc": synth_version_bcd_invalid(),
+        "wrong_d50_illuminant.icc": synth_wrong_d50_illuminant(),
+        "flags_reserved_bits.icc": synth_flags_reserved_bits(),
+        "duplicate_tags.icc": synth_duplicate_tags(),
+        "tag_misaligned.icc": synth_tag_misaligned(),
+        "extra_trailing_bytes.icc": synth_extra_trailing_bytes(),
+        "null_tag_type.icc": synth_null_tag_type(),
+        "nan_float_tag.icc": synth_nan_float_tag(),
+        "odd_utf16_mluc.icc": synth_odd_utf16_mluc(),
+        "suspicious_profile_id.icc": synth_suspicious_profile_id(),
+        "tag_aliasing.icc": synth_tag_aliasing(),
     }
 
     for name, data in profiles.items():
