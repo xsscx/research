@@ -55,4 +55,18 @@ int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc);
 /// H115: Characterization data presence (CWE-20)
 int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc);
 
+// H116-H127: ICC Technical Secretary feedback heuristics
+int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc);
+int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc);
+int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc);
+int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc);
+int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc);
+int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc);
+int RunHeuristic_H122_TagEncoding(CIccProfile *pIcc);
+int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc);
+int RunHeuristic_H124_VersionTags(CIccProfile *pIcc);
+int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc);
+int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc);
+
 #endif // _ICCHEURISTICSLIBRARY_H
