@@ -35,6 +35,15 @@ cd colorbleed_tools && make setup && make
 
 `cfl/build.sh` reuses an existing `cfl/iccDEV/` checkout if present — it does NOT reclone unless the directory is missing.
 
+### WASM Build (Deferred)
+
+WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:
+- POSIX signal recovery (alarm, sigsetjmp, sigaltstack) — needs `#ifndef __EMSCRIPTEN__` guards
+- ASAN/UBSAN `__asan_default_options` / `__ubsan_default_options` — must be stubbed
+- `ICCANALYZER_LITE` compile flag required to skip fingerprint DB code (`RiskLevel` enum)
+- Third-party deps (zlib, libpng, libjpeg, libtiff, libxml2, nlohmann/json) **do** build successfully with Emscripten
+- Reference: upstream `iccDEV/.github/workflows/wasm-latest-matrix.yml`
+
 ## Fuzzing Storage Setup
 
 Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (large capacity).
