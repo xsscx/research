@@ -31,7 +31,7 @@ ICC color profiles control how colors are translated between devices (cameras, m
 **You say:**
 > "Analyze the security of the CVE-2022-26730 proof-of-concept profile"
 
-**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 32-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, and raw file boundary checks.
+**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 106-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, and raw file boundary checks.
 
 ---
 
@@ -60,7 +60,7 @@ curl -s http://127.0.0.1:8080/api/health
 # List available profiles
 curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
-# 32-heuristic security scan
+# 106-heuristic security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 
 # Structural inspection
@@ -110,14 +110,20 @@ Client config (Claude Desktop, Copilot CLI, etc.):
 
 ### Option E: Reusable Prompts (GitHub Models)
 
-Four pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
+Ten pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
 
 | Prompt | Purpose | Variables |
 |---|---|---|
-| `analyze-icc-profile` | Full 32-heuristic security scan | `{{profile_path}}` |
+| `analyze-icc-profile` | Full 106-heuristic security scan | `{{profile_path}}` |
 | `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
 | `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
+| `triage-fuzzer-crash` | ASAN/UBSAN crash triage workflow | (none) |
+| `triage-fuzzer-oom` | LibFuzzer OOM triage and patch workflow | (none) |
+| `improve-fuzzer-coverage` | Coverage gap analysis and seed creation | (none) |
+| `upstream-sync` | CFL iccDEV patch reconciliation | (none) |
 | `health-check` | MCP server verification | (none) |
+| `image-fuzzer-quality` | xnuimagefuzzer output quality assessment | (none) |
+| `mac-catalyst-ci` | Mac Catalyst CI debugging guide | (none) |
 
 ---
 
@@ -153,7 +159,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-All 32 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
+All 106 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
 
 ### 4. Security Scan — CVE PoC
 
@@ -240,7 +246,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 |---|------|------|-------------|
 | 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 3 | `analyze_security` | Analysis | 32-heuristic security scan (H1–H32) |
+| 3 | `analyze_security` | Analysis | 106-heuristic security scan (H1–H106) |
 | 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | Analysis | All modes combined in one pass |
 | 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
@@ -270,7 +276,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 | `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 22}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `path` | 32-heuristic security scan |
+| `GET` | `/api/security` | `path` | 106-heuristic security scan |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
