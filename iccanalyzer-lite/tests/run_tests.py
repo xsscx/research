@@ -401,6 +401,134 @@ def test_heuristic_detection(suite):
         r"H114|[Mm]onoton|TRC|WARN"
     )
 
+    # --- New heuristic-targeted tests ---
+
+    # H3: null/invalid colorSpace
+    suite.assert_output_contains(
+        "heuristic.null_colorspace",
+        ["-a", f"{corpus}/null_colorspace.icc"],
+        r"Invalid/null colorSpace"
+    )
+
+    # H4: invalid PCS signature
+    suite.assert_output_contains(
+        "heuristic.invalid_pcs",
+        ["-a", f"{corpus}/invalid_pcs.icc"],
+        r"Invalid PCS signature"
+    )
+
+    # H5: unknown platform signature
+    suite.assert_output_contains(
+        "heuristic.unknown_platform",
+        ["-a", f"{corpus}/unknown_platform.icc"],
+        r"Unknown platform signature"
+    )
+
+    # H6: invalid rendering intent
+    suite.assert_output_contains(
+        "heuristic.invalid_rendering_intent",
+        ["-a", f"{corpus}/invalid_rendering_intent.icc"],
+        r"Invalid rendering intent value 99"
+    )
+
+    # H7: unknown device class
+    suite.assert_output_contains(
+        "heuristic.unknown_device_class",
+        ["-a", f"{corpus}/unknown_device_class.icc"],
+        r"Unknown profile class"
+    )
+
+    # H8: negative illuminant
+    suite.assert_output_contains(
+        "heuristic.negative_illuminant",
+        ["-a", f"{corpus}/negative_illuminant.icc"],
+        r"Negative illuminant values"
+    )
+
+    # H15: invalid date fields
+    suite.assert_output_contains(
+        "heuristic.invalid_date",
+        ["-a", f"{corpus}/invalid_date.icc"],
+        r"Invalid month: 13|Invalid day: 32"
+    )
+
+    # H128: non-BCD version nibble
+    suite.assert_output_contains(
+        "heuristic.version_bcd_invalid",
+        ["-a", f"{corpus}/version_bcd_invalid.icc"],
+        r"Non-BCD nibble in version"
+    )
+
+    # H129: D50 illuminant mismatch
+    suite.assert_output_contains(
+        "heuristic.wrong_d50_illuminant",
+        ["-a", f"{corpus}/wrong_d50_illuminant.icc"],
+        r"PCS illuminant does not match D50"
+    )
+
+    # H133: flags reserved bits
+    suite.assert_output_contains(
+        "heuristic.flags_reserved_bits",
+        ["-a", f"{corpus}/flags_reserved_bits.icc"],
+        r"Reserved flag bits non-zero"
+    )
+
+    # H135: duplicate tag signatures
+    suite.assert_output_contains(
+        "heuristic.duplicate_tags",
+        ["-a", f"{corpus}/duplicate_tags.icc"],
+        r"Duplicate tag signature.*desc"
+    )
+
+    # H130/H40: tag alignment
+    suite.assert_output_contains(
+        "heuristic.tag_misaligned",
+        ["-a", f"{corpus}/tag_misaligned.icc"],
+        r"not 4-byte aligned"
+    )
+
+    # H1: extra trailing bytes (size mismatch)
+    suite.assert_output_contains(
+        "heuristic.extra_trailing_bytes",
+        ["-a", f"{corpus}/extra_trailing_bytes.icc"],
+        r"EXTRA BYTES appended"
+    )
+
+    # H20: null tag type signature
+    suite.assert_output_contains(
+        "heuristic.null_tag_type",
+        ["-a", f"{corpus}/null_tag_type.icc"],
+        r"null type signature"
+    )
+
+    # H49: NaN/Inf in float tag
+    suite.assert_output_contains(
+        "heuristic.nan_float_tag",
+        ["-a", f"{corpus}/nan_float_tag.icc"],
+        r"NaN detected at offset|Inf detected at offset"
+    )
+
+    # H55: odd byte length UTF-16
+    suite.assert_output_contains(
+        "heuristic.odd_utf16_mluc",
+        ["-a", f"{corpus}/odd_utf16_mluc.icc"],
+        r"odd byte length.*invalid UTF-16"
+    )
+
+    # H69: suspicious profile ID
+    suite.assert_output_contains(
+        "heuristic.suspicious_profile_id",
+        ["-a", f"{corpus}/suspicious_profile_id.icc"],
+        r"suspicious pattern.*0xFF|Profile ID.*suspicious"
+    )
+
+    # H10: zero tags (verify library-level detection)
+    suite.assert_output_contains(
+        "heuristic.zero_tags_detected",
+        ["-a", f"{corpus}/zero_tags.icc"],
+        r"Zero tags.*invalid"
+    )
+
 
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
