@@ -1607,7 +1607,12 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
             CIccDictEntry *entry = dit->ptr;
             if (!entry) continue;
             std::wstring key = entry->GetName();
-            std::string keyUtf8(key.begin(), key.end());
+            // Safe wchar_t→UTF-8: avoid UB from implicit narrowing
+            std::string keyUtf8;
+            keyUtf8.reserve(key.size());
+            for (wchar_t wc : key) {
+              keyUtf8.push_back(static_cast<char>(static_cast<unsigned char>(wc & 0xFF)));
+            }
             if (seenKeys.count(keyUtf8)) {
               printf("      %s[WARN]  Duplicate dictionary key detected%s\n",
                      ColorCritical(), ColorReset());
