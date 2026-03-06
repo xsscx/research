@@ -4997,9 +4997,19 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
 // Validates each tag uses only the type(s) allowed by the ICC spec
 // for that tag signature.
 // =====================================================================
+/**
+ * @brief Validate each tag uses only ICC-spec-allowed type(s) for its signature.
+ *
+ * Cross-references ICC.1-2022-05 §9 tag definitions with §10 tag types.
+ * Iterates through all tags in the profile and checks the tag type signature
+ * against a whitelist of allowed types per tag signature. Reports any tag
+ * whose type is not in the allowed set, which may indicate profile corruption
+ * or a crafted profile designed to trigger parser confusion (CWE-1284).
+ *
+ * @param pIcc Pointer to a loaded CIccProfile. Must not be NULL.
+ * @return Number of heuristic checks performed.
+ */
 int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
-  // Validate each tag uses only ICC-spec-allowed type(s) for its signature.
-  // Cross-references ICC.1-2022-05 §9 tag definitions with §10 tag types.
   int heuristicCount = 0;
 
   printf("[H117] Tag Type Allowed Per Signature\n");
@@ -5332,9 +5342,20 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
 // H120: Curve Invertibility Metric (Feedback Q2)
 // Samples TRC curves, builds inverse lookup, measures round-trip error.
 // =====================================================================
+/**
+ * @brief Sample TRC curves, build inverse lookup, and measure round-trip error.
+ *
+ * Detects non-invertible curves that break color accuracy per ICC.1-2022-05
+ * §10.6 (curveType) and §10.22 (parametricCurveType). For each TRC tag
+ * (rTRC/gTRC/bTRC/kTRC), samples the forward curve at 256 points, constructs
+ * a piecewise-linear inverse, then computes max round-trip deviation. Curves
+ * with flat regions or extreme non-monotonicity produce large errors, which
+ * may indicate a malformed or weaponized profile (CWE-682).
+ *
+ * @param pIcc Pointer to a loaded CIccProfile. Must not be NULL.
+ * @return Number of heuristic checks performed.
+ */
 int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
-  // Sample TRC curves, build inverse lookup, measure round-trip error.
-  // Detects non-invertible curves that break color accuracy (ICC.1 §10.6).
   int heuristicCount = 0;
 
   printf("[H120] Curve Invertibility Assessment\n");
