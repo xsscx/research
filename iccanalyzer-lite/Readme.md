@@ -1,6 +1,6 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-05 15:10:00 UTC
+Last Updated: 2026-03-06 00:20:00 UTC
 
 tl;dr ICC Profile Security Analyzer — 106 heuristics, ASAN/UBSAN instrumented, callgraph analysis
 
@@ -24,15 +24,15 @@ iccAnalyzer-lite [MODE] <file>
   -xml <file.icc> <out.xml>   Export heuristics report as XML + XSLT
 ```
 
-## Architecture (16 modules, 13,200+ LOC)
+## Architecture (16 modules, 14,700+ LOC)
 
 | Module | LOC | Purpose |
 |--------|-----|---------|
+| IccHeuristicsLibrary.cpp | 4,128 | Library-API heuristics H9–H32, H56–H106 |
 | IccHeuristicsRawPost.cpp | 2,955 | Raw-file heuristics H33–H69, fallback engine |
-| IccHeuristicsLibrary.cpp | 2,715 | Library-API heuristics H9–H32, H56–H86 |
 | IccAnalyzerLUT.cpp | 833 | LUT extraction and analysis |
 | IccAnalyzerNinja.cpp | 727 | Ninja mode (compact dump) |
-| IccAnalyzerSecurity.cpp | 652 | Orchestrator: header heuristics H1–H8, H15–H17 |
+| IccAnalyzerSecurity.cpp | 664 | Orchestrator: header heuristics H1–H8, H15–H17 |
 | IccAnalyzerCallGraph.cpp | 652 | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
 | IccAnalyzerTagDetails.cpp | 569 | Tag-level detailed output |
 | IccAnalyzerXMLExport.cpp | 378 | XML + XSLT report export |
@@ -45,7 +45,7 @@ iccAnalyzer-lite [MODE] <file>
 | IccAnalyzerComprehensive.cpp | 172 | Comprehensive analysis orchestrator |
 | IccAnalyzerSignatures.cpp | 161 | Known signature database |
 
-## Security Heuristics (H1–H86)
+## Security Heuristics (H1–H106)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -141,6 +141,38 @@ iccAnalyzer-lite [MODE] <file>
 | H84 | UTF-16 string handling | Surrogate pair, BOM validation |
 | H85 | Numeric conversion safety | Float-to-fixed overflow |
 | H86 | Comprehensive tag cross-references | Inter-tag dependency validation |
+
+### Coverage-Driven Heuristics (H87–H94)
+| ID | Check | Risk |
+|----|-------|------|
+| H87 | TRC curve anomalies | Extreme gamma, degenerate curves |
+| H88 | Chromatic adaptation matrix | Determinant, conditioning, identity check |
+| H89 | Profile sequence descriptions | Device manufacturer/model integrity |
+| H90 | Preview tag channel consistency | Channel count vs colorspace mismatch |
+| H91 | Colorant order validation | Index bounds, duplicate detection |
+| H92 | Spectral viewing conditions | Illuminant range, observer data integrity |
+| H93 | Embedded profile flag consistency | Flag vs tag presence mismatch |
+| H94 | Matrix/TRC colorant consistency | Matrix determinant vs colorant XYZ |
+
+### Gap-Targeted Heuristics (H95–H102)
+| ID | Check | Risk |
+|----|-------|------|
+| H95 | Sparse matrix array bounds | SparseMatrix row/col overflow |
+| H96 | Embedded profile recursion | Nested profile depth bomb |
+| H97 | Profile sequence ID validation | MD5 consistency in sequence |
+| H98 | Spectral MPE element validation | Wavelength range, observer data |
+| H99 | Embedded image tags | Size limits, format validation |
+| H100 | Profile sequence description | Cross-tag consistency |
+| H101 | MPE sub-element channel continuity | Input→output channel chaining |
+| H102 | Tag size cross-check | Declared vs actual size mismatch |
+
+### Coverage-Gap API Heuristics (H103–H106)
+| ID | Check | Risk |
+|----|-------|------|
+| H103 | PCC viewing conditions | D50 deviation, spectral data integrity |
+| H104 | PRMG gamut evaluation | Gamut boundary description analysis |
+| H105 | Matrix-TRC determinant/inversion | Singular matrix detection, colorant XYZ |
+| H106 | Environment variable tags | Spectral range validation, MPE env vars |
 
 ## Call Graph Analysis (-cg)
 
