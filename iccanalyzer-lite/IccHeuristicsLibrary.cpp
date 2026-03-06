@@ -2358,7 +2358,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
           loadTagIssues++;
         }
         // Check for offset+size overflow (32-bit wraparound)
-        if (tagOffset > 0 && tagSize > 0 && (tagOffset + tagSize) < tagOffset) {
+        if (tagOffset > 0 && tagSize > 0 && ((uint64_t)tagOffset + tagSize) > 0xFFFFFFFFULL) {
           printf("      %s[WARN]  Tag '%s': offset(%u)+size(%u) wraps 32-bit — OOB read in LoadTag%s\n",
                  ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
                  tagOffset, tagSize, ColorReset());
