@@ -1,0 +1,90 @@
+digraph iccSpecSepToTiff {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+    leg_hot  [label="I/O Hotspot", fillcolor="#FF6347"];
+  }
+
+  tool [label="main()\niccSpecSepToTiff.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_specsep_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // CLI
+  subgraph cluster_cli {
+    label="Phase 1: CLI Args"; style=rounded;
+    usage [label="Usage()", fillcolor="#D3D3D3"];
+    argv_parse [label="atoi(argv[2-7])", fillcolor="#D3D3D3"];
+    snprintf_fn [label="snprintf(argv[4])", fillcolor="#D3D3D3"];
+  }
+
+  // Input TIFF
+  subgraph cluster_input {
+    label="Phase 2: Input TIFF Validation"; style=rounded; color=red;
+    tiff_open [label="CTiffImg::Open()\nN input files", fillcolor="#90EE90", penwidth=3];
+    get_samples [label="GetSamples() == 1", fillcolor="#90EE90"];
+    get_photo [label="GetPhoto()\n!= PALETTE", fillcolor="#90EE90"];
+    format_check [label="Width/Height/BPS\nconsistency", fillcolor="#90EE90"];
+    get_bytesperline [label="GetBytesPerLine()", fillcolor="#90EE90"];
+  }
+
+  // Allocation
+  subgraph cluster_alloc {
+    label="Phase 3: Buffer Allocation"; style=rounded;
+    inbuf [label="inbuffer\n[bytePerLine×N]", fillcolor="#90EE90"];
+    outbuf [label="outbuffer\n[width×bps×N]", fillcolor="#90EE90"];
+  }
+
+  // Output TIFF
+  subgraph cluster_output {
+    label="Phase 4: Output TIFF + ICC"; style=rounded;
+    tiff_create [label="CTiffImg::Create()\noutput TIFF", fillcolor="#90EE90", penwidth=2];
+    icc_embed [label="SetIccProfile()\noptional ICC", fillcolor="#90EE90"];
+    fileio [label="CIccFileIO::Open\nRead8, GetLength", fillcolor="#90EE90"];
+  }
+
+  // Scanline
+  subgraph cluster_scanline {
+    label="Phase 5: Scanline I/O Loop"; style=rounded; color=red;
+    readline [label="ReadLine()\nper-file, per-row", fillcolor="#FF6347", penwidth=3];
+    interleave [label="memcpy interleave\npixel-by-pixel", fillcolor="#90EE90"];
+    writeline [label="WriteLine()\noutput row", fillcolor="#90EE90"];
+    close_out [label="Close()", fillcolor="#90EE90"];
+  }
+
+  // Tool edges
+  tool -> usage [style=dashed];
+  tool -> argv_parse [style=dashed];
+  tool -> snprintf_fn [style=dashed];
+  tool -> tiff_open [style=bold, penwidth=2];
+  tool -> inbuf;
+  tool -> outbuf;
+  tool -> tiff_create;
+  tool -> readline [style=bold];
+  tool -> close_out;
+
+  // Fuzzer edges
+  fuzzer -> tiff_open [style=bold, color=green, penwidth=2];
+  fuzzer -> inbuf [color=green];
+  fuzzer -> outbuf [color=green];
+  fuzzer -> tiff_create [color=green];
+  fuzzer -> icc_embed [color=green];
+  fuzzer -> readline [style=bold, color=green];
+  fuzzer -> close_out [color=green];
+
+  // Internal edges
+  tiff_open -> get_samples;
+  tiff_open -> get_photo;
+  tiff_open -> format_check;
+  tiff_open -> get_bytesperline;
+  tiff_create -> icc_embed;
+  icc_embed -> fileio;
+  readline -> interleave;
+  interleave -> writeline;
+
+}
