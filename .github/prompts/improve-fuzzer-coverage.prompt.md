@@ -115,6 +115,29 @@ git commit -m "coverage: <description of improvements>"
 | Functions | 63.23% |
 | Instantiations | 62.99% |
 
+## Corpus State (March 2026, post-SSD migration)
+| Fuzzer | Files | Priority |
+|--------|-------|----------|
+| tiffdump | 47,158 | — |
+| spectral_b | 32,637 | — |
+| applynamedcmm | 32,214 | — |
+| specsep | 30,764 | — |
+| applyprofiles | 28,582 | — |
+| fromxml | 27,648 | — |
+| v5dspobs | 24,882 | — |
+| toxml | 23,848 | — |
+| apply | 21,303 | — |
+| deep_dump | 19,209 | — |
+| calculator | 18,038 | — |
+| profile | 14,416 | — |
+| dump | 14,173 | — |
+| multitag | 12,333 | — |
+| roundtrip | 7,269 | SLOW (Read→Write→Read per input) |
+| link | 1,859 | NEEDS quarantine_size_mb=256 |
+| io | 1,103 | SMALL — needs more seeds |
+| spectral | 1,009 | SMALL — needs more seeds |
+| fromcube | 717 | SMALL — needs more seeds |
+
 ## Top Coverage Gaps (by missed lines)
 | File | Missed | Coverage | Priority | Target Fuzzers |
 |------|--------|----------|----------|----------------|
