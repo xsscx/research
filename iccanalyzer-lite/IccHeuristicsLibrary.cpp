@@ -5,7 +5,7 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-// Library-API heuristics (H9-H32, H56-H86, H95-H102).
+// Library-API heuristics (H9-H32, H56-H86, H95-H106).
 // These heuristics use the CIccProfile API for tag-level analysis.
 // Extracted from IccAnalyzerSecurity.cpp for modularity.
 
@@ -27,6 +27,10 @@
 #include "IccTagEmbedIcc.h"
 #include "IccMpeSpectral.h"
 #include "IccTagProfSeqId.h"
+#include "IccPrmg.h"
+#include "IccMatrixMath.h"
+#include "IccEnvVar.h"
+#include "IccPcc.h"
 
 #include <cmath>
 #include <map>
@@ -3740,5 +3744,385 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
     }
     printf("\n");
 
+  return heuristicCount;
+}
+
+// =====================================================================
+// H103: Profile Connection Conditions (PCC) Validation
+// Exercises IccPcc.cpp — viewing conditions, illuminant, observer
+// =====================================================================
+int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H103] Profile Connection Conditions (PCC)\n");
+
+  // CIccProfile implements IIccProfileConnectionConditions
+  const CIccTagSpectralViewingConditions *pSvc = pIcc->getPccViewingConditions();
+
+  if (!pSvc) {
+    printf("      %s[INFO] No spectral viewing conditions tag (svcn)%s\n",
+           ColorInfo(), ColorReset());
+    // Still check standard PCC fields
+    bool isStd = pIcc->isStandardPcc();
+    icIlluminant illum = pIcc->getPccIlluminant();
+    icFloatNumber cct = pIcc->getPccCCT();
+    icStandardObserver obs = pIcc->getPccObserver();
+
+    printf("      Standard PCC: %s\n", isStd ? "yes (D50/2deg)" : "no (custom)");
+    printf("      Illuminant: 0x%08X, CCT: %.1f, Observer: 0x%08X\n",
+           (unsigned)illum, (double)cct, (unsigned)obs);
+
+    if (!isStd) {
+      printf("      %s[WARN] Non-standard PCC — profile uses custom viewing conditions%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+  } else {
+    printf("      %s[INFO] Spectral viewing conditions present%s\n",
+           ColorInfo(), ColorReset());
+
+    bool isStd = pIcc->isStandardPcc();
+    icIlluminant illum = pIcc->getPccIlluminant();
+    icFloatNumber cct = pIcc->getPccCCT();
+    icStandardObserver obs = pIcc->getPccObserver();
+    bool hasSPD = pIcc->hasIlluminantSPD();
+
+    printf("      Standard PCC: %s\n", isStd ? "yes" : "no (custom)");
+    printf("      Illuminant: 0x%08X, CCT: %.1f\n", (unsigned)illum, (double)cct);
+    printf("      Observer: 0x%08X, Has SPD: %s\n", (unsigned)obs, hasSPD ? "yes" : "no");
+
+    if (cct < 0.0f || cct > 100000.0f) {
+      printf("      %s[WARN] Suspicious CCT value: %.1f (expected 0-25000K)%s\n",
+             ColorWarning(), (double)cct, ColorReset());
+      heuristicCount++;
+    }
+
+    // Check normalized illuminant XYZ
+    icFloatNumber normXYZ[3] = {0};
+    pIcc->getNormIlluminantXYZ(normXYZ);
+    printf("      Norm illuminant XYZ: [%.4f, %.4f, %.4f]\n",
+           (double)normXYZ[0], (double)normXYZ[1], (double)normXYZ[2]);
+
+    if (normXYZ[1] < 0.001f || normXYZ[1] > 2.0f) {
+      printf("      %s[WARN] Abnormal Y illuminant: %.4f%s\n",
+             ColorWarning(), (double)normXYZ[1], ColorReset());
+      heuristicCount++;
+    }
+
+    // Check media white XYZ
+    icFloatNumber mediaWhite[3] = {0};
+    pIcc->getMediaWhiteXYZ(mediaWhite);
+    printf("      Media white XYZ: [%.4f, %.4f, %.4f]\n",
+           (double)mediaWhite[0], (double)mediaWhite[1], (double)mediaWhite[2]);
+
+    if (mediaWhite[0] == 0.0f && mediaWhite[1] == 0.0f && mediaWhite[2] == 0.0f) {
+      printf("      %s[WARN] Media white is all zeros%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// =====================================================================
+// H104: PRMG (Perceptual Reference Medium Gamut) Evaluation
+// Exercises IccPrmg.cpp — gamut evaluation and rendering intent gamut tags
+// =====================================================================
+int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char *profilePath) {
+  int heuristicCount = 0;
+
+  printf("[H104] PRMG Gamut Evaluation\n");
+
+  // Check for rendering intent gamut tags
+  CIccTag *pRig0 = pIcc->FindTag(icSigPerceptualRenderingIntentGamutTag);
+  CIccTag *pRig2 = pIcc->FindTag(icSigSaturationRenderingIntentGamutTag);
+
+  if (pRig0) {
+    printf("      Perceptual rendering intent gamut tag present\n");
+    CIccTagSignature *pSigTag = dynamic_cast<CIccTagSignature *>(pRig0);
+    if (pSigTag) {
+      icUInt32Number gamutSig = pSigTag->GetValue();
+      char fourCC[5];
+      SignatureToFourCC(gamutSig, fourCC);
+      printf("      Gamut signature: 0x%08X (%s)\n", gamutSig, fourCC);
+
+      if (gamutSig == icSigPerceptualReferenceMediumGamut) {
+        printf("      %s[OK] Profile declares PRMG compliance%s\n",
+               ColorSuccess(), ColorReset());
+      } else {
+        printf("      %s[INFO] Non-PRMG gamut: %s%s\n",
+               ColorInfo(), fourCC, ColorReset());
+      }
+    }
+  }
+
+  if (pRig2) {
+    printf("      Saturation rendering intent gamut tag present\n");
+  }
+
+  if (!pRig0 && !pRig2) {
+    printf("      %s[INFO] No rendering intent gamut tags%s\n",
+           ColorInfo(), ColorReset());
+  }
+
+  // Only attempt PRMG evaluation for device profiles (Input/Display/Output/ColorSpace)
+  icProfileClassSignature devClass = (icProfileClassSignature)pIcc->m_Header.deviceClass;
+  if (devClass == icSigInputClass || devClass == icSigDisplayClass ||
+      devClass == icSigOutputClass || devClass == icSigColorSpaceClass) {
+    // Quick PRMG gamut boundary test using GetChroma
+    CIccPRMG prmg;
+    icFloatNumber testL[] = {25.0f, 50.0f, 75.0f};
+    icFloatNumber testH[] = {0.0f, 90.0f, 180.0f, 270.0f};
+    int inGamutCount = 0;
+    int totalTests = 0;
+
+    for (int li = 0; li < 3; li++) {
+      for (int hi = 0; hi < 4; hi++) {
+        icFloatNumber chroma = prmg.GetChroma(testL[li], testH[hi]);
+        if (chroma > 0.0f) {
+          // Test a point at 50% of max chroma
+          icFloatNumber testC = chroma * 0.5f;
+          if (prmg.InGamut(testL[li], testC, testH[hi])) {
+            inGamutCount++;
+          }
+          totalTests++;
+        }
+      }
+    }
+    printf("      PRMG boundary: %d/%d test points in gamut\n", inGamutCount, totalTests);
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H105: Matrix-TRC Validation
+// Exercises IccMatrixMath.cpp — determinant, inversion, chromaticity
+// =====================================================================
+int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H105] Matrix-TRC Validation\n");
+
+  icColorSpaceSignature cs = (icColorSpaceSignature)pIcc->m_Header.colorSpace;
+  if (cs != icSigRgbData) {
+    printf("      %s[INFO] Not an RGB profile — matrix-TRC check skipped%s\n",
+           ColorInfo(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Extract rXYZ, gXYZ, bXYZ tags (columns of the 3x3 matrix)
+  CIccTag *prXYZ = pIcc->FindTag(icSigRedColorantTag);
+  CIccTag *pgXYZ = pIcc->FindTag(icSigGreenColorantTag);
+  CIccTag *pbXYZ = pIcc->FindTag(icSigBlueColorantTag);
+
+  if (!prXYZ || !pgXYZ || !pbXYZ) {
+    printf("      %s[INFO] Missing rXYZ/gXYZ/bXYZ colorant tags%s\n",
+           ColorInfo(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  CIccTagXYZ *pR = dynamic_cast<CIccTagXYZ *>(prXYZ);
+  CIccTagXYZ *pG = dynamic_cast<CIccTagXYZ *>(pgXYZ);
+  CIccTagXYZ *pB = dynamic_cast<CIccTagXYZ *>(pbXYZ);
+
+  icFloatNumber m[3][3] = {};
+
+  if (pR && pG && pB) {
+    // v2/v4 profiles: XYZ type with fixed-point s15Fixed16Number
+    icXYZNumber rXYZ = (*pR)[0];
+    icXYZNumber gXYZ = (*pG)[0];
+    icXYZNumber bXYZ = (*pB)[0];
+
+    m[0][0] = icFtoD(rXYZ.X); m[0][1] = icFtoD(gXYZ.X); m[0][2] = icFtoD(bXYZ.X);
+    m[1][0] = icFtoD(rXYZ.Y); m[1][1] = icFtoD(gXYZ.Y); m[1][2] = icFtoD(bXYZ.Y);
+    m[2][0] = icFtoD(rXYZ.Z); m[2][1] = icFtoD(gXYZ.Z); m[2][2] = icFtoD(bXYZ.Z);
+  } else {
+    // v5 profiles: may use float array (fl32) type for XYZ colorants
+    CIccTagFloat32 *pRf = dynamic_cast<CIccTagFloat32 *>(prXYZ);
+    CIccTagFloat32 *pGf = dynamic_cast<CIccTagFloat32 *>(pgXYZ);
+    CIccTagFloat32 *pBf = dynamic_cast<CIccTagFloat32 *>(pbXYZ);
+
+    if (pRf && pGf && pBf && pRf->GetSize() >= 3 && pGf->GetSize() >= 3 && pBf->GetSize() >= 3) {
+      m[0][0] = (*pRf)[0]; m[0][1] = (*pGf)[0]; m[0][2] = (*pBf)[0];
+      m[1][0] = (*pRf)[1]; m[1][1] = (*pGf)[1]; m[1][2] = (*pBf)[1];
+      m[2][0] = (*pRf)[2]; m[2][1] = (*pGf)[2]; m[2][2] = (*pBf)[2];
+    } else {
+      printf("      %s[INFO] Colorant tags are not XYZ or float type — skipping%s\n",
+             ColorInfo(), ColorReset());
+      printf("\n");
+      return 0;
+    }
+  }
+
+  printf("      Matrix:\n");
+  for (int r = 0; r < 3; r++) {
+    printf("        [%8.5f  %8.5f  %8.5f]\n", (double)m[r][0], (double)m[r][1], (double)m[r][2]);
+  }
+
+  // Compute determinant (ad-bc style for 3x3)
+  icFloatNumber det = m[0][0] * (m[1][1]*m[2][2] - m[1][2]*m[2][1])
+                    - m[0][1] * (m[1][0]*m[2][2] - m[1][2]*m[2][0])
+                    + m[0][2] * (m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+
+  printf("      Determinant: %.6f\n", (double)det);
+
+  if (det == 0.0f) {
+    printf("      %s[CRIT] Singular matrix (det=0) — profile cannot map colors%s\n",
+           ColorCritical(), ColorReset());
+    heuristicCount++;
+  } else if (det < 0.0f) {
+    printf("      %s[WARN] Negative determinant — flipped color space orientation%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else if (det < 0.001f) {
+    printf("      %s[WARN] Near-singular matrix (det=%.6f) — may cause numerical instability%s\n",
+           ColorWarning(), (double)det, ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] Matrix is invertible (det=%.6f)%s\n",
+           ColorSuccess(), (double)det, ColorReset());
+  }
+
+  // Row sums should approximate D50 white point (0.9642, 1.0000, 0.8249)
+  icFloatNumber rowSum[3];
+  for (int r = 0; r < 3; r++) {
+    rowSum[r] = m[r][0] + m[r][1] + m[r][2];
+  }
+  printf("      Row sums (≈D50 XYZ): [%.4f, %.4f, %.4f]\n",
+         (double)rowSum[0], (double)rowSum[1], (double)rowSum[2]);
+
+  // Y row sum (luminance) should be ~1.0
+  if (rowSum[1] < 0.5f || rowSum[1] > 1.5f) {
+    printf("      %s[WARN] Y row sum %.4f far from 1.0 — unusual white point%s\n",
+           ColorWarning(), (double)rowSum[1], ColorReset());
+    heuristicCount++;
+  }
+
+  // Check for NaN/Inf in matrix values
+  for (int r = 0; r < 3; r++) {
+    for (int c = 0; c < 3; c++) {
+      if (std::isnan(m[r][c]) || std::isinf(m[r][c])) {
+        printf("      %s[CRIT] NaN/Inf in matrix[%d][%d]%s\n",
+               ColorCritical(), r, c, ColorReset());
+        heuristicCount++;
+      }
+    }
+  }
+
+  // Use CIccMatrixMath to test inversion
+  CIccMatrixMath mtx(3, 3);
+  for (int r = 0; r < 3; r++) {
+    for (int c = 0; c < 3; c++) {
+      *mtx.entry(r, c) = m[r][c];
+    }
+  }
+
+  CIccMatrixMath *pInv = new CIccMatrixMath(mtx);
+  if (pInv) {
+    bool invertible = pInv->Invert();
+    if (invertible) {
+      // Multiply original * inverse → should be identity
+      CIccMatrixMath *pProduct = mtx.Mult(pInv);
+      if (pProduct) {
+        bool isIdent = pProduct->isIdentityMtx();
+        if (isIdent) {
+          printf("      %s[OK] Matrix × Inverse = Identity%s\n",
+                 ColorSuccess(), ColorReset());
+        } else {
+          printf("      %s[WARN] Matrix × Inverse ≠ Identity (precision issue)%s\n",
+                 ColorWarning(), ColorReset());
+          heuristicCount++;
+        }
+        delete pProduct;
+      }
+    } else {
+      printf("      %s[WARN] Matrix inversion failed%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+    delete pInv;
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H106: Environment Variable Tag Inspection
+// Exercises IccEnvVar.cpp — env var lookup and validation
+// =====================================================================
+int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H106] Environment Variable Tags\n");
+
+  // Look for customToStandardPcc and standardToCustomPcc MPE tags
+  CIccTag *pCustomToStd = pIcc->FindTag((icTagSignature)0x63327370);  // 'c2sp'
+  CIccTag *pStdToCustom = pIcc->FindTag((icTagSignature)0x73326370);  // 's2cp'
+
+  if (pCustomToStd) {
+    printf("      Custom-to-standard PCC transform present\n");
+    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pCustomToStd);
+    if (pMpe) {
+      printf("      Input channels: %u, Output channels: %u\n",
+             pMpe->NumInputChannels(), pMpe->NumOutputChannels());
+      printf("      Elements: %u\n", pMpe->NumElements());
+    }
+  }
+
+  if (pStdToCustom) {
+    printf("      Standard-to-custom PCC transform present\n");
+    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pStdToCustom);
+    if (pMpe) {
+      printf("      Input channels: %u, Output channels: %u\n",
+             pMpe->NumInputChannels(), pMpe->NumOutputChannels());
+      printf("      Elements: %u\n", pMpe->NumElements());
+    }
+  }
+
+  // Check for CIccTagSpectralViewingConditions with custom illuminant
+  const CIccTagSpectralViewingConditions *pSvc = pIcc->getPccViewingConditions();
+  if (pSvc) {
+    printf("      Spectral viewing conditions:\n");
+    printf("        Illuminant type: 0x%08X\n", (unsigned)pSvc->getStdIllumiant());
+    printf("        Observer type: 0x%08X\n", (unsigned)pSvc->getStdObserver());
+    
+    // Use getIlluminant() which takes icSpectralRange& output
+    icSpectralRange illumRange = {};
+    const icFloatNumber *pIllumData = pSvc->getIlluminant(illumRange);
+    
+    if (illumRange.steps > 0 && pIllumData) {
+      printf("        Illuminant range: %.0f–%.0f nm, %u steps\n",
+             (double)icF16toF(illumRange.start), (double)icF16toF(illumRange.end),
+             illumRange.steps);
+
+      // Validate spectral range
+      icFloatNumber startNm = icF16toF(illumRange.start);
+      icFloatNumber endNm = icF16toF(illumRange.end);
+      if (startNm >= endNm) {
+        printf("        %s[WARN] Illuminant range inverted: start %.0f >= end %.0f%s\n",
+               ColorWarning(), (double)startNm, (double)endNm, ColorReset());
+        heuristicCount++;
+      }
+      if (illumRange.steps > 1000) {
+        printf("        %s[WARN] Excessive illuminant steps: %u%s\n",
+               ColorWarning(), illumRange.steps, ColorReset());
+        heuristicCount++;
+      }
+    }
+  }
+
+  if (!pCustomToStd && !pStdToCustom && !pSvc) {
+    printf("      %s[INFO] No environment variable or PCC transform tags%s\n",
+           ColorInfo(), ColorReset());
+  }
+
+  printf("\n");
   return heuristicCount;
 }
