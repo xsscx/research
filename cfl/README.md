@@ -3,12 +3,12 @@
 Last Updated: 2026-03-05 15:00:00 UTC
 
 Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorConsortium/DemoIccMAX) (iccDEV).
-19 LibFuzzer harnesses, 56 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
+19 LibFuzzer harnesses, 57 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
 
 ## Quick Start
 
 ```bash
-# Build (clones iccDEV, applies 56 patches, compiles 19 fuzzers)
+# Build (clones iccDEV, applies 57 patches, compiles 19 fuzzers)
 ./build.sh
 
 # Smoke test (60 seconds on tmpfs ramdisk)
@@ -44,7 +44,7 @@ sudo ./ramdisk-fuzz.sh 60
 
 **Total:** 5,222 LOC · 18,843 corpus files · 62,512 dictionary entries
 
-## Patch Kit (56 active patches)
+## Patch Kit (57 active patches)
 
 Security patches applied to iccDEV before building. See [`patches/README.md`](patches/README.md) for full details.
 
@@ -73,7 +73,7 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 **What `build.sh` does:**
 1. Clones `iccDEV` (or reuses existing checkout)
 2. Resets to clean state (`git checkout .`)
-3. Applies all 56 patches from `patches/`
+3. Applies all 57 patches from `patches/`
 4. Builds static libraries (`IccProfLib2-static.a`, `IccXML2-static.a`)
 5. Compiles 19 fuzzers with ASAN + UBSAN + coverage instrumentation
 6. Outputs binaries to `bin/`
@@ -177,7 +177,7 @@ cfl/
 ├── corpus-icc_*_fuzzer/      # Per-fuzzer seed corpora (19 dirs)
 ├── corpus/                   # Shared ICC profiles
 ├── corpus-xml/               # XML seed corpus for fromxml fuzzer
-├── patches/                  # 70 security patches (56 active, 14 NO-OP) + README.md
+├── patches/                  # 71 security patches (57 active, 14 NO-OP) + README.md
 │   ├── 001-*.patch ... 070-*.patch
 │   └── README.md             # Full patch documentation
 ├── icc_*_fuzzer.cpp           # Fuzzer source files (19)
