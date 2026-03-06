@@ -218,7 +218,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     long bytesPerSample_img = f->GetBitsPerSample() / 8;
 
     std::unique_ptr<icUInt8Number[]> inbuffer(new (std::nothrow) icUInt8Number[bytePerLine * nFiles]);
-    std::unique_ptr<icUInt8Number[]> outbuffer(new (std::nothrow) icUInt8Number[f->GetWidth() * bytesPerSample_img * nFiles]);
+    long outSamplesPerPixel = nFiles + nExtraSamples;
+    std::unique_ptr<icUInt8Number[]> outbuffer(new (std::nothrow) icUInt8Number[f->GetWidth() * bytesPerSample_img * outSamplesPerPixel]);
     if (!inbuffer || !outbuffer) { unlink(outfile); return 0; }
     
     icUInt8Number *inbuf = inbuffer.get();
@@ -274,6 +275,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           for (uint8_t j = 0; j < nFiles; j++) {
             icUInt8Number *sptr = inbuf + j * bytePerLine + k * bytesPerSample_img;
             memcpy(tptr, sptr, bytesPerSample_img);
+            tptr += bytesPerSample_img;
+          }
+          // Zero-fill extra samples to match output channel count
+          for (unsigned int j = 0; j < nExtraSamples; j++) {
+            memset(tptr, 0, bytesPerSample_img);
             tptr += bytesPerSample_img;
           }
         }
