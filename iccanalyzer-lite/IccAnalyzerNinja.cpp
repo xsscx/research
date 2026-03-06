@@ -357,10 +357,10 @@ static icUInt16Number read16(const unsigned char* data) {
 }
 
 static void sig2str(char* str, icUInt32Number sig) {
-  str[0] = (sig >> 24) & 0xFF;
-  str[1] = (sig >> 16) & 0xFF;
-  str[2] = (sig >> 8) & 0xFF;
-  str[3] = sig & 0xFF;
+  str[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
+  str[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
+  str[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
+  str[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
   str[4] = 0;
   for (int i = 0; i < 4; i++) {
     if (str[i] < 32 || str[i] > 126) str[i] = '?';

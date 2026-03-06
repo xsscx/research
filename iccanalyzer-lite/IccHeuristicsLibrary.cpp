@@ -3684,10 +3684,10 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
           if (!first && curIn != prevOut) {
             char tagSig[5];
             icUInt32Number sig = (icUInt32Number)mpeTags[i];
-            tagSig[0] = (sig >> 24) & 0xFF;
-            tagSig[1] = (sig >> 16) & 0xFF;
-            tagSig[2] = (sig >> 8) & 0xFF;
-            tagSig[3] = sig & 0xFF;
+            tagSig[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
+            tagSig[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
+            tagSig[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
+            tagSig[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
             tagSig[4] = '\0';
             printf("      %s[CRIT]  Channel discontinuity in '%s' at element %u: "
                    "prev_out=%u, cur_in=%u — buffer overflow risk (CWE-787)%s\n",
@@ -5732,8 +5732,10 @@ int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
 
       printf("      %s[INFO] '%s' (0x%08X): not required/optional for class '%c%c%c%c'%s\n",
              ColorInfo(), sigStr, (unsigned)sig,
-             (char)((cls >> 24) & 0xFF), (char)((cls >> 16) & 0xFF),
-             (char)((cls >> 8) & 0xFF), (char)(cls & 0xFF), ColorReset());
+             static_cast<char>(static_cast<unsigned char>((cls >> 24) & 0xFF)),
+             static_cast<char>(static_cast<unsigned char>((cls >> 16) & 0xFF)),
+             static_cast<char>(static_cast<unsigned char>((cls >> 8) & 0xFF)),
+             static_cast<char>(static_cast<unsigned char>(cls & 0xFF)), ColorReset());
       unclassified++;
     }
   }
