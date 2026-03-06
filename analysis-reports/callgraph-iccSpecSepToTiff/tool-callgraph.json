@@ -1,0 +1,452 @@
+{
+  "tool": "iccSpecSepToTiff",
+  "tool_file": "iccSpecSepToTiff.cpp",
+  "fuzzer": "icc_specsep_fuzzer",
+  "fuzzer_file": "icc_specsep_fuzzer.cpp",
+  "analysis_date": "2026-07-10",
+  "phases": {
+    "1_cli_parsing": {
+      "description": "Command-line argument parsing",
+      "calls": [
+        {
+          "callee": "Usage()",
+          "line": 123,
+          "caller": "main",
+          "context": "Display usage message when argc < 8",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "atoi(argv[2]) \u2192 bCompress",
+          "line": 127,
+          "caller": "main",
+          "context": "Parse compress flag from CLI",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives from data[13]"
+        },
+        {
+          "callee": "atoi(argv[3]) \u2192 bSep",
+          "line": 128,
+          "caller": "main",
+          "context": "Parse separate planes flag from CLI",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives from data[14]"
+        },
+        {
+          "callee": "atoi(argv[5-7]) \u2192 start/end/step",
+          "line": 130,
+          "caller": "main",
+          "context": "Parse channel range from CLI",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer uses data[0] for nFiles (1-8)"
+        },
+        {
+          "callee": "snprintf(argv[4], channelNum)",
+          "line": 161,
+          "caller": "main",
+          "context": "Format input filename from printf pattern",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer creates temp files directly"
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "2_input_tiff": {
+      "description": "Input TIFF opening and format validation",
+      "calls": [
+        {
+          "callee": "CTiffImg::Open(filename)",
+          "line": 162,
+          "caller": "main",
+          "context": "Open each input TIFF file",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer opens N temp TIFFs created from fuzz data"
+        },
+        {
+          "callee": "CTiffImg::GetSamples()",
+          "line": 167,
+          "caller": "main",
+          "context": "Verify each input has 1 sample per pixel",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetPhoto()",
+          "line": 172,
+          "caller": "main",
+          "context": "Check photometric != PALETTE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises 5 photometric modes"
+        },
+        {
+          "callee": "CTiffImg::GetWidth()",
+          "line": 177,
+          "caller": "main",
+          "context": "Consistency check across input files",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetHeight()",
+          "line": 178,
+          "caller": "main",
+          "context": "Consistency check across input files",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetBitsPerSample()",
+          "line": 179,
+          "caller": "main",
+          "context": "Consistency check across input files",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetXRes()/GetYRes()",
+          "line": 181,
+          "caller": "main",
+          "context": "Consistency check for resolution",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetBytesPerLine()",
+          "line": 194,
+          "caller": "main",
+          "context": "Get buffer size for scanline allocation",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_allocation": {
+      "description": "Scanline buffer allocation",
+      "calls": [
+        {
+          "callee": "new icUInt8Number[bytePerLine*nSamples]",
+          "line": 207,
+          "caller": "main",
+          "context": "Allocate input scanline buffer \u2014 ALLOCATION HOTSPOT",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer uses std::nothrow. Size bounded by max 8 files \u00d7 line bytes"
+        },
+        {
+          "callee": "new icUInt8Number[width*bytesPerSample*nSamples]",
+          "line": 208,
+          "caller": "main",
+          "context": "Allocate output interleaved buffer",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer uses std::nothrow"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_output_tiff": {
+      "description": "Output TIFF creation and ICC profile embedding",
+      "calls": [
+        {
+          "callee": "CTiffImg::Create()",
+          "line": 221,
+          "caller": "main",
+          "context": "Create output TIFF with combined channel count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "nSamples channels, configured photometric, compress/separate flags"
+        },
+        {
+          "callee": "CIccFileIO::Open(argv[8])",
+          "line": 231,
+          "caller": "main",
+          "context": "Open ICC profile file for embedding",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer embeds profile from tail of fuzz data"
+        },
+        {
+          "callee": "CIccFileIO::GetLength()",
+          "line": 232,
+          "caller": "main",
+          "context": "Get ICC profile size",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccFileIO::Read8()",
+          "line": 234,
+          "caller": "main",
+          "context": "Read ICC profile bytes",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::SetIccProfile()",
+          "line": 235,
+          "caller": "main",
+          "context": "Embed ICC profile in output TIFF",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_scanline": {
+      "description": "Scanline read/interleave/write loop",
+      "calls": [
+        {
+          "callee": "CTiffImg::ReadLine(sptr)",
+          "line": 244,
+          "caller": "main",
+          "context": "Read one scanline from each input file",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Core I/O loop \u2014 reads height \u00d7 nSamples scanlines total"
+        },
+        {
+          "callee": "memcpy(tptr, sptr, bytesPerSample)",
+          "line": 258,
+          "caller": "main",
+          "context": "Interleave pixel samples from N inputs into single output line",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Pixel-by-pixel interleaving across channels"
+        },
+        {
+          "callee": "CTiffImg::WriteLine(outbuf)",
+          "line": 262,
+          "caller": "main",
+          "context": "Write interleaved scanline to output",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::Close()",
+          "line": 266,
+          "caller": "main",
+          "context": "Close output TIFF and flush",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "6_fuzzer_extras": {
+      "description": "Fuzzer-only: TIFF error suppression and ICC profile parsing",
+      "calls": [
+        {
+          "callee": "TIFFSetErrorHandler(silent)",
+          "line": 65,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Suppress libtiff error output during fuzzing",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFSetWarningHandler(silent)",
+          "line": 66,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Suppress libtiff warning output during fuzzing",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::Create() [input TIFFs]",
+          "line": 149,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Create synthetic input TIFFs from fuzz data",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer-only: tool reads existing TIFFs"
+        },
+        {
+          "callee": "CTiffImg::WriteLine() [input TIFFs]",
+          "line": 176,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Write fuzz pixel data to synthetic input TIFFs",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccProfile::Read(CIccMemIO)",
+          "line": 249,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Parse embedded ICC profile for additional coverage",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer-only: exercises IccProfLib tag parsing"
+        },
+        {
+          "callee": "CIccProfile::Validate()",
+          "line": 251,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Validate parsed ICC profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer-only: exercises validation code paths"
+        },
+        {
+          "callee": "CIccProfile::FindTag() [multiple]",
+          "line": 252,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Probe spectral and description tags",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer-only: exercises tag lookup"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc < 8",
+      "line": 122,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage guard"
+    },
+    {
+      "condition": "step == 0",
+      "line": 134,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Division-by-zero guard on channel increment"
+    },
+    {
+      "condition": "(end<start && step>0) || (end>start && step<0)",
+      "line": 140,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Overflow/infinite-loop guard on channel range"
+    },
+    {
+      "condition": "nSamples < 1",
+      "line": 148,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Zero-allocation guard"
+    },
+    {
+      "condition": "!infile[i].Open(filename)",
+      "line": 162,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Input TIFF open failure"
+    },
+    {
+      "condition": "GetSamples() != 1",
+      "line": 167,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Rejects multi-sample inputs (tool expects separated channels)"
+    },
+    {
+      "condition": "GetPhoto() == PHOTOMETRIC_PALETTE",
+      "line": 172,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Rejects palette-based images"
+    },
+    {
+      "condition": "format mismatch across inputs",
+      "line": 177,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Rejects dimension/format mismatches between input files"
+    },
+    {
+      "condition": "GetPhoto()==PHOTO_MINISWHITE",
+      "line": 197,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Inversion flag for MinIsWhite photometric"
+    },
+    {
+      "condition": "argc > 8",
+      "line": 229,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Optional ICC profile embedding"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 31,
+    "cli_only_excluded": 5,
+    "fuzzable_call_sites": 26,
+    "matched_by_fuzzer": 26,
+    "coverage_percent": 100.0,
+    "fidelity_note": "VERY HIGH",
+    "note": "The specsep fuzzer reproduces the full iccSpecSepToTiff pipeline: open N input TIFFs \u2192 validate format consistency \u2192 allocate buffers \u2192 create output TIFF \u2192 scanline interleave \u2192 write output \u2192 optional ICC profile embedding. It adds extra coverage by parsing embedded profiles through IccProfLib (Read/Validate/FindTag). Key differences: (1) input TIFFs are synthesized from fuzz data instead of from disk, (2) up to 5 photometric modes exercised, (3) extra samples and float mode toggles from fuzz control bytes."
+  },
+  "attack_surface": {
+    "primary": "CTiffImg::Open/ReadLine \u2014 libtiff-based TIFF parsing",
+    "secondary": "ICC profile embedding \u2014 arbitrary profile bytes in output",
+    "allocation": "Scanline buffers: bytePerLine \u00d7 nSamples",
+    "fuzzer_extra": "CIccProfile::Read \u2192 Validate \u2192 FindTag on embedded profile"
+  }
+}

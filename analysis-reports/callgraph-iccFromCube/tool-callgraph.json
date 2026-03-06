@@ -1,0 +1,460 @@
+{
+  "tool": "iccFromCube",
+  "tool_file": "iccFromCube.cpp",
+  "fuzzer": "icc_fromcube_fuzzer",
+  "fuzzer_file": "icc_fromcube_fuzzer.cpp",
+  "analysis_date": "2026-07-10",
+  "phases": {
+    "1_cli_parsing": {
+      "description": "Command-line argument parsing",
+      "calls": [
+        {
+          "callee": "printf(Usage)",
+          "line": 345,
+          "caller": "main",
+          "context": "Usage message when argc <= 2",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "argv[1] \u2192 CubeFile()",
+          "line": 351,
+          "caller": "main",
+          "context": "Open input CUBE file from CLI arg",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer writes data to temp file instead"
+        },
+        {
+          "callee": "argv[2] \u2192 SaveIccProfile()",
+          "line": 456,
+          "caller": "main",
+          "context": "Output ICC file path from CLI arg",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer saves to temp file then deletes"
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "2_cube_parsing": {
+      "description": "CUBE file header and 3D table parsing \u2014 main attack surface",
+      "calls": [
+        {
+          "callee": "CubeFile::CubeFile(filename)",
+          "line": 351,
+          "caller": "main",
+          "context": "Construct CubeFile object with input path",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer passes temp file path \u2014 identical"
+        },
+        {
+          "callee": "CubeFile::parseHeader()",
+          "line": 353,
+          "caller": "main",
+          "context": "Parse CUBE header: TITLE, LUT_3D_SIZE, DOMAIN_MIN/MAX \u2014 MAIN ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact code copy in fuzzer. Exercises all keyword branches"
+        },
+        {
+          "callee": "CubeFile::open()",
+          "line": 100,
+          "caller": "parseHeader",
+          "context": "fopen() the CUBE file for reading",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CubeFile::getNextLine()",
+          "line": 112,
+          "caller": "parseHeader",
+          "context": "Read next line (MAX_LINE_LEN=255 cap)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Line length capped at 255 \u2014 prevents unbounded reads"
+        },
+        {
+          "callee": "CubeFile::getTitle()",
+          "line": 129,
+          "caller": "parseHeader",
+          "context": "Parse TITLE keyword value (handles quotes)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CubeFile::getNext()",
+          "line": 155,
+          "caller": "parseHeader",
+          "context": "Tokenizer for space-separated values",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "atoll(LUT_3D_SIZE)",
+          "line": 148,
+          "caller": "parseHeader",
+          "context": "Parse 3D LUT size \u2014 INTEGER OVERFLOW CHECK",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Bounds-checked: temp >= INT_MAX || temp <= 0 \u2192 reject"
+        },
+        {
+          "callee": "atof(DOMAIN_MIN/MAX)",
+          "line": 161,
+          "caller": "parseHeader",
+          "context": "Parse domain range float values",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CubeFile::sizeLut3D()",
+          "line": 358,
+          "caller": "main",
+          "context": "Check parsed LUT size > 0",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer adds extra check: sizeLut3D() > 64 to limit alloc"
+        },
+        {
+          "callee": "CubeFile::parse3DTable()",
+          "line": 424,
+          "caller": "main",
+          "context": "Parse N\u00b3 float triplets into CLUT data array",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Overflow-checked: uint64_t temp > UINT_MAX \u2192 reject"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_profile_construction": {
+      "description": "ICC profile header, MPE tag, CLUT construction",
+      "calls": [
+        {
+          "callee": "CIccProfile::InitHeader()",
+          "line": 366,
+          "caller": "main",
+          "context": "Initialize default ICC profile header",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagMultiProcessElement(3,3)",
+          "line": 373,
+          "caller": "main",
+          "context": "Create MPE tag for A2B0",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer uses std::nothrow for OOM safety"
+        },
+        {
+          "callee": "CubeFile::isCustomInputRange()",
+          "line": 374,
+          "caller": "main",
+          "context": "Check if input domain differs from [0,1]",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccMpeCurveSet(3)",
+          "line": 377,
+          "caller": "main",
+          "context": "Create input curves for custom range mapping",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Only reached when isCustomInputRange() is true"
+        },
+        {
+          "callee": "CIccSingleSampledCurve(min, max)",
+          "line": 378,
+          "caller": "main",
+          "context": "Create per-channel normalization curve",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Up to 3 curves created (one per RGB channel)"
+        },
+        {
+          "callee": "pCurves->SetCurve()",
+          "line": 384,
+          "caller": "main",
+          "context": "Attach curve to curve set (channels 0-2)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTag->Attach(pCurves)",
+          "line": 413,
+          "caller": "main",
+          "context": "Attach CurveSet to MPE tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccMpeCLUT()",
+          "line": 416,
+          "caller": "main",
+          "context": "Create MPE CLUT element",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCLUT(3,3)",
+          "line": 417,
+          "caller": "main",
+          "context": "Create 3\u21923 channel CLUT",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pCLUT->Init(sizeLut3D)",
+          "line": 419,
+          "caller": "main",
+          "context": "Allocate CLUT grid \u2014 ALLOCATION HOTSPOT",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Allocates size\u00b3\u00d73 floats. Fuzzer caps at 64\u00b3 = 786K floats"
+        },
+        {
+          "callee": "pMpeCLUT->SetCLUT(pCLUT)",
+          "line": 430,
+          "caller": "main",
+          "context": "Attach CLUT to MPE CLUT element",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTag->Attach(pMpeCLUT)",
+          "line": 431,
+          "caller": "main",
+          "context": "Attach MPE CLUT to tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "profile.AttachTag(icSigAToB0Tag)",
+          "line": 433,
+          "caller": "main",
+          "context": "Add A2B0 tag to profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_output": {
+      "description": "Metadata tags and profile serialization",
+      "calls": [
+        {
+          "callee": "CubeFile::close()",
+          "line": 435,
+          "caller": "main",
+          "context": "Close CUBE input file",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagMultiLocalizedUnicode()",
+          "line": 438,
+          "caller": "main",
+          "context": "Create description tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTextTag->SetText(description)",
+          "line": 441,
+          "caller": "main",
+          "context": "Set profile description from CUBE TITLE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "profile.AttachTag(icSigProfileDescriptionTag)",
+          "line": 446,
+          "caller": "main",
+          "context": "Attach description tag to profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTextTag->SetText(copyright)",
+          "line": 452,
+          "caller": "main",
+          "context": "Set copyright from CUBE comments",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Only if comments present"
+        },
+        {
+          "callee": "profile.AttachTag(icSigCopyrightTag)",
+          "line": 453,
+          "caller": "main",
+          "context": "Attach copyright tag to profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "SaveIccProfile()",
+          "line": 456,
+          "caller": "main",
+          "context": "Serialize ICC profile to disk",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer saves to temp file then deletes"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc <= 2",
+      "line": 344,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage message guard"
+    },
+    {
+      "condition": "!cube.parseHeader()",
+      "line": 353,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Rejects unparseable CUBE files \u2014 prevents use of uninitialized data"
+    },
+    {
+      "condition": "!cube.sizeLut3D()",
+      "line": 358,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Rejects files without 3D LUT data"
+    },
+    {
+      "condition": "cube.sizeLut3D() > 64",
+      "line": 365,
+      "gate_type": "if",
+      "parent_func": "LLVMFuzzerTestOneInput",
+      "security_relevant": true,
+      "note": "FUZZER-ONLY: caps LUT size to prevent OOM (64\u00b3\u00d73 = 786K floats)"
+    },
+    {
+      "condition": "temp >= INT_MAX || temp <= 0",
+      "line": 149,
+      "gate_type": "if",
+      "parent_func": "parseHeader",
+      "security_relevant": true,
+      "note": "Integer overflow guard on LUT_3D_SIZE"
+    },
+    {
+      "condition": "uint64_t temp > UINT_MAX",
+      "line": 226,
+      "gate_type": "if",
+      "parent_func": "parse3DTable",
+      "security_relevant": true,
+      "note": "Overflow guard on size\u00b3 computation"
+    },
+    {
+      "condition": "nSizeLut != num*3",
+      "line": 230,
+      "gate_type": "if",
+      "parent_func": "parse3DTable",
+      "security_relevant": true,
+      "note": "Buffer size consistency check"
+    },
+    {
+      "condition": "cube.isCustomInputRange()",
+      "line": 374,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Determines whether input curve normalization is needed"
+    },
+    {
+      "condition": "!pCLUT->Init()",
+      "line": 419,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "CLUT allocation failure check"
+    },
+    {
+      "condition": "!bSuccess (parse3DTable)",
+      "line": 425,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "LUT data parse failure \u2014 prevents corrupt profile creation"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 33,
+    "cli_only_excluded": 3,
+    "fuzzable_call_sites": 30,
+    "matched_by_fuzzer": 30,
+    "coverage_percent": 100.0,
+    "fidelity_note": "VERY HIGH",
+    "note": "The fromcube fuzzer contains an EXACT copy of the CubeFile class from iccFromCube.cpp and reproduces the entire main() flow: parseHeader \u2192 sizeLut3D check \u2192 InitHeader \u2192 MPE/CLUT construction \u2192 parse3DTable \u2192 metadata tags \u2192 SaveIccProfile. Key differences: (1) LUT size capped at 64 to prevent OOM, (2) std::nothrow used for all allocations, (3) temp file I/O instead of CLI args."
+  },
+  "attack_surface": {
+    "primary": "CubeFile::parseHeader() \u2014 text parsing with atof/atoll",
+    "secondary": "CubeFile::parse3DTable() \u2014 N\u00b3 float array parsing",
+    "allocation": "CIccCLUT::Init(size) \u2014 allocates size\u00b3\u00d73 floats",
+    "oom_cap": "Fuzzer limits sizeLut3D to 64 (max 786K floats \u2248 3MB)"
+  }
+}

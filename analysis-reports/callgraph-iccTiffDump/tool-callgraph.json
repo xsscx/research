@@ -1,0 +1,530 @@
+{
+  "tool": "iccTiffDump",
+  "tool_file": "iccTiffDump.cpp",
+  "fuzzer": "icc_tiffdump_fuzzer",
+  "fuzzer_file": "icc_tiffdump_fuzzer.cpp",
+  "analysis_date": "2026-07-10",
+  "phases": {
+    "1_cli_parsing": {
+      "description": "Command-line argument parsing and file open",
+      "calls": [
+        {
+          "callee": "Usage()",
+          "line": 188,
+          "caller": "main",
+          "context": "Display usage message when argc <= 1",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::Open(argv[1])",
+          "line": 193,
+          "caller": "main",
+          "context": "Open TIFF file from CLI argument",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer uses TIFFClientOpen with in-memory I/O instead"
+        },
+        {
+          "callee": "fopen(argv[2], wb)",
+          "line": 221,
+          "caller": "main",
+          "context": "Export ICC profile to file (optional argv[2])",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "fwrite(pProfMem)",
+          "line": 223,
+          "caller": "main",
+          "context": "Write raw ICC profile bytes to export file",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "SaveIccProfile(argv[2])",
+          "line": 237,
+          "caller": "main",
+          "context": "Save parsed ICC profile via IccProfLib",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "2_tiff_header": {
+      "description": "TIFF header field reading (direct libtiff API)",
+      "calls": [
+        {
+          "callee": "TIFFClientOpen(memory)",
+          "line": 105,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Open TIFF from in-memory buffer \u2014 FUZZER ENTRY",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Replaces CTiffImg::Open. Uses custom read/seek/close callbacks"
+        },
+        {
+          "callee": "TIFFGetField(IMAGEWIDTH)",
+          "line": 122,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read TIFF image width",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(IMAGELENGTH)",
+          "line": 123,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read TIFF image height",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(SAMPLESPERPIXEL)",
+          "line": 124,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read samples per pixel",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(BITSPERSAMPLE)",
+          "line": 125,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read bits per sample",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(PHOTOMETRIC)",
+          "line": 126,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read photometric interpretation",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(ROWSPERSTRIP)",
+          "line": 127,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read rows per strip",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(SAMPLEFORMAT)",
+          "line": 128,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read sample format (uint/float)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFGetField(ORIENTATION)",
+          "line": 129,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Read image orientation",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFReadDirectory(tif)",
+          "line": 219,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Advance to next TIFF directory (multi-page TIFFs)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Tool processes single page; fuzzer iterates all directories"
+        },
+        {
+          "callee": "TIFFClose(tif)",
+          "line": 221,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Close TIFF handle",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_metadata_display": {
+      "description": "TIFF metadata formatting (GetId lookups)",
+      "calls": [
+        {
+          "callee": "GetId(SrcImg.GetPlanar())",
+          "line": 203,
+          "caller": "main",
+          "context": "Map planar config to string",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer reads fields directly via TIFFGetField"
+        },
+        {
+          "callee": "GetId(SrcImg.GetPhoto())",
+          "line": 209,
+          "caller": "main",
+          "context": "Map photometric to string",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer reads fields directly"
+        },
+        {
+          "callee": "GetId(SrcImg.GetCompress())",
+          "line": 212,
+          "caller": "main",
+          "context": "Map compression to string",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not exercise compression ID lookup"
+        },
+        {
+          "callee": "SrcImg.GetExtraSamples()",
+          "line": 206,
+          "caller": "main",
+          "context": "Get extra sample count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer reads samples via TIFFGetField"
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "4_icc_extraction": {
+      "description": "ICC profile extraction and parsing \u2014 main attack surface",
+      "calls": [
+        {
+          "callee": "SrcImg.GetIccProfile(pProfMem, nLen)",
+          "line": 216,
+          "caller": "main",
+          "context": "Extract embedded ICC profile bytes from TIFF",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer uses TIFFGetField(TIFFTAG_ICCPROFILE) directly"
+        },
+        {
+          "callee": "OpenIccProfile(pProfMem, nLen)",
+          "line": 232,
+          "caller": "main",
+          "context": "Parse ICC profile from memory \u2014 MAIN ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact match: both parse profile from memory buffer"
+        },
+        {
+          "callee": "CIccInfo::GetVersionName()",
+          "line": 128,
+          "caller": "DumpProfileInfo",
+          "context": "Format profile version string",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccInfo::GetColorSpaceSigName(colorSpace)",
+          "line": 131,
+          "caller": "DumpProfileInfo",
+          "context": "Format color space signature",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccInfo::GetColorSpaceSigName(pcs)",
+          "line": 133,
+          "caller": "DumpProfileInfo",
+          "context": "Format PCS signature",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccInfo::GetSpectralColorSigName()",
+          "line": 135,
+          "caller": "DumpProfileInfo",
+          "context": "Format spectral PCS signature",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icF16toF(spectralRange.start/end)",
+          "line": 138,
+          "caller": "DumpProfileInfo",
+          "context": "Convert half-float spectral range values",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icF16toF(biSpectralRange.start/end)",
+          "line": 143,
+          "caller": "DumpProfileInfo",
+          "context": "Convert half-float bi-spectral range values",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pProfile->FindTag(icSigProfileDescriptionTag)",
+          "line": 150,
+          "caller": "DumpProfileInfo",
+          "context": "Look up profile description tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagTextDescription::GetText()",
+          "line": 154,
+          "caller": "DumpProfileInfo",
+          "context": "Get text from desc tag (v2 type)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagMultiLocalizedUnicode::GetText()",
+          "line": 161,
+          "caller": "DumpProfileInfo",
+          "context": "Get text from desc tag (v4 mluc type)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_embedded_profile": {
+      "description": "Recursive embedded V5 profile processing",
+      "calls": [
+        {
+          "callee": "pProfile->FindTag(icSigEmbeddedV5ProfileTag)",
+          "line": 169,
+          "caller": "DumpProfileInfo",
+          "context": "Check for embedded V5 profile tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagEmbeddedProfile::GetProfile()",
+          "line": 174,
+          "caller": "DumpProfileInfo",
+          "context": "Get embedded sub-profile pointer",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "DumpProfileInfo(recursive)",
+          "line": 176,
+          "caller": "DumpProfileInfo",
+          "context": "Recursively dump embedded profile \u2014 RECURSIVE ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises this via pSubProfile->ReadTags()"
+        },
+        {
+          "callee": "pProfile->ReadTags(pProfile)",
+          "line": 236,
+          "caller": "main",
+          "context": "Read all tags from profile for export",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer calls ReadTags on both main and embedded profiles"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "6_fuzzer_extras": {
+      "description": "TIFF error suppression and in-memory I/O",
+      "calls": [
+        {
+          "callee": "TIFFSetErrorHandler(silent)",
+          "line": 86,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Suppress libtiff error output",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "TIFFSetWarningHandler(silent)",
+          "line": 87,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Suppress libtiff warning output",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "mem_read/mem_seek/mem_close",
+          "line": 33,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Custom in-memory TIFF I/O callbacks",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Zero disk I/O \u2014 all processing in memory"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc <= 1",
+      "line": 187,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage guard"
+    },
+    {
+      "condition": "!SrcImg.Open(argv[1])",
+      "line": 193,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "TIFF open failure"
+    },
+    {
+      "condition": "TIFF magic (II or MM)",
+      "line": 96,
+      "gate_type": "if",
+      "parent_func": "LLVMFuzzerTestOneInput",
+      "security_relevant": true,
+      "note": "FUZZER: rejects non-TIFF data early"
+    },
+    {
+      "condition": "rowsPerStrip == 0 || samples == 0 || bps == 0",
+      "line": 133,
+      "gate_type": "if",
+      "parent_func": "LLVMFuzzerTestOneInput",
+      "security_relevant": true,
+      "note": "FUZZER: rejects corrupt TIFF parameters"
+    },
+    {
+      "condition": "SrcImg.GetIccProfile()",
+      "line": 216,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Controls whether ICC profile extraction occurs"
+    },
+    {
+      "condition": "TIFFGetField(TIFFTAG_ICCPROFILE)",
+      "line": 149,
+      "gate_type": "if",
+      "parent_func": "LLVMFuzzerTestOneInput",
+      "security_relevant": true,
+      "note": "Controls ICC profile extraction in fuzzer"
+    },
+    {
+      "condition": "icc_len > 128 && icc_len < 10MB",
+      "line": 150,
+      "gate_type": "if",
+      "parent_func": "LLVMFuzzerTestOneInput",
+      "security_relevant": true,
+      "note": "FUZZER: bounds ICC profile size for OOM safety"
+    },
+    {
+      "condition": "pProfile != nullptr",
+      "line": 233,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "OpenIccProfile failure check"
+    },
+    {
+      "condition": "pDesc->GetType() == icSigTextDescriptionType",
+      "line": 152,
+      "gate_type": "if",
+      "parent_func": "DumpProfileInfo",
+      "security_relevant": true,
+      "note": "Type discrimination for description tag"
+    },
+    {
+      "condition": "pEmbedded->GetType() == icSigEmbeddedProfileType",
+      "line": 172,
+      "gate_type": "if",
+      "parent_func": "DumpProfileInfo",
+      "security_relevant": true,
+      "note": "Type safety for embedded profile tag \u2014 prevents bad cast"
+    },
+    {
+      "condition": "argc > 2",
+      "line": 220,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Optional ICC profile export"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 38,
+    "cli_only_excluded": 5,
+    "fuzzable_call_sites": 33,
+    "matched_by_fuzzer": 29,
+    "coverage_percent": 87.9,
+    "fidelity_note": "HIGH",
+    "note": "The tiffdump fuzzer exercises the core attack surface: TIFF header field reading, ICC profile extraction via TIFFGetField, profile parsing via OpenIccProfile, CIccInfo formatting, tag lookup (description, spectral, embedded), and recursive embedded profile processing. Key differences: (1) uses TIFFClientOpen with in-memory I/O instead of CTiffImg::Open (bypasses file I/O), (2) iterates multi-page TIFFs via TIFFReadDirectory, (3) GetId() lookup tables not exercised, (4) profile export to file not exercised."
+  },
+  "attack_surface": {
+    "primary": "OpenIccProfile(pProfMem, nLen) \u2014 ICC profile from TIFF",
+    "secondary": "DumpProfileInfo recursion \u2014 embedded V5 profiles",
+    "tiff_surface": "TIFFGetField \u00d7 8 tags \u2014 exercises libtiff parsing",
+    "fuzzer_advantage": "In-memory I/O eliminates file system overhead"
+  }
+}

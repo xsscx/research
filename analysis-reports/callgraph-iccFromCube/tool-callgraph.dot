@@ -1,0 +1,98 @@
+digraph iccFromCube {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+    leg_hot  [label="Alloc Hotspot", fillcolor="#FF6347"];
+  }
+
+  tool [label="main()\niccFromCube.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_fromcube_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // CLI
+  subgraph cluster_cli {
+    label="Phase 1: CLI Args"; style=rounded;
+    usage [label="Usage()", fillcolor="#D3D3D3"];
+    argv1 [label="argv[1] input", fillcolor="#D3D3D3"];
+    argv2 [label="argv[2] output", fillcolor="#D3D3D3"];
+  }
+
+  // CUBE Parsing
+  subgraph cluster_parse {
+    label="Phase 2: CUBE Parsing (Attack Surface)"; style=rounded; color=red;
+    cubefile [label="CubeFile(filename)", fillcolor="#90EE90"];
+    parseheader [label="parseHeader()\nMAIN ENTRY", fillcolor="#90EE90", penwidth=3];
+    getnextline [label="getNextLine()\n(255-byte cap)", fillcolor="#90EE90"];
+    gettitle [label="getTitle()", fillcolor="#90EE90"];
+    getnext [label="getNext()", fillcolor="#90EE90"];
+    atoll_size [label="atoll(LUT_3D_SIZE)\noverflow check", fillcolor="#90EE90"];
+    atof_domain [label="atof(DOMAIN)", fillcolor="#90EE90"];
+    sizelut [label="sizeLut3D()", fillcolor="#90EE90"];
+    parse3d [label="parse3DTable()\nN³ float parse", fillcolor="#90EE90", penwidth=2];
+  }
+
+  // Profile Construction
+  subgraph cluster_profile {
+    label="Phase 3: ICC Profile Construction"; style=rounded;
+    initheader [label="InitHeader()", fillcolor="#90EE90"];
+    mpe_tag [label="CIccTagMPE(3,3)", fillcolor="#90EE90"];
+    curveset [label="CIccMpeCurveSet(3)", fillcolor="#90EE90"];
+    curves [label="SingleSampledCurve\n(per channel)", fillcolor="#90EE90"];
+    mpeclut [label="CIccMpeCLUT", fillcolor="#90EE90"];
+    clut [label="CIccCLUT(3,3)", fillcolor="#90EE90"];
+    clut_init [label="pCLUT->Init()\nALLOC HOTSPOT", fillcolor="#FF6347", penwidth=3];
+    attach_a2b [label="AttachTag(A2B0)", fillcolor="#90EE90"];
+  }
+
+  // Output
+  subgraph cluster_output {
+    label="Phase 4: Metadata & Output"; style=rounded;
+    desc_tag [label="Description Tag", fillcolor="#90EE90"];
+    copy_tag [label="Copyright Tag", fillcolor="#90EE90"];
+    save [label="SaveIccProfile()", fillcolor="#90EE90"];
+  }
+
+  // Tool edges
+  tool -> usage [style=dashed];
+  tool -> argv1 [style=dashed];
+  tool -> cubefile;
+  tool -> parseheader [style=bold, penwidth=2];
+  tool -> sizelut;
+  tool -> initheader;
+  tool -> mpe_tag;
+  tool -> parse3d [style=bold];
+  tool -> save;
+  tool -> argv2 [style=dashed];
+
+  // Fuzzer edges
+  fuzzer -> cubefile [color=green];
+  fuzzer -> parseheader [style=bold, color=green, penwidth=2];
+  fuzzer -> sizelut [color=green];
+  fuzzer -> initheader [color=green];
+  fuzzer -> mpe_tag [color=green];
+  fuzzer -> parse3d [style=bold, color=green];
+  fuzzer -> save [color=green];
+
+  // Internal edges
+  parseheader -> getnextline;
+  parseheader -> gettitle;
+  parseheader -> getnext;
+  parseheader -> atoll_size;
+  parseheader -> atof_domain;
+  mpe_tag -> curveset;
+  curveset -> curves;
+  mpe_tag -> mpeclut;
+  mpeclut -> clut;
+  clut -> clut_init [color=red, penwidth=2];
+  mpe_tag -> attach_a2b;
+  attach_a2b -> desc_tag;
+  desc_tag -> copy_tag;
+  copy_tag -> save;
+
+}
