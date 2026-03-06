@@ -235,15 +235,17 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 
 ### Reusable Prompts
 
-Nine prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Eleven prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 135-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
+- `triage-fuzzer-crash.prompt.md` — fuzzer crash triage, minimization, and patch workflow
 - `triage-fuzzer-oom.prompt.yml` — LibFuzzer OOM triage and patch workflow
 - `health-check.prompt.yml` — MCP server verification
 - `image-fuzzer-quality.prompt.md` — xnuimagefuzzer output quality assessment
 - `mac-catalyst-ci.prompt.md` — Mac Catalyst CI debugging guide
 - `improve-fuzzer-coverage.prompt.md` — Coverage gap analysis and seed creation workflow
+- `corpus-management.prompt.md` — SSD/ramdisk corpus lifecycle, migration, and coverage reporting
 - `upstream-sync.prompt.md` — CFL iccDEV patch reconciliation after upstream updates
 
 ### ICC file attachments on GitHub Issues
