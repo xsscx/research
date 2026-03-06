@@ -8,7 +8,7 @@ Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorC
 ## Quick Start
 
 ```bash
-# Build (clones iccDEV, applies 67 patches, compiles 19 fuzzers)
+# Build (clones iccDEV, applies 54 patches, compiles 19 fuzzers)
 ./build.sh
 
 # Smoke test (60 seconds on tmpfs ramdisk)
@@ -44,7 +44,7 @@ sudo ./ramdisk-fuzz.sh 60
 
 **Total:** 5,222 LOC · 18,843 corpus files · 62,512 dictionary entries
 
-## Patch Kit (67 patches, 10 NO-OP)
+## Patch Kit (54 active patches)
 
 Security patches applied to iccDEV before building. See [`patches/README.md`](patches/README.md) for full details.
 
@@ -57,9 +57,9 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 | Memory leaks | 6 | Read() failure paths, ParseTag, CheckPCSConnections |
 | Null-deref guards | 3 | NDLut Apply, ParseTag, ToneMapFunc |
 | XML parsing limits | 2 | Tag/string caps, mluc/Dict/ProfileSeqId bounds |
-| Upstream-adopted (NO-OP) | 10 | PRs #622, #632, #634, #635 + 4 earlier + 066→067 |
+| Upstream-adopted (dropped) | 15 | PRs #622, #630-#639 (upstream sync 2026-03-05) |
 
-**Active patches: 57** (67 total − 10 NO-OP)
+**Active patches: 54** (69 original − 15 dropped during upstream sync)
 
 ## Build
 
@@ -73,7 +73,7 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 **What `build.sh` does:**
 1. Clones `iccDEV` (or reuses existing checkout)
 2. Resets to clean state (`git checkout .`)
-3. Applies all 67 patches from `patches/`
+3. Applies all 54 patches from `patches/`
 4. Builds static libraries (`IccProfLib2-static.a`, `IccXML2-static.a`)
 5. Compiles 19 fuzzers with ASAN + UBSAN + coverage instrumentation
 6. Outputs binaries to `bin/`

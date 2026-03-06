@@ -1,3 +1,0 @@
-# NO-OP: Superseded by 067-fromxml-oom-deep-caps.patch
-# Original 066 had context mismatch after patch 049 modified IccProfileXml.cpp.
-# All fixes from 066 are included in 067 along with additional caps.
