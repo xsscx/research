@@ -254,8 +254,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount++;
   }
   // Appended data: file is larger than declared profile size
-  if (actualFileSize > 0 && profileSize > 0 && actualFileSize > profileSize + 3) {
-    size_t extraBytes = actualFileSize - profileSize;
+  if (actualFileSize > 0 && profileSize > 0 && actualFileSize > (uint64_t)profileSize + 3) {
+    size_t extraBytes = actualFileSize - (size_t)profileSize;
     printf("     %s[WARN]  HEURISTIC: %zu EXTRA BYTES appended past declared profile end%s\n",
            ColorCritical(), extraBytes, ColorReset());
     printf("     %sRisk: Data hiding / smuggling — parsers may ignore appended payload%s\n",

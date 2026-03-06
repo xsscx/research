@@ -68,7 +68,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                                     (static_cast<icUInt32Number>(e33[10])<<8) | e33[11];
 
             // Read tag type signature at the tag data offset
-            if (tOff33 + 32 > fs33 || tSz33 < 32) continue;
+            if ((uint64_t)tOff33 + 32 > fs33 || tSz33 < 32) continue;
             icUInt8Number tagData33[32];
             fseek(fp33, tOff33, SEEK_SET);
             if (fread(tagData33, 1, 32, fp33) != 32) continue;
@@ -164,7 +164,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz34  = (static_cast<icUInt32Number>(e34[8])<<24) | (static_cast<icUInt32Number>(e34[9])<<16) |
                                     (static_cast<icUInt32Number>(e34[10])<<8) | e34[11];
 
-            if (tOff34 + 32 > fs34 || tSz34 < 32) continue;
+            if ((uint64_t)tOff34 + 32 > fs34 || tSz34 < 32) continue;
             icUInt8Number tagData34[32];
             fseek(fp34, tOff34, SEEK_SET);
             if (fread(tagData34, 1, 32, fp34) != 32) continue;
@@ -261,7 +261,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz35  = (static_cast<icUInt32Number>(e35[8])<<24) | (static_cast<icUInt32Number>(e35[9])<<16) |
                                     (static_cast<icUInt32Number>(e35[10])<<8) | e35[11];
 
-            if (tOff35 + 32 > fs35 || tSz35 < 48) continue; // need at least 32-byte header + 16 data bytes
+            if ((uint64_t)tOff35 + 32 > fs35 || tSz35 < 48) continue; // need at least 32-byte header + 16 data bytes
             icUInt8Number typeCheck[4];
             fseek(fp35, tOff35, SEEK_SET);
             if (fread(typeCheck, 1, 4, fp35) != 4) continue;
@@ -271,7 +271,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             if (tagType35 != 0x6D414220 && tagType35 != 0x6D424120) continue;
 
             // Read B-curve data region (bytes 32+ within the tag, up to 256 bytes)
-            size_t dataStart = tOff35 + 32;
+            size_t dataStart = (uint64_t)tOff35 + 32;
             size_t dataLen = tSz35 - 32;
             if (dataLen > 256) dataLen = 256;
             if (dataStart + dataLen > fs35) dataLen = fs35 - dataStart;
@@ -450,7 +450,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz37  = (static_cast<icUInt32Number>(e37[8])<<24) | (static_cast<icUInt32Number>(e37[9])<<16) |
                                     (static_cast<icUInt32Number>(e37[10])<<8) | e37[11];
 
-            if (tOff37 + 4 > fs37 || tSz37 < 4) continue;
+            if ((uint64_t)tOff37 + 4 > fs37 || tSz37 < 4) continue;
 
             // Check if tag contains mpet type
             icUInt8Number typeCheck37[4];
@@ -565,7 +565,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz38  = (static_cast<icUInt32Number>(e38[8])<<24) | (static_cast<icUInt32Number>(e38[9])<<16) |
                                     (static_cast<icUInt32Number>(e38[10])<<8) | e38[11];
 
-            if (tOff38 + 12 > fs38 || tSz38 < 12) continue;
+            if ((uint64_t)tOff38 + 12 > fs38 || tSz38 < 12) continue;
             icUInt8Number curveHdr[12];
             fseek(fp38, tOff38, SEEK_SET);
             if (fread(curveHdr, 1, 12, fp38) != 12) continue;
@@ -582,7 +582,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
               icUInt32Number count = (static_cast<icUInt32Number>(curveHdr[8])<<24) | (static_cast<icUInt32Number>(curveHdr[9])<<16) |
                                      (static_cast<icUInt32Number>(curveHdr[10])<<8) | curveHdr[11];
               if (count > 1 && count <= 65535) {
-                size_t dataStart = tOff38 + 12;
+                size_t dataStart = (uint64_t)tOff38 + 12;
                 size_t dataLen = count * 2;
                 if (dataLen > 512) dataLen = 512; // sample first 256 entries
                 if (dataStart + dataLen > fs38) continue;
@@ -628,7 +628,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                     curveIssues++;
                   }
                   // Check first param (gamma) for zero — causes pow(x, 0) flattening
-                  if (tOff38 + 16 <= fs38) {
+                  if ((uint64_t)tOff38 + 16 <= fs38) {
                     icUInt8Number gamma38[4];
                     fseek(fp38, tOff38 + 12, SEEK_SET);
                     if (fread(gamma38, 1, 4, fp38) == 4) {
@@ -710,7 +710,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                 }
 
                 // Check if shared type is mutable (mBA, mAB, calc, tary — higher UAF risk)
-                if (tags39[a].off + 4 <= fs39) {
+                if ((uint64_t)tags39[a].off + 4 <= fs39) {
                   icUInt8Number sharedType[4];
                   fseek(fp39, tags39[a].off, SEEK_SET);
                   if (fread(sharedType, 1, 4, fp39) == 4) {
@@ -917,7 +917,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             }
 
             // Check tag data type against v5-only list
-            if (verMajor < 5 && tOff41 + 4 <= fs41) {
+            if (verMajor < 5 && (uint64_t)tOff41 + 4 <= fs41) {
               icUInt8Number typeBytes41[4];
               fseek(fp41, tOff41, SEEK_SET);
               if (fread(typeBytes41, 1, 4, fp41) == 4) {
@@ -995,7 +995,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
               icUInt32Number tOff42 = (static_cast<icUInt32Number>(e42[4])<<24) | (static_cast<icUInt32Number>(e42[5])<<16) |
                                       (static_cast<icUInt32Number>(e42[6])<<8) | e42[7];
               // XYZ type: type(4) + reserved(4) + X(4) + Y(4) + Z(4) = 20 bytes
-              if (tOff42 + 20 > fs42) break;
+              if ((uint64_t)tOff42 + 20 > fs42) break;
               icUInt8Number xyzData[12];
               fseek(fp42, tOff42 + 8, SEEK_SET);
               if (fread(xyzData, 1, 12, fp42) != 12) break;
@@ -1106,7 +1106,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             }
 
             // Validate sdin structure: spectralDataInfo must have valid wavelength data
-            if (tSig43 == 0x7364696E && tOff43 + 20 <= fs43 && tSz43 >= 20) {
+            if (tSig43 == 0x7364696E && (uint64_t)tOff43 + 20 <= fs43 && tSz43 >= 20) {
               icUInt8Number sdinData[12];
               fseek(fp43, tOff43 + 8, SEEK_SET);
               if (fread(sdinData, 1, 12, fp43) == 12) {
@@ -1191,7 +1191,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz44  = (static_cast<icUInt32Number>(e44[8])<<24) | (static_cast<icUInt32Number>(e44[9])<<16) |
                                     (static_cast<icUInt32Number>(e44[10])<<8) | e44[11];
 
-            if (tOff44 + 4 > fs44 || tSz44 < 12) continue;
+            if ((uint64_t)tOff44 + 4 > fs44 || tSz44 < 12) continue;
             icUInt8Number typeBytes44[4];
             fseek(fp44, tOff44, SEEK_SET);
             if (fread(typeBytes44, 1, 4, fp44) != 4) continue;
@@ -1214,7 +1214,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             }
 
             // Check embedded image magic (skip type(4) + reserved(4) + flags(4) = offset 12)
-            if (tOff44 + 16 <= fs44) {
+            if ((uint64_t)tOff44 + 16 <= fs44) {
               icUInt8Number imgMagic[4];
               fseek(fp44, tOff44 + 12, SEEK_SET);
               if (fread(imgMagic, 1, 4, fp44) == 4) {
@@ -1284,7 +1284,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             icUInt32Number tSz45  = (static_cast<icUInt32Number>(e45[8])<<24) | (static_cast<icUInt32Number>(e45[9])<<16) |
                                     (static_cast<icUInt32Number>(e45[10])<<8) | e45[11];
 
-            if (tOff45 + 4 > fs45 || tSz45 < 16) continue;
+            if ((uint64_t)tOff45 + 4 > fs45 || tSz45 < 16) continue;
             icUInt8Number typeBytes45[4];
             fseek(fp45, tOff45, SEEK_SET);
             if (fread(typeBytes45, 1, 4, fp45) != 4) continue;
@@ -1298,7 +1298,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             // smat: type(4) + reserved(4) + nChannels(2) + encoding(2) + ...
             // Read channel count and encoding
-            if (tOff45 + 12 <= fs45) {
+            if ((uint64_t)tOff45 + 12 <= fs45) {
               icUInt8Number smatHdr[4];
               fseek(fp45, tOff45 + 8, SEEK_SET);
               if (fread(smatHdr, 1, 4, fp45) == 4) {
@@ -1384,7 +1384,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
             // desc type = 0x64657363
-            if (tOff + 12 > fs46 || tSz < 12) continue;
+            if ((uint64_t)tOff + 12 > fs46 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp46, tOff, SEEK_SET);
@@ -1480,7 +1480,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 84 > fs47 || tSz < 84) continue;
+            if ((uint64_t)tOff + 84 > fs47 || tSz < 84) continue;
 
             // Read type signature
             icUInt8Number typeSig[4];
@@ -1582,7 +1582,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 12 > fs48 || tSz < 12) continue;
+            if ((uint64_t)tOff + 12 > fs48 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp48, tOff, SEEK_SET);
@@ -1594,7 +1594,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             // lut8 (0x6D667431) and lut16 (0x6D667432): uniform grid
             if (typeVal == 0x6D667431 || typeVal == 0x6D667432) {
-              if (tOff + 12 > fs48) continue;
+              if ((uint64_t)tOff + 12 > fs48) continue;
               icUInt8Number lutHdr[4];
               fseek(fp48, tOff + 8, SEEK_SET);
               if (fread(lutHdr, 1, 4, fp48) != 4) continue;
@@ -1628,7 +1628,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             // mAB (0x6D414220) / mBA (0x6D424120): per-dimension grid points in CLUT sub-element
             if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
-              if (tOff + 32 > fs48) continue;
+              if ((uint64_t)tOff + 32 > fs48) continue;
               icUInt8Number mbaHdr[24];
               fseek(fp48, tOff + 8, SEEK_SET);
               if (fread(mbaHdr, 1, 24, fp48) != 24) continue;
@@ -1639,7 +1639,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
               uint32_t clutOff = ((uint32_t)mbaHdr[12]<<24)|((uint32_t)mbaHdr[13]<<16)|
                                  ((uint32_t)mbaHdr[14]<<8)|mbaHdr[15];
 
-              if (clutOff > 0 && clutOff < tSz && tOff + clutOff + 16 <= fs48 && nInput <= 16) {
+              if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs48 && nInput <= 16) {
                 // CLUT sub-element: 16 bytes of grid dimensions (1 per input channel)
                 icUInt8Number gridDims[16];
                 fseek(fp48, tOff + clutOff, SEEK_SET);
@@ -1718,7 +1718,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 8 > fs49 || tSz < 8) continue;
+            if ((uint64_t)tOff + 8 > fs49 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp49, tOff, SEEK_SET);
@@ -1737,7 +1737,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             char sig49[5]; SignatureToFourCC(tSig, sig49);
 
             // Scan data portion (after type + reserved = 8 bytes)
-            size_t dataStart = tOff + 8;
+            size_t dataStart = (uint64_t)tOff + 8;
             size_t dataEnd = (size_t)tOff + tSz;
             if (dataEnd > fs49) dataEnd = fs49;
             size_t maxScan = 4096; // limit scan to first 4KB of data
@@ -1898,7 +1898,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 12 > fs51 || tSz < 12) continue;
+            if ((uint64_t)tOff + 12 > fs51 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp51, tOff, SEEK_SET);
@@ -1987,7 +1987,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 4 > fs52 || tSz < 4) continue;
+            if ((uint64_t)tOff + 4 > fs52 || tSz < 4) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp52, tOff, SEEK_SET);
@@ -2141,7 +2141,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 12 > fs54 || tSz < 12) continue;
+            if ((uint64_t)tOff + 12 > fs54 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp54, tOff, SEEK_SET);
@@ -2171,7 +2171,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 
             // mAB/mBA: CLUT sub-element grid dimensions
             if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
-              if (tOff + 32 > fs54) continue;
+              if ((uint64_t)tOff + 32 > fs54) continue;
               icUInt8Number mbaInfo[24];
               fseek(fp54, tOff + 8, SEEK_SET);
               if (fread(mbaInfo, 1, 24, fp54) != 24) continue;
@@ -2180,7 +2180,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
               uint32_t clutOff = ((uint32_t)mbaInfo[12]<<24)|((uint32_t)mbaInfo[13]<<16)|
                                  ((uint32_t)mbaInfo[14]<<8)|mbaInfo[15];
 
-              if (clutOff > 0 && clutOff < tSz && tOff + clutOff + 16 <= fs54 && nInput > 0 && nInput <= 16) {
+              if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs54 && nInput > 0 && nInput <= 16) {
                 icUInt8Number gridDims[16];
                 fseek(fp54, tOff + clutOff, SEEK_SET);
                 if (fread(gridDims, 1, 16, fp54) == 16) {
@@ -2248,7 +2248,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 8 > fs55 || tSz < 8) continue;
+            if ((uint64_t)tOff + 8 > fs55 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
             fseek(fp55, tOff, SEEK_SET);
@@ -2410,10 +2410,10 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 8 > fs57 || tSz < 132) continue;
+            if ((uint64_t)tOff + 8 > fs57 || tSz < 132) continue;
 
             // Check for embedded ICC profile magic 'acsp' at offset+36
-            if (tOff + 36 + 4 <= fs57) {
+            if ((uint64_t)tOff + 36 + 4 <= fs57) {
               icUInt8Number magic[4];
               fseek(fp57, tOff + 36, SEEK_SET);
               if (fread(magic, 1, 4, fp57) == 4) {
@@ -2577,7 +2577,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
                             ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
 
-            if (tOff + 4 > fs68 || tSz < 20) continue;
+            if ((uint64_t)tOff + 4 > fs68 || tSz < 20) continue;
 
             // Read tag type signature
             icUInt8Number typeSig[4];
@@ -2594,7 +2594,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
             // offset 10: reserved (2 bytes)
             // offset 12: nVertices (4 bytes)
             // offset 16: nTriangles (4 bytes)
-            if (tOff + 20 > fs68) continue;
+            if ((uint64_t)tOff + 20 > fs68) continue;
             icUInt8Number gbdHdr[12];
             fseek(fp68, tOff + 8, SEEK_SET);
             if (fread(gbdHdr, 1, 12, fp68) != 12) continue;
@@ -2847,7 +2847,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
                                      (static_cast<icUInt32Number>(entry[9])<<16) |
                                      (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
 
-            if (tOffset + 12 > fileSize || tSize < 12) continue;
+            if ((uint64_t)tOffset + 12 > fileSize || tSize < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fpRaw, tOffset, SEEK_SET);
@@ -2860,7 +2860,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             bool isLut16 = (typeSig[0]=='m' && typeSig[1]=='f' && typeSig[2]=='t' && typeSig[3]=='2');
             if (!isLut8 && !isLut16) continue;
 
-            if (tOffset + 12 > fileSize) continue;
+            if ((uint64_t)tOffset + 12 > fileSize) continue;
             icUInt8Number lutHdr[12];
             fseek(fpRaw, tOffset + 8, SEEK_SET);
             if (fread(lutHdr, 1, 4, fpRaw) != 4) continue;
@@ -2913,7 +2913,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
                                      (static_cast<icUInt32Number>(entry[5])<<16) |
                                      (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
 
-            if (tOffset + 4 > fileSize) continue;
+            if ((uint64_t)tOffset + 4 > fileSize) continue;
 
             icUInt8Number typeBuf[4];
             fseek(fpRaw, tOffset, SEEK_SET);
