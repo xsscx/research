@@ -1,3 +1,0 @@
-# Patch 056 is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV PR #632 (pushXYZConvert HBO).
-# Original: --- a/IccProfLib/IccCmm.cpp

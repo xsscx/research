@@ -1,57 +1,16 @@
---- /tmp/IccUtilXml.cpp.before	2026-03-04 17:11:42.241380399 -0500
-+++ /home/h02332/po/research/cfl/iccDEV/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-04 17:12:15.648220418 -0500
-@@ -306,28 +306,39 @@
+--- a/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-05 20:11:54.146153042 -0500
++++ b/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-05 20:12:40.481968742 -0500
+@@ -306,9 +306,11 @@
  
  const char *icFixXml(char *szDest, const char *szStr)
  {
 -  char *m_ptr = szDest; 
-+  // CFL patch: cap expansion to prevent stack-buffer-overflow.
-+  // Worst case: every char expands to 6 bytes ("&apos;").
-+  // Callers typically allocate 256 bytes for szDest.
-+  const size_t maxDest = 255;
 +  char *m_ptr = szDest;
-+  char *m_end = szDest + maxDest;
++  // Cap at 65536 output bytes to prevent stack buffer overflow
++  const char *m_end = szDest + 65536 - 7;
  
 -  while (*szStr) {
 +  while (*szStr && m_ptr < m_end) {
-+    size_t remaining = (size_t)(m_end - m_ptr);
      switch (*szStr) {
      case '\'':
--      strcpy(m_ptr, "&apos;");
-+      if (remaining < 6) goto done;
-+      memcpy(m_ptr, "&apos;", 6);
-       m_ptr += 6;
-       break;
-     case '&':
--      strcpy(m_ptr, "&amp;");
-+      if (remaining < 5) goto done;
-+      memcpy(m_ptr, "&amp;", 5);
-       m_ptr += 5;
-       break;
-     case '\"':
--      strcpy(m_ptr, "&quot;");
-+      if (remaining < 6) goto done;
-+      memcpy(m_ptr, "&quot;", 6);
-       m_ptr += 6;
-       break;
-     case '<':
--      strcpy(m_ptr, "&lt;");
-+      if (remaining < 4) goto done;
-+      memcpy(m_ptr, "&lt;", 4);
-       m_ptr += 4;
-       break;
-     case '>':
--      strcpy(m_ptr, "&gt;");
-+      if (remaining < 4) goto done;
-+      memcpy(m_ptr, "&gt;", 4);
-       m_ptr += 4;
-       break;
-     default:
-@@ -335,6 +346,7 @@
-     }
-     szStr++;
-   }
-+done:
-   *m_ptr = '\0';
- 
-   return szDest;
+       strcpy(m_ptr, "&apos;");

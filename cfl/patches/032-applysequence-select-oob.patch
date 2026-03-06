@@ -1,3 +1,0 @@
-# Patch 032 is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV PR #635 (ApplySequence bounds).
-# Original: --- a/IccProfLib/IccMpeCalc.cpp

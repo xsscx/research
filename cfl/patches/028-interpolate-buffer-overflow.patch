@@ -1,4 +1,0 @@
-# Patch 028 (interpolate-buffer-overflow) is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV.
-# All Interpolate loops in CIccTagFixedNum and CIccTagNum now use
-# nVectorSize instead of m_nSize.

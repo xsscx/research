@@ -1,3 +1,0 @@
-# Patch 039 (checkpcsconnections-leak) is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV.
-# CheckPcsConnections now properly cleans up pFromPcc/pToPcc on error paths.

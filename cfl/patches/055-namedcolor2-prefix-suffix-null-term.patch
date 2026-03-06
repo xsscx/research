@@ -1,3 +1,0 @@
-# Patch 055 is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV PR #634 (icFixXml SBO).
-# Original: --- a/IccProfLib/IccTagBasic.cpp

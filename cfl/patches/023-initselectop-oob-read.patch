@@ -1,3 +1,0 @@
-# Patch 023 (initselectop-oob-read) is now a no-op.
-# The fix was adopted upstream by InternationalColorConsortium/iccDEV.
-# InitSelectOp now uses n<(nOps-1) with an explicit bounds check.

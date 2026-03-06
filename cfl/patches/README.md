@@ -1,11 +1,16 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-03-05 19:36:00 UTC
+Last Updated: 2026-03-06 01:15:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 
 **Scope:** CFL/LibFuzzer Testing — intended as potential upstream PRs.
+
+**Upstream sync (2026-03-05):** CFL iccDEV updated from `186bba0` to `5f7e03a`
+(11 commits, 7 security PRs: #630–#639). 15 patches dropped as NO-OPs
+(upstream adopted), 3 regenerated for context shift, 54 active patches remain.
+Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066, 069.
 
 ## Patches
 
@@ -33,29 +38,20 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 20 | `IccTagXml.cpp` | `CIccTagXmlColorantTable::ToXml`, `CIccTagXmlNamedColor2::ToXml` | Same strlen OOB via `icAnsiToUtf8()` on `name[32]`/`rootName[32]` in XML serialization path |
 | 21 | `IccMpeSpectral.cpp` | `CIccMpeSpectralMatrix::Describe` | Heap-buffer-overflow: `data[i]` reads past `m_pMatrix` when `m_size==0` (from `numVectors()==0`) or stride mismatch between loop dimensions and allocation |
 | 22 | `IccTagLut.cpp` | `CIccTagLut8::Validate`, `CIccTagLut16::Validate` | UBSAN signed integer overflow: `int sum += m_XYZMatrix[i]` accumulating 9 `icS15Fixed16Number` values overflows `int` |
-| 23 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | **NO-OP** (upstream-adopted) — heap-buffer-overflow: `ops[n+1]` reads 1 past `m_Op` array end when `n+1 == nOps` |
 | 24 | `IccMpeCalc.cpp` | `CIccOpDefEnvVar::Exec` | UBSAN invalid-enum-load: `(icSigCmmEnvVar) op->data.size` loads arbitrary uint32 (e.g. 3782042188) into enum type |
 | 25 | `IccTagLut.cpp` | `CIccTagGamutBoundaryDesc::Read`, `Write` | UBSAN signed integer overflow: `m_NumberOfTriangles*3` overflows `int` when `m_NumberOfTriangles` is large (e.g. 2004119668*3) |
 | 26 | `IccTagLut.h` | `CIccTagCurve::operator[]`, `GetData` | UBSAN reference binding to null: `m_Curve[index]` when `m_Curve` is null |
-| 27 | `IccTagBasic.cpp` | `CIccTagNum::GetValues`, `CIccTagFixedNum::GetValues`, `CIccTagFloatNum::GetValues` | Stack-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` |
-| 28 | `IccTagBasic.cpp` | `CIccTagNum::Interpolate`, `CIccTagFixedNum::Interpolate`, `CIccTagFloatNum::Interpolate` | **NO-OP** (upstream-adopted) — heap-buffer-overflow: loop uses `m_nSize` instead of `nVectorSize` (13 instances) |
-| 29 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | UBSAN+SEGV: negative float→unsigned cast in CLUT grid index when `NoClip` passes negative values |
 | 30 | `IccMpeBasic.cpp` | `CIccSampledCurveSegment::Apply`, `CIccSingleSampledCurve::Apply`, `CIccSampledCalculatorCurve::Apply` | UBSAN: NaN/negative `pos` cast to `unsigned int` — division by zero `m_range` produces NaN; clamp `pos` to `[0, m_last]` before cast |
 | 31 | `IccMatrixMath.cpp` | `CIccMatrixMath::SetRange` | Heap-buffer-overflow: `r[srcRange.steps-1]` OOB when `srcRange.steps < 2` (uint16 underflow to 65535); also clamp interpolation index `p` to `[0, srcRange.steps-2]` to prevent `r[p+1]` OOB |
-| 32 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | **NO-OP** (upstream-adopted via PR #635) — select/case/default op sub-sequence bounds validation |
 | 33 | `TiffImg.cpp` | `CTiffImg::Open` | Multiplication overflow: `m_nStripSize * m_nStripSamples` overflow to small value, causing too-small malloc and heap-buffer-overflow |
 | 34 | `IccMpeCalc.cpp` | `CIccOpDefModulus::Exec` | UBSAN: float→int overflow in manual modulus `(int)(temp/tempN)` when quotient exceeds INT_MAX; replaced with `std::fmod` |
 | 35 | `IccTagLut.cpp` | `CIccTagSegmentedCurve::Read` | Memory leak: `new CIccSegmentedCurve` leaked when `pCurve->Read()` fails |
 | 36 | `IccMpeCalc.cpp` | `CIccMpeCalculator::Read` | Memory leak: `new CIccMultiProcessElement` leaked when `pElem->Read()` fails |
 | 37 | `IccTagComposite.cpp` | `CIccTagArray::Read` | Memory leak: `CIccTagCreator::CreateTag()` result leaked when `pTag->Read()` fails |
 | 38 | `IccTagDict.cpp` | `CIccTagDict::Read` | Memory leak: `new CIccTagMultiLocalizedUnicode` leaked when `pTag->Read()` fails (two sites: NameLocalized + ValueLocalized) |
-| 39 | `IccCmm.cpp` | `CIccCmm::CheckPCSConnections` | **NO-OP** (upstream-adopted) — memory leak: `new CIccPcsXform` leaked when `pPcs->Connect()` returns error |
-| 40 | `IccCmm.cpp` | `CIccPcsXform::Optimize` | **NO-OP** (upstream-adopted) — memory leak: identity PCS steps skipped from `newSteps` but never deleted |
-| 41 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/2d/3dTetra/3d/4d/5d/6d/ND` | Heap-buffer-overflow: `NoClip` allows values > 1.0 producing grid indices past allocation; add upper clamp `x = min(x, mx)` for all dimensions in all 8 interpolation functions |
 | 42 | `IccMpeCalc.cpp` | `CIccOpDefTruncate::Exec` | UBSAN: float→int overflow in `(int)temp` when value (e.g. 1.58914e+10) exceeds INT_MAX; replaced with `std::trunc()` |
 | 43 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SequenceNeedTempReset` | Timeout: crafted calculator ops cause excessive iteration; add 1M ops-processed counter to bound computation |
 | 44 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Read` | OOM: `Reset()` allocates `nNumMatrices * nChannels * 4` bytes uncapped; add 16 MB allocation cap |
-| 45 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | **NO-OP** (upstream-adopted via PR #635) — uint32 overflow in ApplySequence bounds checks; replaced with 64-bit arithmetic |
 | 46 | `IccMpeCalc.cpp` | `CIccOpDefRound::Exec` | UBSAN: float→int overflow in `(int)(temp+0.5)` when value exceeds INT_MAX; replaced with `std::round()` |
 | 47 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SequenceNeedTempReset` | Stack overflow: unbounded recursion from deeply nested if/else chains (246+ frames); add 100-level recursion depth cap |
 | 48 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::CheckUnderflowOverflow` | Stack overflow: unbounded recursion from nested if/else/select opcodes (200+ frames); add 100-level recursion depth cap |
@@ -65,18 +61,13 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 52 | `IccCmm.cpp` | `CIccXformNDLut::Apply` | NULL pointer dereference (SEGV): `m_pApply` null for CLUT dimensions 1-4; add case dispatch and NULL guard |
 | 53 | `IccMpeBasic.cpp` | `CIccToneMapFunc::Describe` / `Apply` | Heap-buffer-overflow: `m_params[0..2]` accessed without validating `m_nParameters >= 3` |
 | 54 | `IccMpeCalc.cpp` | `CIccFuncTokenizer::GetEnvSig` | UBSAN invalid-enum-load: `(icSigCmmEnvVar)sig` loads arbitrary uint32 (e.g. 2254504802) into 2-member enum |
-| 55 | `IccTagBasic.cpp` | `CIccTagNamedColor2::Read` | **NO-OP** (upstream-adopted via PR #634) — null-terminate `m_szPrefix`/`m_szSufix` after `Read8()` to prevent stack overflow |
-| 56 | `IccCmm.cpp` | `CIccPcsXform::pushXYZConvert` | **NO-OP** (upstream-adopted via PR #632) — validate `NumInputChannels()==3 && NumOutputChannels()==3` before accessing matrix constants |
 | 57 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::SetFunction` | UBSAN: invalid enum load when reading `icSigCmmEnvVar` value — replaced with `memcpy` to copy raw bytes |
-| 58 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::InitSelectOp` | **NO-OP** (upstream-adopted via PR #622) — heap-buffer-overflow in select op initialization |
 | 59 | `IccTagBasic.cpp` | `CIccTagSparseMatrixArray::Describe` | Heap-buffer-overflow: `mtx.GetData()->get(c)` iterates using `start[r]`/`start[r+1]` row ranges from untrusted data without validating against `GetNumEntries()` |
 | 60 | `IccTagXml.cpp` | `CIccTagXmlSparseMatrixArray::ToXml` | Heap-buffer-overflow: `DumpArray` called with `getPtr(rowOffset)` where `rowOffset + n` exceeds `GetNumEntries()` — same sparse matrix OOB as 059 but in XML serialization path |
 | 61 | `IccTagComposite.cpp` | `CIccTagStruct::Read` / `CIccTagArray::Read` | Stack overflow: unbounded recursion via nested TagStruct/TagArray elements — crafted profile embeds `tstr` inside `tstr` to exhaust stack |
-| 62 | `IccTagXml.cpp` | `CIccTagXmlStruct::ParseTag` | UBSAN null pointer dereference when child element list is empty |
 | 63 | `IccIO.cpp` | `CIccMemIO::Read8` | Stack-buffer-overflow: `m_nSize - m_nPos` underflows when `m_nPos > m_nSize` (unsigned), causing memcpy to write past buffer. Triggered via recursive `CIccTagEmbeddedProfile::Read` → `CIccProfile::LoadTag` chain. Not reachable via CLI tools (header validation gates prevent loading). CWE-121 |
 | 64 | `IccMpeCalc.cpp` | `CIccCalculatorFunc::ApplySequence` | Heap-buffer-overflow READ: `op->data.size` from malformed profile used unclamped as recursive `nOps`, walking past the `calloc`'d ops array. **Reachable via `iccApplyProfiles` CLI tool.** Fix: clamp `data.size` to remaining ops (mirrors `DescribeSequence` logic). CWE-125 |
 | 65 | `IccUtilXml.cpp` | `icFixXml` | Stack-buffer-overflow WRITE: unbounded XML entity expansion (`'`→`&apos;`, 6x) into fixed 256-byte stack buffer. SCARINESS 55. Reachable via `CIccTagXmlNamedColor2::ToXml` and any `ToXml` caller with user-controlled strings. Fix: cap output to 255 bytes. CWE-121 |
-| 66 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `CIccProfileXml::ParseXml`, `CIccTagXmlMultiLocalizedUnicode::ParseXml` | **NO-OP** (superseded by 067) — OOM via unbounded tag/string allocation |
 | 67 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `ParseXml` (mluc, ProfileSeqId, Dict) | OOM: 433KB XML triggers 561K `CIccLocalizedUnicode` allocations (2.38GB). Fix: cap tags 256, strings 100/tag, text 64KB, ProfileIdDesc 256, DictEntry 1024. CWE-789 |
 | 68 | `IccTagXml.cpp`, `IccTagBasic.cpp` | `ParseXml` (ProfileSeqDesc, ResponseCurveSet, MPE), `Read` (mluc) | OOM: remaining uncapped loops — ProfileSeqDesc (256), ResponseCurveSet (64 curves, 8192 measurements), MPE elements (256), binary mluc nNumRec (4096). CWE-789 |
 
