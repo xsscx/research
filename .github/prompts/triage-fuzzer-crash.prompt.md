@@ -75,3 +75,11 @@ Reproducer files committed to repo root use descriptive prefixes:
 - `hbo-<Function>-<File>-Line<N>.icc` — Heap buffer overflow (needs `git add -f`, gitignored pattern)
 - `crash-<sha256hash>` — Raw LibFuzzer crash artifacts (auto-named)
 - `oom-<sha256hash>` — Raw LibFuzzer OOM artifacts (auto-named)
+
+### BPC Stack-buffer-overflow in pixelXfm (CWE-121)
+- **Root cause**: `CIccApplyBPC::CalcFactors()` creates `XYZbp[3]` (12 bytes), passes as DstPixel to `pixelXfm()` → `cmm.Apply(DstPixel, SrcPixel)`. If malformed profile's LUT has `m_nOutput > 3`, the CMM writes past the buffer.
+- **Key insight**: Malformed profiles LIE about color space — `cmm.GetDestSpace()` returns declared space (RGB=3 channels) but the LUT `m_nOutput` can be 9+. Never trust `icGetSpaceSamples()` for buffer sizing.
+- **Fix pattern**: Always use `icFloatNumber tmpPixel[16] = {}` as destination for `cmm.Apply()`, copy back only needed values. The `[16]` matches the library's internal Apply buffer size.
+- **Trigger**: BPC rendering intents only — intent 40 (Perceptual+BPC), 41 (Relative+BPC), 42 (Saturation+BPC).
+- **Reproduction**: `ASAN_OPTIONS=print_scariness=1:detect_leaks=0 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles /tmp/test_rgb.tif /tmp/out.tif 0 0 0 0 1 <profile.icc> 40`
+- **SCARINESS**: 51 (4-byte-write-stack-buffer-overflow). See patch 071.
