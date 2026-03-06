@@ -19,6 +19,7 @@
 #include "IccTagComposite.h"
 #include "IccTagDict.h"
 #include "IccProfile.h"
+#include "IccMD5.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
 #include "IccTagMPE.h"
@@ -4531,6 +4532,28 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
     }
   }
 
+  // ICC.1-2022-05 Annex G: chromaticAdaptationTag required when adopted white ≠ D50
+  if (profileClass != icSigLinkClass) {
+    CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+    CIccTag *wtptTag = pIcc->FindTag(icSigMediaWhitePointTag);
+    if (wtptTag && !chadTag) {
+      CIccTagXYZ *wpXyz = dynamic_cast<CIccTagXYZ*>(wtptTag);
+      if (wpXyz && wpXyz->GetSize() >= 1) {
+        double wpX = icFtoD((*wpXyz)[0].X);
+        double wpY = icFtoD((*wpXyz)[0].Y);
+        double wpZ = icFtoD((*wpXyz)[0].Z);
+        // D50: X=0.9642, Y=1.0000, Z=0.8249
+        if (fabs(wpX - 0.9642) > 0.01 || fabs(wpY - 1.0) > 0.01 || fabs(wpZ - 0.8249) > 0.01) {
+          printf("      %s[WARN]  wtpt ≠ D50 but 'chad' tag missing (ICC.1-2022-05 Annex G)%s\n",
+                 ColorWarning(), ColorReset());
+          printf("       %sCWE-20: chromaticAdaptationTag required when adopted white ≠ D50%s\n",
+                 ColorWarning(), ColorReset());
+          heuristicCount++;
+        }
+      }
+    }
+  }
+
   if (heuristicCount == 0) {
     printf("      %s[OK] Profile class and required tags are consistent%s\n",
            ColorSuccess(), ColorReset());
@@ -4568,10 +4591,11 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
 
   // ICC header bytes 44-47: reserved (shall be zero)
   bool reserved44_ok = (hdr[44] == 0 && hdr[45] == 0 && hdr[46] == 0 && hdr[47] == 0);
-  // ICC header bytes 84-127: reserved (shall be zero)
-  bool reserved84_ok = true;
-  for (int i = 84; i < 128; i++) {
-    if (hdr[i] != 0) { reserved84_ok = false; break; }
+  // ICC.1-2022-05 §7.2: bytes 84-99 are Profile ID (MD5), NOT reserved
+  // Bytes 100-127 are reserved (shall be zero)
+  bool reserved100_ok = true;
+  for (int i = 100; i < 128; i++) {
+    if (hdr[i] != 0) { reserved100_ok = false; break; }
   }
 
   if (!reserved44_ok) {
@@ -4580,10 +4604,10 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
     heuristicCount++;
   }
 
-  if (!reserved84_ok) {
-    printf("      %s[WARN]  Header bytes 84-127 contain non-zero reserved data%s\n",
+  if (!reserved100_ok) {
+    printf("      %s[WARN]  Header bytes 100-127 contain non-zero reserved data%s\n",
            ColorWarning(), ColorReset());
-    for (int i = 84; i < 128; i++) {
+    for (int i = 100; i < 128; i++) {
       if (hdr[i] != 0) {
         printf("       First non-zero at byte %d: 0x%02X\n", i, hdr[i]);
         break;
@@ -4639,8 +4663,9 @@ int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
 
   printf("      wtpt: X=%.6f Y=%.6f Z=%.6f\n", wpX, wpY, wpZ);
 
-  double d50X = 0.9505, d50Y = 1.0000, d50Z = 1.0890;
-  double tolerance = 0.001;
+  // ICC.1-2022-05 §7.2.16: D50 illuminant X=0.9642, Y=1.0000, Z=0.8249
+  double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;
+  double tolerance = 0.002; // s15Fixed16 rounding tolerance
 
   bool isD50 = (fabs(wpX - d50X) < tolerance &&
                 fabs(wpY - d50Y) < tolerance &&
@@ -4652,7 +4677,7 @@ int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
     if (!isD50) {
       printf("      %s[WARN]  v4+ Display profile wtpt is NOT D50%s\n",
              ColorCritical(), ColorReset());
-      printf("       Expected: X=0.9505 Y=1.0000 Z=1.0890\n");
+      printf("       Expected: X=0.9642 Y=1.0000 Z=0.8249 (ICC.1-2022-05 §7.2.16)\n");
       printf("       %sCWE-20: ICC v4 Display profiles must use D50 media white point%s\n",
              ColorCritical(), ColorReset());
       heuristicCount++;
@@ -6113,6 +6138,396 @@ int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
   } else {
     printf("      Summary: %d private tag(s) — %d registered, %d undocumented\n",
            privateCount, registered, unregistered);
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H128: Version BCD Encoding Validation (ICC.1-2022-05 §7.2.4)
+// Byte 8 = major version, byte 9 = minor.bugfix (BCD nibbles),
+// bytes 10-11 must be 0x0000.
+// =====================================================================
+int RunHeuristic_H128_VersionBCD(const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H128] Version BCD Encoding Validation\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  unsigned char hdr[12];
+  if (fread(hdr, 1, 12, fp) != 12) {
+    printf("      %s[WARN]  File too small for version field%s\n",
+           ColorWarning(), ColorReset());
+    fclose(fp);
+    printf("\n");
+    return 1;
+  }
+  fclose(fp);
+
+  unsigned char major = hdr[8];
+  unsigned char minorBugfix = hdr[9];
+  unsigned char reserved10 = hdr[10];
+  unsigned char reserved11 = hdr[11];
+
+  int minorNibble = (minorBugfix >> 4) & 0x0F;
+  int bugfixNibble = minorBugfix & 0x0F;
+
+  printf("      Version bytes: %02X %02X %02X %02X → v%d.%d.%d\n",
+         major, minorBugfix, reserved10, reserved11,
+         major, minorNibble, bugfixNibble);
+
+  // Major version: valid values are 2, 4, 5
+  if (major != 2 && major != 4 && major != 5) {
+    printf("      %s[WARN]  Major version %d not in {2, 4, 5}%s\n",
+           ColorWarning(), major, ColorReset());
+    heuristicCount++;
+  }
+
+  // BCD nibble validation: each nibble must be 0-9
+  if (minorNibble > 9 || bugfixNibble > 9) {
+    printf("      %s[WARN]  Non-BCD nibble in version byte 9: 0x%02X (minor=%d, bugfix=%d)%s\n",
+           ColorWarning(), minorBugfix, minorNibble, bugfixNibble, ColorReset());
+    printf("       %sCWE-20: Version field BCD encoding violation%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  }
+
+  // Bytes 10-11 must be zero
+  if (reserved10 != 0 || reserved11 != 0) {
+    printf("      %s[WARN]  Version reserved bytes 10-11 non-zero: 0x%02X 0x%02X%s\n",
+           ColorWarning(), reserved10, reserved11, ColorReset());
+    printf("       %sCWE-20: Reserved version bytes must be 0 (ICC.1-2022-05 §7.2.4)%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  }
+
+  if (heuristicCount == 0) {
+    printf("      %s[OK] Version BCD encoding is valid%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H129: PCS Illuminant Exact D50 Validation (ICC.1-2022-05 §7.2.16)
+// Raw bytes 68-79: D50 as s15Fixed16Number
+// Expected: X=0x0000F6D6, Y=0x00010000, Z=0x0000D32D
+// =====================================================================
+int RunHeuristic_H129_PCSIlluminantD50(const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H129] PCS Illuminant Exact D50 Check\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  unsigned char hdr[80];
+  if (fread(hdr, 1, 80, fp) != 80) {
+    printf("      %s[WARN]  File too small for illuminant field%s\n",
+           ColorWarning(), ColorReset());
+    fclose(fp);
+    printf("\n");
+    return 1;
+  }
+  fclose(fp);
+
+  // Read s15Fixed16Number values from bytes 68-79
+  int32_t rawX = (int32_t)((uint32_t)hdr[68] << 24 | (uint32_t)hdr[69] << 16 |
+                            (uint32_t)hdr[70] << 8  | (uint32_t)hdr[71]);
+  int32_t rawY = (int32_t)((uint32_t)hdr[72] << 24 | (uint32_t)hdr[73] << 16 |
+                            (uint32_t)hdr[74] << 8  | (uint32_t)hdr[75]);
+  int32_t rawZ = (int32_t)((uint32_t)hdr[76] << 24 | (uint32_t)hdr[77] << 16 |
+                            (uint32_t)hdr[78] << 8  | (uint32_t)hdr[79]);
+
+  // D50 exact values: X=0x0000F6D6 (0.9642), Y=0x00010000 (1.0000), Z=0x0000D32D (0.8249)
+  const int32_t d50X = 0x0000F6D6;
+  const int32_t d50Y = 0x00010000;
+  const int32_t d50Z = 0x0000D32D;
+
+  double fX = (double)rawX / 65536.0;
+  double fY = (double)rawY / 65536.0;
+  double fZ = (double)rawZ / 65536.0;
+
+  printf("      Raw bytes: X=0x%08X Y=0x%08X Z=0x%08X\n",
+         (unsigned)rawX, (unsigned)rawY, (unsigned)rawZ);
+  printf("      Float:     X=%.6f   Y=%.6f   Z=%.6f\n", fX, fY, fZ);
+  printf("      D50 spec:  X=0x0000F6D6 Y=0x00010000 Z=0x0000D32D\n");
+
+  // Allow ±1 LSB tolerance for s15Fixed16 rounding
+  // Note: ICC.2 (v5) spectral profiles may use non-D50 PCS illuminant
+  unsigned char major = hdr[8];
+  if (abs(rawX - d50X) > 1 || abs(rawY - d50Y) > 1 || abs(rawZ - d50Z) > 1) {
+    if (major >= 5) {
+      printf("      %s[INFO] PCS illuminant is not D50 (valid for ICC.2/v5 spectral profiles)%s\n",
+             ColorInfo(), ColorReset());
+    } else {
+      printf("      %s[WARN]  PCS illuminant does not match D50 (>1 LSB deviation)%s\n",
+             ColorWarning(), ColorReset());
+      printf("       %sCWE-20: ICC.1-2022-05 §7.2.16 requires exact D50 for v2/v4%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] PCS illuminant is exact D50%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H130: Tag Data 4-Byte Alignment Check (ICC.1-2022-05 §7.3.1)
+// All tag data elements must start at 4-byte aligned offsets.
+// =====================================================================
+int RunHeuristic_H130_TagAlignment(const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H130] Tag Data 4-Byte Alignment\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  long fsz_l = ftell(fp);
+  if (fsz_l < 132) {
+    printf("      %s[WARN]  File too small for tag table%s\n",
+           ColorWarning(), ColorReset());
+    fclose(fp);
+    printf("\n");
+    return 1;
+  }
+  size_t fsz = (size_t)fsz_l;
+
+  unsigned char tcBuf[4];
+  fseek(fp, 128, SEEK_SET);
+  if (fread(tcBuf, 1, 4, fp) != 4) { fclose(fp); printf("\n"); return 1; }
+
+  uint32_t tagCount = ((uint32_t)tcBuf[0] << 24) | ((uint32_t)tcBuf[1] << 16) |
+                      ((uint32_t)tcBuf[2] << 8)  | tcBuf[3];
+
+  if (tagCount > 1000) {
+    printf("      %s[WARN]  Tag count %u too large — skipping%s\n",
+           ColorWarning(), tagCount, ColorReset());
+    fclose(fp);
+    printf("\n");
+    return 1;
+  }
+
+  int misaligned = 0;
+  int checked = 0;
+
+  for (uint32_t i = 0; i < tagCount && i < 256; i++) {
+    size_t ePos = 132 + i * 12;
+    if (ePos + 12 > fsz) break;
+
+    unsigned char entry[12];
+    fseek(fp, (long)ePos, SEEK_SET);
+    if (fread(entry, 1, 12, fp) != 12) break;
+
+    uint32_t offset = ((uint32_t)entry[4] << 24) | ((uint32_t)entry[5] << 16) |
+                      ((uint32_t)entry[6] << 8)  | entry[7];
+
+    checked++;
+    if (offset != 0 && (offset % 4) != 0) {
+      char sigStr[5] = {};
+      sigStr[0] = (char)entry[0]; sigStr[1] = (char)entry[1];
+      sigStr[2] = (char)entry[2]; sigStr[3] = (char)entry[3];
+      printf("      %s[WARN]  Tag '%s': offset %u not 4-byte aligned (mod 4 = %u)%s\n",
+             ColorWarning(), sigStr, offset, offset % 4, ColorReset());
+      misaligned++;
+    }
+  }
+
+  fclose(fp);
+
+  if (misaligned > 0) {
+    printf("      %s[WARN]  %d of %d tag(s) misaligned (ICC.1-2022-05 §7.3.1)%s\n",
+           ColorWarning(), misaligned, checked, ColorReset());
+    printf("       %sCWE-20: Tag data must be 4-byte aligned%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount += misaligned;
+  } else if (checked > 0) {
+    printf("      %s[OK] All %d tags are 4-byte aligned%s\n",
+           ColorSuccess(), checked, ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H131: Profile ID (MD5) Validation (ICC.1-2022-05 §7.2.18)
+// Computes MD5 of profile with bytes 44-47 (flags), 64-67 (intent),
+// and 84-99 (profile ID) zeroed. Compares against stored Profile ID.
+// =====================================================================
+int RunHeuristic_H131_ProfileIdMD5(const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H131] Profile ID (MD5) Validation\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  long fsz_l = ftell(fp);
+  if (fsz_l < 128) {
+    printf("      %s[WARN]  File too small for header%s\n",
+           ColorWarning(), ColorReset());
+    fclose(fp);
+    printf("\n");
+    return 1;
+  }
+
+  // Read stored Profile ID from bytes 84-99
+  unsigned char storedId[16];
+  fseek(fp, 84, SEEK_SET);
+  if (fread(storedId, 1, 16, fp) != 16) { fclose(fp); printf("\n"); return 1; }
+
+  bool idIsZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (storedId[i] != 0) { idIsZero = false; break; }
+  }
+
+  printf("      Profile ID: ");
+  for (int i = 0; i < 16; i++) printf("%02X", storedId[i]);
+  printf("\n");
+
+  if (idIsZero) {
+    printf("      %s[INFO] Profile ID is all zeros (not computed)%s\n",
+           ColorInfo(), ColorReset());
+    printf("       ICC.1-2022-05 §7.2.18: ID may be zero if not computed\n");
+    fclose(fp);
+    printf("\n");
+    return 0;
+  }
+
+  fclose(fp);
+
+  // Use iccDEV library's CalcProfileID — handles zeroing fields per §7.2.18
+  icProfileID computedId;
+  memset(&computedId, 0, sizeof(computedId));
+  if (!CalcProfileID(filename, &computedId)) {
+    printf("      %s[WARN]  Failed to compute Profile ID (file read error)%s\n",
+           ColorWarning(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  printf("      Computed:   ");
+  for (int i = 0; i < 16; i++) printf("%02X", computedId.ID8[i]);
+  printf("\n");
+
+  bool match = (memcmp(storedId, computedId.ID8, 16) == 0);
+  if (!match) {
+    printf("      %s[WARN]  Profile ID MD5 MISMATCH — profile may be modified/corrupted%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCWE-354: Profile ID does not match computed hash%s\n",
+           ColorCritical(), ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] Profile ID matches computed MD5%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H132: chromaticAdaptation Matrix Determinant Check
+// The chad tag contains a 3x3 adaptation matrix. It must be invertible
+// (non-zero determinant) and have values in a plausible range.
+// =====================================================================
+int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H132] chromaticAdaptation Matrix Validation\n");
+
+  CIccTag *tag = pIcc->FindTag(icSigChromaticAdaptationTag);
+  if (!tag) {
+    printf("      %s[INFO] No chromaticAdaptation (chad) tag present%s\n",
+           ColorInfo(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  CIccTagS15Fixed16 *s15Tag = dynamic_cast<CIccTagS15Fixed16*>(tag);
+  if (!s15Tag || s15Tag->GetSize() < 9) {
+    printf("      %s[WARN]  chad tag present but not valid S15Fixed16 3x3 matrix%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+    printf("\n");
+    return heuristicCount;
+  }
+
+  // Read 3x3 matrix
+  double m[3][3];
+  for (int r = 0; r < 3; r++)
+    for (int c = 0; c < 3; c++)
+      m[r][c] = (double)(*s15Tag)[r * 3 + c];
+
+  printf("      chad matrix:\n");
+  printf("        [%.6f  %.6f  %.6f]\n", m[0][0], m[0][1], m[0][2]);
+  printf("        [%.6f  %.6f  %.6f]\n", m[1][0], m[1][1], m[1][2]);
+  printf("        [%.6f  %.6f  %.6f]\n", m[2][0], m[2][1], m[2][2]);
+
+  // Compute determinant
+  double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+             + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+
+  printf("      Determinant: %.6f\n", det);
+
+  if (fabs(det) < 1e-6) {
+    printf("      %s[WARN]  chad matrix is singular or near-singular (det ≈ 0)%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCWE-369: Division-by-zero in chromatic adaptation inverse%s\n",
+           ColorCritical(), ColorReset());
+    heuristicCount++;
+  } else if (det < 0.0) {
+    printf("      %s[WARN]  chad matrix has negative determinant (reflection transform)%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] chad matrix is invertible (det > 0)%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  // Check for extreme values (each element should be in [-5, 5] for normal adaptation)
+  bool extreme = false;
+  for (int r = 0; r < 3; r++)
+    for (int c = 0; c < 3; c++)
+      if (fabs(m[r][c]) > 5.0) extreme = true;
+
+  if (extreme) {
+    printf("      %s[WARN]  chad matrix contains extreme values (|element| > 5.0)%s\n",
+           ColorWarning(), ColorReset());
+    printf("       %sCWE-682: May cause float overflow in adaptation transforms%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
   }
 
   printf("\n");

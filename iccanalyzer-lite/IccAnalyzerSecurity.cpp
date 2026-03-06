@@ -373,17 +373,30 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 6. Rendering Intent Validation
+  // 6. Rendering Intent Validation (ICC.1-2022-05 §7.2.15)
+  // Bytes 64-67: lower 16 bits = intent (0-3), upper 16 bits must be 0
   icUInt32Number intent = header.renderingIntent;
   printf("[H6] Rendering Intent: %u (0x%08X)\n", intent, intent);
   
-  if (intent > icAbsoluteColorimetric) {
-    printf("     %s[WARN]  HEURISTIC: Invalid rendering intent (> 3)%s\n", ColorCritical(), ColorReset());
+  icUInt32Number intentUpper16 = intent >> 16;
+  icUInt32Number intentLower16 = intent & 0xFFFF;
+  
+  if (intentUpper16 != 0) {
+    printf("     %s[WARN]  HEURISTIC: Upper 16 bits non-zero (0x%04X) — spec requires 0%s\n",
+           ColorCritical(), intentUpper16, ColorReset());
+    printf("     %sRisk: CWE-20 — non-conformant header, possible exploitation vector%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  }
+  if (intentLower16 > icAbsoluteColorimetric) {
+    printf("     %s[WARN]  HEURISTIC: Invalid rendering intent value %u (> 3)%s\n",
+           ColorCritical(), intentLower16, ColorReset());
     printf("     %sRisk: Out-of-bounds enum access%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
-  } else {
+  } else if (intentUpper16 == 0) {
     CIccInfo info;
-    printf("     %s[OK] Valid intent: %s%s\n", ColorSuccess(), info.GetRenderingIntentName((icRenderingIntent)intent), ColorReset());
+    printf("     %s[OK] Valid intent: %s%s\n", ColorSuccess(),
+           info.GetRenderingIntentName((icRenderingIntent)intentLower16), ColorReset());
   }
   printf("\n");
   
@@ -404,7 +417,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 8. Illuminant XYZ Validation
+  // 8. Illuminant XYZ Validation (ICC.1-2022-05 §7.2.16)
+  // PCS illuminant shall be D50: X=0.9642, Y=1.0000, Z=0.8249
   icS15Fixed16Number illumX = header.illuminant.X;
   icS15Fixed16Number illumY = header.illuminant.Y;
   icS15Fixed16Number illumZ = header.illuminant.Z;
@@ -420,21 +434,31 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
   printf("[H8] Illuminant XYZ: (%.6f, %.6f, %.6f)\n", X, Y, Z);
   
-  if (X < 0.0 || Y < 0.0 || Z < 0.0) {
+  // ICC spec D50 reference values (s15Fixed16Number encoding)
+  const double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;
+  const double d50Tol = 0.002; // s15Fixed16 rounding tolerance
+
+  if (std::isnan(X) || std::isnan(Y) || std::isnan(Z) ||
+       std::isinf(X) || std::isinf(Y) || std::isinf(Z)) {
+    printf("     %s[WARN]  HEURISTIC: NaN or Infinity in illuminant values%s\n", ColorCritical(), ColorReset());
+    printf("     %sRisk: NaN propagation in color transforms, potential crash%s\n", ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else if (X < 0.0 || Y < 0.0 || Z < 0.0) {
     printf("     %s[WARN]  HEURISTIC: Negative illuminant values (non-physical)%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Undefined behavior in color calculations%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
-  } else if (std::isnan(X) || std::isnan(Y) || std::isnan(Z) ||
-             std::isinf(X) || std::isinf(Y) || std::isinf(Z)) {
-    printf("     %s[WARN]  HEURISTIC: NaN or Infinity in illuminant values%s\n", ColorCritical(), ColorReset());
-    printf("     %sRisk: NaN propagation in color transforms, potential crash%s\n", ColorWarning(), ColorReset());
+  } else if (fabs(X - d50X) > d50Tol || fabs(Y - d50Y) > d50Tol || fabs(Z - d50Z) > d50Tol) {
+    printf("     %s[WARN]  HEURISTIC: PCS illuminant is NOT D50 (spec: %.4f, %.4f, %.4f)%s\n",
+           ColorWarning(), d50X, d50Y, d50Z, ColorReset());
+    printf("     %sRisk: Non-conformant header — ICC.1-2022-05 §7.2.16 requires D50%s\n",
+           ColorWarning(), ColorReset());
     heuristicCount++;
   } else if (X > 5.0 || Y > 5.0 || Z > 5.0) {
     printf("     %s[WARN]  HEURISTIC: Illuminant values > 5.0 (suspicious)%s\n", ColorWarning(), ColorReset());
     printf("     %sRisk: Floating-point overflow in transforms%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
   } else {
-    printf("     %s[OK] Illuminant values within physical range%s\n", ColorSuccess(), ColorReset());
+    printf("     %s[OK] PCS illuminant matches D50 (within s15Fixed16 tolerance)%s\n", ColorSuccess(), ColorReset());
   }
   printf("\n");
   
@@ -625,6 +649,13 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H125_TransformSmoothness(pIcc);
     heuristicCount += RunHeuristic_H126_PrivateTagMalware(pIcc, filename);
     heuristicCount += RunHeuristic_H127_PrivateTagRegistry(pIcc);
+
+    // H128-H132: ICC.1-2022-05 spec compliance heuristics
+    heuristicCount += RunHeuristic_H128_VersionBCD(filename);
+    heuristicCount += RunHeuristic_H129_PCSIlluminantD50(filename);
+    heuristicCount += RunHeuristic_H130_TagAlignment(filename);
+    heuristicCount += RunHeuristic_H131_ProfileIdMD5(filename);
+    heuristicCount += RunHeuristic_H132_ChadDeterminant(pIcc);
 
     delete pIcc;
   }
