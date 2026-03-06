@@ -257,10 +257,13 @@ async def inspect_profile(path: str) -> str:
 async def analyze_security(path: str) -> str:
     """Run 127-heuristic security analysis on an ICC profile.
 
-    Detects: fingerprint matches, tag anomalies, overflow indicators,
-    malformed signatures, fuzzing vectors, memory safety issues,
-    NaN/float-to-integer casts, AddXform ownership UAF patterns, and more.
+    Validates against ICC.1-2022-05 specification constraints and detects:
+    fingerprint matches, tag anomalies, overflow indicators, malformed
+    signatures, fuzzing vectors, memory safety issues, NaN/float-to-integer
+    casts, AddXform ownership UAF patterns, and more.
     Covers 44+ CWE categories mapped from 77+ CVEs.
+
+    Reference: https://www.color.org/specification/ICC.1-2022-05.pdf
 
     Args:
         path: Path to .icc file
