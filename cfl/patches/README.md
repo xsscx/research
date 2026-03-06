@@ -7,10 +7,12 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 
 **Scope:** CFL/LibFuzzer Testing — intended as potential upstream PRs.
 
-**Upstream sync (2026-03-05):** CFL iccDEV updated from `186bba0` to `5f7e03a`
-(11 commits, 7 security PRs: #630–#639). 14 patches dropped as NO-OPs
-(upstream adopted), 3 regenerated for context shift. Patch 069 re-used for
-new CLUT interp bounds check. 56 active patches total.
+**Upstream sync (2026-03-06):** CFL iccDEV updated from `5f7e03a` to `b5ade94`
+(PR #648: Fix UB in DescribeColorSpaceSignature — static_cast for byte extraction).
+Prior sync (2026-03-05) moved from `186bba0` to `5f7e03a` (11 commits, 7 security PRs: #630–#639).
+14 patches dropped as NO-OPs (upstream adopted), 3 regenerated for context shift.
+Patch 069 re-used for new CLUT interp bounds check. Patch 070 adds NaN guard to UnitClip.
+56 active patches total.
 Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 
 ## Patches
