@@ -115,12 +115,13 @@ Similar analyses would be valuable for:
 | Tool | Fuzzer(s) | API Surface | Status |
 |------|-----------|-------------|--------|
 | iccDumpProfile | dump, deep_dump, profile, calculator, multitag | Describe, Validate, FindTag | ✅ Aligned |
+| iccApplyProfiles | applyprofiles | CIccCmm: AddXform, Begin, Apply | ✅ Analyzed |
+| iccApplyToLink | link | CIccCmm 2-profile link, BPC/luminance hints | ✅ Analyzed |
+| IccFromXml | fromxml | LoadXml, Validate, SaveIccProfile | ✅ Analyzed (100%) |
 | iccRoundTrip | io, roundtrip | Read, Write, EvaluateProfile | Not analyzed |
-| iccApplyProfiles | apply, applyprofiles | CIccCmm: AddXform, Begin, Apply | Not analyzed |
 | iccApplyNamedCmm | applynamedcmm | CIccNamedColorCmm | Not analyzed |
-| iccApplyToLink | link | CIccCmm 2-profile link | Not analyzed |
 | IccV5DspObsToV4Dsp | spectral, spectral_b, v5dspobs | MPE pipeline | Not analyzed |
-| XML tools | fromxml, toxml | LoadXml, ToXml | Not analyzed |
+| IccToXml | toxml | ToXml serialization | Not analyzed |
 | IccFromCube | fromcube | CUBE LUT import | Not analyzed |
 | IccSpecSepToTiff | specsep | CTiffImg pipeline | Not analyzed |
 | IccTiffDump | tiffdump | CTiffImg, FindTag | Not analyzed |

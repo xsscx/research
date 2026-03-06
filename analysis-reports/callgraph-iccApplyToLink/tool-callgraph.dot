@@ -1,0 +1,96 @@
+digraph iccApplyToLink {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+    leg_fuzzer [label="Fuzzer Extra", fillcolor="#FFD700"];
+  }
+
+  main [label="main()\niccApplyToLink.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_link_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  subgraph cluster_cli {
+    label="Phase 1: CLI Parsing"; style=rounded;
+    n0 [label="printUsage\nL590", fillcolor="#D3D3D3"];
+    n1 [label="atoi(bFirstTransform)\nL691", fillcolor="#D3D3D3"];
+    n2 [label="atoi(nInterp)\nL692", fillcolor="#D3D3D3"];
+  }
+
+  subgraph cluster_cmm {
+    label="Phase 2: CMM Construction"; style=rounded;
+    n3 [label="CIccCmm::CIccCmm\nL699", fillcolor="#90EE90"];
+    n4 [label="ReadIccProfile\nL770", fillcolor="#90EE90"];
+    n5 [label="OpenIccProfile(pcc)\nL754", fillcolor="#ADD8E6"];
+    n6 [label="CIccCreateXformHintManager\nL736", fillcolor="#90EE90"];
+    n7 [label="CIccApplyBPCHint\nL744", fillcolor="#90EE90"];
+    n8 [label="CIccLuminanceMatchingHint\nL749", fillcolor="#90EE90"];
+    n9 [label="CIccCmmEnvVarHint\nL766", fillcolor="#ADD8E6"];
+    n10 [label="CIccCmm::AddXform(CIccProfile*)\nL771", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_exec {
+    label="Phase 3: CMM Execution"; style=rounded;
+    n11 [label="CIccCmm::Begin\nL783", fillcolor="#90EE90"];
+    n12 [label="CIccCmm::GetSourceSpace\nL804", fillcolor="#90EE90"];
+    n13 [label="CIccCmm::GetDestSpace\nL808", fillcolor="#90EE90"];
+    n14 [label="icGetSpaceSamples(src)\nL805", fillcolor="#90EE90"];
+    n15 [label="icGetSpaceSamples(dst)\nL809", fillcolor="#90EE90"];
+    n16 [label="CIccCmm::Apply\nL834", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_output {
+    label="Phase 4: Output Writing"; style=rounded;
+    n17 [label="ILinkWriter::begin\nL798", fillcolor="#ADD8E6"];
+    n18 [label="ILinkWriter::setPixel\nL835", fillcolor="#ADD8E6"];
+    n19 [label="ILinkWriter::finish\nL862", fillcolor="#ADD8E6"];
+    n20 [label="SaveIccProfile\nL540", fillcolor="#ADD8E6"];
+    n21 [label="CIccProfile::new\nL328", fillcolor="#ADD8E6"];
+  }
+
+  subgraph cluster_fuzzer {
+    label="Phase 5: Fuzzer Extras"; style=rounded;
+    n22 [label="CIccCmm::GetNumXforms", fillcolor="#FFD700"];
+    n23 [label="CIccCmm::Valid", fillcolor="#FFD700"];
+  }
+
+  main -> n0 [style=dashed];
+  main -> n1 [style=dashed];
+  main -> n2 [style=dashed];
+  main -> n3 [style=bold];
+  main -> n4 [style=bold];
+  main -> n5 [style=dashed];
+  main -> n6 [style=bold];
+  main -> n7 [style=bold];
+  main -> n8 [style=bold];
+  main -> n9 [style=dashed];
+  main -> n10 [style=bold];
+  main -> n11 [style=bold];
+  main -> n12 [style=bold];
+  main -> n13 [style=bold];
+  main -> n14 [style=bold];
+  main -> n15 [style=bold];
+  main -> n16 [style=bold];
+  main -> n17 [style=dashed];
+  main -> n18 [style=dashed];
+  main -> n19 [style=dashed];
+  fuzzer -> n22 [style=bold, color=orange];
+  fuzzer -> n23 [style=bold, color=orange];
+  fuzzer -> n3 [style=dotted, color=green];
+  fuzzer -> n4 [style=dotted, color=green];
+  fuzzer -> n6 [style=dotted, color=green];
+  fuzzer -> n7 [style=dotted, color=green];
+  fuzzer -> n8 [style=dotted, color=green];
+  fuzzer -> n10 [style=dotted, color=green];
+  fuzzer -> n11 [style=dotted, color=green];
+  fuzzer -> n12 [style=dotted, color=green];
+  fuzzer -> n13 [style=dotted, color=green];
+  fuzzer -> n14 [style=dotted, color=green];
+  fuzzer -> n15 [style=dotted, color=green];
+  fuzzer -> n16 [style=dotted, color=green];
+}
