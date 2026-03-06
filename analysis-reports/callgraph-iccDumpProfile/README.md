@@ -108,23 +108,24 @@ attack surface.
 
 ## 5. Fuzzer Coverage Map
 
-The 19 CFL fuzzers collectively cover all iccDEV tool API surfaces.
-This callgraph analysis was done for `iccDumpProfile` (the largest tool).
-Similar analyses would be valuable for:
+The 19 CFL fuzzers collectively cover all 11 iccDEV tool API surfaces.
+All tools have been analyzed with call graph scripts in `cfl/*-callgraph.py`.
 
-| Tool | Fuzzer(s) | API Surface | Status |
-|------|-----------|-------------|--------|
-| iccDumpProfile | dump, deep_dump, profile, calculator, multitag | Describe, Validate, FindTag | ✅ Aligned |
-| iccApplyProfiles | applyprofiles | CIccCmm: AddXform, Begin, Apply | ✅ Analyzed |
-| iccApplyToLink | link | CIccCmm 2-profile link, BPC/luminance hints | ✅ Analyzed |
-| IccFromXml | fromxml | LoadXml, Validate, SaveIccProfile | ✅ Analyzed (100%) |
-| iccRoundTrip | io, roundtrip | Read, Write, EvaluateProfile | Not analyzed |
-| iccApplyNamedCmm | applynamedcmm | CIccNamedColorCmm | Not analyzed |
-| IccV5DspObsToV4Dsp | spectral, spectral_b, v5dspobs | MPE pipeline | Not analyzed |
-| IccToXml | toxml | ToXml serialization | Not analyzed |
-| IccFromCube | fromcube | CUBE LUT import | Not analyzed |
-| IccSpecSepToTiff | specsep | CTiffImg pipeline | Not analyzed |
-| IccTiffDump | tiffdump | CTiffImg, FindTag | Not analyzed |
+| Tool | Fuzzer(s) | Fidelity | Fuzzable | Matched | API Surface |
+|------|-----------|----------|----------|---------|-------------|
+| iccDumpProfile | dump, deep_dump, profile, calculator, multitag | 70.4% | 27 | 19 | Describe, Validate, FindTag |
+| iccApplyProfiles | applyprofiles | 36.1% | 36 | 13 | CIccCmm: AddXform, Begin, Apply |
+| iccApplyToLink | link | 66.7% | 21 | 14 | CIccCmm 2-profile link, BPC/luminance |
+| iccFromXml | fromxml | 100.0% | 16 | 16 | LoadXml, Validate, SaveIccProfile |
+| iccRoundTrip | io, roundtrip | 95.0% | 20 | 19 | Read, Write, EvaluateProfile |
+| iccApplyNamedCmm | applynamedcmm | 82.8% | 29 | 24 | CIccNamedColorCmm |
+| iccV5DspObsToV4Dsp | spectral, spectral_b, v5dspobs | 100.0% | 39 | 39 | MPE pipeline |
+| iccToXml | toxml | 64.3% | 14 | 9 | ToXml serialization |
+| iccFromCube | fromcube | 100.0% | 30 | 30 | CUBE LUT import, MPE/CLUT |
+| iccSpecSepToTiff | specsep | 100.0% | 26 | 26 | CTiffImg pipeline, ICC embed |
+| iccTiffDump | tiffdump | 87.9% | 33 | 29 | CTiffImg, OpenIccProfile, FindTag |
+
+**Aggregate**: 291 fuzzable call sites, 239 matched → **82.1% overall fidelity**
 
 ---
 
