@@ -1,0 +1,90 @@
+digraph iccRoundTrip {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+  }
+
+  tool [label="main()\niccRoundTrip.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_roundtrip_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // CLI
+  subgraph cluster_cli {
+    label="Phase 1: CLI Parsing"; style=rounded;
+    usage [label="printf(usage)", fillcolor="#D3D3D3"];
+    parse_intent [label="atoi(intent)", fillcolor="#D3D3D3"];
+    parse_mpe [label="atoi(use_mpe)", fillcolor="#D3D3D3"];
+  }
+
+  // Round-trip eval
+  subgraph cluster_eval {
+    label="Phase 2: Round-Trip Evaluation (Attack Surface)"; style=rounded; color=red;
+    eval_ctor [label="CIccMinMaxEval()", fillcolor="#90EE90"];
+    eval_profile [label="EvaluateProfile()\nMAIN ENTRY", fillcolor="#90EE90", penwidth=3];
+  }
+
+  // PRMG
+  subgraph cluster_prmg {
+    label="Phase 3: PRMG Analysis"; style=rounded; color=red;
+    prmg_ctor [label="CIccPRMG()", fillcolor="#90EE90"];
+    prmg_eval [label="CIccPRMG::EvaluateProfile", fillcolor="#90EE90", penwidth=3];
+  }
+
+  // Results
+  subgraph cluster_results {
+    label="Phase 4: Result Access"; style=rounded;
+    get_mean [label="GetMean1/GetMean2", fillcolor="#90EE90"];
+    get_minmax [label="minDE/maxDE", fillcolor="#90EE90"];
+    get_lab [label="maxLab1/maxLab2", fillcolor="#90EE90"];
+    prmg_results [label="PRMG DE bins\nm_nDE1..m_nDE10", fillcolor="#90EE90"];
+  }
+
+  // Deep calls
+  subgraph cluster_deep {
+    label="Phase 5: Internal CMM Pipeline"; style=rounded; color=red;
+    open_profile [label="OpenIccProfile", fillcolor="#90EE90"];
+    add_fwd [label="AddXform\n(forward)", fillcolor="#90EE90"];
+    add_inv [label="AddXform\n(inverse)", fillcolor="#90EE90"];
+    cmm_begin [label="CIccCmm::Begin", fillcolor="#90EE90"];
+    cmm_apply [label="CIccCmm::Apply", fillcolor="#90EE90"];
+    compare [label="Compare()\nicDeltaE", fillcolor="#90EE90"];
+  }
+
+  // Tool edges
+  tool -> usage [style=dashed];
+  tool -> parse_intent [style=dashed];
+  tool -> parse_mpe [style=dashed];
+  tool -> eval_ctor;
+  tool -> eval_profile [style=bold, penwidth=2];
+  tool -> prmg_ctor;
+  tool -> prmg_eval [style=bold, penwidth=2];
+  tool -> get_mean;
+  tool -> get_minmax;
+  tool -> get_lab;
+  tool -> prmg_results;
+
+  // Fuzzer edges
+  fuzzer -> eval_ctor [style=dotted, color=green];
+  fuzzer -> eval_profile [style=bold, color=green, penwidth=2];
+  fuzzer -> prmg_ctor [style=dotted, color=green];
+  fuzzer -> prmg_eval [style=bold, color=green, penwidth=2];
+  fuzzer -> get_mean [style=dotted, color=green];
+  fuzzer -> get_minmax [style=dotted, color=green];
+  fuzzer -> get_lab [style=dotted, color=green];
+  fuzzer -> prmg_results [style=dotted, color=green];
+
+  // Deep call chain
+  eval_profile -> open_profile [style=bold];
+  eval_profile -> add_fwd [style=bold];
+  eval_profile -> add_inv [style=bold];
+  eval_profile -> cmm_begin [style=bold];
+  eval_profile -> cmm_apply [style=bold];
+  cmm_apply -> compare [style=bold, color=red];
+
+}

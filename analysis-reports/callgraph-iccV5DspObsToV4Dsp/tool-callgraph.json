@@ -1,0 +1,578 @@
+{
+  "tool": "iccV5DspObsToV4Dsp",
+  "tool_file": "IccV5DspObsToV4Dsp.cpp",
+  "fuzzer": "icc_v5dspobs_fuzzer",
+  "fuzzer_file": "icc_v5dspobs_fuzzer.cpp",
+  "related_fuzzers": [
+    {
+      "name": "icc_spectral_fuzzer",
+      "file": "icc_spectral_fuzzer.cpp",
+      "focus": "Spectral tag Read/Write/Validate"
+    },
+    {
+      "name": "icc_spectral_b_fuzzer",
+      "file": "icc_spectral_b_fuzzer.cpp",
+      "focus": "Spectral TIFF profile embedding"
+    }
+  ],
+  "analysis_date": "2026-07-20",
+  "phases": {
+    "1_load_display": {
+      "description": "Load V5 display profile",
+      "calls": [
+        {
+          "callee": "Usage()",
+          "line": 103,
+          "caller": "main",
+          "context": "Print usage and exit",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "ReadIccProfile(dsp, true)",
+          "line": 108,
+          "caller": "main",
+          "context": "Read V5 display profile with sub-profile support",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: ReadIccProfile(dspTmpFile, true)"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "2_validate_display": {
+      "description": "Validate display profile version, class, and tags",
+      "calls": [
+        {
+          "callee": "dspIcc->m_Header.version check",
+          "line": 115,
+          "caller": "main",
+          "context": "Verify profile is V5 or later",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer checks same version constraint"
+        },
+        {
+          "callee": "dspIcc->m_Header.deviceClass check",
+          "line": 116,
+          "caller": "main",
+          "context": "Verify profile is display class (icSigDisplayClass)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "dspIcc->FindTagOfType(AToB1, MPE)",
+          "line": 121,
+          "caller": "main",
+          "context": "Find AToB1 tag as MultiProcessElement type",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Critical gate \u2014 profile must have spectral emission AToB1"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_mpe_validation": {
+      "description": "Validate AToB1 MPE structure (CurveSet+EmissionMatrix)",
+      "calls": [
+        {
+          "callee": "pTagIn->NumElements()",
+          "line": 130,
+          "caller": "main",
+          "context": "Verify AToB1 has exactly 2 MPE elements",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagIn->NumInputChannels()",
+          "line": 131,
+          "caller": "main",
+          "context": "Verify 3 input channels",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagIn->NumOutputChannels()",
+          "line": 132,
+          "caller": "main",
+          "context": "Verify 3 output channels",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagIn->GetElement(0) [CurveSet]",
+          "line": 133,
+          "caller": "main",
+          "context": "Get first MPE element \u2014 must be CurveSet type",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagIn->GetElement(1) [EmissionMatrix]",
+          "line": 135,
+          "caller": "main",
+          "context": "Get second MPE element \u2014 must be EmissionMatrix type",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_load_pcc": {
+      "description": "Load observer/PCC V5 profile with C2S tag",
+      "calls": [
+        {
+          "callee": "ReadIccProfile(pcc)",
+          "line": 141,
+          "caller": "main",
+          "context": "Read observer/PCC V5 profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: ReadIccProfile(obsTmpFile)"
+        },
+        {
+          "callee": "pccIcc->m_Header.version check",
+          "line": 148,
+          "caller": "main",
+          "context": "Verify PCC profile is V5",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "FindTagOfType(svcn)",
+          "line": 153,
+          "caller": "main",
+          "context": "Find spectralViewingConditions tag in PCC profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "FindTagOfType(c2sp, MPE)",
+          "line": 154,
+          "caller": "main",
+          "context": "Find customToStandardPcc tag as MPE type",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->NumInputChannels()",
+          "line": 158,
+          "caller": "main",
+          "context": "Verify C2S has 3 input channels",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->NumOutputChannels()",
+          "line": 159,
+          "caller": "main",
+          "context": "Verify C2S has 3 output channels",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_mpe_init": {
+      "description": "Initialize MPE pipelines (Begin + GetNewApply)",
+      "calls": [
+        {
+          "callee": "pTagIn->Begin(icElemInterpLinear, dspIcc, pccIcc)",
+          "line": 164,
+          "caller": "main",
+          "context": "Initialize display AToB1 MPE pipeline with PCC context",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Critical: links display profile MPE with observer PCC"
+        },
+        {
+          "callee": "pTagIn->GetNewApply()",
+          "line": 166,
+          "caller": "main",
+          "context": "Create apply context for AToB1 MPE pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pApplyMpe->GetList() [iterate]",
+          "line": 168,
+          "caller": "main",
+          "context": "Get apply list and extract curve/matrix apply contexts",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->Begin(icElemInterpLinear, pccIcc)",
+          "line": 174,
+          "caller": "main",
+          "context": "Initialize C2S PCC tag MPE pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->GetNewApply()",
+          "line": 176,
+          "caller": "main",
+          "context": "Create apply context for C2S MPE pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "6_v4_build": {
+      "description": "Construct V4 profile header, description, copyright",
+      "calls": [
+        {
+          "callee": "CIccProfile::InitHeader()",
+          "line": 180,
+          "caller": "main",
+          "context": "Initialize V4 output profile header",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetTagText(desc)",
+          "line": 188,
+          "caller": "main",
+          "context": "Get description text from source profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagMultiLocalizedUnicode::SetText",
+          "line": 190,
+          "caller": "main",
+          "context": "Set description tag text in V4 profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pIcc->AttachTag(desc)",
+          "line": 193,
+          "caller": "main",
+          "context": "Attach description tag to V4 profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pIcc->AttachTag(copyright)",
+          "line": 199,
+          "caller": "main",
+          "context": "Attach copyright tag to V4 profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "7_trc_generation": {
+      "description": "Generate TRC curves (2048 samples \u00d7 3 channels)",
+      "calls": [
+        {
+          "callee": "CIccTagCurve::new(2048)",
+          "line": 201,
+          "caller": "main",
+          "context": "Create TRC curve with 2048 entries per channel",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "curveMpe->Apply(curveApply, out, in) [loop 2048]",
+          "line": 208,
+          "caller": "main",
+          "context": "Apply CurveSet MPE element for each of 2048 samples",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "CRITICAL: 2048 iterations through MPE Apply \u2014 attack surface"
+        },
+        {
+          "callee": "pIcc->AttachTag(RedTRC/GreenTRC/BlueTRC)",
+          "line": 214,
+          "caller": "main",
+          "context": "Attach TRC curves to V4 profile",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "8_colorant_xyz": {
+      "description": "Compute RGB colorant XYZ via MPE + C2S pipeline",
+      "calls": [
+        {
+          "callee": "matrixMpe->Apply(mtxApply, in, rRGB)",
+          "line": 222,
+          "caller": "main",
+          "context": "Apply EmissionMatrix for red primary",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->Apply(pApplyC2S, out, in) [red]",
+          "line": 223,
+          "caller": "main",
+          "context": "Apply C2S PCC transform for red XYZ",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icDtoF(out[]) [red]",
+          "line": 226,
+          "caller": "main",
+          "context": "Convert double to s15Fixed16 for red colorant",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pIcc->AttachTag(redColorant)",
+          "line": 227,
+          "caller": "main",
+          "context": "Attach red colorant XYZ tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "matrixMpe->Apply(mtxApply, in, gRGB)",
+          "line": 229,
+          "caller": "main",
+          "context": "Apply EmissionMatrix for green primary",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->Apply(pApplyC2S, out, in) [green]",
+          "line": 230,
+          "caller": "main",
+          "context": "Apply C2S PCC transform for green XYZ",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pIcc->AttachTag(greenColorant)",
+          "line": 234,
+          "caller": "main",
+          "context": "Attach green colorant XYZ tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "matrixMpe->Apply(mtxApply, in, bRGB)",
+          "line": 236,
+          "caller": "main",
+          "context": "Apply EmissionMatrix for blue primary",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pTagC2S->Apply(pApplyC2S, out, in) [blue]",
+          "line": 237,
+          "caller": "main",
+          "context": "Apply C2S PCC transform for blue XYZ",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "pIcc->AttachTag(blueColorant)",
+          "line": 241,
+          "caller": "main",
+          "context": "Attach blue colorant XYZ tag",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "9_output": {
+      "description": "Save V4 profile",
+      "calls": [
+        {
+          "callee": "SaveIccProfile(output)",
+          "line": 243,
+          "caller": "main",
+          "context": "Save V4 profile to output file",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer saves to temp file then deletes"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc < 4",
+      "line": 103,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Argument count check"
+    },
+    {
+      "condition": "!dspIcc",
+      "line": 110,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Display profile parse failure"
+    },
+    {
+      "condition": "version < V5 || class != Display",
+      "line": 115,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Profile version and class validation gate"
+    },
+    {
+      "condition": "!pTagIn (AToB1 MPE)",
+      "line": 123,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "AToB1 tag must exist as MultiProcessElement"
+    },
+    {
+      "condition": "NumElements!=2 || channels!=3 || wrong types",
+      "line": 130,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "MPE structure validation \u2014 must be CurveSet+EmissionMatrix"
+    },
+    {
+      "condition": "!pccIcc",
+      "line": 143,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Observer profile parse failure"
+    },
+    {
+      "condition": "pccIcc version < V5",
+      "line": 148,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "PCC profile version check"
+    },
+    {
+      "condition": "!pTagSvcn || !pTagC2S || channels!=3",
+      "line": 156,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "PCC profile must have spectralViewingConditions and C2S tags"
+    },
+    {
+      "condition": "i < 2048 (TRC loop)",
+      "line": 206,
+      "gate_type": "for",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Fixed 2048 iteration loop \u2014 bounded, no OOM risk from loop itself"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 40,
+    "cli_only_excluded": 1,
+    "fuzzable_call_sites": 39,
+    "matched_by_fuzzer": 39,
+    "coverage_percent": 100.0,
+    "fidelity_note": "VERY HIGH",
+    "note": "The v5dspobs fuzzer has very high fidelity with the tool. It exercises the complete V5\u2192V4 conversion pipeline: ReadIccProfile for both display and observer profiles, MPE tag validation, CurveSet/EmissionMatrix Apply for TRC generation, C2S PCC transforms for colorant XYZ computation, and SaveIccProfile for output. The fuzzer uses a split input format (4-byte size prefix + two profile blobs) matching the tool's two-file input. Secondary fuzzers (icc_spectral_fuzzer, icc_spectral_b_fuzzer) cover individual spectral tag parsing paths.",
+    "related_fuzzers": [
+      "icc_spectral_fuzzer \u2014 spectral tag Read/Write/Validate paths",
+      "icc_spectral_b_fuzzer \u2014 spectral TIFF profile embedding path",
+      "icc_v5dspobs_fuzzer \u2014 full V5\u2192V4 conversion pipeline (primary)"
+    ]
+  },
+  "mpe_pipeline_notes": {
+    "display_pipeline": "CurveSet(3\u21923) \u2192 EmissionMatrix(3\u2192spectra) \u2014 linearizes RGB then maps to spectral emission",
+    "pcc_pipeline": "customToStandardPcc(3\u21923) \u2014 converts custom PCS to standard PCS (XYZ)",
+    "combined": "For each primary: EmissionMatrix(RGB) \u2192 C2S(spectral\u2192XYZ) \u2192 icDtoF \u2192 s15Fixed16 colorant"
+  },
+  "fuzzer_input_format": {
+    "description": "Split input: [4-byte BE size][display_profile][observer_profile]",
+    "fields": {
+      "bytes[0-3]": "Big-endian uint32 size of display profile",
+      "bytes[4..4+N-1]": "Display profile data (V5 display class)",
+      "bytes[4+N..]": "Observer/PCC profile data (V5 with svcn+c2sp tags)"
+    },
+    "min_size": 264,
+    "max_size": "10MB"
+  }
+}

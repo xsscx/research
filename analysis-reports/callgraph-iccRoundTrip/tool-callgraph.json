@@ -1,0 +1,365 @@
+{
+  "tool": "iccRoundTrip",
+  "tool_file": "iccRoundTrip.cpp",
+  "fuzzer": "icc_roundtrip_fuzzer",
+  "fuzzer_file": "icc_roundtrip_fuzzer.cpp",
+  "analysis_date": "2026-07-20",
+  "phases": {
+    "1_cli_parsing": {
+      "description": "Command-line argument parsing",
+      "calls": [
+        {
+          "callee": "printf(usage)",
+          "line": 152,
+          "caller": "main",
+          "context": "Print usage and exit",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "atoi(argv[2])",
+          "line": 162,
+          "caller": "main",
+          "context": "Parse rendering intent from CLI arg",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives intent from trailing byte: data[size-1] % 4"
+        },
+        {
+          "callee": "atoi(argv[3])",
+          "line": 164,
+          "caller": "main",
+          "context": "Parse use_mpe flag from CLI arg",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives from trailing byte: data[size-2] % 2"
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "2_roundtrip_eval": {
+      "description": "Round-trip evaluation \u2014 main attack surface",
+      "calls": [
+        {
+          "callee": "CIccMinMaxEval::CIccMinMaxEval",
+          "line": 168,
+          "caller": "main",
+          "context": "Construct min/max evaluation object",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer copies the full CIccMinMaxEval class verbatim"
+        },
+        {
+          "callee": "CIccEvalCompare::EvaluateProfile",
+          "line": 170,
+          "caller": "main",
+          "context": "Evaluate profile round-trip accuracy \u2014 MAIN ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact 1:1 match: eval.EvaluateProfile(file, 0, intent, interp, useMPE)"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_prmg_analysis": {
+      "description": "PRMG interoperability analysis",
+      "calls": [
+        {
+          "callee": "CIccPRMG::CIccPRMG",
+          "line": 177,
+          "caller": "main",
+          "context": "Construct PRMG analysis object",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccPRMG::EvaluateProfile",
+          "line": 179,
+          "caller": "main",
+          "context": "Evaluate PRMG interoperability \u2014 second attack surface",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact 1:1 match: prmg.EvaluateProfile(file, intent, interp, useMPE)"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_result_access": {
+      "description": "Access evaluation result members",
+      "calls": [
+        {
+          "callee": "CIccInfo::GetRenderingIntentName",
+          "line": 189,
+          "caller": "main",
+          "context": "Get human-readable intent name",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Tool-only: printf output"
+        },
+        {
+          "callee": "eval.GetMean1",
+          "line": 195,
+          "caller": "main",
+          "context": "Get mean DeltaE for round-trip 1",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer accesses via (void)eval.GetMean1()"
+        },
+        {
+          "callee": "eval.GetMean2",
+          "line": 203,
+          "caller": "main",
+          "context": "Get mean DeltaE for round-trip 2",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "eval.minDE1/maxDE1",
+          "line": 194,
+          "caller": "main",
+          "context": "Access min/max DeltaE round-trip 1",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "eval.minDE2/maxDE2",
+          "line": 202,
+          "caller": "main",
+          "context": "Access min/max DeltaE round-trip 2",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "eval.maxLab1/maxLab2",
+          "line": 198,
+          "caller": "main",
+          "context": "Access max Lab values for worst-case samples",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "prmg.m_bPrmgImplied",
+          "line": 190,
+          "caller": "main",
+          "context": "Check if PRMG gamut is implied",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "prmg.m_nDE1..m_nDE10",
+          "line": 212,
+          "caller": "main",
+          "context": "Access PRMG DeltaE distribution bins",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "prmg.m_nTotal",
+          "line": 208,
+          "caller": "main",
+          "context": "Access PRMG total sample count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_deep_calls": {
+      "description": "Deep call chains within EvaluateProfile",
+      "calls": [
+        {
+          "callee": "OpenIccProfile",
+          "line": 0,
+          "caller": "CIccEvalCompare::EvaluateProfile",
+          "context": "Open ICC profile from file path",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::AddXform (forward)",
+          "line": 0,
+          "caller": "EvaluateProfile",
+          "context": "Add forward transform to CMM pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::AddXform (inverse)",
+          "line": 0,
+          "caller": "EvaluateProfile",
+          "context": "Add inverse transform for round-trip",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Round-trip requires forward+inverse pipeline"
+        },
+        {
+          "callee": "CIccCmm::Begin",
+          "line": 0,
+          "caller": "EvaluateProfile",
+          "context": "Initialize round-trip CMM pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::Apply",
+          "line": 0,
+          "caller": "EvaluateProfile",
+          "context": "Apply round-trip transform to test samples",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccMinMaxEval::Compare",
+          "line": 0,
+          "caller": "EvaluateProfile",
+          "context": "Compare results via icDeltaE \u2014 callback for each sample",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer copies this class verbatim from tool source"
+        },
+        {
+          "callee": "icDeltaE",
+          "line": 0,
+          "caller": "CIccMinMaxEval::Compare",
+          "context": "Compute CIE Delta E between Lab values",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc <= 1",
+      "line": 151,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage message guard"
+    },
+    {
+      "condition": "argc > 2",
+      "line": 161,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Optional intent argument"
+    },
+    {
+      "condition": "argc > 3",
+      "line": 163,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Optional use_mpe argument"
+    },
+    {
+      "condition": "stat != icCmmStatOk (EvaluateProfile)",
+      "line": 172,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Round-trip evaluation failure \u2014 prevents result access"
+    },
+    {
+      "condition": "stat != icCmmStatOk (PRMG)",
+      "line": 181,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "PRMG analysis failure \u2014 prevents PRMG result output"
+    },
+    {
+      "condition": "prmg.m_nTotal > 0",
+      "line": 208,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Guards PRMG output \u2014 division by m_nTotal"
+    },
+    {
+      "condition": "DE1 < minDE1",
+      "line": 118,
+      "gate_type": "if",
+      "parent_func": "CIccMinMaxEval::Compare",
+      "security_relevant": false,
+      "note": "Min tracking in Compare callback"
+    },
+    {
+      "condition": "DE1 > maxDE1",
+      "line": 122,
+      "gate_type": "if",
+      "parent_func": "CIccMinMaxEval::Compare",
+      "security_relevant": false,
+      "note": "Max tracking with memcpy of Lab values"
+    },
+    {
+      "condition": "DE2 <= 1.0",
+      "line": 136,
+      "gate_type": "if",
+      "parent_func": "CIccMinMaxEval::Compare",
+      "security_relevant": false,
+      "note": "Count samples within 1.0 DeltaE"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 23,
+    "cli_only_excluded": 3,
+    "fuzzable_call_sites": 20,
+    "matched_by_fuzzer": 19,
+    "coverage_percent": 95.0,
+    "fidelity_note": "NEAR-PERFECT",
+    "note": "The roundtrip fuzzer has near-perfect fidelity. It copies the CIccMinMaxEval class verbatim from the tool source (lines 79-146), calls EvaluateProfile and PRMG EvaluateProfile with the same API, and accesses all result members. The only differences are: (1) intent/useMPE derived from trailing bytes instead of CLI args, (2) profile written to temp file from fuzzer input, (3) printf output is suppressed."
+  },
+  "attack_surface_notes": {
+    "evaluate_profile": "EvaluateProfile internally constructs a CIccCmm with forward+inverse transforms. It iterates over a grid of test values, applying the round-trip and calling Compare() for each sample. This exercises the full CMM pipeline including LUT interpolation, curves, and matrix operations.",
+    "prmg_analysis": "CIccPRMG::EvaluateProfile tests the profile against the Perceptual Reference Medium Gamut. It uses a fixed set of PRMG colors and computes DeltaE distributions."
+  },
+  "fuzzer_input_format": {
+    "description": "ICC profile data with 2 trailing control bytes",
+    "control_bytes": {
+      "data[size-1]": "icRenderingIntent (% 4)",
+      "data[size-2]": "nUseMPE flag (% 2)"
+    },
+    "min_size": 130,
+    "max_size": "1MB"
+  }
+}
