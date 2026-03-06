@@ -51,14 +51,20 @@ jobs:
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
+          WORKFLOW_REF: ${{ github.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUNNER_OS_NAME: ${{ runner.os }}
         run: |
           set -euo pipefail
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          echo "Workflow: ${{ github.workflow }}"
-          echo "Ref:      ${{ github.ref }}"
-          echo "Commit:   ${{ github.sha }}"
+
+          echo "Workflow:    ${WORKFLOW_NAME}"
+          echo "Ref:         ${WORKFLOW_REF}"
+          echo "Commit:      ${WORKFLOW_SHA}"
+          echo "Runner OS:   ${RUNNER_OS_NAME}"
 
       - name: Cache APT packages
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
@@ -67,105 +73,236 @@ jobs:
           path: |
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-unit-tests
+          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
           restore-keys: |
             ${{ runner.os }}-apt-
 
       - name: Install build dependencies
         env:
+          BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
             sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
           fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang \
-            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
-            nlohmann-json3-dev python3
+            build-essential \
+            cmake \
+            clang \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libssl-dev \
+            python3
 
       - name: Print compiler version
+        env:
+          BASH_ENV: /dev/null
         run: |
-          clang++ --version | head -1
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Compiler: clang++"
+          clang++ --version | head -n 1
+
+          {
+            echo "### Build Configuration"
+            echo ""
+            echo "**Compiler:**   clang++ ($(clang++ --version | head -n 1))"
+            echo "**Build Type:** Debug"
+            echo "**Flags:**      ASAN + UBSAN"
+            echo "**Tool:**       iccanalyzer-lite unit tests"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Cache iccDEV repository
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
-          key: iccdev-repo-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
           restore-keys: |
-            iccdev-repo-
+            ${{ runner.os }}-iccdev-lite-
 
       - name: Clone iccDEV dependency
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           cd iccanalyzer-lite
-          if [ ! -d "iccDEV/.git" ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
+          if [ ! -d "iccDEV" ]; then
+            git clone https://github.com/InternationalColorConsortium/iccDEV.git
           fi
+          cd iccDEV
+
+          echo "iccDEV cloned at: $(pwd)"
+          echo "iccDEV commit: $(git log --oneline -1)"
+
+          {
+            echo ""
+            echo "### iccDEV Dependency"
+            echo ""
+            echo "**Location:** \`iccanalyzer-lite/iccDEV/\`"
+            echo "**Commit:**   $(git log --oneline -1)"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Cache iccDEV build
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-iccdev-build
         with:
           path: |
-            iccanalyzer-lite/iccDEV/Build
-          key: iccdev-build-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccanalyzer-lite/build.sh') }}
+            iccanalyzer-lite/iccDEV/Build/IccProfLib
+            iccanalyzer-lite/iccDEV/Build/IccXML
+            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
+            iccanalyzer-lite/iccDEV/Build/CMakeFiles
+          key: ${{ runner.os }}-iccdev-build-lite-debug-${{ hashFiles('cfl/patches/*.patch') }}
           restore-keys: |
-            iccdev-build-
+            ${{ runner.os }}-iccdev-build-lite-debug-
 
       - name: Apply CFL patches to iccDEV
-        run: |
-          set -euo pipefail
-          cd iccanalyzer-lite/iccDEV
-          git config --add safe.directory "$PWD"
-          git checkout . 2>/dev/null || true
-          for p in ../../cfl/patches/*.patch; do
-            [ -f "$p" ] && git apply --check "$p" 2>/dev/null && git apply "$p" || true
-          done
-
-      - name: Build iccDEV libraries
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          cd iccanalyzer-lite/iccDEV/Build
-          cmake -DCMAKE_CXX_COMPILER=clang++ \
-                -DCMAKE_C_COMPILER=clang \
-                -DCMAKE_BUILD_TYPE=Debug \
-                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0" \
-                -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0" \
-                -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
-                -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
-                Cmake/
-          make -j$(nproc) IccProfLib2-static IccXML2-static 2>&1 | tail -5
-          echo "iccDEV libraries built successfully"
+          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
+          for p in cfl/patches/*.patch; do
+            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+              echo "  [OK] $(basename "$p")"
+            else
+              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+            fi
+          done
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
+          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
 
-      - name: Build iccanalyzer-lite
+      - name: Build iccDEV libraries
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          CXX: clang++
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/iccDEV/Build
+
+          echo "Configuring CMake with instrumentation..."
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -DENABLE_COVERAGE=ON \
+            -DENABLE_TOOLS=OFF \
+            -DICC_LOG_SAFE=ON \
+            -DICC_TRACE_NAN_ENABLED=ON \
+            -Wno-dev
+
+          echo "Building libraries with $(nproc) cores..."
+          make -j$(nproc)
+
+          echo "Verifying libraries..."
+          ls -lh IccProfLib/libIccProfLib2-static.a
+          ls -lh IccXML/libIccXML2-static.a
+
+          {
+            echo ""
+            echo "### iccDEV Libraries Built"
+            echo ""
+            echo '```'
+            ls -lh IccProfLib/libIccProfLib2-static.a
+            ls -lh IccXML/libIccXML2-static.a
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Build iccanalyzer-lite
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           cd iccanalyzer-lite
+
+          echo "Working directory: $(pwd)"
+          echo "Building iccanalyzer-lite..."
+
           chmod +x build.sh
           ./build.sh
+
           echo "Build complete."
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
 
+          {
+            echo ""
+            echo "### iccanalyzer-lite Binary"
+            echo ""
+            echo '```'
+            ls -lh iccanalyzer-lite
+            file iccanalyzer-lite
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
       - name: Synthesize test corpus
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           cd iccanalyzer-lite/tests
           python3 synthesize_profiles.py
-          echo "Corpus:"
+          echo "Corpus files:"
           ls -la corpus/
 
       - name: Run unit tests
         env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
           ASAN_OPTIONS: "detect_leaks=0"
           LLVM_PROFILE_FILE: "/dev/null"
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           cd iccanalyzer-lite/tests
           python3 run_tests.py -v --xml test-results.xml
           echo ""
@@ -181,8 +318,18 @@ jobs:
 
       - name: Generate summary
         if: always()
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
         run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
           {
+            echo ""
             echo "## iccAnalyzer-lite Unit Tests"
             echo ""
             if [ -f iccanalyzer-lite/tests/test-results.xml ]; then
