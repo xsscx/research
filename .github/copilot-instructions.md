@@ -1,5 +1,58 @@
 # Copilot Instructions — ICC Security Research
 
+## ICC Specification References — Sources of Truth
+
+All heuristic validation rules in iccanalyzer-lite are derived from the official ICC specification
+and technical notes published by the International Color Consortium. These are the authoritative
+documents for profile structure, encoding constraints, and required-tag rules.
+
+### Primary Specification
+- **ICC.1-2022-05** (v4.4) — Main profile specification (126 pages)
+  - URL: `https://www.color.org/specification/ICC.1-2022-05.pdf`
+  - Defines: header layout (128 bytes), tag table structure, required tags per class,
+    data type encodings, PCS illuminant (D50), profile ID MD5 calculation, version BCD encoding
+
+### Technical Notes (archive.color.org — all publicly accessible)
+| Document | URL | Relevance |
+|----------|-----|-----------|
+| ICC TN-06-2025 Tristimulus Calculation | `https://archive.color.org/files/technotes/ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf` | Weighting functions, observer data |
+| Profile Embedding | `https://archive.color.org/files/technotes/ICC-Technote-ProfileEmbedding.pdf` | Embedding in TIFF/JPEG/EPS, flags validation |
+| Partial Chromatic Adaptation | `https://archive.color.org/files/technotes/ICC-Technote-PartialAdaptation.pdf` | chad tag validation, adaptation matrix |
+| Negative PCS XYZ Values | `https://archive.color.org/files/technotes/Guidelines_on_the_use_of_negative_PCSXYZ_values.pdf` | Wide-gamut (BT.2020/DCI-P3) XYZ ranges |
+| V4 Matrix Entries | `https://archive.color.org/files/v4_matrix_entries.pdf` | s15Fixed16Number precision, matrix column constraints |
+| V2 Profiles in V4 | `https://archive.color.org/files/v2profiles_v4.pdf` | Version interop, CIELAB encoding differences |
+| Profile Sequence Desc | `https://archive.color.org/files/PSD_TechNote.pdf` | PSD parsing pitfalls, size inference attacks |
+
+### Registry Pages (require browser access — 403 from CLI)
+- `https://www.color.org/whitepapers.xalter` — ICC white papers index
+- `https://registry.color.org/dicttype-metadata/` — Dictionary type metadata registry
+- `https://registry.color.org/colorimetry-data/` — Standard colorimetry data
+- `https://www.color.org/v4spec.xalter` — V4 specification page
+- `https://www.color.org/chadtag.xalter` — Chromatic adaptation tag details
+- `https://www.color.org/technotes2.xalter` — Technical notes index
+- `https://www.color.org/finger.xalter` — Profile fingerprinting
+- `https://www.color.org/unicode.xalter` — Unicode handling in profiles
+
+### Key Validation Constants (from ICC.1-2022-05)
+```
+Header:     128 bytes (offsets 0-127)
+Magic:      'acsp' = 0x61637370 at bytes 36-39
+Version:    BCD — byte 8 = major, byte 9 = minor.bugfix (nibbles), bytes 10-11 = 0x0000
+            v4.4.0.0 = 0x04400000
+PCS D50:    X=0.9642, Y=1.0000, Z=0.8249 at bytes 68-79
+Intent:     0=Perceptual, 1=Relative, 2=Saturation, 3=Absolute (bytes 64-67, upper 16 bits = 0)
+Reserved:   bytes 100-127 must be 0x00
+ProfileID:  MD5 of entire profile with bytes 44-47, 64-67, 84-99 zeroed
+Tag table:  starts at byte 128, 4-byte count + 12-byte entries (sig + offset + size)
+            No duplicate sigs, no partial overlaps, shared offsets require matching sizes, 4-byte alignment
+Classes:    scnr(Input) mntr(Display) prtr(Output) link(DeviceLink) spac(ColorSpace) abst(Abstract) nmcl(NamedColor)
+All classes require: profileDescriptionTag, mediaWhitePointTag, copyrightTag
+            + chromaticAdaptationTag if adopted white ≠ D50
+```
+
+### MD5 Reference
+- RFC 1321: `https://www.ietf.org/rfc/rfc1321.txt`
+
 ## Environment Detection
 
 This repo is used in two contexts. Detect which one you are in:
