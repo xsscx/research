@@ -1,7 +1,7 @@
 ###############################################################
 # Copyright (c) 2026 David H Hoyt LLC
 #
-# Intent: Run iccanalyzer-lite unit tests (113 tests)
+# Intent: Run iccanalyzer-lite unit tests (147 tests)
 #         - Exit code validation
 #         - Analysis mode verification
 #         - Heuristic detection (H1-H135)
