@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-05 15:10:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 102 heuristics, ASAN/UBSAN instrumented, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 106 heuristics, ASAN/UBSAN instrumented, callgraph analysis
 
 ## Target Audience
 - Security Researcher

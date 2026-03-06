@@ -16,4 +16,16 @@ class CIccProfile;
 /// @return Number of heuristic warnings detected
 int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename);
 
+/// H103: PCC (Profile Connection Conditions) validation
+int RunHeuristic_H103_PCC(CIccProfile *pIcc);
+
+/// H104: PRMG (Perceptual Reference Medium Gamut) evaluation
+int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char *profilePath);
+
+/// H105: Matrix-TRC validation (determinant, inversion, chromaticity)
+int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc);
+
+/// H106: Environment variable and spectral viewing condition tags
+int RunHeuristic_H106_EnvVar(CIccProfile *pIcc);
+
 #endif // _ICCHEURISTICSLIBRARY_H

@@ -589,9 +589,15 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("TAG-LEVEL HEURISTICS\n");
     printf("=======================================================================\n\n");
     
-    // Library-API heuristics (H9-H32, H56-H86)
+    // Library-API heuristics (H9-H32, H56-H86, H95-H106)
     // Extracted to IccHeuristicsLibrary.cpp
     heuristicCount += RunLibraryAPIHeuristics(pIcc, filename);
+
+    // H103-H106: Coverage-gap heuristics (PCC, PRMG, Matrix-TRC, EnvVar)
+    heuristicCount += RunHeuristic_H103_PCC(pIcc);
+    heuristicCount += RunHeuristic_H104_PRMG(pIcc, filename);
+    heuristicCount += RunHeuristic_H105_MatrixTRC(pIcc);
+    heuristicCount += RunHeuristic_H106_EnvVar(pIcc);
 
     delete pIcc;
   }
@@ -624,7 +630,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 102 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 106 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -640,6 +646,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s         preview channels, colorant order, spectral viewing, flags, matrix colorants%s\n", ColorInfo(), ColorReset());
     printf("  %sH95-H102: Sparse matrix bounds, embedded profile recursion, profile sequence ID,%s\n", ColorInfo(), ColorReset());
     printf("  %s          spectral MPE elements, embedded images, sequence desc, MPE chain, tag sizes%s\n", ColorInfo(), ColorReset());
+    printf("  %sH103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           environment variable tags, spectral range validation%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
