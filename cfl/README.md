@@ -3,7 +3,7 @@
 Last Updated: 2026-03-05 15:00:00 UTC
 
 Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorConsortium/DemoIccMAX) (iccDEV).
-19 LibFuzzer harnesses, 67 security patches, 18,800+ corpus files, and automated ramdisk workflows.
+19 LibFuzzer harnesses, 56 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
 
 ## Quick Start
 
@@ -59,7 +59,7 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 | XML parsing limits | 2 | Tag/string caps, mluc/Dict/ProfileSeqId bounds |
 | Upstream-adopted (dropped) | 15 | PRs #622, #630-#639 (upstream sync 2026-03-05) |
 
-**Active patches: 54** (69 original − 15 dropped during upstream sync)
+**Active patches: 56** (70 original − 14 NO-OPs dropped during upstream sync)
 
 ## Build
 
@@ -177,8 +177,8 @@ cfl/
 ├── corpus-icc_*_fuzzer/      # Per-fuzzer seed corpora (19 dirs)
 ├── corpus/                   # Shared ICC profiles
 ├── corpus-xml/               # XML seed corpus for fromxml fuzzer
-├── patches/                  # 67 security patches + README.md
-│   ├── 001-*.patch ... 067-*.patch
+├── patches/                  # 70 security patches (56 active, 14 NO-OP) + README.md
+│   ├── 001-*.patch ... 070-*.patch
 │   └── README.md             # Full patch documentation
 ├── icc_*_fuzzer.cpp           # Fuzzer source files (19)
 ├── icc_*_fuzzer.dict          # Per-fuzzer dictionaries (19)
