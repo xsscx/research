@@ -1147,3 +1147,11 @@
 "\xff\x12"
 "\xffK"
 "\xff\x0b"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff\xff\x10"
+"DOMAIN_MAX M"
+"\x01\x00}m\xd5\x9f\xe0$"
+"LUT_3D_SI}pe"
+"h\x00"
+"\x01\x00}m\xd5\xca\xd1\xd2"
