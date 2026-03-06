@@ -96,7 +96,7 @@
 Key improvements driven by:
 - Extended fuzzing on 1TB SSD (vs 8GB ramdisk)
 - 19 fuzzers (added `icc_spectral_b_fuzzer`)
-- 67 patches (vs 32) enabling deeper exploration without OOM/crash
+- 54 active patches enabling deeper exploration without OOM/crash
 - 52 targeted CMM seeds (`seeds-link-pairs/`, `seeds-applyprofiles/`, `seeds-applynamedcmm/`)
 - Coverage-driven dictionary additions (TIFF, spectral, cube, XML tokens)
 
