@@ -69,4 +69,16 @@ int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc);
 int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename);
 int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc);
 
+// H128-H132: ICC.1-2022-05 specification compliance heuristics
+/// H128: Version BCD encoding validation (§7.2.4)
+int RunHeuristic_H128_VersionBCD(const char *filename);
+/// H129: PCS illuminant exact D50 validation (§7.2.16)
+int RunHeuristic_H129_PCSIlluminantD50(const char *filename);
+/// H130: Tag data 4-byte alignment check (§7.3.1)
+int RunHeuristic_H130_TagAlignment(const char *filename);
+/// H131: Profile ID MD5 validation (§7.2.18)
+int RunHeuristic_H131_ProfileIdMD5(const char *filename);
+/// H132: chromaticAdaptation matrix determinant check
+int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc);
+
 #endif // _ICCHEURISTICSLIBRARY_H

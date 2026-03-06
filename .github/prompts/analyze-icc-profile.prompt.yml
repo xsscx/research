@@ -31,7 +31,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 127-heuristic scan.
+      2. Call analyze_security to run the 132-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -79,7 +79,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H127)
+      - Security heuristic results (H1-H132)
       - Round-trip validation status
       - Any anomalies or findings
 
