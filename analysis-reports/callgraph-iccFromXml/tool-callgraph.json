@@ -1,0 +1,325 @@
+{
+  "tool": "iccFromXml",
+  "tool_file": "IccFromXml.cpp",
+  "fuzzer": "icc_fromxml_fuzzer",
+  "fuzzer_file": "icc_fromxml_fuzzer.cpp",
+  "analysis_date": "2026-03-06",
+  "phases": {
+    "1_factory_init": {
+      "description": "Register XML tag and MPE factories",
+      "calls": [
+        {
+          "callee": "CIccTagCreator::PushFactory(CIccTagXmlFactory)",
+          "line": 24,
+          "caller": "main",
+          "context": "Register XML tag factory for tag deserialization",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer does this in LLVMFuzzerInitialize \u2014 identical"
+        },
+        {
+          "callee": "CIccMpeCreator::PushFactory(CIccMpeXmlFactory)",
+          "line": 25,
+          "caller": "main",
+          "context": "Register XML MPE factory for calculator/MPE tags",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer does this in LLVMFuzzerInitialize \u2014 identical"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "2_cli_parsing": {
+      "description": "Command-line argument parsing",
+      "calls": [
+        {
+          "callee": "stricmp(-noid)",
+          "line": 39,
+          "caller": "main",
+          "context": "Check for -noid flag",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "strncmp(-v)",
+          "line": 42,
+          "caller": "main",
+          "context": "Check for RelaxNG schema validation flag",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer skips schema validation \u2014 matches tool default behavior"
+        },
+        {
+          "callee": "fopen(schema)",
+          "line": 60,
+          "caller": "main",
+          "context": "Open RelaxNG schema file for validation",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "3_xml_parsing": {
+      "description": "XML\u2192ICC profile parsing \u2014 main attack surface",
+      "calls": [
+        {
+          "callee": "CIccProfileXml::LoadXml",
+          "line": 72,
+          "caller": "main",
+          "context": "Parse XML file into ICC profile \u2014 MAIN ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact 1:1 match. This is where all OOM/crash paths originate"
+        },
+        {
+          "callee": "CIccProfileXml::Validate",
+          "line": 80,
+          "caller": "main",
+          "context": "Validate parsed profile structure",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer runs Validate on both valid and invalid profiles"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_output": {
+      "description": "Save parsed profile to ICC file",
+      "calls": [
+        {
+          "callee": "SaveIccProfile(valid)",
+          "line": 92,
+          "caller": "main",
+          "context": "Save parsed profile when validation <= warning",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer saves to temp file then deletes \u2014 exercises write path"
+        },
+        {
+          "callee": "SaveIccProfile(invalid)",
+          "line": 102,
+          "caller": "main",
+          "context": "Save parsed profile even when validation fails",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises both paths \u2014 valid and invalid save"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_fuzzer_extras": {
+      "description": "Security hardening and error suppression",
+      "calls": [
+        {
+          "callee": "xmlSetGenericErrorFunc",
+          "line": 0,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Suppress libxml2 error output during fuzzing",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Required to prevent stderr flooding"
+        },
+        {
+          "callee": "xmlSubstituteEntitiesDefault(0)",
+          "line": 0,
+          "caller": "LLVMFuzzerInitialize",
+          "context": "Disable XXE entity substitution",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Security hardening \u2014 prevents XXE attacks"
+        },
+        {
+          "callee": "xmlLoadExtDtdDefaultValue=0",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Disable external DTD loading",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Security hardening \u2014 prevents DTD-based XXE"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "6_deep_calls": {
+      "description": "Deep call chains from LoadXml (OOM/crash surface)",
+      "calls": [
+        {
+          "callee": "xmlParseFile",
+          "line": 0,
+          "caller": "CIccProfileXml::LoadXml",
+          "context": "libxml2 parses XML file into DOM tree",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "This is where entity expansion OOMs can occur"
+        },
+        {
+          "callee": "icXmlParseProfHdr",
+          "line": 0,
+          "caller": "CIccProfileXml::LoadXml",
+          "context": "Parse ICC header from XML",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTag*::ParseXml (50+ tag types)",
+          "line": 0,
+          "caller": "CIccProfileXml::LoadXml",
+          "context": "Per-tag XML parsing \u2014 each tag type has its own ParseXml",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "OOM hotspot: CIccLocalizedUnicode copy ctor (mluc tags)"
+        },
+        {
+          "callee": "CIccTagXmlMultiLocalizedUnicode::ParseXml",
+          "line": 0,
+          "caller": "LoadXml\u2192tag",
+          "context": "Parse mluc (multi-localized Unicode) \u2014 OOM HOTSPOT",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "IccTagBasic.cpp:7123 \u2014 CIccLocalizedUnicode copy ctor allocates"
+        },
+        {
+          "callee": "CIccMpeXml*::ParseXml",
+          "line": 0,
+          "caller": "LoadXml\u2192tag",
+          "context": "Parse MPE calculator elements",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccTagXmlProfileSeqDesc::ParseXml",
+          "line": 0,
+          "caller": "LoadXml\u2192tag",
+          "context": "Parse profile sequence description \u2014 allocation loop",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Can allocate unbounded ProfileDescStructs"
+        },
+        {
+          "callee": "icFixXml",
+          "line": 0,
+          "caller": "various ParseXml",
+          "context": "XML string unescaping \u2014 BUFFER OVERFLOW HOTSPOT",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Patch 065 caps this at 65536 bytes"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc <= 2",
+      "line": 17,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage message guard"
+    },
+    {
+      "condition": "!profile.LoadXml()",
+      "line": 72,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "XML parse failure \u2014 prevents SaveIccProfile on corrupt data"
+    },
+    {
+      "condition": "Validate() <= icValidateWarning",
+      "line": 80,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Controls whether profile is saved as 'valid' or 'invalid'"
+    },
+    {
+      "condition": "profileID check (i<16)",
+      "line": 84,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Determines icAlwaysWriteID vs icVersionBasedID"
+    },
+    {
+      "condition": "XML entity expansion size",
+      "line": 0,
+      "gate_type": "xmlParseFile",
+      "parent_func": "libxml2",
+      "security_relevant": true,
+      "note": "libxml2 internal \u2014 can trigger unbounded memory allocation"
+    },
+    {
+      "condition": "Tag count in XML",
+      "line": 0,
+      "gate_type": "LoadXml",
+      "parent_func": "CIccProfileXml",
+      "security_relevant": true,
+      "note": "Number of <Tag> elements determines allocation count"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 19,
+    "cli_only_excluded": 3,
+    "fuzzable_call_sites": 16,
+    "matched_by_fuzzer": 16,
+    "coverage_percent": 100.0,
+    "fidelity_note": "NEAR-PERFECT",
+    "note": "The fromxml fuzzer is an almost exact copy of the tool code (IccFromXml.cpp lines 24-109). It exercises LoadXml, Validate, and SaveIccProfile on both valid and invalid paths. The only differences are: (1) schema validation is skipped (matches tool default), (2) XXE protection is added for security, (3) -noid flag is hardcoded to false."
+  },
+  "oom_hotspots": [
+    {
+      "location": "CIccLocalizedUnicode::CIccLocalizedUnicode(copy)",
+      "file": "IccTagBasic.cpp:7123",
+      "trigger": "mluc tag with many LocalizedUnicode entries",
+      "patch": "067 (allocation count cap)"
+    },
+    {
+      "location": "CIccTagXmlProfileSeqDesc::ParseXml",
+      "file": "IccTagXml.cpp",
+      "trigger": "ProfileSeqDesc with many ProfileDescription entries",
+      "patch": "067 (allocation loop cap)"
+    },
+    {
+      "location": "icFixXml (char* overload)",
+      "file": "IccUtilXml.cpp:307",
+      "trigger": "Large XML text content \u2192 unchecked strcpy",
+      "patch": "065 (65536-byte buffer cap)"
+    },
+    {
+      "location": "XML entity expansion",
+      "file": "libxml2",
+      "trigger": "Billion laughs / entity expansion attack",
+      "mitigation": "xmlSubstituteEntitiesDefault(0)"
+    }
+  ],
+  "fuzzer_input_format": {
+    "description": "Raw XML content (the entire input is treated as XML)",
+    "min_size": 10,
+    "max_size": "10MB"
+  }
+}

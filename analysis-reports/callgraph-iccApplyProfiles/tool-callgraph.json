@@ -1,0 +1,619 @@
+{
+  "tool": "iccApplyProfiles",
+  "tool_file": "iccApplyProfiles.cpp",
+  "fuzzer": "icc_applyprofiles_fuzzer",
+  "fuzzer_file": "icc_applyprofiles_fuzzer.cpp",
+  "analysis_date": "2026-03-06",
+  "phases": {
+    "1_config_parsing": {
+      "description": "JSON/legacy configuration parsing via IccCmmConfig",
+      "calls": [
+        {
+          "callee": "CIccCfgDataApply::fromJson",
+          "line": 158,
+          "caller": "main",
+          "context": "Parse JSON configuration file",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer uses hardcoded params, not JSON config"
+        },
+        {
+          "callee": "CIccCfgDataApply::fromLegacy",
+          "line": 193,
+          "caller": "main",
+          "context": "Parse legacy command-line arguments",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Fuzzer uses hardcoded params, not JSON config files"
+    },
+    "2_source_image": {
+      "description": "Source TIFF image loading and ICC profile extraction",
+      "calls": [
+        {
+          "callee": "CTiffImg::Open",
+          "line": 206,
+          "caller": "main",
+          "context": "Open source TIFF image for reading",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not use TIFF images \u2014 profile-only"
+        },
+        {
+          "callee": "CTiffImg::GetSamples",
+          "line": 210,
+          "caller": "main",
+          "context": "Get samples per pixel from source image",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetExtraSamples",
+          "line": 211,
+          "caller": "main",
+          "context": "Get extra samples (alpha) from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetPhoto",
+          "line": 212,
+          "caller": "main",
+          "context": "Get photometric interpretation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetBitsPerSample",
+          "line": 213,
+          "caller": "main",
+          "context": "Get bits per sample from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetIccProfile",
+          "line": 251,
+          "caller": "main",
+          "context": "Extract embedded ICC profile from source TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Tool can use embedded profile as first profile in chain"
+        },
+        {
+          "callee": "CTiffImg::GetCompress",
+          "line": 254,
+          "caller": "main",
+          "context": "Get compression setting from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::GetPlanar",
+          "line": 255,
+          "caller": "main",
+          "context": "Get planar configuration from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Fuzzer feeds profile data directly, no TIFF container"
+    },
+    "3_cmm_construction": {
+      "description": "CMM object creation, profile loading, xform setup",
+      "calls": [
+        {
+          "callee": "CIccCmm::CIccCmm",
+          "line": 262,
+          "caller": "main",
+          "context": "Construct CMM with icSigUnknownData, icSigUnknownData, true",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: CIccCmm(icSigUnknownData, icSigUnknownData, true)"
+        },
+        {
+          "callee": "OpenIccProfile",
+          "line": 293,
+          "caller": "main",
+          "context": "Open PCC profile for viewing conditions",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not use PCC profiles"
+        },
+        {
+          "callee": "CIccCreateXformHintManager",
+          "line": 284,
+          "caller": "main",
+          "context": "Create hint manager for xform parameters",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmmEnvVarHint",
+          "line": 304,
+          "caller": "main",
+          "context": "Add environment variable hints to xform",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not use env var hints"
+        },
+        {
+          "callee": "CIccCmmPccEnvVarHint",
+          "line": 308,
+          "caller": "main",
+          "context": "Add PCC environment variable hints",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::AddXform(buffer)",
+          "line": 314,
+          "caller": "main",
+          "context": "Add xform from embedded profile buffer (pSrcProfile)",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Tool uses buffer path when TIFF has embedded profile"
+        },
+        {
+          "callee": "CIccCmm::AddXform(file)",
+          "line": 334,
+          "caller": "main",
+          "context": "Add xform from ICC profile file path",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: cmm.AddXform(tmp_profile, intent, interp, ...)"
+        }
+      ],
+      "in_fuzzer": "partial",
+      "reason": "Fuzzer exercises AddXform(file) path, not buffer or PCC paths"
+    },
+    "4_cmm_execution": {
+      "description": "CMM Begin + Apply \u2014 main security-critical execution",
+      "calls": [
+        {
+          "callee": "CIccCmm::Begin",
+          "line": 350,
+          "caller": "main",
+          "context": "Initialize CMM pipeline \u2014 allocates LUTs, validates chain",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: cmm.Begin()"
+        },
+        {
+          "callee": "CIccCmm::GetSourceSpace",
+          "line": 364,
+          "caller": "main",
+          "context": "Query source color space from CMM",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(src)",
+          "line": 365,
+          "caller": "main",
+          "context": "Get number of source color channels",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::GetDestSpace",
+          "line": 385,
+          "caller": "main",
+          "context": "Query destination color space from CMM",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(dst)",
+          "line": 387,
+          "caller": "main",
+          "context": "Get number of dest color channels",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::GetLastParentSpace",
+          "line": 389,
+          "caller": "main",
+          "context": "Query last parent color space for output format",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer calls this via cmm.GetLastParentSpace()"
+        },
+        {
+          "callee": "icGetSpaceSamples(parent)",
+          "line": 390,
+          "caller": "main",
+          "context": "Get parent space samples for TIFF output",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::Apply",
+          "line": 546,
+          "caller": "main",
+          "context": "Apply CMM transform to pixel data \u2014 MAIN EXECUTION PATH",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises multiple Apply() calls with varied pixel values"
+        }
+      ],
+      "in_fuzzer": true,
+      "reason": "Full coverage of CMM pipeline execution"
+    },
+    "5_dest_image": {
+      "description": "Destination TIFF creation and profile embedding",
+      "calls": [
+        {
+          "callee": "CTiffImg::Create",
+          "line": 430,
+          "caller": "main",
+          "context": "Create destination TIFF file",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccFileIO::Open",
+          "line": 440,
+          "caller": "main",
+          "context": "Open last profile for embedding in dest TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccFileIO::GetLength",
+          "line": 443,
+          "caller": "main",
+          "context": "Get profile length for embedding",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccFileIO::Read",
+          "line": 444,
+          "caller": "main",
+          "context": "Read profile data for embedding",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::SetIccProfile",
+          "line": 446,
+          "caller": "main",
+          "context": "Embed ICC profile in destination TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Output-only operations, not part of attack surface"
+    },
+    "6_pixel_loop": {
+      "description": "Per-scanline pixel conversion loop",
+      "calls": [
+        {
+          "callee": "CTiffImg::ReadLine",
+          "line": 475,
+          "caller": "main",
+          "context": "Read one scanline from source TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "UnitClip",
+          "line": 483,
+          "caller": "main",
+          "context": "Clamp pixel value to [0,1] range",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer tests out-of-range values directly"
+        },
+        {
+          "callee": "CTiffImg::WriteLine",
+          "line": 615,
+          "caller": "main",
+          "context": "Write one scanline to destination TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::Close(src)",
+          "line": 629,
+          "caller": "main",
+          "context": "Close source TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CTiffImg::Close(dst)",
+          "line": 634,
+          "caller": "main",
+          "context": "Close destination TIFF",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Fuzzer tests pixel values directly via Apply(), not via TIFF I/O"
+    },
+    "7_fuzzer_extras": {
+      "description": "Additional CMM query APIs exercised by fuzzer",
+      "calls": [
+        {
+          "callee": "CIccCmm::GetNumXforms",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query number of xforms in chain",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises CMM query APIs not used by tool's pixel loop"
+        },
+        {
+          "callee": "CIccCmm::Valid",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Validate CMM state",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::GetLastSpace",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query last color space",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true,
+      "reason": "Fuzzer exercises CMM state queries for additional coverage"
+    }
+  },
+  "gates": [
+    {
+      "condition": "!SrcImg.Open()",
+      "line": 206,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Source image open failure guard"
+    },
+    {
+      "condition": "bHasSrcProfile",
+      "line": 257,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Controls whether embedded TIFF profile or file profile used for first xform"
+    },
+    {
+      "condition": "!pProfCfg->m_pccFile.empty()",
+      "line": 289,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "PCC profile loading gate"
+    },
+    {
+      "condition": "!pProfCfg->m_iccEnvVars.empty()",
+      "line": 302,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Env var hint gate"
+    },
+    {
+      "condition": "bHasSrcProfile && n==0",
+      "line": 312,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "First profile uses embedded buffer vs file \u2014 different AddXform overload"
+    },
+    {
+      "condition": "stat != icCmmStatOk (AddXform)",
+      "line": 320,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Profile load failure handling"
+    },
+    {
+      "condition": "stat = theCmm.Begin()",
+      "line": 350,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "CMM initialization failure \u2014 controls whether Apply() is reachable"
+    },
+    {
+      "condition": "SrcspaceSig switch",
+      "line": 396,
+      "gate_type": "switch",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Source color space determines pixel format conversion"
+    },
+    {
+      "condition": "DestSpaceSig switch",
+      "line": 396,
+      "gate_type": "switch",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Dest color space determines output pixel format"
+    },
+    {
+      "condition": "!DstImg.Create()",
+      "line": 430,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Dest image creation failure guard"
+    },
+    {
+      "condition": "SrcImg.ReadLine()",
+      "line": 475,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Scanline read failure during pixel loop"
+    },
+    {
+      "condition": "sphoto == PHOTO_CIELAB",
+      "line": 539,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "CIELAB encoding scale adjustment"
+    },
+    {
+      "condition": "photo == PHOTO_CIELAB",
+      "line": 549,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "CIELAB decoding scale adjustment"
+    },
+    {
+      "condition": "DstImg.WriteLine()",
+      "line": 615,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Scanline write failure during pixel loop"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 38,
+    "cli_only_excluded": 2,
+    "fuzzable_call_sites": 36,
+    "matched_by_fuzzer": 13,
+    "tiff_io_not_in_fuzzer": 18,
+    "coverage_percent": 36.1,
+    "note": "The fuzzer focuses on the CMM pipeline (AddXform\u2192Begin\u2192Apply) which is the security-critical attack surface. TIFF I/O is excluded because the fuzzer feeds profile data directly without image containers. This is by design \u2014 the profile parsing and CMM execution paths are where vulnerabilities occur."
+  },
+  "fuzzer_pixel_tests": [
+    "Black (all zeros) \u2192 Apply",
+    "White (all ones) \u2192 Apply",
+    "Gray (all 0.5) \u2192 Apply",
+    "Primary colors (one channel at 1.0) \u2192 Apply",
+    "Control-data derived values (0-255 normalized) \u2192 Apply",
+    "Negative values (-0.1) \u2192 Apply",
+    "Over-range values (1.1) \u2192 Apply",
+    "NaN values \u2192 Apply"
+  ],
+  "fuzzer_input_format": {
+    "description": "First 75% is ICC profile data, last 25% is control data",
+    "control_bytes": {
+      "byte_0": "icRenderingIntent (% 4)",
+      "byte_1": "icXformInterp (bit 0: linear vs tetrahedral)",
+      "byte_3": "use_d2bx flag (bit 0)"
+    },
+    "min_size": 200,
+    "max_size": "5MB"
+  }
+}
