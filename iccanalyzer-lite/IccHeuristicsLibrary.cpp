@@ -38,6 +38,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <algorithm>
 
 int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
 {
@@ -6530,6 +6531,247 @@ int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc) {
     printf("       %sCWE-682: May cause float overflow in adaptation transforms%s\n",
            ColorWarning(), ColorReset());
     heuristicCount++;
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H133: Profile flags reserved bits (ICC.1-2022-05 §7.2.11)
+// Bits 0-1: embedded flag + independent flag. Bits 2-31 must be zero.
+// =====================================================================
+int RunHeuristic_H133_FlagsReservedBits(const char *filename) {
+  int heuristicCount = 0;
+  printf("[H133] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11)\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Profile flags at offset 44 (4 bytes big-endian)
+  icUInt8Number flagBytes[4] = {};
+  if (fseek(fp, 44, SEEK_SET) != 0 || fread(flagBytes, 1, 4, fp) != 4) {
+    fclose(fp);
+    printf("      %s[SKIP] Cannot read flags at offset 44%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+  fclose(fp);
+
+  icUInt32Number flags = (static_cast<icUInt32Number>(flagBytes[0]) << 24) |
+                         (static_cast<icUInt32Number>(flagBytes[1]) << 16) |
+                         (static_cast<icUInt32Number>(flagBytes[2]) << 8)  |
+                         flagBytes[3];
+
+  bool embeddedFlag    = (flags >> 0) & 1;
+  bool independentFlag = (flags >> 1) & 1;
+  icUInt32Number reservedBits = flags & 0xFFFFFFFC; // bits 2-31
+
+  printf("      Flags: 0x%08X (embedded=%d, independent=%d)\n",
+         flags, embeddedFlag, independentFlag);
+
+  if (reservedBits != 0) {
+    printf("      %s[WARN]  HEURISTIC: Reserved flag bits non-zero (0x%08X) — ICC.1-2022-05 §7.2.11%s\n",
+           ColorCritical(), reservedBits, ColorReset());
+    printf("       %sCWE-20: Bits 2-31 must be zero per spec%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] Reserved flag bits are zero%s\n", ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H134: Tag type reserved bytes (ICC.1-2022-05 §10.1)
+// Bytes 4-7 of every tag type element shall be zero.
+// =====================================================================
+int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filename) {
+  int heuristicCount = 0;
+  printf("[H134] Tag Type Reserved Bytes (ICC.1-2022-05 §10.1)\n");
+
+  if (!pIcc || !filename) {
+    printf("      %s[SKIP] No profile or filename%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Read tag count from offset 128
+  icUInt8Number tcBytes[4] = {};
+  if (fseek(fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fp) != 4) {
+    fclose(fp);
+    printf("      %s[SKIP] Cannot read tag count%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+  icUInt32Number tagCount = (static_cast<icUInt32Number>(tcBytes[0]) << 24) |
+                            (static_cast<icUInt32Number>(tcBytes[1]) << 16) |
+                            (static_cast<icUInt32Number>(tcBytes[2]) << 8)  |
+                            tcBytes[3];
+
+  if (tagCount > 200) {
+    fclose(fp);
+    printf("      %s[SKIP] Tag count %u too high for safe iteration%s\n",
+           ColorWarning(), tagCount, ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Get file size for bounds checking
+  fseek(fp, 0, SEEK_END);
+  long fileSize = ftell(fp);
+
+  int violations = 0;
+  int checked = 0;
+
+  // Read each tag entry (12 bytes each starting at offset 132)
+  for (icUInt32Number t = 0; t < tagCount; t++) {
+    icUInt8Number tagEntry[12] = {};
+    if (fseek(fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fp) != 12)
+      continue;
+
+    icUInt32Number offset = (static_cast<icUInt32Number>(tagEntry[4]) << 24) |
+                            (static_cast<icUInt32Number>(tagEntry[5]) << 16) |
+                            (static_cast<icUInt32Number>(tagEntry[6]) << 8)  |
+                            tagEntry[7];
+    icUInt32Number size   = (static_cast<icUInt32Number>(tagEntry[8]) << 24) |
+                            (static_cast<icUInt32Number>(tagEntry[9]) << 16) |
+                            (static_cast<icUInt32Number>(tagEntry[10]) << 8) |
+                            tagEntry[11];
+
+    if (size < 8 || offset + 8 > (icUInt32Number)fileSize)
+      continue;
+
+    // Read bytes 4-7 of the tag data (reserved per §10.1)
+    icUInt8Number reserved[4] = {};
+    if (fseek(fp, offset + 4, SEEK_SET) != 0 || fread(reserved, 1, 4, fp) != 4)
+      continue;
+
+    checked++;
+    if (reserved[0] != 0 || reserved[1] != 0 || reserved[2] != 0 || reserved[3] != 0) {
+      char sigCC[5] = {};
+      sigCC[0] = tagEntry[0]; sigCC[1] = tagEntry[1];
+      sigCC[2] = tagEntry[2]; sigCC[3] = tagEntry[3]; sigCC[4] = '\0';
+      printf("      %s[WARN]  Tag '%s' (offset %u): reserved bytes 4-7 = %02X %02X %02X %02X (should be 00)%s\n",
+             ColorWarning(), sigCC, offset, reserved[0], reserved[1], reserved[2], reserved[3], ColorReset());
+      violations++;
+    }
+  }
+
+  fclose(fp);
+
+  if (violations > 0) {
+    printf("      %s%d of %d tags have non-zero reserved bytes — ICC.1-2022-05 §10.1%s\n",
+           ColorCritical(), violations, checked, ColorReset());
+    printf("       %sCWE-20: May indicate crafted/malformed tag data%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else if (checked > 0) {
+    printf("      %s[OK] All %d tag types have zeroed reserved bytes%s\n",
+           ColorSuccess(), checked, ColorReset());
+  } else {
+    printf("      %s[SKIP] No tags to check%s\n", ColorWarning(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H135: Duplicate tag signatures (ICC.1-2022-05 §7.3.1)
+// Each tag signature shall appear at most once in the tag table.
+// =====================================================================
+int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
+  int heuristicCount = 0;
+  printf("[H135] Duplicate Tag Signatures (ICC.1-2022-05 §7.3.1)\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Read tag count from offset 128
+  icUInt8Number tcBytes[4] = {};
+  if (fseek(fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fp) != 4) {
+    fclose(fp);
+    printf("      %s[SKIP] Cannot read tag count%s\n", ColorWarning(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+  icUInt32Number tagCount = (static_cast<icUInt32Number>(tcBytes[0]) << 24) |
+                            (static_cast<icUInt32Number>(tcBytes[1]) << 16) |
+                            (static_cast<icUInt32Number>(tcBytes[2]) << 8)  |
+                            tcBytes[3];
+
+  if (tagCount > 200) {
+    fclose(fp);
+    printf("      %s[SKIP] Tag count %u too high for safe iteration%s\n",
+           ColorWarning(), tagCount, ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  // Collect all tag signatures
+  std::vector<icUInt32Number> signatures;
+  signatures.reserve(tagCount);
+
+  for (icUInt32Number t = 0; t < tagCount; t++) {
+    icUInt8Number tagEntry[12] = {};
+    if (fseek(fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fp) != 12)
+      continue;
+
+    icUInt32Number sig = (static_cast<icUInt32Number>(tagEntry[0]) << 24) |
+                         (static_cast<icUInt32Number>(tagEntry[1]) << 16) |
+                         (static_cast<icUInt32Number>(tagEntry[2]) << 8)  |
+                         tagEntry[3];
+    signatures.push_back(sig);
+  }
+  fclose(fp);
+
+  // Check for duplicates using sorted comparison
+  int duplicates = 0;
+  std::vector<icUInt32Number> sorted = signatures;
+  std::sort(sorted.begin(), sorted.end());
+  for (size_t i = 1; i < sorted.size(); i++) {
+    if (sorted[i] == sorted[i - 1]) {
+      char sigCC[5] = {};
+      sigCC[0] = (sorted[i] >> 24) & 0xFF;
+      sigCC[1] = (sorted[i] >> 16) & 0xFF;
+      sigCC[2] = (sorted[i] >> 8) & 0xFF;
+      sigCC[3] = sorted[i] & 0xFF;
+      sigCC[4] = '\0';
+      printf("      %s[WARN]  Duplicate tag signature: '%s' (0x%08X)%s\n",
+             ColorWarning(), sigCC, sorted[i], ColorReset());
+      duplicates++;
+    }
+  }
+
+  if (duplicates > 0) {
+    printf("      %s%d duplicate tag signature(s) — ICC.1-2022-05 §7.3.1%s\n",
+           ColorCritical(), duplicates, ColorReset());
+    printf("       %sCWE-694: Use of multiple resources with same identifier%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else if (signatures.size() > 0) {
+    printf("      %s[OK] All %zu tag signatures are unique%s\n",
+           ColorSuccess(), signatures.size(), ColorReset());
+  } else {
+    printf("      %s[SKIP] No tags to check%s\n", ColorWarning(), ColorReset());
   }
 
   printf("\n");

@@ -78,7 +78,15 @@ int RunHeuristic_H129_PCSIlluminantD50(const char *filename);
 int RunHeuristic_H130_TagAlignment(const char *filename);
 /// H131: Profile ID MD5 validation (§7.2.18)
 int RunHeuristic_H131_ProfileIdMD5(const char *filename);
-/// H132: chromaticAdaptation matrix determinant check
+/// H132: chromaticAdaptation matrix determinant check (Annex G)
 int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc);
+
+// H133-H135: ICC.1-2022-05 additional spec compliance heuristics
+/// H133: Profile flags reserved bits (§7.2.11) — bits 2-15 must be zero
+int RunHeuristic_H133_FlagsReservedBits(const char *filename);
+/// H134: Tag type reserved bytes (§10.1) — bytes 4-7 of all tag types must be zero
+int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filename);
+/// H135: Duplicate tag signatures (§7.3.1) — no duplicates in tag table
+int RunHeuristic_H135_DuplicateTagSignatures(const char *filename);
 
 #endif // _ICCHEURISTICSLIBRARY_H

@@ -405,9 +405,9 @@ def test_heuristic_detection(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.127_heuristics",
+        "summary.135_heuristics",
         ["-a", str(CORPUS_DIR / "bad_magic.icc")],
-        r"127 heuristics"
+        r"135 heuristics"
     )
 
     suite.assert_output_contains(

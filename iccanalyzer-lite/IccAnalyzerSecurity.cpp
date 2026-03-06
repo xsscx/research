@@ -227,7 +227,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   printf("%sHEADER VALIDATION HEURISTICS%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
-  // 1. Profile Size Heuristic
+  // 1. Profile Size Heuristic (ICC.1-2022-05 §7.2.2)
   icUInt32Number profileSize = header.size;
   printf("[H1] Profile Size: %u bytes (0x%08X)", profileSize, profileSize);
   if (actualFileSize > 0) {
@@ -235,7 +235,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   if (profileSize == 0) {
-    printf("     %s[WARN]  HEURISTIC: Profile size is ZERO%s\n", ColorCritical(), ColorReset());
+    printf("     %s[WARN]  HEURISTIC: Profile size is ZERO — ICC.1-2022-05 §7.2.2%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Invalid header, possible corruption%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
   } else if (profileSize > (1u << 30)) {
@@ -276,7 +276,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 2. Magic Bytes Validation
+  // 2. Magic Bytes Validation (ICC.1-2022-05 §7.2.9)
   const icUInt8Number expectedMagic[4] = {'a', 'c', 's', 'p'};
   const icUInt8Number *actualMagic = (icUInt8Number *)&header.magic;
   printf("[H2] Magic Bytes (offset 0x24): ");
@@ -290,7 +290,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   printf(")\n");
   
   if (memcmp(actualMagic, expectedMagic, 4) != 0) {
-    printf("     %s[WARN]  HEURISTIC: Invalid magic bytes (expected \"acsp\")%s\n", ColorCritical(), ColorReset());
+    printf("     %s[WARN]  HEURISTIC: Invalid magic bytes (expected \"acsp\" — ICC.1-2022-05 §7.2.9)%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Not a valid ICC profile, possible format confusion attack%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
   } else {
@@ -298,7 +298,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 3. ColorSpace Signature Validation (using IccSignatureUtils)
+  // 3. ColorSpace Signature Validation (ICC.1-2022-05 §7.2.6, Table 22)
   icUInt32Number colorSpace = header.colorSpace;
   char csFourCC[5];
   SignatureToFourCC(colorSpace, csFourCC);
@@ -326,7 +326,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 4. PCS ColorSpace Validation (with ICC v5 spectral PCS support)
+  // 4. PCS ColorSpace Validation (ICC.1-2022-05 §7.2.7; ICC.2-2023 §7.2.2 for spectral PCS)
   icUInt32Number pcs = header.pcs;
   char pcsFourCC[5];
   SignatureToFourCC(pcs, pcsFourCC);
@@ -339,14 +339,14 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("     %s[OK] Spectral PCS (ICC v5): 0x%08X%s\n", ColorSuccess(), pcs, ColorReset());
   } else {
     IccColorSpaceDescription pcsDesc = DescribeColorSpaceSignature(pcs);
-    printf("     %s[WARN]  HEURISTIC: Invalid PCS signature (must be Lab, XYZ, or spectral)%s\n", ColorCritical(), ColorReset());
+    printf("     %s[WARN]  HEURISTIC: Invalid PCS signature — ICC.1-2022-05 §7.2.7 requires Lab or XYZ; ICC.2-2023 allows spectral%s\n", ColorCritical(), ColorReset());
     printf("     %sRisk: Colorimetric transform failures%s\n", ColorWarning(), ColorReset());
     printf("     %sName: %s  Bytes: '%s'%s\n", ColorInfo(), pcsDesc.name, pcsDesc.bytes, ColorReset());
     heuristicCount++;
   }
   printf("\n");
   
-  // 5. Platform Signature Validation
+  // 5. Platform Signature Validation (ICC.1-2022-05 §7.2.10, Table 18)
   icUInt32Number platform = header.platform;
   char pfFourCC[5];
   SignatureToFourCC(platform, pfFourCC);
@@ -365,7 +365,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   
   if (!validPlatform) {
-    printf("     %s[WARN]  HEURISTIC: Unknown platform signature%s\n", ColorWarning(), ColorReset());
+    printf("     %s[WARN]  HEURISTIC: Unknown platform signature — ICC.1-2022-05 §7.2.10 Table 18%s\n", ColorWarning(), ColorReset());
     printf("     %sRisk: Platform-specific code path exploitation%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
   } else {
@@ -400,7 +400,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 7. Profile Class Validation
+  // 7. Profile Class Validation (ICC.1-2022-05 §7.2.5, Table 17)
   icUInt32Number devClass = header.deviceClass;
   char dcFourCC[5];
   SignatureToFourCC(devClass, dcFourCC);
@@ -409,7 +409,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   CIccInfo info;
   const char *className = info.GetProfileClassSigName((icProfileClassSignature)devClass);
   if (!className || strlen(className) == 0) {
-    printf("     %s[WARN]  HEURISTIC: Unknown profile class signature%s\n", ColorWarning(), ColorReset());
+    printf("     %s[WARN]  HEURISTIC: Unknown profile class — ICC.1-2022-05 §7.2.5 Table 17%s\n", ColorWarning(), ColorReset());
     printf("     %sRisk: Class-specific parsing vulnerabilities%s\n", ColorWarning(), ColorReset());
     heuristicCount++;
   } else {
@@ -462,8 +462,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 15. Date Field Validation
-  printf("[H15] Date Validation: %u-%02u-%02u %02u:%02u:%02u\n",
+  // 15. Date Field Validation (ICC.1-2022-05 §4.2 dateTimeNumber)
+  printf("[H15] Date Validation (§4.2 dateTimeNumber): %u-%02u-%02u %02u:%02u:%02u\n",
          header.date.year, header.date.month, header.date.day,
          header.date.hours, header.date.minutes, header.date.seconds);
   {
@@ -540,8 +540,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   }
   printf("\n");
   
-  // 17. Spectral/BiSpectral Range Validation
-  printf("[H17] Spectral Range Validation\n");
+  // 17. Spectral/BiSpectral Range Validation (ICC.2-2023 §7.2.22-23)
+  printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
   {
     float specStart = icF16toF(header.spectralRange.start);
     float specEnd   = icF16toF(header.spectralRange.end);
@@ -657,6 +657,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H131_ProfileIdMD5(filename);
     heuristicCount += RunHeuristic_H132_ChadDeterminant(pIcc);
 
+    // H133-H135: ICC.1-2022-05 additional spec compliance
+    heuristicCount += RunHeuristic_H133_FlagsReservedBits(filename);
+    heuristicCount += RunHeuristic_H134_TagTypeReservedBytes(pIcc, filename);
+    heuristicCount += RunHeuristic_H135_DuplicateTagSignatures(filename);
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -688,7 +693,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 127 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 135 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -712,6 +718,10 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %sH116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,%s\n", ColorInfo(), ColorReset());
     printf("  %s           computation cost, ΔE round-trip, curve invertibility, characterization RT,%s\n", ColorInfo(), ColorReset());
     printf("  %s           deep encoding, non-required tags, version-tag, smoothness, malware scan, registry%s\n", ColorInfo(), ColorReset());
+    printf("  %sH128-H132: ICC.1-2022-05 spec compliance — version BCD, PCS D50, tag alignment,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved%s\n", ColorInfo(), ColorReset());
+    printf("  %s           bytes (§10.1), duplicate tag signatures (§7.3.1)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
