@@ -28,4 +28,31 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc);
 /// H106: Environment variable and spectral viewing condition tags
 int RunHeuristic_H106_EnvVar(CIccProfile *pIcc);
 
+/// H107: LUT channel count vs colorspace cross-check (CWE-121/CWE-131)
+int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc);
+
+/// H108: Private/unregistered tag identification (CWE-829)
+int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc);
+
+/// H109: NOP sled / shellcode pattern scan (CWE-506)
+int RunHeuristic_H109_ShellcodePatterns(const char *filename);
+
+/// H110: Profile-class required tag validation (CWE-20)
+int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc);
+
+/// H111: Reserved byte validation (CWE-20)
+int RunHeuristic_H111_ReservedBytes(const char *filename);
+
+/// H112: Wtpt profile-class validation (CWE-20)
+int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc);
+
+/// H113: Round-trip fidelity assessment (CWE-682)
+int RunHeuristic_H113_RoundTripFidelity(CIccProfile *pIcc);
+
+/// H114: TRC curve smoothness and monotonicity (CWE-682)
+int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc);
+
+/// H115: Characterization data presence (CWE-20)
+int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc);
+
 #endif // _ICCHEURISTICSLIBRARY_H
