@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-03-06 01:15:00 UTC
+Last Updated: 2026-03-06 12:49:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -12,7 +12,8 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 Prior sync (2026-03-05) moved from `186bba0` to `5f7e03a` (11 commits, 7 security PRs: #630–#639).
 14 patches dropped as NO-OPs (upstream adopted), 3 regenerated for context shift.
 Patch 069 re-used for new CLUT interp bounds check. Patch 070 adds NaN guard to UnitClip.
-56 active patches total.
+Patch 071 guards SBO in BPC black point calculation.
+57 active patches total.
 Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 
 ## Patches
@@ -75,6 +76,7 @@ Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 | 68 | `IccTagXml.cpp`, `IccTagBasic.cpp` | `ParseXml` (ProfileSeqDesc, ResponseCurveSet, MPE), `Read` (mluc) | OOM: remaining uncapped loops — ProfileSeqDesc (256), ResponseCurveSet (64 curves, 8192 measurements), MPE elements (256), binary mluc nNumRec (4096). CWE-789 |
 | 69 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | SEGV: missing bounds check on CLUT data offset — 7 of 8 Interp functions lacked the guard that Interp2d already had. CWE-125 |
 | 70 | `iccApplyProfiles.cpp` | `UnitClip` | UBSAN: NaN bypasses `<0`/`>1` comparisons, passes through to `(icUInt8Number)`/`(icUInt16Number)` cast — undefined behavior. Fix: `if (v!=v) return 0.0`. CWE-758 |
+| 71 | `IccApplyBPC.cpp` | `CIccApplyBPC::pixelXfm` | Stack-buffer-overflow: `XYZbp[3]` overflows when malformed profile's LUT has `m_nOutput > 3`. `CIccXform3DLut::Apply` writes `m_nOutput` floats to caller's 3-float buffer. Fix: always apply into `tmpPixel[16]`, copy back 3. SCARINESS 51. CWE-121 |
 
 ## Allocation Cap
 
