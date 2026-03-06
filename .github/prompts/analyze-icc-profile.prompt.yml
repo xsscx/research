@@ -79,8 +79,18 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H106)
+      - Security heuristic results (H1-H127)
       - Round-trip validation status
       - Any anomalies or findings
+
+      Validate against ICC.1-2022-05 specification constraints:
+      - Header magic must be 'acsp' (0x61637370) at bytes 36-39
+      - Version BCD encoding: byte 8=major, byte 9=minor.bugfix nibbles, bytes 10-11=0
+      - PCS illuminant must be D50: X=0.9642, Y=1.0000, Z=0.8249
+      - Rendering intent 0-3 only (upper 16 bits of bytes 64-67 must be 0)
+      - Reserved bytes 100-127 must be 0x00
+      - Tag table: no duplicate sigs, no partial overlaps, 4-byte alignment
+      - Required tags per class (Annex G): all need desc+wtpt+cprt+chad(if non-D50)
+      - Profile ID MD5: zero bytes 44-47, 64-67, 84-99 before computing
 testData:
   - profile_path: test-profiles/sRGB_D65_MAT.icc
