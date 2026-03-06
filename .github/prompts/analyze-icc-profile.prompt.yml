@@ -77,7 +77,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H94)
+      - Security heuristic results (H1-H106)
       - Round-trip validation status
       - Any anomalies or findings
 testData:
