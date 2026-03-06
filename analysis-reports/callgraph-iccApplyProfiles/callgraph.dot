@@ -1,0 +1,195 @@
+digraph iccApplyProfiles {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only (not in fuzzer)", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only (excluded)", fillcolor="#D3D3D3"];
+    leg_fuzzer [label="Fuzzer Extra", fillcolor="#FFD700"];
+  }
+
+  // Entry points
+  main [label="main()\niccApplyProfiles.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_applyprofiles_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  subgraph cluster_config {
+    label="Phase 1: Config Parsing (CLI-only)"; style=rounded;
+    n0 [label="CIccCfgDataApply::fromJson\nL158", fillcolor="#D3D3D3"];
+    n1 [label="CIccCfgDataApply::fromLegacy\nL193", fillcolor="#D3D3D3"];
+  }
+
+  subgraph cluster_tiff_src {
+    label="Phase 2: Source Image (TIFF I/O)"; style=rounded;
+    n2 [label="CTiffImg::Open\nL206", fillcolor="#90EE90"];
+    n3 [label="CTiffImg::GetSamples\nL210", fillcolor="#90EE90"];
+    n4 [label="CTiffImg::GetExtraSamples\nL211", fillcolor="#90EE90"];
+    n5 [label="CTiffImg::GetPhoto\nL212", fillcolor="#90EE90"];
+    n6 [label="CTiffImg::GetBitsPerSample\nL213", fillcolor="#90EE90"];
+    n7 [label="CTiffImg::GetWidth\nL215", fillcolor="#90EE90"];
+    n8 [label="CTiffImg::GetHeight\nL216", fillcolor="#90EE90"];
+    n9 [label="CTiffImg::GetXRes\nL217", fillcolor="#90EE90"];
+    n10 [label="CTiffImg::GetYRes\nL218", fillcolor="#90EE90"];
+    n11 [label="CTiffImg::GetIccProfile\nL251", fillcolor="#90EE90"];
+    n12 [label="CTiffImg::GetCompress\nL254", fillcolor="#90EE90"];
+    n13 [label="CTiffImg::GetPlanar\nL255", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_cmm_build {
+    label="Phase 3: CMM Construction"; style=rounded;
+    n14 [label="CIccCmm::CIccCmm\nL262", fillcolor="#90EE90"];
+    n15 [label="CIccCreateXformHintManager\nL284", fillcolor="#90EE90"];
+    n16 [label="CIccApplyBPCHint\nL286", fillcolor="#90EE90"];
+    n17 [label="CIccLuminanceMatchingHint\nL288", fillcolor="#90EE90"];
+    n18 [label="OpenIccProfile\nL293", fillcolor="#ADD8E6"];
+    n19 [label="CIccCmmEnvVarHint\nL304", fillcolor="#D3D3D3"];
+    n20 [label="CIccCmmPccEnvVarHint\nL308", fillcolor="#D3D3D3"];
+    n21 [label="CIccCmm::AddXform(buffer)\nL314", fillcolor="#90EE90"];
+    n22 [label="CIccCmm::AddXform(file)\nL334", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_cmm_exec {
+    label="Phase 4: CMM Execution"; style=rounded;
+    n23 [label="CIccCmm::Begin\nL350", fillcolor="#90EE90"];
+    n24 [label="CIccCmm::GetSourceSpace\nL364", fillcolor="#90EE90"];
+    n25 [label="icGetSpaceSamples(src)\nL365", fillcolor="#90EE90"];
+    n26 [label="CIccCmm::GetDestSpace\nL385", fillcolor="#90EE90"];
+    n27 [label="icGetSpaceSamples(dst)\nL387", fillcolor="#90EE90"];
+    n28 [label="CIccCmm::GetLastParentSpace\nL389", fillcolor="#90EE90"];
+    n29 [label="icGetSpaceSamples(parent)\nL390", fillcolor="#90EE90"];
+    n30 [label="CIccCmm::Apply\nL546", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_tiff_dst {
+    label="Phase 5: Dest Image + Profile Embedding"; style=rounded;
+    n31 [label="CTiffImg::Create\nL430", fillcolor="#90EE90"];
+    n32 [label="CIccFileIO::Open\nL440", fillcolor="#90EE90"];
+    n33 [label="CIccFileIO::GetLength\nL443", fillcolor="#90EE90"];
+    n34 [label="CIccFileIO::Read8\nL444", fillcolor="#90EE90"];
+    n35 [label="CTiffImg::SetIccProfile\nL446", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_pixel {
+    label="Phase 6: Pixel Encoding/Decoding Loop"; style=rounded;
+    n36 [label="CTiffImg::GetBytesPerLine\nL462", fillcolor="#90EE90"];
+    n37 [label="CIccPixelBuf\nL464", fillcolor="#90EE90"];
+    n38 [label="CTiffImg::ReadLine\nL475", fillcolor="#90EE90"];
+    n39 [label="UnitClip\nL483", fillcolor="#90EE90"];
+    n40 [label="icLabToPcs\nL504", fillcolor="#90EE90"];
+    n41 [label="icLabFromPcs\nL539", fillcolor="#90EE90"];
+    n42 [label="icLabtoXYZ\nL540", fillcolor="#90EE90"];
+    n43 [label="icXyzToPcs\nL541", fillcolor="#90EE90"];
+    n44 [label="icXyzFromPcs\nL549", fillcolor="#90EE90"];
+    n45 [label="icXYZtoLab\nL550", fillcolor="#90EE90"];
+    n46 [label="CTiffImg::WriteLine\nL615", fillcolor="#90EE90"];
+    n47 [label="CTiffImg::Close(src)\nL629", fillcolor="#90EE90"];
+    n48 [label="CTiffImg::Close(dst)\nL634", fillcolor="#90EE90"];
+  }
+
+  subgraph cluster_fuzzer_extra {
+    label="Phase 7: Fuzzer Extras"; style=rounded;
+    n49 [label="CIccCmm::GetNumXforms", fillcolor="#FFD700"];
+    n50 [label="CIccCmm::Valid", fillcolor="#FFD700"];
+    n51 [label="CIccCmm::GetLastSpace", fillcolor="#FFD700"];
+  }
+
+  main -> n0 [style=dashed];
+  main -> n1 [style=dashed];
+  main -> n2 [style=bold];
+  main -> n3 [style=bold];
+  main -> n4 [style=bold];
+  main -> n5 [style=bold];
+  main -> n6 [style=bold];
+  main -> n7 [style=bold];
+  main -> n8 [style=bold];
+  main -> n9 [style=bold];
+  main -> n10 [style=bold];
+  main -> n11 [style=bold];
+  main -> n12 [style=bold];
+  main -> n13 [style=bold];
+  main -> n14 [style=bold];
+  main -> n15 [style=bold];
+  main -> n16 [style=bold];
+  main -> n17 [style=bold];
+  main -> n18 [style=dashed];
+  main -> n19 [style=dashed];
+  main -> n20 [style=dashed];
+  main -> n21 [style=bold];
+  main -> n22 [style=bold];
+  main -> n23 [style=bold];
+  main -> n24 [style=bold];
+  main -> n25 [style=bold];
+  main -> n26 [style=bold];
+  main -> n27 [style=bold];
+  main -> n28 [style=bold];
+  main -> n29 [style=bold];
+  main -> n30 [style=bold];
+  main -> n31 [style=bold];
+  main -> n32 [style=bold];
+  main -> n33 [style=bold];
+  main -> n34 [style=bold];
+  main -> n35 [style=bold];
+  main -> n36 [style=bold];
+  main -> n37 [style=bold];
+  main -> n38 [style=bold];
+  main -> n39 [style=bold];
+  main -> n40 [style=bold];
+  main -> n41 [style=bold];
+  main -> n42 [style=bold];
+  main -> n43 [style=bold];
+  main -> n44 [style=bold];
+  main -> n45 [style=bold];
+  main -> n46 [style=bold];
+  main -> n47 [style=bold];
+  main -> n48 [style=bold];
+  fuzzer -> n49 [style=bold, color=orange];
+  fuzzer -> n50 [style=bold, color=orange];
+  fuzzer -> n51 [style=bold, color=orange];
+  fuzzer -> n2 [style=dotted, color=green];
+  fuzzer -> n3 [style=dotted, color=green];
+  fuzzer -> n4 [style=dotted, color=green];
+  fuzzer -> n5 [style=dotted, color=green];
+  fuzzer -> n6 [style=dotted, color=green];
+  fuzzer -> n7 [style=dotted, color=green];
+  fuzzer -> n8 [style=dotted, color=green];
+  fuzzer -> n9 [style=dotted, color=green];
+  fuzzer -> n10 [style=dotted, color=green];
+  fuzzer -> n11 [style=dotted, color=green];
+  fuzzer -> n12 [style=dotted, color=green];
+  fuzzer -> n13 [style=dotted, color=green];
+  fuzzer -> n14 [style=dotted, color=green];
+  fuzzer -> n15 [style=dotted, color=green];
+  fuzzer -> n16 [style=dotted, color=green];
+  fuzzer -> n17 [style=dotted, color=green];
+  fuzzer -> n21 [style=dotted, color=green];
+  fuzzer -> n22 [style=dotted, color=green];
+  fuzzer -> n23 [style=dotted, color=green];
+  fuzzer -> n24 [style=dotted, color=green];
+  fuzzer -> n25 [style=dotted, color=green];
+  fuzzer -> n26 [style=dotted, color=green];
+  fuzzer -> n27 [style=dotted, color=green];
+  fuzzer -> n28 [style=dotted, color=green];
+  fuzzer -> n29 [style=dotted, color=green];
+  fuzzer -> n30 [style=dotted, color=green];
+  fuzzer -> n31 [style=dotted, color=green];
+  fuzzer -> n32 [style=dotted, color=green];
+  fuzzer -> n33 [style=dotted, color=green];
+  fuzzer -> n34 [style=dotted, color=green];
+  fuzzer -> n35 [style=dotted, color=green];
+  fuzzer -> n36 [style=dotted, color=green];
+  fuzzer -> n37 [style=dotted, color=green];
+  fuzzer -> n38 [style=dotted, color=green];
+  fuzzer -> n39 [style=dotted, color=green];
+  fuzzer -> n40 [style=dotted, color=green];
+  fuzzer -> n41 [style=dotted, color=green];
+  fuzzer -> n42 [style=dotted, color=green];
+  fuzzer -> n43 [style=dotted, color=green];
+  fuzzer -> n44 [style=dotted, color=green];
+  fuzzer -> n45 [style=dotted, color=green];
+  fuzzer -> n46 [style=dotted, color=green];
+  fuzzer -> n47 [style=dotted, color=green];
+  fuzzer -> n48 [style=dotted, color=green];
+}

@@ -32,7 +32,7 @@
         }
       ],
       "in_fuzzer": false,
-      "reason": "Fuzzer uses hardcoded params, not JSON config files"
+      "reason": "CLI-only: fuzzer uses hardcoded params, not JSON config files"
     },
     "2_source_image": {
       "description": "Source TIFF image loading and ICC profile extraction",
@@ -45,8 +45,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": "Fuzzer does not use TIFF images \u2014 profile-only"
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.Open(tmp_src_tiff) at line 178"
         },
         {
           "callee": "CTiffImg::GetSamples",
@@ -56,8 +56,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetSamples() at line 184"
         },
         {
           "callee": "CTiffImg::GetExtraSamples",
@@ -67,8 +67,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetExtraSamples() at line 185"
         },
         {
           "callee": "CTiffImg::GetPhoto",
@@ -78,8 +78,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetPhoto() at line 186"
         },
         {
           "callee": "CTiffImg::GetBitsPerSample",
@@ -89,8 +89,52 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetBitsPerSample() at line 187"
+        },
+        {
+          "callee": "CTiffImg::GetWidth",
+          "line": 215,
+          "caller": "main",
+          "context": "Get image width from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetWidth() at lines 190,309,337"
+        },
+        {
+          "callee": "CTiffImg::GetHeight",
+          "line": 216,
+          "caller": "main",
+          "context": "Get image height from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetHeight() at lines 191,309,338"
+        },
+        {
+          "callee": "CTiffImg::GetXRes",
+          "line": 217,
+          "caller": "main",
+          "context": "Get X resolution from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetXRes() at lines 192,311"
+        },
+        {
+          "callee": "CTiffImg::GetYRes",
+          "line": 218,
+          "caller": "main",
+          "context": "Get Y resolution from source",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetYRes() at lines 193,311"
         },
         {
           "callee": "CTiffImg::GetIccProfile",
@@ -100,8 +144,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": "Tool can use embedded profile as first profile in chain"
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetIccProfile() at line 197, drives AddXform(buffer) path"
         },
         {
           "callee": "CTiffImg::GetCompress",
@@ -111,8 +155,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetCompress() at line 188"
         },
         {
           "callee": "CTiffImg::GetPlanar",
@@ -122,15 +166,15 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.GetPlanar() at line 189"
         }
       ],
-      "in_fuzzer": false,
-      "reason": "Fuzzer feeds profile data directly, no TIFF container"
+      "in_fuzzer": true,
+      "reason": "Fuzzer creates synthetic TIFF, opens via CTiffImg, extracts profile"
     },
     "3_cmm_construction": {
-      "description": "CMM object creation, profile loading, xform setup",
+      "description": "CMM object creation, profile loading, xform setup with hints",
       "calls": [
         {
           "callee": "CIccCmm::CIccCmm",
@@ -141,18 +185,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer matches: CIccCmm(icSigUnknownData, icSigUnknownData, true)"
-        },
-        {
-          "callee": "OpenIccProfile",
-          "line": 293,
-          "caller": "main",
-          "context": "Open PCC profile for viewing conditions",
-          "gate": "",
-          "is_indirect": false,
-          "cli_only": false,
-          "in_fuzzer": false,
-          "note": "Fuzzer does not use PCC profiles"
+          "note": "Fuzzer: CIccCmm(icSigUnknownData, icSigUnknownData, true) at line 200"
         },
         {
           "callee": "CIccCreateXformHintManager",
@@ -163,7 +196,40 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer: CIccCreateXformHintManager at line 202"
+        },
+        {
+          "callee": "CIccApplyBPCHint",
+          "line": 286,
+          "caller": "main",
+          "context": "Add BPC hint for black point compensation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: Hint.AddHint(new CIccApplyBPCHint()) at line 204"
+        },
+        {
+          "callee": "CIccLuminanceMatchingHint",
+          "line": 288,
+          "caller": "main",
+          "context": "Add luminance matching hint",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: Hint.AddHint(new CIccLuminanceMatchingHint()) at line 206"
+        },
+        {
+          "callee": "OpenIccProfile",
+          "line": 293,
+          "caller": "main",
+          "context": "Open PCC profile for viewing conditions",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "PCC profile path \u2014 fuzzer does not exercise PCC profiles"
         },
         {
           "callee": "CIccCmmEnvVarHint",
@@ -172,9 +238,9 @@
           "context": "Add environment variable hints to xform",
           "gate": "",
           "is_indirect": false,
-          "cli_only": false,
+          "cli_only": true,
           "in_fuzzer": false,
-          "note": "Fuzzer does not use env var hints"
+          "note": "CLI-only: env var hints from command-line arguments"
         },
         {
           "callee": "CIccCmmPccEnvVarHint",
@@ -183,9 +249,9 @@
           "context": "Add PCC environment variable hints",
           "gate": "",
           "is_indirect": false,
-          "cli_only": false,
+          "cli_only": true,
           "in_fuzzer": false,
-          "note": ""
+          "note": "CLI-only: PCC env var hints from command-line arguments"
         },
         {
           "callee": "CIccCmm::AddXform(buffer)",
@@ -195,8 +261,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": "Tool uses buffer path when TIFF has embedded profile"
+          "in_fuzzer": true,
+          "note": "Fuzzer: theCmm.AddXform(pSrcProfile, nSrcProfileLen, ...) at line 212"
         },
         {
           "callee": "CIccCmm::AddXform(file)",
@@ -207,11 +273,11 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer matches: cmm.AddXform(tmp_profile, intent, interp, ...)"
+          "note": "Fuzzer: theCmm.AddXform(tmp_profile, intent, ...) at line 216"
         }
       ],
       "in_fuzzer": "partial",
-      "reason": "Fuzzer exercises AddXform(file) path, not buffer or PCC paths"
+      "reason": "Exercises both AddXform(buffer) and AddXform(file), BPC/Luminance hints; skips PCC/EnvVar"
     },
     "4_cmm_execution": {
       "description": "CMM Begin + Apply \u2014 main security-critical execution",
@@ -225,7 +291,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer matches: cmm.Begin()"
+          "note": "Fuzzer: theCmm.Begin() at line 228"
         },
         {
           "callee": "CIccCmm::GetSourceSpace",
@@ -236,7 +302,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer: theCmm.GetSourceSpace() at line 237"
         },
         {
           "callee": "icGetSpaceSamples(src)",
@@ -247,7 +313,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer: icGetSpaceSamples(SrcspaceSig) at line 238"
         },
         {
           "callee": "CIccCmm::GetDestSpace",
@@ -258,7 +324,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer: theCmm.GetDestSpace() at line 240"
         },
         {
           "callee": "icGetSpaceSamples(dst)",
@@ -269,7 +335,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer: icGetSpaceSamples(DestSpaceSig) at line 241"
         },
         {
           "callee": "CIccCmm::GetLastParentSpace",
@@ -280,7 +346,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer calls this via cmm.GetLastParentSpace()"
+          "note": "Fuzzer: theCmm.GetLastParentSpace() at line 243"
         },
         {
           "callee": "icGetSpaceSamples(parent)",
@@ -290,8 +356,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: icGetSpaceSamples(DestParentSpaceSig) at line 244"
         },
         {
           "callee": "CIccCmm::Apply",
@@ -302,14 +368,14 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer exercises multiple Apply() calls with varied pixel values"
+          "note": "Fuzzer: theCmm.Apply(pDstPix, pSrcPix) at line 408"
         }
       ],
       "in_fuzzer": true,
-      "reason": "Full coverage of CMM pipeline execution"
+      "reason": "Full coverage of CMM pipeline execution including parent space queries"
     },
     "5_dest_image": {
-      "description": "Destination TIFF creation and profile embedding",
+      "description": "Destination TIFF creation and ICC profile embedding via CIccFileIO",
       "calls": [
         {
           "callee": "CTiffImg::Create",
@@ -319,8 +385,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: DstImg.Create(...) at line 309"
         },
         {
           "callee": "CIccFileIO::Open",
@@ -330,8 +396,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: io.Open(tmp_profile, 'r') at line 322"
         },
         {
           "callee": "CIccFileIO::GetLength",
@@ -341,19 +407,19 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: io.GetLength() at line 323"
         },
         {
-          "callee": "CIccFileIO::Read",
+          "callee": "CIccFileIO::Read8",
           "line": 444,
           "caller": "main",
           "context": "Read profile data for embedding",
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: io.Read8(pDestProfile, length) at line 327"
         },
         {
           "callee": "CTiffImg::SetIccProfile",
@@ -363,16 +429,38 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: DstImg.SetIccProfile(pDestProfile, length) at line 328"
         }
       ],
-      "in_fuzzer": false,
-      "reason": "Output-only operations, not part of attack surface"
+      "in_fuzzer": true,
+      "reason": "Fuzzer creates dest TIFF, embeds ICC profile via CIccFileIO Read8 path"
     },
     "6_pixel_loop": {
-      "description": "Per-scanline pixel conversion loop",
+      "description": "Per-scanline pixel encoding, CMM Apply, decoding, with TIFF I/O",
       "calls": [
+        {
+          "callee": "CTiffImg::GetBytesPerLine",
+          "line": 462,
+          "caller": "main",
+          "context": "Get bytes per scanline for buffer allocation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg/DstImg.GetBytesPerLine() at lines 161,343,344"
+        },
+        {
+          "callee": "CIccPixelBuf",
+          "line": 464,
+          "caller": "main",
+          "context": "Allocate pixel buffer for CMM Apply",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: CIccPixelBuf(nSrcColorSamples+16) at lines 347-348"
+        },
         {
           "callee": "CTiffImg::ReadLine",
           "line": 475,
@@ -381,8 +469,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.ReadLine(pSBuf) at line 351"
         },
         {
           "callee": "UnitClip",
@@ -392,8 +480,74 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": "Fuzzer tests out-of-range values directly"
+          "in_fuzzer": true,
+          "note": "Fuzzer: UnitClip() in dest pixel encoding at lines 421-438"
+        },
+        {
+          "callee": "icLabToPcs",
+          "line": 504,
+          "caller": "main",
+          "context": "Convert Lab to PCS representation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icLabToPcs(pSrcPix) at line 394; icLabToPcs(pDstPix) at line 414"
+        },
+        {
+          "callee": "icLabFromPcs",
+          "line": 539,
+          "caller": "main",
+          "context": "Convert PCS to Lab representation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icLabFromPcs(pSrcPix) at line 402; icLabFromPcs(pDstPix) at line 443"
+        },
+        {
+          "callee": "icLabtoXYZ",
+          "line": 540,
+          "caller": "main",
+          "context": "Convert Lab to XYZ color space",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icLabtoXYZ(pSrcPix) at line 403"
+        },
+        {
+          "callee": "icXyzToPcs",
+          "line": 541,
+          "caller": "main",
+          "context": "Convert XYZ to PCS representation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icXyzToPcs(pSrcPix) at line 404"
+        },
+        {
+          "callee": "icXyzFromPcs",
+          "line": 549,
+          "caller": "main",
+          "context": "Convert PCS to XYZ representation",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icXyzFromPcs(pDstPix) at line 412"
+        },
+        {
+          "callee": "icXYZtoLab",
+          "line": 550,
+          "caller": "main",
+          "context": "Convert XYZ to Lab color space",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer: icXYZtoLab(pDstPix) at line 413"
         },
         {
           "callee": "CTiffImg::WriteLine",
@@ -403,8 +557,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: DstImg.WriteLine(pDBuf) at line 458"
         },
         {
           "callee": "CTiffImg::Close(src)",
@@ -414,8 +568,8 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: SrcImg.Close() at line 465"
         },
         {
           "callee": "CTiffImg::Close(dst)",
@@ -425,12 +579,12 @@
           "gate": "",
           "is_indirect": false,
           "cli_only": false,
-          "in_fuzzer": false,
-          "note": ""
+          "in_fuzzer": true,
+          "note": "Fuzzer: DstImg.Close() at line 466"
         }
       ],
-      "in_fuzzer": false,
-      "reason": "Fuzzer tests pixel values directly via Apply(), not via TIFF I/O"
+      "in_fuzzer": true,
+      "reason": "Full pixel loop: 8/16/32-bit encoding, Lab/XYZ PCS conversions, UnitClip, ReadLine/WriteLine"
     },
     "7_fuzzer_extras": {
       "description": "Additional CMM query APIs exercised by fuzzer",
@@ -444,7 +598,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": "Fuzzer exercises CMM query APIs not used by tool's pixel loop"
+          "note": "Fuzzer extra: theCmm.GetNumXforms() at line 469"
         },
         {
           "callee": "CIccCmm::Valid",
@@ -455,7 +609,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer extra: theCmm.Valid() at line 470"
         },
         {
           "callee": "CIccCmm::GetLastSpace",
@@ -466,7 +620,7 @@
           "is_indirect": false,
           "cli_only": false,
           "in_fuzzer": true,
-          "note": ""
+          "note": "Fuzzer extra: theCmm.GetLastSpace() at line 472"
         }
       ],
       "in_fuzzer": true,
@@ -568,7 +722,7 @@
       "gate_type": "if",
       "parent_func": "main",
       "security_relevant": false,
-      "note": "CIELAB encoding scale adjustment"
+      "note": "CIELAB\u2192XYZ PCS conversion gate \u2014 fuzzer exercises at lines 401-405"
     },
     {
       "condition": "photo == PHOTO_CIELAB",
@@ -576,7 +730,7 @@
       "gate_type": "if",
       "parent_func": "main",
       "security_relevant": false,
-      "note": "CIELAB decoding scale adjustment"
+      "note": "XYZ\u2192CIELAB PCS conversion gate \u2014 fuzzer exercises at lines 411-415"
     },
     {
       "condition": "DstImg.WriteLine()",
@@ -588,30 +742,35 @@
     }
   ],
   "fidelity": {
-    "total_call_sites": 38,
-    "cli_only_excluded": 2,
-    "fuzzable_call_sites": 36,
-    "matched_by_fuzzer": 13,
-    "tiff_io_not_in_fuzzer": 18,
-    "coverage_percent": 36.1,
-    "note": "The fuzzer focuses on the CMM pipeline (AddXform\u2192Begin\u2192Apply) which is the security-critical attack surface. TIFF I/O is excluded because the fuzzer feeds profile data directly without image containers. This is by design \u2014 the profile parsing and CMM execution paths are where vulnerabilities occur."
+    "total_tool_call_sites": 49,
+    "cli_only_excluded": 4,
+    "fuzzable_call_sites": 45,
+    "matched_by_fuzzer": 44,
+    "not_matched": [
+      "OpenIccProfile"
+    ],
+    "fuzzer_extra_calls": 3,
+    "fidelity_percent": 97.8,
+    "note": "Full TIFF I/O pipeline coverage. The fuzzer creates a source TIFF with embedded ICC profile, opens it via CTiffImg, builds CMM with BPC/Luminance hints, performs the complete source\u2192encode\u2192Apply\u2192decode\u2192destination pixel loop, and embeds the destination profile via CIccFileIO. Only PCC profile loading (OpenIccProfile) is not exercised \u2014 PCC is a CLI-argument-specific path for viewing condition adjustment."
   },
-  "fuzzer_pixel_tests": [
-    "Black (all zeros) \u2192 Apply",
-    "White (all ones) \u2192 Apply",
-    "Gray (all 0.5) \u2192 Apply",
-    "Primary colors (one channel at 1.0) \u2192 Apply",
-    "Control-data derived values (0-255 normalized) \u2192 Apply",
-    "Negative values (-0.1) \u2192 Apply",
-    "Over-range values (1.1) \u2192 Apply",
-    "NaN values \u2192 Apply"
-  ],
+  "fuzzer_pixel_encoding": {
+    "source_8bit": "sptr[k] / 255.0 normalization with CIELAB offset (line 363-371)",
+    "source_16bit": "pS16[k] / 65535.0 normalization with CIELAB 0x8000 offset (line 374-383)",
+    "source_32bit": "Direct float copy or per-channel cast, icLabToPcs for Lab (line 385-395)",
+    "lab_to_xyz_pcs": "icLabFromPcs\u2192icLabtoXYZ\u2192icXyzToPcs when sphoto=CIELAB+src=XYZ (line 401-405)",
+    "xyz_to_lab_pcs": "icXyzFromPcs\u2192icXYZtoLab\u2192icLabToPcs when dphoto=CIELAB+dst=XYZ (line 411-415)",
+    "dest_8bit": "UnitClip * 255 + 0.5 with CIELAB +128 offset (line 420-427)",
+    "dest_16bit": "UnitClip * 65535 + 0.5 with CIELAB +0x8000 offset (line 430-438)",
+    "dest_32bit": "icLabFromPcs for Lab, then float copy or per-channel cast (line 442-450)"
+  },
   "fuzzer_input_format": {
     "description": "First 75% is ICC profile data, last 25% is control data",
     "control_bytes": {
       "byte_0": "icRenderingIntent (% 4)",
       "byte_1": "icXformInterp (bit 0: linear vs tetrahedral)",
-      "byte_3": "use_d2bx flag (bit 0)"
+      "byte_2": "flags: bit0=BPC, bit1=luminance, bit2=V5sub, bit3=embed_icc, bit4-5=bps_sel, bit6-7=photo_sel",
+      "byte_3": "bit0=use_d2bx, bit1-2=width(1-4), bit3-4=height(1-4)",
+      "byte_4+": "pixel seed data for TIFF scanlines"
     },
     "min_size": 200,
     "max_size": "5MB"
