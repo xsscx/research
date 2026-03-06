@@ -77,7 +77,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk \
 ```
 
 Special fuzzer notes:
-- **icc_link_fuzzer** needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2x ASAN memory)
+- **icc_link_fuzzer** needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2x ASAN memory). **Ownership caveat**: `CIccCmm::AddXform(CIccProfile*)` transfers ownership to `CIccXform::Create`, which may free the profile even on failure. On `icCmmStatBadXform`, do NOT delete the profile (already freed). On other error codes, the profile was not consumed and must be deleted.
 - Coverage collection: `LLVM_PROFILE_FILE=$RAMDISK/profraw/${fuzzer_name}_%m_%p.profraw` (include fuzzer name — `%m` is just a numeric hash)
 - Suppress profile errors during fuzzing: `LLVM_PROFILE_FILE=/dev/null`
 
@@ -173,7 +173,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 
 ### Reusable Prompts
 
-Eight prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Nine prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 106-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
@@ -182,6 +182,7 @@ Eight prompt templates in `.github/prompts/` guide AI through standard analysis 
 - `image-fuzzer-quality.prompt.md` — xnuimagefuzzer output quality assessment
 - `mac-catalyst-ci.prompt.md` — Mac Catalyst CI debugging guide
 - `improve-fuzzer-coverage.prompt.md` — Coverage gap analysis and seed creation workflow
+- `upstream-sync.prompt.md` — CFL iccDEV patch reconciliation after upstream updates
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
@@ -430,6 +431,8 @@ When extracting ICC signatures into `char[5]`, always use `static_cast<char>()` 
 - `IccCAM.cpp:266,283` — division by zero in CAM color appearance model
 - `IccProfile.cpp:3153,3155` — division by zero in profile size checks
 - `IccTagLut.cpp:5640` — signed integer overflow in LUT interpolation
+- `iccApplyProfiles.cpp:559-560` — NaN→unsigned char via UnitClip (patch 070 fixes in CFL, 8% of corpus triggers upstream)
+- `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange (patch 051 fixes in CFL)
 
 ### OOM patches
 Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by `cfl/build.sh` AND all CI fuzzer workflows before cmake. Build alignment rule: local build.sh and CI workflows MUST apply identical patches/flags.
@@ -463,7 +466,31 @@ for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN
 
 # Test external profiles (not committed)
 .github/scripts/batch-test-external.sh /path/to/profiles --timeout 15
+
+# Test upstream iccApplyProfiles for UBSAN (needs a test TIFF first)
+# Create 2x2 RGB TIFF: python3 -c "import struct; ..." or use bar.tif/foo.tif
+ASAN_OPTIONS=detect_leaks=0 timeout 5 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles \
+  /tmp/test_rgb.tif /tmp/out.tif 1 0 0 0 0 profile.icc 0 2>&1 | grep "runtime error"
+
+# ASAN SCARINESS scoring (useful for severity triage)
+ASAN_OPTIONS=print_scariness=1:halt_on_error=0:detect_leaks=0 <tool> <crash-file>
 ```
+
+### iccApplyProfiles CLI syntax
+```
+iccApplyProfiles src.tif dst.tif ri bpc luminance env pcc profile.icc interp [profile2.icc interp2 ...]
+```
+- `ri`: rendering intent (0=perceptual, 1=relative, 2=saturation, 3=absolute)
+- `bpc`: black point compensation (0=off, 1=on)
+- `luminance`: luminance matching (0=off, 1=on)
+- `env`/`pcc`: environment/PCC profile (0=none)
+- `interp`: interpolation (0=linear, 1=tetrahedral)
+
+### CVE/GHSA reference
+77 CVEs reported for iccDEV (as of Feb 2026). Top CWEs by frequency:
+CWE-20 (49), CWE-122 (17), CWE-476 (16), CWE-125 (11), CWE-758 (11), CWE-787 (10).
+1 Critical (CVE-2026-21675: UAF in CIccXform::Create, CVSS 9.8), 45 High, 30 Medium, 1 Low.
+Full list: `https://github.com/InternationalColorConsortium/iccDEV/security/advisories`
 
 ### Sanitizer flags
 - **Fuzzers**: `-fsanitize=fuzzer,address,undefined -fprofile-instr-generate -fcoverage-mapping`
@@ -487,6 +514,8 @@ CMM fuzzers need special input formats (not just raw ICC profiles):
 | `icc_applynamedcmm_fuzzer` | 4-byte header + profile | `cfl/seeds-applynamedcmm/` |
 
 `ramdisk-seed.sh` Source 3 auto-seeds these directories. See `improve-fuzzer-coverage.prompt.md` for format details.
+
+**Link fuzzer gotcha**: Uses `AddXform(CIccProfile*, ...)` which transfers ownership — see [AddXform ownership semantics](#addxform-ownership-semantics) above. The link fuzzer needs `quarantine_size_mb=256` because it allocates 2 full profiles per input.
 
 ### Fuzzer build categories
 Fuzzers are grouped by link dependencies in `cfl/build.sh`:
@@ -550,13 +579,36 @@ After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` au
 - **Create DB**: `/tmp/codeql/codeql database create /tmp/codeql-db --language=cpp --source-root=. --command=./build.sh --overwrite`
 - **Analyze**: `/tmp/codeql/codeql database analyze /tmp/codeql-db /tmp/codeql/qlpacks/codeql/cpp-queries/1.5.11/codeql-suites/cpp-security-and-quality.qls --format=sarif-latest --output=/tmp/codeql-results.sarif --threads=4`
 - **Parse SARIF**: `python3 -c "import json; [print(r['ruleId'], r['locations'][0]['physicalLocation']['artifactLocation']['uri']) for r in json.load(open('/tmp/codeql-results.sarif'))['runs'][0]['results']]"`
-- **Status** (March 2026): 0 alerts in analyzer code. 4 in iccDEV upstream (`cpp/assignment-does-not-return-this` in IccTagBasic.h — not modifiable).
+- **Status** (March 2026): 0 alerts in analyzer code. 4 in iccDEV upstream (`cpp/assignment-does-not-return-this` in IccTagBasic.h — not modifiable). Fixed patterns: use `std::nothrow` for operator new (CodeQL cpp/incorrect-allocation-error-handling), copy iterator elements instead of binding references (cpp/use-after-expired-lifetime), rename variables to avoid shadowing outer scope (cpp/declaration-hides-variable).
 - **Path-injection pattern**: CodeQL recognizes `realpath()` as a sanitizer for `cpp/path-injection`. For output files that don't exist yet, resolve parent directory with `realpath(dirname)` + sanitize basename via character whitelist. Custom validators (IsPathSafe, etc.) are NOT recognized by CodeQL.
 - **Constant-comparison**: CodeQL flags `x >= N` as always-true when an earlier guard already constrains `x`. Remove the redundant inner check.
 - **Complex-condition**: Extract helper functions to reduce condition complexity below CodeQL's threshold.
 
 ### Byte-shift patterns
 `(data[i] << 24)` causes signed integer overflow when `data[i] >= 128`. Fix: `static_cast<icUInt32Number>(data[i]) << 24`. Similarly, use `tagOffset <= fileSize - tagSize` instead of `tagOffset + tagSize <= fileSize`.
+
+### NaN/float-to-integer safety
+IEEE 754 NaN fails ALL ordered comparisons (`NaN < 0` → false, `NaN > 1` → false). Clamp functions like `UnitClip(v) { if(v<0) return 0; if(v>1) return 1; return v; }` pass NaN through to integer casts (UBSAN CWE-758). Fix pattern:
+```cpp
+// NaN self-inequality idiom (avoids std::isnan header dependency)
+if (v != v) return 0.0;  // must be FIRST check, before any comparison
+if (v < 0.0) return 0.0;
+if (v > 1.0) return 1.0;
+return v;
+```
+This pattern applies to any float→integer conversion path (unsigned char, unsigned short, uint16_t). For float arrays before cast, guard with: `if (std::isnan(val) || std::isinf(val)) val = 0.0f; else if (val < 0.0f) val = 0.0f; else if (val > 1.0f) val = 1.0f;`
+
+### AddXform ownership semantics
+`CIccCmm::AddXform(CIccProfile*, ...)` transfers profile ownership to `CIccXform::Create()`. On success, the CMM owns the profile — do not delete. On `icCmmStatBadXform` failure, `Create()` already freed the profile — do NOT delete (double-free → heap-use-after-free CWE-416). On other error codes (`BadSpaceLink`, `BadLutType`, etc.), `Create()` was never reached — the caller must delete. Pattern:
+```cpp
+icStatusCMM stat = cmm.AddXform(pProfile, ...);
+if (stat != icCmmStatOk) {
+  if (stat != icCmmStatBadXform)
+    delete pProfile;  // only delete if Create() was never called
+  return;
+}
+// pProfile now owned by cmm — do not delete
+```
 
 ### MCP server security patterns
 - Path validation: allowlist of base dirs + symlink resolution + normpath checks + null byte rejection
