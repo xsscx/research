@@ -1,6 +1,6 @@
 # CFL Library Patches — Fuzzing Security Fixes
 
-Last Updated: 2026-03-05 14:50:00 UTC
+Last Updated: 2026-03-05 19:36:00 UTC
 
 These patches fix security vulnerabilities and harden iccDEV library code
 found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
@@ -78,6 +78,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 | 65 | `IccUtilXml.cpp` | `icFixXml` | Stack-buffer-overflow WRITE: unbounded XML entity expansion (`'`→`&apos;`, 6x) into fixed 256-byte stack buffer. SCARINESS 55. Reachable via `CIccTagXmlNamedColor2::ToXml` and any `ToXml` caller with user-controlled strings. Fix: cap output to 255 bytes. CWE-121 |
 | 66 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `CIccProfileXml::ParseXml`, `CIccTagXmlMultiLocalizedUnicode::ParseXml` | **NO-OP** (superseded by 067) — OOM via unbounded tag/string allocation |
 | 67 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `ParseXml` (mluc, ProfileSeqId, Dict) | OOM: 433KB XML triggers 561K `CIccLocalizedUnicode` allocations (2.38GB). Fix: cap tags 256, strings 100/tag, text 64KB, ProfileIdDesc 256, DictEntry 1024. CWE-789 |
+| 68 | `IccTagXml.cpp`, `IccTagBasic.cpp` | `ParseXml` (ProfileSeqDesc, ResponseCurveSet, MPE), `Read` (mluc) | OOM: remaining uncapped loops — ProfileSeqDesc (256), ResponseCurveSet (64 curves, 8192 measurements), MPE elements (256), binary mluc nNumRec (4096). CWE-789 |
 
 ## Allocation Cap
 
