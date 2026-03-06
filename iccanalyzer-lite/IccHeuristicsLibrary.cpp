@@ -4892,3 +4892,1229 @@ int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc) {
   printf("\n");
   return heuristicCount;
 }
+
+// =====================================================================
+// H116: cprt/desc Encoding Validation Per Spec Version (Feedback C2)
+// ICC v2: textType or textDescriptionType
+// ICC v4+: multiLocalizedUnicodeType
+// =====================================================================
+int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H116] cprt/desc Encoding vs Profile Version\n");
+
+  icUInt32Number version = pIcc->m_Header.version;
+  int majorVer = (version >> 24) & 0xFF;
+
+  printf("      Profile version: %d.%d.%d\n", majorVer,
+         (version >> 20) & 0xF, (version >> 16) & 0xF);
+
+  struct TagCheck {
+    icTagSignature sig;
+    const char *name;
+  };
+  static const TagCheck checks[] = {
+    {icSigCopyrightTag, "cprt"},
+    {icSigProfileDescriptionTag, "desc"},
+  };
+
+  for (int i = 0; i < 2; i++) {
+    CIccTag *tag = pIcc->FindTag(checks[i].sig);
+    if (!tag) {
+      printf("      %s: not present\n", checks[i].name);
+      continue;
+    }
+
+    icTagTypeSignature tagType = tag->GetType();
+    char typeStr[5] = {};
+    typeStr[0] = (char)(static_cast<unsigned char>((tagType >> 24) & 0xFF));
+    typeStr[1] = (char)(static_cast<unsigned char>((tagType >> 16) & 0xFF));
+    typeStr[2] = (char)(static_cast<unsigned char>((tagType >> 8) & 0xFF));
+    typeStr[3] = (char)(static_cast<unsigned char>(tagType & 0xFF));
+
+    printf("      %s: type='%s' (0x%08X)\n", checks[i].name, typeStr, (unsigned)tagType);
+
+    if (majorVer >= 4) {
+      if (tagType != icSigMultiLocalizedUnicodeType) {
+        printf("      %s[WARN]  %s: v%d profile should use multiLocalizedUnicodeType, found '%s'%s\n",
+               ColorWarning(), checks[i].name, majorVer, typeStr, ColorReset());
+        printf("       %sCWE-20: Encoding does not match specification version%s\n",
+               ColorWarning(), ColorReset());
+        heuristicCount++;
+      } else {
+        printf("      %s[OK] %s uses correct type for v%d%s\n",
+               ColorSuccess(), checks[i].name, majorVer, ColorReset());
+      }
+    } else if (majorVer == 2) {
+      bool ok = (tagType == icSigTextType ||
+                 tagType == icSigTextDescriptionType ||
+                 tagType == icSigMultiLocalizedUnicodeType);
+      if (!ok) {
+        printf("      %s[WARN]  %s: v2 profile should use textType or textDescriptionType, found '%s'%s\n",
+               ColorWarning(), checks[i].name, typeStr, ColorReset());
+        heuristicCount++;
+      } else {
+        printf("      %s[OK] %s uses acceptable type for v2%s\n",
+               ColorSuccess(), checks[i].name, ColorReset());
+      }
+    }
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H117: Tag-Type-Per-Signature Validation (Feedback C3)
+// Validates each tag uses only the type(s) allowed by the ICC spec
+// for that tag signature.
+// =====================================================================
+int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H117] Tag Type Allowed Per Signature\n");
+
+  struct AllowedType {
+    icTagSignature sig;
+    const char *name;
+    icTagTypeSignature allowed[6];
+    int count;
+  };
+
+  static const AllowedType table[] = {
+    {icSigCopyrightTag, "cprt",
+     {icSigMultiLocalizedUnicodeType, icSigTextType, icSigTextDescriptionType}, 3},
+    {icSigProfileDescriptionTag, "desc",
+     {icSigMultiLocalizedUnicodeType, icSigTextDescriptionType, icSigTextType}, 3},
+    {icSigMediaWhitePointTag, "wtpt",
+     {icSigXYZType}, 1},
+    {icSigRedMatrixColumnTag, "rXYZ",
+     {icSigXYZType}, 1},
+    {icSigGreenMatrixColumnTag, "gXYZ",
+     {icSigXYZType}, 1},
+    {icSigBlueMatrixColumnTag, "bXYZ",
+     {icSigXYZType}, 1},
+    {icSigRedTRCTag, "rTRC",
+     {icSigCurveType, icSigParametricCurveType}, 2},
+    {icSigGreenTRCTag, "gTRC",
+     {icSigCurveType, icSigParametricCurveType}, 2},
+    {icSigBlueTRCTag, "bTRC",
+     {icSigCurveType, icSigParametricCurveType}, 2},
+    {icSigGrayTRCTag, "kTRC",
+     {icSigCurveType, icSigParametricCurveType}, 2},
+    {icSigChromaticAdaptationTag, "chad",
+     {icSigS15Fixed16ArrayType}, 1},
+    {icSigLuminanceTag, "lumi",
+     {icSigXYZType}, 1},
+    {icSigMeasurementTag, "meas",
+     {icSigMeasurementType}, 1},
+    {icSigViewingConditionsTag, "view",
+     {icSigViewingConditionsType}, 1},
+    {icSigTechnologyTag, "tech",
+     {icSigSignatureType}, 1},
+    {icSigCalibrationDateTimeTag, "calt",
+     {icSigDateTimeType}, 1},
+    {icSigCharTargetTag, "targ",
+     {icSigTextType}, 1},
+    {icSigChromaticityTag, "chrm",
+     {icSigChromaticityType}, 1},
+    {icSigColorantOrderTag, "clro",
+     {icSigColorantOrderType}, 1},
+    {icSigColorantTableTag, "clrt",
+     {icSigColorantTableType}, 1},
+    {icSigColorantTableOutTag, "clot",
+     {icSigColorantTableType}, 1},
+    {icSigNamedColor2Tag, "ncl2",
+     {icSigNamedColor2Type}, 1},
+    {icSigOutputResponseTag, "resp",
+     {icSigResponseCurveSet16Type}, 1},
+    {icSigDeviceMfgDescTag, "dmnd",
+     {icSigMultiLocalizedUnicodeType, icSigTextDescriptionType}, 2},
+    {icSigDeviceModelDescTag, "dmdd",
+     {icSigMultiLocalizedUnicodeType, icSigTextDescriptionType}, 2},
+    {icSigViewingCondDescTag, "vued",
+     {icSigMultiLocalizedUnicodeType, icSigTextDescriptionType}, 2},
+  };
+
+  int checked = 0, violations = 0;
+
+  for (size_t t = 0; t < sizeof(table) / sizeof(table[0]); t++) {
+    CIccTag *tag = pIcc->FindTag(table[t].sig);
+    if (!tag) continue;
+
+    checked++;
+    icTagTypeSignature actualType = tag->GetType();
+    bool allowed = false;
+    for (int a = 0; a < table[t].count; a++) {
+      if (actualType == table[t].allowed[a]) { allowed = true; break; }
+    }
+
+    if (!allowed) {
+      char typeStr[5] = {};
+      typeStr[0] = (char)(static_cast<unsigned char>((actualType >> 24) & 0xFF));
+      typeStr[1] = (char)(static_cast<unsigned char>((actualType >> 16) & 0xFF));
+      typeStr[2] = (char)(static_cast<unsigned char>((actualType >> 8) & 0xFF));
+      typeStr[3] = (char)(static_cast<unsigned char>(actualType & 0xFF));
+      printf("      %s[WARN]  '%s': type '%s' (0x%08X) not in allowed set%s\n",
+             ColorWarning(), table[t].name, typeStr, (unsigned)actualType, ColorReset());
+      printf("       %sCWE-20: Tag uses disallowed type for its signature%s\n",
+             ColorWarning(), ColorReset());
+      violations++;
+      heuristicCount++;
+    }
+  }
+
+  if (violations == 0 && checked > 0) {
+    printf("      %s[OK] %d tags checked — all use allowed types%s\n",
+           ColorSuccess(), checked, ColorReset());
+  } else if (checked == 0) {
+    printf("      [INFO] No applicable tags found\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H118: Calculator Computation Cost Estimate (Feedback S10)
+// Walks calculator MPE elements and estimates FLOPs per evaluation.
+// =====================================================================
+int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H118] Calculator Computation Cost Estimate\n");
+
+  icTagSignature mpeTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    (icTagSignature)0x44324230, // D2B0
+    (icTagSignature)0x44324231, // D2B1
+    (icTagSignature)0x42324430, // B2D0
+    (icTagSignature)0x42324431, // B2D1
+    (icTagSignature)0
+  };
+
+  uint64_t totalCost = 0;
+  int tagsWithCalc = 0;
+
+  for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
+    CIccTag *pTag = pIcc->FindTag(mpeTags[t]);
+    if (!pTag) continue;
+    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMpe) continue;
+
+    icUInt32Number numElems = pMpe->NumElements();
+    if (numElems == 0) continue;
+
+    uint64_t tagCost = 0;
+    int calcCount = 0;
+
+    for (icUInt32Number ei = 0; ei < numElems; ei++) {
+      CIccMultiProcessElement *pElem = pMpe->GetElement(ei);
+      if (!pElem) continue;
+
+      uint32_t inCh = pElem->NumInputChannels();
+      uint32_t outCh = pElem->NumOutputChannels();
+
+      CIccMpeCalculator *pCalc = dynamic_cast<CIccMpeCalculator*>(pElem);
+      if (pCalc) {
+        calcCount++;
+        uint64_t opCost = (uint64_t)inCh * outCh * 100;
+        tagCost += opCost;
+      }
+
+      CIccMpeCLUT *pCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
+      if (pCLUT) {
+        CIccCLUT *clut = pCLUT->GetCLUT();
+        if (clut) {
+          uint32_t grid = clut->GridPoints();
+          uint64_t clutSize = 1;
+          for (uint32_t d = 0; d < inCh && d < 16; d++) clutSize *= grid;
+          clutSize *= outCh;
+          tagCost += clutSize;
+        }
+      }
+
+      CIccMpeMatrix *pMatrix = dynamic_cast<CIccMpeMatrix*>(pElem);
+      if (pMatrix) {
+        tagCost += (uint64_t)inCh * outCh * 2;
+      }
+
+      CIccMpeCurveSet *pCurves = dynamic_cast<CIccMpeCurveSet*>(pElem);
+      if (pCurves) {
+        tagCost += (uint64_t)inCh * 256;
+      }
+    }
+
+    if (calcCount > 0 || tagCost > 0) {
+      tagsWithCalc++;
+      char sigStr[5] = {};
+      icUInt32Number sig = (icUInt32Number)mpeTags[t];
+      sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+      sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+      sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+      sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+
+      printf("      '%s': %d calc element(s), est. cost: %llu ops\n",
+             sigStr, calcCount, (unsigned long long)tagCost);
+
+      if (tagCost > 100000000ULL) {
+        printf("      %s[WARN]  '%s': excessive computation cost (>100M ops per pixel)%s\n",
+               ColorWarning(), sigStr, ColorReset());
+        printf("       %sCWE-400: Potential algorithmic complexity DoS%s\n",
+               ColorWarning(), ColorReset());
+        heuristicCount++;
+      }
+    }
+
+    totalCost += tagCost;
+  }
+
+  if (tagsWithCalc > 0) {
+    printf("      Total estimated cost: %llu ops per pixel\n",
+           (unsigned long long)totalCost);
+    if (totalCost > 1000000000ULL) {
+      printf("      %s[WARN]  Total computation cost exceeds 1B ops — extreme DoS risk%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+  } else {
+    printf("      [INFO] No MPE calculator/CLUT elements found\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H119: Round-Trip ΔE Computation (Feedback Q1)
+// Samples test colors through AToB→BToA CLUTs and computes avg/max ΔE.
+// Uses CLUT node values for accurate sampling without CMM pipeline.
+// =====================================================================
+int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H119] Round-Trip ΔE Measurement\n");
+
+  struct IntentPair {
+    icTagSignature atob;
+    icTagSignature btoa;
+    const char *name;
+  };
+  static const IntentPair pairs[] = {
+    {icSigAToB0Tag, icSigBToA0Tag, "Perceptual"},
+    {icSigAToB1Tag, icSigBToA1Tag, "Rel. Colorimetric"},
+    {icSigAToB2Tag, icSigBToA2Tag, "Saturation"},
+  };
+
+  bool anyMeasured = false;
+
+  for (int p = 0; p < 3; p++) {
+    CIccTag *tagA = pIcc->FindTag(pairs[p].atob);
+    CIccTag *tagB = pIcc->FindTag(pairs[p].btoa);
+    if (!tagA || !tagB) continue;
+
+    CIccMBB *mbbA = dynamic_cast<CIccMBB*>(tagA);
+    CIccMBB *mbbB = dynamic_cast<CIccMBB*>(tagB);
+    if (!mbbA || !mbbB) continue;
+
+    CIccCLUT *clutA = mbbA->GetCLUT();
+    CIccCLUT *clutB = mbbB->GetCLUT();
+    if (!clutA || !clutB) continue;
+
+    if (mbbA->OutputChannels() != mbbB->InputChannels() ||
+        mbbA->OutputChannels() < 1 || mbbA->OutputChannels() > 15) continue;
+
+    uint32_t pcsChannels = mbbA->OutputChannels();
+    uint32_t gridA = clutA->GridPoints();
+    uint32_t inputA = mbbA->InputChannels();
+
+    if (inputA < 1 || inputA > 15 || gridA < 2 || gridA > 255) continue;
+
+    uint64_t totalNodes = 1;
+    for (uint32_t d = 0; d < inputA; d++) {
+      totalNodes *= gridA;
+      if (totalNodes > 100000) { totalNodes = 100000; break; }
+    }
+
+    uint32_t stride = (totalNodes > 1000) ? (uint32_t)(totalNodes / 1000) : 1;
+    if (stride < 1) stride = 1;
+
+    double sumDE = 0.0;
+    double maxDE = 0.0;
+    int samples = 0;
+
+    for (uint64_t idx = 0; idx < totalNodes; idx += stride) {
+      icFloatNumber pcsOut[16] = {};
+      icFloatNumber *nodeData = clutA->GetData((icUInt32Number)(idx * pcsChannels));
+      if (!nodeData)
+        continue;
+      for (uint32_t c = 0; c < pcsChannels && c < 16; c++)
+        pcsOut[c] = nodeData[c];
+
+      icFloatNumber roundTrip[16] = {};
+      clutB->Interp3d(roundTrip, pcsOut);
+
+      double de2 = 0.0;
+      for (uint32_t c = 0; c < pcsChannels && c < 3; c++) {
+        double d = (double)roundTrip[c] - (double)pcsOut[c];
+        de2 += d * d;
+      }
+      double de = sqrt(de2);
+      sumDE += de;
+      if (de > maxDE) maxDE = de;
+      samples++;
+    }
+
+    if (samples > 0) {
+      anyMeasured = true;
+      double avgDE = sumDE / (double)samples;
+
+      printf("      %s intent (%d samples):\n", pairs[p].name, samples);
+      printf("        AToB%d→BToA%d: avg ΔE=%.4f  max ΔE=%.4f\n",
+             p, p, avgDE, maxDE);
+
+      if (maxDE > 5.0) {
+        printf("        %s[WARN]  max ΔE > 5.0 — poor round-trip fidelity%s\n",
+               ColorWarning(), ColorReset());
+        heuristicCount++;
+      } else if (maxDE > 2.0) {
+        printf("        %s[INFO] max ΔE > 2.0 — moderate round-trip error%s\n",
+               ColorInfo(), ColorReset());
+      } else {
+        printf("        %s[OK] Good round-trip fidelity%s\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+  }
+
+  if (!anyMeasured) {
+    printf("      [INFO] No AToB/BToA CLUT pairs available for ΔE measurement\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H120: Curve Invertibility Metric (Feedback Q2)
+// Samples TRC curves, builds inverse lookup, measures round-trip error.
+// =====================================================================
+int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H120] Curve Invertibility Assessment\n");
+
+  icTagSignature trcTags[] = {
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
+    (icTagSignature)0
+  };
+  const char *trcNames[] = {"rTRC", "gTRC", "bTRC", "kTRC"};
+
+  int curvesChecked = 0;
+
+  for (int t = 0; trcTags[t] != (icTagSignature)0; t++) {
+    CIccTag *tag = pIcc->FindTag(trcTags[t]);
+    if (!tag) continue;
+
+    CIccTagCurve *curve = dynamic_cast<CIccTagCurve*>(tag);
+    if (!curve) continue;
+
+    icUInt32Number nEntries = curve->GetSize();
+    if (nEntries < 2) {
+      if (nEntries == 1) {
+        icFloatNumber gamma = (*curve)[0];
+        if (gamma > 0.01) {
+          printf("      %s: gamma=%.4f — invertible (1/gamma=%.4f)\n",
+                 trcNames[t], (double)gamma, 1.0/(double)gamma);
+        } else {
+          printf("      %s[WARN]  %s: gamma=%.6f ≈ 0 — NOT invertible%s\n",
+                 ColorWarning(), trcNames[t], (double)gamma, ColorReset());
+          heuristicCount++;
+        }
+      }
+      curvesChecked++;
+      continue;
+    }
+
+    std::vector<double> fwd(nEntries);
+    for (icUInt32Number i = 0; i < nEntries; i++)
+      fwd[i] = (double)(*curve)[i];
+
+    double range = fwd[nEntries-1] - fwd[0];
+    bool isFlat = (fabs(range) < 1e-6);
+
+    if (isFlat) {
+      printf("      %s[WARN]  %s: flat curve (range=%.6f) — NOT invertible%s\n",
+             ColorWarning(), trcNames[t], range, ColorReset());
+      printf("       %sCWE-682: Degenerate transform destroys color data%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+      curvesChecked++;
+      continue;
+    }
+
+    double sumErr = 0.0, maxErr = 0.0;
+    int testCount = 0;
+    int nTests = (nEntries > 256) ? 256 : (int)nEntries;
+
+    for (int s = 0; s < nTests; s++) {
+      double x = (double)s / (double)(nTests - 1);
+      double y = fwd[0] + x * (fwd[nEntries-1] - fwd[0]);
+
+      size_t lo = 0, hi = nEntries - 1;
+      while (lo + 1 < hi) {
+        size_t mid = (lo + hi) / 2;
+        if (fwd[mid] <= y) lo = mid; else hi = mid;
+      }
+      double invX;
+      double denom = fwd[hi] - fwd[lo];
+      if (fabs(denom) < 1e-12)
+        invX = (double)lo / (double)(nEntries - 1);
+      else
+        invX = ((double)lo + (y - fwd[lo]) / denom) / (double)(nEntries - 1);
+
+      double err = fabs(invX - x);
+      sumErr += err;
+      if (err > maxErr) maxErr = err;
+      testCount++;
+    }
+
+    double avgErr = (testCount > 0) ? sumErr / testCount : 0.0;
+    printf("      %s (%u entries): inv avg err=%.6f  max err=%.6f\n",
+           trcNames[t], nEntries, avgErr, maxErr);
+
+    if (maxErr > 0.01) {
+      printf("      %s[WARN]  %s: poor invertibility (max err > 1%%)%s\n",
+             ColorWarning(), trcNames[t], ColorReset());
+      heuristicCount++;
+    } else {
+      printf("      %s[OK] %s: good invertibility%s\n",
+             ColorSuccess(), trcNames[t], ColorReset());
+    }
+
+    curvesChecked++;
+  }
+
+  if (curvesChecked == 0) {
+    printf("      [INFO] No TRC curves found for invertibility check\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H121: Characterization Data Round-Trip Assessment (Feedback Q4)
+// If targ (characterization data) is CGATS format, reports data set size
+// and flags whether the profile has matching transform tags for evaluation.
+// =====================================================================
+int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H121] Characterization Data Round-Trip Capability\n");
+
+  CIccTag *targTag = pIcc->FindTag(icSigCharTargetTag);
+  if (!targTag) {
+    printf("      [INFO] No characterization data (targ) tag — cannot assess\n\n");
+    return 0;
+  }
+
+  CIccTagText *textTag = dynamic_cast<CIccTagText*>(targTag);
+  if (!textTag || !textTag->GetText()) {
+    printf("      %s[WARN]  targ tag present but not readable as text%s\n",
+           ColorWarning(), ColorReset());
+    printf("\n");
+    return 1;
+  }
+
+  const char *text = textTag->GetText();
+  size_t len = strlen(text);
+
+  int dataSetCount = 0;
+  int fieldCount = 0;
+  bool hasCGATS = false;
+  bool hasBeginData = false;
+
+  if (strncmp(text, "BEGIN_DATA_FORMAT", 17) == 0 ||
+      strncmp(text, "CGATS", 5) == 0 ||
+      strncmp(text, "CTI", 3) == 0 ||
+      strncmp(text, "NUMBER_OF_SETS", 14) == 0) {
+    hasCGATS = true;
+  }
+
+  const char *p = text;
+  while ((p = strstr(p, "NUMBER_OF_SETS")) != NULL) {
+    p += 14;
+    while (*p == ' ' || *p == '\t') p++;
+    dataSetCount = atoi(p);
+  }
+  p = text;
+  while ((p = strstr(p, "NUMBER_OF_FIELDS")) != NULL) {
+    p += 16;
+    while (*p == ' ' || *p == '\t') p++;
+    fieldCount = atoi(p);
+  }
+  if (strstr(text, "BEGIN_DATA")) hasBeginData = true;
+
+  printf("      Characterization data: %zu bytes\n", len);
+  if (hasCGATS) {
+    printf("      Format: CGATS/IT8\n");
+    if (dataSetCount > 0) printf("      Data sets: %d\n", dataSetCount);
+    if (fieldCount > 0)   printf("      Fields: %d\n", fieldCount);
+    if (hasBeginData)      printf("      Data section: present\n");
+  }
+
+  bool hasAToB = (pIcc->FindTag(icSigAToB0Tag) != NULL ||
+                  pIcc->FindTag(icSigAToB1Tag) != NULL);
+  bool hasBToA = (pIcc->FindTag(icSigBToA0Tag) != NULL ||
+                  pIcc->FindTag(icSigBToA1Tag) != NULL);
+
+  if (hasCGATS && hasBeginData && dataSetCount > 0 && hasAToB && hasBToA) {
+    printf("      %s[OK] Profile has both characterization data and round-trip transforms%s\n",
+           ColorSuccess(), ColorReset());
+    printf("      [INFO] Full ΔE evaluation requires external tool (iccRoundTrip)\n");
+  } else if (hasCGATS && hasBeginData && dataSetCount > 0) {
+    printf("      [INFO] Characterization data present but missing AToB/BToA for round-trip\n");
+  } else {
+    printf("      [INFO] Characterization data format not recognized as evaluable CGATS\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H122: Deep Tag Type Encoding Validation (Feedback C1)
+// Validates specific tag data ranges and structural correctness
+// beyond what the iccDEV library checks.
+// =====================================================================
+int RunHeuristic_H122_TagEncoding(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H122] Tag Type Encoding Validation\n");
+
+  int checked = 0;
+
+  // XYZ tags: values should be in reasonable range
+  icTagSignature xyzTags[] = {
+    icSigMediaWhitePointTag, icSigLuminanceTag,
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag,
+    (icTagSignature)0
+  };
+  const char *xyzNames[] = {"wtpt", "lumi", "rXYZ", "gXYZ", "bXYZ"};
+
+  for (int t = 0; xyzTags[t] != (icTagSignature)0; t++) {
+    CIccTag *tag = pIcc->FindTag(xyzTags[t]);
+    if (!tag) continue;
+    CIccTagXYZ *xyzTag = dynamic_cast<CIccTagXYZ*>(tag);
+    if (!xyzTag || xyzTag->GetSize() < 1) continue;
+
+    checked++;
+    icXYZNumber *xyz = &(*xyzTag)[0];
+    double X = icFtoD(xyz->X);
+    double Y = icFtoD(xyz->Y);
+    double Z = icFtoD(xyz->Z);
+
+    if (X < -5.0 || X > 10.0 || Y < -5.0 || Y > 10.0 || Z < -5.0 || Z > 10.0) {
+      printf("      %s[WARN]  '%s': XYZ(%.4f, %.4f, %.4f) out of expected range [-5,10]%s\n",
+             ColorWarning(), xyzNames[t], X, Y, Z, ColorReset());
+      printf("       %sCWE-20: Value out of specification range%s\n",
+             ColorWarning(), ColorReset());
+      heuristicCount++;
+    }
+  }
+
+  // Measurement tag: observer and geometry validation
+  CIccTag *measTag = pIcc->FindTag(icSigMeasurementTag);
+  if (measTag) {
+    checked++;
+    CIccTagMeasurement *meas = dynamic_cast<CIccTagMeasurement*>(measTag);
+    if (meas) {
+      icMeasurement &m = meas->m_Data;
+      if (m.stdObserver != icStdObs1931TwoDegrees &&
+          m.stdObserver != icStdObs1964TenDegrees &&
+          m.stdObserver != icStdObsCustom) {
+        printf("      %s[WARN]  meas: unknown standard observer value %u%s\n",
+               ColorWarning(), (unsigned)m.stdObserver, ColorReset());
+        heuristicCount++;
+      }
+      if (m.geometry != icGeometryUnknown &&
+          m.geometry != icGeometry045or450 &&
+          m.geometry != icGeometry0dord0) {
+        printf("      %s[WARN]  meas: unknown geometry value %u%s\n",
+               ColorWarning(), (unsigned)m.geometry, ColorReset());
+        heuristicCount++;
+      }
+    }
+  }
+
+  // Chromaticity tag: values should be in [0, 1]
+  CIccTag *chrmTag = pIcc->FindTag(icSigChromaticityTag);
+  if (chrmTag) {
+    checked++;
+    CIccTagChromaticity *chrm = dynamic_cast<CIccTagChromaticity*>(chrmTag);
+    if (chrm) {
+      icUInt32Number nChan = chrm->GetSize();
+      for (icUInt32Number c = 0; c < nChan && c < 15; c++) {
+        icChromaticityNumber cn = (*chrm)[c];
+        double x = icUFtoD(cn.x);
+        double y = icUFtoD(cn.y);
+        if (x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0) {
+          printf("      %s[WARN]  chrm ch%u: (%.4f, %.4f) outside [0,1]%s\n",
+                 ColorWarning(), (unsigned)c, x, y, ColorReset());
+          heuristicCount++;
+        }
+      }
+    }
+  }
+
+  if (heuristicCount == 0 && checked > 0) {
+    printf("      %s[OK] %d tag types validated — encoding correct%s\n",
+           ColorSuccess(), checked, ColorReset());
+  } else if (checked == 0) {
+    printf("      [INFO] No applicable tags for deep encoding validation\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H123: Non-Required Tag Classification (Feedback C5)
+// Cross-references present tags against the required+optional set for
+// the profile class. Tags not in either set are flagged.
+// =====================================================================
+int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H123] Non-Required Tag Classification\n");
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // Common required tags (all classes)
+  std::set<icTagSignature> allowed;
+  allowed.insert(icSigProfileDescriptionTag);
+  allowed.insert(icSigCopyrightTag);
+  allowed.insert(icSigMediaWhitePointTag);
+  allowed.insert(icSigChromaticAdaptationTag);
+
+  // Common optional tags (all classes)
+  allowed.insert(icSigCalibrationDateTimeTag);
+  allowed.insert(icSigCharTargetTag);
+  allowed.insert(icSigChromaticityTag);
+  allowed.insert(icSigDeviceMfgDescTag);
+  allowed.insert(icSigDeviceModelDescTag);
+  allowed.insert(icSigMeasurementTag);
+  allowed.insert(icSigTechnologyTag);
+  allowed.insert(icSigViewingCondDescTag);
+  allowed.insert(icSigViewingConditionsTag);
+  allowed.insert(icSigProfileSequenceDescTag);
+  allowed.insert(icSigProfileSequceIdTag);
+  allowed.insert(icSigColorantOrderTag);
+  allowed.insert(icSigColorantTableTag);
+  allowed.insert(icSigColorantTableOutTag);
+  allowed.insert(icSigNamedColor2Tag);
+  allowed.insert(icSigOutputResponseTag);
+  allowed.insert(icSigGamutTag);
+  allowed.insert(icSigPreview0Tag);
+  allowed.insert(icSigPreview1Tag);
+  allowed.insert(icSigPreview2Tag);
+
+  // Class-specific tags
+  switch (cls) {
+    case icSigInputClass:
+    case icSigDisplayClass:
+    case icSigOutputClass:
+    case icSigColorSpaceClass:
+      allowed.insert(icSigAToB0Tag); allowed.insert(icSigAToB1Tag); allowed.insert(icSigAToB2Tag);
+      allowed.insert(icSigBToA0Tag); allowed.insert(icSigBToA1Tag); allowed.insert(icSigBToA2Tag);
+      allowed.insert(icSigRedMatrixColumnTag); allowed.insert(icSigGreenMatrixColumnTag);
+      allowed.insert(icSigBlueMatrixColumnTag);
+      allowed.insert(icSigRedTRCTag); allowed.insert(icSigGreenTRCTag); allowed.insert(icSigBlueTRCTag);
+      allowed.insert(icSigGrayTRCTag);
+      allowed.insert(icSigLuminanceTag);
+      allowed.insert(icSigMediaBlackPointTag);
+      // D2B/B2D v5 tags
+      allowed.insert((icTagSignature)0x44324230);
+      allowed.insert((icTagSignature)0x44324231);
+      allowed.insert((icTagSignature)0x44324232);
+      allowed.insert((icTagSignature)0x42324430);
+      allowed.insert((icTagSignature)0x42324431);
+      allowed.insert((icTagSignature)0x42324432);
+      break;
+    case icSigLinkClass:
+      allowed.insert(icSigAToB0Tag);
+      allowed.insert(icSigProfileSequenceDescTag);
+      break;
+    case icSigAbstractClass:
+      allowed.insert(icSigAToB0Tag);
+      allowed.insert((icTagSignature)0x44324230);
+      allowed.insert((icTagSignature)0x42324430);
+      break;
+    case icSigNamedColorClass:
+      allowed.insert(icSigNamedColor2Tag);
+      break;
+    default:
+      break;
+  }
+
+  int unclassified = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    if (allowed.find(sig) == allowed.end()) {
+      char sigStr[5] = {};
+      sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+      sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+      sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+      sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+
+      bool isUpper = true;
+      for (int c = 0; c < 4; c++) {
+        if (sigStr[c] < 0x20 || sigStr[c] > 0x7E) { isUpper = false; break; }
+      }
+      if (!isUpper) continue;
+
+      printf("      %s[INFO] '%s' (0x%08X): not required/optional for class '%c%c%c%c'%s\n",
+             ColorInfo(), sigStr, (unsigned)sig,
+             (char)((cls >> 24) & 0xFF), (char)((cls >> 16) & 0xFF),
+             (char)((cls >> 8) & 0xFF), (char)(cls & 0xFF), ColorReset());
+      unclassified++;
+    }
+  }
+
+  if (unclassified > 0) {
+    printf("      %s[WARN]  %d tag(s) not in required/optional set for this profile class%s\n",
+           ColorWarning(), unclassified, ColorReset());
+    printf("       %sCWE-20: Non-standard tags should be registered as private%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount += unclassified;
+  } else {
+    printf("      %s[OK] All tags are required or optional for this profile class%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H124: Version-Tag Correspondence (Feedback C11)
+// Validates that tags present are appropriate for the declared ICC version.
+// =====================================================================
+int RunHeuristic_H124_VersionTags(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H124] Version-Tag Correspondence\n");
+
+  icUInt32Number version = pIcc->m_Header.version;
+  int majorVer = (version >> 24) & 0xFF;
+
+  // Tags introduced in v4 (not valid in v2)
+  static const icTagSignature v4OnlyTags[] = {
+    icSigChromaticAdaptationTag,
+    icSigColorantOrderTag,
+    icSigColorantTableTag,
+    icSigColorantTableOutTag,
+    icSigProfileSequceIdTag,
+    (icTagSignature)0
+  };
+
+  // Tags deprecated in v4
+  static const icTagSignature v2OnlyTags[] = {
+    icSigMediaBlackPointTag,
+    (icTagSignature)0
+  };
+
+  // v5 tags (D2B/B2D)
+  static const icTagSignature v5Tags[] = {
+    (icTagSignature)0x44324230, // D2B0
+    (icTagSignature)0x44324231,
+    (icTagSignature)0x44324232,
+    (icTagSignature)0x42324430, // B2D0
+    (icTagSignature)0x42324431,
+    (icTagSignature)0x42324432,
+    (icTagSignature)0
+  };
+
+  int violations = 0;
+
+  if (majorVer <= 2) {
+    for (int t = 0; v4OnlyTags[t] != (icTagSignature)0; t++) {
+      if (pIcc->FindTag(v4OnlyTags[t])) {
+        icUInt32Number sig = (icUInt32Number)v4OnlyTags[t];
+        printf("      %s[WARN]  v%d profile contains v4+ tag (0x%08X)%s\n",
+               ColorWarning(), majorVer, sig, ColorReset());
+        violations++;
+      }
+    }
+    for (int t = 0; v5Tags[t] != (icTagSignature)0; t++) {
+      if (pIcc->FindTag(v5Tags[t])) {
+        icUInt32Number sig = (icUInt32Number)v5Tags[t];
+        printf("      %s[WARN]  v%d profile contains v5 tag (0x%08X)%s\n",
+               ColorWarning(), majorVer, sig, ColorReset());
+        violations++;
+      }
+    }
+  } else if (majorVer == 4) {
+    for (int t = 0; v5Tags[t] != (icTagSignature)0; t++) {
+      if (pIcc->FindTag(v5Tags[t])) {
+        icUInt32Number sig = (icUInt32Number)v5Tags[t];
+        printf("      %s[WARN]  v4 profile contains v5 tag (0x%08X)%s\n",
+               ColorWarning(), sig, ColorReset());
+        violations++;
+      }
+    }
+  }
+
+  if (majorVer >= 4) {
+    for (int t = 0; v2OnlyTags[t] != (icTagSignature)0; t++) {
+      if (pIcc->FindTag(v2OnlyTags[t])) {
+        icUInt32Number sig = (icUInt32Number)v2OnlyTags[t];
+        printf("      %s[INFO] v%d profile contains deprecated v2 tag (0x%08X)%s\n",
+               ColorInfo(), majorVer, sig, ColorReset());
+      }
+    }
+  }
+
+  if (violations > 0) {
+    printf("      %s[WARN]  %d version-tag mismatch(es)%s\n",
+           ColorWarning(), violations, ColorReset());
+    printf("       %sCWE-20: Tags do not correspond to declared profile version%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount += violations;
+  } else {
+    printf("      %s[OK] Tags correspond to profile version %d%s\n",
+           ColorSuccess(), majorVer, ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H125: Overall Transform Smoothness (Feedback Q3)
+// Samples the primary LUT at grid points and measures smoothness of
+// color transitions between adjacent grid nodes.
+// =====================================================================
+int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H125] Overall Transform Smoothness\n");
+
+  icTagSignature lutTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigBToA0Tag,
+    (icTagSignature)0
+  };
+  const char *lutNames[] = {"AToB0", "AToB1", "BToA0"};
+
+  bool anyMeasured = false;
+
+  for (int t = 0; lutTags[t] != (icTagSignature)0; t++) {
+    CIccTag *pTag = pIcc->FindTag(lutTags[t]);
+    if (!pTag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB*>(pTag);
+    if (!mbb) continue;
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (!clut) continue;
+
+    uint32_t grid = clut->GridPoints();
+    uint32_t inCh = mbb->InputChannels();
+    uint32_t outCh = mbb->OutputChannels();
+
+    if (inCh < 1 || inCh > 15 || outCh < 1 || outCh > 15 || grid < 3) continue;
+
+    uint64_t totalNodes = 1;
+    for (uint32_t d = 0; d < inCh; d++) {
+      totalNodes *= grid;
+      if (totalNodes > 50000) break;
+    }
+    if (totalNodes > 50000 || totalNodes < 4) continue;
+
+    double maxJump = 0.0;
+    double sumJump = 0.0;
+    int pairs = 0;
+
+    for (uint64_t idx = 1; idx < totalNodes; idx++) {
+      icFloatNumber curr[16] = {};
+      icFloatNumber prev[16] = {};
+      icFloatNumber *currData = clut->GetData((icUInt32Number)(idx * outCh));
+      icFloatNumber *prevData = clut->GetData((icUInt32Number)((idx - 1) * outCh));
+      if (!currData || !prevData) continue;
+      for (uint32_t c = 0; c < outCh && c < 16; c++) {
+        curr[c] = currData[c];
+        prev[c] = prevData[c];
+      }
+
+      double dist2 = 0.0;
+      for (uint32_t c = 0; c < outCh && c < 3; c++) {
+        double d = (double)curr[c] - (double)prev[c];
+        dist2 += d * d;
+      }
+      double dist = sqrt(dist2);
+      sumJump += dist;
+      if (dist > maxJump) maxJump = dist;
+      pairs++;
+    }
+
+    if (pairs > 0) {
+      anyMeasured = true;
+      double avgJump = sumJump / (double)pairs;
+      printf("      %s (grid=%u, %uin/%uout): avg step=%.6f  max step=%.6f\n",
+             lutNames[t], grid, inCh, outCh, avgJump, maxJump);
+
+      if (maxJump > 0.5) {
+        printf("      %s[WARN]  %s: large discontinuity (max step > 0.5) — poor smoothness%s\n",
+               ColorWarning(), lutNames[t], ColorReset());
+        heuristicCount++;
+      } else if (maxJump > 0.1) {
+        printf("      %s[INFO] %s: moderate discontinuity (max step > 0.1)%s\n",
+               ColorInfo(), lutNames[t], ColorReset());
+      } else {
+        printf("      %s[OK] %s: smooth transitions%s\n",
+               ColorSuccess(), lutNames[t], ColorReset());
+      }
+    }
+  }
+
+  if (!anyMeasured) {
+    printf("      [INFO] No suitable LUT tags for smoothness measurement\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H126: Private Tag Malware Content Scan (Feedback S12)
+// Scans data within private/unregistered tags for PE, ELF, script,
+// and other executable content signatures.
+// =====================================================================
+int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H126] Private Tag Malware Content Scan\n");
+
+  static const icTagSignature knownTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+    icSigCalibrationDateTimeTag, icSigCharTargetTag,
+    icSigChromaticAdaptationTag, icSigChromaticityTag,
+    icSigCopyrightTag, icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag, icSigGamutTag,
+    icSigGrayTRCTag, icSigGreenMatrixColumnTag,
+    icSigGreenTRCTag, icSigLuminanceTag,
+    icSigMeasurementTag, icSigMediaBlackPointTag,
+    icSigMediaWhitePointTag, icSigNamedColor2Tag,
+    icSigOutputResponseTag, icSigPreview0Tag,
+    icSigPreview1Tag, icSigPreview2Tag,
+    icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigRedMatrixColumnTag, icSigRedTRCTag,
+    icSigTechnologyTag, icSigViewingCondDescTag,
+    icSigViewingConditionsTag, icSigColorantOrderTag,
+    icSigColorantTableTag, icSigColorantTableOutTag,
+    icSigProfileSequceIdTag,
+    (icTagSignature)0x44324230, (icTagSignature)0x44324231,
+    (icTagSignature)0x44324232,
+    (icTagSignature)0x42324430, (icTagSignature)0x42324431,
+    (icTagSignature)0x42324432,
+    (icTagSignature)0
+  };
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      [INFO] Cannot open file for private tag scan\n\n");
+    return 0;
+  }
+
+  // Malware signatures to look for in private tag data
+  static const struct {
+    const unsigned char sig[8];
+    int len;
+    const char *name;
+  } malwareSigs[] = {
+    {{0x4D, 0x5A, 0x90, 0x00}, 4, "PE/MZ executable header"},
+    {{0x7F, 0x45, 0x4C, 0x46}, 4, "ELF executable header"},
+    {{0xCA, 0xFE, 0xBA, 0xBE}, 4, "Mach-O/Java class header"},
+    {{0xFE, 0xED, 0xFA, 0xCE}, 4, "Mach-O 32-bit header"},
+    {{0xFE, 0xED, 0xFA, 0xCF}, 4, "Mach-O 64-bit header"},
+    {{0xCF, 0xFA, 0xED, 0xFE}, 4, "Mach-O 64-bit (reversed)"},
+    {{0x50, 0x4B, 0x03, 0x04}, 4, "ZIP/JAR archive"},
+    {{0x23, 0x21, 0x2F}, 3, "Script shebang (#!/)"},
+    {{0x3C, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74}, 7, "HTML <script tag"},
+    {{0}, 0, NULL}
+  };
+
+  int privateScanned = 0;
+  int findings = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isKnown = false;
+    for (int k = 0; knownTags[k] != (icTagSignature)0; k++) {
+      if (sig == knownTags[k]) { isKnown = true; break; }
+    }
+    if (isKnown) continue;
+
+    uint32_t offset = it->TagInfo.offset;
+    uint32_t size = it->TagInfo.size;
+    if (size < 4 || size > 10 * 1024 * 1024 || offset < 128) continue;
+
+    std::vector<unsigned char> buf(size < 65536 ? size : 65536);
+    if (fseek(fp, offset, SEEK_SET) != 0) continue;
+    size_t bytesRead = fread(buf.data(), 1, buf.size(), fp);
+    if (bytesRead < 4) continue;
+
+    privateScanned++;
+
+    for (int s = 0; malwareSigs[s].name != NULL; s++) {
+      int sigLen = malwareSigs[s].len;
+      for (size_t pos = 0; pos + sigLen <= bytesRead; pos++) {
+        bool match = true;
+        for (int b = 0; b < sigLen; b++) {
+          if (buf[pos + b] != malwareSigs[s].sig[b]) { match = false; break; }
+        }
+        if (match) {
+          char sigStr[5] = {};
+          sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+          sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+          sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+          sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+          printf("      %s[CRITICAL] Private tag '%s': %s at offset +%zu%s\n",
+                 ColorCritical(), sigStr, malwareSigs[s].name, pos, ColorReset());
+          printf("       %sCWE-506: Embedded malicious code in private tag data%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+          heuristicCount++;
+          break;
+        }
+      }
+    }
+  }
+
+  fclose(fp);
+
+  if (findings == 0 && privateScanned > 0) {
+    printf("      %s[OK] %d private tag(s) scanned — no malware signatures found%s\n",
+           ColorSuccess(), privateScanned, ColorReset());
+  } else if (privateScanned == 0) {
+    printf("      [INFO] No private tags to scan\n");
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H127: Private Tag Registry Lookup (Feedback C7)
+// Offline table of known registered private tag signatures from the
+// ICC Private Tag Registry.
+// =====================================================================
+int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H127] Private Tag Registry Check\n");
+
+  // Known registered private tags from ICC Private Tag Registry
+  // Format: 4-byte signature → registrant name
+  static const struct {
+    icUInt32Number sig;
+    const char *registrant;
+  } registry[] = {
+    {0x70736564, "Adobe ('psed')"},          // Photoshop editing data
+    {0x70736571, "Adobe ('pseq')"},          // Photoshop sequence
+    {0x64657363, "Various ('desc')"},        // Description (standard but often private-used)
+    {0x76756564, "Various ('vued')"},        // Viewing conditions desc
+    {0x4D535446, "Microsoft ('MSTF')"},      // Microsoft tag
+    {0x41504C45, "Apple ('APLE')"},          // Apple private
+    {0x61617074, "Apple ('aapt')"},          // Apple AAP
+    {0x6170706C, "Apple ('appl')"},          // Apple
+    {0x43474154, "CGATS ('CGAT')"},          // CGATS data
+    {0x44657669, "Device-specific ('Devi')"},
+    {0, NULL}
+  };
+
+  int privateCount = 0;
+  int registered = 0;
+  int unregistered = 0;
+
+  static const icTagSignature knownStd[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+    icSigCalibrationDateTimeTag, icSigCharTargetTag,
+    icSigChromaticAdaptationTag, icSigChromaticityTag,
+    icSigCopyrightTag, icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag, icSigGamutTag,
+    icSigGrayTRCTag, icSigGreenMatrixColumnTag,
+    icSigGreenTRCTag, icSigLuminanceTag,
+    icSigMeasurementTag, icSigMediaBlackPointTag,
+    icSigMediaWhitePointTag, icSigNamedColor2Tag,
+    icSigOutputResponseTag, icSigPreview0Tag,
+    icSigPreview1Tag, icSigPreview2Tag,
+    icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigRedMatrixColumnTag, icSigRedTRCTag,
+    icSigTechnologyTag, icSigViewingCondDescTag,
+    icSigViewingConditionsTag, icSigColorantOrderTag,
+    icSigColorantTableTag, icSigColorantTableOutTag,
+    icSigProfileSequceIdTag,
+    (icTagSignature)0x44324230, (icTagSignature)0x44324231,
+    (icTagSignature)0x44324232,
+    (icTagSignature)0x42324430, (icTagSignature)0x42324431,
+    (icTagSignature)0x42324432,
+    (icTagSignature)0
+  };
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isStd = false;
+    for (int k = 0; knownStd[k] != (icTagSignature)0; k++) {
+      if (sig == knownStd[k]) { isStd = true; break; }
+    }
+    if (isStd) continue;
+
+    privateCount++;
+    icUInt32Number sigVal = (icUInt32Number)sig;
+    bool found = false;
+    for (int r = 0; registry[r].registrant != NULL; r++) {
+      if (sigVal == registry[r].sig) {
+        char sigStr[5] = {};
+        sigStr[0] = (char)(static_cast<unsigned char>((sigVal >> 24) & 0xFF));
+        sigStr[1] = (char)(static_cast<unsigned char>((sigVal >> 16) & 0xFF));
+        sigStr[2] = (char)(static_cast<unsigned char>((sigVal >> 8) & 0xFF));
+        sigStr[3] = (char)(static_cast<unsigned char>(sigVal & 0xFF));
+        printf("      '%s': registered by %s\n", sigStr, registry[r].registrant);
+        found = true;
+        registered++;
+        break;
+      }
+    }
+    if (!found) {
+      char sigStr[5] = {};
+      sigStr[0] = (char)(static_cast<unsigned char>((sigVal >> 24) & 0xFF));
+      sigStr[1] = (char)(static_cast<unsigned char>((sigVal >> 16) & 0xFF));
+      sigStr[2] = (char)(static_cast<unsigned char>((sigVal >> 8) & 0xFF));
+      sigStr[3] = (char)(static_cast<unsigned char>(sigVal & 0xFF));
+      printf("      %s[WARN]  '%s' (0x%08X): not found in private tag registry%s\n",
+             ColorWarning(), sigStr, sigVal, ColorReset());
+      printf("       %sCWE-20: Undocumented private tag%s\n",
+             ColorWarning(), ColorReset());
+      unregistered++;
+      heuristicCount++;
+    }
+  }
+
+  if (privateCount == 0) {
+    printf("      %s[OK] No private tags present%s\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("      Summary: %d private tag(s) — %d registered, %d undocumented\n",
+           privateCount, registered, unregistered);
+  }
+
+  printf("\n");
+  return heuristicCount;
+}

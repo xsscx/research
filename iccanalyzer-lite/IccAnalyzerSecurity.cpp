@@ -611,6 +611,21 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H114_CurveSmoothness(pIcc);
     heuristicCount += RunHeuristic_H115_CharacterizationData(pIcc);
 
+    // H116-H127: ICC Technical Secretary / Profile Assessment WG feedback
+    // Conformance, quality metrics, and enhanced private tag analysis
+    heuristicCount += RunHeuristic_H116_CprtDescEncoding(pIcc);
+    heuristicCount += RunHeuristic_H117_TagTypeAllowed(pIcc);
+    heuristicCount += RunHeuristic_H118_CalcCostEstimate(pIcc);
+    heuristicCount += RunHeuristic_H119_RoundTripDeltaE(pIcc);
+    heuristicCount += RunHeuristic_H120_CurveInvertibility(pIcc);
+    heuristicCount += RunHeuristic_H121_CharDataRoundTrip(pIcc);
+    heuristicCount += RunHeuristic_H122_TagEncoding(pIcc);
+    heuristicCount += RunHeuristic_H123_NonRequiredTags(pIcc);
+    heuristicCount += RunHeuristic_H124_VersionTags(pIcc);
+    heuristicCount += RunHeuristic_H125_TransformSmoothness(pIcc);
+    heuristicCount += RunHeuristic_H126_PrivateTagMalware(pIcc, filename);
+    heuristicCount += RunHeuristic_H127_PrivateTagRegistry(pIcc);
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -642,7 +657,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 115 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 127 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -663,6 +678,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %sH107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,%s\n", ColorInfo(), ColorReset());
     printf("  %s           class-required tags, reserved bytes, wtpt validation, round-trip fidelity,%s\n", ColorInfo(), ColorReset());
     printf("  %s           TRC monotonicity, characterization data%s\n", ColorInfo(), ColorReset());
+    printf("  %sH116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           computation cost, ΔE round-trip, curve invertibility, characterization RT,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           deep encoding, non-required tags, version-tag, smoothness, malware scan, registry%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
