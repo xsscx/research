@@ -365,6 +365,13 @@ Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is a
 
 ## Key Conventions
 
+### Script locations
+All scripts MUST live in `.github/scripts/` (or subdirectories). Never place scripts in `cfl/`, `analysis-reports/`, or the repo root.
+- Shell scripts: `.github/scripts/*.sh`
+- Python utilities: `.github/scripts/*.py`
+- Call graph analysis: `.github/scripts/callgraphs/*-callgraph.py`
+- Build scripts: `cfl/build.sh`, `iccanalyzer-lite/build.sh` (exception — build scripts stay with their component)
+
 ### No emojis
 Do not use emojis in code, CI output, or reports. Use bracketed text labels: `[OK]`, `[WARN]`, `[FAIL]`, `[SKIP]`, `[CRITICAL]`, `[INFO]`.
 
