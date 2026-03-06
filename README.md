@@ -104,3 +104,19 @@ Pre-built prompt templates for AI-assisted analysis in [`.github/prompts/`](.git
 - **compare-icc-profiles** — Side-by-side structural diff
 - **triage-cve-poc** — CVE PoC analysis with CVE cross-referencing
 - **health-check** — MCP server verification
+
+## ICC Specification References
+
+Analysis heuristics are validated against the official ICC specification and technical notes:
+
+| Document | Description |
+|----------|-------------|
+| [ICC.1-2022-05](https://www.color.org/specification/ICC.1-2022-05.pdf) | Profile specification v4.4 (primary reference) |
+| [TN-06-2025 Tristimulus](https://archive.color.org/files/technotes/ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf) | Tristimulus value calculation |
+| [Profile Embedding](https://archive.color.org/files/technotes/ICC-Technote-ProfileEmbedding.pdf) | Embedding in TIFF/JPEG/EPS |
+| [Partial Adaptation](https://archive.color.org/files/technotes/ICC-Technote-PartialAdaptation.pdf) | Chromatic adaptation tag |
+| [Negative PCS XYZ](https://archive.color.org/files/technotes/Guidelines_on_the_use_of_negative_PCSXYZ_values.pdf) | Wide-gamut XYZ ranges |
+| [V4 Matrix Entries](https://archive.color.org/files/v4_matrix_entries.pdf) | Matrix precision constraints |
+| [V2 in V4](https://archive.color.org/files/v2profiles_v4.pdf) | Version interoperability |
+| [PSD TechNote](https://archive.color.org/files/PSD_TechNote.pdf) | Profile sequence description |
+| [RFC 1321](https://www.ietf.org/rfc/rfc1321.txt) | MD5 (profile ID calculation) |
