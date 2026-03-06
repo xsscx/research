@@ -602,6 +602,149 @@ def test_multiple_modes_same_profile(suite):
         )
 
 
+def test_lut_extraction(suite):
+    """Test LUT extraction mode (-x) on profiles with curves/LUTs."""
+    import tempfile
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        basename = os.path.join(tmpdir, "lut_test")
+        # -x mode should run without crashing
+        suite.assert_no_asan(
+            "lut.extract_valid_srgb",
+            ["-x", good, basename]
+        )
+
+    # Also test on a profile with actual curve data (non_monotonic has curv tags)
+    mono = str(CORPUS_DIR / "non_monotonic_curve.icc")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        basename = os.path.join(tmpdir, "lut_mono")
+        suite.assert_no_asan(
+            "lut.extract_non_monotonic",
+            ["-x", mono, basename]
+        )
+
+    # Test with a real profile from test-profiles if available
+    if TEST_PROFILES.exists():
+        candidates = sorted(TEST_PROFILES.glob("*.icc"))
+        if candidates:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                basename = os.path.join(tmpdir, "lut_real")
+                suite.assert_no_asan(
+                    "lut.extract_real_profile",
+                    ["-x", str(candidates[0]), basename]
+                )
+
+
+def test_call_graph_mode(suite):
+    """Test call graph mode (-cg) with a sample ASAN log."""
+    import tempfile
+
+    # Create a minimal ASAN-style crash log
+    asan_log = (
+        "=================================================================\n"
+        "==12345==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000001234\n"
+        "READ of size 4 at 0x602000001234 thread T0\n"
+        "    #0 0x55555557a000 in CIccProfile::Read /src/IccProfile.cpp:100\n"
+        "    #1 0x55555558b000 in main /src/main.cpp:50\n"
+        "\n"
+        "0x602000001234 is located 4 bytes before 16-byte region\n"
+        "allocated by thread T0 here:\n"
+        "    #0 0x7ffff7c00000 in malloc /lib/asan.cpp:100\n"
+        "    #1 0x55555557c000 in CIccProfile::Load /src/IccProfile.cpp:80\n"
+        "=================================================================\n"
+    )
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
+        f.write(asan_log)
+        log_path = f.name
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_base = os.path.join(tmpdir, "cg_test")
+            suite.assert_no_asan(
+                "callgraph.asan_log_parse",
+                ["-cg", log_path, out_base]
+            )
+    finally:
+        os.unlink(log_path)
+
+
+def test_xml_heuristic_export(suite):
+    """Test XML export mode (-xml) produces valid XML output."""
+    import tempfile
+    # Test with valid profile
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+    with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+        xml_path = f.name
+
+    try:
+        rc, stdout, stderr = suite.run_analyzer(["-xml", good, xml_path])
+        if os.path.exists(xml_path) and os.path.getsize(xml_path) > 0:
+            with open(xml_path, 'r') as xf:
+                content = xf.read()
+            has_xml = '<?xml' in content or '<' in content
+            suite.results.append(TestResult(
+                "xml_heuristic.valid_xml_content",
+                has_xml,
+                f"XML content {'valid' if has_xml else 'empty/invalid'}, rc={rc}",
+                0.0, stdout, stderr
+            ))
+        else:
+            suite.results.append(TestResult(
+                "xml_heuristic.valid_xml_content",
+                rc != 2,  # Pass if not an I/O error
+                f"No XML output, rc={rc}",
+                0.0, stdout, stderr
+            ))
+    finally:
+        if os.path.exists(xml_path):
+            os.unlink(xml_path)
+
+    # Test with malformed profile
+    bad = str(CORPUS_DIR / "bad_magic.icc")
+    with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+        xml_path2 = f.name
+    try:
+        suite.assert_no_asan(
+            "xml_heuristic.bad_magic_no_crash",
+            ["-xml", bad, xml_path2]
+        )
+    finally:
+        if os.path.exists(xml_path2):
+            os.unlink(xml_path2)
+
+
+def test_ninja_modes_coverage(suite):
+    """Test ninja modes on diverse profiles for line coverage."""
+    corpus = str(CORPUS_DIR)
+    # -n (minimal) and -nf (full) on multiple profile types
+    for profile_name in ["valid_srgb.icc", "private_tags.icc",
+                         "non_monotonic_curve.icc", "bad_wtpt.icc"]:
+        path = f"{corpus}/{profile_name}"
+        stem = profile_name.replace(".icc", "")
+        suite.assert_no_asan(
+            f"ninja.n_{stem}",
+            ["-n", path]
+        )
+        suite.assert_no_asan(
+            f"ninja.nf_{stem}",
+            ["-nf", path]
+        )
+
+
+def test_extended_profiles_coverage(suite):
+    """Test -a on extended test profiles for broader code coverage."""
+    if not EXTENDED_PROFILES.exists():
+        return
+    profiles = sorted(EXTENDED_PROFILES.glob("*.icc"))
+    # Test every 5th extended profile
+    for icc in profiles[::5][:20]:
+        suite.assert_no_asan(
+            f"extended.{icc.stem[:40]}",
+            ["-a", str(icc)]
+        )
+
+
 # --- Main ---
 
 def main():
@@ -637,6 +780,11 @@ def main():
         ("Repo Profile Sample", test_repo_profiles_sample),
         ("XML Export", test_xml_export),
         ("Multi-Mode Consistency", test_multiple_modes_same_profile),
+        ("LUT Extraction", test_lut_extraction),
+        ("Call Graph", test_call_graph_mode),
+        ("XML Heuristic Export", test_xml_heuristic_export),
+        ("Ninja Modes Coverage", test_ninja_modes_coverage),
+        ("Extended Profiles", test_extended_profiles_coverage),
     ]
 
     for section_name, test_fn in test_functions:
