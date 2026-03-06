@@ -110,10 +110,10 @@ git commit -m "coverage: <description of improvements>"
 ## Coverage Baseline (March 2026, extended run)
 | Metric | Value |
 |--------|-------|
-| Lines | 59.01% |
-| Branches | 56.76% |
-| Functions | 59.81% |
-| Regions | 61.06% |
+| Lines | 61.15% |
+| Branches | 58.47% |
+| Functions | 63.23% |
+| Instantiations | 62.99% |
 
 ## Top Coverage Gaps (by missed lines)
 | File | Missed | Coverage | Priority | Target Fuzzers |
