@@ -674,3 +674,21 @@ Fuzzer: `icc_fromxml_fuzzer`. CWE-789.
 ```bash
 ASAN_OPTIONS=detect_leaks=0 icc_fromxml_fuzzer oom-7beea52affd357163946a6682b034d28913bd63c
 ```
+
+Patch 069 adds bounds validation to `CIccCalculatorFunc::ApplySequence` in
+IccMpeCalc.cpp.  The `icSigSelectOp` handler computes sub-array offsets from
+`ops[].extra` and `ops[].data.size` fields read from the profile.  Three gaps:
+1. Line 3778: checked `seqBase >= nOps` but NOT `seqBase + size > nOps`
+2. Line 3791: no bounds check at all before recursive `ApplySequence` call
+3. Line 3806: accessed `ops[nOff]` without first validating `nOff < nOps`
+
+Fix: Add `seqBase + ops[].data.size > nOps` checks before all recursive calls,
+and `nOff >= nOps` before accessing `ops[nOff]` on the else-if path.
+
+Reproducer: `crash-c9b12a78fb3f7b823334ab35c5eb4260e5882e8a` (10,951 bytes).
+Fuzzer: `icc_apply_fuzzer`. CWE-125 (heap-buffer-overflow READ).
+
+1-liner:
+```bash
+ASAN_OPTIONS=detect_leaks=0 icc_apply_fuzzer crash-c9b12a78fb3f7b823334ab35c5eb4260e5882e8a
+```
