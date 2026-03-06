@@ -1,0 +1,283 @@
+{
+  "tool": "iccToXml",
+  "tool_file": "IccToXml.cpp",
+  "fuzzer": "icc_toxml_fuzzer",
+  "fuzzer_file": "icc_toxml_fuzzer.cpp",
+  "analysis_date": "2026-07-20",
+  "phases": {
+    "1_factory_init": {
+      "description": "Register XML tag and MPE factories",
+      "calls": [
+        {
+          "callee": "CIccTagCreator::PushFactory(CIccTagXmlFactory)",
+          "line": 20,
+          "caller": "main",
+          "context": "Register XML tag factory for tag serialization",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer does this in LLVMFuzzerInitialize \u2014 identical"
+        },
+        {
+          "callee": "CIccMpeCreator::PushFactory(CIccMpeXmlFactory)",
+          "line": 21,
+          "caller": "main",
+          "context": "Register XML MPE factory for MPE tag serialization",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer does this in LLVMFuzzerInitialize \u2014 identical"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "2_cli_parsing": {
+      "description": "Command-line argument check",
+      "calls": [
+        {
+          "callee": "printf(usage)",
+          "line": 15,
+          "caller": "main",
+          "context": "Print usage message and exit",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "3_profile_loading": {
+      "description": "ICC profile binary parsing via Read()",
+      "calls": [
+        {
+          "callee": "CIccFileIO::Open(src)",
+          "line": 26,
+          "caller": "main",
+          "context": "Open source ICC profile file for reading",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer uses CIccMemIO::Attach instead of file I/O"
+        },
+        {
+          "callee": "CIccProfileXml::Read",
+          "line": 31,
+          "caller": "main",
+          "context": "Parse ICC profile binary data into CIccProfileXml object",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches via Attach() which calls Read internally"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_xml_conversion": {
+      "description": "Profile\u2192XML conversion \u2014 main attack surface",
+      "calls": [
+        {
+          "callee": "std::string::reserve(40000000)",
+          "line": 37,
+          "caller": "main",
+          "context": "Pre-allocate 40MB for XML output string",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not pre-allocate \u2014 relies on std::string growth"
+        },
+        {
+          "callee": "CIccProfileXml::ToXml",
+          "line": 39,
+          "caller": "main",
+          "context": "Convert parsed ICC profile to XML string \u2014 MAIN ATTACK SURFACE",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact 1:1 match. Exercises all tag ToXml serialization paths"
+        }
+      ],
+      "in_fuzzer": "partial",
+      "reason": "ToXml is fully covered; 40MB reserve is tool-only"
+    },
+    "5_output": {
+      "description": "Write XML string to output file",
+      "calls": [
+        {
+          "callee": "CIccFileIO::Open(dst)",
+          "line": 44,
+          "caller": "main",
+          "context": "Open destination file for XML output writing",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer discards XML output \u2014 write path not exercised"
+        },
+        {
+          "callee": "CIccFileIO::Write8",
+          "line": 49,
+          "caller": "main",
+          "context": "Write XML string to output file",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccFileIO::Close",
+          "line": 57,
+          "caller": "main",
+          "context": "Close output file handle",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Output-only operations, not part of attack surface"
+    },
+    "6_deep_calls": {
+      "description": "Deep call chains from Read + ToXml (tag-level processing)",
+      "calls": [
+        {
+          "callee": "CIccProfile::Read (header)",
+          "line": 0,
+          "caller": "CIccProfileXml::Read",
+          "context": "Parse 128-byte ICC header",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccProfile::Read (tag directory)",
+          "line": 0,
+          "caller": "CIccProfileXml::Read",
+          "context": "Parse tag directory and load all tags",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Each tag type has its own Read method \u2014 memory allocation hotspot"
+        },
+        {
+          "callee": "CIccTag*::ToXml (50+ tag types)",
+          "line": 0,
+          "caller": "CIccProfileXml::ToXml",
+          "context": "Per-tag XML serialization \u2014 each tag type has its own ToXml",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exercises Describe paths, string formatting, numeric conversions"
+        },
+        {
+          "callee": "CIccMpe*::ToXml",
+          "line": 0,
+          "caller": "CIccProfileXml::ToXml",
+          "context": "MPE element XML serialization",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icFixXml",
+          "line": 0,
+          "caller": "various ToXml",
+          "context": "XML character escaping for output strings",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Patch 065 caps buffer at 65536 bytes"
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc <= 2",
+      "line": 14,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage message guard"
+    },
+    {
+      "condition": "!srcIO.Open()",
+      "line": 26,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Source file open failure \u2014 prevents Read"
+    },
+    {
+      "condition": "!profile.Read()",
+      "line": 31,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Profile parse failure \u2014 prevents ToXml on corrupt data"
+    },
+    {
+      "condition": "!profile.ToXml()",
+      "line": 39,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "XML conversion failure \u2014 prevents output write"
+    },
+    {
+      "condition": "!dstIO.Open()",
+      "line": 44,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Destination file open failure"
+    },
+    {
+      "condition": "Write8 size check",
+      "line": 49,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Write completeness check"
+    },
+    {
+      "condition": "Tag count in profile",
+      "line": 0,
+      "gate_type": "Read",
+      "parent_func": "CIccProfile",
+      "security_relevant": true,
+      "note": "Number of tags determines allocation count during Read"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 15,
+    "cli_only_excluded": 1,
+    "fuzzable_call_sites": 14,
+    "matched_by_fuzzer": 9,
+    "coverage_percent": 64.3,
+    "fidelity_note": "HIGH",
+    "note": "The toxml fuzzer has high fidelity with the tool. It exercises the complete Read\u2192ToXml pipeline which is the core attack surface. The only differences are: (1) fuzzer uses CIccMemIO instead of CIccFileIO for input, (2) fuzzer discards XML output instead of writing to file, (3) fuzzer does not pre-allocate the 40MB string. The Read + ToXml paths exercise all tag parsing and serialization code."
+  },
+  "oom_concerns": [
+    {
+      "location": "std::string::reserve(40000000)",
+      "file": "IccToXml.cpp:37",
+      "trigger": "40MB pre-allocation for XML output",
+      "note": "Tool always allocates 40MB regardless of profile size"
+    },
+    {
+      "location": "CIccTag*::ToXml with large LUT data",
+      "file": "various IccTagXml.cpp",
+      "trigger": "Large CLUT/curve tags generate massive XML output",
+      "note": "Can exceed 40MB pre-allocation causing realloc"
+    }
+  ],
+  "fuzzer_input_format": {
+    "description": "Raw ICC profile binary data (entire input is profile)",
+    "min_size": 128,
+    "max_size": "5MB"
+  }
+}

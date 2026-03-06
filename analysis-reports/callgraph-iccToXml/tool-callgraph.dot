@@ -1,0 +1,87 @@
+digraph iccToXml {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+  }
+
+  tool [label="main()\nIccToXml.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_toxml_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // Factory init
+  subgraph cluster_init {
+    label="Phase 1: Factory Init"; style=rounded;
+    tag_factory [label="PushFactory\n(TagXmlFactory)", fillcolor="#90EE90"];
+    mpe_factory [label="PushFactory\n(MpeXmlFactory)", fillcolor="#90EE90"];
+  }
+
+  // CLI
+  subgraph cluster_cli {
+    label="Phase 2: CLI"; style=rounded;
+    usage [label="printf(usage)", fillcolor="#D3D3D3"];
+  }
+
+  // Profile loading
+  subgraph cluster_load {
+    label="Phase 3: Profile Loading"; style=rounded; color=red;
+    fileio_open [label="CIccFileIO::Open\nL26", fillcolor="#ADD8E6"];
+    profile_read [label="CIccProfileXml::Read\nL31\nMAIN ENTRY", fillcolor="#90EE90", penwidth=3];
+  }
+
+  // XML conversion
+  subgraph cluster_convert {
+    label="Phase 4: XML Conversion (Attack Surface)"; style=rounded; color=red;
+    reserve [label="string::reserve\n(40MB)", fillcolor="#ADD8E6"];
+    toxml [label="CIccProfileXml::ToXml\nMAIN ATTACK SURFACE", fillcolor="#90EE90", penwidth=3];
+  }
+
+  // Output
+  subgraph cluster_output {
+    label="Phase 5: Output Writing"; style=rounded;
+    dst_open [label="CIccFileIO::Open\n(dst)", fillcolor="#ADD8E6"];
+    write8 [label="CIccFileIO::Write8", fillcolor="#ADD8E6"];
+    close [label="CIccFileIO::Close", fillcolor="#ADD8E6"];
+  }
+
+  // Deep calls
+  subgraph cluster_deep {
+    label="Phase 6: Deep Call Chains"; style=rounded; color=red;
+    read_hdr [label="Read (header)", fillcolor="#90EE90"];
+    read_tags [label="Read (tag dir)", fillcolor="#90EE90"];
+    tag_toxml [label="Tag::ToXml\n(50+ types)", fillcolor="#90EE90"];
+    mpe_toxml [label="MPE::ToXml", fillcolor="#90EE90"];
+    icfixxml [label="icFixXml", fillcolor="#90EE90"];
+  }
+
+  // Tool edges
+  tool -> tag_factory;
+  tool -> mpe_factory;
+  tool -> usage [style=dashed];
+  tool -> fileio_open [style=dashed];
+  tool -> profile_read [style=bold, penwidth=2];
+  tool -> reserve [style=dashed];
+  tool -> toxml [style=bold, penwidth=2];
+  tool -> dst_open [style=dashed];
+  tool -> write8 [style=dashed];
+  tool -> close [style=dashed];
+
+  // Fuzzer edges
+  fuzzer -> tag_factory [style=dotted, color=green];
+  fuzzer -> mpe_factory [style=dotted, color=green];
+  fuzzer -> profile_read [style=bold, color=green, penwidth=2];
+  fuzzer -> toxml [style=bold, color=green, penwidth=2];
+
+  // Deep call chain
+  profile_read -> read_hdr [style=bold];
+  profile_read -> read_tags [style=bold];
+  toxml -> tag_toxml [style=bold];
+  toxml -> mpe_toxml;
+  tag_toxml -> icfixxml;
+
+}
