@@ -1,0 +1,109 @@
+digraph iccApplyNamedCmm {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+    leg_fuzzer [label="Fuzzer Extra", fillcolor="#FFD700"];
+  }
+
+  tool [label="main()\niccApplyNamedCmm.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_applynamedcmm_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // Config parsing
+  subgraph cluster_config {
+    label="Phase 1: Config Parsing"; style=rounded;
+    json_cfg [label="fromJson\n(config)", fillcolor="#D3D3D3"];
+    legacy_cfg [label="fromArgs\n(legacy)", fillcolor="#D3D3D3"];
+  }
+
+  // CMM construction
+  subgraph cluster_cmm {
+    label="Phase 2: CMM Construction"; style=rounded; color=red;
+    open_prof [label="OpenIccProfile", fillcolor="#90EE90"];
+    named_cmm [label="CIccNamedColorCmm()", fillcolor="#90EE90", penwidth=3];
+    hint_mgr [label="HintManager\n(BPC/Lum/Env)", fillcolor="#90EE90"];
+    add_xform [label="AddXform", fillcolor="#90EE90"];
+  }
+
+  // CMM execution
+  subgraph cluster_exec {
+    label="Phase 3: CMM Execution"; style=rounded; color=red;
+    cmm_begin [label="Begin()", fillcolor="#90EE90"];
+    get_iface [label="GetInterface()", fillcolor="#90EE90"];
+    get_spaces [label="Get Src/Dst Space", fillcolor="#90EE90"];
+  }
+
+  // Apply interfaces
+  subgraph cluster_apply {
+    label="Phase 4: Apply (4 Interfaces)"; style=rounded; color=red;
+    named2pixel [label="Apply\nNamed2Pixel", fillcolor="#90EE90"];
+    pixel2pixel [label="Apply\nPixel2Pixel", fillcolor="#90EE90", penwidth=3];
+    named2named [label="Apply\nNamed2Named", fillcolor="#90EE90"];
+    pixel2named [label="Apply\nPixel2Named", fillcolor="#90EE90"];
+    batch_apply [label="Apply\n(batch 3px)", fillcolor="#FFD700"];
+  }
+
+  // Encoding
+  subgraph cluster_encoding {
+    label="Phase 5: Encoding Conversion"; style=rounded;
+    to_internal [label="ToInternalEncoding\n(6 types)", fillcolor="#90EE90"];
+    from_internal [label="FromInternalEncoding\n(6 types)", fillcolor="#90EE90"];
+  }
+
+  // Output
+  subgraph cluster_output {
+    label="Phase 6: Output Writing"; style=rounded;
+    to_legacy [label="toLegacy", fillcolor="#ADD8E6"];
+    to_json [label="toJson", fillcolor="#ADD8E6"];
+    to_it8 [label="toIt8", fillcolor="#ADD8E6"];
+  }
+
+  // Tool edges
+  tool -> json_cfg [style=dashed];
+  tool -> legacy_cfg [style=dashed];
+  tool -> open_prof;
+  tool -> named_cmm [style=bold, penwidth=2];
+  tool -> hint_mgr;
+  tool -> add_xform [style=bold, penwidth=2];
+  tool -> cmm_begin [style=bold];
+  tool -> get_iface;
+  tool -> get_spaces;
+  tool -> named2pixel;
+  tool -> pixel2pixel [style=bold, penwidth=2];
+  tool -> named2named;
+  tool -> pixel2named;
+  tool -> to_internal;
+  tool -> from_internal;
+  tool -> to_legacy [style=dashed];
+  tool -> to_json [style=dashed];
+  tool -> to_it8 [style=dashed];
+
+  // Fuzzer edges
+  fuzzer -> open_prof [style=dotted, color=green];
+  fuzzer -> named_cmm [style=bold, color=green, penwidth=2];
+  fuzzer -> hint_mgr [style=dotted, color=green];
+  fuzzer -> add_xform [style=bold, color=green, penwidth=2];
+  fuzzer -> cmm_begin [style=bold, color=green];
+  fuzzer -> get_iface [style=dotted, color=green];
+  fuzzer -> get_spaces [style=dotted, color=green];
+  fuzzer -> named2pixel [style=dotted, color=green];
+  fuzzer -> pixel2pixel [style=bold, color=green, penwidth=2];
+  fuzzer -> named2named [style=dotted, color=green];
+  fuzzer -> pixel2named [style=dotted, color=green];
+  fuzzer -> batch_apply [style=bold, color=orange];
+  fuzzer -> to_internal [style=dotted, color=green];
+  fuzzer -> from_internal [style=dotted, color=green];
+
+  // Interface flow
+  get_iface -> named2pixel [style=dotted, label="Named src"];
+  get_iface -> pixel2pixel [style=dotted, label="Pixel src"];
+  get_iface -> named2named [style=dotted, label="Named both"];
+  get_iface -> pixel2named [style=dotted, label="Pixel→Named"];
+
+}

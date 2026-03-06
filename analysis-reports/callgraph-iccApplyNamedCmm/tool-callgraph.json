@@ -1,0 +1,540 @@
+{
+  "tool": "iccApplyNamedCmm",
+  "tool_file": "iccApplyNamedCmm.cpp",
+  "fuzzer": "icc_applynamedcmm_fuzzer",
+  "fuzzer_file": "icc_applynamedcmm_fuzzer.cpp",
+  "analysis_date": "2026-07-20",
+  "phases": {
+    "1_config_parsing": {
+      "description": "JSON/legacy configuration parsing",
+      "calls": [
+        {
+          "callee": "CIccCfgDataApply::fromJson",
+          "line": 254,
+          "caller": "main",
+          "context": "Parse JSON configuration for data application",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer uses hardcoded params, not JSON config"
+        },
+        {
+          "callee": "CIccCfgProfileSequence::fromJson",
+          "line": 259,
+          "caller": "main",
+          "context": "Parse JSON profile sequence configuration",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgColorData::fromJson",
+          "line": 266,
+          "caller": "main",
+          "context": "Parse JSON color data from config",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgDataApply::fromArgs",
+          "line": 290,
+          "caller": "main",
+          "context": "Parse legacy command-line arguments",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgProfileSequence::fromArgs",
+          "line": 298,
+          "caller": "main",
+          "context": "Parse legacy profile sequence from args",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgColorData::fromLegacy",
+          "line": 304,
+          "caller": "main",
+          "context": "Parse legacy color data file",
+          "gate": "",
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Fuzzer uses hardcoded params, not config files"
+    },
+    "2_cmm_construction": {
+      "description": "Named color CMM construction with hints",
+      "calls": [
+        {
+          "callee": "OpenIccProfile(first)",
+          "line": 330,
+          "caller": "main",
+          "context": "Open first profile to determine source color space",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: OpenIccProfile(tmp_profile)"
+        },
+        {
+          "callee": "CIccNamedColorCmm::CIccNamedColorCmm",
+          "line": 339,
+          "caller": "main",
+          "context": "Construct named color CMM with source/dest spaces",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: CIccNamedColorCmm(srcSpace, icSigUnknownData, bInputProfile)"
+        },
+        {
+          "callee": "CIccCreateXformHintManager",
+          "line": 353,
+          "caller": "main",
+          "context": "Create hint manager for xform",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccApplyBPCHint",
+          "line": 355,
+          "caller": "main",
+          "context": "Add Black Point Compensation hint",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccLuminanceMatchingHint",
+          "line": 358,
+          "caller": "main",
+          "context": "Add luminance matching hint",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "OpenIccProfile(pcc)",
+          "line": 362,
+          "caller": "main",
+          "context": "Open PCC profile for viewing conditions",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not use PCC profiles"
+        },
+        {
+          "callee": "CIccCmmEnvVarHint",
+          "line": 373,
+          "caller": "main",
+          "context": "Add environment variable hints",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer exercises env var path when flags bit 7 set"
+        },
+        {
+          "callee": "CIccCmmPccEnvVarHint",
+          "line": 377,
+          "caller": "main",
+          "context": "Add PCC environment variable hints",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::AddXform",
+          "line": 381,
+          "caller": "main",
+          "context": "Add profile xform to named color CMM pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Exact match: namedCmm.AddXform(file, intent, interp, pcc, xformType, useD2Bx, &Hint, useV5Sub)"
+        }
+      ],
+      "in_fuzzer": "partial",
+      "reason": "PCC and PCC env vars not exercised by fuzzer"
+    },
+    "3_cmm_execution": {
+      "description": "CMM Begin + space queries",
+      "calls": [
+        {
+          "callee": "CIccNamedColorCmm::Begin",
+          "line": 397,
+          "caller": "main",
+          "context": "Initialize named color CMM pipeline",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::GetInterface",
+          "line": 479,
+          "caller": "main",
+          "context": "Get CMM interface type (Named2Pixel, Pixel2Pixel, etc.)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::GetSourceSpace",
+          "line": 413,
+          "caller": "main",
+          "context": "Query source color space from CMM",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(src)",
+          "line": 414,
+          "caller": "main",
+          "context": "Get source channel count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::GetDestSpace",
+          "line": 429,
+          "caller": "main",
+          "context": "Query destination color space",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(dst)",
+          "line": 430,
+          "caller": "main",
+          "context": "Get destination channel count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_apply": {
+      "description": "Apply transforms \u2014 4 interface types",
+      "calls": [
+        {
+          "callee": "CIccNamedColorCmm::Apply(Named2Pixel)",
+          "line": 483,
+          "caller": "main",
+          "context": "Apply named color \u2192 pixel transform",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer tests 9 named colors \u00d7 3 tint values"
+        },
+        {
+          "callee": "CIccNamedColorCmm::Apply(Pixel2Pixel)",
+          "line": 536,
+          "caller": "main",
+          "context": "Apply pixel \u2192 pixel transform \u2014 MOST COMMON",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer tests black/white/gray/primaries/edge cases/NaN/Inf/batch"
+        },
+        {
+          "callee": "CIccNamedColorCmm::Apply(Named2Named)",
+          "line": 500,
+          "caller": "main",
+          "context": "Apply named color \u2192 named color transform",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::Apply(Pixel2Named)",
+          "line": 552,
+          "caller": "main",
+          "context": "Apply pixel \u2192 named color transform",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::Apply(batch)",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Apply batch pixel transform (3 pixels)",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer-only: tests multi-pixel Apply overload"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "5_encoding": {
+      "description": "ToInternalEncoding / FromInternalEncoding",
+      "calls": [
+        {
+          "callee": "CIccCmm::ToInternalEncoding",
+          "line": 522,
+          "caller": "main",
+          "context": "Convert source data to internal encoding",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer tests 6 encoding types: Value, Percent, UnitFloat, Float, 16Bit, 16BitV2"
+        },
+        {
+          "callee": "CIccCmm::FromInternalEncoding",
+          "line": 540,
+          "caller": "main",
+          "context": "Convert internal encoding to destination format",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer tests same 6 encoding types"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "6_output": {
+      "description": "Output writing (legacy, JSON, IT8)",
+      "calls": [
+        {
+          "callee": "CIccCfgColorData::toLegacy",
+          "line": 580,
+          "caller": "main",
+          "context": "Write legacy output format",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgColorData::toJson",
+          "line": 590,
+          "caller": "main",
+          "context": "Write JSON output format",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "CIccCfgColorData::toIt8",
+          "line": 598,
+          "caller": "main",
+          "context": "Write IT8 output format",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false,
+      "reason": "Output-only operations, not part of attack surface"
+    },
+    "7_fuzzer_extras": {
+      "description": "Additional CMM query APIs",
+      "calls": [
+        {
+          "callee": "CIccNamedColorCmm::GetNumXforms",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query xform count",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::Valid",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Validate CMM state",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::GetLastSpace",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query last color space",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccNamedColorCmm::GetLastParentSpace",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query last parent color space",
+          "gate": "",
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc < 2",
+      "line": 238,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Usage message guard"
+    },
+    {
+      "condition": "!stricmp(argv[1], '-cfg')",
+      "line": 247,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "JSON vs legacy config mode"
+    },
+    {
+      "condition": "!stricmp(argv[0], '-debugcalc')",
+      "line": 283,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Debug calculator mode"
+    },
+    {
+      "condition": "!bInputProfile (IsSpacePCS)",
+      "line": 328,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Determines input profile detection \u2014 affects CMM construction"
+    },
+    {
+      "condition": "pProfCfg->m_useBPC",
+      "line": 354,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "BPC hint gate"
+    },
+    {
+      "condition": "pProfCfg->m_adjustPcsLuminance",
+      "line": 357,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Luminance matching gate"
+    },
+    {
+      "condition": "pProfCfg->m_pccFile.size()",
+      "line": 361,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "PCC profile loading gate"
+    },
+    {
+      "condition": "pProfCfg->m_iccEnvVars.size() > 0",
+      "line": 372,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Environment variable hint gate"
+    },
+    {
+      "condition": "stat = namedCmm.Begin()",
+      "line": 397,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "CMM initialization failure \u2014 blocks Apply()"
+    },
+    {
+      "condition": "SrcspaceSig == icSigNamedData",
+      "line": 469,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Named vs pixel input determines Apply overload used"
+    },
+    {
+      "condition": "namedCmm.GetInterface() switch",
+      "line": 479,
+      "gate_type": "switch",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Interface type determines which Apply overload is called"
+    },
+    {
+      "condition": "bInputProfile && IsSpacePCS(SrcspaceSig)",
+      "line": 418,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "PCS data encoding adjustment for input profiles"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 35,
+    "cli_only_excluded": 6,
+    "fuzzable_call_sites": 29,
+    "matched_by_fuzzer": 24,
+    "output_only_not_in_fuzzer": 3,
+    "coverage_percent": 82.8,
+    "fidelity_note": "HIGH",
+    "note": "The applynamedcmm fuzzer has high fidelity with the tool. It exercises all 4 Apply() interface types (Named2Pixel, Pixel2Pixel, Named2Named, Pixel2Named), the full CIccNamedColorCmm pipeline (AddXform\u2192Begin\u2192Apply), encoding conversions (6 types \u00d7 2 directions), and hint mechanisms (BPC, luminance, env vars). The only gaps are: JSON/legacy config parsing, PCC profiles, and output writing."
+  },
+  "apply_interfaces": {
+    "icApplyNamed2Pixel": "Named color input \u2192 pixel output (tint variations)",
+    "icApplyPixel2Pixel": "Pixel input \u2192 pixel output (most common path)",
+    "icApplyNamed2Named": "Named color \u2192 named color lookup",
+    "icApplyPixel2Named": "Pixel input \u2192 closest named color"
+  },
+  "fuzzer_pixel_tests": [
+    "Black (all zeros)",
+    "White (all ones)",
+    "Gray (all 0.5)",
+    "Primary colors (one channel at 1.0)",
+    "Negative values (-0.1)",
+    "Over-range values (1.5)",
+    "NaN values (0.0/0.0)",
+    "+Inf values (1.0/0.0)",
+    "Fuzz-data derived values",
+    "Batch (3 pixels at once)"
+  ],
+  "fuzzer_input_format": {
+    "description": "4-byte control header + ICC profile data",
+    "control_bytes": {
+      "byte[0] (flags)": "useBPC(0x01), useD2Bx(0x02), adjustPcsLuminance(0x04), useV5SubProfile(0x08), interp(0x10), envVars(0x80)",
+      "byte[1]": "icRenderingIntent (& 0x03)",
+      "byte[2-3]": "Reserved"
+    },
+    "min_size": 132,
+    "max_size": "2MB"
+  }
+}
