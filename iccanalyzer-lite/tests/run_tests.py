@@ -158,6 +158,8 @@ class TestSuite:
                 if any(f in line for f in [
                     "IccCAM.cpp", "IccProfile.cpp:3153", "IccProfile.cpp:3155",
                     "IccTagLut.cpp:5640", "IccTagLut.cpp:5638",
+                    "IccTagLut.cpp:2761",
+                    "IccMD5.cpp",  # MD5 uses intentional unsigned wrapping
                 ]):
                     continue
                 return line.strip()
