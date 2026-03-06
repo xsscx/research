@@ -599,6 +599,18 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H105_MatrixTRC(pIcc);
     heuristicCount += RunHeuristic_H106_EnvVar(pIcc);
 
+    // H107-H115: Feedback-driven heuristics (channel cross-check, private tags,
+    // shellcode, class validation, reserved bytes, wtpt, round-trip, TRC, targ)
+    heuristicCount += RunHeuristic_H107_ChannelCrossCheck(pIcc);
+    heuristicCount += RunHeuristic_H108_PrivateTags(pIcc);
+    heuristicCount += RunHeuristic_H109_ShellcodePatterns(filename);
+    heuristicCount += RunHeuristic_H110_ClassTagValidation(pIcc);
+    heuristicCount += RunHeuristic_H111_ReservedBytes(filename);
+    heuristicCount += RunHeuristic_H112_WtptValidation(pIcc);
+    heuristicCount += RunHeuristic_H113_RoundTripFidelity(pIcc);
+    heuristicCount += RunHeuristic_H114_CurveSmoothness(pIcc);
+    heuristicCount += RunHeuristic_H115_CharacterizationData(pIcc);
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -630,7 +642,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 106 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 115 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -648,6 +660,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s          spectral MPE elements, embedded images, sequence desc, MPE chain, tag sizes%s\n", ColorInfo(), ColorReset());
     printf("  %sH103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation,%s\n", ColorInfo(), ColorReset());
     printf("  %s           environment variable tags, spectral range validation%s\n", ColorInfo(), ColorReset());
+    printf("  %sH107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           class-required tags, reserved bytes, wtpt validation, round-trip fidelity,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           TRC monotonicity, characterization data%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
