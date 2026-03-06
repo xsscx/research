@@ -63,5 +63,5 @@ cp bin/icc_*_fuzzer /mnt/g/fuzz-ssd/bin/  # or ramdisk
 ## Key lessons (2026-03-05 sync)
 - `build.sh` does NOT auto-update cfl/iccDEV — drift happens silently
 - Always verify CFL and upstream commits match before triaging findings
-- 15 patches dropped as NO-OPs when syncing from `186bba0` → `5f7e03a`
+- 14 patches dropped as NO-OPs when syncing from `186bba0` → `5f7e03a` → `b5ade94` (PR #648)
 - Patches with `/tmp/` paths in headers fail with `patch -p1` — must use `a/`/`b/` prefix

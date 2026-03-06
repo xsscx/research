@@ -562,7 +562,7 @@ When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
   llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
   llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=html --output-dir=/mnt/g/fuzz-ssd/coverage-report/html
   ```
-- **Coverage baseline** (as of March 2026, all 19 fuzzers): Lines 58.85%, Branches 56.56%, Functions 59.71%, Regions 60.88%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
+- **Coverage baseline** (as of March 2026, all 19 fuzzers): Functions 63.23%, Lines 61.15%, Branches 58.47%, Instantiations 62.99%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
 - **Seed corpus strategy**: Copy profiles from `test-profiles/` with novel tag types not already in fuzzer seed corpora. Set `doOpenPath` bit (`data[-2] |= 0x08`) on seeds to use the non-validating `Read()` path in deep_dump fuzzer. Minimal hand-crafted ICC profiles fail `ValidateIccProfile()` — always patch existing valid profiles instead.
 - **Fuzzer-specific coverage notes**:
   - Only `toxml` and `fromxml` link IccXML — they provide all IccXML coverage

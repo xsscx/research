@@ -229,8 +229,8 @@ async def health_check() -> str:
     lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
     lines.append("")
 
-    # Tool count (8 analysis tools + 7 maintainer + 6 operations + 1 health = 22 tools)
-    lines.append("Tools: 22 registered (8 analysis + 7 maintainer + 6 operations + 1 health)")
+    # Tool count (9 analysis tools + 7 maintainer + 6 operations = 22 tools)
+    lines.append("Tools: 22 registered (9 analysis + 7 maintainer + 6 operations)")
     lines.append("")
 
     overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
