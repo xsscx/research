@@ -1,0 +1,205 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Run iccanalyzer-lite unit tests (77 tests)
+#         - Exit code validation
+#         - Analysis mode verification
+#         - Heuristic detection (H1-H127)
+#         - ASAN/UBSAN cleanliness
+#         - Synthesized corpus + repo profile testing
+#
+# Last Updated: 2026-03-06
+###############################################################
+
+name: iccAnalyzer-lite Unit Tests
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - 'iccanalyzer-lite/**'
+      - '.github/workflows/iccanalyzer-lite-unit-tests.yml'
+  pull_request:
+    paths:
+      - 'iccanalyzer-lite/**'
+  workflow_dispatch:
+
+concurrency:
+  group: iccanalyzer-lite-unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: "Unit Tests • clang • ASAN+UBSAN"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Configure environment
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Ref:      ${{ github.ref }}"
+          echo "Commit:   ${{ github.sha }}"
+
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-unit-tests
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+            nlohmann-json3-dev python3
+
+      - name: Print compiler version
+        run: |
+          clang++ --version | head -1
+
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev
+        with:
+          path: iccanalyzer-lite/iccDEV
+          key: iccdev-repo-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            iccdev-repo-
+
+      - name: Clone iccDEV dependency
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          if [ ! -d "iccDEV/.git" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/DemoIccMAX.git iccDEV
+          fi
+
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccanalyzer-lite/iccDEV/Build
+          key: iccdev-build-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccanalyzer-lite/build.sh') }}
+          restore-keys: |
+            iccdev-build-
+
+      - name: Apply CFL patches to iccDEV
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV
+          git config --add safe.directory "$PWD"
+          git checkout . 2>/dev/null || true
+          for p in ../../cfl/patches/*.patch; do
+            [ -f "$p" ] && git apply --check "$p" 2>/dev/null && git apply "$p" || true
+          done
+
+      - name: Build iccDEV libraries
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV/Build
+          cmake -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0" \
+                -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0" \
+                -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+                -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+                Cmake/
+          make -j$(nproc) IccProfLib2-static IccXML2-static 2>&1 | tail -5
+          echo "iccDEV libraries built successfully"
+
+      - name: Build iccanalyzer-lite
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite
+          chmod +x build.sh
+          ./build.sh
+          echo "Build complete."
+          ls -lh iccanalyzer-lite
+          file iccanalyzer-lite
+
+      - name: Synthesize test corpus
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/tests
+          python3 synthesize_profiles.py
+          echo "Corpus:"
+          ls -la corpus/
+
+      - name: Run unit tests
+        env:
+          ASAN_OPTIONS: "detect_leaks=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/tests
+          python3 run_tests.py -v --xml test-results.xml
+          echo ""
+          echo "Unit test suite passed."
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unit-test-results
+          path: iccanalyzer-lite/tests/test-results.xml
+          if-no-files-found: warn
+
+      - name: Generate summary
+        if: always()
+        run: |
+          {
+            echo "## iccAnalyzer-lite Unit Tests"
+            echo ""
+            if [ -f iccanalyzer-lite/tests/test-results.xml ]; then
+              total=$(grep -o 'tests="[0-9]*"' iccanalyzer-lite/tests/test-results.xml | head -1 | grep -o '[0-9]*')
+              failures=$(grep -o 'failures="[0-9]*"' iccanalyzer-lite/tests/test-results.xml | head -1 | grep -o '[0-9]*')
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| Total tests | ${total} |"
+              echo "| Passed | $((total - failures)) |"
+              echo "| Failed | ${failures} |"
+              echo ""
+              if [ "${failures}" = "0" ]; then
+                echo "✅ All tests passed"
+              else
+                echo "❌ ${failures} test(s) failed"
+              fi
+            else
+              echo "⚠️ Test results file not found"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
