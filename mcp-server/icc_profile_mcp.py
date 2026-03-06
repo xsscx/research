@@ -255,10 +255,12 @@ async def inspect_profile(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security(path: str) -> str:
-    """Run 32-heuristic security analysis on an ICC profile.
+    """Run 106-heuristic security analysis on an ICC profile.
 
     Detects: fingerprint matches, tag anomalies, overflow indicators,
-    malformed signatures, fuzzing vectors, memory safety issues, and more.
+    malformed signatures, fuzzing vectors, memory safety issues,
+    NaN/float-to-integer casts, AddXform ownership UAF patterns, and more.
+    Covers 44+ CWE categories mapped from 77+ CVEs.
 
     Args:
         path: Path to .icc file
@@ -1452,6 +1454,7 @@ _LOG_PATTERNS = {
     "overflow": r"OVERFLOW|UNDERFLOW|OUT OF RANGE",
     "memory": r"ALLOC|FREE|LEAK|OOM|OUT OF MEMORY|NULL",
     "hangs": r"TIMEOUT|DEADLOCK|HANG",
+    "sanitizer": r"AddressSanitizer|UndefinedBehaviorSanitizer|runtime error:|SCARINESS|LeakSanitizer",
 }
 
 
@@ -2001,7 +2004,8 @@ async def coverage_report(build_dir: str = "") -> str:
         return (
             f"[FAIL] No .profraw files found in {target_dir}.\n"
             "  Run instrumented tools first to generate profile data.\n"
-            "  Set LLVM_PROFILE_FILE=path/%m.profraw when running tools."
+            "  Set LLVM_PROFILE_FILE=path/${fuzzer_name}_%m_%p.profraw when running tools.\n"
+            "  The %m pattern produces numeric hashes; include the fuzzer name prefix for identification."
         )
 
     # Find instrumented binaries
