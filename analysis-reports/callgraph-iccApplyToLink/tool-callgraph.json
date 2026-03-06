@@ -1,0 +1,401 @@
+{
+  "tool": "iccApplyToLink",
+  "tool_file": "iccApplyToLink.cpp",
+  "fuzzer": "icc_link_fuzzer",
+  "fuzzer_file": "icc_link_fuzzer.cpp",
+  "analysis_date": "2026-03-06",
+  "phases": {
+    "1_cli_parsing": {
+      "description": "Command-line argument parsing",
+      "calls": [
+        {
+          "callee": "printUsage",
+          "line": 590,
+          "caller": "main",
+          "context": "Print usage and exit",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "atoi(bFirstTransform)",
+          "line": 691,
+          "caller": "main",
+          "context": "Parse first-transform flag from argv[8]",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives from ctrl byte bit 0"
+        },
+        {
+          "callee": "atoi(nInterp)",
+          "line": 692,
+          "caller": "main",
+          "context": "Parse interpolation mode from argv[9]",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": true,
+          "in_fuzzer": false,
+          "note": "Fuzzer derives from ctrl byte bit 1"
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "2_cmm_construction": {
+      "description": "CMM and xform construction with hints",
+      "calls": [
+        {
+          "callee": "CIccCmm::CIccCmm",
+          "line": 699,
+          "caller": "main",
+          "context": "Construct CMM with bFirstTransform flag",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: CIccCmm(icSigUnknownData, icSigUnknownData, bFirstTransform)"
+        },
+        {
+          "callee": "ReadIccProfile",
+          "line": 770,
+          "caller": "main",
+          "context": "Read ICC profile from file with bUseSubProfile flag",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: ReadIccProfile(tmp, bUseSubProfile)"
+        },
+        {
+          "callee": "OpenIccProfile(pcc)",
+          "line": 754,
+          "caller": "main",
+          "context": "Open PCC profile for viewing conditions",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not use PCC profiles"
+        },
+        {
+          "callee": "CIccCreateXformHintManager",
+          "line": 736,
+          "caller": "main",
+          "context": "Create hint manager for xform",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccApplyBPCHint",
+          "line": 744,
+          "caller": "main",
+          "context": "Add Black Point Compensation hint",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: ctrl bit 0x04"
+        },
+        {
+          "callee": "CIccLuminanceMatchingHint",
+          "line": 749,
+          "caller": "main",
+          "context": "Add Luminance matching hint",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer matches: ctrl bit 0x08"
+        },
+        {
+          "callee": "CIccCmmEnvVarHint",
+          "line": 766,
+          "caller": "main",
+          "context": "Add environment variable hints",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Fuzzer does not exercise env var hints"
+        },
+        {
+          "callee": "CIccCmm::AddXform(CIccProfile*)",
+          "line": 771,
+          "caller": "main",
+          "context": "Add profile xform with full parameter set (intent, interp, pcc, lutType, d2bx)",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Fuzzer uses same overload: AddXform(pProf, intent, interp, NULL, nLutType, bUseD2Bx, &hint)"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "3_cmm_execution": {
+      "description": "CMM Begin + Apply over LUT grid",
+      "calls": [
+        {
+          "callee": "CIccCmm::Begin",
+          "line": 783,
+          "caller": "main",
+          "context": "Initialize CMM pipeline",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::GetSourceSpace",
+          "line": 804,
+          "caller": "main",
+          "context": "Query source color space",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::GetDestSpace",
+          "line": 808,
+          "caller": "main",
+          "context": "Query dest color space",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(src)",
+          "line": 805,
+          "caller": "main",
+          "context": "Get source channel count",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "icGetSpaceSamples(dst)",
+          "line": 809,
+          "caller": "main",
+          "context": "Get dest channel count",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::Apply",
+          "line": 834,
+          "caller": "main",
+          "context": "Apply CMM transform \u2014 iterates over LUT grid",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": "Tool iterates over full LUT grid; fuzzer tests key values"
+        }
+      ],
+      "in_fuzzer": true
+    },
+    "4_output": {
+      "description": "Device link profile output writing",
+      "calls": [
+        {
+          "callee": "ILinkWriter::begin",
+          "line": 798,
+          "caller": "main",
+          "context": "Initialize output writer (DevLink or file)",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "ILinkWriter::setPixel",
+          "line": 835,
+          "caller": "main",
+          "context": "Set pixel in output grid",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "ILinkWriter::finish",
+          "line": 862,
+          "caller": "main",
+          "context": "Finalize output \u2014 SaveIccProfile or TIFF write",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        },
+        {
+          "callee": "SaveIccProfile",
+          "line": 540,
+          "caller": "CDevLinkWriter::finish",
+          "context": "Save device link profile to disk",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": "Output-only, not part of attack surface"
+        },
+        {
+          "callee": "CIccProfile::new",
+          "line": 328,
+          "caller": "CDevLinkWriter::finish",
+          "context": "Create new profile for device link output",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": false,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": false
+    },
+    "5_fuzzer_extras": {
+      "description": "Additional CMM queries exercised by fuzzer",
+      "calls": [
+        {
+          "callee": "CIccCmm::GetNumXforms",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Query xform count",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        },
+        {
+          "callee": "CIccCmm::Valid",
+          "line": 0,
+          "caller": "LLVMFuzzerTestOneInput",
+          "context": "Validate CMM state",
+          "gate": "",
+          "is_indirect": false,
+          "cli_only": false,
+          "in_fuzzer": true,
+          "note": ""
+        }
+      ],
+      "in_fuzzer": true
+    }
+  },
+  "gates": [
+    {
+      "condition": "argc < 10",
+      "line": 587,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Argument count check"
+    },
+    {
+      "condition": "nIntent derivation (nType, nLuminance, bUseSubProfile)",
+      "line": 726,
+      "gate_type": "if-chain",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Intent encoding: nIntent%1000\u2192subProfile, /100\u2192luminance, /10\u2192type, %10\u2192intent"
+    },
+    {
+      "condition": "nType==1",
+      "line": 739,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Disables D2Bx/B2Dx tags"
+    },
+    {
+      "condition": "nType==4",
+      "line": 743,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Enables Black Point Compensation"
+    },
+    {
+      "condition": "nLuminance>0",
+      "line": 748,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "Enables luminance matching"
+    },
+    {
+      "condition": "pcc_file provided",
+      "line": 752,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": false,
+      "note": "PCC profile loading gate"
+    },
+    {
+      "condition": "stat != icCmmStatOk (AddXform)",
+      "line": 773,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Profile load failure handling"
+    },
+    {
+      "condition": "stat = theCmm.Begin()",
+      "line": 783,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "CMM init failure \u2014 blocks Apply()"
+    },
+    {
+      "condition": "!pWriter->begin()",
+      "line": 798,
+      "gate_type": "if",
+      "parent_func": "main",
+      "security_relevant": true,
+      "note": "Output writer init failure"
+    }
+  ],
+  "fidelity": {
+    "total_call_sites": 24,
+    "cli_only_excluded": 3,
+    "fuzzable_call_sites": 21,
+    "matched_by_fuzzer": 14,
+    "output_only_not_in_fuzzer": 5,
+    "coverage_percent": 66.7,
+    "note": "The link fuzzer has excellent CMM pipeline coverage. It exercises ReadIccProfile + AddXform(CIccProfile*,...) with all 6 control flags (bFirstTransform, bUseD2Bx, bUseBPC, bUseLuminance, bUseSubProfile, nLutType) matching the tool's parameter derivation. Output writing (SaveIccProfile/DevLink) is excluded as output-only."
+  },
+  "fuzzer_input_format": {
+    "description": "Input split 50/50 into two profiles + 3 trailing control bytes",
+    "control_bytes": {
+      "byte[-3] (ctrl)": "bFirstTransform(0x01), !bUseD2Bx(0x02), bUseBPC(0x04), bUseLuminance(0x08), bUseSubProfile(0x10), nLutType=Preview(0x20)",
+      "byte[-2]": "icXformInterp (bit 0: linear vs tetrahedral)",
+      "byte[-1]": "icRenderingIntent (% 4)"
+    },
+    "min_size": 258,
+    "max_size": "2MB"
+  },
+  "tool_unique_features": {
+    "two_profiles": "Tool chains 2+ profiles; fuzzer always uses exactly 2",
+    "device_link_output": "Tool creates device link profile; fuzzer tests CMM pipeline only",
+    "lut_grid_iteration": "Tool iterates full LUT grid (nSrc^gridSize); fuzzer tests 5 representative values"
+  }
+}

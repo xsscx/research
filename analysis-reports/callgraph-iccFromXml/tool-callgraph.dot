@@ -1,0 +1,85 @@
+digraph iccFromXml {
+  rankdir=TB;
+  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=8];
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend"; style=dashed; fontsize=9;
+    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
+    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
+    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
+    leg_oom  [label="OOM Hotspot", fillcolor="#FF6347"];
+  }
+
+  tool [label="main()\nIccFromXml.cpp", fillcolor="#FF6B6B", shape=ellipse];
+  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_fromxml_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
+
+  // Factory init
+  subgraph cluster_init {
+    label="Phase 1: Factory Init"; style=rounded;
+    tag_factory [label="PushFactory\n(TagXmlFactory)", fillcolor="#90EE90"];
+    mpe_factory [label="PushFactory\n(MpeXmlFactory)", fillcolor="#90EE90"];
+  }
+
+  // CLI
+  subgraph cluster_cli {
+    label="Phase 2: CLI Args"; style=rounded;
+    noid [label="-noid flag", fillcolor="#D3D3D3"];
+    schema [label="RelaxNG schema", fillcolor="#D3D3D3"];
+  }
+
+  // Core parsing
+  subgraph cluster_parse {
+    label="Phase 3: XML Parsing (Attack Surface)"; style=rounded; color=red;
+    loadxml [label="LoadXml()\nMAIN ENTRY", fillcolor="#90EE90", penwidth=3];
+    validate [label="Validate()", fillcolor="#90EE90"];
+  }
+
+  // Output
+  subgraph cluster_output {
+    label="Phase 4: Output"; style=rounded;
+    save_valid [label="SaveIccProfile\n(valid)", fillcolor="#90EE90"];
+    save_invalid [label="SaveIccProfile\n(invalid)", fillcolor="#90EE90"];
+  }
+
+  // Deep calls
+  subgraph cluster_deep {
+    label="Phase 6: Deep Call Chains (OOM Surface)"; style=rounded; color=red;
+    xmlparse [label="xmlParseFile\n(libxml2)", fillcolor="#90EE90"];
+    parsehdr [label="icXmlParseProfHdr", fillcolor="#90EE90"];
+    parsetags [label="Tag::ParseXml\n(50+ types)", fillcolor="#90EE90"];
+    mluc [label="mluc ParseXml\nOOM HOTSPOT", fillcolor="#FF6347", penwidth=3];
+    profseq [label="ProfileSeqDesc\nOOM HOTSPOT", fillcolor="#FF6347", penwidth=3];
+    icfixxml [label="icFixXml\nBUFFER OVERFLOW", fillcolor="#FF6347", penwidth=3];
+    mpe_parse [label="MPE ParseXml", fillcolor="#90EE90"];
+  }
+
+  // Tool edges
+  tool -> tag_factory;
+  tool -> mpe_factory;
+  tool -> noid [style=dashed];
+  tool -> schema [style=dashed];
+  tool -> loadxml [style=bold, penwidth=2];
+  tool -> validate;
+  tool -> save_valid;
+  tool -> save_invalid;
+
+  // Fuzzer edges (mirrors tool)
+  fuzzer -> tag_factory [style=dotted, color=green];
+  fuzzer -> mpe_factory [style=dotted, color=green];
+  fuzzer -> loadxml [style=bold, color=green, penwidth=2];
+  fuzzer -> validate [style=dotted, color=green];
+  fuzzer -> save_valid [style=dotted, color=green];
+  fuzzer -> save_invalid [style=dotted, color=green];
+
+  // Deep call chain
+  loadxml -> xmlparse [style=bold];
+  loadxml -> parsehdr;
+  loadxml -> parsetags [style=bold];
+  parsetags -> mluc [color=red, penwidth=2];
+  parsetags -> profseq [color=red, penwidth=2];
+  parsetags -> icfixxml [color=red, penwidth=2];
+  parsetags -> mpe_parse;
+
+}
