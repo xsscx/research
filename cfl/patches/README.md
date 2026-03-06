@@ -8,9 +8,10 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 **Scope:** CFL/LibFuzzer Testing — intended as potential upstream PRs.
 
 **Upstream sync (2026-03-05):** CFL iccDEV updated from `186bba0` to `5f7e03a`
-(11 commits, 7 security PRs: #630–#639). 15 patches dropped as NO-OPs
-(upstream adopted), 3 regenerated for context shift, 54 active patches remain.
-Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066, 069.
+(11 commits, 7 security PRs: #630–#639). 14 patches dropped as NO-OPs
+(upstream adopted), 3 regenerated for context shift. Patch 069 re-used for
+new CLUT interp bounds check. 55 active patches total.
+Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 
 ## Patches
 
@@ -70,6 +71,7 @@ Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066, 0
 | 65 | `IccUtilXml.cpp` | `icFixXml` | Stack-buffer-overflow WRITE: unbounded XML entity expansion (`'`→`&apos;`, 6x) into fixed 256-byte stack buffer. SCARINESS 55. Reachable via `CIccTagXmlNamedColor2::ToXml` and any `ToXml` caller with user-controlled strings. Fix: cap output to 255 bytes. CWE-121 |
 | 67 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `ParseXml` (mluc, ProfileSeqId, Dict) | OOM: 433KB XML triggers 561K `CIccLocalizedUnicode` allocations (2.38GB). Fix: cap tags 256, strings 100/tag, text 64KB, ProfileIdDesc 256, DictEntry 1024. CWE-789 |
 | 68 | `IccTagXml.cpp`, `IccTagBasic.cpp` | `ParseXml` (ProfileSeqDesc, ResponseCurveSet, MPE), `Read` (mluc) | OOM: remaining uncapped loops — ProfileSeqDesc (256), ResponseCurveSet (64 curves, 8192 measurements), MPE elements (256), binary mluc nNumRec (4096). CWE-789 |
+| 69 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | SEGV: missing bounds check on CLUT data offset — 7 of 8 Interp functions lacked the guard that Interp2d already had. CWE-125 |
 
 ## Allocation Cap
 
@@ -666,20 +668,23 @@ Fuzzer: `icc_fromxml_fuzzer`. CWE-789.
 ASAN_OPTIONS=detect_leaks=0 icc_fromxml_fuzzer oom-7beea52affd357163946a6682b034d28913bd63c
 ```
 
-Patch 069 adds bounds validation to `CIccCalculatorFunc::ApplySequence` in
-IccMpeCalc.cpp.  The `icSigSelectOp` handler computes sub-array offsets from
-`ops[].extra` and `ops[].data.size` fields read from the profile.  Three gaps:
-1. Line 3778: checked `seqBase >= nOps` but NOT `seqBase + size > nOps`
-2. Line 3791: no bounds check at all before recursive `ApplySequence` call
-3. Line 3806: accessed `ops[nOff]` without first validating `nOff < nOps`
+Patch 069 adds bounds-check guards to all `CIccCLUT::Interp*d` functions in
+IccTagLut.cpp.  `Interp2d` already had a bounds check (line 2558), but
+`Interp1d`, `Interp3dTetra`, `Interp3d`, `Interp4d`, `Interp5d`, `Interp6d`,
+and `InterpND` were all missing this protection.  When CLUT grid dimensions
+(`m_GridPoints`) are corrupted or mismatched with allocated data size, the
+computed offset `ix*n001 + iy*n010 + iz*n100` can point to wild memory.
 
-Fix: Add `seqBase + ops[].data.size > nOps` checks before all recursive calls,
-and `nOff >= nOps` before accessing `ops[nOff]` on the else-if path.
+Fix: Add `maxDataOffset = NumPoints()*m_nOutput - (m_nOutput + n_max_node)`
+bounds check before `p = &m_pData[offset]` in all 7 functions, following the
+existing `Interp2d` pattern.
 
-Reproducer: `crash-c9b12a78fb3f7b823334ab35c5eb4260e5882e8a` (10,951 bytes).
-Fuzzer: `icc_apply_fuzzer`. CWE-125 (heap-buffer-overflow READ).
+Reproducer: `hbo-CIccCLUT-Interp3d-IccTagLut_cpp-Line2741.icc` (4,109 bytes).
+Fuzzer: `icc_apply_fuzzer`. CWE-125 (SEGV / wild-addr-read, SCARINESS: 20).
+
+Crash chain: CIccCmm::Apply → CIccMpeCLUT::Apply → CIccCLUT::Interp3d
 
 1-liner:
 ```bash
-ASAN_OPTIONS=detect_leaks=0 icc_apply_fuzzer crash-c9b12a78fb3f7b823334ab35c5eb4260e5882e8a
+ASAN_OPTIONS=detect_leaks=0 icc_apply_fuzzer hbo-CIccCLUT-Interp3d-IccTagLut_cpp-Line2741.icc
 ```

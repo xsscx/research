@@ -8,7 +8,7 @@ Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorC
 ## Quick Start
 
 ```bash
-# Build (clones iccDEV, applies 54 patches, compiles 19 fuzzers)
+# Build (clones iccDEV, applies 55 patches, compiles 19 fuzzers)
 ./build.sh
 
 # Smoke test (60 seconds on tmpfs ramdisk)
@@ -44,7 +44,7 @@ sudo ./ramdisk-fuzz.sh 60
 
 **Total:** 5,222 LOC · 18,843 corpus files · 62,512 dictionary entries
 
-## Patch Kit (54 active patches)
+## Patch Kit (55 active patches)
 
 Security patches applied to iccDEV before building. See [`patches/README.md`](patches/README.md) for full details.
 
@@ -73,7 +73,7 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 **What `build.sh` does:**
 1. Clones `iccDEV` (or reuses existing checkout)
 2. Resets to clean state (`git checkout .`)
-3. Applies all 54 patches from `patches/`
+3. Applies all 55 patches from `patches/`
 4. Builds static libraries (`IccProfLib2-static.a`, `IccXML2-static.a`)
 5. Compiles 19 fuzzers with ASAN + UBSAN + coverage instrumentation
 6. Outputs binaries to `bin/`
