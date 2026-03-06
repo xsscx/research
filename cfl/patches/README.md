@@ -10,7 +10,7 @@ found during LibFuzzer and ClusterFuzzLite fuzzing campaigns.
 **Upstream sync (2026-03-05):** CFL iccDEV updated from `186bba0` to `5f7e03a`
 (11 commits, 7 security PRs: #630–#639). 14 patches dropped as NO-OPs
 (upstream adopted), 3 regenerated for context shift. Patch 069 re-used for
-new CLUT interp bounds check. 55 active patches total.
+new CLUT interp bounds check. 56 active patches total.
 Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 
 ## Patches
@@ -72,6 +72,7 @@ Dropped: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 | 67 | `IccProfileXml.cpp`, `IccTagXml.cpp` | `ParseXml` (mluc, ProfileSeqId, Dict) | OOM: 433KB XML triggers 561K `CIccLocalizedUnicode` allocations (2.38GB). Fix: cap tags 256, strings 100/tag, text 64KB, ProfileIdDesc 256, DictEntry 1024. CWE-789 |
 | 68 | `IccTagXml.cpp`, `IccTagBasic.cpp` | `ParseXml` (ProfileSeqDesc, ResponseCurveSet, MPE), `Read` (mluc) | OOM: remaining uncapped loops — ProfileSeqDesc (256), ResponseCurveSet (64 curves, 8192 measurements), MPE elements (256), binary mluc nNumRec (4096). CWE-789 |
 | 69 | `IccTagLut.cpp` | `CIccCLUT::Interp1d/3dTetra/3d/4d/5d/6d/ND` | SEGV: missing bounds check on CLUT data offset — 7 of 8 Interp functions lacked the guard that Interp2d already had. CWE-125 |
+| 70 | `iccApplyProfiles.cpp` | `UnitClip` | UBSAN: NaN bypasses `<0`/`>1` comparisons, passes through to `(icUInt8Number)`/`(icUInt16Number)` cast — undefined behavior. Fix: `if (v!=v) return 0.0`. CWE-758 |
 
 ## Allocation Cap
 
@@ -687,4 +688,25 @@ Crash chain: CIccCmm::Apply → CIccMpeCLUT::Apply → CIccCLUT::Interp3d
 1-liner:
 ```bash
 ASAN_OPTIONS=detect_leaks=0 icc_apply_fuzzer hbo-CIccCLUT-Interp3d-IccTagLut_cpp-Line2741.icc
+```
+
+Patch 070 adds a NaN guard to `UnitClip()` in `iccApplyProfiles.cpp`. The
+upstream function clamps values to [0.0, 1.0] but NaN bypasses both comparisons
+(`NaN < 0.0` and `NaN > 1.0` are both false), so NaN passes through to
+`(icUInt8Number)` and `(icUInt16Number)` casts — undefined behavior per C++
+standard (CWE-758). UBSAN reports: "runtime error: -nan is outside the range
+of representable values of type 'unsigned char'".
+
+Fix: `if (v!=v) return 0.0;` — the IEEE 754 NaN self-inequality idiom.
+
+Two distinct upstream locations trigger:
+- `iccApplyProfiles.cpp:559-560` — UnitClip → cast to icUInt8Number/icUInt16Number
+- `IccMatrixMath.cpp:386` — NaN in spectral range math → cast to icUInt16Number
+  (already fixed by patch 051)
+
+Reproducer: 8 of first 100 fuzzer corpus files trigger the upstream UBSAN.
+
+1-liner:
+```bash
+f=$(ls /mnt/g/fuzz-ssd/corpus-icc_applyprofiles_fuzzer/ | head -100 | shuf -n1); sz=$(stat -c%s "/mnt/g/fuzz-ssd/corpus-icc_applyprofiles_fuzzer/$f"); head -c $((sz*3/4)) "/mnt/g/fuzz-ssd/corpus-icc_applyprofiles_fuzzer/$f" > /tmp/ub.icc && ASAN_OPTIONS=detect_leaks=0 timeout 5 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles /tmp/test_rgb.tif /tmp/ub-out.tif 1 0 0 0 0 /tmp/ub.icc 0 2>&1 | grep "runtime error"
 ```

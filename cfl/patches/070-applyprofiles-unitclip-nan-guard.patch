@@ -1,0 +1,12 @@
+diff --git a/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp b/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp
+index 29d2598..001786e 100644
+--- a/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp
++++ b/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp
+@@ -82,6 +82,7 @@
+ 
+ static icFloatNumber UnitClip(icFloatNumber v)
+ {
++  if (v!=v) return 0.0;  // NaN guard (UBSAN: -nan outside representable range)
+   if (v<0.0)
+     return 0.0;
+   if (v>1.0)
