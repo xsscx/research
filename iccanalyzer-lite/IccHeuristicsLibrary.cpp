@@ -4998,6 +4998,8 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
 // for that tag signature.
 // =====================================================================
 int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
+  // Validate each tag uses only ICC-spec-allowed type(s) for its signature.
+  // Cross-references ICC.1-2022-05 §9 tag definitions with §10 tag types.
   int heuristicCount = 0;
 
   printf("[H117] Tag Type Allowed Per Signature\n");
@@ -5220,6 +5222,8 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
 // Uses CLUT node values for accurate sampling without CMM pipeline.
 // =====================================================================
 int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
+  // Sample test colors through AToB→BToA CLUTs and compute avg/max ΔE.
+  // Uses CLUT node values for accurate sampling without CMM pipeline.
   int heuristicCount = 0;
 
   printf("[H119] Round-Trip ΔE Measurement\n");
@@ -5254,10 +5258,10 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
         mbbA->OutputChannels() < 1 || mbbA->OutputChannels() > 15) continue;
 
     uint32_t pcsChannels = mbbA->OutputChannels();
-    uint32_t gridA = clutA->GridPoints();
+    uint32_t gridA = (uint32_t)clutA->GridPoints();  // icUInt8Number → uint32_t
     uint32_t inputA = mbbA->InputChannels();
 
-    if (inputA < 1 || inputA > 15 || gridA < 2 || gridA > 255) continue;
+    if (inputA < 1 || inputA > 15 || gridA < 2) continue;
 
     uint64_t totalNodes = 1;
     for (uint32_t d = 0; d < inputA; d++) {
@@ -5329,6 +5333,8 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
 // Samples TRC curves, builds inverse lookup, measures round-trip error.
 // =====================================================================
 int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
+  // Sample TRC curves, build inverse lookup, measure round-trip error.
+  // Detects non-invertible curves that break color accuracy (ICC.1 §10.6).
   int heuristicCount = 0;
 
   printf("[H120] Curve Invertibility Assessment\n");
@@ -5871,7 +5877,7 @@ int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc) {
       icFloatNumber *currData = clut->GetData((icUInt32Number)(idx * outCh));
       icFloatNumber *prevData = clut->GetData((icUInt32Number)((idx - 1) * outCh));
       if (!currData || !prevData) continue;
-      for (uint32_t c = 0; c < outCh && c < 16; c++) {
+      for (uint32_t c = 0; c < outCh; c++) {
         curr[c] = currData[c];
         prev[c] = prevData[c];
       }
@@ -5921,6 +5927,8 @@ int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc) {
 // and other executable content signatures.
 // =====================================================================
 int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename) {
+  // Scan data within private/unregistered tags for PE, ELF, script,
+  // and other executable content signatures that indicate embedded malware.
   int heuristicCount = 0;
 
   printf("[H126] Private Tag Malware Content Scan\n");
