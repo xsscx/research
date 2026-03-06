@@ -4357,7 +4357,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
   int elfHeaders = 0;
   int peHeaders = 0;
 
-  for (size_t i = 128; i + 16 <= bytesRead; i++) {
+  for (size_t i = 128; i + 16 <= bytesRead; ) {
     // x86 NOP sled: 16+ consecutive 0x90 bytes
     if (buf[i] == 0x90) {
       size_t run = 1;
@@ -4366,7 +4366,8 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
         printf("      %s[WARN]  x86 NOP sled at offset 0x%zX (%zu bytes)%s\n",
                ColorCritical(), i, run, ColorReset());
         nopSleds++;
-        i += run - 1;
+        i += run;
+        continue;
       }
     }
     // ELF magic: 7F 45 4C 46
@@ -4402,6 +4403,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
         nopSleds++;
       }
     }
+    i++;
   }
 
   free(buf);
