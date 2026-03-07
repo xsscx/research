@@ -67,11 +67,12 @@ Current upstream: commit **b5ade94** (2026-03-06)
 ## Patch Conventions
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **072**)
+- Numbering: zero-padded 3-digit, sequential (next: **073**)
 - Format: unified diff against `cfl/iccDEV/`
 - 14 known NO-OP patches: 023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066
   (upstreamed or made irrelevant by code changes)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
+- Latest: 072 (v5dspobs Begin() return check — CWE-476 NULL deref)
 
 ## Fuzzing — Ramdisk Workflow
 
@@ -99,6 +100,26 @@ cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
 - **Coverage**: `LLVM_PROFILE_FILE=$RAMDISK/profraw/${fuzzer_name}_%m_%p.profraw`
   (include fuzzer name; `%m` alone produces numeric hashes)
 - **Suppress profraw during fuzzing**: `LLVM_PROFILE_FILE=/dev/null`
+- **Begin() return check**: `CIccTagMultiProcessElement::Begin()` and
+  `CIccMpeCurveSet::Begin()` can return false when sub-curves have invalid state
+  (e.g., `m_nCount < 2`). Callers MUST check the return value — `Apply()` will
+  NULL-deref `m_pSamples` otherwise (CWE-476). Patched in CFL-072.
+
+## Multi-Profile Fuzzer Input Formats
+
+| Fuzzer | Input Format | Tool |
+|--------|-------------|------|
+| icc_v5dspobs_fuzzer | `[4B BE size][display.icc][observer.icc]` | IccV5DspObsToV4Dsp |
+| icc_link_fuzzer | `[50% profile1][50% profile2][4B trailing control]` | IccApplyToLink |
+| icc_applyprofiles_fuzzer | `[75% profile][25% control (intent, interp, W×H, pixels)]` | IccApplyProfiles |
+| icc_applynamedcmm_fuzzer | `[4B control header][ICC profile data]` | IccApplyNamedCmm |
+| icc_specsep_fuzzer | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` | IccSpecSepToTiff |
+
+To unbundle crash files from multi-profile fuzzers:
+```bash
+.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file> [tool_root]
+# e.g.: .github/scripts/unbundle-fuzzer-input.sh v5dspobs crash-8f8b...
+```
 
 ## Corpus Management
 
