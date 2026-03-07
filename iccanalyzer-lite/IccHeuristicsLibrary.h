@@ -88,5 +88,11 @@ int RunHeuristic_H133_FlagsReservedBits(const char *filename);
 int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filename);
 /// H135: Duplicate tag signatures (§7.3.1) — no duplicates in tag table
 int RunHeuristic_H135_DuplicateTagSignatures(const char *filename);
+/// H136: ResponseCurveStruct per-channel measurement count (CWE-400)
+int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename);
+/// H137: High-dimensional color space grid complexity (CWE-400)
+int RunHeuristic_H137_HighDimensionalGridComplexity(CIccProfile *pIcc);
+/// H138: Calculator element branching depth (CWE-400/CWE-674)
+int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc);
 
 #endif // _ICCHEURISTICSLIBRARY_H
