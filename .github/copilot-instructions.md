@@ -88,6 +88,31 @@ cd colorbleed_tools && make setup && make
 
 `cfl/build.sh` reuses an existing `cfl/iccDEV/` checkout if present — it does NOT reclone unless the directory is missing.
 
+### iccDEV Tools — Source of Truth
+
+**CRITICAL**: Two iccDEV checkouts exist with DIFFERENT purposes:
+
+| Path | Purpose | Patched? |
+|------|---------|----------|
+| `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED)** | No |
+| `cfl/iccDEV/` | CFL fuzzer build (60+ patches applied) | Yes |
+
+**For crash fidelity testing**: ALWAYS use `iccDEV/Build/Tools/` (unpatched).
+If the upstream tool doesn't crash but the fuzzer does, it's a fuzzer alignment
+issue — not an upstream bug. NEVER use `cfl/iccDEV/` for this purpose.
+
+```bash
+# Run upstream tool against a PoC
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+  iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
+```
+
+Available tools (15):
+`iccApplyNamedCmm`, `iccApplyProfiles`, `iccApplySearch`, `iccApplyToLink`,
+`iccDumpProfile`, `iccFromCube`, `iccFromXml`, `iccJpegDump`, `iccPngDump`,
+`iccRoundTrip`, `iccSpecSepToTiff`, `iccTiffDump`, `iccToXml`,
+`iccV5DspObsToV4Dsp`, `iccDumpProfileGui`
+
 ### WASM Build (Deferred)
 
 WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:
