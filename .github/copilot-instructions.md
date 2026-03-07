@@ -765,12 +765,12 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 1. Create baseline images → **xnuimagetools** (macOS)
 2. Fuzz images → **xnuimagefuzzer** (macOS) — produces 15 pixel formats × 30+ output formats
 3. ICC variant generation (automatic for TIFF/PNG):
-   - Real ICC profiles from `FUZZ_ICC_DIR` (round-robin)
+   - Real ICC profiles from `FUZZ_ICC_DIR` via `CGColorSpaceCreateWithICCData()` (round-robin)
    - Stripped color space (DeviceRGB, no ICC metadata)
    - Mismatched profiles (CMYK/Gray/Lab/truncated on RGB)
    - Mutated ICC profiles (6 corruption strategies)
-4. Transfer fuzzed images to Linux (place in `temp/`)
-5. Extract ICC seeds → `extract-icc-seeds.py --inject-cfl ../cfl`
+4. CI pipeline generates images on iOS Simulator + Mac Catalyst (with system ICC profiles)
+5. Extract ICC seeds → `extract-icc-seeds.py --inject-cfl ../cfl` (automated in CI as `extract-seeds` job)
 6. Validate + embed ICC → **seed-pipeline.sh** `temp/ --distribute --ramdisk`
 7. Generate synthetic seeds → **craft-seeds.py** `--outdir temp/icc-crafted`
 8. Re-seed ramdisk → `.github/scripts/ramdisk-seed.sh`
@@ -796,7 +796,11 @@ python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test
 - 32BitFloat and HDR float fuzzed variants produce all-zero pixels (CoreGraphics clamps float→8-bit)
 - `LittleEndian-image.tiff` is actually big-endian (MM) — name refers to CGColorSpace component order
 - ICC variants require `FUZZ_ICC_DIR` for real/mutated profiles; stripped and mismatched are always generated
+- `kCGImagePropertyICCProfile` does NOT exist in Apple SDKs — use `CGColorSpaceCreateWithICCData()`
 - xnuimagetools is the source of truth for xnuimagefuzzer.m; always sync after changes
+- Mac Catalyst CI job sets `FUZZ_ICC_DIR=/System/Library/ColorSync/Profiles` for system ICC profiles
+- xnuimagetools `build-and-test.yml` has 8 jobs: build-ios, generate-images, generate-catalyst-images,
+  generate-ios-gen-images, build-watch, commit-images, extract-seeds
 
 ## macOS CI Patterns (xnuimagefuzzer / xnuimagetools)
 
