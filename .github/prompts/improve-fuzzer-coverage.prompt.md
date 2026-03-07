@@ -161,18 +161,19 @@ trigger the CMM pipeline (AddXform→Begin→Apply). Seed corpora need matched p
 ### CMM Fuzzer Input Formats (CRITICAL for seed creation)
 | Fuzzer | Format | Min Size |
 |--------|--------|----------|
-| `icc_link_fuzzer` | profile1 (padded) + profile2 (padded) + 3 ctrl bytes | 258 |
+| `icc_link_fuzzer` | profile1 + profile2 + 4 ctrl bytes | 258 |
 | `icc_applyprofiles_fuzzer` | 75% profile + 25% control [intent, interp, unused, flags] | 200 |
 | `icc_applynamedcmm_fuzzer` | 4-byte header [flags, intent, extra1, extra2] + profile | 132 |
 | `icc_apply_fuzzer` | entire input is one ICC profile | 130 |
 
-**Link fuzzer ctrl byte bits**: 0x01=firstTransform, 0x02=noD2Bx, 0x04=BPC, 0x08=luminance,
-0x10=subProfile, 0x20=previewLut. Seeds in `cfl/seeds-link-pairs/` (18 pairs).
+**Link fuzzer ctrl byte bits (size-3)**: 0x01=firstTransform, 0x02=noD2Bx, 0x04=BPC, 0x08=luminance,
+0x10=subProfile, bits5-7=lutType(0-7). **ctrl2 byte (size-4)**: 0x01=saveLink, 0x02=envVars, bits2-3=gridSize.
 
 **ApplyNamedCmm flags byte bits**: 0x01=BPC, 0x02=D2Bx, 0x04=luminance, 0x08=subProfile,
-0x10=tetrahedral. Seeds in `cfl/seeds-applynamedcmm/` (16 files).
+0x10=tetrahedral, 0x40=pccEnvVars, 0x80=envVars. **Intent byte**: bits0-1=intent, bits4-6=nType, bit7=HToS.
 
-Seeds in `cfl/seeds-applyprofiles/` (18 files). `ramdisk-seed.sh` Source 3 auto-seeds all.
+**For detailed per-fuzzer documentation** (input formats, coverage gaps, dead code, seed strategies,
+tool fidelity, dict syntax), see `fuzzer-optimization.prompt.md`.
 
 ### UBSAN Fix Patterns (for iccanalyzer-lite code)
 When extracting 4-byte ICC signatures into `char[5]`:

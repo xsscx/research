@@ -116,6 +116,19 @@ cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
 | Branches | 58.47% |
 | Instantiations | 62.99% |
 
+## Fuzzer-to-Tool Fidelity (March 2026)
+
+| Fuzzer | iccDEV Tool | Fidelity |
+|--------|-------------|----------|
+| icc_link_fuzzer | IccApplyToLink | ~65% |
+| icc_applynamedcmm_fuzzer | IccApplyNamedCmm | ~75% |
+| icc_specsep_fuzzer | IccSpecSepToTiff | ~85% |
+| icc_roundtrip_fuzzer | IccRoundTrip | ~95% |
+| icc_deep_dump_fuzzer | IccDumpProfile | >100% |
+
+For per-fuzzer optimization details (input formats, coverage gaps, seed strategies,
+dead code), see `.github/prompts/fuzzer-optimization.prompt.md`.
+
 ## Adding a New Fuzzer
 
 1. Create `cfl/icc_newfuzzer_fuzzer.cpp` — must include `extern "C" int LLVMFuzzerTestOneInput(...)`
