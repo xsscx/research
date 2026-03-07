@@ -37,6 +37,8 @@ fi
 mkdir -p analysis-reports
 
 FILESIZE=$(stat -c%s "$PROFILE" 2>/dev/null || stat -f%z "$PROFILE" 2>/dev/null)
+SHA256=$(sha256sum "$PROFILE" 2>/dev/null | cut -d' ' -f1 || shasum -a 256 "$PROFILE" 2>/dev/null | cut -d' ' -f1)
+FILETYPE=$(file -b "$PROFILE" 2>/dev/null || echo "unknown")
 
 # Strip ANSI escape sequences from output
 strip_ansi() { sed 's/\x1b\[[0-9;]*m//g'; }
@@ -61,6 +63,8 @@ cat >> "$REPORT" << EOF
 
 **Profile**: \`${PROFILE}\`
 **File Size**: ${FILESIZE} bytes
+**SHA-256**: \`${SHA256}\`
+**File Type**: ${FILETYPE}
 **Date**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
