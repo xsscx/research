@@ -113,6 +113,13 @@ Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (la
 # Sync:   .github/scripts/ramdisk-sync-to-disk.sh --ramdisk /mnt/g/fuzz-ssd
 # Status: .github/scripts/ramdisk-status.sh /mnt/g/fuzz-ssd
 
+# End-of-session SSD cleanup (see .github/prompts/corpus-management.prompt.md):
+# 1. Clear stale profraw:  find /mnt/g/fuzz-ssd -name '*.profraw' -delete
+# 2. Preserve artifacts:   rsync crash-*/oom-*/timeout-*/slow-unit-* to repo
+# 3. Parallel rsync:       10 concurrent rsyncs with --ignore-existing
+# 4. Verify:               local count >= SSD count per fuzzer
+# 5. Clean SSD:            rm -rf corpus-*/bin/dict/seed/profraw/logs
+
 # Status check
 .github/scripts/ramdisk-status.sh
 
