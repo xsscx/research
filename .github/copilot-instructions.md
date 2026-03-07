@@ -763,11 +763,17 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 
 ### Workflow
 1. Create baseline images → **xnuimagetools** (macOS)
-2. Fuzz images → **xnuimagefuzzer** (macOS) — produces 9 pixel formats × 6 output formats
-3. Transfer fuzzed images to Linux (place in `temp/`)
-4. Validate + embed ICC → **seed-pipeline.sh** `temp/ --distribute --ramdisk`
-5. Generate synthetic seeds → **craft-seeds.py** `--outdir temp/icc-crafted`
-6. Re-seed ramdisk → `.github/scripts/ramdisk-seed.sh`
+2. Fuzz images → **xnuimagefuzzer** (macOS) — produces 15 pixel formats × 30+ output formats
+3. ICC variant generation (automatic for TIFF/PNG):
+   - Real ICC profiles from `FUZZ_ICC_DIR` (round-robin)
+   - Stripped color space (DeviceRGB, no ICC metadata)
+   - Mismatched profiles (CMYK/Gray/Lab/truncated on RGB)
+   - Mutated ICC profiles (6 corruption strategies)
+4. Transfer fuzzed images to Linux (place in `temp/`)
+5. Extract ICC seeds → `extract-icc-seeds.py --inject-cfl ../cfl`
+6. Validate + embed ICC → **seed-pipeline.sh** `temp/ --distribute --ramdisk`
+7. Generate synthetic seeds → **craft-seeds.py** `--outdir temp/icc-crafted`
+8. Re-seed ramdisk → `.github/scripts/ramdisk-seed.sh`
 
 ### Pipeline Scripts
 
@@ -789,7 +795,8 @@ python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test
 ### Known Issues with xnuimagefuzzer Output
 - 32BitFloat and HDR float fuzzed variants produce all-zero pixels (CoreGraphics clamps float→8-bit)
 - `LittleEndian-image.tiff` is actually big-endian (MM) — name refers to CGColorSpace component order
-- Base images have NO embedded ICC profiles by design — the pipeline adds them
+- ICC variants require `FUZZ_ICC_DIR` for real/mutated profiles; stripped and mismatched are always generated
+- xnuimagetools is the source of truth for xnuimagefuzzer.m; always sync after changes
 
 ## macOS CI Patterns (xnuimagefuzzer / xnuimagetools)
 
