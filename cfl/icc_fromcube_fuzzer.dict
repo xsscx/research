@@ -84,6 +84,22 @@
 "-inf"
 "nan"
 "NaN"
+# Additional float edge cases
+"1e308"
+"-1e308"
+"1e-308"
+"2.2250738585072014e-308"
+"1.7976931348623157e+308"
+"-0.0"
+"+0.0"
+"+1.0"
+"+0.5"
+"0."
+"1."
+".0"
+".5"
+"00.00"
+"01.00"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 4: Float triplets — exercise parse3DTable() row parsing
@@ -95,6 +111,31 @@
 "1.0 0.0 0.5"
 "0.25 0.75 0.5"
 "-1.0 2.0 0.0"
+# Interpolation boundary values (Skia shader: slice edges at n/(size-1))
+"0.0625 0.0625 0.0625"
+"0.9375 0.9375 0.9375"
+"0.0 0.0 0.5"
+"0.5 0.0 1.0"
+# Incomplete triplets — trigger parse error paths L229/L235
+"0.5"
+"0.5 0.5"
+"0.0 "
+# Values with dot-prefix (no leading zero)
+".0 .0 .0"
+".5 .5 .5"
+".999 .999 .999"
+# All-negative data rows
+"-0.1 -0.2 -0.3"
+"-1.0 -1.0 -1.0"
+# Out-of-range values (wide gamut / BT.2020)
+"1.05 0.0 0.0"
+"-0.01 0.0 0.0"
+"0.0 1.04 -0.01"
+# Scientific notation in data
+"1e-7 0.0 0.0"
+"0.0 9.999999e-1 0.0"
+# Plus-sign prefix
+"+1.0 +0.5 +0.0"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 5: Per-channel DOMAIN values — exercise curve sharing logic
@@ -136,6 +177,8 @@
 "#"
 "# Comment text"
 "#comment"
+"# "
+"#\x09"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 7: Title variations — exercise getTitle() quoted/unquoted
@@ -144,6 +187,14 @@
 "TITLE \"Quoted Title\""
 "TITLE Unquoted Title"
 "TITLE \"\""
+# Long unquoted title (multi-word)
+"TITLE Cinema Grade BT2020 DCI P3"
+# Title with special chars
+"TITLE \"LUT \xe2\x80\x94 v2.0 (final)\""
+# Empty title after keyword
+"TITLE "
+# Multiple TITLE lines (concatenated with \n)
+"TITLE \"First\"\x0aTITLE \"Second\""
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 8: getNext() parser edge cases (whitespace delimited)
@@ -155,9 +206,16 @@
 # Trailing spaces
 "0.0 0.0 0.0 "
 # Tab characters (not handled as whitespace by getNext — only spaces)
+"\x090.0\x090.0\x090.0"
+"0.0\x090.5\x091.0"
 # Single value (getNext returns empty → parse error path)
 # Two values only (second getNext fails → parse error)
 "0.5 0.5"
+# Many spaces
+"0.0     0.0     0.0"
+# Newline variations
+"\x0d\x0a"
+"\x0a"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 9: Line boundary (MAX_LINE_LEN = 255)
@@ -173,14 +231,56 @@
 "-"
 ".5 .5 .5"
 "-0.5 0.0 1.0"
+# Digits 0-9 all trigger header break
+"0 0 0"
+"1 1 1"
+"9 9 9"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 11: Complete mini-CUBE files — exercise full pipeline
 # ═══════════════════════════════════════════════════════════════════
-# Minimal valid 2x2x2 CUBE (8 entries)
-# With custom domain
-# With title and comments
+# Minimal valid 2x2x2 (no title, no domain, no flags)
+"LUT_3D_SIZE 2\x0a0.0 0.0 0.0\x0a1.0 0.0 0.0\x0a0.0 1.0 0.0\x0a1.0 1.0 0.0\x0a0.0 0.0 1.0\x0a1.0 0.0 1.0\x0a0.0 1.0 1.0\x0a1.0 1.0 1.0\x0a"
+# With custom input range (triggers curve insertion)
+"LUT_3D_INPUT_RANGE 0.0625 0.9375\x0aLUT_3D_SIZE 2\x0a0.0 0.0 0.0\x0a1.0 0.0 0.0\x0a0.0 1.0 0.0\x0a1.0 1.0 0.0\x0a0.0 0.0 1.0\x0a1.0 0.0 1.0\x0a0.0 1.0 1.0\x0a1.0 1.0 1.0\x0a"
 # With video range flags
+"LUT_IN_VIDEO_RANGE\x0aLUT_OUT_VIDEO_RANGE\x0aLUT_3D_SIZE 2\x0a0.0 0.0 0.0\x0a1.0 0.0 0.0\x0a0.0 1.0 0.0\x0a1.0 1.0 0.0\x0a0.0 0.0 1.0\x0a1.0 0.0 1.0\x0a0.0 1.0 1.0\x0a1.0 1.0 1.0\x0a"
+# 1D rejection (correct case: LUT_1D_SiZE with lowercase i)
+"LUT_1D_SiZE 8\x0a0.0 0.0 0.0\x0a"
+# Truncated data (triggers parse3DTable L456 failure path)
+"LUT_3D_SIZE 3\x0a0.0 0.0 0.0\x0a0.5 0.0 0.0\x0a"
+# With wide-gamut domain (BT.2020)
+"DOMAIN_MIN -0.05 -0.05 -0.05\x0aDOMAIN_MAX 1.09 1.09 1.09\x0aLUT_3D_SIZE 2\x0a0.0 0.0 0.0\x0a1.0 0.0 0.0\x0a0.0 1.0 0.0\x0a1.0 1.0 0.0\x0a0.0 0.0 1.0\x0a1.0 0.0 1.0\x0a0.0 1.0 1.0\x0a1.0 1.0 1.0\x0a"
+
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 12: Production LUT sizes (cinema/broadcast workflow)
+# ═══════════════════════════════════════════════════════════════════
+# Standard DaVinci Resolve sizes
+"LUT_3D_SIZE 17"
+"LUT_3D_SIZE 33"
+# Skia 8x8 grid = 64 slices
+"LUT_3D_SIZE 64"
+# ACES workflow
+"LUT_3D_SIZE 65"
+# Broadcast video levels
+"LUT_3D_INPUT_RANGE 0.0625 0.9375"
+"LUT_3D_INPUT_RANGE 0.0627 0.9216"
+# HDR/PQ range
+"LUT_3D_INPUT_RANGE 0.0 10000.0"
+"DOMAIN_MIN 0.0 0.0 0.0"
+"DOMAIN_MAX 10000.0 10000.0 10000.0"
+
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 13: Unknown keywords — trigger else-reject path (L182-184)
+# ═══════════════════════════════════════════════════════════════════
+"LUT_1D_SIZE "
+"LUT_3D "
+"SIZE "
+"DOMAIN "
+"INPUT_RANGE "
+"COMMENT "
+"VERSION "
+"FORMAT "
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x04"
