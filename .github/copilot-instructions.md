@@ -97,6 +97,31 @@ WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:
 - Third-party deps (zlib, libpng, libjpeg, libtiff, libxml2, nlohmann/json) **do** build successfully with Emscripten
 - Reference: upstream `iccDEV/.github/workflows/wasm-latest-matrix.yml`
 
+## Fuzz Corpus (`fuzz/`)
+
+Curated corpus of 1,139 malicious input files (201 MB, 34 subdirectories) for security testing.
+Originally "Commodity-Injection-Signatures" by David Hoyt (xss.cx/srd.cx), maintained since 2015.
+
+### Key Assets
+- `fuzz/graphics/icc/` — **95 ICC CVE PoC profiles** (CVE-2022-26730, CVE-2023-46602, CVE-2024-38427)
+- `fuzz/xml/icc/` — 42 ICC XML crash PoCs + 74 AFL-minimized crash samples
+- `fuzz/graphics/{jpg,png,tif,gif,bmp,heic,exr}/` — 733 malformed image files for ImageIO/Skia fuzzing
+- `fuzz/{angular,javascript,sqlinjection,css,ssi,xxe,...}/` — Web injection signatures
+
+### Relationship to CFL Fuzzers
+- `fuzz/` is **input data only** — no build scripts or harnesses (those are in `cfl/`)
+- fuzz/ ICC profiles seed → `cfl/corpus-*` directories
+- cfl/ crash discoveries → new `crash-*`, `oom-*`, `slow-unit-*` files in repo root
+- Use `ramdisk-seed.sh` to propagate fuzz/ seeds into ramdisk for fuzzing campaigns
+
+### ICC File Naming Convention
+```
+{crash_type}-{Class}-{Method}-{File}_cpp-Line{N}.icc
+cve-{YYYY}-{NNNNN}-{description}-variant-{NNN}.icc
+```
+Crash types: `hbo` (heap overflow), `sbo` (stack overflow), `segv` (SIGSEGV),
+`oom` (OOM), `ub` (undefined behavior), `npd` (null deref), `so` (stack overflow)
+
 ## Fuzzing Storage Setup
 
 Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (large capacity).
