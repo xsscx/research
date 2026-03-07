@@ -67,12 +67,12 @@ Current upstream: commit **b5ade94** (2026-03-06)
 ## Patch Conventions
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **075**)
+- Numbering: zero-padded 3-digit, sequential (next: **076**)
 - Format: unified diff against `cfl/iccDEV/`
 - 14 known NO-OP patches: 023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066
   (upstreamed or made irrelevant by code changes)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
-- Latest: 074 (CheckUnderflowOverflow ops budget — CWE-400 timeout)
+- Latest: 075 (EvaluateProfile iteration cap — CWE-400 timeout)
 
 ## Fuzzing — Ramdisk Workflow
 
