@@ -6808,3 +6808,332 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
   printf("\n");
   return heuristicCount;
 }
+
+// =====================================================================
+// H136: ResponseCurveStruct per-channel measurement count (CWE-400)
+// CIccResponseCurveStruct::Read() accepts per-channel nMeasurements from
+// file as uint32 with no validation. Large counts cause O(nMeasurements)
+// iteration in Read() and Describe(). ICC spec has no explicit limit but
+// practical profiles use <1000 measurements per channel.
+// =====================================================================
+int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
+  int heuristicCount = 0;
+
+  printf("[H136] ResponseCurve Per-Channel Measurement Count (CWE-400)\n");
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    printf("      [SKIP] Cannot open file\n\n");
+    return 0;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  long fileSize = ftell(fp);
+  if (fileSize < 132) {
+    fclose(fp);
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  // Read tag count
+  fseek(fp, 128, SEEK_SET);
+  uint8_t tagCountBuf[4];
+  if (fread(tagCountBuf, 1, 4, fp) != 4) {
+    fclose(fp);
+    printf("      [SKIP] Cannot read tag count\n\n");
+    return 0;
+  }
+  uint32_t tagCount = ((uint32_t)tagCountBuf[0] << 24) |
+                      ((uint32_t)tagCountBuf[1] << 16) |
+                      ((uint32_t)tagCountBuf[2] << 8)  |
+                       (uint32_t)tagCountBuf[3];
+
+  if (tagCount > 1000) {
+    fclose(fp);
+    printf("      [SKIP] Excessive tag count (%u)\n\n", tagCount);
+    return 0;
+  }
+
+  // Scan tag table for responseCurveSet16Type (rcs2 = 0x72637332)
+  for (uint32_t i = 0; i < tagCount && i < 200; i++) {
+    uint8_t tagEntry[12];
+    fseek(fp, 132 + i * 12, SEEK_SET);
+    if (fread(tagEntry, 1, 12, fp) != 12) break;
+
+    uint32_t tagOffset = ((uint32_t)tagEntry[4] << 24) |
+                         ((uint32_t)tagEntry[5] << 16) |
+                         ((uint32_t)tagEntry[6] << 8)  |
+                          (uint32_t)tagEntry[7];
+    uint32_t tagSize = ((uint32_t)tagEntry[8] << 24) |
+                       ((uint32_t)tagEntry[9] << 16) |
+                       ((uint32_t)tagEntry[10] << 8) |
+                        (uint32_t)tagEntry[11];
+
+    if (tagOffset + 4 > (uint32_t)fileSize || tagSize < 28) continue;
+
+    // Read tag type signature at tagOffset
+    uint8_t typeSig[4];
+    fseek(fp, tagOffset, SEEK_SET);
+    if (fread(typeSig, 1, 4, fp) != 4) continue;
+
+    // responseCurveSet16Type: 'rcs2' = 0x72637332
+    if (typeSig[0] == 0x72 && typeSig[1] == 0x63 &&
+        typeSig[2] == 0x73 && typeSig[3] == 0x32) {
+      // Read channel count at offset+8 (uint16 BE)
+      fseek(fp, tagOffset + 8, SEEK_SET);
+      uint8_t chanBuf[2];
+      if (fread(chanBuf, 1, 2, fp) != 2) break;
+      uint16_t nChannels = ((uint16_t)chanBuf[0] << 8) | chanBuf[1];
+
+      if (nChannels > 16) {
+        printf("      %s[WARN]  ResponseCurveSet: %u channels (>16 ICC spec max)%s\n",
+               ColorCritical(), nChannels, ColorReset());
+        printf("       %sCWE-400: Excessive channel count drives O(nChan) allocation%s\n",
+               ColorCritical(), ColorReset());
+        heuristicCount++;
+      }
+
+      // Read measurement type count at offset+10 (uint16 BE)
+      uint8_t nCurvesBuf[2];
+      if (fread(nCurvesBuf, 1, 2, fp) != 2) break;
+      uint16_t nCurves = ((uint16_t)nCurvesBuf[0] << 8) | nCurvesBuf[1];
+
+      uint16_t nChan = nChannels > 16 ? 16 : nChannels;
+      if (nChan == 0) break;
+
+      // Walk curve offsets and check per-channel nMeasurements
+      for (uint16_t c = 0; c < nCurves && c < 16; c++) {
+        uint8_t offBuf[4];
+        fseek(fp, tagOffset + 12 + c * 4, SEEK_SET);
+        if (fread(offBuf, 1, 4, fp) != 4) break;
+        uint32_t curveOff = ((uint32_t)offBuf[0] << 24) |
+                            ((uint32_t)offBuf[1] << 16) |
+                            ((uint32_t)offBuf[2] << 8)  |
+                             (uint32_t)offBuf[3];
+
+        uint32_t absOff = tagOffset + curveOff;
+        if (absOff + 4 + (uint32_t)nChan * 4 > (uint32_t)fileSize) continue;
+
+        // Skip measurement unit sig (4 bytes), read nMeasurements array
+        fseek(fp, absOff + 4, SEEK_SET);
+        for (uint16_t ch = 0; ch < nChan; ch++) {
+          uint8_t mBuf[4];
+          if (fread(mBuf, 1, 4, fp) != 4) break;
+          uint32_t nMeas = ((uint32_t)mBuf[0] << 24) |
+                           ((uint32_t)mBuf[1] << 16) |
+                           ((uint32_t)mBuf[2] << 8)  |
+                            (uint32_t)mBuf[3];
+
+          if (nMeas > 100000) {
+            printf("      %s[WARN]  ResponseCurve[%u] channel %u: %u measurements (>100K)%s\n",
+                   ColorCritical(), c, ch, nMeas, ColorReset());
+            printf("       %sCWE-400: Unbounded measurement count → O(n) iteration in Read/Describe%s\n",
+                   ColorCritical(), ColorReset());
+            heuristicCount++;
+          }
+        }
+      }
+    }
+  }
+
+  fclose(fp);
+
+  if (heuristicCount == 0) {
+    printf("      %s[OK] ResponseCurve measurement counts within bounds (or tag absent)%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H137: High-Dimensional Color Space Grid Complexity (CWE-400)
+// EvaluateProfile() iterates nGran^ndim grid points. For profiles with
+// ndim >= 6 and default nGran=33, this creates 33^6 = 1.29B iterations.
+// Flag profiles where ndim-driven computation exceeds safe bounds.
+// =====================================================================
+int RunHeuristic_H137_HighDimensionalGridComplexity(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H137] High-Dimensional Color Space Grid Complexity (CWE-400)\n");
+
+  if (!pIcc) {
+    printf("      [SKIP] No profile loaded\n\n");
+    return 0;
+  }
+
+  icColorSpaceSignature csInput = pIcc->m_Header.colorSpace;
+  icUInt32Number ndim = icGetSpaceSamples(csInput);
+
+  if (ndim >= 6) {
+    printf("      %s[WARN]  Input color space has %u channels%s\n",
+           ColorWarning(), ndim, ColorReset());
+    printf("       Round-trip evaluation grid: 33^%u = ", ndim);
+    uint64_t gridSize = 1;
+    bool overflow = false;
+    for (uint32_t d = 0; d < ndim; d++) {
+      gridSize *= 33;
+      if (gridSize > 10000000000ULL) { overflow = true; break; }
+    }
+    if (overflow) {
+      printf(">10B iterations\n");
+    } else {
+      printf("%llu iterations\n", (unsigned long long)gridSize);
+    }
+    printf("       %sCWE-400: O(nGran^ndim) complexity in EvaluateProfile — DoS risk%s\n",
+           ColorCritical(), ColorReset());
+    heuristicCount++;
+  }
+
+  // Also check CLUT tags for high-dimensional grids
+  icTagSignature clutTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    (icTagSignature)0
+  };
+
+  for (int t = 0; clutTags[t] != (icTagSignature)0; t++) {
+    CIccTag *pTag = pIcc->FindTag(clutTags[t]);
+    if (!pTag) continue;
+
+    CIccTagLutAtoB *mbbA = dynamic_cast<CIccTagLutAtoB*>(pTag);
+    CIccTagLutBtoA *mbbB = dynamic_cast<CIccTagLutBtoA*>(pTag);
+    uint32_t nIn = 0;
+    CIccCLUT *clut = NULL;
+
+    if (mbbA) {
+      nIn = mbbA->InputChannels();
+      clut = mbbA->GetCLUT();
+    } else if (mbbB) {
+      nIn = mbbB->InputChannels();
+      clut = mbbB->GetCLUT();
+    }
+
+    if (nIn >= 6 && clut) {
+      uint64_t total = 1;
+      for (uint32_t d = 0; d < nIn && d < 16; d++) {
+        total *= clut->GridPoint(d);
+        if (total > 100000000ULL) break;
+      }
+      if (total > 1000000ULL) {
+        char sigStr[5] = {};
+        uint32_t sig = (uint32_t)clutTags[t];
+        sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+        sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+        sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+        sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+        printf("      %s[WARN]  '%s': %u-dim CLUT grid product = %llu (>1M)%s\n",
+               ColorCritical(), sigStr, nIn, (unsigned long long)total, ColorReset());
+        printf("       %sCWE-400: Exponential grid iteration in Apply()%s\n",
+               ColorCritical(), ColorReset());
+        heuristicCount++;
+      }
+    }
+  }
+
+  if (heuristicCount == 0) {
+    printf("      %s[OK] Color space dimensionality within safe bounds%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H138: Calculator Element Branching Depth (CWE-400/CWE-674)
+// ApplySequence() processes if/else/select/case ops recursively at
+// runtime with NO depth counter. CheckUnderflowOverflow has depth=16
+// for validation, but execution is unbounded. Flag profiles with
+// deep calculator branching that could cause stack overflow or DoS.
+// =====================================================================
+int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+
+  printf("[H138] Calculator Element Branching Depth (CWE-400/CWE-674)\n");
+
+  if (!pIcc) {
+    printf("      [SKIP] No profile loaded\n\n");
+    return 0;
+  }
+
+  icTagSignature mpeTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    (icTagSignature)0x44324230, // D2B0
+    (icTagSignature)0x44324231, // D2B1
+    (icTagSignature)0x42324430, // B2D0
+    (icTagSignature)0x42324431, // B2D1
+    (icTagSignature)0
+  };
+
+  int calcFound = 0;
+
+  for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
+    CIccTag *pTag = pIcc->FindTag(mpeTags[t]);
+    if (!pTag) continue;
+    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMpe) continue;
+
+    icUInt32Number numElems = pMpe->NumElements();
+    for (icUInt32Number ei = 0; ei < numElems && ei < 100; ei++) {
+      CIccMultiProcessElement *pElem = pMpe->GetElement(ei);
+      if (!pElem) continue;
+
+      CIccMpeCalculator *pCalc = dynamic_cast<CIccMpeCalculator*>(pElem);
+      if (!pCalc) continue;
+      calcFound++;
+
+      // Count sub-elements via public GetElem API
+      icUInt32Number nSub = 0;
+      for (icUInt16Number si = 0; si < 256; si++) {
+        if (!pCalc->GetElem(icSigApplyElemOp, si)) break;
+        nSub++;
+      }
+      if (nSub > 16) {
+        char sigStr[5] = {};
+        uint32_t sig = (uint32_t)mpeTags[t];
+        sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+        sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+        sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+        sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+        printf("      %s[WARN]  '%s' calc[%u]: %u sub-elements (>16)%s\n",
+               ColorCritical(), sigStr, ei, nSub, ColorReset());
+        printf("       %sCWE-674: Deep sub-element chain → unbounded recursion in ApplySequence%s\n",
+               ColorCritical(), ColorReset());
+        printf("       Note: ApplySequence() has NO runtime depth limit (validation-only guard)\n");
+        heuristicCount++;
+      }
+
+      // Check for nested calculator sub-elements (re-entrant Apply)
+      for (icUInt32Number si = 0; si < nSub && si < 64; si++) {
+        CIccMultiProcessElement *pSubElem = pCalc->GetElem(icSigApplyElemOp, (icUInt16Number)si);
+        if (!pSubElem) continue;
+        CIccMpeCalculator *pSubCalc = dynamic_cast<CIccMpeCalculator*>(pSubElem);
+        if (pSubCalc) {
+          char sigStr[5] = {};
+          uint32_t sig = (uint32_t)mpeTags[t];
+          sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
+          sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
+          sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
+          sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+          printf("      %s[WARN]  '%s' calc[%u] sub[%u]: nested calculator element%s\n",
+                 ColorCritical(), sigStr, ei, si, ColorReset());
+          printf("       %sCWE-674: Nested calculators cause re-entrant ApplySequence (no depth limit)%s\n",
+                 ColorCritical(), ColorReset());
+          heuristicCount++;
+        }
+      }
+    }
+  }
+
+  if (heuristicCount == 0) {
+    if (calcFound > 0) {
+      printf("      %s[OK] Calculator branching depth within safe bounds (%d calc element(s))%s\n",
+             ColorSuccess(), calcFound, ColorReset());
+    } else {
+      printf("      [INFO] No calculator elements found\n");
+    }
+  }
+  printf("\n");
+  return heuristicCount;
+}
