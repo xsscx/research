@@ -1,0 +1,17 @@
+TITLE "First Title Line"
+TITLE "Second Title Line"
+# First comment block
+# with multiple lines
+# and continuation
+
+# Second comment block after blank line
+# more comments here
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0

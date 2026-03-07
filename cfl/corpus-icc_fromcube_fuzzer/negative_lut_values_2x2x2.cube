@@ -1,0 +1,11 @@
+TITLE "Negative LUT Values"
+# LUT data containing negative and out-of-range float values
+LUT_3D_SIZE 2
+-0.1 -0.2 -0.3
+1.5 -0.1 0.0
+-1.0 2.0 0.0
+1.0 1.0 -0.5
+0.0 -1.0 1.5
+1.0 0.0 3.0
+-0.5 1.5 1.0
+2.0 2.0 2.0
