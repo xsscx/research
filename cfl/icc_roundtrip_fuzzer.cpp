@@ -48,6 +48,9 @@
 #include <climits>
 #include "fuzz_utils.h"
 
+// CIccInfo — exercises GetRenderingIntentName() path missing from prior version
+// (matches iccRoundTrip.cpp line 186: CIccInfo info usage)
+
 // Full implementation matching the tool (iccRoundTrip.cpp lines 79-146)
 class CIccMinMaxEval : public CIccEvalCompare {
 public:
@@ -181,6 +184,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     (void)prmg.m_nDE10;
     (void)prmg.m_nTotal;
   }
+
+  // TOOL FIDELITY: CIccInfo usage (tool line 186)
+  // Exercises GetRenderingIntentName and string formatting code paths
+  CIccInfo info;
+  (void)info.GetRenderingIntentName(nIntent);
+  (void)info.GetRenderingIntentName(nIntent, true);  // bIsV5 variant
   
   unlink(tmp_file);
   return 0;

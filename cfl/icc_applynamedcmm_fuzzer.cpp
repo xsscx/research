@@ -76,7 +76,25 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool adjustPcsLuminance = (flags & 0x04) != 0;
   bool useV5SubProfile = (flags & 0x08) != 0;
   icXformInterp interp = ((flags >> 4) & 0x01) ? icInterpTetrahedral : icInterpLinear;
-  icRenderingIntent intent = (icRenderingIntent)(data[1] & 0x03);
+
+  // Expanded rendering intent + modifier parsing — matches iccApplyNamedCmm.cpp
+  // intent modifier system (lines 756-777):
+  //   nType = nIntent / 10 (0=color, 1=no-D2Bx, 2=preview, 3=gamut, 4=BPC)
+  //   base intent = nIntent % 10 (0-3)
+  uint8_t rawIntent = data[1];
+  int nType = (rawIntent >> 4) & 0x07;  // 3 bits for nType (0-7)
+  icRenderingIntent intent = (icRenderingIntent)(rawIntent & 0x03);
+  bool useHToS = (rawIntent & 0x80) != 0;  // +100000 modifier
+
+  // Override D2Bx and BPC from nType (matches tool lines 768-775)
+  icXformLutType xformType = icXformLutColor;
+  if (nType == 1) {
+    useD2BxB2Dx = false;
+  } else if (nType == 4) {
+    useBPC = true;
+  } else if (nType >= 2 && nType <= 8) {
+    xformType = (icXformLutType)nType;
+  }
 
   // Profile data starts at offset 4
   const uint8_t *profile_data = data + 4;
@@ -138,13 +156,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (envHint) Hint.AddHint(envHint);
   }
 
-  // Add profile to CMM (mirrors lines 382-392)
+  // CIccCmmPccEnvVarHint — exercises PCC environment variable path
+  // matching iccApplyNamedCmm.cpp line 377
+  if ((flags & 0x40) != 0) {
+    icCmmEnvSigMap pccEnvVars;
+    pccEnvVars[0x70636331] = 1.0; // 'pcc1' -> 1.0
+    auto *pccHint = new (std::nothrow) CIccCmmPccEnvVarHint(pccEnvVars);
+    if (pccHint) Hint.AddHint(pccHint);
+  }
+
+  // Add profile to CMM with expanded xform type
+  // (mirrors lines 380-392 with full modifier system)
   icStatusCMM stat = namedCmm.AddXform(
     tmp_profile,
     intent,
     interp,
     nullptr,  // No PCC profile for fuzzing simplicity
-    icXformLutColor,
+    xformType,
     useD2BxB2Dx,
     &Hint,
     useV5SubProfile
