@@ -16,7 +16,7 @@ applied at build time.
 cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 19 fuzzers
 ```
 
-- **First run**: clones `github.com/InternationalColorConsortium/DemoIccMAX.git` into `cfl/iccDEV/`
+- **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
 - Applies 57 active patches (001-071, with 14 NO-OP gaps) from `cfl/patches/`
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
