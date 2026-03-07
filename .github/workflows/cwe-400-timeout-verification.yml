@@ -1,0 +1,675 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Verify CWE-400 (Uncontrolled Resource Consumption)
+#         timeout PoCs against upstream unpatched iccDEV tools.
+#
+#         6 crafted ICC profiles trigger >30s hangs in:
+#           - IccRoundTrip      (EvaluateProfile, CheckUnderflowOverflow)
+#           - IccApplyProfiles  (MPE calculator Apply)
+#
+#         Root causes:
+#           1. CheckUnderflowOverflow() exponential recursion (no ops budget)
+#           2. EvaluateProfile() nGran^ndim grid explosion (33^6 = 1.29B)
+#           3. Calculator element Apply() without resource budget
+#
+# Jobs:
+#   1. build-iccdev-tools — Clone + build upstream iccDEV with tools
+#   2. verify-roundtrip   — 3 PoCs against IccRoundTrip (30s timeout)
+#   3. verify-apply       — 3 PoCs against IccApplyProfiles (30s timeout)
+#   4. summary            — Results table
+#
+# Last Updated: 2026-03-07
+###############################################################
+
+name: CWE-400 Timeout Verification
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - 'timeout-*'
+      - '.github/workflows/cwe-400-timeout-verification.yml'
+  pull_request:
+    paths:
+      - 'timeout-*'
+      - '.github/workflows/cwe-400-timeout-verification.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cwe-400-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_NO_UPDATE_NOTIFIER: 1
+  GH_PROMPT_DISABLED: 1
+  TIMEOUT_SECONDS: 30
+
+jobs:
+  #############################################################################
+  # Job 1: Build upstream iccDEV tools (unpatched)
+  #############################################################################
+  build-iccdev-tools:
+    name: "Build iccDEV Tools (Unpatched)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Configure environment
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-cwe400-${{ hashFiles('.github/workflows/cwe-400-timeout-verification.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-cwe400-
+
+      - name: Install build dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
+            sudo apt-get update -qq
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
+            zlib1g-dev nlohmann-json3-dev
+
+      - name: Cache iccDEV source
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        id: cache-iccdev-src
+        with:
+          path: upstream-iccDEV
+          key: ${{ runner.os }}-iccdev-upstream-src-v1
+
+      - name: Clone upstream iccDEV (unpatched)
+        if: steps.cache-iccdev-src.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Cloning upstream iccDEV (NO CFL patches applied)..."
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
+          echo "iccDEV commit: $(cd upstream-iccDEV && git log --oneline -1)"
+
+      - name: Disable wxWidgets requirement
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          find upstream-iccDEV -name '*.h' -o -name '*.cpp' | \
+            xargs sed -i 's/\xef\xb8\x8f//g' 2>/dev/null || true
+
+          # Comment out wxWidgets dependency (matches upstream ci-pr-unix pattern)
+          CMAKEFILE="upstream-iccDEV/Build/Cmake/CMakeLists.txt"
+          if [ -f "$CMAKEFILE" ]; then
+            sed -i.bak 's/^  find_package(wxWidgets COMPONENTS core base REQUIRED)/  # find_package(wxWidgets COMPONENTS core base REQUIRED)/g' "$CMAKEFILE"
+            sed -i.bak 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/      # ADD_SUBDIRECTORY(Tools\/wxProfileDump)/g' "$CMAKEFILE"
+            sed -i.bak 's/^    message(FATAL_ERROR "wxWidgets not found/    # message(FATAL_ERROR "wxWidgets not found/g' "$CMAKEFILE"
+            find upstream-iccDEV -name '*.bak' -delete 2>/dev/null || true
+            echo "wxWidgets requirement disabled"
+          else
+            echo "CMakeLists.txt not found at expected path — wxWidgets may not be required"
+          fi
+
+      - name: Build iccDEV tools
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          CC: clang
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd upstream-iccDEV/Build
+          echo "Configuring CMake (Release, tools enabled)..."
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=$CC \
+                -DCMAKE_CXX_COMPILER=$CXX \
+                -DENABLE_TOOLS=ON \
+                Cmake
+
+          echo "Building with $(nproc) cores..."
+          make -j"$(nproc)" 2>&1 | tail -20
+
+          echo ""
+          echo "=== Built Tools ==="
+          for d in Tools/*; do
+            [ -d "$d" ] && for t in "$d"/icc* "$d"/Icc*; do
+              [ -x "$t" ] && echo "  $(ls -lh "$t" | awk '{print $5, $9}')"
+            done
+          done
+
+          {
+            echo "### iccDEV Tools Built (Unpatched)"
+            echo ""
+            echo '```'
+            echo "Commit: $(cd .. && git log --oneline -1)"
+            echo ""
+            for d in Tools/*; do
+              [ -d "$d" ] && for t in "$d"/icc* "$d"/Icc*; do
+                [ -x "$t" ] && ls -lh "$t"
+              done
+            done
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify key tools exist
+        run: |
+          set -euo pipefail
+          echo "Checking for iccRoundTrip..."
+          find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1
+          ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1)
+          test -n "$ROUNDTRIP" || { echo "ERROR: IccRoundTrip not found"; exit 1; }
+
+          echo "Checking for iccApplyProfiles..."
+          find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1
+          APPLY=$(find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1)
+          test -n "$APPLY" || { echo "ERROR: IccApplyProfiles not found"; exit 1; }
+
+          echo "All required tools present."
+
+      - name: Upload tools artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: iccdev-tools-unpatched
+          path: |
+            upstream-iccDEV/Build/Tools/
+            upstream-iccDEV/Build/IccProfLib/libIccProfLib2*
+            upstream-iccDEV/Build/IccXML/libIccXML2*
+          retention-days: 7
+
+  #############################################################################
+  # Job 2: Verify IccRoundTrip timeouts (3 PoCs)
+  #############################################################################
+  verify-roundtrip:
+    name: "IccRoundTrip • CWE-400"
+    needs: build-iccdev-tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        poc:
+          - file: timeout-3aa7f657d7718e06365181e82b735af7cda4aada
+            desc: "CheckUnderflowOverflow exponential recursion"
+            mechanism: "IccMpeCalc.cpp — recursive validation without global ops budget"
+          - file: timeout-4e821e5627852351ccfcf35c2006d53c1d10d068
+            desc: "EvaluateProfile nGran^ndim grid explosion"
+            mechanism: "IccEval.cpp:183 — 33^6 = 1.29B iterations × 2 Apply() calls"
+          - file: timeout-c3a67e9b148d8852eb5a5c76f12c60fff3bdaabf
+            desc: "EvaluateProfile nGran^ndim grid explosion"
+            mechanism: "IccEval.cpp:183 — 33^6 = 1.29B iterations × 2 Apply() calls"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install runtime dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libxml2 libtiff6 libjpeg-turbo8 libpng16-16
+
+      - name: Download tools
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: iccdev-tools-unpatched
+          path: tools
+
+      - name: Prepare tools
+        run: |
+          set -euo pipefail
+          echo "=== Downloaded artifact structure ==="
+          find tools -type f | head -30
+
+          # Find the tool binary (handle case variants from different upstream versions)
+          ROUNDTRIP=$(find tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1)
+          if [ -z "$ROUNDTRIP" ]; then
+            echo "ERROR: IccRoundTrip not found in artifact"
+            find tools -type f
+            exit 1
+          fi
+          chmod +x "$ROUNDTRIP"
+          echo "ROUNDTRIP=$ROUNDTRIP" >> "$GITHUB_ENV"
+
+          # Set LD_LIBRARY_PATH for shared libs
+          LIBDIRS=""
+          for lib in libIccProfLib2 libIccXML2; do
+            DIR=$(find tools -name "${lib}*" -printf '%h\n' | head -1)
+            [ -n "$DIR" ] && LIBDIRS="${LIBDIRS:+$LIBDIRS:}$DIR"
+          done
+          echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
+
+          echo "Tool: $ROUNDTRIP"
+          echo "Libs: $LIBDIRS"
+
+      - name: "Verify CWE-400: ${{ matrix.poc.desc }}"
+        env:
+          BASH_ENV: /dev/null
+          POC_FILE: ${{ matrix.poc.file }}
+          POC_DESC: ${{ matrix.poc.desc }}
+          POC_MECHANISM: ${{ matrix.poc.mechanism }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "=== CWE-400 Timeout Verification ==="
+          echo "PoC:       $POC_FILE"
+          echo "Desc:      $POC_DESC"
+          echo "Mechanism: $POC_MECHANISM"
+          echo "Tool:      $ROUNDTRIP"
+          echo "Timeout:   ${TIMEOUT_SECONDS}s"
+          echo ""
+
+          ls -la "$POC_FILE"
+          file "$POC_FILE"
+          echo ""
+
+          echo "Running: timeout ${TIMEOUT_SECONDS} iccRoundTrip $POC_FILE 1"
+          echo "---"
+
+          set +e
+          START=$(date +%s%N)
+          timeout "${TIMEOUT_SECONDS}" env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+            "$ROUNDTRIP" "$POC_FILE" 1 > /tmp/tool_stdout.txt 2> /tmp/tool_stderr.txt
+          EXIT_CODE=$?
+          END=$(date +%s%N)
+          set -e
+
+          ELAPSED_MS=$(( (END - START) / 1000000 ))
+          echo "Exit code: $EXIT_CODE"
+          echo "Elapsed:   ${ELAPSED_MS}ms"
+
+          if [ -s /tmp/tool_stdout.txt ]; then
+            echo ""
+            echo "--- stdout (last 20 lines) ---"
+            tail -20 /tmp/tool_stdout.txt
+          fi
+          if [ -s /tmp/tool_stderr.txt ]; then
+            echo ""
+            echo "--- stderr (last 20 lines) ---"
+            tail -20 /tmp/tool_stderr.txt
+          fi
+
+          echo ""
+          # Exit code 124 = timeout killed the process
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "✅ CWE-400 CONFIRMED: Tool hung for >${TIMEOUT_SECONDS}s (killed by timeout)"
+            echo "   This confirms uncontrolled resource consumption."
+            RESULT="TIMEOUT (CWE-400 confirmed)"
+          elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
+            echo "✅ CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+            RESULT="KILLED (CWE-400 confirmed)"
+          elif [ $ELAPSED_MS -gt 25000 ]; then
+            echo "⚠️  CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms (>${TIMEOUT_SECONDS}s threshold)"
+            RESULT="SLOW (${ELAPSED_MS}ms)"
+          else
+            echo "ℹ️  Tool completed in ${ELAPSED_MS}ms with exit code $EXIT_CODE"
+            echo "   The upstream may have been patched, or this environment differs."
+            RESULT="COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+          fi
+
+          {
+            echo ""
+            echo "### IccRoundTrip — ${POC_DESC}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| PoC | \`${POC_FILE}\` |"
+            echo "| Size | $(stat -c%s "$POC_FILE") bytes |"
+            echo "| Mechanism | ${POC_MECHANISM} |"
+            echo "| Exit Code | ${EXIT_CODE} |"
+            echo "| Elapsed | ${ELAPSED_MS}ms |"
+            echo "| Result | **${RESULT}** |"
+          } >> $GITHUB_STEP_SUMMARY
+
+  #############################################################################
+  # Job 3: Verify IccApplyProfiles timeouts (3 PoCs)
+  #############################################################################
+  verify-apply:
+    name: "IccApplyProfiles • CWE-400"
+    needs: build-iccdev-tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        poc:
+          - file: timeout-1c9189754f442af3c0502a5541b93311c6d65055
+            desc: "MPE calculator Apply() — Rec.2100 HLG"
+            mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
+          - file: timeout-3f9987d061d33beffdd2dbc68fa28015b59c5f1a
+            desc: "MPE calculator Apply() — malformed v5.15"
+            mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
+          - file: timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9
+            desc: "MPE calculator Apply() — corrupted PCS Z"
+            mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install runtime dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libxml2 libtiff6 libjpeg-turbo8 libpng16-16 python3
+
+      - name: Download tools
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: iccdev-tools-unpatched
+          path: tools
+
+      - name: Prepare tools
+        run: |
+          set -euo pipefail
+          echo "=== Downloaded artifact structure ==="
+          find tools -type f | head -30
+
+          APPLY=$(find tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1)
+          if [ -z "$APPLY" ]; then
+            echo "ERROR: IccApplyProfiles not found in artifact"
+            find tools -type f
+            exit 1
+          fi
+          chmod +x "$APPLY"
+          echo "APPLY=$APPLY" >> "$GITHUB_ENV"
+
+          # Set LD_LIBRARY_PATH for shared libs
+          LIBDIRS=""
+          for lib in libIccProfLib2 libIccXML2; do
+            DIR=$(find tools -name "${lib}*" -printf '%h\n' | head -1)
+            [ -n "$DIR" ] && LIBDIRS="${LIBDIRS:+$LIBDIRS:}$DIR"
+          done
+          echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
+
+          echo "Tool: $APPLY"
+          echo "Libs: $LIBDIRS"
+
+      - name: Generate test TIFF (2x2 RGB)
+        run: |
+          set -euo pipefail
+          python3 -c "
+          import struct, sys
+
+          # Minimal 2x2 RGB TIFF (little-endian)
+          pixel_data = b'\\xff\\x00\\x00' * 4  # 4 red pixels (2x2 RGB)
+          pixel_offset = 8 + 2 + (10 * 12) + 4  # IFD header + 10 entries + next_ifd
+          rational_offset = pixel_offset + len(pixel_data)
+
+          def ifd_entry(tag, typ, count, value):
+              return struct.pack('<HHII', tag, typ, count, value)
+
+          ifd = struct.pack('<H', 10)  # 10 entries
+          ifd += ifd_entry(0x0100, 3, 1, 2)           # ImageWidth = 2
+          ifd += ifd_entry(0x0101, 3, 1, 2)           # ImageLength = 2
+          ifd += ifd_entry(0x0102, 3, 1, 8)           # BitsPerSample = 8
+          ifd += ifd_entry(0x0103, 3, 1, 1)           # Compression = None
+          ifd += ifd_entry(0x0106, 3, 1, 2)           # PhotometricInterpretation = RGB
+          ifd += ifd_entry(0x0111, 4, 1, pixel_offset) # StripOffsets
+          ifd += ifd_entry(0x0115, 3, 1, 3)           # SamplesPerPixel = 3
+          ifd += ifd_entry(0x0116, 4, 1, 2)           # RowsPerStrip = 2
+          ifd += ifd_entry(0x0117, 4, 1, len(pixel_data)) # StripByteCounts
+          ifd += ifd_entry(0x011A, 5, 1, rational_offset) # XResolution
+          ifd += struct.pack('<I', 0)  # next IFD = 0
+
+          tiff  = b'II'                               # Little-endian
+          tiff += struct.pack('<H', 42)                # TIFF magic
+          tiff += struct.pack('<I', 8)                 # IFD offset
+          tiff += ifd
+          tiff += pixel_data
+          tiff += struct.pack('<II', 72, 1)            # XResolution = 72/1
+
+          with open('test_rgb.tif', 'wb') as f:
+              f.write(tiff)
+          print(f'Generated test_rgb.tif ({len(tiff)} bytes)')
+          "
+          file test_rgb.tif
+
+      - name: "Verify CWE-400: ${{ matrix.poc.desc }}"
+        env:
+          BASH_ENV: /dev/null
+          POC_FILE: ${{ matrix.poc.file }}
+          POC_DESC: ${{ matrix.poc.desc }}
+          POC_MECHANISM: ${{ matrix.poc.mechanism }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "=== CWE-400 Timeout Verification ==="
+          echo "PoC:       $POC_FILE"
+          echo "Desc:      $POC_DESC"
+          echo "Mechanism: $POC_MECHANISM"
+          echo "Tool:      $APPLY"
+          echo "Timeout:   ${TIMEOUT_SECONDS}s"
+          echo ""
+
+          ls -la "$POC_FILE"
+          file "$POC_FILE"
+          echo ""
+
+          # iccApplyProfiles src dst encoding compression planar embed interp profile intent
+          #   encoding=0(same) compression=0(none) planar=0(contig) embed=0 interp=1 intent=1(relative)
+          echo "Running: timeout ${TIMEOUT_SECONDS} iccApplyProfiles test_rgb.tif /tmp/out.tif 0 0 0 0 1 $POC_FILE 1"
+          echo "---"
+
+          set +e
+          START=$(date +%s%N)
+          timeout "${TIMEOUT_SECONDS}" env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+            "$APPLY" test_rgb.tif /tmp/out.tif 0 0 0 0 1 "$POC_FILE" 1 \
+            > /tmp/tool_stdout.txt 2> /tmp/tool_stderr.txt
+          EXIT_CODE=$?
+          END=$(date +%s%N)
+          set -e
+
+          ELAPSED_MS=$(( (END - START) / 1000000 ))
+          echo "Exit code: $EXIT_CODE"
+          echo "Elapsed:   ${ELAPSED_MS}ms"
+
+          if [ -s /tmp/tool_stdout.txt ]; then
+            echo ""
+            echo "--- stdout (last 20 lines) ---"
+            tail -20 /tmp/tool_stdout.txt
+          fi
+          if [ -s /tmp/tool_stderr.txt ]; then
+            echo ""
+            echo "--- stderr (last 20 lines) ---"
+            tail -20 /tmp/tool_stderr.txt
+          fi
+
+          echo ""
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "✅ CWE-400 CONFIRMED: Tool hung for >${TIMEOUT_SECONDS}s (killed by timeout)"
+            echo "   This confirms uncontrolled resource consumption."
+            RESULT="TIMEOUT (CWE-400 confirmed)"
+          elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
+            echo "✅ CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+            RESULT="KILLED (CWE-400 confirmed)"
+          elif [ $ELAPSED_MS -gt 25000 ]; then
+            echo "⚠️  CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms (>${TIMEOUT_SECONDS}s threshold)"
+            RESULT="SLOW (${ELAPSED_MS}ms)"
+          else
+            echo "ℹ️  Tool completed in ${ELAPSED_MS}ms with exit code $EXIT_CODE"
+            echo "   The upstream may have been patched, or this environment differs."
+            RESULT="COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+          fi
+
+          {
+            echo ""
+            echo "### IccApplyProfiles — ${POC_DESC}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| PoC | \`${POC_FILE}\` |"
+            echo "| Size | $(stat -c%s "$POC_FILE") bytes |"
+            echo "| Mechanism | ${POC_MECHANISM} |"
+            echo "| Command | \`iccApplyProfiles test_rgb.tif /tmp/out.tif 0 0 0 0 1 <poc> 1\` |"
+            echo "| Exit Code | ${EXIT_CODE} |"
+            echo "| Elapsed | ${ELAPSED_MS}ms |"
+            echo "| Result | **${RESULT}** |"
+          } >> $GITHUB_STEP_SUMMARY
+
+  #############################################################################
+  # Job 4: Summary
+  #############################################################################
+  summary:
+    name: "Results Summary"
+    needs: [verify-roundtrip, verify-apply]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Generate results table
+        env:
+          BASH_ENV: /dev/null
+          RT_RESULT: ${{ needs.verify-roundtrip.result }}
+          AP_RESULT: ${{ needs.verify-apply.result }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## CWE-400: Uncontrolled Resource Consumption in iccDEV"
+            echo ""
+            echo "**Classification:** CWE-400 — Uncontrolled Resource Consumption"
+            echo ""
+            echo "**Affected:** iccDEV (IccProfLib) — all versions (upstream unpatched)"
+            echo ""
+            echo "**Impact:** Denial of service via crafted ICC profiles causing >30s hangs"
+            echo ""
+            echo "### PoC Verification Matrix"
+            echo ""
+            echo "| PoC | Size | Tool | Mechanism | Job |"
+            echo "|-----|------|------|-----------|-----|"
+            echo "| \`timeout-3aa7f657\` | 899KB | IccRoundTrip | CheckUnderflowOverflow recursion | ${RT_RESULT} |"
+            echo "| \`timeout-4e821e56\` | 3.3KB | IccRoundTrip | EvaluateProfile 33^6 grid | ${RT_RESULT} |"
+            echo "| \`timeout-c3a67e9b\` | 3.4KB | IccRoundTrip | EvaluateProfile 33^6 grid | ${RT_RESULT} |"
+            echo "| \`timeout-1c918975\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
+            echo "| \`timeout-3f9987d0\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
+            echo "| \`timeout-77e98c61\` | 1.5KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
+            echo ""
+            echo "### Root Causes"
+            echo ""
+            echo "1. **CheckUnderflowOverflow()** — \`IccMpeCalc.cpp\`"
+            echo "   Recursive validation without global operations budget."
+            echo "   Calculator ops with branching (if/else/select/case) cause"
+            echo "   exponential path exploration."
+            echo ""
+            echo "2. **EvaluateProfile()** — \`IccEval.cpp:183\`"
+            echo "   Iterates nGran^ndim grid points. For high-dimensional profiles"
+            echo "   (ndim≥6), 33^6 = 1.29 billion iterations × 2 Apply() calls."
+            echo ""
+            echo "3. **Calculator element Apply()** — \`IccMpeCalc.cpp\`"
+            echo "   MPE calculator sequences can contain arbitrarily complex"
+            echo "   operations without resource budgets."
+            echo ""
+            echo "### Reproducer Commands"
+            echo ""
+            echo '```bash'
+            echo "# IccRoundTrip (3 PoCs)"
+            echo "LD_LIBRARY_PATH=Build/build/IccProfLib:Build/build/IccXML \\"
+            echo "  timeout 30 Build/build/Tools/IccRoundTrip/iccRoundTrip <poc.icc> 1"
+            echo ""
+            echo "# IccApplyProfiles (3 PoCs — requires source TIFF)"
+            echo "LD_LIBRARY_PATH=Build/build/IccProfLib:Build/build/IccXML \\"
+            echo "  timeout 30 Build/build/Tools/IccApplyProfiles/iccApplyProfiles \\"
+            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 <poc.icc> 1"
+            echo '```'
+            echo ""
+            echo "### Suggested Fixes"
+            echo ""
+            echo "1. Add global operations counter to CheckUnderflowOverflow() (100K cap)"
+            echo "2. Cap EvaluateProfile total iterations to 100K, reduce nGran dynamically"
+            echo "3. Add per-Apply() call timeout or operations budget to calculator engine"
+            echo "4. Validate calculator element complexity during profile load"
+          } >> $GITHUB_STEP_SUMMARY
+
+          echo "=== CWE-400 Verification Complete ==="
+          echo "IccRoundTrip jobs:      ${RT_RESULT}"
+          echo "IccApplyProfiles jobs:  ${AP_RESULT}"
