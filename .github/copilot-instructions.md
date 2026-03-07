@@ -115,7 +115,8 @@ Available tools (15):
 
 ### CWE-400 Timeout Patterns in iccDEV
 
-Two algorithmic complexity patterns cause CWE-400 (uncontrolled resource consumption):
+**Systemic theme**: every value read from an ICC profile that controls loop iteration
+or recursion depth needs a spec-derived upper bound. Seven patterns identified:
 
 1. **Recursive validation without global budget** — `CheckUnderflowOverflow()` in
    `IccMpeCalc.cpp` had depth limit but no total-operations counter. Calculator ops
@@ -126,6 +127,30 @@ Two algorithmic complexity patterns cause CWE-400 (uncontrolled resource consump
    nGran^ndim grid points. For high-dimensional profiles (ndim≥6), 33^6 = 1.29B
    iterations × 2 Apply() calls. Fix: CFL-075 (cap total iterations to 100K,
    dynamically reduce nGran).
+
+3. **Uncapped NamedColor2 nDeviceCoords** — `CIccTagNamedColor2::Read()` uses
+   uint32 `m_nDeviceCoords` to allocate `m_nColorEntrySize` with no upper bound.
+   Fix: CFL-076 (cap to 32, ICC spec max 15).
+
+4. **ResponseCurve nMeasurements[]** — `CIccResponseCurveStruct::Read()` reads
+   per-channel measurement count as uint32 with no validation. 500K measurements
+   × sizeof(icResponse16Number) = multi-GB allocation. Ref: CFL-077.
+
+5. **NamedColor2 Describe() iteration** — `CIccTagNamedColor2::Describe()` loops
+   over m_nSize entries (up to 3.5M after CFL-004 alloc cap) with 5 snprintf calls
+   per entry. Ref: CFL-078.
+
+6. **ApplySequence() runtime recursion** — 5 recursive call sites with zero depth
+   tracking during execution (validation has depth=16 via CFL-074, but Apply path
+   was unprotected). Ref: CFL-079.
+
+7. **Multiple Describe() unbounded loops** — XYZ, Chromaticity, ColorantTable
+   `Describe()` methods loop over file-controlled counters with no output cap.
+   Ref: CFL-080, CFL-081.
+
+**Reference patches CFL-077 through CFL-081** are in `cfl/patches/` but NOT applied
+to fuzzer builds — fuzzers should continue finding these patterns. Only
+iccanalyzer-lite (H136-H138) detects them; colorbleed_tools may be hardened later.
 
 **Diagnosis**: run PoC through upstream `iccDEV/Build/Tools/` with `timeout 30`.
 If upstream also hangs → report upstream + create CFL patch.

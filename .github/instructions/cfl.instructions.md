@@ -67,12 +67,18 @@ Current upstream: commit **b5ade94** (2026-03-06)
 ## Patch Conventions
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **076**)
+- Numbering: zero-padded 3-digit, sequential (next: **082**)
 - Format: unified diff against `cfl/iccDEV/`
 - 14 known NO-OP patches: 023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066
   (upstreamed or made irrelevant by code changes)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
-- Latest: 075 (EvaluateProfile iteration cap — CWE-400 timeout)
+- Latest active: CFL-076 (NamedColor2 nDeviceCoords cap)
+- **Reference-only (NOT in build.sh)**: CFL-077 through CFL-081 (CWE-400 upstream patterns)
+  - CFL-077: ResponseCurveStruct nMeasurements cap (100K per channel)
+  - CFL-078: NamedColor2 Describe() iteration cap (10K entries)
+  - CFL-079: ApplySequence() runtime depth limit (16)
+  - CFL-080: XYZ/Chromaticity/ColorantTable Describe() output cap (1MB)
+  - CFL-081: DescribeSequence() recursion depth limit (32)
 
 ## Fuzzing — Ramdisk Workflow
 
