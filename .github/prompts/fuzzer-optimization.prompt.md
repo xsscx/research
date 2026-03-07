@@ -488,3 +488,66 @@ llvm-cov-18 show -object bin/<fuzzer> -instr-profile=merged.profdata \
 | Medium (500-5000) | apply, toxml, fromxml, calculator, deep_dump | 500-5k | Read+Transform or XML |
 | Slow (<500) | link, roundtrip, v5dspobs, specsep | 10-500 | Multi-profile or TIFF I/O |
 | Very slow | applynamedcmm, spectral_b | 50-200 | Complex CMM chains |
+
+## Doxygen Inheritance Analysis — Coverage Gap Map
+
+Analysis of the iccDEV class hierarchy (from Doxygen SVG graphs at
+`xss.cx/public/docs/iccdev/inherits.html`) cross-referenced against
+fuzzer coverage reports reveals the following under-exercised classes:
+
+### CIccTag Hierarchy (inherit_graph_53.svg — 35+ leaf classes)
+
+All CIccTag subclasses are exercised through `CIccProfile::Read()` which
+dispatches to `CIccTagFactory`. The following have the lowest library coverage:
+
+| Class | Library File | Line Cov | Branch Cov | Exercised By |
+|-------|-------------|----------|------------|--------------|
+| CIccTagProfSeqId | IccTagProfSeqId.cpp | 33% | 30% | profile, dump, deep_dump |
+| CIccTagDict | IccTagDict.cpp | 43% | 65% | profile, dump, deep_dump |
+| CIccTagEmbedIcc | IccTagEmbedIcc.cpp | 55% | 36% | profile, dump, deep_dump |
+| CIccTagComposite | IccTagComposite.cpp | 70% | 57% | profile, dump, deep_dump |
+
+**Targeted seeds added**: NamedColor, SparseMatrixNamedColor, FluorescentNamedColor,
+MCS (CMYKOGP, 6ChanSelect), Encoding (ISO22028), SpecRef (6ChanInput, 6ChanCamera),
+ICS (Rec2100HlgFull-Part3), CalcTest, PCC-CAM profiles.
+
+### CIccMultiProcessElement Hierarchy (inherit_graph_39.svg — 17 leaf classes)
+
+MPE elements are exercised through `CIccTagMultiProcessElement::Read()`.
+Coverage varies by element type:
+
+| Class | Status | Primary Fuzzer |
+|-------|--------|---------------|
+| CIccMpeCLUT | Well covered (79% lines) | profile, calculator, v5dspobs |
+| CIccMpeMatrix | Well covered (79% lines) | profile, calculator, v5dspobs |
+| CIccMpeCurveSet | Well covered | profile, calculator |
+| CIccMpeCalculator | Good (92% lines) | calculator |
+| CIccMpeCAM (JabToXYZ/XYZToJab) | Moderate | profile (via PCC-CAM seeds) |
+| CIccMpeSpectralCLUT | Low (52% lines, 30% branches) | spectral, v5dspobs |
+| CIccMpeSpectralMatrix | Low | spectral |
+| CIccMpeSpectralObserver | Low | spectral, v5dspobs |
+| CIccMpeTintArray | Moderate | profile (via NamedColor seeds) |
+| CIccMpeToneMap | Moderate | profile (via Display seeds) |
+| CIccMpeAcs (BAcs/EAcs) | Good (87% lines) | profile, calculator |
+
+### Core Infrastructure Coverage
+
+| Library File | Lines | Branches | Impact |
+|-------------|-------|----------|--------|
+| IccCmmSearch.cpp | **0%** | **0%** | No fuzzer targets CIccCmmSearch |
+| IccCmm.cpp | 47% | 37% | Core CMM — all apply/link fuzzers |
+| IccCmm.h | 31% | 35% | Inline methods in CMM header |
+
+**IccCmmSearch.cpp** is completely un-fuzzed. It implements `CIccCmmSearch` which
+does iterative search through profile connections. Candidate for a future
+`icc_search_fuzzer` (maps to the `IccApplySearch` tool which has no fuzzer).
+
+### Improvement Strategy
+
+1. **Tag diversity seeds** — Added 14 profiles per fuzzer covering NamedColor,
+   MCS, Encoding, SpecRef, ICS, Calc, PCC-CAM, and Display/GSDF types
+2. **IccCmmSearch** — Requires new fuzzer harness (future work)
+3. **IccMpeSpectral** — Existing spectral + v5dspobs fuzzers need more V5
+   spectral profiles with spectral CLUT/matrix/observer elements
+4. **IccTagEmbedIcc** — The applyprofiles fuzzer now exercises embedded profile
+   paths through the embed_icc flag
