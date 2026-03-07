@@ -72,6 +72,25 @@ ASAN_OPTIONS=detect_leaks=0 timeout 5 iccDEV/Build/Tools/IccApplyProfiles/iccApp
 to the tool — it will fail with "Unable to parse" because the fuzzer's concatenated
 format (e.g., 4-byte size prefix) is not a valid ICC file. Always unbundle first.
 
+**CRITICAL**: Always use `iccDEV/Build/Tools/` (UNPATCHED upstream) for fidelity
+testing — NEVER `cfl/iccDEV/` (which has 60+ CFL patches applied).
+
+### Timeout-specific triage (CWE-400)
+
+For `timeout-*` artifacts, the workflow differs from crash triage:
+
+1. **Check upstream**: Run PoC through the matching upstream tool with `timeout 30`:
+   ```bash
+   LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+     timeout 30 iccDEV/Build/Tools/<ToolDir>/<tool> <timeout-file>
+   ```
+2. **If upstream also hangs** → Legitimate algorithmic bug. Create CFL patch.
+3. **If upstream handles it quickly** → Fuzzer-specific issue (e.g., different code path or excessive looping in harness).
+4. **Common timeout patterns**:
+   - Exponential recursion: `CheckUnderflowOverflow` → fix with global ops budget (CFL-074)
+   - Grid explosion: `EvaluateProfile` nGran^ndim → fix with iteration cap (CFL-075)
+   - XML parsing loops: Large `mluc`/`ProfileSeqDesc` → fix with element count cap
+
 Map to CVE CWE distribution: CWE-20 (49), CWE-122 (17), CWE-476 (16), CWE-125 (11), CWE-758 (11), CWE-787 (10).
 
 ## Step 5 — Fix workflow

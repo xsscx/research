@@ -104,6 +104,12 @@ cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
   `CIccMpeCurveSet::Begin()` can return false when sub-curves have invalid state
   (e.g., `m_nCount < 2`). Callers MUST check the return value — `Apply()` will
   NULL-deref `m_pSamples` otherwise (CWE-476). Patched in CFL-072.
+- **Timeout triage**: ALWAYS test timeout artifacts with **unpatched** upstream
+  tools at `iccDEV/Build/Tools/` first. If upstream also hangs → upstream bug.
+  If upstream handles it → fuzzer alignment issue. NEVER use `cfl/iccDEV/` for this.
+- **CWE-400 timeout fixes**:
+  - CFL-074: `CheckUnderflowOverflow()` — added 100K ops budget + depth 16 (was 100)
+  - CFL-075: `EvaluateProfile()` — capped nGran^ndim iterations to 100K
 
 ## Multi-Profile Fuzzer Input Formats
 
