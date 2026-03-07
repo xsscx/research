@@ -1,0 +1,42 @@
+diff --git a/Tools/CmdLine/IccV5DspObsToV4Dsp/IccV5DspObsToV4Dsp.cpp b/Tools/CmdLine/IccV5DspObsToV4Dsp/IccV5DspObsToV4Dsp.cpp
+index 6fed38e..cd4e486 100644
+--- a/Tools/CmdLine/IccV5DspObsToV4Dsp/IccV5DspObsToV4Dsp.cpp
++++ b/Tools/CmdLine/IccV5DspObsToV4Dsp/IccV5DspObsToV4Dsp.cpp
+@@ -161,18 +161,34 @@ int main(int argc, char* argv[])
+     return -2;
+   }
+ 
+-  pTagIn->Begin(icElemInterpLinear, dspIcc.get(), pccIcc.get());
++  // CFL-072: Check Begin() return value — NULL m_pSamples deref in
++  // CIccSingleSampledCurve::Apply() if Begin() fails (CWE-476)
++  if (!pTagIn->Begin(icElemInterpLinear, dspIcc.get(), pccIcc.get())) {
++    printf("Unable to initialize MPE processing for display profile\n");
++    return -2;
++  }
+ 
+   CICCApplyMPEPtr pApplyMpe( pTagIn->GetNewApply() );
++  if (!pApplyMpe) {
++    printf("Unable to create MPE apply object for display profile\n");
++    return -2;
++  }
+ 
+   auto applyList = pApplyMpe->GetList();
++  if (!applyList || applyList->size() < 2) {
++    printf("Invalid MPE apply list for display profile\n");
++    return -2;
++  }
+   auto applyIter = applyList->begin();
+   auto curveApply = applyIter->ptr;
+   applyIter++;
+   auto mtxApply = applyIter->ptr;
+ 
+-  pTagC2S->Begin(icElemInterpLinear, pccIcc.get());
+-  
++  if (!pTagC2S->Begin(icElemInterpLinear, pccIcc.get())) {
++    printf("Unable to initialize MPE processing for observer profile\n");
++    return -2;
++  }
++
+   CICCApplyMPEPtr pAppyC2S( pTagC2S->GetNewApply() );
+ 
+   CIccProfilePtr pIcc( new CIccProfile() );
