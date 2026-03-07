@@ -39,6 +39,13 @@ echo "Upstream: $(cd iccDEV && git rev-parse --short HEAD)"
 ### OOM / excessive allocation
 - See `triage-fuzzer-oom.prompt.yml` for the full OOM workflow.
 
+### NULL deref after unchecked Begin() (CWE-476)
+- `CIccTagMultiProcessElement::Begin()` and `CIccMpeCurveSet::Begin()` return false
+  when sub-curves have invalid state (e.g., `CIccSingleSampledCurve` with `m_nCount < 2`).
+- If caller doesn't check, `Apply()` dereferences NULL `m_pSamples` → SEGV.
+- Upstream tools with this gap: `IccV5DspObsToV4Dsp.cpp:164`. Fix: patch 072.
+- **Pattern**: Always check `if (!pTag->Begin(...)) { /* bail */ }` before calling `Apply()`.
+
 ### Stack-buffer-overflow / integer overflow (CWE-121, CWE-190)
 - Check for unchecked `tagCount` or `numChannels` values read from profile header.
 - Fix: Validate against reasonable maximums before allocating arrays.
@@ -52,9 +59,18 @@ ASAN_OPTIONS=print_scariness=1:halt_on_error=0:detect_leaks=0 cfl/bin/<fuzzer> <
 
 Check if the bug also affects upstream tools:
 ```bash
+# For single-profile fuzzers:
 ASAN_OPTIONS=detect_leaks=0 timeout 5 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles \
   /tmp/test_rgb.tif /tmp/out.tif 1 0 0 0 0 <crash-file> 0 2>&1 | grep "runtime error"
+
+# For multi-profile fuzzers (v5dspobs, link, applyprofiles):
+.github/scripts/unbundle-fuzzer-input.sh <fuzzer_name> <crash-file>
+# This extracts profiles to ./tmp/icc_<fuzzer_name>/ and runs the tool automatically
 ```
+
+**IMPORTANT**: For multi-profile fuzzers, do NOT pass the raw crash file directly
+to the tool — it will fail with "Unable to parse" because the fuzzer's concatenated
+format (e.g., 4-byte size prefix) is not a valid ICC file. Always unbundle first.
 
 Map to CVE CWE distribution: CWE-20 (49), CWE-122 (17), CWE-476 (16), CWE-125 (11), CWE-758 (11), CWE-787 (10).
 
