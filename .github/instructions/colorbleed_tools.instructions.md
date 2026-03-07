@@ -66,7 +66,7 @@ analysis phase is skipped.
 - Crashes in these tools indicate real vulnerabilities in iccDEV
 - When a crash is found:
   1. Minimize with `cfl/bin/icc_toxml_fuzzer -minimize_crash=1 <crash_file>`
-  2. Report to upstream: `github.com/InternationalColorConsortium/DemoIccMAX/issues`
+  2. Report to upstream: `github.com/InternationalColorConsortium/iccDEV/issues`
   3. Create a CFL patch if the fix is straightforward
 
 ## File Structure

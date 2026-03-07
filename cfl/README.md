@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-07 16:50:00 UTC
 
-Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorConsortium/DemoIccMAX) (iccDEV).
+Security fuzzing toolkit for [iccDEV](https://github.com/InternationalColorConsortium/iccDEV) (formerly DemoIccMAX).
 19 LibFuzzer harnesses, 57 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
 
 ## Quick Start
@@ -185,7 +185,7 @@ cfl/
 ├── icc_*_fuzzer.options       # LibFuzzer options files
 ├── icc_*_fuzzer_seed_corpus/  # Minimal seed corpora
 ├── findings/                  # Crash/OOM/timeout artifacts
-├── iccDEV/                   # DemoIccMAX source (git clone)
+├── iccDEV/                   # iccDEV source (git clone)
 ├── build.sh                  # Build script (clone + patch + compile)
 ├── fuzz-local.sh             # Local fuzzing driver
 ├── ramdisk-fuzz.sh           # Automated ramdisk fuzzing

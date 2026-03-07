@@ -85,9 +85,9 @@ cp fuzz/xml/icc/*.xml /tmp/fuzz-ramdisk/corpus-icc_fromxml_fuzzer/
 |-----|-----------|-----|-------------------|
 | CVE-2022-26730 | `graphics/icc/cve-2022-26730-*.icc` | CWE-787 | Apple ColorSync |
 | CVE-2023-32443 | `graphics/icc/cve-2023-32443*.icc` | CWE-125 | Apple ColorSync |
-| CVE-2023-46602 | `graphics/icc/cve-2023-46602.icc` | CWE-122 | DemoIccMAX |
+| CVE-2023-46602 | `graphics/icc/cve-2023-46602.icc` | CWE-122 | iccDEV (formerly DemoIccMAX) |
 | CVE-2023-46867 | `graphics/icc/Argyll_V302_*.icc` | CWE-126 | ArgyllCMS |
-| CVE-2024-38427 | `graphics/icc/cve-2024-38427.icc` | CWE-122 | DemoIccMAX |
+| CVE-2024-38427 | `graphics/icc/cve-2024-38427.icc` | CWE-122 | iccDEV (formerly DemoIccMAX) |
 
 ## Crash Type Classification
 
