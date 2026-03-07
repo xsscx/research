@@ -113,6 +113,24 @@ Available tools (15):
 `iccRoundTrip`, `iccSpecSepToTiff`, `iccTiffDump`, `iccToXml`,
 `iccV5DspObsToV4Dsp`, `iccDumpProfileGui`
 
+### CWE-400 Timeout Patterns in iccDEV
+
+Two algorithmic complexity patterns cause CWE-400 (uncontrolled resource consumption):
+
+1. **Recursive validation without global budget** — `CheckUnderflowOverflow()` in
+   `IccMpeCalc.cpp` had depth limit but no total-operations counter. Calculator ops
+   with branching (if/else/select/case) cause exponential path exploration.
+   Fix: CFL-074 (100K ops budget + depth 100→16).
+
+2. **Exponential grid iteration** — `EvaluateProfile()` in `IccEval.cpp` iterates
+   nGran^ndim grid points. For high-dimensional profiles (ndim≥6), 33^6 = 1.29B
+   iterations × 2 Apply() calls. Fix: CFL-075 (cap total iterations to 100K,
+   dynamically reduce nGran).
+
+**Diagnosis**: run PoC through upstream `iccDEV/Build/Tools/` with `timeout 30`.
+If upstream also hangs → report upstream + create CFL patch.
+If upstream handles it → fuzzer-only alignment issue.
+
 ### WASM Build (Deferred)
 
 WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:

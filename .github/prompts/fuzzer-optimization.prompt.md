@@ -197,6 +197,8 @@ Targets: ICC profiles → profile/dump/deep_dump/toxml fuzzers; TIFF files → t
 
 **Dict focus**: Profile class sigs, color space sigs, rendering intent values.
 
+**Known timeout (CFL-074)**: `CIccCalculatorFunc::CheckUnderflowOverflow()` had O(nOps^depth) complexity with `kMaxRecurseDepth=100` and no global operation budget. Crafted calculator ops with nested if/else/select caused >1000s execution in `Begin()`. Fix: added `pOpsProcessed` counter (100K budget) + reduced depth to 16. PoC: `timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9` (1515 bytes, v5 mntr RGB with 6 nested if/else in calc element).
+
 ---
 
 ### 8. icc_applyprofiles_fuzzer
@@ -362,6 +364,8 @@ intent byte (size-1): mod 4 for rendering intent
 
 **Performance note**: SLOW fuzzer — each input requires Read→CMM setup→full evaluation grid. Corpus grows slowly.
 
+**Known timeout (CFL-075)**: `CIccEvalCompare::EvaluateProfile()` iterates over `nGran^ndim` grid points. A 6-channel profile with default `nGran=33` produces 33^6 = 1.29B iterations, each calling `Apply()` twice — causing >1675s timeout. This is also an **upstream bug** (iccRoundTrip tool also hangs). Fix: dynamically cap nGran so total iterations stay under 100K. PoC: `timeout-4e821e5627852351ccfcf35c2006d53c1d10d068` (3352 bytes, v5 mntr MCH6/6ColorData with spectral PCS).
+
 ---
 
 ### 15. icc_spectral_fuzzer
@@ -503,6 +507,49 @@ llvm-cov-18 show -object bin/<fuzzer> -instr-profile=merged.profdata \
 | Medium (500-5000) | apply, toxml, fromxml, calculator, deep_dump | 500-5k | Read+Transform or XML |
 | Slow (<500) | link, roundtrip, v5dspobs, specsep | 10-500 | Multi-profile or TIFF I/O |
 | Very slow | applynamedcmm, spectral_b | 50-200 | Complex CMM chains |
+
+### CWE-400 Timeout Patterns — Triage and Fix Guide
+
+When a fuzzer produces a `timeout-*` artifact:
+
+1. **Verify with upstream tool** (CRITICAL — use `iccDEV/Build/Tools/`, NOT `cfl/iccDEV/`):
+   ```bash
+   LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+     timeout 30 iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <timeout-file>
+   ```
+   If the upstream tool also hangs → **upstream algorithmic bug** (report + patch).
+   If upstream handles it fine → **fuzzer-only issue** (patch library in CFL).
+
+2. **Common timeout root causes in iccDEV**:
+
+| Root Cause | Example | Fix Pattern |
+|-----------|---------|-------------|
+| Unbounded recursion depth | `CheckUnderflowOverflow` depth=100, no ops budget | Add `pOpsProcessed` counter + reduce depth (CFL-074) |
+| Exponential grid iteration | `EvaluateProfile` nGran^ndim = 33^6 = 1.29B | Cap total iterations, dynamically reduce nGran (CFL-075) |
+| Large allocation loops | `IccTagXml` mluc/ProfileSeqDesc parsing | Cap element count (CFL-067/068) |
+| Recursive Read() | `CIccTagStruct::Read()` self-referencing | Already guarded by read-depth limit |
+
+3. **Fix workflow**:
+   ```bash
+   # a) Backup pre-patch state
+   cp cfl/iccDEV/IccProfLib/<file>.cpp cfl/iccDEV/IccProfLib/<file>.cpp.preNNN
+   # b) Apply fix
+   # c) Generate patch
+   diff -u <file>.cpp.preNNN <file>.cpp > cfl/patches/NNN-descriptive-name.patch
+   # d) Rebuild library + fuzzer
+   cd cfl/iccDEV/Build && cmake --build . -j32
+   clang++ ... icc_<name>_fuzzer.cpp ... -o bin/icc_<name>_fuzzer
+   # e) Verify fix
+   LLVM_PROFILE_FILE=/dev/null ASAN_OPTIONS=detect_leaks=0 \
+     timeout 30 cfl/bin/icc_<name>_fuzzer <timeout-file>
+   # f) Copy to SSD
+   cp cfl/bin/icc_<name>_fuzzer /mnt/g/fuzz-ssd/bin/
+   ```
+
+4. **Key constants in timeout fixes**:
+   - `kMaxOpsProcessed = 100000` — global operation budget (matches SequenceNeedTempReset)
+   - `kMaxRecurseDepth = 16` — recursion depth cap (was 100)
+   - `kMaxIterations = 100000` — EvaluateProfile grid cap
 
 ## Doxygen Inheritance Analysis — Coverage Gap Map
 
