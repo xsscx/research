@@ -1,0 +1,73 @@
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -408,7 +408,7 @@
+   void DescribeSequence(std::string &sDescription,
+                         icUInt32Number nOps, SIccCalcOp *op, int nBlanks);
+-  bool ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *op) const;
++  bool ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *op, int nDepth = 0) const;
+ 
+   const char *ParseFuncDef(const char *szFuncDef, CIccCalcOpList &m_list, std::string &sReport);
+ 
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3695,8 +3695,16 @@
+-bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *ops) const
++bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *ops, int nDepth) const
+ {
++  // CFL-079: Add runtime depth limit to ApplySequence().
++  // CheckUnderflowOverflow() guards Begin() with depth=16 and 100K ops,
++  // but the EXECUTION path (Apply→ApplySequence) had ZERO runtime limits.
++  // Deep nesting via if/else/select/case causes unbounded stack growth.
++  // Match validation depth limit. CWE-674.
++  static const int kMaxApplyDepth = 16;
++  if (nDepth > kMaxApplyDepth)
++    return false;
++
+   SIccCalcOp *op;
+   SIccOpState os;
+ 
+@@ -3728,7 +3736,7 @@
+           if (os.idx+1 + ifSize > nOps)
+             return false;
+ 
+-          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1]))
++          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1], nDepth + 1))
+             return false;
+         }
+         else {
+@@ -3736,7 +3744,7 @@
+           if (os.idx+1 + ifSize + elseSize > nOps)
+             return false;
+ 
+-          if (elseSize && !ApplySequence(pApply, elseSize, &ops[os.idx+1 + ifSize]))
++          if (elseSize && !ApplySequence(pApply, elseSize, &ops[os.idx+1 + ifSize], nDepth + 1))
+             return false;
+         }
+         os.idx += ifSize + elseSize;
+@@ -3748,7 +3756,7 @@
+           if (os.idx + ifSize >= nOps)
+             return false;
+ 
+-          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1]))
++          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1], nDepth + 1))
+             return false;
+         }
+         os.idx += ifSize;
+@@ -3793,7 +3801,7 @@
+           if ((nDefOff + dataSize) >= nOps)
+             return false;
+           
+-          if (!ApplySequence(pApply, dataSize, &ops[offset]))
++          if (!ApplySequence(pApply, dataSize, &ops[offset], nDepth + 1))
+             break;
+         }
+       }
+@@ -3811,7 +3819,7 @@
+         if (offset >= nOps)
+           return false;
+         
+-        if (!ApplySequence(pApply, dataSize, &ops[offset]))
++        if (!ApplySequence(pApply, dataSize, &ops[offset], nDepth + 1))
+           break;
+       }
+ 
