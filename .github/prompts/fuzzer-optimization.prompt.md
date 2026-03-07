@@ -566,3 +566,20 @@ does iterative search through profile connections. Candidate for a future
    spectral profiles with spectral CLUT/matrix/observer elements
 4. **IccTagEmbedIcc** — The applyprofiles fuzzer now exercises embedded profile
    paths through the embed_icc flag
+5. **Begin()/Apply() audit** — All fuzzers that call `Begin()` then `Apply()`
+   must check Begin()'s return value. `CIccMpeCurveSet::Begin()` returns false
+   when any sub-curve fails (e.g., `CIccSingleSampledCurve` with `m_nCount < 2`),
+   leaving `m_pSamples` NULL. Calling `Apply()` without checking → NULL deref
+   (CWE-476). Fixed in v5dspobs (CFL-072). Audit: apply, link, calculator,
+   spectral fuzzers for the same pattern.
+
+## Common Fidelity Gaps
+
+Known patterns where fuzzers diverge from their target tool behavior:
+
+| Gap | Fuzzers Affected | Fix Pattern |
+|-----|-----------------|-------------|
+| Unchecked `Begin()` return | v5dspobs (fixed), apply, link, calculator | Check `if (!pTag->Begin(...))` before `Apply()` |
+| Raw ptr vs shared_ptr | v5dspobs, link | Tool uses `CIccProfileSharedPtr`; fuzzer uses raw `CIccProfile*` — ensure matching ownership semantics |
+| Multi-profile input format | v5dspobs, link, applyprofiles, specsep | Crash files need unbundling before tool repro — use `unbundle-fuzzer-input.sh` |
+| Missing `GetNewApply()` null check | All MPE fuzzers | `GetNewApply()` can return NULL on allocation failure |
