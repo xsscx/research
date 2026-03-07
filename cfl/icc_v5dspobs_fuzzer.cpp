@@ -595,8 +595,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   AST_LOG(9, "GATE 9: Initializing MPE processing");
   AST_LOG_VERBOSE("Tool calls: pTagIn->Begin() and pTagC2S->Begin()");
   
-  // Begin processing (matches tool behavior)
-  pTagIn->Begin(icElemInterpLinear, dspIcc, pccIcc);
+  // CFL-072: Check Begin() return value — CIccSingleSampledCurve::Apply()
+  // dereferences NULL m_pSamples if Begin() failed (CWE-476).
+  // The upstream tool has the same gap; patched in 072-v5dspobs-begin-return-check.patch
+  if (!pTagIn->Begin(icElemInterpLinear, dspIcc, pccIcc)) {
+    AST_LOG(9, "pTagIn->Begin() failed — curves not initialized");
+    AST_LOG(9, "Tool would crash at CIccSingleSampledCurve::Apply() (NULL m_pSamples)");
+    delete pccIcc;
+    delete dspIcc;
+    CLEANUP_TEMP_FILES();
+    return 0;
+  }
   CIccApplyTagMpe *pApplyMpe = pTagIn->GetNewApply();
   
   if (!pApplyMpe) {
@@ -622,7 +631,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   applyIter++;
   auto mtxApply = applyIter->ptr;
 
-  pTagC2S->Begin(icElemInterpLinear, pccIcc);
+  if (!pTagC2S->Begin(icElemInterpLinear, pccIcc)) {
+    AST_LOG(9, "pTagC2S->Begin() failed — observer curves not initialized");
+    delete pApplyMpe;
+    delete pccIcc;
+    delete dspIcc;
+    CLEANUP_TEMP_FILES();
+    return 0;
+  }
   CIccApplyTagMpe *pApplyC2S = pTagC2S->GetNewApply();
   
   if (!pApplyC2S) {
