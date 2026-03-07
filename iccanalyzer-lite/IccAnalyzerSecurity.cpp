@@ -663,7 +663,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H135_DuplicateTagSignatures(filename);
 
     // H136-H138: CWE-400 systemic patterns (CFL-074 through CFL-076 findings)
-    heuristicCount += RunHeuristic_H136_ResponseCurveMeasurementCount(filename);
+    // NOTE: H136 uses raw file I/O only — moved to always-run phase below.
+    // H137/H138 require pIcc and stay in library phase.
     heuristicCount += RunHeuristic_H137_HighDimensionalGridComplexity(pIcc);
     heuristicCount += RunHeuristic_H138_CalculatorBranchingDepth(pIcc);
 
@@ -677,6 +678,12 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   // Post-library raw-file heuristics (H33-H55, H57, H59, H68-H69)
   // Extracted to IccHeuristicsRawPost.cpp
   heuristicCount += RunRawPostLibraryHeuristics(filename);
+
+  // H136: CWE-400 ResponseCurve measurement count — raw file scan, ALWAYS runs.
+  // This is intentionally outside the library phase because the most dangerous
+  // profiles (those that crash the library) are too malformed for library loading.
+  // Validation-time safety must not depend on runtime library success.
+  heuristicCount += RunHeuristic_H136_ResponseCurveMeasurementCount(filename);
 
   // Summary
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
