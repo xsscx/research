@@ -39,33 +39,69 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string>
 #include "IccCmm.h"
 #include "IccUtil.h"
 #include "IccProfile.h"
 #include "IccDefs.h"
 #include "IccApplyBPC.h"
+#include "IccEnvVar.h"
+#include "IccTagBasic.h"
 #include <climits>
 #include <new>
 #include "fuzz_utils.h"
 
 // Aligned with iccDEV/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp:
 // Uses ReadIccProfile() + AddXform(CIccProfile*, ...) with full parameter set
-// including icXformLutType, bUseD2BxB2DxTags, BPC hints, and bUseSubProfile.
+// including icXformLutType, bUseD2BxB2DxTags, BPC/Luminance/EnvVar hints,
+// IterateXforms callback, SaveIccProfile output, and grid sweep Apply.
+
+// IXformIterator for IterateXforms — mirrors CCubeWriter::iterate() and
+// CDevLinkWriter::iterate() in iccApplyToLink.cpp (lines 204-524)
+class CFuzzLinkIterator : public IXformIterator {
+public:
+  int m_count = 0;
+  void iterate(const CIccXform* pXform) override {
+    m_count++;
+    if (pXform) {
+      const CIccProfile* pProf = pXform->GetProfile();
+      if (pProf) {
+        const CIccTag* pDesc = pProf->FindTagConst(icSigProfileDescriptionTag);
+        if (pDesc) {
+          std::string text;
+          (void)icGetTagText(pDesc, text);
+        }
+      }
+    }
+  }
+};
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 258 || size > 2 * 1024 * 1024) return 0;
   
   // Derive parameters from trailing bytes to preserve ICC header structure
-  // Matches iccApplyToLink parameter derivation from command-line args
+  // Matches iccApplyToLink intent modifier parsing (lines 726-746)
   icRenderingIntent intent = (icRenderingIntent)(data[size - 1] % 4);
   icXformInterp interp = (data[size - 2] & 1) ? icInterpLinear : icInterpTetrahedral;
   uint8_t ctrl = data[size - 3];
+  uint8_t ctrl2 = data[size - 4];
+
   bool bFirstTransform = (ctrl & 0x01);        // iccApplyToLink: first_transform arg
   bool bUseD2BxB2DxTags = !(ctrl & 0x02);      // iccApplyToLink: nType==1 disables
   bool bUseBPC = (ctrl & 0x04);                 // iccApplyToLink: nType==4 enables BPC
   bool bUseLuminance = (ctrl & 0x08);           // iccApplyToLink: +100 intent modifier
   bool bUseSubProfile = (ctrl & 0x10);          // iccApplyToLink: +1000 intent modifier
-  icXformLutType nLutType = (ctrl & 0x20) ? icXformLutPreview : icXformLutColor;
+
+  // Expand nLutType to exercise all xform types (was: binary Color/Preview)
+  // Matches iccApplyToLink nType values 0-8 (lines 737-746)
+  static const icXformLutType lutTypes[] = {
+    icXformLutColor, icXformLutNamedColor, icXformLutPreview, icXformLutGamut,
+    icXformLutBRDFParam, icXformLutBRDFDirect, icXformLutBRDFMcsParam, icXformLutMCS
+  };
+  icXformLutType nLutType = lutTypes[(ctrl >> 5) & 0x07];
+
+  bool bSaveLink = (ctrl2 & 0x01);             // Exercise SaveIccProfile path
+  bool bUseEnvVars = (ctrl2 & 0x02);           // Exercise CIccCmmEnvVarHint
   
   // Split input into two profiles (no leading byte skip)
   size_t mid = size / 2;
@@ -105,7 +141,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Matches iccApplyToLink: CIccCmm(icSigUnknownData, icSigUnknownData, bFirstTransform)
   CIccCmm cmm(icSigUnknownData, icSigUnknownData, bFirstTransform);
   
-  // Build hints matching iccApplyToLink hint construction
+  // Build hints matching iccApplyToLink hint construction (lines 736-766)
   CIccCreateXformHintManager hint1, hint2;
   if (bUseBPC) {
     auto* h1 = new (std::nothrow) CIccApplyBPCHint();
@@ -120,6 +156,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (!h1 || !h2) { delete h1; delete h2; delete pProf1; delete pProf2; unlink(tmp1); unlink(tmp2); return 0; }
     hint1.AddHint(h1);
     hint2.AddHint(h2);
+  }
+  // CIccCmmEnvVarHint — exercises iccApplyToLink -ENV: handling (lines 715-723)
+  if (bUseEnvVars) {
+    icCmmEnvSigMap envVars;
+    envVars[0x656E7631] = 1.0f;  // 'env1' = 1.0
+    envVars[0x656E7632] = 0.5f;  // 'env2' = 0.5
+    auto* e1 = new (std::nothrow) CIccCmmEnvVarHint(envVars);
+    auto* e2 = new (std::nothrow) CIccCmmEnvVarHint(envVars);
+    if (e1) hint1.AddHint(e1);
+    if (e2) hint2.AddHint(e2);
   }
   
   // Note: AddXform → CIccXform::Create takes ownership of the profile pointer.
@@ -157,20 +203,53 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       return 0;
     }
 
-    // Test varied color values through chain
+    // IterateXforms — exercises IXformIterator callback matching
+    // iccApplyToLink CCubeWriter::iterate() and CDevLinkWriter::iterate()
+    CFuzzLinkIterator iter;
+    cmm.IterateXforms(&iter);
+
     icFloatNumber in[16], out[16];
-    for (int i = 0; i < nSrc; i++)
-      in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
-    cmm.Apply(out, in);
+
+    // Grid sweep — exercises CMM.Apply with parameterized color samples
+    // matching iccApplyToLink grid sweep (lines 820-854)
+    if (nSrc <= 4) {
+      int nGridSize = 3 + ((ctrl2 >> 2) & 0x03); // 3-6 grid
+      for (int i = 0; i < nSrc; i++) in[i] = 0.0f;
+
+      // Nested loop for up to 4 dimensions
+      int idx[4] = {0, 0, 0, 0};
+      int dims = (nSrc < 4) ? nSrc : 4;
+      for (;;) {
+        for (int d = 0; d < dims; d++)
+          in[d] = (icFloatNumber)idx[d] / (nGridSize - 1);
+        for (int d = dims; d < nSrc; d++)
+          in[d] = 0.5f;
+        cmm.Apply(out, in);
+
+        // Increment multi-dimensional index
+        int carry = dims - 1;
+        while (carry >= 0) {
+          idx[carry]++;
+          if (idx[carry] >= nGridSize) {
+            idx[carry] = 0;
+            carry--;
+          } else {
+            break;
+          }
+        }
+        if (carry < 0) break;
+      }
+    } else {
+      // High-dimensional: test varied color values through chain
+      for (int i = 0; i < nSrc; i++)
+        in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
+      cmm.Apply(out, in);
+    }
 
     // Test boundary values
     for (int i = 0; i < nSrc; i++) in[i] = 0.0f;
     cmm.Apply(out, in);
     for (int i = 0; i < nSrc; i++) in[i] = 1.0f;
-    cmm.Apply(out, in);
-
-    // Test mid-range
-    for (int i = 0; i < nSrc; i++) in[i] = 0.5f;
     cmm.Apply(out, in);
 
     // Test out-of-gamut values
@@ -182,6 +261,37 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     (void)cmm.GetSourceSpace();
     (void)cmm.GetDestSpace();
     (void)cmm.Valid();
+
+    // SaveIccProfile — exercises device link serialization matching
+    // iccApplyToLink CDevLinkWriter::finish() (line 540)
+    if (bSaveLink) {
+      CIccProfile linkProfile;
+      linkProfile.InitHeader();
+      linkProfile.m_Header.deviceClass = icSigLinkClass;
+      linkProfile.m_Header.colorSpace = cmm.GetSourceSpace();
+      linkProfile.m_Header.pcs = cmm.GetDestSpace();
+
+      auto* pDesc = new (std::nothrow) CIccTagMultiLocalizedUnicode();
+      if (pDesc) {
+        pDesc->SetText("Fuzz Device Link");
+        linkProfile.AttachTag(icSigProfileDescriptionTag, pDesc);
+      }
+      auto* pCopy = new (std::nothrow) CIccTagMultiLocalizedUnicode();
+      if (pCopy) {
+        pCopy->SetText("Copyright Fuzz");
+        linkProfile.AttachTag(icSigCopyrightTag, pCopy);
+      }
+
+      char tmpout[PATH_MAX];
+      if (fuzz_build_path(tmpout, sizeof(tmpout), tmpdir, "/fuzz_linkout_XXXXXX")) {
+        int fdout = mkstemp(tmpout);
+        if (fdout != -1) {
+          close(fdout);
+          SaveIccProfile(tmpout, &linkProfile);
+          unlink(tmpout);
+        }
+      }
+    }
   }
   
   unlink(tmp1);
