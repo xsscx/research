@@ -600,6 +600,177 @@ def synth_tag_aliasing():
     return bytes(profile)
 
 
+def synth_named_color2_excessive_coords():
+    """NamedColor2 tag with nDeviceCoords=20 (>16 ICC spec max).
+    Triggers H64 (CWE-787 device coord count exceeds ICC spec max).
+    Based on CFL-076 finding: timeout-0bec9575 had nCoords=20734320."""
+    desc = make_mluc_tag("NamedColor2 Excessive Coords")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    # Build ncl2 tag with nDeviceCoords=20
+    ncl2_sig = b"ncl2"
+    n_device_coords = 20  # > 16
+    n_colors = 2
+    # ncl2 tag structure: type(4) + reserved(4) + vendorFlag(4) + nColors(4) +
+    #   nDeviceCoords(4) + prefix(32) + suffix(32) +
+    #   entries[nColors]: name(32) + PCS(6) + device(nDeviceCoords*2)
+    entry_size = 32 + 6 + n_device_coords * 2
+    ncl2_data = struct.pack(">4sI", b"ncl2", 0)  # type + reserved
+    ncl2_data += struct.pack(">I", 0)  # vendor flag
+    ncl2_data += struct.pack(">I", n_colors)
+    ncl2_data += struct.pack(">I", n_device_coords)
+    ncl2_data += b"\x00" * 32  # prefix
+    ncl2_data += b"\x00" * 32  # suffix
+    for i in range(n_colors):
+        name = f"Color{i}".encode("ascii").ljust(32, b"\x00")
+        ncl2_data += name
+        ncl2_data += b"\x00" * 6  # PCS coords
+        ncl2_data += b"\x00" * (n_device_coords * 2)  # device coords
+
+    tag_count = 4
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data_list = [desc, cprt, wtpt, ncl2_data]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current, color_space=b"RGB ", device_class=b"nmcl")
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+    table += make_tag_entry(b"ncl2", offsets[3], len(ncl2_data))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_high_dimensional_colorspace():
+    """Profile with 8-channel color space (icSig8colorData).
+    Triggers H137 (CWE-400 high-dimensional grid complexity).
+    33^8 = 1.41T iterations in EvaluateProfile."""
+    desc = make_mluc_tag("8-Channel High Dimensional")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    # icSig8colorData = '8CLR' = 0x38434C52
+    tag_count = 3
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data_list = [desc, cprt, wtpt]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current, color_space=b"8CLR", device_class=b"prtr")
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_response_curve_excessive_measurements():
+    """ResponseCurveSet16 tag with nMeasurements=500000 per channel.
+    Triggers H136 (CWE-400 unbounded measurement count)."""
+    desc = make_mluc_tag("ResponseCurve Excessive Measurements")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    # Build a minimal rcs2 (responseCurveSet16Type) tag
+    # Structure: type(4) + reserved(4) + nChannels(2) + nMeasTypes(2) +
+    #   offsets[nMeasTypes](4 each) + ResponseCurveStruct(s)
+    n_channels = 3
+    n_meas_types = 1
+    rcs2_type = b"rcs2"
+    rcs2_hdr = struct.pack(">4sI", rcs2_type, 0)  # type + reserved
+    rcs2_hdr += struct.pack(">HH", n_channels, n_meas_types)
+    # Offset to first curve struct (relative to start of tag)
+    curve_struct_offset = 12 + n_meas_types * 4
+    rcs2_hdr += struct.pack(">I", curve_struct_offset)
+    # ResponseCurveStruct: measurementUnit(4) + nMeasurements[nChannels](4 each)
+    meas_unit = 0x53746149  # 'StaI'
+    excessive_count = 500000
+    rcs2_curve = struct.pack(">I", meas_unit)
+    for _ in range(n_channels):
+        rcs2_curve += struct.pack(">I", excessive_count)
+    # We don't need actual measurement data — the heuristic checks the count
+    rcs2_data = rcs2_hdr + rcs2_curve
+
+    tag_count = 4
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    # Use signature 'rcs2' in tag table — actual tag sig doesn't matter,
+    # H136 scans by type signature inside the tag data
+    tag_data_list = [desc, cprt, wtpt, rcs2_data]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current)
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+    # Use 'rTRC' as the tag sig (arbitrary — H136 scans by type sig in data)
+    table += make_tag_entry(b"rTRC", offsets[3], len(rcs2_data))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -640,6 +811,10 @@ def main():
         "odd_utf16_mluc.icc": synth_odd_utf16_mluc(),
         "suspicious_profile_id.icc": synth_suspicious_profile_id(),
         "tag_aliasing.icc": synth_tag_aliasing(),
+        # CWE-400 systemic patterns (CFL-074/075/076 findings)
+        "named_color2_excessive_coords.icc": synth_named_color2_excessive_coords(),
+        "high_dimensional_colorspace.icc": synth_high_dimensional_colorspace(),
+        "response_curve_excessive_measurements.icc": synth_response_curve_excessive_measurements(),
     }
 
     for name, data in profiles.items():
