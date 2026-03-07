@@ -371,3 +371,103 @@ pcc_d50="\x00\x00\x13\x33"
 pcc_d65="\x00\x00\x14\xB3"
 observer_2deg="\x00\x00\x00\x01"
 observer_10deg="\x00\x00\x00\x02"
+
+# --- Section 14: Additional spectral tag signatures (4-char ICC sigs) ---
+sig_svcn="svcn"
+sig_swpt="swpt"
+sig_sdta="sdta"
+sig_c2sp="c2sp"
+sig_s2cp="s2cp"
+sig_bkpt="bkpt"
+sig_mvis="mvis"
+sig_smbb="smbb"
+sig_chad="chad"
+sig_wtpt="wtpt"
+sig_mpet="mpet"
+sig_curv="curv"
+sig_mft1="mft1"
+sig_mft2="mft2"
+sig_mAB_="mAB "
+sig_mBA_="mBA "
+
+# --- Section 15: Spectral wavelength ranges (s15Fixed16 encoded) ---
+# 380nm = 0x017C0000, 400nm = 0x01900000, 700nm = 0x02BC0000, 780nm = 0x030C0000
+spec_380nm="\x01\x7C\x00\x00"
+spec_400nm="\x01\x90\x00\x00"
+spec_700nm="\x02\xBC\x00\x00"
+spec_730nm="\x02\xDA\x00\x00"
+spec_780nm="\x03\x0C\x00\x00"
+# Step sizes: 1nm, 5nm, 10nm
+step_1nm="\x00\x01\x00\x00"
+step_5nm="\x00\x05\x00\x00"
+step_10nm="\x00\x0A\x00\x00"
+
+# --- Section 16: V5 specific header patterns ---
+# V5 version = 0x05000000
+v5_version="\x05\x00\x00\x00"
+v5_1_version="\x05\x01\x00\x00"
+# V4 version = 0x04400000
+v4_version="\x04\x40\x00\x00"
+# ICC magic 'acsp'
+icc_magic="acsp"
+# Profile classes
+class_mntr="mntr"
+class_scnr="scnr"
+class_prtr="prtr"
+class_spac="spac"
+class_abst="abst"
+class_link="link"
+
+# --- Section 17: Spectral color space signatures ---
+# Reflectance spectral data = 'rs\x00\x00'
+cs_reflectance="rs\x00\x00"
+# Transmissive spectral data = 'ts\x00\x00'
+cs_transmissive="ts\x00\x00"
+# Spectral PCS
+pcs_ref_spec="\x72\x73\x00\x00"
+pcs_trans_spec="\x74\x73\x00\x00"
+
+# --- Section 18: MPE processing elements ---
+mpe_curveset="\x63\x76\x73\x74"
+mpe_matrix="\x6D\x61\x74\x66"
+mpe_clut="\x63\x6C\x75\x74"
+mpe_calc="\x63\x61\x6C\x63"
+mpe_bacs="\x62\x41\x43\x53"
+mpe_eacs="\x65\x41\x43\x53"
+mpe_tint="\x74\x69\x6E\x74"
+mpe_tone="\x74\x6D\x61\x70"
+
+# --- Section 19: Channel counts for spectral (big-endian uint16) ---
+ch_3="\x00\x03"
+ch_4="\x00\x04"
+ch_6="\x00\x06"
+ch_7="\x00\x07"
+ch_8="\x00\x08"
+ch_16="\x00\x10"
+ch_17="\x00\x11"
+ch_18="\x00\x12"
+ch_31="\x00\x1F"
+ch_36="\x00\x24"
+ch_81="\x00\x51"
+
+# --- Section 20: Illuminant IDs (as bytes) ---
+illum_d50="\x00\x01"
+illum_d65="\x00\x02"
+illum_d93="\x00\x05"
+illum_a="\x00\x06"
+illum_b="\x00\x07"
+illum_f2="\x00\x08"
+
+# --- Section 21: Float32 edge cases (IEEE 754) ---
+float_zero="\x00\x00\x00\x00"
+float_one="\x3F\x80\x00\x00"
+float_neg_one="\xBF\x80\x00\x00"
+float_half="\x3F\x00\x00\x00"
+float_two="\x40\x00\x00\x00"
+float_d50_x="\x3F\x77\x0A\x3D"
+float_d50_z="\x3F\x53\x26\xE9"
+float_nan="\x7F\xC0\x00\x00"
+float_inf="\x7F\x80\x00\x00"
+float_neg_inf="\xFF\x80\x00\x00"
+float_denorm="\x00\x00\x00\x01"
+float_max="\x7F\x7F\xFF\xFF"

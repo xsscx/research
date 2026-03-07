@@ -3986,3 +3986,84 @@ pcc_d50="\x00\x00\x13\x33"
 pcc_d65="\x00\x00\x14\xB3"
 observer_2deg="\x00\x00\x00\x01"
 observer_10deg="\x00\x00\x00\x02"
+
+# --- Section: V5 display + observer pipeline tokens ---
+# CurveSetElemType signature (gate 5 check)
+cvst_sig="\x63\x76\x73\x74"
+# EmissionMatrixElemType signature (gate 5 check)
+emtx_sig="\x65\x6D\x74\x78"
+# SpectralViewingConditionsType (gate 8 check)
+svcn_type="\x73\x76\x63\x6E"
+# CustomToStandardPcc tag sig (gate 8 check)
+c2sp_sig="c2sp"
+# StandardToCustomPcc tag sig
+s2cp_sig="s2cp"
+# MultiProcessElement type sig (gate 4 check)
+mpet_sig="mpet"
+# V5 version bytes (gate 3/7 check)
+v5_ver="\x05\x00\x00\x00"
+# Display class (gate 3 check)
+mntr_class="mntr"
+# AToB1 tag sig (gate 4 check)
+a2b1_sig="A2B1"
+# Tag type for MultiProcessElement
+mpe_type="\x6D\x70\x65\x74"
+
+# --- Section: Observer spectral wavelength ranges ---
+# 380nm-780nm, 10nm step (standard range)
+spec_380="\x01\x7C\x00\x00"
+spec_700="\x02\xBC\x00\x00"
+spec_730="\x02\xDA\x00\x00"
+spec_780="\x03\x0C\x00\x00"
+spec_400="\x01\x90\x00\x00"
+step_1="\x00\x01\x00\x00"
+step_5="\x00\x05\x00\x00"
+step_10="\x00\x0A\x00\x00"
+
+# --- Section: 3-channel patterns for MPE in/out (gate 5/8) ---
+three_ch_in="\x00\x03"
+three_ch_out="\x00\x03"
+two_elements="\x00\x02"
+
+# --- Section: Profile size field patterns (first 4 bytes) ---
+# These help mutator create valid size headers
+size_2k="\x00\x00\x08\x00"
+size_4k="\x00\x00\x10\x00"
+size_8k="\x00\x00\x20\x00"
+size_12k="\x00\x00\x30\x00"
+size_24k="\x00\x00\x60\x00"
+size_30k="\x00\x00\x75\x30"
+
+# --- Section: TRC curve tag types ---
+curv_type="curv"
+para_type="para"
+sig_rTRC="rTRC"
+sig_gTRC="gTRC"
+sig_bTRC="bTRC"
+
+# --- Section: Colorant XYZ tag types ---
+sig_rXYZ="rXYZ"
+sig_gXYZ="gXYZ"
+sig_bXYZ="bXYZ"
+sig_XYZ_type="XYZ "
+sig_sf32="sf32"
+
+# --- Section: Illuminant/adaptation tokens ---
+illum_d50="\x00\x01"
+illum_d65="\x00\x02"
+illum_d93="\x00\x05"
+illum_a="\x00\x06"
+illum_b="\x00\x07"
+cat02_adapt="\x00\x03"
+cam_adapt="\x00\x04"
+abs_adapt="\x00\x01"
+mat_adapt="\x00\x02"
+
+# --- Section: Float edge cases for MPE processing ---
+float_one="\x3F\x80\x00\x00"
+float_zero="\x00\x00\x00\x00"
+float_half="\x3F\x00\x00\x00"
+float_nan="\x7F\xC0\x00\x00"
+float_inf="\x7F\x80\x00\x00"
+float_neg="\xBF\x80\x00\x00"
+float_tiny="\x00\x00\x00\x01"
