@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 135-heuristic ICC profile security analyzer (15,500+ LOC, C++17) built with full
+A 138-heuristic ICC profile security analyzer (15,500+ LOC, C++17) built with full
 ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles against
 ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE violations,
 malformed structures, and potential exploitation vectors.
@@ -30,14 +30,14 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 147 unit tests, ~3s
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.135_heuristics` pattern
+- When adding heuristics, update the test for `summary.138_heuristics` pattern
 
 ## Architecture — 3 Heuristic Modules
 
 | Module | Heuristics | API Level |
 |--------|-----------|-----------|
 | `IccAnalyzerSecurity.cpp` | H1-H8, H15-H17 | Raw header bytes, orchestrator |
-| `IccHeuristicsLibrary.cpp` | H9-H32, H56-H135 | CIccProfile library API |
+| `IccHeuristicsLibrary.cpp` | H9-H32, H56-H138 | CIccProfile library API |
 | `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69 | Raw file I/O fallback |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
@@ -46,13 +46,13 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 147 unit tests, ~3s
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H136** (current max is H135)
+1. Choose the next ID: **H139** (current max is H138)
 2. Add function declaration to `IccHeuristicsLibrary.h`
-3. Implement in `IccHeuristicsLibrary.cpp` (append after H135)
-4. Wire dispatch in `IccAnalyzerSecurity.cpp` (after H135 call)
-5. Update heuristic count (135→136) in these files:
+3. Implement in `IccHeuristicsLibrary.cpp` (append after H138)
+4. Wire dispatch in `IccAnalyzerSecurity.cpp` (after H138 call)
+5. Update heuristic count (138→139) in these files:
    - `IccAnalyzerSecurity.cpp` — CVE Coverage printf
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.135_heuristics`
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.138_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`

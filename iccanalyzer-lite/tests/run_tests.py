@@ -529,13 +529,49 @@ def test_heuristic_detection(suite):
         r"Zero tags.*invalid"
     )
 
+    # --- CWE-400 systemic pattern tests (CFL-074/075/076 findings) ---
+
+    # H64: NamedColor2 device coords > 15
+    suite.assert_output_contains(
+        "heuristic.named_color2_excessive_coords",
+        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        r"NamedColor2.*20 device coords.*>15"
+    )
+
+    # H136: ResponseCurve excessive measurements
+    suite.assert_output_contains(
+        "heuristic.response_curve_excessive_measurements",
+        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        r"ResponseCurve.*channel.*500000 measurements.*>100K"
+    )
+
+    # H137: high-dimensional color space
+    suite.assert_output_contains(
+        "heuristic.high_dimensional_grid_complexity",
+        ["-a", f"{corpus}/high_dimensional_colorspace.icc"],
+        r"Input color space has 8 channels"
+    )
+
+    # Verify H136/H137 produce CWE-400 annotations
+    suite.assert_output_contains(
+        "heuristic.cwe400_in_response_curve",
+        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        r"CWE-400.*Unbounded measurement count"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.cwe400_in_high_dim",
+        ["-a", f"{corpus}/high_dimensional_colorspace.icc"],
+        r"CWE-400.*O\(nGran\^ndim\)"
+    )
+
 
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.135_heuristics",
+        "summary.138_heuristics",
         ["-a", str(CORPUS_DIR / "bad_magic.icc")],
-        r"135 heuristics"
+        r"138 heuristics"
     )
 
     suite.assert_output_contains(

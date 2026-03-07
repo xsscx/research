@@ -662,6 +662,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H134_TagTypeReservedBytes(pIcc, filename);
     heuristicCount += RunHeuristic_H135_DuplicateTagSignatures(filename);
 
+    // H136-H138: CWE-400 systemic patterns (CFL-074 through CFL-076 findings)
+    heuristicCount += RunHeuristic_H136_ResponseCurveMeasurementCount(filename);
+    heuristicCount += RunHeuristic_H137_HighDimensionalGridComplexity(pIcc);
+    heuristicCount += RunHeuristic_H138_CalculatorBranchingDepth(pIcc);
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -693,7 +698,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 135 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 138 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs%s\n", ColorInfo(), ColorReset());
     printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
@@ -722,6 +727,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s           Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)%s\n", ColorInfo(), ColorReset());
     printf("  %sH133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved%s\n", ColorInfo(), ColorReset());
     printf("  %s           bytes (§10.1), duplicate tag signatures (§7.3.1)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional%s\n", ColorInfo(), ColorReset());
+    printf("  %s           grid complexity, calculator branching depth (CFL-074/075/076 findings)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
