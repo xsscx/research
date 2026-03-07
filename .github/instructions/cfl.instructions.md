@@ -162,6 +162,37 @@ To unbundle crash files from multi-profile fuzzers:
 For per-fuzzer optimization details (input formats, coverage gaps, seed strategies,
 dead code), see `.github/prompts/fuzzer-optimization.prompt.md`.
 
+## Dictionary Files
+
+Each fuzzer has a `.dict` file in `cfl/`. Key conventions:
+- One dict per fuzzer: `cfl/icc_<name>_fuzzer.dict` (or `cfl/icc_<name>.dict`)
+- TIFF fuzzer uses consolidated `cfl/icc_tiffdump_fuzzer.dict` (4215 entries)
+  combining hand-curated TIFF 6.0 tags + ICC sigs + auto-extracted corpus tokens
+- All entries must use `\xHH` hex escapes (NOT raw binary bytes)
+- LibFuzzer rejects dicts with raw control characters in quoted strings
+
+## Fuzzer Coverage Optimization Patterns
+
+When a fuzzer plateaus on coverage, apply these techniques in order:
+
+1. **2-phase architecture** — Phase 1: lightweight in-memory parse (cheap, broad).
+   Phase 2: deep file-based analysis (expensive, targeted). Skip Phase 2 on
+   malformed input to increase throughput.
+
+2. **OOM guards** — Add size/offset validation before tag iteration:
+   - Skip profiles where `profileSize < 1024`
+   - Skip tags where `tSize > 256KB` or `tSize > profileSize`
+   - MPE amplification guard: `tSize * 1024 > profileSize` catches small tags
+     that expand exponentially (CWE-789)
+   - Offset bounds: `tOffset > profileSize || tOffset + tSize > profileSize`
+
+3. **Dictionary consolidation** — Merge hand-curated format-specific tokens with
+   auto-extracted corpus tokens. Deduplicate. Fix hex escapes.
+
+4. **Seed corpus diversity** — Add profiles exercising under-covered code paths:
+   high-dimensional (6+ channels), MPE calculator elements, spectral PCS,
+   named colors with large palettes, deeply nested tag structures.
+
 ## Adding a New Fuzzer
 
 1. Create `cfl/icc_newfuzzer_fuzzer.cpp` — must include `extern "C" int LLVMFuzzerTestOneInput(...)`
