@@ -6043,3 +6043,49 @@
 "\x01\x00Q\x10\x00>^\x80"
 "\x94\x91\x96l"
 "luc\x00"
+
+# --- Section: IO-specific tokens for write path coverage ---
+# Profile size fields matching common test profile sizes
+io_size_128="\x00\x00\x00\x80"
+io_size_256="\x00\x00\x01\x00"
+io_size_512="\x00\x00\x02\x00"
+io_size_1024="\x00\x00\x04\x00"
+io_size_2048="\x00\x00\x08\x00"
+
+# ICC header magic at offset 36
+io_acsp="acsp"
+
+# Tag table patterns for profile write path
+io_tag_count_1="\x00\x00\x00\x01"
+io_tag_count_3="\x00\x00\x00\x03"
+io_tag_count_5="\x00\x00\x00\x05"
+io_tag_count_10="\x00\x00\x00\x0A"
+
+# Required tag signatures
+io_desc="desc"
+io_cprt="cprt"
+io_wtpt="wtpt"
+io_chad="chad"
+
+# Common tag type signatures
+io_mluc="mluc"
+io_text="text"
+io_XYZ_="XYZ "
+io_curv="curv"
+io_para="para"
+
+# Version fields
+io_v2="\x02\x10\x00\x00"
+io_v4="\x04\x40\x00\x00"
+io_v5="\x05\x00\x00\x00"
+
+# s15Fixed16 D50 illuminant values (offset 68-79)
+io_d50_x="\x00\x00\xf6\xd6"
+io_d50_y="\x00\x01\x00\x00"
+io_d50_z="\x00\x00\xd3\x2d"
+
+# Float edge cases for profile data
+io_float_nan="\x7F\xC0\x00\x00"
+io_float_inf="\x7F\x80\x00\x00"
+io_float_max="\x7F\x7F\xFF\xFF"
+io_float_zero="\x00\x00\x00\x00"
