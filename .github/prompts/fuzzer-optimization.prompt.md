@@ -44,6 +44,21 @@ ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null \
 # Compare "cov:" value before and after
 ```
 
+### Step 5: Cross-Pollinate from XNU Image Tools
+The `xnuimagetools/` pipeline generates TIFF/PNG/JPEG images with embedded ICC profiles
+across 15 bitmap context types, 7 color spaces, and 22+ output formats on real Apple hardware.
+Extract and inject seeds into CFL corpora:
+```bash
+# Extract ICC profiles + TIFF files from fuzzed-images
+python3 xnuimagetools/contrib/scripts/extract-icc-seeds.py \
+  --input xnuimagetools/fuzzed-images/ --inject-cfl cfl
+
+# For maximum ICC diversity, run the fuzzer with FUZZ_ICC_DIR set:
+# FUZZ_ICC_DIR=test-profiles FUZZ_OUTPUT_DIR=/tmp/icc-rich ./XNU\ Image\ Fuzzer
+```
+
+Targets: ICC profiles → profile/dump/deep_dump/toxml fuzzers; TIFF files → tiffdump/specsep fuzzers.
+
 ---
 
 ## Per-Fuzzer Reference
