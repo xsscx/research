@@ -1,15 +1,22 @@
 # Security Research Tools for ICC Color Profiles
 
-Last Updated: 2026-03-05 15:10:00 UTC by David Hoyt
+Last Updated: 2026-03-07 16:50:00 UTC by David Hoyt
 
 ## Tools
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 15,500+ | 135-heuristic security analyzer with ASAN/UBSAN, callgraph, OOM protection, Ninja mode |
-| **cfl** (19 fuzzers) | 4,537 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
+| **iccanalyzer-lite** | 17,500+ | 135-heuristic security analyzer with ASAN/UBSAN, callgraph, OOM protection, Ninja mode |
+| **cfl** (19 fuzzers) | 5,770 | LibFuzzer harnesses targeting iccDEV (deep_dump, roundtrip, spectral, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
-| **mcp-server** | — | ICC Profile MCP server with web UI |
+| **mcp-server** | — | ICC Profile MCP server with web UI (22 tools) |
+
+## Related Projects
+
+| Project | Repository | Description |
+|---------|-----------|-------------|
+| **xnuimagetools** | [xsscx/xnuimagetools](https://github.com/xsscx/xnuimagetools) | Multi-platform image generation + VideoToolbox fuzzer |
+| **xnuimagefuzzer** | [xsscx/xnuimagefuzzer](https://github.com/xsscx/xnuimagefuzzer) | iOS/macOS image fuzzer (15 bitmap contexts, 22 formats) |
 
 ## Security Posture
 
@@ -43,7 +50,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 67 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes, stack-overflow fixes, IO underflow guards, XML parsing limits). 10 are no-ops (upstream-adopted or superseded). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 57 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes, stack-overflow fixes, IO underflow guards, XML parsing limits). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 

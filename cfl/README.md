@@ -1,6 +1,6 @@
 # CFL — ClusterFuzzLite / LibFuzzer Harnesses for iccDEV
 
-Last Updated: 2026-03-05 15:00:00 UTC
+Last Updated: 2026-03-07 16:50:00 UTC
 
 Security fuzzing toolkit for [DemoIccMAX](https://github.com/InternationalColorConsortium/DemoIccMAX) (iccDEV).
 19 LibFuzzer harnesses, 57 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
@@ -42,7 +42,7 @@ sudo ./ramdisk-fuzz.sh 60
 | `icc_specsep_fuzzer` | 276 | 1,144 | IccSpecSepToTiff | `CTiffImg` spectral separation |
 | `icc_tiffdump_fuzzer` | 223 | 953 | IccTiffDump | `CTiffImg`, `OpenIccProfile`, `FindTag` |
 
-**Total:** 5,222 LOC · 18,843 corpus files · 62,512 dictionary entries
+**Total:** 5,770 LOC · 18,843 corpus files · 62,512 dictionary entries
 
 ## Patch Kit (57 active patches)
 
@@ -59,7 +59,7 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 | XML parsing limits | 2 | Tag/string caps, mluc/Dict/ProfileSeqId bounds |
 | Upstream-adopted (dropped) | 15 | PRs #622, #630-#639 (upstream sync 2026-03-05) |
 
-**Active patches: 56** (70 original − 14 NO-OPs dropped during upstream sync)
+**Active patches: 57** (71 total − 14 NO-OPs dropped during upstream sync)
 
 ## Build
 
@@ -217,9 +217,11 @@ Config: `codeql-config.yml`
 
 | Component | Path | Description |
 |-----------|------|-------------|
-| iccanalyzer-lite | `iccanalyzer-lite/` | 102-heuristic security analyzer (v3.3.0) |
+| iccanalyzer-lite | `iccanalyzer-lite/` | 135-heuristic security analyzer with ASAN/UBSAN |
 | colorbleed_tools | `colorbleed_tools/` | Unsafe ICC↔XML converters for mutation testing |
 | MCP Server | `mcp-server/` | ICC Profile MCP server (22 tools) |
 | CI Workflows | `.github/workflows/` | CodeQL, coverage, Docker build, MCP tests |
 | Prompts | `.github/prompts/` | AI analysis prompt templates |
-| Test Profiles | `test-profiles/` | 324 ICC profiles for validation |
+| Test Profiles | `test-profiles/` | ICC profiles for validation |
+| xnuimagetools | [github.com/xsscx/xnuimagetools](https://github.com/xsscx/xnuimagetools) | Multi-platform image generation + VideoToolbox fuzzer |
+| xnuimagefuzzer | [github.com/xsscx/xnuimagefuzzer](https://github.com/xsscx/xnuimagefuzzer) | iOS/macOS image fuzzer (15 bitmap contexts, 22 formats) |
