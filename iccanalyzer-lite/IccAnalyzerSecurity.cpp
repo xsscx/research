@@ -56,6 +56,42 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <array>
+
+//==============================================================================
+// External File Metadata Helper
+//==============================================================================
+
+// Run an external command and capture first N lines of output.
+// Returns empty string if command not found or fails.
+// Validates filename to prevent command injection.
+static std::string RunExternalTool(const char *tool, const char *args,
+                                   const char *filename, int maxLines = 20) {
+  // Reject filenames with shell metacharacters
+  if (strpbrk(filename, ";|&$`\\\"'{}()!<>") != nullptr) {
+    return "";
+  }
+
+  // Build command with timeout and stderr capture
+  char cmd[4096];
+  int n = snprintf(cmd, sizeof(cmd), "timeout 10 %s %s '%s' 2>&1",
+                   tool, args, filename);
+  if (n < 0 || static_cast<size_t>(n) >= sizeof(cmd)) return "";
+
+  FILE *fp = popen(cmd, "r");
+  if (!fp) return "";
+
+  std::string result;
+  char line[1024];
+  int lineCount = 0;
+  while (fgets(line, sizeof(line), fp) && lineCount < maxLines) {
+    result += "      ";
+    result += line;
+    lineCount++;
+  }
+  pclose(fp);
+  return result;
+}
 
 //==============================================================================
 // Heuristic Security Analysis
@@ -221,7 +257,108 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
   }
   
-  // kCriticalHeuristicThreshold defined in IccAnalyzerHeuristicTypes.h
+  // PHASE 0.5: External File Metadata (when tools available)
+  printf("=======================================================================\n");
+  printf("%sEXTERNAL FILE METADATA%s\n", ColorHeader(), ColorReset());
+  printf("=======================================================================\n\n");
+
+  // file(1) — magic-based type identification
+  {
+    std::string out = RunExternalTool("file", "-b", filename, 3);
+    if (!out.empty()) {
+      printf("  [file]\n%s\n", out.c_str());
+    }
+  }
+
+  // exiftool — structured metadata extraction
+  {
+    std::string out = RunExternalTool("exiftool", "", filename, 30);
+    if (!out.empty()) {
+      printf("  [exiftool]\n%s\n", out.c_str());
+    }
+  }
+
+  // tiffinfo — TIFF IFD structure (only for TIFF-wrapped profiles)
+  {
+    // Check for TIFF magic at file start (II\x2a or MM\x00\x2a)
+    icUInt8Number tiffMagic[4] = {};
+    io.Seek(0, icSeekSet);
+    if (io.Read8(tiffMagic, 4) == 4) {
+      bool isTiff = (tiffMagic[0] == 'I' && tiffMagic[1] == 'I' && tiffMagic[2] == 0x2a) ||
+                    (tiffMagic[0] == 'M' && tiffMagic[1] == 'M' && tiffMagic[3] == 0x2a);
+      if (isTiff) {
+        std::string out = RunExternalTool("tiffinfo", "", filename, 30);
+        if (!out.empty()) {
+          printf("  [tiffinfo]\n%s\n", out.c_str());
+        }
+      }
+    }
+    io.Seek(0, icSeekSet); // Reset file position
+  }
+
+  // identify (ImageMagick) — image structure analysis
+  {
+    std::string out = RunExternalTool("identify", "-verbose", filename, 40);
+    if (!out.empty()) {
+      printf("  [identify]\n%s\n", out.c_str());
+    }
+  }
+
+  // xxd — hex dump of first 128 bytes (ICC header)
+  {
+    std::string out = RunExternalTool("xxd", "-l 128", filename, 10);
+    if (!out.empty()) {
+      printf("  [xxd -l 128]\n%s\n", out.c_str());
+    }
+  }
+
+  // SHA-256 of the file
+  {
+    std::string out = RunExternalTool("sha256sum", "", filename, 1);
+    if (!out.empty()) {
+      printf("  [sha256sum]\n%s\n", out.c_str());
+    }
+  }
+
+  // Reset file position for header analysis
+  io.Seek(0, icSeekSet);
+  io.Read32(&header.size);
+  io.Seek(0, icSeekSet);
+  // Re-read full header
+  io.Read32(&header.size);
+  io.Read32(&header.cmmId);
+  io.Read32(&header.version);
+  io.Read32(&header.deviceClass);
+  io.Read32(&header.colorSpace);
+  io.Read32(&header.pcs);
+  io.Read16(&header.date.year);
+  io.Read16(&header.date.month);
+  io.Read16(&header.date.day);
+  io.Read16(&header.date.hours);
+  io.Read16(&header.date.minutes);
+  io.Read16(&header.date.seconds);
+  io.Read8(&header.magic, sizeof(header.magic));
+  io.Read32(&header.platform);
+  io.Read32(&header.flags);
+  io.Read32(&header.manufacturer);
+  io.Read32(&header.model);
+  io.Read64(&header.attributes);
+  io.Read32(&header.renderingIntent);
+  io.Read32(&header.illuminant.X);
+  io.Read32(&header.illuminant.Y);
+  io.Read32(&header.illuminant.Z);
+  io.Read32(&header.creator);
+  io.Read8(&header.profileID, sizeof(header.profileID));
+  io.Read32(&header.spectralPCS);
+  io.Read16(&header.spectralRange.start);
+  io.Read16(&header.spectralRange.end);
+  io.Read16(&header.spectralRange.steps);
+  io.Read16(&header.biSpectralRange.start);
+  io.Read16(&header.biSpectralRange.end);
+  io.Read16(&header.biSpectralRange.steps);
+  io.Read32(&header.mcs);
+  io.Read32(&header.deviceSubClass);
+  io.Read8(&header.reserved[0], sizeof(header.reserved));
 
   printf("=======================================================================\n");
   printf("%sHEADER VALIDATION HEURISTICS%s\n", ColorHeader(), ColorReset());
