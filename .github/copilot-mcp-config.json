@@ -5,6 +5,7 @@
       "command": "python",
       "args": ["mcp-server/icc_profile_mcp.py"],
       "tools": [
+        "health_check",
         "inspect_profile",
         "analyze_security",
         "validate_roundtrip",
