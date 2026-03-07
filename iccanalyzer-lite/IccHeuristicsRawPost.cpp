@@ -1530,6 +1530,24 @@ int RunRawPostLibraryHeuristics(const char *filename)
                      ColorCritical(), sig47, nDevCoords, ColorReset());
               ncl2Issues++;
             }
+
+            // CWE-400 Describe() iteration risk — symmetric with H64 library check.
+            // H64 only fires when library loads; H47 ALWAYS runs on raw bytes.
+            // If library rejects the profile, H47 is the only defense.
+            if (nDevCoords > 15) {
+              printf("      %s[WARN]  Tag '%s' (ncl2): nDeviceCoords = %u (>15 ICC spec max)%s\n",
+                     ColorCritical(), sig47, nDevCoords, ColorReset());
+              printf("       %sCWE-787: Device coord count exceeds ICC spec max (CFL-076 pattern)%s\n",
+                     ColorCritical(), ColorReset());
+              ncl2Issues++;
+            }
+            if (ncl2Count > 10000) {
+              printf("      %s[WARN]  Tag '%s' (ncl2): %u entries (>10000) — Describe() DoS risk%s\n",
+                     ColorCritical(), sig47, ncl2Count, ColorReset());
+              printf("       %sCWE-400: Describe() iterates m_nSize with no runtime cap (CFL-078 pattern)%s\n",
+                     ColorCritical(), ColorReset());
+              ncl2Issues++;
+            }
           }
         }
       }

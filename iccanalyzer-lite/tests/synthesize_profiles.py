@@ -771,6 +771,228 @@ def synth_response_curve_excessive_measurements():
     return bytes(profile)
 
 
+def synth_named_color2_large_nsize():
+    """NamedColor2 tag with large m_nSize (50000 entries, nDevCoords=3).
+    Triggers H64 CWE-400 warning for excessive named color entries (>65536).
+    Tests Describe() iteration safety — should NOT hang the analyzer.
+    Note: m_nSize=50000 is under 65536 but exercises the loop path.
+    We set it to 70000 to trigger the H64 >65536 threshold."""
+    desc = make_mluc_tag("NamedColor2 Large nSize")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    ncl2_sig = b"ncl2"
+    n_device_coords = 3
+    n_colors = 70000  # > 65536 threshold
+    entry_size = 32 + 6 + n_device_coords * 2
+    ncl2_data = struct.pack(">4sI", b"ncl2", 0)  # type + reserved
+    ncl2_data += struct.pack(">I", 0)  # vendor flag
+    ncl2_data += struct.pack(">I", n_colors)
+    ncl2_data += struct.pack(">I", n_device_coords)
+    ncl2_data += b"\x00" * 32  # prefix
+    ncl2_data += b"\x00" * 32  # suffix
+    # Only write 2 actual entries — the library will try to read n_colors
+    # but the file is truncated. This tests Read() resilience.
+    for i in range(2):
+        name = f"C{i}".encode("ascii").ljust(32, b"\x00")
+        ncl2_data += name
+        ncl2_data += b"\x00" * 6
+        ncl2_data += b"\x00" * (n_device_coords * 2)
+
+    tag_count = 4
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data_list = [desc, cprt, wtpt, ncl2_data]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current, color_space=b"RGB ", device_class=b"nmcl")
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+    table += make_tag_entry(b"ncl2", offsets[3], len(ncl2_data))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_xyz_large_array():
+    """XYZ tag with m_nSize=5000 entries to test Describe() output cap.
+    The tag declares a large array — Describe() should not produce
+    unbounded output. Tests CFL-080 pattern detection."""
+    desc = make_mluc_tag("XYZ Large Array")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9642, 1.0, 0.8249)
+
+    # Build a large XYZ tag: type(4) + reserved(4) + nSize * 12 bytes
+    n_entries = 5000
+    xyz_data = struct.pack(">4sI", b"XYZ ", 0)  # type + reserved
+    for i in range(n_entries):
+        # s15Fixed16Number: X, Y, Z
+        xyz_data += struct.pack(">iii",
+                                int(0.5 * 65536),  # X=0.5
+                                int(0.5 * 65536),  # Y=0.5
+                                int(0.5 * 65536))  # Z=0.5
+
+    tag_count = 4
+    # Use a non-standard sig to avoid wtpt confusion
+    custom_sig = b"tst1"
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data_list = [desc, cprt, wtpt, xyz_data]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current)
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+    table += make_tag_entry(custom_sig, offsets[3], len(xyz_data))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_calculator_deep_nesting():
+    """Profile with MPE calculator element containing many sub-elements.
+    The multiProcessElementsType tag uses 'mpet' type signature.
+    This creates a minimal MPE with a calculator that has >16 sub-elements
+    to trigger H138 CWE-674 detection.
+
+    MPE structure: type(4) + reserved(4) + nInputChannels(2) +
+    nOutputChannels(2) + nElements(4) + [element positions] + [element data]
+
+    Calculator element structure: type(4) + reserved(4) + nInputChannels(2) +
+    nOutputChannels(2) + nSubElements(4) + ...
+
+    We construct a minimal but structurally plausible MPE tag."""
+    desc = make_mluc_tag("Calculator Deep Nesting")
+    cprt = make_mluc_tag("Test")
+    wtpt = make_xyz_tag(0.9642, 1.0, 0.8249)
+
+    # Build a minimal multiProcessElementsType (mpet) tag
+    # with a calculator element that has sub-elements.
+    # For testing H138, we need the library to parse this as CIccMpeCalculator
+    # with detectable sub-elements.
+    #
+    # Simpler approach: create a profile with enough structure that
+    # H138's scan finds calculator elements. Since creating a fully valid
+    # mpet/calc is complex, we'll create one that the library can at least
+    # partially parse.
+
+    nIn = 3
+    nOut = 3
+    nSubElements = 20  # > 16 threshold
+
+    # 'calc' element: sig(4) + reserved(4) + nIn(2) + nOut(2) + nSubElements(4)
+    calc_elem = struct.pack(">4sI", b"calc", 0)
+    calc_elem += struct.pack(">HH", nIn, nOut)
+    calc_elem += struct.pack(">I", nSubElements)
+    # Sub-element position table: nSubElements * (offset(4) + size(4))
+    sub_data_start = len(calc_elem) + nSubElements * 8
+    for s in range(nSubElements):
+        # Each sub-element is a minimal curv: type(4)+reserved(4)+nEntries(4)=12 bytes
+        sub_offset = sub_data_start + s * 12
+        calc_elem += struct.pack(">II", sub_offset, 12)
+    # Sub-element data: minimal curve elements
+    for s in range(nSubElements):
+        calc_elem += struct.pack(">4sI", b"curv", 0)
+        calc_elem += struct.pack(">I", 0)  # gamma=1.0
+
+    # Main function: 'func' block
+    # We'll add a simple function string: "in 0 1 2 out 0 1 2"
+    func_data = b"\x00" * 4  # function signature placeholder
+
+    # Complete calculator data
+    calc_data = calc_elem + func_data
+
+    # MPE tag: 'mpet' type
+    # Structure: type(4) + reserved(4) + nInput(2) + nOutput(2) + nElements(4) +
+    #   element positions table: nElements * (offset(4) + size(4)) + element data
+    nElements = 1
+    elem_table_size = nElements * 8
+    elem_data_start = 16 + elem_table_size  # after header + position table
+
+    mpet_data = struct.pack(">4sI", b"mpet", 0)
+    mpet_data += struct.pack(">HH", nIn, nOut)
+    mpet_data += struct.pack(">I", nElements)
+    mpet_data += struct.pack(">II", elem_data_start, len(calc_data))
+    mpet_data += calc_data
+
+    # AToB0 tag uses this MPE
+    atob0_sig = b"A2B0"
+
+    tag_count = 4
+    tag_table_size = 4 + tag_count * 12
+    data_offset = 128 + tag_table_size
+    if data_offset % 4:
+        data_offset += 4 - (data_offset % 4)
+
+    tag_data_list = [desc, cprt, wtpt, mpet_data]
+    offsets = []
+    current = data_offset
+    for d in tag_data_list:
+        offsets.append(current)
+        current += len(d)
+        if current % 4:
+            current += 4 - (current % 4)
+
+    hdr = write_icc_header(current, version=0x05000000)  # v5 for MPE
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", offsets[0], len(desc))
+    table += make_tag_entry(b"cprt", offsets[1], len(cprt))
+    table += make_tag_entry(b"wtpt", offsets[2], len(wtpt))
+    table += make_tag_entry(atob0_sig, offsets[3], len(mpet_data))
+
+    profile = bytearray(hdr) + table
+    while len(profile) < data_offset:
+        profile += b"\x00"
+    for i, d in enumerate(tag_data_list):
+        while len(profile) < offsets[i]:
+            profile += b"\x00"
+        profile += d
+        while len(profile) % 4:
+            profile += b"\x00"
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -815,6 +1037,10 @@ def main():
         "named_color2_excessive_coords.icc": synth_named_color2_excessive_coords(),
         "high_dimensional_colorspace.icc": synth_high_dimensional_colorspace(),
         "response_curve_excessive_measurements.icc": synth_response_curve_excessive_measurements(),
+        # CWE-400 validation/runtime symmetry (CFL-077 through CFL-081)
+        "named_color2_large_nsize.icc": synth_named_color2_large_nsize(),
+        "xyz_large_array.icc": synth_xyz_large_array(),
+        "calculator_deep_nesting.icc": synth_calculator_deep_nesting(),
     }
 
     for name, data in profiles.items():

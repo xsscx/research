@@ -565,6 +565,96 @@ def test_heuristic_detection(suite):
         r"CWE-400.*O\(nGran\^ndim\)"
     )
 
+    # --- Validation/Runtime symmetry tests ---
+
+    # H47 raw-byte ncl2 check fires nDevCoords>15 (always-run, covers library-load failures)
+    suite.assert_output_contains(
+        "symmetry.h47_raw_ndevcoords_gt15",
+        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        r"ncl2.*nDeviceCoords.*>15 ICC spec max"
+    )
+
+    # H47 raw-byte ncl2 check fires CFL-076 pattern annotation
+    suite.assert_output_contains(
+        "symmetry.h47_raw_cfl076_pattern",
+        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        r"CWE-787.*CFL-076"
+    )
+
+    # H64 library-level check fires nColors>10000 Describe() DoS (when library loads)
+    # The named_color2_large_nsize profile has nColors=70000 but only 2 actual entries,
+    # so the library may reject it. H47 always catches it at raw level.
+    suite.assert_output_contains(
+        "symmetry.h47_raw_ncolors_gt10000",
+        ["-a", f"{corpus}/named_color2_large_nsize.icc"],
+        r"ncl2.*entries.*>10000.*Describe.*DoS"
+    )
+
+    # H47 CWE-400 Describe() pattern annotation
+    suite.assert_output_contains(
+        "symmetry.h47_raw_cfl078_pattern",
+        ["-a", f"{corpus}/named_color2_large_nsize.icc"],
+        r"CWE-400.*Describe.*m_nSize.*CFL-078"
+    )
+
+    # H136 runs in always-run phase (not gated behind library load)
+    # Verify it fires on response_curve_excessive_measurements.icc even with malformed header
+    suite.assert_output_contains(
+        "symmetry.h136_always_runs",
+        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        r"\[H136\].*ResponseCurve"
+    )
+
+    # XYZ large array completes without hanging (runtime safety)
+    suite.assert_output_contains(
+        "symmetry.xyz_large_no_hang",
+        ["-a", f"{corpus}/xyz_large_array.icc"],
+        r"138 heuristics"
+    )
+
+    # Calculator deep nesting profile completes without hanging
+    suite.assert_output_contains(
+        "symmetry.calc_deep_no_hang",
+        ["-a", f"{corpus}/calculator_deep_nesting.icc"],
+        r"138 heuristics"
+    )
+
+
+def test_runtime_safety(suite):
+    """Test that CWE-400 profiles don't hang the analyzer (runtime cap validation).
+    Each profile must complete analysis within the test timeout."""
+    corpus = str(CORPUS_DIR)
+
+    # Real PoC files from fuzzing - verify analyzer doesn't hang
+    poc_files = [
+        "timeout-0bec9575ea3dd8e7b1cccafaf453d5e84fec69b6",  # CFL-076 NamedColor2 nDevCoords
+    ]
+    for poc in poc_files:
+        poc_path = str(CORPUS_DIR.parent.parent.parent / poc)
+        import os as _os
+        if _os.path.exists(poc_path):
+            suite.assert_output_contains(
+                f"runtime_safety.poc_{poc[:12]}",
+                ["-a", poc_path],
+                r"HEURISTIC SUMMARY"
+            )
+
+    # Synthesized CWE-400 profiles must all complete
+    cwe400_profiles = [
+        "named_color2_excessive_coords.icc",
+        "named_color2_large_nsize.icc",
+        "high_dimensional_colorspace.icc",
+        "response_curve_excessive_measurements.icc",
+        "xyz_large_array.icc",
+        "calculator_deep_nesting.icc",
+    ]
+    for profile in cwe400_profiles:
+        suite.assert_output_contains(
+            f"runtime_safety.{profile.replace('.icc', '')}",
+            ["-a", f"{corpus}/{profile}"],
+            r"HEURISTIC SUMMARY"
+        )
+
 
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
@@ -820,6 +910,7 @@ def main():
         ("Call Graph", test_call_graph_mode),
         ("XML Heuristic Export", test_xml_heuristic_export),
         ("Ninja Modes Coverage", test_ninja_modes_coverage),
+        ("Runtime Safety", test_runtime_safety),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 

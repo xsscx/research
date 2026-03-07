@@ -1766,7 +1766,11 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
     printf("\n");
 
     // =====================================================================
-    // H64 — NamedColor2 Device Coord Overflow (CWE-131/CWE-787)
+    // H64 — NamedColor2 Device Coord Overflow (CWE-131/CWE-787/CWE-400)
+    // Also detects Describe() iteration asymmetry: nColors controls
+    // loop count in Describe() with 5 snprintf calls per entry.
+    // Validation-time: Read() caps nDevCoords at 16 (CFL-076).
+    // Runtime: Describe() iterates m_nSize with no cap (CFL-078).
     // =====================================================================
     printf("[H64] NamedColor2 Device Coord Overflow\n");
     {
@@ -1777,6 +1781,13 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
         if (nc2) {
           icUInt32Number nColors = nc2->GetSize();
           icUInt32Number nDevCoords = nc2->GetDeviceCoords();
+          if (nColors > 10000) {
+            printf("      %s[WARN]  NamedColor2: %u entries (>10000) — Describe() DoS risk%s\n",
+                   ColorCritical(), nColors, ColorReset());
+            printf("       %sCWE-400: Describe() iterates m_nSize with no runtime cap (CFL-078 pattern)%s\n",
+                   ColorCritical(), ColorReset());
+            nc2Issues++;
+          }
           if (nColors > 65536) {
             printf("      %s[WARN]  NamedColor2: %u entries (>65536)%s\n",
                    ColorCritical(), nColors, ColorReset());
@@ -1905,6 +1916,9 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
 
     // =====================================================================
     // H67 — ResponseCurveSet Bounds (CWE-400/CWE-131)
+    // Validation-time: Read() accepts arbitrary nMeasurements[] per channel.
+    // Runtime: Describe() iterates nMeasurements with no cap (CFL-077/078).
+    // H136 catches this via raw-byte scan; H67 checks via library API.
     // =====================================================================
     printf("[H67] ResponseCurveSet Bounds\n");
     {
@@ -1923,6 +1937,14 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
           printf("      %s[WARN]  ResponseCurveSet: %u channels (>16)%s\n",
                  ColorCritical(), nChan, ColorReset());
           printf("       %sCWE-131: Channel count exceeds safe bounds%s\n",
+                 ColorCritical(), ColorReset());
+          rcsIssues++;
+        }
+        icUInt16Number nMeasTypes = rcs->GetNumResponseCurveTypes();
+        if (nMeasTypes > 100) {
+          printf("      %s[WARN]  ResponseCurveSet: %u measurement types (>100)%s\n",
+                 ColorCritical(), nMeasTypes, ColorReset());
+          printf("       %sCWE-400: Excessive measurement types → O(n) in Describe()%s\n",
                  ColorCritical(), ColorReset());
           rcsIssues++;
         }
