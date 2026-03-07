@@ -1,0 +1,36 @@
+--- IccProfLib/IccEval.cpp.pre075	2026-03-07 15:04:24.715073523 -0500
++++ IccProfLib/IccEval.cpp	2026-03-07 15:06:43.766333199 -0500
+@@ -155,6 +155,33 @@
+     }
+   }
+ 
++  // Cap total iterations to prevent exponential blowup (CWE-400).
++  // nGran^ndim iterations with 2 Apply() calls each; e.g. 33^6 = 1.29B is too many.
++  // Reduce nGran for high-dimensional profiles to keep total under 10M iterations.
++  {
++    static const icUInt64Number kMaxIterations = 100000ULL;
++    icUInt64Number totalIter = 1;
++    for (int d = 0; d < ndim; d++) {
++      totalIter *= nGran;
++      if (totalIter > kMaxIterations) {
++        // Reduce granularity: find largest nGran where nGran^ndim <= kMaxIterations
++        icUInt8Number g = 2;
++        while (g < nGran) {
++          icUInt64Number t = 1;
++          bool overflow = false;
++          for (int dd = 0; dd < ndim; dd++) {
++            t *= (g + 1);
++            if (t > kMaxIterations) { overflow = true; break; }
++          }
++          if (overflow) break;
++          g++;
++        }
++        nGran = g;
++        break;
++      }
++    }
++  }
++
+   // ccox - what the heck are we trying to do with steps? We don't really use the values.
+   const icFloatNumber stepsize = (icFloatNumber)(1.0/(icFloatNumber)(nGran-1));
+   const icFloatNumber nstart = 0.0;
