@@ -1,8 +1,27 @@
+warning: /mnt/g/fuzz-ssd/bin/icc_apply_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_applynamedcmm_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_applyprofiles_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_calculator_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_deep_dump_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_dump_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_fromcube_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_fromxml_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_io_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_link_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_multitag_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_profile_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_roundtrip_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_specsep_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_spectral_b_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_spectral_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_tiffdump_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_toxml_fuzzer: profile data may be out of date - object is newer
+warning: /mnt/g/fuzz-ssd/bin/icc_v5dspobs_fuzzer: profile data may be out of date - object is newer
 warning: 422 functions have mismatched data
 Filename                                                                          Regions    Missed Regions     Cover   Functions  Missed Functions  Executed       Lines      Missed Lines     Cover    Branches   Missed Branches     Cover
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 home/h02332/po/research/cfl/fuzz_utils.h                                                8                 1    87.50%           2                 0   100.00%          12                 0   100.00%           4                 1    75.00%
-home/h02332/po/research/cfl/iccDEV/IccProfLib/IccApplyBPC.cpp                         210               139    33.81%          11                 5    54.55%         339               237    30.09%         176               105    40.34%
+home/h02332/po/research/cfl/iccDEV/IccProfLib/IccApplyBPC.cpp                         210               139    33.81%          11                 5    54.55%         343               241    29.74%         176               105    40.34%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccApplyBPC.h                             1                 1     0.00%           1                 1     0.00%           1                 1     0.00%           0                 0         -
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccArrayBasic.cpp                       204               116    43.14%          23                12    47.83%         373               196    47.45%         150                90    40.00%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccArrayBasic.h                           6                 6     0.00%           6                 6     0.00%           6                 6     0.00%           0                 0         -
@@ -64,7 +83,7 @@ home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagMPE.cpp                     
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagMPE.h                              52                15    71.15%          45                13    71.11%          49                13    73.47%           4                 1    75.00%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagProfSeqId.cpp                     130                82    36.92%          21                14    33.33%         235               170    27.66%          80                56    30.00%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccTagProfSeqId.h                         6                 4    33.33%           6                 4    33.33%           6                 4    33.33%           0                 0         -
-home/h02332/po/research/cfl/iccDEV/IccProfLib/IccUtil.cpp                            1023               230    77.52%         109                21[0;33m    80.73%        1817               398    78.10%        1034               226    78.14%
+home/h02332/po/research/cfl/iccDEV/IccProfLib/IccUtil.cpp                            1023               230    77.52%         109                21    80.73%        1817               398    78.10%        1034               226    78.14%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccUtil.h                                17                 0   100.00%          11                 0   100.00%          55                 0   100.00%           6                 0   100.00%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccXformFactory.cpp                      31                10    67.74%           6                 2    66.67%          66                19    71.21%          30                 9    70.00%
 home/h02332/po/research/cfl/iccDEV/IccProfLib/IccXformFactory.h                         5                 3    40.00%           5                 3    40.00%           5                 3    40.00%           0                 0         -
@@ -109,5 +128,4 @@ home/h02332/po/research/cfl/iccDEV/IccProfLib/icProfileHeader.h                 
 home/h02332/po/research/cfl/iccDEV/IccXML/IccLibXML/IccXmlConfig.h                      0                 0         -           0                 0         -           0                 0         -           0                 0         -
 usr/include/libxml2/libxml/globals.h                                                    0                 0         -           0                 0         -           0                 0         -           0                 0         -
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-TOTAL                                                                               34470             12676    63.23%        3291              1218    62.99%       50040             19441    61.15%       25436             10564    58.47%
-___BEGIN___COMMAND_DONE_MARKER___0
+TOTAL                                                                               34470             12676    63.23%        3291              1218    62.99%       50044             19445    61.14%       25436             10564    58.47%

@@ -210,6 +210,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       allOpened = false;
       break;
     }
+
+    // Format consistency validation — matches iccSpecSepToTiff.cpp lines 177-185
+    // All input files must have matching width, height, bps, photo, resolution
+    if (i > 0 && (infiles[i].GetWidth() != infiles[0].GetWidth() ||
+        infiles[i].GetHeight() != infiles[0].GetHeight() ||
+        infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
+        infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
+        infiles[i].GetXRes() != infiles[0].GetXRes() ||
+        infiles[i].GetYRes() != infiles[0].GetYRes())) {
+      allOpened = false;
+      break;
+    }
   }
 
   if (allOpened) {
@@ -269,6 +281,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         }
 
         if (!readOk) break;
+
+        // MINISWHITE inversion — exercises iccSpecSepToTiff.cpp lines 248-252
+        // When photometric is MINISWHITE, pixel values must be inverted (XOR 0xff)
+        // This branch was previously unreachable in the fuzzer
+        if (nPhoto == PHOTO_MINISWHITE && !bFloat) {
+          for (uint8_t j = 0; j < nFiles; j++) {
+            icUInt8Number *sptr = inbuf + j * bytePerLine;
+            for (long k = 0; k < bytePerLine; k++) {
+              sptr[k] ^= 0xff;
+            }
+          }
+        }
 
         icUInt8Number *tptr = outbuf;
         for (uint32_t k = 0; k < f->GetWidth(); k++) {
