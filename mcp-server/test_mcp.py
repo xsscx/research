@@ -981,7 +981,7 @@ async def test_health_check():
     T.ok("reports iccanalyzer-lite binary status", "iccanalyzer-lite" in result, result[:80])
     T.ok("reports iccToXml_unsafe binary status", "iccToXml_unsafe" in result, result[:80])
     T.ok("reports profile directory counts", "test-profiles" in result, result[:80])
-    T.ok("reports tool count", "22" in result, result[:80])
+    T.ok("reports tool count", "24" in result, result[:80])
     T.ok("reports overall status", "Status:" in result, result[:80])
     # The status should be "ok" when binaries are present, "degraded" otherwise
     T.ok("status is ok or degraded", "ok" in result or "degraded" in result, result[:80])
