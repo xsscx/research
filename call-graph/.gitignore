@@ -1,0 +1,9 @@
+# Large generated AST dumps (regenerate with: python3 scripts/generate-callgraphs.py)
+**/*-ast.json
+**/*-summary.json
+
+# LLVM IR intermediates
+**/*.ll
+
+# Compilation errors (should be zero after fixes)
+**/*-errors.txt
