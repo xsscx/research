@@ -1083,8 +1083,8 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
                                 (static_cast<icUInt32Number>(hdr43[130])<<8) | hdr43[131];
           if (tc43 > 256) tc43 = 256;
 
-          bool hasSdin = false, hasSwpt = false, hasSvcn = false;
-          bool hasEobs = false, hasRobs = false;
+          bool hasSdin = false, hasSwpt = false;
+          bool hasEobs = false, hasRobs = false, hasSvcn = false;
           int brdfCount = 0;
 
           for (icUInt32Number i = 0; i < tc43; i++) {
@@ -1160,6 +1160,11 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
           }
           if (hasEobs && !hasRobs && hasSdin) {
             printf("      [INFO]  eobs present without robs — emission-only profile\n");
+          }
+          if (hasSvcn && !hasSdin) {
+            printf("      %s[WARN]  svcn present but sdin (spectral data info) missing%s\n",
+                   ColorWarning(), ColorReset());
+            spectralIssues++;
           }
         }
       }
