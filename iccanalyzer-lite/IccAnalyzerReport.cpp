@@ -28,6 +28,7 @@
 #include <vector>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <openssl/evp.h>
 
 struct ReportFinding {
   int id;
@@ -57,22 +58,35 @@ static std::string StripAnsiReport(const std::string &s) {
   return out;
 }
 
-// Compute SHA-256 of a file using sha256sum
+// Compute SHA-256 of a file (no shell commands — safe from injection)
 static std::string ComputeSHA256(const char *path) {
-  char cmd[PATH_MAX + 64];
-  int n = snprintf(cmd, sizeof(cmd), "sha256sum '%s' 2>/dev/null", path);
-  if (n < 0 || n >= (int)sizeof(cmd)) return "(path too long)";
-  FILE *fp = popen(cmd, "r");
+  FILE *fp = fopen(path, "rb");
   if (!fp) return "(unavailable)";
-  char buf[256];
-  std::string result;
-  if (fgets(buf, sizeof(buf), fp)) {
-    char *sp = strchr(buf, ' ');
-    if (sp) *sp = '\0';
-    result = buf;
+
+  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+  if (!ctx) { fclose(fp); return "(unavailable)"; }
+
+  if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
+    EVP_MD_CTX_free(ctx); fclose(fp); return "(unavailable)";
   }
-  pclose(fp);
-  return result.empty() ? "(unavailable)" : result;
+
+  unsigned char buf[8192];
+  size_t n;
+  while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+    EVP_DigestUpdate(ctx, buf, n);
+  }
+  fclose(fp);
+
+  unsigned char hash[EVP_MAX_MD_SIZE];
+  unsigned int hashLen = 0;
+  EVP_DigestFinal_ex(ctx, hash, &hashLen);
+  EVP_MD_CTX_free(ctx);
+
+  char hex[65] = {};
+  for (unsigned int i = 0; i < hashLen && i < 32; i++) {
+    snprintf(hex + i * 2, 3, "%02x", hash[i]);
+  }
+  return std::string(hex);
 }
 
 // Get file size
@@ -236,7 +250,8 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   long fileSize = GetFileSize(profilePath);
   time_t now = time(nullptr);
   char timeBuf[64];
-  struct tm *utc = gmtime(&now);
+  struct tm utc_buf;
+  struct tm *utc = gmtime_r(&now, &utc_buf);
   strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S UTC", utc);
 
   const int W = 78;

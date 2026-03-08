@@ -49,6 +49,38 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <openssl/evp.h>
+
+// Compute SHA-256 of a file (no shell commands — safe from injection)
+static std::string ComputeSHA256XML(const char *path) {
+  FILE *fp = fopen(path, "rb");
+  if (!fp) return "";
+
+  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+  if (!ctx) { fclose(fp); return ""; }
+
+  if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
+    EVP_MD_CTX_free(ctx); fclose(fp); return "";
+  }
+
+  unsigned char buf[8192];
+  size_t n;
+  while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+    EVP_DigestUpdate(ctx, buf, n);
+  }
+  fclose(fp);
+
+  unsigned char hash[EVP_MAX_MD_SIZE];
+  unsigned int hashLen = 0;
+  EVP_DigestFinal_ex(ctx, hash, &hashLen);
+  EVP_MD_CTX_free(ctx);
+
+  char hex[65] = {};
+  for (unsigned int i = 0; i < hashLen && i < 32; i++) {
+    snprintf(hex + i * 2, 3, "%02x", hash[i]);
+  }
+  return std::string(hex);
+}
 
 std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
 {
@@ -424,22 +456,9 @@ static void WriteXMLHeader(std::ofstream& xml, const char* xslBasename,
   if (stat(profilePath, &st) == 0) {
     xml << "    <filesize>" << st.st_size << "</filesize>\n";
   }
-  char sha_cmd[8192];
-  int sn = snprintf(sha_cmd, sizeof(sha_cmd), "sha256sum '%s' 2>/dev/null | cut -d' ' -f1",
-                    profilePath);
-  if (sn > 0 && sn < (int)sizeof(sha_cmd)) {
-    FILE* fp = popen(sha_cmd, "r");
-    if (fp) {
-      char sha[128] = {};
-      if (fgets(sha, sizeof(sha), fp)) {
-        size_t len = strlen(sha);
-        if (len > 0 && sha[len-1] == '\n') sha[len-1] = '\0';
-        if (strlen(sha) == 64) {
-          xml << "    <sha256>" << sha << "</sha256>\n";
-        }
-      }
-      pclose(fp);
-    }
+  std::string sha = ComputeSHA256XML(profilePath);
+  if (sha.size() == 64) {
+    xml << "    <sha256>" << sha << "</sha256>\n";
   }
 
   xml << "  </profile>\n";

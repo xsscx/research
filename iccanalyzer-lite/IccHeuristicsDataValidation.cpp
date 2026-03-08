@@ -2195,8 +2195,7 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
       bool hasDupId = false;
       std::set<std::string> seenIds;
 
-      CIccTagProfileSequenceId &seqRef = *pSeqId; // lgtm[cpp/use-after-expired-lifetime]
-      for (auto it = seqRef.begin(); it != seqRef.end(); ++it) {
+      for (auto it = pSeqId->begin(); it != pSeqId->end(); ++it) {
         entryCount++;
 
         // Check for null profile ID (all zeros)
