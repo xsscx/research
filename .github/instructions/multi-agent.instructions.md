@@ -193,10 +193,10 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
-**Analyzed**: 39 profiles/images with full 141-heuristic reports in `analysis-reports/`
-**Total test profiles**: 329 ICC profiles in `test-profiles/`
-**Gap**: ~290 profiles still need analysis (8 committed crash PoCs now in test-profiles/)
-**Cloud agent activity**: Seeded 6 starved fuzzer corpora, organized docs, added cross-refs
+**Analyzed**: 46 profiles/images with full 141-heuristic reports in `analysis-reports/`
+**Total test profiles**: 336 ICC/TIFF/XML profiles in `test-profiles/` (329 + 7 crash PoCs moved)
+**Gap**: ~290 profiles still need analysis
+**macOS agent activity**: Seeded 6 starved fuzzer corpora, organized docs, added cross-refs
 
 ### Completed Analysis (sessions to date)
 
@@ -228,18 +228,18 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 ## Corpus Seeding Status — Current State (Updated 2026-03-08)
 
-### Recently Seeded (Cloud agent, commit 0eda282)
-The cloud agent seeded 6 previously-starved fuzzer corpora from test-profiles/
+### Recently Seeded (macOS agent, commit ae5f141)
+The macOS agent seeded 6 previously-starved fuzzer corpora from test-profiles/
 and fuzz/xml/icc/ — these are no longer urgent:
 
 | Fuzzer | Before | After | Source |
 |--------|--------|-------|--------|
-| `icc_spectral_fuzzer` | 1 file | 11K+ files | `test-profiles/*MVIS*`, `*Spectral*` |
-| `icc_fromxml_fuzzer` | 3 files | 35K+ files | `fuzz/xml/icc/*.xml` + `minimized/` |
-| `icc_apply_fuzzer` | 8 files | 25K+ files | Diverse class profiles |
-| `icc_applyprofiles_fuzzer` | 12 files | Seeded | Multi-channel profiles |
-| `icc_link_fuzzer` | 9 files | Seeded | DeviceLink profiles |
-| `corpus-xml` (shared) | 5 files | Seeded | XML sources |
+| `icc_spectral_fuzzer` | 1 file | 7 files | `test-profiles/*MVIS*`, `*Spectral*` |
+| `icc_fromxml_fuzzer` | 3 files | 120 files | `fuzz/xml/icc/*.xml` + `minimized/` |
+| `icc_apply_fuzzer` | 8 files | 14 files | Diverse class profiles |
+| `icc_applyprofiles_fuzzer` | 12 files | 17 files | Multi-channel profiles |
+| `icc_link_fuzzer` | 9 files | 13 files | DeviceLink profiles |
+| `corpus-xml` (shared) | 5 files | 48 files | XML sources |
 
 ### Well-Seeded Fuzzers
 - `icc_profile_fuzzer`: 24+ files (5.7M)
