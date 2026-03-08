@@ -456,7 +456,7 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 
 The ICC Profile MCP server exposes 24 tools (11 analysis + 7 maintainer + 6 operations) for AI-assisted ICC profile security research.
 
-### Setup — Three integration methods
+### Setup — Four integration methods
 
 #### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
@@ -470,9 +470,24 @@ Prereq: `cd mcp-server && pip install -e .`
 #### 3. GitHub Copilot Coding Agent (cloud)
 Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 11 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
+#### 4. Docker REST API (remote agents — macOS, CI, any platform)
+Run the MCP Docker image in API mode for remote ICC analysis without local binaries:
+```bash
+# Start API server
+docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+
+# Upload and analyze from any machine
+curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
+curl -s "http://<host>:8080/api/security-json?path=<uploaded_path>"
+curl -s "http://<host>:8080/api/full?path=<uploaded_path>"
+```
+Key endpoints: `/api/upload` (POST), `/api/security-json` (GET), `/api/full` (GET),
+`/api/inspect` (GET), `/api/roundtrip` (GET), `/api/xml` (GET), `/api/compare` (GET),
+`/api/health` (GET). See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
+
 ### Reusable Prompts
 
-Eleven prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Sixteen prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 141-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
@@ -484,6 +499,11 @@ Eleven prompt templates in `.github/prompts/` guide AI through standard analysis
 - `improve-fuzzer-coverage.prompt.md` — Coverage gap analysis and seed creation workflow
 - `corpus-management.prompt.md` — SSD/ramdisk corpus lifecycle, migration, and coverage reporting
 - `upstream-sync.prompt.md` — CFL iccDEV patch reconciliation after upstream updates
+- `remote-analysis.prompt.md` — MCP Docker API for remote ICC analysis (macOS/CI agents)
+- `cooperative-development.prompt.md` — Multi-agent task lists and coverage roadmap
+- `fuzz-corpus-analysis.prompt.md` — Fuzz corpus quality and coverage analysis
+- `fuzzer-optimization.prompt.md` — Per-fuzzer coverage optimization strategies
+- `cve-enrichment.prompt.md` — CVE-to-heuristic mapping and enrichment
 
 ### ICC file attachments on GitHub Issues
 GitHub does not allow `.icc` file attachments. Users should rename files to `.icc.txt` before attaching. When processing an issue with an attached `.icc.txt` file:
