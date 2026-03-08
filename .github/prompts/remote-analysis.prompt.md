@@ -122,8 +122,12 @@ done
 
 - Image: `ghcr.io/xsscx/icc-profile-mcp`
 - Built by: `.github/workflows/mcp-server-docker.yml`
+- Platforms: `linux/amd64`, `linux/arm64` (native on Apple Silicon — no QEMU needed)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
-- Contains: iccanalyzer-lite (ASAN+UBSAN), colorbleed_tools, MCP server, test-profiles
+- Contains: iccanalyzer-lite (debug, no sanitizers), colorbleed_tools, MCP server, test-profiles
+- Note: Container binary is built WITHOUT ASAN/UBSAN for multi-arch compatibility.
+  ASAN uses platform-specific shadow memory mappings incompatible with QEMU emulation.
+  For ASAN-instrumented analysis, use native WSL-2/Linux builds.
 
 ## See Also
 - [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent task lists
