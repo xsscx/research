@@ -242,7 +242,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     } else {
       // High-dimensional: test varied color values through chain
       for (int i = 0; i < nSrc; i++)
-        in[i] = (icFloatNumber)i / (nSrc > 1 ? (nSrc - 1) : 1);
+        in[i] = (icFloatNumber)i / (nSrc - 1);
       cmm.Apply(out, in);
     }
 

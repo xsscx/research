@@ -4992,7 +4992,8 @@ int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc) {
 // H116: cprt/desc Encoding Validation Per Spec Version (Feedback C2)
 // ICC v2: textType or textDescriptionType
 // ICC v4+: multiLocalizedUnicodeType
-// =====================================================================
+// H116: Validate copyrightTag and profileDescriptionTag encoding types.
+// ICC.1-2022-05 §9.2.22: v4+ profiles MUST use multiLocalizedUnicodeType.
 int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
   int heuristicCount = 0;
 
@@ -5296,8 +5297,10 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
 // =====================================================================
 // H119: Round-Trip ΔE Computation (Feedback Q1)
 // Samples test colors through AToB→BToA CLUTs and computes avg/max ΔE.
+// H119: AToB→BToA round-trip ΔE validation via CLUT node sampling.
+// Samples CLUT grid points through forward/inverse LUT pairs and computes
+// CIE ΔE76 to detect lossy or broken transform implementations.
 // Uses CLUT node values for accurate sampling without CMM pipeline.
-// =====================================================================
 int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
   // Sample test colors through AToB→BToA CLUTs and compute avg/max ΔE.
   // Uses CLUT node values for accurate sampling without CMM pipeline.
