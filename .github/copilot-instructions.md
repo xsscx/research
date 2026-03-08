@@ -263,6 +263,8 @@ Proven techniques for improving fuzzer coverage and crash discovery:
    .github/scripts/harvest-xnu-seeds.sh --ramdisk /tmp/fuzz-ramdisk  # + deploy to ramdisk
    ```
    Both repos produce `cfl-seeds` artifacts in CI via `extract-icc-seeds.py`.
+   **Note**: xnuimagetools uses xnuimagefuzzer as a git submodule — clone with
+   `git clone --recurse-submodules` to ensure fuzzed-images are populated.
 
 ### WASM Build (Deferred)
 
@@ -971,8 +973,8 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 ### Tool Ecosystem
 | Tool | Repo | Platform | Purpose |
 |------|------|----------|---------|
-| xnuimagetools | github.com/xsscx/xnuimagetools | iOS/macOS/watchOS/visionOS | Create baseline images across XNU platforms |
-| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Fuzz images via 15 CGCreateBitmap functions |
+| xnuimagetools | github.com/xsscx/xnuimagetools | iOS/macOS/watchOS/visionOS | Umbrella workspace — uses xnuimagefuzzer as submodule |
+| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Primary fuzzer — 15 CGCreateBitmap contexts, 22+ formats |
 | iOSOnMac CLI | macos-research/code/iOSOnMac | macOS (CLI) | Run xnuimagefuzzer at scale via posix_spawn |
 | colorbleed_tools | research/colorbleed_tools | Linux/macOS | Build ICC profiles (iccToXml/iccFromXml) |
 | seed-pipeline.sh | .github/scripts/seed-pipeline.sh | Linux | Validate, embed ICC, distribute seeds |
@@ -1015,6 +1017,9 @@ python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test
 - ICC variants require `FUZZ_ICC_DIR` for real/mutated profiles; stripped and mismatched are always generated
 - `kCGImagePropertyICCProfile` does NOT exist in Apple SDKs — use `CGColorSpaceCreateWithICCData()`
 - xnuimagetools is the source of truth for xnuimagefuzzer.m; always sync after changes
+  - **Architecture**: xnuimagetools uses xnuimagefuzzer as a git submodule at path `XNU Image Fuzzer/`.
+    Clone with `git clone --recurse-submodules`. Fuzzer code changes go to xnuimagefuzzer repo first,
+    then `cd xnuimagetools && git submodule update --remote "XNU Image Fuzzer"` to pull latest.
 - Mac Catalyst CI job sets `FUZZ_ICC_DIR=/System/Library/ColorSync/Profiles` for system ICC profiles
 - xnuimagetools `build-and-test.yml` has 8 jobs: build-ios, generate-images, generate-catalyst-images,
   generate-ios-gen-images, build-watch, commit-images, extract-seeds
@@ -1022,6 +1027,8 @@ python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test
 ## macOS CI Patterns (xnuimagefuzzer / xnuimagetools)
 
 These patterns apply to the `xnuimagefuzzer/` and `xnuimagetools/` sub-repos within this workspace.
+**Note**: xnuimagetools uses xnuimagefuzzer as a git submodule at `XNU Image Fuzzer/`.
+All CI checkout steps in xnuimagetools use `submodules: recursive`.
 
 ### SIGPIPE Prevention
 NEVER pipe macOS/BSD tools (`ls`, `file`, `find`, `xcodebuild`, `xcrun`) through `| head`.
