@@ -24,6 +24,10 @@ set(SOURCES
     IccAnalyzerPathValidation.cpp
     IccHeuristicsRawPost.cpp
     IccHeuristicsLibrary.cpp
+    IccHeuristicsTagValidation.cpp
+    IccHeuristicsDataValidation.cpp
+    IccHeuristicsProfileCompliance.cpp
+    IccHeuristicsIntegrity.cpp
     IccHeuristicsHeader.cpp
     IccAnalyzerSignatures.cpp
     IccAnalyzerValidation.cpp
