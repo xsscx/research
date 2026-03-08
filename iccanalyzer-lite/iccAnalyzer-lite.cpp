@@ -16,6 +16,7 @@
 #include "IccAnalyzerXMLExport.h"
 #include "IccAnalyzerHeuristics.h"
 #include "IccImageAnalyzer.h"
+#include "IccAnalyzerJson.h"
 
 #include <cstdio>
 #include <cstring>
@@ -248,6 +249,11 @@ int main(int argc, char **argv) {
     return RecoverableRun("round-trip analysis", [&]{ return RoundTripAnalyze(profilePath); });
   }
   
+  // JSON output mode
+  if (strcmp(mode, "--json") == 0 && argc >= 3) {
+    return RecoverableRun("JSON analysis", [&]{ return RunWithJsonOutput(profilePath, nullptr); });
+  }
+
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-a") == 0 && argc >= 3) {
     // Auto-detect: if file is an image (TIFF/PNG/JPEG), use image analyzer
