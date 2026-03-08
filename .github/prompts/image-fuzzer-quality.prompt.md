@@ -56,3 +56,8 @@ Total output per full run: **2,000+ images** (varies by `FUZZ_ICC_DIR` availabil
 6. Check ICC variants: `find . -name "*icc*" -o -name "*no_icc*" -o -name "*mismatch*" | wc -l`
 7. Check TIFF compression: `tiffinfo "$f" | grep Compression` for each TIFF variant
 8. Compute score against the 8 metrics above
+
+## See Also
+- [mac-catalyst-ci.prompt.md](mac-catalyst-ci.prompt.md) — Mac Catalyst CI debugging
+- [improve-fuzzer-coverage.prompt.md](improve-fuzzer-coverage.prompt.md) — Coverage gap analysis
+- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations

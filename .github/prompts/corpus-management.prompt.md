@@ -221,3 +221,9 @@ echo "Total: $total files"
 - **Artifact preservation**: Copy crash/oom/timeout/slow-unit from SSD to repo BEFORE rm -rf.
 - **Roundtrip fuzzer**: Very slow (Read→Write→Read per input). Allow 120s+ timeout for merge.
 - **Link fuzzer**: Needs quarantine_size_mb=256 (2 profiles per input = 2x ASAN memory).
+
+## See Also
+- [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) — Coverage improvement strategies
+- [improve-fuzzer-coverage.prompt.md](improve-fuzzer-coverage.prompt.md) — Coverage gap analysis
+- [fuzz-corpus-analysis.prompt.md](fuzz-corpus-analysis.prompt.md) — Corpus inventory and audit
+- [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent coordination

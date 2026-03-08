@@ -77,3 +77,8 @@ testData:
   - oom_file_path: test-profiles/oom-fromxml-mluc-deep-067.icc
     fuzzer_name: icc_fromxml_fuzzer
     oom_output: "ERROR: libFuzzer: out-of-memory (used: 4100Mb; limit: 4096Mb)"
+
+# ## See Also
+# - triage-fuzzer-crash.prompt.md — Fuzzer crash triage
+# - triage-cve-poc.prompt.yml — CVE PoC analysis workflow
+# - fuzzer-optimization.prompt.md — Coverage improvement after fix
