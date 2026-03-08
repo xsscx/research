@@ -334,6 +334,8 @@ footer {
     <button data-tool="list"      class="active">List Profiles</button>
     <button data-tool="inspect"  >Inspect</button>
     <button data-tool="security" >Security Scan</button>
+    <button data-tool="security_json" >Security (JSON)</button>
+    <button data-tool="security_report" >Security (Report)</button>
     <button data-tool="roundtrip">Round-Trip</button>
     <button data-tool="full"     >Full Analysis</button>
     <button data-tool="xml"      >To XML</button>
@@ -380,6 +382,8 @@ const TOOLS = {
   list:      { label: "List Profiles",  endpoint: "/api/list",      fields: ["directory"], method: "GET" },
   inspect:   { label: "Inspect",        endpoint: "/api/inspect",   fields: ["path"],      method: "GET" },
   security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"],      method: "GET" },
+  security_json:   { label: "Security (JSON)",   endpoint: "/api/security-json",   fields: ["path"], method: "GET" },
+  security_report: { label: "Security (Report)", endpoint: "/api/security-report", fields: ["path"], method: "GET" },
   roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"],      method: "GET" },
   full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"],      method: "GET" },
   xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"],      method: "GET" },
