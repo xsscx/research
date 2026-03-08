@@ -73,7 +73,7 @@ to avoid commit overhead:
 
 1. Ensure the MCP Docker API is running on a reachable host:
    ```bash
-   docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+   docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
    ```
 2. Upload the profile via REST:
    ```bash

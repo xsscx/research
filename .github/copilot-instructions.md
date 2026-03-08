@@ -474,7 +474,7 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 Run the MCP Docker image in API mode for remote ICC analysis without local binaries:
 ```bash
 # Start API server
-docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
 # Upload and analyze from any machine
 curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
@@ -568,11 +568,11 @@ Open http://localhost:8080/ — provides browser-based access to all analysis to
 ### Developer Demo Container
 
 ```bash
-docker pull ghcr.io/xsscx/icc-profile-demo:latest
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
-Open http://localhost:8080/ — self-contained HTML demo report with live API at `/api/*`. Three modes: `demo` (default), `api` (production WebUI), `mcp` (stdio). Build locally with `docker build -f Dockerfile.demo -t icc-profile-demo .`
+Open http://localhost:8080/ — self-contained HTML demo report with live API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI). Build locally with `docker build -f mcp-server/Dockerfile -t icc-profile-mcp .`
 
 **REST API endpoints** (same parameter names as MCP tools):
 
