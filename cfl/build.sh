@@ -249,7 +249,7 @@ build_fuzzer() {
 
 echo "Core fuzzers (14) — parallel build with $NPROC cores:"
 for f in "${CORE_FUZZERS[@]}"; do
-  if [ "$f" = "icc_deep_dump_fuzzer" ]; then
+  if [ "$f" = "icc_deep_dump_fuzzer" ] || [ "$f" = "icc_dump_fuzzer" ]; then
     build_fuzzer "$f" "-Wl,--allow-multiple-definition" &
   else
     build_fuzzer "$f" &
