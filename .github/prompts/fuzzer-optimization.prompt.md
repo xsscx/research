@@ -197,7 +197,7 @@ Targets: ICC profiles → profile/dump/deep_dump/toxml fuzzers; TIFF files → t
 
 **Dict focus**: Profile class sigs, color space sigs, rendering intent values.
 
-**Known timeout (CFL-074)**: `CIccCalculatorFunc::CheckUnderflowOverflow()` had O(nOps^depth) complexity with `kMaxRecurseDepth=100` and no global operation budget. Crafted calculator ops with nested if/else/select caused >1000s execution in `Begin()`. Fix: added `pOpsProcessed` counter (100K budget) + reduced depth to 16. PoC: `timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9` (1515 bytes, v5 mntr RGB with 6 nested if/else in calc element).
+**Known timeout (CFL-074)**: `CIccCalculatorFunc::CheckUnderflowOverflow()` had O(nOps^depth) complexity with `kMaxRecurseDepth=100` and no global operation budget. Crafted calculator ops with nested if/else/select caused >1000s execution in `Begin()`. Fix: added `pOpsProcessed` counter (100K budget) + reduced depth to 16. PoC: `test-profiles/cwe-400/timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9` (1515 bytes, v5 mntr RGB with 6 nested if/else in calc element).
 
 ---
 
@@ -364,7 +364,7 @@ intent byte (size-1): mod 4 for rendering intent
 
 **Performance note**: SLOW fuzzer — each input requires Read→CMM setup→full evaluation grid. Corpus grows slowly.
 
-**Known timeout (CFL-075)**: `CIccEvalCompare::EvaluateProfile()` iterates over `nGran^ndim` grid points. A 6-channel profile with default `nGran=33` produces 33^6 = 1.29B iterations, each calling `Apply()` twice — causing >1675s timeout. This is also an **upstream bug** (iccRoundTrip tool also hangs). Fix: dynamically cap nGran so total iterations stay under 100K. PoC: `timeout-4e821e5627852351ccfcf35c2006d53c1d10d068` (3352 bytes, v5 mntr MCH6/6ColorData with spectral PCS).
+**Known timeout (CFL-075)**: `CIccEvalCompare::EvaluateProfile()` iterates over `nGran^ndim` grid points. A 6-channel profile with default `nGran=33` produces 33^6 = 1.29B iterations, each calling `Apply()` twice — causing >1675s timeout. This is also an **upstream bug** (iccRoundTrip tool also hangs). Fix: dynamically cap nGran so total iterations stay under 100K. PoC: `test-profiles/cwe-400/timeout-4e821e5627852351ccfcf35c2006d53c1d10d068` (3352 bytes, v5 mntr MCH6/6ColorData with spectral PCS).
 
 ---
 

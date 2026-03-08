@@ -74,6 +74,8 @@ leak-*
 oom-*
 timeout-*
 !test-profiles/oom-*
+!test-profiles/cwe-400/*
+!test-profiles/crashes/*
 slow-unit-*
 latestcrash-*
 latestslow-unit-*
