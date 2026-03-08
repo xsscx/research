@@ -151,6 +151,21 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   }
   flushHeuristic();
 
+  // Count CVE coverage from triggered heuristics
+  int cveHeuristicsTriggered = 0;
+  int totalCveRefs = 0;
+  for (const auto &r : results) {
+    const HeuristicEntry *entry = LookupHeuristic(r.id);
+    if (entry && entry->cveRefs) {
+      cveHeuristicsTriggered++;
+      std::string refs(entry->cveRefs);
+      totalCveRefs++;
+      for (char c : refs) {
+        if (c == ',') totalCveRefs++;
+      }
+    }
+  }
+
   // Emit JSON to stdout
   printf("{\n");
   printf("  \"file\": \"%s\",\n", JsonEscape(profilePath).c_str());
@@ -161,7 +176,11 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   printf("    \"ok\": %d,\n", okCount);
   printf("    \"warnings\": %d,\n", warnCount);
   printf("    \"critical\": %d,\n", critCount);
-  printf("    \"info\": %d\n", infoCount);
+  printf("    \"info\": %d,\n", infoCount);
+  printf("    \"cveCoverage\": {\n");
+  printf("      \"heuristicsWithCVE\": %d,\n", cveHeuristicsTriggered);
+  printf("      \"totalCVEsMapped\": %d\n", totalCveRefs);
+  printf("    }\n");
   printf("  },\n");
   printf("  \"results\": [\n");
 
@@ -177,6 +196,21 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
     }
     if (entry && entry->primaryCWE) {
       printf(",\n      \"cwe\": \"%s\"", entry->primaryCWE);
+    }
+    if (entry && entry->cveRefs) {
+      printf(",\n      \"cveRefs\": [");
+      std::string refs(entry->cveRefs);
+      bool first = true;
+      size_t pos = 0;
+      while (pos < refs.size()) {
+        size_t comma = refs.find(',', pos);
+        if (comma == std::string::npos) comma = refs.size();
+        if (!first) printf(",");
+        printf("\"%s\"", refs.substr(pos, comma - pos).c_str());
+        first = false;
+        pos = comma + 1;
+      }
+      printf("]");
     }
     if (!r.detail.empty()) {
       printf(",\n      \"detail\": \"%s\"", JsonEscape(r.detail).c_str());
