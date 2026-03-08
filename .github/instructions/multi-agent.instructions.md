@@ -380,6 +380,20 @@ duplicated CI infrastructure.
 **Rule**: One Dockerfile (`mcp-server/Dockerfile`), one workflow
 (`mcp-server-docker.yml`), one image (`ghcr.io/xsscx/icc-profile-mcp`).
 
+### 5. Claiming "build succeeded" without verifying all CI build paths
+**What happened**: OpenSSL EVP dependency (`-lssl -lcrypto`) was added to
+`iccanalyzer-lite/build.sh` but NOT to the CLI release workflow's independent
+static LTO link command (`iccanalyzer-cli-release.yml` line ~488). Agent reported
+"build succeeded" after running only `build.sh` locally. CI failed with
+`ld.lld: error: undefined symbol: EVP_MD_CTX_new`.
+**Why it's wrong**: The repo has **7 independent build locations** for iccanalyzer-lite
+(see `.github/instructions/iccanalyzer-lite.instructions.md` Build System Sync table).
+A local `build.sh` success does NOT guarantee CI success — the release workflow has
+its own manual linker command with separate flags.
+**Rule**: Before pushing, verify linker flags match across ALL 7 build locations.
+Specifically diff `build.sh` LIBS against every workflow's link command. Never claim
+"build succeeded" based on a single build path.
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:
