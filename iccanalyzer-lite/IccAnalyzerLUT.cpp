@@ -107,7 +107,7 @@ static int SafeSnprintf(char *buf, size_t bufSize, const char *fmt, ...)
 static int SafeSnprintf(char *buf, size_t bufSize, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  int n = vsnprintf(buf, bufSize, fmt, ap);
+  int n = vsnprintf(buf, bufSize, fmt, ap); // CodeQL: fmt is always a literal from internal callers
   va_end(ap);
   if (n < 0 || static_cast<size_t>(n) >= bufSize) {
     fprintf(stderr, "[WARN] Filename truncated in LUT export\n");
