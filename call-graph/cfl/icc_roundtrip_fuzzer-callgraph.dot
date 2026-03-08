@@ -1,7 +1,32 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_roundtrip_fuzzer.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/cfl/icc_roundtrip_fuzzer.ll";
 
-	Node0x571f44945640 [shape=record,label="{LLVMFuzzerTestOneInput}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x571f44945640 [label="{LLVMFuzzerTestOneInput}"];
 	Node0x571f44945640 -> Node0x571f4498f460;
 	Node0x571f44945640 -> Node0x571f44943a50;
 	Node0x571f44945640 -> Node0x571f449476c0;
@@ -17,35 +42,35 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_roundtrip_fuzze
 	Node0x571f44945640 -> Node0x571f449b0e30;
 	Node0x571f44945640 -> Node0x571f44993070;
 	Node0x571f44945640 -> Node0x571f449b11f0;
-	Node0x571f4498f460 [shape=record,label="{_ZL11fuzz_tmpdirv}"];
+	Node0x571f4498f460 [label="{fuzz_tmpdir()}"];
 	Node0x571f4498f460 -> Node0x571f449b4320;
-	Node0x571f44943a50 [shape=record,label="{_ZL15fuzz_build_pathPcmPKcS1_}"];
+	Node0x571f44943a50 [label="{fuzz_build_path()}"];
 	Node0x571f44943a50 -> Node0x571f449b2fa0;
 	Node0x571f44943a50 -> Node0x571f449b2e10;
-	Node0x571f449476c0 [shape=record,label="{mkstemp}"];
-	Node0x571f44992e70 [shape=record,label="{write}"];
-	Node0x571f44991e30 [shape=record,label="{close}"];
-	Node0x571f44945870 [shape=record,label="{unlink}"];
-	Node0x571f449911c0 [shape=record,label="{_ZN14CIccMinMaxEvalC2Ev}"];
+	Node0x571f449476c0 [label="{mkstemp}"];
+	Node0x571f44992e70 [label="{write}"];
+	Node0x571f44991e30 [label="{close}"];
+	Node0x571f44945870 [label="{unlink}"];
+	Node0x571f449911c0 [label="{CIccMinMaxEval::CIccMinMaxEval()}"];
 	Node0x571f449911c0 -> Node0x571f449b2d50;
 	Node0x571f449911c0 -> Node0x571f449942c0;
-	Node0x571f449937f0 [shape=record,label="{_ZN15CIccEvalCompare15EvaluateProfileEPKch17icRenderingIntent13icXformInterpb}"];
-	Node0x571f44993570 [shape=record,label="{_ZN8CIccPRMGC1Ev}"];
-	Node0x571f449932f0 [shape=record,label="{_ZN8CIccPRMG15EvaluateProfileEPKc17icRenderingIntent13icXformInterpb}"];
-	Node0x571f44993070 [shape=record,label="{_ZN14CIccMinMaxEval8GetMean1Ev}"];
-	Node0x571f449b11f0 [shape=record,label="{_ZN14CIccMinMaxEval8GetMean2Ev}"];
-	Node0x571f449b0e30 [shape=record,label="{_ZN8CIccInfoC1Ev}"];
-	Node0x571f449aa430 [shape=record,label="{_ZN8CIccInfo22GetRenderingIntentNameE17icRenderingIntentb}"];
-	Node0x571f449b6240 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x571f44993a70 [shape=record,label="{_ZN8CIccInfoD1Ev}"];
-	Node0x571f449b4320 [shape=record,label="{getenv}"];
-	Node0x571f449b2fa0 [shape=record,label="{strlen}"];
-	Node0x571f449b2e10 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x571f449b2d50 [shape=record,label="{_ZN15CIccEvalCompareC2Ev}"];
-	Node0x571f449942c0 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x571f449b6f20 [shape=record,label="{_ZN14CIccMinMaxEval7CompareEPfS0_S0_S0_}"];
+	Node0x571f449937f0 [label="{CIccEvalCompare::EvaluateProfile()}"];
+	Node0x571f44993570 [label="{CIccPRMG::CIccPRMG()}"];
+	Node0x571f449932f0 [label="{CIccPRMG::EvaluateProfile()}"];
+	Node0x571f44993070 [label="{CIccMinMaxEval::GetMean1()}"];
+	Node0x571f449b11f0 [label="{CIccMinMaxEval::GetMean2()}"];
+	Node0x571f449b0e30 [label="{CIccInfo::CIccInfo()}"];
+	Node0x571f449aa430 [label="{CIccInfo::GetRenderingIntentName()}"];
+	Node0x571f449b6240 [label="{__gxx_personality_v0}"];
+	Node0x571f44993a70 [label="{CIccInfo::~CIccInfo()}"];
+	Node0x571f449b4320 [label="{getenv}"];
+	Node0x571f449b2fa0 [label="{strlen}"];
+	Node0x571f449b2e10 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x571f449b2d50 [label="{CIccEvalCompare::CIccEvalCompare()}"];
+	Node0x571f449942c0 [label="{llvm.memset.p0.i64}"];
+	Node0x571f449b6f20 [label="{CIccMinMaxEval::Compare()}"];
 	Node0x571f449b6f20 -> Node0x571f449b69c0;
 	Node0x571f449b6f20 -> Node0x571f449b2e10;
-	Node0x571f449b6930 [shape=record,label="{__cxa_pure_virtual}"];
-	Node0x571f449b69c0 [shape=record,label="{_Z8icDeltaEPKfS0_}"];
+	Node0x571f449b6930 [label="{__cxa_pure_virtual}"];
+	Node0x571f449b69c0 [label="{icDeltaE()}"];
 }

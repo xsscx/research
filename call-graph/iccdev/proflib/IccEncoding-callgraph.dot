@@ -1,11 +1,36 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEncoding.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEncoding.ll";
 
-	Node0x59f855d50450 [shape=record,label="{_ZN26IIccEncProfileCacheHandler10GetHandlerEv}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x59f855d50450 [label="{IIccEncProfileCacheHandler::GetHandler()}"];
 	Node0x59f855d50450 -> Node0x59f855d56e10;
 	Node0x59f855d50450 -> Node0x59f855d5b5f0;
 	Node0x59f855d50450 -> Node0x59f855beaf20;
-	Node0x59f855d8ce40 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag}"];
+	Node0x59f855d8ce40 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
 	Node0x59f855d8ce40 -> Node0x59f855d956e0;
 	Node0x59f855d8ce40 -> Node0x59f855d64df0;
 	Node0x59f855d8ce40 -> Node0x59f855d8fa60;
@@ -14,13 +39,13 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEncod
 	Node0x59f855d8ce40 -> Node0x59f855d91b90;
 	Node0x59f855d8ce40 -> Node0x59f855d91580;
 	Node0x59f855d8ce40 -> Node0x59f855d946f0;
-	Node0x59f855d56e10 [shape=record,label="{_Znwm}"];
-	Node0x59f855d5b5f0 [shape=record,label="{_ZN33CIccDefaultEncProfileCacheHandlerC2Ev}"];
+	Node0x59f855d56e10 [label="{new()}"];
+	Node0x59f855d5b5f0 [label="{CIccDefaultEncProfileCacheHandler::CIccDefaultEncProfileCacheHandler()}"];
 	Node0x59f855d5b5f0 -> Node0x59f855c1dd60;
-	Node0x59f855cba300 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x59f855beaf20 [shape=record,label="{_ZdlPv}"];
-	Node0x59f855c054b0 [shape=record,label="{_ZN26IIccEncProfileCacheHandler18SetEncCacheHandlerEPS_}"];
-	Node0x59f855d0eb80 [shape=record,label="{_ZN30CIccDefaultEncProfileConverter17ConvertFromParamsERP11CIccProfileP13CIccTagStructP8icHeader}"];
+	Node0x59f855cba300 [label="{__gxx_personality_v0}"];
+	Node0x59f855beaf20 [label="{delete()}"];
+	Node0x59f855c054b0 [label="{IIccEncProfileCacheHandler::SetEncCacheHandler()}"];
+	Node0x59f855d0eb80 [label="{CIccDefaultEncProfileConverter::ConvertFromParams()}"];
 	Node0x59f855d0eb80 -> Node0x59f855bdf8c0;
 	Node0x59f855d0eb80 -> Node0x59f855be1280;
 	Node0x59f855d0eb80 -> Node0x59f855d6aaf0;
@@ -57,51 +82,51 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEncod
 	Node0x59f855d0eb80 -> Node0x59f855d68c90;
 	Node0x59f855d0eb80 -> Node0x59f855d69190;
 	Node0x59f855d0eb80 -> Node0x59f855d69410;
-	Node0x59f855bdf8c0 [shape=record,label="{_ZN13CIccTagStruct14FindElemOfTypeEj18icTagTypeSignature}"];
-	Node0x59f855be2be0 [shape=record,label="{_ZN11CIccProfileC1Ev}"];
-	Node0x59f855cf17b0 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x59f855d2cdb0 [shape=record,label="{time}"];
-	Node0x59f855be1c50 [shape=record,label="{gmtime}"];
-	Node0x59f855be2860 [shape=record,label="{_ZL15icYxy2XYZVectorPffS_h}"];
-	Node0x59f855be1e20 [shape=record,label="{_ZN15CIccTagFloatNumIfL18icTagTypeSignature1718367026EEixEj}"];
-	Node0x59f855be28d0 [shape=record,label="{_Z6icDtoFf}"];
-	Node0x59f855d664f0 [shape=record,label="{_ZN10CIccTagXYZC1Ei}"];
-	Node0x59f855d66010 [shape=record,label="{_ZN10CIccTagXYZ7SetSizeEjb}"];
-	Node0x59f855d65250 [shape=record,label="{_ZNK10CIccTagXYZixEj}"];
-	Node0x59f855be1280 [shape=record,label="{_ZN11CIccProfile9AttachTagEjP7CIccTag}"];
-	Node0x59f855d67c10 [shape=record,label="{_ZN7CIccTag6CreateE18icTagTypeSignature}"];
-	Node0x59f855d67850 [shape=record,label="{_ZN26CIccTagMultiProcessElement11SetChannelsEtt}"];
-	Node0x59f855d63ef0 [shape=record,label="{_ZNK15CIccTagFloatNumIfL18icTagTypeSignature1718367026EE7GetSizeEv}"];
-	Node0x59f855d66e00 [shape=record,label="{_ZN23CIccMultiProcessElement6CreateE19icElemTypeSignature}"];
-	Node0x59f855d69410 [shape=record,label="{_ZN13CIccMpeMatrix7SetSizeEttb}"];
-	Node0x59f855d69190 [shape=record,label="{_ZNK13CIccMpeMatrix9GetMatrixEv}"];
-	Node0x59f855d68c90 [shape=record,label="{_ZN21CIccTagSegmentedCurve8GetCurveEv}"];
-	Node0x59f855d74030 [shape=record,label="{_ZSt19__throw_logic_errorPKc}"];
-	Node0x59f855d683d0 [shape=record,label="{_ZN15CIccMpeCurveSet7SetSizeEi}"];
-	Node0x59f855d8edc0 [shape=record,label="{_ZNSt11char_traitsIcE6lengthEPKc}"];
+	Node0x59f855bdf8c0 [label="{CIccTagStruct::FindElemOfType()}"];
+	Node0x59f855be2be0 [label="{CIccProfile::CIccProfile()}"];
+	Node0x59f855cf17b0 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x59f855d2cdb0 [label="{time}"];
+	Node0x59f855be1c50 [label="{gmtime}"];
+	Node0x59f855be2860 [label="{icYxy2XYZVector()}"];
+	Node0x59f855be1e20 [label="{CIccTagFloatNum<float, (icTagTypeSignature)1718367026>::operator[](...}"];
+	Node0x59f855be28d0 [label="{icDtoF()}"];
+	Node0x59f855d664f0 [label="{CIccTagXYZ::CIccTagXYZ()}"];
+	Node0x59f855d66010 [label="{CIccTagXYZ::SetSize()}"];
+	Node0x59f855d65250 [label="{CIccTagXYZ::operator[](unsigned int) const}"];
+	Node0x59f855be1280 [label="{CIccProfile::AttachTag()}"];
+	Node0x59f855d67c10 [label="{CIccTag::Create()}"];
+	Node0x59f855d67850 [label="{CIccTagMultiProcessElement::SetChannels()}"];
+	Node0x59f855d63ef0 [label="{CIccTagFloatNum<float, (icTagTypeSignature)1718367026>::GetSize()}"];
+	Node0x59f855d66e00 [label="{CIccMultiProcessElement::Create()}"];
+	Node0x59f855d69410 [label="{CIccMpeMatrix::SetSize()}"];
+	Node0x59f855d69190 [label="{CIccMpeMatrix::GetMatrix()}"];
+	Node0x59f855d68c90 [label="{CIccTagSegmentedCurve::GetCurve()}"];
+	Node0x59f855d74030 [label="{std::__throw_logic_error()}"];
+	Node0x59f855d683d0 [label="{CIccMpeCurveSet::SetSize()}"];
+	Node0x59f855d8edc0 [label="{std::char_traits<char>::length()}"];
 	Node0x59f855d8edc0 -> Node0x59f855d90900;
-	Node0x59f855d6a3f0 [shape=record,label="{_ZN15CIccMpeCurveSet8SetCurveEiP17CIccCurveSetCurve}"];
-	Node0x59f855d6a170 [shape=record,label="{_Z17icMatrixInvert3x3Pf}"];
-	Node0x59f855d69ef0 [shape=record,label="{_ZN13CIccTagStruct18GetElemNumberValueEjf}"];
-	Node0x59f855d69c70 [shape=record,label="{_ZN32CIccTagSpectralViewingConditions13setIlluminantEPf}"];
-	Node0x59f855d69830 [shape=record,label="{_ZN16CIccCamConverterC1Ev}"];
-	Node0x59f855d6af30 [shape=record,label="{_ZN16CIccCamConverter23SetParameter_WhitePointEPf}"];
-	Node0x59f855d6acb0 [shape=record,label="{_ZN16CIccCamConverter15SetParameter_LaEf}"];
-	Node0x59f855d6a670 [shape=record,label="{_ZN16CIccCamConverter15SetParameter_YbEf}"];
-	Node0x59f855d6be20 [shape=record,label="{_ZN16CIccCamConverter14SetParameter_CEf}"];
-	Node0x59f855d6bbe0 [shape=record,label="{_ZN16CIccCamConverter15SetParameter_NcEf}"];
-	Node0x59f855d64970 [shape=record,label="{_ZN16CIccCamConverter14SetParameter_FEf}"];
-	Node0x59f855d69350 [shape=record,label="{_ZN16CIccCamConverterD1Ev}"];
-	Node0x59f855d64ab0 [shape=record,label="{_ZN16CIccCamConverteraSERKS_}"];
-	Node0x59f855d6aaf0 [shape=record,label="{_ZN10CIccMpeCAM6SetCAMEP16CIccCamConverter}"];
-	Node0x59f855d6b130 [shape=record,label="{_ZN23IIccEncProfileConverter10GetHandlerEv}"];
+	Node0x59f855d6a3f0 [label="{CIccMpeCurveSet::SetCurve()}"];
+	Node0x59f855d6a170 [label="{icMatrixInvert3x3()}"];
+	Node0x59f855d69ef0 [label="{CIccTagStruct::GetElemNumberValue()}"];
+	Node0x59f855d69c70 [label="{CIccTagSpectralViewingConditions::setIlluminant()}"];
+	Node0x59f855d69830 [label="{CIccCamConverter::CIccCamConverter()}"];
+	Node0x59f855d6af30 [label="{CIccCamConverter::SetParameter_WhitePoint()}"];
+	Node0x59f855d6acb0 [label="{CIccCamConverter::SetParameter_La()}"];
+	Node0x59f855d6a670 [label="{CIccCamConverter::SetParameter_Yb()}"];
+	Node0x59f855d6be20 [label="{CIccCamConverter::SetParameter_C()}"];
+	Node0x59f855d6bbe0 [label="{CIccCamConverter::SetParameter_Nc()}"];
+	Node0x59f855d64970 [label="{CIccCamConverter::SetParameter_F()}"];
+	Node0x59f855d69350 [label="{CIccCamConverter::~CIccCamConverter()}"];
+	Node0x59f855d64ab0 [label="{CIccCamConverter::operator=(CIccCamConverter const&)}"];
+	Node0x59f855d6aaf0 [label="{CIccMpeCAM::SetCAM()}"];
+	Node0x59f855d6b130 [label="{IIccEncProfileConverter::GetHandler()}"];
 	Node0x59f855d6b130 -> Node0x59f855d56e10;
 	Node0x59f855d6b130 -> Node0x59f855d67f90;
 	Node0x59f855d6b130 -> Node0x59f855beaf20;
-	Node0x59f855d67f90 [shape=record,label="{_ZN30CIccDefaultEncProfileConverterC2Ev}"];
+	Node0x59f855d67f90 [label="{CIccDefaultEncProfileConverter::CIccDefaultEncProfileConverter()}"];
 	Node0x59f855d67f90 -> Node0x59f855d71020;
-	Node0x59f855d710e0 [shape=record,label="{_ZN23IIccEncProfileConverter22SetEncProfileConverterEPS_}"];
-	Node0x59f855d718e0 [shape=record,label="{_Z24icConvertEncodingProfileRP11CIccProfileS0_}"];
+	Node0x59f855d710e0 [label="{IIccEncProfileConverter::SetEncProfileConverter()}"];
+	Node0x59f855d718e0 [label="{icConvertEncodingProfile()}"];
 	Node0x59f855d718e0 -> Node0x59f855d713e0;
 	Node0x59f855d718e0 -> Node0x59f855d6fd00;
 	Node0x59f855d718e0 -> Node0x59f855d6f980;
@@ -117,87 +142,87 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEncod
 	Node0x59f855d718e0 -> Node0x59f855d6e3f0;
 	Node0x59f855d718e0 -> Node0x59f855d6ac30;
 	Node0x59f855d718e0 -> Node0x59f855d68710;
-	Node0x59f855d713e0 [shape=record,label="{_ZN11CIccProfile13FindTagOfTypeEj18icTagTypeSignature}"];
-	Node0x59f855d6fd00 [shape=record,label="{_ZNK15CIccTagUtf8Text7GetTextEv}"];
-	Node0x59f855d6f980 [shape=record,label="{strcmp}"];
-	Node0x59f855d6ac30 [shape=record,label="{_ZN13CIccTagStruct11GetElemListB5cxx11Ev}"];
-	Node0x59f855d68710 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEC2Ev}"];
-	Node0x59f855d6e3f0 [shape=record,label="{_ZNSt7__cxx114listI11IccTagEntrySaIS1_EE5beginEv}"];
+	Node0x59f855d713e0 [label="{CIccProfile::FindTagOfType()}"];
+	Node0x59f855d6fd00 [label="{CIccTagUtf8Text::GetText()}"];
+	Node0x59f855d6f980 [label="{strcmp}"];
+	Node0x59f855d6ac30 [label="{CIccTagStruct::GetElemList[abi:cxx11]()}"];
+	Node0x59f855d68710 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
+	Node0x59f855d6e3f0 [label="{std::list<IccTagEntry >::begin()}"];
 	Node0x59f855d6e3f0 -> Node0x59f855d75620;
-	Node0x59f855d74720 [shape=record,label="{_ZStneRKSt14_List_iteratorI11IccTagEntryES3_}"];
-	Node0x59f855d74c20 [shape=record,label="{_ZNSt7__cxx114listI11IccTagEntrySaIS1_EE3endEv}"];
+	Node0x59f855d74720 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
+	Node0x59f855d74c20 [label="{std::list<IccTagEntry >::end()}"];
 	Node0x59f855d74c20 -> Node0x59f855d75620;
-	Node0x59f855d6d7e0 [shape=record,label="{_ZNKSt14_List_iteratorI11IccTagEntryEptEv}"];
+	Node0x59f855d6d7e0 [label="{std::_List_iterator<IccTagEntry>::operator-() const}"];
 	Node0x59f855d6d7e0 -> Node0x59f855d75260;
 	Node0x59f855d6d7e0 -> Node0x59f855d78b20;
-	Node0x59f855d6d2e0 [shape=record,label="{_ZN13CIccTagStruct10DeleteElemEj}"];
-	Node0x59f855d75ee0 [shape=record,label="{_ZN13CIccTagStruct10AttachElemEjP7CIccTag}"];
-	Node0x59f855d759e0 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEppEi}"];
+	Node0x59f855d6d2e0 [label="{CIccTagStruct::DeleteElem()}"];
+	Node0x59f855d75ee0 [label="{CIccTagStruct::AttachElem()}"];
+	Node0x59f855d759e0 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
 	Node0x59f855d759e0 -> Node0x59f855cf17b0;
-	Node0x59f855d788a0 [shape=record,label="{_ZN30CIccDefaultEncProfileConverterD2Ev}"];
+	Node0x59f855d788a0 [label="{CIccDefaultEncProfileConverter::~CIccDefaultEncProfileConverter()}"];
 	Node0x59f855d788a0 -> Node0x59f855d78260;
-	Node0x59f855d77d60 [shape=record,label="{_ZN30CIccDefaultEncProfileConverterD0Ev}"];
+	Node0x59f855d77d60 [label="{CIccDefaultEncProfileConverter::~CIccDefaultEncProfileConverter()}"];
 	Node0x59f855d77d60 -> Node0x59f855d788a0;
 	Node0x59f855d77d60 -> Node0x59f855beaf20;
-	Node0x59f855c1dd60 [shape=record,label="{_ZN26IIccEncProfileCacheHandlerC2Ev}"];
-	Node0x59f855d77ae0 [shape=record,label="{_ZN33CIccDefaultEncProfileCacheHandlerD2Ev}"];
+	Node0x59f855c1dd60 [label="{IIccEncProfileCacheHandler::IIccEncProfileCacheHandler()}"];
+	Node0x59f855d77ae0 [label="{CIccDefaultEncProfileCacheHandler::~CIccDefaultEncProfileCacheHandl...}"];
 	Node0x59f855d77ae0 -> Node0x59f855d7b160;
-	Node0x59f855d7b960 [shape=record,label="{_ZN33CIccDefaultEncProfileCacheHandlerD0Ev}"];
+	Node0x59f855d7b960 [label="{CIccDefaultEncProfileCacheHandler::~CIccDefaultEncProfileCacheHandl...}"];
 	Node0x59f855d7b960 -> Node0x59f855d77ae0;
 	Node0x59f855d7b960 -> Node0x59f855beaf20;
-	Node0x59f855d7b820 [shape=record,label="{_ZN33CIccDefaultEncProfileCacheHandler18GetEncodingProfileEPKh}"];
+	Node0x59f855d7b820 [label="{CIccDefaultEncProfileCacheHandler::GetEncodingProfile()}"];
 	Node0x59f855d7b820 -> Node0x59f855d7b5a0;
 	Node0x59f855d7b820 -> Node0x59f855d71460;
 	Node0x59f855d7b820 -> Node0x59f855d844c0;
 	Node0x59f855d7b820 -> Node0x59f855d6d120;
 	Node0x59f855d7b820 -> Node0x59f855d64e70;
 	Node0x59f855d7b820 -> Node0x59f855d6fbc0;
-	Node0x59f855d7b160 [shape=record,label="{_ZN26IIccEncProfileCacheHandlerD2Ev}"];
-	Node0x59f855d8cf80 [shape=record,label="{_ZN26IIccEncProfileCacheHandlerD0Ev}"];
+	Node0x59f855d7b160 [label="{IIccEncProfileCacheHandler::~IIccEncProfileCacheHandler()}"];
+	Node0x59f855d8cf80 [label="{IIccEncProfileCacheHandler::~IIccEncProfileCacheHandler()}"];
 	Node0x59f855d8cf80 -> Node0x59f855d898a0;
-	Node0x59f855d890a0 [shape=record,label="{__cxa_pure_virtual}"];
-	Node0x59f855d898a0 [shape=record,label="{llvm.trap}"];
-	Node0x59f855d7b5a0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2IS3_EEPKcRKS3_}"];
+	Node0x59f855d890a0 [label="{__cxa_pure_virtual}"];
+	Node0x59f855d898a0 [label="{llvm.trap}"];
+	Node0x59f855d7b5a0 [label="{char_traits >::basic_string<std::allocator >()}"];
 	Node0x59f855d7b5a0 -> Node0x59f855d88620;
 	Node0x59f855d7b5a0 -> Node0x59f855d740e0;
 	Node0x59f855d7b5a0 -> Node0x59f855d74030;
 	Node0x59f855d7b5a0 -> Node0x59f855d8f100;
 	Node0x59f855d7b5a0 -> Node0x59f855d8edc0;
 	Node0x59f855d7b5a0 -> Node0x59f855d8ce40;
-	Node0x59f855d844c0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEpLEPKc}"];
-	Node0x59f855d6fbc0 [shape=record,label="{_Z14OpenIccProfilePKcb}"];
-	Node0x59f855d64e70 [shape=record,label="{_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE5c_strEv}"];
-	Node0x59f855d6d120 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev}"];
-	Node0x59f855d88620 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_M_local_dataEv}"];
-	Node0x59f855d740e0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderC1EPcRKS3_}"];
-	Node0x59f855d93a70 [shape=record,label="{_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardC2EPS4_}"];
-	Node0x59f855d8f100 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderD2Ev}"];
+	Node0x59f855d844c0 [label="{std::basic_string<char, std::char_traits >::operator+=(char const*)}"];
+	Node0x59f855d6fbc0 [label="{OpenIccProfile()}"];
+	Node0x59f855d64e70 [label="{basic_string<char, std::char_traits >::c_str()}"];
+	Node0x59f855d6d120 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
+	Node0x59f855d88620 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
+	Node0x59f855d740e0 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
+	Node0x59f855d93a70 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
+	Node0x59f855d8f100 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
 	Node0x59f855d8f100 -> Node0x59f855d71460;
-	Node0x59f855d90900 [shape=record,label="{strlen}"];
-	Node0x59f855d64df0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7_M_dataEPc}"];
-	Node0x59f855d956e0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm}"];
-	Node0x59f855d8fa60 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE11_M_capacityEm}"];
-	Node0x59f855d91b90 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_S_copy_charsEPcPKcS7_}"];
-	Node0x59f855d92290 [shape=record,label="{_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7_M_dataEv}"];
-	Node0x59f855d91580 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_M_set_lengthEm}"];
-	Node0x59f855d946f0 [shape=record,label="{_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardD2Ev}"];
+	Node0x59f855d90900 [label="{strlen}"];
+	Node0x59f855d64df0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
+	Node0x59f855d956e0 [label="{basic_string<char, std::char_traits >::_M_create()}"];
+	Node0x59f855d8fa60 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
+	Node0x59f855d91b90 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
+	Node0x59f855d92290 [label="{basic_string<char, std::char_traits >::_M_data()}"];
+	Node0x59f855d91580 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
+	Node0x59f855d946f0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
 	Node0x59f855d946f0 -> Node0x59f855d94470;
 	Node0x59f855d946f0 -> Node0x59f855d78b20;
-	Node0x59f855d94470 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_disposeEv}"];
-	Node0x59f855d78b20 [shape=record,label="{__clang_call_terminate}"];
+	Node0x59f855d94470 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
+	Node0x59f855d78b20 [label="{__clang_call_terminate}"];
 	Node0x59f855d78b20 -> Node0x59f855d94330;
 	Node0x59f855d78b20 -> Node0x59f855d940b0;
-	Node0x59f855d94330 [shape=record,label="{__cxa_begin_catch}"];
-	Node0x59f855d940b0 [shape=record,label="{_ZSt9terminatev}"];
-	Node0x59f855d71460 [shape=record,label="{_ZNSt15__new_allocatorIcED2Ev}"];
-	Node0x59f855d71020 [shape=record,label="{_ZN23IIccEncProfileConverterC2Ev}"];
-	Node0x59f855d78260 [shape=record,label="{_ZN23IIccEncProfileConverterD2Ev}"];
-	Node0x59f855d93f70 [shape=record,label="{_ZN23IIccEncProfileConverterD0Ev}"];
+	Node0x59f855d94330 [label="{__cxa_begin_catch}"];
+	Node0x59f855d940b0 [label="{std::terminate()}"];
+	Node0x59f855d71460 [label="{std::__new_allocator<char>::~__new_allocator()}"];
+	Node0x59f855d71020 [label="{IIccEncProfileConverter::IIccEncProfileConverter()}"];
+	Node0x59f855d78260 [label="{IIccEncProfileConverter::~IIccEncProfileConverter()}"];
+	Node0x59f855d93f70 [label="{IIccEncProfileConverter::~IIccEncProfileConverter()}"];
 	Node0x59f855d93f70 -> Node0x59f855d898a0;
-	Node0x59f855d75620 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEC2EPNSt8__detail15_List_node_baseE}"];
-	Node0x59f855d75260 [shape=record,label="{_ZNSt10_List_nodeI11IccTagEntryE9_M_valptrEv}"];
+	Node0x59f855d75620 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
+	Node0x59f855d75260 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
 	Node0x59f855d75260 -> Node0x59f855d9e3b0;
-	Node0x59f855d9e3b0 [shape=record,label="{_ZN9__gnu_cxx16__aligned_membufI11IccTagEntryE6_M_ptrEv}"];
+	Node0x59f855d9e3b0 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
 	Node0x59f855d9e3b0 -> Node0x59f855d9d500;
-	Node0x59f855d9d500 [shape=record,label="{_ZN9__gnu_cxx16__aligned_membufI11IccTagEntryE7_M_addrEv}"];
+	Node0x59f855d9d500 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
 }

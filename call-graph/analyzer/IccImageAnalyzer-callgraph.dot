@@ -1,13 +1,38 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyzer.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyzer.ll";
 
-	Node0x5a17dd81e2f0 [shape=record,label="{_Z16DetectFileFormatPKc}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x5a17dd81e2f0 [label="{DetectFileFormat()}"];
 	Node0x5a17dd81e2f0 -> Node0x5a17dd81fa30;
 	Node0x5a17dd81e2f0 -> Node0x5a17dd8205c0;
 	Node0x5a17dd81e2f0 -> Node0x5a17dd825310;
 	Node0x5a17dd81e2f0 -> Node0x5a17dd67d820;
 	Node0x5a17dd81e2f0 -> Node0x5a17dd80b340;
-	Node0x5a17dd81fa30 [shape=record,label="{_Z11OpenRawFilePKc}"];
+	Node0x5a17dd81fa30 [label="{OpenRawFile()}"];
 	Node0x5a17dd81fa30 -> Node0x5a17dd7e9dc0;
 	Node0x5a17dd81fa30 -> Node0x5a17dd6af870;
 	Node0x5a17dd81fa30 -> Node0x5a17dd825310;
@@ -15,35 +40,35 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyz
 	Node0x5a17dd81fa30 -> Node0x5a17dd82cde0;
 	Node0x5a17dd81fa30 -> Node0x5a17dd680730;
 	Node0x5a17dd81fa30 -> Node0x5a17dd82cb20;
-	Node0x5a17dd8205c0 [shape=record,label="{_ZNK13RawFileHandlecvbEv}"];
-	Node0x5a17dd82bd90 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x5a17dd67d820 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x5a17dd80b340 [shape=record,label="{fread}"];
-	Node0x5a17dd825310 [shape=record,label="{_ZN13RawFileHandleD2Ev}"];
+	Node0x5a17dd8205c0 [label="{bool()}"];
+	Node0x5a17dd82bd90 [label="{__gxx_personality_v0}"];
+	Node0x5a17dd67d820 [label="{llvm.memset.p0.i64}"];
+	Node0x5a17dd80b340 [label="{fread}"];
+	Node0x5a17dd825310 [label="{RawFileHandle::~RawFileHandle()}"];
 	Node0x5a17dd825310 -> Node0x5a17dd82cde0;
 	Node0x5a17dd825310 -> Node0x5a17dd680b40;
-	Node0x5a17dd6806b0 [shape=record,label="{_Z10FormatName11ImageFormat}"];
-	Node0x5a17dd82d1a0 [shape=record,label="{_Z35RunHeuristic_H139_TiffStripGeometryP4tiffPKcjttjt}"];
+	Node0x5a17dd6806b0 [label="{FormatName()}"];
+	Node0x5a17dd82d1a0 [label="{RunHeuristic_H139_TiffStripGeometry()}"];
 	Node0x5a17dd82d1a0 -> Node0x5a17dd680980;
 	Node0x5a17dd82d1a0 -> Node0x5a17dd681020;
 	Node0x5a17dd82d1a0 -> Node0x5a17dd6814d0;
 	Node0x5a17dd82d1a0 -> Node0x5a17dd82d6e0;
 	Node0x5a17dd82d1a0 -> Node0x5a17dd680d70;
-	Node0x5a17dd680980 [shape=record,label="{printf}"];
-	Node0x5a17dd6814d0 [shape=record,label="{TIFFGetField}"];
-	Node0x5a17dd680d70 [shape=record,label="{TIFFStripSize}"];
-	Node0x5a17dd82d6e0 [shape=record,label="{_Z13ColorCriticalv}"];
+	Node0x5a17dd680980 [label="{printf}"];
+	Node0x5a17dd6814d0 [label="{TIFFGetField}"];
+	Node0x5a17dd680d70 [label="{TIFFStripSize}"];
+	Node0x5a17dd82d6e0 [label="{ColorCritical()}"];
 	Node0x5a17dd82d6e0 -> Node0x5a17dd71b970;
-	Node0x5a17dd681020 [shape=record,label="{_Z10ColorResetv}"];
+	Node0x5a17dd681020 [label="{ColorReset()}"];
 	Node0x5a17dd681020 -> Node0x5a17dd71b970;
-	Node0x5a17dd681930 [shape=record,label="{_Z41RunHeuristic_H140_TiffDimensionValidationjjtt}"];
+	Node0x5a17dd681930 [label="{RunHeuristic_H140_TiffDimensionValidation()}"];
 	Node0x5a17dd681930 -> Node0x5a17dd680980;
 	Node0x5a17dd681930 -> Node0x5a17dd82d6e0;
 	Node0x5a17dd681930 -> Node0x5a17dd681020;
 	Node0x5a17dd681930 -> Node0x5a17dd82df00;
-	Node0x5a17dd82df00 [shape=record,label="{_Z12ColorWarningv}"];
+	Node0x5a17dd82df00 [label="{ColorWarning()}"];
 	Node0x5a17dd82df00 -> Node0x5a17dd71b970;
-	Node0x5a17dd681720 [shape=record,label="{_Z37RunHeuristic_H141_TiffIfdOffsetBoundsP4tiffPKc}"];
+	Node0x5a17dd681720 [label="{RunHeuristic_H141_TiffIfdOffsetBounds()}"];
 	Node0x5a17dd681720 -> Node0x5a17dd680980;
 	Node0x5a17dd681720 -> Node0x5a17dd6818b0;
 	Node0x5a17dd681720 -> Node0x5a17dd82dc90;
@@ -54,12 +79,12 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyz
 	Node0x5a17dd681720 -> Node0x5a17dd82d6e0;
 	Node0x5a17dd681720 -> Node0x5a17dd82df00;
 	Node0x5a17dd681720 -> Node0x5a17dd71c1b0;
-	Node0x5a17dd82dc90 [shape=record,label="{stat}"];
-	Node0x5a17dd6822f0 [shape=record,label="{TIFFNumberOfStrips}"];
-	Node0x5a17dd71c1b0 [shape=record,label="{TIFFNumberOfTiles}"];
-	Node0x5a17dd682600 [shape=record,label="{TIFFReadDirectory}"];
-	Node0x5a17dd6818b0 [shape=record,label="{TIFFSetDirectory}"];
-	Node0x5a17dd830300 [shape=record,label="{_Z16AnalyzeTiffImagePKcS0_}"];
+	Node0x5a17dd82dc90 [label="{stat}"];
+	Node0x5a17dd6822f0 [label="{TIFFNumberOfStrips}"];
+	Node0x5a17dd71c1b0 [label="{TIFFNumberOfTiles}"];
+	Node0x5a17dd682600 [label="{TIFFReadDirectory}"];
+	Node0x5a17dd6818b0 [label="{TIFFSetDirectory}"];
+	Node0x5a17dd830300 [label="{AnalyzeTiffImage()}"];
 	Node0x5a17dd830300 -> Node0x5a17dd680980;
 	Node0x5a17dd830300 -> Node0x5a17dd830040;
 	Node0x5a17dd830300 -> Node0x5a17dd682d00;
@@ -99,58 +124,58 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyz
 	Node0x5a17dd830300 -> Node0x5a17dd683400;
 	Node0x5a17dd830300 -> Node0x5a17dd830880;
 	Node0x5a17dd830300 -> Node0x5a17dd683980;
-	Node0x5a17dd682d00 [shape=record,label="{TIFFSetWarningHandler}"];
-	Node0x5a17dd686ae0 [shape=record,label="{_ZL17TiffSilentWarningPKcS0_P13__va_list_tag}"];
-	Node0x5a17dd830040 [shape=record,label="{TIFFSetErrorHandler}"];
-	Node0x5a17dd686350 [shape=record,label="{_ZL15TiffSilentErrorPKcS0_P13__va_list_tag}"];
-	Node0x5a17dd683000 [shape=record,label="{TIFFOpen}"];
-	Node0x5a17dd682f80 [shape=record,label="{_ZL19TiffCompressionNamet}"];
-	Node0x5a17dd830880 [shape=record,label="{_ZL19TiffPhotometricNamet}"];
-	Node0x5a17dd683980 [shape=record,label="{_ZL14TiffPlanarNamet}"];
-	Node0x5a17dd683400 [shape=record,label="{_ZL20TiffSampleFormatNamet}"];
-	Node0x5a17dd683680 [shape=record,label="{strlen}"];
-	Node0x5a17dd683b30 [shape=record,label="{strstr}"];
-	Node0x5a17dd830dd0 [shape=record,label="{_Z9ColorInfov}"];
+	Node0x5a17dd682d00 [label="{TIFFSetWarningHandler}"];
+	Node0x5a17dd686ae0 [label="{TiffSilentWarning()}"];
+	Node0x5a17dd830040 [label="{TIFFSetErrorHandler}"];
+	Node0x5a17dd686350 [label="{TiffSilentError()}"];
+	Node0x5a17dd683000 [label="{TIFFOpen}"];
+	Node0x5a17dd682f80 [label="{TiffCompressionName()}"];
+	Node0x5a17dd830880 [label="{TiffPhotometricName()}"];
+	Node0x5a17dd683980 [label="{TiffPlanarName()}"];
+	Node0x5a17dd683400 [label="{TiffSampleFormatName()}"];
+	Node0x5a17dd683680 [label="{strlen}"];
+	Node0x5a17dd683b30 [label="{strstr}"];
+	Node0x5a17dd830dd0 [label="{ColorInfo()}"];
 	Node0x5a17dd830dd0 -> Node0x5a17dd71b970;
-	Node0x5a17dd684460 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5a17dd6848e0 [shape=record,label="{_ZL17ScanForInjectionsPKhmPKc}"];
+	Node0x5a17dd684460 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x5a17dd6848e0 [label="{ScanForInjections()}"];
 	Node0x5a17dd6848e0 -> Node0x5a17dd832b60;
 	Node0x5a17dd6848e0 -> Node0x5a17dd82d6e0;
 	Node0x5a17dd6848e0 -> Node0x5a17dd681020;
 	Node0x5a17dd6848e0 -> Node0x5a17dd680980;
-	Node0x5a17dd684dd0 [shape=record,label="{TIFFIsTiled}"];
-	Node0x5a17dd6845f0 [shape=record,label="{TIFFTileSize}"];
-	Node0x5a17dd831350 [shape=record,label="{_TIFFmalloc}"];
-	Node0x5a17dd8318d0 [shape=record,label="{TIFFReadEncodedTile}"];
-	Node0x5a17dd831e50 [shape=record,label="{_TIFFfree}"];
-	Node0x5a17dd6852b0 [shape=record,label="{TIFFReadEncodedStrip}"];
-	Node0x5a17dd684ae0 [shape=record,label="{_Z12ColorSuccessv}"];
+	Node0x5a17dd684dd0 [label="{TIFFIsTiled}"];
+	Node0x5a17dd6845f0 [label="{TIFFTileSize}"];
+	Node0x5a17dd831350 [label="{_TIFFmalloc}"];
+	Node0x5a17dd8318d0 [label="{TIFFReadEncodedTile}"];
+	Node0x5a17dd831e50 [label="{_TIFFfree}"];
+	Node0x5a17dd6852b0 [label="{TIFFReadEncodedStrip}"];
+	Node0x5a17dd684ae0 [label="{ColorSuccess()}"];
 	Node0x5a17dd684ae0 -> Node0x5a17dd71b970;
-	Node0x5a17dd685c80 [shape=record,label="{snprintf}"];
-	Node0x5a17dd684fd0 [shape=record,label="{getpid}"];
-	Node0x5a17dd685a10 [shape=record,label="{open}"];
-	Node0x5a17dd685790 [shape=record,label="{fdopen}"];
-	Node0x5a17dd685ef0 [shape=record,label="{fwrite}"];
-	Node0x5a17dd82cde0 [shape=record,label="{fclose}"];
-	Node0x5a17dd6854a0 [shape=record,label="{unlink}"];
-	Node0x5a17dd8325e0 [shape=record,label="{_Z15ResetAllocGuardv}"];
-	Node0x5a17dd686160 [shape=record,label="{_Z20ComprehensiveAnalyzePKcS0_}"];
-	Node0x5a17dd686630 [shape=record,label="{TIFFClose}"];
-	Node0x5a17dd6860e0 [shape=record,label="{_Z16AnalyzeImageFilePKcS0_}"];
+	Node0x5a17dd685c80 [label="{snprintf}"];
+	Node0x5a17dd684fd0 [label="{getpid}"];
+	Node0x5a17dd685a10 [label="{open}"];
+	Node0x5a17dd685790 [label="{fdopen}"];
+	Node0x5a17dd685ef0 [label="{fwrite}"];
+	Node0x5a17dd82cde0 [label="{fclose}"];
+	Node0x5a17dd6854a0 [label="{unlink}"];
+	Node0x5a17dd8325e0 [label="{ResetAllocGuard()}"];
+	Node0x5a17dd686160 [label="{ComprehensiveAnalyze()}"];
+	Node0x5a17dd686630 [label="{TIFFClose}"];
+	Node0x5a17dd6860e0 [label="{AnalyzeImageFile()}"];
 	Node0x5a17dd6860e0 -> Node0x5a17dd81e2f0;
 	Node0x5a17dd6860e0 -> Node0x5a17dd830300;
 	Node0x5a17dd6860e0 -> Node0x5a17dd680980;
 	Node0x5a17dd6860e0 -> Node0x5a17dd686160;
-	Node0x5a17dd7e9dc0 [shape=record,label="{_ZN13RawFileHandleC2Ev}"];
-	Node0x5a17dd6af870 [shape=record,label="{fopen}"];
-	Node0x5a17dd8288f0 [shape=record,label="{fseek}"];
-	Node0x5a17dd680730 [shape=record,label="{ftell}"];
-	Node0x5a17dd82cb20 [shape=record,label="{rewind}"];
-	Node0x5a17dd680b40 [shape=record,label="{__clang_call_terminate}"];
+	Node0x5a17dd7e9dc0 [label="{RawFileHandle::RawFileHandle()}"];
+	Node0x5a17dd6af870 [label="{fopen}"];
+	Node0x5a17dd8288f0 [label="{fseek}"];
+	Node0x5a17dd680730 [label="{ftell}"];
+	Node0x5a17dd82cb20 [label="{rewind}"];
+	Node0x5a17dd680b40 [label="{__clang_call_terminate}"];
 	Node0x5a17dd680b40 -> Node0x5a17dd68a6a0;
 	Node0x5a17dd680b40 -> Node0x5a17dd68a3d0;
-	Node0x5a17dd68a6a0 [shape=record,label="{__cxa_begin_catch}"];
-	Node0x5a17dd68a3d0 [shape=record,label="{_ZSt9terminatev}"];
-	Node0x5a17dd71b970 [shape=record,label="{_Z8GetColorPKc}"];
-	Node0x5a17dd832b60 [shape=record,label="{memcmp}"];
+	Node0x5a17dd68a6a0 [label="{__cxa_begin_catch}"];
+	Node0x5a17dd68a3d0 [label="{std::terminate()}"];
+	Node0x5a17dd71b970 [label="{GetColor()}"];
+	Node0x5a17dd832b60 [label="{memcmp}"];
 }

@@ -1,7 +1,32 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsLibrary.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsLibrary.ll";
 
-	Node0x6414c371b7e0 [shape=record,label="{_Z23RunLibraryAPIHeuristicsP11CIccProfilePKc}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x6414c371b7e0 [label="{RunLibraryAPIHeuristics()}"];
 	Node0x6414c371b7e0 -> Node0x6414c371b260;
 	Node0x6414c371b7e0 -> Node0x6414c371ae20;
 	Node0x6414c371b7e0 -> Node0x6414c371ac90;
@@ -66,68 +91,68 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsL
 	Node0x6414c371b7e0 -> Node0x6414c36d0e20;
 	Node0x6414c371b7e0 -> Node0x6414c36d9b10;
 	Node0x6414c371b7e0 -> Node0x6414c36f3c10;
-	Node0x6414c36fcee0 [shape=record,label="{_Z47RunHeuristic_H64_NamedColor2DeviceCoordOverflowP11CIccProfile}"];
-	Node0x6414c36fcf60 [shape=record,label="{_Z40RunHeuristic_H63_CurveLUTChannelMismatchP11CIccProfile}"];
-	Node0x6414c37032a0 [shape=record,label="{_Z31RunHeuristic_H62_MLUStringBombsP11CIccProfile}"];
-	Node0x6414c36cf030 [shape=record,label="{_Z42RunHeuristic_H88_ChromaticAdaptationMatrixP11CIccProfile}"];
-	Node0x6414c36c05a0 [shape=record,label="{_Z32RunHeuristic_H87_TRCCurveAnomalyP11CIccProfile}"];
-	Node0x6414c36b3950 [shape=record,label="{_Z39RunHeuristic_H86_LocalizedUnicodeBoundsP11CIccProfile}"];
-	Node0x6414c36e45d0 [shape=record,label="{_Z33RunHeuristic_H85_MPEBufferOverlapP11CIccProfile}"];
-	Node0x6414c371b260 [shape=record,label="{_Z32RunHeuristic_H9_CriticalTextTagsP11CIccProfile}"];
-	Node0x6414c371ae20 [shape=record,label="{_Z25RunHeuristic_H10_TagCountP11CIccProfile}"];
-	Node0x6414c371ac90 [shape=record,label="{_Z31RunHeuristic_H11_CLUTEntryLimitP11CIccProfile}"];
-	Node0x6414c371bba0 [shape=record,label="{_Z30RunHeuristic_H12_MPEChainDepthP11CIccProfile}"];
-	Node0x6414c3719810 [shape=record,label="{_Z32RunHeuristic_H13_PerTagSizeCheckP11CIccProfile}"];
-	Node0x6414c3719590 [shape=record,label="{_Z34RunHeuristic_H14_TagArrayDetectionP11CIccProfilePKc}"];
-	Node0x6414c371d810 [shape=record,label="{_Z36RunHeuristic_H18_TechnologySignatureP11CIccProfile}"];
-	Node0x6414c371ea90 [shape=record,label="{_Z33RunHeuristic_H19_TagOffsetOverlapP11CIccProfile}"];
-	Node0x6414c371f6a0 [shape=record,label="{_Z33RunHeuristic_H20_TagTypeSignatureP11CIccProfilePKc}"];
-	Node0x6414c371f4a0 [shape=record,label="{_Z42RunHeuristic_H21_TagStructMemberInspectionP11CIccProfile}"];
-	Node0x6414c371ef40 [shape=record,label="{_Z42RunHeuristic_H22_NumArrayScalarExpectationP11CIccProfile}"];
-	Node0x6414c371f930 [shape=record,label="{_Z35RunHeuristic_H23_NumArrayValueRangeP11CIccProfile}"];
-	Node0x6414c3720e70 [shape=record,label="{_Z38RunHeuristic_H24_TagStructNestingDepthP11CIccProfile}"];
-	Node0x6414c37203e0 [shape=record,label="{_Z29RunHeuristic_H25_TagOffsetOOBP11CIccProfilePKc}"];
-	Node0x6414c3720140 [shape=record,label="{_Z44RunHeuristic_H26_NamedColor2StringValidationP11CIccProfilePKc}"];
-	Node0x6414c36fcba0 [shape=record,label="{_Z39RunHeuristic_H27_MPEMatrixOutputChannelP11CIccProfile}"];
-	Node0x6414c3723540 [shape=record,label="{_Z39RunHeuristic_H28_LUTDimensionValidationP11CIccProfilePKc}"];
-	Node0x6414c3723240 [shape=record,label="{_Z46RunHeuristic_H29_ColorantTableStringValidationP11CIccProfilePKc}"];
-	Node0x6414c36fd4e0 [shape=record,label="{_Z44RunHeuristic_H30_GamutBoundaryDescAllocationP11CIccProfilePKc}"];
-	Node0x6414c371da50 [shape=record,label="{_Z32RunHeuristic_H31_MPEChannelCountP11CIccProfile}"];
-	Node0x6414c37273e0 [shape=record,label="{_Z37RunHeuristic_H32_TagDataTypeConfusionP11CIccProfilePKc}"];
-	Node0x6414c3726fe0 [shape=record,label="{_Z37RunHeuristic_H56_CalculatorStackDepthP11CIccProfile}"];
-	Node0x6414c3726e50 [shape=record,label="{_Z40RunHeuristic_H58_SparseMatrixEntryBoundsP11CIccProfile}"];
-	Node0x6414c3727e20 [shape=record,label="{_Z41RunHeuristic_H60_DictionaryTagConsistencyP11CIccProfile}"];
-	Node0x6414c3703e60 [shape=record,label="{_Z44RunHeuristic_H61_ViewingConditionsValidationP11CIccProfile}"];
-	Node0x6414c3729be0 [shape=record,label="{_Z41RunHeuristic_H65_ChromaticityPlausibilityP11CIccProfile}"];
-	Node0x6414c3729ab0 [shape=record,label="{_Z35RunHeuristic_H66_NumArrayNaNInfScanP11CIccProfile}"];
-	Node0x6414c3729720 [shape=record,label="{_Z39RunHeuristic_H67_ResponseCurveSetBoundsP11CIccProfile}"];
-	Node0x6414c372a770 [shape=record,label="{_Z41RunHeuristic_H70_MeasurementTagValidationP11CIccProfile}"];
-	Node0x6414c372b410 [shape=record,label="{_Z45RunHeuristic_H71_ColorantTableNullTerminationP11CIccProfile}"];
-	Node0x6414c372b1c0 [shape=record,label="{_Z40RunHeuristic_H72_SparseMatrixArrayBoundsP11CIccProfile}"];
-	Node0x6414c372af20 [shape=record,label="{_Z37RunHeuristic_H73_TagArrayNestingDepthP11CIccProfile}"];
-	Node0x6414c372b7f0 [shape=record,label="{_Z44RunHeuristic_H74_TagTypeSignatureConsistencyP11CIccProfile}"];
-	Node0x6414c370b020 [shape=record,label="{_Z34RunHeuristic_H75_TagsVerySmallSizeP11CIccProfile}"];
-	Node0x6414c372e5c0 [shape=record,label="{_Z36RunHeuristic_H76_CIccTagDataTypeFlagP11CIccProfile}"];
-	Node0x6414c372e060 [shape=record,label="{_Z45RunHeuristic_H77_MPECalculatorSubElementCountP11CIccProfile}"];
-	Node0x6414c370b8e0 [shape=record,label="{_Z42RunHeuristic_H78_CLUTGridDimensionOverflowP11CIccProfile}"];
-	Node0x6414c3715c60 [shape=record,label="{_Z42RunHeuristic_H79_LoadTagAllocationOverflowP11CIccProfile}"];
-	Node0x6414c370cce0 [shape=record,label="{_Z36RunHeuristic_H80_SharedTagPointerUAFP11CIccProfile}"];
-	Node0x6414c370b860 [shape=record,label="{_Z43RunHeuristic_H81_MPECalculatorIOConsistencyP11CIccProfile}"];
-	Node0x6414c3715be0 [shape=record,label="{_Z35RunHeuristic_H82_IOReadSizeOverflowP11CIccProfile}"];
-	Node0x6414c36f5b10 [shape=record,label="{_Z38RunHeuristic_H83_FloatNumericArraySizeP11CIccProfile}"];
-	Node0x6414c36f5990 [shape=record,label="{_Z42RunHeuristic_H84_LUT3DTransformConsistencyP11CIccProfile}"];
-	Node0x6414c36b72e0 [shape=record,label="{_Z43RunHeuristic_H89_ProfileSequenceDescriptionP11CIccProfile}"];
-	Node0x6414c36b8e70 [shape=record,label="{_Z45RunHeuristic_H90_PreviewTagChannelConsistencyP11CIccProfile}"];
-	Node0x6414c36baa90 [shape=record,label="{_Z40RunHeuristic_H91_ColorantOrderValidationP11CIccProfile}"];
-	Node0x6414c36bc890 [shape=record,label="{_Z42RunHeuristic_H92_SpectralViewingConditionsP11CIccProfile}"];
-	Node0x6414c36bd6a0 [shape=record,label="{_Z36RunHeuristic_H93_EmbeddedProfileFlagP11CIccProfile}"];
-	Node0x6414c36be690 [shape=record,label="{_Z45RunHeuristic_H94_MatrixTRCColorantConsistencyP11CIccProfile}"];
-	Node0x6414c36c4710 [shape=record,label="{_Z50RunHeuristic_H95_SparseMatrixArrayBoundsValidationP11CIccProfile}"];
-	Node0x6414c36c6530 [shape=record,label="{_Z42RunHeuristic_H96_EmbeddedProfileValidationP11CIccProfile}"];
-	Node0x6414c36c8530 [shape=record,label="{_Z44RunHeuristic_H97_ProfileSequenceIdValidationP11CIccProfile}"];
-	Node0x6414c36cc790 [shape=record,label="{_Z45RunHeuristic_H98_SpectralMPEElementValidationP11CIccProfile}"];
-	Node0x6414c36ce3d0 [shape=record,label="{_Z43RunHeuristic_H99_EmbeddedImageTagValidationP11CIccProfile}"];
-	Node0x6414c36d0e20 [shape=record,label="{_Z47RunHeuristic_H100_ProfileSequenceDescValidationP11CIccProfile}"];
-	Node0x6414c36d9b10 [shape=record,label="{_Z48RunHeuristic_H101_MPESubElementChannelContinuityP11CIccProfile}"];
-	Node0x6414c36f3c10 [shape=record,label="{_Z46RunHeuristic_H102_TagSizeProfileSizeCrossCheckP11CIccProfile}"];
+	Node0x6414c36fcee0 [label="{RunHeuristic_H64_NamedColor2DeviceCoordOverflow()}"];
+	Node0x6414c36fcf60 [label="{RunHeuristic_H63_CurveLUTChannelMismatch()}"];
+	Node0x6414c37032a0 [label="{RunHeuristic_H62_MLUStringBombs()}"];
+	Node0x6414c36cf030 [label="{RunHeuristic_H88_ChromaticAdaptationMatrix()}"];
+	Node0x6414c36c05a0 [label="{RunHeuristic_H87_TRCCurveAnomaly()}"];
+	Node0x6414c36b3950 [label="{RunHeuristic_H86_LocalizedUnicodeBounds()}"];
+	Node0x6414c36e45d0 [label="{RunHeuristic_H85_MPEBufferOverlap()}"];
+	Node0x6414c371b260 [label="{RunHeuristic_H9_CriticalTextTags()}"];
+	Node0x6414c371ae20 [label="{RunHeuristic_H10_TagCount()}"];
+	Node0x6414c371ac90 [label="{RunHeuristic_H11_CLUTEntryLimit()}"];
+	Node0x6414c371bba0 [label="{RunHeuristic_H12_MPEChainDepth()}"];
+	Node0x6414c3719810 [label="{RunHeuristic_H13_PerTagSizeCheck()}"];
+	Node0x6414c3719590 [label="{RunHeuristic_H14_TagArrayDetection()}"];
+	Node0x6414c371d810 [label="{RunHeuristic_H18_TechnologySignature()}"];
+	Node0x6414c371ea90 [label="{RunHeuristic_H19_TagOffsetOverlap()}"];
+	Node0x6414c371f6a0 [label="{RunHeuristic_H20_TagTypeSignature()}"];
+	Node0x6414c371f4a0 [label="{RunHeuristic_H21_TagStructMemberInspection()}"];
+	Node0x6414c371ef40 [label="{RunHeuristic_H22_NumArrayScalarExpectation()}"];
+	Node0x6414c371f930 [label="{RunHeuristic_H23_NumArrayValueRange()}"];
+	Node0x6414c3720e70 [label="{RunHeuristic_H24_TagStructNestingDepth()}"];
+	Node0x6414c37203e0 [label="{RunHeuristic_H25_TagOffsetOOB()}"];
+	Node0x6414c3720140 [label="{RunHeuristic_H26_NamedColor2StringValidation()}"];
+	Node0x6414c36fcba0 [label="{RunHeuristic_H27_MPEMatrixOutputChannel()}"];
+	Node0x6414c3723540 [label="{RunHeuristic_H28_LUTDimensionValidation()}"];
+	Node0x6414c3723240 [label="{RunHeuristic_H29_ColorantTableStringValidation()}"];
+	Node0x6414c36fd4e0 [label="{RunHeuristic_H30_GamutBoundaryDescAllocation()}"];
+	Node0x6414c371da50 [label="{RunHeuristic_H31_MPEChannelCount()}"];
+	Node0x6414c37273e0 [label="{RunHeuristic_H32_TagDataTypeConfusion()}"];
+	Node0x6414c3726fe0 [label="{RunHeuristic_H56_CalculatorStackDepth()}"];
+	Node0x6414c3726e50 [label="{RunHeuristic_H58_SparseMatrixEntryBounds()}"];
+	Node0x6414c3727e20 [label="{RunHeuristic_H60_DictionaryTagConsistency()}"];
+	Node0x6414c3703e60 [label="{RunHeuristic_H61_ViewingConditionsValidation()}"];
+	Node0x6414c3729be0 [label="{RunHeuristic_H65_ChromaticityPlausibility()}"];
+	Node0x6414c3729ab0 [label="{RunHeuristic_H66_NumArrayNaNInfScan()}"];
+	Node0x6414c3729720 [label="{RunHeuristic_H67_ResponseCurveSetBounds()}"];
+	Node0x6414c372a770 [label="{RunHeuristic_H70_MeasurementTagValidation()}"];
+	Node0x6414c372b410 [label="{RunHeuristic_H71_ColorantTableNullTermination()}"];
+	Node0x6414c372b1c0 [label="{RunHeuristic_H72_SparseMatrixArrayBounds()}"];
+	Node0x6414c372af20 [label="{RunHeuristic_H73_TagArrayNestingDepth()}"];
+	Node0x6414c372b7f0 [label="{RunHeuristic_H74_TagTypeSignatureConsistency()}"];
+	Node0x6414c370b020 [label="{RunHeuristic_H75_TagsVerySmallSize()}"];
+	Node0x6414c372e5c0 [label="{RunHeuristic_H76_CIccTagDataTypeFlag()}"];
+	Node0x6414c372e060 [label="{RunHeuristic_H77_MPECalculatorSubElementCount()}"];
+	Node0x6414c370b8e0 [label="{RunHeuristic_H78_CLUTGridDimensionOverflow()}"];
+	Node0x6414c3715c60 [label="{RunHeuristic_H79_LoadTagAllocationOverflow()}"];
+	Node0x6414c370cce0 [label="{RunHeuristic_H80_SharedTagPointerUAF()}"];
+	Node0x6414c370b860 [label="{RunHeuristic_H81_MPECalculatorIOConsistency()}"];
+	Node0x6414c3715be0 [label="{RunHeuristic_H82_IOReadSizeOverflow()}"];
+	Node0x6414c36f5b10 [label="{RunHeuristic_H83_FloatNumericArraySize()}"];
+	Node0x6414c36f5990 [label="{RunHeuristic_H84_LUT3DTransformConsistency()}"];
+	Node0x6414c36b72e0 [label="{RunHeuristic_H89_ProfileSequenceDescription()}"];
+	Node0x6414c36b8e70 [label="{RunHeuristic_H90_PreviewTagChannelConsistency()}"];
+	Node0x6414c36baa90 [label="{RunHeuristic_H91_ColorantOrderValidation()}"];
+	Node0x6414c36bc890 [label="{RunHeuristic_H92_SpectralViewingConditions()}"];
+	Node0x6414c36bd6a0 [label="{RunHeuristic_H93_EmbeddedProfileFlag()}"];
+	Node0x6414c36be690 [label="{RunHeuristic_H94_MatrixTRCColorantConsistency()}"];
+	Node0x6414c36c4710 [label="{RunHeuristic_H95_SparseMatrixArrayBoundsValidation()}"];
+	Node0x6414c36c6530 [label="{RunHeuristic_H96_EmbeddedProfileValidation()}"];
+	Node0x6414c36c8530 [label="{RunHeuristic_H97_ProfileSequenceIdValidation()}"];
+	Node0x6414c36cc790 [label="{RunHeuristic_H98_SpectralMPEElementValidation()}"];
+	Node0x6414c36ce3d0 [label="{RunHeuristic_H99_EmbeddedImageTagValidation()}"];
+	Node0x6414c36d0e20 [label="{RunHeuristic_H100_ProfileSequenceDescValidation()}"];
+	Node0x6414c36d9b10 [label="{RunHeuristic_H101_MPESubElementChannelContinuity()}"];
+	Node0x6414c36f3c10 [label="{RunHeuristic_H102_TagSizeProfileSizeCrossCheck()}"];
 }

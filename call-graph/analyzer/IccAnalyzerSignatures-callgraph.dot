@@ -1,9 +1,34 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerSignatures.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerSignatures.ll";
 
-	Node0x644d32391030 [shape=record,label="{_Z17SignatureToFourCCjPc}"];
-	Node0x644d323921e0 [shape=record,label="{_Z24HasNonPrintableSignaturej}"];
-	Node0x644d32391180 [shape=record,label="{_Z17AnalyzeSignaturesP11CIccProfile}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x644d32391030 [label="{SignatureToFourCC()}"];
+	Node0x644d323921e0 [label="{HasNonPrintableSignature()}"];
+	Node0x644d32391180 [label="{AnalyzeSignatures()}"];
 	Node0x644d32391180 -> Node0x644d32323690;
 	Node0x644d32391180 -> Node0x644d32322180;
 	Node0x644d32391180 -> Node0x644d32322bc0;
@@ -24,39 +49,39 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerSig
 	Node0x644d32391180 -> Node0x644d32322510;
 	Node0x644d32391180 -> Node0x644d3239d040;
 	Node0x644d32391180 -> Node0x644d3239bb20;
-	Node0x644d32323690 [shape=record,label="{printf}"];
-	Node0x644d32322180 [shape=record,label="{_ZN8CIccInfoC1Ev}"];
-	Node0x644d32322bc0 [shape=record,label="{fprintf}"];
-	Node0x644d32324d60 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x644d32391e30 [shape=record,label="{fputc}"];
-	Node0x644d3239d040 [shape=record,label="{_ZN8CIccInfo22GetProfileClassSigNameE23icProfileClassSignature}"];
-	Node0x644d3239bb20 [shape=record,label="{_ZN8CIccInfo20GetColorSpaceSigNameE21icColorSpaceSignature}"];
-	Node0x644d32322510 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEC2Ev}"];
-	Node0x644d3239df00 [shape=record,label="{_ZNSt7__cxx114listI11IccTagEntrySaIS1_EE5beginEv}"];
+	Node0x644d32323690 [label="{printf}"];
+	Node0x644d32322180 [label="{CIccInfo::CIccInfo()}"];
+	Node0x644d32322bc0 [label="{fprintf}"];
+	Node0x644d32324d60 [label="{__gxx_personality_v0}"];
+	Node0x644d32391e30 [label="{fputc}"];
+	Node0x644d3239d040 [label="{CIccInfo::GetProfileClassSigName()}"];
+	Node0x644d3239bb20 [label="{CIccInfo::GetColorSpaceSigName()}"];
+	Node0x644d32322510 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
+	Node0x644d3239df00 [label="{std::list<IccTagEntry >::begin()}"];
 	Node0x644d3239df00 -> Node0x644d3239ed10;
-	Node0x644d32324240 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x644d3239e080 [shape=record,label="{_ZStneRKSt14_List_iteratorI11IccTagEntryES3_}"];
-	Node0x644d3239e1f0 [shape=record,label="{_ZNSt7__cxx114listI11IccTagEntrySaIS1_EE3endEv}"];
+	Node0x644d32324240 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x644d3239e080 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
+	Node0x644d3239e1f0 [label="{std::list<IccTagEntry >::end()}"];
 	Node0x644d3239e1f0 -> Node0x644d3239ed10;
-	Node0x644d32324960 [shape=record,label="{_ZNKSt14_List_iteratorI11IccTagEntryEdeEv}"];
+	Node0x644d32324960 [label="{std::_List_iterator<IccTagEntry>::operator*() const}"];
 	Node0x644d32324960 -> Node0x644d32325ea0;
 	Node0x644d32324960 -> Node0x644d323264d0;
-	Node0x644d323246a0 [shape=record,label="{_ZN11CIccProfile7FindTagEj}"];
-	Node0x644d3239e7c0 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x644d32324ba0 [shape=record,label="{_ZN8CIccInfo13GetTagSigNameE14icTagSignature}"];
-	Node0x644d32325020 [shape=record,label="{_ZN8CIccInfo17GetTagTypeSigNameE18icTagTypeSignature}"];
-	Node0x644d3239ef60 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEppEi}"];
+	Node0x644d323246a0 [label="{CIccProfile::FindTag()}"];
+	Node0x644d3239e7c0 [label="{llvm.memset.p0.i64}"];
+	Node0x644d32324ba0 [label="{CIccInfo::GetTagSigName()}"];
+	Node0x644d32325020 [label="{CIccInfo::GetTagTypeSigName()}"];
+	Node0x644d3239ef60 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
 	Node0x644d3239ef60 -> Node0x644d32324240;
-	Node0x644d32321f80 [shape=record,label="{_ZN8CIccInfoD1Ev}"];
-	Node0x644d3239ed10 [shape=record,label="{_ZNSt14_List_iteratorI11IccTagEntryEC2EPNSt8__detail15_List_node_baseE}"];
-	Node0x644d32325ea0 [shape=record,label="{_ZNSt10_List_nodeI11IccTagEntryE9_M_valptrEv}"];
+	Node0x644d32321f80 [label="{CIccInfo::~CIccInfo()}"];
+	Node0x644d3239ed10 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
+	Node0x644d32325ea0 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
 	Node0x644d32325ea0 -> Node0x644d3239f820;
-	Node0x644d323264d0 [shape=record,label="{__clang_call_terminate}"];
+	Node0x644d323264d0 [label="{__clang_call_terminate}"];
 	Node0x644d323264d0 -> Node0x644d323260f0;
 	Node0x644d323264d0 -> Node0x644d323251e0;
-	Node0x644d323260f0 [shape=record,label="{__cxa_begin_catch}"];
-	Node0x644d323251e0 [shape=record,label="{_ZSt9terminatev}"];
-	Node0x644d3239f820 [shape=record,label="{_ZN9__gnu_cxx16__aligned_membufI11IccTagEntryE6_M_ptrEv}"];
+	Node0x644d323260f0 [label="{__cxa_begin_catch}"];
+	Node0x644d323251e0 [label="{std::terminate()}"];
+	Node0x644d3239f820 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
 	Node0x644d3239f820 -> Node0x644d32326680;
-	Node0x644d32326680 [shape=record,label="{_ZN9__gnu_cxx16__aligned_membufI11IccTagEntryE7_M_addrEv}"];
+	Node0x644d32326680 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
 }

@@ -1,19 +1,44 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMD5.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMD5.ll";
 
-	Node0x5694d147e430 [shape=record,label="{_Z9icMD5InitP7MD5_CTX}"];
-	Node0x5694d147dbb0 [shape=record,label="{_Z11icMD5UpdateP7MD5_CTXPhj}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x5694d147e430 [label="{icMD5Init()}"];
+	Node0x5694d147dbb0 [label="{icMD5Update()}"];
 	Node0x5694d147dbb0 -> Node0x5694d1478fc0;
 	Node0x5694d147dbb0 -> Node0x5694d1479040;
-	Node0x5694d1478fc0 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5694d1479040 [shape=record,label="{_ZL12MD5TransformPjPh}"];
+	Node0x5694d1478fc0 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x5694d1479040 [label="{MD5Transform()}"];
 	Node0x5694d1479040 -> Node0x5694d1479a80;
 	Node0x5694d1479040 -> Node0x5694d13e7020;
-	Node0x5694d13e1080 [shape=record,label="{_Z10icMD5FinalPhP7MD5_CTX}"];
+	Node0x5694d13e1080 [label="{icMD5Final()}"];
 	Node0x5694d13e1080 -> Node0x5694d14807e0;
 	Node0x5694d13e1080 -> Node0x5694d147dbb0;
 	Node0x5694d13e1080 -> Node0x5694d13e7020;
-	Node0x5694d14807e0 [shape=record,label="{_ZL6EncodePhPjj}"];
-	Node0x5694d13e7020 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x5694d1479a80 [shape=record,label="{_ZL6DecodePjPhj}"];
+	Node0x5694d14807e0 [label="{Encode()}"];
+	Node0x5694d13e7020 [label="{llvm.memset.p0.i64}"];
+	Node0x5694d1479a80 [label="{Decode()}"];
 }

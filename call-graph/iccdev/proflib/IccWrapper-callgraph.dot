@@ -1,17 +1,42 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccWrapper.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccWrapper.ll";
 
-	Node0x59ac9f4641f0 [shape=record,label="{_ZN21CIccCmmEnvVarsWrapper9GetEnvVarE14icSigCmmEnvVarRf}"];
-	Node0x59ac9f456030 [shape=record,label="{_ZN21CIccCmmEnvVarsWrapper13IndexedEnvVarEjR14icSigCmmEnvVarRf}"];
-	Node0x59ac9f452480 [shape=record,label="{IccCmmCreate}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x59ac9f4641f0 [label="{CIccCmmEnvVarsWrapper::GetEnvVar()}"];
+	Node0x59ac9f456030 [label="{CIccCmmEnvVarsWrapper::IndexedEnvVar()}"];
+	Node0x59ac9f452480 [label="{IccCmmCreate}"];
 	Node0x59ac9f452480 -> Node0x59ac9f45fd90;
 	Node0x59ac9f452480 -> Node0x59ac9f446620;
 	Node0x59ac9f452480 -> Node0x59ac9f445620;
-	Node0x59ac9f45fd90 [shape=record,label="{_Znwm}"];
-	Node0x59ac9f446620 [shape=record,label="{_ZN7CIccCmmC1E21icColorSpaceSignatureS0_b}"];
-	Node0x59ac9f3c1730 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x59ac9f445620 [shape=record,label="{_ZdlPv}"];
-	Node0x59ac9f3ba820 [shape=record,label="{IccCmmAttachProfileFile}"];
+	Node0x59ac9f45fd90 [label="{new()}"];
+	Node0x59ac9f446620 [label="{CIccCmm::CIccCmm()}"];
+	Node0x59ac9f3c1730 [label="{__gxx_personality_v0}"];
+	Node0x59ac9f445620 [label="{delete()}"];
+	Node0x59ac9f3ba820 [label="{IccCmmAttachProfileFile}"];
 	Node0x59ac9f3ba820 -> Node0x59ac9f3babb0;
 	Node0x59ac9f3ba820 -> Node0x59ac9f45fd90;
 	Node0x59ac9f3ba820 -> Node0x59ac9f3b9a10;
@@ -20,15 +45,15 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccWrapp
 	Node0x59ac9f3ba820 -> Node0x59ac9f41db50;
 	Node0x59ac9f3ba820 -> Node0x59ac9f46bd80;
 	Node0x59ac9f3ba820 -> Node0x59ac9f445620;
-	Node0x59ac9f3babb0 [shape=record,label="{_ZN26CIccCreateXformHintManagerC2Ev}"];
-	Node0x59ac9f3bab10 [shape=record,label="{_ZN26CIccCreateXformHintManager7AddHintEP19IIccCreateXformHint}"];
-	Node0x59ac9f3b9a10 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x59ac9f3b9b60 [shape=record,label="{_ZN16CIccApplyBPCHintC2Ev}"];
+	Node0x59ac9f3babb0 [label="{CIccCreateXformHintManager::CIccCreateXformHintManager()}"];
+	Node0x59ac9f3bab10 [label="{CIccCreateXformHintManager::AddHint()}"];
+	Node0x59ac9f3b9a10 [label="{llvm.memset.p0.i64}"];
+	Node0x59ac9f3b9b60 [label="{CIccApplyBPCHint::CIccApplyBPCHint()}"];
 	Node0x59ac9f3b9b60 -> Node0x59ac9f469e20;
-	Node0x59ac9f46bd80 [shape=record,label="{_ZN24CIccCmmEnvVarWrapperHintC2EP14SIccCmmEnvVars}"];
+	Node0x59ac9f46bd80 [label="{CIccCmmEnvVarWrapperHint::CIccCmmEnvVarWrapperHint()}"];
 	Node0x59ac9f46bd80 -> Node0x59ac9f468940;
-	Node0x59ac9f41db50 [shape=record,label="{_ZN26CIccCreateXformHintManagerD1Ev}"];
-	Node0x59ac9f46d5e0 [shape=record,label="{IccCmmAttachProfileHandle}"];
+	Node0x59ac9f41db50 [label="{CIccCreateXformHintManager::~CIccCreateXformHintManager()}"];
+	Node0x59ac9f46d5e0 [label="{IccCmmAttachProfileHandle}"];
 	Node0x59ac9f46d5e0 -> Node0x59ac9f3babb0;
 	Node0x59ac9f46d5e0 -> Node0x59ac9f45fd90;
 	Node0x59ac9f46d5e0 -> Node0x59ac9f3b9a10;
@@ -37,75 +62,75 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccWrapp
 	Node0x59ac9f46d5e0 -> Node0x59ac9f41db50;
 	Node0x59ac9f46d5e0 -> Node0x59ac9f46bd80;
 	Node0x59ac9f46d5e0 -> Node0x59ac9f445620;
-	Node0x59ac9f46d4a0 [shape=record,label="{IccCmmBegin}"];
-	Node0x59ac9f46d220 [shape=record,label="{IccCmmGetApply}"];
-	Node0x59ac9f46cda0 [shape=record,label="{IccCmmGetInfo}"];
+	Node0x59ac9f46d4a0 [label="{IccCmmBegin}"];
+	Node0x59ac9f46d220 [label="{IccCmmGetApply}"];
+	Node0x59ac9f46cda0 [label="{IccCmmGetInfo}"];
 	Node0x59ac9f46cda0 -> Node0x59ac9f46d9a0;
 	Node0x59ac9f46cda0 -> Node0x59ac9f46e120;
 	Node0x59ac9f46cda0 -> Node0x59ac9f46dfe0;
 	Node0x59ac9f46cda0 -> Node0x59ac9f46dd60;
-	Node0x59ac9f46d9a0 [shape=record,label="{_ZNK7CIccCmm14GetSourceSpaceEv}"];
-	Node0x59ac9f490870 [shape=record,label="{_ZN21CIccCmmEnvVarsWrapperC2EP14SIccCmmEnvVars}"];
+	Node0x59ac9f46d9a0 [label="{CIccCmm::GetSourceSpace()}"];
+	Node0x59ac9f490870 [label="{CIccCmmEnvVarsWrapper::CIccCmmEnvVarsWrapper()}"];
 	Node0x59ac9f490870 -> Node0x59ac9f4901a0;
-	Node0x59ac9f46e120 [shape=record,label="{_ZNK7CIccCmm16GetSourceSamplesEv}"];
+	Node0x59ac9f46e120 [label="{CIccCmm::GetSourceSamples()}"];
 	Node0x59ac9f46e120 -> Node0x59ac9f46dae0;
-	Node0x59ac9f46dfe0 [shape=record,label="{_ZNK7CIccCmm12GetDestSpaceEv}"];
-	Node0x59ac9f46dd60 [shape=record,label="{_ZNK7CIccCmm14GetDestSamplesEv}"];
+	Node0x59ac9f46dfe0 [label="{CIccCmm::GetDestSpace()}"];
+	Node0x59ac9f46dd60 [label="{CIccCmm::GetDestSamples()}"];
 	Node0x59ac9f46dd60 -> Node0x59ac9f46dae0;
-	Node0x59ac9f46fec0 [shape=record,label="{IccCmmApplyFloat}"];
-	Node0x59ac9f46f880 [shape=record,label="{IccCmmApplyFloatMulti}"];
-	Node0x59ac9f46f4c0 [shape=record,label="{IccCmmFree}"];
-	Node0x59ac9f46eb20 [shape=record,label="{IccApplyApplyFloat}"];
-	Node0x59ac9f46b240 [shape=record,label="{IccApplyApplyFloatMulti}"];
-	Node0x59ac9f470f00 [shape=record,label="{IccApplyFree}"];
-	Node0x59ac9f470a00 [shape=record,label="{IccProfileReadHandle}"];
+	Node0x59ac9f46fec0 [label="{IccCmmApplyFloat}"];
+	Node0x59ac9f46f880 [label="{IccCmmApplyFloatMulti}"];
+	Node0x59ac9f46f4c0 [label="{IccCmmFree}"];
+	Node0x59ac9f46eb20 [label="{IccApplyApplyFloat}"];
+	Node0x59ac9f46b240 [label="{IccApplyApplyFloatMulti}"];
+	Node0x59ac9f470f00 [label="{IccApplyFree}"];
+	Node0x59ac9f470a00 [label="{IccProfileReadHandle}"];
 	Node0x59ac9f470a00 -> Node0x59ac9f470640;
-	Node0x59ac9f470640 [shape=record,label="{_Z14ReadIccProfilePKcb}"];
-	Node0x59ac9f470200 [shape=record,label="{IccProfileOpenHandle}"];
+	Node0x59ac9f470640 [label="{ReadIccProfile()}"];
+	Node0x59ac9f470200 [label="{IccProfileOpenHandle}"];
 	Node0x59ac9f470200 -> Node0x59ac9f46d520;
-	Node0x59ac9f46d520 [shape=record,label="{_Z14OpenIccProfilePKcb}"];
-	Node0x59ac9f46d8e0 [shape=record,label="{IccProfileGetHeader}"];
+	Node0x59ac9f46d520 [label="{OpenIccProfile()}"];
+	Node0x59ac9f46d8e0 [label="{IccProfileGetHeader}"];
 	Node0x59ac9f46d8e0 -> Node0x59ac9f46f800;
-	Node0x59ac9f46f800 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x59ac9f46ebe0 [shape=record,label="{IccProfileFree}"];
+	Node0x59ac9f46f800 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x59ac9f46ebe0 [label="{IccProfileFree}"];
 	Node0x59ac9f46ebe0 -> Node0x59ac9f445620;
-	Node0x59ac9f46cf20 [shape=record,label="{_ZN21CIccCmmEnvVarsWrapperD2Ev}"];
+	Node0x59ac9f46cf20 [label="{CIccCmmEnvVarsWrapper::~CIccCmmEnvVarsWrapper()}"];
 	Node0x59ac9f46cf20 -> Node0x59ac9f46d1a0;
-	Node0x59ac9f46f0a0 [shape=record,label="{_ZN21CIccCmmEnvVarsWrapperD0Ev}"];
+	Node0x59ac9f46f0a0 [label="{CIccCmmEnvVarsWrapper::~CIccCmmEnvVarsWrapper()}"];
 	Node0x59ac9f46f0a0 -> Node0x59ac9f46cf20;
 	Node0x59ac9f46f0a0 -> Node0x59ac9f445620;
-	Node0x59ac9f469e20 [shape=record,label="{_ZN28CIccCreateAdjustPCSXformHintC2Ev}"];
+	Node0x59ac9f469e20 [label="{CIccCreateAdjustPCSXformHint::CIccCreateAdjustPCSXformHint()}"];
 	Node0x59ac9f469e20 -> Node0x59ac9f471840;
-	Node0x59ac9f471840 [shape=record,label="{_ZN19IIccCreateXformHintC2Ev}"];
-	Node0x59ac9f4764c0 [shape=record,label="{_ZN28CIccCreateAdjustPCSXformHintD2Ev}"];
+	Node0x59ac9f471840 [label="{IIccCreateXformHint::IIccCreateXformHint()}"];
+	Node0x59ac9f4764c0 [label="{CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHint()}"];
 	Node0x59ac9f4764c0 -> Node0x59ac9f475d10;
-	Node0x59ac9f474a80 [shape=record,label="{_ZN28CIccCreateAdjustPCSXformHintD0Ev}"];
+	Node0x59ac9f474a80 [label="{CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHint()}"];
 	Node0x59ac9f474a80 -> Node0x59ac9f476dc0;
-	Node0x59ac9f48b230 [shape=record,label="{_ZNK28CIccCreateAdjustPCSXformHint11GetHintTypeEv}"];
-	Node0x59ac9f48aea0 [shape=record,label="{__cxa_pure_virtual}"];
-	Node0x59ac9f475d10 [shape=record,label="{_ZN19IIccCreateXformHintD2Ev}"];
-	Node0x59ac9f48a290 [shape=record,label="{_ZN19IIccCreateXformHintD0Ev}"];
+	Node0x59ac9f48b230 [label="{CIccCreateAdjustPCSXformHint::GetHintType()}"];
+	Node0x59ac9f48aea0 [label="{__cxa_pure_virtual}"];
+	Node0x59ac9f475d10 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
+	Node0x59ac9f48a290 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
 	Node0x59ac9f48a290 -> Node0x59ac9f476dc0;
-	Node0x59ac9f476dc0 [shape=record,label="{llvm.trap}"];
-	Node0x59ac9f468940 [shape=record,label="{_ZN28CIccCreateCmmEnvVarXformHintC2Ev}"];
+	Node0x59ac9f476dc0 [label="{llvm.trap}"];
+	Node0x59ac9f468940 [label="{CIccCreateCmmEnvVarXformHint::CIccCreateCmmEnvVarXformHint()}"];
 	Node0x59ac9f468940 -> Node0x59ac9f471840;
-	Node0x59ac9f48c390 [shape=record,label="{_ZN24CIccCmmEnvVarWrapperHintD2Ev}"];
+	Node0x59ac9f48c390 [label="{CIccCmmEnvVarWrapperHint::~CIccCmmEnvVarWrapperHint()}"];
 	Node0x59ac9f48c390 -> Node0x59ac9f48e780;
-	Node0x59ac9f48e500 [shape=record,label="{_ZN24CIccCmmEnvVarWrapperHintD0Ev}"];
+	Node0x59ac9f48e500 [label="{CIccCmmEnvVarWrapperHint::~CIccCmmEnvVarWrapperHint()}"];
 	Node0x59ac9f48e500 -> Node0x59ac9f48c390;
 	Node0x59ac9f48e500 -> Node0x59ac9f445620;
-	Node0x59ac9f48e3b0 [shape=record,label="{_ZNK28CIccCreateCmmEnvVarXformHint11GetHintTypeEv}"];
-	Node0x59ac9f48ca20 [shape=record,label="{_ZNK24CIccCmmEnvVarWrapperHint21GetNewCmmEnvVarLookupEv}"];
+	Node0x59ac9f48e3b0 [label="{CIccCreateCmmEnvVarXformHint::GetHintType()}"];
+	Node0x59ac9f48ca20 [label="{CIccCmmEnvVarWrapperHint::GetNewCmmEnvVarLookup()}"];
 	Node0x59ac9f48ca20 -> Node0x59ac9f45fd90;
 	Node0x59ac9f48ca20 -> Node0x59ac9f490870;
 	Node0x59ac9f48ca20 -> Node0x59ac9f445620;
-	Node0x59ac9f48e780 [shape=record,label="{_ZN28CIccCreateCmmEnvVarXformHintD2Ev}"];
+	Node0x59ac9f48e780 [label="{CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHint()}"];
 	Node0x59ac9f48e780 -> Node0x59ac9f475d10;
-	Node0x59ac9f490440 [shape=record,label="{_ZN28CIccCreateCmmEnvVarXformHintD0Ev}"];
+	Node0x59ac9f490440 [label="{CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHint()}"];
 	Node0x59ac9f490440 -> Node0x59ac9f476dc0;
-	Node0x59ac9f4901a0 [shape=record,label="{_ZN19IIccCmmEnvVarLookupC2Ev}"];
-	Node0x59ac9f46d1a0 [shape=record,label="{_ZN19IIccCmmEnvVarLookupD2Ev}"];
-	Node0x59ac9f48fcc0 [shape=record,label="{_ZN19IIccCmmEnvVarLookupD0Ev}"];
+	Node0x59ac9f4901a0 [label="{IIccCmmEnvVarLookup::IIccCmmEnvVarLookup()}"];
+	Node0x59ac9f46d1a0 [label="{IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()}"];
+	Node0x59ac9f48fcc0 [label="{IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()}"];
 	Node0x59ac9f48fcc0 -> Node0x59ac9f476dc0;
-	Node0x59ac9f46dae0 [shape=record,label="{_Z17icGetSpaceSamples21icColorSpaceSignature}"];
+	Node0x59ac9f46dae0 [label="{icGetSpaceSamples()}"];
 }

@@ -1,25 +1,50 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/TiffImg.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/iccdev/tools/TiffImg.ll";
 
-	Node0x5684c2e8f640 [shape=record,label="{_ZN8CTiffImgC2Ev}"];
-	Node0x5684c2dc83e0 [shape=record,label="{_ZN8CTiffImgD2Ev}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x5684c2e8f640 [label="{CTiffImg::CTiffImg()}"];
+	Node0x5684c2dc83e0 [label="{CTiffImg::~CTiffImg()}"];
 	Node0x5684c2dc83e0 -> Node0x5684c2e88de0;
 	Node0x5684c2dc83e0 -> Node0x5684c2e90b60;
-	Node0x5684c2e88de0 [shape=record,label="{_ZN8CTiffImg5CloseEv}"];
+	Node0x5684c2e88de0 [label="{CTiffImg::Close()}"];
 	Node0x5684c2e88de0 -> Node0x5684c2e9e3d0;
 	Node0x5684c2e88de0 -> Node0x5684c2e91d40;
-	Node0x5684c2dbb0c0 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x5684c2e90b60 [shape=record,label="{__clang_call_terminate}"];
+	Node0x5684c2dbb0c0 [label="{__gxx_personality_v0}"];
+	Node0x5684c2e90b60 [label="{__clang_call_terminate}"];
 	Node0x5684c2e90b60 -> Node0x5684c2e9e780;
 	Node0x5684c2e90b60 -> Node0x5684c2ea0030;
-	Node0x5684c2e9e780 [shape=record,label="{__cxa_begin_catch}"];
-	Node0x5684c2ea0030 [shape=record,label="{_ZSt9terminatev}"];
-	Node0x5684c2e9ffb0 [shape=record,label="{_ZN8CTiffImgD0Ev}"];
+	Node0x5684c2e9e780 [label="{__cxa_begin_catch}"];
+	Node0x5684c2ea0030 [label="{std::terminate()}"];
+	Node0x5684c2e9ffb0 [label="{CTiffImg::~CTiffImg()}"];
 	Node0x5684c2e9ffb0 -> Node0x5684c2e9ed60;
-	Node0x5684c2e9ed60 [shape=record,label="{_ZdlPv}"];
-	Node0x5684c2e9e3d0 [shape=record,label="{TIFFClose}"];
-	Node0x5684c2e91d40 [shape=record,label="{free}"];
-	Node0x5684c2e9f3a0 [shape=record,label="{_ZN8CTiffImg6CreateEPKcjjjjjjffbb}"];
+	Node0x5684c2e9ed60 [label="{delete()}"];
+	Node0x5684c2e9e3d0 [label="{TIFFClose}"];
+	Node0x5684c2e91d40 [label="{free}"];
+	Node0x5684c2e9f3a0 [label="{CTiffImg::Create()}"];
 	Node0x5684c2e9f3a0 -> Node0x5684c2e88de0;
 	Node0x5684c2e9f3a0 -> Node0x5684c2ea14e0;
 	Node0x5684c2e9f3a0 -> Node0x5684c2ea1b90;
@@ -28,32 +53,32 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/TiffImg.ll
 	Node0x5684c2e9f3a0 -> Node0x5684c2ea4910;
 	Node0x5684c2e9f3a0 -> Node0x5684c2e91d40;
 	Node0x5684c2e9f3a0 -> Node0x5684c2ea1730;
-	Node0x5684c2ea14e0 [shape=record,label="{TIFFOpen}"];
-	Node0x5684c2ea1b90 [shape=record,label="{TIFFError}"];
-	Node0x5684c2ea1930 [shape=record,label="{TIFFSetField}"];
-	Node0x5684c2ea1730 [shape=record,label="{calloc}"];
-	Node0x5684c2ea1ee0 [shape=record,label="{TIFFStripSize}"];
-	Node0x5684c2ea4910 [shape=record,label="{malloc}"];
-	Node0x5684c2e9f550 [shape=record,label="{_ZN8CTiffImg4OpenEPKc}"];
+	Node0x5684c2ea14e0 [label="{TIFFOpen}"];
+	Node0x5684c2ea1b90 [label="{TIFFError}"];
+	Node0x5684c2ea1930 [label="{TIFFSetField}"];
+	Node0x5684c2ea1730 [label="{calloc}"];
+	Node0x5684c2ea1ee0 [label="{TIFFStripSize}"];
+	Node0x5684c2ea4910 [label="{malloc}"];
+	Node0x5684c2e9f550 [label="{CTiffImg::Open()}"];
 	Node0x5684c2e9f550 -> Node0x5684c2e88de0;
 	Node0x5684c2e9f550 -> Node0x5684c2ea14e0;
 	Node0x5684c2e9f550 -> Node0x5684c2ea1b90;
 	Node0x5684c2e9f550 -> Node0x5684c2ea3aa0;
 	Node0x5684c2e9f550 -> Node0x5684c2ea4910;
 	Node0x5684c2e9f550 -> Node0x5684c2ea1ee0;
-	Node0x5684c2ea3aa0 [shape=record,label="{TIFFGetField}"];
-	Node0x5684c2ea20b0 [shape=record,label="{_ZN8CTiffImg8ReadLineEPh}"];
+	Node0x5684c2ea3aa0 [label="{TIFFGetField}"];
+	Node0x5684c2ea20b0 [label="{CTiffImg::ReadLine()}"];
 	Node0x5684c2ea20b0 -> Node0x5684c2ea76f0;
 	Node0x5684c2ea20b0 -> Node0x5684c2ea7160;
-	Node0x5684c2ea76f0 [shape=record,label="{TIFFReadEncodedStrip}"];
-	Node0x5684c2ea7160 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5684c2ea6c50 [shape=record,label="{_ZN8CTiffImg9WriteLineEPh}"];
+	Node0x5684c2ea76f0 [label="{TIFFReadEncodedStrip}"];
+	Node0x5684c2ea7160 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x5684c2ea6c50 [label="{CTiffImg::WriteLine()}"];
 	Node0x5684c2ea6c50 -> Node0x5684c2ea7160;
 	Node0x5684c2ea6c50 -> Node0x5684c2ea6a80;
-	Node0x5684c2ea6a80 [shape=record,label="{TIFFWriteEncodedStrip}"];
-	Node0x5684c2ea6870 [shape=record,label="{_ZN8CTiffImg8GetPhotoEv}"];
-	Node0x5684c2e9c9c0 [shape=record,label="{_ZN8CTiffImg13GetIccProfileERPhRj}"];
+	Node0x5684c2ea6a80 [label="{TIFFWriteEncodedStrip}"];
+	Node0x5684c2ea6870 [label="{CTiffImg::GetPhoto()}"];
+	Node0x5684c2e9c9c0 [label="{CTiffImg::GetIccProfile()}"];
 	Node0x5684c2e9c9c0 -> Node0x5684c2ea3aa0;
-	Node0x5684c2ea9b40 [shape=record,label="{_ZN8CTiffImg13SetIccProfileEPhj}"];
+	Node0x5684c2ea9b40 [label="{CTiffImg::SetIccProfile()}"];
 	Node0x5684c2ea9b40 -> Node0x5684c2ea1930;
 }

@@ -1,17 +1,42 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccRoundTrip.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccRoundTrip.ll";
 
-	Node0x5ca80d1a9200 [shape=record,label="{_ZN14CIccMinMaxEvalC2Ev}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x5ca80d1a9200 [label="{CIccMinMaxEval::CIccMinMaxEval()}"];
 	Node0x5ca80d1a9200 -> Node0x5ca80d1558e0;
 	Node0x5ca80d1a9200 -> Node0x5ca80d1a8e70;
-	Node0x5ca80d1558e0 [shape=record,label="{_ZN15CIccEvalCompareC2Ev}"];
-	Node0x5ca80d1a8e70 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x5ca80d155610 [shape=record,label="{_ZN14CIccMinMaxEval7CompareEPfS0_S0_S0_}"];
+	Node0x5ca80d1558e0 [label="{CIccEvalCompare::CIccEvalCompare()}"];
+	Node0x5ca80d1a8e70 [label="{llvm.memset.p0.i64}"];
+	Node0x5ca80d155610 [label="{CIccMinMaxEval::Compare()}"];
 	Node0x5ca80d155610 -> Node0x5ca80d1551b0;
 	Node0x5ca80d155610 -> Node0x5ca80d155d60;
-	Node0x5ca80d1551b0 [shape=record,label="{_Z8icDeltaEPKfS0_}"];
-	Node0x5ca80d155d60 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5ca80d1a9810 [shape=record,label="{main}"];
+	Node0x5ca80d1551b0 [label="{icDeltaE()}"];
+	Node0x5ca80d155d60 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x5ca80d1a9810 [label="{main}"];
 	Node0x5ca80d1a9810 -> Node0x5ca80d1a9640;
 	Node0x5ca80d1a9810 -> Node0x5ca80d1aa000;
 	Node0x5ca80d1a9810 -> Node0x5ca80d1563b0;
@@ -22,16 +47,16 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccRoundTr
 	Node0x5ca80d1a9810 -> Node0x5ca80d156e30;
 	Node0x5ca80d1a9810 -> Node0x5ca80d156bf0;
 	Node0x5ca80d1a9810 -> Node0x5ca80d156810;
-	Node0x5ca80d1a9640 [shape=record,label="{printf}"];
-	Node0x5ca80d155ce0 [shape=record,label="{atoi}"];
-	Node0x5ca80d155860 [shape=record,label="{_ZN15CIccEvalCompare15EvaluateProfileEPKch17icRenderingIntent13icXformInterpb}"];
-	Node0x5ca80d156e30 [shape=record,label="{_ZN8CIccPRMGC1Ev}"];
-	Node0x5ca80d156bf0 [shape=record,label="{_ZN8CIccPRMG15EvaluateProfileEPKc17icRenderingIntent13icXformInterpb}"];
-	Node0x5ca80d156810 [shape=record,label="{_ZN8CIccInfoC1Ev}"];
-	Node0x5ca80d157070 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x5ca80d155f30 [shape=record,label="{_ZN8CIccInfo22GetRenderingIntentNameE17icRenderingIntentb}"];
-	Node0x5ca80d157500 [shape=record,label="{_ZN14CIccMinMaxEval8GetMean1Ev}"];
-	Node0x5ca80d1563b0 [shape=record,label="{_ZN14CIccMinMaxEval8GetMean2Ev}"];
-	Node0x5ca80d1aa000 [shape=record,label="{_ZN8CIccInfoD1Ev}"];
-	Node0x5ca80d158830 [shape=record,label="{__cxa_pure_virtual}"];
+	Node0x5ca80d1a9640 [label="{printf}"];
+	Node0x5ca80d155ce0 [label="{atoi}"];
+	Node0x5ca80d155860 [label="{CIccEvalCompare::EvaluateProfile()}"];
+	Node0x5ca80d156e30 [label="{CIccPRMG::CIccPRMG()}"];
+	Node0x5ca80d156bf0 [label="{CIccPRMG::EvaluateProfile()}"];
+	Node0x5ca80d156810 [label="{CIccInfo::CIccInfo()}"];
+	Node0x5ca80d157070 [label="{__gxx_personality_v0}"];
+	Node0x5ca80d155f30 [label="{CIccInfo::GetRenderingIntentName()}"];
+	Node0x5ca80d157500 [label="{CIccMinMaxEval::GetMean1()}"];
+	Node0x5ca80d1563b0 [label="{CIccMinMaxEval::GetMean2()}"];
+	Node0x5ca80d1aa000 [label="{CIccInfo::~CIccInfo()}"];
+	Node0x5ca80d158830 [label="{__cxa_pure_virtual}"];
 }
