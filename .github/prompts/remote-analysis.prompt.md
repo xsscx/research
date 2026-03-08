@@ -10,7 +10,7 @@ local iccanalyzer-lite binaries or git commit round-trips.
 
 1. MCP Docker image running on a reachable host:
    ```bash
-   docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+   docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
    ```
 2. Network access from the agent to the Docker host (port 8080)
 3. `curl` available on the agent machine
@@ -120,9 +120,9 @@ done
 
 ## Docker Image Details
 
-- Image: `ghcr.io/xsscx/icc-profile-demo`
-- Built by: `.github/workflows/demo-docker-build.yml`
-- Three modes: `demo` (HTML UI + API), `api` (REST only), `mcp` (stdio for MCP clients)
+- Image: `ghcr.io/xsscx/icc-profile-mcp`
+- Built by: `.github/workflows/mcp-server-docker.yml`
+- Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
 - Contains: iccanalyzer-lite (ASAN+UBSAN), colorbleed_tools, MCP server, test-profiles
 
 ## See Also

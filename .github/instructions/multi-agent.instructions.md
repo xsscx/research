@@ -139,7 +139,7 @@ raw profiles + pulling reports via git. This avoids 2 commits per profile.
 macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
 ─────────────────                     ──────────────────────────────
                                       docker run -p 8080:8080 \
-  curl -F file=@profile.icc  ───────→  ghcr.io/xsscx/icc-profile-demo api
+  curl -F file=@profile.icc  ───────→  ghcr.io/xsscx/icc-profile-mcp web
     POST /api/upload                    │
                                         ├── iccanalyzer-lite -a (141 heuristics)
   ← JSON {path: "/tmp/uploads/..."}     ├── iccanalyzer-lite --json
@@ -169,7 +169,7 @@ macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
 **macOS Agent Usage Example**:
 ```bash
 # Start MCP API server on WSL-2 host (one-time)
-docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
 # From macOS: upload and analyze a profile
 curl -s -F "file=@harvested-profile.icc" http://<wsl-ip>:8080/api/upload
@@ -188,8 +188,8 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
   seed corpus additions, anything that should be version-controlled
 
 **Docker Image Availability**:
-- `ghcr.io/xsscx/icc-profile-demo:latest` — built by `.github/workflows/demo-docker-build.yml`
-- Three modes: `demo` (default, HTML UI), `api` (REST API), `mcp` (stdio for MCP clients)
+- `ghcr.io/xsscx/icc-profile-mcp:latest` — built by `.github/workflows/mcp-server-docker.yml`
+- Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
