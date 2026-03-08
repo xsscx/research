@@ -38,8 +38,17 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerXMLExport.h"
 #include "IccAnalyzerHeuristics.h"
+#include "IccHeuristicsRegistry.h"
 #include <sstream>
 #include <ctime>
+#include <cstdio>
+#include <cstdlib>
+#include <regex>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <vector>
+#include <set>
+#include <algorithm>
 
 std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
 {
@@ -63,9 +72,6 @@ std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
 /** Write embedded XSLT stylesheet for XML report rendering. */
 void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
 {
-  // Emit embedded XSLT 1.0 stylesheet that transforms XML analysis reports
-  // into styled HTML with status indicators and severity badges.
-  // Sections: CSS styles, profile metadata, heuristics results table, footer.
   xml << R"XSLT(
 <xsl:stylesheet version="1.0" 
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -76,138 +82,254 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
   <xsl:template match="/">
     <html>
       <head>
-        <title>ICC Profile Analysis Report</title>
+        <title>ICC Profile Security Report</title>
         <style>
+          * { box-sizing: border-box; }
           body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
           }
           .container {
-            background: white;
+            background: #161b22;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #30363d;
             padding: 30px;
           }
           h1 {
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
+            color: #58a6ff;
+            border-bottom: 2px solid #1f6feb;
+            padding-bottom: 12px;
+            font-size: 1.4em;
           }
           h2 {
-            color: #34495e;
+            color: #79c0ff;
             margin-top: 30px;
-            border-left: 4px solid #3498db;
-            padding-left: 10px;
+            border-left: 3px solid #1f6feb;
+            padding-left: 12px;
+            font-size: 1.1em;
           }
-          .meta {
-            background: #ecf0f1;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
+          .banner {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-family: monospace;
+            font-size: 0.9em;
           }
-          .meta-item {
-            margin: 5px 0;
+          .banner-row {
+            margin: 4px 0;
           }
-          .meta-label {
-            font-weight: bold;
-            color: #7f8c8d;
-            min-width: 120px;
+          .banner-label {
+            color: #8b949e;
             display: inline-block;
+            min-width: 100px;
           }
+          .banner-value { color: #c9d1d9; }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+          }
+          .summary-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+          }
+          .summary-count {
+            font-size: 1.8em;
+            font-weight: bold;
+          }
+          .summary-label { color: #8b949e; font-size: 0.85em; }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 16px 0;
+            font-size: 0.88em;
           }
           th {
-            background: #3498db;
-            color: white;
-            padding: 12px;
+            background: #21262d;
+            color: #c9d1d9;
+            padding: 10px 12px;
             text-align: left;
             font-weight: 600;
+            border-bottom: 2px solid #30363d;
           }
           td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #ecf0f1;
+            padding: 8px 12px;
+            border-bottom: 1px solid #21262d;
+            vertical-align: top;
           }
-          tr:hover {
-            background: #f8f9fa;
-          }
-          .status-pass {
-            color: #27ae60;
-            font-weight: bold;
-          }
-          .status-fail {
-            color: #e74c3c;
-            font-weight: bold;
-          }
-          .status-warn {
-            color: #f39c12;
-            font-weight: bold;
-          }
-          .severity-high {
-            background: #e74c3c;
-            color: white;
+          tr:hover { background: #1c2128; }
+          .status-pass { color: #3fb950; }
+          .status-fail { color: #f85149; font-weight: bold; }
+          .status-warn { color: #d29922; font-weight: bold; }
+          .sev-badge {
             padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.85em;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            white-space: nowrap;
           }
-          .severity-medium {
-            background: #f39c12;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.85em;
+          .severity-critical { background: #da3633; color: white; }
+          .severity-high { background: #f85149; color: white; }
+          .severity-medium { background: #d29922; color: #0d1117; }
+          .severity-low { background: #388bfd; color: white; }
+          .severity-info { background: #30363d; color: #8b949e; }
+          .cwe-tag {
+            background: #21262d;
+            color: #79c0ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-right: 4px;
           }
-          .severity-low {
-            background: #95a5a6;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 3px;
+          .cve-tag {
+            background: #1c2128;
+            color: #f0883e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-right: 4px;
+          }
+          .detail-text {
+            color: #8b949e;
             font-size: 0.85em;
+            max-width: 500px;
+            word-break: break-word;
           }
           .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #ecf0f1;
+            margin-top: 30px;
+            padding-top: 16px;
+            border-top: 1px solid #30363d;
             text-align: center;
-            color: #95a5a6;
+            color: #484f58;
+            font-size: 0.85em;
+          }
+          .section-count {
+            color: #8b949e;
             font-size: 0.9em;
+            margin-left: 8px;
           }
         </style>
       </head>
       <body>
         <div class="container">
-          <h1>ICC Profile Security Analysis Report</h1>
+          <h1>&#x1f6e1; ICC Profile Security Report</h1>
           
-          <div class="meta">
-            <div class="meta-item">
-              <span class="meta-label">Profile:</span>
-              <xsl:value-of select="/report/profile/filename"/>
+          <div class="banner">
+            <div class="banner-row">
+              <span class="banner-label">Tool:</span>
+              <span class="banner-value"><xsl:value-of select="/report/metadata/analyzer_version"/></span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Analysis Date:</span>
-              <xsl:value-of select="/report/metadata/timestamp"/>
+            <div class="banner-row">
+              <span class="banner-label">Date:</span>
+              <span class="banner-value"><xsl:value-of select="/report/metadata/timestamp"/></span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Analyzer Version:</span>
-              <xsl:value-of select="/report/metadata/analyzer_version"/>
+            <div class="banner-row">
+              <span class="banner-label">File:</span>
+              <span class="banner-value"><xsl:value-of select="/report/profile/filename"/></span>
+            </div>
+            <xsl:if test="/report/profile/sha256">
+              <div class="banner-row">
+                <span class="banner-label">SHA-256:</span>
+                <span class="banner-value" style="font-family:monospace;font-size:0.85em">
+                  <xsl:value-of select="/report/profile/sha256"/>
+                </span>
+              </div>
+            </xsl:if>
+            <xsl:if test="/report/profile/filesize">
+              <div class="banner-row">
+                <span class="banner-label">Size:</span>
+                <span class="banner-value"><xsl:value-of select="/report/profile/filesize"/> bytes</span>
+              </div>
+            </xsl:if>
+          </div>
+
+          <h2>Executive Summary</h2>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-count" style="color:#3fb950">
+                <xsl:value-of select="/report/heuristics/summary/@passed"/>
+              </div>
+              <div class="summary-label">PASSED</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-count" style="color:#f85149">
+                <xsl:value-of select="/report/heuristics/summary/@findings"/>
+              </div>
+              <div class="summary-label">FINDINGS</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-count" style="color:#d29922">
+                <xsl:value-of select="/report/heuristics/summary/@total"/>
+              </div>
+              <div class="summary-label">TOTAL CHECKS</div>
             </div>
           </div>
           
-          <h2>Security Heuristics</h2>
+          <xsl:if test="/report/heuristics/check[status!='PASS']">
+            <h2>&#x26a0; Findings <span class="section-count">(<xsl:value-of select="count(/report/heuristics/check[status!='PASS'])"/>)</span></h2>
+            <table>
+              <tr>
+                <th style="width:50px">ID</th>
+                <th>Check</th>
+                <th style="width:80px">Severity</th>
+                <th style="width:90px">CWE</th>
+                <th>Detail</th>
+                <th style="width:100px">CVEs</th>
+              </tr>
+              <xsl:for-each select="/report/heuristics/check[status!='PASS']">
+                <xsl:sort select="
+                  (number(severity='CRITICAL') * 1) +
+                  (number(severity='HIGH') * 2) +
+                  (number(severity='MEDIUM') * 3) +
+                  (number(severity='LOW') * 4) +
+                  (number(severity='INFO') * 5)
+                " data-type="number"/>
+                <tr>
+                  <td style="color:#79c0ff">H<xsl:value-of select="id"/></td>
+                  <td><xsl:value-of select="name"/></td>
+                  <td>
+                    <span class="sev-badge">
+                      <xsl:attribute name="class">sev-badge <xsl:choose>
+                        <xsl:when test="severity='CRITICAL'">severity-critical</xsl:when>
+                        <xsl:when test="severity='HIGH'">severity-high</xsl:when>
+                        <xsl:when test="severity='MEDIUM'">severity-medium</xsl:when>
+                        <xsl:when test="severity='LOW'">severity-low</xsl:when>
+                        <xsl:otherwise>severity-info</xsl:otherwise>
+                      </xsl:choose></xsl:attribute>
+                      <xsl:value-of select="severity"/>
+                    </span>
+                  </td>
+                  <td><xsl:if test="cwe"><span class="cwe-tag"><xsl:value-of select="cwe"/></span></xsl:if></td>
+                  <td class="detail-text"><xsl:value-of select="message"/></td>
+                  <td><xsl:if test="cveRefs"><span class="cve-tag"><xsl:value-of select="cveRefs"/></span></xsl:if></td>
+                </tr>
+              </xsl:for-each>
+            </table>
+          </xsl:if>
+
+          <h2>All Checks <span class="section-count">(<xsl:value-of select="count(/report/heuristics/check)"/>)</span></h2>
           <table>
             <tr>
+              <th style="width:50px">ID</th>
               <th>Check</th>
-              <th>Status</th>
-              <th>Severity</th>
-              <th>Message</th>
+              <th style="width:60px">Status</th>
+              <th style="width:80px">Severity</th>
+              <th style="width:90px">CWE</th>
+              <th>Detail</th>
             </tr>
             <xsl:for-each select="/report/heuristics/check">
               <tr>
+                <td style="color:#79c0ff">H<xsl:value-of select="id"/></td>
                 <td><xsl:value-of select="name"/></td>
                 <td>
                   <xsl:attribute name="class">
@@ -220,24 +342,25 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
                   <xsl:value-of select="status"/>
                 </td>
                 <td>
-                  <span>
-                    <xsl:attribute name="class">
-                      <xsl:choose>
-                        <xsl:when test="severity='HIGH'">severity-high</xsl:when>
-                        <xsl:when test="severity='MEDIUM'">severity-medium</xsl:when>
-                        <xsl:otherwise>severity-low</xsl:otherwise>
-                      </xsl:choose>
-                    </xsl:attribute>
+                  <span class="sev-badge">
+                    <xsl:attribute name="class">sev-badge <xsl:choose>
+                      <xsl:when test="severity='CRITICAL'">severity-critical</xsl:when>
+                      <xsl:when test="severity='HIGH'">severity-high</xsl:when>
+                      <xsl:when test="severity='MEDIUM'">severity-medium</xsl:when>
+                      <xsl:when test="severity='LOW'">severity-low</xsl:when>
+                      <xsl:otherwise>severity-info</xsl:otherwise>
+                    </xsl:choose></xsl:attribute>
                     <xsl:value-of select="severity"/>
                   </span>
                 </td>
-                <td><xsl:value-of select="message"/></td>
+                <td><xsl:if test="cwe"><span class="cwe-tag"><xsl:value-of select="cwe"/></span></xsl:if></td>
+                <td class="detail-text"><xsl:value-of select="message"/></td>
               </tr>
             </xsl:for-each>
           </table>
           
           <div class="footer">
-            Generated by )" ICCANALYZER_VERSION_FULL R"( | David H Hoyt LLC
+            Generated by )" ICCANALYZER_VERSION_FULL R"( &#x2022; ICC.1-2022-05, ICC.2-2023 &#x2022; David H Hoyt LLC
           </div>
         </div>
       </body>
@@ -281,6 +404,7 @@ static void WriteXMLHeader(std::ofstream& xml, const char* xslBasename,
 
   xml << "  <metadata>\n";
   xml << "    <analyzer_version>" ICCANALYZER_VERSION_FULL "</analyzer_version>\n";
+  xml << "    <build>ASAN+UBSAN+Coverage</build>\n";
 
   time_t now = time(nullptr);
   struct tm tm_buf;
@@ -294,6 +418,30 @@ static void WriteXMLHeader(std::ofstream& xml, const char* xslBasename,
   xml << "  <profile>\n";
   xml << "    <filename>" << IccAnalyzerXMLExport::XMLEscape(profilePath)
       << "</filename>\n";
+
+  // Add SHA-256 and file size
+  struct stat st;
+  if (stat(profilePath, &st) == 0) {
+    xml << "    <filesize>" << st.st_size << "</filesize>\n";
+  }
+  char sha_cmd[8192];
+  int sn = snprintf(sha_cmd, sizeof(sha_cmd), "sha256sum '%s' 2>/dev/null | cut -d' ' -f1",
+                    profilePath);
+  if (sn > 0 && sn < (int)sizeof(sha_cmd)) {
+    FILE* fp = popen(sha_cmd, "r");
+    if (fp) {
+      char sha[128] = {};
+      if (fgets(sha, sizeof(sha), fp)) {
+        size_t len = strlen(sha);
+        if (len > 0 && sha[len-1] == '\n') sha[len-1] = '\0';
+        if (strlen(sha) == 64) {
+          xml << "    <sha256>" << sha << "</sha256>\n";
+        }
+      }
+      pclose(fp);
+    }
+  }
+
   xml << "  </profile>\n";
 }
 
@@ -305,14 +453,16 @@ static std::string XSLBasename(const char* xmlFilename)
   return (slash != std::string::npos) ? xslPath.substr(slash + 1) : xslPath;
 }
 
-/** Write heuristic findings to an XML stream. */
+/** Write heuristic findings to an XML stream (legacy stub path). */
 static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
 {
   xml << "  <heuristics>\n";
   xml << "    <summary total=\"" << report->totalChecks
       << "\" passed=\"" << report->passedChecks
       << "\" failed=\"" << report->failedChecks
-      << "\" warnings=\"" << report->warningChecks << "\"/>\n";
+      << "\" warnings=\"" << report->warningChecks
+      << "\" findings=\"" << (report->failedChecks + report->warningChecks)
+      << "\"/>\n";
 
   for (const auto& f : report->findings) {
     xml << "    <check>\n";
@@ -327,6 +477,171 @@ static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
     xml << "    </check>\n";
   }
   xml << "  </heuristics>\n";
+}
+
+// --- Captured-output XML export (per-heuristic, same as --json/--report) ---
+
+extern int HeuristicAnalyze(const char* profilePath, const char* fingerprint_db);
+
+struct XMLFinding {
+  int id;
+  std::string name;
+  std::string status;   // PASS, WARN, CRITICAL
+  std::string detail;
+  HeuristicSeverity severity;
+  const char *cwe;
+  const char *specRef;
+  const char *cveRefs;
+};
+
+int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
+                                            const char *xmlFilename,
+                                            const char *fingerprint_db)
+{
+  if (!profilePath || !xmlFilename) return 2;
+  if (strstr(xmlFilename, "..") || strlen(xmlFilename) > 4096) return 2;
+
+  // Capture stdout via pipe (same pattern as --json/--report)
+  int pipefd[2];
+  if (pipe(pipefd) != 0) {
+    fprintf(stderr, "[ERR] pipe() failed for XML capture\n");
+    return 2;
+  }
+
+  int savedStdout = dup(STDOUT_FILENO);
+  dup2(pipefd[1], STDOUT_FILENO);
+  close(pipefd[1]);
+
+  int exitCode = HeuristicAnalyze(profilePath, fingerprint_db);
+
+  fflush(stdout);
+  dup2(savedStdout, STDOUT_FILENO);
+  close(savedStdout);
+
+  // Read captured output
+  std::string captured;
+  {
+    char buf[4096];
+    ssize_t n;
+    while ((n = read(pipefd[0], buf, sizeof(buf))) > 0)
+      captured.append(buf, n);
+    close(pipefd[0]);
+  }
+
+  // Parse [H##] markers from captured output
+  std::regex hRegex(R"(\[H(\d+)\]\s+(.+))");
+  std::regex warnRegex(R"(\[WARN\])");
+  std::regex critRegex(R"(\[CRIT)");
+  std::regex okRegex(R"(\[OK\])");
+
+  std::vector<XMLFinding> findings;
+  int okCount = 0, warnCount = 0, critCount = 0;
+  std::istringstream stream(captured);
+  std::string line;
+
+  int currentH = -1;
+  std::string currentTitle;
+  std::string currentDetail;
+  std::string currentStatus = "PASS";
+
+  auto flushFinding = [&]() {
+    if (currentH > 0) {
+      const HeuristicEntry *entry = LookupHeuristic(currentH);
+      XMLFinding f;
+      f.id = currentH;
+      f.name = entry ? entry->name : currentTitle;
+      f.status = currentStatus;
+      f.detail = currentDetail;
+      f.severity = entry ? entry->severity : HeuristicSeverity::INFO;
+      f.cwe = entry ? entry->primaryCWE : nullptr;
+      f.specRef = entry ? entry->specRef : nullptr;
+      f.cveRefs = entry ? entry->cveRefs : nullptr;
+
+      if (currentStatus == "PASS") okCount++;
+      else if (currentStatus == "WARN") warnCount++;
+      else if (currentStatus == "CRITICAL") critCount++;
+
+      findings.push_back(f);
+    }
+  };
+
+  while (std::getline(stream, line)) {
+    std::smatch m;
+    if (std::regex_search(line, m, hRegex)) {
+      flushFinding();
+      currentH = std::stoi(m[1].str());
+      currentTitle = m[2].str();
+      currentDetail.clear();
+      currentStatus = "PASS";
+    } else if (currentH > 0) {
+      if (line.find("HEURISTIC SUMMARY") != std::string::npos ||
+          line.find("PHASE 2:") != std::string::npos ||
+          line.find("PHASE 3:") != std::string::npos ||
+          line.find("========") != std::string::npos) {
+        flushFinding();
+        currentH = -1;
+        continue;
+      }
+      if (std::regex_search(line, critRegex)) currentStatus = "CRITICAL";
+      else if (std::regex_search(line, warnRegex) && currentStatus != "CRITICAL")
+        currentStatus = "WARN";
+      // Extract first meaningful detail line
+      if (!line.empty() && currentDetail.empty()) {
+        // Trim leading whitespace
+        size_t start = line.find_first_not_of(" \t");
+        if (start != std::string::npos)
+          currentDetail = line.substr(start);
+      }
+    }
+  }
+  flushFinding();
+
+  // Write XML
+  std::ofstream xml(xmlFilename);
+  if (!xml.is_open()) {
+    fprintf(stderr, "[ERR] Cannot write XML to: %s\n", xmlFilename);
+    return 2;
+  }
+
+  WriteXMLHeader(xml, XSLBasename(xmlFilename).c_str(), profilePath);
+
+  xml << "  <heuristics>\n";
+  xml << "    <summary total=\"" << (int)findings.size()
+      << "\" passed=\"" << okCount
+      << "\" findings=\"" << (warnCount + critCount)
+      << "\" warnings=\"" << warnCount
+      << "\" critical=\"" << critCount << "\"/>\n";
+
+  for (const auto& f : findings) {
+    xml << "    <check>\n";
+    xml << "      <id>" << f.id << "</id>\n";
+    xml << "      <name>" << XMLEscape(f.name) << "</name>\n";
+    xml << "      <status>" << XMLEscape(f.status) << "</status>\n";
+    xml << "      <severity>" << XMLEscape(SeverityToString(f.severity))
+        << "</severity>\n";
+    if (f.cwe)
+      xml << "      <cwe>" << XMLEscape(f.cwe) << "</cwe>\n";
+    if (f.specRef)
+      xml << "      <specRef>" << XMLEscape(f.specRef) << "</specRef>\n";
+    if (f.cveRefs)
+      xml << "      <cveRefs>" << XMLEscape(f.cveRefs) << "</cveRefs>\n";
+    if (!f.detail.empty())
+      xml << "      <message>" << XMLEscape(f.detail) << "</message>\n";
+    xml << "    </check>\n";
+  }
+
+  xml << "  </heuristics>\n";
+  xml << "</report>\n";
+  xml.close();
+
+  WriteCompanionXSL(xmlFilename);
+
+  fprintf(stderr, "\n[OK] XML report written to: %s (%d heuristics, %d findings)\n",
+          xmlFilename, (int)findings.size(), warnCount + critCount);
+  fprintf(stderr, "[OK] XSLT stylesheet written alongside XML\n");
+  fprintf(stderr, "[OK] Open the XML file in a browser to view the styled report\n");
+
+  return exitCode;
 }
 
 bool IccAnalyzerXMLExport::ExportHeuristicsToXML(const char* filename,

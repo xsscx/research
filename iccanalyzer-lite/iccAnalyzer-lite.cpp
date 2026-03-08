@@ -339,43 +339,7 @@ int main(int argc, char **argv) {
       return ICC_EXIT_ERROR;
     }
     outXml = resolvedXml;
-    // Run heuristic analysis with crash recovery
-    HeuristicReport report;
-    g_recovery_active = 1;
-    int sig = sigsetjmp(g_recovery_jmp, 1);
-    int result;
-    if (sig != 0) {
-      g_recovery_active = 0;
-      fprintf(stderr, "\n[RECOVERY] Library crashed (%s) during XML export analysis\n",
-              SignalName(sig));
-      result = -1;
-      ResetAllocGuard();
-    } else {
-      result = HeuristicAnalyze(profilePath, nullptr);
-      g_recovery_active = 0;
-    }
-
-    // Populate report summary from exit code
-    HeuristicFinding f;
-    f.check_name = "Heuristic Analysis";
-    f.status = (result == 0) ? "PASS" : "FAIL";
-    f.severity = (result == 0) ? "LOW" : "HIGH";
-    f.message = (result == 0) ? "No security issues detected"
-                              : "Security heuristic findings detected";
-    report.findings.push_back(f);
-    report.totalChecks = 1;
-    report.passedChecks = (result == 0) ? 1 : 0;
-    report.failedChecks = (result == 0) ? 0 : 1;
-
-    if (IccAnalyzerXMLExport::ExportHeuristicsToXML(outXml, profilePath, &report)) {
-      printf("\n[OK] XML report written to: %s\n", outXml);
-      printf("[OK] XSLT stylesheet written alongside XML\n");
-      printf("[OK] Open the XML file in a browser to view the styled report\n");
-      return ICC_EXIT_CLEAN;
-    } else {
-      fprintf(stderr, "[ERR] Failed to write XML report to: %s\n", outXml);
-      return ICC_EXIT_ERROR;
-    }
+    return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr);
   }
   
   // Version
