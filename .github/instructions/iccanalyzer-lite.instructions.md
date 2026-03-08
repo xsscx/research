@@ -60,6 +60,34 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 147 unit tests, ~3s
    - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
 6. Add ICC spec citation in printf: `ICC.1-2022-05 §X.Y.Z`
 
+### Candidate Heuristics (Not Yet Implemented)
+
+**H139: TIFF-Embedded ICC Strip Geometry** — When the input file is TIFF (magic
+`II\x2a` or `MM\x00\x2a`), extract TIFF IFD fields (Width, Height, RowsPerStrip,
+StripByteCounts, BitsPerSample, SamplesPerPixel) and validate:
+- `StripByteCounts >= RowsPerStrip × Width × SamplesPerPixel × (BitsPerSample/8)`
+- `RowsPerStrip <= Height`
+- No integer overflow in strip size calculations
+CWE-122/CWE-125. Detects the exact bug pattern fixed by CFL-082.
+
+**H140: File-Level Metadata Report** — Report file size, SHA256, file(1) magic type,
+and creation/modification timestamps. Not a security check per se, but provides
+context for forensic analysis alongside the 138 security heuristics.
+
+**H141: TIFF IFD Tag Offset Bounds** — Validate all TIFF IFD tag data offsets
+point within the file. Detects file truncation attacks where TIFF headers reference
+data beyond EOF.
+
+## Heuristic Categories
+
+| Range | Module | Focus |
+|-------|--------|-------|
+| H1-H8 | IccAnalyzerSecurity.cpp | Raw header (size, magic, version, reserved bytes) |
+| H9-H32 | IccHeuristicsLibrary.cpp | Library API (tags, color spaces, rendering intents) |
+| H33-H55 | IccHeuristicsRawPost.cpp | Raw file I/O (tag overlaps, embedded images, duplicates) |
+| H56-H135 | IccHeuristicsLibrary.cpp | Spec compliance (ICC.1-2022-05 required tags, LUT validation) |
+| H136-H138 | IccHeuristicsLibrary.cpp | CWE-400 complexity (ResponseCurve, grid, calculator) |
+
 ## Heuristic Output Format
 
 Every heuristic MUST follow this pattern:
