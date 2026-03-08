@@ -71,6 +71,24 @@ fuzz/
 ├── java/                               # Java injection
 ├── applescript/                        # AppleScript injection
 ├── custom/                             # Custom payloads
+├── xnuimagegenerator/                  # iOS Image Generator outputs (by format)
+│   ├── png/                            # Clean generated PNGs
+│   ├── jpg/                            # Clean generated JPEGs
+│   ├── tiff/                           # Clean generated TIFFs (with embedded ICC)
+│   ├── bmp/                            # Clean generated BMPs
+│   ├── gif/                            # Clean generated GIFs
+│   ├── heic/                           # Clean generated HEICs
+│   └── icc/                            # Extracted ICC profiles
+├── xnuimagefuzzer/                     # xnuimagefuzzer mutated outputs (by format)
+│   ├── png/                            # Fuzzed PNGs
+│   ├── jpg/                            # Fuzzed JPEGs
+│   ├── tiff/                           # Fuzzed TIFFs (with injected ICC)
+│   ├── bmp/                            # Fuzzed BMPs
+│   ├── gif/                            # Fuzzed GIFs
+│   ├── heic/                           # Fuzzed HEICs
+│   ├── icc/                            # ICC profiles extracted from fuzzed images
+│   ├── chained/                        # Multi-pass chained fuzzing outputs
+│   └── pipeline/                       # Pipeline mode outputs (5 phases)
 ├── full-unicode.txt                    # 5.3 MB Unicode fuzzing table
 ├── no-experience-required-xss-*        # 133 KB XSS signature collection
 └── xml-paste-from-gist.txt             # XML paste injection
@@ -201,7 +219,47 @@ id_{NNNNNN}_sig_{NN}_src_{NNNNNN}_time_{N}_execs_{N}_op_{type}_pos_{N}
 | `cfl/corpus-*` | Superset of fuzz/ ICC samples + LibFuzzer-generated mutations |
 | `iccanalyzer-lite/` | Validates ICC profiles from fuzz/graphics/icc/ |
 | `colorbleed_tools/` | Converts fuzz/ ICC profiles to/from XML |
-| `xnuimagetools/` | Uses fuzz/graphics/* for UTI format fuzzing |
+| `xnuimagetools/` | Uses fuzz/graphics/* for UTI format fuzzing; outputs land in xnuimagegenerator/ and xnuimagefuzzer/ |
 | Repo root `crash-*` | New crashes found by cfl/ fuzzers, NOT yet in fuzz/ |
 | Repo root `oom-*` | OOM samples from cfl/ fuzzers |
 | Repo root `slow-unit-*` | Timeout samples from cfl/ fuzzers |
+
+## XNU Image Generator / Fuzzer Corpus (xnuimagegenerator/ and xnuimagefuzzer/)
+
+Two new directory trees organize outputs from the xnuimagetools iOS Image Generator
+and xnuimagefuzzer tool, separated by format for targeted CFL fuzzer seeding.
+
+### xnuimagegenerator/ — Clean Image Seeds
+
+iOS Image Generator v1.9.0+ outputs with collision-free filenames:
+```
+xig-{context}-{WxH}[-icc_{profile}]-{hash6}.{ext}
+```
+- **xig**: prefix identifying iOS Image Generator origin
+- **context**: short CGContext name (stdrgb, premul, gray, 1bit, p3, etc.)
+- **hash6**: first 6 hex chars of SHA-256 of file content (prevents collisions)
+
+13 context types × 5 dimensions × 6 formats × 3 ICC profiles = up to 1,560 files.
+
+### xnuimagefuzzer/ — Fuzz-Mutated Outputs
+
+xnuimagefuzzer mutated outputs with collision-free filenames:
+```
+xif-{source}-perm{N}[-{variant}]-{hash6}.{ext}
+```
+- **xif**: prefix identifying xnuimagefuzzer origin
+- **variant**: `icc_{name}`, `no_icc`, `mismatch`, `mutated`
+
+Subdirectories: `chained/` (multi-pass mutations), `pipeline/` (5-phase pipeline).
+
+### Seeding CFL from xnuimagegenerator/xnuimagefuzzer
+
+```bash
+# Seed ICC profiles
+cp fuzz/xnuimagegenerator/icc/*.icc cfl/corpus-icc_profile_fuzzer/
+cp fuzz/xnuimagefuzzer/icc/*.icc cfl/corpus-icc_profile_fuzzer/
+
+# Seed TIFFs to TIFF fuzzer
+cp fuzz/xnuimagegenerator/tiff/*.tiff cfl/corpus-icc_tiff_fuzzer/
+cp fuzz/xnuimagefuzzer/tiff/*.tiff cfl/corpus-icc_tiff_fuzzer/
+```
