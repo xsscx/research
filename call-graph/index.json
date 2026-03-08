@@ -1,0 +1,244 @@
+{
+  "generated_by": "generate-callgraphs.py",
+  "components": {
+    "iccdev/tools": [
+      {
+        "name": "IccPngDump",
+        "ast_functions": 8271,
+        "cg_edges": 189,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccCommon",
+        "ast_functions": 32660,
+        "cg_edges": 7445,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccApplyNamedCmm",
+        "ast_functions": 16739,
+        "cg_edges": 1656,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccApplyProfiles",
+        "ast_functions": 17342,
+        "cg_edges": 1262,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccV5DspObsToV4Dsp",
+        "ast_functions": 5939,
+        "cg_edges": 123,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccDumpProfile",
+        "ast_functions": 7589,
+        "cg_edges": 439,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccRoundTrip",
+        "ast_functions": 6429,
+        "cg_edges": 14,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccFromCube",
+        "ast_functions": 5716,
+        "cg_edges": 116,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccApplyToLink",
+        "ast_functions": 7298,
+        "cg_edges": 388,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccSpecSepToTiff",
+        "ast_functions": 8195,
+        "cg_edges": 121,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccApplySearch",
+        "ast_functions": 17420,
+        "cg_edges": 1698,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccJpegDump",
+        "ast_functions": 4539,
+        "cg_edges": 331,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccTiffDump",
+        "ast_functions": 6381,
+        "cg_edges": 90,
+        "cg_method": "llvm-ir"
+      }
+    ],
+    "iccdev/proflib": [
+      {
+        "name": "IccProfLib",
+        "ast_functions": 211987,
+        "cg_edges": 13585,
+        "cg_method": "llvm-ir"
+      }
+    ],
+    "iccdev/xml": [
+      {
+        "name": "IccLibXML",
+        "ast_functions": 54677,
+        "cg_edges": 5894,
+        "cg_method": "llvm-ir"
+      }
+    ],
+    "cfl": [
+      {
+        "name": "icc_calculator_fuzzer",
+        "ast_functions": 5900,
+        "cg_edges": 44,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_multitag_fuzzer",
+        "ast_functions": 5503,
+        "cg_edges": 40,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_applynamedcmm_fuzzer",
+        "ast_functions": 6866,
+        "cg_edges": 188,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_profile_fuzzer",
+        "ast_functions": 5707,
+        "cg_edges": 54,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_roundtrip_fuzzer",
+        "ast_functions": 6579,
+        "cg_edges": 22,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_apply_fuzzer",
+        "ast_functions": 6133,
+        "cg_edges": 24,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_applyprofiles_fuzzer",
+        "ast_functions": 6752,
+        "cg_edges": 82,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_v5dspobs_fuzzer",
+        "ast_functions": 6436,
+        "cg_edges": 59,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_spectral_fuzzer",
+        "ast_functions": 6273,
+        "cg_edges": 62,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_deep_dump_fuzzer",
+        "ast_functions": 8474,
+        "cg_edges": 558,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_fromxml_fuzzer",
+        "ast_functions": 5207,
+        "cg_edges": 72,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_link_fuzzer",
+        "ast_functions": 6868,
+        "cg_edges": 194,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_specsep_fuzzer",
+        "ast_functions": 5951,
+        "cg_edges": 198,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_io_fuzzer",
+        "ast_functions": 3575,
+        "cg_edges": 44,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_fromcube_fuzzer",
+        "ast_functions": 5934,
+        "cg_edges": 102,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_dump_fuzzer",
+        "ast_functions": 7513,
+        "cg_edges": 380,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_tiffdump_fuzzer",
+        "ast_functions": 6914,
+        "cg_edges": 108,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "icc_toxml_fuzzer",
+        "ast_functions": 6807,
+        "cg_edges": 40,
+        "cg_method": "llvm-ir"
+      }
+    ],
+    "colorbleed": [
+      {
+        "name": "ColorBleedAlloc",
+        "ast_functions": 272,
+        "cg_edges": 4,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccToXml_unsafe",
+        "ast_functions": 6930,
+        "cg_edges": 381,
+        "cg_method": "llvm-ir"
+      },
+      {
+        "name": "IccFromXml_unsafe",
+        "ast_functions": 7102,
+        "cg_edges": 350,
+        "cg_method": "llvm-ir"
+      }
+    ],
+    "analyzer": [
+      {
+        "name": "iccanalyzer-lite",
+        "ast_functions": 190441,
+        "cg_edges": 21529,
+        "cg_method": "llvm-ir"
+      }
+    ]
+  },
+  "totals": {
+    "targets": 37,
+    "total_functions": 729319,
+    "total_edges": 57886
+  }
+}
