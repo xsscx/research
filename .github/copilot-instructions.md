@@ -557,23 +557,14 @@ The script exits with the worst exit code across all 3 commands. Exit 0 = clean,
 ### Code coverage for a single profile
 Use `iccdev-single-profile-coverage.yml` (NOT `ci-code-coverage.yml`) for per-profile coverage. The full coverage workflow runs `CreateAllProfiles.sh` which pollutes results with hundreds of generated profiles. The single-profile workflow accepts a `profile_path` input (relative to `test-profiles/`) and runs only IccDumpProfile, IccRoundTrip, XML round-trip, and IccApplyProfiles against that one file.
 
-### Docker Web UI
-
-```bash
-docker pull ghcr.io/xsscx/icc-profile-mcp:dev
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
-```
-
-Open http://localhost:8080/ — provides browser-based access to all analysis tools. The entrypoint command is `web` (not `icc-profile-web`).
-
-### Developer Demo Container
+### Docker Container
 
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
-Open http://localhost:8080/ — self-contained HTML demo report with live API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI). Build locally with `docker build -f mcp-server/Dockerfile -t icc-profile-mcp .`
+Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI). Build locally with `docker build -f mcp-server/Dockerfile -t icc-profile-mcp .`
 
 **REST API endpoints** (same parameter names as MCP tools):
 
