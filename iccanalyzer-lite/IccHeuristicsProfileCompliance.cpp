@@ -34,6 +34,7 @@
 #include "IccPrmg.h"
 #include "IccMatrixMath.h"
 #include "IccPcc.h"
+#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -438,9 +439,7 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
   // AToB tags: input=data space, output=PCS
   icTagSignature atobSigs[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, (icTagSignature)0};
   for (int i = 0; atobSigs[i] != (icTagSignature)0; i++) {
-    CIccTag *tag = pIcc->FindTag(atobSigs[i]);
-    if (!tag) continue;
-    CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+    CIccMBB *mbb = FindAndCast<CIccMBB>(pIcc, atobSigs[i]);
     if (!mbb) continue;
 
     icUInt8Number nIn = mbb->InputChannels();
@@ -465,9 +464,7 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
   // BToA tags: input=PCS, output=data space
   icTagSignature btoaSigs[] = {icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, (icTagSignature)0};
   for (int i = 0; btoaSigs[i] != (icTagSignature)0; i++) {
-    CIccTag *tag = pIcc->FindTag(btoaSigs[i]);
-    if (!tag) continue;
-    CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+    CIccMBB *mbb = FindAndCast<CIccMBB>(pIcc, btoaSigs[i]);
     if (!mbb) continue;
 
     icUInt8Number nIn = mbb->InputChannels();
@@ -495,9 +492,7 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
     (icTagSignature)0
   };
   for (int i = 0; dtobSigs[i] != (icTagSignature)0; i++) {
-    CIccTag *tag = pIcc->FindTag(dtobSigs[i]);
-    if (!tag) continue;
-    CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
+    CIccTagMultiProcessElement *mpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, dtobSigs[i]);
     if (!mpe) continue;
 
     if (mpe->NumInputChannels() != dataChannels) {
@@ -1079,10 +1074,7 @@ int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc) {
   int curvesChecked = 0;
 
   for (int t = 0; trcTags[t] != (icTagSignature)0; t++) {
-    CIccTag *tag = pIcc->FindTag(trcTags[t]);
-    if (!tag) continue;
-
-    CIccTagCurve *curve = dynamic_cast<CIccTagCurve*>(tag);
+    CIccTagCurve *curve = FindAndCast<CIccTagCurve>(pIcc, trcTags[t]);
     if (!curve) continue;
 
     icUInt32Number nEntries = curve->GetSize();
@@ -1420,9 +1412,7 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
   int tagsWithCalc = 0;
 
   for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
-    CIccTag *pTag = pIcc->FindTag(mpeTags[t]);
-    if (!pTag) continue;
-    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[t]);
     if (!pMpe) continue;
 
     icUInt32Number numElems = pMpe->NumElements();
@@ -1655,10 +1645,7 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
   int curvesChecked = 0;
 
   for (int t = 0; trcTags[t] != (icTagSignature)0; t++) {
-    CIccTag *tag = pIcc->FindTag(trcTags[t]);
-    if (!tag) continue;
-
-    CIccTagCurve *curve = dynamic_cast<CIccTagCurve*>(tag);
+    CIccTagCurve *curve = FindAndCast<CIccTagCurve>(pIcc, trcTags[t]);
     if (!curve) continue;
 
     icUInt32Number nEntries = curve->GetSize();

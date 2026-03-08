@@ -31,6 +31,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -128,9 +129,8 @@ int RunHeuristic_H122_TagEncoding(CIccProfile *pIcc) {
   const char *xyzNames[] = {"wtpt", "lumi", "rXYZ", "gXYZ", "bXYZ"};
 
   for (int t = 0; xyzTags[t] != (icTagSignature)0; t++) {
-    CIccTag *tag = pIcc->FindTag(xyzTags[t]);
-    if (!tag) continue;
-    CIccTagXYZ *xyzTag = dynamic_cast<CIccTagXYZ*>(tag);
+    CIccTagXYZ *xyzTag = FindAndCast<CIccTagXYZ>(pIcc, xyzTags[t]);
+    if (!xyzTag) continue;
     if (!xyzTag || xyzTag->GetSize() < 1) continue;
 
     checked++;
@@ -436,10 +436,7 @@ int RunHeuristic_H125_TransformSmoothness(CIccProfile *pIcc) {
   bool anyMeasured = false;
 
   for (int t = 0; lutTags[t] != (icTagSignature)0; t++) {
-    CIccTag *pTag = pIcc->FindTag(lutTags[t]);
-    if (!pTag) continue;
-
-    CIccMBB *mbb = dynamic_cast<CIccMBB*>(pTag);
+    CIccMBB *mbb = FindAndCast<CIccMBB>(pIcc, lutTags[t]);
     if (!mbb) continue;
 
     CIccCLUT *clut = mbb->GetCLUT();
@@ -1637,9 +1634,7 @@ int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc) {
   int calcFound = 0;
 
   for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
-    CIccTag *pTag = pIcc->FindTag(mpeTags[t]);
-    if (!pTag) continue;
-    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[t]);
     if (!pMpe) continue;
 
     icUInt32Number numElems = pMpe->NumElements();
