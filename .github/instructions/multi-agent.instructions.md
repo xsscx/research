@@ -189,9 +189,10 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 **Docker Image Availability**:
 - `ghcr.io/xsscx/icc-profile-mcp:latest` — built by `.github/workflows/mcp-server-docker.yml`
-- Platforms: `linux/amd64`, `linux/arm64` (native on Apple Silicon — no QEMU needed)
+- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Rosetta 2)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
-- Container binary built WITHOUT ASAN/UBSAN for multi-arch compatibility
+- **Full ASAN+UBSAN instrumentation** — catches memory safety bugs during analysis
+- Apple Silicon Macs: Docker Desktop runs AMD64 images via Rosetta 2 (ASAN-compatible)
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 

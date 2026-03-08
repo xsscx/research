@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential cmake git ca-certificates pkg-config patch \
-  clang llvm file \
+  clang llvm libclang-rt-18-dev file \
   libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
   zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev \
   python3 python3-venv python3-pip \
@@ -39,14 +39,16 @@ COPY extended-test-profiles/ extended-test-profiles/
 # Single iccDEV clone + patch (shared by iccanalyzer-lite and colorbleed_tools)
 RUN apply-patches.sh /build/iccdev /build/cfl-patches
 
-# Build iccDEV static libraries (debug, no sanitizers for container)
+# Build iccDEV static libraries (Debug + ASAN + UBSAN)
 RUN cd /build/iccdev/Build \
  && cmake Cmake \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_C_COMPILER=clang \
       -DCMAKE_CXX_COMPILER=clang++ \
-      -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -O1 -g -std=c++17" \
-      -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O1 -g" \
+      -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -O1 -g -std=c++17 -fsanitize=address,undefined" \
+      -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O1 -g -fsanitize=address,undefined" \
+      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
       -DENABLE_TOOLS=OFF \
       -DENABLE_STATIC_LIBS=ON \
       -DICC_LOG_SAFE=ON \
@@ -57,10 +59,10 @@ RUN cd /build/iccdev/Build \
 # Symlink shared iccDEV into iccanalyzer-lite so build.sh finds it
 RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
 
-# Build iccanalyzer-lite (NO_SANITIZERS=1: multi-arch, NO_COVERAGE=1: no gcda noise)
-RUN cd iccanalyzer-lite && NO_SANITIZERS=1 NO_COVERAGE=1 bash build.sh
+# Build iccanalyzer-lite (ASAN+UBSAN enabled, NO_COVERAGE=1: no gcda noise)
+RUN cd iccanalyzer-lite && NO_COVERAGE=1 bash build.sh
 
-# Build colorbleed_tools against shared iccDEV (release: no sanitizers for multi-arch)
+# Build colorbleed_tools against shared iccDEV (release: intentionally unsafe)
 RUN cd colorbleed_tools \
  && ln -s /build/iccdev iccDEV \
  && make CONFIG=release
@@ -76,7 +78,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   libxml2 libtiff6 libjpeg8 libpng16-16t64 \
-  zlib1g liblzma5 libssl3t64 \
+  zlib1g liblzma5 libssl3t64 libclang-rt-18-dev \
   python3 python3-venv \
   ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -95,6 +97,9 @@ COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
 COPY --from=builder --chown=mcp:mcp /build/test-profiles/ test-profiles/
 COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test-profiles/
 
+ENV ASAN_OPTIONS=detect_leaks=0,halt_on_error=0
+ENV UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1
+ENV MallocNanoZone=0
 ENV ICC_MCP_ROOT=/app
 
 # Entrypoint script supports: mcp (default), web, or custom command
