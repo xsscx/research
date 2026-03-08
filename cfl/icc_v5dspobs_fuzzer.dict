@@ -4070,3 +4070,8 @@ float_tiny="\x00\x00\x00\x01"
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00\x09"
+
+# --- added by convert-libfuzzer-dict.py ---
+"6/66"
+"\x00\x00\x00\x00\x00\x00\x00\x89"
+"\x00\x00\x7f:(\xa5*:"
