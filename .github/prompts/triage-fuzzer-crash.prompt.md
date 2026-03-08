@@ -4,6 +4,27 @@ Use this prompt when a fuzzer reports ASAN (heap-buffer-overflow, heap-use-after
 
 ## Step 1 — Classify the finding
 
+**STOP — Exit Code Gate (CJF-13)**
+
+Before classifying ANY finding, determine the exit code:
+- **Exit 1-127**: The tool rejected the input gracefully. This is NOT a crash.
+  Do NOT document as a security finding. Do NOT proceed to Step 2.
+- **Exit 128+**: Signal termination — proceed to classification below.
+- **Exit 0 with ASAN/UBSAN stderr**: Memory safety bug — proceed to classification below.
+
+The **tool's** exit code is reality. The **fuzzer's** DEADLYSIGNAL is a test artifact.
+When they disagree, the tool is authoritative. Always verify with the upstream tool:
+```bash
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+  timeout 30 iccDEV/Build/Tools/<ToolDir>/<tool> <crash-file>; echo "EXIT: $?"
+```
+
+**If tool exits 0 or 1-127 but fuzzer shows DEADLYSIGNAL**: This is a fuzzer fidelity
+issue, not an upstream bug. Do NOT document as a crash.
+
+Origin: [xsscx/governance CJF-13](https://github.com/xsscx/governance) — exit code
+confusion is the #1 crash documentation error pattern.
+
 From the fuzzer output, determine:
 - **Fuzzer name** (e.g., `icc_link_fuzzer`)
 - **Error type**: ASAN class (heap-use-after-free, heap-buffer-overflow, stack-overflow, SEGV) or UBSAN (runtime error description)
