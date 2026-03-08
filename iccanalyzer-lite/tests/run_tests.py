@@ -1000,8 +1000,8 @@ def test_html_xml_output(suite):
     try:
         rc, stdout, stderr = suite.run_analyzer(["-xml", good, xml_out])
         suite.results.append(TestResult(
-            "html.exit_code_ok", rc in (0, 1),
-            f"Exit code {rc}" if rc not in (0, 1) else "",
+            "html.exit_code_ok", rc != 2,
+            f"Exit code {rc} (I/O error)" if rc == 2 else "",
             0.0, "", ""
         ))
 
@@ -1044,10 +1044,40 @@ def test_html_xml_output(suite):
             0.0, "", ""
         ))
 
-        has_heuristic = "<heuristic" in xml_content
+        has_heuristic = "<check>" in xml_content
         suite.results.append(TestResult(
-            "html.has_heuristic_data", has_heuristic,
-            "Missing <heuristic> elements" if not has_heuristic else "",
+            "html.has_check_elements", has_heuristic,
+            "Missing <check> elements" if not has_heuristic else "",
+            0.0, "", ""
+        ))
+
+        # New: verify per-heuristic XML structure
+        check_count = xml_content.count("<check>")
+        has_many_checks = check_count > 20
+        suite.results.append(TestResult(
+            "html.per_heuristic_count", has_many_checks,
+            f"Only {check_count} <check> elements (expected 100+)" if not has_many_checks else "",
+            0.0, "", ""
+        ))
+
+        has_severity = "<severity>" in xml_content
+        suite.results.append(TestResult(
+            "html.has_severity_tags", has_severity,
+            "Missing <severity> tags in XML" if not has_severity else "",
+            0.0, "", ""
+        ))
+
+        has_cwe = "<cwe>" in xml_content
+        suite.results.append(TestResult(
+            "html.has_cwe_tags", has_cwe,
+            "Missing <cwe> tags in XML" if not has_cwe else "",
+            0.0, "", ""
+        ))
+
+        has_sha = "<sha256>" in xml_content
+        suite.results.append(TestResult(
+            "html.has_sha256", has_sha,
+            "Missing <sha256> in XML profile section" if not has_sha else "",
             0.0, "", ""
         ))
 

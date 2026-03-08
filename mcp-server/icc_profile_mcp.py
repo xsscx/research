@@ -229,8 +229,8 @@ async def health_check() -> str:
     lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
     lines.append("")
 
-    # Tool count (9 analysis tools + 7 maintainer + 6 operations = 22 tools)
-    lines.append("Tools: 22 registered (9 analysis + 7 maintainer + 6 operations)")
+    # Tool count (11 analysis tools + 7 maintainer + 6 operations = 24 tools)
+    lines.append("Tools: 24 registered (11 analysis + 7 maintainer + 6 operations)")
     lines.append("")
 
     overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
@@ -261,7 +261,7 @@ async def analyze_security(path: str) -> str:
     fingerprint matches, tag anomalies, overflow indicators, malformed
     signatures, fuzzing vectors, memory safety issues, NaN/float-to-integer
     casts, AddXform ownership UAF patterns, and more.
-    Covers 44+ CWE categories mapped from 77+ CVEs.
+    Covers 44+ CWE categories mapped from 48 CVEs across 77 iccDEV advisories.
 
     Reference: https://www.color.org/specification/ICC.1-2022-05.pdf
 
@@ -283,6 +283,38 @@ async def validate_roundtrip(path: str) -> str:
     _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
     profile = _resolve_profile(path)
     return await _run([str(ANALYZER_BIN), "-r", str(profile)])
+
+
+@mcp.tool()
+async def analyze_security_json(path: str) -> str:
+    """Run 141-heuristic security analysis with structured JSON output.
+
+    Returns machine-readable JSON with per-heuristic results including
+    severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), CWE categories, CVE
+    cross-references, and spec citations. Best for programmatic consumption.
+
+    Args:
+        path: Path to .icc file
+    """
+    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    profile = _resolve_profile(path)
+    return await _run([str(ANALYZER_BIN), "--json", str(profile)])
+
+
+@mcp.tool()
+async def analyze_security_report(path: str) -> str:
+    """Run 141-heuristic security analysis with professional report output.
+
+    Returns a severity-sorted security report with executive summary,
+    findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
+    CWE category summary, CVE cross-references, and coverage statistics.
+
+    Args:
+        path: Path to .icc file
+    """
+    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    profile = _resolve_profile(path)
+    return await _run([str(ANALYZER_BIN), "--report", str(profile)])
 
 
 @mcp.tool()
