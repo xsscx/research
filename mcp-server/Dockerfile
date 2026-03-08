@@ -60,10 +60,10 @@ RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
 # Build iccanalyzer-lite (NO_SANITIZERS=1: multi-arch, NO_COVERAGE=1: no gcda noise)
 RUN cd iccanalyzer-lite && NO_SANITIZERS=1 NO_COVERAGE=1 bash build.sh
 
-# Build colorbleed_tools against shared iccDEV (no second clone)
+# Build colorbleed_tools against shared iccDEV (release: no sanitizers for multi-arch)
 RUN cd colorbleed_tools \
  && ln -s /build/iccdev iccDEV \
- && make
+ && make CONFIG=release
 
 # Python venv with MCP server
 RUN python3 -m venv --clear /build/mcp-venv \
