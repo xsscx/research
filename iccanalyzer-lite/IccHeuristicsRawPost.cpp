@@ -1369,7 +1369,7 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
   int heuristicCount = 0;
 
   // =========================================================================
-  // Raw-file heuristics H46-H54 (CWE-driven gap analysis from 77 CVEs)
+  // Raw-file heuristics H46-H54 (CWE-driven gap analysis from 77 advisories, 48 CVEs)
   // All use raw file I/O — no library API calls.
   // =========================================================================
 

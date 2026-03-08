@@ -130,7 +130,6 @@ int RunHeuristic_H122_TagEncoding(CIccProfile *pIcc) {
 
   for (int t = 0; xyzTags[t] != (icTagSignature)0; t++) {
     CIccTagXYZ *xyzTag = FindAndCast<CIccTagXYZ>(pIcc, xyzTags[t]);
-    if (!xyzTag) continue;
     if (!xyzTag || xyzTag->GetSize() < 1) continue;
 
     checked++;
