@@ -10,11 +10,80 @@
 
 class CIccProfile;
 
-/// Run library-API heuristics (H9-H32, H56-H86) using iccDEV profile API.
+/// Run library-API heuristics (H9-H32, H56-H102) using iccDEV profile API.
+/// Dispatcher that calls individual RunHeuristic_H##_*() functions.
 /// @param pIcc Loaded ICC profile (must not be null)
 /// @param filename Path to the ICC profile (for raw-file fallback reads)
 /// @return Number of heuristic warnings detected
 int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename);
+
+// H9-H32: Tag structure and content heuristics (extracted from mega-function)
+int RunHeuristic_H9_CriticalTextTags(CIccProfile *pIcc);
+int RunHeuristic_H10_TagCount(CIccProfile *pIcc);
+int RunHeuristic_H11_CLUTEntryLimit(CIccProfile *pIcc);
+int RunHeuristic_H12_MPEChainDepth(CIccProfile *pIcc);
+int RunHeuristic_H13_PerTagSizeCheck(CIccProfile *pIcc);
+int RunHeuristic_H14_TagArrayDetection(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H18_TechnologySignature(CIccProfile *pIcc);
+int RunHeuristic_H19_TagOffsetOverlap(CIccProfile *pIcc);
+int RunHeuristic_H20_TagTypeSignature(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H21_TagStructMemberInspection(CIccProfile *pIcc);
+int RunHeuristic_H22_NumArrayScalarExpectation(CIccProfile *pIcc);
+int RunHeuristic_H23_NumArrayValueRange(CIccProfile *pIcc);
+int RunHeuristic_H24_TagStructNestingDepth(CIccProfile *pIcc);
+int RunHeuristic_H25_TagOffsetOOB(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H26_NamedColor2StringValidation(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H27_MPEMatrixOutputChannel(CIccProfile *pIcc);
+int RunHeuristic_H28_LUTDimensionValidation(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H29_ColorantTableStringValidation(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H30_GamutBoundaryDescAllocation(CIccProfile *pIcc, const char *filename);
+int RunHeuristic_H31_MPEChannelCount(CIccProfile *pIcc);
+int RunHeuristic_H32_TagDataTypeConfusion(CIccProfile *pIcc, const char *filename);
+
+// H56-H102: Advanced validation heuristics (extracted from mega-function)
+int RunHeuristic_H56_CalculatorStackDepth(CIccProfile *pIcc);
+int RunHeuristic_H58_SparseMatrixEntryBounds(CIccProfile *pIcc);
+int RunHeuristic_H60_DictionaryTagConsistency(CIccProfile *pIcc);
+int RunHeuristic_H61_ViewingConditionsValidation(CIccProfile *pIcc);
+int RunHeuristic_H62_MLUStringBombs(CIccProfile *pIcc);
+int RunHeuristic_H63_CurveLUTChannelMismatch(CIccProfile *pIcc);
+int RunHeuristic_H64_NamedColor2DeviceCoordOverflow(CIccProfile *pIcc);
+int RunHeuristic_H65_ChromaticityPlausibility(CIccProfile *pIcc);
+int RunHeuristic_H66_NumArrayNaNInfScan(CIccProfile *pIcc);
+int RunHeuristic_H67_ResponseCurveSetBounds(CIccProfile *pIcc);
+int RunHeuristic_H70_MeasurementTagValidation(CIccProfile *pIcc);
+int RunHeuristic_H71_ColorantTableNullTermination(CIccProfile *pIcc);
+int RunHeuristic_H72_SparseMatrixArrayBounds(CIccProfile *pIcc);
+int RunHeuristic_H73_TagArrayNestingDepth(CIccProfile *pIcc);
+int RunHeuristic_H74_TagTypeSignatureConsistency(CIccProfile *pIcc);
+int RunHeuristic_H75_TagsVerySmallSize(CIccProfile *pIcc);
+int RunHeuristic_H76_CIccTagDataTypeFlag(CIccProfile *pIcc);
+int RunHeuristic_H77_MPECalculatorSubElementCount(CIccProfile *pIcc);
+int RunHeuristic_H78_CLUTGridDimensionOverflow(CIccProfile *pIcc);
+int RunHeuristic_H79_LoadTagAllocationOverflow(CIccProfile *pIcc);
+int RunHeuristic_H80_SharedTagPointerUAF(CIccProfile *pIcc);
+int RunHeuristic_H81_MPECalculatorIOConsistency(CIccProfile *pIcc);
+int RunHeuristic_H82_IOReadSizeOverflow(CIccProfile *pIcc);
+int RunHeuristic_H83_FloatNumericArraySize(CIccProfile *pIcc);
+int RunHeuristic_H84_LUT3DTransformConsistency(CIccProfile *pIcc);
+int RunHeuristic_H85_MPEBufferOverlap(CIccProfile *pIcc);
+int RunHeuristic_H86_LocalizedUnicodeBounds(CIccProfile *pIcc);
+int RunHeuristic_H87_TRCCurveAnomaly(CIccProfile *pIcc);
+int RunHeuristic_H88_ChromaticAdaptationMatrix(CIccProfile *pIcc);
+int RunHeuristic_H89_ProfileSequenceDescription(CIccProfile *pIcc);
+int RunHeuristic_H90_PreviewTagChannelConsistency(CIccProfile *pIcc);
+int RunHeuristic_H91_ColorantOrderValidation(CIccProfile *pIcc);
+int RunHeuristic_H92_SpectralViewingConditions(CIccProfile *pIcc);
+int RunHeuristic_H93_EmbeddedProfileFlag(CIccProfile *pIcc);
+int RunHeuristic_H94_MatrixTRCColorantConsistency(CIccProfile *pIcc);
+int RunHeuristic_H95_SparseMatrixArrayBoundsValidation(CIccProfile *pIcc);
+int RunHeuristic_H96_EmbeddedProfileValidation(CIccProfile *pIcc);
+int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc);
+int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc);
+int RunHeuristic_H99_EmbeddedImageTagValidation(CIccProfile *pIcc);
+int RunHeuristic_H100_ProfileSequenceDescValidation(CIccProfile *pIcc);
+int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc);
+int RunHeuristic_H102_TagSizeProfileSizeCrossCheck(CIccProfile *pIcc);
 
 /// H103: PCC (Profile Connection Conditions) validation
 int RunHeuristic_H103_PCC(CIccProfile *pIcc);
