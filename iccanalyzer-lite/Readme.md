@@ -1,8 +1,8 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-06 00:20:00 UTC
+Last Updated: 2026-03-08 14:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 106 heuristics, ASAN/UBSAN instrumented, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 141 heuristics (H1-H138 ICC + H139-H141 TIFF), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,38 +14,62 @@ tl;dr ICC Profile Security Analyzer — 106 heuristics, ASAN/UBSAN instrumented,
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (86 checks)
-  -a  <file.icc>              Comprehensive analysis (all modes)
+  -h  <file.icc>              Security heuristics (141 checks)
+  -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
   -nf <file.icc>              Ninja mode (full dump, no truncation)
   -cg <crash.log> [out.png]   Call graph from ASAN/UBSAN crash log
   -x  <file.icc> <basename>   Extract LUT tables
   -xml <file.icc> <out.xml>   Export heuristics report as XML + XSLT
+  -img <file.tif>             Explicit image analysis mode
+  --json <file.icc>           JSON structured output
 ```
 
-## Architecture (16 modules, 14,700+ LOC)
+## Architecture (27 modules, 20,400+ LOC)
 
-| Module | LOC | Purpose |
-|--------|-----|---------|
-| IccHeuristicsLibrary.cpp | 4,128 | Library-API heuristics H9–H32, H56–H106 |
-| IccHeuristicsRawPost.cpp | 2,955 | Raw-file heuristics H33–H69, fallback engine |
-| IccAnalyzerLUT.cpp | 833 | LUT extraction and analysis |
-| IccAnalyzerNinja.cpp | 727 | Ninja mode (compact dump) |
-| IccAnalyzerSecurity.cpp | 664 | Orchestrator: header heuristics H1–H8, H15–H17 |
-| IccAnalyzerCallGraph.cpp | 652 | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
-| IccAnalyzerTagDetails.cpp | 569 | Tag-level detailed output |
-| IccAnalyzerXMLExport.cpp | 378 | XML + XSLT report export |
-| IccAnalyzerPathValidation.cpp | 359 | Path validation, sanitization, DB format |
-| iccAnalyzer-lite.cpp | 348 | Main entry, crash recovery, mode dispatch |
-| IccAnalyzerValidation.cpp | 302 | Profile validation and round-trip |
-| IccAnalyzerErrors.cpp | 231 | Error formatting and reporting |
-| IccAnalyzerInspect.cpp | 201 | Profile inspection utilities |
-| IccAnalyzerConfig.cpp | 183 | Build config and version |
-| IccAnalyzerComprehensive.cpp | 172 | Comprehensive analysis orchestrator |
-| IccAnalyzerSignatures.cpp | 161 | Known signature database |
+### Heuristic Modules (8 files)
 
-## Security Heuristics (H1–H106)
+| Module | Heuristics | LOC | Purpose |
+|--------|-----------|-----|---------|
+| IccHeuristicsHeader.cpp | H1-H8, H15-H17 | ~500 | Raw header byte validation |
+| IccHeuristicsTagValidation.cpp | H9-H32 | 1,627 | Tag structure and type checks |
+| IccHeuristicsRawPost.cpp | H33-H55, H57-H69 | 2,955 | Raw file I/O heuristics |
+| IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102 | 2,624 | Deep data validation |
+| IccHeuristicsProfileCompliance.cpp | H103-H120 | 1,749 | ICC spec compliance |
+| IccHeuristicsIntegrity.cpp | H121-H138 | 1,707 | Integrity and CWE-400 checks |
+| IccImageAnalyzer.cpp | H139-H141 | ~800 | TIFF image security analysis |
+| IccHeuristicsLibrary.cpp | — | 99 | Thin dispatcher for H9-H138 |
+
+### Support Modules
+
+| Module | Purpose |
+|--------|---------|
+| IccHeuristicsRegistry.h | 141-entry metadata table (name, CWE, CVE, phase) |
+| IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
+| IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
+| IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
+| IccAnalyzerComprehensive.cpp | Comprehensive analysis orchestrator |
+| IccAnalyzerCallGraph.cpp | ASAN/UBSAN callgraph, DOT/JSON/PNG export |
+| IccAnalyzerNinja.cpp | Ninja mode (compact dump) |
+| IccAnalyzerLUT.cpp | LUT extraction and analysis |
+| IccAnalyzerXMLExport.cpp | XML + XSLT report export |
+| IccAnalyzerTagDetails.cpp | Tag-level detailed output |
+| IccAnalyzerPathValidation.cpp | Path validation, sanitization, DB format |
+| IccAnalyzerValidation.cpp | Profile validation and round-trip |
+| IccAnalyzerErrors.cpp | Error formatting and reporting |
+| IccAnalyzerInspect.cpp | Profile inspection utilities |
+| IccAnalyzerConfig.cpp | Build config and version |
+| IccAnalyzerSignatures.cpp | Known signature database |
+| IccAnalyzerColors.cpp | Color output formatting |
+| iccAnalyzer-lite.cpp | Main entry, crash recovery, mode dispatch |
+
+## CVE Coverage
+
+38 heuristics detect patterns from 46 CVEs (from 77 iccDEV security advisories).
+22 XML-parser CVEs are out of scope (binary-only analyzer).
+
+## Security Heuristics (H1–H141)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -166,13 +190,56 @@ iccAnalyzer-lite [MODE] <file>
 | H101 | MPE sub-element channel continuity | Input→output channel chaining |
 | H102 | Tag size cross-check | Declared vs actual size mismatch |
 
-### Coverage-Gap API Heuristics (H103–H106)
+### Coverage-Gap API Heuristics (H103–H120)
 | ID | Check | Risk |
 |----|-------|------|
 | H103 | PCC viewing conditions | D50 deviation, spectral data integrity |
 | H104 | PRMG gamut evaluation | Gamut boundary description analysis |
 | H105 | Matrix-TRC determinant/inversion | Singular matrix detection, colorant XYZ |
 | H106 | Environment variable tags | Spectral range validation, MPE env vars |
+| H107 | Channel cross-check | Colorspace channel count vs tag channel count |
+| H108 | Private tag detection | Non-ICC-registered private tags |
+| H109 | Shellcode pattern scan | x86/ARM shellcode sequences in tag data |
+| H110 | Class tag validation | Required tags per profile class (§8) |
+| H111 | Reserved bytes | Header bytes 100-127 must be zero |
+| H112 | White point validation | wtpt tag D50 consistency check |
+| H113 | Round-trip fidelity | AToB/BToA transform accuracy |
+| H114 | Curve smoothness | TRC curve monotonicity and smoothness — CVE-2026-21687 |
+| H115 | Characterization data | Metadata tag validation |
+| H116 | Copyright/desc encoding | String encoding consistency |
+| H117 | Tag type allowed | Per-class tag type restrictions |
+| H118 | Calculator cost estimate | MPE calculator complexity estimation |
+| H119 | Round-trip deltaE | Color difference threshold |
+| H120 | Curve invertibility | TRC curve invertibility check |
+
+### Integrity Heuristics (H121–H138)
+| ID | Check | Risk |
+|----|-------|------|
+| H121 | Characterization data round-trip | Data preservation through transforms |
+| H122 | Tag encoding | UTF-8/ASCII encoding validation |
+| H123 | Non-required tags | Unexpected tag presence |
+| H124 | Version-specific tags | Tag presence vs version consistency |
+| H125 | Transform smoothness | Smooth output across input range |
+| H126 | Private tag malware | Entropy/size anomaly in private tags |
+| H127 | Private tag registry | Known private tag signature matching |
+| H128 | Version BCD encoding | Major.minor.bugfix BCD validation — CVE-2026-24403 |
+| H129 | PCS illuminant D50 | s15Fixed16 D50 XYZ validation |
+| H130 | Tag alignment | 4-byte alignment of tag offsets |
+| H131 | Profile ID MD5 | Computed vs stored MD5 comparison |
+| H132 | Chad determinant | Chromatic adaptation matrix conditioning |
+| H133 | Flags reserved bits | Header flag reserved bit validation |
+| H134 | Tag type reserved bytes | Type signature reserved field check |
+| H135 | Duplicate tag signatures | Tag table uniqueness constraint |
+| H136 | Response curve measurement count | CWE-400: excessive measurements |
+| H137 | High dimensional grid complexity | CWE-400: nGran^ndim iteration |
+| H138 | Calculator branching depth | CWE-674: recursive calculator ops — CVE-2026-24407 |
+
+### TIFF Image Heuristics (H139–H141)
+| ID | Check | Risk |
+|----|-------|------|
+| H139 | Strip geometry validation | StripByteCounts vs RowsPerStrip×Width bounds — CWE-122/CWE-190 |
+| H140 | Dimension/sample validation | Width/Height/BPS/SPP range and overflow — CWE-400/CWE-131 |
+| H141 | IFD offset bounds | TIFF IFD tag data offsets within file — CWE-125 |
 
 ## Call Graph Analysis (-cg)
 
