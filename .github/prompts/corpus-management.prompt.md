@@ -79,6 +79,24 @@ llvm-cov-18 show $OBJS -instr-profile=/path/merged.profdata \
 .github/scripts/generate-coverage-report.sh /path/merged.profdata coverage-report/ cfl/bin/icc_*_fuzzer
 ```
 
+### Step 2b: Compare Against Upstream Tools (optional fidelity check)
+```bash
+# Run ASAN-instrumented upstream tools (iccDEV/Build-ASAN/) against test corpus
+mkdir -p /tmp/tool-cov && rm -f /tmp/tool-cov/*.profraw
+for f in test-profiles/*.icc fuzz/graphics/icc/*.icc; do
+  LLVM_PROFILE_FILE=/tmp/tool-cov/dump_%m.profraw \
+  LD_LIBRARY_PATH=iccDEV/Build-ASAN/IccProfLib:iccDEV/Build-ASAN/IccXML \
+    timeout 5 iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile "$f" >/dev/null 2>&1
+done
+
+# Compare functions: extract LCOV FNDA lines → sort → comm
+llvm-cov-18 export <tool> -instr-profile=<tool.profdata> -format=lcov | \
+  grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > tool-funcs.txt
+llvm-cov-18 export <fuzzer> -instr-profile=<fuzzer.profdata> -format=lcov | \
+  grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > fuzzer-funcs.txt
+comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but NOT fuzzer
+```
+
 ### Step 3: Preserve SSD Artifacts
 Copy crash/oom/timeout/slow-unit files BEFORE cleaning:
 ```bash

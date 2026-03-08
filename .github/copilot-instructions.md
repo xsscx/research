@@ -88,13 +88,22 @@ cd colorbleed_tools && make setup && make
 
 `cfl/build.sh` reuses an existing `cfl/iccDEV/` checkout if present — it does NOT reclone unless the directory is missing.
 
+```bash
+# Build ASAN-instrumented upstream tools (for coverage comparison)
+cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
+cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j32
+```
+
 ### iccDEV Tools — Source of Truth
 
 **CRITICAL**: Two iccDEV checkouts exist with DIFFERENT purposes:
 
 | Path | Purpose | Patched? |
 |------|---------|----------|
-| `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED)** | No |
+| `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Release)** | No |
+| `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage)** | No |
 | `cfl/iccDEV/` | CFL fuzzer build (60+ patches applied) | Yes |
 
 **For crash fidelity testing**: ALWAYS use `iccDEV/Build/Tools/` (unpatched).
@@ -102,16 +111,64 @@ If the upstream tool doesn't crash but the fuzzer does, it's a fuzzer alignment
 issue — not an upstream bug. NEVER use `cfl/iccDEV/` for this purpose.
 
 ```bash
-# Run upstream tool against a PoC
+# Run upstream tool against a PoC (Release build)
 LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
   iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
 ```
+
+### ASAN-Instrumented Upstream Build
+
+Build upstream tools with ASAN+UBSAN+Coverage for fidelity comparison:
+
+```bash
+# Build (one-time setup — ~2 minutes)
+cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
+cmake ../Build/Cmake \
+  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j32
+
+# Run tool with coverage collection
+LLVM_PROFILE_FILE=/tmp/tool-cov/dump_%m.profraw \
+LD_LIBRARY_PATH=iccDEV/Build-ASAN/IccProfLib:iccDEV/Build-ASAN/IccXML \
+  iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
+
+# Generate coverage report
+llvm-profdata-18 merge -sparse /tmp/tool-cov/*.profraw -o /tmp/tool-cov/merged.profdata
+llvm-cov-18 report iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile \
+  -instr-profile=/tmp/tool-cov/merged.profdata \
+  -object iccDEV/Build-ASAN/IccProfLib/libIccProfLib2.so.2.3.1.4
+```
+
+### Upstream Tool vs Fuzzer Fidelity (March 2026)
+
+Coverage comparison using ASAN-instrumented upstream tools vs fuzzer corpus replay:
+
+| Tool / Fuzzer | Functions | Lines | Notes |
+|---------------|-----------|-------|-------|
+| iccFromCube (upstream) | 3.62% | 3.96% | Simple text→profile pipeline |
+| icc_fromcube_fuzzer | 3.75% | 4.07% | **100% function fidelity** (only `main` differs) |
+| iccDumpProfile (upstream) | 1.56% | 1.88% | Describe() paths |
+| icc_dump_fuzzer | 29.99% | 27.65% | Fuzzer covers 15× more (custom icRealloc, deeper iteration) |
+| iccToXml (upstream) | 13.47% | 20.30% | XML serialization |
+| iccRoundTrip (upstream) | 22.58% | 28.65% | CMM Apply pipeline |
 
 Available tools (15):
 `iccApplyNamedCmm`, `iccApplyProfiles`, `iccApplySearch`, `iccApplyToLink`,
 `iccDumpProfile`, `iccFromCube`, `iccFromXml`, `iccJpegDump`, `iccPngDump`,
 `iccRoundTrip`, `iccSpecSepToTiff`, `iccTiffDump`, `iccToXml`,
 `iccV5DspObsToV4Dsp`, `iccDumpProfileGui`
+
+### iccDEV Doxygen Documentation
+
+- **Class hierarchy**: `https://xss.cx/public/docs/iccdev/hierarchy.html` (textual, ~200+ classes)
+- **Graphical hierarchy**: `https://xss.cx/public/docs/iccdev/inherits.html` (SVG graphs)
+- **Version**: 2.3.1
+- Key class trees for fuzzer coverage analysis:
+  - `CIccTag` — largest hierarchy (~40+ tag types), covered by dump/profile/deep_dump fuzzers
+  - `CIccMultiProcessElement` — MPE elements, covered by calculator/spectral fuzzers
+  - `CIccCurveSetCurve` — curve types (Segmented, SingleSampled, SampledCalculator)
+  - `CIccXform` — transform pipeline, covered by apply/link/roundtrip fuzzers
 
 ### CWE-400 Timeout Patterns in iccDEV
 

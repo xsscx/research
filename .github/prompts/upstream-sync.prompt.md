@@ -53,6 +53,15 @@ cd cfl && ./build.sh
 cp bin/icc_*_fuzzer /mnt/g/fuzz-ssd/bin/  # or ramdisk
 ```
 
+### Step 6b — Rebuild ASAN upstream tools
+```bash
+cd iccDEV/Build-ASAN && cmake ../Build/Cmake \
+  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j32
+```
+This keeps the ASAN-instrumented upstream tools in sync for fidelity comparison.
+
 ### Step 7 — Update documentation
 - `cfl/patches/README.md` — patch count, dropped list
 - `cfl/README.md` — patch count
@@ -65,3 +74,6 @@ cp bin/icc_*_fuzzer /mnt/g/fuzz-ssd/bin/  # or ramdisk
 - Always verify CFL and upstream commits match before triaging findings
 - 14 patches dropped as NO-OPs when syncing from `186bba0` → `5f7e03a` → `b5ade94` (PR #648)
 - Patches with `/tmp/` paths in headers fail with `patch -p1` — must use `a/`/`b/` prefix
+- After sync, rebuild both `cfl/` (fuzzers) and `iccDEV/Build-ASAN/` (upstream ASAN tools)
+- iccDEV upstream cmake has `ENABLE_SANITIZERS` and `ENABLE_COVERAGE` options built-in
+- Fidelity measurement: use `llvm-cov-18 export -format=lcov` + `FNDA` extraction to diff covered functions

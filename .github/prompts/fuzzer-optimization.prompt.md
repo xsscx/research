@@ -303,11 +303,17 @@ intent byte (size-1): mod 4 for rendering intent
 ### 12. icc_fromcube_fuzzer
 **Tool**: IccFromCube (.cube LUT → ICC profile)
 **Input**: .cube text file
-**Min/Max**: 16 bytes / 5MB
-**Fidelity**: ~85%
+**Min/Max**: 16 bytes / 131072 (was 5MB — reduced for text format)
+**Fidelity**: **100%** (upstream tool covers 108 functions, fuzzer covers 110 — only `main` differs)
 **Branch coverage**: 80%
 
 **What it exercises**: `.cube` file parsing (TITLE, LUT_3D_SIZE, LUT_3D_INPUT_RANGE, DOMAIN_MIN/MAX, float triplet data rows), CLUT construction, ICC profile creation.
+
+**Corpus optimization (March 2026)**:
+- Merge-minimized 1,993 files / 199MB → 381 files / 2.2MB (zero coverage loss)
+- Added 14 targeted seeds covering uncovered branches (curve reuse, 1/2-value domains, video range)
+- exec/s improved 126 → 223 (+77%), coverage jumped 1,928 → 1,948 (+20 edges)
+- Key insight: `-max_len=131072` (not 5MB) since .cube is text format (64³ × 20 chars = ~5KB max useful)
 
 **Coverage focus**:
 - Missing TITLE → default description path
@@ -315,6 +321,7 @@ intent byte (size-1): mod 4 for rendering intent
 - Truncated data → `parse3DTable` failure
 - Incomplete rows (1 or 2 values instead of 3)
 - `LUT_3D_INPUT_RANGE` with custom non-default domain
+- Per-channel curve reuse: ch2==ch1≠ch0 path (fuzzer uses `memcmp` for NaN-safe comparison)
 
 **Known dead code** (upstream bugs):
 1. `DOMAIN_MIN/MAX` parsing uses `getNext(line.c_str())` instead of `getNext(line.c_str()+11)` — channel 1 always equals channel 0

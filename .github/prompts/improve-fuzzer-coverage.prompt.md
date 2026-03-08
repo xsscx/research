@@ -1,12 +1,13 @@
 # Improve Fuzzer Code Coverage
 
 ## Goal
-Analyze LLVM coverage reports and create targeted seed ICC profiles and dictionary entries to increase code coverage for the 19 LibFuzzer harnesses.
+Analyze LLVM coverage reports and create targeted seed ICC profiles and dictionary entries to increase code coverage for the 18 LibFuzzer harnesses.
 
 ## Prerequisites
-- Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 19
+- Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 18
 - Coverage data exists: profraw files in `/mnt/g/fuzz-ssd/profraw/` or `/tmp/fuzz-ramdisk/profraw/`
 - LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
+- ASAN-instrumented upstream tools: `iccDEV/Build-ASAN/Tools/` (see below)
 
 ## Workflow
 
@@ -115,6 +116,48 @@ git commit -m "coverage: <description of improvements>"
 | Functions | 63.23% |
 | Instantiations | 62.99% |
 
+## Upstream Tool vs Fuzzer Fidelity
+
+Build upstream tools with ASAN+Coverage for comparison:
+```bash
+cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
+cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j32
+```
+
+Run tool against corpus, then compare:
+```bash
+# Collect upstream tool coverage
+for f in test-profiles/*.icc fuzz/graphics/icc/*.icc; do
+  LLVM_PROFILE_FILE=/tmp/tool-cov/dump_%m.profraw \
+  LD_LIBRARY_PATH=iccDEV/Build-ASAN/IccProfLib:iccDEV/Build-ASAN/IccXML \
+    timeout 5 iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile "$f" >/dev/null 2>&1
+done
+
+# Collect fuzzer coverage
+LLVM_PROFILE_FILE=/tmp/tool-cov/fuzz_%m.profraw ASAN_OPTIONS=detect_leaks=0 \
+  cfl/bin/icc_dump_fuzzer -runs=0 cfl/corpus-icc_dump_fuzzer/
+
+# Compare function-level fidelity
+llvm-cov-18 export <tool_binary> -instr-profile=<tool.profdata> -format=lcov | \
+  grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > tool-funcs.txt
+llvm-cov-18 export <fuzzer_binary> -instr-profile=<fuzzer.profdata> -format=lcov | \
+  grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > fuzzer-funcs.txt
+comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but not fuzzer
+```
+
+**Measured fidelity** (March 2026):
+
+| Tool / Fuzzer | Functions | Lines | Fidelity |
+|---------------|-----------|-------|----------|
+| iccFromCube (upstream) | 3.62% | 3.96% | — |
+| icc_fromcube_fuzzer | 3.75% | 4.07% | **100%** (only `main` missing) |
+| iccDumpProfile (upstream) | 1.56% | 1.88% | — |
+| icc_dump_fuzzer | 29.99% | 27.65% | **>100%** (custom icRealloc) |
+| iccToXml (upstream) | 13.47% | 20.30% | — |
+| iccRoundTrip (upstream) | 22.58% | 28.65% | — |
+
 ## Corpus State (March 2026, post-SSD migration)
 | Fuzzer | Files | Priority |
 |--------|-------|----------|
@@ -135,7 +178,7 @@ git commit -m "coverage: <description of improvements>"
 | link | 1,859 | NEEDS quarantine_size_mb=256 |
 | io | 1,103 | SMALL — needs more seeds |
 | spectral | 1,009 | SMALL — needs more seeds |
-| fromcube | 717 | SMALL — needs more seeds |
+| fromcube | 381 | OPTIMIZED (was 1,993/199MB → 381/2.2MB, +77% exec/s) |
 
 ## Top Coverage Gaps (by missed lines)
 | File | Missed | Coverage | Priority | Target Fuzzers |
