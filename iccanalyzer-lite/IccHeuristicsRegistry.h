@@ -11,8 +11,10 @@
  * filtering, and programmatic enumeration of heuristics.
  *
  * CVE mappings derived from 77 iccDEV security advisories (GHSA-* / CVE-2026-*).
- * 38 heuristics detect patterns from 46 CVEs. 22 XML-parser CVEs are out of scope
- * (iccanalyzer-lite analyzes binary ICC, not XML).
+ * 68 advisories have CVE IDs; 9 are GHSA-only.
+ * 38 heuristics detect patterns from 46 unique CVEs (binary ICC analysis).
+ * 22 CVEs are out of scope: 19 XML parser/serializer, 3 tool-specific.
+ * Validated 2026-03-08 against closed iccDEV issues and security advisories.
  */
 
 #ifndef ICC_HEURISTICS_REGISTRY_H
