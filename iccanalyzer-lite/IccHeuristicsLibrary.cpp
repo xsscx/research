@@ -6936,7 +6936,7 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
                        ((uint32_t)tagEntry[10] << 8) |
                         (uint32_t)tagEntry[11];
 
-    if (tagOffset + 4 > (uint32_t)fileSize || tagSize < 28) continue;
+    if (tagOffset > UINT32_MAX - 4 || tagOffset + 4 > (uint32_t)fileSize || tagSize < 28) continue;
 
     // Read tag type signature at tagOffset
     uint8_t typeSig[4];
