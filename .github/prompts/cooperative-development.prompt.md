@@ -23,10 +23,12 @@ This prompt defines roles, handoff protocols, and efficiency strategies.
 | Build xnuimagefuzzer (native) | ❌ | ✅ | ❌ |
 | Run iOS Simulator | ❌ | ✅ | ✅ (macOS runners) |
 | Generate call graphs | ✅ | ❌ | ✅ |
-| Analyze ICC profiles | ✅ | Partial (no binary) | ✅ |
+| Analyze ICC profiles (local) | ✅ | Partial (no binary) | ✅ |
+| Analyze ICC profiles (remote) | N/A | ✅ (via MCP Docker API) | ✅ (via MCP Docker API) |
 | Collect LLVM coverage | ✅ | ✅ (native builds) | ✅ |
 | Extract ICC from images | ✅ (libtiff) | ✅ (libtiff + ImageIO) | ✅ |
-| Run MCP server | ✅ | ✅ | ✅ |
+| Run MCP server (local) | ✅ | ✅ | ✅ |
+| Run MCP Docker API | ✅ (host) | ✅ (client) | ✅ (client) |
 | Create TIFF test images | ❌ | ✅ (ImageIO/CoreGraphics) | ❌ |
 
 ## Handoff Protocols
@@ -64,6 +66,32 @@ Both agents collect LLVM coverage:
 - Do NOT commit `.profraw` / `.profdata` files (gitignored)
 - Commit coverage summaries to `analysis-reports/coverage-summary.md`
 
+### Any Agent → MCP Docker API: Remote Analysis (No Git Required)
+
+When an agent needs ICC profile analysis but lacks the binary (macOS) or wants
+to avoid commit overhead:
+
+1. Ensure the MCP Docker API is running on a reachable host:
+   ```bash
+   docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-demo api
+   ```
+2. Upload the profile via REST:
+   ```bash
+   curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
+   ```
+3. Retrieve analysis (choose one or more):
+   ```bash
+   curl -s "http://<host>:8080/api/security-json?path=<uploaded_path>"  # JSON
+   curl -s "http://<host>:8080/api/full?path=<uploaded_path>"           # combined
+   curl -s "http://<host>:8080/api/xml?path=<uploaded_path>"            # ICC→XML
+   ```
+4. If the result warrants preservation, commit the report via git.
+
+**Benefits**: Eliminates 2 git commits per profile (upload + report). Only
+final noteworthy results get committed. Ideal for triage of many profiles.
+
+See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
+
 ## File Ownership (Conflict Prevention)
 
 | Path | Owner | Other Agents |
@@ -85,7 +113,7 @@ Both agents collect LLVM coverage:
 ### WSL-2 Agent — Prioritized Task List
 
 #### High Priority (Coverage & Analysis Gaps)
-1. **Batch-analyze ~300 unanalyzed test profiles** (currently 28/329 = 8.5%):
+1. **Batch-analyze ~290 unanalyzed test profiles** (currently 39/329 = 11.9%):
    ```bash
    for f in test-profiles/*.icc; do
      bn=$(basename "$f" .icc)
@@ -95,24 +123,19 @@ Both agents collect LLVM coverage:
    ```
    Commit in batches of 50 to avoid giant commits.
 
-2. **Regenerate coverage data** (current profdata is out of sync):
+2. **Rebuild CFL fuzzers against iccDEV v2.3.1.5**:
+   ```bash
+   cd cfl && ./build.sh   # will re-apply patches against updated source
+   ```
+   Then verify 4 NO-OP patches (047, 064, 070, 072) — upstreamed via PRs #652-#657.
+
+3. **Regenerate coverage data** (profdata is out of sync after iccDEV update):
    ```bash
    .github/scripts/ramdisk-seed.sh --mount
-   # Run all 18 fuzzers for 300s each
    cfl/fuzz-local.sh -t 300
    .github/scripts/merge-profdata.sh
    .github/scripts/generate-coverage-report.sh
    ```
-
-3. **Seed starved corpora** — These fuzzers have minimal seeds:
-   | Fuzzer | Current Seeds | Action |
-   |--------|--------------|--------|
-   | `icc_spectral_fuzzer` | 1 file (32K) | Add spectral/MVIS profiles from test-profiles/ |
-   | `icc_fromxml_fuzzer` | 3 files (24K) | Add XML from `fuzz/xml/icc/` (42 files available) |
-   | `corpus-xml` (shared) | 5 files (48K) | Merge with `fuzz/xml/icc/minimized/` (74 files) |
-   | `icc_apply_fuzzer` | 8 files (5.5M) | Add diverse class profiles |
-   | `icc_link_fuzzer` | 9 files (5.5M) | Add deviceLink profiles |
-   | `icc_applyprofiles_fuzzer` | 12 files (308K) | Add multi-channel + TIFF inputs |
 
 4. **Run targeted fuzzing on weak coverage areas** (from coverage-summary.md):
    - `IccCmmSearch`: 0% coverage → needs `icc_applynamedcmm_fuzzer` seeds
@@ -143,27 +166,35 @@ Both agents collect LLVM coverage:
 ### macOS Agent — Prioritized Task List
 
 #### High Priority
-1. **Generate diverse ICC-bearing images** via iOS Image Generator:
+1. **Use MCP Docker API for ICC analysis** (avoids git commit overhead):
+   ```bash
+   # Upload and analyze profiles remotely — see remote-analysis.prompt.md
+   curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
+   curl -s "http://<host>:8080/api/security-json?path=<path>"
+   ```
+
+2. **Generate diverse ICC-bearing images** via iOS Image Generator:
    - Target under-represented classes: `abst`, `nmcl`, `link`
    - Use `--iterations 100` for statistical diversity
    - Stage outputs to `fuzz/graphics/icc/` and `fuzz/graphics/tif/`
 
-2. **Test CFL crash files against ColorSync**:
+3. **Test CFL crash files against ColorSync**:
    ```bash
-   for crash in crash-*.icc; do
+   for crash in test-profiles/crash-*.icc test-profiles/hbo-*.icc test-profiles/sbo-*.icc; do
      sips --getProperty all "$crash" 2>&1 | head -5
    done
    ```
 
-3. **Run xnuimagefuzzer against new seeds**:
+4. **Run xnuimagefuzzer against new seeds**:
    ```bash
    cd xnuimagetools && ./build-native.sh --build-only
-   FUZZ_ICC_DIR=../fuzz/graphics/icc /tmp/native-build/xnuimagetools --iterations 50
+   FUZZ_ICC_DIR=../test-profiles /tmp/native-build/xnuimagetools --iterations 50
    ```
 
 #### Medium Priority
-4. **Collect native coverage** to compare with WSL fuzzer coverage
-5. **Test TIFF images from fuzz/graphics/tif/** against ImageIO
+5. **Collect native coverage** to compare with WSL fuzzer coverage
+6. **Test TIFF images from fuzz/graphics/tif/** against ImageIO
+7. **Extract ICC profiles from Catalyst batch outputs** and seed into fuzz/
 
 ## Batch Analysis Script for WSL-2
 
