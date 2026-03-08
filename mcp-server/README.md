@@ -159,7 +159,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-All 106 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
+All 141 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
 
 ### 4. Security Scan — CVE PoC
 
@@ -246,7 +246,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port
 |---|------|------|-------------|
 | 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 3 | `analyze_security` | Analysis | 106-heuristic security scan (H1–H106) |
+| 3 | `analyze_security` | Analysis | 141-heuristic security scan (H1–H141) |
 | 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | Analysis | All modes combined in one pass |
 | 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
