@@ -404,16 +404,16 @@ done
 ## File References
 
 ### Critical Files to Modify
-- `/home/h02332/po/research/iccanalyzer-lite/IccHeuristicsHelpers.h` (RAII class definition)
-- `/home/h02332/po/research/iccanalyzer-lite/IccAnalyzerCommon.h` (centralized constants)
-- `/home/h02332/po/research/iccanalyzer-lite/CMakeLists.txt` (version config)
-- `/home/h02332/po/research/iccanalyzer-lite/iccAnalyzer-lite.cpp` (usage strings)
-- `/home/h02332/po/research/iccanalyzer-lite/IccAnalyzerXMLExport.cpp` (version in output)
-- `/home/h02332/po/research/iccanalyzer-lite/tests/run_tests.py` (test coverage)
+- `iccanalyzer-lite/IccHeuristicsHelpers.h` (RAII class definition)
+- `iccanalyzer-lite/IccAnalyzerCommon.h` (centralized constants)
+- `iccanalyzer-lite/CMakeLists.txt` (version config)
+- `iccanalyzer-lite/iccAnalyzer-lite.cpp` (usage strings)
+- `iccanalyzer-lite/IccAnalyzerXMLExport.cpp` (version in output)
+- `iccanalyzer-lite/tests/run_tests.py` (test coverage)
 
 ### Major Refactoring Targets
-- `/home/h02332/po/research/iccanalyzer-lite/IccHeuristicsRawPost.cpp` (41 fopen/fclose pairs)
-- `/home/h02332/po/research/iccanalyzer-lite/IccAnalyzerLUT.cpp` (28 pairs)
-- `/home/h02332/po/research/iccanalyzer-lite/IccHeuristicsTagValidation.cpp` (8 pairs)
-- `/home/h02332/po/research/iccanalyzer-lite/IccHeuristicsIntegrity.cpp` (7 pairs)
+- `iccanalyzer-lite/IccHeuristicsRawPost.cpp` (41 fopen/fclose pairs)
+- `iccanalyzer-lite/IccAnalyzerLUT.cpp` (28 pairs)
+- `iccanalyzer-lite/IccHeuristicsTagValidation.cpp` (8 pairs)
+- `iccanalyzer-lite/IccHeuristicsIntegrity.cpp` (7 pairs)
 

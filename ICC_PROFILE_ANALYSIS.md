@@ -1,5 +1,5 @@
 # ICC Profile & Color Space Injection Analysis
-## File: `/home/h02332/po/research/xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m`
+## File: `xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m`
 
 ---
 

@@ -174,7 +174,7 @@ Example: `seed_icc_perm01_sRGB2014_001.png`
 
 ## Original File Information
 
-- **File**: `/home/h02332/po/research/xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m`
+- **File**: `xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m`
 - **Total Lines**: 5119
 - **Version**: 1.8.1
 - **Author**: David Hoyt

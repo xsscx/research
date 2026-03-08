@@ -173,7 +173,7 @@ QUICK WINS (Can implement in 1-2 hours)
 DETAILED ANALYSIS DOCUMENT
 ═══════════════════════════════════════════════════════════════════════════════
 
-See: /home/h02332/po/research/ICCANALYZER_LITE_ANALYSIS.md (419 lines)
+See: ICCANALYZER_LITE_ANALYSIS.md (419 lines)
 
 Contains:
 • File-by-file breakdown of fopen/fclose pairs

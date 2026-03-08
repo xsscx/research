@@ -13,7 +13,7 @@ The fuzzers exercise **CTiffImg** (TiffImg.cpp) which is the core TIFF I/O wrapp
 ## 1. icc_tiffdump_fuzzer.cpp — Full Source Code Analysis
 
 ### **File Location**
-`/home/h02332/po/research/cfl/icc_tiffdump_fuzzer.cpp` (224 lines)
+`cfl/icc_tiffdump_fuzzer.cpp` (224 lines)
 
 ### **Architecture & Design**
 - **In-memory TIFF processing** with custom libtiff I/O callbacks
@@ -123,7 +123,7 @@ if ((bps == 32 && sampleFormat != SAMPLEFORMAT_IEEEFP) ||
 ## 2. icc_specsep_fuzzer.cpp — Spectral Separation Fuzzer
 
 ### **File Location**
-`/home/h02332/po/research/cfl/icc_specsep_fuzzer.cpp` (327 lines)
+`cfl/icc_specsep_fuzzer.cpp` (327 lines)
 
 ### **Purpose**
 Tests **IccSpecSepToTiff** tool: creates multi-channel TIFF from input TIFFs, applies ICC profiles, performs spectral separation.
@@ -228,8 +228,8 @@ if (memIO.Attach(profile.get(), profileSize)) {
 ## 3. CTiffImg (TiffImg.cpp/TiffImg.h) — Core TIFF I/O Library
 
 ### **File Locations**
-- Header: `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.h`
-- Implementation: `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp` (459 lines)
+- Header: `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.h`
+- Implementation: `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp` (459 lines)
 
 ### **TIFF API Calls Summary**
 

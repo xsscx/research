@@ -78,9 +78,9 @@ macOS pulls ──→ Test crashes
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
-**Analyzed**: ~30 profiles/images with full 141-heuristic reports
-**Recent batch**: 3 iOS-gen ICC profiles, 1 printer profile, 12 TIFFs (fuzzed + catalyst)
-**Gap**: ~70 ICC profiles in `fuzz/graphics/icc/` still need analysis (mostly CVE variant PoCs)
+**Analyzed**: 28 profiles/images with full 141-heuristic reports
+**Recent batch**: 3 iOS-gen ICC profiles, 1 printer profile, 7 Catalyst TIFFs, 5 fuzzed TIFFs
+**Gap**: ~300 ICC/TIFF files in `test-profiles/` still need analysis
 
 ### Completed Analysis (this session)
 

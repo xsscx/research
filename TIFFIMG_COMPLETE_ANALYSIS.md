@@ -1,7 +1,7 @@
 # TiffImg Class - Complete Code Path Analysis
 
 ## Overview
-The `CTiffImg` class is located in `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}` and provides a wrapper around the TIFF library for reading/writing TIFF images with ICC profile support.
+The `CTiffImg` class is located in `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}` and provides a wrapper around the TIFF library for reading/writing TIFF images with ICC profile support.
 
 ---
 
