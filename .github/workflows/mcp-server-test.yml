@@ -182,14 +182,14 @@ jobs:
                   IccAnalyzerCallGraph.cpp IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp \
                   IccAnalyzerErrors.cpp IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp \
                   IccAnalyzerXMLExport.cpp IccAnalyzerTagDetails.cpp \
-                  IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp"
+                  IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccImageAnalyzer.cpp"
             for src in $SRCS; do
               $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
             done
             OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
             $CXX $OBJS \
               -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-              -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm \
+              -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm -ltiff \
               -Wl,--allow-multiple-definition \
               -o iccanalyzer-lite
             cd ..
