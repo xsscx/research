@@ -104,7 +104,7 @@ def test_health():
     check("Health 200", r.status_code == 200)
     d = r.json()
     check("Health ok", d["ok"] is True)
-    check("Health tools=16", d["tools"] == 16)
+    check("Health tools=24", d["tools"] == 24)
 
 
 # ── List Profiles ──────────────────────────────────────────
