@@ -134,3 +134,9 @@ Reproducer files committed to repo root use descriptive prefixes:
 - **Trigger**: BPC rendering intents only — intent 40 (Perceptual+BPC), 41 (Relative+BPC), 42 (Saturation+BPC).
 - **Reproduction**: `ASAN_OPTIONS=print_scariness=1:detect_leaks=0 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles /tmp/test_rgb.tif /tmp/out.tif 0 0 0 0 1 <profile.icc> 40`
 - **SCARINESS**: 51 (4-byte-write-stack-buffer-overflow). See patch 071.
+
+## See Also
+- [triage-fuzzer-oom.prompt.yml](triage-fuzzer-oom.prompt.yml) — OOM triage workflow
+- [triage-cve-poc.prompt.yml](triage-cve-poc.prompt.yml) — CVE PoC analysis workflow
+- [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) — Coverage improvement after fix
+- [upstream-sync.prompt.md](upstream-sync.prompt.md) — Patch reconciliation workflow

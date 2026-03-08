@@ -23,3 +23,8 @@ messages:
     content: |
       Run a health check on the ICC Profile MCP server.
       Verify that all binaries, test profiles, and analysis tools are operational.
+
+# ## See Also
+# - analyze-icc-profile.prompt.yml — Full security scan
+# - compare-icc-profiles.prompt.yml — Side-by-side profile diff
+# - corpus-management.prompt.md — Corpus storage operations

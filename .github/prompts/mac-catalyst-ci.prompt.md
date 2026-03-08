@@ -49,3 +49,8 @@ The VT instrumented job is disabled in CI — test locally with extended timeout
 3. Verify polling threshold >= 80 and timeout >= 120s for xnuimagefuzzer
 4. Confirm SIGPIPE-safe output in all artifact upload steps
 5. Check `set -euo pipefail` is first line of every `run:` block
+
+## See Also
+- [image-fuzzer-quality.prompt.md](image-fuzzer-quality.prompt.md) — Image fuzzer assessment
+- [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent coordination
+- [health-check.prompt.yml](health-check.prompt.yml) — MCP server verification

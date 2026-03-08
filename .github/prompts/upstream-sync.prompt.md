@@ -77,3 +77,9 @@ This keeps the ASAN-instrumented upstream tools in sync for fidelity comparison.
 - After sync, rebuild both `cfl/` (fuzzers) and `iccDEV/Build-ASAN/` (upstream ASAN tools)
 - iccDEV upstream cmake has `ENABLE_SANITIZERS` and `ENABLE_COVERAGE` options built-in
 - Fidelity measurement: use `llvm-cov-18 export -format=lcov` + `FNDA` extraction to diff covered functions
+
+## See Also
+- [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent coordination
+- [cve-enrichment.prompt.md](cve-enrichment.prompt.md) — CVE-to-heuristic mapping
+- [triage-fuzzer-crash.prompt.md](triage-fuzzer-crash.prompt.md) — Fuzzer crash triage
+- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations

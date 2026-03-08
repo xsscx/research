@@ -31,3 +31,8 @@ messages:
 testData:
   - profile_a: test-profiles/sRGB_D65_MAT.icc
     profile_b: test-profiles/Display_Identity.icc
+
+# ## See Also
+# - analyze-icc-profile.prompt.yml — Full security scan
+# - health-check.prompt.yml — MCP server verification
+# - cve-enrichment.prompt.md — CVE-to-heuristic mapping

@@ -132,3 +132,8 @@ messages:
       - Profile ID MD5: zero bytes 44-47, 64-67, 84-99 before computing
 testData:
   - profile_path: test-profiles/sRGB_D65_MAT.icc
+
+# ## See Also
+# - compare-icc-profiles.prompt.yml — Side-by-side profile diff
+# - triage-cve-poc.prompt.yml — CVE PoC analysis workflow
+# - health-check.prompt.yml — MCP server verification
