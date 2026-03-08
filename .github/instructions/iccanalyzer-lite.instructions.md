@@ -209,5 +209,11 @@ Every heuristic MUST follow this pattern:
 ## UBSAN Status
 
 - 0 analyzer-code UBSAN errors
-- Remaining upstream iccDEV UBSAN: IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero,
-  IccTagLut.cpp signed overflow — these are NOT in analyzer code
+- Remaining upstream iccDEV UBSAN (NOT in analyzer code):
+  - `IccCAM.cpp:262,266` — div-by-zero (m_WhitePoint[1] can be 0)
+  - `IccProfile.cpp:3153,3155` — div-by-zero (m_illuminantXYZ.Y can be 0)
+  - `IccTagLut.cpp:5009` — signed integer overflow (int sum += m_XYZMatrix)
+  - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange
+- Fixed upstream (no longer triggered):
+  - `IccSignatureUtils.h` uint→char (PR #648)
+  - `iccApplyProfiles.cpp` UnitClip NaN (PR #654)
