@@ -114,42 +114,42 @@ make -j32
 
 | Path | Purpose | Patched? |
 |------|---------|----------|
-| `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Release)** | No |
-| `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage)** | No |
+| `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Debug+ASAN+UBSAN+Coverage)** | No |
+| `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage, alternate build dir)** | No |
 | `cfl/iccDEV/` | CFL fuzzer build (60+ patches applied) | Yes |
+
+**CRITICAL BUILD POLICY**: `iccDEV/Build/` must ALWAYS be built with full
+Debug+ASAN+UBSAN+coverage instrumentation. **NEVER use Release builds.**
+Use `halt_on_error=0` for catch-and-continue to fully analyze the crash chain.
 
 **For crash fidelity testing**: ALWAYS use `iccDEV/Build/Tools/` (unpatched).
 If the upstream tool doesn't crash but the fuzzer does, it's a fuzzer alignment
 issue — not an upstream bug. NEVER use `cfl/iccDEV/` for this purpose.
 
 ```bash
-# Run upstream tool against a PoC (Release build)
-LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-  iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
-```
-
-### ASAN-Instrumented Upstream Build
-
-Build upstream tools with ASAN+UBSAN+Coverage for fidelity comparison:
-
-```bash
-# Build (one-time setup — ~2 minutes)
-cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
-cmake ../Build/Cmake \
+# Build iccDEV with full instrumentation (ALWAYS — never Release)
+cd iccDEV/Build
+cmake Cmake \
   -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
-  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+  -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+  -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate"
 make -j32
 
-# Run tool with coverage collection
+# Run upstream tool against a PoC (catch-and-continue for full chain)
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
 LLVM_PROFILE_FILE=/tmp/tool-cov/dump_%m.profraw \
-LD_LIBRARY_PATH=iccDEV/Build-ASAN/IccProfLib:iccDEV/Build-ASAN/IccXML \
-  iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+  iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
 
 # Generate coverage report
 llvm-profdata-18 merge -sparse /tmp/tool-cov/*.profraw -o /tmp/tool-cov/merged.profdata
-llvm-cov-18 report iccDEV/Build-ASAN/Tools/IccDumpProfile/iccDumpProfile \
+llvm-cov-18 report iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile \
   -instr-profile=/tmp/tool-cov/merged.profdata \
-  -object iccDEV/Build-ASAN/IccProfLib/libIccProfLib2.so.2.3.1.4
+  -object iccDEV/Build/IccProfLib/libIccProfLib2.so.2.3.1.5
 ```
 
 ### Upstream Tool vs Fuzzer Fidelity (March 2026)
@@ -658,7 +658,7 @@ No manual intervention required — the entire pipeline is hands-free from issue
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
 - **cfl/** — 18 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 141-heuristic static/dynamic security analyzer (v3.6.0) built with full sanitizer instrumentation. Links the **unpatched** upstream iccDEV library (`iccDEV/Build/`) — does NOT use CFL patches. All user-controllable inputs are handled through defensive programming: bounds checks, size validation, ASAN+UBSAN instrumentation, signal recovery (SIGSEGV/SIGABRT/SIGALRM), complexity guards, and heuristic-level input validation. 28 C++ modules (24 source files, 21,000+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories and detect patterns from 48 CVEs across 77 iccDEV security advisories (39 heuristics have CVE cross-references in `IccHeuristicsRegistry.h`). **Architecture (v3.6.0)**: 8 heuristic modules — `IccHeuristicsHeader.cpp` (H1-H8, H15-H17), `IccHeuristicsTagValidation.cpp` (H9-H32), `IccHeuristicsRawPost.cpp` (H33-H69), `IccHeuristicsDataValidation.cpp` (H56-H102), `IccHeuristicsProfileCompliance.cpp` (H103-H120), `IccHeuristicsIntegrity.cpp` (H121-H138), `IccImageAnalyzer.cpp` (H139-H141 TIFF). Each heuristic is a standalone `RunHeuristic_H##_Name()` function. `IccHeuristicsRegistry.h` provides 141-entry metadata table (id, name, specRef, CWE, CVE refs, phase, severity). `IccHeuristicsHelpers.h` provides `FindAndCast<T>()` template and `RawFileHandle` RAII. **4 output modes**: text (`-h`/`-a`), JSON (`--json`), report (`--report` — severity-sorted professional format), XML (`-xml` — per-heuristic dark-themed XSLT). `IccAnalyzerJson.cpp` provides `--json` structured output. `IccAnalyzerReport.cpp` provides `--report` severity-sorted output with CWE/CVE summary. `IccAnalyzerXMLExport.cpp` provides per-heuristic XML with dark-themed XSLT. All 3 structured modes use pipe/dup2 capture + regex parsing. **Severity classification**: All 141 heuristics classified as CRITICAL/HIGH/MEDIUM/LOW/INFO based on CWE impact. **TIFF image analysis** (v3.4.0+): `-a` mode auto-detects TIFF files via magic bytes, extracts embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata/security checks, scans pixel data for xnuimagefuzzer injection signatures (10 INJECT_STRING patterns + ICC mutation markers), then runs full 141-heuristic analysis (H1-H138 on ICC + H139-H141 on TIFF). New `-img` mode for explicit image analysis. **Unit tests**: 217 tests in `run_tests.py` (18 test functions, 41 synthesized corpus profiles, heuristic trigger tests, ASAN corpus checks, mode coverage tests including JSON, report, XML, TIFF, HTML). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (7 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 5 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules (including `-ltiff` linkage for `IccImageAnalyzer.cpp`). **Adding new heuristics**: requires 4 edits — function in category file + declaration in header + dispatcher call + registry entry. Heuristic count updates needed in 7 locations (see `iccanalyzer-lite.instructions.md`). **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMatrixMath.cpp NaN→uint16). Previously-listed upstream UBSAN now fixed: IccSignatureUtils.h uint→char (PR #648), iccApplyProfiles UnitClip NaN (PR #654), IccMD5.cpp wrapping (intentional, not UB). **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **Upstream sync**: iccDEV pinned at `7db2273` (upstream PRs #630-#639 + #648 + #652-#657). **CVE detection scope**: 48/68 advisory CVEs are binary-ICC-detectable (39 heuristics); 19 are XML parser/serializer bugs (out of scope); 1 is tool-specific (iccFromCube). Validated 2026-03-08.
+- **iccanalyzer-lite/** — 141-heuristic static/dynamic security analyzer (v3.6.0) built with full sanitizer instrumentation. Links the **unpatched** upstream iccDEV library (`iccDEV/Build/`) — does NOT use CFL patches. All user-controllable inputs are handled through defensive programming: bounds checks, size validation, ASAN+UBSAN instrumentation, signal recovery (SIGSEGV/SIGABRT/SIGALRM), complexity guards, and heuristic-level input validation. 28 C++ modules (24 source files, 21,000+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories and detect patterns from 48 CVEs across 77 iccDEV security advisories (39 heuristics have CVE cross-references in `IccHeuristicsRegistry.h`). **Architecture (v3.6.0)**: 8 heuristic modules — `IccHeuristicsHeader.cpp` (H1-H8, H15-H17), `IccHeuristicsTagValidation.cpp` (H9-H32), `IccHeuristicsRawPost.cpp` (H33-H69), `IccHeuristicsDataValidation.cpp` (H56-H102), `IccHeuristicsProfileCompliance.cpp` (H103-H120), `IccHeuristicsIntegrity.cpp` (H121-H138), `IccImageAnalyzer.cpp` (H139-H141 TIFF). Each heuristic is a standalone `RunHeuristic_H##_Name()` function. `IccHeuristicsRegistry.h` provides 141-entry metadata table (id, name, specRef, CWE, CVE refs, phase, severity). `IccHeuristicsHelpers.h` provides `FindAndCast<T>()` template and `RawFileHandle` RAII. **4 output modes**: text (`-h`/`-a`), JSON (`--json`), report (`--report` — severity-sorted professional format), XML (`-xml` — per-heuristic dark-themed XSLT). `IccAnalyzerJson.cpp` provides `--json` structured output. `IccAnalyzerReport.cpp` provides `--report` severity-sorted output with CWE/CVE summary. `IccAnalyzerXMLExport.cpp` provides per-heuristic XML with dark-themed XSLT. All 3 structured modes use pipe/dup2 capture + regex parsing. **Severity classification**: All 141 heuristics classified as CRITICAL/HIGH/MEDIUM/LOW/INFO based on CWE impact. **TIFF image analysis** (v3.4.0+): `-a` mode auto-detects TIFF files via magic bytes, extracts embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata/security checks, scans pixel data for xnuimagefuzzer injection signatures (10 INJECT_STRING patterns + ICC mutation markers), then runs full 141-heuristic analysis (H1-H138 on ICC + H139-H141 on TIFF). New `-img` mode for explicit image analysis. **Unit tests**: 217 tests in `run_tests.py` (18 test functions, 41 synthesized corpus profiles, heuristic trigger tests, ASAN corpus checks, mode coverage tests including JSON, report, XML, TIFF, HTML). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (7 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 5 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules (including `-ltiff` linkage for `IccImageAnalyzer.cpp`). **Adding new heuristics**: requires 4 edits — function in category file + declaration in header + dispatcher call + registry entry. Heuristic count updates needed in 7 locations (see `iccanalyzer-lite.instructions.md`). **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMatrixMath.cpp NaN→uint16). Previously-listed upstream UBSAN now fixed: IccSignatureUtils.h uint→char (PR #648), iccApplyProfiles UnitClip NaN (PR #654), IccMD5.cpp wrapping (intentional, not UB). **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **Upstream sync**: iccDEV at `1ffa7a8` / v2.3.1.5 (upstream PRs #630-#639 + #648 + #652-#659 + #661). **CVE detection scope**: 48/68 advisory CVEs are binary-ICC-detectable (39 heuristics); 19 are XML parser/serializer bugs (out of scope); 1 is tool-specific (iccFromCube). Validated 2026-03-08.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 24 tools: 11 analysis (health check, inspect, security scan, roundtrip, JSON output, report output, full analysis, XML export, compare, list profiles, upload+analyze) + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 68 security patches (64 active + 4 NO-OPs) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, XML parsing limits, CLUT interpolation bounds checks (Interp1d–6d + InterpND), NaN-to-integer cast guards (UnitClip), BPC black-point stack-buffer-overflow guard (pixelXfm), Begin() return value NULL-deref guard (V5DspObsToV4Dsp), XML channel count validation (icMBBFromXml), CWE-400 timeout mitigations (CFL-074–076: CheckUnderflowOverflow ops budget, EvaluateProfile iteration cap, NamedColor2 nDeviceCoords cap), CWE-400 upstream pattern hardening (CFL-077–081: ResponseCurve nMeasurements, NamedColor2 Describe, ApplySequence depth, Describe output cap, DescribeSequence recursion), and TIFF strip buffer bounds check (CFL-082). 14 patch numbers deleted as NO-OPs (023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066). 4 NO-OPs still in directory but silently skip (047, 064, 070, 072 — upstreamed via PRs #652-#657). Next patch: 083. See `cfl/patches/README.md` for full details.
@@ -745,7 +745,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 - `IccTagLut.cpp:5009` — signed integer overflow in LUT matrix validation (int sum += m_XYZMatrix)
 - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange (patch 051 fixes in CFL)
 
-**Fixed upstream** (no longer triggered in our pinned iccDEV at `7db2273`):
+**Fixed upstream** (no longer triggered in our pinned iccDEV at `1ffa7a8` / v2.3.1.5):
 - `IccSignatureUtils.h` — uint→char implicit conversion (fixed in PR #648, now uses static_cast)
 - `iccApplyProfiles.cpp UnitClip` — NaN→unsigned char (fixed in PR #654, now handles NaN/Inf)
 - `IccMD5.cpp` — unsigned wrapping (intentional, not UB per spec)

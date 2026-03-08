@@ -38,7 +38,7 @@ for p in patches/*.patch; do
 done
 ```
 
-Current upstream: commit **7db2273** (2026-03-07)
+Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
 ## The 19 Fuzzers
 
