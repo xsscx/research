@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERCOMPREHENSIVE_H
-#define _ICCANALYZERCOMPREHENSIVE_H
+#ifndef ICCANALYZERCOMPREHENSIVE_H
+#define ICCANALYZERCOMPREHENSIVE_H
 
 // Comprehensive analysis with optional fingerprint database
 int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db = nullptr);
