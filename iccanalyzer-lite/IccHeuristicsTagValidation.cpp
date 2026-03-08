@@ -29,6 +29,7 @@
 #include <climits>
 #include <algorithm>
 #include <string>
+#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H9_CriticalTextTags(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -108,9 +109,7 @@ printf("      Max safe CLUT entries per tag: %llu (16M)\n",
   };
   int clutCount = 0;
   for (size_t li = 0; li < sizeof(clutSigs)/sizeof(clutSigs[0]); li++) {
-    CIccTag *pLTag = pIcc->FindTag(clutSigs[li]);
-    if (!pLTag) continue;
-    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pLTag);
+    CIccMBB *pMBB = FindAndCast<CIccMBB>(pIcc, clutSigs[li]);
     if (!pMBB) continue;
     CIccCLUT *pCLUT = pMBB->GetCLUT();
     if (!pCLUT) continue;
@@ -158,9 +157,7 @@ printf("      Max MPE elements per chain: %u\n", ICCANALYZER_MAX_MPE_ELEMENTS);
   };
   int mpeCount = 0;
   for (size_t mi = 0; mi < sizeof(mpeSigs)/sizeof(mpeSigs[0]); mi++) {
-    CIccTag *pMTag = pIcc->FindTag(mpeSigs[mi]);
-    if (!pMTag) continue;
-    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pMTag);
+    CIccTagMultiProcessElement *pMPE = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeSigs[mi]);
     if (!pMPE) continue;
     mpeCount++;
     icUInt32Number nElem = pMPE->NumElements();
@@ -314,9 +311,8 @@ int RunHeuristic_H18_TechnologySignature(CIccProfile *pIcc) {
 // 18. Technology Signature Validation
 printf("[H18] Technology Signature Validation\n");
 {
-  CIccTag *pTechTag = pIcc->FindTag(icSigTechnologyTag);
-  if (pTechTag) {
-    CIccTagSignature *pSigTag = dynamic_cast<CIccTagSignature*>(pTechTag);
+  CIccTagSignature *pSigTag = FindAndCast<CIccTagSignature>(pIcc, icSigTechnologyTag);
+  if (pSigTag) {
     if (pSigTag) {
       icTechnologySignature techSig = static_cast<icTechnologySignature>(pSigTag->GetValue());
       if (IsValidTechnologySignature(techSig)) {
@@ -461,10 +457,7 @@ printf("[H21] tagStruct Member Inspection\n");
   // Iterate all tags looking for CIccTagStruct instances
   for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     IccTagEntry *e = &(*it);
-    CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
-    if (!pTag) continue;
-
-    CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct*>(pTag);
+    CIccTagStruct *pStruct = FindAndCast<CIccTagStruct>(pIcc, e->TagInfo.sig);
     if (!pStruct) continue;
     foundStruct = true;
 
@@ -564,8 +557,7 @@ int RunHeuristic_H22_NumArrayScalarExpectation(CIccProfile *pIcc) {
 printf("[H22] NumArray Scalar Expectation (cept struct)\n");
 {
   int scalarIssues = 0;
-  CIccTag *pCeptTag = pIcc->FindTag(icSigColorEncodingParamsTag);
-  CIccTagStruct *pCept = pCeptTag ? dynamic_cast<CIccTagStruct*>(pCeptTag) : nullptr;
+  CIccTagStruct *pCept = FindAndCast<CIccTagStruct>(pIcc, icSigColorEncodingParamsTag);
 
   if (!pCept) {
     printf("      %s[OK] No cept (ColorEncodingParams) tag — check not applicable%s\n",
@@ -680,9 +672,7 @@ printf("[H23] NumArray Value Range Validation\n");
   // Also check NumArrays inside tagStruct members
   for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     IccTagEntry *e = &(*it);
-    CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
-    if (!pTag) continue;
-    CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct*>(pTag);
+    CIccTagStruct *pStruct = FindAndCast<CIccTagStruct>(pIcc, e->TagInfo.sig);
     if (!pStruct) continue;
 
     TagEntryList *pElems = pStruct->GetElemList();
@@ -1039,9 +1029,7 @@ printf("[H27] MPE Matrix Output Channel Validation\n");
     icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
   };
   for (auto sig : mpeSigs) {
-    CIccTag *pTag = pIcc->FindTag(sig);
-    if (!pTag) continue;
-    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, (icTagSignature)sig);
     if (!pMpe) continue;
     
     icUInt32Number numElements = pMpe->NumElements();
@@ -1434,9 +1422,7 @@ printf("[H31] MPE Channel Count Validation\n");
     icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
   };
   for (auto sig31 : mpeSigs31) {
-    CIccTag *pTag31 = pIcc->FindTag(sig31);
-    if (!pTag31) continue;
-    CIccTagMultiProcessElement *pMpe31 = dynamic_cast<CIccTagMultiProcessElement*>(pTag31);
+    CIccTagMultiProcessElement *pMpe31 = FindAndCast<CIccTagMultiProcessElement>(pIcc, (icTagSignature)sig31);
     if (!pMpe31) continue;
 
     icUInt16Number mpeIn  = pMpe31->NumInputChannels();

@@ -20,10 +20,10 @@
 #include <cstdint>
 #include <cmath>
 
-int RunRawPostLibraryHeuristics(const char *filename)
+
+int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
 {
   int heuristicCount = 0;
-
 
   // =========================================================================
   // Raw-file heuristics H33-H36 (safe on all inputs — no library API calls)
@@ -130,6 +130,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 34. 32-bit Integer Overflow in Sub-Element Offset Bounds Checks
   // Common ICC parser pattern: offset + element_size computed in 32-bit arithmetic.
   // When CLUT offset ≥ 0xFFFFFFEC, the add wraps: 0xFFFFFFFF + 0x14 = 0x13 (truncated)
@@ -224,6 +231,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 35. Suspicious Fill Pattern Detection in mBA/mAB B-Curve Data
   // All-0xFF fill in B-curve data (bytes 32+) creates parseable curve structures that
@@ -331,6 +345,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 36. LUT Tag Pair Completeness
   // Check A2B↔B2A and D2B↔B2D pairing. Unpaired LUT tags may indicate crafted
   // profiles targeting only one transform direction.
@@ -413,6 +434,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 37. Calculator Element Complexity Validation (raw file bytes)
   // Calculator elements (0x63616C63 'calc') are Turing-complete: if/sel opcodes enable
@@ -529,6 +557,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 38. Curve Degenerate Value Detection (raw file bytes)
   // TRC curves with all-zero, all-max, or NaN values cause undefined behavior
@@ -658,6 +693,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 39. Shared Tag Data Aliasing Detection (raw file bytes)
   // Multiple tag entries pointing to the same offset+size is ICC-legal (shared data).
   // However, shared mutable types (mBA/mAB/calc/tary) can cause UAF.
@@ -746,6 +788,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 40. Tag Alignment & Padding Validation (raw file bytes)
   // ICC spec requires tag data offsets to be 4-byte aligned. Misalignment causes
@@ -840,6 +889,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 41. Version/Type Consistency Check (raw file bytes)
   // Flag v5-only types/tags in v2/v4 profiles (type confusion risk) and
@@ -954,6 +1010,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H42_MatrixSingularity(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 42. Matrix Singularity Detection (raw file bytes)
   // Read rXYZ, gXYZ, bXYZ tags (s15Fixed16 × 3 each) and compute 3×3 determinant.
   // Near-zero determinant → division by zero in color transforms.
@@ -1044,6 +1107,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 43. Spectral/BRDF Tag Structural Validation (raw file bytes)
   // ICC v5/iccMAX adds 24+ BRDF signatures and spectral tags. Check for
@@ -1157,6 +1227,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 44. Embedded Image Validation (raw file bytes, ICC v5)
   // v5 embeddedHeightImageType / embeddedNormalImageType (embt = 0x656D6274)
   // can contain PNG or TIFF data. Check magic bytes and size.
@@ -1251,6 +1328,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 45. Sparse Matrix Bounds Validation (raw file bytes, ICC v5)
   // smat (0x736D6174) tags specify rows × cols for sparse matrix data.
   // Extreme dimensions cause OOM. CFL patch 044.
@@ -1340,6 +1424,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
+{
+  int heuristicCount = 0;
 
   // =========================================================================
   // Raw-file heuristics H46-H54 (CWE-driven gap analysis from 77 CVEs)
@@ -1443,6 +1534,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 47. NamedColor2 Size Overflow Detection (raw file bytes)
   // ncl2 tag: type(4) + reserved(4) + vendorFlag(4) + count(4) + nDeviceCoords(4) +
@@ -1561,6 +1659,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 48. CLUT Grid Dimension Product Overflow (raw file bytes)
   // mAB/mBA (mft2): type(4)+reserved(4)+nInput(1)+nOutput(1)+pad(2)+offsets... CLUT grid at CLUT_offset
@@ -1701,6 +1806,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 49. Float/s15Fixed16 NaN/Inf Detection (raw file bytes)
   // Scan XYZ (0x58595A20), sf32 (0x73663332), fl32 (0x666C3332) tag data
   // for IEEE 754 NaN (exponent=0xFF, mantissa≠0) and Inf (exponent=0xFF, mantissa=0)
@@ -1808,6 +1920,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 50. Profile Size Zero / Zero-Size Tag Detection (raw file bytes)
   // CVE-2026-21507: Infinite loop in CalcProfileID() when profile size = 0 (CVSS 7.5)
   // Also: any tag with size = 0 may cause div-by-zero or infinite loops in parsers
@@ -1878,6 +1997,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 51. LUT I/O Channel Count Consistency (raw file bytes)
   // lut8 (mft1) and lut16 (mft2): inputChan at +8, outputChan at +9
@@ -1970,6 +2096,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 52. Integer Underflow in Tag Size Subtraction (raw file bytes)
   // Tags have minimum header sizes: desc=12, curv=12, text=8, XYZ=20, mluc=16, ncl2=84
   // When tag_size < minimum_header, subtraction (tag_size - header) wraps negative as uint
@@ -2050,6 +2183,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
+{
+  int heuristicCount = 0;
+
   // 53. Embedded Profile Recursion Detection (raw file bytes)
   // Scan profile data for 'acsp' magic (0x61637370) at offset 36 within embedded data,
   // indicating nested ICC profiles that could trigger recursive parsing → stack overflow/UAF
@@ -2121,6 +2261,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
+{
+  int heuristicCount = 0;
 
   // 54. Division-by-Zero Trigger Detection (raw file bytes)
   // Check for structural values that cause division by zero in parsers:
@@ -2230,6 +2377,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
+{
+  int heuristicCount = 0;
 
   // =====================================================================
   // H55 — UTF-16 Encoding Validation (CWE-120/CWE-170)
@@ -2394,6 +2548,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
+{
+  int heuristicCount = 0;
+
   // H57 — Embedded Profile Recursion Depth (raw file I/O — no library needed)
   // Detects profiles embedding other ICC profiles (via 'psin' tag or
   // embedded profile tags) beyond a safe nesting depth.
@@ -2483,6 +2644,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H59_SpectralWavelengthRange(const char *filename)
+{
+  int heuristicCount = 0;
+
   // H59 — Spectral Wavelength Range Consistency (raw file I/O — no library needed)
   // Validates spectral range fields (start, end, steps) for physical
   // plausibility and arithmetic consistency.
@@ -2562,6 +2730,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
+{
+  int heuristicCount = 0;
 
   // =====================================================================
   // H68 — GamutBoundaryDesc Triangle/Vertex Overflow (CWE-131/CWE-190)
@@ -2655,6 +2830,13 @@ int RunRawPostLibraryHeuristics(const char *filename)
   }
   printf("\n");
 
+  return heuristicCount;
+}
+
+int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename)
+{
+  int heuristicCount = 0;
+
   // =====================================================================
   // H69 — Profile ID / MD5 Consistency (CWE-345/CWE-354)
   // Raw-file check: validates Profile ID field at header bytes 84-99
@@ -2711,6 +2893,41 @@ int RunRawPostLibraryHeuristics(const char *filename)
     }
   }
   printf("\n");
+
+  return heuristicCount;
+}
+
+int RunRawPostLibraryHeuristics(const char *filename)
+{
+  int heuristicCount = 0;
+
+  heuristicCount += RunHeuristic_H33_mBAmABSubElementOffset(filename);
+  heuristicCount += RunHeuristic_H34_IntegerOverflowSubElement(filename);
+  heuristicCount += RunHeuristic_H35_SuspiciousFillPattern(filename);
+  heuristicCount += RunHeuristic_H36_LUTTagPairCompleteness(filename);
+  heuristicCount += RunHeuristic_H37_CalculatorElementComplexity(filename);
+  heuristicCount += RunHeuristic_H38_CurveDegenerateValue(filename);
+  heuristicCount += RunHeuristic_H39_SharedTagDataAliasing(filename);
+  heuristicCount += RunHeuristic_H40_TagAlignmentPadding(filename);
+  heuristicCount += RunHeuristic_H41_VersionTypeConsistency(filename);
+  heuristicCount += RunHeuristic_H42_MatrixSingularity(filename);
+  heuristicCount += RunHeuristic_H43_SpectralBRDFTagStructure(filename);
+  heuristicCount += RunHeuristic_H44_EmbeddedImageValidation(filename);
+  heuristicCount += RunHeuristic_H45_SparseMatrixBounds(filename);
+  heuristicCount += RunHeuristic_H46_TextDescUnicodeLength(filename);
+  heuristicCount += RunHeuristic_H47_NamedColor2SizeOverflow(filename);
+  heuristicCount += RunHeuristic_H48_CLUTGridDimensionOverflow(filename);
+  heuristicCount += RunHeuristic_H49_FloatNaNInfDetection(filename);
+  heuristicCount += RunHeuristic_H50_ZeroSizeProfileTag(filename);
+  heuristicCount += RunHeuristic_H51_LUTChannelCountConsistency(filename);
+  heuristicCount += RunHeuristic_H52_IntegerUnderflowTagSize(filename);
+  heuristicCount += RunHeuristic_H53_EmbeddedProfileRecursion(filename);
+  heuristicCount += RunHeuristic_H54_DivisionByZeroTrigger(filename);
+  heuristicCount += RunHeuristic_H55_UTF16EncodingValidation(filename);
+  heuristicCount += RunHeuristic_H57_EmbeddedProfileRecursionDepth(filename);
+  heuristicCount += RunHeuristic_H59_SpectralWavelengthRange(filename);
+  heuristicCount += RunHeuristic_H68_GamutBoundaryDescOverflow(filename);
+  heuristicCount += RunHeuristic_H69_ProfileIDMD5Consistency(filename);
 
   return heuristicCount;
 }
