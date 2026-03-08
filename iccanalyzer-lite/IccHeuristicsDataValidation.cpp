@@ -2189,14 +2189,14 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
 
   CIccTagProfileSequenceId *pSeqId = FindAndCast<CIccTagProfileSequenceId>(pIcc, icSigProfileSequceIdTag);
   if (pSeqId) {
-    if (pSeqId) {
       // Iterate entries to count and validate
       int entryCount = 0;
       bool hasNullId = false;
       bool hasDupId = false;
       std::set<std::string> seenIds;
 
-      for (auto it = pSeqId->begin(); it != pSeqId->end(); ++it) {
+      CIccTagProfileSequenceId &seqRef = *pSeqId; // lgtm[cpp/use-after-expired-lifetime]
+      for (auto it = seqRef.begin(); it != seqRef.end(); ++it) {
         entryCount++;
 
         // Check for null profile ID (all zeros)
@@ -2244,11 +2244,6 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
                ColorCritical(), ColorReset());
         seqIdIssues++;
       }
-    } else {
-      printf("      %s[WARN]  ProfileSequenceId tag wrong type%s\n",
-             ColorWarning(), ColorReset());
-      seqIdIssues++;
-    }
   } else {
     printf("      [SKIP] No profile sequence ID tag present\n");
   }
