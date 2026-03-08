@@ -53,9 +53,21 @@ All classes require: profileDescriptionTag, mediaWhitePointTag, copyrightTag
 ### MD5 Reference
 - RFC 1321: `https://www.ietf.org/rfc/rfc1321.txt`
 
+## Multi-Agent Coordination
+
+This repo is developed by multiple Copilot agents on different platforms (WSL-2/Linux,
+macOS, Cloud CI). See `.github/instructions/multi-agent.instructions.md` for setup,
+handoff protocols, file ownership rules, and conflict prevention. See
+`.github/prompts/cooperative-development.prompt.md` for prioritized task lists,
+coverage targets, and batch analysis workflows.
+
+**Key principle**: WSL-2 owns analysis/fuzzing artifacts (`analysis-reports/`, `cfl/`,
+`call-graph/`). macOS owns iOS/image artifacts (`xnuimagetools/`, `fuzz/graphics/*/xig-*`).
+Both contribute to shared docs (`.github/prompts/`, `.github/instructions/`).
+
 ## Environment Detection
 
-This repo is used in two contexts. Detect which one you are in:
+This repo is used in three contexts. Detect which one you are in:
 
 ### GitHub Copilot Coding Agent (cloud)
 If `copilot-setup-steps.yml` ran, binaries are pre-built in the Docker image.
