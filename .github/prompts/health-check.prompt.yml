@@ -12,7 +12,7 @@ messages:
 
       Run these checks in order:
       1. Call health_check — verify server status, binary paths, profile counts.
-         Expect 22 tools: 9 analysis + 7 maintainer + 6 operations.
+         Expect 24 tools: 11 analysis + 7 maintainer + 6 operations.
       2. Call list_test_profiles — confirm test profiles are accessible.
       3. Call inspect_profile on sRGB_D65_MAT.icc as a smoke test.
       4. Call check_dependencies — verify build dependencies are available.

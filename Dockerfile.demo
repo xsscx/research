@@ -18,6 +18,14 @@
 
 # ---- Builder stage (identical to production) ----
 FROM ubuntu:24.04 AS builder
+
+LABEL org.opencontainers.image.title="ICC Profile MCP Server Demo"
+LABEL org.opencontainers.image.description="Developer demo container for ICC color profile security analysis"
+LABEL org.opencontainers.image.source="https://github.com/xsscx/research"
+LABEL org.opencontainers.image.authors="David H Hoyt"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.version="3.6.0"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -196,7 +204,9 @@ async def api_index(request):
             'GET /api/health': 'Health check',
             'GET /api/list?directory=test-profiles': 'List available profiles',
             'GET /api/inspect?path=<file>': 'Structural inspection',
-            'GET /api/security?path=<file>': '32-heuristic security scan',
+            'GET /api/security?path=<file>': '141-heuristic security scan',
+            'GET /api/security-json?path=<file>': 'Security scan (JSON output)',
+            'GET /api/security-report?path=<file>': 'Security scan (severity-sorted report)',
             'GET /api/roundtrip?path=<file>': 'Round-trip tag validation',
             'GET /api/full?path=<file>': 'Full analysis (all modes)',
             'GET /api/xml?path=<file>': 'ICC to XML conversion',
@@ -229,6 +239,9 @@ ENTRYPOINT
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')" || exit 1
 
 USER mcp
 
