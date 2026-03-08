@@ -19,6 +19,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
+#include "IccHeuristicsHelpers.h"
 
 
 int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
@@ -37,18 +38,14 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
   // against tag size are vulnerable to SIGBUS/SIGSEGV.
   printf("[H33] mBA/mAB Sub-Element Offset Validation\n");
   {
-    FILE *fp33 = fopen(filename, "rb");
-    if (fp33) {
-      fseek(fp33, 0, SEEK_END);
-      long fs33_l = ftell(fp33);
-      if (fs33_l < 0) { fclose(fp33); fp33 = NULL; }
-      size_t fs33 = (fp33) ? (size_t)fs33_l : 0;
-      if (fp33) fseek(fp33, 0, SEEK_SET);
+    RawFileHandle fh33 = OpenRawFile(filename);
+    if (fh33) {
+      size_t fs33 = (size_t)fh33.fileSize;
 
       int mbaOobCount = 0;
       if (fs33 >= 132) {
         icUInt8Number hdr33[132];
-        if (fread(hdr33, 1, 132, fp33) == 132) {
+        if (fread(hdr33, 1, 132, fh33.fp) == 132) {
           icUInt32Number tc33 = (static_cast<icUInt32Number>(hdr33[128])<<24) | (static_cast<icUInt32Number>(hdr33[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr33[130])<<8) | hdr33[131];
 
@@ -57,8 +54,8 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
             if (ePos + 12 > fs33) break;
 
             icUInt8Number e33[12];
-            fseek(fp33, ePos, SEEK_SET);
-            if (fread(e33, 1, 12, fp33) != 12) break;
+            fseek(fh33.fp, ePos, SEEK_SET);
+            if (fread(e33, 1, 12, fh33.fp) != 12) break;
 
             icUInt32Number tSig33 = (static_cast<icUInt32Number>(e33[0])<<24) | (static_cast<icUInt32Number>(e33[1])<<16) |
                                     (static_cast<icUInt32Number>(e33[2])<<8) | e33[3];
@@ -70,8 +67,8 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
             // Read tag type signature at the tag data offset
             if ((uint64_t)tOff33 + 32 > fs33 || tSz33 < 32) continue;
             icUInt8Number tagData33[32];
-            fseek(fp33, tOff33, SEEK_SET);
-            if (fread(tagData33, 1, 32, fp33) != 32) continue;
+            fseek(fh33.fp, tOff33, SEEK_SET);
+            if (fread(tagData33, 1, 32, fh33.fp) != 32) continue;
 
             icUInt32Number tagType33 = (static_cast<icUInt32Number>(tagData33[0])<<24) | (static_cast<icUInt32Number>(tagData33[1])<<16) |
                                        (static_cast<icUInt32Number>(tagData33[2])<<8) | tagData33[3];
@@ -111,7 +108,6 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
           }
         }
       }
-      if (fp33) fclose(fp33);
 
       if (mbaOobCount > 0) {
         printf("      %s%d mBA/mAB sub-element offset(s) reference data beyond tag bounds%s\n",
@@ -143,18 +139,14 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
   // which passes the bounds check, leading to OOB access.
   printf("[H34] 32-bit Integer Overflow in Sub-Element Bounds\n");
   {
-    FILE *fp34 = fopen(filename, "rb");
-    if (fp34) {
-      fseek(fp34, 0, SEEK_END);
-      long fs34_l = ftell(fp34);
-      if (fs34_l < 0) { fclose(fp34); fp34 = NULL; }
-      size_t fs34 = (fp34) ? (size_t)fs34_l : 0;
-      if (fp34) fseek(fp34, 0, SEEK_SET);
+    RawFileHandle fh34 = OpenRawFile(filename);
+    if (fh34) {
+      size_t fs34 = (size_t)fh34.fileSize;
 
       int overflowCount = 0;
       if (fs34 >= 132) {
         icUInt8Number hdr34[132];
-        if (fread(hdr34, 1, 132, fp34) == 132) {
+        if (fread(hdr34, 1, 132, fh34.fp) == 132) {
           icUInt32Number tc34 = (static_cast<icUInt32Number>(hdr34[128])<<24) | (static_cast<icUInt32Number>(hdr34[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr34[130])<<8) | hdr34[131];
 
@@ -163,8 +155,8 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
             if (ePos + 12 > fs34) break;
 
             icUInt8Number e34[12];
-            fseek(fp34, ePos, SEEK_SET);
-            if (fread(e34, 1, 12, fp34) != 12) break;
+            fseek(fh34.fp, ePos, SEEK_SET);
+            if (fread(e34, 1, 12, fh34.fp) != 12) break;
 
             icUInt32Number tOff34 = (static_cast<icUInt32Number>(e34[4])<<24) | (static_cast<icUInt32Number>(e34[5])<<16) |
                                     (static_cast<icUInt32Number>(e34[6])<<8) | e34[7];
@@ -173,8 +165,8 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
 
             if ((uint64_t)tOff34 + 32 > fs34 || tSz34 < 32) continue;
             icUInt8Number tagData34[32];
-            fseek(fp34, tOff34, SEEK_SET);
-            if (fread(tagData34, 1, 32, fp34) != 32) continue;
+            fseek(fh34.fp, tOff34, SEEK_SET);
+            if (fread(tagData34, 1, 32, fh34.fp) != 32) continue;
 
             icUInt32Number tagType34 = (static_cast<icUInt32Number>(tagData34[0])<<24) | (static_cast<icUInt32Number>(tagData34[1])<<16) |
                                        (static_cast<icUInt32Number>(tagData34[2])<<8) | tagData34[3];
@@ -217,7 +209,6 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
           }
         }
       }
-      if (fp34) fclose(fp34);
 
       if (overflowCount > 0) {
         printf("      %s%d sub-element offset(s) trigger 32-bit integer overflow%s\n",
@@ -245,18 +236,14 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
   // Changing fill to 0x00 or 0x41 causes "Data overruns tag length" early exit.
   printf("[H35] Suspicious Fill Pattern in mBA/mAB Data\n");
   {
-    FILE *fp35 = fopen(filename, "rb");
-    if (fp35) {
-      fseek(fp35, 0, SEEK_END);
-      long fs35_l = ftell(fp35);
-      if (fs35_l < 0) { fclose(fp35); fp35 = NULL; }
-      size_t fs35 = (fp35) ? (size_t)fs35_l : 0;
-      if (fp35) fseek(fp35, 0, SEEK_SET);
+    RawFileHandle fh35 = OpenRawFile(filename);
+    if (fh35) {
+      size_t fs35 = (size_t)fh35.fileSize;
 
       int fillCount = 0;
       if (fs35 >= 132) {
         icUInt8Number hdr35[132];
-        if (fread(hdr35, 1, 132, fp35) == 132) {
+        if (fread(hdr35, 1, 132, fh35.fp) == 132) {
           icUInt32Number tc35 = (static_cast<icUInt32Number>(hdr35[128])<<24) | (static_cast<icUInt32Number>(hdr35[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr35[130])<<8) | hdr35[131];
 
@@ -265,8 +252,8 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
             if (ePos + 12 > fs35) break;
 
             icUInt8Number e35[12];
-            fseek(fp35, ePos, SEEK_SET);
-            if (fread(e35, 1, 12, fp35) != 12) break;
+            fseek(fh35.fp, ePos, SEEK_SET);
+            if (fread(e35, 1, 12, fh35.fp) != 12) break;
 
             icUInt32Number tSig35 = (static_cast<icUInt32Number>(e35[0])<<24) | (static_cast<icUInt32Number>(e35[1])<<16) |
                                     (static_cast<icUInt32Number>(e35[2])<<8) | e35[3];
@@ -277,8 +264,8 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
 
             if ((uint64_t)tOff35 + 32 > fs35 || tSz35 < 48) continue; // need at least 32-byte header + 16 data bytes
             icUInt8Number typeCheck[4];
-            fseek(fp35, tOff35, SEEK_SET);
-            if (fread(typeCheck, 1, 4, fp35) != 4) continue;
+            fseek(fh35.fp, tOff35, SEEK_SET);
+            if (fread(typeCheck, 1, 4, fh35.fp) != 4) continue;
 
             icUInt32Number tagType35 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
                                        (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
@@ -292,8 +279,8 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
             if (dataLen < 16) continue;
 
             icUInt8Number bData[256];
-            fseek(fp35, dataStart, SEEK_SET);
-            if (fread(bData, 1, dataLen, fp35) != dataLen) continue;
+            fseek(fh35.fp, dataStart, SEEK_SET);
+            if (fread(bData, 1, dataLen, fh35.fp) != dataLen) continue;
 
             // Check for runs of identical bytes ≥ 16
             int runLen = 1;
@@ -332,7 +319,6 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
           }
         }
       }
-      if (fp35) fclose(fp35);
 
       if (fillCount > 0) {
         printf("      %s%d suspicious fill pattern(s) in mBA/mAB B-curve data%s\n",
@@ -357,18 +343,14 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
   // profiles targeting only one transform direction.
   printf("[H36] LUT Tag Pair Completeness\n");
   {
-    FILE *fp36 = fopen(filename, "rb");
-    if (fp36) {
-      fseek(fp36, 0, SEEK_END);
-      long fs36_l = ftell(fp36);
-      if (fs36_l < 0) { fclose(fp36); fp36 = NULL; }
-      size_t fs36 = (fp36) ? (size_t)fs36_l : 0;
-      if (fp36) fseek(fp36, 0, SEEK_SET);
+    RawFileHandle fh36 = OpenRawFile(filename);
+    if (fh36) {
+      size_t fs36 = (size_t)fh36.fileSize;
 
       int pairIssues = 0;
       if (fs36 >= 132) {
         icUInt8Number hdr36[132];
-        if (fread(hdr36, 1, 132, fp36) == 132) {
+        if (fread(hdr36, 1, 132, fh36.fp) == 132) {
           icUInt32Number tc36 = (static_cast<icUInt32Number>(hdr36[128])<<24) | (static_cast<icUInt32Number>(hdr36[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr36[130])<<8) | hdr36[131];
 
@@ -381,8 +363,8 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
             if (ePos + 12 > fs36) break;
 
             icUInt8Number e36[12];
-            fseek(fp36, ePos, SEEK_SET);
-            if (fread(e36, 1, 12, fp36) != 12) break;
+            fseek(fh36.fp, ePos, SEEK_SET);
+            if (fread(e36, 1, 12, fh36.fp) != 12) break;
 
             icUInt32Number tSig36 = (static_cast<icUInt32Number>(e36[0])<<24) | (static_cast<icUInt32Number>(e36[1])<<16) |
                                     (static_cast<icUInt32Number>(e36[2])<<8) | e36[3];
@@ -422,7 +404,6 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
           }
         }
       }
-      if (fp36) fclose(fp36);
 
       if (pairIssues > 0) {
         printf("      %s%d unpaired LUT tag(s) — may indicate crafted profile%s\n",
@@ -448,18 +429,14 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
   // CVE refs: CVE-2026-22047, calcOverMem/calcUnderStack test profiles
   printf("[H37] Calculator Element Complexity Validation\n");
   {
-    FILE *fp37 = fopen(filename, "rb");
-    if (fp37) {
-      fseek(fp37, 0, SEEK_END);
-      long fs37_l = ftell(fp37);
-      if (fs37_l < 0) { fclose(fp37); fp37 = NULL; }
-      size_t fs37 = (fp37) ? (size_t)fs37_l : 0;
-      if (fp37) fseek(fp37, 0, SEEK_SET);
+    RawFileHandle fh37 = OpenRawFile(filename);
+    if (fh37) {
+      size_t fs37 = (size_t)fh37.fileSize;
 
       int calcIssues = 0;
       if (fs37 >= 132) {
         icUInt8Number hdr37[132];
-        if (fread(hdr37, 1, 132, fp37) == 132) {
+        if (fread(hdr37, 1, 132, fh37.fp) == 132) {
           icUInt32Number tc37 = (static_cast<icUInt32Number>(hdr37[128])<<24) | (static_cast<icUInt32Number>(hdr37[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr37[130])<<8) | hdr37[131];
 
@@ -468,8 +445,8 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             if (ePos + 12 > fs37) break;
 
             icUInt8Number e37[12];
-            fseek(fp37, ePos, SEEK_SET);
-            if (fread(e37, 1, 12, fp37) != 12) break;
+            fseek(fh37.fp, ePos, SEEK_SET);
+            if (fread(e37, 1, 12, fh37.fp) != 12) break;
 
             icUInt32Number tSig37 = (static_cast<icUInt32Number>(e37[0])<<24) | (static_cast<icUInt32Number>(e37[1])<<16) |
                                     (static_cast<icUInt32Number>(e37[2])<<8) | e37[3];
@@ -482,8 +459,8 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
 
             // Check if tag contains mpet type
             icUInt8Number typeCheck37[4];
-            fseek(fp37, tOff37, SEEK_SET);
-            if (fread(typeCheck37, 1, 4, fp37) != 4) continue;
+            fseek(fh37.fp, tOff37, SEEK_SET);
+            if (fread(typeCheck37, 1, 4, fh37.fp) != 4) continue;
             icUInt32Number tagType37 = (static_cast<icUInt32Number>(typeCheck37[0])<<24) | (static_cast<icUInt32Number>(typeCheck37[1])<<16) |
                                        (static_cast<icUInt32Number>(typeCheck37[2])<<8) | typeCheck37[3];
             // mpet = 0x6D706574
@@ -496,8 +473,8 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             if (scanLen < 8) continue;
 
             icUInt8Number *scanBuf = new icUInt8Number[scanLen];
-            fseek(fp37, tOff37, SEEK_SET);
-            if (fread(scanBuf, 1, scanLen, fp37) != scanLen) { delete[] scanBuf; continue; }
+            fseek(fh37.fp, tOff37, SEEK_SET);
+            if (fread(scanBuf, 1, scanLen, fh37.fp) != scanLen) { delete[] scanBuf; continue; }
 
             char sig37[5];
             sig37[0] = static_cast<char>((tSig37>>24)&0xff); sig37[1] = static_cast<char>((tSig37>>16)&0xff);
@@ -547,7 +524,6 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
           }
         }
       }
-      if (fp37) fclose(fp37);
 
       if (calcIssues > 0) {
         heuristicCount += calcIssues;
@@ -570,18 +546,14 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
   // in color math. Applies to curv (0x63757276) and para (0x70617261) tags.
   printf("[H38] Curve Degenerate Value Detection\n");
   {
-    FILE *fp38 = fopen(filename, "rb");
-    if (fp38) {
-      fseek(fp38, 0, SEEK_END);
-      long fs38_l = ftell(fp38);
-      if (fs38_l < 0) { fclose(fp38); fp38 = NULL; }
-      size_t fs38 = (fp38) ? (size_t)fs38_l : 0;
-      if (fp38) fseek(fp38, 0, SEEK_SET);
+    RawFileHandle fh38 = OpenRawFile(filename);
+    if (fh38) {
+      size_t fs38 = (size_t)fh38.fileSize;
 
       int curveIssues = 0;
       if (fs38 >= 132) {
         icUInt8Number hdr38[132];
-        if (fread(hdr38, 1, 132, fp38) == 132) {
+        if (fread(hdr38, 1, 132, fh38.fp) == 132) {
           icUInt32Number tc38 = (static_cast<icUInt32Number>(hdr38[128])<<24) | (static_cast<icUInt32Number>(hdr38[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr38[130])<<8) | hdr38[131];
 
@@ -590,8 +562,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
             if (ePos + 12 > fs38) break;
 
             icUInt8Number e38[12];
-            fseek(fp38, ePos, SEEK_SET);
-            if (fread(e38, 1, 12, fp38) != 12) break;
+            fseek(fh38.fp, ePos, SEEK_SET);
+            if (fread(e38, 1, 12, fh38.fp) != 12) break;
 
             icUInt32Number tSig38 = (static_cast<icUInt32Number>(e38[0])<<24) | (static_cast<icUInt32Number>(e38[1])<<16) |
                                     (static_cast<icUInt32Number>(e38[2])<<8) | e38[3];
@@ -602,8 +574,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
 
             if ((uint64_t)tOff38 + 12 > fs38 || tSz38 < 12) continue;
             icUInt8Number curveHdr[12];
-            fseek(fp38, tOff38, SEEK_SET);
-            if (fread(curveHdr, 1, 12, fp38) != 12) continue;
+            fseek(fh38.fp, tOff38, SEEK_SET);
+            if (fread(curveHdr, 1, 12, fh38.fp) != 12) continue;
 
             icUInt32Number curveType = (static_cast<icUInt32Number>(curveHdr[0])<<24) | (static_cast<icUInt32Number>(curveHdr[1])<<16) |
                                        (static_cast<icUInt32Number>(curveHdr[2])<<8) | curveHdr[3];
@@ -623,8 +595,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
                 if (dataStart + dataLen > fs38) continue;
 
                 icUInt8Number *cData = new icUInt8Number[dataLen];
-                fseek(fp38, dataStart, SEEK_SET);
-                if (fread(cData, 1, dataLen, fp38) == dataLen) {
+                fseek(fh38.fp, dataStart, SEEK_SET);
+                if (fread(cData, 1, dataLen, fh38.fp) == dataLen) {
                   bool allZero = true, allMax = true;
                   for (size_t b = 0; b + 1 < dataLen; b += 2) {
                     uint16_t val = (static_cast<uint16_t>(cData[b]) << 8) | cData[b+1];
@@ -652,8 +624,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
               // funcType 1-4: increasingly complex (a,b,c,d,e,f params)
               if (tSz38 >= 16) {
                 icUInt8Number paraHdr[4];
-                fseek(fp38, tOff38 + 8, SEEK_SET);
-                if (fread(paraHdr, 1, 4, fp38) == 4) {
+                fseek(fh38.fp, tOff38 + 8, SEEK_SET);
+                if (fread(paraHdr, 1, 4, fh38.fp) == 4) {
                   uint16_t funcType = (static_cast<uint16_t>(paraHdr[0]) << 8) | paraHdr[1];
                   if (funcType > 4) {
                     printf("      %s[WARN]  Tag '%s' (para): funcType %u > 4 (invalid)%s\n",
@@ -665,8 +637,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
                   // Check first param (gamma) for zero — causes pow(x, 0) flattening
                   if ((uint64_t)tOff38 + 16 <= fs38) {
                     icUInt8Number gamma38[4];
-                    fseek(fp38, tOff38 + 12, SEEK_SET);
-                    if (fread(gamma38, 1, 4, fp38) == 4) {
+                    fseek(fh38.fp, tOff38 + 12, SEEK_SET);
+                    if (fread(gamma38, 1, 4, fh38.fp) == 4) {
                       int32_t gammaFixed = (static_cast<int32_t>(gamma38[0])<<24) | (gamma38[1]<<16) |
                                             (gamma38[2]<<8) | gamma38[3];
                       if (gammaFixed == 0) {
@@ -682,7 +654,6 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
           }
         }
       }
-      if (fp38) fclose(fp38);
 
       if (curveIssues > 0) {
         heuristicCount += curveIssues;
@@ -705,18 +676,14 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
   // However, shared mutable types (mBA/mAB/calc/tary) can cause UAF.
   printf("[H39] Shared Tag Data Aliasing Detection\n");
   {
-    FILE *fp39 = fopen(filename, "rb");
-    if (fp39) {
-      fseek(fp39, 0, SEEK_END);
-      long fs39_l = ftell(fp39);
-      if (fs39_l < 0) { fclose(fp39); fp39 = NULL; }
-      size_t fs39 = (fp39) ? (size_t)fs39_l : 0;
-      if (fp39) fseek(fp39, 0, SEEK_SET);
+    RawFileHandle fh39 = OpenRawFile(filename);
+    if (fh39) {
+      size_t fs39 = (size_t)fh39.fileSize;
 
       int aliasIssues = 0;
       if (fs39 >= 132) {
         icUInt8Number hdr39[132];
-        if (fread(hdr39, 1, 132, fp39) == 132) {
+        if (fread(hdr39, 1, 132, fh39.fp) == 132) {
           icUInt32Number tc39 = (static_cast<icUInt32Number>(hdr39[128])<<24) | (static_cast<icUInt32Number>(hdr39[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr39[130])<<8) | hdr39[131];
           if (tc39 > 256) tc39 = 256;
@@ -728,8 +695,8 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs39) break;
             icUInt8Number e39[12];
-            fseek(fp39, ePos, SEEK_SET);
-            if (fread(e39, 1, 12, fp39) != 12) break;
+            fseek(fh39.fp, ePos, SEEK_SET);
+            if (fread(e39, 1, 12, fh39.fp) != 12) break;
             TagEntry39 te;
             te.sig = (static_cast<icUInt32Number>(e39[0])<<24) | (static_cast<icUInt32Number>(e39[1])<<16) | (static_cast<icUInt32Number>(e39[2])<<8) | e39[3];
             te.off = (static_cast<icUInt32Number>(e39[4])<<24) | (static_cast<icUInt32Number>(e39[5])<<16) | (static_cast<icUInt32Number>(e39[6])<<8) | e39[7];
@@ -754,8 +721,8 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
                 // Check if shared type is mutable (mBA, mAB, calc, tary — higher UAF risk)
                 if ((uint64_t)tags39[a].off + 4 <= fs39) {
                   icUInt8Number sharedType[4];
-                  fseek(fp39, tags39[a].off, SEEK_SET);
-                  if (fread(sharedType, 1, 4, fp39) == 4) {
+                  fseek(fh39.fp, tags39[a].off, SEEK_SET);
+                  if (fread(sharedType, 1, 4, fh39.fp) == 4) {
                     icUInt32Number st = (static_cast<icUInt32Number>(sharedType[0])<<24) | (static_cast<icUInt32Number>(sharedType[1])<<16) |
                                         (static_cast<icUInt32Number>(sharedType[2])<<8) | sharedType[3];
                     if (st == 0x6D424120 || st == 0x6D414220 || st == 0x6D706574 || st == 0x74617279) {
@@ -778,7 +745,6 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
           }
         }
       }
-      if (fp39) fclose(fp39);
 
       if (aliasIssues > 0) {
         heuristicCount += aliasIssues;
@@ -801,18 +767,14 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
   // SIGBUS on strict-alignment platforms (arm64). Non-zero padding can leak data.
   printf("[H40] Tag Alignment & Padding Validation\n");
   {
-    FILE *fp40 = fopen(filename, "rb");
-    if (fp40) {
-      fseek(fp40, 0, SEEK_END);
-      long fs40_l = ftell(fp40);
-      if (fs40_l < 0) { fclose(fp40); fp40 = NULL; }
-      size_t fs40 = (fp40) ? (size_t)fs40_l : 0;
-      if (fp40) fseek(fp40, 0, SEEK_SET);
+    RawFileHandle fh40 = OpenRawFile(filename);
+    if (fh40) {
+      size_t fs40 = (size_t)fh40.fileSize;
 
       int alignIssues = 0;
       if (fs40 >= 132) {
         icUInt8Number hdr40[132];
-        if (fread(hdr40, 1, 132, fp40) == 132) {
+        if (fread(hdr40, 1, 132, fh40.fp) == 132) {
           icUInt32Number tc40 = (static_cast<icUInt32Number>(hdr40[128])<<24) | (static_cast<icUInt32Number>(hdr40[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr40[130])<<8) | hdr40[131];
           if (tc40 > 256) tc40 = 256;
@@ -824,8 +786,8 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs40) break;
             icUInt8Number e40[12];
-            fseek(fp40, ePos, SEEK_SET);
-            if (fread(e40, 1, 12, fp40) != 12) break;
+            fseek(fh40.fp, ePos, SEEK_SET);
+            if (fread(e40, 1, 12, fh40.fp) != 12) break;
 
             icUInt32Number tOff40 = (static_cast<icUInt32Number>(e40[4])<<24) | (static_cast<icUInt32Number>(e40[5])<<16) |
                                     (static_cast<icUInt32Number>(e40[6])<<8) | e40[7];
@@ -849,9 +811,9 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
             if (padEnd > tagEnd && padEnd <= fs40) {
               size_t padLen = padEnd - tagEnd;
               icUInt8Number padBuf[4];
-              fseek(fp40, tagEnd, SEEK_SET);
+              fseek(fh40.fp, tagEnd, SEEK_SET);
               size_t toRead = (padLen < 4) ? padLen : 4;
-              if (fread(padBuf, 1, toRead, fp40) == toRead) {
+              if (fread(padBuf, 1, toRead, fh40.fp) == toRead) {
                 for (size_t p = 0; p < toRead; p++) {
                   if (padBuf[p] != 0x00) {
                     nonZeroPad++;
@@ -879,7 +841,6 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
           }
         }
       }
-      if (fp40) fclose(fp40);
 
       if (alignIssues > 0) {
         heuristicCount++;
@@ -902,18 +863,14 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
   // deprecated v2-only types in v4+ profiles.
   printf("[H41] Version/Type Consistency Check\n");
   {
-    FILE *fp41 = fopen(filename, "rb");
-    if (fp41) {
-      fseek(fp41, 0, SEEK_END);
-      long fs41_l = ftell(fp41);
-      if (fs41_l < 0) { fclose(fp41); fp41 = NULL; }
-      size_t fs41 = (fp41) ? (size_t)fs41_l : 0;
-      if (fp41) fseek(fp41, 0, SEEK_SET);
+    RawFileHandle fh41 = OpenRawFile(filename);
+    if (fh41) {
+      size_t fs41 = (size_t)fh41.fileSize;
 
       int versionIssues = 0;
       if (fs41 >= 132) {
         icUInt8Number hdr41[132];
-        if (fread(hdr41, 1, 132, fp41) == 132) {
+        if (fread(hdr41, 1, 132, fh41.fp) == 132) {
           // Profile version: byte 8 = major, byte 9 = minor.sub
           uint8_t verMajor = hdr41[8];
           uint8_t verMinor = hdr41[9];
@@ -948,8 +905,8 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs41) break;
             icUInt8Number e41[12];
-            fseek(fp41, ePos, SEEK_SET);
-            if (fread(e41, 1, 12, fp41) != 12) break;
+            fseek(fh41.fp, ePos, SEEK_SET);
+            if (fread(e41, 1, 12, fh41.fp) != 12) break;
 
             icUInt32Number tSig41 = (static_cast<icUInt32Number>(e41[0])<<24) | (static_cast<icUInt32Number>(e41[1])<<16) |
                                     (static_cast<icUInt32Number>(e41[2])<<8) | e41[3];
@@ -975,8 +932,8 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
             // Check tag data type against v5-only list
             if (verMajor < 5 && (uint64_t)tOff41 + 4 <= fs41) {
               icUInt8Number typeBytes41[4];
-              fseek(fp41, tOff41, SEEK_SET);
-              if (fread(typeBytes41, 1, 4, fp41) == 4) {
+              fseek(fh41.fp, tOff41, SEEK_SET);
+              if (fread(typeBytes41, 1, 4, fh41.fp) == 4) {
                 icUInt32Number dataType41 = (static_cast<icUInt32Number>(typeBytes41[0])<<24) | (static_cast<icUInt32Number>(typeBytes41[1])<<16) |
                                              (static_cast<icUInt32Number>(typeBytes41[2])<<8) | typeBytes41[3];
                 for (int k = 0; k < (int)(sizeof(v5OnlyTypes)/sizeof(v5OnlyTypes[0])); k++) {
@@ -997,7 +954,6 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
           }
         }
       }
-      if (fp41) fclose(fp41);
 
       if (versionIssues > 0) {
         printf("      %s%d version/type inconsistency(ies) detected%s\n",
@@ -1022,18 +978,14 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
   // Near-zero determinant → division by zero in color transforms.
   printf("[H42] Matrix Singularity Detection\n");
   {
-    FILE *fp42 = fopen(filename, "rb");
-    if (fp42) {
-      fseek(fp42, 0, SEEK_END);
-      long fs42_l = ftell(fp42);
-      if (fs42_l < 0) { fclose(fp42); fp42 = NULL; }
-      size_t fs42 = (fp42) ? (size_t)fs42_l : 0;
-      if (fp42) fseek(fp42, 0, SEEK_SET);
+    RawFileHandle fh42 = OpenRawFile(filename);
+    if (fh42) {
+      size_t fs42 = (size_t)fh42.fileSize;
 
       int matrixIssues = 0;
       if (fs42 >= 132) {
         icUInt8Number hdr42[132];
-        if (fread(hdr42, 1, 132, fp42) == 132) {
+        if (fread(hdr42, 1, 132, fh42.fp) == 132) {
           icUInt32Number tc42 = (static_cast<icUInt32Number>(hdr42[128])<<24) | (static_cast<icUInt32Number>(hdr42[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr42[130])<<8) | hdr42[131];
           if (tc42 > 256) tc42 = 256;
@@ -1048,8 +1000,8 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
               size_t ePos = 132 + i * 12;
               if (ePos + 12 > fs42) break;
               icUInt8Number e42[12];
-              fseek(fp42, ePos, SEEK_SET);
-              if (fread(e42, 1, 12, fp42) != 12) break;
+              fseek(fh42.fp, ePos, SEEK_SET);
+              if (fread(e42, 1, 12, fh42.fp) != 12) break;
 
               icUInt32Number tSig42 = (static_cast<icUInt32Number>(e42[0])<<24) | (static_cast<icUInt32Number>(e42[1])<<16) |
                                       (static_cast<icUInt32Number>(e42[2])<<8) | e42[3];
@@ -1060,8 +1012,8 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
               // XYZ type: type(4) + reserved(4) + X(4) + Y(4) + Z(4) = 20 bytes
               if ((uint64_t)tOff42 + 20 > fs42) break;
               icUInt8Number xyzData[12];
-              fseek(fp42, tOff42 + 8, SEEK_SET);
-              if (fread(xyzData, 1, 12, fp42) != 12) break;
+              fseek(fh42.fp, tOff42 + 8, SEEK_SET);
+              if (fread(xyzData, 1, 12, fh42.fp) != 12) break;
 
               for (int row = 0; row < 3; row++) {
                 int32_t fixed = (static_cast<int32_t>(xyzData[row*4])<<24) | (xyzData[row*4+1]<<16) |
@@ -1097,7 +1049,6 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
           }
         }
       }
-      if (fp42) fclose(fp42);
 
       if (matrixIssues > 0) {
         heuristicCount += matrixIssues;
@@ -1120,18 +1071,14 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
   // structural presence and pairing issues.
   printf("[H43] Spectral/BRDF Tag Structural Validation\n");
   {
-    FILE *fp43 = fopen(filename, "rb");
-    if (fp43) {
-      fseek(fp43, 0, SEEK_END);
-      long fs43_l = ftell(fp43);
-      if (fs43_l < 0) { fclose(fp43); fp43 = NULL; }
-      size_t fs43 = (fp43) ? (size_t)fs43_l : 0;
-      if (fp43) fseek(fp43, 0, SEEK_SET);
+    RawFileHandle fh43 = OpenRawFile(filename);
+    if (fh43) {
+      size_t fs43 = (size_t)fh43.fileSize;
 
       int spectralIssues = 0;
       if (fs43 >= 132) {
         icUInt8Number hdr43[132];
-        if (fread(hdr43, 1, 132, fp43) == 132) {
+        if (fread(hdr43, 1, 132, fh43.fp) == 132) {
           icUInt32Number tc43 = (static_cast<icUInt32Number>(hdr43[128])<<24) | (static_cast<icUInt32Number>(hdr43[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr43[130])<<8) | hdr43[131];
           if (tc43 > 256) tc43 = 256;
@@ -1144,8 +1091,8 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs43) break;
             icUInt8Number e43[12];
-            fseek(fp43, ePos, SEEK_SET);
-            if (fread(e43, 1, 12, fp43) != 12) break;
+            fseek(fh43.fp, ePos, SEEK_SET);
+            if (fread(e43, 1, 12, fh43.fp) != 12) break;
 
             icUInt32Number tSig43 = (static_cast<icUInt32Number>(e43[0])<<24) | (static_cast<icUInt32Number>(e43[1])<<16) |
                                     (static_cast<icUInt32Number>(e43[2])<<8) | e43[3];
@@ -1178,8 +1125,8 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
             // Validate sdin structure: spectralDataInfo must have valid wavelength data
             if (tSig43 == 0x7364696E && (uint64_t)tOff43 + 20 <= fs43 && tSz43 >= 20) {
               icUInt8Number sdinData[12];
-              fseek(fp43, tOff43 + 8, SEEK_SET);
-              if (fread(sdinData, 1, 12, fp43) == 12) {
+              fseek(fh43.fp, tOff43 + 8, SEEK_SET);
+              if (fread(sdinData, 1, 12, fh43.fp) == 12) {
                 // Spectral range: start(4), end(4), steps(2)
                 int32_t specStart = (static_cast<int32_t>(sdinData[0])<<24) | (sdinData[1]<<16) | (sdinData[2]<<8) | sdinData[3];
                 int32_t specEnd   = (static_cast<int32_t>(sdinData[4])<<24) | (sdinData[5]<<16) | (sdinData[6]<<8) | sdinData[7];
@@ -1216,7 +1163,6 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
           }
         }
       }
-      if (fp43) fclose(fp43);
 
       if (spectralIssues > 0) {
         heuristicCount += spectralIssues;
@@ -1239,18 +1185,14 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
   // can contain PNG or TIFF data. Check magic bytes and size.
   printf("[H44] Embedded Image Validation\n");
   {
-    FILE *fp44 = fopen(filename, "rb");
-    if (fp44) {
-      fseek(fp44, 0, SEEK_END);
-      long fs44_l = ftell(fp44);
-      if (fs44_l < 0) { fclose(fp44); fp44 = NULL; }
-      size_t fs44 = (fp44) ? (size_t)fs44_l : 0;
-      if (fp44) fseek(fp44, 0, SEEK_SET);
+    RawFileHandle fh44 = OpenRawFile(filename);
+    if (fh44) {
+      size_t fs44 = (size_t)fh44.fileSize;
 
       int embedIssues = 0;
       if (fs44 >= 132) {
         icUInt8Number hdr44[132];
-        if (fread(hdr44, 1, 132, fp44) == 132) {
+        if (fread(hdr44, 1, 132, fh44.fp) == 132) {
           icUInt32Number tc44 = (static_cast<icUInt32Number>(hdr44[128])<<24) | (static_cast<icUInt32Number>(hdr44[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr44[130])<<8) | hdr44[131];
           if (tc44 > 256) tc44 = 256;
@@ -1260,8 +1202,8 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs44) break;
             icUInt8Number e44[12];
-            fseek(fp44, ePos, SEEK_SET);
-            if (fread(e44, 1, 12, fp44) != 12) break;
+            fseek(fh44.fp, ePos, SEEK_SET);
+            if (fread(e44, 1, 12, fh44.fp) != 12) break;
 
             icUInt32Number tOff44 = (static_cast<icUInt32Number>(e44[4])<<24) | (static_cast<icUInt32Number>(e44[5])<<16) |
                                     (static_cast<icUInt32Number>(e44[6])<<8) | e44[7];
@@ -1270,8 +1212,8 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
 
             if ((uint64_t)tOff44 + 4 > fs44 || tSz44 < 12) continue;
             icUInt8Number typeBytes44[4];
-            fseek(fp44, tOff44, SEEK_SET);
-            if (fread(typeBytes44, 1, 4, fp44) != 4) continue;
+            fseek(fh44.fp, tOff44, SEEK_SET);
+            if (fread(typeBytes44, 1, 4, fh44.fp) != 4) continue;
 
             icUInt32Number tagType44 = (static_cast<icUInt32Number>(typeBytes44[0])<<24) | (static_cast<icUInt32Number>(typeBytes44[1])<<16) |
                                        (static_cast<icUInt32Number>(typeBytes44[2])<<8) | typeBytes44[3];
@@ -1293,8 +1235,8 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
             // Check embedded image magic (skip type(4) + reserved(4) + flags(4) = offset 12)
             if ((uint64_t)tOff44 + 16 <= fs44) {
               icUInt8Number imgMagic[4];
-              fseek(fp44, tOff44 + 12, SEEK_SET);
-              if (fread(imgMagic, 1, 4, fp44) == 4) {
+              fseek(fh44.fp, tOff44 + 12, SEEK_SET);
+              if (fread(imgMagic, 1, 4, fh44.fp) == 4) {
                 bool validPNG = (imgMagic[0] == 0x89 && imgMagic[1] == 0x50 &&
                                  imgMagic[2] == 0x4E && imgMagic[3] == 0x47);
                 bool validTIFF_LE = (imgMagic[0] == 0x49 && imgMagic[1] == 0x49 &&
@@ -1317,7 +1259,6 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
           }
         }
       }
-      if (fp44) fclose(fp44);
 
       if (embedIssues > 0) {
         heuristicCount += embedIssues;
@@ -1340,18 +1281,14 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
   // Extreme dimensions cause OOM. CFL patch 044.
   printf("[H45] Sparse Matrix Bounds Validation\n");
   {
-    FILE *fp45 = fopen(filename, "rb");
-    if (fp45) {
-      fseek(fp45, 0, SEEK_END);
-      long fs45_l = ftell(fp45);
-      if (fs45_l < 0) { fclose(fp45); fp45 = NULL; }
-      size_t fs45 = (fp45) ? (size_t)fs45_l : 0;
-      if (fp45) fseek(fp45, 0, SEEK_SET);
+    RawFileHandle fh45 = OpenRawFile(filename);
+    if (fh45) {
+      size_t fs45 = (size_t)fh45.fileSize;
 
       int sparseIssues = 0;
       if (fs45 >= 132) {
         icUInt8Number hdr45[132];
-        if (fread(hdr45, 1, 132, fp45) == 132) {
+        if (fread(hdr45, 1, 132, fh45.fp) == 132) {
           icUInt32Number tc45 = (static_cast<icUInt32Number>(hdr45[128])<<24) | (static_cast<icUInt32Number>(hdr45[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr45[130])<<8) | hdr45[131];
           if (tc45 > 256) tc45 = 256;
@@ -1360,8 +1297,8 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs45) break;
             icUInt8Number e45[12];
-            fseek(fp45, ePos, SEEK_SET);
-            if (fread(e45, 1, 12, fp45) != 12) break;
+            fseek(fh45.fp, ePos, SEEK_SET);
+            if (fread(e45, 1, 12, fh45.fp) != 12) break;
 
             icUInt32Number tOff45 = (static_cast<icUInt32Number>(e45[4])<<24) | (static_cast<icUInt32Number>(e45[5])<<16) |
                                     (static_cast<icUInt32Number>(e45[6])<<8) | e45[7];
@@ -1370,8 +1307,8 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
 
             if ((uint64_t)tOff45 + 4 > fs45 || tSz45 < 16) continue;
             icUInt8Number typeBytes45[4];
-            fseek(fp45, tOff45, SEEK_SET);
-            if (fread(typeBytes45, 1, 4, fp45) != 4) continue;
+            fseek(fh45.fp, tOff45, SEEK_SET);
+            if (fread(typeBytes45, 1, 4, fh45.fp) != 4) continue;
 
             icUInt32Number tagType45 = (static_cast<icUInt32Number>(typeBytes45[0])<<24) | (static_cast<icUInt32Number>(typeBytes45[1])<<16) |
                                        (static_cast<icUInt32Number>(typeBytes45[2])<<8) | typeBytes45[3];
@@ -1384,8 +1321,8 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
             // Read channel count and encoding
             if ((uint64_t)tOff45 + 12 <= fs45) {
               icUInt8Number smatHdr[4];
-              fseek(fp45, tOff45 + 8, SEEK_SET);
-              if (fread(smatHdr, 1, 4, fp45) == 4) {
+              fseek(fh45.fp, tOff45 + 8, SEEK_SET);
+              if (fread(smatHdr, 1, 4, fh45.fp) == 4) {
                 uint16_t nChannels = (static_cast<uint16_t>(smatHdr[0])<<8) | smatHdr[1];
                 uint16_t encoding  = (static_cast<uint16_t>(smatHdr[2])<<8) | smatHdr[3];
 
@@ -1414,7 +1351,6 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
           }
         }
       }
-      if (fp45) fclose(fp45);
 
       if (sparseIssues > 0) {
         heuristicCount += sparseIssues;
@@ -1445,27 +1381,24 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
   // CWE-122, CWE-170, CWE-130
   printf("[H46] TextDescription Unicode Length Validation\n");
   {
-    FILE *fp46 = fopen(filename, "rb");
-    if (fp46) {
-      fseek(fp46, 0, SEEK_END);
-      long fs46_l = ftell(fp46);
-      if (fs46_l < 0) { fclose(fp46); fp46 = NULL; }
-      size_t fs46 = (fp46) ? (size_t)fs46_l : 0;
+    RawFileHandle fh46 = OpenRawFile(filename);
+    if (fh46) {
+      size_t fs46 = (size_t)fh46.fileSize;
 
       int descIssues = 0;
-      if (fp46 && fs46 >= 132) {
+      if (fh46.fp && fs46 >= 132) {
         // Read tag count
         icUInt8Number tc46[4];
-        fseek(fp46, 128, SEEK_SET);
-        if (fread(tc46, 1, 4, fp46) == 4) {
+        fseek(fh46.fp, 128, SEEK_SET);
+        if (fread(tc46, 1, 4, fh46.fp) == 4) {
           uint32_t tagCount46 = ((uint32_t)tc46[0]<<24)|((uint32_t)tc46[1]<<16)|
                                 ((uint32_t)tc46[2]<<8)|tc46[3];
           if (tagCount46 > 1000) tagCount46 = 1000;
 
-          for (uint32_t t = 0; t < tagCount46 && fp46; t++) {
+          for (uint32_t t = 0; t < tagCount46 && fh46.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp46, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp46) != 12) break;
+            fseek(fh46.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh46.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -1478,16 +1411,16 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
             if ((uint64_t)tOff + 12 > fs46 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp46, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp46) != 4) continue;
+            fseek(fh46.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh46.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
             if (typeVal != 0x64657363) continue; // not 'desc' type
 
             // Read ASCII count (offset +8)
             icUInt8Number ascBuf[4];
-            fseek(fp46, tOff + 8, SEEK_SET);
-            if (fread(ascBuf, 1, 4, fp46) != 4) continue;
+            fseek(fh46.fp, tOff + 8, SEEK_SET);
+            if (fread(ascBuf, 1, 4, fh46.fp) != 4) continue;
             uint32_t asciiCount = ((uint32_t)ascBuf[0]<<24)|((uint32_t)ascBuf[1]<<16)|
                                   ((uint32_t)ascBuf[2]<<8)|ascBuf[3];
 
@@ -1496,8 +1429,8 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
             if (unicodeStart + 8 > fs46 || unicodeStart + 8 > (uint64_t)tOff + tSz) continue;
 
             icUInt8Number uniBuf[8];
-            fseek(fp46, (long)unicodeStart, SEEK_SET);
-            if (fread(uniBuf, 1, 8, fp46) != 8) continue;
+            fseek(fh46.fp, (long)unicodeStart, SEEK_SET);
+            if (fread(uniBuf, 1, 8, fh46.fp) != 8) continue;
 
             uint32_t unicodeCount = ((uint32_t)uniBuf[4]<<24)|((uint32_t)uniBuf[5]<<16)|
                                     ((uint32_t)uniBuf[6]<<8)|uniBuf[7];
@@ -1524,7 +1457,6 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
           }
         }
       }
-      if (fp46) fclose(fp46);
 
       if (descIssues > 0) {
         heuristicCount += descIssues;
@@ -1550,26 +1482,23 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
   // CWE-122, CWE-190, CWE-787
   printf("[H47] NamedColor2 Size Overflow Detection\n");
   {
-    FILE *fp47 = fopen(filename, "rb");
-    if (fp47) {
-      fseek(fp47, 0, SEEK_END);
-      long fs47_l = ftell(fp47);
-      if (fs47_l < 0) { fclose(fp47); fp47 = NULL; }
-      size_t fs47 = (fp47) ? (size_t)fs47_l : 0;
+    RawFileHandle fh47 = OpenRawFile(filename);
+    if (fh47) {
+      size_t fs47 = (size_t)fh47.fileSize;
 
       int ncl2Issues = 0;
-      if (fp47 && fs47 >= 132) {
+      if (fh47.fp && fs47 >= 132) {
         icUInt8Number tc47[4];
-        fseek(fp47, 128, SEEK_SET);
-        if (fread(tc47, 1, 4, fp47) == 4) {
+        fseek(fh47.fp, 128, SEEK_SET);
+        if (fread(tc47, 1, 4, fh47.fp) == 4) {
           uint32_t tagCount47 = ((uint32_t)tc47[0]<<24)|((uint32_t)tc47[1]<<16)|
                                 ((uint32_t)tc47[2]<<8)|tc47[3];
           if (tagCount47 > 1000) tagCount47 = 1000;
 
-          for (uint32_t t = 0; t < tagCount47 && fp47; t++) {
+          for (uint32_t t = 0; t < tagCount47 && fh47.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp47, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp47) != 12) break;
+            fseek(fh47.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh47.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -1582,18 +1511,18 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
 
             // Read type signature
             icUInt8Number typeSig[4];
-            fseek(fp47, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp47) != 4) continue;
+            fseek(fh47.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh47.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
             if (typeVal != 0x6E636C32) continue; // not 'ncl2' type
 
             // Read count and nDeviceCoords
             icUInt8Number ncl2Hdr[8];
-            fseek(fp47, tOff + 16, SEEK_SET); // skip type(4)+reserved(4)+vendorFlag(4)+count starts at +16
+            fseek(fh47.fp, tOff + 16, SEEK_SET); // skip type(4)+reserved(4)+vendorFlag(4)+count starts at +16
             // Actually: type(4)+reserved(4)+vendorFlag(4) = 12, count at +12, nDeviceCoords at +16
-            fseek(fp47, tOff + 12, SEEK_SET);
-            if (fread(ncl2Hdr, 1, 8, fp47) != 8) continue;
+            fseek(fh47.fp, tOff + 12, SEEK_SET);
+            if (fread(ncl2Hdr, 1, 8, fh47.fp) != 8) continue;
 
             uint32_t ncl2Count = ((uint32_t)ncl2Hdr[0]<<24)|((uint32_t)ncl2Hdr[1]<<16)|
                                  ((uint32_t)ncl2Hdr[2]<<8)|ncl2Hdr[3];
@@ -1649,7 +1578,6 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
           }
         }
       }
-      if (fp47) fclose(fp47);
 
       if (ncl2Issues > 0) {
         heuristicCount += ncl2Issues;
@@ -1677,26 +1605,23 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
   // CWE-131, CWE-190, CWE-400
   printf("[H48] CLUT Grid Dimension Product Overflow\n");
   {
-    FILE *fp48 = fopen(filename, "rb");
-    if (fp48) {
-      fseek(fp48, 0, SEEK_END);
-      long fs48_l = ftell(fp48);
-      if (fs48_l < 0) { fclose(fp48); fp48 = NULL; }
-      size_t fs48 = (fp48) ? (size_t)fs48_l : 0;
+    RawFileHandle fh48 = OpenRawFile(filename);
+    if (fh48) {
+      size_t fs48 = (size_t)fh48.fileSize;
 
       int clutOvfIssues = 0;
-      if (fp48 && fs48 >= 132) {
+      if (fh48.fp && fs48 >= 132) {
         icUInt8Number tc48[4];
-        fseek(fp48, 128, SEEK_SET);
-        if (fread(tc48, 1, 4, fp48) == 4) {
+        fseek(fh48.fp, 128, SEEK_SET);
+        if (fread(tc48, 1, 4, fh48.fp) == 4) {
           uint32_t tagCount48 = ((uint32_t)tc48[0]<<24)|((uint32_t)tc48[1]<<16)|
                                 ((uint32_t)tc48[2]<<8)|tc48[3];
           if (tagCount48 > 1000) tagCount48 = 1000;
 
-          for (uint32_t t = 0; t < tagCount48 && fp48; t++) {
+          for (uint32_t t = 0; t < tagCount48 && fh48.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp48, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp48) != 12) break;
+            fseek(fh48.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh48.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -1708,8 +1633,8 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
             if ((uint64_t)tOff + 12 > fs48 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp48, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp48) != 4) continue;
+            fseek(fh48.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh48.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -1719,8 +1644,8 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
             if (typeVal == 0x6D667431 || typeVal == 0x6D667432) {
               if ((uint64_t)tOff + 12 > fs48) continue;
               icUInt8Number lutHdr[4];
-              fseek(fp48, tOff + 8, SEEK_SET);
-              if (fread(lutHdr, 1, 4, fp48) != 4) continue;
+              fseek(fh48.fp, tOff + 8, SEEK_SET);
+              if (fread(lutHdr, 1, 4, fh48.fp) != 4) continue;
 
               uint8_t nInput = lutHdr[0];
               uint8_t nOutput = lutHdr[1];
@@ -1753,8 +1678,8 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
             if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
               if ((uint64_t)tOff + 32 > fs48) continue;
               icUInt8Number mbaHdr[24];
-              fseek(fp48, tOff + 8, SEEK_SET);
-              if (fread(mbaHdr, 1, 24, fp48) != 24) continue;
+              fseek(fh48.fp, tOff + 8, SEEK_SET);
+              if (fread(mbaHdr, 1, 24, fh48.fp) != 24) continue;
 
               uint8_t nInput = mbaHdr[0];
               uint8_t nOutput = mbaHdr[1];
@@ -1765,8 +1690,8 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
               if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs48 && nInput <= 16) {
                 // CLUT sub-element: 16 bytes of grid dimensions (1 per input channel)
                 icUInt8Number gridDims[16];
-                fseek(fp48, tOff + clutOff, SEEK_SET);
-                if (fread(gridDims, 1, 16, fp48) == 16) {
+                fseek(fh48.fp, tOff + clutOff, SEEK_SET);
+                if (fread(gridDims, 1, 16, fh48.fp) == 16) {
                   uint64_t product = 1;
                   bool overflow = false;
                   bool hasZeroDim = false;
@@ -1795,7 +1720,6 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
           }
         }
       }
-      if (fp48) fclose(fp48);
 
       if (clutOvfIssues > 0) {
         heuristicCount += clutOvfIssues;
@@ -1820,26 +1744,23 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
   // CWE-758, CWE-682
   printf("[H49] Float/s15Fixed16 NaN/Inf Detection\n");
   {
-    FILE *fp49 = fopen(filename, "rb");
-    if (fp49) {
-      fseek(fp49, 0, SEEK_END);
-      long fs49_l = ftell(fp49);
-      if (fs49_l < 0) { fclose(fp49); fp49 = NULL; }
-      size_t fs49 = (fp49) ? (size_t)fs49_l : 0;
+    RawFileHandle fh49 = OpenRawFile(filename);
+    if (fh49) {
+      size_t fs49 = (size_t)fh49.fileSize;
 
       int nanInfIssues = 0;
-      if (fp49 && fs49 >= 132) {
+      if (fh49.fp && fs49 >= 132) {
         icUInt8Number tc49[4];
-        fseek(fp49, 128, SEEK_SET);
-        if (fread(tc49, 1, 4, fp49) == 4) {
+        fseek(fh49.fp, 128, SEEK_SET);
+        if (fread(tc49, 1, 4, fh49.fp) == 4) {
           uint32_t tagCount49 = ((uint32_t)tc49[0]<<24)|((uint32_t)tc49[1]<<16)|
                                 ((uint32_t)tc49[2]<<8)|tc49[3];
           if (tagCount49 > 1000) tagCount49 = 1000;
 
-          for (uint32_t t = 0; t < tagCount49 && fp49; t++) {
+          for (uint32_t t = 0; t < tagCount49 && fh49.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp49, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp49) != 12) break;
+            fseek(fh49.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh49.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -1851,8 +1772,8 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
             if ((uint64_t)tOff + 8 > fs49 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp49, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp49) != 4) continue;
+            fseek(fh49.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh49.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -1873,10 +1794,10 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
             size_t maxScan = 4096; // limit scan to first 4KB of data
             if (dataEnd - dataStart > maxScan) dataEnd = dataStart + maxScan;
 
-            fseek(fp49, dataStart, SEEK_SET);
+            fseek(fh49.fp, dataStart, SEEK_SET);
             for (size_t pos = dataStart; pos + 4 <= dataEnd; pos += 4) {
               icUInt8Number val4[4];
-              if (fread(val4, 1, 4, fp49) != 4) break;
+              if (fread(val4, 1, 4, fh49.fp) != 4) break;
 
               if (isFloat) {
                 // IEEE 754: exponent bits [30:23]
@@ -1909,7 +1830,6 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
           }
         }
       }
-      if (fp49) fclose(fp49);
 
       if (nanInfIssues > 0) {
         heuristicCount += nanInfIssues;
@@ -1933,19 +1853,16 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
   // CWE-835, CWE-369
   printf("[H50] Zero-Size Profile/Tag Detection (Infinite Loop)\n");
   {
-    FILE *fp50 = fopen(filename, "rb");
-    if (fp50) {
-      fseek(fp50, 0, SEEK_END);
-      long fs50_l = ftell(fp50);
-      if (fs50_l < 0) { fclose(fp50); fp50 = NULL; }
-      size_t fs50 = (fp50) ? (size_t)fs50_l : 0;
+    RawFileHandle fh50 = OpenRawFile(filename);
+    if (fh50) {
+      size_t fs50 = (size_t)fh50.fileSize;
 
       int zeroIssues = 0;
-      if (fp50 && fs50 >= 132) {
+      if (fh50.fp && fs50 >= 132) {
         // Check profile size field (bytes 0-3)
         icUInt8Number psz[4];
-        fseek(fp50, 0, SEEK_SET);
-        if (fread(psz, 1, 4, fp50) == 4) {
+        fseek(fh50.fp, 0, SEEK_SET);
+        if (fread(psz, 1, 4, fh50.fp) == 4) {
           uint32_t declaredProfileSize = ((uint32_t)psz[0]<<24)|((uint32_t)psz[1]<<16)|
                                  ((uint32_t)psz[2]<<8)|psz[3];
           if (declaredProfileSize == 0) {
@@ -1958,17 +1875,17 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
 
         // Check for zero-size tags
         icUInt8Number tc50[4];
-        fseek(fp50, 128, SEEK_SET);
-        if (fread(tc50, 1, 4, fp50) == 4) {
+        fseek(fh50.fp, 128, SEEK_SET);
+        if (fread(tc50, 1, 4, fh50.fp) == 4) {
           uint32_t tagCount50 = ((uint32_t)tc50[0]<<24)|((uint32_t)tc50[1]<<16)|
                                 ((uint32_t)tc50[2]<<8)|tc50[3];
           if (tagCount50 > 1000) tagCount50 = 1000;
 
           int zeroSizeTags = 0;
-          for (uint32_t t = 0; t < tagCount50 && fp50; t++) {
+          for (uint32_t t = 0; t < tagCount50 && fh50.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp50, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp50) != 12) break;
+            fseek(fh50.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh50.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -1987,7 +1904,6 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
           }
         }
       }
-      if (fp50) fclose(fp50);
 
       if (zeroIssues > 0) {
         heuristicCount += zeroIssues;
@@ -2014,26 +1930,23 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
   // CWE-193, CWE-122
   printf("[H51] LUT I/O Channel Count Consistency\n");
   {
-    FILE *fp51 = fopen(filename, "rb");
-    if (fp51) {
-      fseek(fp51, 0, SEEK_END);
-      long fs51_l = ftell(fp51);
-      if (fs51_l < 0) { fclose(fp51); fp51 = NULL; }
-      size_t fs51 = (fp51) ? (size_t)fs51_l : 0;
+    RawFileHandle fh51 = OpenRawFile(filename);
+    if (fh51) {
+      size_t fs51 = (size_t)fh51.fileSize;
 
       int lutChanIssues = 0;
-      if (fp51 && fs51 >= 132) {
+      if (fh51.fp && fs51 >= 132) {
         icUInt8Number tc51[4];
-        fseek(fp51, 128, SEEK_SET);
-        if (fread(tc51, 1, 4, fp51) == 4) {
+        fseek(fh51.fp, 128, SEEK_SET);
+        if (fread(tc51, 1, 4, fh51.fp) == 4) {
           uint32_t tagCount51 = ((uint32_t)tc51[0]<<24)|((uint32_t)tc51[1]<<16)|
                                 ((uint32_t)tc51[2]<<8)|tc51[3];
           if (tagCount51 > 1000) tagCount51 = 1000;
 
-          for (uint32_t t = 0; t < tagCount51 && fp51; t++) {
+          for (uint32_t t = 0; t < tagCount51 && fh51.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp51, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp51) != 12) break;
+            fseek(fh51.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh51.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -2045,8 +1958,8 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
             if ((uint64_t)tOff + 12 > fs51 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp51, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp51) != 4) continue;
+            fseek(fh51.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh51.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -2057,8 +1970,8 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
             if (!isLut8 && !isLut16 && !isMab) continue;
 
             icUInt8Number chanHdr[2];
-            fseek(fp51, tOff + 8, SEEK_SET);
-            if (fread(chanHdr, 1, 2, fp51) != 2) continue;
+            fseek(fh51.fp, tOff + 8, SEEK_SET);
+            if (fread(chanHdr, 1, 2, fh51.fp) != 2) continue;
 
             uint8_t nInput = chanHdr[0];
             uint8_t nOutput = chanHdr[1];
@@ -2085,7 +1998,6 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
           }
         }
       }
-      if (fp51) fclose(fp51);
 
       if (lutChanIssues > 0) {
         heuristicCount += lutChanIssues;
@@ -2110,26 +2022,23 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
   // CWE-191, CWE-125
   printf("[H52] Integer Underflow in Tag Size Subtraction\n");
   {
-    FILE *fp52 = fopen(filename, "rb");
-    if (fp52) {
-      fseek(fp52, 0, SEEK_END);
-      long fs52_l = ftell(fp52);
-      if (fs52_l < 0) { fclose(fp52); fp52 = NULL; }
-      size_t fs52 = (fp52) ? (size_t)fs52_l : 0;
+    RawFileHandle fh52 = OpenRawFile(filename);
+    if (fh52) {
+      size_t fs52 = (size_t)fh52.fileSize;
 
       int underflowIssues = 0;
-      if (fp52 && fs52 >= 132) {
+      if (fh52.fp && fs52 >= 132) {
         icUInt8Number tc52[4];
-        fseek(fp52, 128, SEEK_SET);
-        if (fread(tc52, 1, 4, fp52) == 4) {
+        fseek(fh52.fp, 128, SEEK_SET);
+        if (fread(tc52, 1, 4, fh52.fp) == 4) {
           uint32_t tagCount52 = ((uint32_t)tc52[0]<<24)|((uint32_t)tc52[1]<<16)|
                                 ((uint32_t)tc52[2]<<8)|tc52[3];
           if (tagCount52 > 1000) tagCount52 = 1000;
 
-          for (uint32_t t = 0; t < tagCount52 && fp52; t++) {
+          for (uint32_t t = 0; t < tagCount52 && fh52.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp52, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp52) != 12) break;
+            fseek(fh52.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh52.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -2141,8 +2050,8 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
             if ((uint64_t)tOff + 4 > fs52 || tSz < 4) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp52, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp52) != 4) continue;
+            fseek(fh52.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh52.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -2172,7 +2081,6 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
           }
         }
       }
-      if (fp52) fclose(fp52);
 
       if (underflowIssues > 0) {
         heuristicCount += underflowIssues;
@@ -2196,22 +2104,19 @@ int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
   // CWE-674, CWE-416
   printf("[H53] Embedded Profile Recursion Detection\n");
   {
-    FILE *fp53 = fopen(filename, "rb");
-    if (fp53) {
-      fseek(fp53, 0, SEEK_END);
-      long fs53_l = ftell(fp53);
-      if (fs53_l < 0) { fclose(fp53); fp53 = NULL; }
-      size_t fs53 = (fp53) ? (size_t)fs53_l : 0;
+    RawFileHandle fh53 = OpenRawFile(filename);
+    if (fh53) {
+      size_t fs53 = (size_t)fh53.fileSize;
 
       int recursionIssues = 0;
-      if (fp53 && fs53 >= 132) {
+      if (fh53.fp && fs53 >= 132) {
         // The main profile has 'acsp' at offset 36. Search for additional 'acsp' signatures
         // at positions > 128 (inside tag data) that could indicate embedded profiles.
         // Look for the pattern: at position P, bytes P-36..P form a plausible profile header
         // Simpler: just scan for 0x61637370 at any 4-byte-aligned position after the tag table
         icUInt8Number tc53[4];
-        fseek(fp53, 128, SEEK_SET);
-        if (fread(tc53, 1, 4, fp53) == 4) {
+        fseek(fh53.fp, 128, SEEK_SET);
+        if (fread(tc53, 1, 4, fh53.fp) == 4) {
           uint32_t tagCount53 = ((uint32_t)tc53[0]<<24)|((uint32_t)tc53[1]<<16)|
                                 ((uint32_t)tc53[2]<<8)|tc53[3];
           if (tagCount53 > 1000) tagCount53 = 1000;
@@ -2222,11 +2127,11 @@ int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
           if (scanLimit > 1024 * 1024) scanLimit = 1024 * 1024; // limit to first 1MB
           int embeddedCount = 0;
 
-          fseek(fp53, tagTableEnd, SEEK_SET);
+          fseek(fh53.fp, tagTableEnd, SEEK_SET);
           for (size_t pos = tagTableEnd; pos + 40 <= scanLimit; pos += 4) {
             icUInt8Number scanBuf[40];
-            fseek(fp53, pos, SEEK_SET);
-            if (fread(scanBuf, 1, 40, fp53) != 40) break;
+            fseek(fh53.fp, pos, SEEK_SET);
+            if (fread(scanBuf, 1, 40, fh53.fp) != 40) break;
 
             // Check for 'acsp' at byte 36 of a potential embedded profile header
             uint32_t magic = ((uint32_t)scanBuf[36]<<24)|((uint32_t)scanBuf[37]<<16)|
@@ -2251,7 +2156,6 @@ int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
           }
         }
       }
-      if (fp53) fclose(fp53);
 
       if (recursionIssues > 0) {
         heuristicCount += recursionIssues;
@@ -2278,26 +2182,23 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
   // CWE-369
   printf("[H54] Division-by-Zero Trigger Detection\n");
   {
-    FILE *fp54 = fopen(filename, "rb");
-    if (fp54) {
-      fseek(fp54, 0, SEEK_END);
-      long fs54_l = ftell(fp54);
-      if (fs54_l < 0) { fclose(fp54); fp54 = NULL; }
-      size_t fs54 = (fp54) ? (size_t)fs54_l : 0;
+    RawFileHandle fh54 = OpenRawFile(filename);
+    if (fh54) {
+      size_t fs54 = (size_t)fh54.fileSize;
 
       int divZeroIssues = 0;
-      if (fp54 && fs54 >= 132) {
+      if (fh54.fp && fs54 >= 132) {
         icUInt8Number tc54[4];
-        fseek(fp54, 128, SEEK_SET);
-        if (fread(tc54, 1, 4, fp54) == 4) {
+        fseek(fh54.fp, 128, SEEK_SET);
+        if (fread(tc54, 1, 4, fh54.fp) == 4) {
           uint32_t tagCount54 = ((uint32_t)tc54[0]<<24)|((uint32_t)tc54[1]<<16)|
                                 ((uint32_t)tc54[2]<<8)|tc54[3];
           if (tagCount54 > 1000) tagCount54 = 1000;
 
-          for (uint32_t t = 0; t < tagCount54 && fp54; t++) {
+          for (uint32_t t = 0; t < tagCount54 && fh54.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp54, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp54) != 12) break;
+            fseek(fh54.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh54.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -2309,8 +2210,8 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
             if ((uint64_t)tOff + 12 > fs54 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp54, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp54) != 4) continue;
+            fseek(fh54.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh54.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -2319,8 +2220,8 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
             // lut8/lut16: gridPoints at +10 must be > 0
             if (typeVal == 0x6D667431 || typeVal == 0x6D667432) {
               icUInt8Number lutInfo[4];
-              fseek(fp54, tOff + 8, SEEK_SET);
-              if (fread(lutInfo, 1, 4, fp54) == 4) {
+              fseek(fh54.fp, tOff + 8, SEEK_SET);
+              if (fread(lutInfo, 1, 4, fh54.fp) == 4) {
                 uint8_t gridPts = lutInfo[2];
                 if (gridPts == 0 && lutInfo[0] > 0) {
                   printf("      %s[WARN]  Tag '%s' (%s): gridPoints = 0 with %u input channels%s\n",
@@ -2338,8 +2239,8 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
             if (typeVal == 0x6D414220 || typeVal == 0x6D424120) {
               if ((uint64_t)tOff + 32 > fs54) continue;
               icUInt8Number mbaInfo[24];
-              fseek(fp54, tOff + 8, SEEK_SET);
-              if (fread(mbaInfo, 1, 24, fp54) != 24) continue;
+              fseek(fh54.fp, tOff + 8, SEEK_SET);
+              if (fread(mbaInfo, 1, 24, fh54.fp) != 24) continue;
 
               uint8_t nInput = mbaInfo[0];
               uint32_t clutOff = ((uint32_t)mbaInfo[12]<<24)|((uint32_t)mbaInfo[13]<<16)|
@@ -2347,8 +2248,8 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
 
               if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs54 && nInput > 0 && nInput <= 16) {
                 icUInt8Number gridDims[16];
-                fseek(fp54, tOff + clutOff, SEEK_SET);
-                if (fread(gridDims, 1, 16, fp54) == 16) {
+                fseek(fh54.fp, tOff + clutOff, SEEK_SET);
+                if (fread(gridDims, 1, 16, fh54.fp) == 16) {
                   for (int d = 0; d < nInput; d++) {
                     if (gridDims[d] == 0) {
                       printf("      %s[WARN]  Tag '%s' (%s): CLUT grid dimension[%d] = 0%s\n",
@@ -2367,7 +2268,6 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
           }
         }
       }
-      if (fp54) fclose(fp54);
 
       if (divZeroIssues > 0) {
         heuristicCount += divZeroIssues;
@@ -2392,26 +2292,23 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
   // =====================================================================
   printf("[H55] UTF-16 Encoding Validation\n");
   {
-    FILE *fp55 = fopen(filename, "rb");
-    if (fp55) {
-      fseek(fp55, 0, SEEK_END);
-      long fs55_l = ftell(fp55);
-      if (fs55_l < 0) { fclose(fp55); fp55 = NULL; }
-      size_t fs55 = (fp55) ? (size_t)fs55_l : 0;
+    RawFileHandle fh55 = OpenRawFile(filename);
+    if (fh55) {
+      size_t fs55 = (size_t)fh55.fileSize;
 
       int utf16Issues = 0;
-      if (fp55 && fs55 >= 132) {
+      if (fh55.fp && fs55 >= 132) {
         icUInt8Number tc55[4];
-        fseek(fp55, 128, SEEK_SET);
-        if (fread(tc55, 1, 4, fp55) == 4) {
+        fseek(fh55.fp, 128, SEEK_SET);
+        if (fread(tc55, 1, 4, fh55.fp) == 4) {
           uint32_t tagCount55 = ((uint32_t)tc55[0]<<24)|((uint32_t)tc55[1]<<16)|
                                 ((uint32_t)tc55[2]<<8)|tc55[3];
           if (tagCount55 > 1000) tagCount55 = 1000;
 
-          for (uint32_t t = 0; t < tagCount55 && fp55; t++) {
+          for (uint32_t t = 0; t < tagCount55 && fh55.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp55, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp55) != 12) break;
+            fseek(fh55.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh55.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -2423,16 +2320,16 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
             if ((uint64_t)tOff + 8 > fs55 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fp55, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp55) != 4) continue;
+            fseek(fh55.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh55.fp) != 4) continue;
             uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                                ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
             // mluc (0x6D6C7563) — scan for orphan surrogates
             if (typeVal == 0x6D6C7563 && tSz >= 16) {
               icUInt8Number mlucHdr[8];
-              fseek(fp55, tOff + 8, SEEK_SET);
-              if (fread(mlucHdr, 1, 8, fp55) != 8) continue;
+              fseek(fh55.fp, tOff + 8, SEEK_SET);
+              if (fread(mlucHdr, 1, 8, fh55.fp) != 8) continue;
               uint32_t numRec = ((uint32_t)mlucHdr[0]<<24)|((uint32_t)mlucHdr[1]<<16)|
                                 ((uint32_t)mlucHdr[2]<<8)|mlucHdr[3];
               uint32_t recSz  = ((uint32_t)mlucHdr[4]<<24)|((uint32_t)mlucHdr[5]<<16)|
@@ -2446,8 +2343,8 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
                 if (tOff + recOff + 12 > fs55) break;
 
                 icUInt8Number rec[12];
-                fseek(fp55, tOff + recOff, SEEK_SET);
-                if (fread(rec, 1, 12, fp55) != 12) break;
+                fseek(fh55.fp, tOff + recOff, SEEK_SET);
+                if (fread(rec, 1, 12, fh55.fp) != 12) break;
 
                 uint32_t strLen = ((uint32_t)rec[4]<<24)|((uint32_t)rec[5]<<16)|
                                   ((uint32_t)rec[6]<<8)|rec[7];
@@ -2478,8 +2375,8 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
                   uint32_t scanLen = (strLen > 2048) ? 2048 : strLen;
                   icUInt8Number *strBuf = (icUInt8Number*)malloc(scanLen);
                   if (strBuf) {
-                    fseek(fp55, tOff + strOff, SEEK_SET);
-                    if (fread(strBuf, 1, scanLen, fp55) == scanLen) {
+                    fseek(fh55.fp, tOff + strOff, SEEK_SET);
+                    if (fread(strBuf, 1, scanLen, fh55.fp) == scanLen) {
                       for (uint32_t i = 0; i + 1 < scanLen; i += 2) {
                         uint16_t cu = ((uint16_t)strBuf[i] << 8) | strBuf[i+1];
                         if (cu >= 0xD800 && cu <= 0xDBFF) {
@@ -2518,9 +2415,9 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
 
             // desc (0x64657363) — check unicode count overflow
             if (typeVal == 0x64657363 && tSz >= 24) {
-              fseek(fp55, tOff + 8, SEEK_SET);
+              fseek(fh55.fp, tOff + 8, SEEK_SET);
               icUInt8Number descHdr[4];
-              if (fread(descHdr, 1, 4, fp55) == 4) {
+              if (fread(descHdr, 1, 4, fh55.fp) == 4) {
                 uint32_t asciiLen = ((uint32_t)descHdr[0]<<24)|((uint32_t)descHdr[1]<<16)|
                                     ((uint32_t)descHdr[2]<<8)|descHdr[3];
                 // If ASCII len exceeds tag data → overflow
@@ -2537,7 +2434,6 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
           }
         }
       }
-      if (fp55) fclose(fp55);
 
       if (utf16Issues > 0) {
         heuristicCount += utf16Issues;
@@ -2561,26 +2457,23 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
   // =====================================================================
   printf("[H57] Embedded Profile Recursion Depth\n");
   {
-    FILE *fp57 = fopen(filename, "rb");
-    if (fp57) {
-      fseek(fp57, 0, SEEK_END);
-      long fs57_l = ftell(fp57);
-      if (fs57_l < 0) { fclose(fp57); fp57 = NULL; }
-      size_t fs57 = (fp57) ? (size_t)fs57_l : 0;
+    RawFileHandle fh57 = OpenRawFile(filename);
+    if (fh57) {
+      size_t fs57 = (size_t)fh57.fileSize;
 
       int embedIssues = 0;
-      if (fp57 && fs57 >= 132) {
+      if (fh57.fp && fs57 >= 132) {
         icUInt8Number tc57[4];
-        fseek(fp57, 128, SEEK_SET);
-        if (fread(tc57, 1, 4, fp57) == 4) {
+        fseek(fh57.fp, 128, SEEK_SET);
+        if (fread(tc57, 1, 4, fh57.fp) == 4) {
           uint32_t tagCount57 = ((uint32_t)tc57[0]<<24)|((uint32_t)tc57[1]<<16)|
                                 ((uint32_t)tc57[2]<<8)|tc57[3];
           if (tagCount57 > 1000) tagCount57 = 1000;
 
-          for (uint32_t t = 0; t < tagCount57 && fp57; t++) {
+          for (uint32_t t = 0; t < tagCount57 && fh57.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp57, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp57) != 12) break;
+            fseek(fh57.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh57.fp) != 12) break;
 
             uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
                             ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
@@ -2594,8 +2487,8 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
             // Check for embedded ICC profile magic 'acsp' at offset+36
             if ((uint64_t)tOff + 36 + 4 <= fs57) {
               icUInt8Number magic[4];
-              fseek(fp57, tOff + 36, SEEK_SET);
-              if (fread(magic, 1, 4, fp57) == 4) {
+              fseek(fh57.fp, tOff + 36, SEEK_SET);
+              if (fread(magic, 1, 4, fh57.fp) == 4) {
                 if (magic[0] == 'a' && magic[1] == 'c' && magic[2] == 's' && magic[3] == 'p') {
                   char sig57[5]; SignatureToFourCC(tSig, sig57);
 
@@ -2606,8 +2499,8 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
                     uint32_t scanLimit = (tSz > 65536) ? 65536 : tSz;
                     icUInt8Number *scanBuf = (icUInt8Number*)malloc(scanLimit);
                     if (scanBuf) {
-                      fseek(fp57, tOff, SEEK_SET);
-                      if (fread(scanBuf, 1, scanLimit, fp57) == scanLimit) {
+                      fseek(fh57.fp, tOff, SEEK_SET);
+                      if (fread(scanBuf, 1, scanLimit, fh57.fp) == scanLimit) {
                         for (uint32_t i = 36 + 132; i + 3 < scanLimit; i++) {
                           if (scanBuf[i]=='a' && scanBuf[i+1]=='c' && scanBuf[i+2]=='s' && scanBuf[i+3]=='p') {
                             depth++;
@@ -2633,7 +2526,6 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
           }
         }
       }
-      if (fp57) fclose(fp57);
 
       if (embedIssues > 0) {
         heuristicCount += embedIssues;
@@ -2657,19 +2549,16 @@ int RunHeuristic_H59_SpectralWavelengthRange(const char *filename)
   // =====================================================================
   printf("[H59] Spectral Wavelength Range Consistency\n");
   {
-    FILE *fp59 = fopen(filename, "rb");
-    if (fp59) {
-      fseek(fp59, 0, SEEK_END);
-      long fs59_l = ftell(fp59);
-      if (fs59_l < 0) { fclose(fp59); fp59 = NULL; }
-      size_t fs59 = (fp59) ? (size_t)fs59_l : 0;
+    RawFileHandle fh59 = OpenRawFile(filename);
+    if (fh59) {
+      size_t fs59 = (size_t)fh59.fileSize;
 
       int spectralIssues = 0;
       // ICC v5 spectral data starts at header offset 104
-      if (fp59 && fs59 >= 128) {
+      if (fh59.fp && fs59 >= 128) {
         icUInt8Number specHdr[24];
-        fseek(fp59, 104, SEEK_SET);
-        if (fread(specHdr, 1, 24, fp59) == 24) {
+        fseek(fh59.fp, 104, SEEK_SET);
+        if (fread(specHdr, 1, 24, fh59.fp) == 24) {
           uint16_t specStart = ((uint16_t)specHdr[0] << 8) | specHdr[1];
           uint16_t specEnd   = ((uint16_t)specHdr[2] << 8) | specHdr[3];
           uint16_t specSteps = ((uint16_t)specHdr[4] << 8) | specHdr[5];
@@ -2720,7 +2609,6 @@ int RunHeuristic_H59_SpectralWavelengthRange(const char *filename)
           }
         }
       }
-      if (fp59) fclose(fp59);
 
       if (spectralIssues > 0) {
         heuristicCount += spectralIssues;
@@ -2744,26 +2632,23 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
   // =====================================================================
   printf("[H68] GamutBoundaryDesc Triangle/Vertex Overflow\n");
   {
-    FILE *fp68 = fopen(filename, "rb");
-    if (fp68) {
-      fseek(fp68, 0, SEEK_END);
-      long fs68_l = ftell(fp68);
-      if (fs68_l < 0) { fclose(fp68); fp68 = NULL; }
-      size_t fs68 = (fp68) ? (size_t)fs68_l : 0;
+    RawFileHandle fh68 = OpenRawFile(filename);
+    if (fh68) {
+      size_t fs68 = (size_t)fh68.fileSize;
 
       int gbdIssues = 0;
-      if (fp68 && fs68 >= 132) {
+      if (fh68.fp && fs68 >= 132) {
         icUInt8Number tc68[4];
-        fseek(fp68, 128, SEEK_SET);
-        if (fread(tc68, 1, 4, fp68) == 4) {
+        fseek(fh68.fp, 128, SEEK_SET);
+        if (fread(tc68, 1, 4, fh68.fp) == 4) {
           uint32_t tagCount68 = ((uint32_t)tc68[0]<<24)|((uint32_t)tc68[1]<<16)|
                                 ((uint32_t)tc68[2]<<8)|tc68[3];
           if (tagCount68 > 1000) tagCount68 = 1000;
 
-          for (uint32_t t = 0; t < tagCount68 && fp68; t++) {
+          for (uint32_t t = 0; t < tagCount68 && fh68.fp; t++) {
             icUInt8Number tagEntry[12];
-            fseek(fp68, 132 + t * 12, SEEK_SET);
-            if (fread(tagEntry, 1, 12, fp68) != 12) break;
+            fseek(fh68.fp, 132 + t * 12, SEEK_SET);
+            if (fread(tagEntry, 1, 12, fh68.fp) != 12) break;
 
             uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
                             ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
@@ -2774,8 +2659,8 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
 
             // Read tag type signature
             icUInt8Number typeSig[4];
-            fseek(fp68, tOff, SEEK_SET);
-            if (fread(typeSig, 1, 4, fp68) != 4) continue;
+            fseek(fh68.fp, tOff, SEEK_SET);
+            if (fread(typeSig, 1, 4, fh68.fp) != 4) continue;
             uint32_t tType = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
                              ((uint32_t)typeSig[2]<<8)|typeSig[3];
 
@@ -2789,8 +2674,8 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
             // offset 16: nTriangles (4 bytes)
             if ((uint64_t)tOff + 20 > fs68) continue;
             icUInt8Number gbdHdr[12];
-            fseek(fp68, tOff + 8, SEEK_SET);
-            if (fread(gbdHdr, 1, 12, fp68) != 12) continue;
+            fseek(fh68.fp, tOff + 8, SEEK_SET);
+            if (fread(gbdHdr, 1, 12, fh68.fp) != 12) continue;
 
             uint16_t nPCS = ((uint16_t)gbdHdr[0]<<8)|gbdHdr[1];
             uint32_t nVert = ((uint32_t)gbdHdr[4]<<24)|((uint32_t)gbdHdr[5]<<16)|
@@ -2819,7 +2704,6 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
           }
         }
       }
-      if (fp68) fclose(fp68);
 
       if (gbdIssues > 0) {
         heuristicCount += gbdIssues;
@@ -2843,17 +2727,14 @@ int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename)
   // =====================================================================
   printf("[H69] Profile ID / MD5 Consistency\n");
   {
-    FILE *fp69 = fopen(filename, "rb");
-    if (fp69) {
-      fseek(fp69, 0, SEEK_END);
-      long fs69_l = ftell(fp69);
-      if (fs69_l < 0) { fclose(fp69); fp69 = NULL; }
+    RawFileHandle fh69 = OpenRawFile(filename);
+    if (fh69) {
 
       int idIssues = 0;
-      if (fp69 && fs69_l >= 128) {
+      if (fh69.fp && fh69.fileSize >= 128) {
         icUInt8Number profileId[16];
-        fseek(fp69, 84, SEEK_SET);
-        if (fread(profileId, 1, 16, fp69) == 16) {
+        fseek(fh69.fp, 84, SEEK_SET);
+        if (fread(profileId, 1, 16, fh69.fp) == 16) {
           bool allZero = true;
           for (int i = 0; i < 16; i++) {
             if (profileId[i] != 0) { allZero = false; break; }
@@ -2885,7 +2766,6 @@ int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename)
           }
         }
       }
-      if (fp69) fclose(fp69);
 
       if (idIssues > 0) {
         heuristicCount += idIssues;
@@ -2940,16 +2820,13 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
     printf("RAW-FILE ANALYSIS ENGINE (library load failed)\n");
     printf("=======================================================================\n\n");
 
-    FILE *fpRaw = fopen(filename, "rb");
-    if (fpRaw) {
-      fseek(fpRaw, 0, SEEK_END);
-      long fsRaw_l = ftell(fpRaw);
-      size_t fileSize = (fsRaw_l > 0) ? (size_t)fsRaw_l : 0;
-      fseek(fpRaw, 0, SEEK_SET);
+    RawFileHandle fhRaw = OpenRawFile(filename);
+    if (fhRaw) {
+      size_t fileSize = (size_t)fhRaw.fileSize;
 
       // Read header + tag table
       icUInt8Number rawHdr[132] = {};
-      bool hdrOk = (fileSize >= 132 && fread(rawHdr, 1, 132, fpRaw) == 132);
+      bool hdrOk = (fileSize >= 132 && fread(rawHdr, 1, 132, fhRaw.fp) == 132);
 
       if (hdrOk) {
         icUInt32Number tagCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) |
@@ -2983,8 +2860,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fpRaw, ePos, SEEK_SET);
-            if (fread(entry, 1, 12, fpRaw) != 12) break;
+            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
                                      (static_cast<icUInt32Number>(entry[5])<<16) |
@@ -3027,8 +2904,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fpRaw, ePos, SEEK_SET);
-            if (fread(entry, 1, 12, fpRaw) != 12) break;
+            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
                                      (static_cast<icUInt32Number>(entry[5])<<16) |
@@ -3072,8 +2949,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fpRaw, ePos, SEEK_SET);
-            if (fread(entry, 1, 12, fpRaw) != 12) break;
+            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
                                      (static_cast<icUInt32Number>(entry[5])<<16) |
@@ -3085,8 +2962,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if ((uint64_t)tOffset + 12 > fileSize || tSize < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fpRaw, tOffset, SEEK_SET);
-            if (fread(typeSig, 1, 4, fpRaw) != 4) continue;
+            fseek(fhRaw.fp, tOffset, SEEK_SET);
+            if (fread(typeSig, 1, 4, fhRaw.fp) != 4) continue;
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
@@ -3097,8 +2974,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
 
             if ((uint64_t)tOffset + 12 > fileSize) continue;
             icUInt8Number lutHdr[12];
-            fseek(fpRaw, tOffset + 8, SEEK_SET);
-            if (fread(lutHdr, 1, 4, fpRaw) != 4) continue;
+            fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+            if (fread(lutHdr, 1, 4, fhRaw.fp) != 4) continue;
 
             uint8_t nInput = lutHdr[0];
             uint8_t nOutput = lutHdr[1];
@@ -3141,8 +3018,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fpRaw, ePos, SEEK_SET);
-            if (fread(entry, 1, 12, fpRaw) != 12) break;
+            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
                                      (static_cast<icUInt32Number>(entry[5])<<16) |
@@ -3151,8 +3028,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if ((uint64_t)tOffset + 4 > fileSize) continue;
 
             icUInt8Number typeBuf[4];
-            fseek(fpRaw, tOffset, SEEK_SET);
-            if (fread(typeBuf, 1, 4, fpRaw) != 4) continue;
+            fseek(fhRaw.fp, tOffset, SEEK_SET);
+            if (fread(typeBuf, 1, 4, fhRaw.fp) != 4) continue;
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
@@ -3182,7 +3059,6 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
 
         printf("\n");
       }
-      fclose(fpRaw);
     }
   }
 

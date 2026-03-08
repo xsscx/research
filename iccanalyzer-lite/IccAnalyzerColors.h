@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERCOLORS_H
-#define _ICCANALYZERCOLORS_H
+#ifndef ICCANALYZERCOLORS_H
+#define ICCANALYZERCOLORS_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -164,4 +164,4 @@ inline bool ColorsEnabled() {
 #define printf_info(format, ...) printf_color(COLOR_INFO, format, ##__VA_ARGS__)
 #define printf_header(format, ...) printf_color(COLOR_HEADER, format, ##__VA_ARGS__)
 
-#endif // _ICCANALYZERCOLORS_H
+#endif // ICCANALYZERCOLORS_H

@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERTAGDETAILS_H
-#define _ICCANALYZERTAGDETAILS_H
+#ifndef ICCANALYZERTAGDETAILS_H
+#define ICCANALYZERTAGDETAILS_H
 
 #include "IccAnalyzerCommon.h"
 
@@ -45,4 +45,4 @@
 // spectral tags, and profile ID integrity.
 int TagDetailAnalyze(CIccProfile *pIcc, const char *filename);
 
-#endif // _ICCANALYZERTAGDETAILS_H
+#endif // ICCANALYZERTAGDETAILS_H

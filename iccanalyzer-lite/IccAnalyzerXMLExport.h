@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERXMLEXPORT_H
-#define _ICCANALYZERXMLEXPORT_H
+#ifndef ICCANALYZERXMLEXPORT_H
+#define ICCANALYZERXMLEXPORT_H
 
 #include <string>
 #include <fstream>
@@ -81,4 +81,4 @@ public:
   static std::string XMLEscape(const std::string& text);
 };
 
-#endif // _ICCANALYZERXMLEXPORT_H
+#endif // ICCANALYZERXMLEXPORT_H

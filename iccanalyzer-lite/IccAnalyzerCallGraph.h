@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERCALLGRAPH_H
-#define _ICCANALYZERCALLGRAPH_H
+#ifndef ICCANALYZERCALLGRAPH_H
+#define ICCANALYZERCALLGRAPH_H
 
 #include "IccAnalyzerCommon.h"
 #include <string>
@@ -117,4 +117,4 @@ public:
 // Mode handler
 int RunCallGraphMode(int argc, char* argv[]);
 
-#endif // _ICCANALYZERCALLGRAPH_H
+#endif // ICCANALYZERCALLGRAPH_H

@@ -5,8 +5,8 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-#ifndef _ICCHEURISTICSRAWPOST_H
-#define _ICCHEURISTICSRAWPOST_H
+#ifndef ICCHEURISTICSRAWPOST_H
+#define ICCHEURISTICSRAWPOST_H
 
 /// Run raw-file post-library heuristics (H33-H55, H57, H59, H68-H69).
 /// Dispatches to individual RunHeuristic_H##_*() functions below.
@@ -51,4 +51,4 @@ int RunHeuristic_H59_SpectralWavelengthRange(const char *filename);
 int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename);
 int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename);
 
-#endif // _ICCHEURISTICSRAWPOST_H
+#endif // ICCHEURISTICSRAWPOST_H

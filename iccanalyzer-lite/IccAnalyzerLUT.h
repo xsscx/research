@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERLUT_H
-#define _ICCANALYZERLUT_H
+#ifndef ICCANALYZERLUT_H
+#define ICCANALYZERLUT_H
 
 #include "IccAnalyzerCommon.h"
 

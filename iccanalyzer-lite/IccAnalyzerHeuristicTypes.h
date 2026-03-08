@@ -5,11 +5,11 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-#ifndef _ICCANALYZERHEURISTICTYPES_H
-#define _ICCANALYZERHEURISTICTYPES_H
+#ifndef ICCANALYZERHEURISTICTYPES_H
+#define ICCANALYZERHEURISTICTYPES_H
 
 // If heuristicCount reaches this threshold, skip library-API phase
 // to avoid crashes/hangs from severely malformed profiles.
 static constexpr int kCriticalHeuristicThreshold = 5;
 
-#endif // _ICCANALYZERHEURISTICTYPES_H
+#endif // ICCANALYZERHEURISTICTYPES_H

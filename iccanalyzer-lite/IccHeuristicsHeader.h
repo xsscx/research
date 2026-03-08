@@ -7,8 +7,8 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-#ifndef _ICCHEURISTICSHEADER_H
-#define _ICCHEURISTICSHEADER_H
+#ifndef ICCHEURISTICSHEADER_H
+#define ICCHEURISTICSHEADER_H
 
 #include "IccDefs.h"
 #include <cstddef>
@@ -28,4 +28,4 @@ int RunHeuristic_H17_SpectralRange(const icHeader &header);
 /// Run all header heuristics (H1-H8, H15-H17) on a parsed header.
 int RunHeaderHeuristics(const icHeader &header, size_t actualFileSize);
 
-#endif // _ICCHEURISTICSHEADER_H
+#endif // ICCHEURISTICSHEADER_H

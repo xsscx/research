@@ -975,6 +975,74 @@ def test_tiff_analysis(suite):
     suite.assert_no_asan("tiff.asan_clean", ["-a", tiff])
 
 
+def test_html_xml_output(suite):
+    """Test XML+XSLT (HTML) export mode."""
+    import tempfile
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+
+    with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as tmp:
+        xml_out = tmp.name
+
+    try:
+        rc, stdout, stderr = suite.run_analyzer(["-xml", good, xml_out])
+        suite.results.append(TestResult(
+            "html.exit_code_ok", rc in (0, 1),
+            f"Exit code {rc}" if rc not in (0, 1) else "",
+            0.0, "", ""
+        ))
+
+        xml_content = ""
+        if os.path.exists(xml_out):
+            with open(xml_out, "r") as f:
+                xml_content = f.read()
+
+        suite.results.append(TestResult(
+            "html.xml_has_content", len(xml_content) > 100,
+            f"XML output too short ({len(xml_content)} bytes)" if len(xml_content) <= 100 else "",
+            0.0, "", ""
+        ))
+
+        has_decl = "<?xml" in xml_content
+        suite.results.append(TestResult(
+            "html.xml_declaration", has_decl,
+            "Missing <?xml declaration" if not has_decl else "",
+            0.0, "", ""
+        ))
+
+        has_xslt = "xsl:stylesheet" in xml_content or "xml-stylesheet" in xml_content
+        suite.results.append(TestResult(
+            "html.has_xslt", has_xslt,
+            "Missing XSLT reference" if not has_xslt else "",
+            0.0, "", ""
+        ))
+
+        has_ver = "iccAnalyzer-lite v" in xml_content
+        suite.results.append(TestResult(
+            "html.has_version", has_ver,
+            "Missing version string" if not has_ver else "",
+            0.0, "", ""
+        ))
+
+        has_av = "<analyzer_version>" in xml_content
+        suite.results.append(TestResult(
+            "html.has_analyzer_version_tag", has_av,
+            "Missing <analyzer_version> tag" if not has_av else "",
+            0.0, "", ""
+        ))
+
+        has_heuristic = "<heuristic" in xml_content
+        suite.results.append(TestResult(
+            "html.has_heuristic_data", has_heuristic,
+            "Missing <heuristic> elements" if not has_heuristic else "",
+            0.0, "", ""
+        ))
+
+        suite.assert_no_asan("html.asan_clean", ["-xml", good, xml_out])
+    finally:
+        if os.path.exists(xml_out):
+            os.unlink(xml_out)
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -1030,6 +1098,7 @@ def main():
         ("Runtime Safety", test_runtime_safety),
         ("JSON Output", test_json_output),
         ("TIFF Analysis", test_tiff_analysis),
+        ("HTML/XML Output", test_html_xml_output),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 

@@ -39,6 +39,7 @@
 #include "IccAnalyzerNinja.h"
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerSafeArithmetic.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccTagParsers.h"
 #include <cstring>
 #include <new>
@@ -115,24 +116,17 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   }
   printf("\n");
   
-  // Open file first, then stat the fd to avoid TOCTOU race
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  // Open file with RAII handle (avoids TOCTOU, auto-closes)
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("[ERR] ERROR: Cannot open file: %s\n", filename);
     printf("   Check that the file exists and you have read permissions.\n\n");
     return -1;
   }
   
-  struct stat st;
-  if (fstat(fileno(fp), &st) != 0) {
-    printf("[ERR] ERROR: Cannot stat file: %s\n", filename);
-    fclose(fp);
-    return -1;
-  }
-  size_t fileSize = st.st_size;
+  size_t fileSize = (size_t)fh.fileSize;
   if (fileSize == 0) {
     printf("Error: File is empty (0 bytes)\n");
-    fclose(fp);
     return -1;
   }
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
@@ -140,17 +134,14 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   icUInt8Number *rawData = (icUInt8Number*)malloc(fileSize);
   if (!rawData) {
     printf("Error: Memory allocation failed\n");
-    fclose(fp);
     return -1;
   }
   
-  if (fread(rawData, 1, fileSize, fp) != fileSize) {
+  if (fread(rawData, 1, fileSize, fh.fp) != fileSize) {
     printf("Error: Cannot read file\n");
     free(rawData);
-    fclose(fp);
     return -1;
   }
-  fclose(fp);
   
   // === RAW HEADER ANALYSIS ===
   printf("=== RAW HEADER DUMP (0x0000-0x007F) ===\n");

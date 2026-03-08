@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCTAGPARSERS_H
-#define _ICCTAGPARSERS_H
+#ifndef ICCTAGPARSERS_H
+#define ICCTAGPARSERS_H
 
 #include <string>
 #include <sstream>
@@ -306,4 +306,4 @@ inline bool ParseTextTag(std::ostringstream& xml, const unsigned char* data, siz
   return true;
 }
 
-#endif // _ICCTAGPARSERS_H
+#endif // ICCTAGPARSERS_H

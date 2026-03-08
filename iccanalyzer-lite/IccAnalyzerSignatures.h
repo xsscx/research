@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERSIGNATURES_H
-#define _ICCANALYZERSIGNATURES_H
+#ifndef ICCANALYZERSIGNATURES_H
+#define ICCANALYZERSIGNATURES_H
 
 #include "IccAnalyzerCommon.h"
 
@@ -44,4 +44,4 @@ void SignatureToFourCC(icUInt32Number sig, char *fourCC);
 bool HasNonPrintableSignature(icUInt32Number sig);
 int AnalyzeSignatures(CIccProfile *pIcc);
 
-#endif // _ICCANALYZERSIGNATURES_H
+#endif // ICCANALYZERSIGNATURES_H

@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERNINJA_H
-#define _ICCANALYZERNINJA_H
+#ifndef ICCANALYZERNINJA_H
+#define ICCANALYZERNINJA_H
 
 int NinjaModeAnalyze(const char *filename, bool full_dump = false);
 int NinjaModeExtractXML(const char *filename, const char *output_xml);

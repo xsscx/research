@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERCONFIG_H
-#define _ICCANALYZERCONFIG_H
+#ifndef ICCANALYZERCONFIG_H
+#define ICCANALYZERCONFIG_H
 
 #include <string>
 #include <map>

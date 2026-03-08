@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERINSPECT_H
-#define _ICCANALYZERINSPECT_H
+#ifndef ICCANALYZERINSPECT_H
+#define ICCANALYZERINSPECT_H
 
 #include "IccAnalyzerCommon.h"
 
@@ -45,4 +45,4 @@ void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO);
 void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO);
 void DumpTagData(CIccProfile *pIcc, CIccIO *pIO, icTagSignature sig);
 
-#endif // _ICCANALYZERINSPECT_H
+#endif // ICCANALYZERINSPECT_H
