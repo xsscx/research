@@ -490,7 +490,7 @@ jobs:
             ${RELEASE_BUILD}/IccXML/libIccXML2-static.a \
             -Wl,--allow-multiple-definition \
             -Wl,-Bstatic -lz -llzma \
-            -Wl,-Bdynamic -lxml2 -lm -lpthread -ldl -ltiff \
+            -Wl,-Bdynamic -lxml2 -lssl -lcrypto -lm -lpthread -ldl -ltiff \
             -o iccanalyzer-lite-static
 
           echo "=== Static Release Binary ==="
