@@ -24,8 +24,27 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 
 - Compiler: clang++ 18+ with `-fsanitize=address,undefined`
 - Requires: libxml2-dev, libtiff-dev, libclang-rt-18-dev
-- The build links against a patched iccDEV library at `iccDEV/Build/`
+- The build links against the **unpatched** upstream iccDEV library at `iccDEV/Build/`
+- iccanalyzer-lite does NOT use CFL patches — it handles all user-controllable
+  inputs through its own defensive programming (bounds checks, size validation,
+  ASAN+UBSAN instrumentation, signal recovery, heuristic guards)
 - Output: `iccanalyzer-lite/iccanalyzer-lite` (32MB with debug info)
+
+## Build System Sync — 7 Locations
+
+When adding new `.cpp` modules, ALL 7 build locations must be updated:
+
+| # | File | Variable | Notes |
+|---|------|----------|-------|
+| 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` | Primary local build |
+| 2 | `iccanalyzer-lite/CMakeLists.txt` | `add_executable()` | CI/IDE builds |
+| 3 | `.github/workflows/codeql-security-analysis.yml` | `SRCS=` | + linker flags |
+| 4 | `.github/workflows/iccanalyzer-cli-release.yml` | `SOURCES=` | + linker flags |
+| 5 | `.github/workflows/iccanalyzer-lite-coverage-report.yml` | `SOURCES=` | + linker flags |
+| 6 | `.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` | + linker flags |
+| 7 | `.github/workflows/mcp-server-test.yml` | `SRCS=` | + linker flags |
+
+For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
 
 ## Test
 
