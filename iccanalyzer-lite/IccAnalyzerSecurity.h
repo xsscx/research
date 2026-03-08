@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERSECURITY_H
-#define _ICCANALYZERSECURITY_H
+#ifndef ICCANALYZERSECURITY_H
+#define ICCANALYZERSECURITY_H
 
 #include "IccAnalyzerCommon.h"
 #include <string>
@@ -174,4 +174,4 @@ std::string SanitizeForLog(const char* input);
 /// Escape characters that have special meaning in DOT graph labels.
 std::string SanitizeForDOT(const std::string& input);
 
-#endif // _ICCANALYZERSECURITY_H
+#endif // ICCANALYZERSECURITY_H

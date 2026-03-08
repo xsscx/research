@@ -1,7 +1,7 @@
 // Stub header for ICCANALYZER_LITE build  
 // Heuristics functionality disabled in lite version
-#ifndef _ICCANALYZERHEURISTICS_H
-#define _ICCANALYZERHEURISTICS_H
+#ifndef ICCANALYZERHEURISTICS_H
+#define ICCANALYZERHEURISTICS_H
 
 #include <vector>
 #include <string>

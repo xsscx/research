@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERERRORS_H
-#define _ICCANALYZERERRORS_H
+#ifndef ICCANALYZERERRORS_H
+#define ICCANALYZERERRORS_H
 
 // Deterministic exit codes for workflow logic.
 // Signals (SIGILL=132, SIGABRT=134, SIGSEGV=139) are never returned by

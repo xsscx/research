@@ -39,6 +39,7 @@
 #include "IccAnalyzerLUT.h"
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSecurity.h"
+#include "IccHeuristicsHelpers.h"
 #include <cstring>
 #include <cstdarg>
 #include <climits>
@@ -458,15 +459,12 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
     if (tagType == icSigLut8Type || tagType == icSigLut16Type) {
       printf("Found LUT tag: %s\n", info.GetTagSigName((*i).TagInfo.sig));
       
-      FILE *f = fopen(clutFile, "rb");
-      if (!f) {
+      RawFileHandle fh = OpenRawFile(clutFile);
+      if (!fh) {
         printf("Cannot open CLUT file: %s\n", clutFile);
         continue;
       }
-      
-      fseek(f, 0, SEEK_END);
-      long fileSize = ftell(f);
-      fseek(f, 0, SEEK_SET);
+      long fileSize = fh.fileSize;
       
       // Validate CLUT grid dimensions with overflow-safe multiplication
       if (tagType == icSigLut8Type) {
@@ -475,7 +473,6 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         
         if (!pCLUT) {
           printf("No CLUT in tag\n");
-          fclose(f);
           continue;
         }
         
@@ -493,32 +490,27 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         }
         if (clutOverflow) {
           printf("CLUT size overflow detected\n");
-          fclose(f);
           continue;
         }
         
         if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
-          fclose(f);
           continue;
         }
         
         icFloatNumber *pData = pCLUT->GetData(0);
         if (!pData) {
           printf("Cannot access CLUT data\n");
-          fclose(f);
           continue;
         }
         
         icUInt8Number *buffer = new (std::nothrow) icUInt8Number[fileSize];
         if (!buffer) {
           printf("Allocation failed (%ld bytes)\n", fileSize);
-          fclose(f);
           continue;
         }
-        size_t bytesRead = fread(buffer, 1, fileSize, f);
-        fclose(f);
+        size_t bytesRead = fread(buffer, 1, fileSize, fh.fp);
         
         if (static_cast<long>(bytesRead) != fileSize) {
           printf("Read error: expected %ld bytes, got %zu\n", fileSize, bytesRead);
@@ -543,7 +535,6 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         
         if (!pCLUT) {
           printf("No CLUT in tag\n");
-          fclose(f);
           continue;
         }
         
@@ -565,32 +556,27 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
         }
         if (clutOverflow) {
           printf("CLUT size overflow detected\n");
-          fclose(f);
           continue;
         }
         
         if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
-          fclose(f);
           continue;
         }
         
         icFloatNumber *pData = pCLUT->GetData(0);
         if (!pData) {
           printf("Cannot access CLUT data\n");
-          fclose(f);
           continue;
         }
         
         icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
         if (!buffer) {
           printf("Allocation failed (%ld bytes)\n", fileSize);
-          fclose(f);
           continue;
         }
-        size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
-        fclose(f);
+        size_t itemsRead = fread(buffer, 2, fileSize / 2, fh.fp);
         
         if (static_cast<long>(itemsRead) != fileSize / 2) {
           printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
@@ -665,20 +651,16 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   CIccProfile *pIcc = OpenIccProfile(profileFile);
   if (!pIcc) return -1;
   
-  FILE *f = fopen(clutFile, "rb");
-  if (!f) {
+  RawFileHandle fh = OpenRawFile(clutFile);
+  if (!fh) {
     printf("Error opening CLUT file: %s\n", clutFile);
     delete pIcc;
     return -1;
   }
-  
-  fseek(f, 0, SEEK_END);
-  long fileSize = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  long fileSize = fh.fileSize;
   
   if (fileSize == 0 || fileSize > 100000000) {
     printf("Invalid CLUT file size: %ld\n", fileSize);
-    fclose(f);
     delete pIcc;
     return -1;
   }
@@ -686,12 +668,10 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
   if (!buffer) {
     printf("Allocation failed (%ld bytes)\n", fileSize);
-    fclose(f);
     delete pIcc;
     return -1;
   }
-  size_t itemsRead = fread(buffer, 2, fileSize / 2, f);
-  fclose(f);
+  size_t itemsRead = fread(buffer, 2, fileSize / 2, fh.fp);
   
   if (static_cast<long>(itemsRead) != fileSize / 2) {
     printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
