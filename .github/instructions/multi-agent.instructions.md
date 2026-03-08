@@ -76,12 +76,29 @@ macOS pulls ──→ Test crashes
                sips / ImageIO
 ```
 
-## Analysis Report Gap — Current State
+## Analysis Report Gap — Current State (Updated 2026-03-08)
 
-**Analyzed**: 12 of 320 test profiles (3.75%)
-**Gap**: 308 profiles need iccanalyzer-lite analysis
+**Analyzed**: ~30 profiles/images with full 141-heuristic reports
+**Recent batch**: 3 iOS-gen ICC profiles, 1 printer profile, 12 TIFFs (fuzzed + catalyst)
+**Gap**: ~70 ICC profiles in `fuzz/graphics/icc/` still need analysis (mostly CVE variant PoCs)
 
-### Priority Analysis Targets
+### Completed Analysis (this session)
+
+| Profile/Image | Type | Source | Findings |
+|---------------|------|--------|----------|
+| ios-gen-AdobeRGB1998.icc | ICC v2.1 | macOS iOS Image Generator | 0 ASAN/UBSAN |
+| ios-gen-DisplayP3.icc | ICC v4.0 | macOS iOS Image Generator | 0 ASAN/UBSAN |
+| ios-gen-sRGB-IEC61966.icc | ICC v2.1 | macOS iOS Image Generator | 0 ASAN/UBSAN |
+| fuzzed-prtr-Lab-414k.icc | ICC v2.0 | macOS xnuimagefuzzer harvest | 7 WARN, 0 ASAN |
+| catalyst-16bit-ITU2020.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-32bit-ITU709.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-8bit-ACESCG.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-alpha-ROMMRGB.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-LE-DisplayP3.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-16bit-mutated.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+| catalyst-16bit-mismatch.tiff | TIFF+ICC | macOS Catalyst batch 195825 | 0 ASAN/UBSAN |
+
+### Priority Analysis Targets (remaining)
 
 | Priority | Profile Pattern | Count | Reason |
 |----------|----------------|-------|--------|
