@@ -444,7 +444,8 @@ printf("[H66] Comprehensive NumArray NaN/Inf Scan\n");
     if (nVals == 0 || nVals > 1048576) continue; // skip empty or huge
 
     icUInt32Number scanLimit = (nVals > 4096) ? 4096 : nVals;
-    icFloatNumber *vals = (icFloatNumber*)malloc(scanLimit * sizeof(icFloatNumber));
+    // Guard against overflow: scanLimit <= 4096 so product fits in uint32
+    icFloatNumber *vals = (icFloatNumber*)malloc(static_cast<size_t>(scanLimit) * sizeof(icFloatNumber));
     if (!vals) continue;
 
     if (numArr->GetValues(vals, 0, scanLimit)) {
