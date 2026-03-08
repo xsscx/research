@@ -254,6 +254,9 @@ Proven techniques for improving fuzzer coverage and crash discovery:
 4. **Seed corpus diversity** — Add profiles exercising under-covered code paths:
    high-dimensional (6+ channels), MPE calculator elements, spectral PCS,
    named colors with large palettes, deeply nested tag structures.
+   **Critical**: Audit profile class distribution — all 7 ICC classes (mntr, prtr,
+   scnr, link, spac, abst, nmcl) must be represented. Printer profiles exercise
+   AToB/BToA LUT pairs, gamut tags, and CMYK handling that other classes skip.
 
 5. **Harvest pipeline** — Extract ICC profiles and TIFF files from xnuimagetools/
    xnuimagefuzzer fuzzed-images and inject into CFL corpora:
@@ -263,6 +266,8 @@ Proven techniques for improving fuzzer coverage and crash discovery:
    .github/scripts/harvest-xnu-seeds.sh --ramdisk /tmp/fuzz-ramdisk  # + deploy to ramdisk
    ```
    Both repos produce `cfl-seeds` artifacts in CI via `extract-icc-seeds.py`.
+   Stage outputs to `fuzz/xnuimagegenerator/{format}/` and `fuzz/xnuimagefuzzer/{format}/`
+   before injecting into CFL corpora.
    **Note**: xnuimagetools uses xnuimagefuzzer as a git submodule — clone with
    `git clone --recurse-submodules` to ensure fuzzed-images are populated.
 
