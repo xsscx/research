@@ -38,6 +38,7 @@ set(SOURCES
     IccAnalyzerXMLExport.cpp
     IccAnalyzerCallGraph.cpp
     IccAnalyzerTagDetails.cpp
+    IccAnalyzerJson.cpp
 )
 
 # Build executable
