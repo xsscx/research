@@ -371,7 +371,7 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
-    return JSONResponse({"ok": True, "tools": 16})
+    return JSONResponse({"ok": True, "tools": 24})
 
 
 # ---------------------------------------------------------------------------
