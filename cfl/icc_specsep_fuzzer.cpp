@@ -43,6 +43,7 @@
 #include <stddef.h>
 #include <string>
 #include <cstring>
+#include <cmath>
 #include <vector>
 #include <new>
 #include <memory>
@@ -217,8 +218,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         infiles[i].GetHeight() != infiles[0].GetHeight() ||
         infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
         infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
-        infiles[i].GetXRes() != infiles[0].GetXRes() ||
-        infiles[i].GetYRes() != infiles[0].GetYRes())) {
+        std::abs(infiles[i].GetXRes() - infiles[0].GetXRes()) > 0.001f ||
+        std::abs(infiles[i].GetYRes() - infiles[0].GetYRes()) > 0.001f)) {
       allOpened = false;
       break;
     }

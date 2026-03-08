@@ -84,7 +84,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   uint8_t rawIntent = data[1];
   int nType = (rawIntent >> 4) & 0x07;  // 3 bits for nType (0-7)
   icRenderingIntent intent = (icRenderingIntent)(rawIntent & 0x03);
-  bool useHToS = (rawIntent & 0x80) != 0;  // +100000 modifier
 
   // Override D2Bx and BPC from nType (matches tool lines 768-775)
   icXformLutType xformType = icXformLutColor;
