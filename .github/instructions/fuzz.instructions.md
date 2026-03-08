@@ -26,7 +26,7 @@ fuzz/
 │   ├── icc/                            # 95 ICC profiles — CVE PoCs + crashes
 │   ├── jpg/                            # 208 malformed JPEGs
 │   ├── png/                            # 200 malformed PNGs
-│   ├── tif/                            # 267 malformed TIFFs
+│   ├── tif/                            # 267 malformed TIFFs (test inputs for iccanalyzer-lite H139-H141 TIFF security heuristics: strip geometry, dimension validation, IFD offset bounds)
 │   ├── gif/                            # 35 malformed GIFs
 │   ├── bmp/                            # 10 malformed BMPs
 │   ├── heic/                           # 9 malformed HEICs

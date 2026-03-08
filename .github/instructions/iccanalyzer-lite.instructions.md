@@ -49,7 +49,7 @@ For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflow
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
+python3 iccanalyzer-lite/tests/run_tests.py   # 171 unit tests, ~25s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -71,7 +71,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H139** (current max is H138)
+1. Choose the next ID: **H142** (current max is H141)
 2. Add function declaration to `IccHeuristicsLibrary.h`
 3. Implement in `IccHeuristicsLibrary.cpp` (append after H138)
 4. Wire dispatch in `IccAnalyzerSecurity.cpp` (after H138 call)
