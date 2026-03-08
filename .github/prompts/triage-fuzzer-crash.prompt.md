@@ -107,6 +107,7 @@ For crashes in `CTiffImg::ReadLine()` or `CTiffImg::Open()`:
 4. **Common pattern**: Strip buffer sized by TIFFStripSize() < RowsPerStrip × BytesPerLine
    → heap-buffer-overflow in ReadLine() memcpy. Fix: CFL-082 (bounds check in Open()).
 5. **iccTiffDump is NOT affected** by ReadLine() bugs — it only reads TIFF metadata.
+6. For TIFF crash files, `iccanalyzer-lite -a <file.tif>` runs H139-H141 TIFF security heuristics (strip geometry CWE-122/190, dimension validation CWE-400/131, IFD offset bounds CWE-125) before ICC extraction.
 
 ## Step 5 — Fix workflow
 
