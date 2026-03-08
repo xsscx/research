@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential cmake git ca-certificates pkg-config patch \
-  clang llvm libclang-rt-18-dev file \
+  clang llvm file \
   libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
   zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev \
   python3 python3-venv python3-pip \
@@ -57,8 +57,8 @@ RUN cd /build/iccdev/Build \
 # Symlink shared iccDEV into iccanalyzer-lite so build.sh finds it
 RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
 
-# Build iccanalyzer-lite (NO_COVERAGE=1: no gcda noise in container)
-RUN cd iccanalyzer-lite && NO_COVERAGE=1 bash build.sh
+# Build iccanalyzer-lite (NO_SANITIZERS=1: multi-arch, NO_COVERAGE=1: no gcda noise)
+RUN cd iccanalyzer-lite && NO_SANITIZERS=1 NO_COVERAGE=1 bash build.sh
 
 # Build colorbleed_tools against shared iccDEV (no second clone)
 RUN cd colorbleed_tools \
@@ -95,10 +95,7 @@ COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
 COPY --from=builder --chown=mcp:mcp /build/test-profiles/ test-profiles/
 COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test-profiles/
 
-ENV ASAN_OPTIONS=detect_leaks=0
-ENV MallocNanoZone=0
 ENV ICC_MCP_ROOT=/app
-ENV GCOV_PREFIX=/dev/null
 
 # Entrypoint script supports: mcp (default), web, or custom command
 COPY <<'ENTRYPOINT' /app/entrypoint.sh
