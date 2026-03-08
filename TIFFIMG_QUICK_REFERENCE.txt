@@ -1,7 +1,7 @@
 ================================================================================
                     TiffImg CLASS - QUICK REFERENCE
 ================================================================================
-Location: /home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/
+Location: cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/
 
 PUBLIC METHODS (10 total)
 ================================================================================

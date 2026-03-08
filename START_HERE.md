@@ -200,13 +200,13 @@ Before implementing your fuzzer, verify coverage of:
 ## 🔗 Source Code Locations
 
 **Main Class:**
-- `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.h` (147 lines)
-- `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp` (460 lines)
+- `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.h` (147 lines)
+- `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp` (460 lines)
 
 **Tool Files Using TiffImg:**
-- `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp`
-- `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp`
-- `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp`
+- `cfl/iccDEV/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp`
+- `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp`
+- `cfl/iccDEV/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp`
 
 ---
 
