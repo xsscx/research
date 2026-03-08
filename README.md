@@ -15,8 +15,8 @@ Last Updated: 2026-03-07 16:50:00 UTC by David Hoyt
 
 | Project | Repository | Description |
 |---------|-----------|-------------|
-| **xnuimagetools** | [xsscx/xnuimagetools](https://github.com/xsscx/xnuimagetools) | Multi-platform image generation + VideoToolbox fuzzer |
-| **xnuimagefuzzer** | [xsscx/xnuimagefuzzer](https://github.com/xsscx/xnuimagefuzzer) | iOS/macOS image fuzzer (15 bitmap contexts, 22 formats) |
+| **xnuimagetools** | [xsscx/xnuimagetools](https://github.com/xsscx/xnuimagetools) | Umbrella workspace — image generation + VideoToolbox fuzzer. Uses xnuimagefuzzer as git submodule |
+| **xnuimagefuzzer** | [xsscx/xnuimagefuzzer](https://github.com/xsscx/xnuimagefuzzer) | Primary iOS/macOS image fuzzer (15 bitmap contexts, 22+ formats) |
 
 ## Security Posture
 
