@@ -2,7 +2,7 @@
 ICC PROFILE HANDLING - QUICK REFERENCE
 ================================================================================
 
-FILE: /home/h02332/po/research/xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m
+FILE: xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m
 TOTAL LINES: 5119
 
 ================================================================================

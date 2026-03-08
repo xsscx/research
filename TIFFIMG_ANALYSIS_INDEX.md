@@ -3,7 +3,7 @@
 ## 📋 Overview
 This directory contains a comprehensive analysis of the **CTiffImg class** used by the TIFF fuzzer target. The class is a wrapper around the libtiff library for reading/writing TIFF images with ICC profile support.
 
-**Location:** `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
+**Location:** `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
 
 ---
 
@@ -278,11 +278,11 @@ Create():
 
 ## 🔗 Related Files
 
-- Source: `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
+- Source: `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
 - Tools:
-  - `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp`
-  - `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp`
-  - `/home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp`
+  - `cfl/iccDEV/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp`
+  - `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/iccApplyProfiles.cpp`
+  - `cfl/iccDEV/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp`
 
 ---
 

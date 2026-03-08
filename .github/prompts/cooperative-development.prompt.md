@@ -85,7 +85,7 @@ Both agents collect LLVM coverage:
 ### WSL-2 Agent — Prioritized Task List
 
 #### High Priority (Coverage & Analysis Gaps)
-1. **Batch-analyze 310 unanalyzed test profiles** (currently 10/320 = 3.1%):
+1. **Batch-analyze ~300 unanalyzed test profiles** (currently 28/329 = 8.5%):
    ```bash
    for f in test-profiles/*.icc; do
      bn=$(basename "$f" .icc)
