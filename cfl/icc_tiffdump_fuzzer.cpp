@@ -139,9 +139,8 @@ static void ExerciseProfile(CIccProfile *pProfile, int depth) {
   // contain realistic tag data (>= 1KB), and skip individual tags that
   // exceed reasonable bounds.
   if (profileSize >= 1024) {
-    TagEntryList &tags = pProfile->m_Tags;
     int tagCount = 0;
-    for (auto entry = tags.begin(); entry != tags.end() && tagCount < 64; ++entry, ++tagCount) {
+    for (auto entry = pProfile->m_Tags.begin(); entry != pProfile->m_Tags.end() && tagCount < 64; ++entry, ++tagCount) {
       icUInt32Number tSize = entry->TagInfo.size;
       icUInt32Number tOffset = entry->TagInfo.offset;
       // Skip tags that are clearly malformed
