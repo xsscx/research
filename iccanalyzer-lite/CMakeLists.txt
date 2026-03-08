@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(iccAnalyzer-lite VERSION 3.5.1 LANGUAGES CXX)
+project(iccAnalyzer-lite VERSION 3.6.0 LANGUAGES CXX)
 
 # C++17 required
 set(CMAKE_CXX_STANDARD 17)
@@ -37,6 +37,7 @@ set(SOURCES
     IccAnalyzerTagDetails.cpp
     IccImageAnalyzer.cpp
     IccAnalyzerJson.cpp
+    IccAnalyzerReport.cpp
 )
 
 # Build executable

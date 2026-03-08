@@ -1057,6 +1057,116 @@ def test_html_xml_output(suite):
             os.unlink(xml_out)
 
 
+def test_report_output(suite):
+    """Test --report severity-sorted report output mode."""
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+    bad = str(CORPUS_DIR / "huge_tag_count.icc")
+
+    # Report should contain banner
+    rc, stdout, stderr = suite.run_analyzer(["--report", good])
+    has_banner = "ICC PROFILE SECURITY REPORT" in stdout
+    suite.results.append(TestResult(
+        "report.has_banner", has_banner,
+        "Missing report banner" if not has_banner else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain tool version
+    has_version = "iccAnalyzer-lite" in stdout
+    suite.results.append(TestResult(
+        "report.has_version", has_version,
+        "Missing tool version in banner" if not has_version else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain SHA-256
+    has_sha = "SHA-256:" in stdout
+    suite.results.append(TestResult(
+        "report.has_sha256", has_sha,
+        "Missing SHA-256 hash" if not has_sha else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain executive summary
+    has_exec = "EXECUTIVE SUMMARY" in stdout
+    suite.results.append(TestResult(
+        "report.has_executive_summary", has_exec,
+        "Missing executive summary" if not has_exec else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain severity distribution
+    has_dist = "Severity Distribution:" in stdout
+    suite.results.append(TestResult(
+        "report.has_severity_dist", has_dist,
+        "Missing severity distribution" if not has_dist else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain CWE category summary
+    has_cwe = "CWE CATEGORY SUMMARY" in stdout
+    suite.results.append(TestResult(
+        "report.has_cwe_summary", has_cwe,
+        "Missing CWE category summary" if not has_cwe else "",
+        0.0, "", ""
+    ))
+
+    # Report should contain CVE coverage statistics
+    has_cve = "CVE COVERAGE STATISTICS" in stdout
+    suite.results.append(TestResult(
+        "report.has_cve_stats", has_cve,
+        "Missing CVE coverage statistics" if not has_cve else "",
+        0.0, "", ""
+    ))
+
+    # Report on bad profile should have severity sections with findings
+    rc2, stdout2, stderr2 = suite.run_analyzer(["--report", bad])
+    has_critical = "CRITICAL FINDINGS" in stdout2
+    suite.results.append(TestResult(
+        "report.bad_has_critical_section", has_critical,
+        "Missing CRITICAL FINDINGS section for bad profile" if not has_critical else "",
+        0.0, "", ""
+    ))
+
+    # CVE CROSS-REFERENCES section should appear when findings have CVEs
+    has_xref = "CVE CROSS-REFERENCES" in stdout2
+    suite.results.append(TestResult(
+        "report.bad_has_cve_crossref", has_xref,
+        "Missing CVE cross-references for bad profile" if not has_xref else "",
+        0.0, "", ""
+    ))
+
+    # ASAN clean
+    suite.assert_no_asan("report.asan_clean_good", ["--report", good])
+    suite.assert_no_asan("report.asan_clean_bad", ["--report", bad])
+
+    # JSON severity field test
+    rc3, stdout3, stderr3 = suite.run_analyzer(["--json", good])
+    try:
+        import json
+        data = json.loads(stdout3)
+        results = data.get("results", [])
+        has_severity = any("severity" in r for r in results)
+        suite.results.append(TestResult(
+            "json.has_severity_field", has_severity,
+            "JSON results missing severity field" if not has_severity else "",
+            0.0, "", ""
+        ))
+        if results:
+            valid_severities = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
+            sev = results[0].get("severity", "")
+            valid_sev = sev in valid_severities
+            suite.results.append(TestResult(
+                "json.valid_severity_value", valid_sev,
+                f"Invalid severity value: {sev}" if not valid_sev else "",
+                0.0, "", ""
+            ))
+    except (json.JSONDecodeError, ValueError):
+        suite.results.append(TestResult(
+            "json.has_severity_field", False, "JSON parse failed", 0.0, "", ""
+        ))
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -1113,6 +1223,7 @@ def main():
         ("JSON Output", test_json_output),
         ("TIFF Analysis", test_tiff_analysis),
         ("HTML/XML Output", test_html_xml_output),
+        ("Report Output", test_report_output),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 
