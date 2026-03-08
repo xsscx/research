@@ -49,7 +49,8 @@ find . -name "*.gcda" -delete 2>/dev/null || true
 export CXX=clang++
 
 # ── Debug + Sanitizer + Coverage flags ────────────────────────────────
-# NO_SANITIZERS=1 disables ASAN/UBSAN (e.g. multi-arch Docker containers)
+# NO_SANITIZERS=1 disables ASAN/UBSAN (local testing only — do NOT use in Docker,
+# the MCP Docker image MUST have ASAN+UBSAN for security analysis)
 if [ "${NO_SANITIZERS:-0}" = "1" ]; then
   SANITIZERS=""
   echo "[INFO] Sanitizers disabled (NO_SANITIZERS=1)"
