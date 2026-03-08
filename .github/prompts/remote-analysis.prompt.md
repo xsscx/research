@@ -122,12 +122,29 @@ done
 
 - Image: `ghcr.io/xsscx/icc-profile-mcp`
 - Built by: `.github/workflows/mcp-server-docker.yml`
-- Platforms: `linux/amd64`, `linux/arm64` (native on Apple Silicon — no QEMU needed)
+- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Rosetta 2)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
-- Contains: iccanalyzer-lite (debug, no sanitizers), colorbleed_tools, MCP server, test-profiles
-- Note: Container binary is built WITHOUT ASAN/UBSAN for multi-arch compatibility.
-  ASAN uses platform-specific shadow memory mappings incompatible with QEMU emulation.
-  For ASAN-instrumented analysis, use native WSL-2/Linux builds.
+- Contains: iccanalyzer-lite (**Debug + ASAN + UBSAN**), colorbleed_tools, MCP server, test-profiles
+- **Full ASAN+UBSAN instrumentation** — the Docker image catches memory safety bugs
+  just like native WSL-2/Linux builds. ASAN shadow memory is incompatible with QEMU
+  cross-arch emulation, so we build AMD64-only. Apple Silicon Macs run the image via
+  Docker Desktop's Rosetta 2 translation, which supports ASAN correctly.
+
+### macOS / Apple Silicon Usage
+
+```bash
+# Docker Desktop on Apple Silicon runs AMD64 images via Rosetta 2 automatically.
+# No special flags needed — ASAN works correctly under Rosetta 2.
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
+
+# Verify ASAN is active (look for "halt_on_error=0" in env)
+docker run --rm ghcr.io/xsscx/icc-profile-mcp env | grep ASAN
+
+# Upload and analyze
+curl -s -F "file=@profile.icc" http://localhost:8080/api/upload
+curl -s "http://localhost:8080/api/security-json?path=<uploaded_path>"
+```
 
 ## See Also
 - [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent task lists

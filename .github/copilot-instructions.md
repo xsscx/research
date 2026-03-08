@@ -471,10 +471,11 @@ Prereq: `cd mcp-server && pip install -e .`
 Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 11 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
 
 #### 4. Docker REST API (remote agents — macOS, CI, any platform)
-Run the MCP Docker image in API mode for remote ICC analysis without local binaries.
-Image is multi-arch (`linux/amd64` + `linux/arm64`) — runs natively on Apple Silicon:
+Run the MCP Docker image for remote ICC analysis with full ASAN+UBSAN instrumentation.
+Image is `linux/amd64` — on Apple Silicon Macs, Docker Desktop runs it via Rosetta 2
+(which supports ASAN, unlike QEMU):
 ```bash
-# Start API server (auto-selects native arch)
+# Start API server (Apple Silicon: runs via Rosetta 2 automatically)
 docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
 # Upload and analyze from any machine
