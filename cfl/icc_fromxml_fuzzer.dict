@@ -1527,3 +1527,6 @@ multi_sig="mwpmcl1l"
 "   T"
 "`mag"
 "\xff\xffO0\x04\xa8kR"
+
+# --- added by convert-libfuzzer-dict.py ---
+"ibm367"
