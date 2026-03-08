@@ -228,6 +228,7 @@ Originally "Commodity-Injection-Signatures" by David Hoyt (xss.cx/srd.cx), maint
 - `fuzz/` is **input data only** — no build scripts or harnesses (those are in `cfl/`)
 - fuzz/ ICC profiles seed → `cfl/corpus-*` directories
 - cfl/ crash discoveries → new `crash-*`, `oom-*`, `slow-unit-*` files in repo root
+- cfl/ timeout discoveries → `test-profiles/cwe-400/timeout-*`
 - Use `ramdisk-seed.sh` to propagate fuzz/ seeds into ramdisk for fuzzing campaigns
 
 ### ICC File Naming Convention
@@ -256,7 +257,8 @@ Fuzzing can run on a tmpfs ramdisk (fast, limited by RAM) or an external SSD (la
 
 # End-of-session SSD cleanup (see .github/prompts/corpus-management.prompt.md):
 # 1. Clear stale profraw:  find /mnt/g/fuzz-ssd -name '*.profraw' -delete
-# 2. Preserve artifacts:   rsync crash-*/oom-*/timeout-*/slow-unit-* to repo
+# 2. Preserve artifacts:   rsync crash-*/oom-*/slow-unit-* to repo
+# 2b. Preserve timeouts:   rsync timeout-* to test-profiles/cwe-400/
 # 3. Parallel rsync:       10 concurrent rsyncs with --ignore-existing
 # 4. Verify:               local count >= SSD count per fuzzer
 # 5. Clean SSD:            rm -rf corpus-*/bin/dict/seed/profraw/logs

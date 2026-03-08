@@ -30,11 +30,11 @@ permissions:
 on:
   push:
     paths:
-      - 'timeout-*'
+      - 'test-profiles/cwe-400/*'
       - '.github/workflows/cwe-400-timeout-verification.yml'
   pull_request:
     paths:
-      - 'timeout-*'
+      - 'test-profiles/cwe-400/*'
       - '.github/workflows/cwe-400-timeout-verification.yml'
   workflow_dispatch:
 
@@ -242,13 +242,13 @@ jobs:
       fail-fast: false
       matrix:
         poc:
-          - file: timeout-3aa7f657d7718e06365181e82b735af7cda4aada
+          - file: test-profiles/cwe-400/timeout-3aa7f657d7718e06365181e82b735af7cda4aada
             desc: "CheckUnderflowOverflow exponential recursion"
             mechanism: "IccMpeCalc.cpp — recursive validation without global ops budget"
-          - file: timeout-4e821e5627852351ccfcf35c2006d53c1d10d068
+          - file: test-profiles/cwe-400/timeout-4e821e5627852351ccfcf35c2006d53c1d10d068
             desc: "EvaluateProfile nGran^ndim grid explosion"
             mechanism: "IccEval.cpp:183 — 33^6 = 1.29B iterations × 2 Apply() calls"
-          - file: timeout-c3a67e9b148d8852eb5a5c76f12c60fff3bdaabf
+          - file: test-profiles/cwe-400/timeout-c3a67e9b148d8852eb5a5c76f12c60fff3bdaabf
             desc: "EvaluateProfile nGran^ndim grid explosion"
             mechanism: "IccEval.cpp:183 — 33^6 = 1.29B iterations × 2 Apply() calls"
 
@@ -404,13 +404,13 @@ jobs:
       fail-fast: false
       matrix:
         poc:
-          - file: timeout-1c9189754f442af3c0502a5541b93311c6d65055
+          - file: test-profiles/cwe-400/timeout-1c9189754f442af3c0502a5541b93311c6d65055
             desc: "MPE calculator Apply() — Rec.2100 HLG"
             mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
-          - file: timeout-3f9987d061d33beffdd2dbc68fa28015b59c5f1a
+          - file: test-profiles/cwe-400/timeout-3f9987d061d33beffdd2dbc68fa28015b59c5f1a
             desc: "MPE calculator Apply() — malformed v5.15"
             mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
-          - file: timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9
+          - file: test-profiles/cwe-400/timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9
             desc: "MPE calculator Apply() — corrupted PCS Z"
             mechanism: "IccMpeCalc.cpp — calculator sequences without resource budget"
 

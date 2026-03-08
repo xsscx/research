@@ -85,7 +85,7 @@ Copy crash/oom/timeout/slow-unit files BEFORE cleaning:
 SSD="/mnt/g/fuzz-ssd"
 rsync -a --ignore-existing $SSD/crash-* /home/h02332/po/research/ 2>/dev/null
 rsync -a --ignore-existing $SSD/oom-* /home/h02332/po/research/ 2>/dev/null
-rsync -a --ignore-existing $SSD/timeout-* /home/h02332/po/research/ 2>/dev/null
+rsync -a --ignore-existing $SSD/timeout-* /home/h02332/po/research/test-profiles/cwe-400/ 2>/dev/null
 rsync -a --ignore-existing $SSD/slow-unit-* /home/h02332/po/research/ 2>/dev/null
 rsync -a --ignore-existing $SSD/findings/ cfl/findings/ 2>/dev/null
 ```
