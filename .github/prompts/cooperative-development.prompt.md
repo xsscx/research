@@ -232,3 +232,8 @@ fi
 
 3. **Conflict resolution**: If merge conflict occurs, the agent that encounters
    it resolves by preserving both agents' additions (append, don't replace)
+
+## See Also
+- [upstream-sync.prompt.md](upstream-sync.prompt.md) — Patch reconciliation workflow
+- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations
+- [cve-enrichment.prompt.md](cve-enrichment.prompt.md) — CVE-to-heuristic mapping

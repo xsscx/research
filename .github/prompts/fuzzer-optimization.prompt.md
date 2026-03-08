@@ -649,3 +649,9 @@ Known patterns where fuzzers diverge from their target tool behavior:
 | Raw ptr vs shared_ptr | v5dspobs, link | Tool uses `CIccProfileSharedPtr`; fuzzer uses raw `CIccProfile*` — ensure matching ownership semantics |
 | Multi-profile input format | v5dspobs, link, applyprofiles, specsep | Crash files need unbundling before tool repro — use `unbundle-fuzzer-input.sh` |
 | Missing `GetNewApply()` null check | All MPE fuzzers | `GetNewApply()` can return NULL on allocation failure |
+
+## See Also
+- [improve-fuzzer-coverage.prompt.md](improve-fuzzer-coverage.prompt.md) — Coverage gap analysis
+- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations
+- [triage-fuzzer-crash.prompt.md](triage-fuzzer-crash.prompt.md) — Fuzzer crash triage
+- [fuzz-corpus-analysis.prompt.md](fuzz-corpus-analysis.prompt.md) — Corpus inventory and audit
