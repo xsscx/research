@@ -13,7 +13,7 @@
 **Step 1 — Pull and run** (copy-paste this into your terminal):
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest
 ```
 
 **Step 2 — Open your browser** to <http://127.0.0.1:8080>
@@ -30,7 +30,7 @@ curl http://127.0.0.1:8080/api/health
 curl 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-**To stop:** press `Ctrl+C` in the terminal where Docker is running, or run `docker stop $(docker ps -q --filter ancestor=ghcr.io/xsscx/icc-profile-demo)`.
+**To stop:** press `Ctrl+C` in the terminal where Docker is running, or run `docker stop $(docker ps -q --filter ancestor=ghcr.io/xsscx/icc-profile-mcp)`.
 
 ---
 
@@ -135,19 +135,19 @@ Skip all builds. The Docker image includes pre-built binaries and the REST API s
 
 ```bash
 # Developer demo (recommended — includes interactive HTML report + all API endpoints)
-docker pull ghcr.io/xsscx/icc-profile-demo:latest
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest
 # Routes: / (demo report), /ui (interactive WebUI), /api (endpoint index), /api/* (analysis)
 
 # Custom port
-docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo:latest --port 8083
+docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp:latest --port 8083
 
 # Production image (WebUI at /, API at /api/*)
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 
 # MCP stdio server (for AI assistants — works with either image)
-docker run --rm -i ghcr.io/xsscx/icc-profile-demo:latest mcp
+docker run --rm -i ghcr.io/xsscx/icc-profile-mcp:latest mcp
 ```
 
 ### Health Check
@@ -290,7 +290,7 @@ fi
 # docker-compose.yml
 services:
   icc-analyzer:
-    image: ghcr.io/xsscx/icc-profile-demo:latest
+    image: ghcr.io/xsscx/icc-profile-mcp:latest
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -315,7 +315,7 @@ A single-page dark-themed interface for interactive analysis — no terminal req
 
 ```bash
 # Docker (recommended — no dependencies)
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest
 
 # Local (after pip install)
 cd mcp-server
@@ -380,7 +380,7 @@ http://127.0.0.1:8080/#xml
 
 ```bash
 # Start the analyzer
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest &
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest &
 
 # In your upload handler, validate the profile
 curl -s "http://127.0.0.1:8080/api/security?path=user-upload.icc" \
@@ -412,7 +412,7 @@ curl -s 'http://127.0.0.1:8080/api/compare?path_a=cve-2022-26730-poc-sample-004.
 # Copy crash samples into the container
 docker run --rm -p 8080:8080 \
   -v ./crash-samples:/app/crash-samples:ro \
-  ghcr.io/xsscx/icc-profile-demo:latest &
+  ghcr.io/xsscx/icc-profile-mcp:latest &
 
 # Batch security scan
 for f in crash-samples/*.icc; do
@@ -632,7 +632,7 @@ This walkthrough mirrors the demo report page section by section. Each step can 
 ### Step 1: Start the Server
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest
 ```
 
 ### Step 2: Verify Health
@@ -755,7 +755,7 @@ Requires: `clang++` 18+, `cmake` 3.15+, `libxml2-dev`, `libtiff-dev`
 
 Or use Docker to skip the build entirely:
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest
 ```
 
 ### ASAN/UBSAN output in stderr
@@ -782,7 +782,7 @@ Mount your profile directory:
 ```bash
 docker run --rm -p 8080:8080 \
   -v /path/to/my-profiles:/app/my-profiles:ro \
-  ghcr.io/xsscx/icc-profile-demo:latest
+  ghcr.io/xsscx/icc-profile-mcp:latest
 ```
 
 Then reference as `my-profiles/filename.icc` in API calls.

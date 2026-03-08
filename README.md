@@ -83,14 +83,13 @@ Open http://localhost:8080/
 
 <img width="3742" height="1936" alt="image" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />
 
-## Developer Demo Container
+## Docker Container
 
-Self-contained demo with interactive HTML report, live API, and pre-loaded test profiles:
+MCP server with interactive WebUI, REST API, and pre-loaded test profiles:
 
 ```bash
-docker pull ghcr.io/xsscx/icc-profile-demo:latest
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
-# Custom port: docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port 8083
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
 Routes: `/` (demo report), `/ui` (interactive WebUI), `/api` (endpoint index), `/api/*` (analysis).
@@ -100,7 +99,7 @@ curl http://localhost:8080/api/health
 curl 'http://localhost:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-Other modes: `api` (WebUI at `/` + REST API), `mcp` (stdio server for AI agents).
+Two modes: `mcp` (default, stdio server for AI agents), `web` (REST API + HTML UI).
 See [dev-demo/README.md](dev-demo/README.md) for full usage.
 
 ## Reusable Prompts

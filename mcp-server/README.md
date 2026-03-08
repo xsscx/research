@@ -225,8 +225,8 @@ curl -s 'http://127.0.0.1:8080/api/security?path=myprofile.icc'
 A self-contained demo with an interactive HTML report, live REST API, and 218 pre-loaded test profiles:
 
 ```bash
-docker pull ghcr.io/xsscx/icc-profile-demo:latest
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
 | Route | Description |
@@ -236,7 +236,7 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-demo
 | `/api` | REST API index (JSON) |
 | `/api/*` | All analysis endpoints |
 
-Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-demo --port 8083`
+Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --port 8083`
 
 ---
 
