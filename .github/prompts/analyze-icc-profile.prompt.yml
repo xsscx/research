@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (138 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (141 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
   Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
 model: openai/gpt-4o
@@ -15,7 +15,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 138 security heuristics (H1-H138)
+        analyze_security    — run 141 security heuristics (H1-H141)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -32,7 +32,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 138-heuristic scan.
+      2. Call analyze_security to run the 141-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -75,7 +75,7 @@ messages:
       - The `-a` mode auto-detects TIFF via magic bytes and extracts embedded ICC
       - Reports TIFF metadata (dimensions, BPS, compression, photometric)
       - Scans pixel data for xnuimagefuzzer injection signatures
-      - Runs full 138-heuristic analysis on any extracted ICC profile
+      - Runs full 141-heuristic analysis on any extracted ICC profile
       - Use `-img` mode for explicit image analysis
 
       Report ASAN / UBSAN output verbatim if present.
@@ -87,7 +87,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H138)
+      - Security heuristic results (H1-H141)
       - Round-trip validation status
       - Any anomalies or findings
 

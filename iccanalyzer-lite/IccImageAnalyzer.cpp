@@ -5,7 +5,8 @@
  * - Extract embedded ICC profile from TIFFTAG_ICCPROFILE (tag 34675)
  * - Report TIFF metadata (dimensions, BPS, SPP, compression, photometric)
  * - Detect xnuimagefuzzer injection signatures in strip/tile data
- * - Run full 138-heuristic ICC analysis on extracted profile
+ * - Run full 141-heuristic ICC analysis on extracted profile (H1-H138)
+ * - TIFF security heuristics H139-H141 for strip geometry, dimensions, IFD bounds
  *
  * Copyright (c) 2026 David H Hoyt LLC
  */
@@ -243,6 +244,284 @@ static const char *TiffPlanarName(uint16_t p) {
 static void TiffSilentWarning(const char*, const char*, va_list) {}
 static void TiffSilentError(const char*, const char*, va_list) {}
 
+// ═══════════════════════════════════════════════════════════════════════
+// TIFF Security Heuristics H139-H141
+// ═══════════════════════════════════════════════════════════════════════
+
+/// H139: TIFF Strip Geometry Validation (CWE-122/CWE-190)
+/// Validates strip buffer size calculations against integer overflow and
+/// buffer underallocation. Detects the exact bug pattern from CFL-082
+/// (CTiffImg::ReadLine heap-buffer-overflow) and CodeQL alerts
+/// cpp/integer-multiplication-cast-to-long, cpp/multiplication-overflow-in-alloc.
+int RunHeuristic_H139_TiffStripGeometry(TIFF *tif, const char * /*filepath*/,
+                                         uint32_t width, uint16_t bps,
+                                         uint16_t spp, uint32_t rowsPerStrip,
+                                         uint16_t planarConfig) {
+  printf("[H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)\n");
+
+  if (!tif) {
+    printf("      [SKIP] No TIFF handle\n\n");
+    return 0;
+  }
+
+  // Only applies to strip-based images (not tiled)
+  uint32_t tileW = 0, tileH = 0;
+  TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileW);
+  TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
+  if (tileW > 0 || tileH > 0) {
+    printf("      [OK] Tiled image — strip geometry N/A\n\n");
+    return 0;
+  }
+
+  if (rowsPerStrip == 0) {
+    printf("      [OK] RowsPerStrip=0 — no strip layout\n\n");
+    return 0;
+  }
+
+  int findings = 0;
+  tmsize_t stripSize = TIFFStripSize(tif);
+
+  // Check 1: Zero or negative strip size
+  if (stripSize <= 0) {
+    printf("      %s[CRIT]  HEURISTIC: Zero or negative strip size — corrupted geometry%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCWE-122: Heap buffer overflow in ReadLine/ReadEncodedStrip%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 2: Integer multiplication overflow in bytesPerLine
+  // CodeQL cpp/integer-multiplication-cast-to-long: width*bps*spp can overflow uint32
+  uint64_t bytesPerLine = ((uint64_t)width * (uint64_t)bps * (uint64_t)spp + 7) >> 3;
+  if (bps > 0 && spp > 0 && width > 0 && bytesPerLine > (uint64_t)UINT32_MAX) {
+    printf("      %s[CRIT]  HEURISTIC: Integer overflow in bytesPerLine: %u × %u × %u overflows uint32%s\n",
+           ColorCritical(), width, bps, spp, ColorReset());
+    printf("       %sCWE-190: Integer overflow in buffer size calculation%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCodeQL: cpp/integer-multiplication-cast-to-long — TiffImg.cpp:324%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 3: Strip buffer underallocation (CFL-082 pattern)
+  uint64_t expectedStripBuf = bytesPerLine * (uint64_t)rowsPerStrip;
+  if (expectedStripBuf > 0 && stripSize > 0 && (uint64_t)stripSize < expectedStripBuf) {
+    printf("      %s[CRIT]  HEURISTIC: Strip buffer too small: stripSize=%lld < rowsPerStrip×bytesPerLine=%llu%s\n",
+           ColorCritical(), (long long)stripSize, (unsigned long long)expectedStripBuf, ColorReset());
+    printf("       %sCWE-122: Heap buffer overflow — ReadLine memcpy exceeds strip allocation%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 4: stripSize * nStripSamples allocation overflow
+  // CodeQL cpp/multiplication-overflow-in-alloc
+  uint32_t nStripSamples = (planarConfig == PLANARCONFIG_SEPARATE && spp > 1) ? spp : 1;
+  uint64_t allocSize = (uint64_t)stripSize * (uint64_t)nStripSamples;
+  if (nStripSamples > 1 && allocSize > (uint64_t)SIZE_MAX / 2) {
+    printf("      %s[CRIT]  HEURISTIC: Strip allocation overflow: stripSize(%lld) × nStripSamples(%u) exceeds safe limit%s\n",
+           ColorCritical(), (long long)stripSize, nStripSamples, ColorReset());
+    printf("       %sCWE-190: Integer overflow in malloc argument%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCodeQL: cpp/multiplication-overflow-in-alloc — TiffImg.cpp:324%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  if (findings == 0) {
+    printf("      [OK] Strip geometry valid (bytesPerLine=%llu, stripSize=%lld, rowsPerStrip=%u)\n",
+           (unsigned long long)bytesPerLine, (long long)stripSize, rowsPerStrip);
+  }
+  printf("\n");
+  return findings;
+}
+
+/// H140: TIFF Dimension and Sample Validation (CWE-400/CWE-131/CWE-369)
+/// Validates image dimensions, BitsPerSample, and SamplesPerPixel against
+/// resource exhaustion, buffer miscalculation, and division-by-zero patterns.
+int RunHeuristic_H140_TiffDimensionValidation(uint32_t width, uint32_t height,
+                                               uint16_t bps, uint16_t spp) {
+  printf("[H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)\n");
+
+  int findings = 0;
+
+  // Check 1: Zero dimensions — division by zero in row/stride calculations
+  if (width == 0 || height == 0) {
+    printf("      %s[CRIT]  HEURISTIC: Zero dimension: %u×%u%s\n",
+           ColorCritical(), width, height, ColorReset());
+    printf("       %sCWE-369: Division by zero in image processing%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 2: Extreme dimensions — resource exhaustion
+  uint64_t pixelCount = (uint64_t)width * (uint64_t)height;
+  if (pixelCount > 100000000ULL) {
+    printf("      %s[WARN]  HEURISTIC: Extreme dimensions: %u×%u = %llu pixels (>100M)%s\n",
+           ColorWarning(), width, height, (unsigned long long)pixelCount, ColorReset());
+    printf("       %sCWE-400: Resource exhaustion via large image decode%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 3: Unusual BitsPerSample — buffer miscalculation risk
+  if (bps != 0 && bps != 1 && bps != 2 && bps != 4 && bps != 8 &&
+      bps != 16 && bps != 32 && bps != 64) {
+    printf("      %s[WARN]  HEURISTIC: Unusual BitsPerSample: %u (expected 1/2/4/8/16/32/64)%s\n",
+           ColorWarning(), bps, ColorReset());
+    printf("       %sCWE-131: Incorrect buffer size calculation%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 4: Excessive SamplesPerPixel — buffer overflow in channel loops
+  if (spp > 16) {
+    printf("      %s[WARN]  HEURISTIC: Excessive SamplesPerPixel: %u (>16)%s\n",
+           ColorWarning(), spp, ColorReset());
+    printf("       %sCWE-131: Buffer size overflow (nOutput×BPS×width)%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 5: Total uncompressed size overflow
+  uint64_t bytesPerPixel = ((uint64_t)bps * (uint64_t)spp + 7) >> 3;
+  uint64_t totalBytes = pixelCount * bytesPerPixel;
+  if (bytesPerPixel > 0 && totalBytes / bytesPerPixel != pixelCount) {
+    printf("      %s[CRIT]  HEURISTIC: Uncompressed size overflows uint64: %u×%u×%llu%s\n",
+           ColorCritical(), width, height, (unsigned long long)bytesPerPixel, ColorReset());
+    printf("       %sCWE-190: Integer overflow in image buffer allocation%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  } else if (totalBytes > 4ULL * 1024 * 1024 * 1024) {
+    printf("      %s[WARN]  HEURISTIC: Uncompressed size %llu bytes (>4GB)%s\n",
+           ColorWarning(), (unsigned long long)totalBytes, ColorReset());
+    printf("       %sCWE-400: Memory exhaustion via large uncompressed image%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  if (findings == 0) {
+    printf("      [OK] Dimensions %u×%u, BPS=%u, SPP=%u (%llu pixels)\n",
+           width, height, bps, spp, (unsigned long long)pixelCount);
+  }
+  printf("\n");
+  return findings;
+}
+
+/// H141: TIFF IFD Offset Bounds Validation (CWE-125)
+/// Validates that strip/tile data offsets and byte counts reference data
+/// within the file boundaries. Detects file truncation attacks and
+/// corrupted offset tables that cause out-of-bounds reads.
+int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
+  printf("[H141] TIFF IFD Offset Bounds Validation (CWE-125)\n");
+
+  if (!tif || !filepath) {
+    printf("      [SKIP] No TIFF handle or filepath\n\n");
+    return 0;
+  }
+
+  int findings = 0;
+
+  // Get file size for bounds checking
+  struct stat st;
+  if (stat(filepath, &st) != 0) {
+    printf("      [SKIP] Cannot stat file\n\n");
+    return 0;
+  }
+  uint64_t fileSize = (uint64_t)st.st_size;
+
+  // Check strip offsets (strip-based images)
+  uint32_t tileW = 0, tileH = 0;
+  TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileW);
+  TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
+
+  if (tileW == 0 && tileH == 0) {
+    // Strip-based: check strip offsets and byte counts
+    uint32_t nStrips = TIFFNumberOfStrips(tif);
+    uint64_t *offsets = nullptr;
+    uint64_t *bytecounts = nullptr;
+
+    if (TIFFGetField(tif, TIFFTAG_STRIPOFFSETS, &offsets) &&
+        TIFFGetField(tif, TIFFTAG_STRIPBYTECOUNTS, &bytecounts) &&
+        offsets && bytecounts) {
+      uint32_t checkLimit = (nStrips < 256) ? nStrips : 256;
+      for (uint32_t s = 0; s < checkLimit; s++) {
+        if (bytecounts[s] > 0 && offsets[s] + bytecounts[s] > fileSize) {
+          printf("      %s[CRIT]  HEURISTIC: Strip %u: offset+size (%llu+%llu) exceeds file size (%llu)%s\n",
+                 ColorCritical(), s,
+                 (unsigned long long)offsets[s], (unsigned long long)bytecounts[s],
+                 (unsigned long long)fileSize, ColorReset());
+          printf("       %sCWE-125: Out-of-bounds read via corrupted strip offset%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+          if (findings >= 3) break;
+        }
+      }
+      // Check for zero-offset strips with non-zero byte counts (corruption)
+      for (uint32_t s = 0; s < checkLimit; s++) {
+        if (offsets[s] == 0 && bytecounts[s] > 0 && s > 0) {
+          printf("      %s[WARN]  HEURISTIC: Strip %u: offset=0 with bytecount=%llu (null data pointer)%s\n",
+                 ColorWarning(), s, (unsigned long long)bytecounts[s], ColorReset());
+          printf("       %sCWE-476: Null pointer in strip data access%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+          break;
+        }
+      }
+    }
+  } else {
+    // Tile-based: check tile offsets and byte counts
+    uint32_t nTiles = TIFFNumberOfTiles(tif);
+    uint64_t *offsets = nullptr;
+    uint64_t *bytecounts = nullptr;
+
+    if (TIFFGetField(tif, TIFFTAG_TILEOFFSETS, &offsets) &&
+        TIFFGetField(tif, TIFFTAG_TILEBYTECOUNTS, &bytecounts) &&
+        offsets && bytecounts) {
+      uint32_t checkLimit = (nTiles < 256) ? nTiles : 256;
+      for (uint32_t t = 0; t < checkLimit; t++) {
+        if (bytecounts[t] > 0 && offsets[t] + bytecounts[t] > fileSize) {
+          printf("      %s[CRIT]  HEURISTIC: Tile %u: offset+size (%llu+%llu) exceeds file size (%llu)%s\n",
+                 ColorCritical(), t,
+                 (unsigned long long)offsets[t], (unsigned long long)bytecounts[t],
+                 (unsigned long long)fileSize, ColorReset());
+          printf("       %sCWE-125: Out-of-bounds read via corrupted tile offset%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+          if (findings >= 3) break;
+        }
+      }
+    }
+  }
+
+  // Count IFD pages (multi-directory detection)
+  int nPages = 0;
+  do {
+    nPages++;
+    if (nPages > 1000) {
+      printf("      %s[WARN]  HEURISTIC: Excessive IFD pages: >1000 directories%s\n",
+             ColorWarning(), ColorReset());
+      printf("       %sCWE-400: Resource exhaustion via IFD chain loop%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+      break;
+    }
+  } while (TIFFReadDirectory(tif));
+
+  // Reset to first directory for subsequent operations
+  TIFFSetDirectory(tif, 0);
+
+  if (nPages > 1 && nPages <= 1000) {
+    printf("      [INFO] Multi-page TIFF: %d directories\n", nPages);
+  }
+
+  if (findings == 0) {
+    printf("      [OK] All IFD offsets within file bounds (size=%llu, pages=%d)\n",
+           (unsigned long long)fileSize, nPages);
+  }
+  printf("\n");
+  return findings;
+}
+
 int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   int findings = 0;
 
@@ -326,60 +605,15 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   if (datetime) printf("  DateTime:        %s\n", datetime);
   if (imagedesc) printf("  Description:     %.80s%s\n", imagedesc,
                         strlen(imagedesc) > 80 ? "..." : "");
-
-  // ── IFD count (multi-page TIFF detection) ──
-  int ifdCount = 0;
-  do { ifdCount++; } while (TIFFReadDirectory(tif));
-  if (ifdCount > 1) {
-    printf("  IFD Count:       %d (multi-page TIFF)\n", ifdCount);
-  }
-  // Return to first IFD for ICC extraction
-  TIFFSetDirectory(tif, 0);
   printf("\n");
 
-  // ── TIFF Security Checks ──
-  printf("--- TIFF Security Checks ---\n");
+  // ── TIFF Security Heuristics (H139-H141) ──
+  printf("--- TIFF Security Heuristics ---\n");
 
-  // Check for suspicious dimensions
-  uint64_t pixelCount = (uint64_t)width * (uint64_t)height;
-  if (pixelCount > 100000000ULL) { // 100M pixels
-    printf("  %s[WARN] Extreme dimensions: %u×%u = %llu pixels (>100M)%s\n",
-           ColorWarning(), width, height, (unsigned long long)pixelCount, ColorReset());
-    printf("   %sCWE-400: Resource exhaustion via large image decode%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
-  } else {
-    printf("  %s[OK] Dimensions: %u×%u (%llu pixels)%s\n",
-           ColorSuccess(), width, height, (unsigned long long)pixelCount, ColorReset());
-  }
-
-  // Check for zero dimensions
-  if (width == 0 || height == 0) {
-    printf("  %s[CRIT] Zero dimension: %u×%u%s\n",
-           ColorCritical(), width, height, ColorReset());
-    printf("   %sCWE-369: Division by zero in image processing%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
-  }
-
-  // Check BPS validity (common: 1, 8, 16, 32)
-  if (bps != 0 && bps != 1 && bps != 2 && bps != 4 && bps != 8 &&
-      bps != 16 && bps != 32 && bps != 64) {
-    printf("  %s[WARN] Unusual BitsPerSample: %u%s\n",
-           ColorWarning(), bps, ColorReset());
-    printf("   %sCWE-131: Incorrect buffer size calculation%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
-  }
-
-  // Check SPP validity
-  if (spp > 16) {
-    printf("  %s[WARN] Excessive SamplesPerPixel: %u (>16)%s\n",
-           ColorWarning(), spp, ColorReset());
-    printf("   %sCWE-131: Buffer size overflow (nOutput×BPS×width)%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
-  }
+  findings += RunHeuristic_H139_TiffStripGeometry(tif, filepath, width, bps, spp,
+                                                   rowsPerStrip, planar);
+  findings += RunHeuristic_H140_TiffDimensionValidation(width, height, bps, spp);
+  findings += RunHeuristic_H141_TiffIfdOffsetBounds(tif, filepath);
 
   // Check for xnuimagefuzzer provenance in metadata
   if (software && strstr(software, "XNUImageFuzzer")) {
@@ -389,44 +623,6 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   if (imagedesc && strstr(imagedesc, "fuzzed")) {
     printf("  %s[INFO] Fuzzed image indicator in ImageDescription%s\n",
            ColorInfo(), ColorReset());
-  }
-
-  // Strip/tile geometry validation (CFL-082 pattern)
-  if (tileWidth == 0 && tileHeight == 0 && rowsPerStrip > 0) {
-    uint32_t nStrips = TIFFNumberOfStrips(tif);
-    tmsize_t stripSize = TIFFStripSize(tif);
-    if (stripSize <= 0) {
-      printf("  %s[CRIT] Zero or negative strip size — corrupted geometry%s\n",
-             ColorCritical(), ColorReset());
-      printf("   %sCWE-122: Heap buffer overflow in ReadLine/ReadEncodedStrip%s\n",
-             ColorCritical(), ColorReset());
-      findings++;
-    }
-    // Check strip offset bounds
-    for (uint32_t s = 0; s < nStrips && s < 100; s++) {
-      uint64_t *offsets = nullptr;
-      uint64_t *bytecounts = nullptr;
-      if (TIFFGetField(tif, TIFFTAG_STRIPOFFSETS, &offsets) &&
-          TIFFGetField(tif, TIFFTAG_STRIPBYTECOUNTS, &bytecounts)) {
-        // Report suspicious strip configurations
-        if (offsets && bytecounts && bytecounts[s] > 0) {
-          struct stat st;
-          if (stat(filepath, &st) == 0) {
-            if (offsets[s] + bytecounts[s] > (uint64_t)st.st_size) {
-              printf("  %s[CRIT] Strip %u: offset+size (%llu+%llu) exceeds file size (%lld)%s\n",
-                     ColorCritical(), s,
-                     (unsigned long long)offsets[s], (unsigned long long)bytecounts[s],
-                     (long long)st.st_size, ColorReset());
-              printf("   %sCWE-125: Out-of-bounds read via corrupted strip offset%s\n",
-                     ColorCritical(), ColorReset());
-              findings++;
-              break; // one report is enough
-            }
-          }
-        }
-        break; // only check first strip for offset arrays
-      }
-    }
   }
 
   printf("\n");
