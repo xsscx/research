@@ -108,6 +108,28 @@ git commit -m "coverage: <description of improvements>"
 | io | IccIO |
 | spectral, v5dspobs | IccMpeSpectral |
 
+## Profile Class Coverage Audit
+
+**ALWAYS** verify all 7 ICC classes are seeded before extended fuzzing. Printer
+profiles are the most LUT-dense class and exercise critical parser paths:
+
+| Class | Example Seeds | Key Code Paths |
+|-------|---------------|----------------|
+| `mntr` (Display) | sRGB, Display P3 | Matrix+TRC, para curves, chad |
+| `prtr` (Printer) | Tek350Monaco2, SC_paper_eci | AToB/BToA LUT pairs, gamt, CMYK |
+| `scnr` (Scanner) | — | Input transforms, calibration |
+| `link` (DeviceLink) | — | Direct device-to-device transforms |
+| `spac` (ColorSpace) | — | Non-device color spaces |
+| `abst` (Abstract) | — | Abstract transforms |
+| `nmcl` (NamedColor) | — | Named color lookup |
+
+### Printer Profile Anatomy (Tek350Monaco2 — 405KB)
+- **7 LUT tags** = 77% of profile is dense numerical data
+- AToB0/1/2: 17³ = 4,913 CLUT entries each (mft1 type, 16KB)
+- BToA0/1/2: 33³ = 35,937 CLUT entries each (mft1 type, 109KB)
+- gamt: 3→1 channel reduction (33³ grid, 37KB)
+- Monaco CMM (`mnco`), v2.0, RGB→Lab PCS
+
 ## Coverage Baseline (March 2026, extended run)
 | Metric | Value |
 |--------|-------|
