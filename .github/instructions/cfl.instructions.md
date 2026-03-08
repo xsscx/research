@@ -20,7 +20,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fu
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
 - Applies 57 active patches (001-071, with 14 NO-OP gaps) from `cfl/patches/`
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
-- Binaries: `cfl/bin/icc_*_fuzzer` (19 total)
+- Binaries: `cfl/bin/icc_*_fuzzer` (18 total)
 
 ## Upstream Sync
 
@@ -40,7 +40,7 @@ done
 
 Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
-## The 19 Fuzzers
+## The 18 Fuzzers
 
 | # | Fuzzer Binary | Primary Target |
 |---|--------------|----------------|
