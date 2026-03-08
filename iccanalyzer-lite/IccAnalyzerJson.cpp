@@ -202,7 +202,8 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
     printf("    {\n");
     printf("      \"id\": %d,\n", r.id);
     printf("      \"name\": \"%s\",\n", JsonEscape(r.name).c_str());
-    printf("      \"status\": \"%s\"", r.status.c_str());
+    printf("      \"status\": \"%s\",\n", r.status.c_str());
+    printf("      \"severity\": \"%s\"", entry ? SeverityToString(entry->severity) : "INFO");
     if (entry && entry->specRef) {
       printf(",\n      \"specRef\": \"ICC.1-2022-05 %s\"", JsonEscape(entry->specRef).c_str());
     }

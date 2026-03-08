@@ -17,6 +17,7 @@
 #include "IccAnalyzerHeuristics.h"
 #include "IccImageAnalyzer.h"
 #include "IccAnalyzerJson.h"
+#include "IccAnalyzerReport.h"
 
 #include <cstdio>
 #include <cstring>
@@ -199,6 +200,10 @@ void PrintUsage() {
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
   printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
   
+  printf("\nOutput Formats:\n");
+  printf("  --json <file>              JSON structured output\n");
+  printf("  --report <file>            Professional report (severity-sorted)\n");
+
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
   printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
@@ -252,6 +257,11 @@ int main(int argc, char **argv) {
   // JSON output mode
   if (strcmp(mode, "--json") == 0 && argc >= 3) {
     return RecoverableRun("JSON analysis", [&]{ return RunWithJsonOutput(profilePath, nullptr); });
+  }
+
+  // Report output mode (severity-sorted professional report)
+  if (strcmp(mode, "--report") == 0 && argc >= 3) {
+    return RecoverableRun("report analysis", [&]{ return RunWithReportOutput(profilePath, nullptr); });
   }
 
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
