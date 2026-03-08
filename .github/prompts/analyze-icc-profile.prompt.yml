@@ -4,6 +4,7 @@ description: >
   analysis tools.  Runs inspect, security scan (141 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
   Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
+  JSON output available via --json mode for programmatic consumption.
 model: openai/gpt-4o
 modelParameters:
   temperature: 0.2
@@ -38,6 +39,30 @@ messages:
       5. Summarise findings: profile class, colour space, PCS, version,
          creator, any heuristic warnings, round-trip status, and notable
          structural observations.
+      6. For programmatic/JSON output, use: ./iccanalyzer-lite --json <profile>
+
+      iccanalyzer-lite architecture (v3.5.0):
+      8 heuristic modules with standalone RunHeuristic_H##_Name() functions:
+      - IccHeuristicsHeader.cpp: H1-H8, H15-H17 (raw header bytes)
+      - IccHeuristicsTagValidation.cpp: H9-H32 (tag structure)
+      - IccHeuristicsRawPost.cpp: H33-H55, H57-H69 (raw file I/O)
+      - IccHeuristicsDataValidation.cpp: H56-H102 (data integrity)
+      - IccHeuristicsProfileCompliance.cpp: H103-H120 (spec compliance)
+      - IccHeuristicsIntegrity.cpp: H121-H138 (integrity + CWE-400)
+      - IccImageAnalyzer.cpp: H139-H141 (TIFF security)
+
+      IccHeuristicsRegistry.h provides 141-entry metadata table with:
+      - id, name, specRef, primaryCWE, cveRefs, phase
+
+      CVE coverage: 38 heuristics detect patterns from 46 CVEs across
+      77 iccDEV security advisories. 22 CVEs are XML parser bugs (out of
+      scope for binary ICC analysis). Key high-severity CVE detections:
+      - CVE-2026-21675 (Critical 9.8, UAF) → H80
+      - CVE-2026-21676 (High 8.8, HBO CIccMBB) → H102
+      - CVE-2026-22255 (High 8.8, HBO CLUT::Init) → H11, H78
+      - CVE-2026-24405 (High 8.8, HBO Calculator) → H81
+      - CVE-2026-21485 (High 8.8, OOM LoadTag) → H79
+      - CVE-2026-25634 (High 7.8, memcpy overlap) → H85
 
       Heuristic phases:
       - H1-H32:  Core structural validation (header, tags, types, signatures)
@@ -63,6 +88,11 @@ messages:
                     determinant/inversion, environment variable and spectral ranges
       - H116-H127: cprt/desc encoding, tag-type validation, computation cost,
                     curve invertibility, ΔE round-trip, transform smoothness, malware scan
+      - H128-H138: spec compliance + CWE-400 detection — version BCD, PCS D50,
+                    tag alignment, Profile ID MD5, chad determinant, flags, reserved bytes,
+                    duplicate sigs, ResponseCurve count, grid complexity, calc branching
+      - H139-H141: TIFF image security — strip geometry, dimension/sample validation,
+                    IFD offset bounds
 
       When the iccDEV library fails to load a malformed profile, the analyzer
       activates a raw-file fallback engine that runs H10, H13, H25, H28, H32
