@@ -67,7 +67,6 @@ XML_FUZZERS=(
 TIFF_FUZZERS=(
   icc_applyprofiles_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
 )
 

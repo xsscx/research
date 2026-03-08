@@ -208,7 +208,7 @@ jobs:
 
           # TIFF fuzzers (IccProfLib + TiffImg)
           $CXX $CXXFLAGS $INC_TIFF -c ../iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp -o TiffImg.o 2>/dev/null || true
-          for f in icc_specsep_fuzzer icc_spectral_b_fuzzer icc_tiffdump_fuzzer; do
+          for f in icc_specsep_fuzzer icc_tiffdump_fuzzer; do
             $CXX $CXXFLAGS $INC_TIFF -c "${f}.cpp" -o "${f}.o" 2>/dev/null || true
           done
 
