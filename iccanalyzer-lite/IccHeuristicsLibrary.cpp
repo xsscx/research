@@ -5089,6 +5089,7 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
     int count;
   };
 
+  // ICC.1-2022-05 §9/§10: allowed tag type signatures per tag signature
   static const AllowedType table[] = {
     {icSigCopyrightTag, "cprt",
      {icSigMultiLocalizedUnicodeType, icSigTextType, icSigTextDescriptionType}, 3},
@@ -5146,6 +5147,7 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
 
   int checked = 0, violations = 0;
 
+  // Check each present tag's type against the whitelist
   for (size_t t = 0; t < sizeof(table) / sizeof(table[0]); t++) {
     CIccTag *tag = pIcc->FindTag(table[t].sig);
     if (!tag) continue;
@@ -5462,6 +5464,7 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
       continue;
     }
 
+    // Sample forward curve, construct piecewise-linear inverse, measure round-trip error
     std::vector<double> fwd(nEntries);
     for (icUInt32Number i = 0; i < nEntries; i++)
       fwd[i] = (double)(*curve)[i];
@@ -5483,6 +5486,7 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
     int testCount = 0;
     int nTests = (nEntries > 256) ? 256 : (int)nEntries;
 
+    // Binary search for inverse then compute deviation from identity
     for (int s = 0; s < nTests; s++) {
       double x = (double)s / (double)(nTests - 1);
       double y = fwd[0] + x * (fwd[nEntries-1] - fwd[0]);
