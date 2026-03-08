@@ -125,17 +125,20 @@ bool LoadConfigAuto(IccAnalyzerConfig &config) {
   
   char config_path[PATH_MAX];
   char resolved_config[PATH_MAX];
-  
-  snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", resolved_home);
-  if (realpath(config_path, resolved_config) != nullptr &&
+  int n;
+
+  n = snprintf(config_path, sizeof(config_path), "%s/.iccanalyzer.conf", resolved_home);
+  if (n > 0 && n < (int)sizeof(config_path) &&
+      realpath(config_path, resolved_config) != nullptr &&
       strncmp(resolved_config, resolved_home, strlen(resolved_home)) == 0) {
     if (LoadConfig(resolved_config, config)) {
       return true;
     }
   }
-  
-  snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", resolved_home);
-  if (realpath(config_path, resolved_config) != nullptr &&
+
+  n = snprintf(config_path, sizeof(config_path), "%s/.config/iccanalyzer.conf", resolved_home);
+  if (n > 0 && n < (int)sizeof(config_path) &&
+      realpath(config_path, resolved_config) != nullptr &&
       strncmp(resolved_config, resolved_home, strlen(resolved_home)) == 0) {
     if (LoadConfig(resolved_config, config)) {
       return true;
