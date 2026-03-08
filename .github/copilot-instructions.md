@@ -567,6 +567,14 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
 Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI). Build locally with `docker build -f mcp-server/Dockerfile -t icc-profile-mcp .`
 
+**CRITICAL**: The Docker image MUST be built with ASAN+UBSAN (the whole point is
+security analysis). Do NOT add `NO_SANITIZERS=1` or remove `libclang-rt-18-dev`.
+Image is `linux/amd64` only — ASAN shadow memory is incompatible with QEMU
+cross-arch emulation. Apple Silicon Macs run it via Docker Desktop Rosetta 2.
+
+**Tool count**: 24 tools (11 analysis + 7 maintainer + 6 operations). When adding
+tools, update: `icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`.
+
 **REST API endpoints** (same parameter names as MCP tools):
 
 | Endpoint | Method | Parameters |
