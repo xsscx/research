@@ -1123,11 +1123,11 @@ int RunHeuristic_H81_MPECalculatorIOConsistency(CIccProfile *pIcc) {
 
 // =====================================================================
 // H81: CIccMpeCalculator Sub-Element Channel Mismatch
+// CVE-2026-21504 (Medium 6.6) — HBO in CIccMpeToneMap::Read()
 // CVE-2026-24405 (High 8.8) — HBO in CIccMpeCalculator::Read()
 // CVE-2026-22047 (High 8.8) — HBO in SIccCalcOp::Describe()
-// When MPE calculator elements have sub-elements whose channel counts
-// don't match the parent input/output expectations, buffer overflows
-// occur during Apply(). We validate sub-element I/O channel consistency.
+// When MPE elements (Calculator, ToneMap) have sub-elements whose channel
+// counts don't match expectations, buffer overflows occur during Read/Apply.
 // CWE-122 (Heap-based Buffer Overflow)
 // =====================================================================
 printf("[H81] MPE Calculator I/O Channel Consistency\n");
@@ -2472,6 +2472,7 @@ int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
   int heuristicCount = 0;
 
 // H101 — MPE Sub-Element Channel Continuity (CWE-125/CWE-787)
+// CVE-2026-21492 (Medium 5.5) — NPD in CIccMpeToneMap Write (invalid sub-element state)
 // Exercises: IccMpeBasic.cpp (64.4% → NumInputChannels/NumOutputChannels chain validation)
 //            Verifies in[i+1] == out[i] across entire MPE processing pipeline
 {
