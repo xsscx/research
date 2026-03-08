@@ -166,13 +166,25 @@ To unbundle crash files from multi-profile fuzzers:
 
 ## Fuzzer-to-Tool Fidelity (March 2026)
 
-| Fuzzer | iccDEV Tool | Fidelity |
-|--------|-------------|----------|
-| icc_link_fuzzer | IccApplyToLink | ~65% |
-| icc_applynamedcmm_fuzzer | IccApplyNamedCmm | ~75% |
-| icc_specsep_fuzzer | IccSpecSepToTiff | ~85% |
-| icc_roundtrip_fuzzer | IccRoundTrip | ~95% |
-| icc_deep_dump_fuzzer | IccDumpProfile | >100% |
+Measured using ASAN-instrumented upstream tools at `iccDEV/Build-ASAN/Tools/`:
+
+```bash
+# Build ASAN upstream tools (one-time)
+cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
+cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j32
+```
+
+| Fuzzer | iccDEV Tool | Fidelity | Method |
+|--------|-------------|----------|--------|
+| icc_fromcube_fuzzer | IccFromCube | **100%** | LCOV function diff (only `main` differs) |
+| icc_dump_fuzzer | IccDumpProfile | **>100%** | Fuzzer 27.65% lines vs tool 1.88% (custom icRealloc) |
+| icc_deep_dump_fuzzer | IccDumpProfile | >100% | Full tag enumeration exceeds tool |
+| icc_roundtrip_fuzzer | IccRoundTrip | ~95% | |
+| icc_specsep_fuzzer | IccSpecSepToTiff | ~85% | |
+| icc_applynamedcmm_fuzzer | IccApplyNamedCmm | ~75% | |
+| icc_link_fuzzer | IccApplyToLink | ~65% | |
 
 For per-fuzzer optimization details (input formats, coverage gaps, seed strategies,
 dead code), see `.github/prompts/fuzzer-optimization.prompt.md`.
