@@ -609,14 +609,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", f"{corpus}/xyz_large_array.icc"],
-        r"138 heuristics"
+        r"141 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", f"{corpus}/calculator_deep_nesting.icc"],
-        r"138 heuristics"
+        r"141 heuristics"
     )
 
 
@@ -659,9 +659,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.138_heuristics",
+        "summary.141_heuristics",
         ["-a", str(CORPUS_DIR / "bad_magic.icc")],
-        r"138 heuristics"
+        r"141 heuristics"
     )
 
     suite.assert_output_contains(
