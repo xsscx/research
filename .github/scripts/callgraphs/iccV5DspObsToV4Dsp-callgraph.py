@@ -5,7 +5,7 @@ iccV5DspObsToV4Dsp Call Graph & AST Gate Analysis
 
 Static analysis of IccV5DspObsToV4Dsp.cpp to extract call graph, AST gates,
 and fuzzer fidelity mapping for the icc_v5dspobs_fuzzer (primary),
-icc_spectral_fuzzer, and icc_spectral_b_fuzzer.
+icc_spectral_fuzzer.
 
 This tool is notable for:
   - V5→V4 display profile conversion using MPE pipeline
@@ -244,12 +244,11 @@ def compute_fidelity():
             "for TRC generation, C2S PCC transforms for colorant XYZ computation, "
             "and SaveIccProfile for output. The fuzzer uses a split input format "
             "(4-byte size prefix + two profile blobs) matching the tool's two-file "
-            "input. Secondary fuzzers (icc_spectral_fuzzer, icc_spectral_b_fuzzer) "
+            "input. Secondary fuzzer (icc_spectral_fuzzer) "
             "cover individual spectral tag parsing paths."
         ),
         "related_fuzzers": [
             "icc_spectral_fuzzer — spectral tag Read/Write/Validate paths",
-            "icc_spectral_b_fuzzer — spectral TIFF profile embedding path",
             "icc_v5dspobs_fuzzer — full V5→V4 conversion pipeline (primary)",
         ],
     }
@@ -264,8 +263,6 @@ def generate_json(output_file):
         "related_fuzzers": [
             {"name": "icc_spectral_fuzzer", "file": "icc_spectral_fuzzer.cpp",
              "focus": "Spectral tag Read/Write/Validate"},
-            {"name": "icc_spectral_b_fuzzer", "file": "icc_spectral_b_fuzzer.cpp",
-             "focus": "Spectral TIFF profile embedding"},
         ],
         "analysis_date": "2026-07-20",
         "phases": {

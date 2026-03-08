@@ -6,14 +6,14 @@ applyTo: "cfl/**"
 
 ## What This Is
 
-19 LibFuzzer harnesses (4,537 LOC, C/C++) targeting the iccDEV ICC profile library.
+18 LibFuzzer harnesses (4,537 LOC, C/C++) targeting the iccDEV ICC profile library.
 Each fuzzer has a custom-built dictionary, seed corpus, and OOM-protection patches
 applied at build time.
 
 ## Build
 
 ```bash
-cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 19 fuzzers
+cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fuzzers
 ```
 
 - **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
@@ -98,7 +98,7 @@ Current upstream: commit **7db2273** (2026-03-07)
 ## Fuzzing — Ramdisk Workflow
 
 ```bash
-# Mount ramdisk, seed corpus, run all 19 fuzzers
+# Mount ramdisk, seed corpus, run all 18 fuzzers
 cd cfl && ./ramdisk-fuzz.sh
 
 # Or use external SSD

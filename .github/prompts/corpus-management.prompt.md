@@ -13,7 +13,6 @@ icc_apply_fuzzer  icc_applynamedcmm_fuzzer  icc_applyprofiles_fuzzer
 icc_calculator_fuzzer  icc_deep_dump_fuzzer  icc_dump_fuzzer
 icc_fromcube_fuzzer  icc_fromxml_fuzzer  icc_io_fuzzer
 icc_link_fuzzer  icc_multitag_fuzzer  icc_profile_fuzzer
-icc_roundtrip_fuzzer  icc_specsep_fuzzer  icc_spectral_b_fuzzer
 icc_spectral_fuzzer  icc_tiffdump_fuzzer  icc_toxml_fuzzer
 icc_v5dspobs_fuzzer
 ```
@@ -102,7 +101,6 @@ FUZZERS=(icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer
   icc_calculator_fuzzer icc_deep_dump_fuzzer icc_dump_fuzzer
   icc_fromcube_fuzzer icc_fromxml_fuzzer icc_io_fuzzer
   icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer
-  icc_roundtrip_fuzzer icc_specsep_fuzzer icc_spectral_b_fuzzer
   icc_spectral_fuzzer icc_tiffdump_fuzzer icc_toxml_fuzzer
   icc_v5dspobs_fuzzer)
 
@@ -170,7 +168,6 @@ echo "Total: $total files"
 | icc_tiffdump_fuzzer | 49,363 |
 | icc_applynamedcmm_fuzzer | 37,317 |
 | icc_fromxml_fuzzer | 35,032 |
-| icc_spectral_b_fuzzer | 34,052 |
 | icc_specsep_fuzzer | 31,853 |
 | icc_applyprofiles_fuzzer | 30,744 |
 | icc_v5dspobs_fuzzer | 26,487 |

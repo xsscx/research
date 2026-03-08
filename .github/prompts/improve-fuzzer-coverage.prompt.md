@@ -102,7 +102,7 @@ git commit -m "coverage: <description of improvements>"
 | deep_dump, profile, dump | IccTagBasic, IccProfile, IccMpeBasic, IccTagLut |
 | apply, applyprofiles, link | IccCmm, IccApplyBPC, IccPcc |
 | toxml, fromxml | IccTagXml, IccProfileXml, IccXmlLib |
-| specsep, spectral_b, tiffdump | TiffImg |
+| specsep, tiffdump | TiffImg |
 | calculator | IccMpeCalc |
 | io | IccIO |
 | spectral, v5dspobs | IccMpeSpectral |
@@ -119,7 +119,6 @@ git commit -m "coverage: <description of improvements>"
 | Fuzzer | Files | Priority |
 |--------|-------|----------|
 | tiffdump | 47,158 | — |
-| spectral_b | 32,637 | — |
 | applynamedcmm | 32,214 | — |
 | specsep | 30,764 | — |
 | applyprofiles | 28,582 | — |
@@ -144,7 +143,7 @@ git commit -m "coverage: <description of improvements>"
 | IccCmm.cpp | 4,063 | 36.6% | CRITICAL | apply, applyprofiles, link (needs profile PAIRS) |
 | IccTagBasic.cpp | 2,327 | 60.8% | HIGH | deep_dump, profile, dump |
 | IccTagXml.cpp | 2,185 | 46.5% | HIGH | toxml, fromxml |
-| IccMpeSpectral.cpp | 828 | 31.8% | HIGH | spectral, spectral_b, v5dspobs |
+| IccMpeSpectral.cpp | 828 | 31.8% | HIGH | spectral, v5dspobs |
 | IccPcc.cpp | 359 | 16.5% | HIGH | spectral, v5dspobs (needs differing viewing conditions) |
 | IccSparseMatrix.cpp | 314 | 26.8% | HIGH | deep_dump, profile (needs sparse matrix tags) |
 | IccCmmSearch.cpp | 275 | 0.0% | LOW | NONE — no fuzzer exercises this API |

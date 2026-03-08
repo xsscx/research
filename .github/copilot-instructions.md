@@ -79,7 +79,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 57 patches, builds 19 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 57 patches, builds 18 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -320,7 +320,7 @@ These commands are for CI documentation. For local builds, see **Local Build** a
 ## Fuzzing
 
 ```bash
-# Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 19 fuzzers)
+# Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 18 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
 # Local fuzzing (uses existing ramdisk or external SSD)
@@ -576,7 +576,7 @@ No manual intervention required — the entire pipeline is hands-free from issue
 
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
-- **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
+- **cfl/** — 18 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
 - **iccanalyzer-lite/** — 138-heuristic static/dynamic security analyzer (v3.4.0) built with full sanitizer instrumentation. 17 C++ modules (16,000+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories from 77+ CVEs. **TIFF image analysis** (v3.4.0): `-a` mode auto-detects TIFF files via magic bytes, extracts embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata/security checks, scans pixel data for xnuimagefuzzer injection signatures (10 INJECT_STRING patterns + ICC mutation markers), then runs full 138-heuristic analysis on extracted ICC. New `-img` mode for explicit image analysis. **Unit tests**: 172 tests in `run_tests.py` (41 synthesized corpus profiles, heuristic trigger tests, ASAN corpus checks, mode coverage tests). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (5 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 4 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules. Code split across 4 modules: `IccAnalyzerSecurity.cpp` (orchestrator + H1-H8, H15-H17), `IccHeuristicsLibrary.cpp` (H9-H32, H56-H138 via CIccProfile API), `IccHeuristicsRawPost.cpp` (H33-H69 raw file + fallback engine), `IccImageAnalyzer.cpp` (TIFF/PNG/JPEG image analysis with ICC extraction). H95-H102 target coverage-gap APIs: IccSparseMatrix, IccTagEmbedIcc, IccTagProfSeqId, IccMpeSpectral, IccProfile tag iteration. H103-H106 target coverage-gap APIs: IccPcc (viewing conditions), IccPrmg (gamut evaluation), IccMatrixMath (determinant/inversion), IccEnvVar (spectral ranges). H107-H115 feedback-driven: LUT channel/colorspace cross-check (CWE-121, patch 071 root cause), private tag identification (CWE-829), shellcode/NOP-sled patterns (CWE-506), class-required tag validation, reserved byte validation, wtpt D50 validation, round-trip fidelity, TRC curve monotonicity, characterization data presence. H116-H127 ICC feedback-driven: cprt/desc encoding per profile version (CWE-20), tag-type-per-signature validation, calculator computation cost estimate, round-trip ΔE measurement, curve invertibility, characterization data round-trip, deep tag encoding (XYZ ranges, measurement observer/geometry, chromaticity), non-required tag classification, version-tag correspondence, transform smoothness, private tag malware scan (CWE-506), private tag registry lookup. **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMD5.cpp unsigned wrapping). IccSignatureUtils.h UB fixed upstream in PR #648. **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **OOM patches**: 57 patches in cfl/patches/ (14 NO-OPs dropped during upstream sync + patch 069 re-used for CLUT interp bounds). Patch 067-068 cap allocation loops in IccTagXml.cpp and IccTagBasic.cpp (mluc, ProfileSeqDesc, ResponseCurveSet, MPE, Dict, ProfileSeqId). Patch 069 adds bounds checks to 7 CIccCLUT::Interp functions (SEGV fix). Patch 070 adds NaN guard to UnitClip. Patch 071 guards SBO in CIccApplyBPC::pixelXfm (XYZbp[3] overflow, CWE-121, SCARINESS 51). Next patch: 083. **Upstream sync**: CFL iccDEV pinned at `7db2273` (upstream PRs #630-#639 + #648 + #652-#657). Dropped patches: 023, 027, 028, 029, 032, 039, 040, 041, 045, 047, 055, 056, 058, 062, 064, 066, 070, 072.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
@@ -680,14 +680,14 @@ When creating a new patch for `cfl/patches/`:
 7. Rebuild fuzzers: `cd cfl && ./build.sh` (resets checkout, applies all patches, builds)
 8. Copy rebuilt binaries to ramdisk: `cp cfl/bin/* /tmp/fuzz-ramdisk/bin/` (or SSD)
 9. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
-10. Run a smoke test across all 19 fuzzers to confirm no regressions
+10. Run a smoke test across all 18 fuzzers to confirm no regressions
 11. Update `cfl/patches/README.md` (table entry + description paragraph)
 12. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
 
 **Lesson learned (patch 066→067)**: Patch 066 failed to apply because patch 049 modified the same file (`IccProfileXml.cpp`), shifting context lines. The fix was to mark 066 as NO-OP and create 067 with correct context from the post-049 baseline.
 
 ### Crash reproducer testing
-To verify a crash reproducer against all 19 fuzzers:
+To verify a crash reproducer against all 18 fuzzers:
 ```bash
 # Single fuzzer test (1-liner)
 ASAN_OPTIONS=detect_leaks=0 /tmp/fuzz-ramdisk/bin/<fuzzer_name> test-profiles/<crash-file>.icc 2>&1 | grep -c "ERROR: AddressSanitizer"
@@ -753,7 +753,7 @@ CMM fuzzers need special input formats (not just raw ICC profiles):
 Fuzzers are grouped by link dependencies in `cfl/build.sh`:
 - **CORE_FUZZERS** (IccProfLib only): profile, spectral, calculator, deep_dump, dump, io, multitag, roundtrip, apply
 - **XML_FUZZERS** (+IccXML+libxml2): toxml, fromxml, fromcube
-- **TIFF_FUZZERS** (+TiffImg.o+libtiff): applyprofiles, applynamedcmm, link, specsep, spectral_b, tiffdump, v5dspobs
+- **TIFF_FUZZERS** (+TiffImg.o+libtiff): applyprofiles, applynamedcmm, link, specsep, tiffdump, v5dspobs
 
 Note: `icc_applyprofiles_fuzzer` was moved from CORE to TIFF to exercise the full TIFF I/O pipeline (97.8% fidelity with iccApplyProfiles tool). It creates a source TIFF in-memory, builds CMM with BPC/Luminance hints, runs the complete pixel loop, and embeds the destination profile.
 
@@ -773,7 +773,7 @@ When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
 - **Shared lib collection**: Collect `.so` files with `find Build -name '*.so'` and pass each as `-object` arg to `llvm-cov`.
 - **Runtime**: Set `LD_LIBRARY_PATH` to the shared lib directory before running instrumented tools.
 - **Profraw management**: Use `LLVM_PROFILE_FILE=${fuzzer_name}_%m_%p.profraw` (not `%m.profraw` or `default.profraw`) to avoid clobbering and to identify which fuzzer generated each profraw file. The `%m` specifier is a numeric module hash — there is NO LLVM specifier for the binary name, so it must be prepended manually.
-- **Fuzzer coverage collection**: `fuzz-local.sh` sets `LLVM_PROFILE_FILE` per-fuzzer inside the loop. To collect coverage from all 19 fuzzers manually:
+- **Fuzzer coverage collection**: `fuzz-local.sh` sets `LLVM_PROFILE_FILE` per-fuzzer inside the loop. To collect coverage from all 18 fuzzers manually:
   ```bash
   # Run all fuzzers with profraw collection (60s each, parallel)
   for f in /mnt/g/fuzz-ssd/bin/icc_*_fuzzer; do
@@ -794,11 +794,11 @@ When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
   llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
   llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=html --output-dir=/mnt/g/fuzz-ssd/coverage-report/html
   ```
-- **Coverage baseline** (as of March 2026, all 19 fuzzers): Functions 63.23%, Lines 61.15%, Branches 58.47%, Instantiations 62.99%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
+- **Coverage baseline** (as of March 2026, all 18 fuzzers): Functions 63.23%, Lines 61.15%, Branches 58.47%, Instantiations 62.99%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
 - **Seed corpus strategy**: Copy profiles from `test-profiles/` with novel tag types not already in fuzzer seed corpora. Set `doOpenPath` bit (`data[-2] |= 0x08`) on seeds to use the non-validating `Read()` path in deep_dump fuzzer. Minimal hand-crafted ICC profiles fail `ValidateIccProfile()` — always patch existing valid profiles instead.
 - **Fuzzer-specific coverage notes**:
   - Only `toxml` and `fromxml` link IccXML — they provide all IccXML coverage
-  - Only `specsep`, `spectral_b`, `tiffdump` link TiffImg — they provide all TIFF coverage
+  - Only `specsep`, `tiffdump` link TiffImg — they provide all TIFF coverage
   - `toxml` may crash on large corpora — use a 100-200 file subset via `ls | shuf | head -200`
   - `roundtrip` is very slow (5032+ corpus files, Read→Write→Read per input) — allow 120s+
   - `link` needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input)
@@ -855,7 +855,7 @@ if (stat != icCmmStatOk) {
 ### CI workflows
 31 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
 - `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on agent `workflow_run` completion
-- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 19 fuzzers
+- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 18 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
 - `iccanalyzer-cli-release.yml` — CLI test suite + release artifacts

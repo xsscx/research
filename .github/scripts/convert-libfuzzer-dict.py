@@ -68,7 +68,6 @@ FUZZER_DICT_MAP = {
     "icc_profile_fuzzer":       "icc_profile_fuzzer.dict",
     "icc_roundtrip_fuzzer":     "icc_roundtrip_fuzzer.dict",
     "icc_specsep_fuzzer":       "icc_specsep_fuzzer.dict",
-    "icc_spectral_b_fuzzer":    "icc_spectral_b_fuzzer.dict",
     "icc_spectral_fuzzer":      "icc_spectral_fuzzer.dict",
     "icc_spectral_separator_fuzzer": "icc_spectral_separator_fuzzer.dict",
     "icc_tiffdump_fuzzer":      "icc_tiffdump_fuzzer.dict",

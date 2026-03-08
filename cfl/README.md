@@ -34,7 +34,6 @@ sudo ./ramdisk-fuzz.sh 60
 | `icc_applynamedcmm_fuzzer` | 359 | 468 | IccApplyNamedCmm | `CIccNamedColorCmm` all Apply variants |
 | `icc_link_fuzzer` | 186 | 998 | IccApplyToLink | 2-profile `CIccCmm` link (2× ASAN memory) |
 | `icc_spectral_fuzzer` | 172 | 307 | IccV5DspObsToV4Dsp | MPE: `Begin`, `GetNewApply`, `Apply` |
-| `icc_spectral_b_fuzzer` | 252 | 1,900 | IccV5DspObsToV4Dsp | Extended spectral MPE pipeline |
 | `icc_v5dspobs_fuzzer` | 822 | 741 | IccV5DspObsToV4Dsp | v5 display observer conversion |
 | `icc_fromxml_fuzzer` | 167 | 1,693 | XML tools | `CIccProfileXml::LoadXml` |
 | `icc_toxml_fuzzer` | 86 | 1,177 | XML tools | `CIccProfile::Read` → `ToXml` |
