@@ -192,10 +192,10 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
     printf("      \"name\": \"%s\",\n", JsonEscape(r.name).c_str());
     printf("      \"status\": \"%s\"", r.status.c_str());
     if (entry && entry->specRef) {
-      printf(",\n      \"specRef\": \"ICC.1-2022-05 %s\"", entry->specRef);
+      printf(",\n      \"specRef\": \"ICC.1-2022-05 %s\"", JsonEscape(entry->specRef).c_str());
     }
     if (entry && entry->primaryCWE) {
-      printf(",\n      \"cwe\": \"%s\"", entry->primaryCWE);
+      printf(",\n      \"cwe\": \"%s\"", JsonEscape(entry->primaryCWE).c_str());
     }
     if (entry && entry->cveRefs) {
       printf(",\n      \"cveRefs\": [");
@@ -206,7 +206,7 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
         size_t comma = refs.find(',', pos);
         if (comma == std::string::npos) comma = refs.size();
         if (!first) printf(",");
-        printf("\"%s\"", refs.substr(pos, comma - pos).c_str());
+        printf("\"%s\"", JsonEscape(refs.substr(pos, comma - pos)).c_str());
         first = false;
         pos = comma + 1;
       }

@@ -447,15 +447,18 @@ printf("\n");
   return heuristicCount;
 }
 
+// H21: Inspect tagStruct members for invalid types, null sub-elements, and malformed nesting.
+// Iterates all tags, downcasts to CIccTagStruct, validates each member entry signature/type.
 int RunHeuristic_H21_TagStructMemberInspection(CIccProfile *pIcc) {
   int heuristicCount = 0;
 
-// 21. tagStruct Member Inspection
+// H21: Inspect tagStruct members for invalid types, null sub-elements, malformed nesting
 printf("[H21] tagStruct Member Inspection\n");
 {
   int structIssues = 0;
   bool foundStruct = false;
   TagEntryList::iterator it;
+  // Iterate all tags looking for CIccTagStruct instances
   for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     IccTagEntry *e = &(*it);
     CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
@@ -490,6 +493,7 @@ printf("[H21] tagStruct Member Inspection\n");
 
     if (pElems) {
       TagEntryList::iterator eit;
+      // Validate each struct member: type signature, readability, printable bytes
       for (eit = pElems->begin(); eit != pElems->end(); eit++) {
         IccTagEntry *me = &(*eit);
         char mFCC[5];

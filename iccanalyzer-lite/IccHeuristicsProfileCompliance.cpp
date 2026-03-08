@@ -1286,6 +1286,8 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
  * @param pIcc Pointer to a loaded CIccProfile. Must not be NULL.
  * @return Number of heuristic checks performed.
  */
+// H117: Validate that each tag's type signature is in the allowed set for its tag signature.
+// Uses a static table of (tagSig → allowed typeSig[]) mappings from ICC.1-2022-05 §10.
 int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
   int heuristicCount = 0;
 
@@ -1369,6 +1371,7 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
     }
 
     if (!allowed) {
+      // Type not in whitelist — report CWE-20 violation with actual type signature
       char typeStr[5] = {};
       typeStr[0] = (char)(static_cast<unsigned char>((actualType >> 24) & 0xFF));
       typeStr[1] = (char)(static_cast<unsigned char>((actualType >> 16) & 0xFF));
@@ -1636,6 +1639,8 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
  * @param pIcc Pointer to a loaded CIccProfile. Must not be NULL.
  * @return Number of heuristic checks performed.
  */
+// H120: Assess TRC curve invertibility by checking monotonicity and sufficient dynamic range.
+// Non-invertible curves indicate broken round-trip transforms (CWE-682).
 int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
   int heuristicCount = 0;
 
@@ -1722,6 +1727,7 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
     printf("      %s (%u entries): inv avg err=%.6f  max err=%.6f\n",
            trcNames[t], nEntries, avgErr, maxErr);
 
+    // Check invertibility: max round-trip error > 1% indicates poor transform fidelity
     if (maxErr > 0.01) {
       printf("      %s[WARN]  %s: poor invertibility (max err > 1%%)%s\n",
              ColorWarning(), trcNames[t], ColorReset());
