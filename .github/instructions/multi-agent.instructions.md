@@ -95,10 +95,15 @@ python3 contrib/scripts/extract-icc-seeds.py --input fuzzed-images/ --output /tm
 ```
 
 ### macOS Docker Usage (MCP API for remote analysis)
-The MCP Docker image is `linux/amd64` only. On Apple Silicon Macs, Docker Desktop
-runs it via Rosetta 2 automatically — ASAN works correctly under Rosetta 2:
+The MCP Docker image is `linux/amd64` only. On Apple Silicon Macs, **Docker Desktop**
+runs it via Rosetta 2 automatically — ASAN works correctly under Rosetta 2.
+
+**⚠️ Colima and OrbStack are NOT supported** — they use QEMU or Virtualization.framework
+backends that cannot handle ASAN shadow memory mappings. The container will build but
+ASAN-instrumented binaries will crash at runtime. Use **Docker Desktop** only.
+
 ```bash
-# Pull and run (Rosetta 2 handles AMD64→ARM64 translation)
+# Pull and run (Docker Desktop + Rosetta 2 handles AMD64→ARM64 translation)
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
@@ -203,10 +208,11 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 **Docker Image Availability**:
 - `ghcr.io/xsscx/icc-profile-mcp:latest` — built by `.github/workflows/mcp-server-docker.yml`
-- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Rosetta 2)
+- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Docker Desktop Rosetta 2)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
 - **Full ASAN+UBSAN instrumentation** — catches memory safety bugs during analysis
-- Apple Silicon Macs: Docker Desktop runs AMD64 images via Rosetta 2 (ASAN-compatible)
+- Apple Silicon Macs: **Docker Desktop only** (Rosetta 2 supports ASAN correctly)
+- **Colima/OrbStack NOT supported** — QEMU/VZ backends cannot handle ASAN shadow memory
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
@@ -349,8 +355,9 @@ These are real mistakes made during multi-agent collaboration. Do NOT repeat the
 via QEMU cross-compilation. This removed the security instrumentation that is the
 entire purpose of iccanalyzer-lite.
 **Why it's wrong**: ASAN shadow memory is incompatible with QEMU user-mode emulation,
-but Apple Silicon Macs can run AMD64 images via Docker Desktop Rosetta 2 (which
-supports ASAN correctly). Build `linux/amd64` only.
+but Apple Silicon Macs can run AMD64 images via **Docker Desktop** Rosetta 2 (which
+supports ASAN correctly). Build `linux/amd64` only. **Colima and OrbStack do NOT
+support ASAN** — they use QEMU/VZ backends that lack ASAN shadow memory support.
 **Rule**: NEVER add `NO_SANITIZERS=1` to `mcp-server/Dockerfile` or remove
 `libclang-rt-18-dev`. The Docker image MUST have full ASAN+UBSAN.
 

@@ -122,19 +122,22 @@ done
 
 - Image: `ghcr.io/xsscx/icc-profile-mcp`
 - Built by: `.github/workflows/mcp-server-docker.yml`
-- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Rosetta 2)
+- Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Docker Desktop Rosetta 2)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
 - Contains: iccanalyzer-lite (**Debug + ASAN + UBSAN**), colorbleed_tools, MCP server, test-profiles
 - **Full ASAN+UBSAN instrumentation** — the Docker image catches memory safety bugs
   just like native WSL-2/Linux builds. ASAN shadow memory is incompatible with QEMU
   cross-arch emulation, so we build AMD64-only. Apple Silicon Macs run the image via
-  Docker Desktop's Rosetta 2 translation, which supports ASAN correctly.
+  **Docker Desktop's** Rosetta 2 translation, which supports ASAN correctly.
+- **⚠️ Colima and OrbStack are NOT supported** — they use QEMU or Virtualization.framework
+  backends that cannot handle ASAN shadow memory mappings. Binaries will crash at runtime.
 
 ### macOS / Apple Silicon Usage
 
 ```bash
 # Docker Desktop on Apple Silicon runs AMD64 images via Rosetta 2 automatically.
 # No special flags needed — ASAN works correctly under Rosetta 2.
+# ⚠️ Colima/OrbStack users: ASAN will NOT work — use Docker Desktop instead.
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
