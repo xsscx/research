@@ -720,6 +720,37 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     if (!hasSpectral && !hasBiSpectral) {
       printf("      %s[OK] No spectral data (standard profile)%s\n", ColorSuccess(), ColorReset());
     }
+
+    // MCS (Material Connection Space) enum validation — ICC.2-2023 §7.2.24
+    // iccDEV #323: invalid icMaterialColorSignature values cause UBSAN
+    // "load of value N, which is not a valid value for type"
+    // Valid MCS: 0 (none) or 0x6d630000–0x6d63FFFF ('mc' prefix)
+    icUInt32Number mcs = header.mcs;
+    if (mcs != 0) {
+      icUInt32Number mcsPrefix = mcs & 0xFFFF0000;
+      if (mcsPrefix != 0x6d630000) {
+        printf("      %s[WARN]  MCS field 0x%08X: not a valid icMaterialColorSignature%s\n",
+               ColorCritical(), mcs, ColorReset());
+        printf("       %sCWE-843: Invalid enum value → UB in AddXform() (iccDEV #323)%s\n",
+               ColorCritical(), ColorReset());
+        heuristicCount++;
+      } else {
+        icUInt32Number mcsChannels = mcs & 0x0000FFFF;
+        printf("      MCS: 0x%08X (%u channels)\n", mcs, mcsChannels);
+        if (mcsChannels == 0 || mcsChannels > 32) {
+          printf("      %s[WARN]  MCS channel count %u outside reasonable range (1-32)%s\n",
+                 ColorWarning(), mcsChannels, ColorReset());
+          heuristicCount++;
+        }
+      }
+    }
+
+    // deviceSubClass validation — ICC.2-2023 §7.2.25
+    // Non-zero deviceSubClass should match known device class patterns
+    icUInt32Number subClass = header.deviceSubClass;
+    if (subClass != 0) {
+      printf("      DeviceSubClass: 0x%08X\n", subClass);
+    }
   }
   printf("\n");
 

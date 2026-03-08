@@ -612,6 +612,8 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
             }
             printf("       %sRisk: Floating-point exceptions, division-by-zero%s\n",
                    ColorWarning(), ColorReset());
+            printf("       %sCWE-681: NaN/Inf propagation → UB in IccIO Write (iccDEV #536)%s\n",
+                   ColorCritical(), ColorReset());
             rangeIssues++;
           }
         }
