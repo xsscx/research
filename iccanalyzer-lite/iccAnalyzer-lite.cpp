@@ -323,7 +323,11 @@ int main(int argc, char **argv) {
     strncpy(xmlPathCopy2, outXml, PATH_MAX - 1);
     xmlPathCopy2[PATH_MAX - 1] = '\0';
     char resolvedXml[PATH_MAX];
-    snprintf(resolvedXml, PATH_MAX, "%s/%s", resolvedXmlDir, basename(xmlPathCopy2));
+    int xmlN = snprintf(resolvedXml, PATH_MAX, "%s/%s", resolvedXmlDir, basename(xmlPathCopy2));
+    if (xmlN < 0 || xmlN >= PATH_MAX) {
+      fprintf(stderr, "[ERR] XML output path too long (truncated)\n");
+      return ICC_EXIT_ERROR;
+    }
     outXml = resolvedXml;
     // Run heuristic analysis with crash recovery
     HeuristicReport report;
