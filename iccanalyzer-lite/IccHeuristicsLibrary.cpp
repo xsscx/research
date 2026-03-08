@@ -2048,10 +2048,11 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
     printf("\n");
 
     // =====================================================================
-    // H72 — SparseMatrixArray Allocation Bounds (CWE-400/CWE-125)
+    // H72 — SparseMatrixArray Allocation Bounds + Enum Validation (CWE-400/CWE-125/CWE-843)
     // Targets patches 044/059/060: OOM + OOB in sparse matrix
+    // Upstream issues: #526 (null ptr in GetColumnsForRow), #538/#548 (invalid enum icSparseMatrixType)
     // =====================================================================
-    printf("[H72] SparseMatrixArray Allocation Bounds\n");
+    printf("[H72] SparseMatrixArray Allocation Bounds + Enum Validation\n");
     {
       int smaIssues = 0;
       for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
@@ -2060,14 +2061,39 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
         CIccTagSparseMatrixArray *sma = dynamic_cast<CIccTagSparseMatrixArray*>(tag);
         if (!sma) continue;
 
+        char sigStr72[5];
+        SignatureToFourCC(sit->TagInfo.sig, sigStr72);
+
         icUInt32Number nMat = sma->GetNumMatrices();
         icUInt32Number nCPM = sma->GetChannelsPerMatrix();
         uint64_t product = (uint64_t)nMat * nCPM * sizeof(icFloatNumber);
         if (product > 16777216ULL) { // 16MB cap per patch 044
           printf("      %s[WARN]  Tag '%s': SparseMatrix %u matrices × %u channels = %llu bytes%s\n",
-                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+                 ColorCritical(), sigStr72,
                  nMat, nCPM, (unsigned long long)product, ColorReset());
           printf("       %sCWE-400: Exceeds 16MB allocation cap (P044)%s\n",
+                 ColorCritical(), ColorReset());
+          smaIssues++;
+        }
+
+        // Validate icSparseMatrixType enum value (iccDEV #538, #548)
+        // Valid values: 0x0000 (FloatNum), 0x0001 (UInt8), 0x0002 (UInt16),
+        //              0x0003 (Float16), 0x0004 (Float32)
+        icSparseMatrixType matType = sma->GetMatrixType();
+        icUInt16Number matTypeVal = static_cast<icUInt16Number>(matType);
+        if (matTypeVal > 4) {
+          printf("      %s[WARN]  Tag '%s': invalid icSparseMatrixType=%u (valid: 0-4)%s\n",
+                 ColorCritical(), sigStr72, matTypeVal, ColorReset());
+          printf("       %sCWE-843: Type confusion — triggers UBSAN enum out-of-range in Read()%s\n",
+                 ColorCritical(), ColorReset());
+          smaIssues++;
+        }
+
+        // Check zero channels per matrix (null pointer risk in GetColumnsForRow, iccDEV #526)
+        if (nCPM == 0 && nMat > 0) {
+          printf("      %s[WARN]  Tag '%s': SparseMatrix %u matrices with 0 channels — null deref risk%s\n",
+                 ColorCritical(), sigStr72, nMat, ColorReset());
+          printf("       %sCWE-476: GetColumnsForRow() dereferences null matrix data%s\n",
                  ColorCritical(), ColorReset());
           smaIssues++;
         }
@@ -2075,7 +2101,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
       if (smaIssues > 0) {
         heuristicCount += smaIssues;
       } else {
-        printf("      %s[OK] SparseMatrixArray allocations within bounds (or absent)%s\n",
+        printf("      %s[OK] SparseMatrixArray allocations and types valid (or absent)%s\n",
                ColorSuccess(), ColorReset());
       }
     }
@@ -2114,7 +2140,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
           }
         }
 
-        // Check TagArray nesting
+        // Check TagArray nesting + element type safety (iccDEV #530, #531: UAF in Cleanup)
         CIccTagArray *ta = dynamic_cast<CIccTagArray*>(tag);
         if (ta) {
           icUInt32Number nSz = ta->GetSize();
@@ -2125,6 +2151,7 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
                    ColorCritical(), ColorReset());
             nestIssues++;
           } else {
+            int unknownCount = 0;
             for (icUInt32Number i = 0; i < nSz && i < 100; i++) {
               CIccTag *child = ta->GetIndex(i);
               if (!child) continue;
@@ -2136,6 +2163,17 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
                 nestIssues++;
                 break;
               }
+              // Count CIccTagUnknown elements — risk of UAF in Cleanup() (iccDEV #530, #531)
+              if (child->GetType() == icSigUnknownType) {
+                unknownCount++;
+              }
+            }
+            if (unknownCount > 0 && nSz > 1) {
+              printf("      %s[WARN]  Tag '%s': TagArray has %d/%u CIccTagUnknown elements%s\n",
+                     ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), unknownCount, nSz, ColorReset());
+              printf("       %sCWE-416: Unknown elements in TagArray → use-after-free in Cleanup()%s\n",
+                     ColorCritical(), ColorReset());
+              nestIssues++;
             }
           }
         }
@@ -3333,8 +3371,9 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
     }
     printf("\n");
 
-    // H96 — Embedded Profile Validation (CWE-674/CWE-400)
+    // H96 — Embedded Profile Validation (CWE-674/CWE-400/CWE-843)
     // Exercises: IccTagEmbedIcc.cpp (30.9% coverage → GetProfile, Read, Validate)
+    // Upstream issues: #527, #528, #544 (type confusion CIccTagUnknown → CIccTagEmbeddedProfile)
     {
       printf("[H96] Embedded Profile Validation\n");
       int embedIssues = 0;
@@ -3384,8 +3423,12 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
             }
           }
         } else {
-          printf("      %s[WARN]  Embedded profile tag wrong type — type confusion risk%s\n",
-                 ColorWarning(), ColorReset());
+          printf("      %s[CRIT]  Embedded profile tag present but wrong type (dynamic_cast failed)%s\n",
+                 ColorCritical(), ColorReset());
+          printf("       %sCWE-843: Type confusion — tag is CIccTagUnknown, not CIccTagEmbeddedProfile%s\n",
+                 ColorCritical(), ColorReset());
+          printf("       %sUpstream: iccDEV #527, #528, #544 — DumpProfileInfo() SEGV via misaligned access%s\n",
+                 ColorCritical(), ColorReset());
           embedIssues++;
         }
       } else {
