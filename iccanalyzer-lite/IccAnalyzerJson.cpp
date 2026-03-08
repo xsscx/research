@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <string>
 #include <vector>
 #include <regex>
@@ -154,14 +155,21 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   // Count CVE coverage from triggered heuristics
   int cveHeuristicsTriggered = 0;
   int totalCveRefs = 0;
+  std::set<std::string> uniqueCves;
   for (const auto &r : results) {
     const HeuristicEntry *entry = LookupHeuristic(r.id);
     if (entry && entry->cveRefs) {
       cveHeuristicsTriggered++;
       std::string refs(entry->cveRefs);
       totalCveRefs++;
-      for (char c : refs) {
-        if (c == ',') totalCveRefs++;
+      size_t start = 0;
+      for (size_t pos = 0; pos <= refs.size(); pos++) {
+        if (pos == refs.size() || refs[pos] == ',') {
+          if (pos > start)
+            uniqueCves.insert(refs.substr(start, pos - start));
+          start = pos + 1;
+          if (pos < refs.size()) totalCveRefs++;
+        }
       }
     }
   }
@@ -179,7 +187,11 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   printf("    \"info\": %d,\n", infoCount);
   printf("    \"cveCoverage\": {\n");
   printf("      \"heuristicsWithCVE\": %d,\n", cveHeuristicsTriggered);
-  printf("      \"totalCVEsMapped\": %d\n", totalCveRefs);
+  printf("      \"uniqueCVEs\": %d,\n", (int)uniqueCves.size());
+  printf("      \"totalCVEReferences\": %d,\n", totalCveRefs);
+  printf("      \"advisoryTotal\": 68,\n");
+  printf("      \"outOfScopeXmlCVEs\": 19,\n");
+  printf("      \"outOfScopeToolCVEs\": 3\n");
   printf("    }\n");
   printf("  },\n");
   printf("  \"results\": [\n");
