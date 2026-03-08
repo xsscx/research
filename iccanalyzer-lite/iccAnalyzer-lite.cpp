@@ -15,6 +15,7 @@
 #include "IccAnalyzerErrors.h"
 #include "IccAnalyzerXMLExport.h"
 #include "IccAnalyzerHeuristics.h"
+#include "IccImageAnalyzer.h"
 
 #include <cstdio>
 #include <cstring>
@@ -185,13 +186,14 @@ static int RecoverableRun(const char *label, Fn fn) {
 }
 
 void PrintUsage() {
-  printf("iccAnalyzer-lite v3.3.1 - Static Build (No Database Features)\n\n");
-  printf("Usage: iccAnalyzer-lite [OPTIONS] <profile.icc>\n\n");
+  printf("iccAnalyzer-lite v3.4.0 - Static Build (No Database Features)\n\n");
+  printf("Usage: iccAnalyzer-lite [OPTIONS] <file>\n\n");
   
   printf("Analysis Modes:\n");
   printf("  -h <file.icc>              Security heuristics analysis\n");
   printf("  -r <file.icc>              Round-trip accuracy test\n");
-  printf("  -a <file.icc>              Comprehensive analysis (all modes)\n");
+  printf("  -a <file>                  Comprehensive analysis (auto-detects TIFF/ICC)\n");
+  printf("  -img <file>                Image analysis (TIFF/PNG/JPEG with ICC extraction)\n");
   printf("  -n <file.icc>              Ninja mode (minimal output)\n");
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
   printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
@@ -199,6 +201,11 @@ void PrintUsage() {
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
   printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
+  
+  printf("\nImage Analysis (-a auto-detect, or -img explicit):\n");
+  printf("  TIFF: Extract embedded ICC (tag 34675), report metadata, scan injections\n");
+  printf("  PNG:  (planned) Extract ICC from iCCP chunk\n");
+  printf("  JPEG: (planned) Extract ICC from APP2 marker\n");
   
   printf("\nExit Codes:\n");
   printf("  0  Clean    - Profile analyzed, no issues detected\n");
@@ -243,7 +250,18 @@ int main(int argc, char **argv) {
   
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-a") == 0 && argc >= 3) {
+    // Auto-detect: if file is an image (TIFF/PNG/JPEG), use image analyzer
+    ImageFormat fmt = DetectFileFormat(profilePath);
+    if (fmt == ImageFormat::TIFF_LE || fmt == ImageFormat::TIFF_BE ||
+        fmt == ImageFormat::BIGTIFF_LE || fmt == ImageFormat::BIGTIFF_BE) {
+      return RecoverableRun("TIFF image analysis", [&]{ return AnalyzeTiffImage(profilePath, nullptr); });
+    }
     return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr); });
+  }
+  
+  // Image analysis mode (explicit — any image format)
+  if (strcmp(mode, "-img") == 0 && argc >= 3) {
+    return RecoverableRun("image analysis", [&]{ return AnalyzeImageFile(profilePath, nullptr); });
   }
   
   // Ninja mode
