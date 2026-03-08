@@ -1,0 +1,192 @@
+================================================================================
+                    TiffImg CLASS - QUICK REFERENCE
+================================================================================
+Location: /home/h02332/po/research/cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/
+
+PUBLIC METHODS (10 total)
+================================================================================
+1. CTiffImg()                           - Constructor
+2. ~CTiffImg()                          - Destructor (calls Close())
+3. void Close()                         - Closes file, resets state, frees buffers
+4. bool Open(const char *szFname)       - Opens TIFF for reading
+5. bool Create(...)                     - Creates TIFF for writing
+6. bool ReadLine(unsigned char *pBuf)   - Reads one scanline (read mode)
+7. bool WriteLine(unsigned char *pBuf)  - Writes one scanline (write mode)
+8. unsigned int GetPhoto()              - Returns photometric type (0-4)
+9. bool GetIccProfile(unsigned char *&pProfile, unsigned int &nLen)
+10. bool SetIccProfile(unsigned char *pProfile, unsigned int nLen)
+
+PHOTOMETRIC TYPES
+================================================================================
+PHOTO_MINISBLACK (0)  - Grayscale: 0=black, max=white
+PHOTO_MINISWHITE (1)  - Grayscale: 0=white, max=black (inverted)
+PHOTO_CIELAB (2)      - CIE L*a*b* color space
+PHOTO_ICCLAB (3)      - ICC L*a*b* color space
+PHOTO_RGB (4)         - RGB color
+
+SAMPLE FORMATS & BITS
+================================================================================
+8-bit unsigned:   BPS=8,  SAMPLEFORMAT_UINT
+16-bit unsigned:  BPS=16, SAMPLEFORMAT_UINT
+32-bit float:     BPS=32, SAMPLEFORMAT_IEEEFP
+
+PLANAR CONFIGURATIONS
+================================================================================
+PLANARCONFIG_CONTIG (1)    - Interleaved: RGBRGBRGB...
+PLANARCONFIG_SEPARATE (2)  - Separated: RRR...GGG...BBB...
+
+COMPRESSION MODES
+================================================================================
+COMPRESSION_NONE (1)  - No compression
+COMPRESSION_LZW (5)   - LZW compression
+
+PREDICTOR (for compression)
+================================================================================
+PREDICTOR_NONE (1)              - No prediction
+PREDICTOR_HORIZONTAL (2)        - Horizontal predictor (default for 8/16-bit)
+PREDICTOR_FLOATINGPOINT (3)     - Floating point predictor (for 32-bit)
+
+VALIDATION RULES - Open()
+================================================================================
+✓ TIFFOpen(szFname, "r") succeeds
+✓ m_nRowsPerStrip > 0, m_nSamples > 0, m_nBitsPerSample > 0
+✓ If BPS==32: SAMPLEFORMAT==SAMPLEFORMAT_IEEEFP
+✓ If BPS!=32: SAMPLEFORMAT==SAMPLEFORMAT_UINT
+✓ ORIENTATION == ORIENTATION_TOPLEFT (always required)
+✓ If PLANAR+MULTI: BPS%8==0 (byte-aligned)
+✓ If PLANAR+MULTI: Height%RowsPerStrip==0 (evenly divisible)
+✓ SIZE_MAX overflow check before malloc
+✓ malloc succeeds
+
+VALIDATION RULES - Create()
+================================================================================
+✓ TIFFOpen(szFname, "w") succeeds
+✓ If PLANAR+MULTI: BPS%8==0 (byte-aligned)
+✓ Strip size calculations consistent
+✓ SIZE_MAX overflow check before malloc
+✓ malloc succeeds
+
+TIFF TAGS READ (Open)
+================================================================================
+TIFFTAG_IMAGEWIDTH        - Image width in pixels
+TIFFTAG_IMAGELENGTH       - Image height in pixels (rows)
+TIFFTAG_PHOTOMETRIC       - Color space type
+TIFFTAG_PLANARCONFIG      - Contiguous vs separate planes
+TIFFTAG_SAMPLESPERPIXEL   - Channels per pixel
+TIFFTAG_EXTRASAMPLES      - Alpha/extra channels count
+TIFFTAG_BITSPERSAMPLE     - Bits per channel (8, 16, 32)
+TIFFTAG_SAMPLEFORMAT      - Uint vs float
+TIFFTAG_ROWSPERSTRIP      - Rows per strip (scan lines)
+TIFFTAG_ORIENTATION       - Must be TOPLEFT
+TIFFTAG_XRESOLUTION       - DPI X
+TIFFTAG_YRESOLUTION       - DPI Y
+TIFFTAG_COMPRESSION       - Compression type
+TIFFTAG_ICCPROFILE        - Embedded ICC profile data
+
+TIFF TAGS WRITTEN (Create)
+================================================================================
+All of the above, plus:
+TIFFTAG_PREDICTOR         - Prediction algorithm (if compressed)
+
+STRIPPING & MEMORY
+================================================================================
+- m_pStripBuf: Allocated buffer for one or more strips
+- m_nStripSize: Size of one strip in bytes
+- m_nBytesPerLine: Bytes per scanline
+- m_nRowsPerStrip: Scanlines per strip (usually 1)
+- m_nStripSamples: Number of samples per strip (1 for contig, N for planar)
+- m_nCurLine: Current scanline being read/written
+- m_nCurStrip: Current strip number in buffer
+
+TOOL USAGE PATTERNS
+================================================================================
+
+iccTiffDump.cpp:
+  1. Open(filename)
+  2. Read all getter methods (GetWidth, GetHeight, GetPhoto, etc.)
+  3. GetIccProfile() to extract embedded profile
+  4. Close()
+
+iccApplyProfiles.cpp:
+  1. Open(src_filename)
+  2. Create(dst_filename, ...) with photometric based on profile color space
+  3. For each line:
+     - ReadLine(buffer)
+     - Apply ICC color transformations
+     - WriteLine(buffer)
+  4. SetIccProfile(profile_data) if embedding
+  5. Close() both images
+
+iccSpecSepToTiff.cpp:
+  1. Open() multiple grayscale TIFF files
+  2. Create() output with N samples (concatenating channels)
+  3. For each line:
+     - ReadLine() from each input
+     - Interleave samples into contiguous format
+     - WriteLine() to output
+  4. SetIccProfile() if provided
+  5. Close() all files
+
+KEY BRANCH POINTS
+================================================================================
+Create() photometric:      5 branches (RGB, MINISBLACK, MINISWHITE, CIELAB, ICCLAB)
+Create() separation:       2 branches (planar vs contiguous)
+Open() sample format:      2 branches (32-bit IEEE float vs unsigned int)
+Open() planar:             2 branches (planar vs contiguous)
+ReadLine() strip:          2 branches (planar vs contiguous)
+ReadLine() data:           2 branches (convert planar→contig vs copy)
+WriteLine() data:          2 branches (convert contig→planar vs write)
+GetPhoto() mapping:        6 branches (return photometric type)
+
+MEMORY CONCERNS
+================================================================================
+⚠ Multiplication overflow: SIZE_MAX check before malloc
+⚠ Byte-alignment: Required for planar BPS (BPS % 8 == 0)
+⚠ Height divisibility: planar requires Height % RowsPerStrip == 0
+⚠ Buffer bounds: memcpy relies on correct width/stride calculations
+⚠ TIFF lib return values: TIFFReadEncodedStrip/TIFFWriteEncodedStrip must be >= 0
+
+FUZZER COVERAGE CHECKLIST
+================================================================================
+☐ BPS: 8, 16, 32 bit
+☐ Photometric: RGB, MINISBLACK, MINISWHITE, CIELAB, ICCLAB
+☐ Samples: 1, 3, 4, N
+☐ ExtraSamples: 0, 1+
+☐ Planar: CONTIG, SEPARATE
+☐ Compression: NONE, LZW
+☐ RowsPerStrip: 0, 1, >height
+☐ Orientation: TOPLEFT, other values
+☐ SampleFormat: combinations (UINT with 32-bit, FLOAT with 8-bit, etc.)
+☐ Corrupt dimensions: 0, large, non-divisible
+☐ Corrupt ICC: present/absent, invalid size
+☐ Corrupt strips: unreadable, truncated
+☐ Corrupt tags: missing, invalid values
+☐ Resolution: 0, NaN, invalid values
+☐ Multi-file: open/read multiple concurrently
+
+ERROR CONDITIONS (from fuzzer perspective)
+================================================================================
+Open() errors:
+  - TIFFOpen returns NULL
+  - Missing/corrupt TIFF tags
+  - Invalid sample format + BPS combination
+  - Non-TOPLEFT orientation
+  - RowsPerStrip not dividing height (planar mode)
+  - Non-byte-aligned BPS in planar mode
+  - malloc failure
+  - SIZE_MAX overflow
+
+Create() errors:
+  - TIFFOpen returns NULL
+  - Non-byte-aligned BPS in planar mode
+  - malloc failure
+  - SIZE_MAX overflow
+
+ReadLine()/WriteLine() errors:
+  - TIFFReadEncodedStrip returns < 0
+  - TIFFWriteEncodedStrip returns < 0
+  - Wrong mode (read when write or vice versa)
+
+================================================================================
+For detailed analysis, see: TIFFIMG_COMPLETE_ANALYSIS.md
+================================================================================
