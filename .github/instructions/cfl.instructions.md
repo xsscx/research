@@ -67,18 +67,31 @@ Current upstream: commit **b5ade94** (2026-03-06)
 ## Patch Conventions
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **082**)
+- Numbering: zero-padded 3-digit, sequential (next: **083**)
 - Format: unified diff against `cfl/iccDEV/`
 - 14 known NO-OP patches: 023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066
   (upstreamed or made irrelevant by code changes)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
-- Latest active: CFL-076 (NamedColor2 nDeviceCoords cap)
+- Latest active: CFL-082 (CTiffImg strip buffer bounds check)
 - **Reference-only (NOT in build.sh)**: CFL-077 through CFL-081 (CWE-400 upstream patterns)
   - CFL-077: ResponseCurveStruct nMeasurements cap (100K per channel)
   - CFL-078: NamedColor2 Describe() iteration cap (10K entries)
   - CFL-079: ApplySequence() runtime depth limit (16)
   - CFL-080: XYZ/Chromaticity/ColorantTable Describe() output cap (1MB)
   - CFL-081: DescribeSequence() recursion depth limit (32)
+
+### CFL-082: CTiffImg Strip Buffer Bounds Check
+
+- **File**: `Tools/CmdLine/IccApplyProfiles/TiffImg.cpp`
+- **Bug**: `Open()` allocates `m_pStripBuf` sized by `TIFFStripSize()` (TIFF
+  StripByteCounts), but `ReadLine()` accesses `nRowOffset * m_nBytesPerLine`
+  without bounds check. Malformed TIFF with small StripByteCounts → heap-BOF.
+- **Fix**: After malloc in `Open()`, validate `m_nStripSize >= m_nRowsPerStrip * m_nBytesPerLine`
+  (contig) or `m_nStripSize >= m_nRowsPerStrip * m_nBytesPerStripLine` (separate).
+- **CWE**: CWE-122 (Heap Buffer Overflow), CWE-125 (Out-of-bounds Read)
+- **Crash**: `crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5`
+- **Repro**: `LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5 /tmp/out.tif 0 0 0 0 1 test-profiles/Rec2020rgbSpectral.icc 1`
+- **Affected tools**: iccApplyProfiles, iccSpecSepToTiff, icc_tiffdump_fuzzer, icc_specsep_fuzzer
 
 ## Fuzzing — Ramdisk Workflow
 
