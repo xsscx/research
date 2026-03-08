@@ -1,0 +1,262 @@
+================================================================================
+ICC PROFILE HANDLING - QUICK REFERENCE
+================================================================================
+
+FILE: /home/h02332/po/research/xnuimagetools/XNU Image Fuzzer/XNU Image Fuzzer/xnuimagefuzzer.m
+TOTAL LINES: 5119
+
+================================================================================
+1. ALL ICC-RELATED FUNCTIONS (with line numbers)
+================================================================================
+
+embedICCProfile()           Lines 1906-1987    [KEY: Creates CGColorSpaceCreateWithICCData + re-renders]
+embedICCProfileData()       Lines 2765-2840    [KEY: Same as above but uses raw NSData]
+mutateICCProfile()          Lines 2710-2760    [6 corruption strategies for fuzzing]
+loadICCProfilePaths()       Lines 1999-2030    [Reads FUZZ_ICC_DIR env var]
+createNamedColorSpace()     Lines 2033-2050    [7 named color spaces for diversity]
+
+================================================================================
+2. CRITICAL ICC API CALLS
+================================================================================
+
+CGColorSpaceCreateWithICCData()   Line 1917  (embedICCProfile)
+                                  Line 2785  (embedICCProfileData)
+                                  → Creates CGColorSpaceRef from raw ICC data
+                                  → Only creates context if numComponents == 3 (RGB)
+
+CGImageDestinationAddImage()      Line 1983  (embedICCProfile finalize)
+                                  Line 2833  (embedICCProfileData finalize)
+                                  → Adds image to destination for writing
+
+================================================================================
+3. BITMAP CONTEXT FUNCTIONS - ALL 15 (Lines 599-613 declarations, 3513-5100 implementations)
+================================================================================
+
+ 1. createBitmapContextStandardRGB()            Line 3536: CGColorSpaceCreateDeviceRGB()
+ 2. createBitmapContextPremultipliedFirstAlpha() Line 3644: CGColorSpaceCreateDeviceRGB()
+ 3. createBitmapContextNonPremultipliedAlpha()  Line 3763: CGColorSpaceCreateDeviceRGB()
+ 4. createBitmapContext16BitDepth()             Line 3886: CGColorSpaceCreateDeviceRGB()
+ 5. createBitmapContextGrayscale()              Line 3981: CGColorSpaceCreateDeviceGray()
+ 6. createBitmapContextHDRFloatComponents()     Line 4092: CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearSRGB)
+ 7. createBitmapContextAlphaOnly()              Line 4320: CGColorSpaceCreateDeviceGray()
+ 8. createBitmapContext1BitMonochrome()         Line 4395: CGColorSpaceCreateDeviceGray()
+ 9. createBitmapContextBigEndian()              Line 4473: CGColorSpaceCreateDeviceRGB()
+10. createBitmapContextLittleEndian()           Line 4554: CGColorSpaceCreateDeviceRGB()
+11. createBitmapContext8BitInvertedColors()     Line 4664: CGColorSpaceCreateDeviceRGB()
+12. createBitmapContext32BitFloat4Component()   Line 4884: CGColorSpaceCreateDeviceRGB()
+13. createBitmapContextCMYK()                   Line 4742: CGColorSpaceCreateDeviceCMYK()
+14. createBitmapContextHDRFloat16()             Line 5058: CGColorSpaceCreateDeviceRGB()
+15. createBitmapContextIndexedColor()           (custom palette, no direct CGColorSpaceCreate)
+
+================================================================================
+4. ENVIRONMENT VARIABLES
+================================================================================
+
+FUZZ_ICC_DIR       → Directory containing .icc/.icm profile files
+                     Used by: loadICCProfilePaths() at line 2003
+                     Called in: performAllImagePermutations() at line 1752
+
+FUZZ_OUTPUT_DIR    → Directory to save fuzzed images
+                     Fallback: NSDocumentDirectory
+                     Used at: lines 740, 862, 1751, 2220, 2868
+
+LLVM_PROFILE_FILE  → Coverage data (separate from ICC handling)
+
+================================================================================
+5. ICC PROFILE EMBEDDING PIPELINE (Lines 1752-1797 in performAllImagePermutations)
+================================================================================
+
+Step 1: Load ICC profiles from disk
+        → loadICCProfilePaths() reads FUZZ_ICC_DIR
+
+Step 2: Generate random fuzzed image data
+        → generateFuzzedImageData() fills buffer with random bytes
+
+Step 3: Save seed image without modification
+        → writeToFile() at line 1771
+
+Step 4: Corrupt encoded data
+        → applyPostEncodingCorruption() at line 1779
+           (Strategies: bit flips, PNG IHDR/CRC corruption, IDAT truncation, etc.)
+
+Step 5: Round-robin select ICC profile
+        → iccProfiles[i % [iccProfiles count]] at line 1787
+
+Step 6: EMBED ICC PROFILE ★★★ CRITICAL
+        → embedICCProfile(fuzzedImage, iccPath, @"png") at line 1789
+           ├─ Loads ICC data from file
+           ├─ Creates CGColorSpaceCreateWithICCData((CFDataRef)iccData)
+           ├─ Re-renders image in ICC color space (if numComponents == 3)
+           ├─ Creates CGImageDestination
+           └─ Calls CGImageDestinationAddImage() & CGImageDestinationFinalize()
+
+Step 7: Save ICC-embedded image
+        → writeToFile() at line 1792
+
+Step 8: Measure and record metrics
+        → measureOutput() at line 1796
+        → writeMetricsJSON() at line 1798
+
+================================================================================
+6. IMAGE SAVING FUNCTION - saveFuzzedImage (Lines 676-761)
+================================================================================
+
+Decision Logic:
+- "jpeg" or "jpg" → Use CGImageDestinationCreateWithData + UTTypeJPEG (line 707)
+- "gif"           → Use custom UIImageGIFRepresentation() (line 793)
+- "tiff"          → Use CGImageDestinationCreateWithData + UTTypeTIFF (line 707)
+- Default/PNG     → Use UIImagePNGRepresentation()
+
+All outputs saved to:
+  [FUZZ_OUTPUT_DIR or NSDocumentDirectory]/fuzzed_image_[context].[ext]
+
+================================================================================
+7. OUTPUT FORMATS SUPPORTED (Lines 2411-2555 in encodeImageMultiFormat)
+================================================================================
+
+Core Formats:
+  PNG, JPEG (0.95 and 0.10 quality), TIFF, GIF, BMP, ICO
+
+TIFF Variants:
+  TIFF-LZW (compression 5), TIFF-PackBits (32773), TIFF-JPEG (7), TIFF-Deflate (32946)
+
+Advanced/Platform-Dependent:
+  HEIC, HEIF, WebP (macOS 14+), JPEG 2000, OpenEXR, DNG, PBM, TGA, ASTC, KTX, PDF, ICNS
+
+Format Selection:
+  → Via UTType identifiers: (__bridge CFStringRef)UTType[Name].identifier
+  → CGImageDestinationCreateWithData(data, utType, 1, NULL)
+  → Supports lossy compression via kCGImageDestinationLossyCompressionQuality
+
+================================================================================
+8. MAIN GENERATION FUNCTION - performAllImagePermutations (Lines 1724-1805)
+================================================================================
+
+Generates 17 fuzzed images with varying:
+  - Dimensions: 16×16 to 512×512
+  - Permutations: 1-15 (different bitmap context settings)
+
+For each:
+  1. generateFuzzedImageData() → random image
+  2. Save seed image (seed_perm[N]_001.png)
+  3. applyPostEncodingCorruption() → corrupt PNG bytes
+  4. Save corrupted variant (corrupted_perm[N]_001.png)
+  5. embedICCProfile() → add ICC profile
+  6. Save ICC variant (seed_icc_perm[N]_[ProfileName]_001.png)
+  7. measureOutput() → record metrics
+  8. writeMetricsJSON() → save provenance data
+
+================================================================================
+9. POST-ENCODING CORRUPTION - applyPostEncodingCorruption (Lines 1437-1530)
+================================================================================
+
+Preserves first 8 bytes (magic/signature) to ensure decoder attempts parsing
+
+PNG-Specific Mutations (6 strategies):
+  0: Corrupt IHDR dimensions (width/height at bytes 16-23)
+  1: Corrupt bit depth (byte 24) or color type (byte 25)
+  2: Corrupt chunk CRCs (walk chunk structure)
+  3: Truncate IDAT stream (zero out trailing data)
+  4: Corrupt PLTE entries if present
+  5: Random 2% bit flips preserving magic bytes
+
+JPEG/TIFF: Random bit flips only (2% of bytes)
+
+================================================================================
+10. ICC PROFILE MUTATION STRATEGIES (Lines 2710-2760)
+================================================================================
+
+mutateICCProfile() implements 6 random corruption strategies:
+
+Case 0: Corrupt 'acsp' signature (bytes 36-39)
+Case 1: Corrupt rendering intent (bytes 64-67)
+Case 2: Corrupt header fields (version, device class, color space, PCS)
+Case 3: Find and corrupt A2B0/B2A0 CLUT tags (color lookup tables)
+Case 4: Set profile size header to wrong value
+Case 5: Random 2% byte flips preserving 'acsp' signature
+
+================================================================================
+11. NAMED COLOR SPACES (7 total) - createNamedColorSpace (Lines 2033-2050)
+================================================================================
+
+Index 0: kCGColorSpaceSRGB
+Index 1: kCGColorSpaceAdobeRGB1998
+Index 2: kCGColorSpaceDisplayP3
+Index 3: kCGColorSpaceGenericRGBLinear
+Index 4: kCGColorSpaceGenericGrayGamma2_2
+Index 5: kCGColorSpaceACESCGLinear
+Index 6: kCGColorSpaceExtendedLinearSRGB
+
+Constant: NUM_NAMED_COLORSPACES = 7 (line 102)
+
+================================================================================
+12. INJECTION STRINGS (10 total) - Lines 185-213
+================================================================================
+
+NUMBER_OF_STRINGS = 10
+
+1. Buffer overflow test (60 A's)
+2. XSS: <script>console.error('XNU Image Fuzzer');</script>
+3. SQL injection: ' OR ''='
+4. Format string: %d %s %d %s
+5. Control: XNU Image Fuzzer
+6. SQL command: 123456; DROP TABLE users
+7. Special chars: !@#$%^&*()_+=
+8. Path traversal: ..//..//..//win
+9. Null byte: \0\0\0
+10. XXE injection: XML with DOCTYPE
+
+================================================================================
+13. METRICS AND PROVENANCE (Lines 2052-2150)
+================================================================================
+
+Provenance Filename Format:
+  {inputName}_perm{permutation:02d}_{injection:02d}_{iccName}_{seq:03d}.{ext}
+  Example: seed_icc_perm01_sRGB2014_001.png
+
+Metrics Recorded:
+  - output_path, output_size, output_entropy, output_sha256
+  - input_size, input_entropy, size_delta
+  - timestamp
+  - iteration, permutation, injection_index, icc_profile
+
+Output:
+  - JSON sidecar per image: {imagePath}.metrics.json
+  - CSV summary: {outputDir}/fuzz_metrics_summary.csv
+
+================================================================================
+14. PIPELINE FUZZING PHASES (Lines 2860-3070 in performPipelineFuzzing)
+================================================================================
+
+Phase 1: Save clean baseline
+Phase 1.5: Multi-format re-encoding (all 30+ formats)
+Phase 2: Fuzz through permutations (14 selected) + multi-format
+Phase 3: Embed clean ICC profiles (PNG + TIFF)
+Phase 4: Mutated ICC + fuzzed image (3 mutations per profile)
+Phase 5: Chained fuzzing (output becomes next input)
+
+Output Subdirectories:
+  pipeline-clean     → Original images
+  pipeline-formats   → Multi-format encodings
+  pipeline-fuzzed    → Permutation-fuzzed variants
+  pipeline-icc       → ICC-embedded clean images
+  pipeline-combo     → Mutated ICC + fuzzed images
+  pipeline-chained   → Chained fuzzing outputs
+  pipeline-profiles  → Extracted/mutated ICC profiles
+
+================================================================================
+15. KEY FINDINGS SUMMARY
+================================================================================
+
+✓ ICC Profile Embedding: Uses CGColorSpaceCreateWithICCData() + re-rendering
+✓ Only re-renders if ICC space has 3 components (RGB compatible)
+✓ Falls back to raw data attachment if color space creation fails
+✓ Supports PNG, TIFF, JPEG for ICC embedding
+✓ ICC Profile Mutation: 6 strategies targeting header, CLUT, signature
+✓ Color Space Diversity: 7 named spaces + device-specific + ICC
+✓ Bitmap Context Diversity: 15 different configurations
+✓ Format Coverage: 30+ formats including deprecated/rare formats
+✓ Metrics/Provenance: SHA256, entropy, size delta, provenance naming
+✓ Environment-driven: FUZZ_ICC_DIR and FUZZ_OUTPUT_DIR configurable
+
+================================================================================

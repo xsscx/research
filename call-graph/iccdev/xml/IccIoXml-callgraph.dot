@@ -1,0 +1,24 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/xml/IccIoXml.ll" {
+	label="Call graph: /home/h02332/po/research/call-graph/iccdev/xml/IccIoXml.ll";
+
+	Node0x5edd6242c4f0 [shape=record,label="{_ZN18CIccStandardFileIO8OpenFileEPKcS1_}"];
+	Node0x5edd6242c4f0 -> Node0x5edd6242af00;
+	Node0x5edd6242c4f0 -> Node0x5edd6241b000;
+	Node0x5edd6242c4f0 -> Node0x5edd62424ed0;
+	Node0x5edd6242c4f0 -> Node0x5edd6241d4d0;
+	Node0x5edd6242af00 [shape=record,label="{_Znwm}"];
+	Node0x5edd6241b000 [shape=record,label="{_ZN10CIccFileIOC1Ev}"];
+	Node0x5edd6241ead0 [shape=record,label="{__gxx_personality_v0}"];
+	Node0x5edd6241d4d0 [shape=record,label="{_ZdlPv}"];
+	Node0x5edd62424ed0 [shape=record,label="{_ZN10CIccFileIO4OpenEPKcS1_}"];
+	Node0x5edd62423120 [shape=record,label="{__cxx_global_var_init}"];
+	Node0x5edd62423120 -> Node0x5edd62423520;
+	Node0x5edd62423520 [shape=record,label="{_ZN18CIccStandardFileIOC2Ev}"];
+	Node0x5edd62423520 -> Node0x5edd624269c0;
+	Node0x5edd624233a0 [shape=record,label="{_Z13IccOpenFileIOPKcS0_}"];
+	Node0x5edd62425200 [shape=record,label="{_Z16IccSetOpenFileIOP14IIccOpenFileIO}"];
+	Node0x5edd624269c0 [shape=record,label="{_ZN14IIccOpenFileIOC2Ev}"];
+	Node0x5edd62418bc0 [shape=record,label="{__cxa_pure_virtual}"];
+	Node0x5edd6242c690 [shape=record,label="{_GLOBAL__sub_I_IccIoXml.cpp}"];
+	Node0x5edd6242c690 -> Node0x5edd62423120;
+}

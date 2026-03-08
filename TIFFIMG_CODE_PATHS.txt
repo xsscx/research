@@ -1,0 +1,463 @@
+================================================================================
+                    TiffImg CLASS - CODE PATHS & BRANCHES
+================================================================================
+
+═══════════════════════════════════════════════════════════════════════════════
+1. CREATE() METHOD - BRANCH TREE
+═══════════════════════════════════════════════════════════════════════════════
+
+bool Create(const char *szFname, unsigned int nWidth, unsigned int nHeight,
+            unsigned int nBPS, unsigned int nPhoto, unsigned int nSamples, 
+            unsigned int nExtraSamples, float fXRes, float fYRes, 
+            bool bCompress=true, bool bSep=false)
+
+    TIFFOpen(szFname, "w")
+    │
+    ├─ FAIL: return false ❌
+    │
+    └─ SUCCESS: Continue
+       │
+       ├─ Photometric Mapping (switch nPhoto):
+       │  │
+       │  ├─ case PHOTO_RGB (4):
+       │  │  └─ m_nPhoto = PHOTOMETRIC_RGB
+       │  │
+       │  ├─ case PHOTO_MINISBLACK (0):
+       │  │  ├─ if (m_nSamples - m_nExtraSamples == 3):
+       │  │  │  └─ m_nPhoto = PHOTOMETRIC_RGB
+       │  │  └─ else:
+       │  │     └─ m_nPhoto = PHOTOMETRIC_MINISBLACK
+       │  │
+       │  ├─ case PHOTO_MINISWHITE (1):
+       │  │  ├─ if (m_nSamples == 4):
+       │  │  │  └─ m_nPhoto = PHOTOMETRIC_SEPARATED
+       │  │  └─ else:
+       │  │     └─ m_nPhoto = PHOTOMETRIC_MINISWHITE
+       │  │
+       │  ├─ case PHOTO_CIELAB (2):
+       │  │  └─ m_nPhoto = PHOTOMETRIC_CIELAB
+       │  │
+       │  └─ case PHOTO_ICCLAB (3):
+       │     └─ m_nPhoto = PHOTOMETRIC_ICCLAB
+       │
+       ├─ Planar Configuration:
+       │  ├─ if (bSep):
+       │  │  └─ m_nPlanar = PLANARCONFIG_SEPARATE
+       │  └─ else:
+       │     └─ m_nPlanar = PLANARCONFIG_CONTIG
+       │
+       ├─ Compression Selection:
+       │  ├─ if (bCompress):
+       │  │  └─ m_nCompress = COMPRESSION_LZW
+       │  └─ else:
+       │     └─ m_nCompress = COMPRESSION_NONE
+       │
+       ├─ Write TIFF Tags (14 tags total)
+       │
+       ├─ Predictor Selection (if bCompress):
+       │  ├─ if (m_nBitsPerSample == 32):
+       │  │  └─ TIFFSetField(TIFFTAG_PREDICTOR, PREDICTOR_FLOATINGPOINT)
+       │  └─ else:
+       │     └─ TIFFSetField(TIFFTAG_PREDICTOR, PREDICTOR_HORIZONTAL)
+       │
+       └─ Buffer Allocation Mode:
+          │
+          ├─ if (bSep && m_nSamples > 1): ← PLANAR SEPARATION MODE
+          │  │
+          │  ├─ if (m_nBitsPerSample % 8 != 0):
+          │  │  └─ Close() + return false ❌
+          │  │
+          │  ├─ TIFFStripSize(m_hTif)
+          │  │
+          │  ├─ if (m_nStripSize != m_nBytesPerStripLine):
+          │  │  └─ Close() + return false ❌
+          │  │
+          │  ├─ SIZE_MAX overflow check:
+          │  │  └─ if (m_nStripSize > SIZE_MAX / m_nStripSamples):
+          │  │     └─ Close() + return false ❌
+          │  │
+          │  ├─ malloc(m_nStripSize * m_nStripSamples)
+          │  │  │
+          │  │  ├─ FAIL: Close() + return false ❌
+          │  │  │
+          │  │  └─ SUCCESS: return true ✓
+          │  │
+          │  └─ Calculate m_nStripsPerSample
+          │
+          └─ else: ← CONTIGUOUS MODE
+             │
+             ├─ m_nBytesPerLine = TIFFStripSize()
+             ├─ m_nStripSize = TIFFStripSize()
+             ├─ m_nStripSamples = 1
+             │
+             └─ return true ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+2. OPEN() METHOD - BRANCH TREE
+═══════════════════════════════════════════════════════════════════════════════
+
+bool Open(const char *szFname)
+
+    TIFFOpen(szFname, "r")
+    │
+    ├─ FAIL: return false ❌
+    │
+    └─ SUCCESS: Continue
+       │
+       ├─ Read TIFF Tags (12 tags)
+       │
+       ├─ Validation Check 1: Required fields
+       │  └─ if (m_nRowsPerStrip == 0 || m_nSamples == 0 || m_nBitsPerSample == 0):
+       │     └─ Close() + return false ❌
+       │
+       ├─ RowsPerStrip Clamp:
+       │  └─ if (m_nRowsPerStrip > m_nHeight):
+       │     └─ m_nRowsPerStrip = m_nHeight
+       │
+       ├─ Validation Check 2: Sample format + BPS combination
+       │  ├─ if (m_nBitsPerSample == 32 && nSampleFormat != SAMPLEFORMAT_IEEEFP):
+       │  │  └─ Close() + return false ❌
+       │  │
+       │  ├─ if (m_nBitsPerSample != 32 && nSampleFormat != SAMPLEFORMAT_UINT):
+       │  │  └─ Close() + return false ❌
+       │  │
+       │  └─ if (nOrientation != ORIENTATION_TOPLEFT):
+       │     └─ Close() + return false ❌
+       │
+       ├─ Strip Size Calculation:
+       │  └─ m_nStripSize = TIFFStripSize()
+       │
+       └─ Planar Configuration:
+          │
+          ├─ if (m_nSamples > 1 && m_nPlanar == PLANARCONFIG_SEPARATE): ← PLANAR
+          │  │
+          │  ├─ if (m_nBitsPerSample % 8 != 0):
+          │  │  └─ Close() + return false ❌
+          │  │
+          │  ├─ m_nStripsPerSample = m_nHeight / m_nRowsPerStrip
+          │  │
+          │  ├─ if (m_nHeight % m_nRowsPerStrip != 0):
+          │  │  └─ Close() + return false ❌
+          │  │
+          │  └─ m_nStripSamples = m_nSamples
+          │
+          └─ else: ← CONTIGUOUS
+             │
+             ├─ m_nStripSamples = 1
+             │
+             └─ Memory Allocation:
+                │
+                ├─ SIZE_MAX overflow check:
+                │  └─ if (m_nStripSize > SIZE_MAX / m_nStripSamples):
+                │     └─ Close() + return false ❌
+                │
+                ├─ malloc(m_nStripSize * m_nStripSamples)
+                │  │
+                │  ├─ FAIL: Close() + return false ❌
+                │  │
+                │  └─ SUCCESS: return true ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+3. READLINE() METHOD - BRANCH TREE
+═══════════════════════════════════════════════════════════════════════════════
+
+bool ReadLine(unsigned char *pBuf)
+
+    if (!m_bRead || m_nRowsPerStrip == 0):
+    │
+    ├─ TRUE: return false ❌
+    │
+    └─ FALSE: Continue
+       │
+       ├─ Calculate strip number and offset:
+       │  ├─ nStrip = m_nCurLine / m_nRowsPerStrip
+       │  └─ nRowOffset = m_nCurLine % m_nRowsPerStrip
+       │
+       ├─ Check if new strip needed:
+       │  └─ if (nStrip != m_nCurStrip): Load new strip
+       │     │
+       │     ├─ if (m_nStripSamples > 1): ← PLANAR MODE
+       │     │  │
+       │     │  └─ For each sample s (0 to m_nStripSamples-1):
+       │     │     │
+       │     │     ├─ TIFFReadEncodedStrip(m_hTif, 
+       │     │     │    m_nCurStrip + nStripOffset, pos, m_nStripSize)
+       │     │     │
+       │     │     ├─ if (result < 0):
+       │     │     │  └─ return false ❌
+       │     │     │
+       │     │     └─ pos += m_nBytesPerStripLine
+       │     │
+       │     └─ else: ← CONTIGUOUS MODE
+       │        │
+       │        ├─ TIFFReadEncodedStrip(m_hTif, m_nCurStrip, 
+       │        │    m_pStripBuf, m_nStripSize)
+       │        │
+       │        └─ if (result < 0):
+       │           └─ return false ❌
+       │
+       ├─ Data Extraction (from m_pStripBuf to pBuf):
+       │  │
+       │  ├─ if (m_nStripSamples > 1): ← PLANAR-TO-CONTIGUOUS CONVERSION
+       │  │  │
+       │  │  └─ For each pixel w (0 to m_nWidth-1):
+       │  │     │
+       │  │     └─ For each sample s (0 to m_nSamples-1):
+       │  │        │
+       │  │        ├─ src = m_pStripBuf + nRowOffset*m_nBytesPerStripLine
+       │  │        ├─ pos = src + (s * m_nStripSize)  ← jump across planes
+       │  │        └─ memcpy(dst, pos, m_nBytesPerSample)
+       │  │
+       │  └─ else: ← DIRECT CONTIGUOUS COPY
+       │     │
+       │     └─ memcpy(pBuf, m_pStripBuf + nRowOffset*m_nBytesPerLine, 
+       │              m_nBytesPerLine)
+       │
+       ├─ Increment line counter:
+       │  └─ m_nCurLine++
+       │
+       └─ return true ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+4. WRITELINE() METHOD - BRANCH TREE
+═══════════════════════════════════════════════════════════════════════════════
+
+bool WriteLine(unsigned char *pBuf)
+
+    if (m_bRead):
+    │
+    ├─ TRUE: return false ❌
+    │
+    └─ FALSE: Continue
+       │
+       ├─ Check write boundary:
+       │  └─ if (m_nCurStrip < m_nHeight):
+       │     │
+       │     ├─ if (m_nStripSamples > 1): ← CONTIGUOUS-TO-PLANAR CONVERSION
+       │     │  │
+       │     │  ├─ For each pixel w (0 to m_nWidth-1):
+       │     │  │  │
+       │     │  │  └─ For each sample s (0 to m_nSamples-1):
+       │     │  │     │
+       │     │  │     ├─ pos = dst + (s * m_nStripSize)  ← jump across planes
+       │     │  │     └─ memcpy(pos, src, m_nBytesPerSample)
+       │     │  │        src += m_nBytesPerSample
+       │     │  │
+       │     │  └─ For each sample s (0 to m_nSamples-1):
+       │     │     │
+       │     │     ├─ TIFFWriteEncodedStrip(m_hTif,
+       │     │     │    m_nCurStrip + offset, src, m_nStripSize)
+       │     │     │
+       │     │     ├─ if (result < 0):
+       │     │     │  └─ return false ❌
+       │     │     │
+       │     │     └─ offset += m_nStripsPerSample
+       │     │
+       │     └─ else: ← DIRECT CONTIGUOUS WRITE
+       │        │
+       │        ├─ TIFFWriteEncodedStrip(m_hTif, m_nCurStrip, 
+       │        │    pBuf, m_nBytesPerLine)
+       │        │
+       │        └─ if (result < 0):
+       │           └─ return false ❌
+       │
+       ├─ Increment strip counter:
+       │  └─ m_nCurStrip++
+       │
+       └─ return true ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+5. GETPHOTO() METHOD - PHOTOMETRIC MAPPING
+═══════════════════════════════════════════════════════════════════════════════
+
+unsigned int GetPhoto()
+
+    if (m_nPhoto == PHOTOMETRIC_RGB):
+    │
+    ├─ TRUE: return PHOTO_RGB (4)
+    │
+    └─ FALSE: Continue
+       │
+       ├─ if (m_nPhoto == PHOTOMETRIC_MINISBLACK):
+       │  │
+       │  ├─ TRUE: return PHOTO_MINISBLACK (0)
+       │  │
+       │  └─ FALSE: Continue
+       │
+       ├─ if (m_nPhoto == PHOTOMETRIC_MINISWHITE || 
+       │      m_nPhoto == PHOTOMETRIC_SEPARATED):
+       │  │
+       │  ├─ TRUE: return PHOTO_MINISWHITE (1)
+       │  │
+       │  └─ FALSE: Continue
+       │
+       ├─ if (m_nPhoto == PHOTOMETRIC_CIELAB):
+       │  │
+       │  ├─ TRUE: return PHOTO_CIELAB (2)
+       │  │
+       │  └─ FALSE: Continue
+       │
+       ├─ if (m_nPhoto == PHOTOMETRIC_ICCLAB):
+       │  │
+       │  ├─ TRUE: return PHOTO_ICCLAB (3)
+       │  │
+       │  └─ FALSE: Continue
+       │
+       └─ default: return PHOTO_MINISWHITE (1)  ← Fallback
+
+
+═══════════════════════════════════════════════════════════════════════════════
+6. PROFILE METHODS
+═══════════════════════════════════════════════════════════════════════════════
+
+bool GetIccProfile(unsigned char *&pProfile, unsigned int &nLen)
+
+    Initialize pProfile = NULL, nLen = 0
+    │
+    TIFFGetField(m_hTif, TIFFTAG_ICCPROFILE, &nLen, &pProfile)
+    │
+    └─ if (pProfile != NULL && nLen > 0):
+       │
+       ├─ TRUE: return true ✓
+       │
+       └─ FALSE: return false ❌
+
+
+bool SetIccProfile(unsigned char *pProfile, unsigned int nLen)
+
+    TIFFSetField(m_hTif, TIFFTAG_ICCPROFILE, nLen, pProfile)
+    │
+    └─ return true ✓  (Always succeeds in implementation)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+7. CLOSE() METHOD
+═══════════════════════════════════════════════════════════════════════════════
+
+void Close()
+
+    if (m_hTif):
+    │
+    ├─ TRUE:
+    │  │
+    │  ├─ TIFFClose(m_hTif)
+    │  └─ m_hTif = NULL
+    │
+    └─ FALSE: Skip TIFF close
+    
+    if (m_pStripBuf):
+    │
+    ├─ TRUE:
+    │  │
+    │  ├─ free(m_pStripBuf)
+    │  └─ m_pStripBuf = NULL
+    │
+    └─ FALSE: Skip buffer free
+
+    Reset all state variables to 0
+
+
+═══════════════════════════════════════════════════════════════════════════════
+8. TOOL-SPECIFIC CODE PATHS
+═══════════════════════════════════════════════════════════════════════════════
+
+iccTiffDump.cpp:
+┌─ Open(argv[1])
+├─ GetWidth(), GetHeight()
+├─ GetWidthIn(), GetHeightIn()
+├─ GetPlanar()
+├─ GetBitsPerSample()
+├─ GetSamples(), GetExtraSamples()
+├─ GetPhoto()  ← Photometric mapping
+├─ GetBytesPerLine()
+├─ GetXRes(), GetYRes()
+├─ GetCompress()
+└─ GetIccProfile()
+
+
+iccApplyProfiles.cpp:
+┌─ Open(source)  ← Validates BPS, sample format, orientation, planar config
+├─ Create(destination, ...)  ← Selects photometric based on ICC profile
+│                              color space conversion
+├─ Loop for each line:
+│  ├─ ReadLine()  ← Handles planar↔contiguous conversion
+│  ├─ Color space transformations:
+│  │  ├─ 8-bit: uint8 → [0,1] range
+│  │  ├─ 16-bit: uint16 → [0,1] range
+│  │  ├─ 32-bit: direct float ± CIELAB transformations
+│  │  └─ CIELAB: special encoding/decoding
+│  └─ WriteLine()  ← Handles contiguous→planar conversion
+├─ SetIccProfile()  ← Embed last profile
+└─ Close() both
+
+
+iccSpecSepToTiff.cpp:
+┌─ Open(multiple files)  ← Validates all match format
+│                          Rejects PHOTOMETRIC_PALETTE
+│                          Validates 1 sample per pixel
+├─ Create(output, multiple samples)
+│  └─ Photometric: PHOTO_MINISBLACK
+├─ Loop for each line:
+│  ├─ ReadLine() from each input
+│  ├─ Conditionally invert:
+│  │  └─ if (PHOTO_MINISWHITE): XOR each byte with 0xFF
+│  ├─ Interleave samples into contiguous format
+│  └─ WriteLine() to output
+├─ SetIccProfile()  ← Optional embedding
+└─ Close() all
+
+
+═══════════════════════════════════════════════════════════════════════════════
+9. CRITICAL VALIDATION POINTS FOR FUZZER
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  PRIORITY 1 - Always Checked:
+  1. TIFFOpen returns NULL
+  2. m_nRowsPerStrip == 0
+  3. m_nSamples == 0
+  4. m_nBitsPerSample == 0
+  5. Orientation != TOPLEFT
+
+⚠️  PRIORITY 2 - Conditional:
+  6. BPS==32 requires SAMPLEFORMAT_IEEEFP
+  7. BPS!=32 requires SAMPLEFORMAT_UINT
+  8. PLANAR + MULTI requires BPS % 8 == 0
+  9. PLANAR + MULTI requires Height % RowsPerStrip == 0
+
+⚠️  PRIORITY 3 - Memory:
+  10. SIZE_MAX overflow on (m_nStripSize * m_nStripSamples)
+  11. malloc failure
+  12. Strip size consistency (Create mode)
+
+⚠️  PRIORITY 4 - I/O:
+  13. TIFFReadEncodedStrip returns < 0
+  14. TIFFWriteEncodedStrip returns < 0
+
+⚠️  PRIORITY 5 - Mode:
+  15. ReadLine called in write mode (m_bRead == false)
+  16. WriteLine called in read mode (m_bRead == true)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+10. SAMPLE FORMAT VALIDATION TABLE
+═══════════════════════════════════════════════════════════════════════════════
+
+BPS  SAMPLEFORMAT         STATUS
+─────────────────────────────────────
+ 8   SAMPLEFORMAT_UINT    ✓ Valid
+ 8   SAMPLEFORMAT_IEEEFP  ✗ REJECTED (Open)
+ 
+16   SAMPLEFORMAT_UINT    ✓ Valid
+16   SAMPLEFORMAT_IEEEFP  ✗ REJECTED (Open)
+ 
+32   SAMPLEFORMAT_UINT    ✗ REJECTED (Open)
+32   SAMPLEFORMAT_IEEEFP  ✓ Valid
+
+Any other BPS: ✗ REJECTED by tools
+
+
+═══════════════════════════════════════════════════════════════════════════════

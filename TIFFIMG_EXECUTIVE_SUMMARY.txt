@@ -1,0 +1,305 @@
+================================================================================
+              TiffImg CLASS - EXECUTIVE SUMMARY FOR FUZZER
+================================================================================
+
+QUICK FACTS
+================================================================================
+• Class: CTiffImg (TIFF image I/O wrapper)
+• Location: cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}
+• Public Methods: 10
+• Error Paths: 26
+• Branches: 23+
+• Supported Photometrics: 5 (RGB, MINISBLACK, MINISWHITE, CIELAB, ICCLAB)
+• Supported Formats: 8-bit, 16-bit, 32-bit float
+• Planar Configs: 2 (contiguous, separated)
+• TIFF Tags: 14 read, 15 written
+• Compression: none, LZW
+• Critical Validations: 7 (TIFFOpen, RowsPerStrip, Samples, BPS, SampleFormat, Orientation, Overflow)
+
+PRIMARY CODE PATHS (3 tools use this class)
+================================================================================
+
+1. iccTiffDump (read-only):
+   Open() → Getters → GetIccProfile() → Close()
+
+2. iccApplyProfiles (transform):
+   Open(src) → Create(dst) → [ReadLine + Color Transform + WriteLine]* → SetIccProfile() → Close()
+
+3. iccSpecSepToTiff (concatenate):
+   Open(N files) → Create(output) → [ReadLine* + Interleave + WriteLine]* → SetIccProfile() → Close()
+
+THE 10 PUBLIC METHODS
+================================================================================
+
+1. CTiffImg()
+   - Initializes all fields to 0/NULL
+   - No validation
+
+2. ~CTiffImg()
+   - Calls Close()
+
+3. void Close()
+   - Closes TIFF file
+   - Frees strip buffer
+   - Resets state
+
+4. bool Open(const char *szFname)
+   ★ Critical: 8 error paths, 7 validation checks
+   - Opens file for reading
+   - Reads 12 TIFF tags
+   - Validates: TIFFOpen, tags present, sample format, orientation, planar mode
+   - Allocates strip buffer
+   - Errors: NULL file, missing tags, invalid formats, overflow, malloc
+
+5. bool Create(const char *szFname, ...)
+   ★ Critical: 5 error paths, 2 major branches
+   - Opens file for writing
+   - Maps photometric type (5 cases)
+   - Sets 14+ TIFF tags
+   - Configures compression & predictor
+   - Allocates strip buffer
+   - Errors: NULL file, non-aligned BPS in planar, overflow, malloc
+
+6. bool ReadLine(unsigned char *pBuf)
+   ★ Critical: 2 error paths, planar↔contiguous conversion
+   - Reads one scanline
+   - Loads strip if needed (handles both modes: planar/contig)
+   - Converts planar→contiguous if needed
+   - Returns false if not in read mode or strip load fails
+
+7. bool WriteLine(unsigned char *pBuf)
+   ★ Critical: 2 error paths, contiguous→planar conversion
+   - Writes one scanline
+   - Converts contiguous→planar if needed
+   - Returns false if not in write mode or strip write fails
+
+8. unsigned int GetPhoto()
+   - Maps PHOTOMETRIC_* to PHOTO_* constants
+   - 6 branches (5 types + default)
+
+9. bool GetIccProfile(unsigned char *&pProfile, unsigned int &nLen)
+   - Reads embedded ICC profile
+   - Returns false if not present
+
+10. bool SetIccProfile(unsigned char *pProfile, unsigned int nLen)
+    - Embeds ICC profile
+    - Always returns true in implementation
+
+VALIDATION SUMMARY
+================================================================================
+
+Open() Must Pass:
+  ✓ TIFFOpen returns non-NULL
+  ✓ RowsPerStrip > 0, Samples > 0, BitsPerSample > 0
+  ✓ BPS==32 requires SAMPLEFORMAT_IEEEFP (else SAMPLEFORMAT_UINT)
+  ✓ Orientation must be ORIENTATION_TOPLEFT (1)
+  ✓ If PLANAR+MULTI-SAMPLE: BPS%8==0 (byte-aligned)
+  ✓ If PLANAR+MULTI-SAMPLE: Height%RowsPerStrip==0
+  ✓ No overflow: m_nStripSize * m_nStripSamples < SIZE_MAX
+  ✓ malloc succeeds
+
+Create() Must Pass:
+  ✓ TIFFOpen returns non-NULL
+  ✓ If PLANAR+MULTI-SAMPLE: BPS%8==0
+  ✓ No overflow: m_nStripSize * m_nStripSamples < SIZE_MAX
+  ✓ malloc succeeds
+
+KEY BRANCHES FOR COVERAGE
+================================================================================
+
+Create() Photometric (5 branches):
+  - PHOTO_RGB (4)
+  - PHOTO_MINISBLACK (0)
+  - PHOTO_MINISWHITE (1)
+  - PHOTO_CIELAB (2)
+  - PHOTO_ICCLAB (3)
+
+Create() Separation (2 branches):
+  - PLANARCONFIG_CONTIG (bSep=false)
+  - PLANARCONFIG_SEPARATE (bSep=true)
+
+Open() Sample Format (2 branches):
+  - 32-bit float: SAMPLEFORMAT_IEEEFP
+  - 8/16-bit: SAMPLEFORMAT_UINT
+
+Open() Planar (2 branches):
+  - PLANARCONFIG_CONTIG: simple buffer copy
+  - PLANARCONFIG_SEPARATE: complex interleave logic
+
+ReadLine() Data (2 branches):
+  - Planar: convert RRR...GGG... → RGBRGB...
+  - Contiguous: direct copy
+
+WriteLine() Data (2 branches):
+  - Planar: convert RGBRGB... → RRR...GGG...
+  - Contiguous: direct write
+
+GetPhoto() Mapping (6 branches):
+  - PHOTOMETRIC_RGB → PHOTO_RGB
+  - PHOTOMETRIC_MINISBLACK → PHOTO_MINISBLACK
+  - PHOTOMETRIC_MINISWHITE → PHOTO_MINISWHITE
+  - PHOTOMETRIC_SEPARATED → PHOTO_MINISWHITE
+  - PHOTOMETRIC_CIELAB → PHOTO_CIELAB
+  - PHOTOMETRIC_ICCLAB → PHOTO_ICCLAB
+  - Default → PHOTO_MINISWHITE
+
+ERROR PATHS (26 total)
+================================================================================
+
+Create() Errors (5):
+  1. TIFFOpen fails
+  2. Non-byte-aligned BPS in planar mode
+  3. Strip size mismatch
+  4. SIZE_MAX overflow
+  5. malloc fails
+
+Open() Errors (8):
+  1. TIFFOpen fails
+  2. Missing required tags (RowsPerStrip, Samples, BPS = 0)
+  3. Invalid BPS+SampleFormat combination
+  4. Non-TOPLEFT orientation
+  5. Non-byte-aligned BPS in planar mode
+  6. Height not divisible by RowsPerStrip in planar mode
+  7. SIZE_MAX overflow
+  8. malloc fails
+
+ReadLine() Errors (2):
+  1. Not in read mode (m_bRead == false)
+  2. TIFFReadEncodedStrip fails
+
+WriteLine() Errors (2):
+  1. Not in write mode (m_bRead == true)
+  2. TIFFWriteEncodedStrip fails
+
+FUZZER TEST MATRIX
+================================================================================
+
+Photometric × BPS × Planar × Compression × Samples:
+
+5 photometrics × 3 BPS × 2 planar × 2 compression × N samples
+= 60+ base combinations
+
+Plus edge cases:
+  - Invalid orientation (8 values)
+  - Invalid sample format (2 values)
+  - RowsPerStrip variants (0, 1, >height, non-divisors)
+  - Dimension variants (0×0, 1×1, overflow)
+  - ICC profile (present/absent, valid/invalid)
+  - Corrupted tags (missing, truncated, overflow)
+
+CRITICAL FUZZER INPUTS
+================================================================================
+
+Must Test:
+  ☐ BPS: 8, 16, 32, 4 (invalid), 24, 31 (invalid), 33 (invalid)
+  ☐ Photometric: 0-4 (valid), 5-7 (invalid), 3 (palette)
+  ☐ SampleFormat: UINT (1), IEEEFP (3), invalid combinations
+  ☐ Samples: 0, 1, 3, 4, N
+  ☐ ExtraSamples: 0, 1, N
+  ☐ Planar: CONTIG (1), SEPARATE (2), invalid
+  ☐ Compression: NONE (1), LZW (5), JPEG (7)
+  ☐ Orientation: TOPLEFT (1), others (invalid)
+  ☐ RowsPerStrip: 0, 1, height, height+1, non-divisor
+  ☐ Resolution: 0, 1, 72, 300, NaN
+  ☐ Dimensions: 0×0, 1×1, 1024×1024, large, overflow
+
+Optional:
+  ☐ ICC profile embedding
+  ☐ Multiple file operations
+  ☐ Corrupted TIFF tags
+  ☐ Truncated files
+  ☐ Malformed strips
+
+IMPLEMENTATION HINTS
+================================================================================
+
+For Full Coverage:
+  1. Start with basic tests: Create + Open + ReadLine + WriteLine + Close
+  2. Test each photometric type separately
+  3. Test each BPS value separately
+  4. Test both planar configurations
+  5. Test error paths systematically
+  6. Test edge cases (0 dimensions, overflow)
+  7. Test all tool code paths
+
+Memory Safety:
+  • SIZE_MAX overflow check before malloc(m_nStripSize * m_nStripSamples)
+  • Buffer allocation failure handling
+  • Stripe boundary validation
+  • Pointer arithmetic in planar↔contiguous conversion
+
+Performance:
+  • RowsPerStrip=1 (minimal buffering, per-line I/O)
+  • Can be optimized to higher values for larger buffers
+  • Planar mode more complex than contiguous
+
+RECOMMENDED FUZZER STRATEGY
+================================================================================
+
+Phase 1 (Basic):
+  - Create + Open valid files
+  - Test all 5 photometric types
+  - Test all 3 BPS values
+  - Test both planar configs
+
+Phase 2 (Validation):
+  - Trigger each error path
+  - Invalid sample formats
+  - Invalid orientations
+  - Missing tags
+
+Phase 3 (Advanced):
+  - ICC profile embedding
+  - Tool-specific workflows
+  - Concurrent file operations
+
+Phase 4 (Mutation):
+  - Seed with valid files
+  - Mutate photometric, BPS, dimensions
+  - Corrupt tags
+  - Truncate files
+
+ANALYSIS DOCUMENTS
+================================================================================
+
+Quick Reference (5 min read):
+  → TIFFIMG_QUICK_REFERENCE.txt
+    ✓ All methods
+    ✓ All validation rules
+    ✓ All TIFF tags
+    ✓ Fuzzer checklist
+
+Code Paths (20 min read):
+  → TIFFIMG_CODE_PATHS.txt
+    ✓ Branch trees for all methods
+    ✓ Tool-specific paths
+    ✓ Critical validation points
+    ✓ Sample format validation
+
+Complete Analysis (45 min read):
+  → TIFFIMG_COMPLETE_ANALYSIS.md
+    ✓ Detailed method breakdowns
+    ✓ Line numbers
+    ✓ Error path coverage matrix
+    ✓ Branch coverage analysis
+    ✓ Memory safety concerns
+
+Navigation:
+  → TIFFIMG_ANALYSIS_INDEX.md
+    ✓ Quick navigation
+    ✓ Learning paths
+    ✓ Source references
+    ✓ Testing strategy
+
+================================================================================
+                    END OF EXECUTIVE SUMMARY
+================================================================================
+
+For implementation questions, refer to:
+  - Quick Reference: All methods & tags at a glance
+  - Code Paths: Visual branch trees & error points
+  - Complete Analysis: Line numbers & detailed logic
+  - Index: Navigation & learning paths
+
+Fuzzer Target: All code paths in TiffImg class (26 error paths, 23+ branches)
+Success Criteria: 100% branch coverage, all error paths triggered, all tools exercised

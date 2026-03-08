@@ -1,0 +1,32 @@
+digraph "IccTiffDump" {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#2d2d2d", fontcolor="white", fontname="Consolas"];
+  edge [color="#666666"];
+
+  "DumpProfileInfo";
+  "GetProfile";
+  "GetSpectralColorSigName";
+  "GetText";
+  "ReadTags";
+  "Usage";
+  "begin";
+  "c_str";
+  "fclose";
+  "fopen";
+  "fwrite";
+  "icF16toF";
+  "if";
+
+  "if" -> "c_str";
+  "if" -> "GetSpectralColorSigName";
+  "if" -> "icF16toF";
+  "if" -> "GetText";
+  "if" -> "begin";
+  "if" -> "DumpProfileInfo";
+  "if" -> "GetProfile";
+  "if" -> "Usage";
+  "if" -> "fopen";
+  "if" -> "fwrite";
+  "if" -> "fclose";
+  "if" -> "ReadTags";
+}

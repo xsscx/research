@@ -1,0 +1,33 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSolve.ll" {
+	label="Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSolve.ll";
+
+	Node0x6326574a8c30 [shape=record,label="{__cxx_global_var_init}"];
+	Node0x6326574a8c30 -> Node0x6326574a8790;
+	Node0x6326574a8790 [shape=record,label="{_ZN22CIccSimpleMatrixSolverC2Ev}"];
+	Node0x6326574a8790 -> Node0x6326574a8400;
+	Node0x6326574a8230 [shape=record,label="{_Z18IccSetMatrixSolverP16IIccMatrixSolver}"];
+	Node0x6326574a94c0 [shape=record,label="{_Z25IccGetDefaultMatrixSolverv}"];
+	Node0x6326574aad50 [shape=record,label="{__cxx_global_var_init.1}"];
+	Node0x6326574aad50 -> Node0x6326574aa790;
+	Node0x6326574aa790 [shape=record,label="{_ZN24CIccSimpleMatrixInverterC2Ev}"];
+	Node0x6326574aa790 -> Node0x6326574a9f80;
+	Node0x6326574ab530 [shape=record,label="{_Z20IccSetMatrixInverterP18IIccMatrixInverter}"];
+	Node0x632657496d10 [shape=record,label="{_Z27IccGetDefaultMatrixInverterv}"];
+	Node0x6326574a8400 [shape=record,label="{_ZN16IIccMatrixSolverC2Ev}"];
+	Node0x632657495910 [shape=record,label="{_ZN22CIccSimpleMatrixSolver5SolveEPfPKfS2_tt}"];
+	Node0x632657495910 -> Node0x632657494710;
+	Node0x632657495910 -> Node0x6326574a7090;
+	Node0x632657495910 -> Node0x6326574b0ad0;
+	Node0x632657495910 -> Node0x6326574affa0;
+	Node0x6326574a7390 [shape=record,label="{__cxa_pure_virtual}"];
+	Node0x632657494710 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x6326574a7090 [shape=record,label="{_Z17icMatrixInvert3x3Pf}"];
+	Node0x6326574b0ad0 [shape=record,label="{_Z22icVectorApplyMatrix3x3PfPKfS1_}"];
+	Node0x6326574affa0 [shape=record,label="{llvm.memset.p0.i64}"];
+	Node0x6326574a9f80 [shape=record,label="{_ZN18IIccMatrixInverterC2Ev}"];
+	Node0x6326574a6d60 [shape=record,label="{_ZN24CIccSimpleMatrixInverter6InvertEPftt}"];
+	Node0x6326574a6d60 -> Node0x6326574a7090;
+	Node0x63265749afd0 [shape=record,label="{_GLOBAL__sub_I_IccSolve.cpp}"];
+	Node0x63265749afd0 -> Node0x6326574a8c30;
+	Node0x63265749afd0 -> Node0x6326574aad50;
+}

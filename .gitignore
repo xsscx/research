@@ -141,3 +141,5 @@ xif/
 macos-research/
 xnuimagefuzzer/
 xnuimagetools/
+cfl/seeds-applyprofiles/
+wasm/
