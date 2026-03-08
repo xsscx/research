@@ -49,7 +49,13 @@ find . -name "*.gcda" -delete 2>/dev/null || true
 export CXX=clang++
 
 # ── Debug + Sanitizer + Coverage flags ────────────────────────────────
-SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
+# NO_SANITIZERS=1 disables ASAN/UBSAN (e.g. multi-arch Docker containers)
+if [ "${NO_SANITIZERS:-0}" = "1" ]; then
+  SANITIZERS=""
+  echo "[INFO] Sanitizers disabled (NO_SANITIZERS=1)"
+else
+  SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
+fi
 DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common"
 HARDENING="-fstack-protector-strong -D_FORTIFY_SOURCE=0"
 # NO_COVERAGE=1 disables gcov instrumentation (e.g. Docker containers)
@@ -82,7 +88,9 @@ LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/
 SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp"
 
 NPROC=$(nproc)
-if [ "${NO_COVERAGE:-0}" = "1" ]; then
+if [ "${NO_SANITIZERS:-0}" = "1" ] && [ "${NO_COVERAGE:-0}" = "1" ]; then
+  echo "Building iccAnalyzer-lite (no sanitizers, no coverage) using $NPROC cores..."
+elif [ "${NO_COVERAGE:-0}" = "1" ]; then
   echo "Building iccAnalyzer-lite with ASAN+UBSAN (no coverage) using $NPROC cores..."
 else
   echo "Building iccAnalyzer-lite with ASAN+UBSAN+Coverage using $NPROC cores..."
