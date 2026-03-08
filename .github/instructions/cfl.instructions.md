@@ -193,6 +193,22 @@ make -j32
 For per-fuzzer optimization details (input formats, coverage gaps, seed strategies,
 dead code), see `.github/prompts/fuzzer-optimization.prompt.md`.
 
+## Upstream Fix Coverage (54 PRs Audited, March 2026)
+
+92.6% of 54 upstream security fix PRs are covered by CFL fuzzers. Targeted seed
+profiles were added for the 4 weak areas:
+
+| PR | Bug | Seed Profiles | Target Fuzzers |
+|----|-----|---------------|----------------|
+| #632 | SBO CIccPcsXform::pushXYZConvert | `seed-pcsxform-lab-*.icc` | apply, link, profile |
+| #630 | SO CreateStruct recursion | `seed-nested-struct-deep.xml` | fromxml |
+| #616 | HUAF CIccCmm::AddXform | `seed-ownership-*.icc` | link |
+| #657 | UB CIccProfileSharedPtr | `seed-pcsxform-display-lab.icc` | apply, link, v5dspobs |
+
+Seed profiles are in `cfl/corpus-<fuzzer>/seed-*.icc` and `seed-*.xml`.
+These exercise: Lab/XYZ PCS conversion, deviceLink class, abstract profiles,
+CMYK→RGB channel mismatch, nested tag structures, and ownership edge cases.
+
 ## Dictionary Files
 
 Each fuzzer has a `.dict` file in `cfl/`. Key conventions:
