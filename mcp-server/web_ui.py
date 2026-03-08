@@ -52,6 +52,8 @@ from icc_profile_mcp import (  # noqa: E402
     _VALID_SANITIZERS,
     _VALID_VCPKG_SOURCES,
     analyze_security,
+    analyze_security_json,
+    analyze_security_report,
     cmake_build,
     cmake_configure,
     compare_profiles,
@@ -239,6 +241,28 @@ async def api_security(request: Request) -> Response:
         path = _validate_path(request.query_params.get("path", ""), "path")
         async with (await _get_semaphore()):
             result = await analyze_security(path)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_security_json(request: Request) -> Response:
+    """GET /api/security-json?path=<profile>"""
+    try:
+        path = _validate_path(request.query_params.get("path", ""), "path")
+        async with (await _get_semaphore()):
+            result = await analyze_security_json(path)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_security_report(request: Request) -> Response:
+    """GET /api/security-report?path=<profile>"""
+    try:
+        path = _validate_path(request.query_params.get("path", ""), "path")
+        async with (await _get_semaphore()):
+            result = await analyze_security_report(path)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -700,6 +724,8 @@ routes = [
     Route("/api/list", api_list, methods=["GET"]),
     Route("/api/inspect", api_inspect, methods=["GET"]),
     Route("/api/security", api_security, methods=["GET"]),
+    Route("/api/security-json", api_security_json, methods=["GET"]),
+    Route("/api/security-report", api_security_report, methods=["GET"]),
     Route("/api/roundtrip", api_roundtrip, methods=["GET"]),
     Route("/api/full", api_full, methods=["GET"]),
     Route("/api/xml", api_xml, methods=["GET"]),
