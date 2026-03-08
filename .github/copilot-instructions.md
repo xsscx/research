@@ -156,6 +156,54 @@ iccanalyzer-lite (H136-H138) detects them; colorbleed_tools may be hardened late
 If upstream also hangs → report upstream + create CFL patch.
 If upstream handles it → fuzzer-only alignment issue.
 
+### CWE-122 TIFF Image Reader Patterns in iccDEV
+
+**Theme**: TIFF parameters read from file (strip sizes, row counts, dimensions)
+must be cross-validated against each other before use as buffer offsets.
+
+8. **Strip buffer vs row geometry mismatch** — `CTiffImg::Open()` allocates
+   `m_pStripBuf` sized by `TIFFStripSize()` (from TIFF StripByteCounts tag), but
+   `ReadLine()` accesses `nRowOffset * m_nBytesPerLine` without bounds check.
+   A malformed TIFF with StripByteCounts < m_nRowsPerStrip × m_nBytesPerLine
+   causes heap-buffer-overflow in ReadLine()'s memcpy.
+   Fix: CFL-082 (validate `m_nStripSize >= m_nRowsPerStrip * m_nBytesPerLine`
+   in Open() after malloc). CWE-122 / CWE-125.
+   Affects: iccApplyProfiles, iccSpecSepToTiff, icc_tiffdump_fuzzer,
+   icc_specsep_fuzzer — any tool using `CTiffImg::ReadLine()`.
+   **iccTiffDump is NOT affected** — it reads TIFF metadata only.
+
+### Fuzzer Optimization Patterns
+
+Proven techniques for improving fuzzer coverage and crash discovery:
+
+1. **2-phase architecture** — Phase 1: lightweight in-memory parse (cheap, broad).
+   Phase 2: deep file-based analysis (expensive, targeted). Skip Phase 2 on
+   malformed input to maximize throughput. (Example: icc_tiffdump_fuzzer V3,
+   +16.6% edge coverage.)
+
+2. **OOM guards before tag iteration** — Validate before expensive loops:
+   - Skip profiles with `profileSize < 1024`
+   - Skip tags with `tSize > 256KB` or `tSize > profileSize`
+   - MPE amplification guard: `tSize * 1024 > profileSize` (catches CWE-789)
+   - Offset bounds: `tOffset + tSize > profileSize`
+
+3. **Dictionary consolidation** — Merge hand-curated format tokens with
+   auto-extracted corpus tokens. Deduplicate. All entries must use `\xHH` hex
+   escapes (NOT raw binary bytes — LibFuzzer rejects dicts with raw control chars).
+
+4. **Seed corpus diversity** — Add profiles exercising under-covered code paths:
+   high-dimensional (6+ channels), MPE calculator elements, spectral PCS,
+   named colors with large palettes, deeply nested tag structures.
+
+5. **Harvest pipeline** — Extract ICC profiles and TIFF files from xnuimagetools/
+   xnuimagefuzzer fuzzed-images and inject into CFL corpora:
+   ```bash
+   .github/scripts/harvest-xnu-seeds.sh              # local harvest
+   .github/scripts/harvest-xnu-seeds.sh --dry-run     # preview only
+   .github/scripts/harvest-xnu-seeds.sh --ramdisk /tmp/fuzz-ramdisk  # + deploy to ramdisk
+   ```
+   Both repos produce `cfl-seeds` artifacts in CI via `extract-icc-seeds.py`.
+
 ### WASM Build (Deferred)
 
 WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:
@@ -365,6 +413,9 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 ### Required analysis workflow for ICC profile issues
 When an issue asks to analyze an ICC profile, perform **two phases**:
 
+**Note**: For TIFF image files, use `./iccanalyzer-lite/iccanalyzer-lite -a <file.tif>` which
+auto-detects TIFF format, extracts embedded ICC profiles, and runs full 138-heuristic analysis.
+
 #### Phase 1 — MCP tool analysis (Copilot's independent review)
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
@@ -526,7 +577,7 @@ No manual intervention required — the entire pipeline is hands-free from issue
 This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
 
 - **cfl/** — 19 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 138-heuristic static/dynamic security analyzer (v3.3.1) built with full sanitizer instrumentation. 16 C++ modules (15,500+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories from 77+ CVEs. **Unit tests**: 155 tests in `run_tests.py` (38 synthesized corpus profiles, 30 heuristic trigger tests, ASAN corpus checks, mode coverage tests). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (5 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 4 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules. Heuristic code is split across 3 modules: `IccAnalyzerSecurity.cpp` (orchestrator + H1-H8, H15-H17), `IccHeuristicsLibrary.cpp` (H9-H32, H56-H138 via CIccProfile API), `IccHeuristicsRawPost.cpp` (H33-H69 raw file + fallback engine). H95-H102 target coverage-gap APIs: IccSparseMatrix, IccTagEmbedIcc, IccTagProfSeqId, IccMpeSpectral, IccProfile tag iteration. H103-H106 target coverage-gap APIs: IccPcc (viewing conditions), IccPrmg (gamut evaluation), IccMatrixMath (determinant/inversion), IccEnvVar (spectral ranges). H107-H115 feedback-driven: LUT channel/colorspace cross-check (CWE-121, patch 071 root cause), private tag identification (CWE-829), shellcode/NOP-sled patterns (CWE-506), class-required tag validation, reserved byte validation, wtpt D50 validation, round-trip fidelity, TRC curve monotonicity, characterization data presence. H116-H127 ICC feedback-driven: cprt/desc encoding per profile version (CWE-20), tag-type-per-signature validation, calculator computation cost estimate, round-trip ΔE measurement, curve invertibility, characterization data round-trip, deep tag encoding (XYZ ranges, measurement observer/geometry, chromaticity), non-required tag classification, version-tag correspondence, transform smoothness, private tag malware scan (CWE-506), private tag registry lookup. **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMD5.cpp unsigned wrapping). IccSignatureUtils.h UB fixed upstream in PR #648. **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **OOM patches**: 57 patches in cfl/patches/ (14 NO-OPs dropped during upstream sync + patch 069 re-used for CLUT interp bounds). Patch 067-068 cap allocation loops in IccTagXml.cpp and IccTagBasic.cpp (mluc, ProfileSeqDesc, ResponseCurveSet, MPE, Dict, ProfileSeqId). Patch 069 adds bounds checks to 7 CIccCLUT::Interp functions (SEGV fix). Patch 070 adds NaN guard to UnitClip. Patch 071 guards SBO in CIccApplyBPC::pixelXfm (XYZbp[3] overflow, CWE-121, SCARINESS 51). Next patch: 077. **Upstream sync**: CFL iccDEV pinned at `b5ade94` (upstream PRs #630-#639 + #648 DescribeColorSpaceSignature UB fix included). Dropped patches: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
+- **iccanalyzer-lite/** — 138-heuristic static/dynamic security analyzer (v3.4.0) built with full sanitizer instrumentation. 17 C++ modules (16,000+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories from 77+ CVEs. **TIFF image analysis** (v3.4.0): `-a` mode auto-detects TIFF files via magic bytes, extracts embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata/security checks, scans pixel data for xnuimagefuzzer injection signatures (10 INJECT_STRING patterns + ICC mutation markers), then runs full 138-heuristic analysis on extracted ICC. New `-img` mode for explicit image analysis. **Unit tests**: 172 tests in `run_tests.py` (41 synthesized corpus profiles, heuristic trigger tests, ASAN corpus checks, mode coverage tests). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (5 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 4 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules. Code split across 4 modules: `IccAnalyzerSecurity.cpp` (orchestrator + H1-H8, H15-H17), `IccHeuristicsLibrary.cpp` (H9-H32, H56-H138 via CIccProfile API), `IccHeuristicsRawPost.cpp` (H33-H69 raw file + fallback engine), `IccImageAnalyzer.cpp` (TIFF/PNG/JPEG image analysis with ICC extraction). H95-H102 target coverage-gap APIs: IccSparseMatrix, IccTagEmbedIcc, IccTagProfSeqId, IccMpeSpectral, IccProfile tag iteration. H103-H106 target coverage-gap APIs: IccPcc (viewing conditions), IccPrmg (gamut evaluation), IccMatrixMath (determinant/inversion), IccEnvVar (spectral ranges). H107-H115 feedback-driven: LUT channel/colorspace cross-check (CWE-121, patch 071 root cause), private tag identification (CWE-829), shellcode/NOP-sled patterns (CWE-506), class-required tag validation, reserved byte validation, wtpt D50 validation, round-trip fidelity, TRC curve monotonicity, characterization data presence. H116-H127 ICC feedback-driven: cprt/desc encoding per profile version (CWE-20), tag-type-per-signature validation, calculator computation cost estimate, round-trip ΔE measurement, curve invertibility, characterization data round-trip, deep tag encoding (XYZ ranges, measurement observer/geometry, chromaticity), non-required tag classification, version-tag correspondence, transform smoothness, private tag malware scan (CWE-506), private tag registry lookup. **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMD5.cpp unsigned wrapping). IccSignatureUtils.h UB fixed upstream in PR #648. **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **OOM patches**: 57 patches in cfl/patches/ (14 NO-OPs dropped during upstream sync + patch 069 re-used for CLUT interp bounds). Patch 067-068 cap allocation loops in IccTagXml.cpp and IccTagBasic.cpp (mluc, ProfileSeqDesc, ResponseCurveSet, MPE, Dict, ProfileSeqId). Patch 069 adds bounds checks to 7 CIccCLUT::Interp functions (SEGV fix). Patch 070 adds NaN guard to UnitClip. Patch 071 guards SBO in CIccApplyBPC::pixelXfm (XYZbp[3] overflow, CWE-121, SCARINESS 51). Next patch: 077. **Upstream sync**: CFL iccDEV pinned at `b5ade94` (upstream PRs #630-#639 + #648 DescribeColorSpaceSignature UB fix included). Dropped patches: 023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066.
 - **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
 - **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 22 tools: 9 analysis + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
 - **cfl/patches/** — 59 active security patches applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, XML parsing limits, CLUT interpolation bounds checks (Interp1d–6d + InterpND), NaN-to-integer cast guards (UnitClip), BPC black-point stack-buffer-overflow guard (pixelXfm), and Begin() return value NULL-deref guard (V5DspObsToV4Dsp), and XML channel count validation (icMBBFromXml). 14 patches dropped as NO-OPs during upstream sync (023, 027, 028, 029, 032, 039, 040, 041, 045, 055, 056, 058, 062, 066). Next patch: 077. See `cfl/patches/README.md` for full details.

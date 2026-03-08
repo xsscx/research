@@ -6,10 +6,15 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 138-heuristic ICC profile security analyzer (15,500+ LOC, C++17) built with full
+A 138-heuristic ICC profile security analyzer (16,000+ LOC, C++17) built with full
 ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles against
 ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE violations,
 malformed structures, and potential exploitation vectors.
+
+**v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
+embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
+checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
+138-heuristic analysis on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -25,20 +30,21 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 147 unit tests, ~3s
+python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
 - When adding heuristics, update the test for `summary.138_heuristics` pattern
 
-## Architecture — 3 Heuristic Modules
+## Architecture — 4 Modules (3 Heuristic + 1 Image Analysis)
 
 | Module | Heuristics | API Level |
 |--------|-----------|-----------|
 | `IccAnalyzerSecurity.cpp` | H1-H8, H15-H17 | Raw header bytes, orchestrator |
 | `IccHeuristicsLibrary.cpp` | H9-H32, H56-H138 | CIccProfile library API |
 | `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69 | Raw file I/O fallback |
+| `IccImageAnalyzer.cpp` | Image analysis | TIFF metadata, ICC extraction, injection scan |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
@@ -87,6 +93,40 @@ data beyond EOF.
 | H33-H55 | IccHeuristicsRawPost.cpp | Raw file I/O (tag overlaps, embedded images, duplicates) |
 | H56-H135 | IccHeuristicsLibrary.cpp | Spec compliance (ICC.1-2022-05 required tags, LUT validation) |
 | H136-H138 | IccHeuristicsLibrary.cpp | CWE-400 complexity (ResponseCurve, grid, calculator) |
+
+## Image Analysis (v3.4.0+)
+
+The `-a` mode auto-detects image files via magic bytes and routes to `IccImageAnalyzer.cpp`.
+The explicit `-img` mode also available. Currently supports TIFF; PNG/JPEG planned.
+
+### TIFF Analysis Pipeline
+1. **Metadata**: dimensions, BPS, SPP, compression, photometric, planar config,
+   sample format, orientation, strip/tile layout, software, datetime
+2. **Security checks**: extreme dimensions (>65535), zero dimensions, unusual BPS
+   (not 1/8/16/32), excessive SPP (>6), strip offset bounds, multi-IFD page counting
+3. **Injection scan**: 10 xnuimagefuzzer INJECT_STRING patterns (buffer overflow,
+   XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
+   BigTIFF-in-TIFF type confusion
+4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
+   ComprehensiveAnalyze() with all 138 heuristics
+
+### Format Detection (magic bytes)
+- TIFF LE: `II\x2a\x00` (0x49492a00)
+- TIFF BE: `MM\x00\x2a` (0x4d4d002a)
+- BigTIFF LE: `II\x2b\x00` (0x49492b00)
+- BigTIFF BE: `MM\x00\x2b` (0x4d4d002b)
+- PNG: `\x89PNG` (0x89504e47)
+- JPEG: `\xff\xd8\xff` (0xffd8ff)
+- ICC: `acsp` at offset 36 (0x61637370)
+
+### Usage
+```bash
+# Auto-detect (TIFF → image analyzer, ICC → profile analyzer)
+./iccanalyzer-lite -a image.tif
+
+# Explicit image analysis mode
+./iccanalyzer-lite -img image.tif
+```
 
 ## Heuristic Output Format
 
