@@ -69,18 +69,21 @@ Current upstream: commit **7db2273** (2026-03-07)
 - File: `cfl/patches/NNN-descriptive-name.patch`
 - Numbering: zero-padded 3-digit, sequential (next: **083**)
 - Format: unified diff against `cfl/iccDEV/`
-- 18 known NO-OP patches: 023, 027-029, 032, 039-041, 045, 047, 055-056, 058, 062, 064, 066, 070, 072
+- 68 patch files total (14 patch numbers deleted, 4 NO-OP files remain)
+- NO-OP patches deleted from directory: 023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066
   (upstreamed or made irrelevant by code changes)
-  New NO-OPs after upstream 7db2273: 047 (ApplySequence recurse, #652),
-  064 (ApplySequence HBO clamp, #652), 070 (UnitClip NaN, #654), 072 (v5dspobs Begin, #657)
+- NO-OP patches still in directory (silently skip via `--forward`): 047, 064, 070, 072
+  (upstreamed via PRs #652-#657: ApplySequence recurse, HBO clamp, UnitClip NaN, v5dspobs Begin)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
 - Latest active: CFL-082 (CTiffImg strip buffer bounds check)
-- **Reference-only (NOT in build.sh)**: CFL-077 through CFL-081 (CWE-400 upstream patterns)
+- CFL-077 through CFL-081 (CWE-400 upstream patterns) — patch files exist and ARE applied by build.sh:
   - CFL-077: ResponseCurveStruct nMeasurements cap (100K per channel)
   - CFL-078: NamedColor2 Describe() iteration cap (10K entries)
-  - CFL-079: ApplySequence() runtime depth limit (16) — **FAILED after #652, needs refresh**
+  - CFL-079: ApplySequence() runtime depth limit (16) — **may need refresh after #652**
   - CFL-080: XYZ/Chromaticity/ColorantTable Describe() output cap (1MB)
   - CFL-081: DescribeSequence() recursion depth limit (32)
+- **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
+  and handles all user-controllable inputs via its own defensive programming
 
 ### CFL-082: CTiffImg Strip Buffer Bounds Check
 
