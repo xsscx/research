@@ -12,8 +12,8 @@
  *
  * CVE mappings derived from 77 iccDEV security advisories (GHSA-* / CVE-2026-*).
  * 68 advisories have CVE IDs; 9 are GHSA-only.
- * 38 heuristics detect patterns from 46 unique CVEs (binary ICC analysis).
- * 22 CVEs are out of scope: 19 XML parser/serializer, 3 tool-specific.
+ * 39 heuristics detect patterns from 48 unique CVEs (binary ICC analysis).
+ * 20 CVEs are out of scope: 19 XML parser/serializer, 1 tool-specific (iccFromCube).
  * Validated 2026-03-08 against closed iccDEV issues and security advisories.
  */
 
@@ -122,7 +122,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 78, "CLUT Grid Dimension Overflow", nullptr, "CWE-190", "CVE-2026-21677,CVE-2026-22255", HeuristicPhase::DATA_VALIDATION},
   { 79, "Load Tag Allocation Overflow", nullptr, "CWE-190", "CVE-2026-21485", HeuristicPhase::DATA_VALIDATION},
   { 80, "Shared Tag Pointer UAF", nullptr, "CWE-416", "CVE-2026-21486,CVE-2026-21675", HeuristicPhase::DATA_VALIDATION},
-  { 81, "MPE Calculator IO Consistency", nullptr, "CWE-122", "CVE-2026-22047,CVE-2026-22861,CVE-2026-24405", HeuristicPhase::DATA_VALIDATION},
+  { 81, "MPE Calculator IO Consistency", nullptr, "CWE-122", "CVE-2026-21504,CVE-2026-22047,CVE-2026-22861,CVE-2026-24405", HeuristicPhase::DATA_VALIDATION},
   { 82, "IO Read Size Overflow", nullptr, "CWE-190", "CVE-2026-25582,CVE-2026-25583", HeuristicPhase::DATA_VALIDATION},
   { 83, "Float Numeric Array Size", nullptr, "CWE-125", "CVE-2026-25584", HeuristicPhase::DATA_VALIDATION},
   { 84, "LUT3D Transform Consistency", nullptr, "CWE-125", "CVE-2026-25585", HeuristicPhase::DATA_VALIDATION},
@@ -142,7 +142,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 98, "Spectral MPE Element Validation", nullptr, "CWE-787", nullptr, HeuristicPhase::DATA_VALIDATION},
   { 99, "Embedded Image Tag Validation", nullptr, "CWE-125", nullptr, HeuristicPhase::DATA_VALIDATION},
   {100, "Profile Sequence Desc Validation", nullptr, "CWE-787", nullptr, HeuristicPhase::DATA_VALIDATION},
-  {101, "MPE Sub Element Channel Continuity", nullptr, "CWE-787", nullptr, HeuristicPhase::DATA_VALIDATION},
+  {101, "MPE Sub Element Channel Continuity", nullptr, "CWE-787", "CVE-2026-21492", HeuristicPhase::DATA_VALIDATION},
   {102, "Tag Size Profile Size Cross Check", nullptr, "CWE-131", "CVE-2026-21676", HeuristicPhase::DATA_VALIDATION},
   {103, "PCC", nullptr, "CWE-20", nullptr, HeuristicPhase::PROFILE_COMPLIANCE},
   {104, "PRMG", nullptr, "CWE-20", nullptr, HeuristicPhase::PROFILE_COMPLIANCE},

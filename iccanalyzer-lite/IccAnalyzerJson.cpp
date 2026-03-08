@@ -191,7 +191,7 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   printf("      \"totalCVEReferences\": %d,\n", totalCveRefs);
   printf("      \"advisoryTotal\": 68,\n");
   printf("      \"outOfScopeXmlCVEs\": 19,\n");
-  printf("      \"outOfScopeToolCVEs\": 3\n");
+  printf("      \"outOfScopeToolCVEs\": 1\n");
   printf("    }\n");
   printf("  },\n");
   printf("  \"results\": [\n");
