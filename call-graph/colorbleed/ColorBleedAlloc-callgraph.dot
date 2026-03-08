@@ -1,0 +1,13 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/colorbleed/ColorBleedAlloc.ll" {
+	label="Call graph: /home/h02332/po/research/call-graph/colorbleed/ColorBleedAlloc.ll";
+
+	Node0x60e54e987230 [shape=record,label="{_Z9icReallocPvm}"];
+	Node0x60e54e987230 -> Node0x60e54e989640;
+	Node0x60e54e987230 -> Node0x60e54e989370;
+	Node0x60e54e987230 -> Node0x60e54e9892c0;
+	Node0x60e54e987230 -> Node0x60e54e98c580;
+	Node0x60e54e989640 [shape=record,label="{free}"];
+	Node0x60e54e989370 [shape=record,label="{fprintf}"];
+	Node0x60e54e9892c0 [shape=record,label="{llvm.threadlocal.address.p0}"];
+	Node0x60e54e98c580 [shape=record,label="{realloc}"];
+}

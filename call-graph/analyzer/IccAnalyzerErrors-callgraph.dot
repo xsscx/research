@@ -1,0 +1,31 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerErrors.ll" {
+	label="Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerErrors.ll";
+
+	Node0x57dbc26e9c30 [shape=record,label="{_Z22ErrorOutputDirRequiredv}"];
+	Node0x57dbc26e9c30 -> Node0x57dbc26e8f30;
+	Node0x57dbc26e8f30 [shape=record,label="{fprintf}"];
+	Node0x57dbc2699320 [shape=record,label="{_Z18ErrorInvalidFormatPKc}"];
+	Node0x57dbc2699320 -> Node0x57dbc26e8f30;
+	Node0x57dbc26e9240 [shape=record,label="{_Z17ErrorFileNotFoundPKc}"];
+	Node0x57dbc26e9240 -> Node0x57dbc26e8f30;
+	Node0x57dbc26e9240 -> Node0x57dbc26993a0;
+	Node0x57dbc26e9240 -> Node0x57dbc2699a90;
+	Node0x57dbc26993a0 [shape=record,label="{llvm.memset.p0.i64}"];
+	Node0x57dbc2699a90 [shape=record,label="{getcwd}"];
+	Node0x57dbc2699790 [shape=record,label="{_Z19ErrorPatternNoMatchPKc}"];
+	Node0x57dbc2699790 -> Node0x57dbc26e8f30;
+	Node0x57dbc2699cc0 [shape=record,label="{_Z21ErrorWatchDirNotFoundPKc}"];
+	Node0x57dbc2699cc0 -> Node0x57dbc26e8f30;
+	Node0x57dbc26ea190 [shape=record,label="{_Z22ErrorIccProfileInvalidPKcS0_}"];
+	Node0x57dbc26ea190 -> Node0x57dbc26e8f30;
+	Node0x57dbc26ea190 -> Node0x57dbc2699560;
+	Node0x57dbc2699560 [shape=record,label="{stat}"];
+	Node0x57dbc26eaad0 [shape=record,label="{_Z21ErrorPermissionDeniedPKc}"];
+	Node0x57dbc26eaad0 -> Node0x57dbc26e8f30;
+	Node0x57dbc26eaad0 -> Node0x57dbc2699560;
+	Node0x57dbc26ea9d0 [shape=record,label="{_Z21ErrorDatabaseNotFoundPKc}"];
+	Node0x57dbc26ea9d0 -> Node0x57dbc26e8f30;
+	Node0x57dbc26eb070 [shape=record,label="{_Z22ErrorDatabaseCorruptedPKc}"];
+	Node0x57dbc26eb070 -> Node0x57dbc26e8f30;
+	Node0x57dbc26eb070 -> Node0x57dbc2699560;
+}
