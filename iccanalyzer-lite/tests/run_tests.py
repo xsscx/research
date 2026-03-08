@@ -156,10 +156,11 @@ class TestSuite:
             if "runtime error:" in line:
                 # Filter out known upstream iccDEV UBSAN
                 if any(f in line for f in [
-                    "IccCAM.cpp",       # upstream div-by-zero
-                    "IccProfile.cpp",   # upstream div-by-zero
-                    "IccTagLut.cpp",    # upstream signed/unsigned overflow
-                    "IccMD5.cpp",       # MD5 intentional unsigned wrapping
+                    "IccCAM.cpp",         # upstream div-by-zero (m_WhitePoint[1])
+                    "IccProfile.cpp",     # upstream div-by-zero (m_illuminantXYZ.Y)
+                    "IccTagLut.cpp",      # upstream signed integer overflow (m_XYZMatrix)
+                    "IccMatrixMath.cpp",  # upstream NaN→unsigned short in SetRange
+                    "IccMD5.cpp",         # MD5 intentional unsigned wrapping
                 ]):
                     continue
                 return line.strip()
