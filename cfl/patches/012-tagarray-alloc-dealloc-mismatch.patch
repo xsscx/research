@@ -1,15 +1,15 @@
---- a/IccProfLib/IccTagComposite.cpp	2026-02-28 21:14:23.135086464 -0500
-+++ IccProfLib/IccTagComposite.cpp	2026-02-28 21:14:23.135086464 -0500
-@@ -1037,7 +1037,7 @@
-   m_nSize = 0;
- 
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1034,7 +1034,7 @@
+ CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
+ {
    if (tagAry.m_nSize) {
 -    m_TagVals = new IccTagPtr[tagAry.m_nSize];
 +    m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));
  
      icUInt32Number i;
      for (i=0; i<tagAry.m_nSize; i++) {
-@@ -1074,7 +1074,7 @@
+@@ -1071,7 +1071,7 @@
    Cleanup();
  
    if (tagAry.m_nSize) {
@@ -17,4 +17,4 @@
 +    m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));
  
      icUInt32Number i;
-     for (i=0; i<tagAry.m_nSize; i++) {
+     for (i=0; i<m_nSize; i++) {
