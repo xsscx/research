@@ -71,6 +71,18 @@ public:
                                         const void* analysis);
 
   /**
+   * Run analysis with captured per-heuristic XML output (pipe/dup2 pattern)
+   * Generates rich XML with individual heuristic results, severity, CWE, CVE refs
+   * @param profilePath Path to ICC profile
+   * @param xmlFilename Output XML filename
+   * @param fingerprint_db Optional fingerprint database path
+   * @return exit code from analysis
+   */
+  static int RunWithXMLOutput(const char* profilePath,
+                               const char* xmlFilename,
+                               const char* fingerprint_db);
+
+  /**
    * Write XSLT stylesheet to a stream (used by companion .xsl writer)
    */
   static void WriteXSLTStylesheet(std::ofstream& xml);
