@@ -6,11 +6,11 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 141-heuristic ICC profile security analyzer (20,000+ LOC across 27 C++ modules, C++17)
+A 141-heuristic ICC profile security analyzer (21,000+ LOC across 28 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
-44+ CWE categories and detect patterns from 46 CVEs across 77 iccDEV security advisories.
+44+ CWE categories and detect patterns from 48 CVEs across 77 iccDEV security advisories.
 
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
@@ -50,7 +50,7 @@ For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflow
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 171 unit tests, ~25s
+python3 iccanalyzer-lite/tests/run_tests.py   # 217 tests (18 functions), ~25s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -59,7 +59,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 171 unit tests, ~25s
 
 ## Architecture — 8 Heuristic Modules + 1 Image Analysis
 
-After v3.5.0 refactoring, heuristics are organized into standalone functions across
+After v3.6.0 refactoring, heuristics are organized into standalone functions across
 8 category modules. Each heuristic is a `RunHeuristic_H##_Name()` function.
 
 | Module | Heuristics | API Level |
@@ -79,9 +79,11 @@ After v3.5.0 refactoring, heuristics are organized into standalone functions acr
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 141-entry metadata registry (id, name, specRef, CWE, CVE refs, phase) |
+| `IccHeuristicsRegistry.h` | 141-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template + `RawFileHandle` RAII |
 | `IccAnalyzerJson.cpp/.h` | `--json` structured output mode |
+| `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
+| `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
@@ -98,7 +100,7 @@ After v3.5.0 refactoring, heuristics are organized into standalone functions acr
    - Image analysis → `IccImageAnalyzer.cpp`
 3. Add function declaration to the corresponding `.h` file
 4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
-5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase)
+5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
 6. Update heuristic count (141→142) in these files:
    - `IccAnalyzerSecurity.cpp` — CVE Coverage printf
    - `iccanalyzer-lite/tests/run_tests.py` — `summary.141_heuristics`
@@ -109,7 +111,7 @@ After v3.5.0 refactoring, heuristics are organized into standalone functions acr
    - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
 7. Add ICC spec citation in printf: `ICC.1-2022-05 §X.Y.Z`
 
-**Note**: After v3.5.0 refactoring, adding a new heuristic requires editing only
+**Note**: After v3.6.0 refactoring, adding a new heuristic requires editing only
 4 files (function + declaration + dispatcher + registry entry) instead of the
 previous 7+ file pattern.
 
@@ -151,24 +153,56 @@ TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
 
 ## CVE Coverage (77 iccDEV Advisories)
 
-38 heuristics detect patterns from 46 CVEs across the 77 iccDEV security advisories.
-22 CVEs are XML parser/serializer bugs (out of scope — binary ICC analyzer).
-4 CVEs are tool-specific (iccFromCube, iccEval). 5 are legacy (pre-iccDEV).
+39 heuristics detect patterns from 48 CVEs across the 77 iccDEV security advisories.
+19 CVEs are XML parser/serializer bugs (out of scope — binary ICC analyzer).
+1 CVE is tool-specific (iccFromCube). 5 are legacy (pre-iccDEV).
 
 CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
 Use `--json` mode for programmatic access to per-heuristic CVE mappings.
 
-## JSON Output Mode (v3.5.0+)
+## JSON Output Mode (v3.6.0+)
 
 ```bash
 ./iccanalyzer-lite --json profile.icc
 ```
 
 Emits structured JSON with per-heuristic results, registry metadata (specRef, CWE,
-CVE refs), and summary counts. Uses `pipe()`/`dup2()` stdout capture internally —
+CVE refs, severity), and summary counts. Uses `pipe()`/`dup2()` stdout capture internally —
 no heuristic function modifications needed. Suitable for MCP server, CI pipelines,
 and automated analysis.
-| H139-H141 | IccImageAnalyzer.cpp | TIFF image security (strip geometry, dimension/sample validation, IFD bounds) |
+
+## Report Output Mode (v3.6.0+)
+
+```bash
+./iccanalyzer-lite --report profile.icc
+```
+
+Emits a professional severity-sorted report with banner header, SHA-256 hash, build info,
+findings grouped by CRITICAL/HIGH/MEDIUM/LOW/INFO, CWE summary table, and CVE
+cross-reference section. Uses same pipe/dup2 capture pattern as --json and -xml.
+
+## XML Output Mode (v3.6.0+)
+
+```bash
+./iccanalyzer-lite -xml profile.icc output.xml
+```
+
+Generates per-heuristic XML with embedded dark-themed XSLT stylesheet. Each `<check>`
+element includes id, severity, CWE, CVE refs, spec reference, and detail text.
+XSLT renders as a professional dark-themed HTML report with severity color coding,
+executive summary cards, and findings table.
+
+## Severity Classification (v3.6.0+)
+
+All 141 heuristics are classified by CWE impact:
+- **CRITICAL** (~39): Memory corruption/RCE — CWE-122, CWE-787, CWE-416, CWE-190, CWE-506
+- **HIGH** (~34): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476
+- **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
+- **LOW** (~37): Spec compliance — CWE-20
+- **INFO** (3): Metadata — H16, H35, H108
+
+Severity field is included in `--json`, `--report`, and `-xml` output modes.
+`HeuristicSeverity` enum and `severity` field are defined in `IccHeuristicsRegistry.h`.
 
 ## Image Analysis (v3.4.0+)
 
