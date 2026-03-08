@@ -599,31 +599,26 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
 
   printf("[H109] NOP Sled / Shellcode Pattern Scan\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file for shellcode scan%s\n",
            ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
-
-  fseek(fp, 0, SEEK_END);
-  long fileSize = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
+  long fileSize = fh.fileSize;
 
   if (fileSize <= 128 || fileSize > 100 * 1024 * 1024) {
     printf("      %s[OK] File size %ld — skipping pattern scan%s\n",
            ColorSuccess(), fileSize, ColorReset());
-    fclose(fp);
     printf("\n");
     return 0;
   }
 
   size_t scanSize = (size_t)(fileSize > 10485760 ? 10485760 : fileSize);
   unsigned char *buf = (unsigned char *)malloc(scanSize);
-  if (!buf) { fclose(fp); printf("\n"); return 0; }
-  size_t bytesRead = fread(buf, 1, scanSize, fp);
-  fclose(fp);
+  if (!buf) { printf("\n"); return 0; }
+  size_t bytesRead = fread(buf, 1, scanSize, fh.fp);
 
   int nopSleds = 0;
   int elfHeaders = 0;
@@ -846,22 +841,20 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
 
   printf("[H111] Reserved Byte Validation\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
 
   unsigned char hdr[128];
-  if (fread(hdr, 1, 128, fp) != 128) {
+  if (fread(hdr, 1, 128, fh.fp) != 128) {
     printf("      %s[WARN]  File too small for ICC header%s\n",
            ColorWarning(), ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
-  fclose(fp);
 
   // ICC header bytes 44-47: reserved (shall be zero)
   bool reserved44_ok = (hdr[44] == 0 && hdr[45] == 0 && hdr[46] == 0 && hdr[47] == 0);

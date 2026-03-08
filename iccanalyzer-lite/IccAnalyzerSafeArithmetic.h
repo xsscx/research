@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERSAFEARITHMETIC_H
-#define _ICCANALYZERSAFEARITHMETIC_H
+#ifndef ICCANALYZERSAFEARITHMETIC_H
+#define ICCANALYZERSAFEARITHMETIC_H
 
 #include "IccDefs.h"
 #include <stdint.h>
@@ -158,4 +158,4 @@ inline bool SafeCast64to32(uint32_t *result, uint64_t value)
 #define ICCANALYZER_MAX_CLUT_ENTRIES    (16ULL << 20) // 16M entries
 #define ICCANALYZER_MAX_MPE_ELEMENTS    1024
 
-#endif // _ICCANALYZERSAFEARITHMETIC_H
+#endif // ICCANALYZERSAFEARITHMETIC_H

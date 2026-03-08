@@ -35,8 +35,8 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERVALIDATION_H
-#define _ICCANALYZERVALIDATION_H
+#ifndef ICCANALYZERVALIDATION_H
+#define ICCANALYZERVALIDATION_H
 
 int RoundTripAnalyze(const char *filename);
 int RecursiveScan(const char *directory, bool quiet = false, int depth = 0);

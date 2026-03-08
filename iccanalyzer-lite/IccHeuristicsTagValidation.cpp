@@ -11,6 +11,7 @@
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerSafeArithmetic.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccAnalyzerColors.h"
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
@@ -29,7 +30,6 @@
 #include <climits>
 #include <algorithm>
 #include <string>
-#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H9_CriticalTextTags(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -228,16 +228,13 @@ printf("      Checking for TagArrayType (0x74617279 = 'tary')\n");
 printf("      Note: Tag signature ≠ tag type - must check tag DATA\n");
 
 // Re-read file for raw tag type validation
-FILE *fp = fopen(filename, "rb");
-if (fp) {
-  // Get file size
-  fseek(fp, 0, SEEK_END);
-  size_t fileSize = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
+RawFileHandle fh = OpenRawFile(filename);
+if (fh) {
+  size_t fileSize = (size_t)fh.fileSize;
   
   if (fileSize >= 132) {
     icUInt8Number rawHdr[132];
-    if (fread(rawHdr, 1, 132, fp) == 132) {
+    if (fread(rawHdr, 1, 132, fh.fp) == 132) {
       icUInt32Number tagTableCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) | (static_cast<icUInt32Number>(rawHdr[129])<<16) | 
                                       (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
       
@@ -250,8 +247,8 @@ if (fp) {
         if (entryPos + 12 > fileSize) break;
         
         icUInt8Number entry[12];
-        fseek(fp, entryPos, SEEK_SET);
-        if (fread(entry, 1, 12, fp) != 12) break;
+        fseek(fh.fp, entryPos, SEEK_SET);
+        if (fread(entry, 1, 12, fh.fp) != 12) break;
         
         icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
         icUInt32Number tagOffset = (static_cast<icUInt32Number>(entry[4])<<24) | (static_cast<icUInt32Number>(entry[5])<<16) | (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
@@ -260,8 +257,8 @@ if (fp) {
         // Validate tag is within file bounds (overflow-safe check)
         if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
           icUInt8Number tagData[4];
-          fseek(fp, tagOffset, SEEK_SET);
-          if (fread(tagData, 1, 4, fp) == 4) {
+          fseek(fh.fp, tagOffset, SEEK_SET);
+          if (fread(tagData, 1, 4, fh.fp) == 4) {
             icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) | 
                                      (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
             
@@ -296,7 +293,6 @@ if (fp) {
       }
     }
   }
-  fclose(fp);
 } else {
   printf("      %s[WARN]  Cannot re-open file for tag type validation%s\n", ColorWarning(), ColorReset());
 }
@@ -392,8 +388,8 @@ int RunHeuristic_H20_TagTypeSignature(CIccProfile *pIcc, const char *filename) {
 printf("[H20] Tag Type Signature Validation\n");
 {
   int invalidTypeCount = 0;
-  FILE *fp20 = fopen(filename, "rb");
-  if (fp20) {
+  RawFileHandle fh20 = OpenRawFile(filename);
+  if (fh20) {
     TagEntryList::iterator it;
     for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
       IccTagEntry *e = &(*it);
@@ -402,8 +398,8 @@ printf("[H20] Tag Type Signature Validation\n");
       if (tagSize < 8) continue; // Too small for type+reserved
 
       icUInt8Number typeBuf[4] = {0};
-      if (fseek(fp20, tagOffset, SEEK_SET) == 0 &&
-          fread(typeBuf, 1, 4, fp20) == 4) {
+      if (fseek(fh20.fp, tagOffset, SEEK_SET) == 0 &&
+          fread(typeBuf, 1, 4, fh20.fp) == 4) {
         bool allPrintable = true;
         bool allZero = true;
         for (int b = 0; b < 4; b++) {
@@ -430,7 +426,6 @@ printf("[H20] Tag Type Signature Validation\n");
         }
       }
     }
-    fclose(fp20);
   }
   if (invalidTypeCount > 0) {
     heuristicCount += invalidTypeCount;
@@ -812,18 +807,14 @@ int RunHeuristic_H25_TagOffsetOOB(CIccProfile *pIcc, const char *filename) {
 // CVE refs: CVE-2026-25583 (HBO in CIccFileIO::Read8), CVE-2026-24852 (tag offset overflow)
 printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
 {
-  FILE *fp25 = fopen(filename, "rb");
-  if (fp25) {
-    fseek(fp25, 0, SEEK_END);
-    long realSize_l = ftell(fp25);
-    if (realSize_l < 0) { fclose(fp25); fp25 = NULL; }
-    size_t realSize = (fp25) ? (size_t)realSize_l : 0;
-    if (fp25) fseek(fp25, 0, SEEK_SET);
+  RawFileHandle fh25 = OpenRawFile(filename);
+  if (fh25) {
+    size_t realSize = (size_t)fh25.fileSize;
     
     int oobCount = 0;
     if (realSize >= 132) {
       icUInt8Number hdr25[132];
-      if (fread(hdr25, 1, 132, fp25) == 132) {
+      if (fread(hdr25, 1, 132, fh25.fp) == 132) {
         icUInt32Number hdrProfileSize = (static_cast<icUInt32Number>(hdr25[0])<<24) | (static_cast<icUInt32Number>(hdr25[1])<<16) |
                                         (static_cast<icUInt32Number>(hdr25[2])<<8) | hdr25[3];
         icUInt32Number tc = (static_cast<icUInt32Number>(hdr25[128])<<24) | (static_cast<icUInt32Number>(hdr25[129])<<16) |
@@ -835,8 +826,8 @@ printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
           if (ePos + 12 > realSize) break;
           
           icUInt8Number e25[12];
-          fseek(fp25, ePos, SEEK_SET);
-          if (fread(e25, 1, 12, fp25) != 12) break;
+          fseek(fh25.fp, ePos, SEEK_SET);
+          if (fread(e25, 1, 12, fh25.fp) != 12) break;
           
           icUInt32Number tSig = (static_cast<icUInt32Number>(e25[0])<<24) | (static_cast<icUInt32Number>(e25[1])<<16) |
                                 (static_cast<icUInt32Number>(e25[2])<<8) | e25[3];
@@ -863,7 +854,7 @@ printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
         }
       }
     }
-    if (fp25) fclose(fp25);
+
     
     if (oobCount > 0) {
       printf("      %s%d tag(s) reference data beyond file/profile bounds%s\n",
@@ -888,18 +879,14 @@ int RunHeuristic_H26_NamedColor2StringValidation(CIccProfile *pIcc, const char *
 // CVE refs: CVE-2026-21488 (non-null-terminated strings), CVE-2026-24852 (text overflow)
 printf("[H26] NamedColor2 String Validation\n");
 {
-  FILE *fp26 = fopen(filename, "rb");
-  if (fp26) {
-      fseek(fp26, 0, SEEK_END);
-      long fs26_l = ftell(fp26);
-      if (fs26_l < 0) { fclose(fp26); fp26 = NULL; }
-      size_t fs26 = (fp26) ? (size_t)fs26_l : 0;
-      if (fp26) fseek(fp26, 0, SEEK_SET);
+  RawFileHandle fh26 = OpenRawFile(filename);
+  if (fh26) {
+      size_t fs26 = (size_t)fh26.fileSize;
       
       int nc2Issues = 0;
       if (fs26 >= 132) {
         icUInt8Number hdr26[132];
-        if (fread(hdr26, 1, 132, fp26) == 132) {
+        if (fread(hdr26, 1, 132, fh26.fp) == 132) {
           icUInt32Number tc26 = (static_cast<icUInt32Number>(hdr26[128])<<24) | (static_cast<icUInt32Number>(hdr26[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr26[130])<<8) | hdr26[131];
           
@@ -908,8 +895,8 @@ printf("[H26] NamedColor2 String Validation\n");
             if (ePos + 12 > fs26) break;
             
             icUInt8Number e26[12];
-            fseek(fp26, ePos, SEEK_SET);
-            if (fread(e26, 1, 12, fp26) != 12) break;
+            fseek(fh26.fp, ePos, SEEK_SET);
+            if (fread(e26, 1, 12, fh26.fp) != 12) break;
             
             icUInt32Number tOff26 = (static_cast<icUInt32Number>(e26[4])<<24) | (static_cast<icUInt32Number>(e26[5])<<16) |
                                     (static_cast<icUInt32Number>(e26[6])<<8) | e26[7];
@@ -919,8 +906,8 @@ printf("[H26] NamedColor2 String Validation\n");
             // Read first 4 bytes of tag data to check type
             if (tOff26 + 4 > fs26 || tSz26 < 84) continue;
             icUInt8Number typeCheck[4];
-            fseek(fp26, tOff26, SEEK_SET);
-            if (fread(typeCheck, 1, 4, fp26) != 4) continue;
+            fseek(fh26.fp, tOff26, SEEK_SET);
+            if (fread(typeCheck, 1, 4, fh26.fp) != 4) continue;
             icUInt32Number tagType26 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
                                        (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
             if (tagType26 != 0x6E636C32) continue;  // Not 'ncl2' type
@@ -928,9 +915,9 @@ printf("[H26] NamedColor2 String Validation\n");
             
             // NamedColor2: type(4)+reserved(4)+vendorFlags(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
             icUInt8Number prefix[32], suffix[32];
-            fseek(fp26, tOff26 + 20, SEEK_SET);
-            if (fread(prefix, 1, 32, fp26) != 32) continue;
-            if (fread(suffix, 1, 32, fp26) != 32) continue;
+            fseek(fh26.fp, tOff26 + 20, SEEK_SET);
+            if (fread(prefix, 1, 32, fh26.fp) != 32) continue;
+            if (fread(suffix, 1, 32, fh26.fp) != 32) continue;
             
             // Count XML-expandable chars: ' " & < > expand to 4-6 chars in icFixXml
             auto countXmlExpand = [](const icUInt8Number *buf, int len) -> int {
@@ -1000,7 +987,7 @@ printf("[H26] NamedColor2 String Validation\n");
           }
         }
       }
-      if (fp26) fclose(fp26);
+
       
       if (nc2Issues > 0) {
         heuristicCount += nc2Issues;
@@ -1100,18 +1087,14 @@ int RunHeuristic_H28_LUTDimensionValidation(CIccProfile *pIcc, const char *filen
 // LUT8 type='mft1', LUT16 type='mft2': nInput/nOutput/nGrid parsed from raw bytes
 printf("[H28] LUT Dimension Validation (OOM Risk)\n");
 {
-  FILE *fp28 = fopen(filename, "rb");
-  if (fp28) {
-    fseek(fp28, 0, SEEK_END);
-    long fs28_l = ftell(fp28);
-    if (fs28_l < 0) { fclose(fp28); fp28 = NULL; }
-    size_t fs28 = (fp28) ? (size_t)fs28_l : 0;
-    if (fp28) fseek(fp28, 0, SEEK_SET);
+  RawFileHandle fh28 = OpenRawFile(filename);
+  if (fh28) {
+    size_t fs28 = (size_t)fh28.fileSize;
 
     int lutIssues = 0;
     if (fs28 >= 132) {
       icUInt8Number hdr28[132];
-      if (fread(hdr28, 1, 132, fp28) == 132) {
+      if (fread(hdr28, 1, 132, fh28.fp) == 132) {
         icUInt32Number tc28 = (static_cast<icUInt32Number>(hdr28[128])<<24) | (static_cast<icUInt32Number>(hdr28[129])<<16) |
                               (static_cast<icUInt32Number>(hdr28[130])<<8) | hdr28[131];
 
@@ -1120,8 +1103,8 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
           if (ePos + 12 > fs28) break;
 
           icUInt8Number e28[12];
-          fseek(fp28, ePos, SEEK_SET);
-          if (fread(e28, 1, 12, fp28) != 12) break;
+          fseek(fh28.fp, ePos, SEEK_SET);
+          if (fread(e28, 1, 12, fh28.fp) != 12) break;
 
           icUInt32Number tOff28 = (static_cast<icUInt32Number>(e28[4])<<24) | (static_cast<icUInt32Number>(e28[5])<<16) |
                                   (static_cast<icUInt32Number>(e28[6])<<8) | e28[7];
@@ -1131,8 +1114,8 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
           // Need at least type(4) + reserved(4) + nInput(1) + nOutput(1) + nGrid(1) = 11 bytes
           if (tOff28 + 11 > fs28 || tSz28 < 11) continue;
           icUInt8Number lutHdr[11];
-          fseek(fp28, tOff28, SEEK_SET);
-          if (fread(lutHdr, 1, 11, fp28) != 11) continue;
+          fseek(fh28.fp, tOff28, SEEK_SET);
+          if (fread(lutHdr, 1, 11, fh28.fp) != 11) continue;
 
           icUInt32Number lutType = (static_cast<icUInt32Number>(lutHdr[0])<<24) | (static_cast<icUInt32Number>(lutHdr[1])<<16) |
                                    (static_cast<icUInt32Number>(lutHdr[2])<<8) | lutHdr[3];
@@ -1194,7 +1177,7 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
         }
       }
     }
-    if (fp28) fclose(fp28);
+
 
     if (lutIssues > 0) {
       heuristicCount += lutIssues;
@@ -1216,18 +1199,14 @@ int RunHeuristic_H29_ColorantTableStringValidation(CIccProfile *pIcc, const char
 // CVE-2026-27692 (HBO in TextDescription from unterminated strings)
 printf("[H29] ColorantTable String Validation\n");
 {
-  FILE *fp29 = fopen(filename, "rb");
-  if (fp29) {
-    fseek(fp29, 0, SEEK_END);
-    long fs29_l = ftell(fp29);
-    if (fs29_l < 0) { fclose(fp29); fp29 = NULL; }
-    size_t fs29 = (fp29) ? (size_t)fs29_l : 0;
-    if (fp29) fseek(fp29, 0, SEEK_SET);
+  RawFileHandle fh29 = OpenRawFile(filename);
+  if (fh29) {
+    size_t fs29 = (size_t)fh29.fileSize;
 
     int clrtIssues = 0;
     if (fs29 >= 132) {
       icUInt8Number hdr29[132];
-      if (fread(hdr29, 1, 132, fp29) == 132) {
+      if (fread(hdr29, 1, 132, fh29.fp) == 132) {
         icUInt32Number tc29 = (static_cast<icUInt32Number>(hdr29[128])<<24) | (static_cast<icUInt32Number>(hdr29[129])<<16) |
                               (static_cast<icUInt32Number>(hdr29[130])<<8) | hdr29[131];
 
@@ -1236,8 +1215,8 @@ printf("[H29] ColorantTable String Validation\n");
           if (ePos + 12 > fs29) break;
 
           icUInt8Number e29[12];
-          fseek(fp29, ePos, SEEK_SET);
-          if (fread(e29, 1, 12, fp29) != 12) break;
+          fseek(fh29.fp, ePos, SEEK_SET);
+          if (fread(e29, 1, 12, fh29.fp) != 12) break;
 
           icUInt32Number tOff29 = (static_cast<icUInt32Number>(e29[4])<<24) | (static_cast<icUInt32Number>(e29[5])<<16) |
                                   (static_cast<icUInt32Number>(e29[6])<<8) | e29[7];
@@ -1247,8 +1226,8 @@ printf("[H29] ColorantTable String Validation\n");
           // Read type signature
           if (tOff29 + 12 > fs29 || tSz29 < 12) continue;
           icUInt8Number typeCheck29[12];
-          fseek(fp29, tOff29, SEEK_SET);
-          if (fread(typeCheck29, 1, 12, fp29) != 12) continue;
+          fseek(fh29.fp, tOff29, SEEK_SET);
+          if (fread(typeCheck29, 1, 12, fh29.fp) != 12) continue;
 
           icUInt32Number tagType29 = (static_cast<icUInt32Number>(typeCheck29[0])<<24) | (static_cast<icUInt32Number>(typeCheck29[1])<<16) |
                                       (static_cast<icUInt32Number>(typeCheck29[2])<<8) | typeCheck29[3];
@@ -1274,8 +1253,8 @@ printf("[H29] ColorantTable String Validation\n");
             if (namePos + 32 > fs29) break;
 
             icUInt8Number name29[32];
-            fseek(fp29, namePos, SEEK_SET);
-            if (fread(name29, 1, 32, fp29) != 32) break;
+            fseek(fh29.fp, namePos, SEEK_SET);
+            if (fread(name29, 1, 32, fh29.fp) != 32) break;
 
             bool hasNull = false;
             for (int j = 0; j < 32; j++) {
@@ -1292,7 +1271,7 @@ printf("[H29] ColorantTable String Validation\n");
         }
       }
     }
-    if (fp29) fclose(fp29);
+
 
     if (clrtIssues > 0) {
       heuristicCount += clrtIssues;
@@ -1313,18 +1292,14 @@ int RunHeuristic_H30_GamutBoundaryDescAllocation(CIccProfile *pIcc, const char *
 // CVE refs: GHSA-rc3h-95ph-j363 (OOM via unvalidated triangle count in 'gbd ' tags)
 printf("[H30] GamutBoundaryDesc Allocation Validation\n");
 {
-  FILE *fp30 = fopen(filename, "rb");
-  if (fp30) {
-    fseek(fp30, 0, SEEK_END);
-    long fs30_l = ftell(fp30);
-    if (fs30_l < 0) { fclose(fp30); fp30 = NULL; }
-    size_t fs30 = (fp30) ? (size_t)fs30_l : 0;
-    if (fp30) fseek(fp30, 0, SEEK_SET);
+  RawFileHandle fh30 = OpenRawFile(filename);
+  if (fh30) {
+    size_t fs30 = (size_t)fh30.fileSize;
 
     int gbdIssues = 0;
     if (fs30 >= 132) {
       icUInt8Number hdr30[132];
-      if (fread(hdr30, 1, 132, fp30) == 132) {
+      if (fread(hdr30, 1, 132, fh30.fp) == 132) {
         icUInt32Number tc30 = (static_cast<icUInt32Number>(hdr30[128])<<24) | (static_cast<icUInt32Number>(hdr30[129])<<16) |
                               (static_cast<icUInt32Number>(hdr30[130])<<8) | hdr30[131];
 
@@ -1333,8 +1308,8 @@ printf("[H30] GamutBoundaryDesc Allocation Validation\n");
           if (ePos + 12 > fs30) break;
 
           icUInt8Number e30[12];
-          fseek(fp30, ePos, SEEK_SET);
-          if (fread(e30, 1, 12, fp30) != 12) break;
+          fseek(fh30.fp, ePos, SEEK_SET);
+          if (fread(e30, 1, 12, fh30.fp) != 12) break;
 
           icUInt32Number tOff30 = (static_cast<icUInt32Number>(e30[4])<<24) | (static_cast<icUInt32Number>(e30[5])<<16) |
                                   (static_cast<icUInt32Number>(e30[6])<<8) | e30[7];
@@ -1344,8 +1319,8 @@ printf("[H30] GamutBoundaryDesc Allocation Validation\n");
           // 'gbd ' type header: type(4)+reserved(4)+reserved(4)+nVertices(4)+nTriangles(4)+nPCSCh(2)+nDevCh(2) = 24 bytes
           if (tOff30 + 24 > fs30 || tSz30 < 24) continue;
           icUInt8Number gbdHdr[24];
-          fseek(fp30, tOff30, SEEK_SET);
-          if (fread(gbdHdr, 1, 24, fp30) != 24) continue;
+          fseek(fh30.fp, tOff30, SEEK_SET);
+          if (fread(gbdHdr, 1, 24, fh30.fp) != 24) continue;
 
           icUInt32Number gbdType = (static_cast<icUInt32Number>(gbdHdr[0])<<24) | (static_cast<icUInt32Number>(gbdHdr[1])<<16) |
                                    (static_cast<icUInt32Number>(gbdHdr[2])<<8) | gbdHdr[3];
@@ -1391,7 +1366,7 @@ printf("[H30] GamutBoundaryDesc Allocation Validation\n");
         }
       }
     }
-    if (fp30) fclose(fp30);
+
 
     if (gbdIssues > 0) {
       heuristicCount += gbdIssues;
@@ -1479,18 +1454,14 @@ int RunHeuristic_H32_TagDataTypeConfusion(CIccProfile *pIcc, const char *filenam
 // Checks that tag type signatures are valid printable ICC 4CC codes
 printf("[H32] Tag Data Type Confusion Detection\n");
 {
-  FILE *fp32 = fopen(filename, "rb");
-  if (fp32) {
-    fseek(fp32, 0, SEEK_END);
-    long fs32_l = ftell(fp32);
-    if (fs32_l < 0) { fclose(fp32); fp32 = NULL; }
-    size_t fs32 = (fp32) ? (size_t)fs32_l : 0;
-    if (fp32) fseek(fp32, 0, SEEK_SET);
+  RawFileHandle fh32 = OpenRawFile(filename);
+  if (fh32) {
+    size_t fs32 = (size_t)fh32.fileSize;
 
     int typeConfusionCount = 0;
     if (fs32 >= 132) {
       icUInt8Number hdr32[132];
-      if (fread(hdr32, 1, 132, fp32) == 132) {
+      if (fread(hdr32, 1, 132, fh32.fp) == 132) {
         icUInt32Number tc32 = (static_cast<icUInt32Number>(hdr32[128])<<24) | (static_cast<icUInt32Number>(hdr32[129])<<16) |
                               (static_cast<icUInt32Number>(hdr32[130])<<8) | hdr32[131];
 
@@ -1549,8 +1520,8 @@ printf("[H32] Tag Data Type Confusion Detection\n");
           if (ePos + 12 > fs32) break;
 
           icUInt8Number e32[12];
-          fseek(fp32, ePos, SEEK_SET);
-          if (fread(e32, 1, 12, fp32) != 12) break;
+          fseek(fh32.fp, ePos, SEEK_SET);
+          if (fread(e32, 1, 12, fh32.fp) != 12) break;
 
           icUInt32Number tSig32 = (static_cast<icUInt32Number>(e32[0])<<24) | (static_cast<icUInt32Number>(e32[1])<<16) |
                                   (static_cast<icUInt32Number>(e32[2])<<8) | e32[3];
@@ -1561,8 +1532,8 @@ printf("[H32] Tag Data Type Confusion Detection\n");
 
           if (tOff32 + 4 > fs32 || tSz32 < 4) continue;
           icUInt8Number typeData32[4];
-          fseek(fp32, tOff32, SEEK_SET);
-          if (fread(typeData32, 1, 4, fp32) != 4) continue;
+          fseek(fh32.fp, tOff32, SEEK_SET);
+          if (fread(typeData32, 1, 4, fh32.fp) != 4) continue;
 
           icUInt32Number dataType32 = (static_cast<icUInt32Number>(typeData32[0])<<24) | (static_cast<icUInt32Number>(typeData32[1])<<16) |
                                        (static_cast<icUInt32Number>(typeData32[2])<<8) | typeData32[3];
@@ -1601,7 +1572,7 @@ printf("[H32] Tag Data Type Confusion Detection\n");
         }
       }
     }
-    if (fp32) fclose(fp32);
+
 
     if (typeConfusionCount > 0) {
       heuristicCount += typeConfusionCount;

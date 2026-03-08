@@ -35,10 +35,19 @@
  * Contact: https://hoyt.net
  */
 
-#ifndef _ICCANALYZERCOMMON_H
-#define _ICCANALYZERCOMMON_H
+#ifndef ICCANALYZERCOMMON_H
+#define ICCANALYZERCOMMON_H
 
 #include <cstdio>
+
+// --- Version ---
+#define ICCANALYZER_VERSION       "3.5.1"
+#define ICCANALYZER_VERSION_FULL  "iccAnalyzer-lite v" ICCANALYZER_VERSION
+
+// --- Heuristic return codes ---
+#define HEURISTIC_PASS    0
+#define HEURISTIC_FINDING 1
+#define HEURISTIC_ERROR  -1
 
 // Lite version: Disable fingerprint database and metrics
 // Define ICCANALYZER_LITE at compile time to create distribution binary
@@ -91,4 +100,4 @@
     } \
   } while(0)
 
-#endif // _ICCANALYZERCOMMON_H
+#endif // ICCANALYZERCOMMON_H

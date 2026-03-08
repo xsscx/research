@@ -15,6 +15,7 @@
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerHeuristics.h"
+#include "IccHeuristicsHelpers.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -39,12 +40,11 @@ extern void ResetAllocGuard();
 // ═══════════════════════════════════════════════════════════════════════
 
 ImageFormat DetectFileFormat(const char *filepath) {
-  FILE *f = fopen(filepath, "rb");
-  if (!f) return ImageFormat::UNKNOWN;
+  RawFileHandle fh = OpenRawFile(filepath);
+  if (!fh) return ImageFormat::UNKNOWN;
 
   uint8_t magic[40] = {0};
-  size_t n = fread(magic, 1, sizeof(magic), f);
-  fclose(f);
+  size_t n = fread(magic, 1, sizeof(magic), fh.fp);
 
   if (n < 4) return ImageFormat::UNKNOWN;
 

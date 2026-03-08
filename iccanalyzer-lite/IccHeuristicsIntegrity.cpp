@@ -11,6 +11,7 @@
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerSafeArithmetic.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccAnalyzerColors.h"
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
@@ -31,7 +32,6 @@
 #include <string>
 #include <set>
 #include <map>
-#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -548,8 +548,8 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
     (icTagSignature)0
   };
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      [INFO] Cannot open file for private tag scan\n\n");
     return 0;
   }
@@ -588,8 +588,8 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
     if (size < 4 || size > 10 * 1024 * 1024 || offset < 128) continue;
 
     std::vector<unsigned char> buf(size < 65536 ? size : 65536);
-    if (fseek(fp, offset, SEEK_SET) != 0) continue;
-    size_t bytesRead = fread(buf.data(), 1, buf.size(), fp);
+    if (fseek(fh.fp, offset, SEEK_SET) != 0) continue;
+    size_t bytesRead = fread(buf.data(), 1, buf.size(), fh.fp);
     if (bytesRead < 4) continue;
 
     privateScanned++;
@@ -618,8 +618,6 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
       }
     }
   }
-
-  fclose(fp);
 
   if (findings == 0 && privateScanned > 0) {
     printf("      %s[OK] %d private tag(s) scanned — no malware signatures found%s\n",
@@ -753,22 +751,20 @@ int RunHeuristic_H128_VersionBCD(const char *filename) {
 
   printf("[H128] Version BCD Encoding Validation\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
 
   unsigned char hdr[12];
-  if (fread(hdr, 1, 12, fp) != 12) {
+  if (fread(hdr, 1, 12, fh.fp) != 12) {
     printf("      %s[WARN]  File too small for version field%s\n",
            ColorWarning(), ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
-  fclose(fp);
 
   unsigned char major = hdr[8];
   unsigned char minorBugfix = hdr[9];
@@ -826,22 +822,20 @@ int RunHeuristic_H129_PCSIlluminantD50(const char *filename) {
 
   printf("[H129] PCS Illuminant Exact D50 Check\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
 
   unsigned char hdr[80];
-  if (fread(hdr, 1, 80, fp) != 80) {
+  if (fread(hdr, 1, 80, fh.fp) != 80) {
     printf("      %s[WARN]  File too small for illuminant field%s\n",
            ColorWarning(), ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
-  fclose(fp);
 
   // Read s15Fixed16Number values from bytes 68-79
   int32_t rawX = (int32_t)((uint32_t)hdr[68] << 24 | (uint32_t)hdr[69] << 16 |
@@ -898,27 +892,24 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
 
   printf("[H130] Tag Data 4-Byte Alignment\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
 
-  fseek(fp, 0, SEEK_END);
-  long fsz_l = ftell(fp);
-  if (fsz_l < 132) {
+  if (fh.fileSize < 132) {
     printf("      %s[WARN]  File too small for tag table%s\n",
            ColorWarning(), ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
-  size_t fsz = (size_t)fsz_l;
+  size_t fsz = (size_t)fh.fileSize;
 
   unsigned char tcBuf[4];
-  fseek(fp, 128, SEEK_SET);
-  if (fread(tcBuf, 1, 4, fp) != 4) { fclose(fp); printf("\n"); return 1; }
+  fseek(fh.fp, 128, SEEK_SET);
+  if (fread(tcBuf, 1, 4, fh.fp) != 4) { printf("\n"); return 1; }
 
   uint32_t tagCount = ((uint32_t)tcBuf[0] << 24) | ((uint32_t)tcBuf[1] << 16) |
                       ((uint32_t)tcBuf[2] << 8)  | tcBuf[3];
@@ -926,7 +917,6 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
   if (tagCount > 1000) {
     printf("      %s[WARN]  Tag count %u too large — skipping%s\n",
            ColorWarning(), tagCount, ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
@@ -939,8 +929,8 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
     if (ePos + 12 > fsz) break;
 
     unsigned char entry[12];
-    fseek(fp, (long)ePos, SEEK_SET);
-    if (fread(entry, 1, 12, fp) != 12) break;
+    fseek(fh.fp, (long)ePos, SEEK_SET);
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
 
     uint32_t offset = ((uint32_t)entry[4] << 24) | ((uint32_t)entry[5] << 16) |
                       ((uint32_t)entry[6] << 8)  | entry[7];
@@ -955,8 +945,6 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
       misaligned++;
     }
   }
-
-  fclose(fp);
 
   if (misaligned > 0) {
     printf("      %s[WARN]  %d of %d tag(s) misaligned (ICC.1-2022-05 §7.3.1)%s\n",
@@ -983,27 +971,24 @@ int RunHeuristic_H131_ProfileIdMD5(const char *filename) {
 
   printf("[H131] Profile ID (MD5) Validation\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
     printf("\n");
     return 1;
   }
 
-  fseek(fp, 0, SEEK_END);
-  long fsz_l = ftell(fp);
-  if (fsz_l < 128) {
+  if (fh.fileSize < 128) {
     printf("      %s[WARN]  File too small for header%s\n",
            ColorWarning(), ColorReset());
-    fclose(fp);
     printf("\n");
     return 1;
   }
 
   // Read stored Profile ID from bytes 84-99
   unsigned char storedId[16];
-  fseek(fp, 84, SEEK_SET);
-  if (fread(storedId, 1, 16, fp) != 16) { fclose(fp); printf("\n"); return 1; }
+  fseek(fh.fp, 84, SEEK_SET);
+  if (fread(storedId, 1, 16, fh.fp) != 16) { printf("\n"); return 1; }
 
   bool idIsZero = true;
   for (int i = 0; i < 16; i++) {
@@ -1018,12 +1003,9 @@ int RunHeuristic_H131_ProfileIdMD5(const char *filename) {
     printf("      %s[INFO] Profile ID is all zeros (not computed)%s\n",
            ColorInfo(), ColorReset());
     printf("       ICC.1-2022-05 §7.2.18: ID may be zero if not computed\n");
-    fclose(fp);
     printf("\n");
     return 0;
   }
-
-  fclose(fp);
 
   // Use iccDEV library's CalcProfileID — handles zeroing fields per §7.2.18
   icProfileID computedId;
@@ -1141,8 +1123,8 @@ int RunHeuristic_H133_FlagsReservedBits(const char *filename) {
   int heuristicCount = 0;
   printf("[H133] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11)\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
@@ -1150,13 +1132,11 @@ int RunHeuristic_H133_FlagsReservedBits(const char *filename) {
 
   // Profile flags at offset 44 (4 bytes big-endian)
   icUInt8Number flagBytes[4] = {};
-  if (fseek(fp, 44, SEEK_SET) != 0 || fread(flagBytes, 1, 4, fp) != 4) {
-    fclose(fp);
+  if (fseek(fh.fp, 44, SEEK_SET) != 0 || fread(flagBytes, 1, 4, fh.fp) != 4) {
     printf("      %s[SKIP] Cannot read flags at offset 44%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
   }
-  fclose(fp);
 
   icUInt32Number flags = (static_cast<icUInt32Number>(flagBytes[0]) << 24) |
                          (static_cast<icUInt32Number>(flagBytes[1]) << 16) |
@@ -1198,8 +1178,8 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
     return 0;
   }
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
@@ -1207,8 +1187,7 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
 
   // Read tag count from offset 128
   icUInt8Number tcBytes[4] = {};
-  if (fseek(fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fp) != 4) {
-    fclose(fp);
+  if (fseek(fh.fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fh.fp) != 4) {
     printf("      %s[SKIP] Cannot read tag count%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
@@ -1219,7 +1198,6 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
                             tcBytes[3];
 
   if (tagCount > 200) {
-    fclose(fp);
     printf("      %s[SKIP] Tag count %u too high for safe iteration%s\n",
            ColorWarning(), tagCount, ColorReset());
     printf("\n");
@@ -1227,8 +1205,7 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
   }
 
   // Get file size for bounds checking
-  fseek(fp, 0, SEEK_END);
-  long fileSize = ftell(fp);
+  long fileSize = fh.fileSize;
 
   int violations = 0;
   int checked = 0;
@@ -1236,7 +1213,7 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
   // Read each tag entry (12 bytes each starting at offset 132)
   for (icUInt32Number t = 0; t < tagCount; t++) {
     icUInt8Number tagEntry[12] = {};
-    if (fseek(fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fp) != 12)
+    if (fseek(fh.fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fh.fp) != 12)
       continue;
 
     icUInt32Number offset = (static_cast<icUInt32Number>(tagEntry[4]) << 24) |
@@ -1253,7 +1230,7 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
 
     // Read bytes 4-7 of the tag data (reserved per §10.1)
     icUInt8Number reserved[4] = {};
-    if (fseek(fp, offset + 4, SEEK_SET) != 0 || fread(reserved, 1, 4, fp) != 4)
+    if (fseek(fh.fp, offset + 4, SEEK_SET) != 0 || fread(reserved, 1, 4, fh.fp) != 4)
       continue;
 
     checked++;
@@ -1266,8 +1243,6 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
       violations++;
     }
   }
-
-  fclose(fp);
 
   if (violations > 0) {
     printf("      %s%d of %d tags have non-zero reserved bytes — ICC.1-2022-05 §10.1%s\n",
@@ -1294,8 +1269,8 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
   int heuristicCount = 0;
   printf("[H135] Duplicate Tag Signatures (ICC.1-2022-05 §7.3.1)\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      %s[SKIP] Cannot open file%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
@@ -1303,8 +1278,7 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
 
   // Read tag count from offset 128
   icUInt8Number tcBytes[4] = {};
-  if (fseek(fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fp) != 4) {
-    fclose(fp);
+  if (fseek(fh.fp, 128, SEEK_SET) != 0 || fread(tcBytes, 1, 4, fh.fp) != 4) {
     printf("      %s[SKIP] Cannot read tag count%s\n", ColorWarning(), ColorReset());
     printf("\n");
     return 0;
@@ -1315,7 +1289,6 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
                             tcBytes[3];
 
   if (tagCount > 200) {
-    fclose(fp);
     printf("      %s[SKIP] Tag count %u too high for safe iteration%s\n",
            ColorWarning(), tagCount, ColorReset());
     printf("\n");
@@ -1328,7 +1301,7 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
 
   for (icUInt32Number t = 0; t < tagCount; t++) {
     icUInt8Number tagEntry[12] = {};
-    if (fseek(fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fp) != 12)
+    if (fseek(fh.fp, 132 + t * 12, SEEK_SET) != 0 || fread(tagEntry, 1, 12, fh.fp) != 12)
       continue;
 
     icUInt32Number sig = (static_cast<icUInt32Number>(tagEntry[0]) << 24) |
@@ -1337,7 +1310,6 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
                          tagEntry[3];
     signatures.push_back(sig);
   }
-  fclose(fp);
 
   // Check for duplicates using sorted comparison
   int duplicates = 0;
@@ -1386,25 +1358,22 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
 
   printf("[H136] ResponseCurve Per-Channel Measurement Count (CWE-400)\n");
 
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
     printf("      [SKIP] Cannot open file\n\n");
     return 0;
   }
 
-  fseek(fp, 0, SEEK_END);
-  long fileSize = ftell(fp);
+  long fileSize = fh.fileSize;
   if (fileSize < 132) {
-    fclose(fp);
     printf("      [SKIP] File too small\n\n");
     return 0;
   }
 
   // Read tag count
-  fseek(fp, 128, SEEK_SET);
+  fseek(fh.fp, 128, SEEK_SET);
   uint8_t tagCountBuf[4];
-  if (fread(tagCountBuf, 1, 4, fp) != 4) {
-    fclose(fp);
+  if (fread(tagCountBuf, 1, 4, fh.fp) != 4) {
     printf("      [SKIP] Cannot read tag count\n\n");
     return 0;
   }
@@ -1414,7 +1383,6 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
                        (uint32_t)tagCountBuf[3];
 
   if (tagCount > 1000) {
-    fclose(fp);
     printf("      [SKIP] Excessive tag count (%u)\n\n", tagCount);
     return 0;
   }
@@ -1422,8 +1390,8 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
   // Scan tag table for responseCurveSet16Type (rcs2 = 0x72637332)
   for (uint32_t i = 0; i < tagCount && i < 200; i++) {
     uint8_t tagEntry[12];
-    fseek(fp, 132 + i * 12, SEEK_SET);
-    if (fread(tagEntry, 1, 12, fp) != 12) break;
+    fseek(fh.fp, 132 + i * 12, SEEK_SET);
+    if (fread(tagEntry, 1, 12, fh.fp) != 12) break;
 
     uint32_t tagOffset = ((uint32_t)tagEntry[4] << 24) |
                          ((uint32_t)tagEntry[5] << 16) |
@@ -1438,16 +1406,16 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
 
     // Read tag type signature at tagOffset
     uint8_t typeSig[4];
-    fseek(fp, tagOffset, SEEK_SET);
-    if (fread(typeSig, 1, 4, fp) != 4) continue;
+    fseek(fh.fp, tagOffset, SEEK_SET);
+    if (fread(typeSig, 1, 4, fh.fp) != 4) continue;
 
     // responseCurveSet16Type: 'rcs2' = 0x72637332
     if (typeSig[0] == 0x72 && typeSig[1] == 0x63 &&
         typeSig[2] == 0x73 && typeSig[3] == 0x32) {
       // Read channel count at offset+8 (uint16 BE)
-      fseek(fp, tagOffset + 8, SEEK_SET);
+      fseek(fh.fp, tagOffset + 8, SEEK_SET);
       uint8_t chanBuf[2];
-      if (fread(chanBuf, 1, 2, fp) != 2) break;
+      if (fread(chanBuf, 1, 2, fh.fp) != 2) break;
       uint16_t nChannels = ((uint16_t)chanBuf[0] << 8) | chanBuf[1];
 
       if (nChannels > 16) {
@@ -1460,7 +1428,7 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
 
       // Read measurement type count at offset+10 (uint16 BE)
       uint8_t nCurvesBuf[2];
-      if (fread(nCurvesBuf, 1, 2, fp) != 2) break;
+      if (fread(nCurvesBuf, 1, 2, fh.fp) != 2) break;
       uint16_t nCurves = ((uint16_t)nCurvesBuf[0] << 8) | nCurvesBuf[1];
 
       uint16_t nChan = nChannels > 16 ? 16 : nChannels;
@@ -1469,8 +1437,8 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
       // Walk curve offsets and check per-channel nMeasurements
       for (uint16_t c = 0; c < nCurves && c < 16; c++) {
         uint8_t offBuf[4];
-        fseek(fp, tagOffset + 12 + c * 4, SEEK_SET);
-        if (fread(offBuf, 1, 4, fp) != 4) break;
+        fseek(fh.fp, tagOffset + 12 + c * 4, SEEK_SET);
+        if (fread(offBuf, 1, 4, fh.fp) != 4) break;
         uint32_t curveOff = ((uint32_t)offBuf[0] << 24) |
                             ((uint32_t)offBuf[1] << 16) |
                             ((uint32_t)offBuf[2] << 8)  |
@@ -1480,10 +1448,10 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
         if (absOff + 4 + (uint32_t)nChan * 4 > (uint32_t)fileSize) continue;
 
         // Skip measurement unit sig (4 bytes), read nMeasurements array
-        fseek(fp, absOff + 4, SEEK_SET);
+        fseek(fh.fp, absOff + 4, SEEK_SET);
         for (uint16_t ch = 0; ch < nChan; ch++) {
           uint8_t mBuf[4];
-          if (fread(mBuf, 1, 4, fp) != 4) break;
+          if (fread(mBuf, 1, 4, fh.fp) != 4) break;
           uint32_t nMeas = ((uint32_t)mBuf[0] << 24) |
                            ((uint32_t)mBuf[1] << 16) |
                            ((uint32_t)mBuf[2] << 8)  |
@@ -1500,8 +1468,6 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
       }
     }
   }
-
-  fclose(fp);
 
   if (heuristicCount == 0) {
     printf("      %s[OK] ResponseCurve measurement counts within bounds (or tag absent)%s\n",
