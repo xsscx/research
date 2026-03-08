@@ -472,8 +472,9 @@ Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Codin
 
 #### 4. Docker REST API (remote agents — macOS, CI, any platform)
 Run the MCP Docker image for remote ICC analysis with full ASAN+UBSAN instrumentation.
-Image is `linux/amd64` — on Apple Silicon Macs, Docker Desktop runs it via Rosetta 2
-(which supports ASAN, unlike QEMU):
+Image is `linux/amd64` — on Apple Silicon Macs, **Docker Desktop** runs it via Rosetta 2
+(which supports ASAN). **Colima and OrbStack do NOT support ASAN** — they use
+QEMU/VZ backends that cannot handle ASAN shadow memory mappings:
 ```bash
 # Start API server (Apple Silicon: runs via Rosetta 2 automatically)
 docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
@@ -570,7 +571,8 @@ Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp
 **CRITICAL**: The Docker image MUST be built with ASAN+UBSAN (the whole point is
 security analysis). Do NOT add `NO_SANITIZERS=1` or remove `libclang-rt-18-dev`.
 Image is `linux/amd64` only — ASAN shadow memory is incompatible with QEMU
-cross-arch emulation. Apple Silicon Macs run it via Docker Desktop Rosetta 2.
+cross-arch emulation. Apple Silicon Macs run it via **Docker Desktop** Rosetta 2.
+**Colima and OrbStack do NOT support ASAN** (QEMU/VZ backends lack shadow memory).
 
 **Tool count**: 24 tools (11 analysis + 7 maintainer + 6 operations). When adding
 tools, update: `icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`.
