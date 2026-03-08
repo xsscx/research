@@ -394,6 +394,90 @@ You MUST accurately report failures. Do NOT claim success when errors occur.
 - Do NOT summarize tool output — include it VERBATIM
 - Do NOT skip any of the 3 required commands (`-a`, `-nf`, `-r`)
 
+## VERIFICATION PROTOCOL — MANDATORY
+
+**Origin**: [xsscx/governance](https://github.com/xsscx/governance) — 62.5% of all
+agent violations are false success claims. This protocol exists because agents
+systematically declare success without verifying it.
+
+### Evidence-Based Claims
+
+Every success claim MUST include verification evidence in this format:
+```
+[OK] Verified: <claim> (<command> → <result>)
+```
+
+**Examples:**
+- `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
+- `[OK] Verified: 217 tests pass (python3 tests/run_tests.py → 217/217 passed)`
+- `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
+- `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
+
+### Exit Code Classification (CJF-13)
+
+Exit codes have precise meaning. Misclassifying them is the #1 crash documentation error:
+
+| Exit Code | Classification | Meaning | Document as crash? |
+|-----------|---------------|---------|-------------------|
+| **0** | Success | Clean exit | No |
+| **1-127** | Soft failure | Graceful error, input rejected | **NO — NOT a crash** |
+| **128+** | Hard crash | Signal termination | **YES (if 3× reproducible)** |
+
+**Signal mapping**: 134=SIGABRT, 136=SIGFPE, 137=SIGKILL, 139=SIGSEGV
+
+**CRITICAL**: A tool exiting with code 1 is NOT a crash — it means the tool rejected
+the input gracefully. Do NOT document exit code 1 as a security finding.
+The **tool's** exit code is reality. The **fuzzer's** DEADLYSIGNAL is a test artifact.
+When they disagree, the tool is authoritative.
+
+### Pre-Push Build Verification
+
+Before pushing ANY iccanalyzer-lite changes:
+```bash
+# 1. Build locally
+cd iccanalyzer-lite && ./build.sh
+
+# 2. Run tests
+python3 tests/run_tests.py
+
+# 3. ASAN spot-check (5+ diverse profiles)
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 ./iccanalyzer-lite -a ../test-profiles/sRGB_D65_MAT-500lx.icc
+
+# 4. Verify ALL 7 build locations are synced
+.github/scripts/pre-push-validate.sh
+
+# 5. Only then push
+git push
+```
+
+Step 4 is **mandatory**. A local `build.sh` success does NOT guarantee CI success.
+See Anti-Pattern #5 in `multi-agent.instructions.md`.
+
+### Contradiction Detection
+
+If you make a numeric claim (e.g., "built 18 fuzzers", "329 test profiles"),
+verify it with a command before stating it:
+```bash
+ls cfl/bin/icc_*_fuzzer | wc -l     # verify fuzzer count
+find test-profiles -name '*.icc' | wc -l  # verify profile count
+find analysis-reports -name '*.md' | wc -l  # verify report count
+```
+
+If a count changes between turns, acknowledge the correction explicitly.
+Do NOT silently revise numbers.
+
+### Agent Accountability
+
+This project maintains an agent violation record at
+[xsscx/governance](https://github.com/xsscx/governance). Key documents:
+- `HALL_OF_SHAME.md` — Documented violations with root cause analysis
+- `VAULT_OF_SHAME.md` — Cryptographic fingerprints of all violations
+- `README_CLAIM_VERIFICATION.md` — Evidence-based validation system
+- `PATTERNS.md` — Common failure patterns and prevention
+
+The user is the source of truth. When the user corrects an agent claim,
+the agent is wrong. Full stop.
+
 ## Build Commands (REFERENCE ONLY — do NOT run these)
 
 These commands are for CI documentation. For local builds, see **Local Build** above.
