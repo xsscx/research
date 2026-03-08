@@ -1,7 +1,32 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_io_fuzzer.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/cfl/icc_io_fuzzer.ll";
 
-	Node0x60c088932370 [shape=record,label="{LLVMFuzzerTestOneInput}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x60c088932370 [label="{LLVMFuzzerTestOneInput}"];
 	Node0x60c088932370 -> Node0x60c088932400;
 	Node0x60c088932370 -> Node0x60c088926c50;
 	Node0x60c088932370 -> Node0x60c088926e10;
@@ -23,46 +48,46 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_io_fuzzer.ll" {
 	Node0x60c088932370 -> Node0x60c08894d2b0;
 	Node0x60c088932370 -> Node0x60c08894d010;
 	Node0x60c088932370 -> Node0x60c088956020;
-	Node0x60c088932400 [shape=record,label="{_ZL11fuzz_tmpdirv}"];
+	Node0x60c088932400 [label="{fuzz_tmpdir()}"];
 	Node0x60c088932400 -> Node0x60c08894fef0;
-	Node0x60c088926c50 [shape=record,label="{_ZL15fuzz_build_pathPcmPKcS1_}"];
+	Node0x60c088926c50 [label="{fuzz_build_path()}"];
 	Node0x60c088926c50 -> Node0x60c08894c0c0;
 	Node0x60c088926c50 -> Node0x60c088951240;
-	Node0x60c088926e10 [shape=record,label="{mkstemp}"];
-	Node0x60c0888e6020 [shape=record,label="{write}"];
-	Node0x60c0888e5de0 [shape=record,label="{close}"];
-	Node0x60c0888e5e60 [shape=record,label="{_ZN10CIccFileIOC1Ev}"];
-	Node0x60c088937730 [shape=record,label="{_ZN10CIccFileIO4OpenEPKcS1_}"];
-	Node0x60c088956910 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x60c088945370 [shape=record,label="{_ZN10CIccFileIO9GetLengthEv}"];
-	Node0x60c088939130 [shape=record,label="{malloc}"];
-	Node0x60c0888e6490 [shape=record,label="{_ZN10CIccFileIO5Read8EPvm}"];
-	Node0x60c0888e6250 [shape=record,label="{_Z14OpenIccProfilePKhjb}"];
-	Node0x60c08894b860 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1Ev}"];
-	Node0x60c088949640 [shape=record,label="{_ZNK11CIccProfile8ValidateERNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES5_PKS_}"];
-	Node0x60c08894a6e0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2IS3_EEPKcRKS3_}"];
+	Node0x60c088926e10 [label="{mkstemp}"];
+	Node0x60c0888e6020 [label="{write}"];
+	Node0x60c0888e5de0 [label="{close}"];
+	Node0x60c0888e5e60 [label="{CIccFileIO::CIccFileIO()}"];
+	Node0x60c088937730 [label="{CIccFileIO::Open()}"];
+	Node0x60c088956910 [label="{__gxx_personality_v0}"];
+	Node0x60c088945370 [label="{CIccFileIO::GetLength()}"];
+	Node0x60c088939130 [label="{malloc}"];
+	Node0x60c0888e6490 [label="{CIccFileIO::Read8()}"];
+	Node0x60c0888e6250 [label="{OpenIccProfile()}"];
+	Node0x60c08894b860 [label="{basic_string<char, std::char_traits >::basic_string()}"];
+	Node0x60c088949640 [label="{CIccProfile::Validate()}"];
+	Node0x60c08894a6e0 [label="{char_traits >::basic_string<std::allocator >()}"];
 	Node0x60c08894a6e0 -> Node0x60c0889566b0;
 	Node0x60c08894a6e0 -> Node0x60c08894dc10;
 	Node0x60c08894a6e0 -> Node0x60c0889510d0;
 	Node0x60c08894a6e0 -> Node0x60c0889549f0;
 	Node0x60c08894a6e0 -> Node0x60c088954770;
 	Node0x60c08894a6e0 -> Node0x60c0889544f0;
-	Node0x60c0889456b0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev}"];
-	Node0x60c08894d560 [shape=record,label="{free}"];
-	Node0x60c08894d2b0 [shape=record,label="{_ZN10CIccFileIO5CloseEv}"];
-	Node0x60c08894d010 [shape=record,label="{unlink}"];
-	Node0x60c088956020 [shape=record,label="{_ZN11CIccProfile5WriteEP6CIccIO21icProfileIDSaveMethod}"];
-	Node0x60c08893a810 [shape=record,label="{_ZN10CIccFileIOD1Ev}"];
-	Node0x60c08894fef0 [shape=record,label="{getenv}"];
-	Node0x60c08894c0c0 [shape=record,label="{strlen}"];
-	Node0x60c088951240 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x60c08894e0e0 [shape=record,label="{_ZNSt15__new_allocatorIcED2Ev}"];
-	Node0x60c0889566b0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_M_local_dataEv}"];
-	Node0x60c08894dc10 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderC1EPcRKS3_}"];
-	Node0x60c0889510d0 [shape=record,label="{_ZSt19__throw_logic_errorPKc}"];
-	Node0x60c088954770 [shape=record,label="{_ZNSt11char_traitsIcE6lengthEPKc}"];
+	Node0x60c0889456b0 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
+	Node0x60c08894d560 [label="{free}"];
+	Node0x60c08894d2b0 [label="{CIccFileIO::Close()}"];
+	Node0x60c08894d010 [label="{unlink}"];
+	Node0x60c088956020 [label="{CIccProfile::Write()}"];
+	Node0x60c08893a810 [label="{CIccFileIO::~CIccFileIO()}"];
+	Node0x60c08894fef0 [label="{getenv}"];
+	Node0x60c08894c0c0 [label="{strlen}"];
+	Node0x60c088951240 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x60c08894e0e0 [label="{std::__new_allocator<char>::~__new_allocator()}"];
+	Node0x60c0889566b0 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
+	Node0x60c08894dc10 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
+	Node0x60c0889510d0 [label="{std::__throw_logic_error()}"];
+	Node0x60c088954770 [label="{std::char_traits<char>::length()}"];
 	Node0x60c088954770 -> Node0x60c08894c0c0;
-	Node0x60c0889544f0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag}"];
+	Node0x60c0889544f0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
 	Node0x60c0889544f0 -> Node0x60c0889526d0;
 	Node0x60c0889544f0 -> Node0x60c08893b350;
 	Node0x60c0889544f0 -> Node0x60c08895db70;
@@ -71,22 +96,22 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_io_fuzzer.ll" {
 	Node0x60c0889544f0 -> Node0x60c08893b490;
 	Node0x60c0889544f0 -> Node0x60c08893dff0;
 	Node0x60c0889544f0 -> Node0x60c088960560;
-	Node0x60c08895d9b0 [shape=record,label="{_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardC2EPS4_}"];
-	Node0x60c0889549f0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderD2Ev}"];
+	Node0x60c08895d9b0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
+	Node0x60c0889549f0 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
 	Node0x60c0889549f0 -> Node0x60c08894e0e0;
-	Node0x60c08893b350 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7_M_dataEPc}"];
-	Node0x60c0889526d0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm}"];
-	Node0x60c08895db70 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE11_M_capacityEm}"];
-	Node0x60c08893b490 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_S_copy_charsEPcPKcS7_}"];
-	Node0x60c08895d850 [shape=record,label="{_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7_M_dataEv}"];
-	Node0x60c08893dff0 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE13_M_set_lengthEm}"];
-	Node0x60c088960560 [shape=record,label="{_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardD2Ev}"];
+	Node0x60c08893b350 [label="{basic_string<char, std::char_traits >::_M_data()}"];
+	Node0x60c0889526d0 [label="{basic_string<char, std::char_traits >::_M_create()}"];
+	Node0x60c08895db70 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
+	Node0x60c08893b490 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
+	Node0x60c08895d850 [label="{basic_string<char, std::char_traits >::_M_data()}"];
+	Node0x60c08893dff0 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
+	Node0x60c088960560 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
 	Node0x60c088960560 -> Node0x60c08895f130;
 	Node0x60c088960560 -> Node0x60c088963190;
-	Node0x60c08895f130 [shape=record,label="{_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_disposeEv}"];
-	Node0x60c088963190 [shape=record,label="{__clang_call_terminate}"];
+	Node0x60c08895f130 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
+	Node0x60c088963190 [label="{__clang_call_terminate}"];
 	Node0x60c088963190 -> Node0x60c08893f8f0;
 	Node0x60c088963190 -> Node0x60c08893f670;
-	Node0x60c08893f8f0 [shape=record,label="{__cxa_begin_catch}"];
-	Node0x60c08893f670 [shape=record,label="{_ZSt9terminatev}"];
+	Node0x60c08893f8f0 [label="{__cxa_begin_catch}"];
+	Node0x60c08893f670 [label="{std::terminate()}"];
 }

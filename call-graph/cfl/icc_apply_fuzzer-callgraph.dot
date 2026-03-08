@@ -1,7 +1,32 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_apply_fuzzer.ll" {
-	label="Call graph: /home/h02332/po/research/call-graph/cfl/icc_apply_fuzzer.ll";
 
-	Node0x5ff8cc8dc3f0 [shape=record,label="{LLVMFuzzerTestOneInput}"];
+	// Graph attributes for readable SVG output
+	graph [
+		rankdir=LR,
+		nodesep=0.4,
+		ranksep=1.2,
+		fontname="Helvetica",
+		fontsize=11,
+		bgcolor="white",
+		pad=0.5,
+		margin=0,
+		size="200,200!",
+		ratio="compress"
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.1,0.05"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.7
+	];
+
+	Node0x5ff8cc8dc3f0 [label="{LLVMFuzzerTestOneInput}"];
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8dbb50;
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8db860;
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8db7f0;
@@ -21,33 +46,33 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_apply_fuzzer.ll
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8e0bc0;
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8e2820;
 	Node0x5ff8cc8dc3f0 -> Node0x5ff8cc8e20a0;
-	Node0x5ff8cc8dbb50 [shape=record,label="{_ZL11fuzz_tmpdirv}"];
+	Node0x5ff8cc8dbb50 [label="{fuzz_tmpdir()}"];
 	Node0x5ff8cc8dbb50 -> Node0x5ff8cc8e2aa0;
-	Node0x5ff8cc8db860 [shape=record,label="{_ZL15fuzz_build_pathPcmPKcS1_}"];
+	Node0x5ff8cc8db860 [label="{fuzz_build_path()}"];
 	Node0x5ff8cc8db860 -> Node0x5ff8cc8e3220;
 	Node0x5ff8cc8db860 -> Node0x5ff8cc8e30e0;
-	Node0x5ff8cc8db7f0 [shape=record,label="{mkstemp}"];
-	Node0x5ff8cc8dcff0 [shape=record,label="{write}"];
-	Node0x5ff8cc8ddd20 [shape=record,label="{close}"];
-	Node0x5ff8cc8dbfe0 [shape=record,label="{_ZN7CIccCmmC1E21icColorSpaceSignatureS0_b}"];
-	Node0x5ff8cc8e2fa0 [shape=record,label="{__gxx_personality_v0}"];
-	Node0x5ff8cc8dde60 [shape=record,label="{_ZN7CIccCmm5BeginEbb}"];
-	Node0x5ff8cc8dd260 [shape=record,label="{_ZN7CIccCmm8AddXformEPKc17icRenderingIntent13icXformInterpP31IIccProfileConnectionConditions14icXformLutTypebP26CIccCreateXformHintManagerb}"];
-	Node0x5ff8cc8dfcc0 [shape=record,label="{_ZNK7CIccCmm5ValidEv}"];
-	Node0x5ff8cc8de720 [shape=record,label="{unlink}"];
-	Node0x5ff8cc8e0300 [shape=record,label="{_ZN7CIccCmm8GetApplyEv}"];
-	Node0x5ff8cc8e1ba0 [shape=record,label="{_ZNK7CIccCmm16GetSourceSamplesEv}"];
+	Node0x5ff8cc8db7f0 [label="{mkstemp}"];
+	Node0x5ff8cc8dcff0 [label="{write}"];
+	Node0x5ff8cc8ddd20 [label="{close}"];
+	Node0x5ff8cc8dbfe0 [label="{CIccCmm::CIccCmm()}"];
+	Node0x5ff8cc8e2fa0 [label="{__gxx_personality_v0}"];
+	Node0x5ff8cc8dde60 [label="{CIccCmm::Begin()}"];
+	Node0x5ff8cc8dd260 [label="{CIccCmm::AddXform()}"];
+	Node0x5ff8cc8dfcc0 [label="{CIccCmm::Valid()}"];
+	Node0x5ff8cc8de720 [label="{unlink}"];
+	Node0x5ff8cc8e0300 [label="{CIccCmm::GetApply()}"];
+	Node0x5ff8cc8e1ba0 [label="{CIccCmm::GetSourceSamples()}"];
 	Node0x5ff8cc8e1ba0 -> Node0x5ff8cc8e2d20;
-	Node0x5ff8cc8e16a0 [shape=record,label="{_ZNK7CIccCmm14GetDestSamplesEv}"];
+	Node0x5ff8cc8e16a0 [label="{CIccCmm::GetDestSamples()}"];
 	Node0x5ff8cc8e16a0 -> Node0x5ff8cc8e2d20;
-	Node0x5ff8cc8e0bc0 [shape=record,label="{llvm.memset.p0.i64}"];
-	Node0x5ff8cc8e20a0 [shape=record,label="{_ZN7CIccCmm5ApplyEPfPKf}"];
-	Node0x5ff8cc8e2820 [shape=record,label="{_ZNK7CIccCmm12GetNumXformsEv}"];
-	Node0x5ff8cc8e25a0 [shape=record,label="{_ZNK7CIccCmm14GetSourceSpaceEv}"];
-	Node0x5ff8cc8e2320 [shape=record,label="{_ZNK7CIccCmm12GetDestSpaceEv}"];
-	Node0x5ff8cc8de520 [shape=record,label="{_ZN7CIccCmmD1Ev}"];
-	Node0x5ff8cc8e2aa0 [shape=record,label="{getenv}"];
-	Node0x5ff8cc8e3220 [shape=record,label="{strlen}"];
-	Node0x5ff8cc8e30e0 [shape=record,label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5ff8cc8e2d20 [shape=record,label="{_Z17icGetSpaceSamples21icColorSpaceSignature}"];
+	Node0x5ff8cc8e0bc0 [label="{llvm.memset.p0.i64}"];
+	Node0x5ff8cc8e20a0 [label="{CIccCmm::Apply()}"];
+	Node0x5ff8cc8e2820 [label="{CIccCmm::GetNumXforms()}"];
+	Node0x5ff8cc8e25a0 [label="{CIccCmm::GetSourceSpace()}"];
+	Node0x5ff8cc8e2320 [label="{CIccCmm::GetDestSpace()}"];
+	Node0x5ff8cc8de520 [label="{CIccCmm::~CIccCmm()}"];
+	Node0x5ff8cc8e2aa0 [label="{getenv}"];
+	Node0x5ff8cc8e3220 [label="{strlen}"];
+	Node0x5ff8cc8e30e0 [label="{llvm.memcpy.p0.p0.i64}"];
+	Node0x5ff8cc8e2d20 [label="{icGetSpaceSamples()}"];
 }
