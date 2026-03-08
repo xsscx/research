@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <ProfileHeader>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>5.0.0.0</ProfileVersion>
+    <ProfileDeviceClass>abst</ProfileDeviceClass>
+    <DataColourSpace>Lab </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2026-01-01T00:00:00</CreationDateTime>
+    <ProfileFileSignature>acsp</ProfileFileSignature>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/>
+    </PCSIlluminant>
+  </ProfileHeader>
+  <TagTable>
+    <Tag Name="desc">
+      <TextDescriptionType><Ascii>CFL: calculator branching</Ascii></TextDescriptionType>
+    </Tag>
+    <Tag Name="wtpt">
+      <XYZType><XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/></XYZType>
+    </Tag>
+    <Tag Name="cprt">
+      <TextType>Copyright CFL</TextType>
+    </Tag>
+    <Tag Name="D2B0">
+      <MultiProcessElementType InputChannels="3" OutputChannels="3">
+        <MultiProcessElements>
+          <CalculatorElement InputChannels="3" OutputChannels="3">
+            <MainFunction>
+              <if> in0 0.5 &gt;
+                <if> in1 0.3 &gt;
+                  <if> in2 0.1 &gt;
+                    in0 in1 in2
+                  </if>
+                  <else>
+                    in2 in0 in1
+                  </else>
+                </if>
+                <else>
+                  in1 in2 in0
+                </else>
+              </if>
+              <if> in0 0.5 &gt;
+                <if> in1 0.3 &gt;
+                  <if> in2 0.1 &gt;
+                    in0 in1 in2
+                  </if>
+                  <else>
+                    in2 in0 in1
+                  </else>
+                </if>
+                <else>
+                  in1 in2 in0
+                </else>
+              </if>
+              <if> in0 0.5 &gt;
+                <if> in1 0.3 &gt;
+                  <if> in2 0.1 &gt;
+                    in0 in1 in2
+                  </if>
+                  <else>
+                    in2 in0 in1
+                  </else>
+                </if>
+                <else>
+                  in1 in2 in0
+                </else>
+              </if>
+              <if> in0 0.5 &gt;
+                <if> in1 0.3 &gt;
+                  <if> in2 0.1 &gt;
+                    in0 in1 in2
+                  </if>
+                  <else>
+                    in2 in0 in1
+                  </else>
+                </if>
+                <else>
+                  in1 in2 in0
+                </else>
+              </if>
+              <if> in0 0.5 &gt;
+                <if> in1 0.3 &gt;
+                  <if> in2 0.1 &gt;
+                    in0 in1 in2
+                  </if>
+                  <else>
+                    in2 in0 in1
+                  </else>
+                </if>
+                <else>
+                  in1 in2 in0
+                </else>
+              </if>
+            </MainFunction>
+          </CalculatorElement>
+        </MultiProcessElements>
+      </MultiProcessElementType>
+    </Tag>
+  </TagTable>
+</IccProfile>
