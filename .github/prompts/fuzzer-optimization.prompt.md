@@ -386,17 +386,7 @@ intent byte (size-1): mod 4 for rendering intent
 
 ---
 
-### 16. icc_spectral_b_fuzzer
-**Tool**: N/A (spectral + observer processing)
-**Input**: Raw ICC profile bytes
-**Min/Max**: 128 bytes / 2MB
-**Fidelity**: N/A
-
-**What it exercises**: Similar to spectral_fuzzer but with broader spectral PCS paths. Large corpus (32,637 files).
-
----
-
-### 17. icc_v5dspobs_fuzzer
+### 16. icc_v5dspobs_fuzzer
 **Tool**: IccV5DspObsToAToB0 (display + observer → AToB0)
 **Input**: `[4-byte BE display-size] [display profile] [observer profile]`
 **Min/Max**: 264 bytes / 5MB
@@ -525,7 +515,7 @@ llvm-cov-18 show -object bin/<fuzzer> -instr-profile=merged.profdata \
 | Fast (>5000) | profile, dump, io, multitag | 5k-20k | Single Read+Validate |
 | Medium (500-5000) | apply, toxml, fromxml, calculator, deep_dump | 500-5k | Read+Transform or XML |
 | Slow (<500) | link, roundtrip, v5dspobs, specsep | 10-500 | Multi-profile or TIFF I/O |
-| Very slow | applynamedcmm, spectral_b | 50-200 | Complex CMM chains |
+| Very slow | applynamedcmm | 50-200 | Complex CMM chains |
 
 ### CWE-400 Timeout Patterns — Triage and Fix Guide
 
