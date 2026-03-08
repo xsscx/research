@@ -903,6 +903,20 @@ def test_json_output(suite):
             "Missing cveCoverage block" if not has_cve else "",
             0.0, "", ""
         ))
+        if has_cve:
+            cov = s["cveCoverage"]
+            has_unique = "uniqueCVEs" in cov and cov["uniqueCVEs"] == 46
+            suite.results.append(TestResult(
+                "json.cve_unique_count", has_unique,
+                f"uniqueCVEs={cov.get('uniqueCVEs')}, expected 46" if not has_unique else "",
+                0.0, "", ""
+            ))
+            has_scope = "outOfScopeXmlCVEs" in cov and cov["outOfScopeXmlCVEs"] == 19
+            suite.results.append(TestResult(
+                "json.cve_xml_scope", has_scope,
+                f"outOfScopeXmlCVEs={cov.get('outOfScopeXmlCVEs')}, expected 19" if not has_scope else "",
+                0.0, "", ""
+            ))
 
     # Results array should have heuristic entries with required fields
     if "results" in data and len(data["results"]) > 0:
