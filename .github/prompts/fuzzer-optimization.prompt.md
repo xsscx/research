@@ -47,6 +47,9 @@ ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null \
 ### Step 5: Cross-Pollinate from XNU Image Tools
 The `xnuimagetools/` pipeline generates TIFF/PNG/JPEG images with embedded ICC profiles
 across 15 bitmap context types, 7 color spaces, and 22+ output formats on real Apple hardware.
+**Note**: xnuimagetools uses xnuimagefuzzer as a git submodule at `XNU Image Fuzzer/`.
+Clone with `git clone --recurse-submodules` to populate the fuzzer directory.
+
 Extract and inject seeds into CFL corpora:
 ```bash
 # Extract ICC profiles + TIFF files from fuzzed-images

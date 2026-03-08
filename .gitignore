@@ -135,7 +135,8 @@ cfl/*_seed_corpus/
 fuzz/
 now/
 
-# XNU Image Fuzzer corpus (manually managed)
+# XNU repos (separate git repos, not tracked here)
+# xnuimagetools uses xnuimagefuzzer as git submodule at XNU Image Fuzzer/
 xif/
 macos-research/
 xnuimagefuzzer/
