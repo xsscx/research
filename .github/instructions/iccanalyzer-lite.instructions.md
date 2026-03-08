@@ -47,6 +47,12 @@ When adding new `.cpp` modules, ALL 7 build locations must be updated:
 
 For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
 
+**CRITICAL — Linker flag sync**: When adding new library dependencies (e.g., `-lssl -lcrypto`
+for OpenSSL), ALL 7 locations must be updated. Pay special attention to
+`iccanalyzer-cli-release.yml` which has its own **manual static LTO link command**
+(line ~488) that is independent of `build.sh` — it will NOT automatically inherit
+new flags. A local `build.sh` success does NOT guarantee CI success.
+
 ## Test
 
 ```bash
@@ -264,7 +270,11 @@ Every heuristic MUST follow this pattern:
 2. `python3 iccanalyzer-lite/tests/run_tests.py` — all tests pass
 3. ASAN spot-check on 5+ diverse profiles — 0 failures
 4. `gh api /repos/xsscx/research/code-scanning/alerts` — 0 open alerts
-5. Only then: `git push`
+5. **Verify linker flags match across ALL 7 build locations** (see Build System Sync table).
+   Specifically check that `iccanalyzer-cli-release.yml` static link command has the
+   same `-l` flags as `build.sh` LIBS variable. A local build.sh success is NOT
+   sufficient — the release workflow has independent linker flags that can diverge.
+6. Only then: `git push`
 
 ## Common Pitfalls
 

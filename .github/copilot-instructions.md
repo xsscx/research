@@ -577,6 +577,12 @@ cross-arch emulation. Apple Silicon Macs run it via **Docker Desktop** Rosetta 2
 **Tool count**: 24 tools (11 analysis + 7 maintainer + 6 operations). When adding
 tools, update: `icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`.
 
+**Build sync**: iccanalyzer-lite has **7 independent build locations** (see
+`.github/instructions/iccanalyzer-lite.instructions.md`). When adding library deps
+(e.g., `-lssl -lcrypto`), ALL 7 must be updated — especially `iccanalyzer-cli-release.yml`
+which has its own manual static link command. A local `build.sh` success does NOT
+guarantee CI success.
+
 **REST API endpoints** (same parameter names as MCP tools):
 
 | Endpoint | Method | Parameters |
