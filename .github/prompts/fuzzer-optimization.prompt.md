@@ -452,9 +452,28 @@ seed = struct.pack('>I', len(display)) + display + observer
 **Min/Max**: 8 bytes / 10MB
 **Fidelity**: N/A
 
-**What it exercises**: TIFF opening, ICC profile extraction from TIFF, profile validation. Largest corpus (47,158 files).
+**What it exercises**: TIFF opening via CTiffImg (Open/ReadLine/GetPhoto), ICC profile
+extraction from TIFF tag 34675, profile validation (Validate/Describe), libtiff pixel
+data reading (TIFFReadEncodedStrip/TIFFReadScanline). V3 architecture: Phase 1 in-memory
+libtiff + Phase 2 file-based CTiffImg.
 
-**Dict focus**: TIFF header magic (`II*\0`, `MM\0*`), TIFF tag IDs, ICC profile TIFF tag (34675).
+**Coverage breakthrough (V3)**: 7896→9203 edges (+16.6%) in 2 minutes by adding:
+- Pixel data reading (TIFFReadEncodedStrip/TIFFReadScanline — previously untested)
+- CTiffImg wrapper exercise (Open/ReadLine/GetPhoto)
+- Validate()/Describe() on extracted ICC profiles
+- PLANARCONFIG_SEPARATE path
+
+**OOM guards**: Skip tiny profiles (<1KB), MPE amplification guard (`tSize*1024 > profileSize`),
+tag size > 256KB. Without these, CIccTagArray::Read() OOM from small MPE tags (CWE-789).
+
+**CFL-082 fix integrated**: Strip buffer bounds check prevents heap-BOF in ReadLine().
+
+**Dict focus**: TIFF header magic (`II*\0`, `MM\0*`), TIFF tag IDs, ICC profile TIFF tag (34675),
+compression types, photometric values, bits-per-sample. 4215 consolidated entries in
+`cfl/icc_tiffdump_fuzzer.dict`.
+
+**Seed strategy**: Harvest TIFF files from xnuimagetools/xnuimagefuzzer fuzzed-images
+using `extract-icc-seeds.py --inject-cfl` or `harvest-xnu-seeds.sh`.
 
 ---
 

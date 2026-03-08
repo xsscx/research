@@ -93,6 +93,21 @@ For `timeout-*` artifacts, the workflow differs from crash triage:
 
 Map to CVE CWE distribution: CWE-20 (49), CWE-122 (17), CWE-476 (16), CWE-125 (11), CWE-758 (11), CWE-787 (10).
 
+### TIFF-specific triage (CTiffImg patterns)
+
+For crashes in `CTiffImg::ReadLine()` or `CTiffImg::Open()`:
+1. The crash file is a raw TIFF, not an ICC profile — use `tiffinfo` to inspect headers
+2. Check strip geometry: `tiffinfo <crash-file>` — look for StripByteCounts vs Image Width/Height/RowsPerStrip
+3. **Upstream repro**: Pass TIFF to `iccApplyProfiles` with a known-good ICC profile:
+   ```bash
+   LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+     iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles \
+     <crash.tiff> /tmp/out.tif 0 0 0 0 1 test-profiles/Rec2020rgbSpectral.icc 1
+   ```
+4. **Common pattern**: Strip buffer sized by TIFFStripSize() < RowsPerStrip × BytesPerLine
+   → heap-buffer-overflow in ReadLine() memcpy. Fix: CFL-082 (bounds check in Open()).
+5. **iccTiffDump is NOT affected** by ReadLine() bugs — it only reads TIFF metadata.
+
 ## Step 5 — Fix workflow
 
 1. **Reproduce**: `ASAN_OPTIONS=detect_leaks=0 timeout 10 cfl/bin/<fuzzer> <crash-file> 2>&1`
