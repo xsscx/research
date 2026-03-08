@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 138-heuristic ICC profile security analyzer (16,000+ LOC, C++17) built with full
+A 141-heuristic ICC profile security analyzer (16,000+ LOC, C++17) built with full
 ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles against
 ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE violations,
 malformed structures, and potential exploitation vectors.
@@ -14,7 +14,7 @@ malformed structures, and potential exploitation vectors.
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-138-heuristic analysis on extracted ICC profiles. New explicit `-img` mode available.
+141-heuristic analysis (H1-H138 on ICC + H139-H141 on TIFF) on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -54,7 +54,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.138_heuristics` pattern
+- When adding heuristics, update the test for `summary.141_heuristics` pattern
 
 ## Architecture — 4 Modules (3 Heuristic + 1 Image Analysis)
 
@@ -63,7 +63,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
 | `IccAnalyzerSecurity.cpp` | H1-H8, H15-H17 | Raw header bytes, orchestrator |
 | `IccHeuristicsLibrary.cpp` | H9-H32, H56-H138 | CIccProfile library API |
 | `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69 | Raw file I/O fallback |
-| `IccImageAnalyzer.cpp` | Image analysis | TIFF metadata, ICC extraction, injection scan |
+| `IccImageAnalyzer.cpp` | H139-H141 | TIFF image security, metadata, ICC extraction, injection scan |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
@@ -77,7 +77,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
 4. Wire dispatch in `IccAnalyzerSecurity.cpp` (after H138 call)
 5. Update heuristic count (138→139) in these files:
    - `IccAnalyzerSecurity.cpp` — CVE Coverage printf
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.138_heuristics`
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.141_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
@@ -85,23 +85,29 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 172 unit tests, ~25s
    - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
 6. Add ICC spec citation in printf: `ICC.1-2022-05 §X.Y.Z`
 
+### Implemented TIFF Heuristics (H139-H141)
+
+**H139: TIFF Strip Geometry Validation** — Validates TIFF strip buffer geometry:
+`StripByteCounts >= RowsPerStrip × Width × SamplesPerPixel × (BitsPerSample/8)`,
+`RowsPerStrip <= Height`, integer overflow checks in strip size calculations.
+CWE-122/CWE-190. Detects the exact bug pattern fixed by CFL-082.
+
+**H140: TIFF Dimension and Sample Validation** — Validates TIFF dimensions
+(Width, Height ≤ 65535), BitsPerSample (1/8/16/32), SamplesPerPixel (≤ 6),
+and cross-checks dimension × sample products for integer overflow.
+CWE-400/CWE-131.
+
+**H141: TIFF IFD Offset Bounds** — Validates all TIFF IFD tag data offsets
+point within the file. Detects file truncation attacks where TIFF headers reference
+data beyond EOF. CWE-125.
+
 ### Candidate Heuristics (Not Yet Implemented)
 
-**H139: TIFF-Embedded ICC Strip Geometry** — When the input file is TIFF (magic
-`II\x2a` or `MM\x00\x2a`), extract TIFF IFD fields (Width, Height, RowsPerStrip,
-StripByteCounts, BitsPerSample, SamplesPerPixel) and validate:
-- `StripByteCounts >= RowsPerStrip × Width × SamplesPerPixel × (BitsPerSample/8)`
-- `RowsPerStrip <= Height`
-- No integer overflow in strip size calculations
-CWE-122/CWE-125. Detects the exact bug pattern fixed by CFL-082.
+**H142: TIFF Multi-IFD Chain Depth** — Limit the number of IFD pages followed
+to prevent infinite loops from circular IFD next-pointers. CWE-835.
 
-**H140: File-Level Metadata Report** — Report file size, SHA256, file(1) magic type,
-and creation/modification timestamps. Not a security check per se, but provides
-context for forensic analysis alongside the 138 security heuristics.
-
-**H141: TIFF IFD Tag Offset Bounds** — Validate all TIFF IFD tag data offsets
-point within the file. Detects file truncation attacks where TIFF headers reference
-data beyond EOF.
+**H143: TIFF Tile Geometry Validation** — For tiled TIFFs, validate TileWidth,
+TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
 
 ## Heuristic Categories
 
@@ -112,6 +118,7 @@ data beyond EOF.
 | H33-H55 | IccHeuristicsRawPost.cpp | Raw file I/O (tag overlaps, embedded images, duplicates) |
 | H56-H135 | IccHeuristicsLibrary.cpp | Spec compliance (ICC.1-2022-05 required tags, LUT validation) |
 | H136-H138 | IccHeuristicsLibrary.cpp | CWE-400 complexity (ResponseCurve, grid, calculator) |
+| H139-H141 | IccImageAnalyzer.cpp | TIFF image security (strip geometry, dimension/sample validation, IFD bounds) |
 
 ## Image Analysis (v3.4.0+)
 
@@ -127,7 +134,7 @@ The explicit `-img` mode also available. Currently supports TIFF; PNG/JPEG plann
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 138 heuristics
+   ComprehensiveAnalyze() with all 141 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
