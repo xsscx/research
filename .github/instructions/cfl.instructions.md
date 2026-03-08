@@ -97,6 +97,7 @@ Current upstream: commit **7db2273** (2026-03-07)
 - **Crash**: `crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5`
 - **Repro**: `LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5 /tmp/out.tif 0 0 0 0 1 test-profiles/Rec2020rgbSpectral.icc 1`
 - **Affected tools**: iccApplyProfiles, iccSpecSepToTiff, icc_tiffdump_fuzzer, icc_specsep_fuzzer
+- **iccanalyzer-lite counterpart**: H139 (TIFF Strip Geometry Validation) detects the same CFL-082 bug pattern via defensive heuristic analysis without patching the library.
 
 ## Fuzzing — Ramdisk Workflow
 
