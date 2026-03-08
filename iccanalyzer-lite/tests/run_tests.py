@@ -859,6 +859,122 @@ def test_ninja_modes_coverage(suite):
         )
 
 
+def test_json_output(suite):
+    """Test --json structured output mode."""
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+
+    # JSON should be valid and parseable
+    rc, stdout, stderr = suite.run_analyzer(["--json", good])
+    try:
+        import json
+        data = json.loads(stdout)
+        valid = True
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+        valid = False
+
+    suite.results.append(TestResult(
+        "json.valid_parse", valid,
+        "JSON output should parse" if not valid else "",
+        0.0, stdout, stderr
+    ))
+
+    # Check required top-level keys
+    for key in ["file", "exitCode", "summary", "results"]:
+        has_key = key in data
+        suite.results.append(TestResult(
+            f"json.has_{key}", has_key,
+            f"Missing key '{key}'" if not has_key else "",
+            0.0, "", ""
+        ))
+
+    # Summary should have counts
+    if "summary" in data:
+        s = data["summary"]
+        has_total = s.get("totalHeuristics", 0) == 141
+        suite.results.append(TestResult(
+            "json.total_heuristics_141", has_total,
+            f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
+            0.0, "", ""
+        ))
+        has_cve = "cveCoverage" in s
+        suite.results.append(TestResult(
+            "json.has_cve_coverage", has_cve,
+            "Missing cveCoverage block" if not has_cve else "",
+            0.0, "", ""
+        ))
+
+    # Results array should have heuristic entries with required fields
+    if "results" in data and len(data["results"]) > 0:
+        r = data["results"][0]
+        for field in ["id", "name", "status"]:
+            has_f = field in r
+            suite.results.append(TestResult(
+                f"json.result_has_{field}", has_f,
+                f"Result missing '{field}'" if not has_f else "",
+                0.0, "", ""
+            ))
+
+    # At least one result should have cveRefs
+    has_cve_ref = any("cveRefs" in r for r in data.get("results", []))
+    suite.results.append(TestResult(
+        "json.has_cve_refs", has_cve_ref,
+        "No result with cveRefs found" if not has_cve_ref else "",
+        0.0, "", ""
+    ))
+
+    # ASAN clean
+    suite.assert_no_asan("json.asan_clean", ["--json", good])
+
+
+def test_tiff_analysis(suite):
+    """Test TIFF image analysis with embedded ICC profile."""
+    tiff_path = CORPUS_DIR / "test_tiff_with_icc.tif"
+    if not tiff_path.exists():
+        return
+
+    tiff = str(tiff_path)
+
+    # Should detect TIFF and run image analysis
+    suite.assert_output_contains(
+        "tiff.detects_format",
+        ["-a", tiff], r"IMAGE FILE ANALYSIS.*TIFF"
+    )
+
+    # Should report TIFF metadata
+    suite.assert_output_contains(
+        "tiff.reports_dimensions",
+        ["-a", tiff], r"Dimensions:.*10.*10"
+    )
+
+    # H139 strip geometry should run
+    suite.assert_output_contains(
+        "tiff.h139_runs",
+        ["-a", tiff], r"\[H139\].*Strip Geometry"
+    )
+
+    # H140 dimension validation should run
+    suite.assert_output_contains(
+        "tiff.h140_runs",
+        ["-a", tiff], r"\[H140\].*Dimension"
+    )
+
+    # H141 IFD offset bounds should run
+    suite.assert_output_contains(
+        "tiff.h141_runs",
+        ["-a", tiff], r"\[H141\].*IFD"
+    )
+
+    # Should extract and analyze embedded ICC profile
+    suite.assert_output_contains(
+        "tiff.icc_extraction",
+        ["-a", tiff], r"ICC Profile.*Extracted|Embedded ICC"
+    )
+
+    # ASAN clean
+    suite.assert_no_asan("tiff.asan_clean", ["-a", tiff])
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -912,6 +1028,8 @@ def main():
         ("XML Heuristic Export", test_xml_heuristic_export),
         ("Ninja Modes Coverage", test_ninja_modes_coverage),
         ("Runtime Safety", test_runtime_safety),
+        ("JSON Output", test_json_output),
+        ("TIFF Analysis", test_tiff_analysis),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 

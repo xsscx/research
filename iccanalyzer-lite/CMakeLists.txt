@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
-project(iccAnalyzer-lite VERSION 3.1.0 LANGUAGES CXX)
+project(iccAnalyzer-lite VERSION 3.5.0 LANGUAGES CXX)
 
 # C++17 required
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Build with ASAN + UBSAN + Coverage (matching iccDEV)
-set(ICCANALYZER_LITE ON)
 
 # iccDEV subproject path
 set(ICCDEV_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/iccDEV")
@@ -15,7 +12,7 @@ set(ICCDEV_BUILD "${ICCDEV_ROOT}/Build")
 # Find required libraries
 find_package(LibXml2 REQUIRED)
 
-# Source files
+# Source files (must match build.sh SOURCES — 23 files)
 set(SOURCES
     iccAnalyzer-lite.cpp
     IccAnalyzerConfig.cpp
@@ -38,6 +35,7 @@ set(SOURCES
     IccAnalyzerXMLExport.cpp
     IccAnalyzerCallGraph.cpp
     IccAnalyzerTagDetails.cpp
+    IccImageAnalyzer.cpp
     IccAnalyzerJson.cpp
 )
 
@@ -57,29 +55,44 @@ target_link_libraries(iccAnalyzer-lite
     ${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a
     ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a
     ${LIBXML2_LIBRARIES}
+    tiff
     ssl
     crypto
     z
-    gcov
+    lzma
+    m
 )
 
-# Compile definitions
-target_compile_definitions(iccAnalyzer-lite PRIVATE ICCANALYZER_LITE)
+# Compile definitions (matching build.sh)
+target_compile_definitions(iccAnalyzer-lite PRIVATE
+    ICCANALYZER_LITE
+    DEBUG
+    ICC_LOG_SAFE
+    ICC_TRACE_NAN_ENABLED
+)
 
-# ASAN + UBSAN + Coverage flags (matching iccDEV build)
+# Debug + Sanitizer + Coverage flags (matching build.sh exactly)
 target_compile_options(iccAnalyzer-lite PRIVATE
-    -fsanitize=address,undefined
+    -g3
+    -O0
     -fno-omit-frame-pointer
-    -g
-    -O1
-    -fprofile-arcs
-    -ftest-coverage
-    --coverage
+    -fno-optimize-sibling-calls
+    -fno-common
+    -fstack-protector-strong
+    -fsanitize=address,undefined
+    -fsanitize=float-divide-by-zero
+    -fsanitize=float-cast-overflow
+    -fsanitize=integer
+    -fsanitize-recover=address,undefined
+    -fprofile-instr-generate
+    -fcoverage-mapping
+    -Wall
+    -Wextra
+    -Wno-unused-parameter
 )
 
 target_link_options(iccAnalyzer-lite PRIVATE
     -fsanitize=address,undefined
-    -fprofile-arcs
-    --coverage
+    -fprofile-instr-generate
     "LINKER:--allow-multiple-definition"
 )

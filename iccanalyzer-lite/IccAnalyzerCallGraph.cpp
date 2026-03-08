@@ -674,7 +674,11 @@ int RunCallGraphMode(int argc, char* argv[])
     }
     free(outDup2);
     if (safeName.empty()) safeName = "callgraph.png";
-    snprintf(resolvedOutPath, PATH_MAX, "%s/%s", resolvedOutDir, safeName.c_str());
+    int n = snprintf(resolvedOutPath, PATH_MAX, "%s/%s", resolvedOutDir, safeName.c_str());
+    if (n < 0 || n >= PATH_MAX) {
+      fprintf(stderr, "ERROR: Output path too long (truncated)\n");
+      return 1;
+    }
   }
   output_file = resolvedOutPath;
 

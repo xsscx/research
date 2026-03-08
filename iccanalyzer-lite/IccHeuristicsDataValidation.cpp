@@ -32,6 +32,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H56_CalculatorStackDepth(CIccProfile *pIcc) {
   int heuristicCount = 0;
@@ -53,9 +54,7 @@ printf("[H56] Calculator Element Stack Depth Analysis\n");
   };
 
   for (int s = 0; mpeSigs56[s] != (icSignature)0; s++) {
-    CIccTag *tag = pIcc->FindTag((icTagSignature)mpeSigs56[s]);
-    if (!tag) continue;
-    CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
+    CIccTagMultiProcessElement *mpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, (icTagSignature)mpeSigs56[s]);
     if (!mpe) continue;
 
     icUInt32Number elemCount = mpe->NumElements();
@@ -93,9 +92,7 @@ printf("[H58] Sparse Matrix Entry Bounds\n");
   TagEntryList::iterator sit;
   for (sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
     IccTagEntry *e = &(*sit);
-    CIccTag *tag = pIcc->FindTag(e->TagInfo.sig);
-    if (!tag) continue;
-    CIccTagNumArray *numArr = dynamic_cast<CIccTagNumArray*>(tag);
+    CIccTagNumArray *numArr = FindAndCast<CIccTagNumArray>(pIcc, e->TagInfo.sig);
     if (!numArr) continue;
     icUInt32Number arrSz = numArr->GetNumValues();
     if (arrSz > 16777216) {
@@ -127,9 +124,8 @@ int RunHeuristic_H60_DictionaryTagConsistency(CIccProfile *pIcc) {
 printf("[H60] Dictionary Tag Consistency\n");
 {
   int dictIssues = 0;
-  CIccTag *dictTag = pIcc->FindTag(icSigMetaDataTag);
-  if (dictTag) {
-    CIccTagDict *dict = dynamic_cast<CIccTagDict*>(dictTag);
+  CIccTagDict *dict = FindAndCast<CIccTagDict>(pIcc, icSigMetaDataTag);
+  if (dict) {
     if (dict && dict->m_Dict) {
       std::set<std::string> seenKeys;
       int entryCount = 0;
@@ -183,9 +179,8 @@ int RunHeuristic_H61_ViewingConditionsValidation(CIccProfile *pIcc) {
 printf("[H61] Viewing Conditions Validation\n");
 {
   int viewIssues = 0;
-  CIccTag *vcTag = pIcc->FindTag((icTagSignature)icSigViewingConditionsTag);
-  if (vcTag) {
-    CIccTagViewingConditions *vc = dynamic_cast<CIccTagViewingConditions*>(vcTag);
+  CIccTagViewingConditions *vc = FindAndCast<CIccTagViewingConditions>(pIcc, (icTagSignature)icSigViewingConditionsTag);
+  if (vc) {
     if (vc) {
       icFloatNumber vcIllumX = icFtoD(vc->m_XYZIllum.X);
       icFloatNumber vcIllumY = icFtoD(vc->m_XYZIllum.Y);
@@ -234,9 +229,7 @@ printf("[H62] Multi-Localized Unicode String Bombs\n");
 {
   int mlucIssues = 0;
   for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
-    CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
-    if (!tag) continue;
-    CIccTagMultiLocalizedUnicode *mluc = dynamic_cast<CIccTagMultiLocalizedUnicode*>(tag);
+    CIccTagMultiLocalizedUnicode *mluc = FindAndCast<CIccTagMultiLocalizedUnicode>(pIcc, sit->TagInfo.sig);
     if (!mluc) continue;
 
     int localeCount = 0;
@@ -290,9 +283,7 @@ printf("[H63] Curve/LUT I/O Channel Mismatch\n");
     (icSignature)0
   };
   for (int s = 0; lutSigs[s] != (icSignature)0; s++) {
-    CIccTag *tag = pIcc->FindTag((icTagSignature)lutSigs[s]);
-    if (!tag) continue;
-    CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+    CIccMBB *mbb = FindAndCast<CIccMBB>(pIcc, (icTagSignature)lutSigs[s]);
     if (!mbb) continue;
 
     icUInt8Number nIn = mbb->InputChannels();
@@ -338,9 +329,8 @@ int RunHeuristic_H64_NamedColor2DeviceCoordOverflow(CIccProfile *pIcc) {
 printf("[H64] NamedColor2 Device Coord Overflow\n");
 {
   int nc2Issues = 0;
-  CIccTag *ncTag = pIcc->FindTag(icSigNamedColor2Tag);
-  if (ncTag) {
-    CIccTagNamedColor2 *nc2 = dynamic_cast<CIccTagNamedColor2*>(ncTag);
+  CIccTagNamedColor2 *nc2 = FindAndCast<CIccTagNamedColor2>(pIcc, icSigNamedColor2Tag);
+  if (nc2) {
     if (nc2) {
       icUInt32Number nColors = nc2->GetSize();
       icUInt32Number nDevCoords = nc2->GetDeviceCoords();
@@ -398,9 +388,8 @@ int RunHeuristic_H65_ChromaticityPlausibility(CIccProfile *pIcc) {
 printf("[H65] Chromaticity Physical Plausibility\n");
 {
   int chromIssues = 0;
-  CIccTag *chTag = pIcc->FindTag(icSigChromaticityTag);
-  if (chTag) {
-    CIccTagChromaticity *chrom = dynamic_cast<CIccTagChromaticity*>(chTag);
+  CIccTagChromaticity *chrom = FindAndCast<CIccTagChromaticity>(pIcc, icSigChromaticityTag);
+  if (chrom) {
     if (chrom) {
       icUInt32Number nChan = chrom->GetSize();
       for (icUInt32Number c = 0; c < nChan && c < 16; c++) {
@@ -551,9 +540,8 @@ int RunHeuristic_H70_MeasurementTagValidation(CIccProfile *pIcc) {
 printf("[H70] Measurement Tag Validation\n");
 {
   int measIssues = 0;
-  CIccTag *measTag = pIcc->FindTag(icSigMeasurementTag);
-  if (measTag) {
-    CIccTagMeasurement *meas = dynamic_cast<CIccTagMeasurement*>(measTag);
+  CIccTagMeasurement *meas = FindAndCast<CIccTagMeasurement>(pIcc, icSigMeasurementTag);
+  if (meas) {
     if (meas) {
       icUInt32Number obs = meas->m_Data.stdObserver;
       if (obs != 0 && obs != 1 && obs != 2) {
@@ -600,9 +588,7 @@ printf("[H71] ColorantTable Name Null-Termination\n");
   int ctIssues = 0;
   icTagSignature ctSigs[] = {icSigColorantTableTag, icSigColorantTableOutTag, (icTagSignature)0};
   for (int s = 0; ctSigs[s] != (icTagSignature)0; s++) {
-    CIccTag *ctTag = pIcc->FindTag(ctSigs[s]);
-    if (!ctTag) continue;
-    CIccTagColorantTable *ct = dynamic_cast<CIccTagColorantTable*>(ctTag);
+    CIccTagColorantTable *ct = FindAndCast<CIccTagColorantTable>(pIcc, ctSigs[s]);
     if (!ct) continue;
 
     icUInt32Number nEntries = ct->GetSize();
@@ -656,9 +642,7 @@ printf("[H72] SparseMatrixArray Allocation Bounds + Enum Validation\n");
 {
   int smaIssues = 0;
   for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
-    CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
-    if (!tag) continue;
-    CIccTagSparseMatrixArray *sma = dynamic_cast<CIccTagSparseMatrixArray*>(tag);
+    CIccTagSparseMatrixArray *sma = FindAndCast<CIccTagSparseMatrixArray>(pIcc, sit->TagInfo.sig);
     if (!sma) continue;
 
     char sigStr72[5];
@@ -898,9 +882,7 @@ printf("[H76] CIccTagData Type Flag Validation\n");
 {
   int dataIssues = 0;
   for (auto sit = pIcc->m_Tags.begin(); sit != pIcc->m_Tags.end(); sit++) {
-    CIccTag *tag = pIcc->FindTag(sit->TagInfo.sig);
-    if (!tag) continue;
-    CIccTagData *dataTag = dynamic_cast<CIccTagData*>(tag);
+    CIccTagData *dataTag = FindAndCast<CIccTagData>(pIcc, sit->TagInfo.sig);
     if (!dataTag) continue;
 
     icUInt32Number dataSz = dataTag->GetSize();
@@ -950,9 +932,7 @@ printf("[H77] MPE Calculator Sub-Element Count\n");
     (icTagSignature)0
   };
   for (int s = 0; mpeSigs[s] != (icTagSignature)0; s++) {
-    CIccTag *tag = pIcc->FindTag(mpeSigs[s]);
-    if (!tag) continue;
-    CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
+    CIccTagMultiProcessElement *mpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeSigs[s]);
     if (!mpe) continue;
 
     icUInt32Number nElems = mpe->NumElements();
@@ -994,9 +974,7 @@ printf("[H78] CLUT Grid Dimension Product Overflow\n");
     (icTagSignature)0
   };
   for (int s = 0; clutSigs[s] != (icTagSignature)0; s++) {
-    CIccTag *tag = pIcc->FindTag(clutSigs[s]);
-    if (!tag) continue;
-    CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+    CIccMBB *mbb = FindAndCast<CIccMBB>(pIcc, clutSigs[s]);
     if (!mbb) continue;
 
     CIccCLUT *clut = mbb->GetCLUT();
@@ -1587,9 +1565,8 @@ int RunHeuristic_H88_ChromaticAdaptationMatrix(CIccProfile *pIcc) {
 printf("[H88] Chromatic Adaptation Matrix Validation\n");
 {
   int chadIssues = 0;
-  CIccTag *pTag = pIcc->FindTag(icSigChromaticAdaptationTag);
-  if (pTag) {
-    CIccTagS15Fixed16 *pChad = dynamic_cast<CIccTagS15Fixed16*>(pTag);
+  CIccTagS15Fixed16 *pChad = FindAndCast<CIccTagS15Fixed16>(pIcc, icSigChromaticAdaptationTag);
+  if (pChad) {
     if (pChad) {
       icUInt32Number nSize = pChad->GetSize();
       if (nSize < 9) {
@@ -1732,10 +1709,8 @@ printf("[H90] Preview Tag Channel Consistency\n");
     (icTagSignature)0
   };
   for (int p = 0; previewSigs[p] != (icTagSignature)0; p++) {
-    CIccTag *pTag = pIcc->FindTag(previewSigs[p]);
-    if (!pTag) continue;
-
-    CIccMBB *pMbb = dynamic_cast<CIccMBB*>(pTag);
+    CIccMBB *pMbb = FindAndCast<CIccMBB>(pIcc, previewSigs[p]);
+    if (!pMbb) continue;
     if (pMbb) {
       icUInt8Number mbbIn = pMbb->InputChannels();
       icUInt8Number mbbOut = pMbb->OutputChannels();
@@ -1789,17 +1764,14 @@ printf("[H91] Colorant Order Validation\n");
     icSigColorantTableTag, icSigColorantTableOutTag, (icTagSignature)0
   };
   for (int o = 0; orderSigs[o] != (icTagSignature)0; o++) {
-    CIccTag *pOrderTag = pIcc->FindTag(orderSigs[o]);
-    if (!pOrderTag) continue;
-    CIccTagColorantOrder *pOrder = dynamic_cast<CIccTagColorantOrder*>(pOrderTag);
+    CIccTagColorantOrder *pOrder = FindAndCast<CIccTagColorantOrder>(pIcc, orderSigs[o]);
     if (!pOrder) continue;
 
     icUInt32Number orderCount = pOrder->GetSize();
     // Get matching colorant table count
     icUInt32Number tableCount = 0;
-    CIccTag *pTableTag = pIcc->FindTag(tableSigs[o]);
-    if (pTableTag) {
-      CIccTagColorantTable *pTable = dynamic_cast<CIccTagColorantTable*>(pTableTag);
+    CIccTagColorantTable *pTable = FindAndCast<CIccTagColorantTable>(pIcc, tableSigs[o]);
+    if (pTable) {
       if (pTable) tableCount = pTable->GetSize();
     }
 
@@ -2139,9 +2111,8 @@ int RunHeuristic_H96_EmbeddedProfileValidation(CIccProfile *pIcc) {
   printf("[H96] Embedded Profile Validation\n");
   int embedIssues = 0;
 
-  CIccTag *pEmbedTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
-  if (pEmbedTag) {
-    CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmbedTag);
+  CIccTagEmbeddedProfile *pEmbed = FindAndCast<CIccTagEmbeddedProfile>(pIcc, icSigEmbeddedV5ProfileTag);
+  if (pEmbed) {
     if (pEmbed) {
       CIccProfile *pEmbeddedProfile = pEmbed->GetProfile();
 
@@ -2216,9 +2187,8 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
   printf("[H97] Profile Sequence Identifier Validation\n");
   int seqIdIssues = 0;
 
-  CIccTag *pSeqIdTag = pIcc->FindTag(icSigProfileSequceIdTag);
-  if (pSeqIdTag) {
-    CIccTagProfileSequenceId *pSeqId = dynamic_cast<CIccTagProfileSequenceId *>(pSeqIdTag);
+  CIccTagProfileSequenceId *pSeqId = FindAndCast<CIccTagProfileSequenceId>(pIcc, icSigProfileSequceIdTag);
+  if (pSeqId) {
     if (pSeqId) {
       // Iterate entries to count and validate
       int entryCount = 0;
@@ -2314,10 +2284,7 @@ int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc) {
 
   bool foundSpectral = false;
   for (int i = 0; i < 16; i++) {
-    CIccTag *pTag = pIcc->FindTag(mpeTags[i]);
-    if (!pTag) continue;
-
-    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[i]);
     if (!pMpe) continue;
 
     icUInt32Number numElems = pMpe->NumElements();
@@ -2519,10 +2486,7 @@ int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
   };
 
   for (int i = 0; i < 16; i++) {
-    CIccTag *pTag = pIcc->FindTag(mpeTags[i]);
-    if (!pTag) continue;
-
-    CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[i]);
     if (!pMpe) continue;
 
     icUInt32Number numElems = pMpe->NumElements();

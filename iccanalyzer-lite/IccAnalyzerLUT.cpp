@@ -40,6 +40,7 @@
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSecurity.h"
 #include <cstring>
+#include <cstdarg>
 #include <climits>
 #include <new>
 #include <sys/stat.h>
@@ -99,6 +100,22 @@ static std::string SanitizeTagName(const char *raw) {
   return out.empty() ? "unknown" : out;
 }
 
+// Safe snprintf into a fixed filename buffer — logs warning on truncation.
+static int SafeSnprintf(char *buf, size_t bufSize, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+static int SafeSnprintf(char *buf, size_t bufSize, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(buf, bufSize, fmt, ap);
+  va_end(ap);
+  if (n < 0 || static_cast<size_t>(n) >= bufSize) {
+    fprintf(stderr, "[WARN] Filename truncated in LUT export\n");
+    buf[0] = '\0';
+    return -1;
+  }
+  return n;
+}
+
 //==============================================================================
 // MPE (Multi-Process Element) Extraction Functions
 //==============================================================================
@@ -117,7 +134,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
   int inputDim = pCLUT->GetInputDim();
   int outputChannels = pCLUT->GetOutputChannels();
   
-  snprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d_info.txt",
+  SafeSnprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d_info.txt",
            baseFilename, safeTag.c_str(), clutIndex);
   FILE *fInfo = SecureFileOpen(filename, "w");
   if (fInfo) {
@@ -143,7 +160,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
     printf("    Wrote MPE CLUT[%d] info: %s\n", clutIndex, filename);
   }
   
-  snprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d.bin",
+  SafeSnprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d.bin",
            baseFilename, safeTag.c_str(), clutIndex);
   FILE *fBin = SecureFileOpen(filename, "wb");
   if (fBin) {
@@ -278,7 +295,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         LPIccCurve *pCurvesB = pLut8->GetCurvesB();
         
         if (pCurvesA) {
-          snprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -290,7 +307,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         }
         
         if (pCLUT) {
-          snprintf(filename, sizeof(filename), "%s_%s_clut.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -306,7 +323,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         }
         
         if (pCurvesB) {
-          snprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -323,7 +340,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         LPIccCurve *pCurvesB = pLut16->GetCurvesB();
         
         if (pCurvesA) {
-          snprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -335,7 +352,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         }
         
         if (pCLUT) {
-          snprintf(filename, sizeof(filename), "%s_%s_clut.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -351,7 +368,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         }
         
         if (pCurvesB) {
-          snprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
+          SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
           FILE *f = SecureFileOpen(filename, "w");
           if (f) {
@@ -363,7 +380,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         }
       }
       
-      snprintf(filename, sizeof(filename), "%s_%s_lut_info.txt",
+      SafeSnprintf(filename, sizeof(filename), "%s_%s_lut_info.txt",
               baseFilename, safeTag.c_str());
       FILE *f = SecureFileOpen(filename, "w");
       if (f) {
