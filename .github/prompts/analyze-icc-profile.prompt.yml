@@ -1,8 +1,9 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (127 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (138 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
+  Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
 model: openai/gpt-4o
 modelParameters:
   temperature: 0.2
@@ -14,7 +15,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 106 security heuristics (H1-H106)
+        analyze_security    — run 138 security heuristics (H1-H138)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -69,6 +70,13 @@ messages:
       profiles get partial analysis coverage.
 
       The analysis script is at .github/scripts/analyze-profile.sh
+
+      For TIFF image files:
+      - The `-a` mode auto-detects TIFF via magic bytes and extracts embedded ICC
+      - Reports TIFF metadata (dimensions, BPS, compression, photometric)
+      - Scans pixel data for xnuimagefuzzer injection signatures
+      - Runs full 138-heuristic analysis on any extracted ICC profile
+      - Use `-img` mode for explicit image analysis
 
       Report ASAN / UBSAN output verbatim if present.
       Exit code 0 = clean, 1 = finding, 2 = error (profile fails to load).
