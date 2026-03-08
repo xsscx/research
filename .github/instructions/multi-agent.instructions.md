@@ -349,6 +349,8 @@ Types:
 ## Anti-Patterns — Mistakes to Avoid
 
 These are real mistakes made during multi-agent collaboration. Do NOT repeat them.
+Patterns #6-#10 are adapted from [xsscx/governance](https://github.com/xsscx/governance)
+LLMCJF (LLM Content Jockey Framework) — empirically documented agent failure modes.
 
 ### 1. Removing ASAN/UBSAN from Docker for multi-arch builds
 **What happened**: A cloud agent added `NO_SANITIZERS=1` to enable ARM64+AMD64 builds
@@ -390,9 +392,65 @@ static LTO link command (`iccanalyzer-cli-release.yml` line ~488). Agent reporte
 (see `.github/instructions/iccanalyzer-lite.instructions.md` Build System Sync table).
 A local `build.sh` success does NOT guarantee CI success — the release workflow has
 its own manual linker command with separate flags.
-**Rule**: Before pushing, verify linker flags match across ALL 7 build locations.
-Specifically diff `build.sh` LIBS against every workflow's link command. Never claim
-"build succeeded" based on a single build path.
+**Rule**: Before pushing, run `.github/scripts/pre-push-validate.sh` to verify all 7
+build locations are synced. Never claim "build succeeded" based on a single build path.
+
+### 6. False success claims — "Generate & Declare Without Testing" (CJF-09/CJF-12)
+**What happened (governance V013-V016)**: Agent claimed to fix unicode removal and
+copyright restoration, documented both as "complete", never tested either. User
+discovered BOTH still broken, had to fix them AGAIN. Agent then claimed fuzzer
+build success ("16/16 operational, 100%") without running `make` — all fabricated.
+**The Loop**:
+```
+WRONG workflow:
+  1. Make changes
+  2. Declare "[OK] COMPLETE"
+  3. User tests → FAILS
+  4. User reports → Agent fixes → Declares "[OK] COMPLETE" again
+  5. User tests → STILL FAILS
+
+CORRECT workflow:
+  1. Make changes
+  2. Run verification command
+  3. Include evidence: [OK] Verified: <claim> (<command> → <result>)
+  4. Fix any issues found
+  5. Re-verify
+  6. THEN declare complete WITH evidence
+```
+**Rule**: NEVER claim success without showing the verification command and its output.
+62.5% of all governance violations are this exact pattern.
+
+### 7. Exit code confusion — documenting graceful failures as crashes (CJF-13)
+**What happened (governance CJF-13)**: Fuzzer showed DEADLYSIGNAL, tool exited with
+code 1 → Agent documented it as a SEGV crash. Exit code 1 means the tool rejected
+the input gracefully — it is NOT a crash.
+**Classification**:
+- **Exit 1-127**: Soft failure (graceful) → **NOT a crash, do NOT document**
+- **Exit 128+**: Hard crash (signal) → Document IF 3× reproducible
+**Rule**: The TOOL's exit code is reality. The FUZZER's output is a test artifact.
+When they disagree, the tool is authoritative.
+
+### 8. Creating custom test programs instead of using project tools (CJF-11)
+**What happened**: Agent created `/tmp/test_crash.cpp` to reproduce a crash instead
+of using the existing `iccDEV/Build/Tools/` binaries.
+**Rule**: ALWAYS use project tools for crash reproduction. The tools at
+`iccDEV/Build/Tools/` are built with full ASAN+UBSAN. Custom programs miss library
+patches, linker flags, and runtime configurations.
+
+### 9. Ignoring documentation the agent itself created (CJF-07/V007)
+**What happened (governance V007)**: Agent spent 45 minutes debugging SHA256 index
+showing 0 when THREE comprehensive documentation files (that the agent created in
+a prior session) explained the answer. User had to ask THREE TIMES "did you even
+read the docs?" Total time wasted: 45 minutes. Answer took: 30 seconds.
+**Rule**: Before debugging, check existing documentation. `grep -r` the error or
+topic across `.github/`, `docs/`, and `README.md` files. If documentation exists,
+read it before reinventing.
+
+### 10. Scope creep — unsolicited documentation instead of testing (CJF-10)
+**What happened**: User asked agent to "test the fuzzer". Agent created 5 markdown
+files documenting the fuzzer architecture instead of running it.
+**Rule**: When asked to test, TEST. When asked to build, BUILD. Do not substitute
+documentation for the requested action.
 
 ## Cross-Repository Structure
 
