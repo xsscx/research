@@ -94,6 +94,20 @@ sips --getProperty all crash-file.icc
 python3 contrib/scripts/extract-icc-seeds.py --input fuzzed-images/ --output /tmp/seeds
 ```
 
+### macOS Docker Usage (MCP API for remote analysis)
+The MCP Docker image is `linux/amd64` only. On Apple Silicon Macs, Docker Desktop
+runs it via Rosetta 2 automatically — ASAN works correctly under Rosetta 2:
+```bash
+# Pull and run (Rosetta 2 handles AMD64→ARM64 translation)
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
+
+# Upload and analyze profiles without local build tools
+curl -s -F "file=@profile.icc" http://localhost:8080/api/upload
+curl -s "http://localhost:8080/api/security-json?path=<uploaded_path>"
+curl -s "http://localhost:8080/api/full?path=<uploaded_path>"
+```
+
 ## Cloud CI Agent Setup
 
 The cloud agent runs in Docker via `copilot-setup-steps.yml`. Binaries are pre-built.
@@ -325,6 +339,39 @@ Types:
 - `fix:` — Bug fixes
 - `call-graph:` — Call graph regeneration
 - `chore:` — File moves, cleanup, organization
+
+## Anti-Patterns — Mistakes to Avoid
+
+These are real mistakes made during multi-agent collaboration. Do NOT repeat them.
+
+### 1. Removing ASAN/UBSAN from Docker for multi-arch builds
+**What happened**: A cloud agent added `NO_SANITIZERS=1` to enable ARM64+AMD64 builds
+via QEMU cross-compilation. This removed the security instrumentation that is the
+entire purpose of iccanalyzer-lite.
+**Why it's wrong**: ASAN shadow memory is incompatible with QEMU user-mode emulation,
+but Apple Silicon Macs can run AMD64 images via Docker Desktop Rosetta 2 (which
+supports ASAN correctly). Build `linux/amd64` only.
+**Rule**: NEVER add `NO_SANITIZERS=1` to `mcp-server/Dockerfile` or remove
+`libclang-rt-18-dev`. The Docker image MUST have full ASAN+UBSAN.
+
+### 2. Updating server code without updating tests
+**What happened**: Tool count was updated from 16→22→24 in `web_ui.py` and
+`icc_profile_mcp.py`, but the corresponding tests (`test_web_ui.py` and
+`test_mcp.py`) were not updated, causing repeated CI failures.
+**Rule**: When changing MCP tool count, update ALL 4 files simultaneously:
+`icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`.
+
+### 3. Claiming inflated counts without verifying on disk
+**What happened**: A cloud agent reported 46 analysis reports and 336 test profiles,
+but disk actually had 39 reports and 329 profiles.
+**Rule**: Always verify counts with `find` or `ls | wc -l` before updating docs.
+
+### 4. Creating duplicate Dockerfiles
+**What happened**: `Dockerfile.demo` and `mcp-server/Dockerfile` diverged, requiring
+fixes to be applied to both. `demo-docker-build.yml` and `mcp-server-docker.yml`
+duplicated CI infrastructure.
+**Rule**: One Dockerfile (`mcp-server/Dockerfile`), one workflow
+(`mcp-server-docker.yml`), one image (`ghcr.io/xsscx/icc-profile-mcp`).
 
 ## Cross-Repository Structure
 
