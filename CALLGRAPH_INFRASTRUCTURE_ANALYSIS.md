@@ -11,7 +11,7 @@ The existing call graph infrastructure consists of three layers:
 ## 1. Python Script Layer
 
 ### Location
-`/home/h02332/po/research/.github/scripts/callgraphs/`
+`.github/scripts/callgraphs/`
 
 ### Scripts (11 total)
 - iccApplyNamedCmm-callgraph.py
@@ -92,7 +92,7 @@ class FunctionDef:
 ## 2. C++ Call Graph Library
 
 ### Location
-`/home/h02332/po/research/iccanalyzer-lite/IccAnalyzerCallGraph.{h,cpp}`
+`iccanalyzer-lite/IccAnalyzerCallGraph.{h,cpp}`
 
 ### Header (IccAnalyzerCallGraph.h - 121 lines)
 
@@ -242,7 +242,7 @@ iccAnalyzer-lite -cg <asan_or_ubsan.log> [output.png]
 ## 3. Generated Reports
 
 ### Location
-`/home/h02332/po/research/analysis-reports/callgraph-*/`
+`analysis-reports/callgraph-*/`
 
 ### Directories (10 tools analyzed)
 - callgraph-iccApplyNamedCmm

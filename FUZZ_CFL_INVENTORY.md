@@ -1,4 +1,4 @@
-# COMPREHENSIVE INVENTORY: /home/h02332/po/research/fuzz/ & /home/h02332/po/research/cfl/
+# COMPREHENSIVE INVENTORY: fuzz/ & cfl/
 
 ## EXECUTIVE SUMMARY
 
@@ -162,7 +162,7 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 - Runtime corpus: Generated during fuzzing runs
 
 ### Dictionary Files (27 total)
-Located at: `/home/h02332/po/research/cfl/*.dict`
+Located at: `cfl/*.dict`
 
 **Master dictionaries**:
 - `icc_master_curated.dict` — Comprehensive token set
@@ -237,12 +237,12 @@ Located at: `/home/h02332/po/research/cfl/*.dict`
 
 ### Source Code (1 file)
 ```
-/home/h02332/po/research/fuzz/unix/osx/xnu-school-xss-runtargets-applesecurityresearchdevice-example-struct-001.c
+fuzz/unix/osx/xnu-school-xss-runtargets-applesecurityresearchdevice-example-struct-001.c
   - Apple Security Research Device runtime offsets (struct definition + device targets)
 ```
 
 ### Dictionary Files (27 files)
-All in `/home/h02332/po/research/cfl/`:
+All in `cfl/`:
 ```
 icc.dict, icc_core.dict, icc_profile.dict, icc_xml_consolidated.dict
 icc_master_curated.dict, icc_recommended.dict, icc_multitag.dict
