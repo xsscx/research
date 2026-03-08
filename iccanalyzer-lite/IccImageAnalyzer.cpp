@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <tiffio.h>
@@ -765,25 +766,32 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
       // Write extracted ICC to temp file for full heuristic analysis
       char tmpIcc[256];
       snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-extracted-%d.icc", getpid());
-      FILE *fOut = fopen(tmpIcc, "wb");
+      int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : NULL;
       if (fOut) {
-        fwrite(iccData, 1, iccLen, fOut);
+        size_t written = fwrite(iccData, 1, iccLen, fOut);
         fclose(fOut);
-        printf("\n  Extracted to: %s\n\n", tmpIcc);
+        if (written != iccLen) {
+          printf("  %s[ERROR] Incomplete write to temp ICC file (%zu of %u bytes)%s\n",
+                 ColorCritical(), written, iccLen, ColorReset());
+          unlink(tmpIcc);
+        } else {
+          printf("\n  Extracted to: %s\n\n", tmpIcc);
 
-        printf("=======================================================================\n");
-        printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
-        printf("=======================================================================\n\n");
+          printf("=======================================================================\n");
+          printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
+          printf("=======================================================================\n\n");
 
-        // Reset OOM guard for fresh ICC analysis
-        ResetAllocGuard();
+          // Reset OOM guard for fresh ICC analysis
+          ResetAllocGuard();
 
-        // Run the full comprehensive analysis on the extracted ICC
-        int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
-        if (iccResult > 0) findings += iccResult;
+          // Run the full comprehensive analysis on the extracted ICC
+          int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
+          if (iccResult > 0) findings += iccResult;
 
-        // Clean up temp file
-        unlink(tmpIcc);
+          // Clean up temp file
+          unlink(tmpIcc);
+        }
       } else {
         printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
                ColorCritical(), tmpIcc, ColorReset());
