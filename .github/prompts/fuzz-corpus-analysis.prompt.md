@@ -40,7 +40,42 @@ For each CFL fuzzer, identify which fuzz/ files exercise its code path:
 | icc_link_fuzzer | Pairs from `graphics/icc/*.icc` | Need display+output pairs |
 | icc_v5dspobs_fuzzer | v5 profiles from `graphics/icc/` | Need display+observer pairs |
 
-### Step 3 — Identify coverage gaps
+### Step 3 — Audit profile class distribution
+**Critical**: Verify all 7 ICC classes are represented in each corpus. A class gap
+means entire code paths (LUT types, gamut mapping, device transforms) go untested.
+
+```bash
+# Check class distribution across all corpora
+python3 -c "
+import os, struct, collections
+names = {b'mntr':'Display', b'prtr':'Printer', b'scnr':'Scanner',
+         b'link':'DeviceLink', b'spac':'ColorSpace', b'abst':'Abstract', b'nmcl':'NamedColor'}
+for corpus in sorted(os.listdir('cfl')):
+    if not corpus.startswith('corpus-'): continue
+    d = os.path.join('cfl', corpus)
+    if not os.path.isdir(d): continue
+    classes = collections.Counter()
+    for fn in os.listdir(d):
+        fp = os.path.join(d, fn)
+        if not os.path.isfile(fp): continue
+        try:
+            with open(fp,'rb') as fh:
+                hdr = fh.read(16)
+                if len(hdr)>=16: classes[hdr[12:16]] += 1
+        except: pass
+    total = sum(classes.values())
+    missing = [n for c,n in names.items() if classes.get(c,0)==0]
+    if missing:
+        print(f'  {corpus}: MISSING {missing} ({total} total)')
+"
+```
+
+**Known gap (fixed March 2026)**: Zero printer (prtr) profiles existed across all corpora.
+Printer profiles exercise AToB/BToA LUT pairs (mft1), gamut tags, and CMYK handling.
+Seeds added: Tek350Monaco2 (v2.0 RGB→Lab), SC_paper_eci (v2.4 CMYK→Lab),
+CMYK-3DLUTs2 (v5.0 CMYK→Lab), cve-2023-46602 (malformed CMYK).
+
+### Step 4 — Identify code coverage gaps
 ```bash
 # Run a short fuzzing session and check coverage
 LLVM_PROFILE_FILE=/tmp/profraw/${FUZZER}_%m_%p.profraw \
@@ -51,7 +86,7 @@ llvm-profdata-18 merge -sparse /tmp/profraw/*.profraw -o /tmp/merged.profdata
 llvm-cov-18 report cfl/bin/${FUZZER} -instr-profile=/tmp/merged.profdata
 ```
 
-### Step 4 — Create targeted seeds
+### Step 5 — Create targeted seeds
 For uncovered code paths, create minimal ICC profiles that exercise specific features:
 
 1. **Tag-specific seeds**: Profiles with rare tag signatures (e.g., `gamt`, `bfd`, `ncl2`)
@@ -59,6 +94,7 @@ For uncovered code paths, create minimal ICC profiles that exercise specific fea
 3. **Class-specific seeds**: `scnr`, `mntr`, `prtr`, `link`, `spac`, `abst`, `nmcl`
 4. **PCS-specific seeds**: XYZ-PCS and Lab-PCS profiles
 5. **MPE seeds**: Profiles with multiProcessElementsType tags for calculator fuzzer
+6. **TRC diversity**: Sampled curves (curv 1024-entry), parametric (para type 3), gamma-only (curv 1-entry)
 
 ### Step 5 — Validate seed quality
 ```bash
@@ -103,6 +139,25 @@ When analyzing files in fuzz/graphics/icc/, classify by CWE:
 | `npd-` | CWE-476 | NULL pointer dereference |
 | `so-` | CWE-674 | Uncontrolled recursion / stack exhaustion |
 | `crash-` | Various | Unclassified crash |
+
+### Step 7 — Seed from xnuimagetools output
+iOS Image Generator and xnuimagefuzzer outputs are staged in the fuzz/ corpus repo:
+```bash
+# Seed from iOS-generated images (collision-free filenames with SHA-256 hash)
+cp fuzz/xnuimagegenerator/tiff/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
+cp fuzz/xnuimagegenerator/icc/*.icc cfl/corpus-icc_profile_fuzzer/ 2>/dev/null
+
+# Seed from fuzzed outputs
+cp fuzz/xnuimagefuzzer/tiff/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
+cp fuzz/xnuimagefuzzer/icc/*.icc cfl/corpus-icc_profile_fuzzer/ 2>/dev/null
+```
+
+### iOS-Extracted ICC Profiles (3 unique, March 2026)
+| Profile | Size | Version | CMM | TRC Type | Gamut | Notes |
+|---------|------|---------|-----|----------|-------|-------|
+| sRGB IEC61966-2.1 | 3,144B | v2.1 | HP/Lino | curv 1024-entry | 100% | 17 tags, shared TRC offsets |
+| Display P3 | 536B | v4.0 | Apple | para type 3 | 128% | Negative XYZ, chad tag |
+| Adobe RGB (1998) | 560B | v2.1 | Adobe | curv γ=2.2 | 131% | Single gamma value |
 
 ## Output
 Document findings in a table with:
