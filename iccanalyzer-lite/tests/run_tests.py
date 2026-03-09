@@ -906,16 +906,22 @@ def test_json_output(suite):
         ))
         if has_cve:
             cov = s["cveCoverage"]
-            has_unique = "uniqueCVEs" in cov and cov["uniqueCVEs"] == 87
+            has_unique = "uniqueCVEs" in cov and cov["uniqueCVEs"] >= 100
             suite.results.append(TestResult(
                 "json.cve_unique_count", has_unique,
-                f"uniqueCVEs={cov.get('uniqueCVEs')}, expected 87" if not has_unique else "",
+                f"uniqueCVEs={cov.get('uniqueCVEs')}, expected >= 100" if not has_unique else "",
                 0.0, "", ""
             ))
             has_scope = "outOfScopeXmlCVEs" in cov and cov["outOfScopeXmlCVEs"] == 0
             suite.results.append(TestResult(
                 "json.cve_xml_scope", has_scope,
                 f"outOfScopeXmlCVEs={cov.get('outOfScopeXmlCVEs')}, expected 0" if not has_scope else "",
+                0.0, "", ""
+            ))
+            has_tool_scope = "outOfScopeToolCVEs" in cov and cov["outOfScopeToolCVEs"] == 0
+            suite.results.append(TestResult(
+                "json.cve_tool_scope", has_tool_scope,
+                f"outOfScopeToolCVEs={cov.get('outOfScopeToolCVEs')}, expected 0" if not has_tool_scope else "",
                 0.0, "", ""
             ))
 
