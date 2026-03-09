@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-08 14:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 141 heuristics (H1-H138 ICC + H139-H141 TIFF), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 150 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,7 +14,7 @@ tl;dr ICC Profile Security Analyzer — 141 heuristics (H1-H138 ICC + H139-H141 
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (141 checks)
+  -h  <file.icc>              Security heuristics (150 checks)
   -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
@@ -38,14 +38,14 @@ iccAnalyzer-lite [MODE] <file>
 | IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102 | 2,624 | Deep data validation |
 | IccHeuristicsProfileCompliance.cpp | H103-H120 | 1,749 | ICC spec compliance |
 | IccHeuristicsIntegrity.cpp | H121-H138 | 1,707 | Integrity and CWE-400 checks |
-| IccImageAnalyzer.cpp | H139-H141 | ~800 | TIFF image security analysis |
+| IccImageAnalyzer.cpp | H139-H141, H149-H150 | ~1000 | TIFF image security analysis |
 | IccHeuristicsLibrary.cpp | — | 99 | Thin dispatcher for H9-H138 |
 
 ### Support Modules
 
 | Module | Purpose |
 |--------|---------|
-| IccHeuristicsRegistry.h | 141-entry metadata table (name, CWE, CVE, phase) |
+| IccHeuristicsRegistry.h | 150-entry metadata table (name, CWE, CVE, phase) |
 | IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
 | IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
 | IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
@@ -69,7 +69,7 @@ iccAnalyzer-lite [MODE] <file>
 38 heuristics detect patterns from 46 CVEs (from 77 iccDEV security advisories).
 22 XML-parser CVEs are out of scope (binary-only analyzer).
 
-## Security Heuristics (H1–H141)
+## Security Heuristics (H1–H150)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -234,12 +234,14 @@ iccAnalyzer-lite [MODE] <file>
 | H137 | High dimensional grid complexity | CWE-400: nGran^ndim iteration |
 | H138 | Calculator branching depth | CWE-674: recursive calculator ops — CVE-2026-24407 |
 
-### TIFF Image Heuristics (H139–H141)
+### TIFF Image Heuristics (H139–H141, H149–H150)
 | ID | Check | Risk |
 |----|-------|------|
 | H139 | Strip geometry validation | StripByteCounts vs RowsPerStrip×Width bounds — CWE-122/CWE-190 |
 | H140 | Dimension/sample validation | Width/Height/BPS/SPP range and overflow — CWE-400/CWE-131 |
 | H141 | IFD offset bounds | TIFF IFD tag data offsets within file — CWE-125 |
+| H149 | IFD chain cycle detection | Circular IFD next-pointers cause infinite loops — CWE-835 |
+| H150 | Tile geometry validation | TileWidth/TileLength multiples of 16, tile count, overflow — CWE-122/CWE-131 |
 
 ## Call Graph Analysis (-cg)
 

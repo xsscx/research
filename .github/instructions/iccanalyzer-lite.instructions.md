@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 148-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
+A 150-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
@@ -15,7 +15,7 @@ violations, malformed structures, and potential exploitation vectors. Heuristics
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-148-heuristic analysis (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation) on extracted ICC profiles. New explicit `-img` mode available.
+150-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation) on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -61,7 +61,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 230 tests (19 functions), ~36s
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.148_heuristics` pattern
+- When adding heuristics, update the test for `summary.150_heuristics` pattern
 
 ## Architecture — 8 Heuristic Modules + 1 Image Analysis
 
@@ -86,8 +86,8 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 148-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
-| `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template + `RawFileHandle` RAII |
+| `IccHeuristicsRegistry.h` | 150-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
+| `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
 | `IccAnalyzerJson.cpp/.h` | `--json` structured output mode |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
 | `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
@@ -98,8 +98,8 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H149** (current max is H148)
-2. Add `RunHeuristic_H142_Name()` function to the appropriate category file:
+1. Choose the next ID: **H151** (current max is H150)
+2. Add `RunHeuristic_H151_Name()` function to the appropriate category file:
    - Tag structure → `IccHeuristicsTagValidation.cpp`
    - Data integrity → `IccHeuristicsDataValidation.cpp`
    - Spec compliance → `IccHeuristicsProfileCompliance.cpp`
@@ -108,9 +108,8 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 3. Add function declaration to the corresponding `.h` file
 4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
 5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-6. Update heuristic count (148→149) in these files:
-   - `IccAnalyzerSecurity.cpp` — CVE Coverage printf
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.148_heuristics`
+6. Update heuristic count (150→151) in these files:
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.150_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
@@ -122,7 +121,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 4 files (function + declaration + dispatcher + registry entry) instead of the
 previous 7+ file pattern.
 
-### Implemented TIFF Heuristics (H139-H141)
+### Implemented TIFF Heuristics (H139-H141, H149-H150)
 
 **H139: TIFF Strip Geometry Validation** — Validates TIFF strip buffer geometry:
 `StripByteCounts >= RowsPerStrip × Width × SamplesPerPixel × (BitsPerSample/8)`,
@@ -138,13 +137,22 @@ CWE-400/CWE-131.
 point within the file. Detects file truncation attacks where TIFF headers reference
 data beyond EOF. CWE-125.
 
+**H149: TIFF IFD Chain Cycle Detection** — Walks raw IFD next-pointers to detect
+circular references that would cause infinite loops. Tracks visited offsets in a set;
+flags cycles and excessive chain depth (>1024). CWE-835.
+
+**H150: TIFF Tile Geometry Validation** — For tiled TIFFs, validates TileWidth
+and TileLength are multiples of 16 (TIFF 6.0 §15), tile count matches expected
+grid layout, tile byte counts checked for integer overflow and EOF overrun.
+CWE-122/CWE-131.
+
 ### Candidate Heuristics (Not Yet Implemented)
 
-**H149: TIFF Multi-IFD Chain Depth** — Limit the number of IFD pages followed
-to prevent infinite loops from circular IFD next-pointers. CWE-835.
+**H151: TIFF Compression Bomb Detection** — Detect decompression bombs where
+compressed tile/strip size is tiny but uncompressed size is enormous. CWE-400.
 
-**H150: TIFF Tile Geometry Validation** — For tiled TIFFs, validate TileWidth,
-TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
+**H152: PNG iCCP Chunk ICC Extraction** — Extract ICC profiles from PNG iCCP
+chunks and run full heuristic analysis. Requires libpng. CWE-125.
 
 ### Implemented XML Safety Heuristics (H142-H145)
 
@@ -196,7 +204,7 @@ PoC: #577.
 | H56-H102 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
-| H139-H141 | IccImageAnalyzer.cpp | TIFF image security (strip geometry, dimensions, IFD) |
+| H139-H141, H149-H150 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) |
 | H142-H145 | IccHeuristicsXmlSafety.cpp | XML serialization safety (ToXml crash, arrays, strings, curves) |
 | H146-H148 | IccHeuristicsDataValidation.cpp | Advanced data validation (SBO GetValues, NPD post-Read, memcpy bounds) |
 
@@ -278,7 +286,7 @@ severity). This is the **source of truth** for all counts — adding a new entry
 
 ## Severity Classification (v3.6.0+)
 
-All 148 heuristics are classified by CWE impact:
+All 150 heuristics are classified by CWE impact:
 - **CRITICAL** (~44): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506
 - **HIGH** (~36): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
@@ -302,7 +310,7 @@ The explicit `-img` mode also available. Currently supports TIFF; PNG/JPEG plann
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 148 heuristics
+   ComprehensiveAnalyze() with all 150 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
