@@ -30,6 +30,9 @@
 #include <unistd.h>
 
 #include <tiffio.h>
+#include <png.h>
+#include <jpeglib.h>
+#include <setjmp.h>
 
 // ── Forward declarations for ICC analysis functions ──
 extern int HeuristicAnalyze(const char *profilePath, const char *fingerprintDb);
@@ -1105,21 +1108,620 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Stub Handlers (until full implementation)
+// PNG Analysis — ICC extraction from iCCP chunk
 // ═══════════════════════════════════════════════════════════════════════
 
-static int AnalyzePngImageStub(const char *filepath, const char * /*fingerprintDb*/) {
-  printf("[INFO] PNG image analysis not yet implemented.\n");
-  printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
-         filepath);
-  return 0;
+static const char *PngColorTypeName(int ct) {
+  switch (ct) {
+    case PNG_COLOR_TYPE_GRAY:       return "Grayscale";
+    case PNG_COLOR_TYPE_PALETTE:    return "Palette (Indexed)";
+    case PNG_COLOR_TYPE_RGB:        return "RGB";
+    case PNG_COLOR_TYPE_RGB_ALPHA:  return "RGBA";
+    case PNG_COLOR_TYPE_GRAY_ALPHA: return "Grayscale+Alpha";
+    default:                        return "Unknown";
+  }
 }
 
-static int AnalyzeJpegImageStub(const char *filepath, const char * /*fingerprintDb*/) {
-  printf("[INFO] JPEG image analysis not yet implemented.\n");
-  printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
-         filepath);
-  return 0;
+static const char *PngInterlaceName(int il) {
+  switch (il) {
+    case PNG_INTERLACE_NONE:  return "None";
+    case PNG_INTERLACE_ADAM7: return "Adam7";
+    default:                   return "Unknown";
+  }
+}
+
+int AnalyzePngImage(const char *filepath, const char *fingerprintDb) {
+  int findings = 0;
+
+  printf("=======================================================================\n");
+  printf("IMAGE FILE ANALYSIS — PNG\n");
+  printf("=======================================================================\n");
+  printf("File: %s\n\n", filepath);
+
+  FILE *fp = fopen(filepath, "rb");
+  if (!fp) {
+    printf("%s[ERROR] Cannot open PNG file%s\n", ColorCritical(), ColorReset());
+    return -1;
+  }
+
+  // Verify PNG signature (first 8 bytes)
+  uint8_t sig[8];
+  if (fread(sig, 1, 8, fp) != 8 || png_sig_cmp(sig, 0, 8) != 0) {
+    printf("%s[ERROR] Invalid PNG signature%s\n", ColorCritical(), ColorReset());
+    fclose(fp);
+    return -1;
+  }
+
+  png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+  if (!png) {
+    printf("%s[ERROR] png_create_read_struct failed%s\n", ColorCritical(), ColorReset());
+    fclose(fp);
+    return -1;
+  }
+
+  png_infop info = png_create_info_struct(png);
+  if (!info) {
+    png_destroy_read_struct(&png, nullptr, nullptr);
+    fclose(fp);
+    return -1;
+  }
+
+  if (setjmp(png_jmpbuf(png))) {
+    printf("%s[ERROR] libpng read error (longjmp triggered)%s\n",
+           ColorCritical(), ColorReset());
+    png_destroy_read_struct(&png, &info, nullptr);
+    fclose(fp);
+    return -1;
+  }
+
+  png_init_io(png, fp);
+  png_set_sig_bytes(png, 8);  // we already read 8 bytes
+  png_read_info(png, info);
+
+  // ── PNG Metadata ──
+  printf("--- PNG Metadata ---\n");
+
+  png_uint_32 width = png_get_image_width(png, info);
+  png_uint_32 height = png_get_image_height(png, info);
+  int bitDepth = png_get_bit_depth(png, info);
+  int colorType = png_get_color_type(png, info);
+  int interlace = png_get_interlace_type(png, info);
+  int channels = png_get_channels(png, info);
+  int compression = png_get_compression_type(png, info);
+  int filter = png_get_filter_type(png, info);
+
+  printf("  Dimensions:      %u × %u pixels\n", width, height);
+  printf("  Bit Depth:       %d\n", bitDepth);
+  printf("  Color Type:      %s (%d)\n", PngColorTypeName(colorType), colorType);
+  printf("  Channels:        %d\n", channels);
+  printf("  Interlace:       %s (%d)\n", PngInterlaceName(interlace), interlace);
+  printf("  Compression:     %d (deflate)\n", compression);
+  printf("  Filter:          %d\n", filter);
+
+  // Resolution (pHYs chunk)
+  png_uint_32 xPPU = 0, yPPU = 0;
+  int unitType = 0;
+  if (png_get_pHYs(png, info, &xPPU, &yPPU, &unitType)) {
+    const char *unit = (unitType == PNG_RESOLUTION_METER) ? "pixels/meter" : "units";
+    printf("  Resolution:      %u × %u %s\n", xPPU, yPPU, unit);
+  }
+
+  // Text chunks (tEXt/zTXt/iTXt)
+  png_textp textPtr = nullptr;
+  int numText = 0;
+  if (png_get_text(png, info, &textPtr, &numText) > 0 && numText > 0) {
+    printf("  Text Chunks:     %d\n", numText);
+    for (int t = 0; t < numText && t < 5; t++) {
+      printf("    %s: %.60s%s\n", textPtr[t].key,
+             textPtr[t].text ? textPtr[t].text : "(null)",
+             (textPtr[t].text && strlen(textPtr[t].text) > 60) ? "..." : "");
+    }
+  }
+
+  // Gamma (gAMA chunk)
+  double gamma = 0;
+  if (png_get_gAMA(png, info, &gamma)) {
+    printf("  Gamma:           %.5f\n", gamma);
+  }
+
+  // sRGB rendering intent (sRGB chunk)
+  int srgbIntent = -1;
+  if (png_get_sRGB(png, info, &srgbIntent)) {
+    const char *intentNames[] = {"Perceptual", "Relative", "Saturation", "Absolute"};
+    printf("  sRGB Intent:     %s (%d)\n",
+           (srgbIntent >= 0 && srgbIntent <= 3) ? intentNames[srgbIntent] : "Unknown",
+           srgbIntent);
+  }
+
+  printf("\n");
+
+  // ── Security Checks ──
+  printf("--- PNG Security Checks ---\n");
+
+  // Check 1: Extreme dimensions (DoS via decompression)
+  uint64_t pixelCount = (uint64_t)width * (uint64_t)height;
+  if (pixelCount > 100000000ULL) {
+    printf("      %s[WARN]  Extreme dimensions: %u×%u = %llu pixels (>100M)%s\n",
+           ColorWarning(), width, height, (unsigned long long)pixelCount, ColorReset());
+    printf("       %sCWE-400: Resource exhaustion via large PNG%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 2: Zero dimensions
+  if (width == 0 || height == 0) {
+    printf("      %s[CRIT]  Zero dimension: %u×%u%s\n",
+           ColorCritical(), width, height, ColorReset());
+    printf("       %sCWE-369: Division by zero in row calculations%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 3: Unusual bit depth
+  if (bitDepth != 1 && bitDepth != 2 && bitDepth != 4 && bitDepth != 8 && bitDepth != 16) {
+    printf("      %s[WARN]  Unusual bit depth: %d (expected 1/2/4/8/16)%s\n",
+           ColorWarning(), bitDepth, ColorReset());
+    printf("       %sCWE-131: Incorrect buffer size calculation%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 4: Uncompressed size overflow
+  uint64_t bytesPerPixel = ((uint64_t)bitDepth * (uint64_t)channels + 7) >> 3;
+  uint64_t totalBytes = pixelCount * bytesPerPixel;
+  if (totalBytes > 4ULL * 1024 * 1024 * 1024) {
+    printf("      %s[WARN]  Uncompressed size %llu bytes (>4GB)%s\n",
+           ColorWarning(), (unsigned long long)totalBytes, ColorReset());
+    printf("       %sCWE-400: Memory exhaustion via large decoded image%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Scan text chunks for injection patterns
+  if (numText > 0 && textPtr) {
+    for (int t = 0; t < numText; t++) {
+      if (textPtr[t].text && textPtr[t].text_length > 0) {
+        findings += ScanForInjections(
+            (const uint8_t *)textPtr[t].text, textPtr[t].text_length,
+            textPtr[t].key ? textPtr[t].key : "tEXt");
+      }
+    }
+  }
+
+  if (findings == 0) {
+    printf("      %s[OK] No security issues in PNG structure%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  // ── ICC Profile Extraction (iCCP chunk) ──
+  printf("--- Embedded ICC Profile ---\n");
+
+  png_charp iccpName = nullptr;
+  int iccpCompression = 0;
+  png_bytep iccpData = nullptr;
+  png_uint_32 iccpLen = 0;
+
+  if (png_get_iCCP(png, info, &iccpName, &iccpCompression, &iccpData, &iccpLen)) {
+    printf("  %s[FOUND] ICC profile in iCCP chunk%s\n", ColorSuccess(), ColorReset());
+    printf("  Profile Name:    %s\n", iccpName ? iccpName : "(null)");
+    printf("  Profile Size:    %u bytes (%.1f KB)\n", iccpLen, iccpLen / 1024.0);
+    printf("  iCCP Compression: %d (deflate)\n", iccpCompression);
+
+    // Validate ICC magic in decompressed data
+    if (iccpLen >= 40 && iccpData) {
+      bool hasAcsp = (iccpData[36] == 'a' && iccpData[37] == 'c' &&
+                      iccpData[38] == 's' && iccpData[39] == 'p');
+      if (hasAcsp) {
+        printf("  ICC Magic:       %s[OK] 'acsp' at offset 36%s\n",
+               ColorSuccess(), ColorReset());
+      } else {
+        printf("  %s[CRIT] Missing 'acsp' magic — corrupted ICC profile in iCCP%s\n",
+               ColorCritical(), ColorReset());
+        printf("   %sCWE-20: Invalid ICC header embedded in PNG%s\n",
+               ColorCritical(), ColorReset());
+        findings++;
+      }
+
+      // ICC version
+      uint8_t majVer = iccpData[8];
+      uint8_t minVer = iccpData[9] >> 4;
+      printf("  ICC Version:     %u.%u\n", majVer, minVer);
+
+      // Profile size vs iCCP data size
+      uint32_t hdrSize = ((uint32_t)iccpData[0] << 24) | ((uint32_t)iccpData[1] << 16) |
+                          ((uint32_t)iccpData[2] << 8)  | (uint32_t)iccpData[3];
+      if (hdrSize != iccpLen) {
+        printf("  %s[WARN] Size mismatch: header says %u, iCCP has %u bytes%s\n",
+               ColorWarning(), hdrSize, iccpLen, ColorReset());
+        printf("   %sCWE-131: Size field inconsistency%s\n",
+               ColorCritical(), ColorReset());
+        findings++;
+      }
+
+      // Suspicious tag count
+      if (iccpLen > 132) {
+        uint32_t tagCount = ((uint32_t)iccpData[128] << 24) |
+                            ((uint32_t)iccpData[129] << 16) |
+                            ((uint32_t)iccpData[130] << 8) |
+                            (uint32_t)iccpData[131];
+        if (tagCount > 1000) {
+          printf("  %s[CRIT] Suspicious ICC tag count: %u (mutated profile)%s\n",
+                 ColorCritical(), tagCount, ColorReset());
+          findings++;
+        }
+      }
+
+      // Write to temp file for full heuristic analysis
+      char tmpIcc[256];
+      snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-png-extracted-%d.icc", getpid());
+      int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : nullptr;
+      if (fOut) {
+        size_t written = fwrite(iccpData, 1, iccpLen, fOut);
+        fclose(fOut);
+        if (written != iccpLen) {
+          printf("  %s[ERROR] Incomplete write to temp ICC file%s\n",
+                 ColorCritical(), ColorReset());
+          unlink(tmpIcc);
+        } else {
+          printf("\n  Extracted to: %s\n\n", tmpIcc);
+
+          printf("=======================================================================\n");
+          printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
+          printf("=======================================================================\n\n");
+
+          ResetAllocGuard();
+          int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
+          if (iccResult > 0) findings += iccResult;
+
+          unlink(tmpIcc);
+        }
+      } else {
+        printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
+               ColorCritical(), tmpIcc, ColorReset());
+      }
+    } else if (iccpLen > 0) {
+      printf("  %s[CRIT] ICC profile too small (%u bytes < 40 minimum)%s\n",
+             ColorCritical(), iccpLen, ColorReset());
+      findings++;
+    }
+  } else if (srgbIntent >= 0) {
+    printf("  %s[INFO] No iCCP chunk — sRGB chunk present (implicit sRGB)%s\n",
+           ColorInfo(), ColorReset());
+  } else {
+    printf("  %s[INFO] No embedded ICC profile (no iCCP or sRGB chunk)%s\n",
+           ColorInfo(), ColorReset());
+  }
+
+  png_destroy_read_struct(&png, &info, nullptr);
+  fclose(fp);
+
+  printf("\n=======================================================================\n");
+  printf("IMAGE ANALYSIS SUMMARY\n");
+  printf("=======================================================================\n");
+  printf("Format:     PNG\n");
+  printf("Dimensions: %u × %u\n", width, height);
+  printf("Findings:   %d\n", findings);
+  printf("=======================================================================\n\n");
+
+  return findings;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// JPEG Analysis — ICC extraction from APP2 ICC_PROFILE markers
+// ═══════════════════════════════════════════════════════════════════════
+
+// ICC_PROFILE APP2 marker: 14-byte header = "ICC_PROFILE\0" + seq_no + num_markers
+static const uint8_t kIccProfileTag[] = {
+  'I','C','C','_','P','R','O','F','I','L','E','\0'
+};
+static constexpr size_t kIccProfileTagLen = 12;
+static constexpr size_t kIccProfileHeaderLen = 14; // 12 tag + 1 seq + 1 total
+
+// Custom error manager for libjpeg that uses longjmp instead of exit()
+struct JpegErrorMgr {
+  struct jpeg_error_mgr pub;
+  jmp_buf setjmp_buffer;
+};
+
+static void JpegErrorExit(j_common_ptr cinfo) {
+  JpegErrorMgr *err = (JpegErrorMgr *)cinfo->err;
+  longjmp(err->setjmp_buffer, 1);
+}
+
+static void JpegEmitMessage(j_common_ptr /*cinfo*/, int /*level*/) {
+  // Suppress libjpeg warning messages
+}
+
+int AnalyzeJpegImage(const char *filepath, const char *fingerprintDb) {
+  int findings = 0;
+
+  printf("=======================================================================\n");
+  printf("IMAGE FILE ANALYSIS — JPEG\n");
+  printf("=======================================================================\n");
+  printf("File: %s\n\n", filepath);
+
+  FILE *fp = fopen(filepath, "rb");
+  if (!fp) {
+    printf("%s[ERROR] Cannot open JPEG file%s\n", ColorCritical(), ColorReset());
+    return -1;
+  }
+
+  struct jpeg_decompress_struct cinfo;
+  JpegErrorMgr jerr;
+  cinfo.err = jpeg_std_error(&jerr.pub);
+  jerr.pub.error_exit = JpegErrorExit;
+  jerr.pub.emit_message = JpegEmitMessage;
+
+  if (setjmp(jerr.setjmp_buffer)) {
+    printf("%s[ERROR] libjpeg read error (longjmp triggered)%s\n",
+           ColorCritical(), ColorReset());
+    jpeg_destroy_decompress(&cinfo);
+    fclose(fp);
+    return -1;
+  }
+
+  jpeg_create_decompress(&cinfo);
+
+  // Save APP2 markers (ICC_PROFILE) — up to 255 segments × 65533 bytes each
+  jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
+  // Also save APP1 (EXIF) and APP0 (JFIF) for metadata
+  jpeg_save_markers(&cinfo, JPEG_APP0 + 1, 0xFFFF);
+  jpeg_save_markers(&cinfo, JPEG_APP0, 0xFFFF);
+
+  jpeg_stdio_src(&cinfo, fp);
+  jpeg_read_header(&cinfo, TRUE);
+
+  // ── JPEG Metadata ──
+  printf("--- JPEG Metadata ---\n");
+
+  printf("  Dimensions:      %u × %u pixels\n", cinfo.image_width, cinfo.image_height);
+  printf("  Components:      %d\n", cinfo.num_components);
+
+  const char *csName = "Unknown";
+  switch (cinfo.jpeg_color_space) {
+    case JCS_GRAYSCALE: csName = "Grayscale"; break;
+    case JCS_RGB:       csName = "RGB"; break;
+    case JCS_YCbCr:     csName = "YCbCr"; break;
+    case JCS_CMYK:      csName = "CMYK"; break;
+    case JCS_YCCK:      csName = "YCCK"; break;
+    default: break;
+  }
+  printf("  Color Space:     %s\n", csName);
+  printf("  Data Precision:  %d bits\n", cinfo.data_precision);
+
+  // Report density info
+  if (cinfo.saw_JFIF_marker) {
+    const char *dUnit = (cinfo.density_unit == 1) ? "dpi" :
+                        (cinfo.density_unit == 2) ? "dpcm" : "aspect";
+    printf("  JFIF Version:    %d.%02d\n", cinfo.JFIF_major_version, cinfo.JFIF_minor_version);
+    printf("  Density:         %u × %u %s\n",
+           cinfo.X_density, cinfo.Y_density, dUnit);
+  }
+
+  // Count marker types
+  int app0Count = 0, app1Count = 0, app2Count = 0;
+  for (jpeg_saved_marker_ptr m = cinfo.marker_list; m; m = m->next) {
+    if (m->marker == JPEG_APP0)     app0Count++;
+    if (m->marker == JPEG_APP0 + 1) app1Count++;
+    if (m->marker == JPEG_APP0 + 2) app2Count++;
+  }
+  printf("  APP0 (JFIF):     %d marker(s)\n", app0Count);
+  printf("  APP1 (EXIF):     %d marker(s)\n", app1Count);
+  printf("  APP2 (ICC):      %d marker(s)\n", app2Count);
+  printf("\n");
+
+  // ── Security Checks ──
+  printf("--- JPEG Security Checks ---\n");
+
+  // Check 1: Extreme dimensions
+  uint64_t pixelCount = (uint64_t)cinfo.image_width * (uint64_t)cinfo.image_height;
+  if (pixelCount > 100000000ULL) {
+    printf("      %s[WARN]  Extreme dimensions: %u×%u = %llu pixels (>100M)%s\n",
+           ColorWarning(), cinfo.image_width, cinfo.image_height,
+           (unsigned long long)pixelCount, ColorReset());
+    printf("       %sCWE-400: Resource exhaustion via large JPEG%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 2: Zero dimensions
+  if (cinfo.image_width == 0 || cinfo.image_height == 0) {
+    printf("      %s[CRIT]  Zero dimension: %u×%u%s\n",
+           ColorCritical(), cinfo.image_width, cinfo.image_height, ColorReset());
+    findings++;
+  }
+
+  // Check 3: Unusual data precision
+  if (cinfo.data_precision != 8 && cinfo.data_precision != 12) {
+    printf("      %s[WARN]  Unusual data precision: %d (expected 8 or 12)%s\n",
+           ColorWarning(), cinfo.data_precision, ColorReset());
+    printf("       %sCWE-131: Non-standard JPEG precision%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  // Check 4: Excessive component count (JPEG supports max 255, but >4 is suspicious)
+  if (cinfo.num_components > 4) {
+    printf("      %s[WARN]  Excessive components: %d (>4)%s\n",
+           ColorWarning(), cinfo.num_components, ColorReset());
+    findings++;
+  }
+
+  if (findings == 0) {
+    printf("      %s[OK] No security issues in JPEG structure%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  // ── ICC Profile Extraction (APP2 ICC_PROFILE markers) ──
+  // Per ICC spec, profiles >64KB are split across multiple APP2 markers.
+  // Each marker has: "ICC_PROFILE\0" (12 bytes) + seq_no (1) + num_markers (1) + data
+  printf("--- Embedded ICC Profile ---\n");
+
+  // Pass 1: Count ICC_PROFILE markers and determine total size
+  int numIccMarkers = 0;
+  int expectedTotal = 0;
+  size_t totalIccSize = 0;
+
+  for (jpeg_saved_marker_ptr m = cinfo.marker_list; m; m = m->next) {
+    if (m->marker != JPEG_APP0 + 2) continue;
+    if (m->data_length < kIccProfileHeaderLen) continue;
+    if (memcmp(m->data, kIccProfileTag, kIccProfileTagLen) != 0) continue;
+
+    int seqNo = m->data[12];
+    int total = m->data[13];
+    (void)seqNo;
+
+    if (expectedTotal == 0) {
+      expectedTotal = total;
+    } else if (total != expectedTotal) {
+      printf("  %s[CRIT] Inconsistent ICC marker count: marker says %d, expected %d%s\n",
+             ColorCritical(), total, expectedTotal, ColorReset());
+      printf("   %sCWE-20: Marker count mismatch (potential crafted JPEG)%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+    }
+
+    totalIccSize += (m->data_length - kIccProfileHeaderLen);
+    numIccMarkers++;
+  }
+
+  if (numIccMarkers > 0 && totalIccSize > 0) {
+    printf("  %s[FOUND] ICC profile in APP2 marker(s)%s\n", ColorSuccess(), ColorReset());
+    printf("  ICC Segments:    %d of %d\n", numIccMarkers, expectedTotal);
+    printf("  Total Size:      %zu bytes (%.1f KB)\n", totalIccSize, totalIccSize / 1024.0);
+
+    if (numIccMarkers != expectedTotal) {
+      printf("  %s[WARN] Missing ICC segments: have %d, expected %d%s\n",
+             ColorWarning(), numIccMarkers, expectedTotal, ColorReset());
+      printf("   %sCWE-20: Incomplete multi-segment ICC profile%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+    }
+
+    // Sanity check total size (cap at 20MB)
+    if (totalIccSize > 20 * 1024 * 1024) {
+      printf("  %s[CRIT] ICC profile too large: %zu bytes (>20MB)%s\n",
+             ColorCritical(), totalIccSize, ColorReset());
+      printf("   %sCWE-400: Excessive ICC profile size in JPEG%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+    } else {
+      // Pass 2: Reassemble ICC profile from markers (in sequence order)
+      std::vector<uint8_t> iccBuf(totalIccSize);
+      size_t offset = 0;
+      bool orderValid = true;
+
+      // Collect segments in order (seq_no is 1-based)
+      for (int seq = 1; seq <= expectedTotal; seq++) {
+        bool found = false;
+        for (jpeg_saved_marker_ptr m = cinfo.marker_list; m; m = m->next) {
+          if (m->marker != JPEG_APP0 + 2) continue;
+          if (m->data_length < kIccProfileHeaderLen) continue;
+          if (memcmp(m->data, kIccProfileTag, kIccProfileTagLen) != 0) continue;
+          if (m->data[12] != seq) continue;
+
+          size_t dataLen = m->data_length - kIccProfileHeaderLen;
+          if (offset + dataLen <= totalIccSize) {
+            memcpy(iccBuf.data() + offset, m->data + kIccProfileHeaderLen, dataLen);
+            offset += dataLen;
+          }
+          found = true;
+          break;
+        }
+        if (!found) {
+          printf("  %s[WARN] Missing ICC segment %d/%d%s\n",
+                 ColorWarning(), seq, expectedTotal, ColorReset());
+          orderValid = false;
+        }
+      }
+
+      if (orderValid && offset == totalIccSize && totalIccSize >= 40) {
+        // Validate ICC magic
+        bool hasAcsp = (iccBuf[36] == 'a' && iccBuf[37] == 'c' &&
+                        iccBuf[38] == 's' && iccBuf[39] == 'p');
+        if (hasAcsp) {
+          printf("  ICC Magic:       %s[OK] 'acsp' at offset 36%s\n",
+                 ColorSuccess(), ColorReset());
+        } else {
+          printf("  %s[CRIT] Missing 'acsp' magic — corrupted ICC in APP2%s\n",
+                 ColorCritical(), ColorReset());
+          printf("   %sCWE-20: Invalid ICC header in JPEG%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+        }
+
+        // ICC version
+        uint8_t majVer = iccBuf[8];
+        uint8_t minVer = iccBuf[9] >> 4;
+        printf("  ICC Version:     %u.%u\n", majVer, minVer);
+
+        // Profile size check
+        uint32_t hdrSize = ((uint32_t)iccBuf[0] << 24) | ((uint32_t)iccBuf[1] << 16) |
+                            ((uint32_t)iccBuf[2] << 8)  | (uint32_t)iccBuf[3];
+        if (hdrSize != totalIccSize) {
+          printf("  %s[WARN] Size mismatch: header says %u, APP2 total %zu bytes%s\n",
+                 ColorWarning(), hdrSize, totalIccSize, ColorReset());
+          findings++;
+        }
+
+        // Write extracted ICC to temp file for full analysis
+        char tmpIcc[256];
+        snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-jpeg-extracted-%d.icc", getpid());
+        int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : nullptr;
+        if (fOut) {
+          size_t written = fwrite(iccBuf.data(), 1, totalIccSize, fOut);
+          fclose(fOut);
+          if (written != totalIccSize) {
+            printf("  %s[ERROR] Incomplete write to temp ICC file%s\n",
+                   ColorCritical(), ColorReset());
+            unlink(tmpIcc);
+          } else {
+            printf("\n  Extracted to: %s\n\n", tmpIcc);
+
+            printf("=======================================================================\n");
+            printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
+            printf("=======================================================================\n\n");
+
+            ResetAllocGuard();
+            int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
+            if (iccResult > 0) findings += iccResult;
+
+            unlink(tmpIcc);
+          }
+        } else {
+          printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
+                 ColorCritical(), tmpIcc, ColorReset());
+        }
+      } else if (totalIccSize < 40) {
+        printf("  %s[CRIT] Reassembled ICC too small (%zu bytes < 40)%s\n",
+               ColorCritical(), totalIccSize, ColorReset());
+        findings++;
+      }
+    }
+  } else {
+    printf("  %s[INFO] No embedded ICC profile (no APP2 ICC_PROFILE markers)%s\n",
+           ColorInfo(), ColorReset());
+    if (cinfo.saw_JFIF_marker) {
+      printf("  JFIF present — color space interpretation depends on component IDs.\n");
+    }
+  }
+
+  jpeg_destroy_decompress(&cinfo);
+  fclose(fp);
+
+  printf("\n=======================================================================\n");
+  printf("IMAGE ANALYSIS SUMMARY\n");
+  printf("=======================================================================\n");
+  printf("Format:     JPEG\n");
+  printf("Dimensions: %u × %u\n", cinfo.image_width, cinfo.image_height);
+  printf("Findings:   %d\n", findings);
+  printf("=======================================================================\n\n");
+
+  return findings;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1135,8 +1737,8 @@ static const ImageFormat kJpegFormats[] = { ImageFormat::JPEG };
 
 static const ImageFormatHandler kFormatHandlers[] = {
   { "TIFF", kTiffFormats, 4, AnalyzeTiffImage },
-  { "PNG",  kPngFormats,  1, AnalyzePngImageStub },
-  { "JPEG", kJpegFormats, 1, AnalyzeJpegImageStub },
+  { "PNG",  kPngFormats,  1, AnalyzePngImage },
+  { "JPEG", kJpegFormats, 1, AnalyzeJpegImage },
 };
 static constexpr int kNumFormatHandlers = sizeof(kFormatHandlers) / sizeof(kFormatHandlers[0]);
 

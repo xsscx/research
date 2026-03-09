@@ -58,6 +58,8 @@ target_link_libraries(iccAnalyzer-lite
     ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a
     ${LIBXML2_LIBRARIES}
     tiff
+    png
+    jpeg
     ssl
     crypto
     z

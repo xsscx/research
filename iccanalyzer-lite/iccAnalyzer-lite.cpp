@@ -195,7 +195,7 @@ void PrintUsage() {
   printf("Analysis Modes:\n");
   printf("  -h <file.icc>              Security heuristics analysis\n");
   printf("  -r <file.icc>              Round-trip accuracy test\n");
-  printf("  -a <file>                  Comprehensive analysis (auto-detects TIFF/ICC)\n");
+  printf("  -a <file>                  Comprehensive analysis (auto-detects TIFF/PNG/JPEG/ICC)\n");
   printf("  -img <file>                Image analysis (TIFF/PNG/JPEG with ICC extraction)\n");
   printf("  -n <file.icc>              Ninja mode (minimal output)\n");
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
@@ -275,6 +275,12 @@ int main(int argc, char **argv) {
     if (fmt == ImageFormat::TIFF_LE || fmt == ImageFormat::TIFF_BE ||
         fmt == ImageFormat::BIGTIFF_LE || fmt == ImageFormat::BIGTIFF_BE) {
       return RecoverableRun("TIFF image analysis", [&]{ return AnalyzeTiffImage(profilePath, nullptr); });
+    }
+    if (fmt == ImageFormat::PNG) {
+      return RecoverableRun("PNG image analysis", [&]{ return AnalyzePngImage(profilePath, nullptr); });
+    }
+    if (fmt == ImageFormat::JPEG) {
+      return RecoverableRun("JPEG image analysis", [&]{ return AnalyzeJpegImage(profilePath, nullptr); });
     }
     return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr); });
   }
