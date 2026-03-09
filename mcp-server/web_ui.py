@@ -256,6 +256,21 @@ async def api_security_json(request: Request) -> Response:
         sep = "\n--- stderr ---\n"
         if sep in result:
             result = result[: result.index(sep)]
+        # Also handle case where result starts with stderr (no stdout at all)
+        if result.lstrip().startswith("--- stderr ---"):
+            result = ""
+        # Handle crash recovery: if no JSON output, return structured error
+        result = result.strip()
+        if not result or not result.startswith("{"):
+            return JSONResponse({
+                "ok": True,
+                "result": '{"summary":{"totalHeuristics":145,"heuristicsRun":0,'
+                          '"ok":0,"warnings":0,"critical":1,'
+                          '"crashRecovery":true,'
+                          '"note":"Profile triggered crash recovery (SIGSEGV/SIGABRT) — '
+                          'no JSON output available. Use /api/security for text analysis."},'
+                          '"results":[]}'
+            })
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
