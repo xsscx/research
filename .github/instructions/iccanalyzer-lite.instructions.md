@@ -333,6 +333,80 @@ Every heuristic MUST follow this pattern:
 - H111 reserved bytes are 100-127 (NOT 84-127; 84-99 is Profile ID)
 - H112 D50 values are ICC s15Fixed16 (0.9642/1.0/0.8249), NOT CIE (0.9505/1.0/1.089)
 - Don't modify for-loop counter inside loop body (CodeQL cpp/loop-variable-changed)
+- When iterating iccDEV container types (e.g., `CIccTagProfileSequenceId`), use
+  range-based `for (const auto& entry : *pTag)` instead of cached `begin()`/`end()`
+  iterators — CodeQL's `cpp/use-after-expired-lifetime` flags cached iterators as
+  potentially referencing expired objects even when the container is clearly in scope
+- `new` in fork child processes must use `std::nothrow` — CodeQL flags
+  `cpp/new-free-mismatch` ("unsafe use of `new[]`") for allocations in signal-unsafe
+  contexts. Include `<new>` header.
+- Avoid constant comparisons in loops — a `for(int c=0; c<N; c++) { ... break; }`
+  where the loop always exits on first iteration triggers CodeQL
+  `cpp/comparison-always-true`. Replace with a simple `if` block.
+
+## Local CodeQL Analysis
+
+```bash
+# Prerequisites: gh codeql extension v2.24.1+
+gh extensions install github/gh-codeql  # if not installed
+
+# Install custom query pack dependencies
+cd iccanalyzer-lite/codeql-queries && gh codeql pack install && cd ../..
+
+# Build script — per-file compilation with correct includes
+cat > /tmp/codeql-build.sh << 'EOF'
+#!/bin/bash
+set -e
+cd iccanalyzer-lite
+FLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
+INCLUDES="-I ../iccDEV/IccProfLib -I ../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+mkdir -p /tmp/codeql-obj
+for src in *.cpp; do
+  clang++-18 $FLAGS $INCLUDES -c "$src" -o "/tmp/codeql-obj/$(basename $src .cpp).o"
+done
+EOF
+chmod +x /tmp/codeql-build.sh
+
+# Create database (source-root must be repo root, NOT iccanalyzer-lite/)
+gh codeql database create /tmp/codeql-db-analyzer \
+  --language=cpp --overwrite \
+  --command="/tmp/codeql-build.sh" \
+  --source-root=/path/to/research
+
+# Analyze with standard + custom queries
+gh codeql database analyze /tmp/codeql-db-analyzer \
+  --format=sarif-latest --output=/tmp/codeql-results.sarif --threads=0 \
+  codeql/cpp-queries:codeql-suites/cpp-security-and-quality.qls \
+  iccanalyzer-lite/codeql-queries/
+
+# Parse SARIF for alerts in our code (filter out upstream iccDEV)
+python3 -c "
+import json
+with open('/tmp/codeql-results.sarif') as f:
+    sarif = json.load(f)
+for r in sarif['runs'][0]['results']:
+    uri = r['locations'][0]['physicalLocation']['artifactLocation']['uri']
+    if 'iccanalyzer-lite' in uri:
+        line = r['locations'][0]['physicalLocation']['region']['startLine']
+        print(f'{r[\"ruleId\"]} @ {uri}:{line}')
+"
+```
+
+**Key build requirements**:
+- `-DICCANALYZER_LITE` — skips fingerprint DB code (`RiskLevel` enum)
+- `-I/usr/include/libxml2` — needed for `IccHeuristicsXmlSafety.cpp` (`libxml/parser.h`)
+- Per-file compilation (not multi-source to single `-o`)
+- `--source-root` must be the repo root for correct path reporting
+
+**Expected informational alerts** (not bugs):
+- `icc/xml-all-attacks`, `icc/xml-external-entity-attacks` — custom queries flagging
+  intentional XML export patterns
+- `cpp/iccanalyzer-security` — custom informational query
+- `cpp/icc-buffer-overflow` @ `IccTagParsers.h:172` — false positive (guarded by
+  `if (idx < size)` bounds check on line 171)
+- `icc/injection-attacks` @ `IccAnalyzerLUT.cpp:110` — `SafeSnprintf` is internal-only
+  with `__attribute__((format))` validation; format strings are always literals
+- `cpp/poorly-documented-function` — style alert for large functions
 
 ## Coverage Instrumentation
 

@@ -157,10 +157,15 @@ All paths are validated against `_ALLOWED_BASES` — traversal attempts are bloc
 
 - **MUST** include full ASAN+UBSAN instrumentation — NEVER add `NO_SANITIZERS=1`
 - **MUST** include `libclang-rt-18-dev` for sanitizer runtimes
+- **MUST** use `-O0 -g3` compiler flags (not `-O1 -g`) — maximum debug info, no optimization
+- **MUST** enable coverage instrumentation (never set `NO_COVERAGE=1`)
+- **MUST** set `LLVM_PROFILE_FILE=/dev/null` in runtime stage — prevents profraw
+  permission errors when running as non-root `mcp` user
 - Build `linux/amd64` only — ASAN shadow memory is incompatible with QEMU cross-arch
 - Apple Silicon Macs: **Docker Desktop only** (Rosetta 2 supports ASAN)
 - **Colima and OrbStack NOT supported** — QEMU/VZ backends lack ASAN support
 - colorbleed_tools use `make CONFIG=release` in Docker (runtime stage lacks libclang-rt)
+- Binary size ~43MB confirms ASAN instrumentation (non-instrumented ~5MB)
 
 See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 
@@ -171,8 +176,8 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/health` | — | `{"ok": true, "tools": 24}` |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
-| `GET` | `/api/security` | `path` | 141-heuristic scan (text) |
-| `GET` | `/api/security-json` | `path` | 141-heuristic scan (JSON) |
+| `GET` | `/api/security` | `path` | 145-heuristic scan (text) |
+| `GET` | `/api/security-json` | `path` | 145-heuristic scan (JSON) |
 | `GET` | `/api/security-report` | `path` | Severity-sorted report |
 | `GET` | `/api/roundtrip` | `path` | Round-trip validation |
 | `GET` | `/api/full` | `path` | Combined analysis |
@@ -208,8 +213,21 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
 
 - **Tool count mismatch** — The #1 recurring CI failure. When changing tools, update
   all 4 files simultaneously. See Anti-Pattern #2.
+- **Heuristic count mismatch** — The #2 recurring issue. When heuristic count changes
+  (currently 145), update ALL locations: `icc_profile_mcp.py` docstrings,
+  `web_ui.py` endpoint descriptions, `index.html` meta, `README.md`, this file's
+  REST API table. See `iccanalyzer-lite.instructions.md` for the full sync list.
 - **Docker ASAN removal** — NEVER remove ASAN from the Docker image. The entire
   purpose is security analysis with sanitizer instrumentation.
+- **stderr contamination of JSON** — `_run()` in `icc_profile_mcp.py` appends stderr
+  to stdout by default. Any tool returning structured JSON (e.g., `analyze_security_json`)
+  MUST call `_run()` with `include_stderr=False`. The `web_ui.py` handler has
+  defense-in-depth stripping as a secondary guard.
+- **CVE PoC crash recovery** — When iccanalyzer-lite hits SIGSEGV on malicious
+  profiles, signal recovery produces a banner on stderr but NO JSON on stdout.
+  The `/api/security-json` endpoint returns a structured `crashRecovery` JSON
+  fallback: `{"summary":{"crashRecovery":true,...},"results":[]}`. Any new JSON
+  endpoint that processes untrusted profiles must implement this pattern.
 - **Output sanitization** — All subprocess output passes through `_sanitize_output()`
   which strips ANSI escapes and C0 control chars. If adding a new tool that produces
   binary output, handle it before sanitization.

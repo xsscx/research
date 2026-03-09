@@ -243,6 +243,29 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 fi
 ```
 
+## Recent Session Accomplishments (2026-03-09)
+
+### XML Reporting & WebUI Session
+- H142-H145 XML safety heuristics fully integrated into all output modes
+- XML export (`-xml`) uses ComprehensiveAnalyze with multi-line detail capture
+- XSLT dark-themed stylesheet: 4 summary cards, specRef column, CVE cross-refs
+- All stale heuristic counts synced to 145 across 10+ files
+- All stale advisory counts synced to 93 across 6+ files
+
+### MCP Server / WebUI Fixes
+- `/api/security-json` stderr contamination fixed — `_run()` has `include_stderr` param
+- CVE PoC crash recovery returns structured `crashRecovery` JSON (not empty/broken)
+- Docker image uses `-O0 -g3` + coverage (not `-O1 -g` + `NO_COVERAGE=1`)
+- `LLVM_PROFILE_FILE=/dev/null` prevents profraw permission errors
+- Published image validated: all 11 endpoints return correct output
+
+### CodeQL Alert Resolution
+- 7 CodeQL alerts fixed: `cpp/new-free-mismatch` (std::nothrow in fork),
+  `cpp/comparison-always-true` (loop→if), `cpp/use-after-expired-lifetime`
+  (cached iterators→range-based for)
+- Local CodeQL analysis workflow documented in `iccanalyzer-lite.instructions.md`
+- Remaining alerts are custom query informational findings (not bugs)
+
 ## Coverage Target Roadmap
 
 | Milestone | Functions | Lines | Branches | How |
