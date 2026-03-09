@@ -716,6 +716,62 @@ function renderInputs() {
         <button class="btn-run" id="btnRun">Run</button>
         ${saveBtn}
       </div>`;
+  } else if (currentTool === "build_tools") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-target">Build Target</label>
+          <select id="inp-target">
+            <option value="all" selected>all</option>
+            <option value="iccanalyzer-lite">iccanalyzer-lite</option>
+            <option value="colorbleed_tools">colorbleed_tools</option>
+            <option value="iccDEV">iccDEV</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "find_artifacts") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_dir">Build Directory</label>
+          <input id="inp-build_dir" value="" placeholder="(auto-detect)" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "coverage_report") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-build_dir">Build Directory</label>
+          <input id="inp-build_dir" value="" placeholder="(auto-detect)" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "upload_and_analyze") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-mode">Analysis Mode</label>
+          <select id="inp-mode">
+            <option value="security" selected>security</option>
+            <option value="inspect">inspect</option>
+            <option value="roundtrip">roundtrip</option>
+            <option value="full">full</option>
+            <option value="xml">xml</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <div class="file-upload-row">
+        <input type="file" id="fileInput" accept=".icc,.icm,.icc2,.tif,.tiff,.png,.jpg,.jpeg" class="hidden-input">
+        <button class="btn-upload" id="btnUpload">📂 Choose File to Upload & Analyze</button>
+        <span class="upload-status" id="uploadStatus"></span>
+      </div>`;
   } else {
     const defaultVal = currentTool === "xml" ? DEFAULT_XML_PROFILE : DEFAULT_PROFILE;
     const xmlSaveBtn = currentTool === "xml"
@@ -762,7 +818,8 @@ function renderInputs() {
   });
 
   // Auto-show profile picker for analysis tools (not directory-based tools)
-  const dirTools = ["list", "validate_xml", "batch_test", "scan_logs"];
+  const dirTools = ["list", "validate_xml", "batch_test", "scan_logs",
+                    "build_tools", "find_artifacts", "coverage_report", "upload_and_analyze"];
   if (!dirTools.includes(currentTool)) loadProfilePicker(true);
 
   // Auto-load XML file list for validate_xml
@@ -820,9 +877,20 @@ async function loadXmlFilePicker() {
   if (!xmlFileCache[dir]) {
     try {
       const resp = await fetch(`/api/list-xml?directory=${encodeURIComponent(dir)}`);
+      if (!resp.ok) {
+        picker.innerHTML = `<div class="profile-list open"><div class="item"><span>Error loading XML files (HTTP ${resp.status})</span></div></div>`;
+        return;
+      }
       const data = await resp.json();
       if (data.ok) xmlFileCache[dir] = data.files || [];
-    } catch { return; }
+      else {
+        picker.innerHTML = `<div class="profile-list open"><div class="item"><span>Error: ${esc(data.error || "Unknown")}</span></div></div>`;
+        return;
+      }
+    } catch (err) {
+      picker.innerHTML = `<div class="profile-list open"><div class="item"><span>Failed to load XML files</span></div></div>`;
+      return;
+    }
   }
 
   const files = xmlFileCache[dir];
@@ -893,6 +961,38 @@ async function handleFileUpload() {
     return;
   }
 
+  // For upload_and_analyze: base64-encode and store for run()
+  if (currentTool === "upload_and_analyze") {
+    if (statusEl) statusEl.textContent = `Reading ${file.name}…`;
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const b64 = btoa(binary);
+      // Store in hidden inputs for run() to pick up
+      let b64El = document.getElementById("inp-data_base64");
+      if (!b64El) {
+        b64El = document.createElement("input");
+        b64El.type = "hidden"; b64El.id = "inp-data_base64";
+        $inputPanel.appendChild(b64El);
+      }
+      b64El.value = b64;
+      let fnEl = document.getElementById("inp-filename");
+      if (!fnEl) {
+        fnEl = document.createElement("input");
+        fnEl.type = "hidden"; fnEl.id = "inp-filename";
+        $inputPanel.appendChild(fnEl);
+      }
+      fnEl.value = file.name;
+      if (statusEl) statusEl.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB) ready`;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = `✗ Read failed: ${sanitize(err.message)}`;
+    }
+    return;
+  }
+
+  // Default: upload to server and populate path input
   if (statusEl) statusEl.textContent = `Uploading ${file.name}…`;
 
   const formData = new FormData();

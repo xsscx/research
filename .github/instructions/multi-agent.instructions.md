@@ -452,6 +452,38 @@ files documenting the fuzzer architecture instead of running it.
 **Rule**: When asked to test, TEST. When asked to build, BUILD. Do not substitute
 documentation for the requested action.
 
+### 11. API tests pass but rendered WebUI is broken (CJF-14)
+**What happened**: Agent modified `index.html` forms for `validate_xml`, claimed
+"210/210 WebUI tests pass" and pushed. User opened `http://localhost:8080/#validate_xml`
+and found no XML files listed, wrong form rendered. Root cause: `test_web_ui.py`
+validated API responses (HTTP status codes, JSON payloads) but NOT that
+`renderInputs()` generates correct form fields for each tool. Multiple tools
+(`validate_xml`, `batch_test`, `scan_logs`, `build_tools`, `find_artifacts`,
+`coverage_report`, `upload_and_analyze`) fell through to the default `else` branch
+which renders a generic ICC profile selector instead of their actual inputs.
+**The pattern**:
+```
+WRONG:
+  1. Modify index.html renderInputs()
+  2. Run python3 test_web_ui.py → "N/N passed"
+  3. Claim success → push
+  4. User opens browser → forms wrong → repeat
+
+CORRECT:
+  1. Modify index.html renderInputs()
+  2. Run python3 test_web_ui.py → check "Form Fields Per Tool" section
+  3. Open http://localhost:8080 in browser
+  4. Click 5+ tools → verify correct form renders (not ICC profile selector)
+  5. Check DevTools Console → 0 JavaScript errors
+  6. THEN claim success WITH evidence:
+     [OK] Verified: WebUI forms render correctly (browser test at localhost:8080,
+     5 tools checked: validate_xml, cmake_configure, batch_test, compare, upload_and_analyze)
+```
+**Rule**: API tests verify backend correctness. Browser tests verify frontend
+correctness. Both are required for WebUI changes. The `test_form_fields_per_tool()`
+test in `test_web_ui.py` catches missing `inp-*` field IDs programmatically, but
+visual rendering MUST be verified in a browser.
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:
