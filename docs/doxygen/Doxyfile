@@ -60,7 +60,7 @@ EXCLUDE                = ../../iccanalyzer-lite/tests/corpus \
                          ../../colorbleed_tools/iccDEV \
                          ../../docs/doxygen
 
-EXCLUDE_PATTERNS       = */build/* */Build/* */.git/* */node_modules/* *__pycache__* */iccDEV/*
+EXCLUDE_PATTERNS       = */build/* */Build/* */.git/* */node_modules/* *__pycache__* */iccDEV/* */site-packages/* */.venv/* */venv/* */.tox/*
 
 # Use README.md as main page
 USE_MDFILE_AS_MAINPAGE = ../../README.md
