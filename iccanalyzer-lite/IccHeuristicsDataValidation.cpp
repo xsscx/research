@@ -2577,6 +2577,344 @@ printf("\n");
   return heuristicCount;
 }
 
+// =====================================================================
+// H146 — Stack Buffer Overflow Detection via GetValues() Size Mismatch
+// Detects: CIccTagFloatNum::GetValues() writes nVectorSize floats into
+// a caller-provided buffer without checking the buffer length. If
+// m_nSize (tag array length) exceeds the expected channel count for
+// the color space, a fixed-size stack buffer overflows.
+// PoCs: #551, #618, #649, #625, #624, #537
+// CWE-121: Stack-based Buffer Overflow
+// =====================================================================
+int RunHeuristic_H146_StackBufferOverflowGetValues(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+  CIccInfo info;
+
+  printf("[H146] Stack Buffer Overflow — GetValues() Size Mismatch (CWE-121)\n");
+  {
+    int sboIssues = 0;
+
+    // Get expected channel count from PCS and device color spaces
+    icUInt32Number pcsChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
+    icUInt32Number devChannels = icGetSpaceSamples(pIcc->m_Header.colorSpace);
+    icUInt32Number maxExpected = (pcsChannels > devChannels) ? pcsChannels : devChannels;
+    if (maxExpected == 0) maxExpected = 4;
+    // Safe upper bound: no legitimate profile needs > 16 channels per operation
+    const icUInt32Number kMaxSafeChannels = 16;
+
+    // Check numeric array tags where GetValues() is called with fixed buffers
+    icTagSignature numArrayTags[] = {
+      icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag,
+      icSigMediaWhitePointTag, icSigMediaBlackPointTag,
+      icSigLuminanceTag, icSigChromaticAdaptationTag,
+      icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag,
+      (icTagSignature)0
+    };
+
+    for (int t = 0; numArrayTags[t] != (icTagSignature)0; t++) {
+      CIccTag *pTag = pIcc->FindTag(numArrayTags[t]);
+      if (!pTag) continue;
+
+      // CIccTagFixedNum and CIccTagNum both have GetSize()
+      // Check if the stored array size exceeds safe bounds for stack buffers
+      icUInt32Number tagArraySize = 0;
+
+      CIccTagXYZ *xyz = dynamic_cast<CIccTagXYZ *>(pTag);
+      if (xyz) {
+        tagArraySize = xyz->GetSize();
+      }
+
+      CIccTagS15Fixed16 *s15 = dynamic_cast<CIccTagS15Fixed16 *>(pTag);
+      if (s15) {
+        tagArraySize = s15->GetSize();
+      }
+
+      CIccTagU16Fixed16 *u16 = dynamic_cast<CIccTagU16Fixed16 *>(pTag);
+      if (u16) {
+        tagArraySize = u16->GetSize();
+      }
+
+      if (tagArraySize > kMaxSafeChannels) {
+        printf("      %s[CRIT]  HEURISTIC: Tag '%s' array size %u exceeds safe stack buffer limit (%u)%s\n",
+               ColorCritical(), info.GetTagSigName(numArrayTags[t]),
+               tagArraySize, kMaxSafeChannels, ColorReset());
+        printf("       %sCWE-121: GetValues() writes %u elements into fixed-size caller buffer%s\n",
+               ColorCritical(), tagArraySize, ColorReset());
+        sboIssues++;
+      }
+    }
+
+    // Check LUT tags where Apply() uses fixed-size pixel buffers
+    icTagSignature lutTags[] = {
+      icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+      icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+      (icTagSignature)0
+    };
+
+    for (int t = 0; lutTags[t] != (icTagSignature)0; t++) {
+      CIccTag *pTag = pIcc->FindTag(lutTags[t]);
+      if (!pTag) continue;
+
+      // Check CLUT output channels vs declared color space
+      CIccMBB *pMBB = dynamic_cast<CIccMBB *>(pTag);
+      if (pMBB) {
+        icUInt16Number nOutput = pMBB->OutputChannels();
+        if (nOutput > kMaxSafeChannels) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' LUT output channels %u exceeds safe limit (%u)%s\n",
+                 ColorCritical(), info.GetTagSigName(lutTags[t]),
+                 nOutput, kMaxSafeChannels, ColorReset());
+          printf("       %sCWE-121: CIccXform3DLut::Apply() writes to fixed tmpPixel[16] buffer%s\n",
+                 ColorCritical(), ColorReset());
+          sboIssues++;
+        }
+        // Also check: output channels declared but mismatch with color space
+        if (nOutput > 0 && maxExpected > 0 && nOutput > maxExpected * 2) {
+          printf("      %s[WARN]  Tag '%s' output channels %u >> color space channels %u — SBO risk%s\n",
+                 ColorWarning(), info.GetTagSigName(lutTags[t]),
+                 nOutput, maxExpected, ColorReset());
+          sboIssues++;
+        }
+      }
+    }
+
+    if (sboIssues == 0) {
+      printf("      %s[OK] No stack buffer overflow patterns detected in numeric/LUT tags%s\n",
+             ColorSuccess(), ColorReset());
+    }
+    heuristicCount += sboIssues;
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// =====================================================================
+// H147 — Null Pointer Dereference After Failed Tag Operations
+// Detects: Tags that Read() but leave internal pointers null when the
+// tag data is malformed. Subsequent access (GetBuffer, Describe, Apply)
+// dereferences null. Key pattern: CIccTagUtf16Text with m_nBufferSize=0
+// after Read() on truncated data, CIccTagTextDescription with null m_szText.
+// PoCs: #553, #560, #484, #485, #507, #633
+// CWE-476: NULL Pointer Dereference
+// =====================================================================
+int RunHeuristic_H147_NullPointerAfterTagRead(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+  CIccInfo info;
+
+  printf("[H147] Null Pointer Dereference — Post-Read() Tag State (CWE-476)\n");
+  {
+    int npdIssues = 0;
+
+    // Check Utf16Text tags — GetBuffer() returns null when m_nBufferSize == 0
+    icTagSignature textTags[] = {
+      icSigProfileDescriptionTag,
+      icSigDeviceMfgDescTag,
+      icSigDeviceModelDescTag,
+      icSigCopyrightTag,
+      icSigCharTargetTag,
+      (icTagSignature)0
+    };
+
+    for (int t = 0; textTags[t] != (icTagSignature)0; t++) {
+      CIccTag *pTag = pIcc->FindTag(textTags[t]);
+      if (!pTag) continue;
+
+      // CIccTagUtf16Text: check if text pointer is usable
+      CIccTagUtf16Text *utf16 = dynamic_cast<CIccTagUtf16Text *>(pTag);
+      if (utf16) {
+        const icUChar16 *buf = utf16->GetText();
+        if (!buf || utf16->GetLength() == 0) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' (Utf16Text) has null/empty text after Read()%s\n",
+                 ColorCritical(), info.GetTagSigName(textTags[t]), ColorReset());
+          printf("       %sCWE-476: GetText() returns null — subsequent access crashes%s\n",
+                 ColorCritical(), ColorReset());
+          npdIssues++;
+        }
+      }
+
+      // CIccTagTextDescription: check m_szText
+      CIccTagTextDescription *desc = dynamic_cast<CIccTagTextDescription *>(pTag);
+      if (desc) {
+        const icChar *text = desc->GetText();
+        if (!text) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' (TextDescription) has null text pointer%s\n",
+                 ColorCritical(), info.GetTagSigName(textTags[t]), ColorReset());
+          printf("       %sCWE-476: GetText() returns null — strlen/Describe crashes%s\n",
+                 ColorCritical(), ColorReset());
+          npdIssues++;
+        }
+      }
+    }
+
+    // Check MPE tags — Apply() with null sub-elements
+    icTagSignature mpeTags[] = {
+      icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+      icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+      icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+      icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+      (icTagSignature)0
+    };
+
+    for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
+      CIccTagMultiProcessElement *mpe =
+          FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[t]);
+      if (!mpe) continue;
+
+      icUInt32Number nElem = mpe->NumElements();
+      for (icUInt32Number e = 0; e < nElem && e < 64; e++) {
+        CIccMultiProcessElement *elem = mpe->GetElement(e);
+        if (!elem) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' MPE element[%u] is null — Apply() will crash%s\n",
+                 ColorCritical(), info.GetTagSigName(mpeTags[t]), e, ColorReset());
+          printf("       %sCWE-476: Null element dereference in processing pipeline%s\n",
+                 ColorCritical(), ColorReset());
+          npdIssues++;
+          break;  // one finding per tag is sufficient
+        }
+      }
+    }
+
+    // Check struct tags — ParseTag() returns null for unrecognized members
+    for (const auto &entry : pIcc->m_Tags) {
+      CIccTag *pTag = entry.pTag;
+      if (!pTag) {
+        printf("      %s[CRIT]  HEURISTIC: Tag '%s' entry exists but pTag pointer is null%s\n",
+               ColorCritical(), info.GetTagSigName(entry.TagInfo.sig), ColorReset());
+        printf("       %sCWE-476: Null tag pointer in tag table — any access crashes%s\n",
+               ColorCritical(), ColorReset());
+        npdIssues++;
+      }
+    }
+
+    if (npdIssues == 0) {
+      printf("      %s[OK] No null pointer patterns detected in loaded tags%s\n",
+             ColorSuccess(), ColorReset());
+    }
+    heuristicCount += npdIssues;
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// =====================================================================
+// H148 — Memory Copy Bounds and Overlap Detection
+// Detects: MPE Apply() chains where input and output buffers alias the
+// same memory region, causing memcpy-param-overlap (ASAN). Also detects
+// tag data sizes that would overflow intermediate copy buffers.
+// Pattern: CIccTagMultiProcessElement::Apply() ping-pongs between
+// m_pApplyBuf and pDst — if nInput == nOutput and channels are reused,
+// intermediate Apply() calls can overlap src/dst in memcpy.
+// PoC: #577 (memcpy-param-overlap in CIccTagMultiProcessElement::Apply)
+// CWE-119: Improper Restriction of Operations within Buffer Bounds
+// =====================================================================
+int RunHeuristic_H148_MemcpyBoundsOverlap(CIccProfile *pIcc) {
+  int heuristicCount = 0;
+  CIccInfo info;
+
+  printf("[H148] Memory Copy Bounds and Overlap Detection (CWE-119)\n");
+  {
+    int memIssues = 0;
+
+    // Check MPE tags for Apply() buffer overlap conditions
+    icTagSignature mpeTags[] = {
+      icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+      icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+      icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+      icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+      (icTagSignature)0
+    };
+
+    for (int t = 0; mpeTags[t] != (icTagSignature)0; t++) {
+      CIccTagMultiProcessElement *mpe =
+          FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[t]);
+      if (!mpe) continue;
+
+      icUInt16Number nIn = mpe->NumInputChannels();
+      icUInt16Number nOut = mpe->NumOutputChannels();
+      icUInt32Number nElem = mpe->NumElements();
+
+      if (nElem < 2) continue;
+
+      // Check for channel count oscillation that causes buffer reuse
+      // Pattern: elem[i].nOutput != elem[i+1].nInput creates size mismatch
+      // but if elem[i].nOutput == elem[i+1].nInput and Apply buffers alias,
+      // memcpy overlap occurs
+      bool hasOverlapRisk = false;
+      icUInt16Number prevOut = nIn;
+
+      for (icUInt32Number e = 0; e < nElem && e < 64; e++) {
+        CIccMultiProcessElement *elem = mpe->GetElement(e);
+        if (!elem) break;
+
+        icUInt16Number eIn = elem->NumInputChannels();
+        icUInt16Number eOut = elem->NumOutputChannels();
+
+        // If consecutive elements have same channel count AND chain > 2,
+        // Apply() ping-pong buffer reuse can cause overlap
+        if (eIn == eOut && eIn == prevOut && nElem > 2) {
+          hasOverlapRisk = true;
+        }
+
+        // Channel mismatch between consecutive elements
+        if (eIn != prevOut && prevOut > 0) {
+          printf("      %s[WARN]  Tag '%s' MPE chain: element[%u] output=%u → element[%u] input=%u mismatch%s\n",
+                 ColorWarning(), info.GetTagSigName(mpeTags[t]),
+                 e > 0 ? e - 1 : 0, prevOut, e, eIn, ColorReset());
+          printf("       %sCWE-119: Channel mismatch may cause out-of-bounds memcpy%s\n",
+                 ColorWarning(), ColorReset());
+          memIssues++;
+        }
+
+        prevOut = eOut;
+      }
+
+      if (hasOverlapRisk) {
+        printf("      %s[WARN]  Tag '%s' MPE chain (%u elements, in=%u out=%u) has memcpy overlap risk%s\n",
+               ColorWarning(), info.GetTagSigName(mpeTags[t]),
+               nElem, nIn, nOut, ColorReset());
+        printf("       %sCWE-119: Apply() ping-pong buffers may alias when channels match%s\n",
+               ColorWarning(), ColorReset());
+        memIssues++;
+      }
+    }
+
+    // Check tag data where Read() copies into fixed internal buffers
+    // Pattern: NamedColor2 prefix (32 bytes fixed) and color name (32 bytes fixed)
+    CIccTagNamedColor2 *pNamed = FindAndCast<CIccTagNamedColor2>(pIcc, icSigNamedColor2Tag);
+    if (pNamed) {
+      icUInt32Number nColors = pNamed->GetSize();
+      icUInt32Number nDevCoords = pNamed->GetDeviceCoords();
+
+      // Each entry has: 32-byte name + 3 PCS values + nDevCoords device values
+      // If nDevCoords > 15 (ICC spec max), the internal copy overflows
+      if (nDevCoords > 15) {
+        printf("      %s[CRIT]  HEURISTIC: NamedColor2 deviceCoords=%u exceeds ICC max (15)%s\n",
+               ColorCritical(), nDevCoords, ColorReset());
+        printf("       %sCWE-119: Internal buffer overflow in color entry copy%s\n",
+               ColorCritical(), ColorReset());
+        memIssues++;
+      }
+
+      // Large nColors with high nDevCoords = multiplicative amplification
+      if (nColors > 10000 && nDevCoords > 4) {
+        printf("      %s[WARN]  NamedColor2: %u colors × %u deviceCoords — memory amplification risk%s\n",
+               ColorWarning(), nColors, nDevCoords, ColorReset());
+        memIssues++;
+      }
+    }
+
+    if (memIssues == 0) {
+      printf("      %s[OK] No memory copy overlap or bounds issues detected%s\n",
+             ColorSuccess(), ColorReset());
+    }
+    heuristicCount += memIssues;
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
 // ================================================================
 // RunLibraryAPIHeuristics — dispatcher (was 3,780-line mega-function)
 // ================================================================

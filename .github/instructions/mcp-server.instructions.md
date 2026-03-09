@@ -176,8 +176,8 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/health` | — | `{"ok": true, "tools": 24}` |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
-| `GET` | `/api/security` | `path` | 145-heuristic scan (text) |
-| `GET` | `/api/security-json` | `path` | 145-heuristic scan (JSON) |
+| `GET` | `/api/security` | `path` | 148-heuristic scan (text) |
+| `GET` | `/api/security-json` | `path` | 148-heuristic scan (JSON) |
 | `GET` | `/api/security-report` | `path` | Severity-sorted report |
 | `GET` | `/api/roundtrip` | `path` | Round-trip validation |
 | `GET` | `/api/full` | `path` | Combined analysis |
