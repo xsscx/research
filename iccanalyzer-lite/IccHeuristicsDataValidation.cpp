@@ -2188,15 +2188,20 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
   printf("[H97] Profile Sequence Identifier Validation\n");
   int seqIdIssues = 0;
 
-  CIccTagProfileSequenceId *pSeqId = FindAndCast<CIccTagProfileSequenceId>(pIcc, icSigProfileSequceIdTag);
+  CIccTag *pSeqIdTag = pIcc->FindTag(icSigProfileSequceIdTag);
+  CIccTagProfileSequenceId *pSeqId = pSeqIdTag ? dynamic_cast<CIccTagProfileSequenceId*>(pSeqIdTag) : nullptr;
   if (pSeqId) {
+      // Cache iterators before loop to satisfy lifetime analysis
+      auto itBegin = pSeqId->begin();
+      auto itEnd = pSeqId->end();
+
       // Iterate entries to count and validate
       int entryCount = 0;
       bool hasNullId = false;
       bool hasDupId = false;
       std::set<std::string> seenIds;
 
-      for (auto it = pSeqId->begin(); it != pSeqId->end(); ++it) {
+      for (auto it = itBegin; it != itEnd; ++it) {
         entryCount++;
 
         // Check for null profile ID (all zeros)
