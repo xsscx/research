@@ -39,16 +39,16 @@ COPY extended-test-profiles/ extended-test-profiles/
 # Single iccDEV clone + patch (shared by iccanalyzer-lite and colorbleed_tools)
 RUN apply-patches.sh /build/iccdev /build/cfl-patches
 
-# Build iccDEV static libraries (Debug + ASAN + UBSAN)
+# Build iccDEV static libraries (Debug + ASAN + UBSAN + Coverage)
 RUN cd /build/iccdev/Build \
  && cmake Cmake \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_C_COMPILER=clang \
       -DCMAKE_CXX_COMPILER=clang++ \
-      -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -O1 -g -std=c++17 -fsanitize=address,undefined" \
-      -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O1 -g -fsanitize=address,undefined" \
-      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
-      -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+      -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -O0 -g3 -std=c++17 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping" \
+      -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O0 -g3 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping" \
+      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
       -DENABLE_TOOLS=OFF \
       -DENABLE_STATIC_LIBS=ON \
       -DICC_LOG_SAFE=ON \
@@ -59,8 +59,8 @@ RUN cd /build/iccdev/Build \
 # Symlink shared iccDEV into iccanalyzer-lite so build.sh finds it
 RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
 
-# Build iccanalyzer-lite (ASAN+UBSAN enabled, NO_COVERAGE=1: no gcda noise)
-RUN cd iccanalyzer-lite && NO_COVERAGE=1 bash build.sh
+# Build iccanalyzer-lite (ASAN+UBSAN+Coverage — NO patches, handles all input defensively)
+RUN cd iccanalyzer-lite && bash build.sh
 
 # Build colorbleed_tools against shared iccDEV (release: intentionally unsafe)
 RUN cd colorbleed_tools \
@@ -99,6 +99,7 @@ COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test
 
 ENV ASAN_OPTIONS=detect_leaks=0,halt_on_error=0
 ENV UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1
+ENV LLVM_PROFILE_FILE=/dev/null
 ENV MallocNanoZone=0
 ENV ICC_MCP_ROOT=/app
 
