@@ -115,7 +115,7 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 |---|------|-------------|
 | 1 | `health_check` | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Header, tag table, field values |
-| 3 | `analyze_security` | 148-heuristic security scan (H1–H148) |
+| 3 | `analyze_security` | 150-heuristic security scan (H1–H150) |
 | 4 | `validate_roundtrip` | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | All modes combined in one pass |
 | 6 | `profile_to_xml` | Binary ICC → XML conversion |
@@ -220,8 +220,8 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/health-check` | — | Full health check (binary availability, profile counts) |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
-| `GET` | `/api/security` | `path` | 148-heuristic scan (text) |
-| `GET` | `/api/security-json` | `path` | 148-heuristic scan (JSON) |
+| `GET` | `/api/security` | `path` | 150-heuristic scan (text) |
+| `GET` | `/api/security-json` | `path` | 150-heuristic scan (JSON) |
 | `GET` | `/api/security-report` | `path` | Severity-sorted report |
 | `GET` | `/api/roundtrip` | `path` | Round-trip validation |
 | `GET` | `/api/full` | `path` | Combined analysis |
@@ -267,7 +267,7 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
 - **Tool count mismatch** — The #1 recurring CI failure. When changing tools, update
   all 4 files simultaneously. See Anti-Pattern #2.
 - **Heuristic count mismatch** — The #2 recurring issue. When heuristic count changes
-  (currently 148), update ALL locations: `icc_profile_mcp.py` docstrings,
+  (currently 150), update ALL locations: `icc_profile_mcp.py` docstrings,
   `web_ui.py` endpoint descriptions, `index.html` meta, `README.md`, this file's
   REST API table. See `iccanalyzer-lite.instructions.md` for the full sync list.
 - **Docker ASAN removal** — NEVER remove ASAN from the Docker image. The entire
