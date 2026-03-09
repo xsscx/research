@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 229 tests (19 functions), ~25s
+python3 iccanalyzer-lite/tests/run_tests.py   # 230 tests (19 functions), ~36s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -228,7 +228,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 229/229 tests pass
+# 8. Verify: 230/230 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
@@ -279,8 +279,8 @@ severity). This is the **source of truth** for all counts — adding a new entry
 ## Severity Classification (v3.6.0+)
 
 All 148 heuristics are classified by CWE impact:
-- **CRITICAL** (~42): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506
-- **HIGH** (~34): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476
+- **CRITICAL** (~44): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506
+- **HIGH** (~36): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
 - **LOW** (~37): Spec compliance — CWE-20
 - **INFO** (3): Metadata — H16, H35, H108

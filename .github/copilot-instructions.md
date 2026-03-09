@@ -270,7 +270,7 @@ All heuristic, CVE, and severity counts are computed dynamically from
 ./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 85
 ./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 95
 ./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 52
-./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:42, HIGH:34, ...}
+./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:44, HIGH:36, ...}
 ```
 
 Adding a new entry to `kHeuristicRegistry[]` in `IccHeuristicsRegistry.h` automatically
@@ -504,7 +504,7 @@ Every success claim MUST include verification evidence in this format:
 
 **Examples:**
 - `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
-- `[OK] Verified: 229 tests pass (python3 tests/run_tests.py → 229/229 passed)`
+- `[OK] Verified: 230 tests pass (python3 tests/run_tests.py → 230/230 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
 
