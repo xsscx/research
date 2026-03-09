@@ -269,7 +269,7 @@ async def analyze_security(path: str) -> str:
     signatures, fuzzing vectors, memory safety issues, NaN/float-to-integer
     casts, AddXform ownership UAF patterns, TIFF image security, XML
     serialization safety, and more.
-    Covers 44+ CWE categories mapped from 48 CVEs across 93 iccDEV advisories.
+    Covers 44+ CWE categories mapped from 87 CVEs + 19 GHSAs across 93 iccDEV advisories.
 
     Reference: https://www.color.org/specification/ICC.1-2022-05.pdf
 
