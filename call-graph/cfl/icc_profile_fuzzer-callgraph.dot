@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_profile_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,117 +15,40 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_profile_fuzzer.
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5a7ddaab9910 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x5a7ddaab9910 -> Node0x5a7ddab10160;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab101f0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaafee90;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaa9ca60;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaa9bb10;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaa9d6e0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaa9c430;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaaa0930;
-	Node0x5a7ddaab9910 -> Node0x5a7ddaa9d9e0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab18e90;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1a920;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1bda0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1f380;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1fd80;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1f100;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1f9c0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1eac0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1d4a0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1dae0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1e120;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1d220;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1caa0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1cd20;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1cfa0;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1c820;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1b290;
-	Node0x5a7ddaab9910 -> Node0x5a7ddab1a510;
-	Node0x5a7ddab10160 [label="{OpenIccProfile()}"];
-	Node0x5a7ddab101f0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5a7ddaa9ca60 [label="{CIccProfile::Validate()}"];
-	Node0x5a7ddaafee90 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x5a7ddaafee90 -> Node0x5a7ddab1d3f0;
-	Node0x5a7ddaafee90 -> Node0x5a7ddab2adc0;
-	Node0x5a7ddaafee90 -> Node0x5a7ddab20300;
-	Node0x5a7ddaafee90 -> Node0x5a7ddab20af0;
-	Node0x5a7ddaafee90 -> Node0x5a7ddab1e540;
-	Node0x5a7ddaafee90 -> Node0x5a7ddab320d0;
-	Node0x5a7ddab30eb0 [label="{__gxx_personality_v0}"];
-	Node0x5a7ddaa9bb10 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x5a7ddaa9c430 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x5a7ddaaa0930 [label="{std::list<IccTagEntry >::begin()}"];
-	Node0x5a7ddaaa0930 -> Node0x5a7ddab32470;
-	Node0x5a7ddaa9d9e0 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5a7ddab1a920 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
-	Node0x5a7ddab18e90 [label="{std::list<IccTagEntry >::end()}"];
-	Node0x5a7ddab18e90 -> Node0x5a7ddab32470;
-	Node0x5a7ddab1bda0 [label="{std::_List_iterator<IccTagEntry>::operator-() const}"];
-	Node0x5a7ddab1bda0 -> Node0x5a7ddab33940;
-	Node0x5a7ddab1bda0 -> Node0x5a7ddab33040;
-	Node0x5a7ddab1a510 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
-	Node0x5a7ddab1a510 -> Node0x5a7ddaa9d9e0;
-	Node0x5a7ddab1b290 [label="{CIccProfile::FindTag()}"];
-	Node0x5a7ddab1c820 [label="{CIccProfile::GetSpaceSamples()}"];
-	Node0x5a7ddab1cfa0 [label="{CIccProfile::AreTagsUnique()}"];
-	Node0x5a7ddab1cd20 [label="{CIccProfile::GetParentSpaceSamples()}"];
-	Node0x5a7ddab1caa0 [label="{CIccProfile::GetParentColorSpace()}"];
-	Node0x5a7ddab1d220 [label="{basic_string<char, std::char_traits >::find()}"];
-	Node0x5a7ddab1e120 [label="{CIccMemIO::CIccMemIO()}"];
-	Node0x5a7ddab1dae0 [label="{CIccProfile::Write()}"];
-	Node0x5a7ddab1d4a0 [label="{CIccMemIO::GetLength()}"];
-	Node0x5a7ddab1eac0 [label="{CIccMemIO::Seek()}"];
-	Node0x5a7ddab1f9c0 [label="{operator new[](unsigned long, std::nothrow_t const&)}"];
-	Node0x5a7ddab1f100 [label="{CIccMemIO::Read8()}"];
-	Node0x5a7ddab1fd80 [label="{operator delete[](void*)}"];
-	Node0x5a7ddab1f380 [label="{CIccMemIO::~CIccMemIO()}"];
-	Node0x5a7ddaa9d6e0 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x5a7ddab1d3f0 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x5a7ddab2adc0 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x5a7ddab20300 [label="{std::__throw_logic_error()}"];
-	Node0x5a7ddab1e540 [label="{std::char_traits<char>::length()}"];
-	Node0x5a7ddab1e540 -> Node0x5a7ddab32b80;
-	Node0x5a7ddab320d0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5a7ddab320d0 -> Node0x5a7ddab32620;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab39d50;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab39c10;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab390d0;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab38e50;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab3a390;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab411e0;
-	Node0x5a7ddab320d0 -> Node0x5a7ddab40a30;
-	Node0x5a7ddab390d0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5a7ddab20af0 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x5a7ddab20af0 -> Node0x5a7ddaa9d6e0;
-	Node0x5a7ddab32b80 [label="{strlen}"];
-	Node0x5a7ddab39d50 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5a7ddab32620 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x5a7ddab39c10 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x5a7ddab3a390 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x5a7ddab38e50 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5a7ddab411e0 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x5a7ddab40a30 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5a7ddab40a30 -> Node0x5a7ddab38b50;
-	Node0x5a7ddab40a30 -> Node0x5a7ddab33040;
-	Node0x5a7ddab38b50 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x5a7ddab33040 [label="{__clang_call_terminate}"];
-	Node0x5a7ddab33040 -> Node0x5a7ddab3a4d0;
-	Node0x5a7ddab33040 -> Node0x5a7ddab42ee0;
-	Node0x5a7ddab3a4d0 [label="{__cxa_begin_catch}"];
-	Node0x5a7ddab42ee0 [label="{std::terminate()}"];
-	Node0x5a7ddab32470 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x5a7ddab33940 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
-	Node0x5a7ddab33940 -> Node0x5a7ddab42e60;
-	Node0x5a7ddab42e60 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
-	Node0x5a7ddab42e60 -> Node0x5a7ddab1f1c0;
-	Node0x5a7ddab1f1c0 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
+	Node0x5ced94787910 [label="LLVMFuzzerTestOneInput"];
+	Node0x5ced94787910 -> Node0x5ced947de160;
+	Node0x5ced94787910 -> Node0x5ced9476aa60;
+	Node0x5ced94787910 -> Node0x5ced947ed380;
+	Node0x5ced94787910 -> Node0x5ced947ed100;
+	Node0x5ced94787910 -> Node0x5ced947ecac0;
+	Node0x5ced94787910 -> Node0x5ced947eb4a0;
+	Node0x5ced94787910 -> Node0x5ced947ebae0;
+	Node0x5ced94787910 -> Node0x5ced947ec120;
+	Node0x5ced94787910 -> Node0x5ced947eaaa0;
+	Node0x5ced94787910 -> Node0x5ced947ead20;
+	Node0x5ced94787910 -> Node0x5ced947eafa0;
+	Node0x5ced94787910 -> Node0x5ced947ea820;
+	Node0x5ced94787910 -> Node0x5ced947e9290;
+	Node0x5ced947de160 [label="OpenIccProfile()"];
+	Node0x5ced9476aa60 [label="CIccProfile::Validate()"];
+	Node0x5ced947e9290 [label="CIccProfile::FindTag()"];
+	Node0x5ced947ea820 [label="CIccProfile::GetSpaceSamples()"];
+	Node0x5ced947eafa0 [label="CIccProfile::AreTagsUnique()"];
+	Node0x5ced947ead20 [label="CIccProfile::GetParentSpaceSamples()"];
+	Node0x5ced947eaaa0 [label="CIccProfile::GetParentColorSpace()"];
+	Node0x5ced947ec120 [label="CIccMemIO::CIccMemIO()"];
+	Node0x5ced947ebae0 [label="CIccProfile::Write()"];
+	Node0x5ced947eb4a0 [label="CIccMemIO::GetLength()"];
+	Node0x5ced947ecac0 [label="CIccMemIO::Seek()"];
+	Node0x5ced947ed100 [label="CIccMemIO::Read8()"];
+	Node0x5ced947ed380 [label="CIccMemIO::~CIccMemIO()"];
+	Node0x5ced947ec540 [label="length()"];
+	Node0x5ced948070d0 [label="_Guard::_Guard()"];
+	Node0x5ced9480ea30 [label="_Guard::~_Guard()"];
 }

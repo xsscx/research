@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_multitag_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,90 +15,26 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_multitag_fuzzer
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5fa473cf4110 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x5fa473cf4110 -> Node0x5fa473cf41a0;
-	Node0x5fa473cf4110 -> Node0x5fa473ce8760;
-	Node0x5fa473cf4110 -> Node0x5fa473ce8920;
-	Node0x5fa473cf4110 -> Node0x5fa473ca5460;
-	Node0x5fa473cf4110 -> Node0x5fa473cfdfb0;
-	Node0x5fa473cf4110 -> Node0x5fa473cf9610;
-	Node0x5fa473cf4110 -> Node0x5fa473cff350;
-	Node0x5fa473cf4110 -> Node0x5fa473cfb910;
-	Node0x5fa473cf4110 -> Node0x5fa473ca51a0;
-	Node0x5fa473cf4110 -> Node0x5fa473cfaf60;
-	Node0x5fa473cf4110 -> Node0x5fa473d00610;
-	Node0x5fa473cf4110 -> Node0x5fa473ccfc80;
-	Node0x5fa473cf4110 -> Node0x5fa473cfce30;
-	Node0x5fa473cf4110 -> Node0x5fa473cfa950;
-	Node0x5fa473cf4110 -> Node0x5fa473cfd0b0;
-	Node0x5fa473cf4110 -> Node0x5fa473cfd330;
-	Node0x5fa473cf4110 -> Node0x5fa473cfd970;
-	Node0x5fa473cf4110 -> Node0x5fa473cfd5b0;
-	Node0x5fa473cf41a0 [label="{new()}"];
-	Node0x5fa473ce8760 [label="{CIccMemIO::CIccMemIO()}"];
-	Node0x5fa473cfdd30 [label="{__gxx_personality_v0}"];
-	Node0x5fa473ce8920 [label="{delete()}"];
-	Node0x5fa473ca5460 [label="{CIccMemIO::Attach()}"];
-	Node0x5fa473cf9610 [label="{CIccProfile::CIccProfile()}"];
-	Node0x5fa473ca51a0 [label="{CIccProfile::Attach()}"];
-	Node0x5fa473ccfc80 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5fa473cfa950 [label="{CIccProfile::Validate()}"];
-	Node0x5fa473cfce30 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x5fa473cfce30 -> Node0x5fa473d039d0;
-	Node0x5fa473cfce30 -> Node0x5fa473d03610;
-	Node0x5fa473cfce30 -> Node0x5fa473d02fd0;
-	Node0x5fa473cfce30 -> Node0x5fa473d02850;
-	Node0x5fa473cfce30 -> Node0x5fa473d03d90;
-	Node0x5fa473cfce30 -> Node0x5fa473d04a10;
-	Node0x5fa473cfb910 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x5fa473cfd970 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5fa473cfd5b0 [label="{std::initializer_list<icTagSignature>::begin()}"];
-	Node0x5fa473cfd330 [label="{std::initializer_list<icTagSignature>::end()}"];
-	Node0x5fa473cfd330 -> Node0x5fa473cfd5b0;
-	Node0x5fa473cfd330 -> Node0x5fa473d04650;
-	Node0x5fa473cfd0b0 [label="{CIccProfile::FindTag()}"];
-	Node0x5fa473d00610 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5fa473cff350 [label="{__cxa_begin_catch}"];
-	Node0x5fa473cfdfb0 [label="{__cxa_end_catch}"];
-	Node0x5fa473d04650 [label="{std::initializer_list<icTagSignature>::size()}"];
-	Node0x5fa473cfaf60 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x5fa473d039d0 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x5fa473d03610 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x5fa473d02fd0 [label="{std::__throw_logic_error()}"];
-	Node0x5fa473d03d90 [label="{std::char_traits<char>::length()}"];
-	Node0x5fa473d03d90 -> Node0x5fa473d04510;
-	Node0x5fa473d04a10 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fa473d04a10 -> Node0x5fa473d04150;
-	Node0x5fa473d04a10 -> Node0x5fa473d04ad0;
-	Node0x5fa473d04a10 -> Node0x5fa473d05b10;
-	Node0x5fa473d04a10 -> Node0x5fa473d05d90;
-	Node0x5fa473d04a10 -> Node0x5fa473d066d0;
-	Node0x5fa473d04a10 -> Node0x5fa473d05250;
-	Node0x5fa473d04a10 -> Node0x5fa473d01870;
-	Node0x5fa473d04a10 -> Node0x5fa473d031d0;
-	Node0x5fa473d05d90 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fa473d02850 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x5fa473d02850 -> Node0x5fa473cfaf60;
-	Node0x5fa473d04510 [label="{strlen}"];
-	Node0x5fa473d04ad0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5fa473d04150 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x5fa473d05b10 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x5fa473d05250 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x5fa473d066d0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5fa473d01870 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x5fa473d031d0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fa473d031d0 -> Node0x5fa473d045d0;
-	Node0x5fa473d031d0 -> Node0x5fa473cfec90;
-	Node0x5fa473d045d0 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x5fa473cfec90 [label="{__clang_call_terminate}"];
-	Node0x5fa473cfec90 -> Node0x5fa473cff350;
-	Node0x5fa473cfec90 -> Node0x5fa473cfe1b0;
-	Node0x5fa473cfe1b0 [label="{std::terminate()}"];
+	Node0x5cc9d68e8110 [label="LLVMFuzzerTestOneInput"];
+	Node0x5cc9d68e8110 -> Node0x5cc9d68dc760;
+	Node0x5cc9d68e8110 -> Node0x5cc9d68eed60;
+	Node0x5cc9d68e8110 -> Node0x5cc9d68ed300;
+	Node0x5cc9d68e8110 -> Node0x5cc9d6898b20;
+	Node0x5cc9d68e8110 -> Node0x5cc9d68f01b0;
+	Node0x5cc9d68e8110 -> Node0x5cc9d68f11f0;
+	Node0x5cc9d68dc760 [label="CIccMemIO::CIccMemIO()"];
+	Node0x5cc9d68eed60 [label="CIccMemIO::Attach()"];
+	Node0x5cc9d68ed300 [label="CIccProfile::CIccProfile()"];
+	Node0x5cc9d6898b20 [label="CIccProfile::Attach()"];
+	Node0x5cc9d68f01b0 [label="CIccProfile::Validate()"];
+	Node0x5cc9d68f11f0 [label="CIccProfile::FindTag()"];
+	Node0x5cc9d68f6c10 [label="length()"];
+	Node0x5cc9d68f9b10 [label="_Guard::_Guard()"];
+	Node0x5cc9d68f3910 [label="_Guard::~_Guard()"];
 }

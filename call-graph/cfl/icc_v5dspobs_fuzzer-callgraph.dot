@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_v5dspobs_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,127 +15,62 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_v5dspobs_fuzzer
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x63c269998280 [label="{LLVMFuzzerInitialize}"];
-	Node0x63c269998280 -> Node0x63c269ab4620;
-	Node0x63c269998280 -> Node0x63c269b9c360;
-	Node0x63c269ab4620 [label="{strcmp}"];
-	Node0x63c269b9c360 [label="{fprintf}"];
-	Node0x63c2699b3480 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x63c2699b3480 -> Node0x63c269b9c360;
-	Node0x63c2699b3480 -> Node0x63c269bad8e0;
-	Node0x63c2699b3480 -> Node0x63c26995d940;
-	Node0x63c2699b3480 -> Node0x63c26995d310;
-	Node0x63c2699b3480 -> Node0x63c269b21b80;
-	Node0x63c2699b3480 -> Node0x63c269badb60;
-	Node0x63c2699b3480 -> Node0x63c26995e940;
-	Node0x63c2699b3480 -> Node0x63c2699dc4a0;
-	Node0x63c2699b3480 -> Node0x63c2699e0900;
-	Node0x63c2699b3480 -> Node0x63c269baaf20;
-	Node0x63c2699b3480 -> Node0x63c269bac620;
-	Node0x63c2699b3480 -> Node0x63c269baa020;
-	Node0x63c2699b3480 -> Node0x63c269bab6a0;
-	Node0x63c2699b3480 -> Node0x63c26995d290;
-	Node0x63c2699b3480 -> Node0x63c269ba7400;
-	Node0x63c2699b3480 -> Node0x63c269bacb20;
-	Node0x63c2699b3480 -> Node0x63c269bacda0;
-	Node0x63c2699b3480 -> Node0x63c269bad020;
-	Node0x63c2699b3480 -> Node0x63c269bab1a0;
-	Node0x63c2699b3480 -> Node0x63c269bab920;
-	Node0x63c2699b3480 -> Node0x63c269babba0;
-	Node0x63c2699b3480 -> Node0x63c269baa2a0;
-	Node0x63c2699b3480 -> Node0x63c269baa520;
-	Node0x63c2699b3480 -> Node0x63c269baa8e0;
-	Node0x63c2699b3480 -> Node0x63c269ba98a0;
-	Node0x63c2699b3480 -> Node0x63c269ba9b20;
-	Node0x63c2699b3480 -> Node0x63c269ba9da0;
-	Node0x63c2699b3480 -> Node0x63c269ba6810;
-	Node0x63c2699b3480 -> Node0x63c269ba79c0;
-	Node0x63c2699b3480 -> Node0x63c269ba77c0;
-	Node0x63c2699b3480 -> Node0x63c269960540;
-	Node0x63c2699b3480 -> Node0x63c269ba4870;
-	Node0x63c2699b3480 -> Node0x63c269ba6090;
-	Node0x63c2699b3480 -> Node0x63c269ba3a80;
-	Node0x63c2699b3480 -> Node0x63c26995ec90;
-	Node0x63c2699b3480 -> Node0x63c269ba54e0;
-	Node0x63c2699b3480 -> Node0x63c26995e9b0;
-	Node0x63c2699b3480 -> Node0x63c269960c10;
-	Node0x63c2699b3480 -> Node0x63c269ba6750;
-	Node0x63c2699e0900 [label="{fuzz_build_path()}"];
-	Node0x63c2699e0900 -> Node0x63c269bad2a0;
-	Node0x63c2699e0900 -> Node0x63c269baa8e0;
-	Node0x63c2699dc4a0 [label="{mkstemp}"];
-	Node0x63c26995d290 [label="{write}"];
-	Node0x63c26995e940 [label="{close}"];
-	Node0x63c26995d940 [label="{unlink}"];
-	Node0x63c26995d310 [label="{ReadIccProfile()}"];
-	Node0x63c26995e9b0 [label="{CIccProfile::FindTagOfType()}"];
-	Node0x63c269ba54e0 [label="{__dynamic_cast}"];
-	Node0x63c269960c10 [label="{CIccTagMultiProcessElement::NumElements()}"];
-	Node0x63c269960c10 -> Node0x63c269bae920;
-	Node0x63c26995ec90 [label="{CIccTagMultiProcessElement::NumInputChannels()}"];
-	Node0x63c269ba3a80 [label="{CIccTagMultiProcessElement::NumOutputChannels()}"];
-	Node0x63c269ba6750 [label="{CIccTagMultiProcessElement::GetElement()}"];
-	Node0x63c269ba6090 [label="{CIccApplyTagMpe::GetList[abi:cxx11]()}"];
-	Node0x63c269ba4870 [label="{std::list<CIccApplyMpePtr >::size()}"];
-	Node0x63c269ba4870 -> Node0x63c269baf1e0;
-	Node0x63c269ba4870 -> Node0x63c269baef60;
-	Node0x63c269baef60 [label="{__clang_call_terminate}"];
-	Node0x63c269baef60 -> Node0x63c269bb1120;
-	Node0x63c269baef60 -> Node0x63c269bb04a0;
-	Node0x63c269bb1120 [label="{__cxa_begin_catch}"];
-	Node0x63c269bb04a0 [label="{std::terminate()}"];
-	Node0x63c269baf3e0 [label="{std::_List_base<CIccMultiProcessElementPtr >::_M_get_size()}"];
-	Node0x63c269b21b80 [label="{fuzz_tmpdir()}"];
-	Node0x63c269b21b80 -> Node0x63c269bad660;
-	Node0x63c269960540 [label="{std::list<CIccApplyMpePtr >::begin()}"];
-	Node0x63c269960540 -> Node0x63c269baee20;
-	Node0x63c269ba79c0 [label="{std::_List_iterator<CIccApplyMpePtr>::operator-() const}"];
-	Node0x63c269ba79c0 -> Node0x63c269baeba0;
-	Node0x63c269ba79c0 -> Node0x63c269baef60;
-	Node0x63c269ba77c0 [label="{std::_List_iterator<CIccApplyMpePtr>::operator++(int)}"];
-	Node0x63c269ba77c0 -> Node0x63c269baa8e0;
-	Node0x63c269ba7400 [label="{new()}"];
-	Node0x63c269ba6810 [label="{CIccProfile::CIccProfile()}"];
-	Node0x63c269bb0220 [label="{__gxx_personality_v0}"];
-	Node0x63c269baa020 [label="{delete()}"];
-	Node0x63c269ba9da0 [label="{CIccProfile::InitHeader()}"];
-	Node0x63c269ba9b20 [label="{CIccTagCurve::CIccTagCurve()}"];
-	Node0x63c269ba98a0 [label="{CIccTagCurve::operator[](unsigned int)}"];
-	Node0x63c269baaf20 [label="{CIccProfile::AttachTag()}"];
-	Node0x63c269baa8e0 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x63c269baa520 [label="{CIccTagFixedNum<int, (icTagTypeSignature)1936077618>::CIccTagFixedN...}"];
-	Node0x63c269baa2a0 [label="{icDtoF()}"];
-	Node0x63c269babba0 [label="{CIccTagFixedNum<int, (icTagTypeSignature)1936077618>::operator[](un...}"];
-	Node0x63c269bab920 [label="{CIccProfile::FindTag()}"];
-	Node0x63c269bab6a0 [label="{CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()}"];
-	Node0x63c269bab1a0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x63c269bad020 [label="{icGetTagText()}"];
-	Node0x63c269bacda0 [label="{std::basic_string<char, std::char_traits >::operator=(char const*)}"];
-	Node0x63c269bac620 [label="{CIccTagMultiLocalizedUnicode::SetText()}"];
-	Node0x63c269bacb20 [label="{basic_string<char, std::char_traits >::c_str()}"];
-	Node0x63c269badb60 [label="{SaveIccProfile()}"];
-	Node0x63c269bad8e0 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x63c269bad660 [label="{getenv}"];
-	Node0x63c269bad2a0 [label="{strlen}"];
-	Node0x63c269bae920 [label="{std::list<CIccMultiProcessElementPtr >::size()}"];
-	Node0x63c269bae920 -> Node0x63c269bafb60;
-	Node0x63c269bae920 -> Node0x63c269baef60;
-	Node0x63c269bafb60 [label="{std::list<CIccMultiProcessElementPtr >::_M_node_count()}"];
-	Node0x63c269bafb60 -> Node0x63c269baf3e0;
-	Node0x63c269baee20 [label="{std::_List_iterator<CIccApplyMpePtr>::_List_iterator()}"];
-	Node0x63c269baf1e0 [label="{std::list<CIccApplyMpePtr >::_M_node_count()}"];
-	Node0x63c269baf1e0 -> Node0x63c269bac6a0;
-	Node0x63c269bac6a0 [label="{std::_List_base<CIccApplyMpePtr >::_M_get_size()}"];
-	Node0x63c269baeba0 [label="{std::_List_node<CIccApplyMpePtr>::_M_valptr()}"];
-	Node0x63c269baeba0 -> Node0x63c269bab9e0;
-	Node0x63c269bab9e0 [label="{__gnu_cxx::__aligned_membuf<CIccApplyMpePtr>::_M_ptr()}"];
-	Node0x63c269bab9e0 -> Node0x63c269bb0560;
-	Node0x63c269bb0560 [label="{__gnu_cxx::__aligned_membuf<CIccApplyMpePtr>::_M_addr()}"];
+	Node0x60b2685b9280 [label="LLVMFuzzerInitialize"];
+	Node0x60b2685d4480 [label="LLVMFuzzerTestOneInput"];
+	Node0x60b2685d4480 -> Node0x60b26857e310;
+	Node0x60b2685d4480 -> Node0x60b268742b80;
+	Node0x60b2685d4480 -> Node0x60b2687ceb60;
+	Node0x60b2685d4480 -> Node0x60b2685fd4a0;
+	Node0x60b2685d4480 -> Node0x60b268601900;
+	Node0x60b2685d4480 -> Node0x60b2687cbf20;
+	Node0x60b2685d4480 -> Node0x60b2687cd620;
+	Node0x60b2685d4480 -> Node0x60b2687cc6a0;
+	Node0x60b2685d4480 -> Node0x60b2687cdb20;
+	Node0x60b2685d4480 -> Node0x60b2687ce020;
+	Node0x60b2685d4480 -> Node0x60b2687cc920;
+	Node0x60b2685d4480 -> Node0x60b2687ccba0;
+	Node0x60b2685d4480 -> Node0x60b2687cb2a0;
+	Node0x60b2685d4480 -> Node0x60b2687cb520;
+	Node0x60b2685d4480 -> Node0x60b2687ca8a0;
+	Node0x60b2685d4480 -> Node0x60b2687cab20;
+	Node0x60b2685d4480 -> Node0x60b2687cada0;
+	Node0x60b2685d4480 -> Node0x60b2687c7810;
+	Node0x60b2685d4480 -> Node0x60b2687c7090;
+	Node0x60b2685d4480 -> Node0x60b2687c4a80;
+	Node0x60b2685d4480 -> Node0x60b26857fc90;
+	Node0x60b2685d4480 -> Node0x60b2687c64e0;
+	Node0x60b2685d4480 -> Node0x60b26857f9b0;
+	Node0x60b2685d4480 -> Node0x60b268581c10;
+	Node0x60b2685d4480 -> Node0x60b2687c7750;
+	Node0x60b268601900 [label="fuzz_build_path()"];
+	Node0x60b2685fd4a0 [label="mkstemp"];
+	Node0x60b26857e310 [label="ReadIccProfile()"];
+	Node0x60b26857f9b0 [label="CIccProfile::FindTagOfType()"];
+	Node0x60b2687c64e0 [label="__dynamic_cast"];
+	Node0x60b268581c10 [label="CIccTagMultiProcessElement::NumElements()"];
+	Node0x60b26857fc90 [label="CIccTagMultiProcessElement::NumInputChannels()"];
+	Node0x60b2687c4a80 [label="CIccTagMultiProcessElement::NumOutputChannels()"];
+	Node0x60b2687c7750 [label="CIccTagMultiProcessElement::GetElement()"];
+	Node0x60b2687c7090 [label="CIccApplyTagMpe::GetList[abi:cxx11]()"];
+	Node0x60b268742b80 [label="fuzz_tmpdir()"];
+	Node0x60b2687c7810 [label="CIccProfile::CIccProfile()"];
+	Node0x60b2687cada0 [label="CIccProfile::InitHeader()"];
+	Node0x60b2687cab20 [label="CIccTagCurve::CIccTagCurve()"];
+	Node0x60b2687ca8a0 [label="CIccTagCurve::operator[](unsigned int)"];
+	Node0x60b2687cbf20 [label="CIccProfile::AttachTag()"];
+	Node0x60b2687cb520 [label="CIccTagFixedNum()"];
+	Node0x60b2687cb2a0 [label="icDtoF()"];
+	Node0x60b2687ccba0 [label="CIccTagFixedNum<int, (icTagTypeSignature)1936077618>::ope..."];
+	Node0x60b2687cc920 [label="CIccProfile::FindTag()"];
+	Node0x60b2687cc6a0 [label="CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()"];
+	Node0x60b2687ce020 [label="icGetTagText()"];
+	Node0x60b2687cd620 [label="CIccTagMultiLocalizedUnicode::SetText()"];
+	Node0x60b2687cdb20 [label="c_str()"];
+	Node0x60b2687ceb60 [label="SaveIccProfile()"];
 }
