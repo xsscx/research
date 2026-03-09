@@ -159,7 +159,7 @@ TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
 
 ## CVE Coverage (93 iccDEV Advisories)
 
-47 heuristics detect patterns from 48 CVEs + 12 GHSAs across the 93 iccDEV security advisories.
+50 heuristics detect patterns from 48 CVEs + 19 GHSAs across the 93 iccDEV security advisories.
 23 advisories are XML parser/serializer bugs (out of scope — binary ICC analyzer).
 1 advisory is tool-specific (iccFromCube).
 
