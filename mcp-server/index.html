@@ -649,6 +649,73 @@ function renderInputs() {
         <span class="upload-status" id="uploadStatus"></span>
       </div>
       <div id="profilePicker"></div>`;
+  } else if (currentTool === "validate_xml") {
+    const xmlDirs = ["fuzz/xml/icc", "fuzz/xml/icc/minimized", "test-profiles", "extended-test-profiles"];
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-directory">XML Directory</label>
+          <select id="inp-directory">
+            ${xmlDirs.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-checks">Checks</label>
+          <select id="inp-checks">
+            <option value="all" selected>all</option>
+            <option value="wellformed">wellformed</option>
+            <option value="encoding">encoding</option>
+            <option value="size">size</option>
+            <option value="safety">safety</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <div id="xmlFilePicker"></div>`;
+  } else if (currentTool === "batch_test") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-directory">Directory</label>
+          <select id="inp-directory">
+            ${DIRS.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-tool">Tool</label>
+          <select id="inp-tool">
+            <option value="iccDumpProfile" selected>iccDumpProfile</option>
+            <option value="iccRoundTrip">iccRoundTrip</option>
+            <option value="iccToXml">iccToXml</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-build_dir">Build Dir</label>
+          <input id="inp-build_dir" value="" placeholder="(auto-detect)" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
+  } else if (currentTool === "scan_logs") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-directory">Log Directory</label>
+          <input id="inp-directory" value="" placeholder="(default: build dir)" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-categories">Categories</label>
+          <select id="inp-categories">
+            <option value="all" selected>all</option>
+            <option value="errors">errors</option>
+            <option value="crashes">crashes</option>
+            <option value="sanitizer">sanitizer</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>`;
   } else {
     const defaultVal = currentTool === "xml" ? DEFAULT_XML_PROFILE : DEFAULT_PROFILE;
     const xmlSaveBtn = currentTool === "xml"
@@ -694,8 +761,16 @@ function renderInputs() {
     inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
   });
 
-  // Auto-show profile picker for all analysis tools
-  if (currentTool !== "list") loadProfilePicker(true);
+  // Auto-show profile picker for analysis tools (not directory-based tools)
+  const dirTools = ["list", "validate_xml", "batch_test", "scan_logs"];
+  if (!dirTools.includes(currentTool)) loadProfilePicker(true);
+
+  // Auto-load XML file list for validate_xml
+  if (currentTool === "validate_xml") {
+    loadXmlFilePicker();
+    const dirSelect = document.getElementById("inp-directory");
+    if (dirSelect) dirSelect.addEventListener("change", loadXmlFilePicker);
+  }
 }
 
 /* ── Profile quick-pick list ───────────────────────────── */
@@ -728,6 +803,44 @@ async function loadProfilePicker(visible) {
   for (const p of profiles) {
     html += `<div class="item" data-name="${esc(prefix + p.name)}">
       <span>${esc(p.name)}</span><span class="size">${esc(p.size)}</span>
+    </div>`;
+  }
+  html += '</div>';
+  picker.innerHTML = html;
+}
+
+/* ── XML file picker for validate_xml ──────────────────── */
+const xmlFileCache = {};
+async function loadXmlFilePicker() {
+  const picker = document.getElementById("xmlFilePicker");
+  if (!picker) return;
+  const dirEl = document.getElementById("inp-directory");
+  const dir = dirEl ? dirEl.value : "fuzz/xml/icc";
+
+  if (!xmlFileCache[dir]) {
+    try {
+      const resp = await fetch(`/api/list-xml?directory=${encodeURIComponent(dir)}`);
+      const data = await resp.json();
+      if (data.ok) xmlFileCache[dir] = data.files || [];
+    } catch { return; }
+  }
+
+  const files = xmlFileCache[dir];
+  if (!files || !files.length) {
+    picker.innerHTML = '<div class="profile-list open"><div class="item"><span>No .xml files found in this directory</span></div></div>';
+    return;
+  }
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
+  }
+
+  let html = '<div class="profile-list open">';
+  for (const f of files) {
+    html += `<div class="item xml-item" data-xmlpath="${esc(f.path)}">
+      <span>${esc(f.name)}</span><span class="size">${fmtSize(f.size)}</span>
     </div>`;
   }
   html += '</div>';

@@ -96,6 +96,12 @@ _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
 # Allowed directory names for list_test_profiles
 _ALLOWED_DIRS = frozenset({"test-profiles", "extended-test-profiles"})
 
+# Allowed directories for XML file listing
+_ALLOWED_XML_DIRS = frozenset({
+    "test-profiles", "extended-test-profiles",
+    "fuzz/xml/icc", "fuzz/xml/icc/minimized",
+})
+
 # Limit concurrent subprocess executions
 _MAX_CONCURRENT = 4
 _semaphore: asyncio.Semaphore | None = None
@@ -254,6 +260,31 @@ async def api_list(request: Request) -> Response:
         directory = _validate_directory(directory)
         result = await list_test_profiles(directory)
         return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_list_xml(request: Request) -> Response:
+    """GET /api/list-xml?directory=fuzz/xml/icc — list XML files in allowed directories."""
+    try:
+        directory = request.query_params.get("directory", "fuzz/xml/icc")
+        directory = directory.strip()
+        if directory not in _ALLOWED_XML_DIRS:
+            raise ValueError(
+                f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
+            )
+        target = _HERE.parent / directory
+        if not target.is_dir():
+            return JSONResponse({"ok": True, "files": [], "directory": directory})
+        xml_files = sorted(target.glob("*.xml"))
+        items = []
+        for xf in xml_files[:200]:
+            try:
+                size = xf.stat().st_size
+            except OSError:
+                size = 0
+            items.append({"name": xf.name, "size": size, "path": f"{directory}/{xf.name}"})
+        return JSONResponse({"ok": True, "files": items, "directory": directory})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
@@ -946,6 +977,7 @@ routes = [
     Route("/api/health", api_health, methods=["GET"]),
     Route("/api/registry", api_registry, methods=["GET"]),
     Route("/api/list", api_list, methods=["GET"]),
+    Route("/api/list-xml", api_list_xml, methods=["GET"]),
     Route("/api/inspect", api_inspect, methods=["GET"]),
     Route("/api/security", api_security, methods=["GET"]),
     Route("/api/security-json", api_security_json, methods=["GET"]),
