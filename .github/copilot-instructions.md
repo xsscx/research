@@ -57,7 +57,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Heuristics | 148 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 18 | cfl.instructions.md, README.md |
-| iccDEV advisories | 93 (87 uniqueCVEs, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
+| iccDEV advisories | 93 (61 CVEs + 27 GHSAs = 88 unique, 51 heuristics with refs) | 6 files (see CVE count sync memory) |
 | Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
 
 ## ICC Specification References — Sources of Truth
@@ -241,6 +241,41 @@ Available tools (15):
   - `CIccMultiProcessElement` — MPE elements, covered by calculator/spectral fuzzers
   - `CIccCurveSetCurve` — curve types (Segmented, SingleSampled, SampledCalculator)
   - `CIccXform` — transform pipeline, covered by apply/link/roundtrip fuzzers
+
+### Research Repo Doxygen Documentation
+
+Config at `docs/doxygen/Doxyfile`. Generates interactive SVG class graphs for all
+research components (iccanalyzer-lite, CFL fuzzers, MCP server, colorbleed_tools).
+
+```bash
+# Build HTML docs (run from repo root)
+doxygen docs/doxygen/Doxyfile    # output → docs/doxygen/html/
+
+# Zip for release upload
+cd docs/doxygen && zip -r /tmp/doxygen-html.zip html/
+gh release upload <TAG> /tmp/doxygen-html.zip --clobber
+```
+
+**Key settings**: interactive SVG graphs, UML look, class/collaboration/include/directory
+graphs enabled, per-function call graphs disabled (too many SVGs). Excludes: `iccDEV/`,
+`site-packages/`, `.venv/`. Output: ~23MB / 1498 files / 347 SVGs.
+
+### Dynamic Heuristic Count — Source of Truth
+
+All heuristic, CVE, and severity counts are computed dynamically from
+`IccHeuristicsRegistry.h` at runtime. Use `--registry` mode for authoritative data:
+
+```bash
+./iccanalyzer-lite --registry | jq .totalHeuristics    # → 148
+./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 61
+./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 27
+./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 51
+./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:42, HIGH:34, ...}
+```
+
+Adding a new entry to `kHeuristicRegistry[]` in `IccHeuristicsRegistry.h` automatically
+updates all C++ counts. No manual sync needed for C++ code — only documentation files
+reference specific numbers.
 
 ### CWE-400 Timeout Patterns in iccDEV
 
@@ -469,7 +504,7 @@ Every success claim MUST include verification evidence in this format:
 
 **Examples:**
 - `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
-- `[OK] Verified: 217 tests pass (python3 tests/run_tests.py → 217/217 passed)`
+- `[OK] Verified: 229 tests pass (python3 tests/run_tests.py → 229/229 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
 

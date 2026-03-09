@@ -96,6 +96,31 @@ _semaphore_lock = asyncio.Lock()
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB max upload
 _UPLOAD_DIR: Path | None = None  # lazily created temp dir for uploads
 
+# Dynamic heuristic count from --registry (lazy, cached)
+_HEURISTIC_COUNT: int | None = None
+
+
+def _get_heuristic_count() -> int:
+    """Query the analyzer binary for the total heuristic count."""
+    global _HEURISTIC_COUNT
+    if _HEURISTIC_COUNT is not None:
+        return _HEURISTIC_COUNT
+    try:
+        import json as _json
+        import subprocess
+        r = subprocess.run(
+            [str(ANALYZER_BIN), "--registry"],
+            capture_output=True, text=True, timeout=10
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            data = _json.loads(r.stdout)
+            _HEURISTIC_COUNT = data.get("totalHeuristics", 148)
+            return _HEURISTIC_COUNT
+    except Exception:
+        pass
+    _HEURISTIC_COUNT = 148
+    return _HEURISTIC_COUNT
+
 
 async def _get_semaphore() -> asyncio.Semaphore:
     """Lazy-init semaphore (must be created inside an event loop). Thread-safe."""
@@ -262,14 +287,15 @@ async def api_security_json(request: Request) -> Response:
         # Handle crash recovery: if no JSON output, return structured error
         result = result.strip()
         if not result or not result.startswith("{"):
+            _h_count = _get_heuristic_count()
             return JSONResponse({
                 "ok": True,
-                "result": '{"summary":{"totalHeuristics":148,"heuristicsRun":0,'
+                "result": f'{{"summary":{{"totalHeuristics":{_h_count},"heuristicsRun":0,'
                           '"ok":0,"warnings":0,"critical":1,'
                           '"crashRecovery":true,'
                           '"note":"Profile triggered crash recovery (SIGSEGV/SIGABRT) — '
-                          'no JSON output available. Use /api/security for text analysis."},'
-                          '"results":[]}'
+                          'no JSON output available. Use /api/security for text analysis."}},'
+                          '"results":[]}}'
             })
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
