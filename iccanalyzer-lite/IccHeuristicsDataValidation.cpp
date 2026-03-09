@@ -2191,28 +2191,21 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
   CIccTag *pSeqIdTag = pIcc->FindTag(icSigProfileSequceIdTag);
   CIccTagProfileSequenceId *pSeqId = pSeqIdTag ? dynamic_cast<CIccTagProfileSequenceId*>(pSeqIdTag) : nullptr;
   if (pSeqId) {
-      // Cache iterators before loop to satisfy lifetime analysis
-      auto itBegin = pSeqId->begin();
-      auto itEnd = pSeqId->end();
-
-      // Iterate entries to count and validate
       int entryCount = 0;
       bool hasNullId = false;
       bool hasDupId = false;
       std::set<std::string> seenIds;
 
-      for (auto it = itBegin; it != itEnd; ++it) {
+      for (const auto& entry : *pSeqId) {
         entryCount++;
 
-        // Check for null profile ID (all zeros)
-        icProfileID pid = it->m_profileID;
+        icProfileID pid = entry.m_profileID;
         bool allZero = true;
         for (int k = 0; k < 16; k++) {
           if (pid.ID8[k] != 0) { allZero = false; break; }
         }
         if (allZero) hasNullId = true;
 
-        // Check for duplicate profile IDs
         std::string idStr(reinterpret_cast<const char *>(pid.ID8), 16);
         if (!allZero && seenIds.count(idStr)) {
           hasDupId = true;
