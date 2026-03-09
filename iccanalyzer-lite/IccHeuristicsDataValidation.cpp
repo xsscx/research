@@ -2499,11 +2499,7 @@ int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
       if (!first && curIn != prevOut) {
         char tagSig[5];
         icUInt32Number sig = (icUInt32Number)mpeTags[i];
-        tagSig[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
-        tagSig[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
-        tagSig[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
-        tagSig[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
-        tagSig[4] = '\0';
+        SigToChars(sig, tagSig);
         printf("      %s[CRIT]  Channel discontinuity in '%s' at element %u: "
                "prev_out=%u, cur_in=%u — buffer overflow risk (CWE-787)%s\n",
                ColorCritical(), tagSig, e, prevOut, curIn, ColorReset());

@@ -830,38 +830,68 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Top-Level Dispatcher
+// Stub Handlers (until full implementation)
+// ═══════════════════════════════════════════════════════════════════════
+
+static int AnalyzePngImageStub(const char *filepath, const char * /*fingerprintDb*/) {
+  printf("[INFO] PNG image analysis not yet implemented.\n");
+  printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
+         filepath);
+  return 0;
+}
+
+static int AnalyzeJpegImageStub(const char *filepath, const char * /*fingerprintDb*/) {
+  printf("[INFO] JPEG image analysis not yet implemented.\n");
+  printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
+         filepath);
+  return 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Format Handler Table — add new formats here
+// ═══════════════════════════════════════════════════════════════════════
+
+static const ImageFormat kTiffFormats[] = {
+  ImageFormat::TIFF_LE, ImageFormat::TIFF_BE,
+  ImageFormat::BIGTIFF_LE, ImageFormat::BIGTIFF_BE
+};
+static const ImageFormat kPngFormats[] = { ImageFormat::PNG };
+static const ImageFormat kJpegFormats[] = { ImageFormat::JPEG };
+
+static const ImageFormatHandler kFormatHandlers[] = {
+  { "TIFF", kTiffFormats, 4, AnalyzeTiffImage },
+  { "PNG",  kPngFormats,  1, AnalyzePngImageStub },
+  { "JPEG", kJpegFormats, 1, AnalyzeJpegImageStub },
+};
+static constexpr int kNumFormatHandlers = sizeof(kFormatHandlers) / sizeof(kFormatHandlers[0]);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Top-Level Dispatcher (table-driven)
 // ═══════════════════════════════════════════════════════════════════════
 
 int AnalyzeImageFile(const char *filepath, const char *fingerprintDb) {
   ImageFormat fmt = DetectFileFormat(filepath);
 
-  switch (fmt) {
-    case ImageFormat::TIFF_LE:
-    case ImageFormat::TIFF_BE:
-    case ImageFormat::BIGTIFF_LE:
-    case ImageFormat::BIGTIFF_BE:
-      return AnalyzeTiffImage(filepath, fingerprintDb);
-
-    case ImageFormat::PNG:
-      printf("[INFO] PNG image analysis not yet implemented.\n");
-      printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
-             filepath);
-      return 0;
-
-    case ImageFormat::JPEG:
-      printf("[INFO] JPEG image analysis not yet implemented.\n");
-      printf("       Use 'exiftool -icc_profile -b %s > extracted.icc' to extract ICC.\n",
-             filepath);
-      return 0;
-
-    case ImageFormat::ICC_PROFILE:
-      // Not an image — raw ICC profile. Use standard path.
-      return ComprehensiveAnalyze(filepath, fingerprintDb);
-
-    case ImageFormat::UNKNOWN:
-    default:
-      printf("[INFO] Unknown file format. Attempting ICC profile analysis...\n");
-      return ComprehensiveAnalyze(filepath, fingerprintDb);
+  // ICC_PROFILE and UNKNOWN fall through to ComprehensiveAnalyze
+  if (fmt == ImageFormat::ICC_PROFILE) {
+    return ComprehensiveAnalyze(filepath, fingerprintDb);
   }
+  if (fmt == ImageFormat::UNKNOWN) {
+    printf("[INFO] Unknown file format. Attempting ICC profile analysis...\n");
+    return ComprehensiveAnalyze(filepath, fingerprintDb);
+  }
+
+  // Look up handler from table
+  for (int i = 0; i < kNumFormatHandlers; i++) {
+    for (int j = 0; j < kFormatHandlers[i].formatCount; j++) {
+      if (kFormatHandlers[i].formats[j] == fmt) {
+        return kFormatHandlers[i].analyze(filepath, fingerprintDb);
+      }
+    }
+  }
+
+  // No handler found — fall back to ICC analysis
+  printf("[INFO] No image handler for format '%s'. Attempting ICC profile analysis...\n",
+         FormatName(fmt));
+  return ComprehensiveAnalyze(filepath, fingerprintDb);
 }

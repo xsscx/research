@@ -219,11 +219,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       ICC_SANITY_CHECK_SIGNATURE(sig, "ninja.tagSig");
 
       char sigStr[5];
-      sigStr[0] = static_cast<char>(static_cast<unsigned char>((sig>>24)&0xff));
-      sigStr[1] = static_cast<char>(static_cast<unsigned char>((sig>>16)&0xff));
-      sigStr[2] = static_cast<char>(static_cast<unsigned char>((sig>>8)&0xff));
-      sigStr[3] = static_cast<char>(static_cast<unsigned char>(sig&0xff));
-      sigStr[4] = '\0';
+      SigToChars(sig, sigStr);
       
       // Read tag TYPE (first 4 bytes of tag data)
       char typeStr[5] = "----";
@@ -348,11 +344,7 @@ static icUInt16Number read16(const unsigned char* data) {
 }
 
 static void sig2str(char* str, icUInt32Number sig) {
-  str[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
-  str[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
-  str[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
-  str[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
-  str[4] = 0;
+  SigToChars(sig, str);
   for (int i = 0; i < 4; i++) {
     if (str[i] < 32 || str[i] > 126) str[i] = '?';
   }
