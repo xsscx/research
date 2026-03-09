@@ -86,7 +86,7 @@ INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/u
 LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lz -llzma -lm -lssl -lcrypto"
 
 # Source files
-SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp"
+SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccHeuristicsXmlSafety.cpp"
 
 NPROC=$(nproc)
 if [ "${NO_SANITIZERS:-0}" = "1" ] && [ "${NO_COVERAGE:-0}" = "1" ]; then

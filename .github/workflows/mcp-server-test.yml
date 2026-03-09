@@ -182,7 +182,7 @@ jobs:
                   IccAnalyzerCallGraph.cpp IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp \
                   IccAnalyzerErrors.cpp IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp \
                   IccAnalyzerXMLExport.cpp IccAnalyzerTagDetails.cpp \
-                  IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp"
+                  IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccHeuristicsXmlSafety.cpp"
             for src in $SRCS; do
               $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
             done
