@@ -449,6 +449,12 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     heuristicCount += RunHeuristic_H137_HighDimensionalGridComplexity(pIcc);
     heuristicCount += RunHeuristic_H138_CalculatorBranchingDepth(pIcc);
 
+    // H142-H145: XML serialization safety (covers 25 XML-related advisories)
+    heuristicCount += RunHeuristic_H142_XmlSerializationSafety(pIcc, filename);
+    heuristicCount += RunHeuristic_H143_XmlArrayBoundsPrecheck(pIcc);
+    heuristicCount += RunHeuristic_H144_XmlStringTerminationPrecheck(pIcc);
+    heuristicCount += RunHeuristic_H145_XmlCurveTypeConsistency(pIcc);
+
     delete pIcc;
   }
   } // end of critical-threshold gate
@@ -486,7 +492,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 141 heuristics (H1-H138 ICC profile + H139-H141 TIFF image) covering patterns from 48 CVEs + 19 GHSAs across 93 iccDEV security advisories (50 heuristics with CVE/GHSA cross-references)%s\n", ColorInfo(), ColorReset());
+    printf("  %sCVE Coverage: 145 heuristics (H1-H138 ICC profile + H139-H141 TIFF image + H142-H145 XML safety) covering patterns from 48 CVEs + 19 GHSAs across 93 iccDEV security advisories (54 heuristics with CVE/GHSA cross-references)%s\n", ColorInfo(), ColorReset());
     printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
@@ -517,6 +523,8 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s           bytes (§10.1), duplicate tag signatures (§7.3.1)%s\n", ColorInfo(), ColorReset());
     printf("  %sH136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional%s\n", ColorInfo(), ColorReset());
     printf("  %s           grid complexity, calculator branching depth (CFL-074/075/076 findings)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH142-H145: XML serialization safety — fork-isolated ToXml(), array bounds precheck,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           string termination validation, curve type consistency (25 XML advisories)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
     printf("  • Validate profile with official ICC tools\n");
