@@ -286,10 +286,7 @@ int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
     icTagSignature sig = it->TagInfo.sig;
     if (allowed.find(sig) == allowed.end()) {
       char sigStr[5] = {};
-      sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-      sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-      sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-      sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+      SigToChars(sig, sigStr);
 
       bool isUpper = true;
       for (int c = 0; c < 4; c++) {
@@ -602,10 +599,7 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
         }
         if (match) {
           char sigStr[5] = {};
-          sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-          sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-          sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-          sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+          SigToChars(sig, sigStr);
           printf("      %s[CRITICAL] Private tag '%s': %s at offset +%zu%s\n",
                  ColorCritical(), sigStr, malwareSigs[s].name, pos, ColorReset());
           printf("       %sCWE-506: Embedded malicious code in private tag data%s\n",
@@ -1317,11 +1311,7 @@ int RunHeuristic_H135_DuplicateTagSignatures(const char *filename) {
   for (size_t i = 1; i < sorted.size(); i++) {
     if (sorted[i] == sorted[i - 1]) {
       char sigCC[5] = {};
-      sigCC[0] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 24) & 0xFF));
-      sigCC[1] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 16) & 0xFF));
-      sigCC[2] = static_cast<char>(static_cast<unsigned char>((sorted[i] >> 8) & 0xFF));
-      sigCC[3] = static_cast<char>(static_cast<unsigned char>(sorted[i] & 0xFF));
-      sigCC[4] = '\0';
+      SigToChars(sorted[i], sigCC);
       printf("      %s[WARN]  Duplicate tag signature: '%s' (0x%08X)%s\n",
              ColorWarning(), sigCC, sorted[i], ColorReset());
       duplicates++;
@@ -1548,10 +1538,7 @@ int RunHeuristic_H137_HighDimensionalGridComplexity(CIccProfile *pIcc) {
       if (total > 1000000ULL) {
         char sigStr[5] = {};
         uint32_t sig = (uint32_t)clutTags[t];
-        sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-        sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-        sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-        sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+        SigToChars(sig, sigStr);
         printf("      %s[WARN]  '%s': %u-dim CLUT grid product = %llu (>1M)%s\n",
                ColorCritical(), sigStr, nIn, (unsigned long long)total, ColorReset());
         printf("       %sCWE-400: Exponential grid iteration in Apply()%s\n",
@@ -1620,14 +1607,7 @@ int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc) {
       if (nSub > 16) {
         char sigStr[5] = {};
         uint32_t sig = (uint32_t)mpeTags[t];
-        sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-        sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-        sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-        sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
-        printf("      %s[WARN]  '%s' calc[%u]: %u sub-elements (>16)%s\n",
-               ColorCritical(), sigStr, ei, nSub, ColorReset());
-        printf("       %sCWE-674: Deep sub-element chain → unbounded recursion in ApplySequence%s\n",
-               ColorCritical(), ColorReset());
+        SigToChars(sig, sigStr);
         printf("       Note: ApplySequence() has NO runtime depth limit (validation-only guard)\n");
         heuristicCount++;
       }
@@ -1640,10 +1620,7 @@ int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc) {
         if (pSubCalc) {
           char sigStr[5] = {};
           uint32_t sig = (uint32_t)mpeTags[t];
-          sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-          sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-          sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-          sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+          SigToChars(sig, sigStr);
           printf("      %s[WARN]  '%s' calc[%u] sub[%u]: nested calculator element%s\n",
                  ColorCritical(), sigStr, ei, si, ColorReset());
           printf("       %sCWE-674: Nested calculators cause re-entrant ApplySequence (no depth limit)%s\n",
