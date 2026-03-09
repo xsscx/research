@@ -39,6 +39,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from icc_profile_mcp import (  # noqa: E402
+    ANALYZER_BIN,
     TO_XML_SAFE_BIN,
     TO_XML_UNSAFE_BIN,
     _require_binary,
@@ -392,6 +393,21 @@ async def api_health(request: Request) -> Response:
     return JSONResponse({"ok": True, "tools": 24})
 
 
+async def api_registry(request: Request) -> Response:
+    """GET /api/registry — heuristic database (source of truth for all counts)."""
+    try:
+        _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+        result = await _run([str(ANALYZER_BIN), "--registry"], include_stderr=False)
+        result = result.strip()
+        if result.startswith("{"):
+            import json as _json
+            data = _json.loads(result)
+            return JSONResponse({"ok": True, "registry": data})
+        return JSONResponse({"ok": False, "error": "Invalid registry output"}, status_code=500)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
 # ---------------------------------------------------------------------------
 # Maintainer tool endpoints (POST — they trigger builds / side-effects)
 # ---------------------------------------------------------------------------
@@ -739,6 +755,7 @@ class SecurityHeadersMiddleware:
 routes = [
     Route("/", index, methods=["GET"]),
     Route("/api/health", api_health, methods=["GET"]),
+    Route("/api/registry", api_registry, methods=["GET"]),
     Route("/api/list", api_list, methods=["GET"]),
     Route("/api/inspect", api_inspect, methods=["GET"]),
     Route("/api/security", api_security, methods=["GET"]),

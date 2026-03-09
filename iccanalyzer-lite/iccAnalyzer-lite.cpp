@@ -18,6 +18,7 @@
 #include "IccImageAnalyzer.h"
 #include "IccAnalyzerJson.h"
 #include "IccAnalyzerReport.h"
+#include "IccHeuristicsRegistry.h"
 
 #include <cstdio>
 #include <cstring>
@@ -207,6 +208,9 @@ void PrintUsage() {
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
   printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
+
+  printf("\nRegistry:\n");
+  printf("  --registry                 Emit heuristic database as JSON (source of truth)\n");
   
   printf("\nImage Analysis (-a auto-detect, or -img explicit):\n");
   printf("  TIFF: Extract embedded ICC (tag 34675), report metadata, scan injections\n");
@@ -236,7 +240,7 @@ int main(int argc, char **argv) {
   // Validate profile path for modes that accept one (skip -cg which takes log files)
   const char *profilePath = nullptr;
   if (argc >= 3 && strcmp(mode, "--version") != 0 && strcmp(mode, "-version") != 0
-      && strcmp(mode, "-cg") != 0) {
+      && strcmp(mode, "--registry") != 0 && strcmp(mode, "-cg") != 0) {
     profilePath = ValidateProfilePath(argv[2]);
     if (!profilePath) {
       fprintf(stderr, "[ERR] Invalid or inaccessible path: %s\n", argv[2]);
@@ -342,6 +346,40 @@ int main(int argc, char **argv) {
     return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr);
   }
   
+  // Registry dump — emit heuristic database as JSON (source of truth for all counts)
+  if (strcmp(mode, "--registry") == 0) {
+    RegistryStats stats = ComputeRegistryStats();
+    printf("{\n");
+    printf("  \"version\": \"%s\",\n", ICCANALYZER_VERSION_FULL);
+    printf("  \"totalHeuristics\": %d,\n", stats.totalHeuristics);
+    printf("  \"heuristicsWithCVE\": %d,\n", stats.heuristicsWithCVE);
+    printf("  \"uniqueCVEs\": %d,\n", stats.uniqueCVEs);
+    printf("  \"uniqueGHSAs\": %d,\n", stats.uniqueGHSAs);
+    printf("  \"severity\": {\n");
+    printf("    \"CRITICAL\": %d,\n", stats.severity[0]);
+    printf("    \"HIGH\": %d,\n", stats.severity[1]);
+    printf("    \"MEDIUM\": %d,\n", stats.severity[2]);
+    printf("    \"LOW\": %d,\n", stats.severity[3]);
+    printf("    \"INFO\": %d\n", stats.severity[4]);
+    printf("  },\n");
+    printf("  \"heuristics\": [\n");
+    for (size_t i = 0; i < kHeuristicRegistrySize; i++) {
+      const auto &h = kHeuristicRegistry[i];
+      printf("    {\"id\": %d, \"name\": \"%s\", \"specRef\": %s%s%s, "
+             "\"cwe\": \"%s\", \"cveRefs\": %s%s%s, \"phase\": \"%s\", \"severity\": \"%s\"}%s\n",
+             h.id, h.name,
+             h.specRef ? "\"" : "", h.specRef ? h.specRef : "null", h.specRef ? "\"" : "",
+             h.primaryCWE,
+             h.cveRefs ? "\"" : "", h.cveRefs ? h.cveRefs : "null", h.cveRefs ? "\"" : "",
+             PhaseToString(h.phase),
+             SeverityToString(h.severity),
+             (i + 1 < kHeuristicRegistrySize) ? "," : "");
+    }
+    printf("  ]\n");
+    printf("}\n");
+    return ICC_EXIT_CLEAN;
+  }
+
   // Version
   if (strcmp(mode, "--version") == 0 || strcmp(mode, "-version") == 0) {
     printf("=======================================================================\n");
