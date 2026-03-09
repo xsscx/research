@@ -12,8 +12,8 @@
  *
  * CVE mappings derived from 93 iccDEV security advisories (GHSA-* / CVE-2026-*).
  * 68 advisories have CVE IDs; 25 are GHSA-only (pending CVE assignment).
- * 47 heuristics detect patterns from 48 CVEs + 12 GHSAs (binary ICC analysis).
- * 24 advisories are out of scope: 23 XML parser/serializer, 1 tool-specific (iccFromCube).
+ * 50 heuristics detect patterns from 48 CVEs + 19 GHSAs (binary ICC analysis).
+ * 26 advisories are out of scope: 25 XML parser/serializer, 1 tool-specific (iccFromCube).
  * Validated 2026-03-09 against closed iccDEV issues and security advisories.
  */
 
@@ -73,7 +73,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   // --- TAG VALIDATION (H9-H14, H18-H32) ---
   {  9, "Critical Text Tags",                  "§7.3",    "CWE-476", "CVE-2026-21496,CVE-2026-21497", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 10, "Tag Count",                           "§7.3",    "CWE-20",  "CVE-2026-21680", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::MEDIUM},
-  { 11, "CLUT Entry Limit",                    "§10.10",  "CWE-190", "CVE-2026-21677,CVE-2026-22255,GHSA-6jrq-wfqg-wv7w,GHSA-w3g9-rmvh-49gh", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
+  { 11, "CLUT Entry Limit",                    "§10.10",  "CWE-190", "CVE-2026-21677,CVE-2026-22255,GHSA-6jrq-wfqg-wv7w,GHSA-w3g9-rmvh-49gh,GHSA-92v9-wq22-2rfv,GHSA-x6gg-j72w-jc9w", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 12, "MPE Chain Depth",                     "§10.26",  "CWE-674", "CVE-2026-21500,CVE-2026-21501", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 13, "Per Tag Size Check",                  "§7.3.1",  "CWE-400", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 14, "Tag Array Detection",                 "§10.33",  "CWE-416", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
@@ -87,9 +87,9 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 25, "Tag Offset OOB",                      "§7.3.1",  "CWE-125", "CVE-2026-21487", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 26, "Named Color2String Validation",       "§10.20",  "CWE-170", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 27, "MPE Matrix Output Channel",           "§10.26",  "CWE-131", "CVE-2026-27692", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
-  { 28, "LUT Dimension Validation",            "§10.10",  "CWE-400", "CVE-2026-21490,CVE-2026-21494", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
-  { 29, "Colorant Table String Validation",    "§10.4",   "CWE-170", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
-  { 30, "Gamut Boundary Desc Allocation",      "§10.12",  "CWE-400", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
+  { 28, "LUT Dimension Validation",            "§10.10",  "CWE-400", "CVE-2026-21490,CVE-2026-21494,GHSA-x9hr-pxxc-h38p", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
+  { 29, "Colorant Table String Validation",    "§10.4",   "CWE-170", "GHSA-4wqv-pvm8-5h27", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
+  { 30, "Gamut Boundary Desc Allocation",      "§10.12",  "CWE-400", "GHSA-rc3h-95ph-j363", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 31, "MPE Channel Count",                   "§10.26",  "CWE-131", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 32, "Tag Data Type Confusion",             "§10",     "CWE-843", "CVE-2026-21683,CVE-2026-21688,CVE-2026-21691,CVE-2026-25503", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
 
@@ -143,8 +143,8 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 77, "MPE Calculator Sub Element Count",      nullptr, "CWE-400", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   { 78, "CLUT Grid Dimension Overflow",          nullptr, "CWE-190", "CVE-2026-21677,CVE-2026-22255", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   { 79, "Load Tag Allocation Overflow",          nullptr, "CWE-190", "CVE-2026-21485", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
-  { 80, "Shared Tag Pointer UAF",                nullptr, "CWE-416", "CVE-2026-21486,CVE-2026-21675,GHSA-97mf-f6r7-q9q4", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
-  { 81, "MPE Calculator IO Consistency",         nullptr, "CWE-122", "CVE-2026-21504,CVE-2026-22047,CVE-2026-22861,CVE-2026-24405,GHSA-g9w6-5xm9-v5xj", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  { 80, "Shared Tag Pointer UAF",                nullptr, "CWE-416", "CVE-2026-21486,CVE-2026-21675,GHSA-97mf-f6r7-q9q4,GHSA-fqq2-v72p-wfff", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  { 81, "MPE Calculator IO Consistency",         nullptr, "CWE-122", "CVE-2026-21504,CVE-2026-22047,CVE-2026-22861,CVE-2026-24405,GHSA-g9w6-5xm9-v5xj,GHSA-vg26-ggwf-6fmq", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   { 82, "IO Read Size Overflow",                 nullptr, "CWE-190", "CVE-2026-25582,CVE-2026-25583,GHSA-fj57-gfhq-rjqr", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   { 83, "Float Numeric Array Size",              nullptr, "CWE-125", "CVE-2026-25584", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   { 84, "LUT3D Transform Consistency",           nullptr, "CWE-125", "CVE-2026-25585,GHSA-wh5x-j6pq-pr3c,GHSA-7ww3-h4w6-x5hf", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
