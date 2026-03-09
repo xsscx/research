@@ -23,6 +23,7 @@ This file contains cross-cutting rules that apply to ALL components.
 |----------|------|---------|
 | iccDEV Shell Helpers (Unix) | [docs/iccdev-shell-helpers/unix.md](../../docs/iccdev-shell-helpers/unix.md) | Build, test, ASAN, coverage, Homebrew |
 | iccDEV Shell Helpers (Windows) | [docs/iccdev-shell-helpers/windows.md](../../docs/iccdev-shell-helpers/windows.md) | MSVC, vcpkg, ASAN, SARIF analysis |
+| iccDEV Issue Reproductions | [docs/pocs/iccdev-issue-reproductions.md](../../docs/pocs/iccdev-issue-reproductions.md) | 63 PoC reproductions from closed issues #480–#656 |
 
 ### Workflow Prompts (task-specific guides)
 
