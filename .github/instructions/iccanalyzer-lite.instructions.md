@@ -10,7 +10,7 @@ A 141-heuristic ICC profile security analyzer (21,000+ LOC across 28 C++ modules
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
-44+ CWE categories and detect patterns from 48 CVEs across 77 iccDEV security advisories.
+44+ CWE categories and detect patterns from 48 CVEs across 93 iccDEV security advisories.
 
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
@@ -157,11 +157,11 @@ TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
 | H139-H141 | IccImageAnalyzer.cpp | TIFF image security (strip geometry, dimensions, IFD) |
 
-## CVE Coverage (77 iccDEV Advisories)
+## CVE Coverage (93 iccDEV Advisories)
 
-39 heuristics detect patterns from 48 CVEs across the 77 iccDEV security advisories.
-19 CVEs are XML parser/serializer bugs (out of scope — binary ICC analyzer).
-1 CVE is tool-specific (iccFromCube). 5 are legacy (pre-iccDEV).
+47 heuristics detect patterns from 48 CVEs + 12 GHSAs across the 93 iccDEV security advisories.
+23 advisories are XML parser/serializer bugs (out of scope — binary ICC analyzer).
+1 advisory is tool-specific (iccFromCube).
 
 CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
 Use `--json` mode for programmatic access to per-heuristic CVE mappings.
