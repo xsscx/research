@@ -745,7 +745,18 @@ docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
-Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI). Build locally with `docker build -f mcp-server/Dockerfile -t icc-profile-mcp .`
+Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp` (default, stdio), `web` (REST API + HTML UI).
+
+**Docker validation gate (MANDATORY before pushing Dockerfile/MCP changes)**:
+```bash
+# Local build + test
+docker build -t icc-mcp-local:test -f mcp-server/Dockerfile .
+docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
+curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":24}
+docker exec mcp-test which xmllint               # → /usr/bin/xmllint
+docker stop mcp-test
+# Then push → CI rebuilds → pull latest → re-validate
+```
 
 **CRITICAL**: The Docker image MUST be built with ASAN+UBSAN (the whole point is
 security analysis). Do NOT add `NO_SANITIZERS=1` or remove `libclang-rt-18-dev`.
