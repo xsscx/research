@@ -377,7 +377,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   printf("\n");
   PrintBanner("CVE COVERAGE STATISTICS", W);
   printf("\n");
-  printf("  Total Heuristics:     %d (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML)\n", kTotalHeuristics);
+  printf("  Total Heuristics:     %d (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation)\n", kTotalHeuristics);
 
   // Count heuristics with CVE refs and unique CVEs from registry
   int registryCveHeuristics = 0;
