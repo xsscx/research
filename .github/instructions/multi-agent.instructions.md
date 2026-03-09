@@ -272,18 +272,18 @@ and fuzz/xml/icc/ — these are no longer urgent:
 
 ### Remaining Seed Opportunities
 - Add more `abst` (Abstract) and `nmcl` (NamedColor) profiles — rare classes
-- Add v5/iccMAX `spac` and `cenc` profiles to `icc_v5_fuzzer`
-- Generate TIFF+ICC test images for `icc_tiff_fuzzer` (H139-H141 coverage)
+- Add v5/iccMAX `spac` and `cenc` profiles to `icc_v5dspobs_fuzzer`
+- Generate TIFF+ICC test images for `icc_tiffdump_fuzzer` (H139-H141 coverage)
 
 ## Profile Class Distribution (test-profiles/)
 
 | Class | Count | In CFL Corpora? | Notes |
 |-------|-------|-----------------|-------|
-| spac (ColorSpace) | 182 | Few | v5/iccMAX, needs `icc_v5_fuzzer` seeds |
+| spac (ColorSpace) | 182 | Few | v5/iccMAX, needs `icc_v5dspobs_fuzzer` seeds |
 | mntr (Display) | 47 | Well-seeded | Dominant class in most corpora |
 | scnr (Input/Scanner) | 13 | Some | Add to profile/dump/apply fuzzers |
 | prtr (Output/Printer) | 11 | ✅ Fixed (4 seeds × 7 fuzzers) | Session 2026-03-08 |
-| mid (Material ID) | 8 | Rare | v5-specific, needs `icc_v5_fuzzer` |
+| mid (Material ID) | 8 | Rare | v5-specific, needs `icc_v5dspobs_fuzzer` |
 | cenc (Color Encoding) | 8 | Rare | v5-specific |
 | link (DeviceLink) | 8 | Few | Critical for `icc_link_fuzzer` |
 | abst (Abstract) | 6 | Rare | Lab→Lab transforms |
