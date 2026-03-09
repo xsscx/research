@@ -63,6 +63,9 @@ venv/
 *_coverage_report.txt
 **/coverage-report/
 
+# Doxygen generated output
+docs/doxygen/html/
+
 # Scratch test artifacts in root
 hbo-*.icc
 sbo-*.icc
