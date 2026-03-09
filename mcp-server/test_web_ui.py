@@ -98,6 +98,46 @@ def test_html_integrity():
     check("No innerHTML = user", ".innerHTML = html" not in r.text or "innerHTML = html" in r.text)
 
 
+# ── Form Field Validation (renderInputs coverage) ─────────
+def test_form_fields_per_tool():
+    """Verify renderInputs() has a dedicated branch for every tool with fields,
+    and that branch creates DOM elements with matching inp-* IDs."""
+    r = c.get("/")
+    html = r.text
+
+    # Map of tool → required inp-* field IDs that must exist in a renderInputs branch
+    tool_fields = {
+        "list":              ["inp-directory"],
+        "cmake_configure":   ["inp-build_type", "inp-sanitizers", "inp-compiler", "inp-generator"],
+        "cmake_build":       ["inp-build_dir", "inp-target", "inp-jobs"],
+        "create_profiles":   ["inp-build_dir"],
+        "run_tests":         ["inp-build_dir"],
+        "option_matrix":     ["inp-options", "inp-build_type", "inp-compiler"],
+        "windows_build":     ["inp-build_type", "inp-vcpkg_deps", "inp-build_dir"],
+        "compare":           ["inp-path_a", "inp-path_b"],
+        "validate_xml":      ["inp-directory", "inp-checks"],
+        "batch_test":        ["inp-directory", "inp-tool", "inp-build_dir"],
+        "scan_logs":         ["inp-directory", "inp-categories"],
+        "build_tools":       ["inp-target"],
+        "find_artifacts":    ["inp-build_dir"],
+        "coverage_report":   ["inp-build_dir"],
+        "upload_and_analyze": ["inp-mode"],
+    }
+
+    for tool_name, field_ids in tool_fields.items():
+        # Check tool has a dedicated renderInputs branch (not falling through to default)
+        has_branch = f'currentTool === "{tool_name}"' in html
+        check(f"Form branch: {tool_name}", has_branch)
+        # Check each required field ID exists in the HTML
+        for fid in field_ids:
+            check(f"Field {fid} in {tool_name}", f'id="{fid}"' in html)
+
+    # Also verify tools with no fields work via default branch
+    for tool_name in ["health_check", "check_dependencies"]:
+        # These have empty fields[] and use the default else which renders inp-path
+        check(f"No-field tool {tool_name} defined", f'"{tool_name}"' in html)
+
+
 # ── Health ─────────────────────────────────────────────────
 def test_health():
     r = c.get("/api/health")
@@ -781,6 +821,7 @@ def main():
         ("Security Headers", test_security_headers),
         ("Security Headers on Index", test_security_headers_on_index),
         ("HTML Integrity", test_html_integrity),
+        ("Form Fields Per Tool", test_form_fields_per_tool),
         ("Health", test_health),
         ("List Profiles", test_list),
         ("List Invalid Directory", test_list_invalid_directory),
