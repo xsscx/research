@@ -42,6 +42,7 @@
 #include "IccHeuristicsRawPost.h"
 #include "IccHeuristicsLibrary.h"
 #include "IccHeuristicsHeader.h"
+#include "IccHeuristicsRegistry.h"
 
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerColors.h"
@@ -492,7 +493,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- 32-bit integer overflow in bounds checks%s\n", ColorWarning(), ColorReset());
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
-    printf("  %sCVE Coverage: 148 heuristics (H1-H138 ICC profile + H139-H141 TIFF image + H142-H148 advanced data validation) covering patterns from 48 CVEs + 19 GHSAs across 93 iccDEV security advisories (57 heuristics with CVE/GHSA cross-references)%s\n", ColorInfo(), ColorReset());
+    RegistryStats regStats = ComputeRegistryStats();
+    printf("  %sCVE Coverage: %d heuristics covering patterns from %d CVEs + %d GHSAs across 93 iccDEV security advisories (%d heuristics with CVE/GHSA cross-references)%s\n",
+           ColorInfo(), kTotalHeuristics, regStats.uniqueCVEs, regStats.uniqueGHSAs, regStats.heuristicsWithCVE, ColorReset());
     printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());

@@ -174,6 +174,9 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
     }
   }
 
+  // Registry-level stats (source of truth — independent of which heuristics ran)
+  RegistryStats regStats = ComputeRegistryStats();
+
   // Emit JSON to stdout
   printf("{\n");
   printf("  \"file\": \"%s\",\n", JsonEscape(profilePath).c_str());
@@ -192,6 +195,12 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   printf("      \"advisoryTotal\": 93,\n");
   printf("      \"outOfScopeXmlCVEs\": 0,\n");
   printf("      \"outOfScopeToolCVEs\": 1\n");
+  printf("    },\n");
+  printf("    \"registry\": {\n");
+  printf("      \"totalHeuristics\": %d,\n", regStats.totalHeuristics);
+  printf("      \"heuristicsWithCVE\": %d,\n", regStats.heuristicsWithCVE);
+  printf("      \"uniqueCVEs\": %d,\n", regStats.uniqueCVEs);
+  printf("      \"uniqueGHSAs\": %d\n", regStats.uniqueGHSAs);
   printf("    }\n");
   printf("  },\n");
   printf("  \"results\": [\n");

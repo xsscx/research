@@ -377,42 +377,25 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   printf("\n");
   PrintBanner("CVE COVERAGE STATISTICS", W);
   printf("\n");
-  printf("  Total Heuristics:     %d (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation)\n", kTotalHeuristics);
 
-  // Count heuristics with CVE refs and unique CVEs from registry
-  int registryCveHeuristics = 0;
-  std::set<std::string> registryCves;
-  for (size_t i = 0; i < kHeuristicRegistrySize; i++) {
-    if (kHeuristicRegistry[i].cveRefs) {
-      registryCveHeuristics++;
-      std::string refs(kHeuristicRegistry[i].cveRefs);
-      size_t start = 0;
-      for (size_t pos = 0; pos <= refs.size(); pos++) {
-        if (pos == refs.size() || refs[pos] == ',') {
-          if (pos > start) registryCves.insert(refs.substr(start, pos - start));
-          start = pos + 1;
-        }
-      }
-    }
-  }
+  // All counts derived dynamically from the registry — no hardcoded sync needed
+  RegistryStats regStats = ComputeRegistryStats();
+  printf("  Total Heuristics:     %d\n", regStats.totalHeuristics);
 
-  printf("  Heuristics with CVE:  %d\n", registryCveHeuristics);
-  printf("  Unique CVEs:          %zu (binary ICC analysis)\n", registryCves.size());
+  printf("  Heuristics with CVE:  %d\n", regStats.heuristicsWithCVE);
+  printf("  Unique CVEs:          %d\n", regStats.uniqueCVEs);
+  printf("  Unique GHSAs:         %d\n", regStats.uniqueGHSAs);
   printf("  Advisory Total:       93 iccDEV security advisories\n");
   printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 1 tool-specific\n");
 
-  // Count severity distribution from registry
-  int regSev[5] = {0};
-  for (size_t i = 0; i < kHeuristicRegistrySize; i++) {
-    regSev[static_cast<int>(kHeuristicRegistry[i].severity)]++;
-  }
+  // Severity distribution from registry
   printf("\n");
   printf("  Severity Distribution:\n");
-  printf("    CRITICAL:  %d heuristics\n", regSev[0]);
-  printf("    HIGH:      %d heuristics\n", regSev[1]);
-  printf("    MEDIUM:    %d heuristics\n", regSev[2]);
-  printf("    LOW:       %d heuristics\n", regSev[3]);
-  printf("    INFO:      %d heuristics\n", regSev[4]);
+  printf("    CRITICAL:  %d heuristics\n", regStats.severity[0]);
+  printf("    HIGH:      %d heuristics\n", regStats.severity[1]);
+  printf("    MEDIUM:    %d heuristics\n", regStats.severity[2]);
+  printf("    LOW:       %d heuristics\n", regStats.severity[3]);
+  printf("    INFO:      %d heuristics\n", regStats.severity[4]);
   printf("\n");
 
   // === FOOTER ===

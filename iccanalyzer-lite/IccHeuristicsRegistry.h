@@ -21,6 +21,8 @@
 #define ICC_HEURISTICS_REGISTRY_H
 
 #include <cstddef>
+#include <set>
+#include <string>
 
 enum class HeuristicPhase {
   HEADER,
@@ -225,7 +227,8 @@ static const HeuristicEntry kHeuristicRegistry[] = {
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
-static constexpr int kTotalHeuristics = 148;
+// kTotalHeuristics is derived from the registry array — no manual sync needed.
+static constexpr int kTotalHeuristics = static_cast<int>(kHeuristicRegistrySize);
 
 inline const char *SeverityToString(HeuristicSeverity s) {
   switch (s) {
@@ -238,6 +241,19 @@ inline const char *SeverityToString(HeuristicSeverity s) {
   return "UNKNOWN";
 }
 
+inline const char *PhaseToString(HeuristicPhase p) {
+  switch (p) {
+    case HeuristicPhase::HEADER:             return "HEADER";
+    case HeuristicPhase::TAG_VALIDATION:     return "TAG_VALIDATION";
+    case HeuristicPhase::RAW_POST:           return "RAW_POST";
+    case HeuristicPhase::DATA_VALIDATION:    return "DATA_VALIDATION";
+    case HeuristicPhase::PROFILE_COMPLIANCE: return "PROFILE_COMPLIANCE";
+    case HeuristicPhase::INTEGRITY:          return "INTEGRITY";
+    case HeuristicPhase::IMAGE:              return "IMAGE";
+  }
+  return "UNKNOWN";
+}
+
 // Lookup heuristic entry by ID. Returns nullptr if not found.
 inline const HeuristicEntry *LookupHeuristic(int id) {
   for (size_t i = 0; i < kHeuristicRegistrySize; i++) {
@@ -245,6 +261,45 @@ inline const HeuristicEntry *LookupHeuristic(int id) {
       return &kHeuristicRegistry[i];
   }
   return nullptr;
+}
+
+// Registry statistics computed dynamically from the registry array.
+// Eliminates hardcoded counts that require manual sync across files.
+struct RegistryStats {
+  int totalHeuristics;
+  int heuristicsWithCVE;
+  int uniqueCVEs;
+  int uniqueGHSAs;
+  int severity[5]; // CRITICAL, HIGH, MEDIUM, LOW, INFO
+};
+
+inline RegistryStats ComputeRegistryStats() {
+  RegistryStats stats = {};
+  stats.totalHeuristics = kTotalHeuristics;
+  std::set<std::string> cves, ghsas;
+  for (size_t i = 0; i < kHeuristicRegistrySize; i++) {
+    stats.severity[static_cast<int>(kHeuristicRegistry[i].severity)]++;
+    if (kHeuristicRegistry[i].cveRefs) {
+      stats.heuristicsWithCVE++;
+      std::string refs(kHeuristicRegistry[i].cveRefs);
+      size_t start = 0;
+      for (size_t pos = 0; pos <= refs.size(); pos++) {
+        if (pos == refs.size() || refs[pos] == ',') {
+          if (pos > start) {
+            std::string ref = refs.substr(start, pos - start);
+            if (ref.compare(0, 4, "CVE-") == 0)
+              cves.insert(ref);
+            else if (ref.compare(0, 5, "GHSA-") == 0)
+              ghsas.insert(ref);
+          }
+          start = pos + 1;
+        }
+      }
+    }
+  }
+  stats.uniqueCVEs = static_cast<int>(cves.size());
+  stats.uniqueGHSAs = static_cast<int>(ghsas.size());
+  return stats;
 }
 
 #endif
