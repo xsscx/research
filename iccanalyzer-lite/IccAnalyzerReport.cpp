@@ -398,8 +398,8 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
 
   printf("  Heuristics with CVE:  %d\n", registryCveHeuristics);
   printf("  Unique CVEs:          %zu (binary ICC analysis)\n", registryCves.size());
-  printf("  Advisory Total:       68 (77 iccDEV advisories, 68 with CVE IDs)\n");
-  printf("  Out of Scope:         19 XML parser + 1 tool-specific\n");
+  printf("  Advisory Total:       93 iccDEV security advisories\n");
+  printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 1 tool-specific\n");
 
   // Count severity distribution from registry
   int regSev[5] = {0};
