@@ -2668,7 +2668,7 @@ int RunHeuristic_H146_StackBufferOverflowGetValues(CIccProfile *pIcc) {
           sboIssues++;
         }
         // Also check: output channels declared but mismatch with color space
-        if (nOutput > 0 && maxExpected > 0 && nOutput > maxExpected * 2) {
+        if (nOutput > 0 && nOutput > maxExpected * 2) {
           printf("      %s[WARN]  Tag '%s' output channels %u >> color space channels %u — SBO risk%s\n",
                  ColorWarning(), info.GetTagSigName(lutTags[t]),
                  nOutput, maxExpected, ColorReset());
