@@ -252,11 +252,10 @@ async def api_security_json(request: Request) -> Response:
         path = _validate_path(request.query_params.get("path", ""), "path")
         async with (await _get_semaphore()):
             result = await analyze_security_json(path)
-        # Strip stderr appendage so result is valid JSON
+        # Defense-in-depth: strip any residual stderr if present
         sep = "\n--- stderr ---\n"
         if sep in result:
             result = result[: result.index(sep)]
-        # Also handle case where result starts with stderr (no stdout at all)
         if result.lstrip().startswith("--- stderr ---"):
             result = ""
         # Handle crash recovery: if no JSON output, return structured error
