@@ -46,8 +46,7 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
       if (fs33 >= 132) {
         icUInt8Number hdr33[132];
         if (fread(hdr33, 1, 132, fh33.fp) == 132) {
-          icUInt32Number tc33 = (static_cast<icUInt32Number>(hdr33[128])<<24) | (static_cast<icUInt32Number>(hdr33[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr33[130])<<8) | hdr33[131];
+          icUInt32Number tc33 = ReadU32BE(&hdr33[128]);
 
           for (icUInt32Number i = 0; i < tc33 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
@@ -57,12 +56,9 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
             fseek(fh33.fp, ePos, SEEK_SET);
             if (fread(e33, 1, 12, fh33.fp) != 12) break;
 
-            icUInt32Number tSig33 = (static_cast<icUInt32Number>(e33[0])<<24) | (static_cast<icUInt32Number>(e33[1])<<16) |
-                                    (static_cast<icUInt32Number>(e33[2])<<8) | e33[3];
-            icUInt32Number tOff33 = (static_cast<icUInt32Number>(e33[4])<<24) | (static_cast<icUInt32Number>(e33[5])<<16) |
-                                    (static_cast<icUInt32Number>(e33[6])<<8) | e33[7];
-            icUInt32Number tSz33  = (static_cast<icUInt32Number>(e33[8])<<24) | (static_cast<icUInt32Number>(e33[9])<<16) |
-                                    (static_cast<icUInt32Number>(e33[10])<<8) | e33[11];
+            icUInt32Number tSig33 = ReadU32BE(e33);
+            icUInt32Number tOff33 = ReadU32BE(&e33[4]);
+            icUInt32Number tSz33  = ReadU32BE(&e33[8]);
 
             // Read tag type signature at the tag data offset
             if ((uint64_t)tOff33 + 32 > fs33 || tSz33 < 32) continue;
@@ -70,8 +66,7 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
             fseek(fh33.fp, tOff33, SEEK_SET);
             if (fread(tagData33, 1, 32, fh33.fp) != 32) continue;
 
-            icUInt32Number tagType33 = (static_cast<icUInt32Number>(tagData33[0])<<24) | (static_cast<icUInt32Number>(tagData33[1])<<16) |
-                                       (static_cast<icUInt32Number>(tagData33[2])<<8) | tagData33[3];
+            icUInt32Number tagType33 = ReadU32BE(tagData33);
 
             // Check for mAB (0x6D414220) or mBA (0x6D424120)
             if (tagType33 != 0x6D414220 && tagType33 != 0x6D424120) continue;
@@ -91,8 +86,7 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
 
             for (int se = 0; se < 5; se++) {
               size_t p = subElems[se].pos;
-              icUInt32Number subOff = (static_cast<icUInt32Number>(tagData33[p])<<24) | (static_cast<icUInt32Number>(tagData33[p+1])<<16) |
-                                      (static_cast<icUInt32Number>(tagData33[p+2])<<8) | tagData33[p+3];
+              icUInt32Number subOff = ReadU32BE(&tagData33[p]);
               if (subOff == 0) continue; // not present
 
               if (subOff > tSz33) {
@@ -147,8 +141,7 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
       if (fs34 >= 132) {
         icUInt8Number hdr34[132];
         if (fread(hdr34, 1, 132, fh34.fp) == 132) {
-          icUInt32Number tc34 = (static_cast<icUInt32Number>(hdr34[128])<<24) | (static_cast<icUInt32Number>(hdr34[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr34[130])<<8) | hdr34[131];
+          icUInt32Number tc34 = ReadU32BE(&hdr34[128]);
 
           for (icUInt32Number i = 0; i < tc34 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
@@ -158,23 +151,19 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
             fseek(fh34.fp, ePos, SEEK_SET);
             if (fread(e34, 1, 12, fh34.fp) != 12) break;
 
-            icUInt32Number tOff34 = (static_cast<icUInt32Number>(e34[4])<<24) | (static_cast<icUInt32Number>(e34[5])<<16) |
-                                    (static_cast<icUInt32Number>(e34[6])<<8) | e34[7];
-            icUInt32Number tSz34  = (static_cast<icUInt32Number>(e34[8])<<24) | (static_cast<icUInt32Number>(e34[9])<<16) |
-                                    (static_cast<icUInt32Number>(e34[10])<<8) | e34[11];
+            icUInt32Number tOff34 = ReadU32BE(&e34[4]);
+            icUInt32Number tSz34  = ReadU32BE(&e34[8]);
 
             if ((uint64_t)tOff34 + 32 > fs34 || tSz34 < 32) continue;
             icUInt8Number tagData34[32];
             fseek(fh34.fp, tOff34, SEEK_SET);
             if (fread(tagData34, 1, 32, fh34.fp) != 32) continue;
 
-            icUInt32Number tagType34 = (static_cast<icUInt32Number>(tagData34[0])<<24) | (static_cast<icUInt32Number>(tagData34[1])<<16) |
-                                       (static_cast<icUInt32Number>(tagData34[2])<<8) | tagData34[3];
+            icUInt32Number tagType34 = ReadU32BE(tagData34);
 
             if (tagType34 != 0x6D414220 && tagType34 != 0x6D424120) continue;
 
-            icUInt32Number tSig34 = (static_cast<icUInt32Number>(e34[0])<<24) | (static_cast<icUInt32Number>(e34[1])<<16) |
-                                    (static_cast<icUInt32Number>(e34[2])<<8) | e34[3];
+            icUInt32Number tSig34 = ReadU32BE(e34);
             char sig34[5];
             sig34[0] = static_cast<char>((tSig34>>24)&0xff); sig34[1] = static_cast<char>((tSig34>>16)&0xff);
             sig34[2] = static_cast<char>((tSig34>>8)&0xff);  sig34[3] = static_cast<char>(tSig34&0xff); sig34[4] = '\0';
@@ -187,8 +176,7 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
 
             for (int se = 0; se < 3; se++) {
               size_t p = subPos34[se];
-              icUInt32Number subOff = (static_cast<icUInt32Number>(tagData34[p])<<24) | (static_cast<icUInt32Number>(tagData34[p+1])<<16) |
-                                      (static_cast<icUInt32Number>(tagData34[p+2])<<8) | tagData34[p+3];
+              icUInt32Number subOff = ReadU32BE(&tagData34[p]);
               if (subOff == 0) continue;
 
               // Check if offset + any common addend overflows 32 bits
@@ -244,8 +232,7 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
       if (fs35 >= 132) {
         icUInt8Number hdr35[132];
         if (fread(hdr35, 1, 132, fh35.fp) == 132) {
-          icUInt32Number tc35 = (static_cast<icUInt32Number>(hdr35[128])<<24) | (static_cast<icUInt32Number>(hdr35[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr35[130])<<8) | hdr35[131];
+          icUInt32Number tc35 = ReadU32BE(&hdr35[128]);
 
           for (icUInt32Number i = 0; i < tc35 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
@@ -255,20 +242,16 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
             fseek(fh35.fp, ePos, SEEK_SET);
             if (fread(e35, 1, 12, fh35.fp) != 12) break;
 
-            icUInt32Number tSig35 = (static_cast<icUInt32Number>(e35[0])<<24) | (static_cast<icUInt32Number>(e35[1])<<16) |
-                                    (static_cast<icUInt32Number>(e35[2])<<8) | e35[3];
-            icUInt32Number tOff35 = (static_cast<icUInt32Number>(e35[4])<<24) | (static_cast<icUInt32Number>(e35[5])<<16) |
-                                    (static_cast<icUInt32Number>(e35[6])<<8) | e35[7];
-            icUInt32Number tSz35  = (static_cast<icUInt32Number>(e35[8])<<24) | (static_cast<icUInt32Number>(e35[9])<<16) |
-                                    (static_cast<icUInt32Number>(e35[10])<<8) | e35[11];
+            icUInt32Number tSig35 = ReadU32BE(e35);
+            icUInt32Number tOff35 = ReadU32BE(&e35[4]);
+            icUInt32Number tSz35  = ReadU32BE(&e35[8]);
 
             if ((uint64_t)tOff35 + 32 > fs35 || tSz35 < 48) continue; // need at least 32-byte header + 16 data bytes
             icUInt8Number typeCheck[4];
             fseek(fh35.fp, tOff35, SEEK_SET);
             if (fread(typeCheck, 1, 4, fh35.fp) != 4) continue;
 
-            icUInt32Number tagType35 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
-                                       (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
+            icUInt32Number tagType35 = ReadU32BE(typeCheck);
             if (tagType35 != 0x6D414220 && tagType35 != 0x6D424120) continue;
 
             // Read B-curve data region (bytes 32+ within the tag, up to 256 bytes)
@@ -351,8 +334,7 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
       if (fs36 >= 132) {
         icUInt8Number hdr36[132];
         if (fread(hdr36, 1, 132, fh36.fp) == 132) {
-          icUInt32Number tc36 = (static_cast<icUInt32Number>(hdr36[128])<<24) | (static_cast<icUInt32Number>(hdr36[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr36[130])<<8) | hdr36[131];
+          icUInt32Number tc36 = ReadU32BE(&hdr36[128]);
 
           // Collect all tag signatures
           bool hasA2B[4] = {false}, hasB2A[4] = {false};
@@ -366,8 +348,7 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
             fseek(fh36.fp, ePos, SEEK_SET);
             if (fread(e36, 1, 12, fh36.fp) != 12) break;
 
-            icUInt32Number tSig36 = (static_cast<icUInt32Number>(e36[0])<<24) | (static_cast<icUInt32Number>(e36[1])<<16) |
-                                    (static_cast<icUInt32Number>(e36[2])<<8) | e36[3];
+            icUInt32Number tSig36 = ReadU32BE(e36);
 
             // A2B0-A2B3: 0x41324230 - 0x41324233
             // B2A0-B2A3: 0x42324130 - 0x42324133
@@ -437,8 +418,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
       if (fs37 >= 132) {
         icUInt8Number hdr37[132];
         if (fread(hdr37, 1, 132, fh37.fp) == 132) {
-          icUInt32Number tc37 = (static_cast<icUInt32Number>(hdr37[128])<<24) | (static_cast<icUInt32Number>(hdr37[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr37[130])<<8) | hdr37[131];
+          icUInt32Number tc37 = ReadU32BE(&hdr37[128]);
 
           for (icUInt32Number i = 0; i < tc37 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
@@ -448,12 +428,9 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             fseek(fh37.fp, ePos, SEEK_SET);
             if (fread(e37, 1, 12, fh37.fp) != 12) break;
 
-            icUInt32Number tSig37 = (static_cast<icUInt32Number>(e37[0])<<24) | (static_cast<icUInt32Number>(e37[1])<<16) |
-                                    (static_cast<icUInt32Number>(e37[2])<<8) | e37[3];
-            icUInt32Number tOff37 = (static_cast<icUInt32Number>(e37[4])<<24) | (static_cast<icUInt32Number>(e37[5])<<16) |
-                                    (static_cast<icUInt32Number>(e37[6])<<8) | e37[7];
-            icUInt32Number tSz37  = (static_cast<icUInt32Number>(e37[8])<<24) | (static_cast<icUInt32Number>(e37[9])<<16) |
-                                    (static_cast<icUInt32Number>(e37[10])<<8) | e37[11];
+            icUInt32Number tSig37 = ReadU32BE(e37);
+            icUInt32Number tOff37 = ReadU32BE(&e37[4]);
+            icUInt32Number tSz37  = ReadU32BE(&e37[8]);
 
             if ((uint64_t)tOff37 + 4 > fs37 || tSz37 < 4) continue;
 
@@ -461,8 +438,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             icUInt8Number typeCheck37[4];
             fseek(fh37.fp, tOff37, SEEK_SET);
             if (fread(typeCheck37, 1, 4, fh37.fp) != 4) continue;
-            icUInt32Number tagType37 = (static_cast<icUInt32Number>(typeCheck37[0])<<24) | (static_cast<icUInt32Number>(typeCheck37[1])<<16) |
-                                       (static_cast<icUInt32Number>(typeCheck37[2])<<8) | typeCheck37[3];
+            icUInt32Number tagType37 = ReadU32BE(typeCheck37);
             // mpet = 0x6D706574
             if (tagType37 != 0x6D706574) continue;
 
@@ -483,8 +459,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             int calcCount = 0;
             int ifSelCount = 0;
             for (size_t b = 0; b + 3 < scanLen; b++) {
-              icUInt32Number w = (static_cast<icUInt32Number>(scanBuf[b])<<24) | (static_cast<icUInt32Number>(scanBuf[b+1])<<16) |
-                                 (static_cast<icUInt32Number>(scanBuf[b+2])<<8) | scanBuf[b+3];
+              icUInt32Number w = ReadU32BE(&scanBuf[b]);
               if (w == 0x63616C63) calcCount++; // 'calc'
               if (w == 0x69660000 || w == 0x73656C00) ifSelCount++; // 'if\0\0' or 'sel\0' patterns
             }
@@ -509,8 +484,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             // Check for extreme sub-element count in mpet header
             // mpet: type(4) + reserved(4) + nInput(2) + nOutput(2) + nElements(4) = 16 bytes
             if (scanLen >= 16) {
-              icUInt32Number nElems = (static_cast<icUInt32Number>(scanBuf[12])<<24) | (static_cast<icUInt32Number>(scanBuf[13])<<16) |
-                                      (static_cast<icUInt32Number>(scanBuf[14])<<8) | scanBuf[15];
+              icUInt32Number nElems = ReadU32BE(&scanBuf[12]);
               if (nElems > 256) {
                 printf("      %s[WARN]  Tag '%s': MPE has %u elements (limit 256)%s\n",
                        ColorCritical(), sig37, nElems, ColorReset());
@@ -554,8 +528,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
       if (fs38 >= 132) {
         icUInt8Number hdr38[132];
         if (fread(hdr38, 1, 132, fh38.fp) == 132) {
-          icUInt32Number tc38 = (static_cast<icUInt32Number>(hdr38[128])<<24) | (static_cast<icUInt32Number>(hdr38[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr38[130])<<8) | hdr38[131];
+          icUInt32Number tc38 = ReadU32BE(&hdr38[128]);
 
           for (icUInt32Number i = 0; i < tc38 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
@@ -565,20 +538,16 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
             fseek(fh38.fp, ePos, SEEK_SET);
             if (fread(e38, 1, 12, fh38.fp) != 12) break;
 
-            icUInt32Number tSig38 = (static_cast<icUInt32Number>(e38[0])<<24) | (static_cast<icUInt32Number>(e38[1])<<16) |
-                                    (static_cast<icUInt32Number>(e38[2])<<8) | e38[3];
-            icUInt32Number tOff38 = (static_cast<icUInt32Number>(e38[4])<<24) | (static_cast<icUInt32Number>(e38[5])<<16) |
-                                    (static_cast<icUInt32Number>(e38[6])<<8) | e38[7];
-            icUInt32Number tSz38  = (static_cast<icUInt32Number>(e38[8])<<24) | (static_cast<icUInt32Number>(e38[9])<<16) |
-                                    (static_cast<icUInt32Number>(e38[10])<<8) | e38[11];
+            icUInt32Number tSig38 = ReadU32BE(e38);
+            icUInt32Number tOff38 = ReadU32BE(&e38[4]);
+            icUInt32Number tSz38  = ReadU32BE(&e38[8]);
 
             if ((uint64_t)tOff38 + 12 > fs38 || tSz38 < 12) continue;
             icUInt8Number curveHdr[12];
             fseek(fh38.fp, tOff38, SEEK_SET);
             if (fread(curveHdr, 1, 12, fh38.fp) != 12) continue;
 
-            icUInt32Number curveType = (static_cast<icUInt32Number>(curveHdr[0])<<24) | (static_cast<icUInt32Number>(curveHdr[1])<<16) |
-                                       (static_cast<icUInt32Number>(curveHdr[2])<<8) | curveHdr[3];
+            icUInt32Number curveType = ReadU32BE(curveHdr);
 
             char sig38[5];
             sig38[0] = static_cast<char>((tSig38>>24)&0xff); sig38[1] = static_cast<char>((tSig38>>16)&0xff);
@@ -586,8 +555,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
 
             if (curveType == 0x63757276) { // 'curv'
               // curv: type(4) + reserved(4) + count(4) + entries(2*count)
-              icUInt32Number count = (static_cast<icUInt32Number>(curveHdr[8])<<24) | (static_cast<icUInt32Number>(curveHdr[9])<<16) |
-                                     (static_cast<icUInt32Number>(curveHdr[10])<<8) | curveHdr[11];
+              icUInt32Number count = ReadU32BE(&curveHdr[8]);
               if (count > 1 && count <= 65535) {
                 size_t dataStart = (uint64_t)tOff38 + 12;
                 size_t dataLen = count * 2;
@@ -639,8 +607,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
                     icUInt8Number gamma38[4];
                     fseek(fh38.fp, tOff38 + 12, SEEK_SET);
                     if (fread(gamma38, 1, 4, fh38.fp) == 4) {
-                      int32_t gammaFixed = (static_cast<int32_t>(gamma38[0])<<24) | (gamma38[1]<<16) |
-                                            (gamma38[2]<<8) | gamma38[3];
+                      int32_t gammaFixed = static_cast<int32_t>(ReadU32BE(gamma38));
                       if (gammaFixed == 0) {
                         printf("      %s[WARN]  Tag '%s' (para): gamma = 0 (s15Fixed16) — degenerate%s\n",
                                ColorWarning(), sig38, ColorReset());
@@ -684,8 +651,7 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
       if (fs39 >= 132) {
         icUInt8Number hdr39[132];
         if (fread(hdr39, 1, 132, fh39.fp) == 132) {
-          icUInt32Number tc39 = (static_cast<icUInt32Number>(hdr39[128])<<24) | (static_cast<icUInt32Number>(hdr39[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr39[130])<<8) | hdr39[131];
+          icUInt32Number tc39 = ReadU32BE(&hdr39[128]);
           if (tc39 > 256) tc39 = 256;
 
           struct TagEntry39 { icUInt32Number sig; icUInt32Number off; icUInt32Number sz; };
@@ -698,9 +664,9 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
             fseek(fh39.fp, ePos, SEEK_SET);
             if (fread(e39, 1, 12, fh39.fp) != 12) break;
             TagEntry39 te;
-            te.sig = (static_cast<icUInt32Number>(e39[0])<<24) | (static_cast<icUInt32Number>(e39[1])<<16) | (static_cast<icUInt32Number>(e39[2])<<8) | e39[3];
-            te.off = (static_cast<icUInt32Number>(e39[4])<<24) | (static_cast<icUInt32Number>(e39[5])<<16) | (static_cast<icUInt32Number>(e39[6])<<8) | e39[7];
-            te.sz  = (static_cast<icUInt32Number>(e39[8])<<24) | (static_cast<icUInt32Number>(e39[9])<<16) | (static_cast<icUInt32Number>(e39[10])<<8) | e39[11];
+            te.sig = ReadU32BE(e39);
+            te.off = ReadU32BE(&e39[4]);
+            te.sz  = ReadU32BE(&e39[8]);
             tags39.push_back(te);
           }
 
@@ -723,8 +689,7 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
                   icUInt8Number sharedType[4];
                   fseek(fh39.fp, tags39[a].off, SEEK_SET);
                   if (fread(sharedType, 1, 4, fh39.fp) == 4) {
-                    icUInt32Number st = (static_cast<icUInt32Number>(sharedType[0])<<24) | (static_cast<icUInt32Number>(sharedType[1])<<16) |
-                                        (static_cast<icUInt32Number>(sharedType[2])<<8) | sharedType[3];
+                    icUInt32Number st = ReadU32BE(sharedType);
                     if (st == 0x6D424120 || st == 0x6D414220 || st == 0x6D706574 || st == 0x74617279) {
                       printf("      %s[WARN]  Shared data is mutable type (0x%08X) — UAF risk%s\n",
                              ColorCritical(), st, ColorReset());
@@ -775,8 +740,7 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
       if (fs40 >= 132) {
         icUInt8Number hdr40[132];
         if (fread(hdr40, 1, 132, fh40.fp) == 132) {
-          icUInt32Number tc40 = (static_cast<icUInt32Number>(hdr40[128])<<24) | (static_cast<icUInt32Number>(hdr40[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr40[130])<<8) | hdr40[131];
+          icUInt32Number tc40 = ReadU32BE(&hdr40[128]);
           if (tc40 > 256) tc40 = 256;
 
           int misaligned = 0;
@@ -789,10 +753,8 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
             fseek(fh40.fp, ePos, SEEK_SET);
             if (fread(e40, 1, 12, fh40.fp) != 12) break;
 
-            icUInt32Number tOff40 = (static_cast<icUInt32Number>(e40[4])<<24) | (static_cast<icUInt32Number>(e40[5])<<16) |
-                                    (static_cast<icUInt32Number>(e40[6])<<8) | e40[7];
-            icUInt32Number tSz40  = (static_cast<icUInt32Number>(e40[8])<<24) | (static_cast<icUInt32Number>(e40[9])<<16) |
-                                    (static_cast<icUInt32Number>(e40[10])<<8) | e40[11];
+            icUInt32Number tOff40 = ReadU32BE(&e40[4]);
+            icUInt32Number tSz40  = ReadU32BE(&e40[8]);
 
             // Check 4-byte alignment
             if (tOff40 % 4 != 0) {
@@ -876,8 +838,7 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
           uint8_t verMinor = hdr41[9];
           printf("      Profile version: %u.%u.%u\n", verMajor, (verMinor >> 4), (verMinor & 0x0F));
 
-          icUInt32Number tc41 = (static_cast<icUInt32Number>(hdr41[128])<<24) | (static_cast<icUInt32Number>(hdr41[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr41[130])<<8) | hdr41[131];
+          icUInt32Number tc41 = ReadU32BE(&hdr41[128]);
           if (tc41 > 256) tc41 = 256;
 
           // v5-only type signatures
@@ -908,10 +869,8 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
             fseek(fh41.fp, ePos, SEEK_SET);
             if (fread(e41, 1, 12, fh41.fp) != 12) break;
 
-            icUInt32Number tSig41 = (static_cast<icUInt32Number>(e41[0])<<24) | (static_cast<icUInt32Number>(e41[1])<<16) |
-                                    (static_cast<icUInt32Number>(e41[2])<<8) | e41[3];
-            icUInt32Number tOff41 = (static_cast<icUInt32Number>(e41[4])<<24) | (static_cast<icUInt32Number>(e41[5])<<16) |
-                                    (static_cast<icUInt32Number>(e41[6])<<8) | e41[7];
+            icUInt32Number tSig41 = ReadU32BE(e41);
+            icUInt32Number tOff41 = ReadU32BE(&e41[4]);
 
             char sig41[5];
             sig41[0] = static_cast<char>((tSig41>>24)&0xff); sig41[1] = static_cast<char>((tSig41>>16)&0xff);
@@ -934,8 +893,7 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
               icUInt8Number typeBytes41[4];
               fseek(fh41.fp, tOff41, SEEK_SET);
               if (fread(typeBytes41, 1, 4, fh41.fp) == 4) {
-                icUInt32Number dataType41 = (static_cast<icUInt32Number>(typeBytes41[0])<<24) | (static_cast<icUInt32Number>(typeBytes41[1])<<16) |
-                                             (static_cast<icUInt32Number>(typeBytes41[2])<<8) | typeBytes41[3];
+                icUInt32Number dataType41 = ReadU32BE(typeBytes41);
                 for (int k = 0; k < (int)(sizeof(v5OnlyTypes)/sizeof(v5OnlyTypes[0])); k++) {
                   if (dataType41 == v5OnlyTypes[k]) {
                     char typeStr41[5];
@@ -986,8 +944,7 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
       if (fs42 >= 132) {
         icUInt8Number hdr42[132];
         if (fread(hdr42, 1, 132, fh42.fp) == 132) {
-          icUInt32Number tc42 = (static_cast<icUInt32Number>(hdr42[128])<<24) | (static_cast<icUInt32Number>(hdr42[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr42[130])<<8) | hdr42[131];
+          icUInt32Number tc42 = ReadU32BE(&hdr42[128]);
           if (tc42 > 256) tc42 = 256;
 
           // Find rXYZ (0x7258595A), gXYZ (0x6758595A), bXYZ (0x6258595A)
@@ -1003,12 +960,10 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
               fseek(fh42.fp, ePos, SEEK_SET);
               if (fread(e42, 1, 12, fh42.fp) != 12) break;
 
-              icUInt32Number tSig42 = (static_cast<icUInt32Number>(e42[0])<<24) | (static_cast<icUInt32Number>(e42[1])<<16) |
-                                      (static_cast<icUInt32Number>(e42[2])<<8) | e42[3];
+              icUInt32Number tSig42 = ReadU32BE(e42);
               if (tSig42 != xyzSigs[col]) continue;
 
-              icUInt32Number tOff42 = (static_cast<icUInt32Number>(e42[4])<<24) | (static_cast<icUInt32Number>(e42[5])<<16) |
-                                      (static_cast<icUInt32Number>(e42[6])<<8) | e42[7];
+              icUInt32Number tOff42 = ReadU32BE(&e42[4]);
               // XYZ type: type(4) + reserved(4) + X(4) + Y(4) + Z(4) = 20 bytes
               if ((uint64_t)tOff42 + 20 > fs42) break;
               icUInt8Number xyzData[12];
@@ -1016,8 +971,7 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
               if (fread(xyzData, 1, 12, fh42.fp) != 12) break;
 
               for (int row = 0; row < 3; row++) {
-                int32_t fixed = (static_cast<int32_t>(xyzData[row*4])<<24) | (xyzData[row*4+1]<<16) |
-                                 (xyzData[row*4+2]<<8) | xyzData[row*4+3];
+                int32_t fixed = static_cast<int32_t>(ReadU32BE(&xyzData[row*4]));
                 mat[row][col] = fixed / 65536.0;
               }
               found++;
@@ -1079,8 +1033,7 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
       if (fs43 >= 132) {
         icUInt8Number hdr43[132];
         if (fread(hdr43, 1, 132, fh43.fp) == 132) {
-          icUInt32Number tc43 = (static_cast<icUInt32Number>(hdr43[128])<<24) | (static_cast<icUInt32Number>(hdr43[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr43[130])<<8) | hdr43[131];
+          icUInt32Number tc43 = ReadU32BE(&hdr43[128]);
           if (tc43 > 256) tc43 = 256;
 
           bool hasSdin = false, hasSwpt = false;
@@ -1094,12 +1047,9 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
             fseek(fh43.fp, ePos, SEEK_SET);
             if (fread(e43, 1, 12, fh43.fp) != 12) break;
 
-            icUInt32Number tSig43 = (static_cast<icUInt32Number>(e43[0])<<24) | (static_cast<icUInt32Number>(e43[1])<<16) |
-                                    (static_cast<icUInt32Number>(e43[2])<<8) | e43[3];
-            icUInt32Number tOff43 = (static_cast<icUInt32Number>(e43[4])<<24) | (static_cast<icUInt32Number>(e43[5])<<16) |
-                                    (static_cast<icUInt32Number>(e43[6])<<8) | e43[7];
-            icUInt32Number tSz43  = (static_cast<icUInt32Number>(e43[8])<<24) | (static_cast<icUInt32Number>(e43[9])<<16) |
-                                    (static_cast<icUInt32Number>(e43[10])<<8) | e43[11];
+            icUInt32Number tSig43 = ReadU32BE(e43);
+            icUInt32Number tOff43 = ReadU32BE(&e43[4]);
+            icUInt32Number tSz43  = ReadU32BE(&e43[8]);
 
             if (tSig43 == 0x7364696E) hasSdin = true; // 'sdin'
             if (tSig43 == 0x73777074) hasSwpt = true; // 'swpt'
@@ -1128,8 +1078,8 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
               fseek(fh43.fp, tOff43 + 8, SEEK_SET);
               if (fread(sdinData, 1, 12, fh43.fp) == 12) {
                 // Spectral range: start(4), end(4), steps(2)
-                int32_t specStart = (static_cast<int32_t>(sdinData[0])<<24) | (sdinData[1]<<16) | (sdinData[2]<<8) | sdinData[3];
-                int32_t specEnd   = (static_cast<int32_t>(sdinData[4])<<24) | (sdinData[5]<<16) | (sdinData[6]<<8) | sdinData[7];
+                int32_t specStart = static_cast<int32_t>(ReadU32BE(sdinData));
+                int32_t specEnd   = static_cast<int32_t>(ReadU32BE(&sdinData[4]));
                 uint16_t specSteps = (static_cast<uint16_t>(sdinData[8])<<8) | sdinData[9];
                 double startNm = specStart / 65536.0;
                 double endNm   = specEnd / 65536.0;
@@ -1198,8 +1148,7 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
       if (fs44 >= 132) {
         icUInt8Number hdr44[132];
         if (fread(hdr44, 1, 132, fh44.fp) == 132) {
-          icUInt32Number tc44 = (static_cast<icUInt32Number>(hdr44[128])<<24) | (static_cast<icUInt32Number>(hdr44[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr44[130])<<8) | hdr44[131];
+          icUInt32Number tc44 = ReadU32BE(&hdr44[128]);
           if (tc44 > 256) tc44 = 256;
 
           int embedFound = 0;
@@ -1210,18 +1159,15 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
             fseek(fh44.fp, ePos, SEEK_SET);
             if (fread(e44, 1, 12, fh44.fp) != 12) break;
 
-            icUInt32Number tOff44 = (static_cast<icUInt32Number>(e44[4])<<24) | (static_cast<icUInt32Number>(e44[5])<<16) |
-                                    (static_cast<icUInt32Number>(e44[6])<<8) | e44[7];
-            icUInt32Number tSz44  = (static_cast<icUInt32Number>(e44[8])<<24) | (static_cast<icUInt32Number>(e44[9])<<16) |
-                                    (static_cast<icUInt32Number>(e44[10])<<8) | e44[11];
+            icUInt32Number tOff44 = ReadU32BE(&e44[4]);
+            icUInt32Number tSz44  = ReadU32BE(&e44[8]);
 
             if ((uint64_t)tOff44 + 4 > fs44 || tSz44 < 12) continue;
             icUInt8Number typeBytes44[4];
             fseek(fh44.fp, tOff44, SEEK_SET);
             if (fread(typeBytes44, 1, 4, fh44.fp) != 4) continue;
 
-            icUInt32Number tagType44 = (static_cast<icUInt32Number>(typeBytes44[0])<<24) | (static_cast<icUInt32Number>(typeBytes44[1])<<16) |
-                                       (static_cast<icUInt32Number>(typeBytes44[2])<<8) | typeBytes44[3];
+            icUInt32Number tagType44 = ReadU32BE(typeBytes44);
             if (tagType44 != 0x656D6274) continue; // 'embt'
 
             embedFound++;
@@ -1294,8 +1240,7 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
       if (fs45 >= 132) {
         icUInt8Number hdr45[132];
         if (fread(hdr45, 1, 132, fh45.fp) == 132) {
-          icUInt32Number tc45 = (static_cast<icUInt32Number>(hdr45[128])<<24) | (static_cast<icUInt32Number>(hdr45[129])<<16) |
-                                (static_cast<icUInt32Number>(hdr45[130])<<8) | hdr45[131];
+          icUInt32Number tc45 = ReadU32BE(&hdr45[128]);
           if (tc45 > 256) tc45 = 256;
 
           for (icUInt32Number i = 0; i < tc45; i++) {
@@ -1305,18 +1250,15 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
             fseek(fh45.fp, ePos, SEEK_SET);
             if (fread(e45, 1, 12, fh45.fp) != 12) break;
 
-            icUInt32Number tOff45 = (static_cast<icUInt32Number>(e45[4])<<24) | (static_cast<icUInt32Number>(e45[5])<<16) |
-                                    (static_cast<icUInt32Number>(e45[6])<<8) | e45[7];
-            icUInt32Number tSz45  = (static_cast<icUInt32Number>(e45[8])<<24) | (static_cast<icUInt32Number>(e45[9])<<16) |
-                                    (static_cast<icUInt32Number>(e45[10])<<8) | e45[11];
+            icUInt32Number tOff45 = ReadU32BE(&e45[4]);
+            icUInt32Number tSz45  = ReadU32BE(&e45[8]);
 
             if ((uint64_t)tOff45 + 4 > fs45 || tSz45 < 16) continue;
             icUInt8Number typeBytes45[4];
             fseek(fh45.fp, tOff45, SEEK_SET);
             if (fread(typeBytes45, 1, 4, fh45.fp) != 4) continue;
 
-            icUInt32Number tagType45 = (static_cast<icUInt32Number>(typeBytes45[0])<<24) | (static_cast<icUInt32Number>(typeBytes45[1])<<16) |
-                                       (static_cast<icUInt32Number>(typeBytes45[2])<<8) | typeBytes45[3];
+            icUInt32Number tagType45 = ReadU32BE(typeBytes45);
             if (tagType45 != 0x736D6174) continue; // 'smat'
 
             char sig45[5];
@@ -1396,8 +1338,7 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
         icUInt8Number tc46[4];
         fseek(fh46.fp, 128, SEEK_SET);
         if (fread(tc46, 1, 4, fh46.fp) == 4) {
-          uint32_t tagCount46 = ((uint32_t)tc46[0]<<24)|((uint32_t)tc46[1]<<16)|
-                                ((uint32_t)tc46[2]<<8)|tc46[3];
+          uint32_t tagCount46 = ReadU32BE(tc46);
           if (tagCount46 > 1000) tagCount46 = 1000;
 
           for (uint32_t t = 0; t < tagCount46 && fh46.fp; t++) {
@@ -1405,12 +1346,9 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
             fseek(fh46.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh46.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             // desc type = 0x64657363
             if ((uint64_t)tOff + 12 > fs46 || tSz < 12) continue;
@@ -1418,16 +1356,14 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
             icUInt8Number typeSig[4];
             fseek(fh46.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh46.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
             if (typeVal != 0x64657363) continue; // not 'desc' type
 
             // Read ASCII count (offset +8)
             icUInt8Number ascBuf[4];
             fseek(fh46.fp, tOff + 8, SEEK_SET);
             if (fread(ascBuf, 1, 4, fh46.fp) != 4) continue;
-            uint32_t asciiCount = ((uint32_t)ascBuf[0]<<24)|((uint32_t)ascBuf[1]<<16)|
-                                  ((uint32_t)ascBuf[2]<<8)|ascBuf[3];
+            uint32_t asciiCount = ReadU32BE(ascBuf);
 
             // Unicode section starts at tOff + 12 + asciiCount
             uint64_t unicodeStart = (uint64_t)tOff + 12 + asciiCount;
@@ -1437,8 +1373,7 @@ int RunHeuristic_H46_TextDescUnicodeLength(const char *filename)
             fseek(fh46.fp, (long)unicodeStart, SEEK_SET);
             if (fread(uniBuf, 1, 8, fh46.fp) != 8) continue;
 
-            uint32_t unicodeCount = ((uint32_t)uniBuf[4]<<24)|((uint32_t)uniBuf[5]<<16)|
-                                    ((uint32_t)uniBuf[6]<<8)|uniBuf[7];
+            uint32_t unicodeCount = ReadU32BE(&uniBuf[4]);
 
             // Validate: unicode data = unicodeCount * 2 bytes
             uint64_t unicodeDataEnd = unicodeStart + 8 + (uint64_t)unicodeCount * 2;
@@ -1496,8 +1431,7 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
         icUInt8Number tc47[4];
         fseek(fh47.fp, 128, SEEK_SET);
         if (fread(tc47, 1, 4, fh47.fp) == 4) {
-          uint32_t tagCount47 = ((uint32_t)tc47[0]<<24)|((uint32_t)tc47[1]<<16)|
-                                ((uint32_t)tc47[2]<<8)|tc47[3];
+          uint32_t tagCount47 = ReadU32BE(tc47);
           if (tagCount47 > 1000) tagCount47 = 1000;
 
           for (uint32_t t = 0; t < tagCount47 && fh47.fp; t++) {
@@ -1505,12 +1439,9 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
             fseek(fh47.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh47.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 84 > fs47 || tSz < 84) continue;
 
@@ -1518,8 +1449,7 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
             icUInt8Number typeSig[4];
             fseek(fh47.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh47.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
             if (typeVal != 0x6E636C32) continue; // not 'ncl2' type
 
             // Read count and nDeviceCoords
@@ -1529,10 +1459,8 @@ int RunHeuristic_H47_NamedColor2SizeOverflow(const char *filename)
             fseek(fh47.fp, tOff + 12, SEEK_SET);
             if (fread(ncl2Hdr, 1, 8, fh47.fp) != 8) continue;
 
-            uint32_t ncl2Count = ((uint32_t)ncl2Hdr[0]<<24)|((uint32_t)ncl2Hdr[1]<<16)|
-                                 ((uint32_t)ncl2Hdr[2]<<8)|ncl2Hdr[3];
-            uint32_t nDevCoords = ((uint32_t)ncl2Hdr[4]<<24)|((uint32_t)ncl2Hdr[5]<<16)|
-                                  ((uint32_t)ncl2Hdr[6]<<8)|ncl2Hdr[7];
+            uint32_t ncl2Count = ReadU32BE(ncl2Hdr);
+            uint32_t nDevCoords = ReadU32BE(&ncl2Hdr[4]);
 
             char sig47[5]; SignatureToFourCC(tSig, sig47);
 
@@ -1619,8 +1547,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
         icUInt8Number tc48[4];
         fseek(fh48.fp, 128, SEEK_SET);
         if (fread(tc48, 1, 4, fh48.fp) == 4) {
-          uint32_t tagCount48 = ((uint32_t)tc48[0]<<24)|((uint32_t)tc48[1]<<16)|
-                                ((uint32_t)tc48[2]<<8)|tc48[3];
+          uint32_t tagCount48 = ReadU32BE(tc48);
           if (tagCount48 > 1000) tagCount48 = 1000;
 
           for (uint32_t t = 0; t < tagCount48 && fh48.fp; t++) {
@@ -1628,20 +1555,16 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
             fseek(fh48.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh48.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 12 > fs48 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh48.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh48.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             char sig48[5]; SignatureToFourCC(tSig, sig48);
 
@@ -1689,8 +1612,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
               uint8_t nInput = mbaHdr[0];
               uint8_t nOutput = mbaHdr[1];
               // CLUT offset is at +20 in the header (bytes 12-15 relative to mbaHdr start)
-              uint32_t clutOff = ((uint32_t)mbaHdr[12]<<24)|((uint32_t)mbaHdr[13]<<16)|
-                                 ((uint32_t)mbaHdr[14]<<8)|mbaHdr[15];
+              uint32_t clutOff = ReadU32BE(&mbaHdr[12]);
 
               if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs48 && nInput <= 16) {
                 // CLUT sub-element: 16 bytes of grid dimensions (1 per input channel)
@@ -1758,8 +1680,7 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
         icUInt8Number tc49[4];
         fseek(fh49.fp, 128, SEEK_SET);
         if (fread(tc49, 1, 4, fh49.fp) == 4) {
-          uint32_t tagCount49 = ((uint32_t)tc49[0]<<24)|((uint32_t)tc49[1]<<16)|
-                                ((uint32_t)tc49[2]<<8)|tc49[3];
+          uint32_t tagCount49 = ReadU32BE(tc49);
           if (tagCount49 > 1000) tagCount49 = 1000;
 
           for (uint32_t t = 0; t < tagCount49 && fh49.fp; t++) {
@@ -1767,20 +1688,16 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
             fseek(fh49.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh49.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 8 > fs49 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh49.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh49.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             // fl32 (0x666C3332): IEEE 754 float array
             // sf32 (0x73663332): s15Fixed16 array (check for 0x7FFFFFFF/0x80000000 extremes)
@@ -1820,8 +1737,7 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
                 }
               } else {
                 // s15Fixed16: check for extreme sentinel values
-                uint32_t fixVal = ((uint32_t)val4[0]<<24)|((uint32_t)val4[1]<<16)|
-                                  ((uint32_t)val4[2]<<8)|val4[3];
+                uint32_t fixVal = ReadU32BE(val4);
                 if (fixVal == 0x7FFFFFFF || fixVal == 0x80000000) {
                   printf("      %s[WARN]  Tag '%s': s15Fixed16 extreme value 0x%08X at offset +%zu%s\n",
                          ColorCritical(), sig49, fixVal, pos - tOff, ColorReset());
@@ -1868,8 +1784,7 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
         icUInt8Number psz[4];
         fseek(fh50.fp, 0, SEEK_SET);
         if (fread(psz, 1, 4, fh50.fp) == 4) {
-          uint32_t declaredProfileSize = ((uint32_t)psz[0]<<24)|((uint32_t)psz[1]<<16)|
-                                 ((uint32_t)psz[2]<<8)|psz[3];
+          uint32_t declaredProfileSize = ReadU32BE(psz);
           if (declaredProfileSize == 0) {
             printf("      %s[WARN]  Profile size field = 0%s\n", ColorCritical(), ColorReset());
             printf("       %sCRITICAL: CWE-835 infinite loop in CalcProfileID() (CVE-2026-21507)%s\n",
@@ -1882,8 +1797,7 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
         icUInt8Number tc50[4];
         fseek(fh50.fp, 128, SEEK_SET);
         if (fread(tc50, 1, 4, fh50.fp) == 4) {
-          uint32_t tagCount50 = ((uint32_t)tc50[0]<<24)|((uint32_t)tc50[1]<<16)|
-                                ((uint32_t)tc50[2]<<8)|tc50[3];
+          uint32_t tagCount50 = ReadU32BE(tc50);
           if (tagCount50 > 1000) tagCount50 = 1000;
 
           int zeroSizeTags = 0;
@@ -1892,10 +1806,8 @@ int RunHeuristic_H50_ZeroSizeProfileTag(const char *filename)
             fseek(fh50.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh50.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if (tSz == 0) {
               char sig50[5]; SignatureToFourCC(tSig, sig50);
@@ -1944,8 +1856,7 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
         icUInt8Number tc51[4];
         fseek(fh51.fp, 128, SEEK_SET);
         if (fread(tc51, 1, 4, fh51.fp) == 4) {
-          uint32_t tagCount51 = ((uint32_t)tc51[0]<<24)|((uint32_t)tc51[1]<<16)|
-                                ((uint32_t)tc51[2]<<8)|tc51[3];
+          uint32_t tagCount51 = ReadU32BE(tc51);
           if (tagCount51 > 1000) tagCount51 = 1000;
 
           for (uint32_t t = 0; t < tagCount51 && fh51.fp; t++) {
@@ -1953,20 +1864,16 @@ int RunHeuristic_H51_LUTChannelCountConsistency(const char *filename)
             fseek(fh51.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh51.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 12 > fs51 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh51.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh51.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             // mft1 (lut8) or mft2 (lut16) or mAB or mBA
             bool isLut8  = (typeVal == 0x6D667431);
@@ -2036,8 +1943,7 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
         icUInt8Number tc52[4];
         fseek(fh52.fp, 128, SEEK_SET);
         if (fread(tc52, 1, 4, fh52.fp) == 4) {
-          uint32_t tagCount52 = ((uint32_t)tc52[0]<<24)|((uint32_t)tc52[1]<<16)|
-                                ((uint32_t)tc52[2]<<8)|tc52[3];
+          uint32_t tagCount52 = ReadU32BE(tc52);
           if (tagCount52 > 1000) tagCount52 = 1000;
 
           for (uint32_t t = 0; t < tagCount52 && fh52.fp; t++) {
@@ -2045,20 +1951,16 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(const char *filename)
             fseek(fh52.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh52.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 4 > fs52 || tSz < 4) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh52.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh52.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             // Minimum sizes by type
             uint32_t minSize = 8; // default: type(4) + reserved(4)
@@ -2122,8 +2024,7 @@ int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
         icUInt8Number tc53[4];
         fseek(fh53.fp, 128, SEEK_SET);
         if (fread(tc53, 1, 4, fh53.fp) == 4) {
-          uint32_t tagCount53 = ((uint32_t)tc53[0]<<24)|((uint32_t)tc53[1]<<16)|
-                                ((uint32_t)tc53[2]<<8)|tc53[3];
+          uint32_t tagCount53 = ReadU32BE(tc53);
           if (tagCount53 > 1000) tagCount53 = 1000;
           size_t tagTableEnd = 132 + tagCount53 * 12;
 
@@ -2139,12 +2040,10 @@ int RunHeuristic_H53_EmbeddedProfileRecursion(const char *filename)
             if (fread(scanBuf, 1, 40, fh53.fp) != 40) break;
 
             // Check for 'acsp' at byte 36 of a potential embedded profile header
-            uint32_t magic = ((uint32_t)scanBuf[36]<<24)|((uint32_t)scanBuf[37]<<16)|
-                             ((uint32_t)scanBuf[38]<<8)|scanBuf[39];
+            uint32_t magic = ReadU32BE(&scanBuf[36]);
             if (magic == 0x61637370) {
               // Verify it looks like a profile (has plausible size field)
-              uint32_t embSize = ((uint32_t)scanBuf[0]<<24)|((uint32_t)scanBuf[1]<<16)|
-                                 ((uint32_t)scanBuf[2]<<8)|scanBuf[3];
+              uint32_t embSize = ReadU32BE(scanBuf);
               if (embSize >= 128 && embSize <= 64 * 1024 * 1024) {
                 embeddedCount++;
                 if (embeddedCount <= 3) {
@@ -2196,8 +2095,7 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
         icUInt8Number tc54[4];
         fseek(fh54.fp, 128, SEEK_SET);
         if (fread(tc54, 1, 4, fh54.fp) == 4) {
-          uint32_t tagCount54 = ((uint32_t)tc54[0]<<24)|((uint32_t)tc54[1]<<16)|
-                                ((uint32_t)tc54[2]<<8)|tc54[3];
+          uint32_t tagCount54 = ReadU32BE(tc54);
           if (tagCount54 > 1000) tagCount54 = 1000;
 
           for (uint32_t t = 0; t < tagCount54 && fh54.fp; t++) {
@@ -2205,20 +2103,16 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
             fseek(fh54.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh54.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 12 > fs54 || tSz < 12) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh54.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh54.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             char sig54[5]; SignatureToFourCC(tSig, sig54);
 
@@ -2248,8 +2142,7 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
               if (fread(mbaInfo, 1, 24, fh54.fp) != 24) continue;
 
               uint8_t nInput = mbaInfo[0];
-              uint32_t clutOff = ((uint32_t)mbaInfo[12]<<24)|((uint32_t)mbaInfo[13]<<16)|
-                                 ((uint32_t)mbaInfo[14]<<8)|mbaInfo[15];
+              uint32_t clutOff = ReadU32BE(&mbaInfo[12]);
 
               if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs54 && nInput > 0 && nInput <= 16) {
                 icUInt8Number gridDims[16];
@@ -2306,8 +2199,7 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
         icUInt8Number tc55[4];
         fseek(fh55.fp, 128, SEEK_SET);
         if (fread(tc55, 1, 4, fh55.fp) == 4) {
-          uint32_t tagCount55 = ((uint32_t)tc55[0]<<24)|((uint32_t)tc55[1]<<16)|
-                                ((uint32_t)tc55[2]<<8)|tc55[3];
+          uint32_t tagCount55 = ReadU32BE(tc55);
           if (tagCount55 > 1000) tagCount55 = 1000;
 
           for (uint32_t t = 0; t < tagCount55 && fh55.fp; t++) {
@@ -2315,30 +2207,24 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
             fseek(fh55.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh55.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 8 > fs55 || tSz < 8) continue;
 
             icUInt8Number typeSig[4];
             fseek(fh55.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh55.fp) != 4) continue;
-            uint32_t typeVal = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                               ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t typeVal = ReadU32BE(typeSig);
 
             // mluc (0x6D6C7563) — scan for orphan surrogates
             if (typeVal == 0x6D6C7563 && tSz >= 16) {
               icUInt8Number mlucHdr[8];
               fseek(fh55.fp, tOff + 8, SEEK_SET);
               if (fread(mlucHdr, 1, 8, fh55.fp) != 8) continue;
-              uint32_t numRec = ((uint32_t)mlucHdr[0]<<24)|((uint32_t)mlucHdr[1]<<16)|
-                                ((uint32_t)mlucHdr[2]<<8)|mlucHdr[3];
-              uint32_t recSz  = ((uint32_t)mlucHdr[4]<<24)|((uint32_t)mlucHdr[5]<<16)|
-                                ((uint32_t)mlucHdr[6]<<8)|mlucHdr[7];
+              uint32_t numRec = ReadU32BE(mlucHdr);
+              uint32_t recSz  = ReadU32BE(&mlucHdr[4]);
 
               if (recSz < 12) recSz = 12;
               if (numRec > 500) numRec = 500;
@@ -2351,10 +2237,8 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
                 fseek(fh55.fp, tOff + recOff, SEEK_SET);
                 if (fread(rec, 1, 12, fh55.fp) != 12) break;
 
-                uint32_t strLen = ((uint32_t)rec[4]<<24)|((uint32_t)rec[5]<<16)|
-                                  ((uint32_t)rec[6]<<8)|rec[7];
-                uint32_t strOff = ((uint32_t)rec[8]<<24)|((uint32_t)rec[9]<<16)|
-                                  ((uint32_t)rec[10]<<8)|rec[11];
+                uint32_t strLen = ReadU32BE(&rec[4]);
+                uint32_t strOff = ReadU32BE(&rec[8]);
 
                 if (strLen > 65536) {
                   char sig55[5]; SignatureToFourCC(tSig, sig55);
@@ -2423,8 +2307,7 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
               fseek(fh55.fp, tOff + 8, SEEK_SET);
               icUInt8Number descHdr[4];
               if (fread(descHdr, 1, 4, fh55.fp) == 4) {
-                uint32_t asciiLen = ((uint32_t)descHdr[0]<<24)|((uint32_t)descHdr[1]<<16)|
-                                    ((uint32_t)descHdr[2]<<8)|descHdr[3];
+                uint32_t asciiLen = ReadU32BE(descHdr);
                 // If ASCII len exceeds tag data → overflow
                 if (asciiLen > tSz - 8) {
                   char sig55[5]; SignatureToFourCC(tSig, sig55);
@@ -2471,8 +2354,7 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
         icUInt8Number tc57[4];
         fseek(fh57.fp, 128, SEEK_SET);
         if (fread(tc57, 1, 4, fh57.fp) == 4) {
-          uint32_t tagCount57 = ((uint32_t)tc57[0]<<24)|((uint32_t)tc57[1]<<16)|
-                                ((uint32_t)tc57[2]<<8)|tc57[3];
+          uint32_t tagCount57 = ReadU32BE(tc57);
           if (tagCount57 > 1000) tagCount57 = 1000;
 
           for (uint32_t t = 0; t < tagCount57 && fh57.fp; t++) {
@@ -2480,12 +2362,9 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
             fseek(fh57.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh57.fp) != 12) break;
 
-            uint32_t tSig = ((uint32_t)tagEntry[0]<<24)|((uint32_t)tagEntry[1]<<16)|
-                            ((uint32_t)tagEntry[2]<<8)|tagEntry[3];
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tSig = ReadU32BE(tagEntry);
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 8 > fs57 || tSz < 132) continue;
 
@@ -2646,8 +2525,7 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
         icUInt8Number tc68[4];
         fseek(fh68.fp, 128, SEEK_SET);
         if (fread(tc68, 1, 4, fh68.fp) == 4) {
-          uint32_t tagCount68 = ((uint32_t)tc68[0]<<24)|((uint32_t)tc68[1]<<16)|
-                                ((uint32_t)tc68[2]<<8)|tc68[3];
+          uint32_t tagCount68 = ReadU32BE(tc68);
           if (tagCount68 > 1000) tagCount68 = 1000;
 
           for (uint32_t t = 0; t < tagCount68 && fh68.fp; t++) {
@@ -2655,10 +2533,8 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
             fseek(fh68.fp, 132 + t * 12, SEEK_SET);
             if (fread(tagEntry, 1, 12, fh68.fp) != 12) break;
 
-            uint32_t tOff = ((uint32_t)tagEntry[4]<<24)|((uint32_t)tagEntry[5]<<16)|
-                            ((uint32_t)tagEntry[6]<<8)|tagEntry[7];
-            uint32_t tSz  = ((uint32_t)tagEntry[8]<<24)|((uint32_t)tagEntry[9]<<16)|
-                            ((uint32_t)tagEntry[10]<<8)|tagEntry[11];
+            uint32_t tOff = ReadU32BE(&tagEntry[4]);
+            uint32_t tSz  = ReadU32BE(&tagEntry[8]);
 
             if ((uint64_t)tOff + 4 > fs68 || tSz < 20) continue;
 
@@ -2666,8 +2542,7 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
             icUInt8Number typeSig[4];
             fseek(fh68.fp, tOff, SEEK_SET);
             if (fread(typeSig, 1, 4, fh68.fp) != 4) continue;
-            uint32_t tType = ((uint32_t)typeSig[0]<<24)|((uint32_t)typeSig[1]<<16)|
-                             ((uint32_t)typeSig[2]<<8)|typeSig[3];
+            uint32_t tType = ReadU32BE(typeSig);
 
             // icSigGamutBoundaryDescType = 'gbd '
             if (tType != 0x67626420) continue;
@@ -2683,10 +2558,8 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
             if (fread(gbdHdr, 1, 12, fh68.fp) != 12) continue;
 
             uint16_t nPCS = ((uint16_t)gbdHdr[0]<<8)|gbdHdr[1];
-            uint32_t nVert = ((uint32_t)gbdHdr[4]<<24)|((uint32_t)gbdHdr[5]<<16)|
-                             ((uint32_t)gbdHdr[6]<<8)|gbdHdr[7];
-            uint32_t nTri  = ((uint32_t)gbdHdr[8]<<24)|((uint32_t)gbdHdr[9]<<16)|
-                             ((uint32_t)gbdHdr[10]<<8)|gbdHdr[11];
+            uint32_t nVert = ReadU32BE(&gbdHdr[4]);
+            uint32_t nTri  = ReadU32BE(&gbdHdr[8]);
 
             // Check vertex allocation: nVert * nPCS * sizeof(float)
             uint64_t vertBytes = (uint64_t)nVert * nPCS * 4;
@@ -2834,14 +2707,10 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
       bool hdrOk = (fileSize >= 132 && fread(rawHdr, 1, 132, fhRaw.fp) == 132);
 
       if (hdrOk) {
-        icUInt32Number tagCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) |
-                                  (static_cast<icUInt32Number>(rawHdr[129])<<16) |
-                                  (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
+        icUInt32Number tagCount = ReadU32BE(&rawHdr[128]);
 
         // Declared profile size from header bytes 0-3
-        icUInt32Number declaredSize = (static_cast<icUInt32Number>(rawHdr[0])<<24) |
-                                      (static_cast<icUInt32Number>(rawHdr[1])<<16) |
-                                      (static_cast<icUInt32Number>(rawHdr[2])<<8) | rawHdr[3];
+        icUInt32Number declaredSize = ReadU32BE(rawHdr);
 
         // --- H10 fallback: Tag Count ---
         printf("[H10] Tag Count: %u (raw)\n", tagCount);
@@ -2868,12 +2737,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             fseek(fhRaw.fp, ePos, SEEK_SET);
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
-            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
-                                     (static_cast<icUInt32Number>(entry[5])<<16) |
-                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
-            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
-                                     (static_cast<icUInt32Number>(entry[9])<<16) |
-                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+            icUInt32Number tOffset = ReadU32BE(&entry[4]);
+            icUInt32Number tSize   = ReadU32BE(&entry[8]);
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
@@ -2912,12 +2777,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             fseek(fhRaw.fp, ePos, SEEK_SET);
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
-            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
-                                     (static_cast<icUInt32Number>(entry[5])<<16) |
-                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
-            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
-                                     (static_cast<icUInt32Number>(entry[9])<<16) |
-                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+            icUInt32Number tOffset = ReadU32BE(&entry[4]);
+            icUInt32Number tSize   = ReadU32BE(&entry[8]);
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
@@ -2957,12 +2818,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             fseek(fhRaw.fp, ePos, SEEK_SET);
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
-            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
-                                     (static_cast<icUInt32Number>(entry[5])<<16) |
-                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
-            icUInt32Number tSize   = (static_cast<icUInt32Number>(entry[8])<<24) |
-                                     (static_cast<icUInt32Number>(entry[9])<<16) |
-                                     (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
+            icUInt32Number tOffset = ReadU32BE(&entry[4]);
+            icUInt32Number tSize   = ReadU32BE(&entry[8]);
 
             if ((uint64_t)tOffset + 12 > fileSize || tSize < 12) continue;
 
@@ -3026,9 +2883,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             fseek(fhRaw.fp, ePos, SEEK_SET);
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
-            icUInt32Number tOffset = (static_cast<icUInt32Number>(entry[4])<<24) |
-                                     (static_cast<icUInt32Number>(entry[5])<<16) |
-                                     (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
+            icUInt32Number tOffset = ReadU32BE(&entry[4]);
 
             if ((uint64_t)tOffset + 4 > fileSize) continue;
 
