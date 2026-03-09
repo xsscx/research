@@ -55,6 +55,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <new>
 #include <csignal>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -111,8 +112,15 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile *pIcc, const char *file
     alarm(10);
 
     // Register XML factories (required for ToXml to handle XML tag types)
-    CIccTagCreator::PushFactory(new CIccTagXmlFactory());
-    CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
+    auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
+    auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+    if (!tagFactory || !mpeFactory) {
+      delete tagFactory;
+      delete mpeFactory;
+      _exit(0);  // OOM in child — not an XML safety issue
+    }
+    CIccTagCreator::PushFactory(tagFactory);
+    CIccMpeCreator::PushFactory(mpeFactory);
 
     // Load the profile as CIccProfileXml
     CIccProfileXml xmlProfile;
@@ -458,12 +466,8 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
       CIccMpeCurveSet *pCurveSet = dynamic_cast<CIccMpeCurveSet*>(pElem);
       if (!pCurveSet) continue;
 
-      // Validate each curve in the set via SetCurve accessor pattern
-      int nCurves = static_cast<int>(pCurveSet->NumInputChannels());
-      for (int c = 0; c < nCurves && c < 64; c++) {
-        // Access curve via the m_curve array (public member)
-        // We can't directly access m_curve, so use dynamic_cast probing
-        // Check element type signature instead
+      // Validate CurveSet element type signature
+      if (pCurveSet->NumInputChannels() > 0) {
         icElemTypeSignature elemType = pCurveSet->GetType();
         if (elemType != icSigCurveSetElemType) {
           char typeStr[5] = {};
@@ -478,7 +482,6 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
           printf("       GHSA-2pjj-3c98-qp37: type confusion in ToXmlCurve()\n");
           warnings++;
         }
-        break;  // One check per CurveSet element
       }
     }
   }
