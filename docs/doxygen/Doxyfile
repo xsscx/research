@@ -12,18 +12,18 @@ PROJECT_NAME           = "ICC Security Research"
 PROJECT_NUMBER         = "v3.6.1"
 PROJECT_BRIEF          = "148-heuristic ICC profile security analyzer, 18 LibFuzzer harnesses, MCP server"
 PROJECT_LOGO           =
-OUTPUT_DIRECTORY       = .
+OUTPUT_DIRECTORY       = docs/doxygen
 OUTPUT_LANGUAGE        = English
 
 # ---------------------------------------------------------------------------
 # Input — all source components
 # ---------------------------------------------------------------------------
-INPUT                  = ../../iccanalyzer-lite \
-                         ../../cfl \
-                         ../../mcp-server \
-                         ../../colorbleed_tools \
-                         ../../README.md \
-                         ../../docs
+INPUT                  = iccanalyzer-lite \
+                         cfl \
+                         mcp-server \
+                         colorbleed_tools \
+                         README.md \
+                         docs
 
 # Recurse into subdirectories
 RECURSIVE              = YES
