@@ -5,8 +5,9 @@
  * - Extract embedded ICC profile from TIFFTAG_ICCPROFILE (tag 34675)
  * - Report TIFF metadata (dimensions, BPS, SPP, compression, photometric)
  * - Detect xnuimagefuzzer injection signatures in strip/tile data
- * - Run full 141-heuristic ICC analysis on extracted profile (H1-H138)
- * - TIFF security heuristics H139-H141 for strip geometry, dimensions, IFD bounds
+ * - Run full heuristic ICC analysis on extracted profile (H1-H138)
+ * - TIFF security heuristics H139-H141, H149-H150 for strip/tile geometry,
+ *   dimensions, IFD bounds, IFD chain cycles, and tile layout validation
  *
  * Copyright (c) 2026 David H Hoyt LLC
  */
@@ -23,6 +24,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <set>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -523,6 +525,277 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
   return findings;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// H149: TIFF IFD Chain Cycle Detection (CWE-835)
+// ═══════════════════════════════════════════════════════════════════════
+
+int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
+  printf("[H149] TIFF IFD Chain Cycle Detection (CWE-835)\n");
+
+  if (!tif || !filepath) {
+    printf("      [SKIP] No TIFF handle or filepath\n\n");
+    return 0;
+  }
+
+  int findings = 0;
+
+  // Read raw IFD offsets from the file to detect circular pointers.
+  // libtiff's TIFFReadDirectory follows the chain but may loop forever
+  // on circular references. We read the raw next-IFD pointer from each
+  // directory to build a visited set.
+  struct stat st;
+  if (stat(filepath, &st) != 0) {
+    printf("      [SKIP] Cannot stat file\n\n");
+    return 0;
+  }
+  uint64_t fileSize = static_cast<uint64_t>(st.st_size);
+
+  FILE *fp = fopen(filepath, "rb");
+  if (!fp) {
+    printf("      [SKIP] Cannot open file for raw IFD scan\n\n");
+    return 0;
+  }
+
+  // Read byte order and first IFD offset
+  uint8_t header[8];
+  if (fread(header, 1, 8, fp) < 8) {
+    fclose(fp);
+    printf("      [SKIP] File too small for TIFF header\n\n");
+    return 0;
+  }
+
+  bool littleEndian = (header[0] == 'I' && header[1] == 'I');
+  bool isBigTiff = false;
+  uint64_t ifdOffset = 0;
+
+  auto readU16 = [&](const uint8_t *p) -> uint16_t {
+    return littleEndian
+      ? (uint16_t)(p[0] | (p[1] << 8))
+      : (uint16_t)((p[0] << 8) | p[1]);
+  };
+  auto readU32 = [&](const uint8_t *p) -> uint32_t {
+    return littleEndian
+      ? (uint32_t)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24))
+      : (uint32_t)((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
+  };
+
+  uint16_t magic = readU16(header + 2);
+  if (magic == 43) {
+    isBigTiff = true;
+    // BigTIFF: 8-byte offset at bytes 8-15
+    uint8_t ext[8];
+    if (fread(ext, 1, 8, fp) < 8) { fclose(fp); return 0; }
+    // Simplified: read lower 4 bytes (BigTIFFs > 4GB are rare in fuzzing)
+    ifdOffset = readU32(ext);
+  } else {
+    ifdOffset = readU32(header + 4);
+  }
+
+  // Walk IFD chain, tracking visited offsets
+  std::set<uint64_t> visited;
+  int chainLen = 0;
+  static constexpr int kMaxChainDepth = 1024;
+
+  while (ifdOffset != 0 && ifdOffset < fileSize && chainLen < kMaxChainDepth) {
+    if (visited.count(ifdOffset)) {
+      printf("      %s[CRIT]  HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d%s\n",
+             ColorCritical(), (unsigned long long)ifdOffset, chainLen, ColorReset());
+      printf("       %sCWE-835: Infinite loop via circular IFD next-pointer%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+      break;
+    }
+    visited.insert(ifdOffset);
+    chainLen++;
+
+    // Seek to IFD, read entry count, skip entries, read next-IFD pointer
+    if (fseek(fp, (long)ifdOffset, SEEK_SET) != 0) break;
+
+    if (isBigTiff) {
+      // BigTIFF: 8-byte entry count, 20-byte entries, 8-byte next offset
+      uint8_t countBuf[8];
+      if (fread(countBuf, 1, 8, fp) < 8) break;
+      uint64_t entryCount = readU32(countBuf); // simplified for lower counts
+      uint64_t skipBytes = entryCount * 20;
+      if (fseek(fp, (long)skipBytes, SEEK_CUR) != 0) break;
+      uint8_t nextBuf[8];
+      if (fread(nextBuf, 1, 8, fp) < 8) break;
+      ifdOffset = readU32(nextBuf);
+    } else {
+      // Classic TIFF: 2-byte entry count, 12-byte entries, 4-byte next offset
+      uint8_t countBuf[2];
+      if (fread(countBuf, 1, 2, fp) < 2) break;
+      uint16_t entryCount = readU16(countBuf);
+      long skipBytes = (long)entryCount * 12;
+      if (fseek(fp, skipBytes, SEEK_CUR) != 0) break;
+      uint8_t nextBuf[4];
+      if (fread(nextBuf, 1, 4, fp) < 4) break;
+      ifdOffset = readU32(nextBuf);
+    }
+  }
+
+  fclose(fp);
+
+  if (chainLen >= kMaxChainDepth && findings == 0) {
+    printf("      %s[WARN]  HEURISTIC: IFD chain exceeds %d directories — possible loop%s\n",
+           ColorWarning(), kMaxChainDepth, ColorReset());
+    printf("       %sCWE-835: Excessive IFD chain depth%s\n",
+           ColorWarning(), ColorReset());
+    findings++;
+  }
+
+  if (findings == 0) {
+    printf("      [OK] IFD chain is acyclic (%d %s)\n",
+           chainLen, chainLen == 1 ? "directory" : "directories");
+  }
+  printf("\n");
+  return findings;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// H150: TIFF Tile Geometry Validation (CWE-122/CWE-131)
+// ═══════════════════════════════════════════════════════════════════════
+
+int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
+                                        uint32_t width, uint32_t height,
+                                        uint16_t bps, uint16_t spp) {
+  printf("[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)\n");
+
+  if (!tif) {
+    printf("      [SKIP] No TIFF handle\n\n");
+    return 0;
+  }
+
+  uint32_t tileW = 0, tileH = 0;
+  TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileW);
+  TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
+
+  if (tileW == 0 && tileH == 0) {
+    printf("      [OK] Strip-based image — tile geometry N/A\n\n");
+    return 0;
+  }
+
+  int findings = 0;
+
+  // Tile dimensions must be multiples of 16 (TIFF 6.0 §15)
+  if (tileW % 16 != 0) {
+    printf("      %s[WARN]  HEURISTIC: TileWidth=%u is not a multiple of 16 (TIFF 6.0 §15)%s\n",
+           ColorWarning(), tileW, ColorReset());
+    findings++;
+  }
+  if (tileH % 16 != 0) {
+    printf("      %s[WARN]  HEURISTIC: TileLength=%u is not a multiple of 16 (TIFF 6.0 §15)%s\n",
+           ColorWarning(), tileH, ColorReset());
+    findings++;
+  }
+
+  // Tile dimensions must not be zero
+  if (tileW == 0 || tileH == 0) {
+    printf("      %s[CRIT]  HEURISTIC: Zero tile dimension (TileWidth=%u, TileLength=%u)%s\n",
+           ColorCritical(), tileW, tileH, ColorReset());
+    printf("       %sCWE-369: Division by zero in tile count calculation%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+    printf("\n");
+    return findings;
+  }
+
+  // Tile dimensions should not exceed image dimensions unreasonably
+  if (tileW > width * 2 && width > 0) {
+    printf("      %s[WARN]  HEURISTIC: TileWidth=%u exceeds 2× image width=%u%s\n",
+           ColorWarning(), tileW, width, ColorReset());
+    findings++;
+  }
+  if (tileH > height * 2 && height > 0) {
+    printf("      %s[WARN]  HEURISTIC: TileLength=%u exceeds 2× image height=%u%s\n",
+           ColorWarning(), tileH, height, ColorReset());
+    findings++;
+  }
+
+  // Validate tile byte counts
+  uint32_t nTiles = TIFFNumberOfTiles(tif);
+  if (nTiles == 0) {
+    printf("      %s[WARN]  HEURISTIC: Tiled image reports 0 tiles%s\n",
+           ColorWarning(), ColorReset());
+    findings++;
+    printf("\n");
+    return findings;
+  }
+
+  // Expected tiles = ceil(width/tileW) × ceil(height/tileH) × (planar ? spp : 1)
+  uint32_t tilesAcross = (width + tileW - 1) / tileW;
+  uint32_t tilesDown = (height + tileH - 1) / tileH;
+  uint16_t planar = PLANARCONFIG_CONTIG;
+  TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &planar);
+  uint32_t expectedTiles = tilesAcross * tilesDown;
+  if (planar == PLANARCONFIG_SEPARATE) expectedTiles *= spp;
+
+  if (nTiles != expectedTiles) {
+    printf("      %s[WARN]  HEURISTIC: Tile count mismatch: expected %u (%u×%u), got %u%s\n",
+           ColorWarning(), expectedTiles, tilesAcross, tilesDown, nTiles, ColorReset());
+    findings++;
+  }
+
+  // Validate individual tile byte counts against expected uncompressed size
+  uint64_t *bytecounts = nullptr;
+  if (TIFFGetField(tif, TIFFTAG_TILEBYTECOUNTS, &bytecounts) && bytecounts) {
+    uint64_t bytesPerPixel = ((uint64_t)bps * spp + 7) / 8;
+    if (planar == PLANARCONFIG_SEPARATE) bytesPerPixel = ((uint64_t)bps + 7) / 8;
+    uint64_t expectedTileBytes = (uint64_t)tileW * tileH * bytesPerPixel;
+
+    // Check for integer overflow in tile size calculation
+    if (tileW > 0 && expectedTileBytes / tileW / bytesPerPixel != tileH) {
+      printf("      %s[CRIT]  HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu%s\n",
+             ColorCritical(), tileW, tileH, (unsigned long long)bytesPerPixel, ColorReset());
+      printf("       %sCWE-190: Integer overflow → heap buffer overflow%s\n",
+             ColorCritical(), ColorReset());
+      findings++;
+    }
+
+    // Check for suspicious tile sizes (much larger than expected)
+    uint32_t checkLimit = (nTiles < 64) ? nTiles : 64;
+    for (uint32_t t = 0; t < checkLimit; t++) {
+      if (bytecounts[t] > expectedTileBytes * 4 && bytecounts[t] > 1048576) {
+        printf("      %s[WARN]  HEURISTIC: Tile %u bytecount=%llu far exceeds expected=%llu (4× threshold)%s\n",
+               ColorWarning(), t, (unsigned long long)bytecounts[t],
+               (unsigned long long)expectedTileBytes, ColorReset());
+        printf("       %sCWE-131: Incorrect buffer size calculation%s\n",
+               ColorWarning(), ColorReset());
+        findings++;
+        break;  // Report once to avoid flooding
+      }
+    }
+  }
+
+  // Get file size for tile offset bounds
+  struct stat st;
+  if (stat(filepath, &st) == 0) {
+    uint64_t fileSize = static_cast<uint64_t>(st.st_size);
+    uint64_t *offsets = nullptr;
+    if (TIFFGetField(tif, TIFFTAG_TILEOFFSETS, &offsets) && offsets && bytecounts) {
+      uint32_t checkLimit = (nTiles < 64) ? nTiles : 64;
+      for (uint32_t t = 0; t < checkLimit; t++) {
+        if (offsets[t] + bytecounts[t] > fileSize && bytecounts[t] > 0) {
+          printf("      %s[CRIT]  HEURISTIC: Tile %u extends beyond EOF: offset=%llu + size=%llu > filesize=%llu%s\n",
+                 ColorCritical(), t, (unsigned long long)offsets[t],
+                 (unsigned long long)bytecounts[t], (unsigned long long)fileSize, ColorReset());
+          printf("       %sCWE-122: Heap buffer overflow via out-of-bounds tile read%s\n",
+                 ColorCritical(), ColorReset());
+          findings++;
+          if (findings >= 5) break;
+        }
+      }
+    }
+  }
+
+  if (findings == 0) {
+    printf("      [OK] Tile geometry valid (TileWidth=%u, TileLength=%u, tiles=%u)\n",
+           tileW, tileH, nTiles);
+  }
+  printf("\n");
+  return findings;
+}
+
 int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   int findings = 0;
 
@@ -608,13 +881,15 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
                         strlen(imagedesc) > 80 ? "..." : "");
   printf("\n");
 
-  // ── TIFF Security Heuristics (H139-H141) ──
+  // ── TIFF Security Heuristics (H139-H141, H149-H150) ──
   printf("--- TIFF Security Heuristics ---\n");
 
   findings += RunHeuristic_H139_TiffStripGeometry(tif, filepath, width, bps, spp,
                                                    rowsPerStrip, planar);
   findings += RunHeuristic_H140_TiffDimensionValidation(width, height, bps, spp);
   findings += RunHeuristic_H141_TiffIfdOffsetBounds(tif, filepath);
+  findings += RunHeuristic_H149_TiffIfdChainCycle(tif, filepath);
+  findings += RunHeuristic_H150_TiffTileGeometry(tif, filepath, width, height, bps, spp);
 
   // Check for xnuimagefuzzer provenance in metadata
   if (software && strstr(software, "XNUImageFuzzer")) {
