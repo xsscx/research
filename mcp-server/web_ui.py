@@ -252,6 +252,10 @@ async def api_security_json(request: Request) -> Response:
         path = _validate_path(request.query_params.get("path", ""), "path")
         async with (await _get_semaphore()):
             result = await analyze_security_json(path)
+        # Strip stderr appendage so result is valid JSON
+        sep = "\n--- stderr ---\n"
+        if sep in result:
+            result = result[: result.index(sep)]
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
