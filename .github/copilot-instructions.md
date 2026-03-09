@@ -17,6 +17,13 @@ This file contains cross-cutting rules that apply to ALL components.
 | **call-graph/** | [call-graph.instructions.md](instructions/call-graph.instructions.md) | `python3 scripts/generate-callgraphs.py` |
 | Multi-agent coordination | [multi-agent.instructions.md](instructions/multi-agent.instructions.md) | Platform detection, handoff protocols |
 
+### Reference Documentation
+
+| Document | Path | Content |
+|----------|------|---------|
+| iccDEV Shell Helpers (Unix) | [docs/iccdev-shell-helpers/unix.md](../../docs/iccdev-shell-helpers/unix.md) | Build, test, ASAN, coverage, Homebrew |
+| iccDEV Shell Helpers (Windows) | [docs/iccdev-shell-helpers/windows.md](../../docs/iccdev-shell-helpers/windows.md) | MSVC, vcpkg, ASAN, SARIF analysis |
+
 ### Workflow Prompts (task-specific guides)
 
 | Task | Prompt File |
