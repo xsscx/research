@@ -125,7 +125,7 @@ SERVER_BASED_SEARCH    = NO
 HTML_COLORSTYLE_HUE    = 210
 HTML_COLORSTYLE_SAT    = 80
 HTML_COLORSTYLE_GAMMA  = 100
-HTML_TIMESTAMP         = YES
+# HTML_TIMESTAMP removed (obsolete in Doxygen 1.9.8+)
 
 # Formula rendering
 FORMULA_FONTSIZE       = 12
@@ -138,7 +138,7 @@ HAVE_DOT               = YES
 DOT_NUM_THREADS        = 8
 
 # All graph types enabled (except per-function call/caller — too many SVGs)
-CLASS_DIAGRAMS         = YES
+# CLASS_DIAGRAMS removed (obsolete — use CLASS_GRAPH instead)
 CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = YES
 GROUP_GRAPHS           = YES
@@ -157,7 +157,7 @@ DOT_GRAPH_MAX_NODES    = 200
 MAX_DOT_GRAPH_DEPTH    = 0
 
 # Graph appearance
-DOT_TRANSPARENT        = YES
+# DOT_TRANSPARENT removed (obsolete in Doxygen 1.9.8+)
 DOT_MULTI_TARGETS      = YES
 UML_LOOK               = YES
 UML_LIMIT_NUM_FIELDS   = 20
@@ -179,9 +179,9 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = NO
 SEARCH_INCLUDES        = YES
-INCLUDE_PATH           = ../../iccanalyzer-lite \
-                         ../../iccDEV/IccProfLib \
-                         ../../iccDEV/IccXML/IccLibXML
+INCLUDE_PATH           = iccanalyzer-lite \
+                         iccDEV/IccProfLib \
+                         iccDEV/IccXML/IccLibXML
 
 PREDEFINED             = ICCANALYZER_LITE=1 \
                          __attribute__(x)= \
