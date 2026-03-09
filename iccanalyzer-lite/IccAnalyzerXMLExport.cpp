@@ -295,12 +295,18 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
             </div>
             <div class="summary-card">
               <div class="summary-count" style="color:#f85149">
-                <xsl:value-of select="/report/heuristics/summary/@findings"/>
+                <xsl:value-of select="/report/heuristics/summary/@critical"/>
               </div>
-              <div class="summary-label">FINDINGS</div>
+              <div class="summary-label">CRITICAL</div>
             </div>
             <div class="summary-card">
               <div class="summary-count" style="color:#d29922">
+                <xsl:value-of select="/report/heuristics/summary/@warnings"/>
+              </div>
+              <div class="summary-label">WARNINGS</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-count" style="color:#8b949e">
                 <xsl:value-of select="/report/heuristics/summary/@total"/>
               </div>
               <div class="summary-label">TOTAL CHECKS</div>
@@ -315,6 +321,7 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
                 <th>Check</th>
                 <th style="width:80px">Severity</th>
                 <th style="width:90px">CWE</th>
+                <th style="width:120px">Spec Ref</th>
                 <th>Detail</th>
                 <th style="width:100px">CVEs</th>
               </tr>
@@ -342,6 +349,7 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
                     </span>
                   </td>
                   <td><xsl:if test="cwe"><span class="cwe-tag"><xsl:value-of select="cwe"/></span></xsl:if></td>
+                  <td><xsl:if test="specRef"><span style="color:#8b949e;font-size:0.85em"><xsl:value-of select="specRef"/></span></xsl:if></td>
                   <td class="detail-text"><xsl:value-of select="message"/></td>
                   <td><xsl:if test="cveRefs"><span class="cve-tag"><xsl:value-of select="cveRefs"/></span></xsl:if></td>
                 </tr>
@@ -357,7 +365,9 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
               <th style="width:60px">Status</th>
               <th style="width:80px">Severity</th>
               <th style="width:90px">CWE</th>
+              <th style="width:120px">Spec Ref</th>
               <th>Detail</th>
+              <th style="width:100px">CVEs</th>
             </tr>
             <xsl:for-each select="/report/heuristics/check">
               <tr>
@@ -386,7 +396,9 @@ void IccAnalyzerXMLExport::WriteXSLTStylesheet(std::ofstream& xml)
                   </span>
                 </td>
                 <td><xsl:if test="cwe"><span class="cwe-tag"><xsl:value-of select="cwe"/></span></xsl:if></td>
+                <td><xsl:if test="specRef"><span style="color:#8b949e;font-size:0.85em"><xsl:value-of select="specRef"/></span></xsl:if></td>
                 <td class="detail-text"><xsl:value-of select="message"/></td>
+                <td><xsl:if test="cveRefs"><span class="cve-tag"><xsl:value-of select="cveRefs"/></span></xsl:if></td>
               </tr>
             </xsl:for-each>
           </table>
@@ -481,6 +493,7 @@ static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
       << "\" failed=\"" << report->failedChecks
       << "\" warnings=\"" << report->warningChecks
       << "\" findings=\"" << (report->failedChecks + report->warningChecks)
+      << "\" critical=\"" << report->failedChecks
       << "\"/>\n";
 
   for (const auto& f : report->findings) {
@@ -500,7 +513,7 @@ static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
 
 // --- Captured-output XML export (per-heuristic, same as --json/--report) ---
 
-extern int HeuristicAnalyze(const char* profilePath, const char* fingerprint_db);
+#include "IccAnalyzerComprehensive.h"
 
 struct XMLFinding {
   int id;
@@ -531,7 +544,7 @@ int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
   dup2(pipefd[1], STDOUT_FILENO);
   close(pipefd[1]);
 
-  int exitCode = HeuristicAnalyze(profilePath, fingerprint_db);
+  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
 
   fflush(stdout);
   dup2(savedStdout, STDOUT_FILENO);
@@ -604,12 +617,13 @@ int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
       if (std::regex_search(line, critRegex)) currentStatus = "CRITICAL";
       else if (std::regex_search(line, warnRegex) && currentStatus != "CRITICAL")
         currentStatus = "WARN";
-      // Extract first meaningful detail line
-      if (!line.empty() && currentDetail.empty()) {
-        // Trim leading whitespace
+      // Accumulate all meaningful detail lines (match JSON/Report behavior)
+      if (!line.empty()) {
         size_t start = line.find_first_not_of(" \t");
-        if (start != std::string::npos)
-          currentDetail = line.substr(start);
+        if (start != std::string::npos) {
+          if (!currentDetail.empty()) currentDetail += " | ";
+          currentDetail += line.substr(start);
+        }
       }
     }
   }
