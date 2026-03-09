@@ -160,11 +160,30 @@ TileLength, and TileByteCounts consistency. CWE-122/CWE-131.
 ## CVE Coverage (93 iccDEV Advisories)
 
 50 heuristics detect patterns from 48 CVEs + 19 GHSAs across the 93 iccDEV security advisories.
-23 advisories are XML parser/serializer bugs (out of scope — binary ICC analyzer).
-1 advisory is tool-specific (iccFromCube).
+25 advisories are XML parser/serializer bugs (out of scope — binary ICC analyzer).
+1 advisory is tool-specific (iccFromCube). Source of truth: `docs/cve/iccDEV-CVE-Report.md`.
 
 CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
 Use `--json` mode for programmatic access to per-heuristic CVE mappings.
+
+### Enrichment Workflow (when new advisories appear)
+
+```bash
+# 1. Fetch current advisory count
+gh api --paginate "repos/InternationalColorConsortium/iccDEV/security-advisories" --jq '.[].ghsa_id' | wc -l
+
+# 2. Find unmapped GHSAs
+gh api --paginate "repos/InternationalColorConsortium/iccDEV/security-advisories" --jq '.[] | select(.cve_id == null) | .ghsa_id' | sort > /tmp/all_ghsa.txt
+grep -oP 'GHSA-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+' iccanalyzer-lite/IccHeuristicsRegistry.h | sort -u > /tmp/registered.txt
+comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
+
+# 3. Classify each as in-scope (binary ICC) or out-of-scope (XML/tool)
+# 4. Add GHSA IDs to cveRefs field in IccHeuristicsRegistry.h
+# 5. Update counts in ALL 6 sync locations (see plan.md)
+# 6. Build, then read uniqueCVEs from --json output (do NOT guess)
+# 7. Update test expectations with actual values
+# 8. Verify: 217/217 tests pass
+```
 
 ## JSON Output Mode (v3.6.0+)
 
