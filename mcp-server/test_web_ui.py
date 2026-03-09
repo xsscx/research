@@ -130,6 +130,29 @@ def test_list_invalid_directory():
     check("List unknown dir blocked", r.status_code == 400)
 
 
+def test_list_xml():
+    r = c.get("/api/list-xml?directory=fuzz/xml/icc")
+    check("List XML 200", r.status_code == 200)
+    d = r.json()
+    check("List XML ok", d["ok"] is True)
+    check("List XML has files key", "files" in d)
+    check("List XML has directory key", d.get("directory") == "fuzz/xml/icc")
+
+    # All valid XML directories
+    for d_name in ["fuzz/xml/icc", "fuzz/xml/icc/minimized", "test-profiles", "extended-test-profiles"]:
+        r = c.get(f"/api/list-xml?directory={d_name}")
+        check(f"List XML {d_name}", r.status_code == 200 and r.json()["ok"])
+
+
+def test_list_xml_invalid_directory():
+    r = c.get("/api/list-xml?directory=../../etc")
+    check("List XML traversal blocked", r.status_code == 400)
+    r = c.get("/api/list-xml?directory=/etc/passwd")
+    check("List XML absolute blocked", r.status_code == 400)
+    r = c.get("/api/list-xml?directory=nonexistent")
+    check("List XML unknown blocked", r.status_code == 400)
+
+
 # ── Input Validation ──────────────────────────────────────
 def test_path_traversal():
     attacks = [
@@ -761,6 +784,8 @@ def main():
         ("Health", test_health),
         ("List Profiles", test_list),
         ("List Invalid Directory", test_list_invalid_directory),
+        ("List XML Files", test_list_xml),
+        ("List XML Invalid Directory", test_list_xml_invalid_directory),
         ("Path Traversal", test_path_traversal),
         ("Null Byte", test_null_byte),
         ("Empty Path", test_empty_path),
