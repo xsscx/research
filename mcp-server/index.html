@@ -347,6 +347,16 @@ footer {
     <button data-tool="run_tests"      >Run Tests</button>
     <button data-tool="option_matrix"  >Option Matrix</button>
     <button data-tool="windows_build" >Windows Build</button>
+    <button data-tool="build_tools"   >Build Tools</button>
+    <span class="separator" data-separator></span>
+    <button data-tool="health_check"       >Health Check</button>
+    <button data-tool="check_dependencies" >Check Deps</button>
+    <button data-tool="find_artifacts"     >Find Artifacts</button>
+    <button data-tool="batch_test"         >Batch Test</button>
+    <button data-tool="validate_xml"       >Validate XML</button>
+    <button data-tool="coverage_report"    >Coverage</button>
+    <button data-tool="scan_logs"          >Scan Logs</button>
+    <button data-tool="upload_and_analyze" >Upload &amp; Analyze</button>
   </nav>
 
   <!-- Input panel -->
@@ -394,6 +404,15 @@ const TOOLS = {
   run_tests:       { label: "Run Tests",       endpoint: "/api/run-tests",       fields: ["build_dir"], method: "POST" },
   option_matrix:   { label: "Option Matrix",   endpoint: "/api/cmake/option-matrix", fields: ["options","build_type","compiler"], method: "POST" },
   windows_build:   { label: "Windows Build",   endpoint: "/api/cmake/windows-build", fields: ["build_type","vcpkg_deps","enable_tools","extra_cmake_args","build_dir"], method: "POST" },
+  build_tools:     { label: "Build Tools",     endpoint: "/api/build-tools",     fields: ["target"], method: "POST" },
+  health_check:       { label: "Health Check",    endpoint: "/api/health-check",       fields: [],             method: "GET" },
+  check_dependencies: { label: "Check Deps",      endpoint: "/api/check-dependencies", fields: [],             method: "GET" },
+  find_artifacts:     { label: "Find Artifacts",   endpoint: "/api/find-artifacts",    fields: ["build_dir"],  method: "GET" },
+  batch_test:         { label: "Batch Test",       endpoint: "/api/batch-test",        fields: ["directory","tool","build_dir"], method: "POST" },
+  validate_xml:       { label: "Validate XML",     endpoint: "/api/validate-xml",      fields: ["directory","checks"], method: "POST" },
+  coverage_report:    { label: "Coverage",         endpoint: "/api/coverage-report",   fields: ["build_dir"],  method: "POST" },
+  scan_logs:          { label: "Scan Logs",        endpoint: "/api/scan-logs",         fields: ["directory","categories"], method: "POST" },
+  upload_and_analyze: { label: "Upload & Analyze", endpoint: "/api/upload-and-analyze", fields: ["data_base64","filename","mode"], method: "POST" },
 };
 
 const DIRS = ["test-profiles", "extended-test-profiles", "xif", "fuzz/graphics/icc"];

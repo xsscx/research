@@ -55,18 +55,27 @@ from icc_profile_mcp import (  # noqa: E402
     analyze_security,
     analyze_security_json,
     analyze_security_report,
+    batch_test_profiles,
+    build_tools,
+    check_dependencies,
     cmake_build,
     cmake_configure,
-    compare_profiles,
-    create_all_profiles,
     cmake_option_matrix,
+    compare_profiles,
+    coverage_report,
+    create_all_profiles,
+    find_build_artifacts,
     full_analysis,
+    health_check,
     inspect_profile,
     list_test_profiles,
     profile_to_xml,
     register_allowed_base,
     run_iccdev_tests,
+    scan_logs,
+    upload_and_analyze,
     validate_roundtrip,
+    validate_xml,
     windows_build,
 )
 
@@ -616,6 +625,161 @@ async def api_windows_build(request: Request) -> Response:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
+# ---------------------------------------------------------------------------
+# Operations tool endpoints
+# ---------------------------------------------------------------------------
+async def api_health_check(request: Request) -> Response:
+    """GET /api/health-check — full health check via MCP tool."""
+    try:
+        async with (await _get_semaphore()):
+            result = await health_check()
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_build_tools(request: Request) -> Response:
+    """POST /api/build-tools — build analysis tools from source."""
+    try:
+        body = await request.json()
+        target = body.get("target", "all")
+        if not isinstance(target, str):
+            target = "all"
+        valid_targets = {"all", "iccanalyzer-lite", "colorbleed_tools"}
+        if target not in valid_targets:
+            raise ValueError(f"target must be one of: {', '.join(sorted(valid_targets))}")
+        async with (await _get_semaphore()):
+            result = await build_tools(target=target)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_check_dependencies(request: Request) -> Response:
+    """GET /api/check-dependencies — check build dependency availability."""
+    try:
+        async with (await _get_semaphore()):
+            result = await check_dependencies()
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_find_build_artifacts(request: Request) -> Response:
+    """GET /api/find-artifacts — find binaries in build directories."""
+    try:
+        build_dir = _validate_build_dir(
+            request.query_params.get("build_dir", "")
+        )
+        async with (await _get_semaphore()):
+            result = await find_build_artifacts(build_dir=build_dir)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_batch_test_profiles(request: Request) -> Response:
+    """POST /api/batch-test — run tools over profile set."""
+    try:
+        body = await request.json()
+        directory = body.get("directory", "")
+        if isinstance(directory, str):
+            directory = directory.strip()[:500]
+        else:
+            directory = ""
+        tool = body.get("tool", "all")
+        if not isinstance(tool, str):
+            tool = "all"
+        valid_tools = {"dump", "toxml", "fromxml", "roundtrip", "all"}
+        if tool not in valid_tools:
+            raise ValueError(f"tool must be one of: {', '.join(sorted(valid_tools))}")
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        async with (await _get_semaphore()):
+            result = await batch_test_profiles(
+                directory=directory, tool=tool, build_dir=build_dir
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_validate_xml(request: Request) -> Response:
+    """POST /api/validate-xml — validate ICC XML files with xmllint."""
+    try:
+        body = await request.json()
+        directory = body.get("directory", "")
+        if isinstance(directory, str):
+            directory = directory.strip()[:500]
+        else:
+            directory = ""
+        checks = body.get("checks", "all")
+        if not isinstance(checks, str):
+            checks = "all"
+        valid_checks = {"wellformed", "encoding", "size", "safety", "all"}
+        check_list = [c.strip() for c in checks.split(",")]
+        invalid = [c for c in check_list if c not in valid_checks]
+        if invalid:
+            raise ValueError(f"Unknown check(s): {', '.join(invalid)}. Choose: {', '.join(sorted(valid_checks))}")
+        async with (await _get_semaphore()):
+            result = await validate_xml(directory=directory, checks=checks)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_coverage_report(request: Request) -> Response:
+    """POST /api/coverage-report — merge profraw and generate coverage report."""
+    try:
+        body = await request.json()
+        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        async with (await _get_semaphore()):
+            result = await coverage_report(build_dir=build_dir)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_scan_logs(request: Request) -> Response:
+    """POST /api/scan-logs — scan log files for errors and findings."""
+    try:
+        body = await request.json()
+        directory = body.get("directory", "")
+        if isinstance(directory, str):
+            directory = directory.strip()[:500]
+        else:
+            directory = ""
+        categories = body.get("categories", "all")
+        if not isinstance(categories, str):
+            categories = "all"
+        async with (await _get_semaphore()):
+            result = await scan_logs(directory=directory, categories=categories)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_upload_and_analyze(request: Request) -> Response:
+    """POST /api/upload-and-analyze — upload base64 ICC file and analyze."""
+    try:
+        body = await request.json()
+        data_base64 = body.get("data_base64", "")
+        if not isinstance(data_base64, str) or not data_base64.strip():
+            raise ValueError("data_base64 is required")
+        filename = body.get("filename", "upload.icc")
+        if not isinstance(filename, str):
+            filename = "upload.icc"
+        mode = body.get("mode", "security")
+        if not isinstance(mode, str):
+            mode = "security"
+        async with (await _get_semaphore()):
+            result = await upload_and_analyze(
+                data_base64=data_base64, filename=filename, mode=mode
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
 def _get_upload_dir() -> Path:
     """Return (and lazily create) a secure temp directory for uploaded files."""
     global _UPLOAD_DIR
@@ -800,6 +964,15 @@ routes = [
     Route("/api/run-tests", api_run_tests, methods=["POST"]),
     Route("/api/cmake/option-matrix", api_option_matrix, methods=["POST"]),
     Route("/api/cmake/windows-build", api_windows_build, methods=["POST"]),
+    Route("/api/health-check", api_health_check, methods=["GET"]),
+    Route("/api/build-tools", api_build_tools, methods=["POST"]),
+    Route("/api/check-dependencies", api_check_dependencies, methods=["GET"]),
+    Route("/api/find-artifacts", api_find_build_artifacts, methods=["GET"]),
+    Route("/api/batch-test", api_batch_test_profiles, methods=["POST"]),
+    Route("/api/validate-xml", api_validate_xml, methods=["POST"]),
+    Route("/api/coverage-report", api_coverage_report, methods=["POST"]),
+    Route("/api/scan-logs", api_scan_logs, methods=["POST"]),
+    Route("/api/upload-and-analyze", api_upload_and_analyze, methods=["POST"]),
 ]
 
 app = Starlette(
