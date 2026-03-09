@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/xml/IccIoXml.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,31 +15,21 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/xml/IccIoXml.ll"
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5edd6242c4f0 [label="{CIccStandardFileIO::OpenFile()}"];
-	Node0x5edd6242c4f0 -> Node0x5edd6242af00;
-	Node0x5edd6242c4f0 -> Node0x5edd6241b000;
-	Node0x5edd6242c4f0 -> Node0x5edd62424ed0;
-	Node0x5edd6242c4f0 -> Node0x5edd6241d4d0;
-	Node0x5edd6242af00 [label="{new()}"];
-	Node0x5edd6241b000 [label="{CIccFileIO::CIccFileIO()}"];
-	Node0x5edd6241ead0 [label="{__gxx_personality_v0}"];
-	Node0x5edd6241d4d0 [label="{delete()}"];
-	Node0x5edd62424ed0 [label="{CIccFileIO::Open()}"];
-	Node0x5edd62423120 [label="{__cxx_global_var_init}"];
-	Node0x5edd62423120 -> Node0x5edd62423520;
-	Node0x5edd62423520 [label="{CIccStandardFileIO::CIccStandardFileIO()}"];
-	Node0x5edd62423520 -> Node0x5edd624269c0;
-	Node0x5edd624233a0 [label="{IccOpenFileIO()}"];
-	Node0x5edd62425200 [label="{IccSetOpenFileIO()}"];
-	Node0x5edd624269c0 [label="{IIccOpenFileIO::IIccOpenFileIO()}"];
-	Node0x5edd62418bc0 [label="{__cxa_pure_virtual}"];
-	Node0x5edd6242c690 [label="{_GLOBAL__sub_I_IccIoXml.cpp}"];
-	Node0x5edd6242c690 -> Node0x5edd62423120;
+	Node0x5d6e411354f0 [label="CIccStandardFileIO::OpenFile()"];
+	Node0x5d6e411354f0 -> Node0x5d6e4111e770;
+	Node0x5d6e411354f0 -> Node0x5d6e41126170;
+	Node0x5d6e4111e770 [label="CIccFileIO::CIccFileIO()"];
+	Node0x5d6e41126170 [label="CIccFileIO::Open()"];
+	Node0x5d6e4112f480 [label="CIccStandardFileIO::CIccStandardFileIO()"];
+	Node0x5d6e4112f480 -> Node0x5d6e41135c20;
+	Node0x5d6e4112c3a0 [label="IccOpenFileIO()"];
+	Node0x5d6e4112e200 [label="IccSetOpenFileIO()"];
+	Node0x5d6e41135c20 [label="IIccOpenFileIO::IIccOpenFileIO()"];
+	Node0x5d6e41135690 [label="_GLOBAL__sub_I_IccIoXml.cpp"];
 }

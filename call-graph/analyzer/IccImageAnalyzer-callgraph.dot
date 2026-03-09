@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,163 +15,99 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccImageAnalyz
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5a17dd81e2f0 [label="{DetectFileFormat()}"];
-	Node0x5a17dd81e2f0 -> Node0x5a17dd81fa30;
-	Node0x5a17dd81e2f0 -> Node0x5a17dd8205c0;
-	Node0x5a17dd81e2f0 -> Node0x5a17dd825310;
-	Node0x5a17dd81e2f0 -> Node0x5a17dd67d820;
-	Node0x5a17dd81e2f0 -> Node0x5a17dd80b340;
-	Node0x5a17dd81fa30 [label="{OpenRawFile()}"];
-	Node0x5a17dd81fa30 -> Node0x5a17dd7e9dc0;
-	Node0x5a17dd81fa30 -> Node0x5a17dd6af870;
-	Node0x5a17dd81fa30 -> Node0x5a17dd825310;
-	Node0x5a17dd81fa30 -> Node0x5a17dd8288f0;
-	Node0x5a17dd81fa30 -> Node0x5a17dd82cde0;
-	Node0x5a17dd81fa30 -> Node0x5a17dd680730;
-	Node0x5a17dd81fa30 -> Node0x5a17dd82cb20;
-	Node0x5a17dd8205c0 [label="{bool()}"];
-	Node0x5a17dd82bd90 [label="{__gxx_personality_v0}"];
-	Node0x5a17dd67d820 [label="{llvm.memset.p0.i64}"];
-	Node0x5a17dd80b340 [label="{fread}"];
-	Node0x5a17dd825310 [label="{RawFileHandle::~RawFileHandle()}"];
-	Node0x5a17dd825310 -> Node0x5a17dd82cde0;
-	Node0x5a17dd825310 -> Node0x5a17dd680b40;
-	Node0x5a17dd6806b0 [label="{FormatName()}"];
-	Node0x5a17dd82d1a0 [label="{RunHeuristic_H139_TiffStripGeometry()}"];
-	Node0x5a17dd82d1a0 -> Node0x5a17dd680980;
-	Node0x5a17dd82d1a0 -> Node0x5a17dd681020;
-	Node0x5a17dd82d1a0 -> Node0x5a17dd6814d0;
-	Node0x5a17dd82d1a0 -> Node0x5a17dd82d6e0;
-	Node0x5a17dd82d1a0 -> Node0x5a17dd680d70;
-	Node0x5a17dd680980 [label="{printf}"];
-	Node0x5a17dd6814d0 [label="{TIFFGetField}"];
-	Node0x5a17dd680d70 [label="{TIFFStripSize}"];
-	Node0x5a17dd82d6e0 [label="{ColorCritical()}"];
-	Node0x5a17dd82d6e0 -> Node0x5a17dd71b970;
-	Node0x5a17dd681020 [label="{ColorReset()}"];
-	Node0x5a17dd681020 -> Node0x5a17dd71b970;
-	Node0x5a17dd681930 [label="{RunHeuristic_H140_TiffDimensionValidation()}"];
-	Node0x5a17dd681930 -> Node0x5a17dd680980;
-	Node0x5a17dd681930 -> Node0x5a17dd82d6e0;
-	Node0x5a17dd681930 -> Node0x5a17dd681020;
-	Node0x5a17dd681930 -> Node0x5a17dd82df00;
-	Node0x5a17dd82df00 [label="{ColorWarning()}"];
-	Node0x5a17dd82df00 -> Node0x5a17dd71b970;
-	Node0x5a17dd681720 [label="{RunHeuristic_H141_TiffIfdOffsetBounds()}"];
-	Node0x5a17dd681720 -> Node0x5a17dd680980;
-	Node0x5a17dd681720 -> Node0x5a17dd6818b0;
-	Node0x5a17dd681720 -> Node0x5a17dd82dc90;
-	Node0x5a17dd681720 -> Node0x5a17dd682600;
-	Node0x5a17dd681720 -> Node0x5a17dd6814d0;
-	Node0x5a17dd681720 -> Node0x5a17dd681020;
-	Node0x5a17dd681720 -> Node0x5a17dd6822f0;
-	Node0x5a17dd681720 -> Node0x5a17dd82d6e0;
-	Node0x5a17dd681720 -> Node0x5a17dd82df00;
-	Node0x5a17dd681720 -> Node0x5a17dd71c1b0;
-	Node0x5a17dd82dc90 [label="{stat}"];
-	Node0x5a17dd6822f0 [label="{TIFFNumberOfStrips}"];
-	Node0x5a17dd71c1b0 [label="{TIFFNumberOfTiles}"];
-	Node0x5a17dd682600 [label="{TIFFReadDirectory}"];
-	Node0x5a17dd6818b0 [label="{TIFFSetDirectory}"];
-	Node0x5a17dd830300 [label="{AnalyzeTiffImage()}"];
-	Node0x5a17dd830300 -> Node0x5a17dd680980;
-	Node0x5a17dd830300 -> Node0x5a17dd830040;
-	Node0x5a17dd830300 -> Node0x5a17dd682d00;
-	Node0x5a17dd830300 -> Node0x5a17dd686630;
-	Node0x5a17dd830300 -> Node0x5a17dd681020;
-	Node0x5a17dd830300 -> Node0x5a17dd82df00;
-	Node0x5a17dd830300 -> Node0x5a17dd683000;
-	Node0x5a17dd830300 -> Node0x5a17dd82d6e0;
-	Node0x5a17dd830300 -> Node0x5a17dd830dd0;
-	Node0x5a17dd830300 -> Node0x5a17dd6854a0;
-	Node0x5a17dd830300 -> Node0x5a17dd686160;
-	Node0x5a17dd830300 -> Node0x5a17dd8325e0;
-	Node0x5a17dd830300 -> Node0x5a17dd82cde0;
-	Node0x5a17dd830300 -> Node0x5a17dd685ef0;
-	Node0x5a17dd830300 -> Node0x5a17dd6814d0;
-	Node0x5a17dd830300 -> Node0x5a17dd685790;
-	Node0x5a17dd830300 -> Node0x5a17dd685a10;
-	Node0x5a17dd830300 -> Node0x5a17dd685c80;
-	Node0x5a17dd830300 -> Node0x5a17dd684fd0;
-	Node0x5a17dd830300 -> Node0x5a17dd684ae0;
-	Node0x5a17dd830300 -> Node0x5a17dd831e50;
-	Node0x5a17dd830300 -> Node0x5a17dd6848e0;
-	Node0x5a17dd830300 -> Node0x5a17dd6852b0;
-	Node0x5a17dd830300 -> Node0x5a17dd831350;
-	Node0x5a17dd830300 -> Node0x5a17dd680d70;
-	Node0x5a17dd830300 -> Node0x5a17dd8318d0;
-	Node0x5a17dd830300 -> Node0x5a17dd6845f0;
-	Node0x5a17dd830300 -> Node0x5a17dd684dd0;
-	Node0x5a17dd830300 -> Node0x5a17dd683680;
-	Node0x5a17dd830300 -> Node0x5a17dd684460;
-	Node0x5a17dd830300 -> Node0x5a17dd683b30;
-	Node0x5a17dd830300 -> Node0x5a17dd681720;
-	Node0x5a17dd830300 -> Node0x5a17dd681930;
-	Node0x5a17dd830300 -> Node0x5a17dd82d1a0;
-	Node0x5a17dd830300 -> Node0x5a17dd6822f0;
-	Node0x5a17dd830300 -> Node0x5a17dd682f80;
-	Node0x5a17dd830300 -> Node0x5a17dd683400;
-	Node0x5a17dd830300 -> Node0x5a17dd830880;
-	Node0x5a17dd830300 -> Node0x5a17dd683980;
-	Node0x5a17dd682d00 [label="{TIFFSetWarningHandler}"];
-	Node0x5a17dd686ae0 [label="{TiffSilentWarning()}"];
-	Node0x5a17dd830040 [label="{TIFFSetErrorHandler}"];
-	Node0x5a17dd686350 [label="{TiffSilentError()}"];
-	Node0x5a17dd683000 [label="{TIFFOpen}"];
-	Node0x5a17dd682f80 [label="{TiffCompressionName()}"];
-	Node0x5a17dd830880 [label="{TiffPhotometricName()}"];
-	Node0x5a17dd683980 [label="{TiffPlanarName()}"];
-	Node0x5a17dd683400 [label="{TiffSampleFormatName()}"];
-	Node0x5a17dd683680 [label="{strlen}"];
-	Node0x5a17dd683b30 [label="{strstr}"];
-	Node0x5a17dd830dd0 [label="{ColorInfo()}"];
-	Node0x5a17dd830dd0 -> Node0x5a17dd71b970;
-	Node0x5a17dd684460 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5a17dd6848e0 [label="{ScanForInjections()}"];
-	Node0x5a17dd6848e0 -> Node0x5a17dd832b60;
-	Node0x5a17dd6848e0 -> Node0x5a17dd82d6e0;
-	Node0x5a17dd6848e0 -> Node0x5a17dd681020;
-	Node0x5a17dd6848e0 -> Node0x5a17dd680980;
-	Node0x5a17dd684dd0 [label="{TIFFIsTiled}"];
-	Node0x5a17dd6845f0 [label="{TIFFTileSize}"];
-	Node0x5a17dd831350 [label="{_TIFFmalloc}"];
-	Node0x5a17dd8318d0 [label="{TIFFReadEncodedTile}"];
-	Node0x5a17dd831e50 [label="{_TIFFfree}"];
-	Node0x5a17dd6852b0 [label="{TIFFReadEncodedStrip}"];
-	Node0x5a17dd684ae0 [label="{ColorSuccess()}"];
-	Node0x5a17dd684ae0 -> Node0x5a17dd71b970;
-	Node0x5a17dd685c80 [label="{snprintf}"];
-	Node0x5a17dd684fd0 [label="{getpid}"];
-	Node0x5a17dd685a10 [label="{open}"];
-	Node0x5a17dd685790 [label="{fdopen}"];
-	Node0x5a17dd685ef0 [label="{fwrite}"];
-	Node0x5a17dd82cde0 [label="{fclose}"];
-	Node0x5a17dd6854a0 [label="{unlink}"];
-	Node0x5a17dd8325e0 [label="{ResetAllocGuard()}"];
-	Node0x5a17dd686160 [label="{ComprehensiveAnalyze()}"];
-	Node0x5a17dd686630 [label="{TIFFClose}"];
-	Node0x5a17dd6860e0 [label="{AnalyzeImageFile()}"];
-	Node0x5a17dd6860e0 -> Node0x5a17dd81e2f0;
-	Node0x5a17dd6860e0 -> Node0x5a17dd830300;
-	Node0x5a17dd6860e0 -> Node0x5a17dd680980;
-	Node0x5a17dd6860e0 -> Node0x5a17dd686160;
-	Node0x5a17dd7e9dc0 [label="{RawFileHandle::RawFileHandle()}"];
-	Node0x5a17dd6af870 [label="{fopen}"];
-	Node0x5a17dd8288f0 [label="{fseek}"];
-	Node0x5a17dd680730 [label="{ftell}"];
-	Node0x5a17dd82cb20 [label="{rewind}"];
-	Node0x5a17dd680b40 [label="{__clang_call_terminate}"];
-	Node0x5a17dd680b40 -> Node0x5a17dd68a6a0;
-	Node0x5a17dd680b40 -> Node0x5a17dd68a3d0;
-	Node0x5a17dd68a6a0 [label="{__cxa_begin_catch}"];
-	Node0x5a17dd68a3d0 [label="{std::terminate()}"];
-	Node0x5a17dd71b970 [label="{GetColor()}"];
-	Node0x5a17dd832b60 [label="{memcmp}"];
+	Node0x580409f16470 [label="PngColorTypeName()"];
+	Node0x580409ee9470 [label="DetectFileFormat()"];
+	Node0x580409ee9470 -> Node0x580409ef1d60;
+	Node0x580409ee9470 -> Node0x580409ef6690;
+	Node0x580409ef1d60 [label="OpenRawFile()"];
+	Node0x580409ef1d60 -> Node0x580409ad1fd0;
+	Node0x580409ef1d60 -> Node0x580409ef6690;
+	Node0x580409ef6690 [label="RawFileHandle::~RawFileHandle()"];
+	Node0x580409a853f0 [label="FormatName()"];
+	Node0x580409a858e0 [label="RunHeuristic_H139_TiffStripGeometry()"];
+	Node0x580409a858e0 -> Node0x580409a8b4a0;
+	Node0x580409a858e0 -> Node0x580409efb0e0;
+	Node0x580409efb0e0 [label="ColorCritical()"];
+	Node0x580409efb0e0 -> Node0x580409efbb60;
+	Node0x580409a8b4a0 [label="ColorReset()"];
+	Node0x580409a8b4a0 -> Node0x580409efbb60;
+	Node0x580409a865e0 [label="RunHeuristic_H140_TiffDimensionValidation()"];
+	Node0x580409a865e0 -> Node0x580409efb0e0;
+	Node0x580409a865e0 -> Node0x580409a8b4a0;
+	Node0x580409a865e0 -> Node0x580409efbe20;
+	Node0x580409efbe20 [label="ColorWarning()"];
+	Node0x580409efbe20 -> Node0x580409efbb60;
+	Node0x580409a8b420 [label="RunHeuristic_H141_TiffIfdOffsetBounds()"];
+	Node0x580409a8b420 -> Node0x580409a8b4a0;
+	Node0x580409a8b420 -> Node0x580409efb0e0;
+	Node0x580409a8b420 -> Node0x580409efbe20;
+	Node0x580409a8bd90 [label="RunHeuristic_H149_TiffIfdChainCycle()"];
+	Node0x580409a8bd90 -> Node0x580409a8b4a0;
+	Node0x580409a8bd90 -> Node0x580409efbe20;
+	Node0x580409a8bd90 -> Node0x580409efd200;
+	Node0x580409a8bd90 -> Node0x580409efc4c0;
+	Node0x580409a8bd90 -> Node0x580409efb0e0;
+	Node0x580409efc4c0 [label="RunHeuristic_H149_TiffIfdChainCycle()"];
+	Node0x580409efd200 [label="RunHeuristic_H149_TiffIfdChainCycle()"];
+	Node0x580409efdd00 [label="RunHeuristic_H150_TiffTileGeometry()"];
+	Node0x580409efdd00 -> Node0x580409a8b4a0;
+	Node0x580409efdd00 -> Node0x580409efb0e0;
+	Node0x580409efdd00 -> Node0x580409efbe20;
+	Node0x580409efe590 [label="AnalyzeTiffImage()"];
+	Node0x580409efe590 -> Node0x580409a8b4a0;
+	Node0x580409efe590 -> Node0x580409efbe20;
+	Node0x580409efe590 -> Node0x580409efb0e0;
+	Node0x580409efe590 -> Node0x580409a90730;
+	Node0x580409efe590 -> Node0x580409a912f0;
+	Node0x580409efe590 -> Node0x580409a92480;
+	Node0x580409efe590 -> Node0x580409f003a0;
+	Node0x580409efe590 -> Node0x580409a90440;
+	Node0x580409efe590 -> Node0x580409efdd00;
+	Node0x580409efe590 -> Node0x580409a8bd90;
+	Node0x580409efe590 -> Node0x580409a8b420;
+	Node0x580409efe590 -> Node0x580409a865e0;
+	Node0x580409efe590 -> Node0x580409a858e0;
+	Node0x580409a90730 [label="ColorInfo()"];
+	Node0x580409a90730 -> Node0x580409efbb60;
+	Node0x580409a90440 [label="ScanForInjections()"];
+	Node0x580409a90440 -> Node0x580409efb0e0;
+	Node0x580409a90440 -> Node0x580409a8b4a0;
+	Node0x580409f003a0 [label="ColorSuccess()"];
+	Node0x580409f003a0 -> Node0x580409efbb60;
+	Node0x580409a92480 [label="ResetAllocGuard()"];
+	Node0x580409a912f0 [label="ComprehensiveAnalyze()"];
+	Node0x580409f01340 [label="AnalyzePngImage()"];
+	Node0x580409f01340 -> Node0x580409a8b4a0;
+	Node0x580409f01340 -> Node0x580409efb0e0;
+	Node0x580409f01340 -> Node0x580409a90730;
+	Node0x580409f01340 -> Node0x580409a912f0;
+	Node0x580409f01340 -> Node0x580409a92480;
+	Node0x580409f01340 -> Node0x580409efbe20;
+	Node0x580409f01340 -> Node0x580409f003a0;
+	Node0x580409f01340 -> Node0x580409a90440;
+	Node0x580409f01340 -> Node0x580409f14ec0;
+	Node0x580409f01340 -> Node0x580409f16470;
+	Node0x580409f14ec0 [label="PngInterlaceName()"];
+	Node0x580409f1c010 [label="AnalyzeJpegImage()"];
+	Node0x580409f1c010 -> Node0x580409a8b4a0;
+	Node0x580409f1c010 -> Node0x580409efb0e0;
+	Node0x580409f1c010 -> Node0x580409a90730;
+	Node0x580409f1c010 -> Node0x580409a912f0;
+	Node0x580409f1c010 -> Node0x580409a92480;
+	Node0x580409f1c010 -> Node0x580409efbe20;
+	Node0x580409f1c010 -> Node0x580409f003a0;
+	Node0x580409f0b590 [label="JpegErrorExit()"];
+	Node0x580409f24550 [label="JpegEmitMessage()"];
+	Node0x580409f27c30 [label="AnalyzeImageFile()"];
+	Node0x580409f27c30 -> Node0x580409ee9470;
+	Node0x580409f27c30 -> Node0x580409a912f0;
+	Node0x580409f27c30 -> Node0x580409a853f0;
+	Node0x580409ad1fd0 [label="RawFileHandle::RawFileHandle()"];
+	Node0x580409efbb60 [label="GetColor()"];
 }

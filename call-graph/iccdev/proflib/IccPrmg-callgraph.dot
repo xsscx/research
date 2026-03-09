@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccPrmg.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,50 +15,44 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccPrmg.
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x62e342ec8100 [label="{CIccPRMG::CIccPRMG()}"];
-	Node0x62e342f1f550 [label="{CIccPRMG::GetChroma()}"];
-	Node0x62e342f1f550 -> Node0x62e342f1f4c0;
-	Node0x62e342f1f550 -> Node0x62e342f21fe0;
-	Node0x62e342f1f4c0 [label="{llvm.fmuladd.f32}"];
-	Node0x62e342f21fe0 [label="{icClamp()}"];
-	Node0x62e342eac5d0 [label="{CIccPRMG::InGamut()}"];
-	Node0x62e342eac5d0 -> Node0x62e342f1f550;
-	Node0x62e342f28d30 [label="{CIccPRMG::InGamut()}"];
-	Node0x62e342f28d30 -> Node0x62e342f28a50;
-	Node0x62e342f28d30 -> Node0x62e342eac5d0;
-	Node0x62e342f28a50 [label="{icLab2Lch()}"];
-	Node0x62e342f28620 [label="{CIccPRMG::EvaluateProfile()}"];
-	Node0x62e342f28620 -> Node0x62e342eac3a0;
-	Node0x62e342f28620 -> Node0x62e342f29bf0;
-	Node0x62e342f28620 -> Node0x62e342f2a070;
-	Node0x62e342f28620 -> Node0x62e342f2a0f0;
-	Node0x62e342f28620 -> Node0x62e342f29e70;
-	Node0x62e342f28620 -> Node0x62e342f273c0;
-	Node0x62e342f28620 -> Node0x62e342f2a7c0;
-	Node0x62e342f28620 -> Node0x62e342f2b010;
-	Node0x62e342f28620 -> Node0x62e342f250e0;
-	Node0x62e342f28620 -> Node0x62e342f28d30;
-	Node0x62e342f28620 -> Node0x62e342f27280;
-	Node0x62e342eac3a0 [label="{CIccProfile::FindTag()}"];
-	Node0x62e342f29bf0 [label="{CIccTagSignature::GetValue()}"];
-	Node0x62e342f2a070 [label="{CIccCmm::CIccCmm()}"];
-	Node0x62e342f2a0f0 [label="{CIccCmm::AddXform()}"];
-	Node0x62e342f2bda0 [label="{__gxx_personality_v0}"];
-	Node0x62e342f2a7c0 [label="{CIccCmm::Begin()}"];
-	Node0x62e342f2b010 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x62e342f250e0 [label="{icLabFromPcs()}"];
-	Node0x62e342f27280 [label="{CIccCmm::Apply()}"];
-	Node0x62e342f273c0 [label="{icDeltaE()}"];
-	Node0x62e342f29e70 [label="{CIccCmm::~CIccCmm()}"];
-	Node0x62e342f2bba0 [label="{CIccPRMG::EvaluateProfile()}"];
-	Node0x62e342f2bba0 -> Node0x62e342f2b8a0;
-	Node0x62e342f2bba0 -> Node0x62e342f28620;
-	Node0x62e342f2b8a0 [label="{ReadIccProfile()}"];
+	Node0x5a5ce0762100 [label="CIccPRMG::CIccPRMG()"];
+	Node0x5a5ce07b9550 [label="CIccPRMG::GetChroma()"];
+	Node0x5a5ce07b9550 -> Node0x5a5ce07bbfe0;
+	Node0x5a5ce07bbfe0 [label="icClamp()"];
+	Node0x5a5ce07465d0 [label="CIccPRMG::InGamut()"];
+	Node0x5a5ce07465d0 -> Node0x5a5ce07b9550;
+	Node0x5a5ce07c2d30 [label="CIccPRMG::InGamut()"];
+	Node0x5a5ce07c2d30 -> Node0x5a5ce07c2a50;
+	Node0x5a5ce07c2d30 -> Node0x5a5ce07465d0;
+	Node0x5a5ce07c2a50 [label="icLab2Lch()"];
+	Node0x5a5ce07c2620 [label="CIccPRMG::EvaluateProfile()"];
+	Node0x5a5ce07c2620 -> Node0x5a5ce07463a0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c3bf0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c4070;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c40f0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c3e70;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c13c0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c47c0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07bf0e0;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c2d30;
+	Node0x5a5ce07c2620 -> Node0x5a5ce07c1280;
+	Node0x5a5ce07463a0 [label="CIccProfile::FindTag()"];
+	Node0x5a5ce07c3bf0 [label="CIccTagSignature::GetValue()"];
+	Node0x5a5ce07c4070 [label="CIccCmm::CIccCmm()"];
+	Node0x5a5ce07c40f0 [label="CIccCmm::AddXform()"];
+	Node0x5a5ce07c47c0 [label="CIccCmm::Begin()"];
+	Node0x5a5ce07bf0e0 [label="icLabFromPcs()"];
+	Node0x5a5ce07c1280 [label="CIccCmm::Apply()"];
+	Node0x5a5ce07c13c0 [label="icDeltaE()"];
+	Node0x5a5ce07c3e70 [label="CIccCmm::~CIccCmm()"];
+	Node0x5a5ce07c5ba0 [label="CIccPRMG::EvaluateProfile()"];
+	Node0x5a5ce07c5ba0 -> Node0x5a5ce07c58a0;
+	Node0x5a5ce07c5ba0 -> Node0x5a5ce07c2620;
+	Node0x5a5ce07c58a0 [label="ReadIccProfile()"];
 }

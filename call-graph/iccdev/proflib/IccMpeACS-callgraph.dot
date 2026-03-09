@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMpeACS.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,108 +15,78 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMpeAC
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x6027651d2790 [label="{CIccMpeAcs::CIccMpeAcs()}"];
-	Node0x6027651d2790 -> Node0x6027651d4ca0;
-	Node0x6027651e5980 [label="{CIccMpeAcs::Validate()}"];
-	Node0x6027651e5980 -> Node0x6027651e55c0;
-	Node0x6027651e5980 -> Node0x6027651e5200;
-	Node0x6027651e5980 -> Node0x6027651e4720;
-	Node0x60276521a470 [label="{CIccMpeEAcs::GetEAcsSig()}"];
-	Node0x6027651d4ca0 [label="{CIccMultiProcessElement::CIccMultiProcessElement()}"];
-	Node0x6027651d5710 [label="{CIccMpeAcs::~CIccMpeAcs()}"];
-	Node0x6027651d5710 -> Node0x6027651d75e0;
-	Node0x6027651d5710 -> Node0x6027651539d0;
-	Node0x6027651d75e0 [label="{free}"];
-	Node0x6027651539d0 [label="{CIccMultiProcessElement::~CIccMultiProcessElement()}"];
-	Node0x602765147e00 [label="{CIccMpeAcs::~CIccMpeAcs()}"];
-	Node0x602765147e00 -> Node0x6027651df260;
-	Node0x6027651df260 [label="{llvm.trap}"];
-	Node0x602765143a70 [label="{CIccMpeAcs::Describe()}"];
-	Node0x602765143a70 -> Node0x60276514f4e0;
-	Node0x602765143a70 -> Node0x6027651e08b0;
-	Node0x602765143a70 -> Node0x602765147d80;
-	Node0x60276514f4e0 [label="{std::basic_string<char, std::char_traits >::operator+=(char const*)}"];
-	Node0x602765147d80 [label="{icGetSig()}"];
-	Node0x6027651e08b0 [label="{icMemDump()}"];
-	Node0x60276514ae90 [label="{CIccMpeAcs::Read()}"];
-	Node0x60276514ae90 -> Node0x6027651e05d0;
-	Node0x60276514ae90 -> Node0x6027651e1470;
-	Node0x60276514ae90 -> Node0x6027651e2560;
-	Node0x6027651e05d0 [label="{CIccIO::Read32()}"];
-	Node0x6027651e1470 [label="{CIccIO::Read16()}"];
-	Node0x6027651e2560 [label="{CIccMpeAcs::AllocData()}"];
-	Node0x6027651e2560 -> Node0x6027651d75e0;
-	Node0x6027651e2560 -> Node0x6027651e20b0;
-	Node0x6027651e1e20 [label="{CIccMpeAcs::Write()}"];
-	Node0x6027651e1e20 -> Node0x6027651e3820;
-	Node0x6027651e1e20 -> Node0x6027651e3fa0;
-	Node0x6027651e3820 [label="{CIccIO::Write32()}"];
-	Node0x6027651e3fa0 [label="{CIccIO::Write16()}"];
-	Node0x6027651e3d20 [label="{CIccMpeAcs::Begin()}"];
-	Node0x6027651e3aa0 [label="{CIccMpeAcs::Apply()}"];
-	Node0x6027651e3aa0 -> Node0x6027651e4360;
-	Node0x6027651e4360 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x6027651e5200 [label="{CIccMultiProcessElement::Validate()}"];
-	Node0x6027651e55c0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x6027651e5a40 [label="{__gxx_personality_v0}"];
-	Node0x6027651e4720 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x6027651e20b0 [label="{malloc}"];
-	Node0x6027651e5cc0 [label="{CIccMpeBAcs::CIccMpeBAcs()}"];
-	Node0x6027651e5cc0 -> Node0x6027651d2790;
-	Node0x6027651e5f40 [label="{CIccMpeBAcs::CIccMpeBAcs()}"];
-	Node0x6027651e5f40 -> Node0x6027651d2790;
-	Node0x6027651e5f40 -> Node0x6027651e2560;
-	Node0x6027651e5f40 -> Node0x6027651e4360;
-	Node0x6027651e6600 [label="{CIccMpeBAcs::operator=(CIccMpeBAcs const&)}"];
-	Node0x6027651e6600 -> Node0x6027651e2560;
-	Node0x6027651e6600 -> Node0x6027651e4360;
-	Node0x6027651e64c0 [label="{CIccMpeBAcs::~CIccMpeBAcs()}"];
-	Node0x6027651e64c0 -> Node0x6027651d5710;
-	Node0x6027651e4560 [label="{CIccMpeBAcs::~CIccMpeBAcs()}"];
-	Node0x6027651e4560 -> Node0x602765205340;
-	Node0x602765205340 [label="{delete()}"];
-	Node0x602765205980 [label="{CIccMpeEAcs::CIccMpeEAcs()}"];
-	Node0x602765205980 -> Node0x6027651d2790;
-	Node0x6027651fe410 [label="{CIccMpeEAcs::CIccMpeEAcs()}"];
-	Node0x6027651fe410 -> Node0x6027651d2790;
-	Node0x6027651fe410 -> Node0x6027651e2560;
-	Node0x6027651fe410 -> Node0x6027651e4360;
-	Node0x6027651fe360 [label="{CIccMpeEAcs::operator=(CIccMpeEAcs const&)}"];
-	Node0x6027651fe360 -> Node0x6027651e2560;
-	Node0x6027651fe360 -> Node0x6027651e4360;
-	Node0x6027652065b0 [label="{CIccMpeEAcs::~CIccMpeEAcs()}"];
-	Node0x6027652065b0 -> Node0x6027651d5710;
-	Node0x602765208400 [label="{CIccMpeEAcs::~CIccMpeEAcs()}"];
-	Node0x602765208400 -> Node0x602765205340;
-	Node0x6027652082b0 [label="{__cxa_pure_virtual}"];
-	Node0x602765207c30 [label="{CIccMultiProcessElement::NumInputChannels()}"];
-	Node0x6027652066f0 [label="{CIccMultiProcessElement::NumOutputChannels()}"];
-	Node0x6027651eba60 [label="{CIccMultiProcessElement::IsSupported()}"];
-	Node0x6027651eb860 [label="{CIccMultiProcessElement::GetNewApply()}"];
-	Node0x6027651eb5e0 [label="{CIccMpeAcs::IsAcs()}"];
-	Node0x6027652089a0 [label="{CIccMultiProcessElement::GetBAcsSig()}"];
-	Node0x602765209240 [label="{CIccMultiProcessElement::GetEAcsSig()}"];
-	Node0x60276520d2b0 [label="{CIccMultiProcessElement::GetExtension()}"];
-	Node0x60276520ce80 [label="{CIccMultiProcessElement::IsLateBinding()}"];
-	Node0x6027651f73a0 [label="{CIccMultiProcessElement::IsLateBindingReflectance()}"];
-	Node0x60276520a6b0 [label="{CIccMpeAcs::GetAcsSig()}"];
-	Node0x60276520a210 [label="{CIccMpeBAcs::NewCopy()}"];
-	Node0x60276520a210 -> Node0x602765209f20;
-	Node0x60276520a210 -> Node0x602765205340;
-	Node0x602765209e60 [label="{CIccMpeBAcs::GetType()}"];
-	Node0x602765218260 [label="{CIccMpeBAcs::GetClassName()}"];
-	Node0x602765219190 [label="{CIccMpeBAcs::GetBAcsSig()}"];
-	Node0x602765218790 [label="{CIccMpeEAcs::NewCopy()}"];
-	Node0x602765218790 -> Node0x602765209f20;
-	Node0x602765218790 -> Node0x602765205340;
-	Node0x602765218650 [label="{CIccMpeEAcs::GetType()}"];
-	Node0x6027652183b0 [label="{CIccMpeEAcs::GetClassName()}"];
-	Node0x602765209f20 [label="{new()}"];
+	Node0x59f241006790 [label="CIccMpeAcs::CIccMpeAcs()"];
+	Node0x59f241006790 -> Node0x59f241008ca0;
+	Node0x59f241019840 [label="CIccMpeAcs::Validate()"];
+	Node0x59f241019840 -> Node0x59f241018720;
+	Node0x59f24104e4b0 [label="CIccMpeEAcs::GetEAcsSig()"];
+	Node0x59f241008ca0 [label="CIccMultiProcessElement::CIccMultiProcessElement()"];
+	Node0x59f241009710 [label="CIccMpeAcs::~CIccMpeAcs()"];
+	Node0x59f241009710 -> Node0x59f240f879d0;
+	Node0x59f240f879d0 [label="CIccMultiProcessElement::~CIccMultiProcessElement()"];
+	Node0x59f240f7bbc0 [label="CIccMpeAcs::~CIccMpeAcs()"];
+	Node0x59f240f76940 [label="CIccMpeAcs::Describe()"];
+	Node0x59f240f76940 -> Node0x59f240f7bfb0;
+	Node0x59f240f76940 -> Node0x59f2410143f0;
+	Node0x59f2410143f0 [label="icGetSig()"];
+	Node0x59f240f7bfb0 [label="icMemDump()"];
+	Node0x59f2410146d0 [label="CIccMpeAcs::Read()"];
+	Node0x59f2410146d0 -> Node0x59f241014540;
+	Node0x59f2410146d0 -> Node0x59f240f7dd80;
+	Node0x59f2410146d0 -> Node0x59f241016260;
+	Node0x59f241014540 [label="CIccIO::Read32()"];
+	Node0x59f240f7dd80 [label="CIccIO::Read16()"];
+	Node0x59f241016260 [label="CIccMpeAcs::AllocData()"];
+	Node0x59f241015670 [label="CIccMpeAcs::Write()"];
+	Node0x59f241015670 -> Node0x59f241016ce0;
+	Node0x59f241015670 -> Node0x59f241017e60;
+	Node0x59f241016ce0 [label="CIccIO::Write32()"];
+	Node0x59f241017e60 [label="CIccIO::Write16()"];
+	Node0x59f241017be0 [label="CIccMpeAcs::Begin()"];
+	Node0x59f241017960 [label="CIccMpeAcs::Apply()"];
+	Node0x59f241018720 [label="CIccMultiProcessElement::Validate()"];
+	Node0x59f24101a300 [label="CIccMpeBAcs::CIccMpeBAcs()"];
+	Node0x59f24101a300 -> Node0x59f241006790;
+	Node0x59f24101a600 [label="CIccMpeBAcs::CIccMpeBAcs()"];
+	Node0x59f24101a600 -> Node0x59f241006790;
+	Node0x59f24101a600 -> Node0x59f241016260;
+	Node0x59f24101a4c0 [label="CIccMpeBAcs::operator=(CIccMpeBAcs const&)"];
+	Node0x59f24101a4c0 -> Node0x59f241016260;
+	Node0x59f24101a380 [label="CIccMpeBAcs::~CIccMpeBAcs()"];
+	Node0x59f24101a380 -> Node0x59f241009710;
+	Node0x59f241039280 [label="CIccMpeBAcs::~CIccMpeBAcs()"];
+	Node0x59f241032560 [label="CIccMpeEAcs::CIccMpeEAcs()"];
+	Node0x59f241032560 -> Node0x59f241006790;
+	Node0x59f241032360 [label="CIccMpeEAcs::CIccMpeEAcs()"];
+	Node0x59f241032360 -> Node0x59f241006790;
+	Node0x59f241032360 -> Node0x59f241016260;
+	Node0x59f241018b40 [label="CIccMpeEAcs::operator=(CIccMpeEAcs const&)"];
+	Node0x59f241018b40 -> Node0x59f241016260;
+	Node0x59f24103a310 [label="CIccMpeEAcs::~CIccMpeEAcs()"];
+	Node0x59f24103a310 -> Node0x59f241009710;
+	Node0x59f24103c2b0 [label="CIccMpeEAcs::~CIccMpeEAcs()"];
+	Node0x59f24103a780 [label="CIccMultiProcessElement::NumInputChannels()"];
+	Node0x59f24103a3a0 [label="CIccMultiProcessElement::NumOutputChannels()"];
+	Node0x59f24101fae0 [label="CIccMultiProcessElement::IsSupported()"];
+	Node0x59f24101f720 [label="CIccMultiProcessElement::GetNewApply()"];
+	Node0x59f24103cc50 [label="CIccMpeAcs::IsAcs()"];
+	Node0x59f24103c8e0 [label="CIccMultiProcessElement::GetBAcsSig()"];
+	Node0x59f24103d300 [label="CIccMultiProcessElement::GetEAcsSig()"];
+	Node0x59f24103d080 [label="CIccMultiProcessElement::GetExtension()"];
+	Node0x59f241040f30 [label="CIccMultiProcessElement::IsLateBinding()"];
+	Node0x59f24102aae0 [label="CIccMultiProcessElement::IsLateBindingReflectance()"];
+	Node0x59f24103e7e0 [label="CIccMpeAcs::GetAcsSig()"];
+	Node0x59f24103e340 [label="CIccMpeBAcs::NewCopy()"];
+	Node0x59f24103df90 [label="CIccMpeBAcs::GetType()"];
+	Node0x59f24104c2a0 [label="CIccMpeBAcs::GetClassName()"];
+	Node0x59f24104d1d0 [label="CIccMpeBAcs::GetBAcsSig()"];
+	Node0x59f24104c7d0 [label="CIccMpeEAcs::NewCopy()"];
+	Node0x59f24104c690 [label="CIccMpeEAcs::GetType()"];
+	Node0x59f24104c3f0 [label="CIccMpeEAcs::GetClassName()"];
 }

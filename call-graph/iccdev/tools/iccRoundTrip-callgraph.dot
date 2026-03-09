@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccRoundTrip.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,44 +15,33 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccRoundTr
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5ca80d1a9200 [label="{CIccMinMaxEval::CIccMinMaxEval()}"];
-	Node0x5ca80d1a9200 -> Node0x5ca80d1558e0;
-	Node0x5ca80d1a9200 -> Node0x5ca80d1a8e70;
-	Node0x5ca80d1558e0 [label="{CIccEvalCompare::CIccEvalCompare()}"];
-	Node0x5ca80d1a8e70 [label="{llvm.memset.p0.i64}"];
-	Node0x5ca80d155610 [label="{CIccMinMaxEval::Compare()}"];
-	Node0x5ca80d155610 -> Node0x5ca80d1551b0;
-	Node0x5ca80d155610 -> Node0x5ca80d155d60;
-	Node0x5ca80d1551b0 [label="{icDeltaE()}"];
-	Node0x5ca80d155d60 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5ca80d1a9810 [label="{main}"];
-	Node0x5ca80d1a9810 -> Node0x5ca80d1a9640;
-	Node0x5ca80d1a9810 -> Node0x5ca80d1aa000;
-	Node0x5ca80d1a9810 -> Node0x5ca80d1563b0;
-	Node0x5ca80d1a9810 -> Node0x5ca80d155ce0;
-	Node0x5ca80d1a9810 -> Node0x5ca80d157500;
-	Node0x5ca80d1a9810 -> Node0x5ca80d155860;
-	Node0x5ca80d1a9810 -> Node0x5ca80d155f30;
-	Node0x5ca80d1a9810 -> Node0x5ca80d156e30;
-	Node0x5ca80d1a9810 -> Node0x5ca80d156bf0;
-	Node0x5ca80d1a9810 -> Node0x5ca80d156810;
-	Node0x5ca80d1a9640 [label="{printf}"];
-	Node0x5ca80d155ce0 [label="{atoi}"];
-	Node0x5ca80d155860 [label="{CIccEvalCompare::EvaluateProfile()}"];
-	Node0x5ca80d156e30 [label="{CIccPRMG::CIccPRMG()}"];
-	Node0x5ca80d156bf0 [label="{CIccPRMG::EvaluateProfile()}"];
-	Node0x5ca80d156810 [label="{CIccInfo::CIccInfo()}"];
-	Node0x5ca80d157070 [label="{__gxx_personality_v0}"];
-	Node0x5ca80d155f30 [label="{CIccInfo::GetRenderingIntentName()}"];
-	Node0x5ca80d157500 [label="{CIccMinMaxEval::GetMean1()}"];
-	Node0x5ca80d1563b0 [label="{CIccMinMaxEval::GetMean2()}"];
-	Node0x5ca80d1aa000 [label="{CIccInfo::~CIccInfo()}"];
-	Node0x5ca80d158830 [label="{__cxa_pure_virtual}"];
+	Node0x5b482ad7eb20 [label="CIccMinMaxEval::CIccMinMaxEval()"];
+	Node0x5b482ad7eb20 -> Node0x5b482ad7e400;
+	Node0x5b482ad7e400 [label="CIccEvalCompare::CIccEvalCompare()"];
+	Node0x5b482add24c0 [label="CIccMinMaxEval::Compare()"];
+	Node0x5b482add24c0 -> Node0x5b482add1de0;
+	Node0x5b482add1de0 [label="icDeltaE()"];
+	Node0x5b482ad7f1f0 [label="main"];
+	Node0x5b482ad7f1f0 -> Node0x5b482ad802c0;
+	Node0x5b482ad7f1f0 -> Node0x5b482add32c0;
+	Node0x5b482ad7f1f0 -> Node0x5b482ad7fff0;
+	Node0x5b482ad7f1f0 -> Node0x5b482ad7efb0;
+	Node0x5b482ad7f1f0 -> Node0x5b482add2d40;
+	Node0x5b482ad7f1f0 -> Node0x5b482ad7fb70;
+	Node0x5b482ad7f1f0 -> Node0x5b482ad7f790;
+	Node0x5b482ad7f1f0 -> Node0x5b482ad7f170;
+	Node0x5b482ad7efb0 [label="CIccEvalCompare::EvaluateProfile()"];
+	Node0x5b482ad7fb70 [label="CIccPRMG::CIccPRMG()"];
+	Node0x5b482ad7f790 [label="CIccPRMG::EvaluateProfile()"];
+	Node0x5b482ad7f170 [label="CIccInfo::CIccInfo()"];
+	Node0x5b482add2d40 [label="CIccInfo::GetRenderingIntentName()"];
+	Node0x5b482ad7fff0 [label="CIccMinMaxEval::GetMean1()"];
+	Node0x5b482add32c0 [label="CIccMinMaxEval::GetMean2()"];
+	Node0x5b482ad802c0 [label="CIccInfo::~CIccInfo()"];
 }

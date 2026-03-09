@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccCAM.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,107 +15,86 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccCAM.l
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x61b9667a5650 [label="{CIccCamConverter::Multiply_vect_by_mx()}"];
-	Node0x61b9667a5650 -> Node0x61b966787b30;
-	Node0x61b966787b30 [label="{llvm.fmuladd.f32}"];
-	Node0x61b9667cd840 [label="{CIccCamConverter::ReferenceConditions()}"];
-	Node0x61b9668926f0 [label="{CIccCamConverter::ReferenceConditionsInv()}"];
-	Node0x61b9667f2d40 [label="{CIccCamConverter::F_Function()}"];
-	Node0x61b9667f2d40 -> Node0x61b9668d0330;
-	Node0x61b9668d0330 [label="{pow}"];
-	Node0x61b9668d0270 [label="{CIccCamConverter::H_Function()}"];
-	Node0x61b9668d0270 -> Node0x61b9668d0330;
-	Node0x61b9668d4e50 [label="{CIccCamConverter::H_FunctionInv()}"];
-	Node0x61b9668d4e50 -> Node0x61b9668d0330;
-	Node0x61b9668d4980 [label="{CIccCamConverter::Hyperbolic()}"];
-	Node0x61b9668d4980 -> Node0x61b9668d0270;
-	Node0x61b9668d4980 -> Node0x61b9667f2d40;
-	Node0x61b9668d1750 [label="{CIccCamConverter::HyperbolicInv()}"];
-	Node0x61b9668d1750 -> Node0x61b9667f2d40;
-	Node0x61b9668d1750 -> Node0x61b9668d0270;
-	Node0x61b9668d1750 -> Node0x61b9668d4e50;
-	Node0x61b9668d2790 [label="{CIccCamConverter::IccCam_e()}"];
-	Node0x61b9668d2790 -> Node0x61b9668d1c50;
-	Node0x61b9668d1c50 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x61b9668d19d0 [label="{CIccCamConverter::CalcCoefficients()}"];
-	Node0x61b9668d19d0 -> Node0x61b9668d0330;
-	Node0x61b9668d19d0 -> Node0x61b966787b30;
-	Node0x61b9668d19d0 -> Node0x61b9668d2b50;
-	Node0x61b9668d19d0 -> Node0x61b9668d4980;
-	Node0x61b9668d19d0 -> Node0x61b9667f2d40;
-	Node0x61b9668d19d0 -> Node0x61b9668d0270;
-	Node0x61b9668d19d0 -> Node0x61b9667cd840;
-	Node0x61b9668d19d0 -> Node0x61b9667a5650;
-	Node0x61b9668d19d0 -> Node0x61b9668d3db0;
-	Node0x61b9668d2b50 [label="{llvm.fmuladd.f64}"];
-	Node0x61b9668d3db0 [label="{sqrt}"];
-	Node0x61b9668d01f0 [label="{CIccCamConverter::ab2chDeg()}"];
-	Node0x61b9668d01f0 -> Node0x61b966787b30;
-	Node0x61b9668d01f0 -> Node0x61b9668d3db0;
-	Node0x61b9668d01f0 -> Node0x61b9668d2fd0;
-	Node0x61b9668d2fd0 [label="{atan2}"];
-	Node0x61b9668edb40 [label="{CIccCamConverter::CIccCamConverter()}"];
-	Node0x61b9668edb40 -> Node0x61b9668d19d0;
-	Node0x61b9668f50a0 [label="{CIccCamConverter::~CIccCamConverter()}"];
-	Node0x61b9668f48a0 [label="{CIccCamConverter::NewCopy()}"];
-	Node0x61b9668f48a0 -> Node0x61b9668f4770;
-	Node0x61b9668f48a0 -> Node0x61b9668d4230;
-	Node0x61b9668f48a0 -> Node0x61b9668f72d0;
-	Node0x61b9668f4770 [label="{new()}"];
-	Node0x61b9668f6b80 [label="{__gxx_personality_v0}"];
-	Node0x61b9668f72d0 [label="{delete()}"];
-	Node0x61b9668d4230 [label="{CIccCamConverter::operator=(CIccCamConverter const&)}"];
-	Node0x61b9668d4230 -> Node0x61b9668d1c50;
-	Node0x61b9668f6750 [label="{CIccCamConverter::SetParameter_WhitePoint()}"];
-	Node0x61b9668f6750 -> Node0x61b9668d19d0;
-	Node0x61b9668f62e0 [label="{CIccCamConverter::SetParameter_La()}"];
-	Node0x61b9668f62e0 -> Node0x61b9668d19d0;
-	Node0x61b9668f8760 [label="{CIccCamConverter::SetParameter_Yb()}"];
-	Node0x61b9668f8760 -> Node0x61b9668d19d0;
-	Node0x61b9668f9560 [label="{CIccCamConverter::SetParameter_C()}"];
-	Node0x61b9668f9560 -> Node0x61b9668d19d0;
-	Node0x61b9668f9300 [label="{CIccCamConverter::SetParameter_Nc()}"];
-	Node0x61b9668f9300 -> Node0x61b9668d19d0;
-	Node0x61b9668f8af0 [label="{CIccCamConverter::SetParameter_F()}"];
-	Node0x61b9668f8af0 -> Node0x61b9668d19d0;
-	Node0x61b9668fad50 [label="{CIccCamConverter::GetParameter_WhitePoint()}"];
-	Node0x61b9668f3da0 [label="{CIccCamConverter::GetParameter_La()}"];
-	Node0x61b9668fbc10 [label="{CIccCamConverter::GetParameter_Yb()}"];
-	Node0x61b9668fb970 [label="{CIccCamConverter::GetParameter_C()}"];
-	Node0x61b9668f3f80 [label="{CIccCamConverter::GetParameter_Nc()}"];
-	Node0x61b9668de0f0 [label="{CIccCamConverter::GetParameter_F()}"];
-	Node0x61b9668dc270 [label="{CIccCamConverter::XYZToJab()}"];
-	Node0x61b9668dc270 -> Node0x61b9667a5650;
-	Node0x61b9668dc270 -> Node0x61b9667cd840;
-	Node0x61b9668dc270 -> Node0x61b9668d4980;
-	Node0x61b9668dc270 -> Node0x61b9668f40c0;
-	Node0x61b9668dc270 -> Node0x61b9668dbd70;
-	Node0x61b9668dc270 -> Node0x61b9668d2b50;
-	Node0x61b9668dc270 -> Node0x61b966787b30;
-	Node0x61b9668dc270 -> Node0x61b9668d3db0;
-	Node0x61b9668dc270 -> Node0x61b9668d01f0;
-	Node0x61b9668dc270 -> Node0x61b9668d0330;
-	Node0x61b9668dbd70 [label="{cos}"];
-	Node0x61b9668f40c0 [label="{sin}"];
-	Node0x61b966901110 [label="{CIccCamConverter::JabToXYZ()}"];
-	Node0x61b966901110 -> Node0x61b966787b30;
-	Node0x61b966901110 -> Node0x61b9668d3db0;
-	Node0x61b966901110 -> Node0x61b9667a5650;
-	Node0x61b966901110 -> Node0x61b9668d0330;
-	Node0x61b966901110 -> Node0x61b9668926f0;
-	Node0x61b966901110 -> Node0x61b9668d01f0;
-	Node0x61b966901110 -> Node0x61b9668dbd70;
-	Node0x61b966901110 -> Node0x61b966900fc0;
-	Node0x61b966901110 -> Node0x61b9668d1750;
-	Node0x61b966901110 -> Node0x61b9668d2b50;
-	Node0x61b966901110 -> Node0x61b966900eb0;
-	Node0x61b966900fc0 [label="{tan}"];
-	Node0x61b966900eb0 [label="{llvm.fabs.f64}"];
+	Node0x56805d687650 [label="CIccCamConverter::Multiply_vect_by_mx()"];
+	Node0x56805d6af840 [label="CIccCamConverter::ReferenceConditions()"];
+	Node0x56805d7746f0 [label="CIccCamConverter::ReferenceConditionsInv()"];
+	Node0x56805d6d4d40 [label="CIccCamConverter::F_Function()"];
+	Node0x56805d6d4d40 -> Node0x56805d7b2330;
+	Node0x56805d7b2330 [label="pow"];
+	Node0x56805d7b2270 [label="CIccCamConverter::H_Function()"];
+	Node0x56805d7b2270 -> Node0x56805d7b2330;
+	Node0x56805d7b6e50 [label="CIccCamConverter::H_FunctionInv()"];
+	Node0x56805d7b6e50 -> Node0x56805d7b2330;
+	Node0x56805d7b6980 [label="CIccCamConverter::Hyperbolic()"];
+	Node0x56805d7b6980 -> Node0x56805d7b2270;
+	Node0x56805d7b6980 -> Node0x56805d6d4d40;
+	Node0x56805d7b3750 [label="CIccCamConverter::HyperbolicInv()"];
+	Node0x56805d7b3750 -> Node0x56805d6d4d40;
+	Node0x56805d7b3750 -> Node0x56805d7b2270;
+	Node0x56805d7b3750 -> Node0x56805d7b6e50;
+	Node0x56805d7b4790 [label="CIccCamConverter::IccCam_e()"];
+	Node0x56805d7b39d0 [label="CIccCamConverter::CalcCoefficients()"];
+	Node0x56805d7b39d0 -> Node0x56805d7b2330;
+	Node0x56805d7b39d0 -> Node0x56805d7b6980;
+	Node0x56805d7b39d0 -> Node0x56805d6d4d40;
+	Node0x56805d7b39d0 -> Node0x56805d7b2270;
+	Node0x56805d7b39d0 -> Node0x56805d6af840;
+	Node0x56805d7b39d0 -> Node0x56805d687650;
+	Node0x56805d7b39d0 -> Node0x56805d7b5db0;
+	Node0x56805d7b5db0 [label="sqrt"];
+	Node0x56805d7b21f0 [label="CIccCamConverter::ab2chDeg()"];
+	Node0x56805d7b21f0 -> Node0x56805d7b5db0;
+	Node0x56805d7b21f0 -> Node0x56805d7b4fd0;
+	Node0x56805d7b4fd0 [label="atan2"];
+	Node0x56805d7cfb40 [label="CIccCamConverter::CIccCamConverter()"];
+	Node0x56805d7cfb40 -> Node0x56805d7b39d0;
+	Node0x56805d7d70a0 [label="CIccCamConverter::~CIccCamConverter()"];
+	Node0x56805d7d68a0 [label="CIccCamConverter::NewCopy()"];
+	Node0x56805d7d68a0 -> Node0x56805d7b6230;
+	Node0x56805d7b6230 [label="CIccCamConverter::operator=(CIccCamConverter const&)"];
+	Node0x56805d7d8540 [label="CIccCamConverter::SetParameter_WhitePoint()"];
+	Node0x56805d7d8540 -> Node0x56805d7b39d0;
+	Node0x56805d7d80d0 [label="CIccCamConverter::SetParameter_La()"];
+	Node0x56805d7d80d0 -> Node0x56805d7b39d0;
+	Node0x56805d7da550 [label="CIccCamConverter::SetParameter_Yb()"];
+	Node0x56805d7da550 -> Node0x56805d7b39d0;
+	Node0x56805d7db350 [label="CIccCamConverter::SetParameter_C()"];
+	Node0x56805d7db350 -> Node0x56805d7b39d0;
+	Node0x56805d7db0f0 [label="CIccCamConverter::SetParameter_Nc()"];
+	Node0x56805d7db0f0 -> Node0x56805d7b39d0;
+	Node0x56805d7da8e0 [label="CIccCamConverter::SetParameter_F()"];
+	Node0x56805d7da8e0 -> Node0x56805d7b39d0;
+	Node0x56805d7dcb40 [label="CIccCamConverter::GetParameter_WhitePoint()"];
+	Node0x56805d7d5da0 [label="CIccCamConverter::GetParameter_La()"];
+	Node0x56805d7dda00 [label="CIccCamConverter::GetParameter_Yb()"];
+	Node0x56805d7dd760 [label="CIccCamConverter::GetParameter_C()"];
+	Node0x56805d7d5f80 [label="CIccCamConverter::GetParameter_Nc()"];
+	Node0x56805d7c00f0 [label="CIccCamConverter::GetParameter_F()"];
+	Node0x56805d7be270 [label="CIccCamConverter::XYZToJab()"];
+	Node0x56805d7be270 -> Node0x56805d687650;
+	Node0x56805d7be270 -> Node0x56805d6af840;
+	Node0x56805d7be270 -> Node0x56805d7b6980;
+	Node0x56805d7be270 -> Node0x56805d7d60c0;
+	Node0x56805d7be270 -> Node0x56805d7bdd70;
+	Node0x56805d7be270 -> Node0x56805d7b5db0;
+	Node0x56805d7be270 -> Node0x56805d7b21f0;
+	Node0x56805d7be270 -> Node0x56805d7b2330;
+	Node0x56805d7bdd70 [label="cos"];
+	Node0x56805d7d60c0 [label="sin"];
+	Node0x56805d7e3310 [label="CIccCamConverter::JabToXYZ()"];
+	Node0x56805d7e3310 -> Node0x56805d7b5db0;
+	Node0x56805d7e3310 -> Node0x56805d687650;
+	Node0x56805d7e3310 -> Node0x56805d7b2330;
+	Node0x56805d7e3310 -> Node0x56805d7746f0;
+	Node0x56805d7e3310 -> Node0x56805d7b21f0;
+	Node0x56805d7e3310 -> Node0x56805d7bdd70;
+	Node0x56805d7e3310 -> Node0x56805d7e31c0;
+	Node0x56805d7e3310 -> Node0x56805d7b3750;
+	Node0x56805d7e31c0 [label="tan"];
 }

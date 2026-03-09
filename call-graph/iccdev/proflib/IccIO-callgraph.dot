@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccIO.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,171 +15,111 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccIO.ll
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x57550a5f3840 [label="{CIccIO::ReadLine()}"];
-	Node0x57550a5f5670 [label="{CIccIO::Read16()}"];
-	Node0x57550a5f5670 -> Node0x57550a5f6cb0;
-	Node0x57550a5f6cb0 [label="{icSwab16Array()}"];
-	Node0x57550a5f8270 [label="{CIccIO::Write16()}"];
-	Node0x57550a5f8270 -> Node0x57550a5ef0a0;
-	Node0x57550a5ef0a0 [label="{icSwab16Ptr()}"];
-	Node0x57550a442ab0 [label="{CIccIO::Read32()}"];
-	Node0x57550a442ab0 -> Node0x57550a522600;
-	Node0x57550a522600 [label="{icSwab32Array()}"];
-	Node0x57550a48f940 [label="{CIccIO::Write32()}"];
-	Node0x57550a48f940 -> Node0x57550a5ef010;
-	Node0x57550a5ef010 [label="{icSwab32Ptr()}"];
-	Node0x57550a448da0 [label="{CIccIO::Read64()}"];
-	Node0x57550a448da0 -> Node0x57550a61dd30;
-	Node0x57550a61dd30 [label="{icSwab64Array()}"];
-	Node0x57550a61da20 [label="{CIccIO::Write64()}"];
-	Node0x57550a61da20 -> Node0x57550a616ae0;
-	Node0x57550a625270 [label="{CIccIO::WriteFloat32Float()}"];
-	Node0x57550a625270 -> Node0x57550a48f940;
-	Node0x57550a616ae0 [label="{icSwab64Ptr()}"];
-	Node0x57550a5fed40 [label="{CIccIO::ReadUInt8Float()}"];
-	Node0x57550a443ce0 [label="{CIccIO::WriteUInt8Float()}"];
-	Node0x57550a443ce0 -> Node0x57550a620e80;
-	Node0x57550a443ce0 -> Node0x57550a61f920;
-	Node0x57550a620e80 [label="{std::isnan()}"];
-	Node0x57550a620e80 -> Node0x57550a61ed40;
-	Node0x57550a61f920 [label="{llvm.fmuladd.f64}"];
-	Node0x57550a61eaf0 [label="{CIccIO::ReadUInt16Float()}"];
-	Node0x57550a61eaf0 -> Node0x57550a5f5670;
-	Node0x57550a621680 [label="{CIccIO::WriteUInt16Float()}"];
-	Node0x57550a621680 -> Node0x57550a620e80;
-	Node0x57550a621680 -> Node0x57550a61f920;
-	Node0x57550a621680 -> Node0x57550a5f8270;
-	Node0x57550a622ff0 [label="{CIccIO::ReadFloat16Float()}"];
-	Node0x57550a622ff0 -> Node0x57550a5f5670;
-	Node0x57550a622ff0 -> Node0x57550a622ad0;
-	Node0x57550a622ad0 [label="{icF16toF()}"];
-	Node0x57550a61ca30 [label="{CIccIO::WriteFloat16Float()}"];
-	Node0x57550a61ca30 -> Node0x57550a621710;
-	Node0x57550a61ca30 -> Node0x57550a5f8270;
-	Node0x57550a4696a0 [label="{CIccMemIO::Close()}"];
-	Node0x57550a4696a0 -> Node0x57550a46ad60;
-	Node0x57550a621710 [label="{icFtoF16()}"];
-	Node0x57550a623270 [label="{CIccIO::ReadFloat32Float()}"];
-	Node0x57550a623270 -> Node0x57550a442ab0;
-	Node0x57550a624940 [label="{CIccIO::Align32()}"];
-	Node0x57550a624940 -> Node0x57550a6246a0;
-	Node0x57550a6246a0 [label="{llvm.memset.p0.i64}"];
-	Node0x57550a6243f0 [label="{CIccIO::Sync32()}"];
-	Node0x57550a6242a0 [label="{CIccFileIO::CIccFileIO()}"];
-	Node0x57550a6242a0 -> Node0x57550a6246a0;
-	Node0x57550a6242a0 -> Node0x57550a6052a0;
-	Node0x57550a6052a0 [label="{CIccIO::CIccIO()}"];
-	Node0x57550a607560 [label="{CIccFileIO::~CIccFileIO()}"];
-	Node0x57550a607560 -> Node0x57550a607420;
-	Node0x57550a607560 -> Node0x57550a6072e0;
-	Node0x57550a606020 [label="{__gxx_personality_v0}"];
-	Node0x57550a6072e0 [label="{__clang_call_terminate}"];
-	Node0x57550a6072e0 -> Node0x57550a62b810;
-	Node0x57550a6072e0 -> Node0x57550a62b680;
-	Node0x57550a62b810 [label="{__cxa_begin_catch}"];
-	Node0x57550a62b680 [label="{std::terminate()}"];
-	Node0x57550a62a880 [label="{CIccFileIO::~CIccFileIO()}"];
-	Node0x57550a62a880 -> Node0x57550a6299a0;
-	Node0x57550a6299a0 [label="{delete()}"];
-	Node0x57550a629eb0 [label="{CIccFileIO::Open()}"];
-	Node0x57550a629eb0 -> Node0x57550a62dc20;
-	Node0x57550a629eb0 -> Node0x57550a60bb60;
-	Node0x57550a62dc20 [label="{fclose}"];
-	Node0x57550a60bb60 [label="{fopen}"];
-	Node0x57550a60c220 [label="{CIccFileIO::Attach()}"];
-	Node0x57550a60c220 -> Node0x57550a62dc20;
-	Node0x57550a60b660 [label="{CIccFileIO::Detach()}"];
-	Node0x57550a62e410 [label="{CIccFileIO::Close()}"];
-	Node0x57550a62e410 -> Node0x57550a62dc20;
-	Node0x57550a62faf0 [label="{CIccFileIO::Read8()}"];
-	Node0x57550a62faf0 -> Node0x57550a62f8a0;
-	Node0x57550a62f8a0 [label="{fread}"];
-	Node0x57550a62f1e0 [label="{CIccFileIO::Write8()}"];
-	Node0x57550a62f1e0 -> Node0x57550a60f6a0;
-	Node0x57550a60f6a0 [label="{fwrite}"];
-	Node0x57550a632d50 [label="{CIccFileIO::GetLength()}"];
-	Node0x57550a632d50 -> Node0x57550a631490;
-	Node0x57550a632d50 -> Node0x57550a621e40;
-	Node0x57550a632d50 -> Node0x57550a60f620;
-	Node0x57550a631490 [label="{fflush}"];
-	Node0x57550a621e40 [label="{ftell}"];
-	Node0x57550a60f620 [label="{fseek}"];
-	Node0x57550a44a280 [label="{CIccFileIO::Seek()}"];
-	Node0x57550a44a280 -> Node0x57550a60f620;
-	Node0x57550a44a280 -> Node0x57550a621e40;
-	Node0x57550a5fbe70 [label="{CIccFileIO::Tell()}"];
-	Node0x57550a5fbe70 -> Node0x57550a621e40;
-	Node0x57550a5fbba0 [label="{CIccEmbedIO::CIccEmbedIO()}"];
-	Node0x57550a5fbba0 -> Node0x57550a6246a0;
-	Node0x57550a5fbba0 -> Node0x57550a6052a0;
-	Node0x57550a5fba60 [label="{CIccEmbedIO::~CIccEmbedIO()}"];
-	Node0x57550a5fba60 -> Node0x57550a607420;
-	Node0x57550a5fba60 -> Node0x57550a6072e0;
-	Node0x57550a5fb920 [label="{CIccEmbedIO::~CIccEmbedIO()}"];
-	Node0x57550a5fb920 -> Node0x57550a6299a0;
-	Node0x57550a5fb7e0 [label="{CIccEmbedIO::Attach()}"];
-	Node0x57550a44e8c0 [label="{CIccEmbedIO::Close()}"];
-	Node0x57550a44e080 [label="{CIccEmbedIO::Read8()}"];
-	Node0x57550a63b6b0 [label="{CIccEmbedIO::Write8()}"];
-	Node0x57550a63bd70 [label="{CIccEmbedIO::GetLength()}"];
-	Node0x57550a63b870 [label="{CIccEmbedIO::Seek()}"];
-	Node0x57550a455620 [label="{CIccEmbedIO::Tell()}"];
-	Node0x57550a4597c0 [label="{CIccMemIO::CIccMemIO()}"];
-	Node0x57550a4597c0 -> Node0x57550a6246a0;
-	Node0x57550a4597c0 -> Node0x57550a6052a0;
-	Node0x57550a458f30 [label="{CIccMemIO::~CIccMemIO()}"];
-	Node0x57550a458f30 -> Node0x57550a607420;
-	Node0x57550a458f30 -> Node0x57550a6072e0;
-	Node0x57550a451e00 [label="{CIccMemIO::~CIccMemIO()}"];
-	Node0x57550a451e00 -> Node0x57550a6299a0;
-	Node0x57550a457450 [label="{CIccMemIO::Alloc()}"];
-	Node0x57550a457450 -> Node0x57550a456be0;
-	Node0x57550a457450 -> Node0x57550a463820;
-	Node0x57550a457450 -> Node0x57550a46ad60;
-	Node0x57550a456be0 [label="{malloc}"];
-	Node0x57550a463820 [label="{CIccMemIO::Attach()}"];
-	Node0x57550a46ad60 [label="{free}"];
-	Node0x57550a465ba0 [label="{CIccMemIO::Read8()}"];
-	Node0x57550a465ba0 -> Node0x57550a475b40;
-	Node0x57550a475b40 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x57550a47c4a0 [label="{CIccMemIO::Write8()}"];
-	Node0x57550a47c4a0 -> Node0x57550a475b40;
-	Node0x57550a47b9d0 [label="{CIccMemIO::GetLength()}"];
-	Node0x57550a477570 [label="{CIccMemIO::Seek()}"];
-	Node0x57550a477570 -> Node0x57550a6246a0;
-	Node0x57550a47e5b0 [label="{CIccMemIO::Tell()}"];
-	Node0x57550a4825c0 [label="{CIccNullIO::CIccNullIO()}"];
-	Node0x57550a4825c0 -> Node0x57550a6246a0;
-	Node0x57550a4825c0 -> Node0x57550a6052a0;
-	Node0x57550a481d20 [label="{CIccNullIO::~CIccNullIO()}"];
-	Node0x57550a481d20 -> Node0x57550a607420;
-	Node0x57550a481d20 -> Node0x57550a6072e0;
-	Node0x57550a481b80 [label="{CIccNullIO::~CIccNullIO()}"];
-	Node0x57550a481b80 -> Node0x57550a6299a0;
-	Node0x57550a480240 [label="{CIccNullIO::Open()}"];
-	Node0x57550a47eec0 [label="{CIccNullIO::Close()}"];
-	Node0x57550a493710 [label="{CIccNullIO::Read8()}"];
-	Node0x57550a493710 -> Node0x57550a6246a0;
-	Node0x57550a4923f0 [label="{CIccNullIO::Write8()}"];
-	Node0x57550a490080 [label="{CIccNullIO::GetLength()}"];
-	Node0x57550a488160 [label="{CIccNullIO::Seek()}"];
-	Node0x57550a4711b0 [label="{CIccNullIO::Tell()}"];
-	Node0x57550a61ed40 [label="{llvm.is.fpclass.f32}"];
-	Node0x57550a607420 [label="{CIccIO::~CIccIO()}"];
-	Node0x57550a4a4340 [label="{CIccIO::~CIccIO()}"];
-	Node0x57550a4a4340 -> Node0x57550a607420;
-	Node0x57550a4a4340 -> Node0x57550a6299a0;
-	Node0x57550a4a41b0 [label="{CIccIO::Close()}"];
-	Node0x57550a4954c0 [label="{CIccIO::Read8()}"];
-	Node0x57550a4a76d0 [label="{CIccIO::Write8()}"];
-	Node0x57550a4d5980 [label="{CIccIO::GetLength()}"];
-	Node0x57550a44d8d0 [label="{CIccIO::Seek()}"];
-	Node0x57550a4ab1d0 [label="{CIccIO::Tell()}"];
+	Node0x5a9b16ca1840 [label="CIccIO::ReadLine()"];
+	Node0x5a9b16ca3670 [label="CIccIO::Read16()"];
+	Node0x5a9b16ca3670 -> Node0x5a9b16ca4cb0;
+	Node0x5a9b16ca4cb0 [label="icSwab16Array()"];
+	Node0x5a9b16ca6270 [label="CIccIO::Write16()"];
+	Node0x5a9b16ca6270 -> Node0x5a9b16c9d0a0;
+	Node0x5a9b16c9d0a0 [label="icSwab16Ptr()"];
+	Node0x5a9b16af1190 [label="CIccIO::Read32()"];
+	Node0x5a9b16af1190 -> Node0x5a9b16c57b70;
+	Node0x5a9b16c57b70 [label="icSwab32Array()"];
+	Node0x5a9b16bd0600 [label="CIccIO::Write32()"];
+	Node0x5a9b16bd0600 -> Node0x5a9b16c9d010;
+	Node0x5a9b16c9d010 [label="icSwab32Ptr()"];
+	Node0x5a9b16af6f90 [label="CIccIO::Read64()"];
+	Node0x5a9b16af6f90 -> Node0x5a9b16ccbd30;
+	Node0x5a9b16ccbd30 [label="icSwab64Array()"];
+	Node0x5a9b16cc4c20 [label="CIccIO::Write64()"];
+	Node0x5a9b16cc4c20 -> Node0x5a9b16cacd40;
+	Node0x5a9b16cd1990 [label="CIccIO::WriteFloat32Float()"];
+	Node0x5a9b16cd1990 -> Node0x5a9b16bd0600;
+	Node0x5a9b16cacd40 [label="icSwab64Ptr()"];
+	Node0x5a9b16af1ce0 [label="CIccIO::ReadUInt8Float()"];
+	Node0x5a9b16ccd710 [label="CIccIO::WriteUInt8Float()"];
+	Node0x5a9b16ccf660 [label="CIccIO::ReadUInt16Float()"];
+	Node0x5a9b16ccf660 -> Node0x5a9b16ca3670;
+	Node0x5a9b16ccf490 [label="CIccIO::WriteUInt16Float()"];
+	Node0x5a9b16ccf490 -> Node0x5a9b16ca6270;
+	Node0x5a9b16ccf2a0 [label="CIccIO::ReadFloat16Float()"];
+	Node0x5a9b16ccf2a0 -> Node0x5a9b16ca3670;
+	Node0x5a9b16ccf2a0 -> Node0x5a9b16cced20;
+	Node0x5a9b16cced20 [label="icF16toF()"];
+	Node0x5a9b16ccd950 [label="CIccIO::WriteFloat16Float()"];
+	Node0x5a9b16ccd950 -> Node0x5a9b16cd2180;
+	Node0x5a9b16ccd950 -> Node0x5a9b16ca6270;
+	Node0x5a9b16b11820 [label="CIccMemIO::Close()"];
+	Node0x5a9b16cd2180 [label="icFtoF16()"];
+	Node0x5a9b16cd2030 [label="CIccIO::ReadFloat32Float()"];
+	Node0x5a9b16cd2030 -> Node0x5a9b16af1190;
+	Node0x5a9b16cd14f0 [label="CIccIO::Align32()"];
+	Node0x5a9b16cb3320 [label="CIccIO::Sync32()"];
+	Node0x5a9b16cb2e20 [label="CIccFileIO::CIccFileIO()"];
+	Node0x5a9b16cb2e20 -> Node0x5a9b16cd3480;
+	Node0x5a9b16cd3480 [label="CIccIO::CIccIO()"];
+	Node0x5a9b16cd33d0 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x5a9b16cd33d0 -> Node0x5a9b16cd2970;
+	Node0x5a9b16cd7450 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x5a9b16cba220 [label="CIccFileIO::Open()"];
+	Node0x5a9b16cb89e0 [label="CIccFileIO::Attach()"];
+	Node0x5a9b16cdda90 [label="CIccFileIO::Detach()"];
+	Node0x5a9b16cdd840 [label="CIccFileIO::Close()"];
+	Node0x5a9b16cdd180 [label="CIccFileIO::Read8()"];
+	Node0x5a9b16ce0cb0 [label="CIccFileIO::Write8()"];
+	Node0x5a9b16ccfdf0 [label="CIccFileIO::GetLength()"];
+	Node0x5a9b16ca9920 [label="CIccFileIO::Seek()"];
+	Node0x5a9b16ca97e0 [label="CIccFileIO::Tell()"];
+	Node0x5a9b16cc1160 [label="CIccEmbedIO::CIccEmbedIO()"];
+	Node0x5a9b16cc1160 -> Node0x5a9b16cd3480;
+	Node0x5a9b16cdbae0 [label="CIccEmbedIO::~CIccEmbedIO()"];
+	Node0x5a9b16cdbae0 -> Node0x5a9b16cd2970;
+	Node0x5a9b16ce9cb0 [label="CIccEmbedIO::~CIccEmbedIO()"];
+	Node0x5a9b16ce98f0 [label="CIccEmbedIO::Attach()"];
+	Node0x5a9b16ce9670 [label="CIccEmbedIO::Close()"];
+	Node0x5a9b16ce9030 [label="CIccEmbedIO::Read8()"];
+	Node0x5a9b16ce8ef0 [label="CIccEmbedIO::Write8()"];
+	Node0x5a9b16afea00 [label="CIccEmbedIO::GetLength()"];
+	Node0x5a9b16affe00 [label="CIccEmbedIO::Seek()"];
+	Node0x5a9b16b05450 [label="CIccEmbedIO::Tell()"];
+	Node0x5a9b16b043e0 [label="CIccMemIO::CIccMemIO()"];
+	Node0x5a9b16b043e0 -> Node0x5a9b16cd3480;
+	Node0x5a9b16b03620 [label="CIccMemIO::~CIccMemIO()"];
+	Node0x5a9b16b03620 -> Node0x5a9b16cd2970;
+	Node0x5a9b16ce9730 [label="CIccMemIO::~CIccMemIO()"];
+	Node0x5a9b16b10eb0 [label="CIccMemIO::Alloc()"];
+	Node0x5a9b16b10eb0 -> Node0x5a9b16b176a0;
+	Node0x5a9b16b176a0 [label="CIccMemIO::Attach()"];
+	Node0x5a9b16b29b90 [label="CIccMemIO::Read8()"];
+	Node0x5a9b16b252a0 [label="CIccMemIO::Write8()"];
+	Node0x5a9b16b23b40 [label="CIccMemIO::GetLength()"];
+	Node0x5a9b16b2fd20 [label="CIccMemIO::Seek()"];
+	Node0x5a9b16b2d900 [label="CIccMemIO::Tell()"];
+	Node0x5a9b16b2c5b0 [label="CIccNullIO::CIccNullIO()"];
+	Node0x5a9b16b2c5b0 -> Node0x5a9b16cd3480;
+	Node0x5a9b16b2c3f0 [label="CIccNullIO::~CIccNullIO()"];
+	Node0x5a9b16b2c3f0 -> Node0x5a9b16cd2970;
+	Node0x5a9b16b2bb60 [label="CIccNullIO::~CIccNullIO()"];
+	Node0x5a9b16b34bd0 [label="CIccNullIO::Open()"];
+	Node0x5a9b16b403f0 [label="CIccNullIO::Close()"];
+	Node0x5a9b16b3e080 [label="CIccNullIO::Read8()"];
+	Node0x5a9b16b36160 [label="CIccNullIO::Write8()"];
+	Node0x5a9b16b41710 [label="CIccNullIO::GetLength()"];
+	Node0x5a9b16b52340 [label="CIccNullIO::Seek()"];
+	Node0x5a9b16b45240 [label="CIccNullIO::Tell()"];
+	Node0x5a9b16cd2970 [label="CIccIO::~CIccIO()"];
+	Node0x5a9b16b42740 [label="CIccIO::~CIccIO()"];
+	Node0x5a9b16b42740 -> Node0x5a9b16cd2970;
+	Node0x5a9b16b41d60 [label="CIccIO::Close()"];
+	Node0x5a9b16b6c9a0 [label="CIccIO::Read8()"];
+	Node0x5a9b16b59ce0 [label="CIccIO::Write8()"];
+	Node0x5a9b16b59050 [label="CIccIO::GetLength()"];
+	Node0x5a9b16b1f480 [label="CIccIO::Seek()"];
+	Node0x5a9b16bb4010 [label="CIccIO::Tell()"];
 }

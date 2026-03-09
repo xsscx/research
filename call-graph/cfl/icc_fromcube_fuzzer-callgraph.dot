@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_fromcube_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,188 +15,103 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_fromcube_fuzzer
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5d9ddab0d880 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x5d9ddab0d880 -> Node0x5d9ddab0c8f0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab11670;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab11700;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa0ee30;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa0db40;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa017b0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9ff930;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9d9190;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1d770;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa793d0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1dc70;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1bd60;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa297e0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddaa15990;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dbc10;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab179f0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1b8e0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9d9450;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9d9920;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dc2d0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dbb90;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab18890;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dd410;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1cff0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab18720;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dd8e0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1cd70;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1b4f0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dc250;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab1a830;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9ddb10;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dd030;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dd390;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dd960;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dc970;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab196c0;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab19170;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab18ee0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dc6b0;
-	Node0x5d9ddab0d880 -> Node0x5d9dda9dcb30;
-	Node0x5d9ddab0d880 -> Node0x5d9ddab18d50;
-	Node0x5d9ddab1a970 [label="{std::basic_string<char, std::char_traits >::operator[](unsigned long)}"];
-	Node0x5d9ddab0c8f0 [label="{fuzz_tmpdir()}"];
-	Node0x5d9ddab0c8f0 -> Node0x5d9ddab1d4f0;
-	Node0x5d9ddab11670 [label="{fuzz_build_path()}"];
-	Node0x5d9ddab11670 -> Node0x5d9ddab1d270;
-	Node0x5d9ddab11670 -> Node0x5d9dda9dbb90;
-	Node0x5d9ddab11700 [label="{mkstemp}"];
-	Node0x5d9ddaa0ee30 [label="{write}"];
-	Node0x5d9ddaa0db40 [label="{close}"];
-	Node0x5d9ddaa017b0 [label="{unlink}"];
-	Node0x5d9dda9ff930 [label="{CubeFile::CubeFile()}"];
-	Node0x5d9dda9ff930 -> Node0x5d9ddab1eed0;
-	Node0x5d9dda9ff930 -> Node0x5d9ddab1bd60;
-	Node0x5d9dda9ff930 -> Node0x5d9ddab1f350;
-	Node0x5d9dda9d9190 [label="{CubeFile::parseHeader()}"];
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1fc90;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1f3d0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1f150;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1bd60;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1e810;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1da70;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1a830;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab226e0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1a970;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1bba0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab22be0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab23360;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab1c930;
-	Node0x5d9dda9d9190 -> Node0x5d9dda9dd8e0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab22e60;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab230e0;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab22100;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab22960;
-	Node0x5d9dda9d9190 -> Node0x5d9ddab21ac0;
-	Node0x5d9ddab23ae0 [label="{__gxx_personality_v0}"];
-	Node0x5d9ddaa793d0 [label="{CubeFile::sizeLut3D()}"];
-	Node0x5d9ddaa297e0 [label="{CIccProfile::CIccProfile()}"];
-	Node0x5d9ddaa15990 [label="{CIccProfile::InitHeader()}"];
-	Node0x5d9dda9dbc10 [label="{new()}"];
-	Node0x5d9ddab179f0 [label="{CIccTagMultiProcessElement::CIccTagMultiProcessElement()}"];
-	Node0x5d9dda9d9450 [label="{delete()}"];
-	Node0x5d9dda9d9920 [label="{CubeFile::isCustomInputRange()}"];
-	Node0x5d9dda9d9920 -> Node0x5d9ddab23860;
-	Node0x5d9dda9dc2d0 [label="{CubeFile::getMinInput()}"];
-	Node0x5d9dda9dbb90 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5d9ddab18890 [label="{CubeFile::getMaxInput()}"];
-	Node0x5d9ddab18720 [label="{CIccMpeCurveSet::CIccMpeCurveSet()}"];
-	Node0x5d9dda9dc250 [label="{CIccSingleSampledCurve::CIccSingleSampledCurve()}"];
-	Node0x5d9ddab19170 [label="{CIccMpeCurveSet::SetCurve()}"];
-	Node0x5d9ddab18ee0 [label="{memcmp}"];
-	Node0x5d9ddab18d50 [label="{CIccMpeCLUT::CIccMpeCLUT()}"];
-	Node0x5d9dda9dcb30 [label="{CIccCLUT::CIccCLUT()}"];
-	Node0x5d9dda9dc6b0 [label="{CIccCLUT::Init()}"];
-	Node0x5d9ddab196c0 [label="{CIccCLUT::GetData()}"];
-	Node0x5d9dda9dd960 [label="{CubeFile::parse3DTable()}"];
-	Node0x5d9dda9dd960 -> Node0x5d9ddab1f150;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab1da70;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab1a830;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab1a970;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab1bd60;
-	Node0x5d9dda9dd960 -> Node0x5d9dda9dd8e0;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab22be0;
-	Node0x5d9dda9dd960 -> Node0x5d9ddab23360;
-	Node0x5d9dda9dc970 [label="{CIccCLUT::NumPoints()}"];
-	Node0x5d9dda9dd390 [label="{CIccMpeCLUT::SetCLUT()}"];
-	Node0x5d9dda9dd410 [label="{CIccProfile::AttachTag()}"];
-	Node0x5d9dda9dd030 [label="{CubeFile::close()}"];
-	Node0x5d9dda9dd030 -> Node0x5d9ddab24760;
-	Node0x5d9ddab1b4f0 [label="{CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()}"];
-	Node0x5d9dda9ddb10 [label="{CubeFile::getDescription[abi:cxx11]()}"];
-	Node0x5d9dda9ddb10 -> Node0x5d9ddab235e0;
-	Node0x5d9ddab1a830 [label="{basic_string<char, std::char_traits >::size()}"];
-	Node0x5d9ddab1cff0 [label="{CIccTagMultiLocalizedUnicode::SetText()}"];
-	Node0x5d9dda9dd8e0 [label="{basic_string<char, std::char_traits >::c_str()}"];
-	Node0x5d9ddab1cd70 [label="{CubeFile::getCopyright[abi:cxx11]()}"];
-	Node0x5d9ddab1cd70 -> Node0x5d9ddab235e0;
-	Node0x5d9ddab1bd60 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x5d9ddab1b8e0 [label="{SaveIccProfile()}"];
-	Node0x5d9ddab1dc70 [label="{CIccProfile::~CIccProfile()}"];
-	Node0x5d9ddab1d770 [label="{CubeFile::~CubeFile()}"];
-	Node0x5d9ddab1d770 -> Node0x5d9dda9dd030;
-	Node0x5d9ddab1d770 -> Node0x5d9ddab1bd60;
-	Node0x5d9ddab1d770 -> Node0x5d9ddab234a0;
-	Node0x5d9ddab1d4f0 [label="{getenv}"];
-	Node0x5d9ddab1d270 [label="{strlen}"];
-	Node0x5d9ddab1eed0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5d9ddab1f350 [label="{std::basic_string<char, std::char_traits >::operator=(char const*)}"];
-	Node0x5d9ddab1fc90 [label="{CubeFile::open()}"];
-	Node0x5d9ddab1fc90 -> Node0x5d9dda9dd8e0;
-	Node0x5d9ddab1fc90 -> Node0x5d9ddab29ba0;
-	Node0x5d9ddab1fc90 -> Node0x5d9ddab1c930;
-	Node0x5d9ddab1f3d0 [label="{basic_string<char, std::char_traits >::clear()}"];
-	Node0x5d9ddab1f150 [label="{CubeFile::isEOF()}"];
-	Node0x5d9ddab1f150 -> Node0x5d9ddab29a60;
-	Node0x5d9ddab1e810 [label="{ftell}"];
-	Node0x5d9ddab1da70 [label="{CubeFile::getNextLine[abi:cxx11]()}"];
-	Node0x5d9ddab1da70 -> Node0x5d9ddab1eed0;
-	Node0x5d9ddab1da70 -> Node0x5d9ddab1f150;
-	Node0x5d9ddab1da70 -> Node0x5d9ddab29920;
-	Node0x5d9ddab1da70 -> Node0x5d9ddab29a60;
-	Node0x5d9ddab1da70 -> Node0x5d9ddab1bd60;
-	Node0x5d9ddab1da70 -> Node0x5d9ddab230e0;
-	Node0x5d9ddab1c930 [label="{fseek}"];
-	Node0x5d9ddab226e0 [label="{bool std::operator==<char, std::char_traits >(std::basic_string<cha...}"];
-	Node0x5d9ddab226e0 -> Node0x5d9ddab1a830;
-	Node0x5d9ddab226e0 -> Node0x5d9ddab296a0;
-	Node0x5d9ddab226e0 -> Node0x5d9ddab29560;
-	Node0x5d9ddab226e0 -> Node0x5d9ddab29da0;
-	Node0x5d9ddab1bba0 [label="{basic_string<char, std::char_traits >::substr()}"];
-	Node0x5d9ddab22100 [label="{std::basic_string<char, std::char_traits >::operator+=(char const*)}"];
-	Node0x5d9ddab21ac0 [label="{CubeFile::getTitle[abi:cxx11](char const*)}"];
-	Node0x5d9ddab21ac0 -> Node0x5d9ddab1eed0;
-	Node0x5d9ddab21ac0 -> Node0x5d9ddab230e0;
-	Node0x5d9ddab21ac0 -> Node0x5d9ddab1bd60;
-	Node0x5d9ddab22960 [label="{std::basic_string<char, std::char_traits >::operator+=(std::basic_s...}"];
-	Node0x5d9ddab230e0 [label="{std::basic_string<char, std::char_traits >::operator+=(char)}"];
-	Node0x5d9ddab22e60 [label="{atoll}"];
-	Node0x5d9ddab22be0 [label="{atof}"];
-	Node0x5d9ddab23360 [label="{CubeFile::getNext()}"];
-	Node0x5d9ddab29ba0 [label="{fopen}"];
-	Node0x5d9ddab29a60 [label="{feof}"];
-	Node0x5d9ddab29920 [label="{fgetc}"];
-	Node0x5d9ddab296a0 [label="{std::char_traits<char>::length()}"];
-	Node0x5d9ddab296a0 -> Node0x5d9ddab1d270;
-	Node0x5d9ddab29da0 [label="{std::char_traits<char>::compare()}"];
-	Node0x5d9ddab29da0 -> Node0x5d9ddab18ee0;
-	Node0x5d9ddab29560 [label="{basic_string<char, std::char_traits >::data()}"];
-	Node0x5d9ddab23860 [label="{icIsNear()}"];
-	Node0x5d9ddab24760 [label="{fclose}"];
-	Node0x5d9ddab235e0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5d9ddab234a0 [label="{__clang_call_terminate}"];
-	Node0x5d9ddab234a0 -> Node0x5d9ddab24960;
-	Node0x5d9ddab234a0 -> Node0x5d9ddab29760;
-	Node0x5d9ddab24960 [label="{__cxa_begin_catch}"];
-	Node0x5d9ddab29760 [label="{std::terminate()}"];
+	Node0x55a39a7e3880 [label="LLVMFuzzerTestOneInput"];
+	Node0x55a39a7e3880 -> Node0x55a39a7e28f0;
+	Node0x55a39a7e3880 -> Node0x55a39a7e7670;
+	Node0x55a39a7e3880 -> Node0x55a39a7e7700;
+	Node0x55a39a7e3880 -> Node0x55a39a6d5930;
+	Node0x55a39a7e3880 -> Node0x55a39a6af190;
+	Node0x55a39a7e3880 -> Node0x55a39a7f3770;
+	Node0x55a39a7e3880 -> Node0x55a39a74f3d0;
+	Node0x55a39a7e3880 -> Node0x55a39a7f3c70;
+	Node0x55a39a7e3880 -> Node0x55a39a6ff7e0;
+	Node0x55a39a7e3880 -> Node0x55a39a6eb990;
+	Node0x55a39a7e3880 -> Node0x55a39a7ed9f0;
+	Node0x55a39a7e3880 -> Node0x55a39a7f18e0;
+	Node0x55a39a7e3880 -> Node0x55a39a6af920;
+	Node0x55a39a7e3880 -> Node0x55a39a6b22d0;
+	Node0x55a39a7e3880 -> Node0x55a39a7ee890;
+	Node0x55a39a7e3880 -> Node0x55a39a6b3410;
+	Node0x55a39a7e3880 -> Node0x55a39a7f2ff0;
+	Node0x55a39a7e3880 -> Node0x55a39a7ee720;
+	Node0x55a39a7e3880 -> Node0x55a39a6b38e0;
+	Node0x55a39a7e3880 -> Node0x55a39a7f2d70;
+	Node0x55a39a7e3880 -> Node0x55a39a7f14f0;
+	Node0x55a39a7e3880 -> Node0x55a39a6b2250;
+	Node0x55a39a7e3880 -> Node0x55a39a6b3b10;
+	Node0x55a39a7e3880 -> Node0x55a39a6b3390;
+	Node0x55a39a7e3880 -> Node0x55a39a6b3960;
+	Node0x55a39a7e3880 -> Node0x55a39a6b2970;
+	Node0x55a39a7e3880 -> Node0x55a39a7ef6c0;
+	Node0x55a39a7e3880 -> Node0x55a39a7ef170;
+	Node0x55a39a7e3880 -> Node0x55a39a6b26b0;
+	Node0x55a39a7e3880 -> Node0x55a39a6b2b30;
+	Node0x55a39a7e3880 -> Node0x55a39a7eed50;
+	Node0x55a39a7e28f0 [label="fuzz_tmpdir()"];
+	Node0x55a39a7e7670 [label="fuzz_build_path()"];
+	Node0x55a39a7e7700 [label="mkstemp"];
+	Node0x55a39a6d5930 [label="CubeFile::CubeFile()"];
+	Node0x55a39a6af190 [label="CubeFile::parseHeader()"];
+	Node0x55a39a6af190 -> Node0x55a39a7f5650;
+	Node0x55a39a6af190 -> Node0x55a39a7f4ed0;
+	Node0x55a39a6af190 -> Node0x55a39a7f4f50;
+	Node0x55a39a6af190 -> Node0x55a39a7f21e0;
+	Node0x55a39a6af190 -> Node0x55a39a7f8e60;
+	Node0x55a39a6af190 -> Node0x55a39a7f95e0;
+	Node0x55a39a6af190 -> Node0x55a39a6b38e0;
+	Node0x55a39a6af190 -> Node0x55a39a7f90e0;
+	Node0x55a39a6af190 -> Node0x55a39a7f4590;
+	Node0x55a39a74f3d0 [label="CubeFile::sizeLut3D()"];
+	Node0x55a39a6ff7e0 [label="CIccProfile::CIccProfile()"];
+	Node0x55a39a6eb990 [label="CIccProfile::InitHeader()"];
+	Node0x55a39a7ed9f0 [label="CIccTagMultiProcessElement::CIccTagMultiProcessElement()"];
+	Node0x55a39a6af920 [label="CubeFile::isCustomInputRange()"];
+	Node0x55a39a6af920 -> Node0x55a39a7f9ae0;
+	Node0x55a39a6b22d0 [label="CubeFile::getMinInput()"];
+	Node0x55a39a7ee890 [label="CubeFile::getMaxInput()"];
+	Node0x55a39a7ee720 [label="CIccMpeCurveSet::CIccMpeCurveSet()"];
+	Node0x55a39a6b2250 [label="CIccSingleSampledCurve::CIccSingleSampledCurve()"];
+	Node0x55a39a7ef170 [label="CIccMpeCurveSet::SetCurve()"];
+	Node0x55a39a7eed50 [label="CIccMpeCLUT::CIccMpeCLUT()"];
+	Node0x55a39a6b2b30 [label="CIccCLUT::CIccCLUT()"];
+	Node0x55a39a6b26b0 [label="CIccCLUT::Init()"];
+	Node0x55a39a7ef6c0 [label="CIccCLUT::GetData()"];
+	Node0x55a39a6b3960 [label="CubeFile::parse3DTable()"];
+	Node0x55a39a6b3960 -> Node0x55a39a7f4ed0;
+	Node0x55a39a6b3960 -> Node0x55a39a7f4f50;
+	Node0x55a39a6b3960 -> Node0x55a39a6b38e0;
+	Node0x55a39a6b3960 -> Node0x55a39a7f8e60;
+	Node0x55a39a6b3960 -> Node0x55a39a7f95e0;
+	Node0x55a39a6b2970 [label="CIccCLUT::NumPoints()"];
+	Node0x55a39a6b3390 [label="CIccMpeCLUT::SetCLUT()"];
+	Node0x55a39a6b3410 [label="CIccProfile::AttachTag()"];
+	Node0x55a39a7f14f0 [label="CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()"];
+	Node0x55a39a6b3b10 [label="CubeFile::getDescription[abi:cxx11]()"];
+	Node0x55a39a7f2ff0 [label="CIccTagMultiLocalizedUnicode::SetText()"];
+	Node0x55a39a6b38e0 [label="c_str()"];
+	Node0x55a39a7f2d70 [label="CubeFile::getCopyright[abi:cxx11]()"];
+	Node0x55a39a7f18e0 [label="SaveIccProfile()"];
+	Node0x55a39a7f3c70 [label="CIccProfile::~CIccProfile()"];
+	Node0x55a39a7f3770 [label="CubeFile::~CubeFile()"];
+	Node0x55a39a7f5650 [label="CubeFile::open()"];
+	Node0x55a39a7f5650 -> Node0x55a39a6b38e0;
+	Node0x55a39a7f4ed0 [label="CubeFile::isEOF()"];
+	Node0x55a39a7f4f50 [label="CubeFile::getNextLine[abi:cxx11]()"];
+	Node0x55a39a7f4f50 -> Node0x55a39a7f4ed0;
+	Node0x55a39a7f4f50 -> Node0x55a39a7ffe20;
+	Node0x55a39a7f21e0 [label="substr()"];
+	Node0x55a39a7f4590 [label="CubeFile::getTitle[abi:cxx11](char const*)"];
+	Node0x55a39a7f90e0 [label="atoll"];
+	Node0x55a39a7f8e60 [label="atof"];
+	Node0x55a39a7f95e0 [label="CubeFile::getNext()"];
+	Node0x55a39a7ffe20 [label="fgetc"];
+	Node0x55a39a7ffba0 [label="length()"];
+	Node0x55a39a7ff760 [label="compare()"];
+	Node0x55a39a7f9ae0 [label="icIsNear()"];
 }

@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerComprehensive.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,62 +15,54 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerCom
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5fdaf301be10 [label="{ComprehensiveAnalyze()}"];
-	Node0x5fdaf301be10 -> Node0x5fdaf301bca0;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe3a30;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe25d0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301ba20;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe47b0;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe2550;
-	Node0x5fdaf301be10 -> Node0x5fdaf301c0d0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301c670;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe42e0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301d1b0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301d730;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe3750;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe3100;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe2ca0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301cbf0;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe32d0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301ce40;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe35a0;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe2e30;
-	Node0x5fdaf301be10 -> Node0x5fdaf2fe29a0;
-	Node0x5fdaf301be10 -> Node0x5fdaf301c2e0;
-	Node0x5fdaf301bca0 [label="{printf}"];
-	Node0x5fdaf2fe25d0 [label="{ColorHeader()}"];
-	Node0x5fdaf2fe25d0 -> Node0x5fdaf301df70;
-	Node0x5fdaf301ba20 [label="{ColorReset()}"];
-	Node0x5fdaf301ba20 -> Node0x5fdaf301df70;
-	Node0x5fdaf301c0d0 [label="{ColorInfo()}"];
-	Node0x5fdaf301c0d0 -> Node0x5fdaf301df70;
-	Node0x5fdaf2fe2ca0 [label="{HeuristicAnalyze()}"];
-	Node0x5fdaf301c2e0 [label="{RoundTripAnalyze()}"];
-	Node0x5fdaf2fe2550 [label="{ColorCritical()}"];
-	Node0x5fdaf2fe2550 -> Node0x5fdaf301df70;
-	Node0x5fdaf301c670 [label="{ColorSuccess()}"];
-	Node0x5fdaf301c670 -> Node0x5fdaf301df70;
-	Node0x5fdaf301cbf0 [label="{CIccFileIO::CIccFileIO()}"];
-	Node0x5fdaf2fe3100 [label="{CIccFileIO::Open()}"];
-	Node0x5fdaf2fe4560 [label="{__gxx_personality_v0}"];
-	Node0x5fdaf2fe29a0 [label="{new()}"];
-	Node0x5fdaf2fe2e30 [label="{CIccProfile::CIccProfile()}"];
-	Node0x5fdaf2fe35a0 [label="{delete()}"];
-	Node0x5fdaf301d1b0 [label="{CIccFileIO::Close()}"];
-	Node0x5fdaf301ce40 [label="{CIccProfile::Read()}"];
-	Node0x5fdaf2fe32d0 [label="{AnalyzeSignatures()}"];
-	Node0x5fdaf2fe3750 [label="{DumpProfileHeader()}"];
-	Node0x5fdaf301d730 [label="{DumpTagTable()}"];
-	Node0x5fdaf2fe42e0 [label="{TagDetailAnalyze()}"];
-	Node0x5fdaf2fe47b0 [label="{ColorWarning()}"];
-	Node0x5fdaf2fe47b0 -> Node0x5fdaf301df70;
-	Node0x5fdaf2fe3a30 [label="{CIccFileIO::~CIccFileIO()}"];
-	Node0x5fdaf301df70 [label="{GetColor()}"];
+	Node0x62bc38c88e10 [label="ComprehensiveAnalyze()"];
+	Node0x62bc38c88e10 -> Node0x62bc38c50a30;
+	Node0x62bc38c88e10 -> Node0x62bc38c4f5d0;
+	Node0x62bc38c88e10 -> Node0x62bc38c88a20;
+	Node0x62bc38c88e10 -> Node0x62bc38c517b0;
+	Node0x62bc38c88e10 -> Node0x62bc38c4f550;
+	Node0x62bc38c88e10 -> Node0x62bc38c890d0;
+	Node0x62bc38c88e10 -> Node0x62bc38c89670;
+	Node0x62bc38c88e10 -> Node0x62bc38c512e0;
+	Node0x62bc38c88e10 -> Node0x62bc38c8a1b0;
+	Node0x62bc38c88e10 -> Node0x62bc38c8a730;
+	Node0x62bc38c88e10 -> Node0x62bc38c50750;
+	Node0x62bc38c88e10 -> Node0x62bc38c50100;
+	Node0x62bc38c88e10 -> Node0x62bc38c4fca0;
+	Node0x62bc38c88e10 -> Node0x62bc38c89bf0;
+	Node0x62bc38c88e10 -> Node0x62bc38c502d0;
+	Node0x62bc38c88e10 -> Node0x62bc38c89e40;
+	Node0x62bc38c88e10 -> Node0x62bc38c4fe30;
+	Node0x62bc38c88e10 -> Node0x62bc38c892e0;
+	Node0x62bc38c4f5d0 [label="ColorHeader()"];
+	Node0x62bc38c4f5d0 -> Node0x62bc38c8af70;
+	Node0x62bc38c88a20 [label="ColorReset()"];
+	Node0x62bc38c88a20 -> Node0x62bc38c8af70;
+	Node0x62bc38c890d0 [label="ColorInfo()"];
+	Node0x62bc38c890d0 -> Node0x62bc38c8af70;
+	Node0x62bc38c4fca0 [label="HeuristicAnalyze()"];
+	Node0x62bc38c892e0 [label="RoundTripAnalyze()"];
+	Node0x62bc38c4f550 [label="ColorCritical()"];
+	Node0x62bc38c4f550 -> Node0x62bc38c8af70;
+	Node0x62bc38c89670 [label="ColorSuccess()"];
+	Node0x62bc38c89670 -> Node0x62bc38c8af70;
+	Node0x62bc38c89bf0 [label="CIccFileIO::CIccFileIO()"];
+	Node0x62bc38c50100 [label="CIccFileIO::Open()"];
+	Node0x62bc38c4fe30 [label="CIccProfile::CIccProfile()"];
+	Node0x62bc38c8a1b0 [label="CIccFileIO::Close()"];
+	Node0x62bc38c89e40 [label="CIccProfile::Read()"];
+	Node0x62bc38c502d0 [label="AnalyzeSignatures()"];
+	Node0x62bc38c50750 [label="DumpProfileHeader()"];
+	Node0x62bc38c8a730 [label="DumpTagTable()"];
+	Node0x62bc38c512e0 [label="TagDetailAnalyze()"];
+	Node0x62bc38c517b0 [label="ColorWarning()"];
+	Node0x62bc38c517b0 -> Node0x62bc38c8af70;
+	Node0x62bc38c50a30 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x62bc38c8af70 [label="GetColor()"];
 }

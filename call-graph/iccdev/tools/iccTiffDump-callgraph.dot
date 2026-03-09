@@ -1,0 +1,100 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccTiffDump.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x58921df1a490 [label="GetId()"];
+	Node0x58921df2b8a0 [label="CTiffImg::~CTiffImg()"];
+	Node0x58921df1a520 [label="Usage()"];
+	Node0x58921dea2d50 [label="DumpProfileInfo()"];
+	Node0x58921dea2d50 -> Node0x58921de62240;
+	Node0x58921dea2d50 -> Node0x58921df15d20;
+	Node0x58921dea2d50 -> Node0x58921deb9190;
+	Node0x58921dea2d50 -> Node0x58921df227c0;
+	Node0x58921dea2d50 -> Node0x58921de62340;
+	Node0x58921dea2d50 -> Node0x58921dea2d50;
+	Node0x58921dea2d50 -> Node0x58921de62f30;
+	Node0x58921dea2d50 -> Node0x58921de62860;
+	Node0x58921dea2d50 -> Node0x58921df21460;
+	Node0x58921dea2d50 -> Node0x58921de62a90;
+	Node0x58921dea2d50 -> Node0x58921df1f3d0;
+	Node0x58921de62240 [label="CIccInfo::CIccInfo()"];
+	Node0x58921df15d20 [label="c_str()"];
+	Node0x58921deb9190 [label="CIccInfo::GetVersionName()"];
+	Node0x58921de62340 [label="CIccInfo::GetColorSpaceSigName()"];
+	Node0x58921de62860 [label="CIccInfo::GetSpectralColorSigName()"];
+	Node0x58921de62a90 [label="icF16toF()"];
+	Node0x58921de62f30 [label="CIccProfile::FindTag()"];
+	Node0x58921df1f3d0 [label="CIccTagTextDescription::GetText()"];
+	Node0x58921df21460 [label="CIccLocalizedUnicode::GetText()"];
+	Node0x58921df227c0 [label="CIccInfo::~CIccInfo()"];
+	Node0x58921df25f10 [label="main"];
+	Node0x58921df25f10 -> Node0x58921df1a520;
+	Node0x58921df25f10 -> Node0x58921df25c90;
+	Node0x58921df25f10 -> Node0x58921df258d0;
+	Node0x58921df25f10 -> Node0x58921df2b8a0;
+	Node0x58921df25f10 -> Node0x58921df2bb20;
+	Node0x58921df25f10 -> Node0x58921df22840;
+	Node0x58921df25f10 -> Node0x58921df250d0;
+	Node0x58921df25f10 -> Node0x58921df26cd0;
+	Node0x58921df25f10 -> Node0x58921df26910;
+	Node0x58921df25f10 -> Node0x58921df249b0;
+	Node0x58921df25f10 -> Node0x58921df1a490;
+	Node0x58921df25f10 -> Node0x58921df256d0;
+	Node0x58921df25f10 -> Node0x58921df25fd0;
+	Node0x58921df25f10 -> Node0x58921df2bda0;
+	Node0x58921df25f10 -> Node0x58921df26250;
+	Node0x58921df25f10 -> Node0x58921df2d5e0;
+	Node0x58921df25f10 -> Node0x58921df29600;
+	Node0x58921df25f10 -> Node0x58921dea2d50;
+	Node0x58921df25f10 -> Node0x58921df274b0;
+	Node0x58921df25f10 -> Node0x58921df2aea0;
+	Node0x58921df25f10 -> Node0x58921df27230;
+	Node0x58921df25f10 -> Node0x58921df240b0;
+	Node0x58921df25f10 -> Node0x58921df2a720;
+	Node0x58921df25f10 -> Node0x58921df2a220;
+	Node0x58921df25c90 [label="CTiffImg::CTiffImg()"];
+	Node0x58921df258d0 [label="CTiffImg::Open()"];
+	Node0x58921df22840 [label="CTiffImg::GetWidth()"];
+	Node0x58921df250d0 [label="CTiffImg::GetHeight()"];
+	Node0x58921df26cd0 [label="CTiffImg::GetWidthIn()"];
+	Node0x58921df26910 [label="CTiffImg::GetHeightIn()"];
+	Node0x58921df249b0 [label="CTiffImg::GetPlanar()"];
+	Node0x58921df256d0 [label="CTiffImg::GetBitsPerSample()"];
+	Node0x58921df25fd0 [label="CTiffImg::GetSamples()"];
+	Node0x58921df26250 [label="CTiffImg::GetExtraSamples()"];
+	Node0x58921df29600 [label="CTiffImg::GetPhoto()"];
+	Node0x58921df274b0 [label="CTiffImg::GetBytesPerLine()"];
+	Node0x58921df27230 [label="CTiffImg::GetXRes()"];
+	Node0x58921df240b0 [label="CTiffImg::GetYRes()"];
+	Node0x58921df2a720 [label="CTiffImg::GetCompress()"];
+	Node0x58921df2a220 [label="CTiffImg::GetIccProfile()"];
+	Node0x58921df2aea0 [label="OpenIccProfile()"];
+	Node0x58921df2d5e0 [label="CIccProfile::ReadTags()"];
+	Node0x58921df2bda0 [label="SaveIccProfile()"];
+	Node0x58921df2bb20 [label="CTiffImg::Close()"];
+	Node0x58921df24670 [label="length()"];
+	Node0x58921df23ef0 [label="get_allocator()"];
+	Node0x58921df30120 [label="reserve()"];
+	Node0x58921df30da0 [label="append()"];
+	Node0x58921df2b560 [label="_Guard::_Guard()"];
+	Node0x58921df3ce00 [label="_Guard::~_Guard()"];
+}

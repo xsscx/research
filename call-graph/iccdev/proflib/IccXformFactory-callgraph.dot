@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccXformFactory.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,252 +15,70 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccXform
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x650014491be0 [label="{CIccBaseXformFactory::CreateXform()}"];
-	Node0x650014491be0 -> Node0x6500144941b0;
-	Node0x650014491be0 -> Node0x650014494a30;
-	Node0x650014491be0 -> Node0x6500144943d0;
-	Node0x650014491be0 -> Node0x65001440cb00;
-	Node0x650014491be0 -> Node0x6500144912e0;
-	Node0x650014491be0 -> Node0x650014492450;
-	Node0x650014491be0 -> Node0x6500143feac0;
-	Node0x650014491be0 -> Node0x6500143f6ff0;
-	Node0x650014491be0 -> Node0x650014490f60;
-	Node0x650014491be0 -> Node0x6500143decd0;
-	Node0x6500144941b0 [label="{new()}"];
-	Node0x650014494a30 [label="{CIccXformMatrixTRC::CIccXformMatrixTRC()}"];
-	Node0x65001440b650 [label="{__gxx_personality_v0}"];
-	Node0x6500144943d0 [label="{delete()}"];
-	Node0x6500144912e0 [label="{CIccXform3DLut::CIccXform3DLut()}"];
-	Node0x6500143f6ff0 [label="{CIccXform4DLut::CIccXform4DLut()}"];
-	Node0x6500143decd0 [label="{CIccXformNDLut::CIccXformNDLut()}"];
-	Node0x650014490f60 [label="{CIccCreateXformHintManager::GetHint()}"];
-	Node0x6500143feac0 [label="{CIccXformNamedColor::CIccXformNamedColor()}"];
-	Node0x650014492450 [label="{CIccXformMpe::CIccXformMpe()}"];
-	Node0x65001440cb00 [label="{CIccXformMonochrome::CIccXformMonochrome()}"];
-	Node0x650014407510 [label="{__cxx_global_var_init}"];
-	Node0x650014407510 -> Node0x6500144a80a0;
-	Node0x6500144a7ba0 [label="{unique_ptr<CIccXformCreator, std::default_delete >::~unique_ptr()}"];
-	Node0x6500144a7ba0 -> Node0x6500144a6820;
-	Node0x6500144a7ba0 -> Node0x6500144a6b20;
-	Node0x6500144a7ba0 -> Node0x6500144a9680;
-	Node0x6500144a80a0 [label="{__cxa_atexit}"];
-	Node0x6500144a9070 [label="{CIccXformCreator::~CIccXformCreator()}"];
-	Node0x6500144a9070 -> Node0x6500144a94c0;
-	Node0x6500144a9070 -> Node0x6500144aca80;
-	Node0x6500144a9070 -> Node0x6500144ae2c0;
-	Node0x6500144a94c0 [label="{CIccXformCreator::DoPopFactory()}"];
-	Node0x6500144a94c0 -> Node0x650014406f30;
-	Node0x6500144a94c0 -> Node0x650014406fb0;
-	Node0x6500144a94c0 -> Node0x6500144b2bc0;
-	Node0x6500144a94c0 -> Node0x6500144b21c0;
-	Node0x6500144aca80 [label="{__clang_call_terminate}"];
-	Node0x6500144aca80 -> Node0x6500144bd330;
-	Node0x6500144aca80 -> Node0x6500144bf810;
-	Node0x6500144bd330 [label="{__cxa_begin_catch}"];
-	Node0x6500144bf810 [label="{std::terminate()}"];
-	Node0x6500144ae2c0 [label="{std::list<IIccXformFactory* >::~list()}"];
-	Node0x6500144ae2c0 -> Node0x6500144bf260;
-	Node0x6500144be7b0 [label="{CIccXformCreator::GetInstance()}"];
-	Node0x6500144be7b0 -> Node0x6500144bdbf0;
-	Node0x6500144be7b0 -> Node0x6500144941b0;
-	Node0x6500144be7b0 -> Node0x6500144c02c0;
-	Node0x6500144be7b0 -> Node0x6500144c1930;
-	Node0x6500144be7b0 -> Node0x6500144bdef0;
-	Node0x6500144be7b0 -> Node0x6500144a7ba0;
-	Node0x6500144be7b0 -> Node0x6500144bebb0;
-	Node0x6500144be7b0 -> Node0x6500144943d0;
-	Node0x6500144be7b0 -> Node0x6500144be170;
-	Node0x6500144be7b0 -> Node0x6500144c4610;
-	Node0x6500144bdbf0 [label="{unique_ptr<CIccXformCreator, std::default_delete >::get()}"];
-	Node0x6500144bdbf0 -> Node0x6500144c38c0;
-	Node0x6500144c02c0 [label="{CIccXformCreator::CIccXformCreator()}"];
-	Node0x6500144c02c0 -> Node0x6500144bda00;
-	Node0x6500144c1930 [label="{default_delete >::unique_ptr<std::default_delete, void>()}"];
-	Node0x6500144c1930 -> Node0x6500144c5800;
-	Node0x6500144c1930 -> Node0x6500144aca80;
-	Node0x6500144bdef0 [label="{std::unique_ptr<CIccXformCreator, std::default_delete >::operator=(...}"];
-	Node0x6500144bdef0 -> Node0x6500144c6a00;
-	Node0x6500144bebb0 [label="{std::unique_ptr<CIccXformCreator, std::default_delete >::operator-(...}"];
-	Node0x6500144bebb0 -> Node0x6500144bdbf0;
-	Node0x6500144c4610 [label="{CIccXformCreator::DoPushFactory()}"];
-	Node0x6500144c4610 -> Node0x6500144c4900;
-	Node0x6500144be170 [label="{CIccBaseXformFactory::CIccBaseXformFactory()}"];
-	Node0x6500144be170 -> Node0x6500144c5930;
-	Node0x6500144c6ca0 [label="{CIccXformCreator::DoCreateXform()}"];
-	Node0x6500144c6ca0 -> Node0x6500144cb0b0;
-	Node0x6500144c6ca0 -> Node0x650014406fb0;
-	Node0x6500144c6ca0 -> Node0x6500144caff0;
-	Node0x6500144c6ca0 -> Node0x6500144ca540;
-	Node0x6500144c6ca0 -> Node0x6500144c11a0;
-	Node0x6500144c6ca0 -> Node0x6500144b2bc0;
-	Node0x6500144c6ca0 -> Node0x6500144cb300;
-	Node0x6500144cb0b0 [label="{std::_List_iterator<IIccXformFactory*>::_List_iterator()}"];
-	Node0x650014406fb0 [label="{std::list<IIccXformFactory* >::begin()}"];
-	Node0x650014406fb0 -> Node0x6500144ccf70;
-	Node0x6500144caff0 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x6500144c11a0 [label="{std::operator!=(std::_List_iterator<IIccXformFactory*> const&, std:...}"];
-	Node0x6500144ca540 [label="{std::list<IIccXformFactory* >::end()}"];
-	Node0x6500144ca540 -> Node0x6500144ccf70;
-	Node0x6500144b2bc0 [label="{std::_List_iterator<IIccXformFactory*>::operator*() const}"];
-	Node0x6500144b2bc0 -> Node0x6500144cc6b0;
-	Node0x6500144cb300 [label="{std::_List_iterator<IIccXformFactory*>::operator++(int)}"];
-	Node0x6500144cb300 -> Node0x6500144caff0;
-	Node0x6500144c4900 [label="{std::list<IIccXformFactory* >::push_front()}"];
-	Node0x6500144c4900 -> Node0x650014406fb0;
-	Node0x6500144c4900 -> Node0x6500144cb530;
-	Node0x650014406f30 [label="{std::list<IIccXformFactory* >::size()}"];
-	Node0x650014406f30 -> Node0x6500144cb380;
-	Node0x650014406f30 -> Node0x6500144aca80;
-	Node0x6500144b21c0 [label="{std::list<IIccXformFactory* >::pop_front()}"];
-	Node0x6500144b21c0 -> Node0x650014406fb0;
-	Node0x6500144b21c0 -> Node0x6500144bc6e0;
-	Node0x6500144cf970 [label="{CIccBaseXformFactory::~CIccBaseXformFactory()}"];
-	Node0x6500144cf970 -> Node0x6500144cf780;
-	Node0x6500144bc160 [label="{CIccBaseXformFactory::~CIccBaseXformFactory()}"];
-	Node0x6500144bc160 -> Node0x6500144cf970;
-	Node0x6500144bc160 -> Node0x6500144943d0;
-	Node0x6500144bf260 [label="{std::_List_base<IIccXformFactory* >::~_List_base()}"];
-	Node0x6500144bf260 -> Node0x6500144b3540;
-	Node0x6500144bf260 -> Node0x6500144cfee0;
-	Node0x6500144b3540 [label="{std::_List_base<IIccXformFactory* >::_M_clear()}"];
-	Node0x6500144b3540 -> Node0x6500144cc6b0;
-	Node0x6500144b3540 -> Node0x6500144d1080;
-	Node0x6500144b3540 -> Node0x6500144d0f40;
-	Node0x6500144b3540 -> Node0x6500144aca80;
-	Node0x6500144ca080 [label="{_Tuple_impl<1ul, std::default_delete >::_M_head()}"];
-	Node0x6500144ca080 -> Node0x6500144cee80;
-	Node0x6500144cfee0 [label="{_List_base<IIccXformFactory* >::_List_impl::~_List_impl()}"];
-	Node0x6500144cfee0 -> Node0x6500144d0270;
-	Node0x6500144cc6b0 [label="{std::_List_node<IIccXformFactory*>::_M_valptr()}"];
-	Node0x6500144cc6b0 -> Node0x6500144d0090;
-	Node0x6500144d1080 [label="{std::_List_base<IIccXformFactory* >::_M_get_Node_allocator()}"];
-	Node0x6500144d0f40 [label="{std::_List_base<IIccXformFactory* >::_M_put_node()}"];
-	Node0x6500144d0f40 -> Node0x6500144d18f0;
-	Node0x6500144d0f40 -> Node0x6500144aca80;
-	Node0x6500144d0090 [label="{__gnu_cxx::__aligned_membuf<IIccXformFactory*>::_M_ptr()}"];
-	Node0x6500144d0090 -> Node0x6500144b54f0;
-	Node0x6500144b54f0 [label="{__gnu_cxx::__aligned_membuf<IIccXformFactory*>::_M_addr()}"];
-	Node0x6500144e84e0 [label="{std::_List_base<IIccXformFactory* >::_M_get_size()}"];
-	Node0x6500144d18f0 [label="{__new_allocator<std::_List_node >::deallocate()}"];
-	Node0x6500144d18f0 -> Node0x6500144943d0;
-	Node0x6500144d0270 [label="{__new_allocator<std::_List_node >::~__new_allocator()}"];
-	Node0x6500144bda00 [label="{std::list<IIccXformFactory* >::list()}"];
-	Node0x6500144bda00 -> Node0x6500144b5270;
-	Node0x6500144b5270 [label="{std::_List_base<IIccXformFactory* >::_List_base()}"];
-	Node0x6500144b5270 -> Node0x6500144d2020;
-	Node0x6500144d2020 [label="{_List_base<IIccXformFactory* >::_List_impl::_List_impl()}"];
-	Node0x6500144d2020 -> Node0x6500144d2eb0;
-	Node0x6500144d2eb0 [label="{__detail::_List_node_header::_List_node_header()}"];
-	Node0x6500144d2eb0 -> Node0x6500144b66f0;
-	Node0x6500144b66f0 [label="{__detail::_List_node_header::_M_init()}"];
-	Node0x6500144c6a00 [label="{std::__uniq_ptr_data<CIccXformCreator, std::default_delete, true, t...}"];
-	Node0x6500144c6a00 -> Node0x6500144d60d0;
-	Node0x6500144d60d0 [label="{std::__uniq_ptr_impl<CIccXformCreator, std::default_delete >::opera...}"];
-	Node0x6500144d60d0 -> Node0x6500144d34e0;
-	Node0x6500144d60d0 -> Node0x6500144b60b0;
-	Node0x6500144d60d0 -> Node0x6500144b7510;
-	Node0x6500144b60b0 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::reset()}"];
-	Node0x6500144b60b0 -> Node0x6500144a6820;
-	Node0x6500144b60b0 -> Node0x6500144aca80;
-	Node0x6500144b60b0 -> Node0x6500144b7510;
-	Node0x6500144b60b0 -> Node0x6500144a9680;
-	Node0x6500144d34e0 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::release()}"];
-	Node0x6500144d34e0 -> Node0x6500144a6820;
-	Node0x6500144b7510 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::_M_deleter()}"];
-	Node0x6500144b7510 -> Node0x6500144b9390;
-	Node0x6500144a6820 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::_M_ptr()}"];
-	Node0x6500144a6820 -> Node0x6500144b7f90;
-	Node0x6500144a9680 [label="{std::default_delete<CIccXformCreator>::operator()}"];
-	Node0x6500144a9680 -> Node0x6500144943d0;
-	Node0x6500144b7f90 [label="{std::get<0ul, CIccXformCreator*, std::default_delete >()}"];
-	Node0x6500144b7f90 -> Node0x6500144b7950;
-	Node0x6500144b7950 [label="{std::__get_helper<0ul, CIccXformCreator*, std::default_delete >()}"];
-	Node0x6500144b7950 -> Node0x6500144b6670;
-	Node0x6500144b6670 [label="{_Tuple_impl<0ul, CIccXformCreator*, std::default_delete >::_M_head()}"];
-	Node0x6500144b6670 -> Node0x6500144c9be0;
-	Node0x6500144c9be0 [label="{std::_Head_base<0ul, CIccXformCreator*, false>::_M_head()}"];
-	Node0x6500144b9390 [label="{std::get<1ul, CIccXformCreator*, std::default_delete >()}"];
-	Node0x6500144b9390 -> Node0x6500144c9a80;
-	Node0x6500144c9a80 [label="{std::__get_helper<1ul, std::default_delete>()}"];
-	Node0x6500144c9a80 -> Node0x6500144ca080;
-	Node0x6500144cee80 [label="{_Head_base<1ul, std::default_delete, true>::_M_head()}"];
-	Node0x6500144c5930 [label="{IIccXformFactory::IIccXformFactory()}"];
-	Node0x6500144cf780 [label="{IIccXformFactory::~IIccXformFactory()}"];
-	Node0x6500144df400 [label="{IIccXformFactory::~IIccXformFactory()}"];
-	Node0x6500144df400 -> Node0x6500144b0f00;
-	Node0x6500144b0f80 [label="{__cxa_pure_virtual}"];
-	Node0x6500144b0f00 [label="{llvm.trap}"];
-	Node0x6500144a6b20 [label="{unique_ptr<CIccXformCreator, std::default_delete >::get_deleter()}"];
-	Node0x6500144a6b20 -> Node0x6500144b7510;
-	Node0x6500144c38c0 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::_M_ptr()}"];
-	Node0x6500144c38c0 -> Node0x6500144c9050;
-	Node0x6500144c9050 [label="{std::get<0ul, CIccXformCreator*, std::default_delete >()}"];
-	Node0x6500144c9050 -> Node0x6500144e16b0;
-	Node0x6500144e16b0 [label="{std::__get_helper<0ul, CIccXformCreator*, std::default_delete >()}"];
-	Node0x6500144e16b0 -> Node0x6500144e13a0;
-	Node0x6500144e13a0 [label="{_Tuple_impl<0ul, CIccXformCreator*, std::default_delete >::_M_head()}"];
-	Node0x6500144e13a0 -> Node0x6500144e10f0;
-	Node0x6500144e10f0 [label="{std::_Head_base<0ul, CIccXformCreator*, false>::_M_head()}"];
-	Node0x6500144c5800 [label="{__uniq_ptr_data<CIccXformCreator, std::default_delete, true, true>:...}"];
-	Node0x6500144c5800 -> Node0x6500144cae30;
-	Node0x6500144cae30 [label="{__uniq_ptr_impl<CIccXformCreator, std::default_delete >::__uniq_ptr...}"];
-	Node0x6500144cae30 -> Node0x6500144e39a0;
-	Node0x6500144cae30 -> Node0x6500144a6820;
-	Node0x6500144e39a0 [label="{tuple()}"];
-	Node0x6500144e39a0 -> Node0x6500144e3920;
-	Node0x6500144e39a0 -> Node0x6500144aca80;
-	Node0x6500144e3920 [label="{_Tuple_impl<0ul, CIccXformCreator*, std::default_delete >::_Tuple_i...}"];
-	Node0x6500144e3920 -> Node0x6500144ae580;
-	Node0x6500144e3920 -> Node0x6500144e35e0;
-	Node0x6500144ae580 [label="{_Tuple_impl<1ul, std::default_delete >::_Tuple_impl()}"];
-	Node0x6500144ae580 -> Node0x6500144e3530;
-	Node0x6500144e35e0 [label="{std::_Head_base<0ul, CIccXformCreator*, false>::_Head_base()}"];
-	Node0x6500144e3530 [label="{_Head_base<1ul, std::default_delete, true>::_Head_base()}"];
-	Node0x6500144ccf70 [label="{std::_List_iterator<IIccXformFactory*>::_List_iterator()}"];
-	Node0x6500144cb530 [label="{std::list<IIccXformFactory* >::_M_insert<IIccXformFactory* const&>()}"];
-	Node0x6500144cb530 -> Node0x6500144e4070;
-	Node0x6500144cb530 -> Node0x6500144aa5d0;
-	Node0x6500144cb530 -> Node0x6500144ac630;
-	Node0x6500144e4070 [label="{std::list<IIccXformFactory* >::_M_create_node<IIccXformFactory* con...}"];
-	Node0x6500144e4070 -> Node0x6500144e43d0;
-	Node0x6500144e4070 -> Node0x6500144d1080;
-	Node0x6500144e4070 -> Node0x6500144e4220;
-	Node0x6500144e4070 -> Node0x6500144cc6b0;
-	Node0x6500144e4070 -> Node0x6500144e5460;
-	Node0x6500144e4070 -> Node0x6500144d5ab0;
-	Node0x6500144aa5d0 [label="{__detail::_List_node_base::_M_hook()}"];
-	Node0x6500144ac630 [label="{std::_List_base<IIccXformFactory* >::_M_inc_size()}"];
-	Node0x6500144e43d0 [label="{std::_List_base<IIccXformFactory* >::_M_get_node()}"];
-	Node0x6500144e43d0 -> Node0x6500144d5850;
-	Node0x6500144e4220 [label="{__allocated_ptr<std::allocator >::__allocated_ptr()}"];
-	Node0x6500144e5460 [label="{decltype()}"];
-	Node0x6500144d5ab0 [label="{__allocated_ptr<std::allocator >::~__allocated_ptr()}"];
-	Node0x6500144d5ab0 -> Node0x6500144d18f0;
-	Node0x6500144d5ab0 -> Node0x6500144aca80;
-	Node0x6500144d5850 [label="{__new_allocator<std::_List_node >::allocate()}"];
-	Node0x6500144d5850 -> Node0x6500144d57d0;
-	Node0x6500144d5850 -> Node0x6500144aaa10;
-	Node0x6500144d5850 -> Node0x6500144941b0;
-	Node0x6500144d57d0 [label="{std::__throw_bad_array_new_length()}"];
-	Node0x6500144aaa10 [label="{std::__throw_bad_alloc()}"];
-	Node0x6500144cb380 [label="{std::list<IIccXformFactory* >::_M_node_count()}"];
-	Node0x6500144cb380 -> Node0x6500144e84e0;
-	Node0x6500144bc6e0 [label="{std::list<IIccXformFactory* >::_M_erase()}"];
-	Node0x6500144bc6e0 -> Node0x6500144fbdd0;
-	Node0x6500144bc6e0 -> Node0x6500144fb140;
-	Node0x6500144bc6e0 -> Node0x6500144d1080;
-	Node0x6500144bc6e0 -> Node0x6500144cc6b0;
-	Node0x6500144bc6e0 -> Node0x6500144d0f40;
-	Node0x6500144bc6e0 -> Node0x6500144aca80;
-	Node0x6500144fbdd0 [label="{std::_List_base<IIccXformFactory* >::_M_dec_size()}"];
-	Node0x6500144fb140 [label="{__detail::_List_node_base::_M_unhook()}"];
-	Node0x6500144fb1c0 [label="{_GLOBAL__sub_I_IccXformFactory.cpp}"];
-	Node0x6500144fb1c0 -> Node0x650014407510;
+	Node0x6141376cfbe0 [label="CIccBaseXformFactory::CreateXform()"];
+	Node0x6141376cfbe0 -> Node0x6141376d2a30;
+	Node0x6141376cfbe0 -> Node0x61413764ab00;
+	Node0x6141376cfbe0 -> Node0x6141376cf2e0;
+	Node0x6141376cfbe0 -> Node0x6141376d0450;
+	Node0x6141376cfbe0 -> Node0x61413763cac0;
+	Node0x6141376cfbe0 -> Node0x614137634ff0;
+	Node0x6141376cfbe0 -> Node0x6141376cef60;
+	Node0x6141376cfbe0 -> Node0x61413761ccd0;
+	Node0x6141376d2a30 [label="CIccXformMatrixTRC::CIccXformMatrixTRC()"];
+	Node0x6141376cf2e0 [label="CIccXform3DLut::CIccXform3DLut()"];
+	Node0x614137634ff0 [label="CIccXform4DLut::CIccXform4DLut()"];
+	Node0x61413761ccd0 [label="CIccXformNDLut::CIccXformNDLut()"];
+	Node0x6141376cef60 [label="CIccCreateXformHintManager::GetHint()"];
+	Node0x61413763cac0 [label="CIccXformNamedColor::CIccXformNamedColor()"];
+	Node0x6141376d0450 [label="CIccXformMpe::CIccXformMpe()"];
+	Node0x61413764ab00 [label="CIccXformMonochrome::CIccXformMonochrome()"];
+	Node0x6141376e5ba0 [label="unique_ptr()"];
+	Node0x6141376e5ba0 -> Node0x6141376e4b20;
+	Node0x6141376e7070 [label="CIccXformCreator::~CIccXformCreator()"];
+	Node0x6141376e7070 -> Node0x6141376e74c0;
+	Node0x6141376e74c0 [label="CIccXformCreator::DoPopFactory()"];
+	Node0x6141376e74c0 -> Node0x6141376f01c0;
+	Node0x6141376fc7b0 [label="CIccXformCreator::GetInstance()"];
+	Node0x6141376fc7b0 -> Node0x6141376fbbf0;
+	Node0x6141376fc7b0 -> Node0x6141376fe2c0;
+	Node0x6141376fc7b0 -> Node0x6141376e5ba0;
+	Node0x6141376fc7b0 -> Node0x6141376fc170;
+	Node0x6141376fc7b0 -> Node0x614137702820;
+	Node0x6141376fbbf0 [label="get()"];
+	Node0x6141376fe2c0 [label="CIccXformCreator::CIccXformCreator()"];
+	Node0x614137702820 [label="CIccXformCreator::DoPushFactory()"];
+	Node0x614137702820 -> Node0x614137702b10;
+	Node0x6141376fc170 [label="CIccBaseXformFactory::CIccBaseXformFactory()"];
+	Node0x6141376fc170 -> Node0x614137703b40;
+	Node0x614137704eb0 [label="CIccXformCreator::DoCreateXform()"];
+	Node0x614137702b10 [label="push_front()"];
+	Node0x6141376f01c0 [label="pop_front()"];
+	Node0x61413770db80 [label="CIccBaseXformFactory::~CIccBaseXformFactory()"];
+	Node0x61413770db80 -> Node0x61413770d990;
+	Node0x6141376fa160 [label="CIccBaseXformFactory::~CIccBaseXformFactory()"];
+	Node0x6141376fa160 -> Node0x61413770db80;
+	Node0x6141377110c0 [label="__detail::_List_node_header::_List_node_header()"];
+	Node0x6141377110c0 -> Node0x6141376f46f0;
+	Node0x6141376f46f0 [label="__detail::_List_node_header::_M_init()"];
+	Node0x6141376f40b0 [label="reset()"];
+	Node0x6141377116f0 [label="release()"];
+	Node0x614137703b40 [label="IIccXformFactory::IIccXformFactory()"];
+	Node0x61413770d990 [label="IIccXformFactory::~IIccXformFactory()"];
+	Node0x6141376eef80 [label="IIccXformFactory::~IIccXformFactory()"];
+	Node0x6141376e4b20 [label="get_deleter()"];
+	Node0x614137703a10 [label="__uniq_ptr_impl()"];
+	Node0x614137703a10 -> Node0x61413771d940;
+	Node0x61413771d940 [label="__uniq_ptr_impl()"];
+	Node0x614137722430 [label="__detail::_List_node_base::_M_hook()"];
+	Node0x614137722200 [label="__allocated_ptr()"];
+	Node0x6141376e85d0 [label="decltype()"];
+	Node0x614137723850 [label="__allocated_ptr()"];
+	Node0x614137726580 [label="__detail::_List_node_base::_M_unhook()"];
+	Node0x6141377264d0 [label="_GLOBAL__sub_I_IccXformFactory.cpp"];
 }

@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsHeader.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,161 +15,129 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsH
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x559defec5060 [label="{RunHeuristic_H1_ProfileSize()}"];
-	Node0x559defec5060 -> Node0x559defec4880;
-	Node0x559defec5060 -> Node0x559defec4f40;
-	Node0x559defec5060 -> Node0x559defec4be0;
-	Node0x559defec5060 -> Node0x559defec5460;
-	Node0x559defec5060 -> Node0x559defec4d00;
-	Node0x559defed4b10 [label="{llvm.fabs.f64}"];
-	Node0x559defec4880 [label="{printf}"];
-	Node0x559defec5460 [label="{ColorCritical()}"];
-	Node0x559defec5460 -> Node0x559defec4e20;
-	Node0x559defec4f40 [label="{ColorReset()}"];
-	Node0x559defec4f40 -> Node0x559defec4e20;
-	Node0x559defec4be0 [label="{ColorWarning()}"];
-	Node0x559defec4be0 -> Node0x559defec4e20;
-	Node0x559defec4d00 [label="{ColorSuccess()}"];
-	Node0x559defec4d00 -> Node0x559defec4e20;
-	Node0x559defec49a0 [label="{RunHeuristic_H2_MagicBytes()}"];
-	Node0x559defec49a0 -> Node0x559defe1c480;
-	Node0x559defec49a0 -> Node0x559defec4880;
-	Node0x559defec49a0 -> Node0x559defec4f40;
-	Node0x559defec49a0 -> Node0x559defec4d00;
-	Node0x559defec49a0 -> Node0x559defec4be0;
-	Node0x559defec49a0 -> Node0x559defec5460;
-	Node0x559defec49a0 -> Node0x559defe04050;
-	Node0x559defe1c480 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x559defe04050 [label="{memcmp}"];
-	Node0x559defde7360 [label="{RunHeuristic_H3_ColorSpaceSignature()}"];
-	Node0x559defde7360 -> Node0x559defdc9920;
-	Node0x559defde7360 -> Node0x559defec4880;
-	Node0x559defde7360 -> Node0x559defd9ca20;
-	Node0x559defde7360 -> Node0x559defed1ae0;
-	Node0x559defde7360 -> Node0x559defec4d00;
-	Node0x559defde7360 -> Node0x559defed0ce0;
-	Node0x559defde7360 -> Node0x559defec4f40;
-	Node0x559defde7360 -> Node0x559defd9ed00;
-	Node0x559defde7360 -> Node0x559defecf7c0;
-	Node0x559defde7360 -> Node0x559defec4be0;
-	Node0x559defde7360 -> Node0x559defd9ea80;
-	Node0x559defde7360 -> Node0x559defec5460;
-	Node0x559defde7360 -> Node0x559defed2160;
-	Node0x559defdc9920 [label="{SignatureToFourCC()}"];
-	Node0x559defd9ca20 [label="{IsValidColorSpaceSignature()}"];
-	Node0x559defd9ca20 -> Node0x559defed1dd0;
-	Node0x559defd9ca20 -> Node0x559defed2370;
-	Node0x559defd9ca20 -> Node0x559defd9ee90;
-	Node0x559defed1ae0 [label="{CIccInfo::CIccInfo()}"];
-	Node0x559defed2700 [label="{__gxx_personality_v0}"];
-	Node0x559defed0ce0 [label="{CIccInfo::GetColorSpaceSigName()}"];
-	Node0x559defecf7c0 [label="{CIccInfo::~CIccInfo()}"];
-	Node0x559defd9ea80 [label="{DescribeColorSpaceSignature()}"];
-	Node0x559defd9ea80 -> Node0x559defed2370;
-	Node0x559defd9ea80 -> Node0x559defd9ca20;
-	Node0x559defed2160 [label="{HasNonPrintableSignature()}"];
-	Node0x559defd9ed00 [label="{ColorInfo()}"];
-	Node0x559defd9ed00 -> Node0x559defec4e20;
-	Node0x559defd9ec80 [label="{RunHeuristic_H4_PCSColorSpace()}"];
-	Node0x559defd9ec80 -> Node0x559defdc9920;
-	Node0x559defd9ec80 -> Node0x559defec4880;
-	Node0x559defd9ec80 -> Node0x559defed1ae0;
-	Node0x559defd9ec80 -> Node0x559defec4d00;
-	Node0x559defd9ec80 -> Node0x559defed0ce0;
-	Node0x559defd9ec80 -> Node0x559defec4f40;
-	Node0x559defd9ec80 -> Node0x559defd9ed00;
-	Node0x559defd9ec80 -> Node0x559defecf7c0;
-	Node0x559defd9ec80 -> Node0x559defec4be0;
-	Node0x559defd9ec80 -> Node0x559defd9f190;
-	Node0x559defd9ec80 -> Node0x559defec5460;
-	Node0x559defd9ec80 -> Node0x559defd9ea80;
-	Node0x559defd9f190 [label="{IsSpaceSpectralPCS()}"];
-	Node0x559defed3a40 [label="{RunHeuristic_H5_PlatformSignature()}"];
-	Node0x559defed3a40 -> Node0x559defdc9920;
-	Node0x559defed3a40 -> Node0x559defec4880;
-	Node0x559defed3a40 -> Node0x559defec4be0;
-	Node0x559defed3a40 -> Node0x559defec4f40;
-	Node0x559defed3a40 -> Node0x559defec4d00;
-	Node0x559defd9ff40 [label="{RunHeuristic_H6_RenderingIntent()}"];
-	Node0x559defd9ff40 -> Node0x559defec4880;
-	Node0x559defd9ff40 -> Node0x559defec5460;
-	Node0x559defd9ff40 -> Node0x559defec4f40;
-	Node0x559defd9ff40 -> Node0x559defecf7c0;
-	Node0x559defd9ff40 -> Node0x559defec4be0;
-	Node0x559defd9ff40 -> Node0x559defda0580;
-	Node0x559defd9ff40 -> Node0x559defec4d00;
-	Node0x559defd9ff40 -> Node0x559defed1ae0;
-	Node0x559defda0580 [label="{CIccInfo::GetRenderingIntentName()}"];
-	Node0x559defd9ffc0 [label="{RunHeuristic_H7_ProfileClass()}"];
-	Node0x559defd9ffc0 -> Node0x559defdc9920;
-	Node0x559defd9ffc0 -> Node0x559defec4880;
-	Node0x559defd9ffc0 -> Node0x559defed1ae0;
-	Node0x559defd9ffc0 -> Node0x559defd9f7c0;
-	Node0x559defd9ffc0 -> Node0x559defda0500;
-	Node0x559defd9ffc0 -> Node0x559defec4be0;
-	Node0x559defd9ffc0 -> Node0x559defec4f40;
-	Node0x559defd9ffc0 -> Node0x559defecf7c0;
-	Node0x559defd9ffc0 -> Node0x559defec4d00;
-	Node0x559defd9f7c0 [label="{CIccInfo::GetProfileClassSigName()}"];
-	Node0x559defda0500 [label="{strlen}"];
-	Node0x559defed4400 [label="{RunHeuristic_H8_IlluminantXYZ()}"];
-	Node0x559defed4400 -> Node0x559defda1010;
-	Node0x559defed4400 -> Node0x559defec4880;
-	Node0x559defed4400 -> Node0x559defec4f40;
-	Node0x559defed4400 -> Node0x559defec4d00;
-	Node0x559defed4400 -> Node0x559defed4280;
-	Node0x559defed4400 -> Node0x559defec4be0;
-	Node0x559defed4400 -> Node0x559defed4b10;
-	Node0x559defed4400 -> Node0x559defda0de0;
-	Node0x559defed4400 -> Node0x559defec5460;
-	Node0x559defda1010 [label="{icFtoD()}"];
-	Node0x559defed4280 [label="{std::isnan()}"];
-	Node0x559defed4280 -> Node0x559defda1930;
-	Node0x559defda0de0 [label="{std::isinf()}"];
-	Node0x559defda0de0 -> Node0x559defda1930;
-	Node0x559defda16a0 [label="{RunHeuristic_H15_DateValidation()}"];
-	Node0x559defda16a0 -> Node0x559defec4880;
-	Node0x559defda16a0 -> Node0x559defec5460;
-	Node0x559defda16a0 -> Node0x559defec4f40;
-	Node0x559defda16a0 -> Node0x559defec4d00;
-	Node0x559defda16a0 -> Node0x559defec4be0;
-	Node0x559defed4880 [label="{RunHeuristic_H16_SignaturePatterns()}"];
-	Node0x559defed4880 -> Node0x559defec4880;
-	Node0x559defed4880 -> Node0x559defed1dd0;
-	Node0x559defed4880 -> Node0x559defec4f40;
-	Node0x559defed4880 -> Node0x559defd9ee90;
-	Node0x559defed4880 -> Node0x559defec4be0;
-	Node0x559defed4880 -> Node0x559defec4d00;
-	Node0x559defed1dd0 [label="{fprintf}"];
-	Node0x559defd9ee90 [label="{fputc}"];
-	Node0x559defda11c0 [label="{RunHeuristic_H17_SpectralRange()}"];
-	Node0x559defda11c0 -> Node0x559defec4880;
-	Node0x559defda11c0 -> Node0x559defda2820;
-	Node0x559defda11c0 -> Node0x559defec4f40;
-	Node0x559defda11c0 -> Node0x559defec4be0;
-	Node0x559defda11c0 -> Node0x559defec5460;
-	Node0x559defda11c0 -> Node0x559defec4d00;
-	Node0x559defda2820 [label="{icF16toF()}"];
-	Node0x559defda2d70 [label="{RunHeaderHeuristics()}"];
-	Node0x559defda2d70 -> Node0x559defec5060;
-	Node0x559defda2d70 -> Node0x559defec49a0;
-	Node0x559defda2d70 -> Node0x559defde7360;
-	Node0x559defda2d70 -> Node0x559defd9ec80;
-	Node0x559defda2d70 -> Node0x559defed3a40;
-	Node0x559defda2d70 -> Node0x559defd9ff40;
-	Node0x559defda2d70 -> Node0x559defd9ffc0;
-	Node0x559defda2d70 -> Node0x559defed4400;
-	Node0x559defda2d70 -> Node0x559defda16a0;
-	Node0x559defda2d70 -> Node0x559defed4880;
-	Node0x559defda2d70 -> Node0x559defda11c0;
-	Node0x559defec4e20 [label="{GetColor()}"];
-	Node0x559defed2370 [label="{ColorSpaceSignatureToStr()}"];
-	Node0x559defda1930 [label="{llvm.is.fpclass.f64}"];
+	Node0x55c1de51a060 [label="RunHeuristic_H1_ProfileSize()"];
+	Node0x55c1de51a060 -> Node0x55c1de519f40;
+	Node0x55c1de51a060 -> Node0x55c1de519be0;
+	Node0x55c1de51a060 -> Node0x55c1de51a460;
+	Node0x55c1de51a060 -> Node0x55c1de519d00;
+	Node0x55c1de51a460 [label="ColorCritical()"];
+	Node0x55c1de51a460 -> Node0x55c1de519e20;
+	Node0x55c1de519f40 [label="ColorReset()"];
+	Node0x55c1de519f40 -> Node0x55c1de519e20;
+	Node0x55c1de519be0 [label="ColorWarning()"];
+	Node0x55c1de519be0 -> Node0x55c1de519e20;
+	Node0x55c1de519d00 [label="ColorSuccess()"];
+	Node0x55c1de519d00 -> Node0x55c1de519e20;
+	Node0x55c1de41e920 [label="RunHeuristic_H2_MagicBytes()"];
+	Node0x55c1de41e920 -> Node0x55c1de519f40;
+	Node0x55c1de41e920 -> Node0x55c1de519d00;
+	Node0x55c1de41e920 -> Node0x55c1de519be0;
+	Node0x55c1de41e920 -> Node0x55c1de51a460;
+	Node0x55c1de430130 [label="RunHeuristic_H3_ColorSpaceSignature()"];
+	Node0x55c1de430130 -> Node0x55c1de4325c0;
+	Node0x55c1de430130 -> Node0x55c1de3f1940;
+	Node0x55c1de430130 -> Node0x55c1de526be0;
+	Node0x55c1de430130 -> Node0x55c1de519d00;
+	Node0x55c1de430130 -> Node0x55c1de3f3850;
+	Node0x55c1de430130 -> Node0x55c1de519f40;
+	Node0x55c1de430130 -> Node0x55c1de3f37d0;
+	Node0x55c1de430130 -> Node0x55c1de525ff0;
+	Node0x55c1de430130 -> Node0x55c1de519be0;
+	Node0x55c1de430130 -> Node0x55c1de526d60;
+	Node0x55c1de430130 -> Node0x55c1de51a460;
+	Node0x55c1de430130 -> Node0x55c1de3f3f10;
+	Node0x55c1de4325c0 [label="SignatureToFourCC()"];
+	Node0x55c1de3f1940 [label="IsValidColorSpaceSignature()"];
+	Node0x55c1de3f1940 -> Node0x55c1de527470;
+	Node0x55c1de3f1940 -> Node0x55c1de482f80;
+	Node0x55c1de526be0 [label="CIccInfo::CIccInfo()"];
+	Node0x55c1de3f3850 [label="CIccInfo::GetColorSpaceSigName()"];
+	Node0x55c1de525ff0 [label="CIccInfo::~CIccInfo()"];
+	Node0x55c1de526d60 [label="DescribeColorSpaceSignature()"];
+	Node0x55c1de526d60 -> Node0x55c1de527470;
+	Node0x55c1de526d60 -> Node0x55c1de3f1940;
+	Node0x55c1de3f3f10 [label="HasNonPrintableSignature()"];
+	Node0x55c1de3f37d0 [label="ColorInfo()"];
+	Node0x55c1de3f37d0 -> Node0x55c1de519e20;
+	Node0x55c1de527700 [label="RunHeuristic_H4_PCSColorSpace()"];
+	Node0x55c1de527700 -> Node0x55c1de4325c0;
+	Node0x55c1de527700 -> Node0x55c1de526be0;
+	Node0x55c1de527700 -> Node0x55c1de519d00;
+	Node0x55c1de527700 -> Node0x55c1de3f3850;
+	Node0x55c1de527700 -> Node0x55c1de519f40;
+	Node0x55c1de527700 -> Node0x55c1de3f37d0;
+	Node0x55c1de527700 -> Node0x55c1de525ff0;
+	Node0x55c1de527700 -> Node0x55c1de519be0;
+	Node0x55c1de527700 -> Node0x55c1de3f3c80;
+	Node0x55c1de527700 -> Node0x55c1de51a460;
+	Node0x55c1de527700 -> Node0x55c1de526d60;
+	Node0x55c1de3f3c80 [label="IsSpaceSpectralPCS()"];
+	Node0x55c1de3f4d40 [label="RunHeuristic_H5_PlatformSignature()"];
+	Node0x55c1de3f4d40 -> Node0x55c1de4325c0;
+	Node0x55c1de3f4d40 -> Node0x55c1de519be0;
+	Node0x55c1de3f4d40 -> Node0x55c1de519f40;
+	Node0x55c1de3f4d40 -> Node0x55c1de519d00;
+	Node0x55c1de528d00 [label="RunHeuristic_H6_RenderingIntent()"];
+	Node0x55c1de528d00 -> Node0x55c1de51a460;
+	Node0x55c1de528d00 -> Node0x55c1de519f40;
+	Node0x55c1de528d00 -> Node0x55c1de525ff0;
+	Node0x55c1de528d00 -> Node0x55c1de519be0;
+	Node0x55c1de528d00 -> Node0x55c1de3f4f40;
+	Node0x55c1de528d00 -> Node0x55c1de519d00;
+	Node0x55c1de528d00 -> Node0x55c1de526be0;
+	Node0x55c1de3f4f40 [label="CIccInfo::GetRenderingIntentName()"];
+	Node0x55c1de3f4cc0 [label="RunHeuristic_H7_ProfileClass()"];
+	Node0x55c1de3f4cc0 -> Node0x55c1de4325c0;
+	Node0x55c1de3f4cc0 -> Node0x55c1de526be0;
+	Node0x55c1de3f4cc0 -> Node0x55c1de3f4fc0;
+	Node0x55c1de3f4cc0 -> Node0x55c1de519be0;
+	Node0x55c1de3f4cc0 -> Node0x55c1de519f40;
+	Node0x55c1de3f4cc0 -> Node0x55c1de525ff0;
+	Node0x55c1de3f4cc0 -> Node0x55c1de519d00;
+	Node0x55c1de3f4fc0 [label="CIccInfo::GetProfileClassSigName()"];
+	Node0x55c1de529550 [label="RunHeuristic_H8_IlluminantXYZ()"];
+	Node0x55c1de529550 -> Node0x55c1de3f5710;
+	Node0x55c1de529550 -> Node0x55c1de519f40;
+	Node0x55c1de529550 -> Node0x55c1de519d00;
+	Node0x55c1de529550 -> Node0x55c1de519be0;
+	Node0x55c1de529550 -> Node0x55c1de51a460;
+	Node0x55c1de3f5710 [label="icFtoD()"];
+	Node0x55c1de3f5f90 [label="RunHeuristic_H15_DateValidation()"];
+	Node0x55c1de3f5f90 -> Node0x55c1de51a460;
+	Node0x55c1de3f5f90 -> Node0x55c1de519f40;
+	Node0x55c1de3f5f90 -> Node0x55c1de519d00;
+	Node0x55c1de3f5f90 -> Node0x55c1de519be0;
+	Node0x55c1de3f66a0 [label="RunHeuristic_H16_SignaturePatterns()"];
+	Node0x55c1de3f66a0 -> Node0x55c1de519f40;
+	Node0x55c1de3f66a0 -> Node0x55c1de482f80;
+	Node0x55c1de3f66a0 -> Node0x55c1de519be0;
+	Node0x55c1de3f66a0 -> Node0x55c1de519d00;
+	Node0x55c1de482f80 [label="fputc"];
+	Node0x55c1de529880 [label="RunHeuristic_H17_SpectralRange()"];
+	Node0x55c1de529880 -> Node0x55c1de52a8d0;
+	Node0x55c1de529880 -> Node0x55c1de519f40;
+	Node0x55c1de529880 -> Node0x55c1de519be0;
+	Node0x55c1de529880 -> Node0x55c1de51a460;
+	Node0x55c1de529880 -> Node0x55c1de519d00;
+	Node0x55c1de52a8d0 [label="icF16toF()"];
+	Node0x55c1de3f7820 [label="RunHeaderHeuristics()"];
+	Node0x55c1de3f7820 -> Node0x55c1de51a060;
+	Node0x55c1de3f7820 -> Node0x55c1de41e920;
+	Node0x55c1de3f7820 -> Node0x55c1de430130;
+	Node0x55c1de3f7820 -> Node0x55c1de527700;
+	Node0x55c1de3f7820 -> Node0x55c1de3f4d40;
+	Node0x55c1de3f7820 -> Node0x55c1de528d00;
+	Node0x55c1de3f7820 -> Node0x55c1de3f4cc0;
+	Node0x55c1de3f7820 -> Node0x55c1de529550;
+	Node0x55c1de3f7820 -> Node0x55c1de3f5f90;
+	Node0x55c1de3f7820 -> Node0x55c1de3f66a0;
+	Node0x55c1de3f7820 -> Node0x55c1de529880;
+	Node0x55c1de519e20 [label="GetColor()"];
+	Node0x55c1de527470 [label="ColorSpaceSignatureToStr()"];
 }

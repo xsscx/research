@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccPcc.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,116 +15,89 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccPcc.l
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5affe5fcac20 [label="{IIccProfileConnectionConditions::isEquivalentPcc()}"];
-	Node0x5affe5fcac20 -> Node0x5affe5ef3d30;
-	Node0x5affe5fcac20 -> Node0x5affe5fc20a0;
-	Node0x5affe5fcac20 -> Node0x5affe5fd12c0;
-	Node0x5affe5fcac20 -> Node0x5affe5ef3e50;
-	Node0x5affe5ef3d30 [label="{IIccProfileConnectionConditions::getPccIlluminant()}"];
-	Node0x5affe5ef3d30 -> Node0x5affe5fd2520;
-	Node0x5affe5fc20a0 [label="{IIccProfileConnectionConditions::getPccObserver()}"];
-	Node0x5affe5fc20a0 -> Node0x5affe5fd3090;
-	Node0x5affe5ef3e50 [label="{IIccProfileConnectionConditions::getPccCCT()}"];
-	Node0x5affe5ef3e50 -> Node0x5affe5ef0b30;
-	Node0x5affe5fd12c0 [label="{IIccProfileConnectionConditions::hasIlluminantSPD()}"];
-	Node0x5affe5fd12c0 -> Node0x5affe5fd3a40;
-	Node0x5affe5fd2520 [label="{CIccTagSpectralViewingConditions::getStdIllumiant()}"];
-	Node0x5affe5ef0b30 [label="{CIccTagSpectralViewingConditions::getIlluminantCCT()}"];
-	Node0x5affe5fd3090 [label="{CIccTagSpectralViewingConditions::getStdObserver()}"];
-	Node0x5affe5fd4710 [label="{IIccProfileConnectionConditions::isStandardPcc()}"];
-	Node0x5affe5fd4710 -> Node0x5affe5ef3d30;
-	Node0x5affe5fd4710 -> Node0x5affe5fc20a0;
-	Node0x5affe5fd3a40 [label="{CIccTagSpectralViewingConditions::getIlluminant()}"];
-	Node0x5affe5fd4490 [label="{IIccProfileConnectionConditions::getObserverIlluminantScaleFactor()}"];
-	Node0x5affe5fd4490 -> Node0x5affe5fd3a40;
-	Node0x5affe5fd4490 -> Node0x5affe5fd3cd0;
-	Node0x5affe5fd4490 -> Node0x5affe5fd4990;
-	Node0x5affe5fd4490 -> Node0x5affe5fd5750;
-	Node0x5affe5fd4490 -> Node0x5affe5fd4e90;
-	Node0x5affe5fd4490 -> Node0x5affe5fd4c10;
-	Node0x5affe5fd4490 -> Node0x5affe5fd59d0;
-	Node0x5affe5fd3cd0 [label="{CIccTagSpectralViewingConditions::getObserver()}"];
-	Node0x5affe5fd4990 [label="{CIccMatrixMath::rangeMap()}"];
-	Node0x5affe5fd5750 [label="{llvm.umul.with.overflow.i64}"];
-	Node0x5affe5fd4e90 [label="{operator new[](unsigned long)}"];
-	Node0x5affe5fd4c10 [label="{llvm.fmuladd.f32}"];
-	Node0x5affe5fd59d0 [label="{operator delete[](void*)}"];
-	Node0x5affe5fd5590 [label="{IIccProfileConnectionConditions::getObserverWhiteScaleFactor()}"];
-	Node0x5affe5fd5590 -> Node0x5affe5fd3cd0;
-	Node0x5affe5fd5590 -> Node0x5affe5fd4990;
-	Node0x5affe5fd5590 -> Node0x5affe5fd5750;
-	Node0x5affe5fd5590 -> Node0x5affe5fd4e90;
-	Node0x5affe5fd5590 -> Node0x5affe5fd4c10;
-	Node0x5affe5fd5590 -> Node0x5affe5fd59d0;
-	Node0x5affe5fd47d0 [label="{IIccProfileConnectionConditions::getEmissiveObserver()}"];
-	Node0x5affe5fd47d0 -> Node0x5affe5fd3cd0;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd4b90;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd4990;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd4e10;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd5950;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd5c50;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd4c10;
-	Node0x5affe5fd47d0 -> Node0x5affe5fe7ef0;
-	Node0x5affe5fd47d0 -> Node0x5affe5fd4410;
-	Node0x5affe5fd4b90 [label="{malloc}"];
-	Node0x5affe5fd5c50 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5affe5fe7ef0 [label="{CIccMatrixMath::CIccMatrixMath()}"];
-	Node0x5affe5fd4410 [label="{CIccMatrixMath::entry()}"];
-	Node0x5affe5fea4f0 [label="{__gxx_personality_v0}"];
-	Node0x5affe5fd5950 [label="{CIccMatrixMath::VectorMult()}"];
-	Node0x5affe5fd4e10 [label="{CIccMatrixMath::~CIccMatrixMath()}"];
-	Node0x5affe5fec360 [label="{IIccProfileConnectionConditions::getReflectanceObserver()}"];
-	Node0x5affe5fec360 -> Node0x5affe5fd3a40;
-	Node0x5affe5fec360 -> Node0x5affe5fd4990;
-	Node0x5affe5fec360 -> Node0x5affe5feb960;
-	Node0x5affe5fec360 -> Node0x5affe5fd6850;
-	Node0x5affe5fec360 -> Node0x5affe5fee5b0;
-	Node0x5affe5fec360 -> Node0x5affe5fea570;
-	Node0x5affe5fec360 -> Node0x5affe5fee780;
-	Node0x5affe5feb960 [label="{CIccTagSpectralViewingConditions::getObserverMatrix()}"];
-	Node0x5affe5fd6850 [label="{CIccMatrixMath::Mult()}"];
-	Node0x5affe5fea570 [label="{CIccMatrixMath::VectorScale()}"];
-	Node0x5affe5fee5b0 [label="{CIccMatrixMath::Scale()}"];
-	Node0x5affe5fee780 [label="{CIccMatrixMath::RowSum()}"];
-	Node0x5affe5fed270 [label="{CIccCombinedConnectionConditions::CIccCombinedConnectionConditions()}"];
-	Node0x5affe5fed270 -> Node0x5affe5fed0a0;
-	Node0x5affe5fed270 -> Node0x5affe5feeb10;
-	Node0x5affe5fed270 -> Node0x5affe5fef840;
-	Node0x5affe5fed270 -> Node0x5affe5fefae0;
-	Node0x5affe5fed270 -> Node0x5affe5fd3a40;
-	Node0x5affe5fed270 -> Node0x5affe5fd2520;
-	Node0x5affe5fed270 -> Node0x5affe5ef0b30;
-	Node0x5affe5fed270 -> Node0x5affe5fef650;
-	Node0x5affe5fed270 -> Node0x5affe5feefb0;
-	Node0x5affe5fed0a0 [label="{IIccProfileConnectionConditions::IIccProfileConnectionConditions()}"];
-	Node0x5affe5feeb10 [label="{CIccProfile::calcMediaWhiteXYZ()}"];
-	Node0x5affe5fef650 [label="{CIccTagSpectralViewingConditions::setIlluminant()}"];
-	Node0x5affe5feefb0 [label="{CIccProfile::calcNormIlluminantXYZ()}"];
-	Node0x5affe5fefae0 [label="{CIccProfile::calcLumIlluminantXYZ()}"];
-	Node0x5affe5ff0b70 [label="{CIccCombinedConnectionConditions::~CIccCombinedConnectionConditions()}"];
-	Node0x5affe5ff0b70 -> Node0x5affe5fef840;
-	Node0x5affe5ff0ac0 [label="{CIccCombinedConnectionConditions::~CIccCombinedConnectionConditions()}"];
-	Node0x5affe5ff0ac0 -> Node0x5affe5ff0440;
-	Node0x5affe5ff0440 [label="{delete()}"];
-	Node0x5affe5ff02f0 [label="{CIccCombinedConnectionConditions::getPccViewingConditions()}"];
-	Node0x5affe5ff4e50 [label="{CIccCombinedConnectionConditions::getCustomToStandardPcc()}"];
-	Node0x5affe5ff6ed0 [label="{CIccCombinedConnectionConditions::getStandardToCustomPcc()}"];
-	Node0x5affe5ff6b20 [label="{CIccCombinedConnectionConditions::getNormIlluminantXYZ()}"];
-	Node0x5affe5ff6b20 -> Node0x5affe5fd5c50;
-	Node0x5affe5ff5150 [label="{CIccCombinedConnectionConditions::getLumIlluminantXYZ()}"];
-	Node0x5affe5ff5150 -> Node0x5affe5fd5c50;
-	Node0x5affe5fe0440 [label="{CIccCombinedConnectionConditions::getMediaWhiteXYZ()}"];
-	Node0x5affe5fe0440 -> Node0x5affe5fd5c50;
-	Node0x5affe5fef840 [label="{IIccProfileConnectionConditions::~IIccProfileConnectionConditions()}"];
-	Node0x5affe5ffa770 [label="{IIccProfileConnectionConditions::~IIccProfileConnectionConditions()}"];
-	Node0x5affe5ffa770 -> Node0x5affe5fe10c0;
-	Node0x5affe5fe1140 [label="{__cxa_pure_virtual}"];
-	Node0x5affe5fe10c0 [label="{llvm.trap}"];
+	Node0x5ee86082ac20 [label="IIccProfileConnectionConditions::isEquivalentPcc()"];
+	Node0x5ee86082ac20 -> Node0x5ee860753d30;
+	Node0x5ee86082ac20 -> Node0x5ee8608220a0;
+	Node0x5ee86082ac20 -> Node0x5ee8608312c0;
+	Node0x5ee86082ac20 -> Node0x5ee860753e50;
+	Node0x5ee860753d30 [label="IIccProfileConnectionConditions::getPccIlluminant()"];
+	Node0x5ee860753d30 -> Node0x5ee860832520;
+	Node0x5ee8608220a0 [label="IIccProfileConnectionConditions::getPccObserver()"];
+	Node0x5ee8608220a0 -> Node0x5ee860833090;
+	Node0x5ee860753e50 [label="IIccProfileConnectionConditions::getPccCCT()"];
+	Node0x5ee860753e50 -> Node0x5ee860750b30;
+	Node0x5ee8608312c0 [label="IIccProfileConnectionConditions::hasIlluminantSPD()"];
+	Node0x5ee8608312c0 -> Node0x5ee860833a40;
+	Node0x5ee860832520 [label="CIccTagSpectralViewingConditions::getStdIllumiant()"];
+	Node0x5ee860750b30 [label="CIccTagSpectralViewingConditions::getIlluminantCCT()"];
+	Node0x5ee860833090 [label="CIccTagSpectralViewingConditions::getStdObserver()"];
+	Node0x5ee860834710 [label="IIccProfileConnectionConditions::isStandardPcc()"];
+	Node0x5ee860834710 -> Node0x5ee860753d30;
+	Node0x5ee860834710 -> Node0x5ee8608220a0;
+	Node0x5ee860833a40 [label="CIccTagSpectralViewingConditions::getIlluminant()"];
+	Node0x5ee860834490 [label="IIccProfileConnectionConditions::getObserverIlluminantSca..."];
+	Node0x5ee860834490 -> Node0x5ee860833a40;
+	Node0x5ee860834490 -> Node0x5ee860833cd0;
+	Node0x5ee860834490 -> Node0x5ee860834990;
+	Node0x5ee860833cd0 [label="CIccTagSpectralViewingConditions::getObserver()"];
+	Node0x5ee860834990 [label="CIccMatrixMath::rangeMap()"];
+	Node0x5ee860835590 [label="IIccProfileConnectionConditions::getObserverWhiteScaleFac..."];
+	Node0x5ee860835590 -> Node0x5ee860833cd0;
+	Node0x5ee860835590 -> Node0x5ee860834990;
+	Node0x5ee8608347d0 [label="IIccProfileConnectionConditions::getEmissiveObserver()"];
+	Node0x5ee8608347d0 -> Node0x5ee860833cd0;
+	Node0x5ee8608347d0 -> Node0x5ee860834990;
+	Node0x5ee8608347d0 -> Node0x5ee860834e10;
+	Node0x5ee8608347d0 -> Node0x5ee860835950;
+	Node0x5ee8608347d0 -> Node0x5ee860847ef0;
+	Node0x5ee8608347d0 -> Node0x5ee860834410;
+	Node0x5ee860847ef0 [label="CIccMatrixMath::CIccMatrixMath()"];
+	Node0x5ee860834410 [label="CIccMatrixMath::entry()"];
+	Node0x5ee860835950 [label="CIccMatrixMath::VectorMult()"];
+	Node0x5ee860834e10 [label="CIccMatrixMath::~CIccMatrixMath()"];
+	Node0x5ee86084c360 [label="IIccProfileConnectionConditions::getReflectanceObserver()"];
+	Node0x5ee86084c360 -> Node0x5ee860833a40;
+	Node0x5ee86084c360 -> Node0x5ee860834990;
+	Node0x5ee86084c360 -> Node0x5ee86084b960;
+	Node0x5ee86084c360 -> Node0x5ee860836850;
+	Node0x5ee86084c360 -> Node0x5ee86084e5b0;
+	Node0x5ee86084c360 -> Node0x5ee86084a570;
+	Node0x5ee86084c360 -> Node0x5ee86084e780;
+	Node0x5ee86084b960 [label="CIccTagSpectralViewingConditions::getObserverMatrix()"];
+	Node0x5ee860836850 [label="CIccMatrixMath::Mult()"];
+	Node0x5ee86084a570 [label="CIccMatrixMath::VectorScale()"];
+	Node0x5ee86084e5b0 [label="CIccMatrixMath::Scale()"];
+	Node0x5ee86084e780 [label="CIccMatrixMath::RowSum()"];
+	Node0x5ee86084d480 [label="CIccCombinedConnectionConditions::CIccCombinedConnectionC..."];
+	Node0x5ee86084d480 -> Node0x5ee86084d2b0;
+	Node0x5ee86084d480 -> Node0x5ee86084eb10;
+	Node0x5ee86084d480 -> Node0x5ee86084f840;
+	Node0x5ee86084d480 -> Node0x5ee86084fae0;
+	Node0x5ee86084d480 -> Node0x5ee860833a40;
+	Node0x5ee86084d480 -> Node0x5ee860832520;
+	Node0x5ee86084d480 -> Node0x5ee860750b30;
+	Node0x5ee86084d480 -> Node0x5ee86084f650;
+	Node0x5ee86084d480 -> Node0x5ee86084efb0;
+	Node0x5ee86084d2b0 [label="IIccProfileConnectionConditions::IIccProfileConnectionCon..."];
+	Node0x5ee86084eb10 [label="CIccProfile::calcMediaWhiteXYZ()"];
+	Node0x5ee86084f650 [label="CIccTagSpectralViewingConditions::setIlluminant()"];
+	Node0x5ee86084efb0 [label="CIccProfile::calcNormIlluminantXYZ()"];
+	Node0x5ee86084fae0 [label="CIccProfile::calcLumIlluminantXYZ()"];
+	Node0x5ee860850b70 [label="CIccCombinedConnectionConditions::~CIccCombinedConnection..."];
+	Node0x5ee860850b70 -> Node0x5ee86084f840;
+	Node0x5ee860850ac0 [label="CIccCombinedConnectionConditions::~CIccCombinedConnection..."];
+	Node0x5ee8608502f0 [label="CIccCombinedConnectionConditions::getPccViewingConditions()"];
+	Node0x5ee860855200 [label="CIccCombinedConnectionConditions::getCustomToStandardPcc()"];
+	Node0x5ee860856b60 [label="CIccCombinedConnectionConditions::getStandardToCustomPcc()"];
+	Node0x5ee8608569d0 [label="CIccCombinedConnectionConditions::getNormIlluminantXYZ()"];
+	Node0x5ee860854ec0 [label="CIccCombinedConnectionConditions::getLumIlluminantXYZ()"];
+	Node0x5ee86083ad80 [label="CIccCombinedConnectionConditions::getMediaWhiteXYZ()"];
+	Node0x5ee86084f840 [label="IIccProfileConnectionConditions::~IIccProfileConnectionCo..."];
+	Node0x5ee86085a400 [label="IIccProfileConnectionConditions::~IIccProfileConnectionCo..."];
 }

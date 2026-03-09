@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerValidation.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,127 +15,51 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerVal
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5594b2ce5fc0 [label="{RoundTripAnalyze()}"];
-	Node0x5594b2ce5fc0 -> Node0x5594b2ce6050;
-	Node0x5594b2ce5fc0 -> Node0x5594b2ced6d0;
-	Node0x5594b2ce5fc0 -> Node0x5594b2cdbea0;
-	Node0x5594b2ce5fc0 -> Node0x5594b2cd0980;
-	Node0x5594b2ce5fc0 -> Node0x5594b2c2b530;
-	Node0x5594b2ce5fc0 -> Node0x5594b2c2b240;
-	Node0x5594b2ce5fc0 -> Node0x5594b2cec960;
-	Node0x5594b2ce5fc0 -> Node0x5594b2c2aaa0;
-	Node0x5594b2ce5fc0 -> Node0x5594b2c2b3a0;
-	Node0x5594b2ce5fc0 -> Node0x5594b2ced550;
-	Node0x5594b2ce5fc0 -> Node0x5594b2c2dda0;
-	Node0x5594b2cf0170 [label="{basic_string<char, std::char_traits >::capacity()}"];
-	Node0x5594b2ce6050 [label="{printf}"];
-	Node0x5594b2c304b0 [label="{basic_string<char, std::char_traits >::insert()}"];
-	Node0x5594b2c2fbe0 [label="{basic_string<char, std::char_traits >::append()}"];
-	Node0x5594b2cdbea0 [label="{CIccFileIO::CIccFileIO()}"];
-	Node0x5594b2cd0980 [label="{CIccFileIO::Open()}"];
-	Node0x5594b2c2e520 [label="{__gxx_personality_v0}"];
-	Node0x5594b2c2b530 [label="{new()}"];
-	Node0x5594b2c2b240 [label="{CIccProfile::CIccProfile()}"];
-	Node0x5594b2c2b3a0 [label="{delete()}"];
-	Node0x5594b2c2aaa0 [label="{CIccFileIO::Close()}"];
-	Node0x5594b2ced550 [label="{CIccProfile::Read()}"];
-	Node0x5594b2c2dda0 [label="{RoundTripAnalyze()}"];
-	Node0x5594b2c2dda0 -> Node0x5594b2c2dd20;
-	Node0x5594b2cec960 [label="{HasRoundTripSupport()}"];
-	Node0x5594b2cec960 -> Node0x5594b2ced840;
-	Node0x5594b2ced6d0 [label="{CIccFileIO::~CIccFileIO()}"];
-	Node0x5594b2ced740 [label="{RecursiveScan()}"];
-	Node0x5594b2ced740 -> Node0x5594b2ce6050;
-	Node0x5594b2ced740 -> Node0x5594b2cee620;
-	Node0x5594b2ced740 -> Node0x5594b2ceeea0;
-	Node0x5594b2ced740 -> Node0x5594b2c2eb50;
-	Node0x5594b2ced740 -> Node0x5594b2ced6d0;
-	Node0x5594b2ced740 -> Node0x5594b2c2e6f0;
-	Node0x5594b2ced740 -> Node0x5594b2cee360;
-	Node0x5594b2ced740 -> Node0x5594b2c2e980;
-	Node0x5594b2ced740 -> Node0x5594b2c2ede0;
-	Node0x5594b2ced740 -> Node0x5594b2cee7a0;
-	Node0x5594b2ced740 -> Node0x5594b2cee970;
-	Node0x5594b2ced740 -> Node0x5594b2cec960;
-	Node0x5594b2ced740 -> Node0x5594b2c2aaa0;
-	Node0x5594b2ced740 -> Node0x5594b2ced550;
-	Node0x5594b2ced740 -> Node0x5594b2c2b3a0;
-	Node0x5594b2ced740 -> Node0x5594b2c2f260;
-	Node0x5594b2ced740 -> Node0x5594b2c2b240;
-	Node0x5594b2ced740 -> Node0x5594b2c2b530;
-	Node0x5594b2ced740 -> Node0x5594b2cd0980;
-	Node0x5594b2ced740 -> Node0x5594b2cdbea0;
-	Node0x5594b2ced740 -> Node0x5594b2c2efa0;
-	Node0x5594b2ced740 -> Node0x5594b2c2fa30;
-	Node0x5594b2ced740 -> Node0x5594b2ced740;
-	Node0x5594b2cee620 [label="{opendir}"];
-	Node0x5594b2c2e6f0 [label="{readdir}"];
-	Node0x5594b2c2ede0 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x5594b2c2ede0 -> Node0x5594b2c2f5e0;
-	Node0x5594b2c2ede0 -> Node0x5594b2c2fea0;
-	Node0x5594b2c2ede0 -> Node0x5594b2cf0170;
-	Node0x5594b2c2ede0 -> Node0x5594b2c2fbe0;
-	Node0x5594b2c2ede0 -> Node0x5594b2c304b0;
-	Node0x5594b2c2e980 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x5594b2c2e980 -> Node0x5594b2c31090;
-	Node0x5594b2c2e980 -> Node0x5594b2c2fea0;
-	Node0x5594b2cee360 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x5594b2cee360 -> Node0x5594b2c30430;
-	Node0x5594b2cee360 -> Node0x5594b2cf0400;
-	Node0x5594b2cee360 -> Node0x5594b2c308f0;
-	Node0x5594b2cee360 -> Node0x5594b2c30690;
-	Node0x5594b2cee360 -> Node0x5594b2c3a0d0;
-	Node0x5594b2cee360 -> Node0x5594b2c31aa0;
-	Node0x5594b2c2eb50 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x5594b2c2f260 [label="{stat}"];
-	Node0x5594b2cee7a0 [label="{basic_string<char, std::char_traits >::c_str()}"];
-	Node0x5594b2c2fa30 [label="{strlen}"];
-	Node0x5594b2c2efa0 [label="{strcasecmp}"];
-	Node0x5594b2ceeea0 [label="{closedir}"];
-	Node0x5594b2c2dd20 [label="{CIccProfile::FindTag()}"];
-	Node0x5594b2ced840 [label="{HasRoundTripSupport()}"];
-	Node0x5594b2ced840 -> Node0x5594b2c2dd20;
-	Node0x5594b2cee970 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x5594b2c30430 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x5594b2cf0400 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x5594b2c308f0 [label="{std::__throw_logic_error()}"];
-	Node0x5594b2c3a0d0 [label="{std::char_traits<char>::length()}"];
-	Node0x5594b2c3a0d0 -> Node0x5594b2c2fa30;
-	Node0x5594b2c31aa0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5594b2c31aa0 -> Node0x5594b2c30b50;
-	Node0x5594b2c31aa0 -> Node0x5594b2cf0630;
-	Node0x5594b2c31aa0 -> Node0x5594b2c32be0;
-	Node0x5594b2c31aa0 -> Node0x5594b2c32d90;
-	Node0x5594b2c31aa0 -> Node0x5594b2c326d0;
-	Node0x5594b2c31aa0 -> Node0x5594b2cf1cc0;
-	Node0x5594b2c31aa0 -> Node0x5594b2c33270;
-	Node0x5594b2c31aa0 -> Node0x5594b2cf2420;
-	Node0x5594b2c32d90 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5594b2c30690 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x5594b2c30690 -> Node0x5594b2cee970;
-	Node0x5594b2cf0630 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5594b2c30b50 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x5594b2c32be0 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x5594b2cf1cc0 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x5594b2c326d0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5594b2c33270 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x5594b2cf2420 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5594b2cf2420 -> Node0x5594b2c336f0;
-	Node0x5594b2cf2420 -> Node0x5594b2c334a0;
-	Node0x5594b2c336f0 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x5594b2c334a0 [label="{__clang_call_terminate}"];
-	Node0x5594b2c334a0 -> Node0x5594b2c32b60;
-	Node0x5594b2c334a0 -> Node0x5594b2c348c0;
-	Node0x5594b2c32b60 [label="{__cxa_begin_catch}"];
-	Node0x5594b2c348c0 [label="{std::terminate()}"];
-	Node0x5594b2c31090 [label="{basic_string<char, std::char_traits >::append()}"];
-	Node0x5594b2c2fea0 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5594b2c2f5e0 [label="{basic_string<char, std::char_traits >::size()}"];
+	Node0x60476c89e050 [label="RoundTripAnalyze()"];
+	Node0x60476c89e050 -> Node0x60476c956740;
+	Node0x60476c89e050 -> Node0x60476c944ea0;
+	Node0x60476c89e050 -> Node0x60476c94a850;
+	Node0x60476c89e050 -> Node0x60476c893970;
+	Node0x60476c89e050 -> Node0x60476c955650;
+	Node0x60476c89e050 -> Node0x60476c893bb0;
+	Node0x60476c89e050 -> Node0x60476c896fd0;
+	Node0x60476c89e050 -> Node0x60476c956450;
+	Node0x60476c899710 [label="capacity()"];
+	Node0x60476c899970 [label="append()"];
+	Node0x60476c944ea0 [label="CIccFileIO::CIccFileIO()"];
+	Node0x60476c94a850 [label="CIccFileIO::Open()"];
+	Node0x60476c893970 [label="CIccProfile::CIccProfile()"];
+	Node0x60476c893bb0 [label="CIccFileIO::Close()"];
+	Node0x60476c896fd0 [label="CIccProfile::Read()"];
+	Node0x60476c956450 [label="RoundTripAnalyze()"];
+	Node0x60476c956450 -> Node0x60476c956b00;
+	Node0x60476c955650 [label="HasRoundTripSupport()"];
+	Node0x60476c955650 -> Node0x60476c897220;
+	Node0x60476c956740 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x60476c956840 [label="RecursiveScan()"];
+	Node0x60476c956840 -> Node0x60476c956740;
+	Node0x60476c956840 -> Node0x60476c957870;
+	Node0x60476c956840 -> Node0x60476c955650;
+	Node0x60476c956840 -> Node0x60476c893bb0;
+	Node0x60476c956840 -> Node0x60476c896fd0;
+	Node0x60476c956840 -> Node0x60476c893970;
+	Node0x60476c956840 -> Node0x60476c94a850;
+	Node0x60476c956840 -> Node0x60476c944ea0;
+	Node0x60476c956840 -> Node0x60476c909630;
+	Node0x60476c956840 -> Node0x60476c956840;
+	Node0x60476c957870 [label="c_str()"];
+	Node0x60476c909630 [label="strcasecmp"];
+	Node0x60476c956b00 [label="CIccProfile::FindTag()"];
+	Node0x60476c897220 [label="HasRoundTripSupport()"];
+	Node0x60476c897220 -> Node0x60476c956b00;
+	Node0x60476c89ad10 [label="length()"];
+	Node0x60476c95af80 [label="_Guard::_Guard()"];
+	Node0x60476c89c950 [label="_Guard::~_Guard()"];
+	Node0x60476c899db0 [label="append()"];
 }

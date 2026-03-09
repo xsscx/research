@@ -1,0 +1,87 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccSpecSepToTiff.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x55ca5ae12650 [label="Usage()"];
+	Node0x55ca5ae43330 [label="main"];
+	Node0x55ca5ae43330 -> Node0x55ca5ae12650;
+	Node0x55ca5ae43330 -> Node0x55ca5ae11130;
+	Node0x55ca5ae43330 -> Node0x55ca5ae10ed0;
+	Node0x55ca5ae43330 -> Node0x55ca5ae113a0;
+	Node0x55ca5ae43330 -> Node0x55ca5ae10760;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0a700;
+	Node0x55ca5ae43330 -> Node0x55ca5af0d390;
+	Node0x55ca5ae43330 -> Node0x55ca5ae10a20;
+	Node0x55ca5ae43330 -> Node0x55ca5af0d210;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0b040;
+	Node0x55ca5ae43330 -> Node0x55ca5af0f630;
+	Node0x55ca5ae43330 -> Node0x55ca5af0f0b0;
+	Node0x55ca5ae43330 -> Node0x55ca5af0d500;
+	Node0x55ca5ae43330 -> Node0x55ca5af0eb60;
+	Node0x55ca5ae43330 -> Node0x55ca5af0e020;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0fbd0;
+	Node0x55ca5ae43330 -> Node0x55ca5ae10590;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0fe80;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0fa00;
+	Node0x55ca5ae43330 -> Node0x55ca5af0e5e0;
+	Node0x55ca5ae43330 -> Node0x55ca5af0e270;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0e800;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0f530;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0f0c0;
+	Node0x55ca5ae43330 -> Node0x55ca5af0dad0;
+	Node0x55ca5ae43330 -> Node0x55ca5ae0eeb0;
+	Node0x55ca5ae0a700 [label="CTiffImg::Open()"];
+	Node0x55ca5ae0b040 [label="CTiffImg::GetSamples()"];
+	Node0x55ca5af0d500 [label="CTiffImg::GetPhoto()"];
+	Node0x55ca5af0d390 [label="CTiffImg::GetWidth()"];
+	Node0x55ca5af0d210 [label="CTiffImg::GetHeight()"];
+	Node0x55ca5ae0e800 [label="CTiffImg::GetBitsPerSample()"];
+	Node0x55ca5af0dad0 [label="CTiffImg::GetXRes()"];
+	Node0x55ca5ae0f0c0 [label="CTiffImg::GetYRes()"];
+	Node0x55ca5ae0eeb0 [label="CTiffImg::GetBytesPerLine()"];
+	Node0x55ca5af0e020 [label="get()"];
+	Node0x55ca5ae0f530 [label="CTiffImg::CTiffImg()"];
+	Node0x55ca5af0e270 [label="CTiffImg::Create()"];
+	Node0x55ca5af0e5e0 [label="CIccFileIO::CIccFileIO()"];
+	Node0x55ca5ae0fa00 [label="CIccFileIO::Open()"];
+	Node0x55ca5ae0fe80 [label="CIccFileIO::GetLength()"];
+	Node0x55ca5ae10590 [label="reset()"];
+	Node0x55ca5ae10590 -> Node0x55ca5af21b60;
+	Node0x55ca5ae0fbd0 [label="CIccFileIO::Read8()"];
+	Node0x55ca5af0eb60 [label="CTiffImg::SetIccProfile()"];
+	Node0x55ca5af0f0b0 [label="CIccFileIO::Close()"];
+	Node0x55ca5af0f630 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x55ca5ae10a20 [label="CTiffImg::ReadLine()"];
+	Node0x55ca5ae10760 [label="CTiffImg::WriteLine()"];
+	Node0x55ca5ae113a0 [label="CTiffImg::Close()"];
+	Node0x55ca5ae11130 [label="unique_ptr()"];
+	Node0x55ca5ae11130 -> Node0x55ca5af20f10;
+	Node0x55ca5ae10ed0 [label="CTiffImg::~CTiffImg()"];
+	Node0x55ca5af21c60 [label="__uniq_ptr_data()"];
+	Node0x55ca5af21c60 -> Node0x55ca5af21000;
+	Node0x55ca5af21000 [label="__uniq_ptr_impl()"];
+	Node0x55ca5af10860 [label="__uniq_ptr_impl()"];
+	Node0x55ca5af10860 -> Node0x55ca5af36b20;
+	Node0x55ca5af36b20 [label="__uniq_ptr_impl()"];
+	Node0x55ca5af20f10 [label="get_deleter()"];
+	Node0x55ca5af21b60 [label="reset()"];
+}

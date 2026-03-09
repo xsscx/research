@@ -5,27 +5,120 @@ Improve call graph DOT files and regenerate SVGs.
 Transforms:
   1. Demangle C++ symbols via c++filt
   2. Simplify long template names for readability
-  3. Add graph attributes for proper SVG sizing/zooming
-  4. Filter out std:: / __cxx / compiler-internal nodes (optional)
-  5. Regenerate SVGs with graphviz dot
+  3. Remove record-style {braces} from labels (use plain labels)
+  4. Strip graph attribute blocks and replace with clean styling
+  5. Filter noise nodes: std::, libc, LLVM intrinsics, compiler helpers
+  6. Regenerate SVGs with graphviz dot (auto-sized, not forced 200×200in)
 
 Usage:
-  python3 improve-callgraphs.py                    # process all
-  python3 improve-callgraphs.py --filter-std       # remove std:: nodes
+  python3 improve-callgraphs.py                    # process all (always filters noise)
+  python3 improve-callgraphs.py --keep-noise       # keep libc/LLVM nodes
   python3 improve-callgraphs.py --dry-run          # show changes without writing
+  python3 improve-callgraphs.py --component cfl    # process only CFL
 
 Copyright (c) 2026 David H Hoyt LLC. All Rights Reserved.
 """
 
 import argparse
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CALL_GRAPH_DIR = Path(__file__).resolve().parent.parent
+
+# Noise node prefixes — these add clutter without analytical value
+NOISE_PREFIXES = [
+    # C++ runtime
+    "std::", "__cxa_", "__gxx_", "_Unwind_", "__clang_", "__cxx_global",
+    "operator new", "operator delete",
+    # LLVM intrinsics
+    "llvm.", "llvm.memset", "llvm.memcpy", "llvm.lifetime", "llvm.dbg",
+    # libc memory
+    "memcpy", "memset", "memmove", "malloc", "calloc", "realloc", "free",
+    # libc string
+    "strlen", "strcmp", "strcpy", "strncmp", "strncpy", "strcat", "strncat",
+    "strstr", "strchr", "strrchr", "strtol", "strtod", "strtoul", "atoi",
+    "sscanf", "sprintf",
+    # libc I/O
+    "printf", "fprintf", "snprintf", "vsnprintf", "puts", "putchar",
+    "fread", "fwrite", "fopen", "fclose", "fseek", "ftell", "fgets",
+    "fflush", "ferror", "feof", "fileno", "fdopen", "freopen",
+    # libc misc
+    "stat", "lstat", "fstat", "access", "getenv", "setenv",
+    "exit", "abort", "_exit", "atexit",
+    "close", "read", "write", "open", "unlink", "remove",
+    "time", "clock", "difftime", "mktime",
+    "qsort", "bsort",
+    # Signal/longjmp
+    "_setjmp", "setjmp", "longjmp", "siglongjmp", "sigsetjmp",
+    "signal", "sigaction", "alarm",
+    # libpng
+    "png_", "PNG_",
+    # libjpeg
+    "jpeg_", "JPEG_",
+    # libtiff
+    "TIFF", "Tiff", "_TIFF", "TIFFGetField", "TIFFOpen", "TIFFClose",
+    "TIFFReadScanline", "TIFFStripSize", "TIFFNumberOfStrips",
+    "TIFFNumberOfTiles", "TIFFSetField", "TIFFWriteScanline",
+    "TIFFReadEncodedStrip", "TIFFScanlineSize", "TIFFTileSize",
+    # libxml2
+    "xml", "XML", "xmlSAX", "xmlParse", "xmlChar",
+    # OpenSSL
+    "EVP_", "SHA256", "OPENSSL_",
+    # STL internals (tree, allocator, string)
+    "_S_right", "_S_left", "_S_key", "_S_value", "_S_minimum", "_S_maximum",
+    "_M_drop", "_M_clone", "_M_get_insert", "_M_lower_bound", "_M_upper_bound",
+    "_M_begin", "_M_end", "_M_insert", "_M_erase", "_M_emplace", "_M_create",
+    "_M_construct", "_M_dispose", "_M_assign", "_M_mutate", "_M_replace",
+    "_M_append", "_M_destroy", "_M_deallocate", "_M_allocate", "_M_fill",
+    "basic_string::", "basic_ostream::", "basic_istream::",
+    # Trivial patterns
+    "bool()", "__assert",
+]
+
+# Exact-match noise labels
+NOISE_EXACT = {
+    "bool()", "int()", "void()", "char()", "unsigned()", "float()", "double()",
+    "__gxx_personality_v0", "_Unwind_Resume",
+    # STL container internals
+    "set()", "map()", "list()", "vector()", "pair()", "tuple()",
+    "insert()", "erase()", "find()", "count()", "begin()", "end()",
+    "size()", "empty()", "clear()", "push_back()", "pop_back()",
+    "front()", "back()", "emplace()", "emplace_back()",
+    "_S_right()", "_S_left()", "_S_key()", "_S_value()", "_S_minimum()",
+    "_S_maximum()", "_M_drop_node()", "_M_clone_node()", "_M_insert_",
+    "_M_erase()", "_M_get_insert_unique_pos()", "_M_get_insert_equal_pos()",
+    "_M_lower_bound()", "_M_upper_bound()", "_M_begin()", "_M_end()",
+    "_M_insert_()", "_M_emplace_unique()",
+    "basic_string()", "string()", "wstring()",
+}
+
+# Graph attributes for clean, browser-viewable SVGs
+GRAPH_ATTRS = """\
+\t// Clean graph styling — auto-sized for browser viewing
+\tgraph [
+\t\trankdir=LR,
+\t\tnodesep=0.3,
+\t\tranksep=0.8,
+\t\tfontname="Helvetica",
+\t\tfontsize=10,
+\t\tbgcolor="white",
+\t\tpad=0.3
+\t];
+\tnode [
+\t\tshape=box,
+\t\tstyle="rounded,filled",
+\t\tfillcolor="#f0f4ff",
+\t\tfontname="Courier",
+\t\tfontsize=9,
+\t\tmargin="0.08,0.04"
+\t];
+\tedge [
+\t\tcolor="#4a6fa5",
+\t\tarrowsize=0.6
+\t];
+"""
 
 
 def demangle_batch(mangled_names: list) -> dict:
@@ -51,67 +144,46 @@ def simplify_name(demangled: str) -> str:
     name = re.sub(r",\s*std::allocator<[^>]*>", "", name)
     name = re.sub(r"std::__cxx11::", "std::", name)
 
-    # Simplify deep templates: keep outermost type
-    # std::vector<std::pair<unsigned int const, CIccTag*>> -> std::vector<...>
+    # Simplify deep templates: collapse nested template args
     depth = 0
     simplified = []
-    skip_depth = 0
     for ch in name:
         if ch == "<":
             depth += 1
             if depth == 1:
                 simplified.append("<")
-                skip_depth = 0
-            elif depth == 2:
-                skip_depth = depth
         elif ch == ">":
-            if depth == skip_depth:
-                pass
             if depth == 1:
                 simplified.append(">")
             depth -= 1
         elif depth <= 1:
             simplified.append(ch)
-        elif depth == 2 and skip_depth == 0:
-            simplified.append(ch)
     name = "".join(simplified)
 
-    # Clean up empty angle brackets and extra commas
+    # Clean up empty angle brackets
     name = re.sub(r"<\s*>", "", name)
-    name = re.sub(r",\s*>", ">", name)
 
-    # Extract meaningful function name
-    # Pattern: ReturnType Class::Method(Args) -> Class::Method()
+    # Extract Class::Method() from full signature
     match = re.search(
-        r"([A-Za-z_][A-Za-z0-9_]*(?:<[^>]*>)?(?:::[~A-Za-z_][A-Za-z0-9_]*(?:<[^>]*>)?)*)\s*\(",
+        r"([A-Za-z_][A-Za-z0-9_]*(?:::[~A-Za-z_][A-Za-z0-9_]*)*)\s*\(",
         name,
     )
     if match:
         func = match.group(1)
-        # Keep class::method but drop leading qualifiers for deeply nested stuff
         parts = func.split("::")
         if len(parts) > 3:
             parts = parts[-3:]
             func = "::".join(parts)
         name = func + "()"
 
-    # Truncate if still too long
-    if len(name) > 70:
-        name = name[:67] + "..."
+    if len(name) > 60:
+        name = name[:57] + "..."
 
     return name
 
 
-def extract_mangled_from_label(label: str) -> str:
-    """Extract the mangled symbol from a DOT label field."""
-    # label="{_ZN8CIccCmmC2E...}" or label="{funcname}"
-    match = re.search(r"\{([^}]+)\}", label)
-    return match.group(1) if match else label
-
-
 def fallback_demangle(mangled: str) -> str:
     """Regex-based demangling for symbols c++filt can't handle."""
-    # _ZN<len>Class<len>MethodE... -> Class::Method
     parts = re.findall(r"(\d+)([A-Za-z_][A-Za-z0-9_]*)", mangled)
     if parts and mangled.startswith("_Z"):
         names = []
@@ -128,155 +200,134 @@ def fallback_demangle(mangled: str) -> str:
     return mangled
 
 
-def is_std_node(label: str) -> bool:
-    """Check if a node represents a std:: library function."""
-    return any(
-        label.startswith(prefix)
-        for prefix in [
-            "std::",
-            "__cxa_",
-            "__gxx_",
-            "_Unwind_",
-            "__clang_",
-            "operator new",
-            "operator delete",
-            "__cxx_global",
-            "llvm.",
-            "memcpy",
-            "memset",
-            "memmove",
-            "strlen",
-            "strcmp",
-            "strcpy",
-            "strncmp",
-            "malloc",
-            "calloc",
-            "realloc",
-            "free",
-        ]
-    )
+def is_noise_node(label: str) -> bool:
+    """Check if a label represents a noise node that should be filtered."""
+    stripped = label.strip()
+    if stripped in NOISE_EXACT:
+        return True
+    if any(stripped.startswith(prefix) for prefix in NOISE_PREFIXES):
+        return True
+    # Catch-all: STL/libstdc++ internals (_M_*, _S_*, _Rb_tree*, _Vector_*, _Alloc_*, __new_*)
+    if re.match(r'^_[A-Z]_\w+', stripped):
+        return True
+    if re.match(r'^_[A-Z][a-z]+_', stripped):  # _Rb_tree, _Vector_base, _Alloc_node
+        return True
+    if stripped.startswith("__gnu_cxx::") or stripped.startswith("__new_"):
+        return True
+    # Bare operator() is noise (STL functors)
+    if stripped == "operator()":
+        return True
+    # std:: qualified anything
+    if "std::" in stripped:
+        return True
+    # Trivial single-word functions (allocator internals, libc bare names)
+    trivial = {"allocate()", "deallocate()", "data()", "new()", "delete()",
+               "getpid", "memcmp", "memcpy", "memset", "memmove", "rewind",
+               "fread", "fwrite", "fclose", "fopen", "ftell", "fseek",
+               "strlen", "strcmp", "strncmp", "strcpy", "strncpy", "strcat",
+               "abort", "exit", "_exit"}
+    if stripped in trivial:
+        return True
+    return False
 
 
-def process_dot_file(dot_path: Path, filter_std: bool = False, dry_run: bool = False) -> dict:
-    """Process a single DOT file: demangle, simplify, improve attributes."""
+def strip_braces(label: str) -> str:
+    """Remove graphviz record-style {braces} from a label."""
+    if label.startswith("{") and label.endswith("}"):
+        return label[1:-1]
+    return label
+
+
+def process_dot_file(dot_path: Path, filter_noise: bool = True, dry_run: bool = False) -> dict:
+    """Process a single DOT file: demangle, clean labels, filter noise, restyle."""
     with open(dot_path) as f:
         content = f.read()
 
-    # Extract all mangled symbols from labels
-    label_pattern = re.compile(r'label="\{([^}]+)\}"')
+    # Match both braced and plain label formats
+    label_pattern = re.compile(r'label="(?:\{([^}]+)\}|([^"]+))"')
     mangled_symbols = set()
     for match in label_pattern.finditer(content):
-        sym = match.group(1)
-        if sym.startswith("_Z") or sym.startswith("_GLOBAL"):
+        sym = match.group(1) or match.group(2)
+        if sym and (sym.startswith("_Z") or sym.startswith("_GLOBAL")):
             mangled_symbols.add(sym)
 
-    # Batch demangle
     demangle_map = demangle_batch(list(mangled_symbols))
 
-    # Build final label mapping
     label_map = {}
-    std_nodes = set()
+    noise_labels = set()
 
     for sym in mangled_symbols:
         demangled = demangle_map.get(sym)
-        if demangled:
-            simplified = simplify_name(demangled)
-        else:
-            simplified = fallback_demangle(sym)
+        simplified = simplify_name(demangled) if demangled else fallback_demangle(sym)
         label_map[sym] = simplified
+        if filter_noise and is_noise_node(simplified):
+            noise_labels.add(sym)
 
-        if filter_std and is_std_node(simplified):
-            std_nodes.add(sym)
-
-    # Also handle non-mangled labels (plain C functions)
+    # Handle non-mangled labels (plain C functions, already-demangled)
     for match in label_pattern.finditer(content):
-        sym = match.group(1)
-        if sym not in mangled_symbols and not sym.startswith("_Z"):
-            label_map[sym] = sym  # Keep as-is
+        sym = match.group(1) or match.group(2)
+        if sym and sym not in mangled_symbols and not sym.startswith("_Z"):
+            clean = strip_braces(sym)
+            label_map[sym] = clean
+            if filter_noise and is_noise_node(clean):
+                noise_labels.add(sym)
 
-    # Replace labels in content
+    # Build set of node IDs to remove
+    noise_node_ids = set()
+    if filter_noise and noise_labels:
+        for line in content.split("\n"):
+            for sym in noise_labels:
+                if sym in line:
+                    nid_match = re.match(r"\s*(Node0x[a-f0-9]+)\s", line)
+                    if nid_match:
+                        noise_node_ids.add(nid_match.group(1))
+
+    # Replace labels: remove braces, use demangled names
     def replace_label(m):
-        old = m.group(1)
-        new = label_map.get(old, old)
-        # Escape special DOT chars
+        old = m.group(1) or m.group(2)
+        new = label_map.get(old, strip_braces(old))
         new = new.replace("\\", "\\\\").replace('"', '\\"')
-        return f'label="{{{new}}}"'
+        return f'label="{new}"'
 
     new_content = label_pattern.sub(replace_label, content)
 
-    # Filter std:: nodes if requested
-    if filter_std and std_nodes:
-        # Find node IDs for std:: symbols
-        node_id_map = {}
+    # Filter noise node lines (definitions and edges)
+    if noise_node_ids:
+        filtered_lines = []
         for line in new_content.split("\n"):
-            for sym in std_nodes:
-                escaped = sym.replace("\\", "\\\\")
-                if escaped in line or sym in line:
-                    nid_match = re.match(r"\s*(Node0x[a-f0-9]+)\s", line)
-                    if nid_match:
-                        node_id_map[nid_match.group(1)] = sym
+            skip = any(nid in line for nid in noise_node_ids)
+            if not skip:
+                filtered_lines.append(line)
+        new_content = "\n".join(filtered_lines)
 
-        # Remove lines with std:: node definitions and edges
-        if node_id_map:
-            filtered_lines = []
-            for line in new_content.split("\n"):
-                skip = False
-                for nid in node_id_map:
-                    if nid in line:
-                        skip = True
-                        break
-                if not skip:
-                    filtered_lines.append(line)
-            new_content = "\n".join(filtered_lines)
-
-    # Improve graph attributes for SVG rendering
-    # Add after the opening brace of the digraph
-    graph_attrs = """
-\t// Graph attributes for readable SVG output
-\tgraph [
-\t\trankdir=LR,
-\t\tnodesep=0.4,
-\t\tranksep=1.2,
-\t\tfontname="Helvetica",
-\t\tfontsize=11,
-\t\tbgcolor="white",
-\t\tpad=0.5,
-\t\tmargin=0,
-\t\tsize="200,200!",
-\t\tratio="compress"
-\t];
-\tnode [
-\t\tshape=box,
-\t\tstyle="rounded,filled",
-\t\tfillcolor="#f0f4ff",
-\t\tfontname="Courier",
-\t\tfontsize=9,
-\t\tmargin="0.1,0.05"
-\t];
-\tedge [
-\t\tcolor="#4a6fa5",
-\t\tarrowsize=0.7
-\t];
-"""
-
-    # Remove old label= line at top and insert new attributes
+    # Strip ALL existing graph/node/edge attribute blocks and old size/ratio settings
+    # Remove any existing attribute blocks between digraph opening and first Node
     new_content = re.sub(
-        r'(digraph "[^"]*" \{)\s*\n\tlabel="[^"]*";\n',
-        lambda m: m.group(1) + "\n" + graph_attrs,
+        r'(digraph "[^"]*" \{)\s*\n'
+        r'(?:\s*//[^\n]*\n)*'          # comment lines
+        r'(?:\s*graph\s*\[[^\]]*\];\s*\n)*'   # graph [] blocks
+        r'(?:\s*node\s*\[[^\]]*\];\s*\n)*'    # node [] blocks
+        r'(?:\s*edge\s*\[[^\]]*\];\s*\n)*',   # edge [] blocks
+        lambda m: m.group(1) + "\n" + GRAPH_ATTRS,
         new_content,
     )
 
-    # Also replace shape=record with improved styling
+    # Remove stale label= at digraph level
+    new_content = re.sub(r'\tlabel="[^"]*";\n', '', new_content)
+    # Remove shape=record remnants
     new_content = new_content.replace("shape=record,", "")
+    # Remove forced size/ratio that create absurd SVG dimensions
+    new_content = re.sub(r'\s*size="[^"]*",?\n?', '\n', new_content)
+    new_content = re.sub(r'\s*ratio="[^"]*",?\n?', '\n', new_content)
 
+    remaining_nodes = new_content.count("label=")
     stats = {
         "file": str(dot_path),
-        "total_nodes": len(mangled_symbols) + len(
-            [1 for m in label_pattern.finditer(content) if m.group(1) not in mangled_symbols]
-        ),
+        "total_nodes": len(label_map),
         "demangled": sum(1 for v in demangle_map.values() if v is not None),
         "fallback": sum(1 for sym in mangled_symbols if demangle_map.get(sym) is None),
-        "filtered_std": len(std_nodes) if filter_std else 0,
+        "noise_filtered": len(noise_node_ids),
+        "remaining": remaining_nodes,
     }
 
     if not dry_run:
@@ -287,7 +338,7 @@ def process_dot_file(dot_path: Path, filter_std: bool = False, dry_run: bool = F
 
 
 def regenerate_svg(dot_path: Path, dry_run: bool = False) -> bool:
-    """Regenerate SVG from DOT file."""
+    """Regenerate SVG from DOT file using graphviz auto-sizing."""
     svg_path = dot_path.with_suffix(".svg")
     if dry_run:
         return True
@@ -306,37 +357,39 @@ def regenerate_svg(dot_path: Path, dry_run: bool = False) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Improve call graph DOT files")
-    parser.add_argument("--filter-std", action="store_true", help="Remove std:: nodes")
+    parser = argparse.ArgumentParser(description="Improve call graph DOT files and SVGs")
+    parser.add_argument("--keep-noise", action="store_true",
+                        help="Keep libc/LLVM/compiler noise nodes (default: filter them)")
     parser.add_argument("--dry-run", action="store_true", help="Show changes without writing")
-    parser.add_argument("--component", help="Process only this component (iccdev, cfl, analyzer, colorbleed)")
+    parser.add_argument("--component",
+                        help="Process only this component (iccdev, cfl, analyzer, colorbleed)")
     args = parser.parse_args()
+
+    filter_noise = not args.keep_noise
 
     dot_files = sorted(CALL_GRAPH_DIR.rglob("*.dot"))
     if args.component:
         dot_files = [f for f in dot_files if args.component in str(f)]
 
     print(f"Processing {len(dot_files)} DOT files...")
-    if args.filter_std:
-        print("  Filtering std:: nodes")
+    if filter_noise:
+        print("  Filtering noise nodes (libc, LLVM, std::, compiler helpers)")
     if args.dry_run:
         print("  DRY RUN — no files will be modified")
 
-    total_stats = {"demangled": 0, "fallback": 0, "filtered_std": 0, "total_nodes": 0}
+    total = {"demangled": 0, "fallback": 0, "noise_filtered": 0, "total_nodes": 0, "remaining": 0}
 
     for dot_file in dot_files:
         rel = dot_file.relative_to(CALL_GRAPH_DIR)
-        stats = process_dot_file(dot_file, filter_std=args.filter_std, dry_run=args.dry_run)
-        total_stats["demangled"] += stats["demangled"]
-        total_stats["fallback"] += stats["fallback"]
-        total_stats["filtered_std"] += stats["filtered_std"]
-        total_stats["total_nodes"] += stats["total_nodes"]
-        print(f"  {rel}: {stats['demangled']} demangled, {stats['fallback']} fallback"
-              + (f", {stats['filtered_std']} std filtered" if stats['filtered_std'] else ""))
+        stats = process_dot_file(dot_file, filter_noise=filter_noise, dry_run=args.dry_run)
+        for k in total:
+            total[k] += stats[k]
+        noise_msg = f", {stats['noise_filtered']} noise removed" if stats['noise_filtered'] else ""
+        print(f"  {rel}: {stats['remaining']} nodes{noise_msg}")
 
-    print(f"\nTotals: {total_stats['total_nodes']} nodes, "
-          f"{total_stats['demangled']} demangled, "
-          f"{total_stats['fallback']} fallback")
+    print(f"\nTotals: {total['total_nodes']} processed, "
+          f"{total['noise_filtered']} noise removed, "
+          f"{total['remaining']} remaining")
 
     if args.dry_run:
         print("\nDry run complete. No files modified.")

@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMD5.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,26 +15,20 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMD5.l
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5694d147e430 [label="{icMD5Init()}"];
-	Node0x5694d147dbb0 [label="{icMD5Update()}"];
-	Node0x5694d147dbb0 -> Node0x5694d1478fc0;
-	Node0x5694d147dbb0 -> Node0x5694d1479040;
-	Node0x5694d1478fc0 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5694d1479040 [label="{MD5Transform()}"];
-	Node0x5694d1479040 -> Node0x5694d1479a80;
-	Node0x5694d1479040 -> Node0x5694d13e7020;
-	Node0x5694d13e1080 [label="{icMD5Final()}"];
-	Node0x5694d13e1080 -> Node0x5694d14807e0;
-	Node0x5694d13e1080 -> Node0x5694d147dbb0;
-	Node0x5694d13e1080 -> Node0x5694d13e7020;
-	Node0x5694d14807e0 [label="{Encode()}"];
-	Node0x5694d13e7020 [label="{llvm.memset.p0.i64}"];
-	Node0x5694d1479a80 [label="{Decode()}"];
+	Node0x5ec028dc0430 [label="icMD5Init()"];
+	Node0x5ec028dbfbb0 [label="icMD5Update()"];
+	Node0x5ec028dbfbb0 -> Node0x5ec028dbb040;
+	Node0x5ec028dbb040 [label="MD5Transform()"];
+	Node0x5ec028dbb040 -> Node0x5ec028dbba80;
+	Node0x5ec028d23080 [label="icMD5Final()"];
+	Node0x5ec028d23080 -> Node0x5ec028dc27e0;
+	Node0x5ec028d23080 -> Node0x5ec028dbfbb0;
+	Node0x5ec028dc27e0 [label="Encode()"];
+	Node0x5ec028dbba80 [label="Decode()"];
 }

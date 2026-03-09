@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMatrixMath.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,73 +15,43 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccMatri
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5fc293970d70 [label="{CIccMatrixMath::CIccMatrixMath()}"];
-	Node0x5fc293970d70 -> Node0x5fc293965cb0;
-	Node0x5fc293970d70 -> Node0x5fc293968260;
-	Node0x5fc293970d70 -> Node0x5fc2938cde10;
-	Node0x5fc293970d70 -> Node0x5fc2938a9840;
-	Node0x5fc293965cb0 [label="{llvm.umul.with.overflow.i64}"];
-	Node0x5fc293968260 [label="{operator new[](unsigned long)}"];
-	Node0x5fc2938cde10 [label="{llvm.memset.p0.i64}"];
-	Node0x5fc2938a9840 [label="{CIccMatrixMath::entry()}"];
-	Node0x5fc2938daef0 [label="{CIccMatrixMath::CIccMatrixMath()}"];
-	Node0x5fc2938daef0 -> Node0x5fc293965cb0;
-	Node0x5fc2938daef0 -> Node0x5fc293968260;
-	Node0x5fc2938daef0 -> Node0x5fc2938ce390;
-	Node0x5fc2938ce390 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5fc293974db0 [label="{CIccMatrixMath::~CIccMatrixMath()}"];
-	Node0x5fc293974db0 -> Node0x5fc293988cf0;
-	Node0x5fc293988cf0 [label="{operator delete[](void*)}"];
-	Node0x5fc293988410 [label="{CIccMatrixMath::~CIccMatrixMath()}"];
-	Node0x5fc293988410 -> Node0x5fc2939761c0;
-	Node0x5fc2939761c0 [label="{delete()}"];
-	Node0x5fc2939890b0 [label="{CIccMatrixMath::VectorMult()}"];
-	Node0x5fc2939890b0 -> Node0x5fc29398aa10;
-	Node0x5fc2939890b0 -> Node0x5fc293989870;
-	Node0x5fc29398aa10 [label="{CIccMatrixMath::entry()}"];
-	Node0x5fc293989870 [label="{llvm.fmuladd.f32}"];
-	Node0x5fc293989740 [label="{CIccMatrixMath::dumpMtx()}"];
-	Node0x5fc293989740 -> Node0x5fc29398aa10;
-	Node0x5fc293989740 -> Node0x5fc29398ac60;
-	Node0x5fc293989740 -> Node0x5fc29398bfd0;
-	Node0x5fc29398ac60 [label="{snprintf}"];
-	Node0x5fc29398bfd0 [label="{std::basic_string<char, std::char_traits >::operator+=(char const*)}"];
-	Node0x5fc29398b7e0 [label="{CIccMatrixMath::Mult()}"];
-	Node0x5fc29398b7e0 -> Node0x5fc29398b5a0;
-	Node0x5fc29398b7e0 -> Node0x5fc29398aa10;
-	Node0x5fc29398b7e0 -> Node0x5fc2938a9840;
-	Node0x5fc29398b7e0 -> Node0x5fc2939761c0;
-	Node0x5fc29398b7e0 -> Node0x5fc293989870;
-	Node0x5fc29398b5a0 [label="{new()}"];
-	Node0x5fc29398b960 [label="{__gxx_personality_v0}"];
-	Node0x5fc29398f810 [label="{CIccMatrixMath::VectorScale()}"];
-	Node0x5fc29398f810 -> Node0x5fc2938a9840;
-	Node0x5fc29398f570 [label="{CIccMatrixMath::Scale()}"];
-	Node0x5fc29398f570 -> Node0x5fc2938a9840;
-	Node0x5fc29398f050 [label="{CIccMatrixMath::Invert()}"];
-	Node0x5fc29398f050 -> Node0x5fc29398a0b0;
-	Node0x5fc29398a0b0 [label="{icMatrixInvert3x3()}"];
-	Node0x5fc29397b020 [label="{CIccMatrixMath::RowSum()}"];
-	Node0x5fc29397b020 -> Node0x5fc29398aa10;
-	Node0x5fc293991720 [label="{CIccMatrixMath::isIdentityMtx()}"];
-	Node0x5fc293991720 -> Node0x5fc29398aa10;
-	Node0x5fc293991020 [label="{CIccMatrixMath::SetRange()}"];
-	Node0x5fc293991020 -> Node0x5fc293990970;
-	Node0x5fc293991020 -> Node0x5fc293989870;
-	Node0x5fc293991020 -> Node0x5fc2938a9840;
-	Node0x5fc293991020 -> Node0x5fc2938cde10;
-	Node0x5fc293990970 [label="{icF16toF()}"];
-	Node0x5fc29397bb60 [label="{CIccMatrixMath::rangeMap()}"];
-	Node0x5fc29397bb60 -> Node0x5fc29398b5a0;
-	Node0x5fc29397bb60 -> Node0x5fc293991020;
-	Node0x5fc29397bb60 -> Node0x5fc2939761c0;
-	Node0x5fc2939943c0 [label="{CIccMatrixMath::GetCols()}"];
-	Node0x5fc293994700 [label="{CIccMatrixMath::GetRows()}"];
+	Node0x5de985e8cd70 [label="CIccMatrixMath::CIccMatrixMath()"];
+	Node0x5de985e8cd70 -> Node0x5de985dc5840;
+	Node0x5de985dc5840 [label="CIccMatrixMath::entry()"];
+	Node0x5de985df6ef0 [label="CIccMatrixMath::CIccMatrixMath()"];
+	Node0x5de985e90db0 [label="CIccMatrixMath::~CIccMatrixMath()"];
+	Node0x5de985ea4410 [label="CIccMatrixMath::~CIccMatrixMath()"];
+	Node0x5de985ea50b0 [label="CIccMatrixMath::VectorMult()"];
+	Node0x5de985ea50b0 -> Node0x5de985ea6a10;
+	Node0x5de985ea6a10 [label="CIccMatrixMath::entry()"];
+	Node0x5de985ea5740 [label="CIccMatrixMath::dumpMtx()"];
+	Node0x5de985ea5740 -> Node0x5de985ea6a10;
+	Node0x5de985ea77e0 [label="CIccMatrixMath::Mult()"];
+	Node0x5de985ea77e0 -> Node0x5de985ea6a10;
+	Node0x5de985ea77e0 -> Node0x5de985dc5840;
+	Node0x5de985eab810 [label="CIccMatrixMath::VectorScale()"];
+	Node0x5de985eab810 -> Node0x5de985dc5840;
+	Node0x5de985eab570 [label="CIccMatrixMath::Scale()"];
+	Node0x5de985eab570 -> Node0x5de985dc5840;
+	Node0x5de985eab050 [label="CIccMatrixMath::Invert()"];
+	Node0x5de985eab050 -> Node0x5de985ea60b0;
+	Node0x5de985ea60b0 [label="icMatrixInvert3x3()"];
+	Node0x5de985e97020 [label="CIccMatrixMath::RowSum()"];
+	Node0x5de985e97020 -> Node0x5de985ea6a10;
+	Node0x5de985ead720 [label="CIccMatrixMath::isIdentityMtx()"];
+	Node0x5de985ead720 -> Node0x5de985ea6a10;
+	Node0x5de985ead020 [label="CIccMatrixMath::SetRange()"];
+	Node0x5de985ead020 -> Node0x5de985eac970;
+	Node0x5de985ead020 -> Node0x5de985dc5840;
+	Node0x5de985eac970 [label="icF16toF()"];
+	Node0x5de985eb02a0 [label="CIccMatrixMath::rangeMap()"];
+	Node0x5de985eb02a0 -> Node0x5de985ead020;
+	Node0x5de985eb36b0 [label="CIccMatrixMath::GetCols()"];
+	Node0x5de985eaaea0 [label="CIccMatrixMath::GetRows()"];
 }

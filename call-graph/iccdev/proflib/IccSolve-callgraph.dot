@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSolve.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,40 +15,28 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSolve
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x6326574a8c30 [label="{__cxx_global_var_init}"];
-	Node0x6326574a8c30 -> Node0x6326574a8790;
-	Node0x6326574a8790 [label="{CIccSimpleMatrixSolver::CIccSimpleMatrixSolver()}"];
-	Node0x6326574a8790 -> Node0x6326574a8400;
-	Node0x6326574a8230 [label="{IccSetMatrixSolver()}"];
-	Node0x6326574a94c0 [label="{IccGetDefaultMatrixSolver()}"];
-	Node0x6326574aad50 [label="{__cxx_global_var_init.1}"];
-	Node0x6326574aad50 -> Node0x6326574aa790;
-	Node0x6326574aa790 [label="{CIccSimpleMatrixInverter::CIccSimpleMatrixInverter()}"];
-	Node0x6326574aa790 -> Node0x6326574a9f80;
-	Node0x6326574ab530 [label="{IccSetMatrixInverter()}"];
-	Node0x632657496d10 [label="{IccGetDefaultMatrixInverter()}"];
-	Node0x6326574a8400 [label="{IIccMatrixSolver::IIccMatrixSolver()}"];
-	Node0x632657495910 [label="{CIccSimpleMatrixSolver::Solve()}"];
-	Node0x632657495910 -> Node0x632657494710;
-	Node0x632657495910 -> Node0x6326574a7090;
-	Node0x632657495910 -> Node0x6326574b0ad0;
-	Node0x632657495910 -> Node0x6326574affa0;
-	Node0x6326574a7390 [label="{__cxa_pure_virtual}"];
-	Node0x632657494710 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x6326574a7090 [label="{icMatrixInvert3x3()}"];
-	Node0x6326574b0ad0 [label="{icVectorApplyMatrix3x3()}"];
-	Node0x6326574affa0 [label="{llvm.memset.p0.i64}"];
-	Node0x6326574a9f80 [label="{IIccMatrixInverter::IIccMatrixInverter()}"];
-	Node0x6326574a6d60 [label="{CIccSimpleMatrixInverter::Invert()}"];
-	Node0x6326574a6d60 -> Node0x6326574a7090;
-	Node0x63265749afd0 [label="{_GLOBAL__sub_I_IccSolve.cpp}"];
-	Node0x63265749afd0 -> Node0x6326574a8c30;
-	Node0x63265749afd0 -> Node0x6326574aad50;
+	Node0x61983a470a10 [label="CIccSimpleMatrixSolver::CIccSimpleMatrixSolver()"];
+	Node0x61983a470a10 -> Node0x61983a470530;
+	Node0x61983a4702b0 [label="IccSetMatrixSolver()"];
+	Node0x61983a471e20 [label="IccGetDefaultMatrixSolver()"];
+	Node0x61983a4728d0 [label="CIccSimpleMatrixInverter::CIccSimpleMatrixInverter()"];
+	Node0x61983a4728d0 -> Node0x61983a472630;
+	Node0x61983a4735d0 [label="IccSetMatrixInverter()"];
+	Node0x61983a45ee50 [label="IccGetDefaultMatrixInverter()"];
+	Node0x61983a470530 [label="IIccMatrixSolver::IIccMatrixSolver()"];
+	Node0x61983a45ea90 [label="CIccSimpleMatrixSolver::Solve()"];
+	Node0x61983a45ea90 -> Node0x61983a46f1c0;
+	Node0x61983a45ea90 -> Node0x61983a4790e0;
+	Node0x61983a46f1c0 [label="icMatrixInvert3x3()"];
+	Node0x61983a4790e0 [label="icVectorApplyMatrix3x3()"];
+	Node0x61983a472630 [label="IIccMatrixInverter::IIccMatrixInverter()"];
+	Node0x61983a46eec0 [label="CIccSimpleMatrixInverter::Invert()"];
+	Node0x61983a46eec0 -> Node0x61983a46f1c0;
+	Node0x61983a463450 [label="_GLOBAL__sub_I_IccSolve.cpp"];
 }

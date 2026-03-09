@@ -1,4 +1,26 @@
 digraph "IccSpecSepToTiff" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
   rankdir=LR;
   node [shape=box, style="rounded,filled", fillcolor="#2d2d2d", fontcolor="white", fontname="Consolas"];
   edge [color="#666666"];

@@ -1,0 +1,144 @@
+digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccHeuristicsXmlSafety.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x63d947661350 [label="CIccTagXmlFactory::CIccTagXmlFactory()"];
+	Node0x63d947661350 -> Node0x63d9475736d0;
+	Node0x63d94756d220 [label="CIccMpeXmlFactory::CIccMpeXmlFactory()"];
+	Node0x63d94756d220 -> Node0x63d947573950;
+	Node0x63d94757aa80 [label="IIccTagFactory::~IIccTagFactory()"];
+	Node0x63d94765d3b0 [label="RunHeuristic_H142_XmlSerializationSafety()"];
+	Node0x63d94765d3b0 -> Node0x63d947670780;
+	Node0x63d94765d3b0 -> Node0x63d94765c3e0;
+	Node0x63d94765d3b0 -> Node0x63d94758d5d0;
+	Node0x63d94765d3b0 -> Node0x63d947573260;
+	Node0x63d94765d3b0 -> Node0x63d9475fc1e0;
+	Node0x63d94765d3b0 -> Node0x63d947572460;
+	Node0x63d94765d3b0 -> Node0x63d947661350;
+	Node0x63d94765d3b0 -> Node0x63d947670530;
+	Node0x63d94765d3b0 -> Node0x63d947578570;
+	Node0x63d94765d3b0 -> Node0x63d94756d220;
+	Node0x63d94765d3b0 -> Node0x63d947572c40;
+	Node0x63d94765d3b0 -> Node0x63d94756de70;
+	Node0x63d94765d3b0 -> Node0x63d94756d510;
+	Node0x63d94765d3b0 -> Node0x63d94766ca90;
+	Node0x63d94765d3b0 -> Node0x63d94756d380;
+	Node0x63d94765d3b0 -> Node0x63d94756b8e0;
+	Node0x63d94765d3b0 -> Node0x63d947572770;
+	Node0x63d94765d3b0 -> Node0x63d94766dfb0;
+	Node0x63d94765d3b0 -> Node0x63d94766f060;
+	Node0x63d94765d3b0 -> Node0x63d947571c20;
+	Node0x63d94765d3b0 -> Node0x63d947571f40;
+	Node0x63d94765c3e0 [label="fork"];
+	Node0x63d94758d5d0 [label="__errno_location"];
+	Node0x63d9475fc1e0 [label="dup2"];
+	Node0x63d94756de70 [label="CIccTagCreator::PushFactory()"];
+	Node0x63d94756de70 -> Node0x63d947573420;
+	Node0x63d94756de70 -> Node0x63d947670d80;
+	Node0x63d94756d510 [label="CIccMpeCreator::PushFactory()"];
+	Node0x63d94756d510 -> Node0x63d947572e00;
+	Node0x63d94756d510 -> Node0x63d947574840;
+	Node0x63d94766ca90 [label="CIccProfileXml::CIccProfileXml()"];
+	Node0x63d94766ca90 -> Node0x63d947671ab0;
+	Node0x63d94756d380 [label="CIccFileIO::CIccFileIO()"];
+	Node0x63d94756b8e0 [label="CIccFileIO::Open()"];
+	Node0x63d94766dfb0 [label="CIccProfile::Read()"];
+	Node0x63d94766f060 [label="CIccFileIO::Close()"];
+	Node0x63d947571c20 [label="reserve()"];
+	Node0x63d947571f40 [label="CIccProfileXml::ToXml()"];
+	Node0x63d947572770 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x63d947572c40 [label="CIccProfileXml::~CIccProfileXml()"];
+	Node0x63d947572c40 -> Node0x63d947574340;
+	Node0x63d947572460 [label="waitpid"];
+	Node0x63d947578570 [label="usleep"];
+	Node0x63d947670530 [label="kill"];
+	Node0x63d947573260 [label="ColorCritical()"];
+	Node0x63d947573260 -> Node0x63d9475766b0;
+	Node0x63d947670780 [label="ColorReset()"];
+	Node0x63d947670780 -> Node0x63d9475766b0;
+	Node0x63d947576170 [label="RunHeuristic_H143_XmlArrayBoundsPrecheck()"];
+	Node0x63d947576170 -> Node0x63d947670780;
+	Node0x63d947576170 -> Node0x63d947576b70;
+	Node0x63d947576170 -> Node0x63d947577050;
+	Node0x63d947576170 -> Node0x63d947573260;
+	Node0x63d947576170 -> Node0x63d947576d50;
+	Node0x63d947576b70 [label="CIccProfile::FindTag()"];
+	Node0x63d947577050 [label="SigToChars()"];
+	Node0x63d947576d50 [label="ColorWarning()"];
+	Node0x63d947576d50 -> Node0x63d9475766b0;
+	Node0x63d947577a70 [label="RunHeuristic_H144_XmlStringTerminationPrecheck()"];
+	Node0x63d947577a70 -> Node0x63d947670780;
+	Node0x63d947577a70 -> Node0x63d947576b70;
+	Node0x63d947577a70 -> Node0x63d9476745d0;
+	Node0x63d947577a70 -> Node0x63d9475777f0;
+	Node0x63d947577a70 -> Node0x63d9475779f0;
+	Node0x63d947577a70 -> Node0x63d947573260;
+	Node0x63d947577a70 -> Node0x63d94757a050;
+	Node0x63d9476745d0 [label="__dynamic_cast"];
+	Node0x63d9475777f0 [label="CIccTagColorantTable::GetSize()"];
+	Node0x63d9475779f0 [label="CIccTagColorantTable::operator[](unsigned int)"];
+	Node0x63d94757a050 [label="CIccTagNamedColor2::GetPrefix()"];
+	Node0x63d9475797d0 [label="RunHeuristic_H145_XmlCurveTypeConsistency()"];
+	Node0x63d9475797d0 -> Node0x63d947670780;
+	Node0x63d9475797d0 -> Node0x63d947576b70;
+	Node0x63d9475797d0 -> Node0x63d9476745d0;
+	Node0x63d9475797d0 -> Node0x63d947577ed0;
+	Node0x63d9475797d0 -> Node0x63d947674e10;
+	Node0x63d9475797d0 -> Node0x63d947573260;
+	Node0x63d947577ed0 [label="CIccTagMultiProcessElement::NumElements()"];
+	Node0x63d947674e10 [label="CIccTagMultiProcessElement::GetElement()"];
+	Node0x63d9475736d0 [label="IIccTagFactory::IIccTagFactory()"];
+	Node0x63d94757b320 [label="IIccTagFactory::~IIccTagFactory()"];
+	Node0x63d947573950 [label="IIccMpeFactory::IIccMpeFactory()"];
+	Node0x63d9475716a0 [label="IIccMpeFactory::~IIccMpeFactory()"];
+	Node0x63d947675830 [label="IIccMpeFactory::~IIccMpeFactory()"];
+	Node0x63d947573420 [label="CIccTagCreator::GetInstance()"];
+	Node0x63d947670d80 [label="CIccTagCreator::DoPushFactory()"];
+	Node0x63d947572e00 [label="CIccMpeCreator::GetInstance()"];
+	Node0x63d947574840 [label="CIccMpeCreator::DoPushFactory()"];
+	Node0x63d947671ab0 [label="CIccProfile::CIccProfile()"];
+	Node0x63d947675570 [label="CIccProfileXml::~CIccProfileXml()"];
+	Node0x63d947675570 -> Node0x63d947572c40;
+	Node0x63d947677560 [label="CIccProfile::getPccViewingConditions()"];
+	Node0x63d947677560 -> Node0x63d9476770b0;
+	Node0x63d947676e20 [label="CIccProfile::getCustomToStandardPcc()"];
+	Node0x63d947676e20 -> Node0x63d9476770b0;
+	Node0x63d947677a60 [label="CIccProfile::getStandardToCustomPcc()"];
+	Node0x63d947677a60 -> Node0x63d9476770b0;
+	Node0x63d9476781e0 [label="CIccProfile::getNormIlluminantXYZ()"];
+	Node0x63d947677f60 [label="CIccProfile::getLumIlluminantXYZ()"];
+	Node0x63d947677ce0 [label="CIccProfile::getMediaWhiteXYZ()"];
+	Node0x63d947678960 [label="CIccProfileXml::NewCopy()"];
+	Node0x63d947678960 -> Node0x63d947678e60;
+	Node0x63d947678d20 [label="CIccProfileXml::NewProfile()"];
+	Node0x63d947678d20 -> Node0x63d94766ca90;
+	Node0x63d947678be0 [label="CIccProfileXml::GetClassName()"];
+	Node0x63d947679f80 [label="CIccProfile::getPccIlluminant()"];
+	Node0x63d94767b4c0 [label="CIccProfile::getPccCCT()"];
+	Node0x63d94767b240 [label="CIccProfile::getPccObserver()"];
+	Node0x63d9476770b0 [label="CIccProfile::FindTagOfType()"];
+	Node0x63d947678e60 [label="CIccProfileXml::CIccProfileXml()"];
+	Node0x63d947678e60 -> Node0x63d94767afc0;
+	Node0x63d94767afc0 [label="CIccProfile::CIccProfile()"];
+	Node0x63d947574340 [label="CIccProfile::~CIccProfile()"];
+	Node0x63d9475766b0 [label="GetColor()"];
+}

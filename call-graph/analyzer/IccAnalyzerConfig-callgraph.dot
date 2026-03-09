@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerConfig.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,117 +15,30 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerCon
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5fb4f6b1adf0 [label="{LoadConfig()}"];
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b1ae80;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b1fe00;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b1fe90;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b26650;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b264e0;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b26360;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b254d0;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b26bf0;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b26a60;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b27700;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6ab0070;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6aafbf0;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6aaf770;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6aafeb0;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6ab0560;
-	Node0x5fb4f6b1adf0 -> Node0x5fb4f6b27140;
-	Node0x5fb4f6ab57e0 [label="{std::terminate()}"];
-	Node0x5fb4f6ab1f50 [label="{basic_string<char, std::char_traits >::size()}"];
-	Node0x5fb4f6ab1d10 [label="{std::char_traits<char>::compare()}"];
-	Node0x5fb4f6ab1d10 -> Node0x5fb4f6ab5cf0;
-	Node0x5fb4f6b1ae80 [label="{fopen}"];
-	Node0x5fb4f6b1fe00 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x5fb4f6b1fe90 [label="{fgets}"];
-	Node0x5fb4f6ab04e0 [label="{__gxx_personality_v0}"];
-	Node0x5fb4f6b264e0 [label="{Trim()}"];
-	Node0x5fb4f6b264e0 -> Node0x5fb4f6aafeb0;
-	Node0x5fb4f6b264e0 -> Node0x5fb4f6b27490;
-	Node0x5fb4f6b264e0 -> Node0x5fb4f6b27390;
-	Node0x5fb4f6b264e0 -> Node0x5fb4f6aaf770;
-	Node0x5fb4f6b26650 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x5fb4f6b26650 -> Node0x5fb4f6ab02b0;
-	Node0x5fb4f6b26650 -> Node0x5fb4f6b27f40;
-	Node0x5fb4f6b26650 -> Node0x5fb4f6ab0db0;
-	Node0x5fb4f6b26650 -> Node0x5fb4f6b27c80;
-	Node0x5fb4f6b26650 -> Node0x5fb4f6ab15d0;
-	Node0x5fb4f6b26650 -> Node0x5fb4f6ab1ac0;
-	Node0x5fb4f6b26360 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x5fb4f6b26bf0 [label="{basic_string<char, std::char_traits >::empty()}"];
-	Node0x5fb4f6b26a60 [label="{std::basic_string<char, std::char_traits >::operator[](unsigned long)}"];
-	Node0x5fb4f6aafeb0 [label="{basic_string<char, std::char_traits >::length()}"];
-	Node0x5fb4f6aaf770 [label="{basic_string<char, std::char_traits >::substr()}"];
-	Node0x5fb4f6b27140 [label="{std::basic_string<char, std::char_traits >::operator=(std::basic_st...}"];
-	Node0x5fb4f6ab0560 [label="{basic_string<char, std::char_traits >::find()}"];
-	Node0x5fb4f6ab0070 [label="{bool std::operator==<char, std::char_traits >(std::basic_string<cha...}"];
-	Node0x5fb4f6ab0070 -> Node0x5fb4f6ab1f50;
-	Node0x5fb4f6ab0070 -> Node0x5fb4f6ab15d0;
-	Node0x5fb4f6ab0070 -> Node0x5fb4f6b284c0;
-	Node0x5fb4f6ab0070 -> Node0x5fb4f6ab1d10;
-	Node0x5fb4f6aafbf0 [label="{std::basic_string<char, std::char_traits >::operator=(std::basic_st...}"];
-	Node0x5fb4f6b27700 [label="{fclose}"];
-	Node0x5fb4f6ab1550 [label="{LoadConfigAuto()}"];
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6b294b0;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6ab3060;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6b291f0;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6ab2ae0;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6ab2a60;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6b1adf0;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6ab3560;
-	Node0x5fb4f6ab1550 -> Node0x5fb4f6b29a30;
-	Node0x5fb4f6b294b0 [label="{getenv}"];
-	Node0x5fb4f6ab3060 [label="{realpath}"];
-	Node0x5fb4f6b291f0 [label="{strstr}"];
-	Node0x5fb4f6ab2ae0 [label="{fprintf}"];
-	Node0x5fb4f6ab2a60 [label="{snprintf}"];
-	Node0x5fb4f6b29a30 [label="{strncmp}"];
-	Node0x5fb4f6ab3560 [label="{strlen}"];
-	Node0x5fb4f6ab3820 [label="{PrintConfigHelp()}"];
-	Node0x5fb4f6ab3820 -> Node0x5fb4f6ab3c50;
-	Node0x5fb4f6ab3c50 [label="{printf}"];
-	Node0x5fb4f6b27390 [label="{isspace}"];
-	Node0x5fb4f6b27490 [label="{std::basic_string<char, std::char_traits >::operator[](unsigned lon...}"];
-	Node0x5fb4f6b254d0 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x5fb4f6ab02b0 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x5fb4f6b27f40 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x5fb4f6ab0db0 [label="{std::__throw_logic_error()}"];
-	Node0x5fb4f6ab15d0 [label="{std::char_traits<char>::length()}"];
-	Node0x5fb4f6ab15d0 -> Node0x5fb4f6ab3560;
-	Node0x5fb4f6ab1ac0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab4570;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab4330;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab45f0;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab43b0;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab5330;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab50f0;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6ab4c60;
-	Node0x5fb4f6ab1ac0 -> Node0x5fb4f6b2acc0;
-	Node0x5fb4f6ab43b0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fb4f6b27c80 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x5fb4f6b27c80 -> Node0x5fb4f6b254d0;
-	Node0x5fb4f6ab4330 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5fb4f6ab4570 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x5fb4f6ab45f0 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x5fb4f6ab50f0 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x5fb4f6ab5330 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x5fb4f6ab4c60 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x5fb4f6b2acc0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x5fb4f6b2acc0 -> Node0x5fb4f6ab6170;
-	Node0x5fb4f6b2acc0 -> Node0x5fb4f6ab5a30;
-	Node0x5fb4f6ab6170 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x5fb4f6ab5a30 [label="{__clang_call_terminate}"];
-	Node0x5fb4f6ab5a30 -> Node0x5fb4f6ab5f30;
-	Node0x5fb4f6ab5a30 -> Node0x5fb4f6ab57e0;
-	Node0x5fb4f6ab5f30 [label="{__cxa_begin_catch}"];
-	Node0x5fb4f6b284c0 [label="{basic_string<char, std::char_traits >::data()}"];
-	Node0x5fb4f6ab5cf0 [label="{memcmp}"];
+	Node0x5e8c94082df0 [label="LoadConfig()"];
+	Node0x5e8c94082df0 -> Node0x5e8c9408e4e0;
+	Node0x5e8c94082df0 -> Node0x5e8c94017770;
+	Node0x5e8c94082df0 -> Node0x5e8c94017eb0;
+	Node0x5e8c94019d10 [label="compare()"];
+	Node0x5e8c9408e4e0 [label="Trim()"];
+	Node0x5e8c9408e4e0 -> Node0x5e8c94017eb0;
+	Node0x5e8c9408e4e0 -> Node0x5e8c9408f390;
+	Node0x5e8c9408e4e0 -> Node0x5e8c94017770;
+	Node0x5e8c94017eb0 [label="length()"];
+	Node0x5e8c94017770 [label="substr()"];
+	Node0x5e8c94019550 [label="LoadConfigAuto()"];
+	Node0x5e8c94019550 -> Node0x5e8c9401b060;
+	Node0x5e8c94019550 -> Node0x5e8c94082df0;
+	Node0x5e8c9401b060 [label="realpath"];
+	Node0x5e8c9401b820 [label="PrintConfigHelp()"];
+	Node0x5e8c9408f390 [label="isspace"];
+	Node0x5e8c940195d0 [label="length()"];
+	Node0x5e8c9401c3b0 [label="_Guard::_Guard()"];
+	Node0x5e8c94092cc0 [label="_Guard::~_Guard()"];
 }

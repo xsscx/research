@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerInspect.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,99 +15,42 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerIns
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5af0449d97f0 [label="{PrintHexDump()}"];
-	Node0x5af0449d97f0 -> Node0x5af0449c59a0;
-	Node0x5af0449c59a0 [label="{printf}"];
-	Node0x5af0449f7920 [label="{DumpProfileHeader()}"];
-	Node0x5af0449f7920 -> Node0x5af0449c59a0;
-	Node0x5af0449f7920 -> Node0x5af044977170;
-	Node0x5af0449f7920 -> Node0x5af0449770f0;
-	Node0x5af0449f7920 -> Node0x5af0449d97f0;
-	Node0x5af0449f7920 -> Node0x5af044977500;
-	Node0x5af0449f7920 -> Node0x5af044977cd0;
-	Node0x5af044977cd0 [label="{CIccInfo::CIccInfo()}"];
-	Node0x5af044977500 [label="{CIccInfo::GetProfileClassSigName()}"];
-	Node0x5af0449772d0 [label="{__gxx_personality_v0}"];
-	Node0x5af0449770f0 [label="{CIccInfo::GetColorSpaceSigName()}"];
-	Node0x5af044977170 [label="{CIccInfo::~CIccInfo()}"];
-	Node0x5af0449fdf60 [label="{DumpTagTable()}"];
-	Node0x5af0449fdf60 -> Node0x5af0449c59a0;
-	Node0x5af0449fdf60 -> Node0x5af044977e00;
-	Node0x5af0449fdf60 -> Node0x5af044977170;
-	Node0x5af0449fdf60 -> Node0x5af0449fc890;
-	Node0x5af0449fdf60 -> Node0x5af04497a610;
-	Node0x5af0449fdf60 -> Node0x5af0449fb370;
-	Node0x5af0449fdf60 -> Node0x5af0449fed50;
-	Node0x5af0449fdf60 -> Node0x5af04497a350;
-	Node0x5af0449fdf60 -> Node0x5af044979880;
-	Node0x5af0449fdf60 -> Node0x5af044979ce0;
-	Node0x5af0449fdf60 -> Node0x5af0449d97f0;
-	Node0x5af0449fdf60 -> Node0x5af044979f10;
-	Node0x5af0449fdf60 -> Node0x5af04497a140;
-	Node0x5af0449fdf60 -> Node0x5af044979420;
-	Node0x5af0449fdf60 -> Node0x5af044977cd0;
-	Node0x5af0449fdf60 -> Node0x5af0449fe7f0;
-	Node0x5af0449fdf60 -> Node0x5af0449fe660;
-	Node0x5af0449fdf60 -> Node0x5af044979b30;
-	Node0x5af044977e00 [label="{std::list<IccTagEntry >::size()}"];
-	Node0x5af044977e00 -> Node0x5af0449fe9e0;
-	Node0x5af044977e00 -> Node0x5af04497aa20;
-	Node0x5af0449fc890 [label="{CIccIO::Read32()}"];
-	Node0x5af0449fb370 [label="{operator new[](unsigned long, std::nothrow_t const&)}"];
-	Node0x5af0449fe7f0 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x5af0449fe660 [label="{std::list<IccTagEntry >::begin()}"];
-	Node0x5af0449fe660 -> Node0x5af04497b1a0;
-	Node0x5af044979b30 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5af04497a140 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
-	Node0x5af044979420 [label="{std::list<IccTagEntry >::end()}"];
-	Node0x5af044979420 -> Node0x5af04497b1a0;
-	Node0x5af044979f10 [label="{std::_List_iterator<IccTagEntry>::operator*() const}"];
-	Node0x5af044979f10 -> Node0x5af04497a7d0;
-	Node0x5af044979f10 -> Node0x5af04497aa20;
-	Node0x5af044979ce0 [label="{SignatureToFourCC()}"];
-	Node0x5af044979880 [label="{CIccInfo::GetTagSigName()}"];
-	Node0x5af04497a350 [label="{HasNonPrintableSignature()}"];
-	Node0x5af0449fed50 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
-	Node0x5af0449fed50 -> Node0x5af044979b30;
-	Node0x5af04497a610 [label="{operator delete[](void*)}"];
-	Node0x5af0449787c0 [label="{DumpTagData()}"];
-	Node0x5af0449787c0 -> Node0x5af04497a590;
-	Node0x5af0449787c0 -> Node0x5af0449c59a0;
-	Node0x5af0449787c0 -> Node0x5af0449fe7f0;
-	Node0x5af0449787c0 -> Node0x5af0449fe660;
-	Node0x5af0449787c0 -> Node0x5af044979b30;
-	Node0x5af0449787c0 -> Node0x5af044979420;
-	Node0x5af0449787c0 -> Node0x5af04497a140;
-	Node0x5af0449787c0 -> Node0x5af044979f10;
-	Node0x5af0449787c0 -> Node0x5af0449fed50;
-	Node0x5af0449787c0 -> Node0x5af044977cd0;
-	Node0x5af0449787c0 -> Node0x5af044979880;
-	Node0x5af0449787c0 -> Node0x5af044977170;
-	Node0x5af0449787c0 -> Node0x5af04497a610;
-	Node0x5af0449787c0 -> Node0x5af0449d97f0;
-	Node0x5af0449787c0 -> Node0x5af0449fb370;
-	Node0x5af0449787c0 -> Node0x5af04497bce0;
-	Node0x5af04497a590 [label="{CIccProfile::FindTag()}"];
-	Node0x5af04497bce0 [label="{CIccInfo::GetTagTypeSigName()}"];
-	Node0x5af0449fe9e0 [label="{std::list<IccTagEntry >::_M_node_count()}"];
-	Node0x5af0449fe9e0 -> Node0x5af04497c240;
-	Node0x5af04497aa20 [label="{__clang_call_terminate}"];
-	Node0x5af04497aa20 -> Node0x5af04497ba20;
-	Node0x5af04497aa20 -> Node0x5af044a00000;
-	Node0x5af04497ba20 [label="{__cxa_begin_catch}"];
-	Node0x5af044a00000 [label="{std::terminate()}"];
-	Node0x5af04497c240 [label="{std::_List_base<IccTagEntry >::_M_get_size()}"];
-	Node0x5af04497b1a0 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x5af04497a7d0 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
-	Node0x5af04497a7d0 -> Node0x5af04497b360;
-	Node0x5af04497b360 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
-	Node0x5af04497b360 -> Node0x5af04497d600;
-	Node0x5af04497d600 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
+	Node0x628835be67f0 [label="PrintHexDump()"];
+	Node0x628835c04920 [label="DumpProfileHeader()"];
+	Node0x628835c04920 -> Node0x628835b84170;
+	Node0x628835c04920 -> Node0x628835b840f0;
+	Node0x628835c04920 -> Node0x628835be67f0;
+	Node0x628835c04920 -> Node0x628835b84500;
+	Node0x628835c04920 -> Node0x628835b84cd0;
+	Node0x628835b84cd0 [label="CIccInfo::CIccInfo()"];
+	Node0x628835b84500 [label="CIccInfo::GetProfileClassSigName()"];
+	Node0x628835b840f0 [label="CIccInfo::GetColorSpaceSigName()"];
+	Node0x628835b84170 [label="CIccInfo::~CIccInfo()"];
+	Node0x628835c0af60 [label="DumpTagTable()"];
+	Node0x628835c0af60 -> Node0x628835b84170;
+	Node0x628835c0af60 -> Node0x628835c09890;
+	Node0x628835c0af60 -> Node0x628835b87350;
+	Node0x628835c0af60 -> Node0x628835b86880;
+	Node0x628835c0af60 -> Node0x628835b86ce0;
+	Node0x628835c0af60 -> Node0x628835be67f0;
+	Node0x628835c0af60 -> Node0x628835b84cd0;
+	Node0x628835c09890 [label="CIccIO::Read32()"];
+	Node0x628835b86ce0 [label="SignatureToFourCC()"];
+	Node0x628835b86880 [label="CIccInfo::GetTagSigName()"];
+	Node0x628835b87350 [label="HasNonPrintableSignature()"];
+	Node0x628835b857c0 [label="DumpTagData()"];
+	Node0x628835b857c0 -> Node0x628835b87590;
+	Node0x628835b857c0 -> Node0x628835b84cd0;
+	Node0x628835b857c0 -> Node0x628835b86880;
+	Node0x628835b857c0 -> Node0x628835b84170;
+	Node0x628835b857c0 -> Node0x628835be67f0;
+	Node0x628835b857c0 -> Node0x628835b88ce0;
+	Node0x628835b87590 [label="CIccProfile::FindTag()"];
+	Node0x628835b88ce0 [label="CIccInfo::GetTagTypeSigName()"];
 }

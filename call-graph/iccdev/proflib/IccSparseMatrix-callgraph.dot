@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSparseMatrix.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,154 +15,118 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccSpars
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x63237b9bed20 [label="{CIccSparseMatrix::CIccSparseMatrix()}"];
-	Node0x63237b9bed20 -> Node0x63237b86c530;
-	Node0x63237b86c530 [label="{CIccSparseMatrix::Init()}"];
-	Node0x63237b86c530 -> Node0x63237b9c30d0;
-	Node0x63237b86c530 -> Node0x63237b9c5fe0;
-	Node0x63237b86c530 -> Node0x63237b9c7aa0;
-	Node0x63237b86c530 -> Node0x63237b9b5920;
-	Node0x63237b86c530 -> Node0x63237b9aecc0;
-	Node0x63237b86c530 -> Node0x63237b9b47d0;
-	Node0x63237b86c530 -> Node0x63237b9ab2b0;
-	Node0x63237b9a7ec0 [label="{CIccSparseMatrix::CIccSparseMatrix()}"];
-	Node0x63237b9a7ec0 -> Node0x63237b9c30d0;
-	Node0x63237b9a7ec0 -> Node0x63237b9c5fe0;
-	Node0x63237b9a7ec0 -> Node0x63237b9c7aa0;
-	Node0x63237b9a7ec0 -> Node0x63237b86c530;
-	Node0x63237b9a7ec0 -> Node0x63237b9aecc0;
-	Node0x63237b9a7ec0 -> Node0x63237b9b5920;
-	Node0x63237b9a7ec0 -> Node0x63237b9b47d0;
-	Node0x63237b9a7ec0 -> Node0x63237b9ab2b0;
-	Node0x63237b9c30d0 [label="{new()}"];
-	Node0x63237b9c5fe0 [label="{CIccSparseMatrixUInt8::CIccSparseMatrixUInt8()}"];
-	Node0x63237b9c5fe0 -> Node0x63237b9a8b60;
-	Node0x63237b9a6ba0 [label="{__gxx_personality_v0}"];
-	Node0x63237b9c7aa0 [label="{delete()}"];
-	Node0x63237b9aecc0 [label="{CIccSparseMatrixUInt16::CIccSparseMatrixUInt16()}"];
-	Node0x63237b9aecc0 -> Node0x63237b9aed50;
-	Node0x63237b9ab2b0 [label="{CIccSparseMatrixFloat16::CIccSparseMatrixFloat16()}"];
-	Node0x63237b9ab2b0 -> Node0x63237b9aed50;
-	Node0x63237b9b47d0 [label="{CIccSparseMatrixFloat32::CIccSparseMatrixFloat32()}"];
-	Node0x63237b9b47d0 -> Node0x63237b999470;
-	Node0x63237b9b5920 [label="{CIccSparseMatrixFloatNum::CIccSparseMatrixFloatNum()}"];
-	Node0x63237b9b5920 -> Node0x63237b999470;
-	Node0x63237b99b350 [label="{CIccSparseMatrix::~CIccSparseMatrix()}"];
-	Node0x63237b99dc50 [label="{CIccSparseMatrix::~CIccSparseMatrix()}"];
-	Node0x63237b99dc50 -> Node0x63237b9c7aa0;
-	Node0x63237b99cf20 [label="{CIccSparseMatrix::operator=(CIccSparseMatrix const&)}"];
-	Node0x63237b99cf20 -> Node0x63237b9c30d0;
-	Node0x63237b99cf20 -> Node0x63237b9c5fe0;
-	Node0x63237b99cf20 -> Node0x63237b9c7aa0;
-	Node0x63237b99cf20 -> Node0x63237b86c530;
-	Node0x63237b99cf20 -> Node0x63237b9aecc0;
-	Node0x63237b99cf20 -> Node0x63237b9b5920;
-	Node0x63237b99cf20 -> Node0x63237b9b47d0;
-	Node0x63237b99cf20 -> Node0x63237b9ab2b0;
-	Node0x63237b8bb0b0 [label="{CIccSparseMatrix::Reset()}"];
-	Node0x63237b8bb0b0 -> Node0x63237b86c530;
-	Node0x63237b82d6b0 [label="{CIccSparseMatrix::Clear()}"];
-	Node0x63237b82d6b0 -> Node0x63237b9947d0;
-	Node0x63237b9947d0 [label="{llvm.memset.p0.i64}"];
-	Node0x63237b8ba440 [label="{CIccSparseMatrix::Copy()}"];
-	Node0x63237b8ba440 -> Node0x63237b86c530;
-	Node0x63237b8ba440 -> Node0x63237b871170;
-	Node0x63237b871170 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x63237b811030 [label="{CIccSparseMatrix::FillFromFullMatrix()}"];
-	Node0x63237b811030 -> Node0x63237b82d6b0;
-	Node0x63237b819a00 [label="{CIccSparseMatrix::MultiplyVector()}"];
-	Node0x63237b819a00 -> Node0x63237b880a00;
-	Node0x63237b9e8960 [label="{CIccSparseMatrixUInt8::~CIccSparseMatrixUInt8()}"];
-	Node0x63237b9e8960 -> Node0x63237b9e9710;
-	Node0x63237b9e8960 -> Node0x63237b9c7aa0;
-	Node0x63237b9e86e0 [label="{CIccSparseMatrixEntry<unsigned char>::init()}"];
-	Node0x63237b880a00 [label="{llvm.fmuladd.f32}"];
-	Node0x63237b879910 [label="{CIccSparseMatrix::Interp()}"];
-	Node0x63237b879910 -> Node0x63237b86c530;
-	Node0x63237b879910 -> Node0x63237b871170;
-	Node0x63237b879910 -> Node0x63237b880a00;
-	Node0x63237b871a70 [label="{CIccSparseMatrix::Union()}"];
-	Node0x63237b871a70 -> Node0x63237b86c530;
-	Node0x63237b871a70 -> Node0x63237b871170;
-	Node0x63237b9d2740 [label="{CIccSparseMatrix::IsValid()}"];
-	Node0x63237b9e7be0 [label="{CIccSparseMatrix::MaxEntries()}"];
-	Node0x63237b9d4290 [label="{CIccSparseMatrix::MemSize()}"];
-	Node0x63237b9d2880 [label="{CIccSparseMatrix::EntrySize()}"];
-	Node0x63237b9a8b60 [label="{CIccSparseMatrixEntry<unsigned char>::CIccSparseMatrixEntry()}"];
-	Node0x63237b9a8b60 -> Node0x63237b9e7d10;
-	Node0x63237b9e9710 [label="{CIccSparseMatrixUInt8::~CIccSparseMatrixUInt8()}"];
-	Node0x63237b9e9710 -> Node0x63237b9e8bb0;
-	Node0x63237b9e7740 [label="{CIccSparseMatrixUInt8::get()}"];
-	Node0x63237b9e74a0 [label="{CIccSparseMatrixUInt8::set()}"];
-	Node0x63237b9e74a0 -> Node0x63237b880a00;
-	Node0x63237b9eb8a0 [label="{CIccSparseMatrixEntry<unsigned char>::size()}"];
-	Node0x63237b9ea380 [label="{CIccSparseMatrixEntry<unsigned char>::getPtr()}"];
-	Node0x63237b9e7d10 [label="{IIccSparseMatrixEntry::IIccSparseMatrixEntry()}"];
-	Node0x63237b9e8bb0 [label="{CIccSparseMatrixEntry<unsigned char>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9e8bb0 -> Node0x63237b9ed800;
-	Node0x63237b9ed360 [label="{CIccSparseMatrixEntry<unsigned char>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9ed360 -> Node0x63237b9ecfd0;
-	Node0x63237b9ece00 [label="{__cxa_pure_virtual}"];
-	Node0x63237b9ed800 [label="{IIccSparseMatrixEntry::~IIccSparseMatrixEntry()}"];
-	Node0x63237b9ef1b0 [label="{IIccSparseMatrixEntry::~IIccSparseMatrixEntry()}"];
-	Node0x63237b9ef1b0 -> Node0x63237b9ecfd0;
-	Node0x63237b9ecfd0 [label="{llvm.trap}"];
-	Node0x63237b9aed50 [label="{CIccSparseMatrixEntry<unsigned short>::CIccSparseMatrixEntry()}"];
-	Node0x63237b9aed50 -> Node0x63237b9e7d10;
-	Node0x63237b9ee880 [label="{CIccSparseMatrixUInt16::~CIccSparseMatrixUInt16()}"];
-	Node0x63237b9ee880 -> Node0x63237b9ee5e0;
-	Node0x63237b9ee1e0 [label="{CIccSparseMatrixUInt16::~CIccSparseMatrixUInt16()}"];
-	Node0x63237b9ee1e0 -> Node0x63237b9ee880;
-	Node0x63237b9ee1e0 -> Node0x63237b9c7aa0;
-	Node0x63237b9d9780 [label="{CIccSparseMatrixEntry<unsigned short>::init()}"];
-	Node0x63237b9ebe30 [label="{CIccSparseMatrixUInt16::get()}"];
-	Node0x63237b9db600 [label="{CIccSparseMatrixUInt16::set()}"];
-	Node0x63237b9db600 -> Node0x63237b880a00;
-	Node0x63237b9da480 [label="{CIccSparseMatrixEntry<unsigned short>::size()}"];
-	Node0x63237b9ec200 [label="{CIccSparseMatrixEntry<unsigned short>::getPtr()}"];
-	Node0x63237b9ee5e0 [label="{CIccSparseMatrixEntry<unsigned short>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9ee5e0 -> Node0x63237b9ed800;
-	Node0x63237b9f5750 [label="{CIccSparseMatrixEntry<unsigned short>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9f5750 -> Node0x63237b9ecfd0;
-	Node0x63237b9f55c0 [label="{CIccSparseMatrixFloat16::~CIccSparseMatrixFloat16()}"];
-	Node0x63237b9f55c0 -> Node0x63237b9ee5e0;
-	Node0x63237b9f4030 [label="{CIccSparseMatrixFloat16::~CIccSparseMatrixFloat16()}"];
-	Node0x63237b9f4030 -> Node0x63237b9f55c0;
-	Node0x63237b9f4030 -> Node0x63237b9c7aa0;
-	Node0x63237b9ec580 [label="{CIccSparseMatrixFloat16::get()}"];
-	Node0x63237b9ec580 -> Node0x63237b9f7b60;
-	Node0x63237b9dffc0 [label="{CIccSparseMatrixFloat16::set()}"];
-	Node0x63237b9dffc0 -> Node0x63237b9e0040;
-	Node0x63237b9f7b60 [label="{icF16toF()}"];
-	Node0x63237b9e0040 [label="{icFtoF16()}"];
-	Node0x63237b999470 [label="{CIccSparseMatrixEntry<float>::CIccSparseMatrixEntry()}"];
-	Node0x63237b999470 -> Node0x63237b9e7d10;
-	Node0x63237b9dfb40 [label="{CIccSparseMatrixFloat32::~CIccSparseMatrixFloat32()}"];
-	Node0x63237b9dfb40 -> Node0x63237b9f9b80;
-	Node0x63237b9f9930 [label="{CIccSparseMatrixFloat32::~CIccSparseMatrixFloat32()}"];
-	Node0x63237b9f9930 -> Node0x63237b9dfb40;
-	Node0x63237b9f9930 -> Node0x63237b9c7aa0;
-	Node0x63237b9f97e0 [label="{CIccSparseMatrixEntry<float>::init()}"];
-	Node0x63237b9f9120 [label="{CIccSparseMatrixFloat32::get()}"];
-	Node0x63237b9e39c0 [label="{CIccSparseMatrixFloat32::set()}"];
-	Node0x63237b9fd020 [label="{CIccSparseMatrixEntry<float>::size()}"];
-	Node0x63237b9fc840 [label="{CIccSparseMatrixEntry<float>::getPtr()}"];
-	Node0x63237b9f9b80 [label="{CIccSparseMatrixEntry<float>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9f9b80 -> Node0x63237b9ed800;
-	Node0x63237b9f25d0 [label="{CIccSparseMatrixEntry<float>::~CIccSparseMatrixEntry()}"];
-	Node0x63237b9f25d0 -> Node0x63237b9ecfd0;
-	Node0x63237b81b7d0 [label="{CIccSparseMatrixFloatNum::~CIccSparseMatrixFloatNum()}"];
-	Node0x63237b81b7d0 -> Node0x63237b9f9b80;
-	Node0x63237ba027b0 [label="{CIccSparseMatrixFloatNum::~CIccSparseMatrixFloatNum()}"];
-	Node0x63237ba027b0 -> Node0x63237b81b7d0;
-	Node0x63237ba027b0 -> Node0x63237b9c7aa0;
-	Node0x63237b81b480 [label="{CIccSparseMatrixFloatNum::get()}"];
-	Node0x63237b9fe580 [label="{CIccSparseMatrixFloatNum::set()}"];
+	Node0x577f82066d20 [label="CIccSparseMatrix::CIccSparseMatrix()"];
+	Node0x577f82066d20 -> Node0x577f81f14530;
+	Node0x577f81f14530 [label="CIccSparseMatrix::Init()"];
+	Node0x577f81f14530 -> Node0x577f8206dfe0;
+	Node0x577f81f14530 -> Node0x577f8205d920;
+	Node0x577f81f14530 -> Node0x577f82056cc0;
+	Node0x577f81f14530 -> Node0x577f8205c7d0;
+	Node0x577f81f14530 -> Node0x577f820532b0;
+	Node0x577f8204fec0 [label="CIccSparseMatrix::CIccSparseMatrix()"];
+	Node0x577f8204fec0 -> Node0x577f8206dfe0;
+	Node0x577f8204fec0 -> Node0x577f81f14530;
+	Node0x577f8204fec0 -> Node0x577f82056cc0;
+	Node0x577f8204fec0 -> Node0x577f8205d920;
+	Node0x577f8204fec0 -> Node0x577f8205c7d0;
+	Node0x577f8204fec0 -> Node0x577f820532b0;
+	Node0x577f8206dfe0 [label="CIccSparseMatrixUInt8::CIccSparseMatrixUInt8()"];
+	Node0x577f8206dfe0 -> Node0x577f82050b60;
+	Node0x577f82056cc0 [label="CIccSparseMatrixUInt16::CIccSparseMatrixUInt16()"];
+	Node0x577f82056cc0 -> Node0x577f82056d50;
+	Node0x577f820532b0 [label="CIccSparseMatrixFloat16::CIccSparseMatrixFloat16()"];
+	Node0x577f820532b0 -> Node0x577f82056d50;
+	Node0x577f8205c7d0 [label="CIccSparseMatrixFloat32::CIccSparseMatrixFloat32()"];
+	Node0x577f8205c7d0 -> Node0x577f82041470;
+	Node0x577f8205d920 [label="CIccSparseMatrixFloatNum::CIccSparseMatrixFloatNum()"];
+	Node0x577f8205d920 -> Node0x577f82041470;
+	Node0x577f82043350 [label="CIccSparseMatrix::~CIccSparseMatrix()"];
+	Node0x577f82045c50 [label="CIccSparseMatrix::~CIccSparseMatrix()"];
+	Node0x577f82044f20 [label="CIccSparseMatrix::operator=(CIccSparseMatrix const&)"];
+	Node0x577f82044f20 -> Node0x577f8206dfe0;
+	Node0x577f82044f20 -> Node0x577f81f14530;
+	Node0x577f82044f20 -> Node0x577f82056cc0;
+	Node0x577f82044f20 -> Node0x577f8205d920;
+	Node0x577f82044f20 -> Node0x577f8205c7d0;
+	Node0x577f82044f20 -> Node0x577f820532b0;
+	Node0x577f81f630b0 [label="CIccSparseMatrix::Reset()"];
+	Node0x577f81f630b0 -> Node0x577f81f14530;
+	Node0x577f81ed56b0 [label="CIccSparseMatrix::Clear()"];
+	Node0x577f81f62440 [label="CIccSparseMatrix::Copy()"];
+	Node0x577f81f62440 -> Node0x577f81f14530;
+	Node0x577f81eb9030 [label="CIccSparseMatrix::FillFromFullMatrix()"];
+	Node0x577f81eb9030 -> Node0x577f81ed56b0;
+	Node0x577f81ec1a00 [label="CIccSparseMatrix::MultiplyVector()"];
+	Node0x577f82090960 [label="CIccSparseMatrixUInt8::~CIccSparseMatrixUInt8()"];
+	Node0x577f82090960 -> Node0x577f82091710;
+	Node0x577f820906e0 [label="init()"];
+	Node0x577f81f21910 [label="CIccSparseMatrix::Interp()"];
+	Node0x577f81f21910 -> Node0x577f81f14530;
+	Node0x577f81f19a70 [label="CIccSparseMatrix::Union()"];
+	Node0x577f81f19a70 -> Node0x577f81f14530;
+	Node0x577f8207a740 [label="CIccSparseMatrix::IsValid()"];
+	Node0x577f8208fbe0 [label="CIccSparseMatrix::MaxEntries()"];
+	Node0x577f8207c290 [label="CIccSparseMatrix::MemSize()"];
+	Node0x577f8207a880 [label="CIccSparseMatrix::EntrySize()"];
+	Node0x577f82050b60 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82050b60 -> Node0x577f8208fd10;
+	Node0x577f82091710 [label="CIccSparseMatrixUInt8::~CIccSparseMatrixUInt8()"];
+	Node0x577f82091710 -> Node0x577f82090bb0;
+	Node0x577f82094970 [label="CIccSparseMatrixUInt8::get()"];
+	Node0x577f8208f6b0 [label="CIccSparseMatrixUInt8::set()"];
+	Node0x577f82092380 [label="getPtr()"];
+	Node0x577f8208fd10 [label="IIccSparseMatrixEntry::IIccSparseMatrixEntry()"];
+	Node0x577f82090bb0 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82090bb0 -> Node0x577f82095ea0;
+	Node0x577f82095800 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82095ea0 [label="IIccSparseMatrixEntry::~IIccSparseMatrixEntry()"];
+	Node0x577f82097390 [label="IIccSparseMatrixEntry::~IIccSparseMatrixEntry()"];
+	Node0x577f82056d50 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82056d50 -> Node0x577f8208fd10;
+	Node0x577f820971b0 [label="CIccSparseMatrixUInt16::~CIccSparseMatrixUInt16()"];
+	Node0x577f820971b0 -> Node0x577f82096880;
+	Node0x577f820965e0 [label="CIccSparseMatrixUInt16::~CIccSparseMatrixUInt16()"];
+	Node0x577f820965e0 -> Node0x577f820971b0;
+	Node0x577f82082480 [label="init()"];
+	Node0x577f82094030 [label="CIccSparseMatrixUInt16::get()"];
+	Node0x577f82093e30 [label="CIccSparseMatrixUInt16::set()"];
+	Node0x577f8209c030 [label="getPtr()"];
+	Node0x577f82096880 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82096880 -> Node0x577f82095ea0;
+	Node0x577f8209db50 [label="CIccSparseMatrixEntry()"];
+	Node0x577f8209d750 [label="CIccSparseMatrixFloat16::~CIccSparseMatrixFloat16()"];
+	Node0x577f8209d750 -> Node0x577f82096880;
+	Node0x577f8209d5c0 [label="CIccSparseMatrixFloat16::~CIccSparseMatrixFloat16()"];
+	Node0x577f8209d5c0 -> Node0x577f8209d750;
+	Node0x577f8209c7c0 [label="CIccSparseMatrixFloat16::get()"];
+	Node0x577f8209c7c0 -> Node0x577f8209ff70;
+	Node0x577f8209fb60 [label="CIccSparseMatrixFloat16::set()"];
+	Node0x577f8209fb60 -> Node0x577f82087fc0;
+	Node0x577f8209ff70 [label="icF16toF()"];
+	Node0x577f82087fc0 [label="icFtoF16()"];
+	Node0x577f82041470 [label="CIccSparseMatrixEntry()"];
+	Node0x577f82041470 -> Node0x577f8208fd10;
+	Node0x577f82088040 [label="CIccSparseMatrixFloat32::~CIccSparseMatrixFloat32()"];
+	Node0x577f82088040 -> Node0x577f820a1f60;
+	Node0x577f820a1b80 [label="CIccSparseMatrixFloat32::~CIccSparseMatrixFloat32()"];
+	Node0x577f820a1b80 -> Node0x577f82088040;
+	Node0x577f820a1a30 [label="init()"];
+	Node0x577f820a17e0 [label="CIccSparseMatrixFloat32::get()"];
+	Node0x577f8209a600 [label="CIccSparseMatrixFloat32::set()"];
+	Node0x577f820a5010 [label="getPtr()"];
+	Node0x577f820a1f60 [label="CIccSparseMatrixEntry()"];
+	Node0x577f820a1f60 -> Node0x577f82095ea0;
+	Node0x577f820a27f0 [label="CIccSparseMatrixEntry()"];
+	Node0x577f820a6430 [label="CIccSparseMatrixFloatNum::~CIccSparseMatrixFloatNum()"];
+	Node0x577f820a6430 -> Node0x577f820a1f60;
+	Node0x577f820aaae0 [label="CIccSparseMatrixFloatNum::~CIccSparseMatrixFloatNum()"];
+	Node0x577f820aaae0 -> Node0x577f820a6430;
+	Node0x577f820aaa30 [label="CIccSparseMatrixFloatNum::get()"];
+	Node0x577f81ec3480 [label="CIccSparseMatrixFloatNum::set()"];
 }

@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_spectral_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,132 +15,52 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_spectral_fuzzer
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x6386b0000c10 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x6386b0000c10 -> Node0x6386b009b170;
-	Node0x6386b0000c10 -> Node0x6386b009b200;
-	Node0x6386b0000c10 -> Node0x6386affc0a30;
-	Node0x6386b0000c10 -> Node0x6386affbfdc0;
-	Node0x6386b0000c10 -> Node0x6386affc0980;
-	Node0x6386b0000c10 -> Node0x6386affbfe30;
-	Node0x6386b0000c10 -> Node0x6386b00a1a30;
-	Node0x6386b0000c10 -> Node0x6386affc06e0;
-	Node0x6386b0000c10 -> Node0x6386b00aa560;
-	Node0x6386b0000c10 -> Node0x6386affc0900;
-	Node0x6386b0000c10 -> Node0x6386b00aa7e0;
-	Node0x6386b0000c10 -> Node0x6386b00a5070;
-	Node0x6386b0000c10 -> Node0x6386b00a9a20;
-	Node0x6386b0000c10 -> Node0x6386affbf5d0;
-	Node0x6386b0000c10 -> Node0x6386b00a4880;
-	Node0x6386b0000c10 -> Node0x6386b00a9160;
-	Node0x6386b0000c10 -> Node0x6386b00a93e0;
-	Node0x6386b0000c10 -> Node0x6386b00a5980;
-	Node0x6386b0000c10 -> Node0x6386b00a9660;
-	Node0x6386b0000c10 -> Node0x6386b00a54a0;
-	Node0x6386b0000c10 -> Node0x6386b00a8ee0;
-	Node0x6386b0000c10 -> Node0x6386b00a83a0;
-	Node0x6386b0000c10 -> Node0x6386b00a88a0;
-	Node0x6386b0000c10 -> Node0x6386b00a7c80;
-	Node0x6386b0000c10 -> Node0x6386b00a8c60;
-	Node0x6386b0000c10 -> Node0x6386b00a7280;
-	Node0x6386b0000c10 -> Node0x6386b00a7500;
-	Node0x6386b0000c10 -> Node0x6386b00a7780;
-	Node0x6386b0000c10 -> Node0x6386b00a7000;
-	Node0x6386b009b170 [label="{CIccMemIO::CIccMemIO()}"];
-	Node0x6386b009b200 [label="{CIccMemIO::Attach()}"];
-	Node0x6386b00aa060 [label="{__gxx_personality_v0}"];
-	Node0x6386affc0a30 [label="{CIccProfile::CIccProfile()}"];
-	Node0x6386affbfdc0 [label="{CIccProfile::Read()}"];
-	Node0x6386affc0980 [label="{CIccProfile::FindTag()}"];
-	Node0x6386affbfe30 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x6386affc06e0 [label="{CIccMemIO::Alloc()}"];
-	Node0x6386b00a1a30 [label="{CIccMemIO::~CIccMemIO()}"];
-	Node0x6386affc0900 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x6386affbf5d0 [label="{CIccProfile::FindTagOfType()}"];
-	Node0x6386b00a4880 [label="{__dynamic_cast}"];
-	Node0x6386b00a5980 [label="{CIccTagSpectralViewingConditions::getIlluminant()}"];
-	Node0x6386b00a54a0 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x6386b00a54a0 -> Node0x6386b00ab9e0;
-	Node0x6386b00a54a0 -> Node0x6386b00ac520;
-	Node0x6386b00a54a0 -> Node0x6386b00ac3e0;
-	Node0x6386b00a54a0 -> Node0x6386b00abee0;
-	Node0x6386b00a54a0 -> Node0x6386b00abb20;
-	Node0x6386b00a54a0 -> Node0x6386b00ad7e0;
-	Node0x6386b00a7000 [label="{CIccTagMultiProcessElement::NumElements()}"];
-	Node0x6386b00a7000 -> Node0x6386b00ad420;
-	Node0x6386b00a7780 [label="{CIccTagMultiProcessElement::GetElement()}"];
-	Node0x6386b00a7500 [label="{IsSpectralElement()}"];
-	Node0x6386b00a7280 [label="{SpectralMatrixSafe()}"];
-	Node0x6386b00a7280 -> Node0x6386b00acde0;
-	Node0x6386b00a7c80 [label="{llvm.memset.p0.i64}"];
-	Node0x6386b00a8c60 [label="{SpectralCLUTSafe()}"];
-	Node0x6386b00a8c60 -> Node0x6386b00acb60;
-	Node0x6386b00a88a0 [label="{CIccProfile::Validate()}"];
-	Node0x6386b00a83a0 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x6386b00a8ee0 [label="{std::list<IccTagEntry >::begin()}"];
-	Node0x6386b00a8ee0 -> Node0x6386b00aca20;
-	Node0x6386b00a9660 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x6386b00a9160 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
-	Node0x6386b00a93e0 [label="{std::list<IccTagEntry >::end()}"];
-	Node0x6386b00a93e0 -> Node0x6386b00aca20;
-	Node0x6386b00a9a20 [label="{std::_List_iterator<IccTagEntry>::operator-() const}"];
-	Node0x6386b00a9a20 -> Node0x6386b00aed20;
-	Node0x6386b00a9a20 -> Node0x6386b00aeaa0;
-	Node0x6386b00aa7e0 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
-	Node0x6386b00aa7e0 -> Node0x6386b00a9660;
-	Node0x6386b00aa560 [label="{CIccProfile::~CIccProfile()}"];
-	Node0x6386b00ad420 [label="{std::list<CIccMultiProcessElementPtr >::size()}"];
-	Node0x6386b00ad420 -> Node0x6386b00ae820;
-	Node0x6386b00ad420 -> Node0x6386b00aeaa0;
-	Node0x6386b00ae820 [label="{std::list<CIccMultiProcessElementPtr >::_M_node_count()}"];
-	Node0x6386b00ae820 -> Node0x6386b00ae6e0;
-	Node0x6386b00aeaa0 [label="{__clang_call_terminate}"];
-	Node0x6386b00aeaa0 -> Node0x6386b00ae320;
-	Node0x6386b00aeaa0 -> Node0x6386b00ae020;
-	Node0x6386b00ae320 [label="{__cxa_begin_catch}"];
-	Node0x6386b00ae020 [label="{std::terminate()}"];
-	Node0x6386b00ae6e0 [label="{std::_List_base<CIccMultiProcessElementPtr >::_M_get_size()}"];
-	Node0x6386b00acde0 [label="{CIccMpeSpectralMatrix::GetRange()}"];
-	Node0x6386b00acb60 [label="{CIccMpeSpectralCLUT::GetCLUT()}"];
-	Node0x6386b00a5070 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x6386b00ab9e0 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x6386b00ac520 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x6386b00ac3e0 [label="{std::__throw_logic_error()}"];
-	Node0x6386b00abb20 [label="{std::char_traits<char>::length()}"];
-	Node0x6386b00abb20 -> Node0x6386b00af060;
-	Node0x6386b00ad7e0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x6386b00ad7e0 -> Node0x6386b00af2e0;
-	Node0x6386b00ad7e0 -> Node0x6386b00af560;
-	Node0x6386b00ad7e0 -> Node0x6386b00afc20;
-	Node0x6386b00ad7e0 -> Node0x6386b00a8460;
-	Node0x6386b00ad7e0 -> Node0x6386b00a86e0;
-	Node0x6386b00ad7e0 -> Node0x6386b00a8960;
-	Node0x6386b00ad7e0 -> Node0x6386b00a7980;
-	Node0x6386b00ad7e0 -> Node0x6386b00af7e0;
-	Node0x6386b00a8460 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x6386b00abee0 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x6386b00abee0 -> Node0x6386b00a5070;
-	Node0x6386b00af060 [label="{strlen}"];
-	Node0x6386b00af560 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x6386b00af2e0 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x6386b00afc20 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x6386b00a8960 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x6386b00a86e0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x6386b00a7980 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x6386b00af7e0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x6386b00af7e0 -> Node0x6386b00a9d60;
-	Node0x6386b00af7e0 -> Node0x6386b00aeaa0;
-	Node0x6386b00a9d60 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x6386b00aca20 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x6386b00aed20 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
-	Node0x6386b00aed20 -> Node0x6386b00aa3a0;
-	Node0x6386b00aa3a0 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
-	Node0x6386b00aa3a0 -> Node0x6386b00a80a0;
-	Node0x6386b00a80a0 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
+	Node0x557413638c10 [label="LLVMFuzzerTestOneInput"];
+	Node0x557413638c10 -> Node0x5574136d3170;
+	Node0x557413638c10 -> Node0x5574136d3200;
+	Node0x557413638c10 -> Node0x5574135f8a30;
+	Node0x557413638c10 -> Node0x5574135f7dc0;
+	Node0x557413638c10 -> Node0x5574135f8980;
+	Node0x557413638c10 -> Node0x5574136d9a30;
+	Node0x557413638c10 -> Node0x5574135f86e0;
+	Node0x557413638c10 -> Node0x5574136e2560;
+	Node0x557413638c10 -> Node0x5574135f75d0;
+	Node0x557413638c10 -> Node0x5574136dc880;
+	Node0x557413638c10 -> Node0x5574136dd980;
+	Node0x557413638c10 -> Node0x5574136e08a0;
+	Node0x557413638c10 -> Node0x5574136e0c60;
+	Node0x557413638c10 -> Node0x5574136df280;
+	Node0x557413638c10 -> Node0x5574136df500;
+	Node0x557413638c10 -> Node0x5574136df780;
+	Node0x557413638c10 -> Node0x5574136df000;
+	Node0x5574136d3170 [label="CIccMemIO::CIccMemIO()"];
+	Node0x5574136d3200 [label="CIccMemIO::Attach()"];
+	Node0x5574135f8a30 [label="CIccProfile::CIccProfile()"];
+	Node0x5574135f7dc0 [label="CIccProfile::Read()"];
+	Node0x5574135f8980 [label="CIccProfile::FindTag()"];
+	Node0x5574135f86e0 [label="CIccMemIO::Alloc()"];
+	Node0x5574136d9a30 [label="CIccMemIO::~CIccMemIO()"];
+	Node0x5574135f75d0 [label="CIccProfile::FindTagOfType()"];
+	Node0x5574136dc880 [label="__dynamic_cast"];
+	Node0x5574136dd980 [label="CIccTagSpectralViewingConditions::getIlluminant()"];
+	Node0x5574136df000 [label="CIccTagMultiProcessElement::NumElements()"];
+	Node0x5574136df780 [label="CIccTagMultiProcessElement::GetElement()"];
+	Node0x5574136df500 [label="IsSpectralElement()"];
+	Node0x5574136df280 [label="SpectralMatrixSafe()"];
+	Node0x5574136df280 -> Node0x5574136e4de0;
+	Node0x5574136e0c60 [label="SpectralCLUTSafe()"];
+	Node0x5574136e0c60 -> Node0x5574136e4b60;
+	Node0x5574136e08a0 [label="CIccProfile::Validate()"];
+	Node0x5574136e2560 [label="CIccProfile::~CIccProfile()"];
+	Node0x5574136e4de0 [label="CIccMpeSpectralMatrix::GetRange()"];
+	Node0x5574136e4b60 [label="CIccMpeSpectralCLUT::GetCLUT()"];
+	Node0x5574136e3b20 [label="length()"];
+	Node0x5574136e0460 [label="_Guard::_Guard()"];
+	Node0x5574136e77e0 [label="_Guard::~_Guard()"];
 }

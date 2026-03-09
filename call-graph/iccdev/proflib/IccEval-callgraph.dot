@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEval.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,39 +15,37 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEval.
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5988f7136b50 [label="{CIccEvalCompare::EvaluateProfile()}"];
-	Node0x5988f7136b50 -> Node0x5988f71371e0;
-	Node0x5988f7136b50 -> Node0x5988f7137570;
-	Node0x5988f7136b50 -> Node0x5988f7149e80;
-	Node0x5988f7136b50 -> Node0x5988f7189af0;
-	Node0x5988f7136b50 -> Node0x5988f718b1f0;
-	Node0x5988f7136b50 -> Node0x5988f718a570;
-	Node0x5988f7136b50 -> Node0x5988f718a7f0;
-	Node0x5988f7136b50 -> Node0x5988f7187cf0;
-	Node0x5988f7136b50 -> Node0x5988f7187d70;
-	Node0x5988f7136b50 -> Node0x5988f718acf0;
-	Node0x5988f7136b50 -> Node0x5988f7189f70;
-	Node0x5988f71371e0 [label="{CIccCmm::CIccCmm()}"];
-	Node0x5988f718ba70 [label="{__gxx_personality_v0}"];
-	Node0x5988f7149e80 [label="{CIccCmm::AddXform()}"];
-	Node0x5988f7189af0 [label="{CIccCmm::Begin()}"];
-	Node0x5988f7187cf0 [label="{icGetSpaceSamples()}"];
-	Node0x5988f7187d70 [label="{CIccProfile::FindTag()}"];
-	Node0x5988f7189f70 [label="{CIccMBB::GetCLUT()}"];
-	Node0x5988f718acf0 [label="{CIccCLUT::GridPoints()}"];
-	Node0x5988f718a7f0 [label="{icMin()}"];
-	Node0x5988f718a570 [label="{CIccCmm::Apply()}"];
-	Node0x5988f718b1f0 [label="{icLabFromPcs()}"];
-	Node0x5988f7137570 [label="{CIccCmm::~CIccCmm()}"];
-	Node0x5988f718a4f0 [label="{CIccEvalCompare::EvaluateProfile()}"];
-	Node0x5988f718a4f0 -> Node0x5988f718b2b0;
-	Node0x5988f718a4f0 -> Node0x5988f7136b50;
-	Node0x5988f718b2b0 [label="{ReadIccProfile()}"];
+	Node0x5d82133b34d0 [label="CIccEvalCompare::EvaluateProfile()"];
+	Node0x5d82133b34d0 -> Node0x5d82133b3c50;
+	Node0x5d82133b34d0 -> Node0x5d82133b3340;
+	Node0x5d82133b34d0 -> Node0x5d82133b41b0;
+	Node0x5d82133b34d0 -> Node0x5d8213405bb0;
+	Node0x5d82133b34d0 -> Node0x5d82134044d0;
+	Node0x5d82133b34d0 -> Node0x5d82134066b0;
+	Node0x5d82133b34d0 -> Node0x5d8213406930;
+	Node0x5d82133b34d0 -> Node0x5d8213405860;
+	Node0x5d82133b34d0 -> Node0x5d8213404ed0;
+	Node0x5d82133b34d0 -> Node0x5d8213406f70;
+	Node0x5d82133b34d0 -> Node0x5d82134061b0;
+	Node0x5d82133b3c50 [label="CIccCmm::CIccCmm()"];
+	Node0x5d82133b41b0 [label="CIccCmm::AddXform()"];
+	Node0x5d8213405bb0 [label="CIccCmm::Begin()"];
+	Node0x5d8213405860 [label="icGetSpaceSamples()"];
+	Node0x5d8213404ed0 [label="CIccProfile::FindTag()"];
+	Node0x5d82134061b0 [label="CIccMBB::GetCLUT()"];
+	Node0x5d8213406f70 [label="CIccCLUT::GridPoints()"];
+	Node0x5d8213406930 [label="icMin()"];
+	Node0x5d82134066b0 [label="CIccCmm::Apply()"];
+	Node0x5d82134044d0 [label="icLabFromPcs()"];
+	Node0x5d82133b3340 [label="CIccCmm::~CIccCmm()"];
+	Node0x5d82134079b0 [label="CIccEvalCompare::EvaluateProfile()"];
+	Node0x5d82134079b0 -> Node0x5d8213407030;
+	Node0x5d82134079b0 -> Node0x5d82133b34d0;
+	Node0x5d8213407030 [label="ReadIccProfile()"];
 }

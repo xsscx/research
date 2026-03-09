@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerPathValidation.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,256 +15,57 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerPat
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x639e16ff56b0 [label="{IccAnalyzerSecurity::IsSymlink()}"];
-	Node0x639e16ff56b0 -> Node0x639e1703bde0;
-	Node0x639e16ff56b0 -> Node0x639e171314c0;
-	Node0x639e171314c0 [label="{lstat}"];
-	Node0x639e1703bde0 [label="{basic_string<char, std::char_traits >::c_str()}"];
-	Node0x639e17131bd0 [label="{IccAnalyzerSecurity::ContainsPathTraversal()}"];
-	Node0x639e17131bd0 -> Node0x639e17067960;
-	Node0x639e17131bd0 -> Node0x639e1706e850;
-	Node0x639e17067960 [label="{basic_string<char, std::char_traits >::find()}"];
-	Node0x639e1706e850 [label="{basic_string<char, std::char_traits >::rfind()}"];
-	Node0x639e17040620 [label="{IccAnalyzerSecurity::SanitizePath()}"];
-	Node0x639e17040620 -> Node0x639e1703bde0;
-	Node0x639e17040620 -> Node0x639e16fef110;
-	Node0x639e17040620 -> Node0x639e17035130;
-	Node0x639e17040620 -> Node0x639e17137560;
-	Node0x639e17040620 -> Node0x639e16fec340;
-	Node0x639e17040620 -> Node0x639e17133210;
-	Node0x639e16fef110 [label="{realpath}"];
-	Node0x639e17035130 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x639e17035130 -> Node0x639e170c7950;
-	Node0x639e17035130 -> Node0x639e16fef710;
-	Node0x639e17035130 -> Node0x639e16fef4e0;
-	Node0x639e17035130 -> Node0x639e16fef2b0;
-	Node0x639e17035130 -> Node0x639e16fef330;
-	Node0x639e17035130 -> Node0x639e16fef950;
-	Node0x639e171383f0 [label="{__gxx_personality_v0}"];
-	Node0x639e17137560 [label="{std::basic_string<char, std::char_traits >::operator=(std::basic_st...}"];
-	Node0x639e16fec340 [label="{basic_string<char, std::char_traits >::~basic_string()}"];
-	Node0x639e16fefe60 [label="{IccAnalyzerSecurity::IsWithinBoundary()}"];
-	Node0x639e16fefe60 -> Node0x639e17138160;
-	Node0x639e16fefe60 -> Node0x639e16fec340;
-	Node0x639e16fefe60 -> Node0x639e17040620;
-	Node0x639e16fefe60 -> Node0x639e17138830;
-	Node0x639e17138160 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x639e17138830 [label="{basic_string<char, std::char_traits >::rfind()}"];
-	Node0x639e16ff0700 [label="{IccAnalyzerSecurity::ValidateFilePath()}"];
-	Node0x639e16ff0700 -> Node0x639e16ff0020;
-	Node0x639e16ff0700 -> Node0x639e17138a00;
-	Node0x639e16ff0700 -> Node0x639e17138900;
-	Node0x639e16ff0700 -> Node0x639e16ff94d0;
-	Node0x639e16ff0700 -> Node0x639e16ff1150;
-	Node0x639e16ff0700 -> Node0x639e16ff0680;
-	Node0x639e16ff0700 -> Node0x639e171391f0;
-	Node0x639e16ff0700 -> Node0x639e16ff1330;
-	Node0x639e16ff0700 -> Node0x639e17131bd0;
-	Node0x639e16ff0700 -> Node0x639e1703bde0;
-	Node0x639e16ff0700 -> Node0x639e1713a300;
-	Node0x639e16ff0700 -> Node0x639e16ff56b0;
-	Node0x639e16ff0700 -> Node0x639e16ff15f0;
-	Node0x639e16ff0700 -> Node0x639e16ff0e60;
-	Node0x639e16ff0700 -> Node0x639e16ff1f50;
-	Node0x639e16ff0700 -> Node0x639e16ff17e0;
-	Node0x639e16ff0700 -> Node0x639e1713a7f0;
-	Node0x639e16ff0700 -> Node0x639e16ff2460;
-	Node0x639e16ff0700 -> Node0x639e16ff1aa0;
-	Node0x639e16ff0020 [label="{basic_string<char, std::char_traits >::empty()}"];
-	Node0x639e17138a00 [label="{basic_string<char, std::char_traits >::find()}"];
-	Node0x639e17138900 [label="{basic_string<char, std::char_traits >::length()}"];
-	Node0x639e16ff94d0 [label="{basic_string<char, std::char_traits >::begin()}"];
-	Node0x639e16ff1150 [label="{basic_string<char, std::char_traits >::end()}"];
-	Node0x639e16ff0680 [label="{bool __gnu_cxx::operator!=<char const*, std::basic_string >(__gnu_c...}"];
-	Node0x639e16ff0680 -> Node0x639e16ff2210;
-	Node0x639e16ff17e0 [label="{bool __gnu_cxx::operator!=<std::basic_string const*, std::vector > ...}"];
-	Node0x639e16ff17e0 -> Node0x639e1713ad70;
-	Node0x639e171391f0 [label="{__gnu_cxx::__normal_iterator<char const*, std::basic_string >::oper...}"];
-	Node0x639e16ff1330 [label="{__gnu_cxx::__normal_iterator<char const*, std::basic_string >::oper...}"];
-	Node0x639e1713a300 [label="{stat}"];
-	Node0x639e16ff15f0 [label="{empty()}"];
-	Node0x639e16ff15f0 -> Node0x639e16ff0e60;
-	Node0x639e16ff15f0 -> Node0x639e16ff1f50;
-	Node0x639e16ff15f0 -> Node0x639e1713b2f0;
-	Node0x639e16ff0e60 [label="{begin()}"];
-	Node0x639e16ff0e60 -> Node0x639e16ff1c70;
-	Node0x639e1713b2f0 [label="{bool __gnu_cxx::operator==<std::basic_string const*, std::vector > ...}"];
-	Node0x639e1713b2f0 -> Node0x639e1713ad70;
-	Node0x639e16ff1f50 [label="{end()}"];
-	Node0x639e16ff1f50 -> Node0x639e16ff1c70;
-	Node0x639e1713a7f0 [label="{__gnu_cxx::__normal_iterator<std::basic_string const*, std::vector ...}"];
-	Node0x639e16ff1aa0 [label="{basic_string<char, std::char_traits >::compare()}"];
-	Node0x639e16ff2460 [label="{__gnu_cxx::__normal_iterator<std::basic_string const*, std::vector ...}"];
-	Node0x639e16ff3190 [label="{IccAnalyzerSecurity::ValidateDirectoryPath()}"];
-	Node0x639e16ff3190 -> Node0x639e16ff0020;
-	Node0x639e16ff3190 -> Node0x639e17138a00;
-	Node0x639e16ff3190 -> Node0x639e17138900;
-	Node0x639e16ff3190 -> Node0x639e17131bd0;
-	Node0x639e16ff3190 -> Node0x639e1703bde0;
-	Node0x639e16ff3190 -> Node0x639e1713a300;
-	Node0x639e16ff3190 -> Node0x639e16ff56b0;
-	Node0x639e1713bad0 [label="{IccAnalyzerSecurity::GetValidationErrorMessage()}"];
-	Node0x639e1713bad0 -> Node0x639e17035130;
-	Node0x639e1713bad0 -> Node0x639e17133210;
-	Node0x639e1713bad0 -> Node0x639e16ff4180;
-	Node0x639e1713bad0 -> Node0x639e16fec340;
-	Node0x639e1713bad0 -> Node0x639e1713b840;
-	Node0x639e1713bad0 -> Node0x639e16ff3610;
-	Node0x639e1713bad0 -> Node0x639e16ff3ac0;
-	Node0x639e1713b840 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x639e1713b840 -> Node0x639e1713c130;
-	Node0x639e1713b840 -> Node0x639e16ff3d10;
-	Node0x639e16ff3610 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x639e16ff3610 -> Node0x639e16ff4430;
-	Node0x639e16ff3610 -> Node0x639e16ff3d10;
-	Node0x639e16ff3ac0 [label="{std::to_string()}"];
-	Node0x639e16ff3ac0 -> Node0x639e1713bd90;
-	Node0x639e16ff3ac0 -> Node0x639e16ff4ea0;
-	Node0x639e16ff3ac0 -> Node0x639e17133210;
-	Node0x639e16ff3ac0 -> Node0x639e16ff5590;
-	Node0x639e16ff3ac0 -> Node0x639e16ff4f20;
-	Node0x639e16ff3ac0 -> Node0x639e16ff4cf0;
-	Node0x639e16ff3ac0 -> Node0x639e16fec340;
-	Node0x639e16ff4180 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x639e16ff4180 -> Node0x639e16fef330;
-	Node0x639e16ff4180 -> Node0x639e1703bde0;
-	Node0x639e16ff4180 -> Node0x639e16ff4f20;
-	Node0x639e16ff4180 -> Node0x639e16ff4810;
-	Node0x639e16ff4180 -> Node0x639e1713de90;
-	Node0x639e16ff4180 -> Node0x639e17133210;
-	Node0x639e16ff5510 [label="{IccAnalyzerSecurity::ValidateBinaryDatabaseFormat()}"];
-	Node0x639e16ff5510 -> Node0x639e1713d150;
-	Node0x639e16ff5510 -> Node0x639e17132a60;
-	Node0x639e16ff5510 -> Node0x639e1713e210;
-	Node0x639e16ff5510 -> Node0x639e16fec340;
-	Node0x639e16ff5510 -> Node0x639e17137560;
-	Node0x639e16ff5510 -> Node0x639e1713e190;
-	Node0x639e16ff5510 -> Node0x639e16ff3610;
-	Node0x639e16ff5510 -> Node0x639e1713b840;
-	Node0x639e16ff5510 -> Node0x639e1713e710;
-	Node0x639e16ff5510 -> Node0x639e16ff3ac0;
-	Node0x639e1713d150 [label="{std::basic_string<char, std::char_traits >::operator=(char const*)}"];
-	Node0x639e17132a60 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x639e1713e210 [label="{memcmp}"];
-	Node0x639e1713e190 [label="{std::to_string()}"];
-	Node0x639e1713e190 -> Node0x639e1713e490;
-	Node0x639e1713e190 -> Node0x639e16ff4ea0;
-	Node0x639e1713e190 -> Node0x639e17133210;
-	Node0x639e1713e190 -> Node0x639e16ff5590;
-	Node0x639e1713e190 -> Node0x639e16ff4f20;
-	Node0x639e1713e190 -> Node0x639e1713e350;
-	Node0x639e1713e190 -> Node0x639e16fec340;
-	Node0x639e1713e190 -> Node0x639e17152900;
-	Node0x639e1713e710 [label="{std::basic_string<char, std::char_traits > std::operator+<char, std...}"];
-	Node0x639e1713e710 -> Node0x639e16ff4f20;
-	Node0x639e1713e710 -> Node0x639e16ff3d10;
-	Node0x639e1713e710 -> Node0x639e171527d0;
-	Node0x639e1713e710 -> Node0x639e1714f150;
-	Node0x639e1713e710 -> Node0x639e171504e0;
-	Node0x639e17152a70 [label="{SanitizeForLog()}"];
-	Node0x639e17152a70 -> Node0x639e17138160;
-	Node0x639e17152a70 -> Node0x639e16ff4f20;
-	Node0x639e17152a70 -> Node0x639e17153f90;
-	Node0x639e17152a70 -> Node0x639e16ff94d0;
-	Node0x639e17152a70 -> Node0x639e16ff1150;
-	Node0x639e17152a70 -> Node0x639e16ff0680;
-	Node0x639e17152a70 -> Node0x639e171391f0;
-	Node0x639e17152a70 -> Node0x639e16fec340;
-	Node0x639e17152a70 -> Node0x639e17153280;
-	Node0x639e17152a70 -> Node0x639e16ff1330;
-	Node0x639e17153f90 [label="{basic_string<char, std::char_traits >::reserve()}"];
-	Node0x639e16ff4f20 [label="{basic_string<char, std::char_traits >::size()}"];
-	Node0x639e17153280 [label="{basic_string<char, std::char_traits >::push_back()}"];
-	Node0x639e17152d20 [label="{SanitizeForLog[abi:cxx11](char const*)}"];
-	Node0x639e17152d20 -> Node0x639e17035130;
-	Node0x639e17152d20 -> Node0x639e17133210;
-	Node0x639e17152d20 -> Node0x639e16fec340;
-	Node0x639e17152d20 -> Node0x639e17152a70;
-	Node0x639e17152b70 [label="{SanitizeForDOT()}"];
-	Node0x639e17152b70 -> Node0x639e17138160;
-	Node0x639e17152b70 -> Node0x639e16ff4f20;
-	Node0x639e17152b70 -> Node0x639e17153f90;
-	Node0x639e17152b70 -> Node0x639e16ff94d0;
-	Node0x639e17152b70 -> Node0x639e16ff1150;
-	Node0x639e17152b70 -> Node0x639e16ff0680;
-	Node0x639e17152b70 -> Node0x639e171391f0;
-	Node0x639e17152b70 -> Node0x639e16fec340;
-	Node0x639e17152b70 -> Node0x639e17155c10;
-	Node0x639e17152b70 -> Node0x639e16ff1330;
-	Node0x639e17152b70 -> Node0x639e17153280;
-	Node0x639e17155c10 [label="{std::basic_string<char, std::char_traits >::operator+=(char const*)}"];
-	Node0x639e1713bd90 [label="{std::__detail::__to_chars_len<unsigned long>()}"];
-	Node0x639e16ff4ea0 [label="{char_traits >::basic_string<std::allocator >()}"];
-	Node0x639e16ff4ea0 -> Node0x639e170c7950;
-	Node0x639e16ff4ea0 -> Node0x639e16fef710;
-	Node0x639e16ff4ea0 -> Node0x639e1715c420;
-	Node0x639e16ff4ea0 -> Node0x639e16fef2b0;
-	Node0x639e16ff4cf0 [label="{std::__detail::__to_chars_10_impl<unsigned long>()}"];
-	Node0x639e16ff4cf0 -> Node0x639e17132a60;
-	Node0x639e16ff5590 [label="{std::basic_string<char, std::char_traits >::operator[](unsigned long)}"];
-	Node0x639e170c7950 [label="{basic_string<char, std::char_traits >::_M_local_data()}"];
-	Node0x639e16fef710 [label="{char_traits >::_Alloc_hider::_Alloc_hider()}"];
-	Node0x639e1715c420 [label="{basic_string<char, std::char_traits >::_M_construct()}"];
-	Node0x639e16fef2b0 [label="{char_traits >::_Alloc_hider::~_Alloc_hider()}"];
-	Node0x639e16fef2b0 -> Node0x639e17133210;
-	Node0x639e17133210 [label="{std::__new_allocator<char>::~__new_allocator()}"];
-	Node0x639e1713e490 [label="{std::__detail::__to_chars_len<unsigned int>()}"];
-	Node0x639e17152900 [label="{__clang_call_terminate}"];
-	Node0x639e17152900 -> Node0x639e1715c0f0;
-	Node0x639e17152900 -> Node0x639e1715bdd0;
-	Node0x639e1715c0f0 [label="{__cxa_begin_catch}"];
-	Node0x639e1715bdd0 [label="{std::terminate()}"];
-	Node0x639e1713e350 [label="{std::__detail::__to_chars_10_impl<unsigned int>()}"];
-	Node0x639e1713e350 -> Node0x639e17132a60;
-	Node0x639e16fef4e0 [label="{std::__throw_logic_error()}"];
-	Node0x639e16fef330 [label="{std::char_traits<char>::length()}"];
-	Node0x639e16fef330 -> Node0x639e17155aa0;
-	Node0x639e16fef950 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x639e16fef950 -> Node0x639e171604a0;
-	Node0x639e16fef950 -> Node0x639e17159ff0;
-	Node0x639e16fef950 -> Node0x639e1715a070;
-	Node0x639e16fef950 -> Node0x639e17158ef0;
-	Node0x639e16fef950 -> Node0x639e17158970;
-	Node0x639e16fef950 -> Node0x639e17161da0;
-	Node0x639e16fef950 -> Node0x639e17161bf0;
-	Node0x639e16fef950 -> Node0x639e17159230;
-	Node0x639e17158ef0 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x639e17155aa0 [label="{strlen}"];
-	Node0x639e17159ff0 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x639e171604a0 [label="{basic_string<char, std::char_traits >::_M_create()}"];
-	Node0x639e1715a070 [label="{basic_string<char, std::char_traits >::_M_capacity()}"];
-	Node0x639e17161da0 [label="{basic_string<char, std::char_traits >::_S_copy_chars()}"];
-	Node0x639e17158970 [label="{basic_string<char, std::char_traits >::_M_data()}"];
-	Node0x639e17161bf0 [label="{basic_string<char, std::char_traits >::_M_set_length()}"];
-	Node0x639e17159230 [label="{basic_string<char, std::char_traits >::_M_construct<char const*>()}"];
-	Node0x639e17159230 -> Node0x639e17163c30;
-	Node0x639e17159230 -> Node0x639e17152900;
-	Node0x639e17163c30 [label="{basic_string<char, std::char_traits >::_M_dispose()}"];
-	Node0x639e16ff2210 [label="{__normal_iterator<char const*, std::basic_string >::base()}"];
-	Node0x639e1713ad70 [label="{base()}"];
-	Node0x639e16ff1c70 [label="{__normal_iterator()}"];
-	Node0x639e16ff4430 [label="{basic_string<char, std::char_traits >::insert()}"];
-	Node0x639e16ff3d10 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x639e1713c130 [label="{basic_string<char, std::char_traits >::append()}"];
-	Node0x639e1713de90 [label="{std::__str_concat<std::basic_string >()}"];
-	Node0x639e1713de90 -> Node0x639e1713fbc0;
-	Node0x639e1713de90 -> Node0x639e16fec340;
-	Node0x639e1713de90 -> Node0x639e17163f10;
-	Node0x639e1713de90 -> Node0x639e17133210;
-	Node0x639e1713de90 -> Node0x639e17153f90;
-	Node0x639e1713de90 -> Node0x639e17163de0;
-	Node0x639e16ff4810 [label="{basic_string<char, std::char_traits >::get_allocator()}"];
-	Node0x639e17163f10 [label="{basic_string<char, std::char_traits >::basic_string()}"];
-	Node0x639e17163de0 [label="{basic_string<char, std::char_traits >::append()}"];
-	Node0x639e171527d0 [label="{basic_string<char, std::char_traits >::capacity()}"];
-	Node0x639e171504e0 [label="{basic_string<char, std::char_traits >::insert()}"];
-	Node0x639e1714f150 [label="{basic_string<char, std::char_traits >::append()}"];
-	Node0x639e1713fbc0 [label="{llvm.experimental.noalias.scope.decl}"];
+	Node0x5658dea4d5f0 [label="IccAnalyzerSecurity::IsSymlink()"];
+	Node0x5658dea4d5f0 -> Node0x5658dea82de0;
+	Node0x5658dea82de0 [label="c_str()"];
+	Node0x5658deb78bd0 [label="IccAnalyzerSecurity::ContainsPathTraversal()"];
+	Node0x5658deb78bd0 -> Node0x5658deaae960;
+	Node0x5658deaae960 [label="rfind()"];
+	Node0x5658deaa8610 [label="IccAnalyzerSecurity::SanitizePath()"];
+	Node0x5658deaa8610 -> Node0x5658dea82de0;
+	Node0x5658deaa8610 -> Node0x5658dea8c110;
+	Node0x5658dea8c110 [label="realpath"];
+	Node0x5658dea36b90 [label="IccAnalyzerSecurity::IsWithinBoundary()"];
+	Node0x5658dea36b90 -> Node0x5658deaa8610;
+	Node0x5658dea36b90 -> Node0x5658deb7f900;
+	Node0x5658deb7f900 [label="rfind()"];
+	Node0x5658dea37230 [label="IccAnalyzerSecurity::ValidateFilePath()"];
+	Node0x5658dea37230 -> Node0x5658dea37950;
+	Node0x5658dea37230 -> Node0x5658deb78bd0;
+	Node0x5658dea37230 -> Node0x5658dea82de0;
+	Node0x5658dea37230 -> Node0x5658dea4d5f0;
+	Node0x5658dea37230 -> Node0x5658dea38f50;
+	Node0x5658dea37950 [label="length()"];
+	Node0x5658dea38f50 [label="compare()"];
+	Node0x5658dea3ab40 [label="IccAnalyzerSecurity::ValidateDirectoryPath()"];
+	Node0x5658dea3ab40 -> Node0x5658dea37950;
+	Node0x5658dea3ab40 -> Node0x5658deb78bd0;
+	Node0x5658dea3ab40 -> Node0x5658dea82de0;
+	Node0x5658dea3ab40 -> Node0x5658dea4d5f0;
+	Node0x5658deb82840 [label="IccAnalyzerSecurity::GetValidationErrorMessage()"];
+	Node0x5658deb83f50 [label="IccAnalyzerSecurity::ValidateBinaryDatabaseFormat()"];
+	Node0x5658deb9a280 [label="SanitizeForLog()"];
+	Node0x5658deb9a280 -> Node0x5658deb9a380;
+	Node0x5658deb9a380 [label="reserve()"];
+	Node0x5658deb857d0 [label="SanitizeForLog[abi:cxx11](char const*)"];
+	Node0x5658deb857d0 -> Node0x5658deb9a280;
+	Node0x5658deba18e0 [label="SanitizeForDOT()"];
+	Node0x5658deba18e0 -> Node0x5658deb9a380;
+	Node0x5658dea36560 [label="length()"];
+	Node0x5658deb9fe70 [label="_Guard::_Guard()"];
+	Node0x5658debab030 [label="_Guard::~_Guard()"];
+	Node0x5658dea38c70 [label="base()"];
+	Node0x5658dea3a690 [label="base()"];
+	Node0x5658deb81d70 [label="__normal_iterator()"];
+	Node0x5658dea3b430 [label="append()"];
+	Node0x5658dea3bea0 [label="get_allocator()"];
+	Node0x5658debadb20 [label="append()"];
+	Node0x5658deb953a0 [label="capacity()"];
+	Node0x5658deb996f0 [label="append()"];
 }

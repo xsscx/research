@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEnvVar.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,278 +15,52 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/proflib/IccEnvVa
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5eebdc156a20 [label="{CIccCmmVarLookup::CIccCmmVarLookup()}"];
-	Node0x5eebdc156a20 -> Node0x5eebdc183390;
-	Node0x5eebdc156a20 -> Node0x5eebdc17f360;
-	Node0x5eebdc156a20 -> Node0x5eebdc181c90;
-	Node0x5eebdc156a20 -> Node0x5eebdc0c73f0;
-	Node0x5eebdc156a20 -> Node0x5eebdc0bafa0;
-	Node0x5eebdc156a20 -> Node0x5eebdc09c3c0;
-	Node0x5eebdc183390 [label="{IIccCmmEnvVarLookup::IIccCmmEnvVarLookup()}"];
-	Node0x5eebdc17f360 [label="{new()}"];
-	Node0x5eebdc0cec60 [label="{__gxx_personality_v0}"];
-	Node0x5eebdc181c90 [label="{llvm.memset.p0.i64}"];
-	Node0x5eebdc0c73f0 [label="{map()}"];
-	Node0x5eebdc0c73f0 -> Node0x5eebdc0f53f0;
-	Node0x5eebdc0bafa0 [label="{std::map<unsigned int, float, std::less > ::operator=(std::mapunsig...}"];
-	Node0x5eebdc0bafa0 -> Node0x5eebdc1535d0;
-	Node0x5eebdc1171f0 [label="{CIccCmmVarLookup::~CIccCmmVarLookup()}"];
-	Node0x5eebdc1171f0 -> Node0x5eebdc07cfe0;
-	Node0x5eebdc1171f0 -> Node0x5eebdc07b940;
-	Node0x5eebdc1171f0 -> Node0x5eebdc09c3c0;
-	Node0x5eebdc07cfe0 [label="{map()}"];
-	Node0x5eebdc07cfe0 -> Node0x5eebdc07ca70;
-	Node0x5eebdc07b940 [label="{delete()}"];
-	Node0x5eebdc07d050 [label="{CIccCmmVarLookup::~CIccCmmVarLookup()}"];
-	Node0x5eebdc07d050 -> Node0x5eebdc07b940;
-	Node0x5eebdc07d5b0 [label="{CIccCmmVarLookup::GetEnvVar()}"];
-	Node0x5eebdc07d5b0 -> Node0x5eebdc191190;
-	Node0x5eebdc07d5b0 -> Node0x5eebdc191e50;
-	Node0x5eebdc07d5b0 -> Node0x5eebdc191d10;
-	Node0x5eebdc07d5b0 -> Node0x5eebdc0bd080;
-	Node0x5eebdc191190 [label="{find()}"];
-	Node0x5eebdc191190 -> Node0x5eebdc191290;
-	Node0x5eebdc191d10 [label="{std::operator==(std::_Rb_tree_iterator<std::pair > const&, std::_Rb...}"];
-	Node0x5eebdc191e50 [label="{end()}"];
-	Node0x5eebdc191e50 -> Node0x5eebdc1a06b0;
-	Node0x5eebdc0bd080 [label="{std::_Rb_tree_iterator<std::pair >::operator-() const}"];
-	Node0x5eebdc0bd080 -> Node0x5eebdc19e920;
-	Node0x5eebdc1b6da0 [label="{__cxa_end_catch}"];
-	Node0x5eebdc19e060 [label="{CIccCmmVarLookup::IndexedEnvVar()}"];
-	Node0x5eebdc19e060 -> Node0x5eebdc19dd50;
-	Node0x5eebdc19e060 -> Node0x5eebdc1a2fe0;
-	Node0x5eebdc19e060 -> Node0x5eebdc1a10a0;
-	Node0x5eebdc19e060 -> Node0x5eebdc1a19b0;
-	Node0x5eebdc19e060 -> Node0x5eebdc1a2a60;
-	Node0x5eebdc19e060 -> Node0x5eebdc0bd080;
-	Node0x5eebdc19dd50 [label="{size()}"];
-	Node0x5eebdc19dd50 -> Node0x5eebdc1a4310;
-	Node0x5eebdc1a2fe0 [label="{_Rb_tree_iterator<std::pair >::_Rb_tree_iterator()}"];
-	Node0x5eebdc1a10a0 [label="{begin()}"];
-	Node0x5eebdc1a10a0 -> Node0x5eebdc19f940;
-	Node0x5eebdc1a19b0 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5eebdc1a2a60 [label="{std::_Rb_tree_iterator<std::pair >::operator++(int)}"];
-	Node0x5eebdc1a2a60 -> Node0x5eebdc1a19b0;
-	Node0x5eebdc1a2a60 -> Node0x5eebdc1a5200;
-	Node0x5eebdc1a50e0 [label="{CIccCmmEnvVarHint::CIccCmmEnvVarHint()}"];
-	Node0x5eebdc1a50e0 -> Node0x5eebdc1a4480;
-	Node0x5eebdc1a50e0 -> Node0x5eebdc17f360;
-	Node0x5eebdc1a50e0 -> Node0x5eebdc181c90;
-	Node0x5eebdc1a50e0 -> Node0x5eebdc0c73f0;
-	Node0x5eebdc1a50e0 -> Node0x5eebdc0bafa0;
-	Node0x5eebdc1a50e0 -> Node0x5eebdc1a6ba0;
-	Node0x5eebdc1a4480 [label="{CIccCreateCmmEnvVarXformHint::CIccCreateCmmEnvVarXformHint()}"];
-	Node0x5eebdc1a4480 -> Node0x5eebdc1a7820;
-	Node0x5eebdc1a6da0 [label="{CIccCmmEnvVarHint::~CIccCmmEnvVarHint()}"];
-	Node0x5eebdc1a6da0 -> Node0x5eebdc07cfe0;
-	Node0x5eebdc1a6da0 -> Node0x5eebdc07b940;
-	Node0x5eebdc1a6da0 -> Node0x5eebdc1a6ba0;
-	Node0x5eebdc1a75b0 [label="{CIccCmmEnvVarHint::~CIccCmmEnvVarHint()}"];
-	Node0x5eebdc1a75b0 -> Node0x5eebdc07b940;
-	Node0x5eebdc1a6b20 [label="{CIccCmmPccEnvVarHint::CIccCmmPccEnvVarHint()}"];
-	Node0x5eebdc1a6b20 -> Node0x5eebdc1a9b80;
-	Node0x5eebdc1a6b20 -> Node0x5eebdc17f360;
-	Node0x5eebdc1a6b20 -> Node0x5eebdc181c90;
-	Node0x5eebdc1a6b20 -> Node0x5eebdc0c73f0;
-	Node0x5eebdc1a6b20 -> Node0x5eebdc0bafa0;
-	Node0x5eebdc1a6b20 -> Node0x5eebdc1ab330;
-	Node0x5eebdc1a9b80 [label="{CIccCreateCmmPccEnvVarXformHint::CIccCreateCmmPccEnvVarXformHint()}"];
-	Node0x5eebdc1a9b80 -> Node0x5eebdc1a7820;
-	Node0x5eebdc1ab0c0 [label="{CIccCmmPccEnvVarHint::~CIccCmmPccEnvVarHint()}"];
-	Node0x5eebdc1ab0c0 -> Node0x5eebdc07cfe0;
-	Node0x5eebdc1ab0c0 -> Node0x5eebdc07b940;
-	Node0x5eebdc1ab0c0 -> Node0x5eebdc1ab330;
-	Node0x5eebdc1aaf90 [label="{CIccCmmPccEnvVarHint::~CIccCmmPccEnvVarHint()}"];
-	Node0x5eebdc1aaf90 -> Node0x5eebdc07b940;
-	Node0x5eebdc1aae50 [label="{CIccCreateCmmEnvVarXformHint::GetHintType()}"];
-	Node0x5eebdc1abbc0 [label="{CIccCmmEnvVarHint::GetNewCmmEnvVarLookup()}"];
-	Node0x5eebdc1abbc0 -> Node0x5eebdc17f360;
-	Node0x5eebdc1abbc0 -> Node0x5eebdc07b940;
-	Node0x5eebdc1aca80 [label="{CIccCreateCmmPccEnvVarXformHint::GetHintType()}"];
-	Node0x5eebdc1ac800 [label="{CIccCmmPccEnvVarHint::GetNewCmmEnvVarLookup()}"];
-	Node0x5eebdc1ac800 -> Node0x5eebdc17f360;
-	Node0x5eebdc1ac800 -> Node0x5eebdc07b940;
-	Node0x5eebdc09c3c0 [label="{IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()}"];
-	Node0x5eebdc1ac6c0 [label="{IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()}"];
-	Node0x5eebdc1ac6c0 -> Node0x5eebdc1ac000;
-	Node0x5eebdc1a62f0 [label="{__cxa_pure_virtual}"];
-	Node0x5eebdc1ac000 [label="{llvm.trap}"];
-	Node0x5eebdc0f53f0 [label="{_Rb_tree()}"];
-	Node0x5eebdc0f53f0 -> Node0x5eebdc1a6010;
-	Node0x5eebdc1a6010 [label="{true::_Rb_tree_impl()}"];
-	Node0x5eebdc1a6010 -> Node0x5eebdc19d410;
-	Node0x5eebdc1a6010 -> Node0x5eebdc19d490;
-	Node0x5eebdc19d410 [label="{_Rb_tree_key_compare<std::less >::_Rb_tree_key_compare()}"];
-	Node0x5eebdc19d490 [label="{std::_Rb_tree_header::_Rb_tree_header()}"];
-	Node0x5eebdc19d490 -> Node0x5eebdc1b0e20;
-	Node0x5eebdc19d490 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1b0e20 [label="{std::_Rb_tree_header::_M_reset()}"];
-	Node0x5eebdc1961f0 [label="{__clang_call_terminate}"];
-	Node0x5eebdc1961f0 -> Node0x5eebdc1b14b0;
-	Node0x5eebdc1961f0 -> Node0x5eebdc1b1300;
-	Node0x5eebdc1b14b0 [label="{__cxa_begin_catch}"];
-	Node0x5eebdc1b1300 [label="{std::terminate()}"];
-	Node0x5eebdc1535d0 [label="{std::_Rb_tree<unsigned int, std::pair, std::_Select1st, std::less >...}"];
-	Node0x5eebdc1535d0 -> Node0x5eebdc1b11d0;
-	Node0x5eebdc1535d0 -> Node0x5eebdc1b0e20;
-	Node0x5eebdc1535d0 -> Node0x5eebdc195130;
-	Node0x5eebdc1535d0 -> Node0x5eebdc1977f0;
-	Node0x5eebdc1535d0 -> Node0x5eebdc196170;
-	Node0x5eebdc1535d0 -> Node0x5eebdc197730;
-	Node0x5eebdc1b11d0 [label="{_Reuse_or_alloc_node::_Reuse_or_alloc_node()}"];
-	Node0x5eebdc1b11d0 -> Node0x5eebdc196170;
-	Node0x5eebdc1b11d0 -> Node0x5eebdc196670;
-	Node0x5eebdc195130 [label="{_M_root()}"];
-	Node0x5eebdc1977f0 [label="{_Reuse_or_alloc_node()}"];
-	Node0x5eebdc1977f0 -> Node0x5eebdc1b5620;
-	Node0x5eebdc1977f0 -> Node0x5eebdc1b4850;
-	Node0x5eebdc1977f0 -> Node0x5eebdc1b4340;
-	Node0x5eebdc1977f0 -> Node0x5eebdc1b4150;
-	Node0x5eebdc1977f0 -> Node0x5eebdc1b6980;
-	Node0x5eebdc1977f0 -> Node0x5eebdc197070;
-	Node0x5eebdc1977f0 -> Node0x5eebdc196670;
-	Node0x5eebdc1a06b0 [label="{end()}"];
-	Node0x5eebdc1a06b0 -> Node0x5eebdc1cc080;
-	Node0x5eebdc196170 [label="{_M_root()}"];
-	Node0x5eebdc197730 [label="{_Reuse_or_alloc_node::~_Reuse_or_alloc_node()}"];
-	Node0x5eebdc197730 -> Node0x5eebdc1b5b80;
-	Node0x5eebdc197730 -> Node0x5eebdc1961f0;
-	Node0x5eebdc196670 [label="{_M_rightmost()}"];
-	Node0x5eebdc1b4340 [label="{_Reuse_or_alloc_node()}"];
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b5890;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1987d0;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b4340;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b14b0;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b5b80;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b7560;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b73b0;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1b4340 -> Node0x5eebdc1b6da0;
-	Node0x5eebdc1b5620 [label="{_M_mbegin()}"];
-	Node0x5eebdc1b4850 [label="{_M_end()}"];
-	Node0x5eebdc1b4150 [label="{_S_minimum()}"];
-	Node0x5eebdc1b4150 -> Node0x5eebdc1bb060;
-	Node0x5eebdc1b6980 [label="{_M_leftmost()}"];
-	Node0x5eebdc197070 [label="{_S_maximum()}"];
-	Node0x5eebdc197070 -> Node0x5eebdc1994d0;
-	Node0x5eebdc1b5890 [label="{_Reuse_or_alloc_node()}"];
-	Node0x5eebdc1b5890 -> Node0x5eebdc19e920;
-	Node0x5eebdc1b5890 -> Node0x5eebdc1b9d30;
-	Node0x5eebdc1987d0 [label="{_S_right()}"];
-	Node0x5eebdc1b9d30 [label="{_Reuse_or_alloc_node::operator()}"];
-	Node0x5eebdc1b9d30 -> Node0x5eebdc1bbf10;
-	Node0x5eebdc1b9d30 -> Node0x5eebdc1bbcb0;
-	Node0x5eebdc1b9d30 -> Node0x5eebdc199bd0;
-	Node0x5eebdc1b9d30 -> Node0x5eebdc1996d0;
-	Node0x5eebdc1b73b0 [label="{_S_left()}"];
-	Node0x5eebdc1b5b80 [label="{_M_erase()}"];
-	Node0x5eebdc1b5b80 -> Node0x5eebdc1987d0;
-	Node0x5eebdc1b5b80 -> Node0x5eebdc1b5b80;
-	Node0x5eebdc1b5b80 -> Node0x5eebdc1b73b0;
-	Node0x5eebdc1b5b80 -> Node0x5eebdc1b97b0;
-	Node0x5eebdc1b7560 [label="{__cxa_rethrow}"];
-	Node0x5eebdc19e920 [label="{_Rb_tree_node<std::pair >::_M_valptr()}"];
-	Node0x5eebdc19e920 -> Node0x5eebdc199e50;
-	Node0x5eebdc199bd0 [label="{void std::_Rb_tree<unsigned int, std::pair, std::_Select1st, std::l...}"];
-	Node0x5eebdc199bd0 -> Node0x5eebdc19c250;
-	Node0x5eebdc199bd0 -> Node0x5eebdc19e920;
-	Node0x5eebdc199bd0 -> Node0x5eebdc1a19b0;
-	Node0x5eebdc199bd0 -> Node0x5eebdc1b14b0;
-	Node0x5eebdc199bd0 -> Node0x5eebdc19c810;
-	Node0x5eebdc199bd0 -> Node0x5eebdc1b7560;
-	Node0x5eebdc199bd0 -> Node0x5eebdc1b6da0;
-	Node0x5eebdc199bd0 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1bbf10 [label="{_Reuse_or_alloc_node::_M_extract()}"];
-	Node0x5eebdc1bbcb0 [label="{_M_destroy_node()}"];
-	Node0x5eebdc1bbcb0 -> Node0x5eebdc19c250;
-	Node0x5eebdc1bbcb0 -> Node0x5eebdc19e920;
-	Node0x5eebdc1bbcb0 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1996d0 [label="{std::_Rb_tree_node<std::pair >* std::_Rb_tree<unsigned int, std::pa...}"];
-	Node0x5eebdc1996d0 -> Node0x5eebdc19b990;
-	Node0x5eebdc1996d0 -> Node0x5eebdc199bd0;
-	Node0x5eebdc19c250 [label="{_M_get_Node_allocator()}"];
-	Node0x5eebdc19c810 [label="{_M_put_node()}"];
-	Node0x5eebdc19c810 -> Node0x5eebdc19c250;
-	Node0x5eebdc19c810 -> Node0x5eebdc1bd460;
-	Node0x5eebdc19c810 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1bd460 [label="{__new_allocator<std::_Rb_tree_node >::deallocate()}"];
-	Node0x5eebdc1bd460 -> Node0x5eebdc07b940;
-	Node0x5eebdc19b990 [label="{_M_get_node()}"];
-	Node0x5eebdc19b990 -> Node0x5eebdc19c250;
-	Node0x5eebdc19b990 -> Node0x5eebdc1bd3b0;
-	Node0x5eebdc1bd3b0 [label="{__new_allocator<std::_Rb_tree_node >::allocate()}"];
-	Node0x5eebdc1bd3b0 -> Node0x5eebdc19a350;
-	Node0x5eebdc1bd3b0 -> Node0x5eebdc1c7170;
-	Node0x5eebdc1bd3b0 -> Node0x5eebdc17f360;
-	Node0x5eebdc19a350 [label="{std::__throw_bad_array_new_length()}"];
-	Node0x5eebdc1c7170 [label="{std::__throw_bad_alloc()}"];
-	Node0x5eebdc199e50 [label="{__aligned_membuf<std::pair >::_M_ptr()}"];
-	Node0x5eebdc199e50 -> Node0x5eebdc1c6fc0;
-	Node0x5eebdc1c6fc0 [label="{__aligned_membuf<std::pair >::_M_addr()}"];
-	Node0x5eebdc1b97b0 [label="{_M_drop_node()}"];
-	Node0x5eebdc1b97b0 -> Node0x5eebdc1bbcb0;
-	Node0x5eebdc1b97b0 -> Node0x5eebdc19c810;
-	Node0x5eebdc1bb060 [label="{std::_Rb_tree_node_base::_S_minimum()}"];
-	Node0x5eebdc1994d0 [label="{std::_Rb_tree_node_base::_S_maximum()}"];
-	Node0x5eebdc07ca70 [label="{_Rb_tree()}"];
-	Node0x5eebdc07ca70 -> Node0x5eebdc1c6e80;
-	Node0x5eebdc07ca70 -> Node0x5eebdc1b5b80;
-	Node0x5eebdc07ca70 -> Node0x5eebdc1c6d70;
-	Node0x5eebdc07ca70 -> Node0x5eebdc1961f0;
-	Node0x5eebdc1c6e80 [label="{_M_begin()}"];
-	Node0x5eebdc1c6e80 -> Node0x5eebdc1b5620;
-	Node0x5eebdc1c6d70 [label="{true::~_Rb_tree_impl()}"];
-	Node0x5eebdc1c6d70 -> Node0x5eebdc1c6950;
-	Node0x5eebdc1c6950 [label="{__new_allocator<std::_Rb_tree_node >::~__new_allocator()}"];
-	Node0x5eebdc1a7820 [label="{IIccCreateXformHint::IIccCreateXformHint()}"];
-	Node0x5eebdc1a6ba0 [label="{CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHint()}"];
-	Node0x5eebdc1a6ba0 -> Node0x5eebdc1ae5e0;
-	Node0x5eebdc1b4e50 [label="{CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHint()}"];
-	Node0x5eebdc1b4e50 -> Node0x5eebdc1ac000;
-	Node0x5eebdc1ae5e0 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
-	Node0x5eebdc1b4c70 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
-	Node0x5eebdc1b4c70 -> Node0x5eebdc1ac000;
-	Node0x5eebdc1ab330 [label="{CIccCreateCmmPccEnvVarXformHint::~CIccCreateCmmPccEnvVarXformHint()}"];
-	Node0x5eebdc1ab330 -> Node0x5eebdc1ae5e0;
-	Node0x5eebdc1ae860 [label="{CIccCreateCmmPccEnvVarXformHint::~CIccCreateCmmPccEnvVarXformHint()}"];
-	Node0x5eebdc1ae860 -> Node0x5eebdc1ac000;
-	Node0x5eebdc191290 [label="{find()}"];
-	Node0x5eebdc191290 -> Node0x5eebdc1c6e80;
-	Node0x5eebdc191290 -> Node0x5eebdc1b4850;
-	Node0x5eebdc191290 -> Node0x5eebdc1ae720;
-	Node0x5eebdc191290 -> Node0x5eebdc1a06b0;
-	Node0x5eebdc191290 -> Node0x5eebdc191d10;
-	Node0x5eebdc191290 -> Node0x5eebdc1c5e60;
-	Node0x5eebdc191290 -> Node0x5eebdc1cc6a0;
-	Node0x5eebdc191290 -> Node0x5eebdc1a19b0;
-	Node0x5eebdc1ae720 [label="{_M_lower_bound()}"];
-	Node0x5eebdc1ae720 -> Node0x5eebdc1cc360;
-	Node0x5eebdc1ae720 -> Node0x5eebdc1cc6a0;
-	Node0x5eebdc1ae720 -> Node0x5eebdc1b73b0;
-	Node0x5eebdc1ae720 -> Node0x5eebdc1987d0;
-	Node0x5eebdc1ae720 -> Node0x5eebdc1cc080;
-	Node0x5eebdc1cc6a0 [label="{std::less<unsigned int>::operator()}"];
-	Node0x5eebdc1c5e60 [label="{_S_key()}"];
-	Node0x5eebdc1c5e60 -> Node0x5eebdc1cc360;
-	Node0x5eebdc1cc360 [label="{_S_key()}"];
-	Node0x5eebdc1cc360 -> Node0x5eebdc1e1860;
-	Node0x5eebdc1cc360 -> Node0x5eebdc1e16b0;
-	Node0x5eebdc1cc080 [label="{_Rb_tree_iterator<std::pair >::_Rb_tree_iterator()}"];
-	Node0x5eebdc1e16b0 [label="{_Select1st<std::pair >::operator()}"];
-	Node0x5eebdc1e1860 [label="{_Rb_tree_node<std::pair >::_M_valptr()}"];
-	Node0x5eebdc1e1860 -> Node0x5eebdc1e13f0;
-	Node0x5eebdc1e13f0 [label="{__aligned_membuf<std::pair >::_M_ptr()}"];
-	Node0x5eebdc1e13f0 -> Node0x5eebdc1e07e0;
-	Node0x5eebdc1e07e0 [label="{__aligned_membuf<std::pair >::_M_addr()}"];
-	Node0x5eebdc1a4310 [label="{size()}"];
-	Node0x5eebdc19f940 [label="{begin()}"];
-	Node0x5eebdc19f940 -> Node0x5eebdc1cc080;
-	Node0x5eebdc1a5200 [label="{std::_Rb_tree_increment()}"];
+	Node0x62b549991a20 [label="CIccCmmVarLookup::CIccCmmVarLookup()"];
+	Node0x62b549991a20 -> Node0x62b5499be390;
+	Node0x62b549991a20 -> Node0x62b5498d1960;
+	Node0x62b5499be390 [label="IIccCmmEnvVarLookup::IIccCmmEnvVarLookup()"];
+	Node0x62b549925490 [label="CIccCmmVarLookup::~CIccCmmVarLookup()"];
+	Node0x62b549925490 -> Node0x62b5498d1960;
+	Node0x62b5498b85b0 [label="CIccCmmVarLookup::~CIccCmmVarLookup()"];
+	Node0x62b5498b9070 [label="CIccCmmVarLookup::GetEnvVar()"];
+	Node0x62b5499d8f20 [label="CIccCmmVarLookup::IndexedEnvVar()"];
+	Node0x62b5499dfaa0 [label="CIccCmmEnvVarHint::CIccCmmEnvVarHint()"];
+	Node0x62b5499dfaa0 -> Node0x62b5499df310;
+	Node0x62b5499dfaa0 -> Node0x62b5499e1e10;
+	Node0x62b5499df310 [label="CIccCreateCmmEnvVarXformHint::CIccCreateCmmEnvVarXformHint()"];
+	Node0x62b5499df310 -> Node0x62b5499e4460;
+	Node0x62b5499e3ec0 [label="CIccCmmEnvVarHint::~CIccCmmEnvVarHint()"];
+	Node0x62b5499e3ec0 -> Node0x62b5499e1e10;
+	Node0x62b5499e1d90 [label="CIccCmmEnvVarHint::~CIccCmmEnvVarHint()"];
+	Node0x62b5499e25a0 [label="CIccCmmPccEnvVarHint::CIccCmmPccEnvVarHint()"];
+	Node0x62b5499e25a0 -> Node0x62b5499e4bf0;
+	Node0x62b5499e25a0 -> Node0x62b5499e64d0;
+	Node0x62b5499e4bf0 [label="CIccCreateCmmPccEnvVarXformHint::CIccCreateCmmPccEnvVarXf..."];
+	Node0x62b5499e4bf0 -> Node0x62b5499e4460;
+	Node0x62b5499e6220 [label="CIccCmmPccEnvVarHint::~CIccCmmPccEnvVarHint()"];
+	Node0x62b5499e6220 -> Node0x62b5499e64d0;
+	Node0x62b5499e60b0 [label="CIccCmmPccEnvVarHint::~CIccCmmPccEnvVarHint()"];
+	Node0x62b5499e5f80 [label="CIccCreateCmmEnvVarXformHint::GetHintType()"];
+	Node0x62b5499e6ff0 [label="CIccCmmEnvVarHint::GetNewCmmEnvVarLookup()"];
+	Node0x62b5499e9410 [label="CIccCreateCmmPccEnvVarXformHint::GetHintType()"];
+	Node0x62b5499e78f0 [label="CIccCmmPccEnvVarHint::GetNewCmmEnvVarLookup()"];
+	Node0x62b5498d1960 [label="IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()"];
+	Node0x62b5499e77f0 [label="IIccCmmEnvVarLookup::~IIccCmmEnvVarLookup()"];
+	Node0x62b5499e0fe0 [label="true::_Rb_tree_impl()"];
+	Node0x62b549a01f30 [label="true::~_Rb_tree_impl()"];
+	Node0x62b5499e4460 [label="IIccCreateXformHint::IIccCreateXformHint()"];
+	Node0x62b5499e1e10 [label="CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHi..."];
+	Node0x62b5499e1e10 -> Node0x62b5499e9710;
+	Node0x62b5499fe3b0 [label="CIccCreateCmmEnvVarXformHint::~CIccCreateCmmEnvVarXformHi..."];
+	Node0x62b5499e9710 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x62b5499efd50 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x62b5499e64d0 [label="CIccCreateCmmPccEnvVarXformHint::~CIccCreateCmmPccEnvVarX..."];
+	Node0x62b5499e64d0 -> Node0x62b5499e9710;
+	Node0x62b5499e9b20 [label="CIccCreateCmmPccEnvVarXformHint::~CIccCreateCmmPccEnvVarX..."];
 }

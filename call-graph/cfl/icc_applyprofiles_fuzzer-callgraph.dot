@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_applyprofiles_fuzzer.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,183 +15,144 @@ digraph "Call graph: /home/h02332/po/research/call-graph/cfl/icc_applyprofiles_f
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5bc2f7027610 [label="{LLVMFuzzerInitialize}"];
-	Node0x5bc2f7027610 -> Node0x5bc2f701a170;
-	Node0x5bc2f7027610 -> Node0x5bc2f70127c0;
-	Node0x5bc2f701a170 [label="{TIFFSetErrorHandler}"];
-	Node0x5bc2f70269f0 [label="{SilentTIFFErrorHandler()}"];
-	Node0x5bc2f70127c0 [label="{TIFFSetWarningHandler}"];
-	Node0x5bc2f6f17d20 [label="{SilentTIFFWarningHandler()}"];
-	Node0x5bc2f7024ec0 [label="{LLVMFuzzerTestOneInput}"];
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7025870;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7003df0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f4b810;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7009e70;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f15d10;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f63b20;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f51aa0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70564f0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7056a30;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7041060;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6fd6260;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6fa4860;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f17390;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7053b00;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7054140;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f13280;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7030890;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70303d0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f702e640;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70311b0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f702e400;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7031c80;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70317b0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f704fd80;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7051b10;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70544f0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7031f00;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70535f0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7051ff0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70327c0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032540;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032180;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032cc0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70337a0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7033520;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032f40;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7033a20;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70342e0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7033f20;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7033ca0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7034560;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032e80;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7030910;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70347e0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7032380;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7039550;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7052af0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7052c80;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7039350;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7053420;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7035500;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7039830;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70522b0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7050e90;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7050c10;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7034760;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7050480;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7050840;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7036d80;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f70348a0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7039bb0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f16cf0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f703ae20;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f7037370;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f704d9f0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f703a8e0;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f16c70;
-	Node0x5bc2f7024ec0 -> Node0x5bc2f6f17160;
-	Node0x5bc2f7025870 [label="{fuzz_tmpdir()}"];
-	Node0x5bc2f7025870 -> Node0x5bc2f7056120;
-	Node0x5bc2f7003df0 [label="{fuzz_build_path()}"];
-	Node0x5bc2f7003df0 -> Node0x5bc2f70570b0;
-	Node0x5bc2f7003df0 -> Node0x5bc2f702e400;
-	Node0x5bc2f6f4b810 [label="{mkstemps}"];
-	Node0x5bc2f7009e70 [label="{write}"];
-	Node0x5bc2f6f15d10 [label="{close}"];
-	Node0x5bc2f6f51aa0 [label="{unlink}"];
-	Node0x5bc2f6fd6260 [label="{CTiffImg::CTiffImg()}"];
-	Node0x5bc2f7057b30 [label="{__gxx_personality_v0}"];
-	Node0x5bc2f7030890 [label="{CTiffImg::SetIccProfile()}"];
-	Node0x5bc2f6fa4860 [label="{CTiffImg::Create()}"];
-	Node0x5bc2f6f13280 [label="{std::min<unsigned long>()}"];
-	Node0x5bc2f70303d0 [label="{CTiffImg::GetBytesPerLine()}"];
-	Node0x5bc2f702e640 [label="{calloc}"];
-	Node0x5bc2f702e400 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5bc2f7031c80 [label="{CTiffImg::WriteLine()}"];
-	Node0x5bc2f70317b0 [label="{free}"];
-	Node0x5bc2f70311b0 [label="{CTiffImg::Close()}"];
-	Node0x5bc2f6f63b20 [label="{CTiffImg::~CTiffImg()}"];
-	Node0x5bc2f7031f00 [label="{CTiffImg::Open()}"];
-	Node0x5bc2f70327c0 [label="{CTiffImg::GetSamples()}"];
-	Node0x5bc2f70564f0 [label="{CIccCmm::~CIccCmm()}"];
-	Node0x5bc2f7032540 [label="{CTiffImg::GetExtraSamples()}"];
-	Node0x5bc2f7056120 [label="{getenv}"];
-	Node0x5bc2f70570b0 [label="{strlen}"];
-	Node0x5bc2f7057a00 [label="{CIccCreateAdjustPCSXformHint::CIccCreateAdjustPCSXformHint()}"];
-	Node0x5bc2f7057a00 -> Node0x5bc2f7057820;
-	Node0x5bc2f7032180 [label="{CTiffImg::GetPhoto()}"];
-	Node0x5bc2f7032cc0 [label="{CTiffImg::GetBitsPerSample()}"];
-	Node0x5bc2f70337a0 [label="{CTiffImg::GetCompress()}"];
-	Node0x5bc2f7033520 [label="{CTiffImg::GetPlanar()}"];
-	Node0x5bc2f7032f40 [label="{CTiffImg::GetWidth()}"];
-	Node0x5bc2f7033a20 [label="{CTiffImg::GetHeight()}"];
-	Node0x5bc2f70342e0 [label="{CTiffImg::GetXRes()}"];
-	Node0x5bc2f7033f20 [label="{CTiffImg::GetYRes()}"];
-	Node0x5bc2f7033ca0 [label="{CTiffImg::GetIccProfile()}"];
-	Node0x5bc2f7034560 [label="{CIccCmm::CIccCmm()}"];
-	Node0x5bc2f7032e80 [label="{CIccCreateXformHintManager::CIccCreateXformHintManager()}"];
-	Node0x5bc2f7039550 [label="{CIccCreateXformHintManager::AddHint()}"];
-	Node0x5bc2f7030910 [label="{new()}"];
-	Node0x5bc2f70347e0 [label="{llvm.memset.p0.i64}"];
-	Node0x5bc2f7032380 [label="{CIccApplyBPCHint::CIccApplyBPCHint()}"];
-	Node0x5bc2f7032380 -> Node0x5bc2f7057a00;
-	Node0x5bc2f7039350 [label="{CIccLuminanceMatchingHint::CIccLuminanceMatchingHint()}"];
-	Node0x5bc2f7039350 -> Node0x5bc2f7057820;
-	Node0x5bc2f7034760 [label="{CIccCmm::Begin()}"];
-	Node0x5bc2f70348a0 [label="{CIccCmm::GetSourceSpace()}"];
-	Node0x5bc2f7035500 [label="{CIccCmm::AddXform()}"];
-	Node0x5bc2f7039830 [label="{CIccCmm::AddXform()}"];
-	Node0x5bc2f7039bb0 [label="{icGetSpaceSamples()}"];
-	Node0x5bc2f6f16cf0 [label="{CIccCmm::GetDestSpace()}"];
-	Node0x5bc2f6f17390 [label="{CIccCmm::GetLastParentSpace()}"];
-	Node0x5bc2f6f17160 [label="{CIccFileIO::CIccFileIO()}"];
-	Node0x5bc2f6f16c70 [label="{CIccFileIO::Open()}"];
-	Node0x5bc2f703a8e0 [label="{CIccFileIO::GetLength()}"];
-	Node0x5bc2f7036d80 [label="{malloc}"];
-	Node0x5bc2f704d9f0 [label="{CIccFileIO::Read8()}"];
-	Node0x5bc2f7037370 [label="{CIccFileIO::Close()}"];
-	Node0x5bc2f703ae20 [label="{CIccFileIO::~CIccFileIO()}"];
-	Node0x5bc2f7050840 [label="{CIccPixelBuf::CIccPixelBuf()}"];
-	Node0x5bc2f7050480 [label="{CTiffImg::ReadLine()}"];
-	Node0x5bc2f7050c10 [label="{CIccPixelBuf::operator float*()}"];
-	Node0x5bc2f7051ff0 [label="{icLabToPcs()}"];
-	Node0x5bc2f7051b10 [label="{icLabFromPcs()}"];
-	Node0x5bc2f7050e90 [label="{icLabtoXYZ()}"];
-	Node0x5bc2f70522b0 [label="{icXyzToPcs()}"];
-	Node0x5bc2f7053420 [label="{CIccCmm::Apply()}"];
-	Node0x5bc2f7052c80 [label="{icXyzFromPcs()}"];
-	Node0x5bc2f7052af0 [label="{icXYZtoLab()}"];
-	Node0x5bc2f70535f0 [label="{UnitClip()}"];
-	Node0x5bc2f70544f0 [label="{llvm.fmuladd.f32}"];
-	Node0x5bc2f704fd80 [label="{CIccPixelBuf::~CIccPixelBuf()}"];
-	Node0x5bc2f7054140 [label="{CIccCmm::GetNumXforms()}"];
-	Node0x5bc2f7053b00 [label="{CIccCmm::Valid()}"];
-	Node0x5bc2f7041060 [label="{CIccCmm::GetLastSpace()}"];
-	Node0x5bc2f7056a30 [label="{CIccCreateXformHintManager::~CIccCreateXformHintManager()}"];
-	Node0x5bc2f7057820 [label="{IIccCreateXformHint::IIccCreateXformHint()}"];
-	Node0x5bc2f702da80 [label="{CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHint()}"];
-	Node0x5bc2f702da80 -> Node0x5bc2f702b880;
-	Node0x5bc2f702b5b0 [label="{CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHint()}"];
-	Node0x5bc2f702b5b0 -> Node0x5bc2f702b330;
-	Node0x5bc2f6f1bee0 [label="{CIccCreateAdjustPCSXformHint::GetHintType()}"];
-	Node0x5bc2f6f20f60 [label="{__cxa_pure_virtual}"];
-	Node0x5bc2f702b880 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
-	Node0x5bc2f6f22d30 [label="{IIccCreateXformHint::~IIccCreateXformHint()}"];
-	Node0x5bc2f6f22d30 -> Node0x5bc2f702b330;
-	Node0x5bc2f702b330 [label="{llvm.trap}"];
-	Node0x5bc2f6f1d060 [label="{CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()}"];
-	Node0x5bc2f6f1d060 -> Node0x5bc2f702b880;
-	Node0x5bc2f6f28770 [label="{CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()}"];
-	Node0x5bc2f6f28770 -> Node0x5bc2f6f1d060;
-	Node0x5bc2f6f28770 -> Node0x5bc2f6f32ad0;
-	Node0x5bc2f6f2b0f0 [label="{CIccLuminanceMatchingHint::GetHintType()}"];
-	Node0x5bc2f6f32ad0 [label="{delete()}"];
+	Node0x62bb5e2bb610 [label="LLVMFuzzerInitialize"];
+	Node0x62bb5e2ba9f0 [label="SilentTIFFErrorHandler()"];
+	Node0x62bb5e1abd20 [label="SilentTIFFWarningHandler()"];
+	Node0x62bb5e2b8ec0 [label="LLVMFuzzerTestOneInput"];
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2b9870;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e297df0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1df810;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1f7b20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2ea500;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2ea630;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2d5060;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e26a260;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e238860;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1ab390;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e7b10;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e8150;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c4890;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c43d0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c51b0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c5c80;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cb4f0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e5b20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c5f00;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e7600;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e6000;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c67c0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6540;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6180;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6cc0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c77a0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c7520;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6f40;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c7a20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c82e0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c7f20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c7ca0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c8560;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6e80;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c6380;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cd550;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e6b00;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e6c90;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cd350;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e7430;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c9500;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cd830;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e62c0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e4ea0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e4c20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c8760;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e4490;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e4850;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2c88a0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cdbb0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1aacf0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cee20;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2cb580;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2e19f0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e2ce8e0;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1aac70;
+	Node0x62bb5e2b8ec0 -> Node0x62bb5e1ab160;
+	Node0x62bb5e2b9870 [label="fuzz_tmpdir()"];
+	Node0x62bb5e297df0 [label="fuzz_build_path()"];
+	Node0x62bb5e1df810 [label="mkstemps"];
+	Node0x62bb5e26a260 [label="CTiffImg::CTiffImg()"];
+	Node0x62bb5e2c4890 [label="CTiffImg::SetIccProfile()"];
+	Node0x62bb5e238860 [label="CTiffImg::Create()"];
+	Node0x62bb5e2c43d0 [label="CTiffImg::GetBytesPerLine()"];
+	Node0x62bb5e2c5c80 [label="CTiffImg::WriteLine()"];
+	Node0x62bb5e2c51b0 [label="CTiffImg::Close()"];
+	Node0x62bb5e1f7b20 [label="CTiffImg::~CTiffImg()"];
+	Node0x62bb5e2c5f00 [label="CTiffImg::Open()"];
+	Node0x62bb5e2c67c0 [label="CTiffImg::GetSamples()"];
+	Node0x62bb5e2ea500 [label="CIccCmm::~CIccCmm()"];
+	Node0x62bb5e2c6540 [label="CTiffImg::GetExtraSamples()"];
+	Node0x62bb5e2eba20 [label="CIccCreateAdjustPCSXformHint::CIccCreateAdjustPCSXformHint()"];
+	Node0x62bb5e2eba20 -> Node0x62bb5e2eb740;
+	Node0x62bb5e2c6180 [label="CTiffImg::GetPhoto()"];
+	Node0x62bb5e2c6cc0 [label="CTiffImg::GetBitsPerSample()"];
+	Node0x62bb5e2c77a0 [label="CTiffImg::GetCompress()"];
+	Node0x62bb5e2c7520 [label="CTiffImg::GetPlanar()"];
+	Node0x62bb5e2c6f40 [label="CTiffImg::GetWidth()"];
+	Node0x62bb5e2c7a20 [label="CTiffImg::GetHeight()"];
+	Node0x62bb5e2c82e0 [label="CTiffImg::GetXRes()"];
+	Node0x62bb5e2c7f20 [label="CTiffImg::GetYRes()"];
+	Node0x62bb5e2c7ca0 [label="CTiffImg::GetIccProfile()"];
+	Node0x62bb5e2c8560 [label="CIccCmm::CIccCmm()"];
+	Node0x62bb5e2c6e80 [label="CIccCreateXformHintManager::CIccCreateXformHintManager()"];
+	Node0x62bb5e2cd550 [label="CIccCreateXformHintManager::AddHint()"];
+	Node0x62bb5e2c6380 [label="CIccApplyBPCHint::CIccApplyBPCHint()"];
+	Node0x62bb5e2c6380 -> Node0x62bb5e2eba20;
+	Node0x62bb5e2cd350 [label="CIccLuminanceMatchingHint::CIccLuminanceMatchingHint()"];
+	Node0x62bb5e2cd350 -> Node0x62bb5e2eb740;
+	Node0x62bb5e2c8760 [label="CIccCmm::Begin()"];
+	Node0x62bb5e2c88a0 [label="CIccCmm::GetSourceSpace()"];
+	Node0x62bb5e2c9500 [label="CIccCmm::AddXform()"];
+	Node0x62bb5e2cd830 [label="CIccCmm::AddXform()"];
+	Node0x62bb5e2cdbb0 [label="icGetSpaceSamples()"];
+	Node0x62bb5e1aacf0 [label="CIccCmm::GetDestSpace()"];
+	Node0x62bb5e1ab390 [label="CIccCmm::GetLastParentSpace()"];
+	Node0x62bb5e1ab160 [label="CIccFileIO::CIccFileIO()"];
+	Node0x62bb5e1aac70 [label="CIccFileIO::Open()"];
+	Node0x62bb5e2ce8e0 [label="CIccFileIO::GetLength()"];
+	Node0x62bb5e2e19f0 [label="CIccFileIO::Read8()"];
+	Node0x62bb5e2cb580 [label="CIccFileIO::Close()"];
+	Node0x62bb5e2cee20 [label="CIccFileIO::~CIccFileIO()"];
+	Node0x62bb5e2e4850 [label="CIccPixelBuf::CIccPixelBuf()"];
+	Node0x62bb5e2e4490 [label="CTiffImg::ReadLine()"];
+	Node0x62bb5e2e4c20 [label="CIccPixelBuf::operator float*()"];
+	Node0x62bb5e2e6000 [label="icLabToPcs()"];
+	Node0x62bb5e2e5b20 [label="icLabFromPcs()"];
+	Node0x62bb5e2e4ea0 [label="icLabtoXYZ()"];
+	Node0x62bb5e2e62c0 [label="icXyzToPcs()"];
+	Node0x62bb5e2e7430 [label="CIccCmm::Apply()"];
+	Node0x62bb5e2e6c90 [label="icXyzFromPcs()"];
+	Node0x62bb5e2e6b00 [label="icXYZtoLab()"];
+	Node0x62bb5e2e7600 [label="UnitClip()"];
+	Node0x62bb5e2cb4f0 [label="CIccPixelBuf::~CIccPixelBuf()"];
+	Node0x62bb5e2e8150 [label="CIccCmm::GetNumXforms()"];
+	Node0x62bb5e2e7b10 [label="CIccCmm::Valid()"];
+	Node0x62bb5e2d5060 [label="CIccCmm::GetLastSpace()"];
+	Node0x62bb5e2ea630 [label="CIccCreateXformHintManager::~CIccCreateXformHintManager()"];
+	Node0x62bb5e2eb740 [label="IIccCreateXformHint::IIccCreateXformHint()"];
+	Node0x62bb5e2bf470 [label="CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi..."];
+	Node0x62bb5e2bf470 -> Node0x62bb5e1af170;
+	Node0x62bb5e2bfbc0 [label="CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi..."];
+	Node0x62bb5e1b2450 [label="CIccCreateAdjustPCSXformHint::GetHintType()"];
+	Node0x62bb5e1af170 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x62bb5e1b5250 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x62bb5e1b7d60 [label="CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()"];
+	Node0x62bb5e1b7d60 -> Node0x62bb5e1af170;
+	Node0x62bb5e1bd4a0 [label="CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()"];
+	Node0x62bb5e1bd4a0 -> Node0x62bb5e1b7d60;
+	Node0x62bb5e1d2660 [label="CIccLuminanceMatchingHint::GetHintType()"];
 }

@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerSignatures.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,69 +15,31 @@ digraph "Call graph: /home/h02332/po/research/call-graph/analyzer/IccAnalyzerSig
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x644d32391030 [label="{SignatureToFourCC()}"];
-	Node0x644d323921e0 [label="{HasNonPrintableSignature()}"];
-	Node0x644d32391180 [label="{AnalyzeSignatures()}"];
-	Node0x644d32391180 -> Node0x644d32323690;
-	Node0x644d32391180 -> Node0x644d32322180;
-	Node0x644d32391180 -> Node0x644d32322bc0;
-	Node0x644d32391180 -> Node0x644d32321f80;
-	Node0x644d32391180 -> Node0x644d32391e30;
-	Node0x644d32391180 -> Node0x644d3239ef60;
-	Node0x644d32391180 -> Node0x644d323921e0;
-	Node0x644d32391180 -> Node0x644d32325020;
-	Node0x644d32391180 -> Node0x644d32324ba0;
-	Node0x644d32391180 -> Node0x644d32391030;
-	Node0x644d32391180 -> Node0x644d3239e7c0;
-	Node0x644d32391180 -> Node0x644d323246a0;
-	Node0x644d32391180 -> Node0x644d32324960;
-	Node0x644d32391180 -> Node0x644d3239e080;
-	Node0x644d32391180 -> Node0x644d3239e1f0;
-	Node0x644d32391180 -> Node0x644d32324240;
-	Node0x644d32391180 -> Node0x644d3239df00;
-	Node0x644d32391180 -> Node0x644d32322510;
-	Node0x644d32391180 -> Node0x644d3239d040;
-	Node0x644d32391180 -> Node0x644d3239bb20;
-	Node0x644d32323690 [label="{printf}"];
-	Node0x644d32322180 [label="{CIccInfo::CIccInfo()}"];
-	Node0x644d32322bc0 [label="{fprintf}"];
-	Node0x644d32324d60 [label="{__gxx_personality_v0}"];
-	Node0x644d32391e30 [label="{fputc}"];
-	Node0x644d3239d040 [label="{CIccInfo::GetProfileClassSigName()}"];
-	Node0x644d3239bb20 [label="{CIccInfo::GetColorSpaceSigName()}"];
-	Node0x644d32322510 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x644d3239df00 [label="{std::list<IccTagEntry >::begin()}"];
-	Node0x644d3239df00 -> Node0x644d3239ed10;
-	Node0x644d32324240 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x644d3239e080 [label="{std::operator!=(std::_List_iterator<IccTagEntry> const&, std::_List...}"];
-	Node0x644d3239e1f0 [label="{std::list<IccTagEntry >::end()}"];
-	Node0x644d3239e1f0 -> Node0x644d3239ed10;
-	Node0x644d32324960 [label="{std::_List_iterator<IccTagEntry>::operator*() const}"];
-	Node0x644d32324960 -> Node0x644d32325ea0;
-	Node0x644d32324960 -> Node0x644d323264d0;
-	Node0x644d323246a0 [label="{CIccProfile::FindTag()}"];
-	Node0x644d3239e7c0 [label="{llvm.memset.p0.i64}"];
-	Node0x644d32324ba0 [label="{CIccInfo::GetTagSigName()}"];
-	Node0x644d32325020 [label="{CIccInfo::GetTagTypeSigName()}"];
-	Node0x644d3239ef60 [label="{std::_List_iterator<IccTagEntry>::operator++(int)}"];
-	Node0x644d3239ef60 -> Node0x644d32324240;
-	Node0x644d32321f80 [label="{CIccInfo::~CIccInfo()}"];
-	Node0x644d3239ed10 [label="{std::_List_iterator<IccTagEntry>::_List_iterator()}"];
-	Node0x644d32325ea0 [label="{std::_List_node<IccTagEntry>::_M_valptr()}"];
-	Node0x644d32325ea0 -> Node0x644d3239f820;
-	Node0x644d323264d0 [label="{__clang_call_terminate}"];
-	Node0x644d323264d0 -> Node0x644d323260f0;
-	Node0x644d323264d0 -> Node0x644d323251e0;
-	Node0x644d323260f0 [label="{__cxa_begin_catch}"];
-	Node0x644d323251e0 [label="{std::terminate()}"];
-	Node0x644d3239f820 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_ptr()}"];
-	Node0x644d3239f820 -> Node0x644d32326680;
-	Node0x644d32326680 [label="{__gnu_cxx::__aligned_membuf<IccTagEntry>::_M_addr()}"];
+	Node0x61a2e960a030 [label="SignatureToFourCC()"];
+	Node0x61a2e960b1e0 [label="HasNonPrintableSignature()"];
+	Node0x61a2e960a180 [label="AnalyzeSignatures()"];
+	Node0x61a2e960a180 -> Node0x61a2e959b180;
+	Node0x61a2e960a180 -> Node0x61a2e959af80;
+	Node0x61a2e960a180 -> Node0x61a2e960ae30;
+	Node0x61a2e960a180 -> Node0x61a2e960b1e0;
+	Node0x61a2e960a180 -> Node0x61a2e959e020;
+	Node0x61a2e960a180 -> Node0x61a2e959dba0;
+	Node0x61a2e960a180 -> Node0x61a2e960a030;
+	Node0x61a2e960a180 -> Node0x61a2e959d6a0;
+	Node0x61a2e960a180 -> Node0x61a2e9616040;
+	Node0x61a2e960a180 -> Node0x61a2e9614b20;
+	Node0x61a2e959b180 [label="CIccInfo::CIccInfo()"];
+	Node0x61a2e960ae30 [label="fputc"];
+	Node0x61a2e9616040 [label="CIccInfo::GetProfileClassSigName()"];
+	Node0x61a2e9614b20 [label="CIccInfo::GetColorSpaceSigName()"];
+	Node0x61a2e959d6a0 [label="CIccProfile::FindTag()"];
+	Node0x61a2e959dba0 [label="CIccInfo::GetTagSigName()"];
+	Node0x61a2e959e020 [label="CIccInfo::GetTagTypeSigName()"];
+	Node0x61a2e959af80 [label="CIccInfo::~CIccInfo()"];
 }

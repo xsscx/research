@@ -1,17 +1,13 @@
 digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/TiffImg.ll" {
-
-	// Graph attributes for readable SVG output
+	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
-		nodesep=0.4,
-		ranksep=1.2,
+		nodesep=0.3,
+		ranksep=0.8,
 		fontname="Helvetica",
-		fontsize=11,
+		fontsize=10,
 		bgcolor="white",
-		pad=0.5,
-		margin=0,
-		size="200,200!",
-		ratio="compress"
+		pad=0.3
 	];
 	node [
 		shape=box,
@@ -19,66 +15,24 @@ digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/TiffImg.ll
 		fillcolor="#f0f4ff",
 		fontname="Courier",
 		fontsize=9,
-		margin="0.1,0.05"
+		margin="0.08,0.04"
 	];
 	edge [
 		color="#4a6fa5",
-		arrowsize=0.7
+		arrowsize=0.6
 	];
-
-	Node0x5684c2e8f640 [label="{CTiffImg::CTiffImg()}"];
-	Node0x5684c2dc83e0 [label="{CTiffImg::~CTiffImg()}"];
-	Node0x5684c2dc83e0 -> Node0x5684c2e88de0;
-	Node0x5684c2dc83e0 -> Node0x5684c2e90b60;
-	Node0x5684c2e88de0 [label="{CTiffImg::Close()}"];
-	Node0x5684c2e88de0 -> Node0x5684c2e9e3d0;
-	Node0x5684c2e88de0 -> Node0x5684c2e91d40;
-	Node0x5684c2dbb0c0 [label="{__gxx_personality_v0}"];
-	Node0x5684c2e90b60 [label="{__clang_call_terminate}"];
-	Node0x5684c2e90b60 -> Node0x5684c2e9e780;
-	Node0x5684c2e90b60 -> Node0x5684c2ea0030;
-	Node0x5684c2e9e780 [label="{__cxa_begin_catch}"];
-	Node0x5684c2ea0030 [label="{std::terminate()}"];
-	Node0x5684c2e9ffb0 [label="{CTiffImg::~CTiffImg()}"];
-	Node0x5684c2e9ffb0 -> Node0x5684c2e9ed60;
-	Node0x5684c2e9ed60 [label="{delete()}"];
-	Node0x5684c2e9e3d0 [label="{TIFFClose}"];
-	Node0x5684c2e91d40 [label="{free}"];
-	Node0x5684c2e9f3a0 [label="{CTiffImg::Create()}"];
-	Node0x5684c2e9f3a0 -> Node0x5684c2e88de0;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea14e0;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea1b90;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea1930;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea1ee0;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea4910;
-	Node0x5684c2e9f3a0 -> Node0x5684c2e91d40;
-	Node0x5684c2e9f3a0 -> Node0x5684c2ea1730;
-	Node0x5684c2ea14e0 [label="{TIFFOpen}"];
-	Node0x5684c2ea1b90 [label="{TIFFError}"];
-	Node0x5684c2ea1930 [label="{TIFFSetField}"];
-	Node0x5684c2ea1730 [label="{calloc}"];
-	Node0x5684c2ea1ee0 [label="{TIFFStripSize}"];
-	Node0x5684c2ea4910 [label="{malloc}"];
-	Node0x5684c2e9f550 [label="{CTiffImg::Open()}"];
-	Node0x5684c2e9f550 -> Node0x5684c2e88de0;
-	Node0x5684c2e9f550 -> Node0x5684c2ea14e0;
-	Node0x5684c2e9f550 -> Node0x5684c2ea1b90;
-	Node0x5684c2e9f550 -> Node0x5684c2ea3aa0;
-	Node0x5684c2e9f550 -> Node0x5684c2ea4910;
-	Node0x5684c2e9f550 -> Node0x5684c2ea1ee0;
-	Node0x5684c2ea3aa0 [label="{TIFFGetField}"];
-	Node0x5684c2ea20b0 [label="{CTiffImg::ReadLine()}"];
-	Node0x5684c2ea20b0 -> Node0x5684c2ea76f0;
-	Node0x5684c2ea20b0 -> Node0x5684c2ea7160;
-	Node0x5684c2ea76f0 [label="{TIFFReadEncodedStrip}"];
-	Node0x5684c2ea7160 [label="{llvm.memcpy.p0.p0.i64}"];
-	Node0x5684c2ea6c50 [label="{CTiffImg::WriteLine()}"];
-	Node0x5684c2ea6c50 -> Node0x5684c2ea7160;
-	Node0x5684c2ea6c50 -> Node0x5684c2ea6a80;
-	Node0x5684c2ea6a80 [label="{TIFFWriteEncodedStrip}"];
-	Node0x5684c2ea6870 [label="{CTiffImg::GetPhoto()}"];
-	Node0x5684c2e9c9c0 [label="{CTiffImg::GetIccProfile()}"];
-	Node0x5684c2e9c9c0 -> Node0x5684c2ea3aa0;
-	Node0x5684c2ea9b40 [label="{CTiffImg::SetIccProfile()}"];
-	Node0x5684c2ea9b40 -> Node0x5684c2ea1930;
+	Node0x5dae3477b1b0 [label="CTiffImg::CTiffImg()"];
+	Node0x5dae347751c0 [label="CTiffImg::~CTiffImg()"];
+	Node0x5dae347751c0 -> Node0x5dae34781270;
+	Node0x5dae34781270 [label="CTiffImg::Close()"];
+	Node0x5dae34796d30 [label="CTiffImg::~CTiffImg()"];
+	Node0x5dae3478a8e0 [label="CTiffImg::Create()"];
+	Node0x5dae3478a8e0 -> Node0x5dae34781270;
+	Node0x5dae3479a660 [label="CTiffImg::Open()"];
+	Node0x5dae3479a660 -> Node0x5dae34781270;
+	Node0x5dae3479f200 [label="CTiffImg::ReadLine()"];
+	Node0x5dae3479ec40 [label="CTiffImg::WriteLine()"];
+	Node0x5dae34792b30 [label="CTiffImg::GetPhoto()"];
+	Node0x5dae347a05b0 [label="CTiffImg::GetIccProfile()"];
+	Node0x5dae347a03d0 [label="CTiffImg::SetIccProfile()"];
 }
