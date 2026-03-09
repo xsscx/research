@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsRegistry.h — Metadata registry for all 141 heuristics
+ * IccHeuristicsRegistry.h — Metadata registry for all 148 heuristics
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -217,10 +217,15 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {143, "XML Array Bounds Precheck",             "§10",   "CWE-131", "GHSA-pmcg-2h65-35h8,GHSA-xqq3-g894-w2h5,CVE-2026-21682,CVE-2026-22046", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   {144, "XML String Termination Precheck",       "§10.4", "CWE-170", "GHSA-4wqv-pvm8-5h27,GHSA-h3ph-mwq5-3883,CVE-2026-25502,CVE-2026-24852", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   {145, "XML Curve Type Consistency",            "§10.14","CWE-843", "GHSA-2pjj-3c98-qp37,GHSA-mv6h-vpcg-pwfx,CVE-2026-24411,CVE-2026-24412,CVE-2026-21693,CVE-2026-21692,CVE-2026-21690,CVE-2026-21689", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+
+  // --- ADVANCED DATA VALIDATION (H146-H148) ---
+  {146, "Stack Buffer Overflow GetValues",       "§10.6", "CWE-121", "GHSA-rxfr-c2c7-v5m5,GHSA-f79r-m9wh-wr6j,CVE-2026-24406,CVE-2026-24404", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  {147, "Null Pointer After Tag Read",           "§7.3",  "CWE-476", "GHSA-4wqv-pvm8-5h27,GHSA-j3mh-rjg5-8gw7,CVE-2026-24852,CVE-2026-25502", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  {148, "Memory Copy Bounds Overlap",            "§10.14","CWE-119", "GHSA-vgr5-3xqx-vcqx,CVE-2026-24407", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
-static constexpr int kTotalHeuristics = 145;
+static constexpr int kTotalHeuristics = 148;
 
 inline const char *SeverityToString(HeuristicSeverity s) {
   switch (s) {

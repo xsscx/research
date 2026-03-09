@@ -88,6 +88,9 @@ int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename)
   heuristicCount += RunHeuristic_H100_ProfileSequenceDescValidation(pIcc);
   heuristicCount += RunHeuristic_H101_MPESubElementChannelContinuity(pIcc);
   heuristicCount += RunHeuristic_H102_TagSizeProfileSizeCrossCheck(pIcc);
+  heuristicCount += RunHeuristic_H146_StackBufferOverflowGetValues(pIcc);
+  heuristicCount += RunHeuristic_H147_NullPointerAfterTagRead(pIcc);
+  heuristicCount += RunHeuristic_H148_MemcpyBoundsOverlap(pIcc);
 
   return heuristicCount;
 }

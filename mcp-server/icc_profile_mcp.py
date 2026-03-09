@@ -262,7 +262,7 @@ async def inspect_profile(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security(path: str) -> str:
-    """Run 145-heuristic security analysis on an ICC profile.
+    """Run 148-heuristic security analysis on an ICC profile.
 
     Validates against ICC.1-2022-05 specification constraints and detects:
     fingerprint matches, tag anomalies, overflow indicators, malformed
@@ -295,7 +295,7 @@ async def validate_roundtrip(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security_json(path: str) -> str:
-    """Run 145-heuristic security analysis with structured JSON output.
+    """Run 148-heuristic security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
     severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), CWE categories, CVE
@@ -314,7 +314,7 @@ async def analyze_security_json(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security_report(path: str) -> str:
-    """Run 145-heuristic security analysis with professional report output.
+    """Run 148-heuristic security analysis with professional report output.
 
     Returns a severity-sorted security report with executive summary,
     findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
