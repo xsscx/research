@@ -13,6 +13,7 @@
 
 #include "IccAnalyzerReport.h"
 #include "IccAnalyzerCommon.h"
+#include "IccAnalyzerHash.h"
 #include "IccAnalyzerComprehensive.h"
 #include "IccHeuristicsRegistry.h"
 #include <cstdio>
@@ -28,7 +29,6 @@
 #include <vector>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <openssl/evp.h>
 
 struct ReportFinding {
   int id;
@@ -56,37 +56,6 @@ static std::string StripAnsiReport(const std::string &s) {
     }
   }
   return out;
-}
-
-// Compute SHA-256 of a file (no shell commands — safe from injection)
-static std::string ComputeSHA256(const char *path) {
-  FILE *fp = fopen(path, "rb");
-  if (!fp) return "(unavailable)";
-
-  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-  if (!ctx) { fclose(fp); return "(unavailable)"; }
-
-  if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
-    EVP_MD_CTX_free(ctx); fclose(fp); return "(unavailable)";
-  }
-
-  unsigned char buf[8192];
-  size_t n;
-  while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-    EVP_DigestUpdate(ctx, buf, n);
-  }
-  fclose(fp);
-
-  unsigned char hash[EVP_MAX_MD_SIZE];
-  unsigned int hashLen = 0;
-  EVP_DigestFinal_ex(ctx, hash, &hashLen);
-  EVP_MD_CTX_free(ctx);
-
-  char hex[65] = {};
-  for (unsigned int i = 0; i < hashLen && i < 32; i++) {
-    snprintf(hex + i * 2, 3, "%02x", hash[i]);
-  }
-  return std::string(hex);
 }
 
 // Get file size
@@ -246,7 +215,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   }
 
   // Get metadata
-  std::string sha256 = ComputeSHA256(profilePath);
+  std::string sha256 = ComputeFileSHA256(profilePath);
   long fileSize = GetFileSize(profilePath);
   time_t now = time(nullptr);
   char timeBuf[64];

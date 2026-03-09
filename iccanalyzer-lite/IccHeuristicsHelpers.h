@@ -14,6 +14,30 @@
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
+
+// ── ICC Signature Conversion Helpers ──
+// UBSAN-safe: uses static_cast<unsigned char> to avoid implicit-conversion warnings
+// when byte value > 127.
+
+// Convert a 32-bit ICC signature to a null-terminated 4-char string.
+// Usage: char buf[5]; SigToChars(sig, buf);
+inline void SigToChars(uint32_t sig, char out[5]) {
+  out[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
+  out[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
+  out[2] = static_cast<char>(static_cast<unsigned char>((sig >>  8) & 0xFF));
+  out[3] = static_cast<char>(static_cast<unsigned char>( sig        & 0xFF));
+  out[4] = '\0';
+}
+
+// Read a big-endian uint32 from a byte buffer.
+// Caller must ensure buf points to at least 4 readable bytes.
+inline uint32_t ReadU32BE(const unsigned char *buf) {
+  return (static_cast<uint32_t>(buf[0]) << 24) |
+         (static_cast<uint32_t>(buf[1]) << 16) |
+         (static_cast<uint32_t>(buf[2]) <<  8) |
+          static_cast<uint32_t>(buf[3]);
+}
 
 // FindAndCast<T> — combines FindTag + dynamic_cast + null check.
 // Returns nullptr if tag not found or wrong type.
@@ -51,6 +75,27 @@ struct RawFileHandle {
   }
 
   explicit operator bool() const { return fp != nullptr; }
+
+  // Read exactly `count` bytes at the current position. Returns true on success.
+  bool ReadBytes(void *buf, size_t count) {
+    return fp && fread(buf, 1, count, fp) == count;
+  }
+
+  // Seek to an absolute offset. Returns true on success.
+  bool Seek(long offset) {
+    return fp && fseek(fp, offset, SEEK_SET) == 0;
+  }
+
+  // Read a big-endian uint32 at the current position. Returns true on success.
+  bool ReadU32BE(uint32_t &out) {
+    unsigned char buf[4];
+    if (!ReadBytes(buf, 4)) return false;
+    out = (static_cast<uint32_t>(buf[0]) << 24) |
+          (static_cast<uint32_t>(buf[1]) << 16) |
+          (static_cast<uint32_t>(buf[2]) <<  8) |
+           static_cast<uint32_t>(buf[3]);
+    return true;
+  }
 };
 
 // OpenRawFile — opens a file for binary reading and determines its size.

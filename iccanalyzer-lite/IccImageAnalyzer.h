@@ -27,6 +27,17 @@ enum class ImageFormat {
   UNKNOWN
 };
 
+// Image format handler — table-driven dispatcher for extensibility.
+// To add a new format: implement the analyze function, add one entry to kFormatHandlers[].
+typedef int (*ImageAnalyzeFunc)(const char *filepath, const char *fingerprintDb);
+
+struct ImageFormatHandler {
+  const char *name;
+  const ImageFormat *formats;
+  int formatCount;
+  ImageAnalyzeFunc analyze;
+};
+
 // Detect file format from first bytes
 ImageFormat DetectFileFormat(const char *filepath);
 

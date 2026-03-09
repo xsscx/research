@@ -40,6 +40,7 @@
  */
 
 #include "IccHeuristicsXmlSafety.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccAnalyzerColors.h"
 #include "IccProfileXml.h"
 #include "IccTagXmlFactory.h"
@@ -272,10 +273,7 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
     // Tag data starts after 8-byte type header (4-byte sig + 4-byte reserved)
     if (tagSize < 8) {
       char sigStr[5] = {};
-      sigStr[0] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 24) & 0xFF));
-      sigStr[1] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 16) & 0xFF));
-      sigStr[2] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  8) & 0xFF));
-      sigStr[3] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  0) & 0xFF));
+      SigToChars(entry.TagInfo.sig, sigStr);
       printf("      %s[WARN]  HEURISTIC: Array tag '%s' size %u < 8-byte header%s\n",
              ColorCritical(), sigStr, tagSize, ColorReset());
       printf("       CWE-131: Incorrect Calculation of Buffer Size\n");
@@ -290,10 +288,7 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
     // If tag offset + size exceeds profile, the array will read OOB
     if (tagOffset + tagSize > profileSize) {
       char sigStr[5] = {};
-      sigStr[0] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 24) & 0xFF));
-      sigStr[1] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 16) & 0xFF));
-      sigStr[2] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  8) & 0xFF));
-      sigStr[3] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  0) & 0xFF));
+      SigToChars(entry.TagInfo.sig, sigStr);
       printf("      %s[WARN]  HEURISTIC: Array tag '%s' extends beyond profile (offset=%u + size=%u > profileSize=%u)%s\n",
              ColorCritical(), sigStr, tagOffset, tagSize, profileSize, ColorReset());
       printf("       CWE-125: Out-of-bounds Read — DumpArray will serialize OOB data to XML\n");
@@ -303,10 +298,7 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
     // Warn on suspiciously large arrays (>1M elements → DoS in XML output)
     if (maxElements > 1000000) {
       char sigStr[5] = {};
-      sigStr[0] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 24) & 0xFF));
-      sigStr[1] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >> 16) & 0xFF));
-      sigStr[2] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  8) & 0xFF));
-      sigStr[3] = static_cast<char>(static_cast<unsigned char>((entry.TagInfo.sig >>  0) & 0xFF));
+      SigToChars(entry.TagInfo.sig, sigStr);
       printf("      %s[WARN]  HEURISTIC: Array tag '%s' has %u elements — XML expansion risk%s\n",
              ColorWarning(), sigStr, maxElements, ColorReset());
       printf("       CWE-400: Uncontrolled Resource Consumption in DumpArray → XML output\n");

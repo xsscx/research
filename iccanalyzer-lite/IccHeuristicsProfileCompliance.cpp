@@ -563,10 +563,7 @@ int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
     }
     if (!isKnown) {
       char sigStr[5] = {};
-      sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-      sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-      sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-      sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+      SigToChars(sig, sigStr);
       printf("      %s[INFO] Private/unknown tag: '%s' (0x%08X) offset=%u size=%u%s\n",
              ColorInfo(), sigStr, (unsigned)sig,
              it->TagInfo.offset, it->TagInfo.size, ColorReset());
@@ -1455,10 +1452,7 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
       tagsWithCalc++;
       char sigStr[5] = {};
       icUInt32Number sig = (icUInt32Number)mpeTags[t];
-      sigStr[0] = (char)(static_cast<unsigned char>((sig >> 24) & 0xFF));
-      sigStr[1] = (char)(static_cast<unsigned char>((sig >> 16) & 0xFF));
-      sigStr[2] = (char)(static_cast<unsigned char>((sig >> 8) & 0xFF));
-      sigStr[3] = (char)(static_cast<unsigned char>(sig & 0xFF));
+      SigToChars(sig, sigStr);
 
       printf("      '%s': %d calc element(s), est. cost: %llu ops\n",
              sigStr, calcCount, (unsigned long long)tagCost);
