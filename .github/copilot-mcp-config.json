@@ -15,7 +15,20 @@
         "profile_to_xml",
         "compare_profiles",
         "list_test_profiles",
-        "upload_and_analyze"
+        "upload_and_analyze",
+        "build_tools",
+        "cmake_configure",
+        "cmake_build",
+        "create_all_profiles",
+        "run_iccdev_tests",
+        "cmake_option_matrix",
+        "windows_build",
+        "check_dependencies",
+        "find_build_artifacts",
+        "batch_test_profiles",
+        "validate_xml",
+        "coverage_report",
+        "scan_logs"
       ]
     }
   }
