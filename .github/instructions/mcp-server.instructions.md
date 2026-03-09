@@ -57,6 +57,49 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web    # REST + WebUI
 docker run --rm -i ghcr.io/xsscx/icc-profile-mcp                   # MCP stdio
 ```
 
+### Docker Validation Gate (MANDATORY)
+
+Before pushing ANY Dockerfile or MCP server changes, build and test locally:
+
+```bash
+# 1. Build local image
+cd mcp-server && docker build -t icc-mcp-local:test -f Dockerfile ..
+
+# 2. Start local container
+docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
+
+# 3. Validate endpoints
+curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":24}
+curl -s http://localhost:8081/api/registry | python3 -c "
+import json,sys; r=json.load(sys.stdin)['registry']
+print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
+curl -s 'http://localhost:8081/api/health-check' | python3 -c "
+import json,sys; d=json.load(sys.stdin); print(d['result'][:200])"
+docker exec mcp-test which xmllint               # → /usr/bin/xmllint
+
+# 4. Upload and analyze a test profile
+curl -s -F "file=@test-profiles/sRGB_D65_MAT.icc" http://localhost:8081/api/upload
+# Use the returned path for:
+# curl -s "http://localhost:8081/api/security-json?path=<path>" | python3 -m json.tool
+
+# 5. Stop test container
+docker stop mcp-test
+
+# 6. Only then: git push
+```
+
+After CI rebuilds the image, pull and re-validate:
+
+```bash
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -d -p 8080:8080 --name mcp-verify ghcr.io/xsscx/icc-profile-mcp web
+curl -s http://localhost:8080/api/health          # → {"ok":true,"tools":24}
+curl -s http://localhost:8080/api/registry | python3 -c "
+import json,sys; r=json.load(sys.stdin)['registry']
+print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
+docker stop mcp-verify
+```
+
 ## Test
 
 ```bash
