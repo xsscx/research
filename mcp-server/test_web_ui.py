@@ -632,6 +632,122 @@ def test_windows_build_html_button():
     check("HTML has Windows Build TOOLS entry", "windows-build" in r.text)
 
 
+def test_operations_endpoints():
+    """Test new operations tool REST endpoints."""
+    # Health check (GET, no params)
+    r = c.get("/api/health-check")
+    check("health-check returns 200", r.status_code == 200)
+    data = r.json()
+    check("health-check has result", "result" in data)
+    check("health-check mentions tools", "24" in data.get("result", ""))
+
+    # Check dependencies (GET, no params)
+    r = c.get("/api/check-dependencies")
+    check("check-dependencies returns 200", r.status_code == 200)
+    data = r.json()
+    check("check-dependencies has result", "result" in data)
+
+    # Find artifacts (GET, empty build_dir → searches all)
+    r = c.get("/api/find-artifacts")
+    check("find-artifacts returns 200", r.status_code == 200)
+
+    # Find artifacts with nonexistent dir
+    r = c.get("/api/find-artifacts?build_dir=nonexistent-99999")
+    check("find-artifacts nonexistent fails gracefully", r.status_code == 200)
+    data = r.json()
+    check("find-artifacts nonexistent has FAIL", "[FAIL]" in data.get("result", ""))
+
+
+def test_operations_post_endpoints():
+    """Test POST operations endpoints with validation."""
+    # Batch test (requires build_dir)
+    r = c.post("/api/batch-test", json={"build_dir": ""})
+    check("batch-test requires build_dir", r.status_code == 200)
+    data = r.json()
+    check("batch-test empty build_dir fails", "[FAIL]" in data.get("result", ""))
+
+    # Batch test invalid tool
+    r = c.post("/api/batch-test", json={"build_dir": "test", "tool": "invalid"})
+    check("batch-test rejects invalid tool", r.status_code == 400)
+
+    # Validate XML (needs xmllint)
+    r = c.post("/api/validate-xml", json={"directory": "/nonexistent-99999"})
+    check("validate-xml returns 200", r.status_code == 200)
+    data = r.json()
+    check("validate-xml handles missing dir", "[FAIL]" in data.get("result", ""))
+
+    # Validate XML invalid checks
+    r = c.post("/api/validate-xml", json={"checks": "bogus"})
+    check("validate-xml rejects invalid checks", r.status_code == 400)
+
+    # Coverage report (requires build_dir)
+    r = c.post("/api/coverage-report", json={"build_dir": ""})
+    check("coverage-report requires build_dir", r.status_code == 200)
+    data = r.json()
+    check("coverage-report empty build_dir fails", "[FAIL]" in data.get("result", ""))
+
+    # Scan logs
+    r = c.post("/api/scan-logs", json={"directory": "/nonexistent-99999"})
+    check("scan-logs returns 200", r.status_code == 200)
+    data = r.json()
+    check("scan-logs handles missing dir", "[FAIL]" in data.get("result", ""))
+
+
+def test_build_tools_endpoint():
+    """Test build_tools POST endpoint validation."""
+    # Invalid target
+    r = c.post("/api/build-tools", json={"target": "invalid"})
+    check("build-tools rejects invalid target", r.status_code == 400)
+
+    # GET should be rejected (POST only)
+    r = c.get("/api/build-tools")
+    check("build-tools rejects GET", r.status_code == 405)
+
+
+def test_upload_and_analyze_endpoint():
+    """Test upload_and_analyze POST endpoint validation."""
+    # Missing data_base64
+    r = c.post("/api/upload-and-analyze", json={"filename": "test.icc"})
+    check("upload-and-analyze requires data_base64", r.status_code == 400)
+
+    # Empty data_base64
+    r = c.post("/api/upload-and-analyze", json={"data_base64": ""})
+    check("upload-and-analyze rejects empty data", r.status_code == 400)
+
+
+def test_operations_method_enforcement():
+    """Verify GET-only and POST-only enforcement on new endpoints."""
+    # POST to GET-only endpoints
+    r = c.post("/api/health-check", json={})
+    check("health-check rejects POST", r.status_code == 405)
+    r = c.post("/api/check-dependencies", json={})
+    check("check-dependencies rejects POST", r.status_code == 405)
+
+    # GET to POST-only endpoints
+    r = c.get("/api/batch-test")
+    check("batch-test rejects GET", r.status_code == 405)
+    r = c.get("/api/validate-xml")
+    check("validate-xml rejects GET", r.status_code == 405)
+    r = c.get("/api/coverage-report")
+    check("coverage-report rejects GET", r.status_code == 405)
+    r = c.get("/api/scan-logs")
+    check("scan-logs rejects GET", r.status_code == 405)
+
+
+def test_operations_html_buttons():
+    """Index page should include all operations tool buttons."""
+    r = c.get("/")
+    check("HTML has health_check button", "health_check" in r.text)
+    check("HTML has check_dependencies button", "check_dependencies" in r.text)
+    check("HTML has find_artifacts button", "find_artifacts" in r.text)
+    check("HTML has batch_test button", "batch_test" in r.text)
+    check("HTML has validate_xml button", "validate_xml" in r.text)
+    check("HTML has coverage_report button", "coverage_report" in r.text)
+    check("HTML has scan_logs button", "scan_logs" in r.text)
+    check("HTML has upload_and_analyze button", "upload_and_analyze" in r.text)
+    check("HTML has build_tools button", "build_tools" in r.text)
+
+
 # ── Run all tests ──────────────────────────────────────────
 def main():
     t0 = time.time()
@@ -681,6 +797,12 @@ def main():
         ("Option Matrix Validation", test_option_matrix_validation),
         ("Windows Build Validation", test_windows_build_validation),
         ("Windows Build HTML Button", test_windows_build_html_button),
+        ("Operations Endpoints", test_operations_endpoints),
+        ("Operations POST Endpoints", test_operations_post_endpoints),
+        ("Build Tools Endpoint", test_build_tools_endpoint),
+        ("Upload And Analyze Endpoint", test_upload_and_analyze_endpoint),
+        ("Operations Method Enforcement", test_operations_method_enforcement),
+        ("Operations HTML Buttons", test_operations_html_buttons),
     ]
 
     for name, fn in suites:

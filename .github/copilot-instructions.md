@@ -647,7 +647,7 @@ Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools aut
 Prereq: `cd mcp-server && pip install -e .`
 
 #### 3. GitHub Copilot Coding Agent (cloud)
-Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes only the 11 analysis tools (build tools are excluded so the agent does not trigger unnecessary builds).
+Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes all 24 tools (11 analysis + 7 maintainer + 6 operations).
 
 #### 4. Docker REST API (remote agents — macOS, CI, any platform)
 Run the MCP Docker image for remote ICC analysis with full ASAN+UBSAN instrumentation.
