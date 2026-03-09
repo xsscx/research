@@ -1,0 +1,211 @@
+# Doxyfile — ICC Security Research
+# Generated for xsscx/research repository
+# Covers: iccanalyzer-lite (C++), CFL fuzzers (C++), MCP server (Python)
+#
+# Build:   cd docs/doxygen && doxygen Doxyfile
+# Output:  docs/doxygen/html/index.html
+
+# ---------------------------------------------------------------------------
+# Project
+# ---------------------------------------------------------------------------
+PROJECT_NAME           = "ICC Security Research"
+PROJECT_NUMBER         = "v3.6.1"
+PROJECT_BRIEF          = "148-heuristic ICC profile security analyzer, 18 LibFuzzer harnesses, MCP server"
+PROJECT_LOGO           =
+OUTPUT_DIRECTORY       = .
+OUTPUT_LANGUAGE        = English
+
+# ---------------------------------------------------------------------------
+# Input — all source components
+# ---------------------------------------------------------------------------
+INPUT                  = ../../iccanalyzer-lite \
+                         ../../cfl \
+                         ../../mcp-server \
+                         ../../colorbleed_tools \
+                         ../../README.md \
+                         ../../docs
+
+# Recurse into subdirectories
+RECURSIVE              = YES
+
+# File patterns to include
+FILE_PATTERNS          = *.cpp *.h *.py *.md
+
+# Exclude build artifacts, tests corpus, third-party code, and large dirs
+EXCLUDE                = ../../iccanalyzer-lite/tests/corpus \
+                         ../../iccanalyzer-lite/codeql-queries \
+                         ../../iccanalyzer-lite/iccDEV \
+                         ../../cfl/iccDEV \
+                         ../../cfl/bin \
+                         ../../cfl/corpus-icc_profile_fuzzer \
+                         ../../cfl/corpus-icc_toxml_fuzzer \
+                         ../../cfl/corpus-icc_dump_fuzzer \
+                         ../../cfl/corpus-icc_deep_dump_fuzzer \
+                         ../../cfl/corpus-icc_io_fuzzer \
+                         ../../cfl/corpus-icc_fromxml_fuzzer \
+                         ../../cfl/corpus-icc_fromcube_fuzzer \
+                         ../../cfl/corpus-icc_apply_fuzzer \
+                         ../../cfl/corpus-icc_applyprofiles_fuzzer \
+                         ../../cfl/corpus-icc_applynamedcmm_fuzzer \
+                         ../../cfl/corpus-icc_calculator_fuzzer \
+                         ../../cfl/corpus-icc_link_fuzzer \
+                         ../../cfl/corpus-icc_multitag_fuzzer \
+                         ../../cfl/corpus-icc_roundtrip_fuzzer \
+                         ../../cfl/corpus-icc_specsep_fuzzer \
+                         ../../cfl/corpus-icc_spectral_fuzzer \
+                         ../../cfl/corpus-icc_tiffdump_fuzzer \
+                         ../../cfl/corpus-icc_v5dspobs_fuzzer \
+                         ../../cfl/corpus-xml \
+                         ../../cfl/patches \
+                         ../../colorbleed_tools/iccDEV \
+                         ../../docs/doxygen
+
+EXCLUDE_PATTERNS       = */build/* */Build/* */.git/* */node_modules/* *__pycache__* */iccDEV/*
+
+# Use README.md as main page
+USE_MDFILE_AS_MAINPAGE = ../../README.md
+
+# ---------------------------------------------------------------------------
+# Build — extract everything, including undocumented entities
+# ---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_ANON_NSPACES   = YES
+
+# Show all members and files
+BRIEF_MEMBER_DESC      = YES
+REPEAT_BRIEF           = YES
+ALWAYS_DETAILED_SEC    = YES
+INLINE_INHERITED_MEMB  = YES
+
+# Sort by declaration order (preserves logical grouping in headers)
+SORT_MEMBER_DOCS       = NO
+SORT_BRIEF_DOCS        = NO
+SORT_GROUP_NAMES       = NO
+
+# Show full path relative to repo root
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = ../../
+
+# Show file members
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = YES
+SHOW_INCLUDE_FILES     = YES
+
+# Include source code browser
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Markdown support
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+
+# ---------------------------------------------------------------------------
+# HTML output — interactive, searchable, dark-theme friendly
+# ---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+
+# Navigation & search
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 280
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_DYNAMIC_MENUS     = YES
+HTML_DYNAMIC_SECTIONS  = YES
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+
+# Styling
+HTML_COLORSTYLE_HUE    = 210
+HTML_COLORSTYLE_SAT    = 80
+HTML_COLORSTYLE_GAMMA  = 100
+HTML_TIMESTAMP         = YES
+
+# Formula rendering
+FORMULA_FONTSIZE       = 12
+USE_MATHJAX            = NO
+
+# ---------------------------------------------------------------------------
+# Graphs — interactive SVG with Graphviz
+# ---------------------------------------------------------------------------
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 8
+
+# All graph types enabled (except per-function call/caller — too many SVGs)
+CLASS_DIAGRAMS         = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+GROUP_GRAPHS           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DIRECTORY_GRAPH        = YES
+
+# Interactive SVG (pan/zoom in browser)
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+
+# Graph sizing
+DOT_GRAPH_MAX_NODES    = 200
+MAX_DOT_GRAPH_DEPTH    = 0
+
+# Graph appearance
+DOT_TRANSPARENT        = YES
+DOT_MULTI_TARGETS      = YES
+UML_LOOK               = YES
+UML_LIMIT_NUM_FIELDS   = 20
+TEMPLATE_RELATIONS     = YES
+
+# ---------------------------------------------------------------------------
+# Other output formats — disable for now
+# ---------------------------------------------------------------------------
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_DOCBOOK       = NO
+
+# ---------------------------------------------------------------------------
+# Preprocessing — handle iccDEV and analyzer macros
+# ---------------------------------------------------------------------------
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = ../../iccanalyzer-lite \
+                         ../../iccDEV/IccProfLib \
+                         ../../iccDEV/IccXML/IccLibXML
+
+PREDEFINED             = ICCANALYZER_LITE=1 \
+                         __attribute__(x)= \
+                         __cplusplus=201703L
+
+# ---------------------------------------------------------------------------
+# Warnings
+# ---------------------------------------------------------------------------
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_FORMAT            = "$file:$line: $text"
+WARN_LOGFILE           = doxygen-warnings.log
+
+# ---------------------------------------------------------------------------
+# Performance
+# ---------------------------------------------------------------------------
+LOOKUP_CACHE_SIZE      = 3
+
+# ---------------------------------------------------------------------------
+# Python docstrings
+# ---------------------------------------------------------------------------
+OPTIMIZE_OUTPUT_JAVA   = NO
+OPTIMIZE_FOR_FORTRAN   = NO
+OPTIMIZE_OUTPUT_VHDL   = NO
