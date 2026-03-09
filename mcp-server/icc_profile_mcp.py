@@ -37,12 +37,10 @@ TO_XML_SAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
-XIF_DIR = REPO_ROOT / "xif"
-FUZZ_ICC_DIR = REPO_ROOT / "fuzz" / "graphics" / "icc"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
 
 # Allowed base directories for profile resolution (resolved at import time)
-_ALLOWED_BASES = [REPO_ROOT, TEST_PROFILES, EXTENDED_PROFILES, XIF_DIR, FUZZ_ICC_DIR]
+_ALLOWED_BASES = [REPO_ROOT, TEST_PROFILES, EXTENDED_PROFILES]
 _ALLOWED_BASES_RESOLVED = [b.resolve() for b in _ALLOWED_BASES]
 
 
@@ -109,8 +107,7 @@ def _resolve_profile(path: str) -> Path:
 
     raise FileNotFoundError(
         f"Profile not found: {path}. "
-        f"Searched: repo root, test-profiles/, extended-test-profiles/, "
-        f"xif/, fuzz/graphics/icc/"
+        f"Searched: repo root, test-profiles/, extended-test-profiles/"
     )
 
 
@@ -453,14 +450,11 @@ async def list_test_profiles(directory: str = "test-profiles") -> str:
     """List available ICC test profiles.
 
     Args:
-        directory: Which profile set — "test-profiles", "extended-test-profiles",
-                   "xif", or "fuzz/graphics/icc"
+        directory: Which profile set — "test-profiles" or "extended-test-profiles"
     """
     dirs = {
         "test-profiles": TEST_PROFILES,
         "extended-test-profiles": EXTENDED_PROFILES,
-        "xif": XIF_DIR,
-        "fuzz/graphics/icc": FUZZ_ICC_DIR,
     }
     target = dirs.get(directory)
     if not target:
