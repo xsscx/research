@@ -161,3 +161,4 @@ Reproducer files committed to repo root use descriptive prefixes:
 - [triage-cve-poc.prompt.yml](triage-cve-poc.prompt.yml) — CVE PoC analysis workflow
 - [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) — Coverage improvement after fix
 - [upstream-sync.prompt.md](upstream-sync.prompt.md) — Patch reconciliation workflow
+- [docs/pocs/iccdev-issue-reproductions.md](../../docs/pocs/iccdev-issue-reproductions.md) — 63 PoC reproduction steps for closed iccDEV issues
