@@ -68,7 +68,7 @@ cd mcp-server && docker build -t icc-mcp-local:test -f Dockerfile ..
 # 2. Start local container
 docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
 
-# 3. Validate endpoints
+# 3. Validate API endpoints
 curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":24}
 curl -s http://localhost:8081/api/registry | python3 -c "
 import json,sys; r=json.load(sys.stdin)['registry']
@@ -87,6 +87,33 @@ docker stop mcp-test
 
 # 6. Only then: git push
 ```
+
+### WebUI Rendering Verification (MANDATORY for index.html changes)
+
+**CRITICAL**: API tests (`test_web_ui.py`) validate endpoint responses but NOT rendered
+HTML forms. The `test_form_fields_per_tool()` test validates that each tool's
+`renderInputs()` branch creates the correct `inp-*` field IDs, but cannot verify
+visual rendering. When modifying `index.html`:
+
+1. **Run form validation tests** — catches missing inp-* IDs and missing renderInputs branches:
+   ```bash
+   python3 test_web_ui.py  # Must include "Form Fields Per Tool: N/N" in output
+   ```
+
+2. **Browser smoke test** — open `http://localhost:8080` and click through at least
+   5 different tools. Verify each renders the correct form (not a generic ICC profile
+   selector). Specifically check tools with custom forms:
+   - `validate_xml` → directory dropdown + checks dropdown + XML file list
+   - `cmake_configure` → 4 select dropdowns (build_type, sanitizers, compiler, generator)
+   - `batch_test` → directory dropdown + tool dropdown + build_dir input
+   - `compare` → two path inputs (Profile A, Profile B)
+   - `upload_and_analyze` → mode dropdown + file upload button
+
+3. **DevTools console** — should show 0 JavaScript errors when switching tools.
+
+**Anti-pattern**: Claiming "WebUI tests pass (N/N)" without browser verification.
+API tests check HTTP responses; they cannot detect wrong form fields, broken
+JavaScript, or UI rendering issues. See Anti-Pattern #11.
 
 After CI rebuilds the image, pull and re-validate:
 
@@ -288,6 +315,13 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
   Never construct paths from user input without validation.
 - **README sync** — The README lists 22 tools (historical) in the API table but the
   actual count is 24. Keep the README's tool list and count synchronized.
+- **WebUI form rendering** — The #3 recurring issue. Every tool in the `TOOLS`
+  object (index.html ~line 390) must have a dedicated `renderInputs()` branch
+  that creates `inp-${fieldName}` DOM elements matching its `fields` array.
+  Tools without a branch fall through to the default `else` which renders a
+  generic ICC profile selector — silently wrong. The `test_form_fields_per_tool()`
+  test catches this programmatically. When adding/modifying tools, also verify
+  in a browser (see WebUI Rendering Verification above). See Anti-Pattern #11.
 
 ## Relationship to Other Components
 
