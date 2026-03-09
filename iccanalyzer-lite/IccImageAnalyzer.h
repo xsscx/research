@@ -2,9 +2,9 @@
  * IccImageAnalyzer.h — Image file ICC extraction and security analysis
  *
  * Extracts embedded ICC profiles from image files (TIFF, PNG, JPEG)
- * and runs the full 141-heuristic analysis on the extracted profile.
- * TIFF security heuristics H139-H141 validate strip geometry, dimensions,
- * and IFD offset bounds via defensive programming.
+ * and runs the full heuristic analysis on the extracted profile.
+ * TIFF security heuristics H139-H141, H149-H150 validate strip/tile geometry,
+ * dimensions, IFD offset bounds, IFD chain cycles, and tile layout.
  *
  * Copyright (c) 2026 David H Hoyt LLC
  */
@@ -58,6 +58,14 @@ int RunHeuristic_H140_TiffDimensionValidation(uint32_t width, uint32_t height,
 
 // H141: IFD offset bounds validation — strip/tile offsets within file
 int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath);
+
+// H149: IFD chain cycle detection — detect circular next-IFD pointers (CWE-835)
+int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath);
+
+// H150: Tile geometry validation — TileWidth/TileLength/TileByteCounts consistency (CWE-122)
+int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
+                                        uint32_t width, uint32_t height,
+                                        uint16_t bps, uint16_t spp);
 
 // Analyze a TIFF file: runs H139-H141, extracts embedded ICC, report metadata,
 // scans for injection signatures, then runs ICC heuristics H1-H138 on extracted ICC.

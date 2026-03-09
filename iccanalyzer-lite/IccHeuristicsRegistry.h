@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsRegistry.h — Metadata registry for all 148 heuristics
+ * IccHeuristicsRegistry.h — Metadata registry for all 150 heuristics
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -224,6 +224,10 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {146, "Stack Buffer Overflow GetValues",       "§10.6", "CWE-121", "CVE-2026-24404,CVE-2026-24406,GHSA-f79r-m9wh-wr6j,GHSA-h9h3-45cm-j95f,GHSA-hqfg-45jp-hp9f,GHSA-rxfr-c2c7-v5m5", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   {147, "Null Pointer After Tag Read",           "§7.3",  "CWE-476", "CVE-2026-24852,CVE-2026-25502,CVE-2026-31792,GHSA-4wqv-pvm8-5h27,GHSA-c2qq-jf7w-rm27,GHSA-j3mh-rjg5-8gw7,GHSA-q8g2-mp32-3j7f", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   {148, "Memory Copy Bounds Overlap",            "§10.14","CWE-119", "CVE-2026-24407,CVE-2026-31793,GHSA-m6gx-93cp-4855,GHSA-vgr5-3xqx-vcqx", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+
+  // ── TIFF Image Security (extended) ──
+  {149, "TIFF IFD Chain Cycle Detection",         nullptr, "CWE-835", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::HIGH},
+  {150, "TIFF Tile Geometry Validation",           nullptr, "CWE-122", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
