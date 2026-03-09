@@ -1,5 +1,56 @@
 # Copilot Instructions — ICC Security Research
 
+## Quick Reference — Documentation Index
+
+**Read the routing table first.** Component-specific details live in specialized files.
+This file contains cross-cutting rules that apply to ALL components.
+
+### Component Documentation (path-specific — auto-loaded when touching these paths)
+
+| Component | Instructions File | Key Commands |
+|-----------|------------------|--------------|
+| **iccanalyzer-lite/** | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) | `cd iccanalyzer-lite && ./build.sh` ∥ `python3 tests/run_tests.py` |
+| **cfl/** | [cfl.instructions.md](instructions/cfl.instructions.md) | `cd cfl && ./build.sh` ∥ `./fuzz-local.sh` |
+| **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `pip install -e .` ∥ `python3 web_ui.py` |
+| **fuzz/** | [fuzz.instructions.md](instructions/fuzz.instructions.md) | Seed corpus (input data only) |
+| **colorbleed_tools/** | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) | `make setup && make` |
+| **call-graph/** | [call-graph.instructions.md](instructions/call-graph.instructions.md) | `python3 scripts/generate-callgraphs.py` |
+| Multi-agent coordination | [multi-agent.instructions.md](instructions/multi-agent.instructions.md) | Platform detection, handoff protocols |
+
+### Workflow Prompts (task-specific guides)
+
+| Task | Prompt File |
+|------|-------------|
+| Analyze an ICC profile | [analyze-icc-profile.prompt.yml](prompts/analyze-icc-profile.prompt.yml) |
+| Triage a fuzzer crash | [triage-fuzzer-crash.prompt.md](prompts/triage-fuzzer-crash.prompt.md) |
+| Improve fuzzer coverage | [improve-fuzzer-coverage.prompt.md](prompts/improve-fuzzer-coverage.prompt.md) |
+| Optimize a specific fuzzer | [fuzzer-optimization.prompt.md](prompts/fuzzer-optimization.prompt.md) |
+| Manage corpus storage | [corpus-management.prompt.md](prompts/corpus-management.prompt.md) |
+| Sync upstream iccDEV | [upstream-sync.prompt.md](prompts/upstream-sync.prompt.md) |
+| Enrich CVE mappings | [cve-enrichment.prompt.md](prompts/cve-enrichment.prompt.md) |
+| Remote Docker analysis | [remote-analysis.prompt.md](prompts/remote-analysis.prompt.md) |
+| Agent task priorities | [cooperative-development.prompt.md](prompts/cooperative-development.prompt.md) |
+
+### Pre-installed Tools (do NOT re-install)
+
+| Tool | Status | Fast-path |
+|------|--------|-----------|
+| `gh codeql` | Installed (v2.24.1+) | `.github/scripts/codeql-build.sh` + DB at `/tmp/codeql-db-analyzer` |
+| iccanalyzer-lite | Built at `iccanalyzer-lite/iccanalyzer-lite` | `ls -la iccanalyzer-lite/iccanalyzer-lite` to verify |
+| CFL fuzzers | Built at `cfl/bin/icc_*_fuzzer` | `ls cfl/bin/icc_*_fuzzer \| wc -l` → 18 |
+| colorbleed_tools | Built at `colorbleed_tools/icc{To,From}Xml_unsafe` | `ls colorbleed_tools/icc*_unsafe` |
+| Query packs | Lock file at `iccanalyzer-lite/codeql-queries/codeql-pack.lock.yml` | Never re-download |
+
+### Key Counts (source of truth — update ALL locations when changed)
+
+| Metric | Value | Sync locations |
+|--------|-------|----------------|
+| Heuristics | 145 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML) | 10+ files (see iccanalyzer-lite.instructions.md) |
+| MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
+| CFL fuzzers | 18 | cfl.instructions.md, README.md |
+| iccDEV advisories | 93 (85 uniqueCVEs, 54 heuristics with refs) | 6 files (see CVE count sync memory) |
+| Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
+
 ## ICC Specification References — Sources of Truth
 
 All heuristic validation rules in iccanalyzer-lite are derived from the official ICC specification
@@ -681,105 +732,47 @@ guarantee CI success.
 | `/api/compare` | GET | `path_a`, `path_b` |
 | `/api/upload` | POST | `file` (multipart) |
 
-### Available MCP Tools — Detailed Reference
+### MCP Tool Quick Reference
 
-**Analysis tools (exposed to coding agent via `copilot-mcp-config.json`):**
+For the complete 24-tool reference (11 analysis + 7 maintainer + 6 operations),
+see [mcp-server.instructions.md](instructions/mcp-server.instructions.md).
 
-| Tool | Args | Description |
-|------|------|-------------|
-| `inspect_profile` | `path` | Full structural dump using ninja-full mode. Shows header fields, tag table, tag data values. Use for understanding what's inside a profile. |
-| `analyze_security` | `path` | 145-heuristic security scan (H1–H145). H1-H32: core structural validation. H33-H36: mBA/mAB sub-element OOB, integer overflow, fill patterns. H37-H45: CFL dictionary coverage (calc, curves, aliasing, alignment, v5 types). H46-H54: CWE-driven CVE coverage (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, zero-size loop, channel counts, underflow, recursion, div-by-zero). H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict. H61-H70: viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity, NumArray, ResponseCurveSet, GBD, Profile ID, measurement. H71-H78: ColorantTable, SparseMatrix, nesting, type confusion, small tags, data flags, calculator, CLUT grid overflow. H79-H86: LoadTag overflow, UAF patterns, MPE channels, I/O bit-shift, float SBO, 3D LUT OOB, memcpy overlap, mluc HBO. H87-H94: TRC curve anomalies, chromatic adaptation matrix, profile sequence descriptions, preview tag channels, colorant order, spectral viewing conditions, embedded profile flags, matrix/TRC colorant consistency. H95-H102: sparse matrix array bounds, embedded profile recursion, profile sequence ID validation, spectral MPE elements, embedded image tags, profile sequence description, MPE channel continuity, tag size cross-check. H103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation, environment variable tags. H107-H115: LUT channel/colorspace cross-check (patch 071 SBO root cause), private tag identification, shellcode/NOP-sled patterns, class-required tag validation, reserved byte validation, wtpt profile-class validation, round-trip fidelity, TRC curve monotonicity, characterization data. H116-H127: ICC Technical Secretary feedback — cprt/desc encoding per spec version, tag-type-per-signature validation, calculator computation cost estimate, round-trip ΔE measurement, curve invertibility assessment, characterization data round-trip, deep tag encoding validation (XYZ ranges, measurement, chromaticity), non-required tag classification, version-tag correspondence, overall transform smoothness, private tag malware content scan (PE/ELF/MachO/script signatures), private tag registry lookup. H128-H132: ICC.1-2022-05 spec compliance — version BCD encoding (§7.2.4), PCS illuminant exact D50 (§7.2.16), tag 4-byte alignment (§7.3.1), Profile ID MD5 verification (§7.2.18), chromaticAdaptation matrix determinant. H133-H135: ICC.1-2022-05 additional spec compliance — profile flags reserved bits (§7.2.11), tag type reserved bytes (§10.1), duplicate tag signatures (§7.3.1). H136-H138: CWE-400 systemic patterns — ResponseCurve per-channel measurement count (CFL-077), high-dimensional color space grid complexity (CFL-075), calculator element branching depth (CFL-074). H139-H141: TIFF image security — strip geometry overflow (CWE-122/CWE-190), dimension/sample validation (CWE-400/CWE-131), IFD offset bounds (CWE-125). H142-H145: XML serialization safety — fork-isolated ToXml crash detection (CWE-787/CWE-125), array bounds precheck (CWE-131), string termination precheck (CWE-170), curve type consistency (CWE-843). |
-| `validate_roundtrip` | `path` | Check AToB/BToA, DToB/BToD, and Matrix/TRC tag pairs. Validates bidirectional transform completeness required by ICC spec. |
-| `full_analysis` | `path` | Runs all 3 modes (`-a`, `-nf`, `-r`) in one call. Use this for comprehensive analysis. Equivalent to `.github/scripts/analyze-profile.sh`. |
-| `profile_to_xml` | `path` | ICC→XML conversion via iccToXml. Falls back to iccToXml_unsafe for malformed profiles. Output is the XML representation of the profile. |
-| `compare_profiles` | `path_a`, `path_b` | Ninja-full dump of both profiles with unified diff. Use to spot structural differences between two ICC profiles. |
-| `list_test_profiles` | `directory` (default: `test-profiles`) | Lists `.icc` files in the given directory. Also accepts `extended-test-profiles`. |
-| `upload_and_analyze` | `data_base64`, `filename`, `mode` | Upload a base64-encoded ICC profile and analyze it. Modes: `security` (default), `inspect`, `roundtrip`, `full`, `xml`. Temp file auto-cleaned after analysis. |
+**Key analysis tools** (exposed to coding agent):
+- `analyze_security` — 145-heuristic security scan (fastest, most actionable)
+- `full_analysis` — All 3 modes (`-a`, `-nf`, `-r`) for comprehensive reports
+- `inspect_profile` — Header fields, tag table, data values
+- `validate_roundtrip` — AToB/BToA tag pair completeness
+- `profile_to_xml` — ICC→XML conversion
+- `compare_profiles` — Unified diff of two profiles
+- `upload_and_analyze` — Base64 upload + analysis
 
-**Maintainer build tools (local/VS Code only — NOT exposed to coding agent):**
+**Path resolution**: filename (`sRGB_D65_MAT.icc`), relative (`test-profiles/sRGB_D65_MAT.icc`),
+or absolute path. GitHub blocks `.icc` attachments — rename to `.icc.txt` before uploading.
 
-| Tool | Args | Description |
-|------|------|-------------|
-| `build_tools` | — | Build native analysis tools from source |
-| `cmake_configure` | build type, sanitizers, generator, tools | Configure iccDEV cmake |
-| `cmake_build` | build dir | Build iccDEV with cmake --build |
-| `create_all_profiles` | — | Run CreateAllProfiles.sh from Testing/ directory |
-| `run_iccdev_tests` | — | Run RunTests.sh test suite |
-| `cmake_option_matrix` | — | Test cmake option toggles independently |
-| `windows_build` | — | Windows MSVC + vcpkg build |
+**Interpreting results**: Exit 0=clean, 1=finding, 2=error. Look for `[H1]`–`[H145]` prefixes.
+ASAN/UBSAN in stderr = CRITICAL memory safety finding.
 
-**Operations tools (local/VS Code only — NOT exposed to coding agent):**
-
-| Tool | Args | Description |
-|------|------|-------------|
-| `check_dependencies` | — | Check build dependencies installed on the current system (apt/brew/vcpkg). Reports missing packages with install commands. |
-| `find_build_artifacts` | `build_dir` | Find built binaries under iccDEV/Build/, list SHA-256 checksums, verify static vs dynamic ICC linkage. |
-| `batch_test_profiles` | `directory`, `tool`, `build_dir` | Run iccDumpProfile/iccToXml/iccRoundTrip over all .icc files in a directory with per-file pass/fail results and sanitizer detection. |
-| `validate_xml` | `directory`, `checks` | Run xmllint validation on ICC XML files: well-formedness, encoding, size limits (100 MB), entity safety. |
-| `coverage_report` | `build_dir` | Merge .profraw files with llvm-profdata and generate llvm-cov coverage report. Requires a build with `sanitizers="coverage"`. |
-| `scan_logs` | `directory`, `categories` | Grep build/test .log files for 6 pattern categories: errors, signals, invalid data, overflow, memory issues, hangs. |
-
-### MCP Tool Usage — Best Practices
-
-**Path resolution**: All analysis tools accept either:
-- An absolute path: `/home/user/profiles/test.icc`
-- A filename from `test-profiles/`: just pass `sRGB_D65_MAT.icc` and the server resolves it
-- A relative path from the repo root: `test-profiles/sRGB_D65_MAT.icc`
-
-**Choosing the right tool**:
-- Start with `analyze_security` for quick security triage (fastest, most actionable)
-- Use `full_analysis` for complete reports destined for issues/PRs
-- Use `inspect_profile` to understand profile structure (what tags exist, header fields)
-- Use `validate_roundtrip` to check spec compliance (AToB↔BToA pairs)
-- Use `profile_to_xml` to get human-readable XML for manual inspection
-- Use `compare_profiles` when investigating regressions or differences between profile versions
-
-**Operations workflow** (for maintainers doing build/test/debug cycles):
-- Start with `check_dependencies` to verify the build environment is ready
-- After `cmake_build`, use `find_build_artifacts` to see what was produced and verify checksums
-- Use `batch_test_profiles` to run tools over all .icc files (more granular than `run_iccdev_tests`)
-- After `profile_to_xml`, use `validate_xml` to check XML well-formedness and encoding
-- After instrumented test runs, use `coverage_report` to merge profraw and see coverage
-- Use `scan_logs` to search .log files for errors, crashes, and sanitizer findings
-
-**Upload workflow**: When a user provides an ICC profile via an issue attachment:
-1. Download the attachment (may be `.icc.txt` — GitHub blocks `.icc`)
-2. Use `upload_and_analyze` with the file content base64-encoded and `mode: "full"`
-3. Alternatively, save to `test-profiles/` and use `full_analysis` with the path
-
-**Interpreting results**:
-- Exit code 0 = clean profile, no findings
-- Exit code 1 = heuristic finding(s) detected — review the `[WARN]` and `[CRITICAL]` lines
-- Exit code 2 = error (I/O failure, parse error, or profile too malformed to process)
-- Look for `[H1]`–`[H135]` prefixes to identify which heuristic triggered
-- ASAN/UBSAN output in stderr indicates a real memory safety bug — this is a CRITICAL finding
-
-**Automated issue→PR→merge pipeline**: When Copilot coding agent processes an analysis issue:
-1. Create issue with ICC profile to analyze, then assign Copilot via GitHub UI (Assignees sidebar)
-   Note: `gh issue create --assignee copilot` and REST API assignment do **not** work. Use the GitHub web UI.
-2. Agent uses MCP tools (`inspect_profile`, `analyze_security`, `validate_roundtrip`, `profile_to_xml`) for independent analysis
-3. Agent runs `.github/scripts/analyze-profile.sh` for the full iccanalyzer-lite report
-4. Agent commits the report to `analysis-reports/`, opens a draft PR with both MCP and script findings
-5. When the agent's workflow run completes, `copilot-auto-merge.yml` triggers via `workflow_run[completed]`
-6. The auto-merge workflow finds the PR by branch, marks it ready, and squash-merges it
-7. The originating issue is closed via `Fixes #N` in the PR body
-
-No manual intervention required — the entire pipeline is hands-free from issue to merge.
+**Automated issue→PR→merge**: Create issue → assign Copilot via GitHub UI → agent runs MCP tools +
+`analyze-profile.sh` → commits report → `copilot-auto-merge.yml` squash-merges on completion.
 
 ## Architecture
 
-This repo contains security research tools targeting the ICC color profile specification via the iccDEV library (formerly DemoIccMAX):
+This repo contains security research tools targeting the ICC color profile specification
+via the iccDEV library. Each component has detailed documentation in its instructions file.
 
-- **cfl/** — 18 LibFuzzer harnesses, each scoped to a specific ICC project tool's API surface. Fuzzers must only call library APIs reachable from their corresponding tool (see Fuzzer→Tool Mapping in README.md).
-- **iccanalyzer-lite/** — 145-heuristic static/dynamic security analyzer (v3.7.0) built with full sanitizer instrumentation. Links the **unpatched** upstream iccDEV library (`iccDEV/Build/`) — does NOT use CFL patches. All user-controllable inputs are handled through defensive programming: bounds checks, size validation, ASAN+UBSAN instrumentation, signal recovery (SIGSEGV/SIGABRT/SIGALRM), complexity guards, and heuristic-level input validation. 28 C++ modules (24 source files, 21,000+ LOC) compiled in parallel. Deterministic exit codes: 0=clean, 1=finding, 2=error, 3=usage. Heuristics cover 44+ CWE categories and detect patterns from 48 CVEs + 19 GHSAs across 93 iccDEV security advisories (54 heuristics have CVE/GHSA cross-references in `IccHeuristicsRegistry.h`). **Architecture (v3.6.0)**: 9 heuristic modules — `IccHeuristicsHeader.cpp` (H1-H8, H15-H17), `IccHeuristicsTagValidation.cpp` (H9-H32), `IccHeuristicsRawPost.cpp` (H33-H69), `IccHeuristicsDataValidation.cpp` (H56-H102), `IccHeuristicsProfileCompliance.cpp` (H103-H120), `IccHeuristicsIntegrity.cpp` (H121-H138), `IccImageAnalyzer.cpp` (H139-H141 TIFF), `IccHeuristicsXmlSafety.cpp` (H142-H145 XML). Each heuristic is a standalone `RunHeuristic_H##_Name()` function. `IccHeuristicsRegistry.h` provides 145-entry metadata table (id, name, specRef, CWE, CVE refs, phase, severity). `IccHeuristicsHelpers.h` provides `FindAndCast<T>()` template and `RawFileHandle` RAII. **4 output modes**: text (`-h`/`-a`), JSON (`--json`), report (`--report` — severity-sorted professional format), XML (`-xml` — per-heuristic dark-themed XSLT). `IccAnalyzerJson.cpp` provides `--json` structured output. `IccAnalyzerReport.cpp` provides `--report` severity-sorted output with CWE/CVE summary. `IccAnalyzerXMLExport.cpp` provides per-heuristic XML with dark-themed XSLT. All 3 structured modes use pipe/dup2 capture + regex parsing. **Severity classification**: All 145 heuristics classified as CRITICAL/HIGH/MEDIUM/LOW/INFO based on CWE impact. **TIFF image analysis** (v3.4.0+): `-a` mode auto-detects TIFF files via magic bytes, extracts embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata/security checks, scans pixel data for xnuimagefuzzer injection signatures (10 INJECT_STRING patterns + ICC mutation markers), then runs full 145-heuristic analysis (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML). New `-img` mode for explicit image analysis. **Unit tests**: 217 tests in `run_tests.py` (18 test functions, 41 synthesized corpus profiles, heuristic trigger tests, ASAN corpus checks, mode coverage tests including JSON, report, XML, TIFF, HTML). **Coverage**: clang source-based instrumentation (`-fprofile-instr-generate -fcoverage-mapping`), Lines 70.54%, Functions 63.54%. Call graph analysis mode (`-cg`) parses ASAN/UBSAN crash logs into DOT/JSON/PNG with exploitability assessment (10 ASAN error types + UBSAN runtime errors). When the iccDEV library fails to load malformed profiles, a raw-file fallback engine runs heuristics H10, H13, H25, H28, H32 independently using direct file I/O. **Build systems (7 locations)**: `build.sh` (primary, local), `CMakeLists.txt` (CI/IDE), and 5 CI workflows with manual SOURCES lists (`codeql-security-analysis.yml`, `iccanalyzer-cli-release.yml`, `iccanalyzer-lite-coverage-report.yml`, `iccanalyzer-lite-debug-sanitizer-coverage.yml`, `mcp-server-test.yml`) — ALL must be updated when adding new .cpp modules (including `-ltiff` linkage for `IccImageAnalyzer.cpp`). **Adding new heuristics**: requires 4 edits — function in category file + declaration in header + dispatcher call + registry entry. Heuristic count updates needed in 7 locations (see `iccanalyzer-lite.instructions.md`). **UBSAN status**: 0 analyzer-code UBSAN errors (53 overflow sites fixed with uint64_t widening + 4 sig-to-char implicit-conversion sites fixed with static_cast<char>(static_cast<unsigned char>(...))). Remaining UBSAN is upstream iccDEV only (IccCAM.cpp div-by-zero, IccProfile.cpp div-by-zero, IccTagLut.cpp signed overflow, IccMatrixMath.cpp NaN→uint16). Previously-listed upstream UBSAN now fixed: IccSignatureUtils.h uint→char (PR #648), iccApplyProfiles UnitClip NaN (PR #654), IccMD5.cpp wrapping (intentional, not UB). **CodeQL**: 0 alerts in analyzer code (4 remaining in iccDEV upstream). Path-injection sanitization uses realpath(dirname) + character-whitelist basename. **Upstream sync**: iccDEV at `1ffa7a8` / v2.3.1.5 (upstream PRs #630-#639 + #648 + #652-#659 + #661). **CVE detection scope**: 48/68 advisory CVEs are binary-ICC-detectable + 19 GHSA-only advisories mapped (50 heuristics); 0 XML advisories out of scope (H142-H145 cover all 25); 1 is tool-specific (iccFromCube). Validated 2026-03-09.
-- **colorbleed_tools/** — Intentionally unsafe ICC↔XML converters used as CodeQL targets for mutation testing. Output paths validated against `..` traversal.
-- **mcp-server/** — Python FastMCP server (stdio transport) + Starlette web UI wrapping iccanalyzer-lite and colorbleed_tools. 24 tools: 11 analysis (health check, inspect, security scan, roundtrip, JSON output, report output, full analysis, XML export, compare, list profiles, upload+analyze) + 7 maintainer (cmake configure/build, option matrix, CreateAllProfiles, RunTests, Windows build) + 6 operations (dependency check, build artifacts, batch testing, XML validation, coverage reports, log scanning). Multi-layer path traversal defense, output sanitization, upload/download size caps. Default binding: 127.0.0.1. 3 custom Python CodeQL queries (subprocess injection, path traversal, output sanitization).
-- **cfl/patches/** — 68 security patches (64 active + 4 NO-OPs) applied to iccDEV before fuzzer builds. Includes OOM caps (16MB–128MB), UBSAN fixes, heap-buffer-overflow guards, stack-overflow depth caps, null-deref guards, memory leak fixes, float-to-int overflow clamps, alloc/dealloc mismatch corrections, recursion depth limits, IO underflow guards, calculator ops array bounds clamping, XML entity expansion caps, XML parsing limits, CLUT interpolation bounds checks (Interp1d–6d + InterpND), NaN-to-integer cast guards (UnitClip), BPC black-point stack-buffer-overflow guard (pixelXfm), Begin() return value NULL-deref guard (V5DspObsToV4Dsp), XML channel count validation (icMBBFromXml), CWE-400 timeout mitigations (CFL-074–076: CheckUnderflowOverflow ops budget, EvaluateProfile iteration cap, NamedColor2 nDeviceCoords cap), CWE-400 upstream pattern hardening (CFL-077–081: ResponseCurve nMeasurements, NamedColor2 Describe, ApplySequence depth, Describe output cap, DescribeSequence recursion), and TIFF strip buffer bounds check (CFL-082). 14 patch numbers deleted as NO-OPs (023, 027-029, 032, 039-041, 045, 055-056, 058, 062, 066). 4 NO-OPs still in directory but silently skip (047, 064, 070, 072 — upstreamed via PRs #652-#657). Next patch: 083. See `cfl/patches/README.md` for full details.
-- **cfl/iccDEV/** — Cloned upstream iccDEV library (patched at build time, not committed patched).
-- **test-profiles/** and **extended-test-profiles/** — ICC profile corpora for fuzzing and regression testing. Includes crash reproducers (SBO, SEGV, SO, OOM) with descriptive filenames mapping to root cause function and source line.
-- **.github/scripts/** — Shell scripts for analysis, fuzzing, ramdisk management, coverage, and corpus handling. Key scripts: `analyze-profile.sh` (3-mode analysis), `batch-test-external.sh` (external profile batch testing), `ramdisk-seed.sh` (8GB tmpfs setup), `ramdisk-merge.sh` (corpus dedup), `unbundle-fuzzer-input.sh` (extract ICC profiles from multi-profile fuzzer crash files for tool reproduction).
+| Component | Purpose | Instructions |
+|-----------|---------|--------------|
+| **iccanalyzer-lite/** | 145-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
+| **cfl/** | 18 LibFuzzer harnesses + 68 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
+| **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
+| **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
+| **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
+| **call-graph/** | LLVM-based call graphs + AST dumps for 37 compilation targets. | [call-graph.instructions.md](instructions/call-graph.instructions.md) |
+| **test-profiles/** | 329 ICC profiles for fuzzing and regression testing. |
+| **.github/scripts/** | Shell/Python scripts for analysis, fuzzing, ramdisk, coverage, corpus handling. |
 
-Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is an independent clone of the upstream library — they are not shared.
+Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is an independent
+clone of the upstream library — they are not shared.
 
 ## Key Conventions
 
@@ -805,29 +798,9 @@ Signals (128+N) are never returned by the analyzer — their presence always ind
 ### Non-fatal diagnostic macros
 Upstream `ICC_TRACE_NAN` calls `__builtin_trap()` and `ICC_SANITY_CHECK_SIGNATURE` calls `assert(false)` — both fatal. `IccAnalyzerCommon.h` overrides them to log-only (non-fatal) via `#undef`/`#define` AFTER `#include "IccSignatureUtils.h"`.
 
-### Fuzzer structure
-Every fuzzer implements `extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)` with:
-- Early return on size bounds: `if (size < MIN || size > MAX) return 0;`
-- Temp file via `mkstemp()` → `write()` → `close()` → process → `unlink()`
-- Error/warning handlers suppressed during fuzzing
-- Optional `LLVMFuzzerInitialize()` for one-time setup
-- Trailing bytes for parameter derivation (never consume leading bytes — shifts ICC header)
-
-### Fuzzer scope alignment
-Each fuzzer must only exercise APIs reachable from its corresponding project tool. For example:
-- `icc_profile_fuzzer` / `icc_spectral_fuzzer` must NOT use `CIccCmm` (AddXform/Begin/Apply)
-- `icc_deep_dump_fuzzer` must NOT call FindColor/FindDeviceColor/FindPcsColor
-- See the Fuzzer→Tool Mapping table in README.md
-- Call graph scripts in `.github/scripts/callgraphs/` measure fidelity per tool (90.0% aggregate)
-- Run: `python3 .github/scripts/callgraphs/iccDumpProfile-callgraph.py` for text summary
-- Output artifacts (JSON, DOT, SVG) go to `analysis-reports/callgraph-{toolName}/`
-
-### Dictionary files
-- Format: LibFuzzer dict format with `\xNN` hex escapes only (no octal, no inline comments)
-- Lookup order in CI: `cfl/${FUZZER_NAME}.dict` → `cfl/icc_core.dict` → `cfl/icc.dict`
-- Use `.github/scripts/convert-libfuzzer-dict.py` to convert raw LibFuzzer recommended dictionary output
-- CI auto-merges recommended dict entries after fuzzing (convert-libfuzzer-dict.py --append)
-- Several fuzzers share base dicts (e.g., `icc_toxml_fuzzer` → `icc_xml_consolidated.dict`, `icc_io_fuzzer` → `icc_core.dict`). The mapping is defined as `FUZZER_DICTS` in `ramdisk-fuzz.sh`, `fuzz-local.sh`, and `.github/scripts/seed-corpus-setup.sh`. Per-fuzzer aliases are created on ramdisk so `-dict=${fuzzer}.dict` resolves correctly.
+### CFL fuzzer conventions
+See [cfl.instructions.md](instructions/cfl.instructions.md) for fuzzer structure, scope alignment,
+dictionary files, build categories, OOM triage, and CMM seed creation formats.
 
 ### UBSAN fix patterns
 When writing bounds-check arithmetic in heuristic code, always use `(uint64_t)` widening to prevent unsigned overflow:
@@ -863,57 +836,18 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 - `iccApplyProfiles.cpp UnitClip` — NaN→unsigned char (fixed in PR #654, now handles NaN/Inf)
 - `IccMD5.cpp` — unsigned wrapping (intentional, not UB per spec)
 
-### OOM patches
-Named `NNN-brief-description.patch` in `cfl/patches/`. Applied automatically by `cfl/build.sh` AND all CI fuzzer workflows before cmake. Build alignment rule: local build.sh and CI workflows MUST apply identical patches/flags.
-
-### Patch creation workflow
-When creating a new patch for `cfl/patches/`:
-1. Reproduce the crash with the PoC profile against the existing iccDEV binary
-2. **CRITICAL**: Reset iccDEV checkout, then apply ALL prior patches (001 through N-1) to establish the correct baseline. Never diff against raw upstream — intermediate patches shift context lines.
-3. Save a copy of the baseline source files you will modify
-4. Make your fixes in the patched checkout
-5. Create the `.patch` file: `diff -u baseline/path fixed/path > cfl/patches/NNN-name.patch`
-6. Verify clean application: reset checkout → apply 001 through N → confirm no rejects
-7. Rebuild fuzzers: `cd cfl && ./build.sh` (resets checkout, applies all patches, builds)
-8. Copy rebuilt binaries to ramdisk: `cp cfl/bin/* /tmp/fuzz-ramdisk/bin/` (or SSD)
-9. Verify the PoC no longer crashes (exit 0, no ASAN/UBSAN output)
-10. Run a smoke test across all 18 fuzzers to confirm no regressions
-11. Update `cfl/patches/README.md` (table entry + description paragraph)
-12. Patches MUST be incremental diffs (not cumulative). Each patch applies cleanly atop all prior patches.
-
-**Lesson learned (patch 066→067)**: Patch 066 failed to apply because patch 049 modified the same file (`IccProfileXml.cpp`), shifting context lines. The fix was to mark 066 as NO-OP and create 067 with correct context from the post-049 baseline.
+### CFL patch workflow
+See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
+NO-OP management, and reproducer testing. Next patch number: **083**.
 
 ### Crash reproducer testing
-To verify a crash reproducer against all 18 fuzzers:
 ```bash
-# Single fuzzer test (1-liner)
+# Single fuzzer test
 ASAN_OPTIONS=detect_leaks=0 /tmp/fuzz-ramdisk/bin/<fuzzer_name> test-profiles/<crash-file>.icc 2>&1 | grep -c "ERROR: AddressSanitizer"
-# Result: 0 = no crash (fixed), 1 = crash found
 
-# Batch test all fuzzers against a profile
+# Batch all fuzzers against a profile
 for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN_OPTIONS=detect_leaks=0 timeout 10 "$f" test-profiles/<file>.icc 2>&1 | grep -c "ERROR: AddressSanitizer" || true; done
-
-# Test external profiles (not committed)
-.github/scripts/batch-test-external.sh /path/to/profiles --timeout 15
-
-# Test upstream iccApplyProfiles for UBSAN (needs a test TIFF first)
-# Create 2x2 RGB TIFF: python3 -c "import struct; ..." or use bar.tif/foo.tif
-ASAN_OPTIONS=detect_leaks=0 timeout 5 iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles \
-  /tmp/test_rgb.tif /tmp/out.tif 1 0 0 0 0 profile.icc 0 2>&1 | grep "runtime error"
-
-# ASAN SCARINESS scoring (useful for severity triage)
-ASAN_OPTIONS=print_scariness=1:halt_on_error=0:detect_leaks=0 <tool> <crash-file>
 ```
-
-### iccApplyProfiles CLI syntax
-```
-iccApplyProfiles src.tif dst.tif ri bpc luminance env pcc profile.icc interp [profile2.icc interp2 ...]
-```
-- `ri`: rendering intent (0=perceptual, 1=relative, 2=saturation, 3=absolute)
-- `bpc`: black point compensation (0=off, 1=on)
-- `luminance`: luminance matching (0=off, 1=on)
-- `env`/`pcc`: environment/PCC profile (0=none)
-- `interp`: interpolation (0=linear, 1=tetrahedral)
 
 ### CVE/GHSA reference
 77 CVEs reported for iccDEV (as of Feb 2026). Top CWEs by frequency:
@@ -934,74 +868,9 @@ Full list: `https://github.com/InternationalColorConsortium/iccDEV/security/advi
 - For `tOffset + tSize` (both `icUInt32Number`), widen to `(uint64_t)` before adding to prevent unsigned overflow.
 - When adding new heuristics with raw signature display, grep for existing patterns: `SignatureToFourCC(sig, fourcc)` → `printf("(%s)", fourcc)`.
 
-### CMM fuzzer seed creation
-CMM fuzzers need special input formats (not just raw ICC profiles):
-| Fuzzer | Format | Seed Dir |
-|--------|--------|----------|
-| `icc_link_fuzzer` | profile1 (padded) + profile2 (padded) + 3 ctrl bytes | `cfl/seeds-link-pairs/` |
-| `icc_applyprofiles_fuzzer` | 75% profile + 25% control data | `cfl/seeds-applyprofiles/` |
-| `icc_applynamedcmm_fuzzer` | 4-byte header + profile | `cfl/seeds-applynamedcmm/` |
-
-`ramdisk-seed.sh` Source 3 auto-seeds these directories. See `improve-fuzzer-coverage.prompt.md` for format details.
-
-**Link fuzzer gotcha**: Uses `AddXform(CIccProfile*, ...)` which transfers ownership — see [AddXform ownership semantics](#addxform-ownership-semantics) above. The link fuzzer needs `quarantine_size_mb=256` because it allocates 2 full profiles per input.
-
-### Fuzzer build categories
-Fuzzers are grouped by link dependencies in `cfl/build.sh`:
-- **CORE_FUZZERS** (IccProfLib only): profile, spectral, calculator, deep_dump, dump, io, multitag, roundtrip, apply
-- **XML_FUZZERS** (+IccXML+libxml2): toxml, fromxml, fromcube
-- **TIFF_FUZZERS** (+TiffImg.o+libtiff): applyprofiles, applynamedcmm, link, specsep, tiffdump, v5dspobs
-
-Note: `icc_applyprofiles_fuzzer` was moved from CORE to TIFF to exercise the full TIFF I/O pipeline (97.8% fidelity with iccApplyProfiles tool). It creates a source TIFF in-memory, builds CMM with BPC/Luminance hints, runs the complete pixel loop, and embeds the destination profile.
-
-### OOM triage workflow
-When a fuzzer reports `ERROR: libFuzzer: out-of-memory`:
-1. Identify the allocation chain from the OOM stack trace (top frames show the hot allocator)
-2. Inspect the PoC file to understand the trigger (use `xxd | head`, `xmllint`, or `file`)
-3. Common OOM patterns in iccDEV XML parsing:
-   - Unbounded tag/element counts → add `MAX_*` caps (256–1024 entries)
-   - Unbounded string content → add byte-size cap (64KB for localized text)
-   - Unbounded list children (ProfileSeqId, Dict) → cap entries AND strings-per-entry
-4. After patching, verify: `ASAN_OPTIONS=detect_leaks=0 /path/to/fuzzer oom-file 2>&1` — RSS should drop 10x+
-5. Save reproducer to `test-profiles/` with descriptive name: `oom-<description>-<patch#>.icc`
-
-### Coverage workflow tips
-- **Static vs shared libs**: Coverage reports using static libs only show tool `.cpp` coverage (~5K lines). Use `ENABLE_STATIC_LIBS=OFF` to build shared libs so llvm-cov sees all 46K library source lines.
-- **Shared lib collection**: Collect `.so` files with `find Build -name '*.so'` and pass each as `-object` arg to `llvm-cov`.
-- **Runtime**: Set `LD_LIBRARY_PATH` to the shared lib directory before running instrumented tools.
-- **Profraw management**: Use `LLVM_PROFILE_FILE=${fuzzer_name}_%m_%p.profraw` (not `%m.profraw` or `default.profraw`) to avoid clobbering and to identify which fuzzer generated each profraw file. The `%m` specifier is a numeric module hash — there is NO LLVM specifier for the binary name, so it must be prepended manually.
-- **Fuzzer coverage collection**: `fuzz-local.sh` sets `LLVM_PROFILE_FILE` per-fuzzer inside the loop. To collect coverage from all 18 fuzzers manually:
-  ```bash
-  # Run all fuzzers with profraw collection (60s each, parallel)
-  for f in /mnt/g/fuzz-ssd/bin/icc_*_fuzzer; do
-    name=$(basename "$f")
-    ASAN_OPTIONS=detect_leaks=0 \
-    LLVM_PROFILE_FILE="/mnt/g/fuzz-ssd/profraw/${name}_%m_%p.profraw" \
-      "$f" -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 \
-      -use_value_profile=1 -max_len=5242880 \
-      -artifact_prefix=/mnt/g/fuzz-ssd/ \
-      -dict="cfl/${name}.dict" \
-      "/mnt/g/fuzz-ssd/corpus-${name}/" > /tmp/fuzz_${name}.log 2>&1 &
-  done
-  wait
-
-  # Merge and report
-  llvm-profdata-18 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
-  OBJS=$(printf ' -object %s' cfl/bin/icc_*_fuzzer)
-  llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
-  llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=html --output-dir=/mnt/g/fuzz-ssd/coverage-report/html
-  ```
-- **Coverage baseline** (as of March 2026, all 18 fuzzers): Functions 63.23%, Lines 61.15%, Branches 58.47%, Instantiations 62.99%. HTML reports committed to `coverage-report/` (needs `git add -f` due to `.gitignore` pattern).
-- **Seed corpus strategy**: Copy profiles from `test-profiles/` with novel tag types not already in fuzzer seed corpora. Set `doOpenPath` bit (`data[-2] |= 0x08`) on seeds to use the non-validating `Read()` path in deep_dump fuzzer. Minimal hand-crafted ICC profiles fail `ValidateIccProfile()` — always patch existing valid profiles instead.
-- **Fuzzer-specific coverage notes**:
-  - Only `toxml` and `fromxml` link IccXML — they provide all IccXML coverage
-  - Only `specsep`, `tiffdump` link TiffImg — they provide all TIFF coverage
-  - `toxml` may crash on large corpora — use a 100-200 file subset via `ls | shuf | head -200`
-  - `roundtrip` is very slow (5032+ corpus files, Read→Write→Read per input) — allow 120s+
-  - `link` needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input)
-
-### Stale coverage files
-After recompilation, old `.gcda` files mismatch new `.gcno` files. `build.sh` auto-cleans them with `find . -name "*.gcda" -delete` before building.
+### Coverage and fuzzer build details
+See [cfl.instructions.md](instructions/cfl.instructions.md) for fuzzer build categories,
+CMM seed formats, coverage workflow, and fuzzer-specific notes.
 
 ### CodeQL static analysis
 - **All prerequisites pre-installed** — `gh codeql` CLI, query packs, build script. Do NOT re-install or re-download.
@@ -1038,15 +907,9 @@ if (stat != icCmmStatOk) {
 // pProfile now owned by cmm — do not delete
 ```
 
-### MCP server security patterns
-- Path validation: allowlist of base dirs + symlink resolution + normpath checks + null byte rejection
-- Build dir validation: triple layer (web_ui regex, _resolve_build_dir, Path.resolve containment check)
-- CMake args: regex allowlist (`-DVAR=VALUE`, `-Wflag` only), shell metachar rejection
-- Subprocess: `asyncio.create_subprocess_exec` (never `shell=True`), minimal env vars
-- Output: `_sanitize_output` strips control chars/ANSI, 10MB cap. All output paths verified sanitized
-- Uploads: 20MB cap, temp dir with 700 mode
-- CSP with per-request nonce, strict security headers
-- Default binding: 127.0.0.1 (not 0.0.0.0)
+### MCP server conventions
+See [mcp-server.instructions.md](instructions/mcp-server.instructions.md) for security model,
+path validation, Docker build policy, tool count sync, and API details.
 
 ### CI workflows
 31 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
@@ -1099,106 +962,6 @@ All data written to `$GITHUB_STEP_SUMMARY` or `$GITHUB_OUTPUT` must be sanitized
 
 ## Image+ICC Seed Pipeline
 
-### Tool Ecosystem
-| Tool | Repo | Platform | Purpose |
-|------|------|----------|---------|
-| xnuimagetools | github.com/xsscx/xnuimagetools | iOS/macOS/watchOS/visionOS | Umbrella workspace — uses xnuimagefuzzer as submodule |
-| xnuimagefuzzer | github.com/xsscx/xnuimagefuzzer | iOS/macOS (Xcode) | Primary fuzzer — 15 CGCreateBitmap contexts, 22+ formats |
-| iOSOnMac CLI | macos-research/code/iOSOnMac | macOS (CLI) | Run xnuimagefuzzer at scale via posix_spawn |
-| colorbleed_tools | research/colorbleed_tools | Linux/macOS | Build ICC profiles (iccToXml/iccFromXml) |
-| seed-pipeline.sh | .github/scripts/seed-pipeline.sh | Linux | Validate, embed ICC, distribute seeds |
-| craft-seeds.py | .github/scripts/craft-seeds.py | Linux | Generate synthetic edge-case image seeds |
-
-### Workflow
-1. Create baseline images → **xnuimagetools** (macOS)
-2. Fuzz images → **xnuimagefuzzer** (macOS) — produces 15 pixel formats × 30+ output formats
-3. ICC variant generation (automatic for TIFF/PNG):
-   - Real ICC profiles from `FUZZ_ICC_DIR` via `CGColorSpaceCreateWithICCData()` (round-robin)
-   - Stripped color space (DeviceRGB, no ICC metadata)
-   - Mismatched profiles (CMYK/Gray/Lab/truncated on RGB)
-   - Mutated ICC profiles (6 corruption strategies)
-4. CI pipeline generates images on iOS Simulator + Mac Catalyst (with system ICC profiles)
-5. Extract ICC seeds → `extract-icc-seeds.py --inject-cfl ../cfl` (automated in CI as `extract-seeds` job)
-6. Validate + embed ICC → **seed-pipeline.sh** `temp/ --distribute --ramdisk`
-7. Generate synthetic seeds → **craft-seeds.py** `--outdir temp/icc-crafted`
-8. Re-seed ramdisk → `.github/scripts/ramdisk-seed.sh`
-
-### Pipeline Scripts
-
-```bash
-# Validate images, embed 15 ICC profiles, distribute to seed corpuses
-.github/scripts/seed-pipeline.sh <image-dir> [--distribute] [--ramdisk]
-
-# Generate synthetic edge-case seeds (tiny, 16-bit, float, tiled, BigTIFF, etc.)
-python3 .github/scripts/craft-seeds.py --outdir temp/icc-crafted --profiles test-profiles
-```
-
-### Quality Gates (seed-pipeline.sh)
-- Reject files < 64 bytes (truncated)
-- Reject images with < 5 unique pixel values (flat/degenerate)
-- Validate TIFF magic bytes (II\*/MM\* or BigTIFF)
-- Deduplicate by MD5 content hash
-- Enforce max size = 5MB (max\_len limit)
-
-### Known Issues with xnuimagefuzzer Output
-- 32BitFloat and HDR float fuzzed variants produce all-zero pixels (CoreGraphics clamps float→8-bit)
-- `LittleEndian-image.tiff` is actually big-endian (MM) — name refers to CGColorSpace component order
-- ICC variants require `FUZZ_ICC_DIR` for real/mutated profiles; stripped and mismatched are always generated
-- `kCGImagePropertyICCProfile` does NOT exist in Apple SDKs — use `CGColorSpaceCreateWithICCData()`
-- xnuimagetools is the source of truth for xnuimagefuzzer.m; always sync after changes
-  - **Architecture**: xnuimagetools uses xnuimagefuzzer as a git submodule at path `XNU Image Fuzzer/`.
-    Clone with `git clone --recurse-submodules`. Fuzzer code changes go to xnuimagefuzzer repo first,
-    then `cd xnuimagetools && git submodule update --remote "XNU Image Fuzzer"` to pull latest.
-- Mac Catalyst CI job sets `FUZZ_ICC_DIR=/System/Library/ColorSync/Profiles` for system ICC profiles
-- xnuimagetools `build-and-test.yml` has 8 jobs: build-ios, generate-images, generate-catalyst-images,
-  generate-ios-gen-images, build-watch, commit-images, extract-seeds
-
-## macOS CI Patterns (xnuimagefuzzer / xnuimagetools)
-
-These patterns apply to the `xnuimagefuzzer/` and `xnuimagetools/` sub-repos within this workspace.
-**Note**: xnuimagetools uses xnuimagefuzzer as a git submodule at `XNU Image Fuzzer/`.
-All CI checkout steps in xnuimagetools use `submodules: recursive`.
-
-### SIGPIPE Prevention
-NEVER pipe macOS/BSD tools (`ls`, `file`, `find`, `xcodebuild`, `xcrun`) through `| head`.
-They use NSFileHandle for stdout and crash with `NSFileHandleOperationException` (SIGABRT exit 134)
-or `stdout: Undefined error: 0` when the reader closes early.
-```bash
-# ❌ Crashes: ls -la /tmp/output/ | head -20
-# ✅ Safe:   ls -la /tmp/output/ | sed -n '1,20p'
-# ❌ Crashes: xcodebuild -version | head -1
-# ✅ Safe:   xcodebuild -version | sed -n '1p'
-# ❌ Crashes: file -b "$f" | head -c 40
-# ✅ Safe:   file -b "$f" | cut -c1-40
-```
-
-### LLVM Profraw Coverage Symbols
-Use `dlsym(RTLD_DEFAULT, "__llvm_profile_write_file")` instead of `__attribute__((weak)) extern`.
-Weak extern works on Mac Catalyst with `-fprofile-instr-generate` but causes linker failures on
-iOS Simulator builds without coverage flags. The `dlsym()` approach works across all configurations.
-
-### Mac Catalyst App Launch in CI
-Mac Catalyst binaries must be launched via `open "$APP_BUNDLE"` (bare Mach-O exits immediately).
-- `open` blocks until app exits → use `open "$APP_BUNDLE" & ; disown $!`
-- Pass env vars via `open --env KEY=VALUE` (macOS 13+) — `launchctl setenv` is unreliable
-- Mac Catalyst ignores `osascript quit` — use `pgrep -f "App Name"` + `kill`
-- SIGTERM does NOT trigger `atexit()` → send SIGINT first for profraw flush
-
-### VideoToolbox ASAN Performance
-VideoToolbox fuzzer runs 10-50x slower under ASAN. Never call `malloc_zone_print()` in hot
-loops under ASAN — it dumps entire memory zone per call. The VT instrumented CI job is disabled
-(`if: false` in `xnuimagetools/.github/workflows/instrumented.yml`). Run VT ASAN testing on
-local macOS hardware with extended timeouts (10+ minutes).
-
-### xnuimagefuzzer Output Expectations
-17 seed specs × 6 files each (seed + corrupted + 4 format variants) = 102 expected files.
-CI polling threshold must be ≥80 with 120s timeout. The app uses `FUZZ_OUTPUT_DIR` env var
-for output directory and generates PNG, JPEG, GIF, BMP, TIFF, HEIF formats.
-
-### Pinned Action SHAs (both sub-repos)
-```yaml
-actions/checkout: 11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-actions/upload-artifact: ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-actions/cache: 5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
-actions/download-artifact: d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
-```
+See [multi-agent.instructions.md](instructions/multi-agent.instructions.md) for the full
+Image+ICC seed pipeline (xnuimagetools, xnuimagefuzzer, seed-pipeline.sh, craft-seeds.py)
+and macOS CI patterns (SIGPIPE prevention, Mac Catalyst launch, VideoToolbox ASAN, profraw symbols).
