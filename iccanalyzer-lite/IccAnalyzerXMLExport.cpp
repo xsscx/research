@@ -38,6 +38,7 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerXMLExport.h"
 #include "IccAnalyzerHeuristics.h"
+#include "IccAnalyzerHash.h"
 #include "IccHeuristicsRegistry.h"
 #include <sstream>
 #include <ctime>
@@ -49,38 +50,6 @@
 #include <vector>
 #include <set>
 #include <algorithm>
-#include <openssl/evp.h>
-
-// Compute SHA-256 of a file (no shell commands — safe from injection)
-static std::string ComputeSHA256XML(const char *path) {
-  FILE *fp = fopen(path, "rb");
-  if (!fp) return "";
-
-  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-  if (!ctx) { fclose(fp); return ""; }
-
-  if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
-    EVP_MD_CTX_free(ctx); fclose(fp); return "";
-  }
-
-  unsigned char buf[8192];
-  size_t n;
-  while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-    EVP_DigestUpdate(ctx, buf, n);
-  }
-  fclose(fp);
-
-  unsigned char hash[EVP_MAX_MD_SIZE];
-  unsigned int hashLen = 0;
-  EVP_DigestFinal_ex(ctx, hash, &hashLen);
-  EVP_MD_CTX_free(ctx);
-
-  char hex[65] = {};
-  for (unsigned int i = 0; i < hashLen && i < 32; i++) {
-    snprintf(hex + i * 2, 3, "%02x", hash[i]);
-  }
-  return std::string(hex);
-}
 
 std::string IccAnalyzerXMLExport::XMLEscape(const std::string& text)
 {
@@ -468,7 +437,7 @@ static void WriteXMLHeader(std::ofstream& xml, const char* xslBasename,
   if (stat(profilePath, &st) == 0) {
     xml << "    <filesize>" << st.st_size << "</filesize>\n";
   }
-  std::string sha = ComputeSHA256XML(profilePath);
+  std::string sha = ComputeFileSHA256(profilePath, "");
   if (sha.size() == 64) {
     xml << "    <sha256>" << sha << "</sha256>\n";
   }
