@@ -116,7 +116,7 @@ def test_list():
     check("List has profiles", "profiles:" in d["result"])
 
     # All valid directories
-    for d_name in ["test-profiles", "extended-test-profiles", "xif"]:
+    for d_name in ["test-profiles", "extended-test-profiles"]:
         r = c.get(f"/api/list?directory={d_name}")
         check(f"List {d_name}", r.status_code == 200 and r.json()["ok"])
 

@@ -94,7 +94,7 @@ _SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :-]+$")
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
 
 # Allowed directory names for list_test_profiles
-_ALLOWED_DIRS = frozenset({"test-profiles", "extended-test-profiles", "xif", "fuzz/graphics/icc"})
+_ALLOWED_DIRS = frozenset({"test-profiles", "extended-test-profiles"})
 
 # Limit concurrent subprocess executions
 _MAX_CONCURRENT = 4
