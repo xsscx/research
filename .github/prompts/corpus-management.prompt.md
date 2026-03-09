@@ -60,7 +60,7 @@ After rebuilding fuzzers, old profraw files are invalidated (binary hash mismatc
 Always clear before collecting new coverage:
 ```bash
 # Clear all profraw and stale merged.profdata
-find /mnt/g/fuzz-ssd /tmp/fuzz-ramdisk /home/h02332/po/research -name '*.profraw' -type f -delete
+find /mnt/g/fuzz-ssd /tmp/fuzz-ramdisk . -name '*.profraw' -type f -delete
 rm -f /mnt/g/fuzz-ssd/merged.profdata /tmp/fuzz-ramdisk/merged.profdata
 ```
 
@@ -101,10 +101,10 @@ comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but NOT fuzzer
 Copy crash/oom/timeout/slow-unit files BEFORE cleaning:
 ```bash
 SSD="/mnt/g/fuzz-ssd"
-rsync -a --ignore-existing $SSD/crash-* /home/h02332/po/research/ 2>/dev/null
-rsync -a --ignore-existing $SSD/oom-* /home/h02332/po/research/ 2>/dev/null
-rsync -a --ignore-existing $SSD/timeout-* /home/h02332/po/research/test-profiles/cwe-400/ 2>/dev/null
-rsync -a --ignore-existing $SSD/slow-unit-* /home/h02332/po/research/ 2>/dev/null
+rsync -a --ignore-existing $SSD/crash-* ./ 2>/dev/null
+rsync -a --ignore-existing $SSD/oom-* ./ 2>/dev/null
+rsync -a --ignore-existing $SSD/timeout-* ./test-profiles/cwe-400/ 2>/dev/null
+rsync -a --ignore-existing $SSD/slow-unit-* ./ 2>/dev/null
 rsync -a --ignore-existing $SSD/findings/ cfl/findings/ 2>/dev/null
 ```
 
