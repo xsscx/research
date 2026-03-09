@@ -10,7 +10,7 @@ unreachable, which need new seeds, and which need dictionary tokens.
 
 ## Prerequisites
 - Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` → 19
-- Coverage HTML: `coverage-report/html/coverage/home/h02332/po/research/cfl/*.cpp.html`
+- Coverage HTML: `coverage-report/html/` (paths reflect build directory structure)
 - LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
 - Source: `cfl/icc_*_fuzzer.cpp`, dicts in `cfl/icc_*_fuzzer.dict`
 
@@ -20,7 +20,7 @@ unreachable, which need new seeds, and which need dictionary tokens.
 ```bash
 # Parse uncovered lines from HTML report
 grep -B1 "class='uncovered-line'" \
-  coverage-report/html/coverage/home/h02332/po/research/cfl/<fuzzer>.cpp.html | \
+  coverage-report/html/coverage/cfl/<fuzzer>.cpp.html | \
   grep -oP 'data-linenumber="\K[0-9]+'
 ```
 
