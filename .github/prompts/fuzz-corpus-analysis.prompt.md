@@ -33,7 +33,7 @@ For each CFL fuzzer, identify which fuzz/ files exercise its code path:
 | icc_profile_fuzzer | `graphics/icc/*.icc` | Root `crash-*`, `oom-*` files |
 | icc_fromxml_fuzzer | `xml/icc/*.xml`, `xml/icc/minimized/*` | — |
 | icc_toxml_fuzzer | `graphics/icc/*.icc` | Same as profile_fuzzer |
-| icc_tiff_fuzzer | `graphics/tif/*.tif` | — |
+| icc_tiffdump_fuzzer | `graphics/tif/*.tif` | — |
 | icc_calculator_fuzzer | `graphics/icc/*Calculator*.icc`, `*CalcOp*.icc` | — |
 | icc_dump_fuzzer | `graphics/icc/*.icc` | All ICC profiles |
 | icc_apply_fuzzer | `graphics/icc/*.icc` | Profiles with AToB/BToA tags |
@@ -144,11 +144,11 @@ When analyzing files in fuzz/graphics/icc/, classify by CWE:
 iOS Image Generator and xnuimagefuzzer outputs are staged in the fuzz/ corpus repo:
 ```bash
 # Seed from iOS-generated images (collision-free filenames with SHA-256 hash)
-cp fuzz/xnuimagegenerator/tiff/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
+cp fuzz/xnuimagegenerator/tiff/*.tif cfl/corpus-icc_tiffdump_fuzzer/ 2>/dev/null
 cp fuzz/xnuimagegenerator/icc/*.icc cfl/corpus-icc_profile_fuzzer/ 2>/dev/null
 
 # Seed from fuzzed outputs
-cp fuzz/xnuimagefuzzer/tiff/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
+cp fuzz/xnuimagefuzzer/tiff/*.tif cfl/corpus-icc_tiffdump_fuzzer/ 2>/dev/null
 cp fuzz/xnuimagefuzzer/icc/*.icc cfl/corpus-icc_profile_fuzzer/ 2>/dev/null
 ```
 

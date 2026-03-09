@@ -41,7 +41,7 @@ When macOS agent generates new images or extracts ICC profiles:
 4. WSL-2 agent pulls and seeds into CFL corpora:
    ```bash
    cp fuzz/graphics/icc/ios-gen-*.icc cfl/corpus-icc_profile_fuzzer/
-   cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiff_fuzzer/
+   cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiffdump_fuzzer/
    ```
 
 ### WSL-2 → macOS: Crash Artifacts

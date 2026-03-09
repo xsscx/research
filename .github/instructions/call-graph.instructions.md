@@ -73,9 +73,10 @@ Raw LLVM output contains mangled C++ names and std:: template noise that makes S
    symbols c++filt cannot handle
 4. **Simplification**: Strip `std::allocator` noise, truncate deep template args,
    extract `Class::Method()` from verbose signatures
-5. **Filtering**: Remove std:: / __cxx / compiler-internal / libc nodes (5K+ noise nodes)
-6. **Rendering**: Graphviz `dot -Tsvg` with attributes: `rankdir=LR`, `size="200,200!"`,
-   Courier font, rounded box nodes, blue edges
+5. **Filtering**: Remove 100+ noise patterns: STL internals, libc, libpng/libjpeg/libtiff/
+   libxml2/OpenSSL nodes. Default-on (use `--keep-noise` to disable)
+6. **Rendering**: Graphviz `dot -Tsvg` with attributes: `rankdir=LR`,
+   auto-sized canvas, Courier font, rounded box nodes, blue edges
 
 If LLVM IR compilation fails (missing deps), a regex-based fallback extracts call sites
 from source directly.
@@ -92,12 +93,13 @@ from source directly.
 
 SVGs must be readable when opened in a browser with pan/zoom:
 
-- **Dimensions**: `size="200,200!"` ensures large enough canvas
+- **Dimensions**: Auto-sized canvas (no forced `size` attribute — let graphviz compute)
 - **Layout**: `rankdir=LR` (left-to-right) for wide graphs, `TB` for deep call trees
 - **Labels**: Demangled C++ names, simplified to `Class::Method()` format
 - **Nodes**: Rounded boxes with light fill (`#f0f4ff`), Courier 9pt font
 - **Edges**: Blue arrows (`#4a6fa5`), `arrowsize=0.7`
-- **Filtering**: std:: nodes removed — they add visual noise without analysis value
+- **Filtering**: 100+ noise patterns removed by default (STL, libc, libpng, libjpeg,
+  libtiff, libxml2, OpenSSL, compiler intrinsics). Use `--keep-noise` to disable.
 - **No mangled names**: `_ZN8CIccCmm4ReadEP8CIccIO` → `CIccCmm::Read()`
 
 ## Relationship to Hand-Verified Call Graphs

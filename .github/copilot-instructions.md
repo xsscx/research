@@ -146,6 +146,7 @@ Binaries must be built before use. See **Local Build** section below.
 
 ```bash
 # Prerequisites: clang/clang++ 18+, cmake 3.15+, libxml2-dev, libtiff-dev,
+#                libpng-dev, libjpeg-dev, libssl-dev,
 #                libclang-rt-18-dev (provides ASan/UBSan/fuzzer runtimes)
 
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)

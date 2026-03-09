@@ -24,7 +24,7 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 ```
 
 - Compiler: clang++ 18+ with `-fsanitize=address,undefined`
-- Requires: libxml2-dev, libtiff-dev, libclang-rt-18-dev
+- Requires: libxml2-dev, libtiff-dev, libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 - The build links against the **unpatched** upstream iccDEV library at `iccDEV/Build/`
 - iccanalyzer-lite does NOT use CFL patches — it handles all user-controllable
   inputs through its own defensive programming (bounds checks, size validation,
@@ -76,7 +76,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 | `IccHeuristicsDataValidation.cpp` | H56-H102 | Data integrity via CIccProfile API |
 | `IccHeuristicsProfileCompliance.cpp` | H103-H120 | ICC spec compliance |
 | `IccHeuristicsIntegrity.cpp` | H121-H138 | Profile integrity + CWE-400 |
-| `IccImageAnalyzer.cpp` | H139-H141 | TIFF image security + ICC extraction |
+| `IccImageAnalyzer.cpp` | H139-H141, H149-H150 | TIFF/PNG/JPEG image security + ICC extraction |
 | `IccHeuristicsXmlSafety.cpp` | H142-H145 | XML serialization safety |
 
 ### Support Modules
@@ -299,7 +299,10 @@ Severity field is included in `--json`, `--report`, and `-xml` output modes.
 ## Image Analysis (v3.4.0+)
 
 The `-a` mode auto-detects image files via magic bytes and routes to `IccImageAnalyzer.cpp`.
-The explicit `-img` mode also available. Currently supports TIFF; PNG/JPEG planned.
+The explicit `-img` mode also available. Supports TIFF (libtiff), PNG (libpng iCCP
+chunk extraction), and JPEG (libjpeg APP2 ICC_PROFILE multi-segment reassembly).
+Table-driven format dispatch via `kFormatHandlers[]` — adding a new format requires
+only a handler function + 1 table entry.
 
 ### TIFF Analysis Pipeline
 1. **Metadata**: dimensions, BPS, SPP, compression, photometric, planar config,
@@ -321,10 +324,25 @@ The explicit `-img` mode also available. Currently supports TIFF; PNG/JPEG plann
 - JPEG: `\xff\xd8\xff` (0xffd8ff)
 - ICC: `acsp` at offset 36 (0x61637370)
 
+### PNG Analysis Pipeline
+1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
+2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
+   full ComprehensiveAnalyze() with all 150 heuristics
+3. **Security checks**: dimensions, color type validation
+
+### JPEG Analysis Pipeline
+1. **Metadata**: dimensions, color space, component count, data precision
+2. **ICC extraction**: APP2 `ICC_PROFILE` markers with multi-segment reassembly
+   (supports profiles >64KB split across multiple APP2 segments). Validates
+   sequence numbers and total count, reassembles in order.
+3. **ICC extraction**: reassembled data → temp file → full ComprehensiveAnalyze()
+
 ### Usage
 ```bash
-# Auto-detect (TIFF → image analyzer, ICC → profile analyzer)
+# Auto-detect (TIFF/PNG/JPEG → image analyzer, ICC → profile analyzer)
 ./iccanalyzer-lite -a image.tif
+./iccanalyzer-lite -a photo.png
+./iccanalyzer-lite -a photo.jpg
 
 # Explicit image analysis mode
 ./iccanalyzer-lite -img image.tif
