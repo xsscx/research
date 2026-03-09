@@ -174,6 +174,7 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
 | `GET` | `/api/health` | — | `{"ok": true, "tools": 24}` |
+| `GET` | `/api/health-check` | — | Full health check (binary availability, profile counts) |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
 | `GET` | `/api/security` | `path` | 148-heuristic scan (text) |
@@ -184,8 +185,16 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/xml` | `path` | ICC → XML conversion |
 | `GET` | `/api/xml/download` | `path` | ICC → XML as file download |
 | `GET` | `/api/compare` | `path_a`, `path_b` | Side-by-side diff |
+| `GET` | `/api/check-dependencies` | — | Check build dependency availability |
+| `GET` | `/api/find-artifacts` | `build_dir` | Find binaries, checksums, linkage |
 | `POST` | `/api/upload` | `file` (multipart) | Upload ICC file (20 MB max) |
 | `POST` | `/api/output/download` | `text`, `filename` | Download output as file |
+| `POST` | `/api/build-tools` | `target` | Build C++ analysis tools from source |
+| `POST` | `/api/batch-test` | `build_dir`, `tool` | Run tools over all .icc files |
+| `POST` | `/api/validate-xml` | `directory`, `checks` | xmllint validation of ICC XML |
+| `POST` | `/api/coverage-report` | `build_dir` | Merge profraw + llvm-cov report |
+| `POST` | `/api/scan-logs` | `directory`, `pattern` | Grep logs for errors/crashes |
+| `POST` | `/api/upload-and-analyze` | `data_base64`, `filename`, `mode` | Base64 upload + analysis |
 | `GET` | `/api/registry` | — | Full heuristic registry JSON (dynamic counts) |
 
 ## Exit Codes (iccanalyzer-lite)
