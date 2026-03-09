@@ -57,7 +57,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Heuristics | 148 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 18 | cfl.instructions.md, README.md |
-| iccDEV advisories | 93 (61 CVEs + 27 GHSAs = 88 unique, 51 heuristics with refs) | 6 files (see CVE count sync memory) |
+| iccDEV advisories | 93 (85 CVEs + 95 GHSAs = 180 unique, 52 heuristics with refs) | 6 files (see CVE count sync memory) |
 | Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
 
 ## ICC Specification References — Sources of Truth
@@ -267,9 +267,9 @@ All heuristic, CVE, and severity counts are computed dynamically from
 
 ```bash
 ./iccanalyzer-lite --registry | jq .totalHeuristics    # → 148
-./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 61
-./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 27
-./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 51
+./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 85
+./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 95
+./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 52
 ./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:42, HIGH:34, ...}
 ```
 
