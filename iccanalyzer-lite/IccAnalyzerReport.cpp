@@ -386,7 +386,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   printf("  Unique CVEs:          %d\n", regStats.uniqueCVEs);
   printf("  Unique GHSAs:         %d\n", regStats.uniqueGHSAs);
   printf("  Advisory Total:       93 iccDEV security advisories\n");
-  printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 1 tool-specific\n");
+  printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 0 tool-specific (iccFromCube now in scope via H34)\n");
 
   // Severity distribution from registry
   printf("\n");
