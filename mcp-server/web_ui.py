@@ -125,9 +125,8 @@ def _get_heuristic_count() -> int:
             data = _json.loads(r.stdout)
             _HEURISTIC_COUNT = data.get("totalHeuristics", 148)
             return _HEURISTIC_COUNT
-    except Exception:
-        pass
-    _HEURISTIC_COUNT = 148
+    except Exception:  # noqa: E722 — intentional broad catch for graceful fallback
+        _HEURISTIC_COUNT = 148  # default when binary unavailable
     return _HEURISTIC_COUNT
 
 
