@@ -77,7 +77,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  libxml2 libtiff6 libjpeg8 libpng16-16t64 \
+  libxml2 libxml2-utils libtiff6 libjpeg8 libpng16-16t64 \
   zlib1g liblzma5 libssl3t64 libclang-rt-18-dev \
   python3 python3-venv \
   ca-certificates \
