@@ -12,7 +12,7 @@
  *
  * CVE mappings derived from 93 iccDEV security advisories (GHSA-* / CVE-2026-*).
  * 68 advisories have CVE IDs; 25 are GHSA-only (pending CVE assignment).
- * 54 heuristics detect patterns from 48 CVEs + 19 GHSAs (binary ICC + XML analysis).
+ * 57 heuristics detect patterns from 87 CVEs + 19 GHSAs (binary ICC + XML + data validation).
  * 1 advisory out of scope: 1 tool-specific (iccFromCube). 0 XML out-of-scope (H142-H145).
  * Validated 2026-03-09 against closed iccDEV issues and security advisories.
  */

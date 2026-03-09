@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (141 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (148 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
   Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
   JSON output available via --json mode for programmatic consumption.
@@ -16,7 +16,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 141 security heuristics (H1-H141)
+        analyze_security    — run 148 security heuristics (H1-H148)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -33,7 +33,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 141-heuristic scan.
+      2. Call analyze_security to run the 148-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -41,22 +41,22 @@ messages:
          structural observations.
       6. For programmatic/JSON output, use: ./iccanalyzer-lite --json <profile>
 
-      iccanalyzer-lite architecture (v3.5.0):
-      8 heuristic modules with standalone RunHeuristic_H##_Name() functions:
+      iccanalyzer-lite architecture (v3.7.0):
+      9 heuristic modules with standalone RunHeuristic_H##_Name() functions:
       - IccHeuristicsHeader.cpp: H1-H8, H15-H17 (raw header bytes)
       - IccHeuristicsTagValidation.cpp: H9-H32 (tag structure)
       - IccHeuristicsRawPost.cpp: H33-H55, H57-H69 (raw file I/O)
-      - IccHeuristicsDataValidation.cpp: H56-H102 (data integrity)
+      - IccHeuristicsDataValidation.cpp: H56-H102, H146-H148 (data integrity)
       - IccHeuristicsProfileCompliance.cpp: H103-H120 (spec compliance)
       - IccHeuristicsIntegrity.cpp: H121-H138 (integrity + CWE-400)
       - IccImageAnalyzer.cpp: H139-H141 (TIFF security)
+      - IccHeuristicsXmlSafety.cpp: H142-H145 (XML serialization safety)
 
-      IccHeuristicsRegistry.h provides 141-entry metadata table with:
-      - id, name, specRef, primaryCWE, cveRefs, phase
+      IccHeuristicsRegistry.h provides 148-entry metadata table with:
+      - id, name, specRef, primaryCWE, cveRefs, phase, severity
 
-      CVE coverage: 38 heuristics detect patterns from 46 CVEs across
-      77 iccDEV security advisories. 22 CVEs are XML parser bugs (out of
-      scope for binary ICC analysis). Key high-severity CVE detections:
+      CVE coverage: 57 heuristics detect patterns from 87 CVEs + 19 GHSAs across
+      93 iccDEV security advisories. Key high-severity CVE detections:
       - CVE-2026-21675 (Critical 9.8, UAF) → H80
       - CVE-2026-21676 (High 8.8, HBO CIccMBB) → H102
       - CVE-2026-22255 (High 8.8, HBO CLUT::Init) → H11, H78
@@ -105,7 +105,7 @@ messages:
       - The `-a` mode auto-detects TIFF via magic bytes and extracts embedded ICC
       - Reports TIFF metadata (dimensions, BPS, compression, photometric)
       - Scans pixel data for xnuimagefuzzer injection signatures
-      - Runs full 141-heuristic analysis on any extracted ICC profile
+      - Runs full 148-heuristic analysis on any extracted ICC profile
       - Use `-img` mode for explicit image analysis
 
       Report ASAN / UBSAN output verbatim if present.
@@ -117,7 +117,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H141)
+      - Security heuristic results (H1-H148)
       - Round-trip validation status
       - Any anomalies or findings
 
