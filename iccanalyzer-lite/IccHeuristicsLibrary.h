@@ -16,6 +16,7 @@
 #include "IccHeuristicsDataValidation.h"
 #include "IccHeuristicsProfileCompliance.h"
 #include "IccHeuristicsIntegrity.h"
+#include "IccHeuristicsXmlSafety.h"
 #include "IccProfile.h"
 
 int RunLibraryAPIHeuristics(CIccProfile *pIcc, const char *filename);

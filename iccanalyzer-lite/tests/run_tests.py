@@ -610,14 +610,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", f"{corpus}/xyz_large_array.icc"],
-        r"141 heuristics"
+        r"145 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", f"{corpus}/calculator_deep_nesting.icc"],
-        r"141 heuristics"
+        r"145 heuristics"
     )
 
 
@@ -660,9 +660,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.141_heuristics",
+        "summary.145_heuristics",
         ["-a", str(CORPUS_DIR / "bad_magic.icc")],
-        r"141 heuristics"
+        r"145 heuristics"
     )
 
     suite.assert_output_contains(
@@ -891,9 +891,9 @@ def test_json_output(suite):
     # Summary should have counts
     if "summary" in data:
         s = data["summary"]
-        has_total = s.get("totalHeuristics", 0) == 141
+        has_total = s.get("totalHeuristics", 0) == 145
         suite.results.append(TestResult(
-            "json.total_heuristics_141", has_total,
+            "json.total_heuristics_145", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -905,16 +905,16 @@ def test_json_output(suite):
         ))
         if has_cve:
             cov = s["cveCoverage"]
-            has_unique = "uniqueCVEs" in cov and cov["uniqueCVEs"] == 66
+            has_unique = "uniqueCVEs" in cov and cov["uniqueCVEs"] == 85
             suite.results.append(TestResult(
                 "json.cve_unique_count", has_unique,
-                f"uniqueCVEs={cov.get('uniqueCVEs')}, expected 66" if not has_unique else "",
+                f"uniqueCVEs={cov.get('uniqueCVEs')}, expected 85" if not has_unique else "",
                 0.0, "", ""
             ))
-            has_scope = "outOfScopeXmlCVEs" in cov and cov["outOfScopeXmlCVEs"] == 25
+            has_scope = "outOfScopeXmlCVEs" in cov and cov["outOfScopeXmlCVEs"] == 0
             suite.results.append(TestResult(
                 "json.cve_xml_scope", has_scope,
-                f"outOfScopeXmlCVEs={cov.get('outOfScopeXmlCVEs')}, expected 25" if not has_scope else "",
+                f"outOfScopeXmlCVEs={cov.get('outOfScopeXmlCVEs')}, expected 0" if not has_scope else "",
                 0.0, "", ""
             ))
 

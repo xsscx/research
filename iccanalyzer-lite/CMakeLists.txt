@@ -38,6 +38,7 @@ set(SOURCES
     IccImageAnalyzer.cpp
     IccAnalyzerJson.cpp
     IccAnalyzerReport.cpp
+    IccHeuristicsXmlSafety.cpp
 )
 
 # Build executable

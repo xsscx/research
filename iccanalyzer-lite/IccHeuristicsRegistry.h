@@ -12,8 +12,8 @@
  *
  * CVE mappings derived from 93 iccDEV security advisories (GHSA-* / CVE-2026-*).
  * 68 advisories have CVE IDs; 25 are GHSA-only (pending CVE assignment).
- * 50 heuristics detect patterns from 48 CVEs + 19 GHSAs (binary ICC analysis).
- * 26 advisories are out of scope: 25 XML parser/serializer, 1 tool-specific (iccFromCube).
+ * 54 heuristics detect patterns from 48 CVEs + 19 GHSAs (binary ICC + XML analysis).
+ * 1 advisory out of scope: 1 tool-specific (iccFromCube). 0 XML out-of-scope (H142-H145).
  * Validated 2026-03-09 against closed iccDEV issues and security advisories.
  */
 
@@ -211,10 +211,16 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {139, "TIFF Strip Geometry Validation",        nullptr, "CWE-122", "GHSA-wh2p-cm3r-7hm3", HeuristicPhase::IMAGE, HeuristicSeverity::CRITICAL},
   {140, "TIFF Dimension Sample Validation",      nullptr, "CWE-400", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::HIGH},
   {141, "TIFF IFD Offset Bounds Validation",     nullptr, "CWE-125", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::CRITICAL},
+
+  // --- XML SERIALIZATION SAFETY (H142-H145) ---
+  {142, "XML Serialization Safety",              "§10",   "CWE-787", "GHSA-mv6h-vpcg-pwfx,GHSA-j3mh-rjg5-8gw7,GHSA-h3ph-mwq5-3883,GHSA-pmcg-2h65-35h8,GHSA-2pjj-3c98-qp37,GHSA-xqq3-g894-w2h5,CVE-2026-25502,CVE-2026-24852,CVE-2026-24412,CVE-2026-24411,CVE-2026-24410,CVE-2026-24409,CVE-2026-24408,CVE-2026-24407,CVE-2026-24406,CVE-2026-24404,CVE-2026-22046,CVE-2026-21693,CVE-2026-21692,CVE-2026-21690,CVE-2026-21689,CVE-2026-21682,CVE-2026-21678,CVE-2026-21500", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  {143, "XML Array Bounds Precheck",             "§10",   "CWE-131", "GHSA-pmcg-2h65-35h8,GHSA-xqq3-g894-w2h5,CVE-2026-21682,CVE-2026-22046", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
+  {144, "XML String Termination Precheck",       "§10.4", "CWE-170", "GHSA-4wqv-pvm8-5h27,GHSA-h3ph-mwq5-3883,CVE-2026-25502,CVE-2026-24852", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
+  {145, "XML Curve Type Consistency",            "§10.14","CWE-843", "GHSA-2pjj-3c98-qp37,GHSA-mv6h-vpcg-pwfx,CVE-2026-24411,CVE-2026-24412,CVE-2026-21693,CVE-2026-21692,CVE-2026-21690,CVE-2026-21689", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
-static constexpr int kTotalHeuristics = 141;
+static constexpr int kTotalHeuristics = 145;
 
 inline const char *SeverityToString(HeuristicSeverity s) {
   switch (s) {
