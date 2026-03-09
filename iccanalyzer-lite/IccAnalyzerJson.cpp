@@ -189,8 +189,8 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   printf("      \"heuristicsWithCVE\": %d,\n", cveHeuristicsTriggered);
   printf("      \"uniqueCVEs\": %d,\n", (int)uniqueCves.size());
   printf("      \"totalCVEReferences\": %d,\n", totalCveRefs);
-  printf("      \"advisoryTotal\": 68,\n");
-  printf("      \"outOfScopeXmlCVEs\": 19,\n");
+  printf("      \"advisoryTotal\": 93,\n");
+  printf("      \"outOfScopeXmlCVEs\": 23,\n");
   printf("      \"outOfScopeToolCVEs\": 1\n");
   printf("    }\n");
   printf("  },\n");
