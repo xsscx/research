@@ -123,11 +123,18 @@ def _require_binary(bin_path: Path, name: str) -> None:
         )
 
 
-async def _run(cmd: list[str], timeout: int = 60) -> str:
-    """Run a command and return combined stdout+stderr.
+async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True) -> str:
+    """Run a command and return stdout (optionally with stderr appended).
 
     Enforces output size limit (MAX_OUTPUT_BYTES) and proper process cleanup.
     Uses a minimal subprocess environment to reduce attack surface.
+
+    Args:
+        cmd: Command and arguments to execute.
+        timeout: Maximum runtime in seconds.
+        include_stderr: If True (default), append stderr after a separator.
+            Set to False for structured output modes (JSON) where stderr
+            would corrupt the parseable result.
     """
     # Minimal env: only what the binaries need to locate libraries and run
     _default_path = (
@@ -176,7 +183,7 @@ async def _run(cmd: list[str], timeout: int = 60) -> str:
         truncated = False
 
     output = stdout.decode(errors="replace")
-    if stderr:
+    if stderr and include_stderr:
         stderr_text = stderr.decode(errors="replace")
         # Filter out gcov/gcda profiling noise from --coverage builds
         stderr_text = "\n".join(
@@ -299,7 +306,10 @@ async def analyze_security_json(path: str) -> str:
     """
     _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "--json", str(profile)])
+    return await _run(
+        [str(ANALYZER_BIN), "--json", str(profile)],
+        include_stderr=False,
+    )
 
 
 @mcp.tool()
