@@ -141,7 +141,7 @@ cp fuzz/xml/icc/*.xml cfl/corpus-icc_fromxml_fuzzer/
 cp fuzz/xml/icc/minimized/* cfl/corpus-icc_fromxml_fuzzer/
 
 # Copy TIFFs for TIFF fuzzer
-cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
+cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiffdump_fuzzer/ 2>/dev/null
 ```
 
 ### Mapping fuzz/ categories to CFL fuzzers
@@ -156,7 +156,7 @@ cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiff_fuzzer/ 2>/dev/null
 | `graphics/icc/*.icc` | `icc_apply_fuzzer` | CMM Apply paths |
 | `graphics/icc/*.icc` | `icc_calculator_fuzzer` | MPE calculator |
 | `xml/icc/*.xml` | `icc_fromxml_fuzzer` | XML → ICC parsing |
-| `graphics/tif/*.tif` | `icc_tiff_fuzzer` | TIFF tag reading |
+| `graphics/tif/*.tif` | `icc_tiffdump_fuzzer` | TIFF tag reading |
 
 ### Mapping fuzz/ to xnuimagetools
 
@@ -260,6 +260,6 @@ cp fuzz/xnuimagegenerator/icc/*.icc cfl/corpus-icc_profile_fuzzer/
 cp fuzz/xnuimagefuzzer/icc/*.icc cfl/corpus-icc_profile_fuzzer/
 
 # Seed TIFFs to TIFF fuzzer
-cp fuzz/xnuimagegenerator/tiff/*.tiff cfl/corpus-icc_tiff_fuzzer/
-cp fuzz/xnuimagefuzzer/tiff/*.tiff cfl/corpus-icc_tiff_fuzzer/
+cp fuzz/xnuimagegenerator/tiff/*.tiff cfl/corpus-icc_tiffdump_fuzzer/
+cp fuzz/xnuimagefuzzer/tiff/*.tiff cfl/corpus-icc_tiffdump_fuzzer/
 ```
