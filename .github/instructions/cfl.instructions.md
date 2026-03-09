@@ -56,13 +56,12 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 | 10 | icc_calculator_fuzzer | MPE Calculator |
 | 11 | icc_link_fuzzer | Profile linking |
 | 12 | icc_fromcube_fuzzer | .cube LUT parsing |
-| 13 | icc_multi_fuzzer | Multi-profile load |
+| 13 | icc_multitag_fuzzer | Multi-tag load |
 | 14 | icc_spectral_fuzzer | Spectral PCS |
 | 15 | icc_specsep_fuzzer | Spectral separation |
-| 16 | icc_v5_fuzzer | v5 profile paths |
-| 17 | icc_tiff_fuzzer | TIFF tag reading |
-| 18 | icc_rt_fuzzer | Round-trip transforms |
-| 19 | icc_spectraltiff_fuzzer | Spectral TIFF |
+| 16 | icc_v5dspobs_fuzzer | v5 DspObs→v4 conversion |
+| 17 | icc_tiffdump_fuzzer | TIFF tag reading |
+| 18 | icc_roundtrip_fuzzer | Round-trip transforms |
 
 ## Patch Conventions
 
