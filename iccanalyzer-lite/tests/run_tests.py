@@ -13,6 +13,7 @@ Usage:
 """
 
 import os
+import json
 import re
 import subprocess
 import sys
@@ -937,8 +938,79 @@ def test_json_output(suite):
         0.0, "", ""
     ))
 
+    # Registry block in JSON should have dynamic stats
+    if "summary" in data and "registry" in data["summary"]:
+        reg = data["summary"]["registry"]
+        has_reg_total = reg.get("totalHeuristics", 0) == 148
+        suite.results.append(TestResult(
+            "json.registry_total_heuristics", has_reg_total,
+            f"registry.totalHeuristics={reg.get('totalHeuristics')}" if not has_reg_total else "",
+            0.0, "", ""
+        ))
+        has_reg_cve = reg.get("heuristicsWithCVE", 0) > 0
+        suite.results.append(TestResult(
+            "json.registry_has_cve_count", has_reg_cve,
+            "registry.heuristicsWithCVE is 0" if not has_reg_cve else "",
+            0.0, "", ""
+        ))
+
     # ASAN clean
     suite.assert_no_asan("json.asan_clean", ["--json", good])
+
+
+def test_registry_output(suite):
+    """Test --registry CLI mode emits valid JSON with computed stats."""
+    rc, out, err = suite.run_analyzer(["--registry"])
+    suite.results.append(TestResult(
+        "registry.exit_0", rc == 0,
+        f"exit code {rc}" if rc != 0 else "",
+        0.0, "", ""
+    ))
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError as e:
+        suite.results.append(TestResult(
+            "registry.valid_json", False, f"JSON parse error: {e}",
+            0.0, "", ""
+        ))
+        return
+    suite.results.append(TestResult(
+        "registry.valid_json", True, "", 0.0, "", ""
+    ))
+    # totalHeuristics must equal len(heuristics)
+    total = data.get("totalHeuristics", 0)
+    entries = len(data.get("heuristics", []))
+    match = total == entries and total > 0
+    suite.results.append(TestResult(
+        "registry.total_matches_entries", match,
+        f"totalHeuristics={total} != len(heuristics)={entries}" if not match else "",
+        0.0, "", ""
+    ))
+    # heuristicsWithCVE must be positive
+    with_cve = data.get("heuristicsWithCVE", 0)
+    suite.results.append(TestResult(
+        "registry.has_cve_refs", with_cve > 0,
+        f"heuristicsWithCVE={with_cve}" if with_cve <= 0 else "",
+        0.0, "", ""
+    ))
+    # severity must sum to totalHeuristics
+    sev = data.get("severity", {})
+    sev_sum = sum(sev.values())
+    suite.results.append(TestResult(
+        "registry.severity_sum", sev_sum == total,
+        f"severity sum {sev_sum} != total {total}" if sev_sum != total else "",
+        0.0, "", ""
+    ))
+    # Each entry must have required fields
+    if entries > 0:
+        h = data["heuristics"][0]
+        for field in ["id", "name", "cwe", "phase", "severity"]:
+            has = field in h
+            suite.results.append(TestResult(
+                f"registry.entry_has_{field}", has,
+                f"Missing '{field}'" if not has else "",
+                0.0, "", ""
+            ))
 
 
 def test_tiff_analysis(suite):
@@ -1251,6 +1323,7 @@ def main():
         ("Ninja Modes Coverage", test_ninja_modes_coverage),
         ("Runtime Safety", test_runtime_safety),
         ("JSON Output", test_json_output),
+        ("Registry Output", test_registry_output),
         ("TIFF Analysis", test_tiff_analysis),
         ("HTML/XML Output", test_html_xml_output),
         ("Report Output", test_report_output),
