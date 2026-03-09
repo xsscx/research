@@ -186,6 +186,7 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/compare` | `path_a`, `path_b` | Side-by-side diff |
 | `POST` | `/api/upload` | `file` (multipart) | Upload ICC file (20 MB max) |
 | `POST` | `/api/output/download` | `text`, `filename` | Download output as file |
+| `GET` | `/api/registry` | — | Full heuristic registry JSON (dynamic counts) |
 
 ## Exit Codes (iccanalyzer-lite)
 

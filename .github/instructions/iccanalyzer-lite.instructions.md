@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 217 tests (18 functions), ~25s
+python3 iccanalyzer-lite/tests/run_tests.py   # 229 tests (19 functions), ~25s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -202,13 +202,15 @@ PoC: #577.
 
 ## CVE Coverage (93 iccDEV Advisories)
 
-54 heuristics detect patterns from 48 CVEs + 19 GHSAs across the 93 iccDEV security advisories.
+51 heuristics detect patterns from 61 CVEs + 27 GHSAs (88 unique) across the 93 iccDEV
+security advisories. Use `./iccanalyzer-lite --registry | jq` for authoritative counts.
 All 25 XML parser/serializer advisories are now in-scope via H142-H145.
 1 advisory is tool-specific (iccFromCube — out of scope).
-1 advisory is tool-specific (iccFromCube). Source of truth: `docs/cve/iccDEV-CVE-Report.md`.
+Source of truth: `docs/cve/iccDEV-CVE-Report.md`.
 
 CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
-Use `--json` mode for programmatic access to per-heuristic CVE mappings.
+Use `--json` mode for programmatic access to per-heuristic CVE mappings, or
+`--registry` mode for the full database without requiring a profile argument.
 
 ### Enrichment Workflow (when new advisories appear)
 
@@ -226,7 +228,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 217/217 tests pass
+# 8. Verify: 229/229 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
@@ -260,6 +262,19 @@ Generates per-heuristic XML with embedded dark-themed XSLT stylesheet. Each `<ch
 element includes id, severity, CWE, CVE refs, spec reference, and detail text.
 XSLT renders as a professional dark-themed HTML report with severity color coding,
 executive summary cards, and findings table.
+
+## Registry Output Mode (v3.6.2+)
+
+```bash
+./iccanalyzer-lite --registry          # Full JSON database
+./iccanalyzer-lite --registry | jq .totalHeuristics
+```
+
+Emits the complete heuristic registry as JSON — no profile argument needed. Includes
+`totalHeuristics`, `heuristicsWithCVE`, `uniqueCVEs`, `uniqueGHSAs`, severity
+distribution, and per-heuristic metadata (id, name, specRef, CWE, CVE refs, phase,
+severity). This is the **source of truth** for all counts — adding a new entry to
+`kHeuristicRegistry[]` in `IccHeuristicsRegistry.h` automatically updates all values.
 
 ## Severity Classification (v3.6.0+)
 

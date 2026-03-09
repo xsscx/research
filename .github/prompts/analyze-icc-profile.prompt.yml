@@ -55,8 +55,9 @@ messages:
       IccHeuristicsRegistry.h provides 148-entry metadata table with:
       - id, name, specRef, primaryCWE, cveRefs, phase, severity
 
-      CVE coverage: 57 heuristics detect patterns from 87 CVEs + 19 GHSAs across
-      93 iccDEV security advisories. Key high-severity CVE detections:
+      CVE coverage: 51 heuristics detect patterns from 61 CVEs + 27 GHSAs (88 unique) across
+      93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for
+      authoritative counts. Key high-severity CVE detections:
       - CVE-2026-21675 (Critical 9.8, UAF) → H80
       - CVE-2026-21676 (High 8.8, HBO CIccMBB) → H102
       - CVE-2026-22255 (High 8.8, HBO CLUT::Init) → H11, H78
