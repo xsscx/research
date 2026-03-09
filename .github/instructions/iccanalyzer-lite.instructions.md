@@ -346,40 +346,26 @@ Every heuristic MUST follow this pattern:
 
 ## Local CodeQL Analysis
 
+**All prerequisites are pre-installed. Do NOT re-install `gh-codeql`, re-download
+query packs, or recreate the build script.** The committed build script at
+`.github/scripts/codeql-build.sh` has the correct flags.
+
+### Quick analysis (< 2 minutes)
+
 ```bash
-# Prerequisites: gh codeql extension v2.24.1+
-gh extensions install github/gh-codeql  # if not installed
-
-# Install custom query pack dependencies
-cd iccanalyzer-lite/codeql-queries && gh codeql pack install && cd ../..
-
-# Build script — per-file compilation with correct includes
-cat > /tmp/codeql-build.sh << 'EOF'
-#!/bin/bash
-set -e
-cd iccanalyzer-lite
-FLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
-INCLUDES="-I ../iccDEV/IccProfLib -I ../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
-mkdir -p /tmp/codeql-obj
-for src in *.cpp; do
-  clang++-18 $FLAGS $INCLUDES -c "$src" -o "/tmp/codeql-obj/$(basename $src .cpp).o"
-done
-EOF
-chmod +x /tmp/codeql-build.sh
-
-# Create database (source-root must be repo root, NOT iccanalyzer-lite/)
+# If code changed since last analysis — rebuild database
 gh codeql database create /tmp/codeql-db-analyzer \
   --language=cpp --overwrite \
-  --command="/tmp/codeql-build.sh" \
-  --source-root=/path/to/research
+  --command=".github/scripts/codeql-build.sh" \
+  --source-root="$(git rev-parse --show-toplevel)"
 
-# Analyze with standard + custom queries
+# Run analysis (reuse existing DB if no code changes)
 gh codeql database analyze /tmp/codeql-db-analyzer \
   --format=sarif-latest --output=/tmp/codeql-results.sarif --threads=0 \
   codeql/cpp-queries:codeql-suites/cpp-security-and-quality.qls \
   iccanalyzer-lite/codeql-queries/
 
-# Parse SARIF for alerts in our code (filter out upstream iccDEV)
+# Filter results to analyzer code only (exclude upstream iccDEV)
 python3 -c "
 import json
 with open('/tmp/codeql-results.sarif') as f:
@@ -392,13 +378,22 @@ for r in sarif['runs'][0]['results']:
 "
 ```
 
-**Key build requirements**:
-- `-DICCANALYZER_LITE` — skips fingerprint DB code (`RiskLevel` enum)
-- `-I/usr/include/libxml2` — needed for `IccHeuristicsXmlSafety.cpp` (`libxml/parser.h`)
-- Per-file compilation (not multi-source to single `-o`)
-- `--source-root` must be the repo root for correct path reporting
+### What NOT to do (anti-patterns that waste 30+ minutes)
+- ❌ `gh extensions install github/gh-codeql` — already installed
+- ❌ `cd codeql-queries && gh codeql pack install` — already done, lock file committed
+- ❌ Creating `/tmp/codeql-build.sh` ad-hoc — use `.github/scripts/codeql-build.sh`
+- ❌ Iterating on build flags (`-DICCANALYZER_LITE`, `-I/usr/include/libxml2`) — all in the committed script
+- ❌ Always creating a fresh database when code hasn't changed — reuse `/tmp/codeql-db-analyzer`
 
-**Expected informational alerts** (not bugs):
+### Pre-installed assets
+| Asset | Location | Status |
+|-------|----------|--------|
+| `gh codeql` CLI | `gh extensions` | v2.24.1+ installed |
+| Query packs | `iccanalyzer-lite/codeql-queries/codeql-pack.lock.yml` | Lock file committed |
+| Build script | `.github/scripts/codeql-build.sh` | Committed, executable |
+| Database | `/tmp/codeql-db-analyzer` | Persists across sessions |
+
+### Expected informational alerts (not bugs)
 - `icc/xml-all-attacks`, `icc/xml-external-entity-attacks` — custom queries flagging
   intentional XML export patterns
 - `cpp/iccanalyzer-security` — custom informational query
