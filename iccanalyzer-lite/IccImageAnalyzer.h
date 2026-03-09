@@ -5,6 +5,7 @@
  * and runs the full heuristic analysis on the extracted profile.
  * TIFF security heuristics H139-H141, H149-H150 validate strip/tile geometry,
  * dimensions, IFD offset bounds, IFD chain cycles, and tile layout.
+ * PNG analysis extracts ICC from iCCP chunks; JPEG from APP2 ICC_PROFILE markers.
  *
  * Copyright (c) 2026 David H Hoyt LLC
  */
@@ -14,6 +15,8 @@
 
 #include <cstdint>
 #include <tiffio.h>
+#include <png.h>
+#include <jpeglib.h>
 
 // File format detected from magic bytes
 enum class ImageFormat {
@@ -71,6 +74,15 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
 // scans for injection signatures, then runs ICC heuristics H1-H138 on extracted ICC.
 // Returns 0 on clean, >0 on findings, <0 on error.
 int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb);
+
+// Analyze a PNG file: extracts ICC from iCCP chunk, reports metadata,
+// validates iCCP compression, runs full ICC heuristics on extracted profile.
+int AnalyzePngImage(const char *filepath, const char *fingerprintDb);
+
+// Analyze a JPEG file: extracts ICC from APP2 ICC_PROFILE marker(s),
+// reassembles multi-segment profiles (>64KB), reports metadata,
+// runs full ICC heuristics on extracted profile.
+int AnalyzeJpegImage(const char *filepath, const char *fingerprintDb);
 
 // Top-level image analysis dispatcher.
 // Detects format, routes to appropriate handler.

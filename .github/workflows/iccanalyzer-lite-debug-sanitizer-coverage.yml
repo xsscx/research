@@ -219,7 +219,7 @@ jobs:
           wait
 
           echo "Linking..."
-          ${CXX} ${LDFLAGS} *.o ${LIBS} -ltiff -o iccanalyzer-lite
+          ${CXX} ${LDFLAGS} *.o ${LIBS} -ltiff -lpng -ljpeg -o iccanalyzer-lite
 
           echo "[OK] Debug + Sanitizer + Coverage build complete"
           ls -lh iccanalyzer-lite
