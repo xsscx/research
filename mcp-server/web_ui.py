@@ -263,7 +263,7 @@ async def api_security_json(request: Request) -> Response:
         if not result or not result.startswith("{"):
             return JSONResponse({
                 "ok": True,
-                "result": '{"summary":{"totalHeuristics":145,"heuristicsRun":0,'
+                "result": '{"summary":{"totalHeuristics":148,"heuristicsRun":0,'
                           '"ok":0,"warnings":0,"critical":1,'
                           '"crashRecovery":true,'
                           '"note":"Profile triggered crash recovery (SIGSEGV/SIGABRT) — '
