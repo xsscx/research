@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cerrno>
 
 #include <tiffio.h>
 #include <png.h>
@@ -39,6 +40,68 @@ extern int HeuristicAnalyze(const char *profilePath, const char *fingerprintDb);
 extern int ComprehensiveAnalyze(const char *profilePath, const char *fingerprintDb);
 extern int RoundTripAnalyze(const char *profilePath);
 extern void ResetAllocGuard();
+
+// ═══════════════════════════════════════════════════════════════════════
+// Shared ICC Extraction Helper
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Write ICC data to a secure temp file (mkstemp + O_EXCL), run full
+/// heuristic analysis, then clean up. Returns finding count from analysis.
+/// Uses mkstemp() to prevent TOCTOU symlink attacks (predictable /tmp names).
+static int ExtractAndAnalyzeICC(const uint8_t *iccData, size_t iccLen,
+                                 const char *sourceDesc,
+                                 const char *fingerprintDb) {
+  int findings = 0;
+
+  // Create secure temp file with mkstemp (atomic, O_EXCL semantics)
+  char tmpPath[] = "/tmp/iccanalyzer-XXXXXX.icc";
+  // mkstemp replaces XXXXXX — we need mkstemps for the suffix
+  int fd = mkstemps(tmpPath, 4);  // 4 = strlen(".icc")
+  if (fd < 0) {
+    printf("  %s[ERROR] Cannot create secure temp file: %s%s\n",
+           ColorCritical(), strerror(errno), ColorReset());
+    return 0;
+  }
+
+  // Write ICC data
+  ssize_t written = 0;
+  size_t remaining = iccLen;
+  const uint8_t *ptr = iccData;
+  while (remaining > 0) {
+    ssize_t n = write(fd, ptr, remaining);
+    if (n < 0) {
+      if (errno == EINTR) continue;
+      printf("  %s[ERROR] Write failed: %s%s\n",
+             ColorCritical(), strerror(errno), ColorReset());
+      close(fd);
+      unlink(tmpPath);
+      return 0;
+    }
+    written += n;
+    ptr += n;
+    remaining -= (size_t)n;
+  }
+  close(fd);
+
+  if ((size_t)written != iccLen) {
+    printf("  %s[ERROR] Incomplete write to temp ICC (%zd of %zu bytes)%s\n",
+           ColorCritical(), written, iccLen, ColorReset());
+    unlink(tmpPath);
+    return 0;
+  }
+
+  printf("\n  Extracted ICC from %s to: %s\n\n", sourceDesc, tmpPath);
+  printf("=======================================================================\n");
+  printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
+  printf("=======================================================================\n\n");
+
+  ResetAllocGuard();
+  int iccResult = ComprehensiveAnalyze(tmpPath, fingerprintDb);
+  if (iccResult > 0) findings += iccResult;
+
+  unlink(tmpPath);
+  return findings;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // File Format Detection
@@ -1042,38 +1105,9 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
       }
 
       // Write extracted ICC to temp file for full heuristic analysis
-      char tmpIcc[256];
-      snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-extracted-%d.icc", getpid());
-      int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-      FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : NULL;
-      if (fOut) {
-        size_t written = fwrite(iccData, 1, iccLen, fOut);
-        fclose(fOut);
-        if (written != iccLen) {
-          printf("  %s[ERROR] Incomplete write to temp ICC file (%zu of %u bytes)%s\n",
-                 ColorCritical(), written, iccLen, ColorReset());
-          unlink(tmpIcc);
-        } else {
-          printf("\n  Extracted to: %s\n\n", tmpIcc);
-
-          printf("=======================================================================\n");
-          printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
-          printf("=======================================================================\n\n");
-
-          // Reset OOM guard for fresh ICC analysis
-          ResetAllocGuard();
-
-          // Run the full comprehensive analysis on the extracted ICC
-          int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
-          if (iccResult > 0) findings += iccResult;
-
-          // Clean up temp file
-          unlink(tmpIcc);
-        }
-      } else {
-        printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
-               ColorCritical(), tmpIcc, ColorReset());
-      }
+      findings += ExtractAndAnalyzeICC(
+          static_cast<const uint8_t *>(iccData),
+          static_cast<size_t>(iccLen), "TIFF", fingerprintDb);
 
     } else {
       printf("  %s[INFO] No embedded ICC profile (TIFFTAG_ICCPROFILE absent)%s\n",
@@ -1353,34 +1387,9 @@ int AnalyzePngImage(const char *filepath, const char *fingerprintDb) {
       }
 
       // Write to temp file for full heuristic analysis
-      char tmpIcc[256];
-      snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-png-extracted-%d.icc", getpid());
-      int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-      FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : nullptr;
-      if (fOut) {
-        size_t written = fwrite(iccpData, 1, iccpLen, fOut);
-        fclose(fOut);
-        if (written != iccpLen) {
-          printf("  %s[ERROR] Incomplete write to temp ICC file%s\n",
-                 ColorCritical(), ColorReset());
-          unlink(tmpIcc);
-        } else {
-          printf("\n  Extracted to: %s\n\n", tmpIcc);
-
-          printf("=======================================================================\n");
-          printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
-          printf("=======================================================================\n\n");
-
-          ResetAllocGuard();
-          int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
-          if (iccResult > 0) findings += iccResult;
-
-          unlink(tmpIcc);
-        }
-      } else {
-        printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
-               ColorCritical(), tmpIcc, ColorReset());
-      }
+      findings += ExtractAndAnalyzeICC(
+          static_cast<const uint8_t *>(iccpData),
+          static_cast<size_t>(iccpLen), "PNG iCCP", fingerprintDb);
     } else if (iccpLen > 0) {
       printf("  %s[CRIT] ICC profile too small (%u bytes < 40 minimum)%s\n",
              ColorCritical(), iccpLen, ColorReset());
@@ -1668,34 +1677,9 @@ int AnalyzeJpegImage(const char *filepath, const char *fingerprintDb) {
         }
 
         // Write extracted ICC to temp file for full analysis
-        char tmpIcc[256];
-        snprintf(tmpIcc, sizeof(tmpIcc), "/tmp/iccanalyzer-jpeg-extracted-%d.icc", getpid());
-        int fd = open(tmpIcc, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-        FILE *fOut = (fd >= 0) ? fdopen(fd, "wb") : nullptr;
-        if (fOut) {
-          size_t written = fwrite(iccBuf.data(), 1, totalIccSize, fOut);
-          fclose(fOut);
-          if (written != totalIccSize) {
-            printf("  %s[ERROR] Incomplete write to temp ICC file%s\n",
-                   ColorCritical(), ColorReset());
-            unlink(tmpIcc);
-          } else {
-            printf("\n  Extracted to: %s\n\n", tmpIcc);
-
-            printf("=======================================================================\n");
-            printf("EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS\n");
-            printf("=======================================================================\n\n");
-
-            ResetAllocGuard();
-            int iccResult = ComprehensiveAnalyze(tmpIcc, fingerprintDb);
-            if (iccResult > 0) findings += iccResult;
-
-            unlink(tmpIcc);
-          }
-        } else {
-          printf("  %s[ERROR] Cannot write temp ICC file: %s%s\n",
-                 ColorCritical(), tmpIcc, ColorReset());
-        }
+        findings += ExtractAndAnalyzeICC(
+            reinterpret_cast<const uint8_t *>(iccBuf.data()),
+            totalIccSize, "JPEG APP2", fingerprintDb);
       } else if (totalIccSize < 40) {
         printf("  %s[CRIT] Reassembled ICC too small (%zu bytes < 40)%s\n",
                ColorCritical(), totalIccSize, ColorReset());

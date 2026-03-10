@@ -15,9 +15,11 @@ import base64
 import hashlib
 import os
 import re
+import signal
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -155,19 +157,36 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
     if ld_path:
         env["LD_LIBRARY_PATH"] = ld_path
 
+    # Use process groups on Unix for clean timeout cleanup
+    kwargs: dict = {}
+    if sys.platform != "win32":
+        kwargs["preexec_fn"] = os.setsid
+
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env=env,
+        **kwargs,
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     except asyncio.TimeoutError:
+        # Kill entire process group to prevent orphaned subprocesses
+        if sys.platform != "win32":
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
         proc.kill()
         await proc.wait()
         return f"[TIMEOUT after {timeout}s]"
     except asyncio.CancelledError:
+        if sys.platform != "win32":
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
         proc.kill()
         await proc.wait()
         raise
@@ -200,6 +219,16 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
             output += "\n--- stderr ---\n" + stderr_text
     if truncated:
         output += "\n[OUTPUT TRUNCATED at 10MB]"
+
+    # Flag signal crashes (exit 128+) — exit 1 is normal (findings detected)
+    rc = proc.returncode
+    if rc is not None and rc >= 128:
+        sig_num = rc - 128
+        sig_name = {6: "SIGABRT", 9: "SIGKILL", 11: "SIGSEGV", 14: "SIGALRM"}.get(
+            sig_num, f"signal {sig_num}"
+        )
+        output += f"\n[CRASH: process terminated by {sig_name} (exit {rc})]"
+
     return _sanitize_output(output.strip())
 
 
@@ -476,12 +505,28 @@ async def list_test_profiles(directory: str = "test-profiles") -> str:
 
 
 def _get_upload_dir() -> Path:
-    """Return (and lazily create) a secure temp directory for uploaded profiles."""
+    """Return (and lazily create) a secure temp directory for uploaded profiles.
+
+    Also cleans up files older than 1 hour (TTL) to prevent disk accumulation.
+    """
     global _UPLOAD_DIR
     if _UPLOAD_DIR is None or not _UPLOAD_DIR.is_dir():
         _UPLOAD_DIR = Path(tempfile.mkdtemp(prefix="mcp_uploads_"))
         _UPLOAD_DIR.chmod(0o700)
         register_allowed_base(_UPLOAD_DIR)
+
+    # TTL cleanup: remove files older than 1 hour
+    try:
+        cutoff = time.time() - 3600
+        for f in _UPLOAD_DIR.iterdir():
+            try:
+                if f.is_file() and f.stat().st_mtime < cutoff:
+                    f.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
     return _UPLOAD_DIR
 
 

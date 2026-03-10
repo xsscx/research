@@ -94,8 +94,9 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile *pIcc, const char *file
   pid_t pid = fork();
 
   if (pid < 0) {
-    printf("      [OK] Skipped — fork() failed (errno=%d)\n\n", errno);
-    return 0;
+    printf("      [WARN]  Fork() failed (errno=%d) — XML safety check skipped\n", errno);
+    printf("       CWE-271: Cannot isolate XML serialization\n\n");
+    return 1;  // Report as finding — analysis incomplete
   }
 
   if (pid == 0) {
