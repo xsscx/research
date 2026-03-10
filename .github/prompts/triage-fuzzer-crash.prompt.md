@@ -31,10 +31,30 @@ From the fuzzer output, determine:
 - **Source location**: file:line from the stack trace
 - **CWE mapping**: e.g., CWE-122 (heap BOF), CWE-416 (UAF), CWE-787 (OOB write), CWE-758 (undefined behavior)
 
-## Step 2 — Determine if it's fuzzer code or upstream
+## Step 2 — Attribute by file path, NOT by filename
 
-- If the crash is in `cfl/icc_*_fuzzer.cpp` → fix the fuzzer harness
-- If the crash is in `iccDEV/IccProfLib/` or `iccDEV/Tools/` → create a CFL patch
+**MANDATORY — CJF Envelope Rule (added 2026-03-10)**:
+
+Read ASAN/UBSAN stack frame #2-#3 and classify by the **source file path**:
+
+| Path contains | Classification | Action |
+|---------------|---------------|--------|
+| `iccanalyzer-lite/` | **OUR CODE** | Fix immediately in analyzer |
+| `colorbleed_tools/` | **OUR CODE** | Fix immediately in colorbleed |
+| `cfl/icc_*_fuzzer.cpp` | **OUR CODE** | Fix the fuzzer harness |
+| `iccDEV/IccProfLib/` | **UPSTREAM** | Create CFL patch + report upstream |
+| `iccDEV/Tools/` | **UPSTREAM** | Create CFL patch + report upstream |
+| `libtiff.so` / `libpng` / etc. | **SYSTEM LIB** | Triggered by our usage — fix our call site |
+
+**NEVER classify by profile filename**. A profile named `ub-runtime-error-*` does NOT
+mean the bug is in upstream iccDEV — it means the profile was originally found via UB,
+but the ASAN trace determines WHERE the bug actually lives.
+
+**Incident reference**: Session 2026-03-10 — HUAF at `IccImageAnalyzer.cpp:962`
+(our code) was misclassified as "upstream iccDEV" for an entire session because the
+profile was named `ub-runtime-error-type-confusion-CIccTagEmbeddedProfile`. The ASAN
+frames clearly showed our file. Fix was 10 lines (copy libtiff interior pointers to
+`std::string` before directory-walking heuristics).
 
 **CRITICAL**: Before triaging, verify CFL and upstream iccDEV are at the same commit:
 ```bash
