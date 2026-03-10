@@ -97,6 +97,29 @@ the matrix as both forward and inverse.
 | Display (mntr) | ios-gen-AdobeRGB1998.icc | 1 | ✅ PASS |
 | Output (prtr) | CMYK-3DLUTs2.icc | 1 | ✅ PASS |
 
+## Security Notes
+
+### CFL-003: CIccTagArray alloc-dealloc-mismatch (CWE-762)
+
+Profiles with `tary` (tagArray) tags trigger `alloc-dealloc-mismatch` in
+`CIccTagArray::Cleanup()` when the profile is copied via `AddXform(CIccProfile&)`.
+`EvaluateProfile()` uses this reference-based AddXform path, so iccRoundTrip
+is a direct trigger.
+
+**Reproduction** (requires ASAN-instrumented build):
+
+```bash
+ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+  iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/17ChanPart1.icc
+```
+
+**Root cause**: Copy constructor uses `new IccTagPtr[]` at `IccTagComposite.cpp:1037`,
+but `Cleanup()` uses `free()` at line 1523. Fix: CFL-003 patch (use `calloc()`).
+
+**Trigger profiles**: Any `scnr`/`mntr`/`prtr`/`spac` class profile with `tary` tag.
+`17ChanPart1.icc` (scnr, 17-channel) is the simplest valid trigger.
+
 ## Related Tools
 
 - [iccApplyNamedCmm](../iccApplyNamedCmm/) — Apply transforms to actual color data

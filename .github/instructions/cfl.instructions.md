@@ -115,9 +115,23 @@ for historical reference.
   Mixed allocation strategies cause undefined behavior on copy/assign paths.
 - **Fix**: Replace `new IccTagPtr[n]` with `calloc(n, sizeof(IccTagPtr))` in both
   copy constructor and `operator=` to match the `free()` in `Cleanup()`.
-- **Affected tools**: Any tool that copies CIccProfile objects with CIccTagArray tags
-  (CIccCmm::Begin → CIccXform::Begin → profile copy → CIccTagArray copy ctor)
-- **Trigger**: icc_applyprofiles_fuzzer via CIccCmm::Begin() → CIccXformNDLut::Begin()
+- **Affected tools**: Any tool calling `AddXform(CIccProfile&)` by reference with a
+  profile containing CIccTagArray tags. The reference overload at `IccCmm.cpp:8517`
+  triggers `new CIccProfile(Profile)` → copy constructor → `CIccTagArray::NewCopy()`.
+  `EvaluateProfile()` at `IccEval.cpp:104,115,120` uses this path (3× per profile).
+- **Upstream reproduction**:
+  ```bash
+  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
+  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+    iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/17ChanPart1.icc
+  ```
+  Profile requirement: class `scnr`/`mntr`/`prtr`/`spac` AND contains `tary` tag.
+  `17ChanPart1.icc` (scnr, 17-channel) is the simplest trigger.
+- **Call chain**: `iccRoundTrip::main()` → `EvaluateProfile(path)` →
+  `EvaluateProfile(CIccProfile*)` → `CIccCmm::AddXform(CIccProfile&)` →
+  `new CIccProfile(Profile)` → `CIccTagArray::CIccTagArray(const&)` (new[]) →
+  AddXform fails → `delete pProfile` → `CIccProfile::Cleanup()` →
+  `CIccTagArray::Cleanup()` → `free(m_TagVals)` (mismatch)
 
 ## Fuzzing — Ramdisk Workflow
 
