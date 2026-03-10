@@ -349,7 +349,7 @@ Types:
 ## Anti-Patterns — Mistakes to Avoid
 
 These are real mistakes made during multi-agent collaboration. Do NOT repeat them.
-Patterns #6-#10 are adapted from [xsscx/governance](https://github.com/xsscx/governance)
+Patterns #6-#10 are adapted from <a href="https://github.com/xsscx/governance">xsscx/governance</a>
 LLMCJF (LLM Content Jockey Framework) — empirically documented agent failure modes.
 
 ### 1. Removing ASAN/UBSAN from Docker for multi-arch builds
