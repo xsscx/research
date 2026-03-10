@@ -25,6 +25,7 @@
  *  @section CHANGES
  *  - 12/06/2021, h02332: Initial commit
  *  - 28/02/2026, h02332: Fork/exec sandbox isolation
+ *  - 10/03/2026, h02332: Diagnostic XML fallback for malformed profiles
  *
  */
 
@@ -43,6 +44,7 @@
 #define COLORBLEED_SKIP_XML_PREFLIGHT
 #include "ColorBleedPreflight.h"
 #include "ColorBleedSandbox.h"
+#include "ColorBleedDiagnosticXml.h"
 
 // Global state for signal recovery — write partial XML on crash
 static std::string* g_xml_output = nullptr;
@@ -131,7 +133,30 @@ int main(int argc, char* argv[])
     }
 
     if (!profile.Read(&srcIO)) {
-      fprintf(stderr, "Unable to read '%s'\n", src_path);
+      fprintf(stderr, "Unable to read '%s' — generating diagnostic XML from raw binary\n", src_path);
+      srcIO.Close();
+
+      // Generate diagnostic XML from raw binary analysis
+      std::string diagXml;
+      if (GenerateDiagnosticXml(src_path, diagXml, "iccDEV CIccProfile::Read() returned false")) {
+        int dfd = open(dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (dfd >= 0) {
+          FILE* df = fdopen(dfd, "wb");
+          if (df) {
+            size_t dw = fwrite(diagXml.c_str(), 1, diagXml.size(), df);
+            fclose(df);
+            if (dw == diagXml.size()) {
+              fprintf(stderr, "[ColorBleed] Diagnostic XML written (%zu bytes) → %s\n",
+                      diagXml.size(), dst_path);
+              printf("[ColorBleed] DIAGNOSTIC MODE: profile malformed, raw analysis written\n");
+              return 6; // Distinct exit code: diagnostic mode
+            }
+          } else {
+            close(dfd);
+          }
+        }
+        fprintf(stderr, "[ColorBleed] Failed to write diagnostic XML to %s\n", dst_path);
+      }
       return 2;
     }
 
@@ -180,6 +205,15 @@ int main(int argc, char* argv[])
 
     return 0;
   }, limits);
+
+  // Exit code 6 = diagnostic mode (profile malformed, raw XML written successfully)
+  // This is NOT a crash — override the sandbox's generic non-zero = crashed logic
+  if (result.exit_code == 6 && !result.timed_out && !result.oom_killed &&
+      result.signal_num == 0) {
+    printf("\n[ColorBleed] Diagnostic XML written (profile malformed, library Read failed)\n");
+    printf("[ColorBleed] Output contains raw binary analysis — NOT a valid ICC XML\n");
+    return 6;
+  }
 
   result.Report("ICC → XML", src_path);
 
