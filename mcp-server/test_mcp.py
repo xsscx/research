@@ -16,6 +16,10 @@ import os
 import sys
 import time
 
+# Concurrency for bulk profile tests — use all available CPUs
+_MAX_CONCURRENT = int(os.environ.get("MCP_TEST_WORKERS", os.cpu_count() or 8))
+_SEM = asyncio.Semaphore(_MAX_CONCURRENT)
+
 sys.path.insert(0, os.path.dirname(__file__))
 from icc_profile_mcp import (
     _resolve_profile,
@@ -264,77 +268,92 @@ async def test_list_test_profiles():
 
 
 async def test_inspect_all_profiles():
-    """Test inspect_profile on every test profile."""
+    """Test inspect_profile on every test profile (parallel)."""
     T.section("Functional: inspect_profile × all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
-    for f in files:
-        try:
-            r = await inspect_profile(f)
-            T.ok(f"inspect({f[:45]})", len(r) > 100 and ("Header" in r or "RAW" in r))
-        except Exception as e:
-            T.ok(f"inspect({f[:45]})", False, str(e))
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await inspect_profile(f)
+                T.ok(f"inspect({f[:45]})", len(r) > 100 and ("Header" in r or "RAW" in r))
+            except Exception as e:
+                T.ok(f"inspect({f[:45]})", False, str(e))
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
 async def test_analyze_security_all():
-    """Test analyze_security on every test profile."""
+    """Test analyze_security on every test profile (parallel)."""
     T.section("Functional: analyze_security × all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
-    for f in files:
-        try:
-            r = await analyze_security(f)
-            T.ok(f"security({f[:45]})", len(r) > 50)
-        except Exception as e:
-            T.ok(f"security({f[:45]})", False, str(e))
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await analyze_security(f)
+                T.ok(f"security({f[:45]})", len(r) > 50)
+            except Exception as e:
+                T.ok(f"security({f[:45]})", False, str(e))
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
 async def test_validate_roundtrip_all():
-    """Test validate_roundtrip on every test profile."""
+    """Test validate_roundtrip on every test profile (parallel)."""
     T.section("Functional: validate_roundtrip × all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
-    for f in files:
-        try:
-            r = await validate_roundtrip(f)
-            T.ok(f"roundtrip({f[:45]})", len(r) > 50)
-        except Exception as e:
-            T.ok(f"roundtrip({f[:45]})", False, str(e))
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await validate_roundtrip(f)
+                T.ok(f"roundtrip({f[:45]})", len(r) > 50)
+            except Exception as e:
+                T.ok(f"roundtrip({f[:45]})", False, str(e))
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
 async def test_full_analysis_all():
-    """Test full_analysis on every test profile."""
+    """Test full_analysis on every test profile (parallel)."""
     T.section("Functional: full_analysis × all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
-    for f in files:
-        try:
-            r = await full_analysis(f)
-            T.ok(f"full({f[:45]})", len(r) > 100 and "COMPREHENSIVE" in r)
-        except Exception as e:
-            T.ok(f"full({f[:45]})", False, str(e))
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await full_analysis(f)
+                T.ok(f"full({f[:45]})", len(r) > 100 and "COMPREHENSIVE" in r)
+            except Exception as e:
+                T.ok(f"full({f[:45]})", False, str(e))
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
 async def test_profile_to_xml_all():
-    """Test profile_to_xml on every test profile."""
+    """Test profile_to_xml on every test profile (parallel)."""
     T.section("Functional: profile_to_xml × all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
-    for f in files:
-        try:
-            r = await profile_to_xml(f)
-            T.ok(f"xml({f[:45]})", len(r) > 20)
-        except Exception as e:
-            T.ok(f"xml({f[:45]})", False, str(e))
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await profile_to_xml(f)
+                T.ok(f"xml({f[:45]})", len(r) > 20)
+            except Exception as e:
+                T.ok(f"xml({f[:45]})", False, str(e))
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
@@ -414,7 +433,7 @@ async def test_error_handling():
 # ---------------------------------------------------------------------------
 
 async def test_extended_profiles():
-    """Test full_analysis on all extended test profiles."""
+    """Test full_analysis on all extended test profiles (parallel)."""
     T.section("Stress: extended-test-profiles × full_analysis")
 
     ext_dir = REPO_ROOT / "extended-test-profiles"
@@ -423,20 +442,22 @@ async def test_extended_profiles():
         return
 
     files = sorted(f for f in os.listdir(ext_dir) if f.endswith(".icc"))[:25]
-    for f in files:
-        try:
-            r = await asyncio.wait_for(
-                full_analysis(f"extended-test-profiles/{f}"),
-                timeout=30
-            )
-            T.ok(f"ext_full", len(r) > 50)
-        except asyncio.TimeoutError:
-            # Allow 100ms for subprocess cleanup after cancellation
-            await asyncio.sleep(0.1)
-            T.ok(f"ext_full", True, f"{f[:30]}: timeout (30s) [warn]")
-        except Exception as e:
-            T.ok(f"ext_full", False, f"{f[:30]}: {e}")
 
+    async def _check(f):
+        async with _SEM:
+            try:
+                r = await asyncio.wait_for(
+                    full_analysis(f"extended-test-profiles/{f}"),
+                    timeout=30
+                )
+                T.ok(f"ext_full", len(r) > 50)
+            except asyncio.TimeoutError:
+                await asyncio.sleep(0.1)
+                T.ok(f"ext_full", True, f"{f[:30]}: timeout (30s) [warn]")
+            except Exception as e:
+                T.ok(f"ext_full", False, f"{f[:30]}: {e}")
+
+    await asyncio.gather(*[_check(f) for f in files])
     T.section_summary()
 
 
