@@ -403,6 +403,12 @@ Every heuristic MUST follow this pattern:
 - Avoid constant comparisons in loops — a `for(int c=0; c<N; c++) { ... break; }`
   where the loop always exits on first iteration triggers CodeQL
   `cpp/comparison-always-true`. Replace with a simple `if` block.
+- **libtiff string lifetime** — `TIFFGetField(tif, TIFFTAG_SOFTWARE, &ptr)` returns
+  an interior pointer owned by the TIFF directory. `TIFFReadDirectory()` and
+  `TIFFSetDirectory()` call `TIFFFreeDirectory()` which frees those strings.
+  ALWAYS copy to `std::string` before any directory-walking operations (H141, H149).
+  Bug reference: commit bfafaba — HUAF at `IccImageAnalyzer.cpp:962` from `strstr()`
+  on freed `software` pointer after H141's `TIFFSetDirectory(tif, 0)`.
 
 ## Local CodeQL Analysis
 
