@@ -86,12 +86,13 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
 - build.sh now distinguishes "already applied" from "FAILED" — no silent failures
 - Latest active: CFL-082 (CTiffImg strip buffer bounds check)
+- CFL-074 protects BOTH CheckUnderflowOverflow AND SequenceNeedTempReset (merged from CFL-047):
+  - CheckUnderflowOverflow: kMaxRecurseDepth=16, kMaxOpsProcessed=100,000
+  - SequenceNeedTempReset: kMaxRecurseDepth=100, kMaxOpsProcessed=1,000,000
 - CFL-077 through CFL-081 (CWE-400 upstream patterns) — patch files exist and ARE applied by build.sh:
   - CFL-077: ResponseCurveStruct nMeasurements cap (100K per channel)
   - CFL-078: NamedColor2 Describe() iteration cap (10K entries)
   - CFL-079: ApplySequence() runtime depth limit (16) — NOW WORKING (regenerated)
-  - CFL-080: XYZ Describe() output cap (1MB) — NOW WORKING (regenerated)
-  - CFL-081: DescribeSequence() recursion depth limit (32) — NOW WORKING (regenerated)
   - CFL-080: XYZ/Chromaticity/ColorantTable Describe() output cap (1MB)
   - CFL-081: DescribeSequence() recursion depth limit (32)
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV

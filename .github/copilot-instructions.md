@@ -582,7 +582,7 @@ Do NOT silently revise numbers.
 ### Agent Accountability
 
 This project maintains an agent violation record at
-[xsscx/governance](https://github.com/xsscx/governance). Key documents:
+<a href="https://github.com/xsscx/governance">xsscx/governance</a>. Key documents:
 - `HALL_OF_SHAME.md` — Documented violations with root cause analysis
 - `VAULT_OF_SHAME.md` — Cryptographic fingerprints of all violations
 - `README_CLAIM_VERIFICATION.md` — Evidence-based validation system
