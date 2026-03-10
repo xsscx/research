@@ -221,9 +221,6 @@ jobs:
                 EXTRA_LIBS="-ltiff"
               fi
             fi
-            if [ "$FNAME" = "icc_deep_dump_fuzzer" ]; then
-              EXTRA_LDFLAGS="-Wl,--allow-multiple-definition"
-            fi
             set +e
             clang++ $CXXFLAGS $INCLUDES "$src" \
               $EXTRA_OBJ -Wl,--whole-archive $LIBS_BASE -Wl,--no-whole-archive $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
@@ -267,21 +264,14 @@ jobs:
       fail-fast: false
       matrix:
         fuzzer:
-          - icc_apply_fuzzer
           - icc_applynamedcmm_fuzzer
           - icc_applyprofiles_fuzzer
-          - icc_calculator_fuzzer
-          - icc_deep_dump_fuzzer
           - icc_dump_fuzzer
           - icc_fromcube_fuzzer
           - icc_fromxml_fuzzer
-          - icc_io_fuzzer
           - icc_link_fuzzer
-          - icc_multitag_fuzzer
-          - icc_profile_fuzzer
           - icc_roundtrip_fuzzer
           - icc_specsep_fuzzer
-          # - icc_spectral_fuzzer  # Variant A — disabled for A/B test
           - icc_tiffdump_fuzzer
           - icc_toxml_fuzzer
           - icc_v5dspobs_fuzzer
@@ -341,11 +331,6 @@ jobs:
           SEED_DIR=""
           if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
             SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
-          fi
-
-          # Enable deep dump diagnostics for icc_deep_dump_fuzzer
-          if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
-            export DEEP_DUMP_DIAG=0
           fi
 
           set +e

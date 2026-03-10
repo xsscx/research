@@ -4,7 +4,7 @@
 #
 # Usage:
 #   .github/scripts/ramdisk-merge.sh                    # merge all 18 fuzzers (uses all CPUs)
-#   .github/scripts/ramdisk-merge.sh icc_profile_fuzzer  # merge one fuzzer
+#   .github/scripts/ramdisk-merge.sh icc_dump_fuzzer  # merge one fuzzer
 #   .github/scripts/ramdisk-merge.sh --jobs 4            # limit parallelism
 #
 # Runs LibFuzzer's -merge=1 on each fuzzer corpus to remove redundant inputs
@@ -24,21 +24,14 @@ BIN_DIR="$CFL_DIR/bin"
 MAX_JOBS=$(nproc 2>/dev/null || echo 4)
 
 ALL_FUZZERS=(
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
-  icc_calculator_fuzzer
-  icc_deep_dump_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
   icc_fromxml_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_multitag_fuzzer
-  icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer

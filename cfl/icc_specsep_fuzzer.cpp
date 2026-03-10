@@ -246,7 +246,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                       nPhoto, nFiles + nExtraSamples, nExtraSamples,
                       xRes, yRes, compress, separate)) {
       
-      // Optional ICC profile embedding
+      // Optional ICC profile embedding — raw bytes only (matches upstream tool)
+      // Upstream reads via CIccFileIO.Read8() and embeds raw — no IccProfLib parse
       size_t profileOffset = 15 + minDataSize;
       if (size > profileOffset + 128) {
         size_t profileSize = std::min(size - profileOffset, (size_t)1024 * 1024);
@@ -254,20 +255,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         if (!profile) { goto cleanup; }
         memcpy(profile.get(), data + profileOffset, profileSize);
         outimg.SetIccProfile(profile.get(), (unsigned int)profileSize);
-
-        // Parse profile through IccProfLib for coverage of tag/validation paths
-        CIccMemIO memIO;
-        if (memIO.Attach(profile.get(), (icUInt32Number)profileSize)) {
-          CIccProfile iccProf;
-          if (iccProf.Read(&memIO)) {
-            std::string report;
-            iccProf.Validate(report);
-            iccProf.FindTag(icSigSpectralViewingConditionsTag);
-            iccProf.FindTag(icSigSpectralDataInfoTag);
-            iccProf.FindTag(icSigProfileDescriptionTag);
-            iccProf.FindTag(icSigAToB0Tag);
-          }
-        }
       }
 
       // Process scanlines

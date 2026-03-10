@@ -12,7 +12,7 @@
 # Usage:
 #   ./fuzz-local.sh                           # all 18 fuzzers, 4 workers, 4h each
 #   ./fuzz-local.sh icc_dump_fuzzer           # single fuzzer
-#   ./fuzz-local.sh -t 3600 icc_dump_fuzzer icc_profile_fuzzer
+#   ./fuzz-local.sh -t 3600 icc_dump_fuzzer icc_toxml_fuzzer
 #   ./fuzz-local.sh -w 8 -t 600              # 8 workers per fuzzer, 10 min each
 #
 # Options:
@@ -32,22 +32,14 @@ WORKERS=4
 RSS_LIMIT=2048
 
 ALL_FUZZERS=(
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
-  icc_calculator_fuzzer
-  icc_deep_dump_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
   icc_fromxml_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_multitag_fuzzer
-  icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
-  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
@@ -122,11 +114,7 @@ mkdir -p "$RAMDISK/profraw"
 # ── Per-fuzzer dict mapping (shared base dicts) ────────────────────
 declare -A FUZZER_DICTS=(
   [icc_toxml_fuzzer]="icc_xml_consolidated.dict"
-  [icc_io_fuzzer]="icc_core.dict"
   [icc_roundtrip_fuzzer]="icc_core.dict"
-  [icc_spectral_fuzzer]="icc_core.dict"
-  [icc_multitag_fuzzer]="icc_multitag.dict"
-  [icc_profile_fuzzer]="icc_profile.dict"
 )
 
 # ── Helper: resolve dictionary ──────────────────────────────────────

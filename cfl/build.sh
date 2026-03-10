@@ -40,20 +40,13 @@ INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || ec
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
 
-# Core fuzzers (IccProfLib only)
+# Core fuzzers (IccProfLib only) — 1:1 mapping to upstream iccDEV tools
 CORE_FUZZERS=(
-  icc_profile_fuzzer
-  icc_calculator_fuzzer
   icc_v5dspobs_fuzzer
-  icc_multitag_fuzzer
   icc_roundtrip_fuzzer
   icc_dump_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_spectral_fuzzer
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
-  icc_deep_dump_fuzzer
   icc_fromcube_fuzzer
 )
 
@@ -263,13 +256,9 @@ build_fuzzer() {
   fi
 }
 
-echo "Core fuzzers (14) — parallel build with $NPROC cores:"
+echo "Core fuzzers (6) — parallel build with $NPROC cores:"
 for f in "${CORE_FUZZERS[@]}"; do
-  if [ "$f" = "icc_deep_dump_fuzzer" ] || [ "$f" = "icc_dump_fuzzer" ]; then
-    build_fuzzer "$f" "-Wl,--allow-multiple-definition" &
-  else
-    build_fuzzer "$f" &
-  fi
+  build_fuzzer "$f" &
 done
 wait
 

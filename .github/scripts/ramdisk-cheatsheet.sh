@@ -40,17 +40,17 @@ cat << 'EOF'
 
   # Quick 60-second smoke test on ramdisk
   FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
-    cfl/bin/icc_profile_fuzzer -max_total_time=60 -detect_leaks=0 -timeout=30 \
+    cfl/bin/icc_dump_fuzzer -max_total_time=60 -detect_leaks=0 -timeout=30 \
     -rss_limit_mb=4096 -use_value_profile=1 -max_len=5242880 \
     -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict \
-    /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+    /tmp/fuzz-ramdisk/corpus-icc_dump_fuzzer
 
   # 5-minute run with coverage stats
   FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
-    cfl/bin/icc_profile_fuzzer -max_total_time=300 -print_final_stats=1 \
+    cfl/bin/icc_dump_fuzzer -max_total_time=300 -print_final_stats=1 \
     -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 -use_value_profile=1 \
     -max_len=5242880 -artifact_prefix=/tmp/fuzz-ramdisk/ -dict=cfl/icc.dict \
-    /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer
+    /tmp/fuzz-ramdisk/corpus-icc_dump_fuzzer
 
   # 4-hour XML toxml fuzzer run on ramdisk
   FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
@@ -69,15 +69,15 @@ cat << 'EOF'
   sudo ./cfl/ramdisk-fuzz.sh 60
 
   # Only specific fuzzers
-  sudo ./cfl/ramdisk-fuzz.sh 120 icc_profile_fuzzer icc_io_fuzzer icc_fromxml_fuzzer
+  sudo ./cfl/ramdisk-fuzz.sh 120 icc_dump_fuzzer icc_link_fuzzer icc_fromxml_fuzzer
 
 ── 5. CORPUS MERGE / MINIMIZE ON RAMDISK ──────────────────────────────
 
   # Merge corpus (deduplicate, keep only coverage-increasing inputs)
-  mkdir -p /tmp/fuzz-ramdisk/merged-icc_profile_fuzzer && cfl/bin/icc_profile_fuzzer -merge=1 -detect_leaks=0 /tmp/fuzz-ramdisk/merged-icc_profile_fuzzer /tmp/fuzz-ramdisk/corpus-icc_profile_fuzzer cfl/icc_profile_fuzzer_seed_corpus
+  mkdir -p /tmp/fuzz-ramdisk/merged-icc_dump_fuzzer && cfl/bin/icc_dump_fuzzer -merge=1 -detect_leaks=0 /tmp/fuzz-ramdisk/merged-icc_dump_fuzzer /tmp/fuzz-ramdisk/corpus-icc_dump_fuzzer cfl/icc_dump_fuzzer_seed_corpus
 
   # Minimize a crashing input
-  cfl/bin/icc_profile_fuzzer -minimize_crash=1 -detect_leaks=0 -max_total_time=120 -artifact_prefix=/tmp/fuzz-ramdisk/ /tmp/fuzz-ramdisk/crash-XXXX
+  cfl/bin/icc_dump_fuzzer -minimize_crash=1 -detect_leaks=0 -max_total_time=120 -artifact_prefix=/tmp/fuzz-ramdisk/ /tmp/fuzz-ramdisk/crash-XXXX
 
 ── 6. SYNC CORPUS BACK TO DISK ────────────────────────────────────────
 

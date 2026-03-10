@@ -108,8 +108,11 @@ for historical reference.
 
 ### CFL-003: CIccTagArray alloc-dealloc-mismatch (CWE-762)
 
-- **PoC**: `crash-5d55e28af84613a7a72c0688193085664e7d0a36` (1463 bytes, multi-profile)
-- **ASAN trace**: `alloc-dealloc-mismatch (operator new[] vs free)` at IccTagComposite.cpp:1523
+- **PoC 1**: `crash-5d55e28af84613a7a72c0688193085664e7d0a36` (1463 bytes, multi-profile)
+- **PoC 2**: `test-profiles/cfl-003-roundtrip-segv-tary.icc` (5851 bytes, mntr/RGB, PCS='XCLR')
+  — Triggers SEGV at 0xbebebebebebebebe via BPC path; 3/3 reproducible with upstream iccRoundTrip
+- **ASAN trace**: `alloc-dealloc-mismatch (operator new[] vs free)` at IccTagComposite.cpp:1523,
+  or SEGV at 0xbebebebebebebebe (ASAN freed memory marker) at IccTagComposite.cpp:1511
 - **Root cause**: `CIccTagArray` copy constructor (line 1037) and `operator=` (line 1074)
   allocate `m_TagVals` with `new IccTagPtr[]`, but `Cleanup()` (line 1523) frees with
   `free()`. The `SetSize()` path uses `calloc()`/`icRealloc()`, which matches `free()`.
@@ -120,19 +123,31 @@ for historical reference.
   profile containing CIccTagArray tags. The reference overload at `IccCmm.cpp:8517`
   triggers `new CIccProfile(Profile)` → copy constructor → `CIccTagArray::NewCopy()`.
   `EvaluateProfile()` at `IccEval.cpp:104,115,120` uses this path (3× per profile).
-- **Upstream reproduction**:
+  Also triggered via BPC: `CIccApplyBPC::pixelXfm()` → `CIccProfile copy` → same mismatch.
+- **Upstream reproduction (PoC 1 — alloc-dealloc-mismatch)**:
   ```bash
   ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
   LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
     iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/17ChanPart1.icc
   ```
+- **Upstream reproduction (PoC 2 — SEGV)**:
+  ```bash
+  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+    iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/cfl-003-roundtrip-segv-tary.icc
+  ```
   Profile requirement: class `scnr`/`mntr`/`prtr`/`spac` AND contains `tary` tag.
-  `17ChanPart1.icc` (scnr, 17-channel) is the simplest trigger.
-- **Call chain**: `iccRoundTrip::main()` → `EvaluateProfile(path)` →
+  `17ChanPart1.icc` (scnr, 17-channel) triggers via EvaluateProfile→AddXform.
+  `cfl-003-roundtrip-segv-tary.icc` (mntr/RGB, invalid PCS) triggers via BPC→pixelXfm→copy.
+- **Call chain (PoC 1)**: `iccRoundTrip::main()` → `EvaluateProfile(path)` →
   `EvaluateProfile(CIccProfile*)` → `CIccCmm::AddXform(CIccProfile&)` →
   `new CIccProfile(Profile)` → `CIccTagArray::CIccTagArray(const&)` (new[]) →
   AddXform fails → `delete pProfile` → `CIccProfile::Cleanup()` →
   `CIccTagArray::Cleanup()` → `free(m_TagVals)` (mismatch)
+- **Call chain (PoC 2)**: `iccRoundTrip::main()` → `EvaluateProfile` →
+  `CIccCmm::AddXform` → `CIccXformMatrixTRC::Begin()` → `CIccXform::Begin()` →
+  `CIccApplyBPC::CalcFactors()` → `calcSrcBlackPoint()` → `pixelXfm()` →
+  `CIccProfile::CIccProfile(const&)` → `CIccTagArray::NewCopy()` → copy ctor SEGV
 
 ### CFL-004: CIccToneMapFunc Heap-Buffer-Overflow (CWE-122)
 

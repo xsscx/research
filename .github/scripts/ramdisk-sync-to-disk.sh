@@ -5,7 +5,7 @@
 # Usage:
 #   .github/scripts/ramdisk-sync-to-disk.sh              # sync all
 #   .github/scripts/ramdisk-sync-to-disk.sh --dry-run    # show what would sync
-#   .github/scripts/ramdisk-sync-to-disk.sh icc_profile_fuzzer icc_io_fuzzer
+#   .github/scripts/ramdisk-sync-to-disk.sh icc_dump_fuzzer icc_link_fuzzer
 #
 # Copies ramdisk corpus → cfl/corpus-<name>/ and saves crash artifacts
 # to cfl/findings/. Does NOT unmount the ramdisk.
@@ -21,21 +21,14 @@ CFL_DIR="$REPO_ROOT/cfl"
 DRY_RUN=false
 
 ALL_FUZZERS=(
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
-  icc_calculator_fuzzer
-  icc_deep_dump_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
   icc_fromxml_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_multitag_fuzzer
-  icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer

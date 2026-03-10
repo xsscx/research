@@ -8,7 +8,7 @@
 # Usage:
 #   sudo ./ramdisk-fuzz.sh                  # run all 18 fuzzers, 300s each
 #   sudo ./ramdisk-fuzz.sh 60               # run all 18 fuzzers, 60s each
-#   sudo ./ramdisk-fuzz.sh 120 icc_profile_fuzzer icc_io_fuzzer
+#   sudo ./ramdisk-fuzz.sh 120 icc_dump_fuzzer icc_fromxml_fuzzer
 #                                           # run only the named fuzzers
 #
 # The ramdisk is automatically unmounted on exit (or Ctrl-C).
@@ -34,22 +34,14 @@ if [[ "${1:-}" =~ ^[0-9]+$ ]]; then shift; fi
 
 # ── All 18 fuzzers ──────────────────────────────────────────────────
 ALL_FUZZERS=(
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
-  icc_calculator_fuzzer
-  icc_deep_dump_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
   icc_fromxml_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_multitag_fuzzer
-  icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
-  icc_spectral_b_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
@@ -131,11 +123,7 @@ done
 # Create per-fuzzer dict aliases for fuzzers that share a base dict
 declare -A FUZZER_DICTS=(
   [icc_toxml_fuzzer]="icc_xml_consolidated.dict"
-  [icc_io_fuzzer]="icc_core.dict"
   [icc_roundtrip_fuzzer]="icc_core.dict"
-  [icc_spectral_fuzzer]="icc_core.dict"
-  [icc_multitag_fuzzer]="icc_multitag.dict"
-  [icc_profile_fuzzer]="icc_profile.dict"
 )
 for fuzzer in "${!FUZZER_DICTS[@]}"; do
   base="${FUZZER_DICTS[$fuzzer]}"
@@ -169,7 +157,7 @@ for f in "${FUZZERS[@]}"; do
         grep -E 'image/tiff|image/jpeg|image/png|image/gif' | \
         cut -d: -f1 | \
         xargs -I{} cp --update=none {} "$ram_corpus/" 2>/dev/null
-    elif [ "$f" = "icc_deep_dump_fuzzer" ] || [ "$f" = "icc_dump_fuzzer" ]; then
+    elif [ "$f" = "icc_dump_fuzzer" ]; then
       # Add ICC profile files from xif/ (most comprehensive fuzzers benefit from diversity)
       find "$XIF_DIR" -maxdepth 1 -type f -print0 2>/dev/null | \
         xargs -0 file 2>/dev/null | \

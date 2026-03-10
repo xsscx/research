@@ -2294,8 +2294,9 @@ int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc) {
         foundSpectral = true;
         icUInt16Number numIn = pSpecMtx->NumInputChannels();
         icUInt16Number numOut = pSpecMtx->NumOutputChannels();
-        printf("      Spectral matrix: in=%u, out=%u, type=0x%08x\n",
-               numIn, numOut, elemType);
+        const icSpectralRange &range = pSpecMtx->GetRange();
+        printf("      Spectral matrix: in=%u, out=%u, steps=%u, type=0x%08x\n",
+               numIn, numOut, range.steps, elemType);
 
         if (numIn == 0 || numOut == 0) {
           printf("      %s[CRIT]  Zero-channel spectral matrix element%s\n",
@@ -2307,6 +2308,37 @@ int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc) {
           printf("      %s[WARN]  Spectral matrix channels (%u→%u) exceed 256%s\n",
                  ColorWarning(), numIn, numOut, ColorReset());
           spectralIssues++;
+        }
+
+        // Detect CIccMpeSpectralMatrix::Describe() HBO pattern (CWE-122).
+        // SetSize() allocates numVectors()*range.steps floats. numVectors()
+        // returns m_nInputChannels for EmissionMatrix, m_nOutputChannels for
+        // InvEmissionMatrix. Describe() iterates m_nOutputChannels rows and
+        // advances pointer by m_nInputChannels. When these don't match
+        // numVectors()/range.steps, Describe() reads past the allocation.
+        // Ref: CFL-006, GHSA pending.
+        if (range.steps > 0 && numIn != numOut) {
+          bool isEmission = (elemType == icSigEmissionMatrixElemType);
+          bool isInvEmission = (elemType == icSigInvEmissionMatrixElemType);
+          if (isEmission && numOut > numIn) {
+            // EmissionMatrix: numVectors()=numIn, alloc=numIn*steps
+            // Describe iterates numOut rows → reads past allocation
+            printf("      %s[CRIT]  HEURISTIC: EmissionMatrix out(%u) > in(%u) — "
+                   "Describe() HBO: iterates %u rows but allocation has %u "
+                   "— ICC.2-2023 §10.2.4%s\n",
+                   ColorCritical(), numOut, numIn, numOut, numIn, ColorReset());
+            printf("       CWE-122: Heap-based Buffer Overflow in Describe()\n");
+            spectralIssues++;
+          }
+          if ((isEmission || isInvEmission) && numIn != range.steps) {
+            // Pointer advance uses m_nInputChannels but data layout is
+            // range.steps per row — mismatch causes offset drift
+            printf("      %s[WARN]  HEURISTIC: SpectralMatrix in(%u) != steps(%u) — "
+                   "Describe() pointer advance mismatch — ICC.2-2023 §10.2.4%s\n",
+                   ColorWarning(), numIn, range.steps, ColorReset());
+            printf("       CWE-125: Out-of-bounds Read via pointer drift\n");
+            spectralIssues++;
+          }
         }
       }
 

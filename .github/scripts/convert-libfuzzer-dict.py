@@ -53,26 +53,16 @@ DICT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "cfl")
 
 FUZZER_DICT_MAP = {
-    "icc_apply_fuzzer":         "icc_apply_fuzzer.dict",
     "icc_applynamedcmm_fuzzer": "icc_applynamedcmm_fuzzer.dict",
     "icc_applyprofiles_fuzzer": "icc_applyprofiles_fuzzer.dict",
-    "icc_calculator_fuzzer":    "icc_calculator_fuzzer.dict",
-    "icc_deep_dump_fuzzer":     "icc_deep_dump_fuzzer.dict",
     "icc_dump_fuzzer":          "icc_dump_fuzzer.dict",
     "icc_fromcube_fuzzer":      "icc_fromcube_fuzzer.dict",
     "icc_fromxml_fuzzer":       "icc_fromxml_fuzzer.dict",
-    "icc_io_fuzzer":            "icc_io_fuzzer.dict",
     "icc_link_fuzzer":          "icc_link_fuzzer.dict",
-    "icc_multitag_fuzzer":      "icc_multitag_fuzzer.dict",
-    "icc_multitagarray_fuzzer": "icc_multitagarray_fuzzer.dict",
-    "icc_profile_fuzzer":       "icc_profile_fuzzer.dict",
     "icc_roundtrip_fuzzer":     "icc_roundtrip_fuzzer.dict",
     "icc_specsep_fuzzer":       "icc_specsep_fuzzer.dict",
-    "icc_spectral_fuzzer":      "icc_spectral_fuzzer.dict",
-    "icc_spectral_separator_fuzzer": "icc_spectral_separator_fuzzer.dict",
     "icc_tiffdump_fuzzer":      "icc_tiffdump_fuzzer.dict",
     "icc_toxml_fuzzer":         "icc_toxml_fuzzer.dict",
-    "icc_v5_fuzzer":            "icc_v5_fuzzer.dict",
     "icc_v5dspobs_fuzzer":      "icc_v5dspobs_fuzzer.dict",
 }
 
