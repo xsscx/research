@@ -134,32 +134,33 @@ else
 fi
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
-# --- Step 1b: Apply CFL OOM mitigation patches ---
-PATCHES_DIR="$SCRIPT_DIR/patches"
-PATCH_OK=0
-PATCH_SKIP=0
-PATCH_FAIL=0
-if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
-  echo "Applying CFL library patches..."
-  for p in "$PATCHES_DIR"/*.patch; do
-    pname="$(basename "$p")"
-    # Check if already applied (--reverse --dry-run succeeds)
-    if patch -p1 -d "$ICCDEV_DIR" --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
-      echo "  [SKIP] $pname (already applied)"
-      PATCH_SKIP=$((PATCH_SKIP + 1))
-    elif patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
-      echo "  [OK] $pname"
+# --- Step 1b: Apply CFL patches (if any) ---
+# Legacy 62-patch kit retired March 2026 (see patches-retired/).
+# New patches (CFL-001+) fix verified upstream bugs with minimal, targeted fixes.
+PATCH_DIR="$SCRIPT_DIR/patches"
+if [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
+  PATCH_OK=0
+  PATCH_FAIL=0
+  for p in "$PATCH_DIR"/*.patch; do
+    pname=$(basename "$p")
+    if patch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+      patch -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1
+      echo "[OK] Applied: $pname"
+      PATCH_OK=$((PATCH_OK + 1))
+    elif patch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+      echo "[OK] Already applied: $pname"
       PATCH_OK=$((PATCH_OK + 1))
     else
-      echo "  [FAIL] $pname — patch did not apply!"
+      echo "[FAIL] Cannot apply: $pname"
       PATCH_FAIL=$((PATCH_FAIL + 1))
     fi
   done
-  PATCH_TOTAL=$((PATCH_OK + PATCH_SKIP + PATCH_FAIL))
-  echo "Patches: $PATCH_OK applied, $PATCH_SKIP skipped, $PATCH_FAIL failed (${PATCH_TOTAL} total)"
+  echo "Patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
   if [ "$PATCH_FAIL" -gt 0 ]; then
-    echo "WARNING: $PATCH_FAIL patch(es) failed — CWE-400 protections may be missing!"
+    echo "WARNING: Some patches failed — check upstream changes"
   fi
+else
+  echo "No patches to apply (zero-patch mode)"
 fi
 
 # Strip stray U+FE0F (emoji variation selector) from upstream source
@@ -331,10 +332,3 @@ fi
 
 echo ""
 echo "[OK] All $BUILT fuzzers built successfully"
-
-# Run post-build verification if available
-if [ -x "$SCRIPT_DIR/verify-patches.sh" ]; then
-  echo ""
-  echo "── Running post-build verification ──"
-  "$SCRIPT_DIR/verify-patches.sh" --quick || echo "[WARN] Post-build verification failed — run verify-patches.sh for details"
-fi

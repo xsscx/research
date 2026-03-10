@@ -1,0 +1,16 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 8a4e05c..8a52c53 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -8172,6 +8172,11 @@ bool CIccTagData::SetSize(icUInt32Number nSize, bool bZeroNew/*=true*/)
+   if (m_nSize == nSize)
+     return true;
+ 
++  // CFL patch: cap TagData allocation to 128 MB to prevent OOM.
++  // nSize comes from profile tag data and can be arbitrarily large.
++  if (nSize > 134217728)
++    return false;
++
+   m_pData = (icUInt8Number*)icRealloc(m_pData, nSize*sizeof(icUInt8Number));
+ 
+   if (!m_pData) {

@@ -68,7 +68,6 @@
 #include "IccTagMPE.h"
 #include "IccTagComposite.h"
 #include "IccTagDict.h"
-#include "IccMpeCalc.h"
 #include "IccUtil.h"
 #include "IccIO.h"
 #include "IccSignatureUtils.h"
