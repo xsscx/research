@@ -74,9 +74,10 @@ for historical reference.
 |---|-------|-----|-----|----------------|
 | 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
 | 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
+| 003 | TagArray alloc-dealloc mismatch | new[] in copy ctor, free() in Cleanup() | CWE-762 | IccTagComposite.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **003**)
+- Numbering: zero-padded 3-digit, sequential (next: **004**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
@@ -103,6 +104,20 @@ for historical reference.
 - **Fix 2**: Defense-in-depth `strnlen(szSrc, 256)` in `icAnsiToUtf8()`/`icUtf8ToAnsi()`
 - **Affected tools**: iccToXml, icc_toxml_fuzzer, icc_dump_fuzzer, icc_deep_dump_fuzzer
 - **iccanalyzer-lite counterpart**: H144 (XML String Termination Precheck) detects this pattern
+
+### CFL-003: CIccTagArray alloc-dealloc-mismatch (CWE-762)
+
+- **PoC**: `crash-5d55e28af84613a7a72c0688193085664e7d0a36` (1463 bytes, multi-profile)
+- **ASAN trace**: `alloc-dealloc-mismatch (operator new[] vs free)` at IccTagComposite.cpp:1523
+- **Root cause**: `CIccTagArray` copy constructor (line 1037) and `operator=` (line 1074)
+  allocate `m_TagVals` with `new IccTagPtr[]`, but `Cleanup()` (line 1523) frees with
+  `free()`. The `SetSize()` path uses `calloc()`/`icRealloc()`, which matches `free()`.
+  Mixed allocation strategies cause undefined behavior on copy/assign paths.
+- **Fix**: Replace `new IccTagPtr[n]` with `calloc(n, sizeof(IccTagPtr))` in both
+  copy constructor and `operator=` to match the `free()` in `Cleanup()`.
+- **Affected tools**: Any tool that copies CIccProfile objects with CIccTagArray tags
+  (CIccCmm::Begin → CIccXform::Begin → profile copy → CIccTagArray copy ctor)
+- **Trigger**: icc_applyprofiles_fuzzer via CIccCmm::Begin() → CIccXformNDLut::Begin()
 
 ## Fuzzing — Ramdisk Workflow
 
