@@ -331,3 +331,10 @@ fi
 
 echo ""
 echo "[OK] All $BUILT fuzzers built successfully"
+
+# Run post-build verification if available
+if [ -x "$SCRIPT_DIR/verify-patches.sh" ]; then
+  echo ""
+  echo "── Running post-build verification ──"
+  "$SCRIPT_DIR/verify-patches.sh" --quick || echo "[WARN] Post-build verification failed — run verify-patches.sh for details"
+fi
