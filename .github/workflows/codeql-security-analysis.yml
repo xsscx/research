@@ -161,7 +161,7 @@ jobs:
           OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
           $CXX $OBJS \
             -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -lm -ltiff -lpng -ljpeg \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
             -Wl,--allow-multiple-definition \
             -o iccanalyzer-lite
 
