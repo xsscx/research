@@ -1,8 +1,6 @@
-diff --git a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
-index c8dd391..249860c 100644
 --- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
 +++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
-@@ -221,7 +221,11 @@ bool CTiffImg::Create(const char *szFname, unsigned int nWidth, unsigned int nHe
+@@ -222,7 +222,11 @@
      }
      m_nBytesPerLine = m_nWidth * m_nBytesPerSample * m_nSamples;
  
@@ -15,10 +13,10 @@ index c8dd391..249860c 100644
  
      if (!m_pStripBuf) {
        Close();
-@@ -312,7 +316,11 @@ bool CTiffImg::Open(const char *szFname)
-     m_nBytesPerLine = (m_nWidth * m_nBitsPerSample * m_nSamples + 7)>>3;
-   }
- 
+@@ -317,7 +321,11 @@
+   //   it is safer to have the buffer too large than too small.
+   m_nStripSize = std::max( m_nStripSize, m_nRowsPerStrip * m_nBytesPerLine );
+   
 -  m_pStripBuf = (unsigned char*)malloc(m_nStripSize*m_nStripSamples);
 +  if (m_nStripSamples && m_nStripSize > SIZE_MAX / m_nStripSamples) {
 +    Close();
