@@ -1,0 +1,19 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1f68f4b..1fb06f6 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3474,12 +3474,12 @@ bool CIccCalculatorFunc::Read(icUInt32Number size, CIccIO *pIO)
+     return false;
+   }
+ 
+-  icChannelFuncSignature sig;
++  icUInt32Number sig;
+ 
+   if (!pIO->Read32(&sig))
+     return false;
+ 
+-  if (sig!= GetType())
++  if (sig != (icUInt32Number)GetType())
+     return false;
+ 
+   if (!pIO->Read32(&m_nReserved))
