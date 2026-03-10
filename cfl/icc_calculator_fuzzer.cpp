@@ -40,6 +40,7 @@
 #include "IccTagLut.h"
 #include "IccUtil.h"
 #include "IccMpeFactory.h"
+#include "CflSafeDescribe.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <new>
@@ -109,7 +110,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           
           // Exercise tag description
           std::string desc;
-          pTag->Describe(desc, 100);
+          SafeDescribe(pTag, desc, 100);
         }
       }
 

@@ -47,6 +47,9 @@
  *
  * Scope: profile parsing + Describe/Validate only — NO Begin/Apply/CMM.
  * Complementary to icc_deep_dump_fuzzer which adds type-specific deep dives.
+ *
+ * V3: SafeDescribe() guards — validates tag state before Describe() to prevent
+ *     crashes from partially-loaded internal state (CFL-004 alignment fix).
  */
 
 #include <stdint.h>
@@ -62,6 +65,7 @@
 #include "IccTagLut.h"
 #include "IccUtil.h"
 #include "IccIO.h"
+#include "CflSafeDescribe.h"
 
 // ─── Timeout/OOM guards ───
 static constexpr size_t   kMaxProfileSize    = 4 * 1024 * 1024;   // 4 MB
@@ -221,17 +225,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     volatile bool badSize = true; (void)badSize;
   }
 
-  // ── Phase 3: Describe() all tags with output cap (DumpTagCore, line 108) ──
+  // ── Phase 3: Describe() all tags with validation guard (DumpTagCore, line 108) ──
   for (auto i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     if (!i->pTag) continue;
 
     std::string desc;
-    desc.reserve(kMaxDescribeLen);
-    i->pTag->Describe(desc, verboseness);
-
-    // Truncate if Describe() produced excessive output (CWE-400 guard)
-    if (desc.size() > kMaxDescribeLen)
-      desc.resize(kMaxDescribeLen);
+    SafeDescribe(i->pTag, desc, verboseness);
 
     i->pTag->GetType();
     if (i->pTag->IsArrayType()) {
