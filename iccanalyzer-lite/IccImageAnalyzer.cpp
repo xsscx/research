@@ -641,8 +641,8 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
   };
   auto readU32 = [&](const uint8_t *p) -> uint32_t {
     return littleEndian
-      ? (uint32_t)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24))
-      : (uint32_t)((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
+      ? ((uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24))
+      : (((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3]);
   };
 
   uint16_t magic = readU16(header + 2);
@@ -810,7 +810,9 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
     uint64_t expectedTileBytes = (uint64_t)tileW * tileH * bytesPerPixel;
 
     // Check for integer overflow in tile size calculation
-    if (tileW > 0 && expectedTileBytes / tileW / bytesPerPixel != tileH) {
+    // tileW, tileH are uint32, bytesPerPixel is small — check product exceeds 32-bit range
+    if (tileW > 0 && bytesPerPixel > 0 &&
+        (uint64_t)tileW * tileH > UINT32_MAX / bytesPerPixel) {
       printf("      %s[CRIT]  HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu%s\n",
              ColorCritical(), tileW, tileH, (unsigned long long)bytesPerPixel, ColorReset());
       printf("       %sCWE-190: Integer overflow → heap buffer overflow%s\n",
