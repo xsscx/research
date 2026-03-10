@@ -1,64 +1,21 @@
 --- a/IccProfLib/IccTagBasic.cpp
 +++ b/IccProfLib/IccTagBasic.cpp
-@@ -3748,6 +3748,15 @@
+@@ -3755,6 +3755,10 @@
  void CIccTagXYZ::Describe(std::string &sDescription, int /* nVerboseness */)
  {
-+  // CFL-080: Cap Describe() output to 1MB. XYZ tags with crafted m_nSize
-+  // can produce 320GB+ of text (16M entries × 20 bytes each).
-+  // Same pattern affects Chromaticity and ColorantTable below.
-+  // The cap truncates output with notice rather than producing
-+  // unbounded allocation. CWE-400.
-+  static const size_t kMaxDescribeSize = 1048576; // 1 MB
-+  if (sDescription.size() > kMaxDescribeSize)
-+    return;
-+
-   const size_t bufSize = 80;
-   icChar buf[bufSize];
- 
-@@ -3755,6 +3764,8 @@
-   for (int i=0; i<(int)m_nSize; i++) {
-     snprintf(buf, bufSize, "value[%d]:  X=%.4lf, Y=%.4lf, Z=%.4lf\n", i,
-        icFtoD(m_XYZ[i].X), icFtoD(m_XYZ[i].Y), icFtoD(m_XYZ[i].Z));
-+    if (sDescription.size() > kMaxDescribeSize)
-+      break;
-     sDescription += buf;
-   }
- }
-@@ -4033,6 +4044,10 @@
- void CIccTagChromaticity::Describe(std::string &sDescription, int /* nVerboseness */)
- {
+   const size_t bufSize = 128;
++  // CFL-080: Cap Describe() output to 1MB (CWE-400)
 +  static const size_t kMaxDescribeSize = 1048576;
 +  if (sDescription.size() > kMaxDescribeSize)
 +    return;
-+
-   const size_t bufSize = 80;
    icChar buf[bufSize];
  
-@@ -4040,6 +4055,8 @@
-   for (int i=0; i<(int)m_nChannels; i++) {
-     snprintf(buf, bufSize, "flCrd[%d]:  Flare_Crd_X=%.4lf, Flare_Crd_Y=%.4lf\n",
-       i, icUFtoD(m_Chromaticity[i].x), icUFtoD(m_Chromaticity[i].y));
-+    if (sDescription.size() > kMaxDescribeSize)
-+      break;
-     sDescription += buf;
-   }
- }
-@@ -9016,6 +9033,10 @@
- void CIccTagColorantTable::Describe(std::string &sDescription, int /* nVerboseness */)
- {
-+  static const size_t kMaxDescribeSize = 1048576;
-+  if (sDescription.size() > kMaxDescribeSize)
-+    return;
-+
-   const size_t bufSize = 80;
-   icChar buf[bufSize];
+   if (m_nSize == 1 ) {
+@@ -3767,6 +3771,7 @@
  
-@@ -9023,6 +9044,8 @@
-   for (int i=0; i<(int)m_nCount; i++) {
-     snprintf(buf, bufSize, "Flr_Name=%s, Flr_Data0=0x%04x, Flr_Data1=0x%04x, Flr_Data2=0x%04x\n",
-       m_Colorants[i].name, m_Colorants[i].data[0], m_Colorants[i].data[1], m_Colorants[i].data[2]);
-+    if (sDescription.size() > kMaxDescribeSize)
-+      break;
-     sDescription += buf;
+     for (i=0; i<m_nSize; i++) {
+       snprintf(buf, bufSize, "value[%u]: X=%.4lf, Y=%.4lf, Z=%.4lf\n", i, icFtoD(m_XYZ[i].X), icFtoD(m_XYZ[i].Y), icFtoD(m_XYZ[i].Z));
++      if (sDescription.size() > kMaxDescribeSize) break;
+       sDescription += buf;
+     }
    }
- }

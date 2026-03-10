@@ -1,59 +1,60 @@
 --- a/IccProfLib/IccMpeCalc.h
 +++ b/IccProfLib/IccMpeCalc.h
-@@ -408,7 +408,7 @@
+@@ -406,8 +406,8 @@
+ 
+   void InsertBlanks(std::string &sDescription, int nBlanks);
    void DescribeSequence(std::string &sDescription,
-                         icUInt32Number nOps, SIccCalcOp *op, int nBlanks);
+-                        icUInt32Number nOps, SIccCalcOp *op, int nBlanks);
 -  bool ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *op) const;
++                        icUInt32Number nOps, SIccCalcOp *op, int nBlanks, int nDepth = 0);
 +  bool ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *op, int nDepth = 0) const;
  
-   const char *ParseFuncDef(const char *szFuncDef, CIccCalcOpList &m_list, std::string &sReport);
- 
+   icFuncParseStatus DoesSequenceHaveAnyErrors(std::string &sReport,
+                                         icUInt32Number nOps, SIccCalcOp *op, int nBlanks,
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -3695,8 +3695,16 @@
+@@ -3692,8 +3692,12 @@
+ * 
+ * Return: 
+ ******************************************************************************/
 -bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *ops) const
 +bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *ops, int nDepth) const
  {
-+  // CFL-079: Add runtime depth limit to ApplySequence().
-+  // CheckUnderflowOverflow() guards Begin() with depth=16 and 100K ops,
-+  // but the EXECUTION path (Apply→ApplySequence) had ZERO runtime limits.
-+  // Deep nesting via if/else/select/case causes unbounded stack growth.
-+  // Match validation depth limit. CWE-674.
++  // CFL-079: Runtime depth limit for ApplySequence (CWE-674)
 +  static const int kMaxApplyDepth = 16;
 +  if (nDepth > kMaxApplyDepth)
 +    return false;
-+
    SIccCalcOp *op;
    SIccOpState os;
  
-@@ -3728,7 +3736,7 @@
-           if (os.idx+1 + ifSize > nOps)
+@@ -3729,7 +3733,7 @@
+           if (os.idx+1 + dataSize >= nOps)
              return false;
  
--          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1]))
-+          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1], nDepth + 1))
+-          if (!ApplySequence(pApply, dataSize, &ops[os.idx+1]))
++          if (!ApplySequence(pApply, dataSize, &ops[os.idx+1], nDepth + 1))
              return false;
          }
          else {
-@@ -3736,7 +3744,7 @@
-           if (os.idx+1 + ifSize + elseSize > nOps)
+@@ -3741,7 +3745,7 @@
+           if (newOpIndex + nNewOps > nOps)  // now add and test the real limit
              return false;
  
--          if (elseSize && !ApplySequence(pApply, elseSize, &ops[os.idx+1 + ifSize]))
-+          if (elseSize && !ApplySequence(pApply, elseSize, &ops[os.idx+1 + ifSize], nDepth + 1))
+-          if (!ApplySequence(pApply, nNewOps, &ops[os.idx+1 + op->data.size]))
++          if (!ApplySequence(pApply, nNewOps, &ops[os.idx+1 + op->data.size], nDepth + 1))
              return false;
          }
-         os.idx += ifSize + elseSize;
-@@ -3748,7 +3756,7 @@
-           if (os.idx + ifSize >= nOps)
+         os.idx += op->data.size + ops[os.idx].data.size;
+@@ -3754,7 +3758,7 @@
+           if (os.idx+dataSize >= nOps)
              return false;
  
--          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1]))
-+          if (ifSize && !ApplySequence(pApply, ifSize, &ops[os.idx+1], nDepth + 1))
+-          if (!ApplySequence(pApply, op->data.size, &ops[os.idx+1]))
++          if (!ApplySequence(pApply, op->data.size, &ops[os.idx+1], nDepth + 1))
              return false;
          }
-         os.idx += ifSize;
-@@ -3793,7 +3801,7 @@
+         os.idx+= op->data.size;
+@@ -3801,7 +3805,7 @@
            if ((nDefOff + dataSize) >= nOps)
              return false;
            
@@ -62,7 +63,7 @@
              break;
          }
        }
-@@ -3811,7 +3819,7 @@
+@@ -3821,7 +3825,7 @@
          if (offset >= nOps)
            return false;
          

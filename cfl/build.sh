@@ -136,15 +136,30 @@ echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
 # --- Step 1b: Apply CFL OOM mitigation patches ---
 PATCHES_DIR="$SCRIPT_DIR/patches"
+PATCH_OK=0
+PATCH_SKIP=0
+PATCH_FAIL=0
 if [ -d "$PATCHES_DIR" ] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
   echo "Applying CFL library patches..."
   for p in "$PATCHES_DIR"/*.patch; do
-    if patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
-      echo "  [OK] $(basename "$p")"
+    pname="$(basename "$p")"
+    # Check if already applied (--reverse --dry-run succeeds)
+    if patch -p1 -d "$ICCDEV_DIR" --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
+      echo "  [SKIP] $pname (already applied)"
+      PATCH_SKIP=$((PATCH_SKIP + 1))
+    elif patch -p1 -d "$ICCDEV_DIR" --forward -s < "$p" 2>/dev/null; then
+      echo "  [OK] $pname"
+      PATCH_OK=$((PATCH_OK + 1))
     else
-      echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+      echo "  [FAIL] $pname — patch did not apply!"
+      PATCH_FAIL=$((PATCH_FAIL + 1))
     fi
   done
+  PATCH_TOTAL=$((PATCH_OK + PATCH_SKIP + PATCH_FAIL))
+  echo "Patches: $PATCH_OK applied, $PATCH_SKIP skipped, $PATCH_FAIL failed (${PATCH_TOTAL} total)"
+  if [ "$PATCH_FAIL" -gt 0 ]; then
+    echo "WARNING: $PATCH_FAIL patch(es) failed — CWE-400 protections may be missing!"
+  fi
 fi
 
 # Strip stray U+FE0F (emoji variation selector) from upstream source
