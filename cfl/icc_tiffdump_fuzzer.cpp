@@ -31,6 +31,7 @@
 #include "IccIO.h"
 #include "TiffImg.h"
 #include "fuzz_utils.h"
+#include "CflSafeDescribe.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -157,10 +158,9 @@ static void ExerciseProfile(CIccProfile *pProfile, int depth) {
       (void)pTag->IsArrayType();
       (void)pTag->IsNumArrayType();
 
-      // Describe() with 64KB cap — the core coverage target
+      // Describe() with validation guard — the core coverage target
       std::string desc;
-      pTag->Describe(desc, 0);
-      if (desc.size() > 65536) desc.resize(65536);
+      SafeDescribe(pTag, desc, 0, 65536);
 
       // Profile description tag — specific branches
       if (entry->TagInfo.sig == icSigProfileDescriptionTag) {

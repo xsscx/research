@@ -75,9 +75,10 @@ for historical reference.
 | 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
 | 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
 | 003 | TagArray alloc-dealloc mismatch | new[] in copy ctor, free() in Cleanup() | CWE-762 | IccTagComposite.cpp |
+| 004 | ToneMapFunc Read parameter count | HBO via Describe() accessing m_params[0..2] with only 1 allocated | CWE-122 | IccMpeBasic.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **004**)
+- Numbering: zero-padded 3-digit, sequential (next: **005**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
@@ -132,6 +133,39 @@ for historical reference.
   `new CIccProfile(Profile)` → `CIccTagArray::CIccTagArray(const&)` (new[]) →
   AddXform fails → `delete pProfile` → `CIccProfile::Cleanup()` →
   `CIccTagArray::Cleanup()` → `free(m_TagVals)` (mismatch)
+
+### CFL-004: CIccToneMapFunc Heap-Buffer-Overflow (CWE-122)
+
+- **PoC**: `crash-6ec5f76cd5d6c934c111eb59bc81ea44362ca3ee` (2368 bytes, BT.2100 HLG Narrow)
+- **ASAN trace**: `CIccToneMapFunc::Describe()` at IccMpeBasic.cpp:3984 — accesses
+  `m_params[0]`, `m_params[1]`, `m_params[2]` but only 1 float allocated
+- **Root cause**: `CIccToneMapFunc::Read()` computes `m_nParameters = (size - headerSize) / sizeof(icFloatNumber)`
+  from file-controlled size without validating against `NumArgs()`. When the file provides
+  only 1 parameter but the function type expects 3, `Describe()` reads past the allocation.
+- **Fix**: After computing `m_nParameters`, validate `m_nParameters >= NumArgs()`. If
+  insufficient, set `m_params = NULL; m_nParameters = 0; return false;`
+- **Upstream reproduction**: `iccDumpProfile <file> ALL` triggers DumpTagCore → Describe
+- **Fuzzer alignment fix**: All 6 Describe-calling fuzzers now use `SafeDescribe()`
+  from `CflSafeDescribe.h` which validates tag state before calling `Describe()`
+
+## Fuzzer Alignment — SafeDescribe Pattern
+
+All fuzzers that call `CIccTag::Describe()` use `SafeDescribe()` from `CflSafeDescribe.h`.
+This wrapper runs `Validate()` first — if the tag has `icValidateCriticalError`, it
+skips `Describe()` to avoid crashes from partially-loaded internal state.
+
+**Affected fuzzers** (6 of 18):
+- `icc_dump_fuzzer.cpp` — tag iteration Describe
+- `icc_deep_dump_fuzzer.cpp` — tags, curves, MPE elements, structs, dicts
+- `icc_profile_fuzzer.cpp` — tag iteration + FindTag Describe
+- `icc_calculator_fuzzer.cpp` — LUT/MPE Describe
+- `icc_spectral_fuzzer.cpp` — spectral tags, MPE, all tags
+- `icc_tiffdump_fuzzer.cpp` — embedded ICC tag Describe
+
+**Why this matters**: Fuzzers call `Describe()` unconditionally on every loaded tag.
+Upstream tools only call `Describe()` in specific modes (e.g., `iccDumpProfile ALL`).
+When `Read()` partially populates internal state, `Describe()` reads out of bounds.
+`SafeDescribe()` catches this by running `Validate()` first.
 
 ## Fuzzing — Ramdisk Workflow
 
