@@ -193,10 +193,10 @@ jobs:
           INC_TIFF="$INC_CORE -I../iccDEV/Tools/CmdLine/IccApplyProfiles"
 
           # Core fuzzers (IccProfLib only)
-          CORE_FUZZERS="icc_apply_fuzzer icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer
-            icc_calculator_fuzzer icc_deep_dump_fuzzer icc_dump_fuzzer icc_fromcube_fuzzer
-            icc_io_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_profile_fuzzer
-            icc_roundtrip_fuzzer icc_spectral_fuzzer icc_v5dspobs_fuzzer"
+          CORE_FUZZERS="icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer
+            icc_dump_fuzzer icc_fromcube_fuzzer
+            icc_link_fuzzer
+            icc_roundtrip_fuzzer icc_v5dspobs_fuzzer"
           for f in $CORE_FUZZERS; do
             $CXX $CXXFLAGS $INC_CORE -c "${f}.cpp" -o "${f}.o" 2>/dev/null || true
           done

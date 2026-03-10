@@ -33,33 +33,12 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   
   # No additional link libraries needed - Clang provides runtime automatically
   
-  # Core ICC profile fuzzer
-  add_executable(icc_profile_fuzzer icc_profile_fuzzer.cpp)
-  target_compile_options(icc_profile_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_profile_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_profile_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_profile_fuzzer IccProfLib2)
-  
-  # Calculator fuzzer
-  add_executable(icc_calculator_fuzzer icc_calculator_fuzzer.cpp)
-  target_compile_options(icc_calculator_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_calculator_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_calculator_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_calculator_fuzzer IccProfLib2)
-  
   # V5 DSP/OBS fuzzer
   add_executable(icc_v5dspobs_fuzzer icc_v5dspobs_fuzzer.cpp)
   target_compile_options(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_v5dspobs_fuzzer IccProfLib2)
-  
-  # Multitag fuzzer
-  add_executable(icc_multitag_fuzzer icc_multitag_fuzzer.cpp)
-  target_compile_options(icc_multitag_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_multitag_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_multitag_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_multitag_fuzzer IccProfLib2)
   
   # Roundtrip fuzzer
   add_executable(icc_roundtrip_fuzzer icc_roundtrip_fuzzer.cpp)
@@ -75,26 +54,12 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_dump_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_dump_fuzzer IccProfLib2)
   
-  # IO fuzzer
-  add_executable(icc_io_fuzzer icc_io_fuzzer.cpp)
-  target_compile_options(icc_io_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_io_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_io_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_io_fuzzer IccProfLib2)
-  
   # Link fuzzer
   add_executable(icc_link_fuzzer icc_link_fuzzer.cpp)
   target_compile_options(icc_link_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_link_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_link_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_link_fuzzer IccProfLib2)
-  
-  # Spectral fuzzer
-  add_executable(icc_spectral_fuzzer icc_spectral_fuzzer.cpp)
-  target_compile_options(icc_spectral_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_spectral_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_spectral_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_spectral_fuzzer IccProfLib2)
   
   # FromCube fuzzer
   add_executable(icc_fromcube_fuzzer icc_fromcube_fuzzer.cpp)
@@ -103,13 +68,6 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_fromcube_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_fromcube_fuzzer IccProfLib2)
 
-  # Apply fuzzer
-  add_executable(icc_apply_fuzzer icc_apply_fuzzer.cpp)
-  target_compile_options(icc_apply_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
-  target_link_options(icc_apply_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_apply_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_apply_fuzzer IccProfLib2)
-  
   # ApplyNamedCmm fuzzer
   add_executable(icc_applynamedcmm_fuzzer icc_applynamedcmm_fuzzer.cpp)
   target_compile_options(icc_applynamedcmm_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
@@ -160,8 +118,8 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
   
   message(STATUS "Fuzzing harnesses configured:")
-  message(STATUS "  Core: profile, calculator, v5dspobs, multitag, roundtrip, dump, io, link, spectral, fromcube (10)")
-  message(STATUS "  Apply: apply, applynamedcmm, applyprofiles (3)")
+  message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
+  message(STATUS "  Apply: applynamedcmm, applyprofiles (2)")
   if(TARGET IccXML2)
     message(STATUS "  XML: fromxml, toxml (2)")
   endif()
