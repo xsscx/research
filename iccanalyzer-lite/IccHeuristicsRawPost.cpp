@@ -21,6 +21,22 @@
 #include <cmath>
 #include "IccHeuristicsHelpers.h"
 
+// ── Named constants replacing magic numbers ──
+// Max tags to iterate when scanning tag table entries in raw byte heuristics.
+static constexpr icUInt32Number kMaxTagScanCount = 256;
+// Max bytes to scan within a single tag's data region.
+static constexpr size_t kMaxTagDataScan = 4096;
+// Max curve entries to sample (2 bytes per entry → 512 bytes).
+static constexpr size_t kMaxCurveDataScan = 512;
+// Max MPE elements before flagging as suspicious.
+static constexpr uint32_t kMaxMpeElements = 256;
+// Max sparse matrix entries before flagging CWE-789 amplification.
+static constexpr uint64_t kMaxSparseMatrixEntries = 16ULL * 1024 * 1024;
+// Max CLUT grid product before flagging overflow (256M entries).
+static constexpr uint64_t kMaxCLUTGridProduct = 256ULL * 1024 * 1024;
+// Max vertex data size for mesh structures (256MB).
+static constexpr uint64_t kMaxVertexDataBytes = 256ULL * 1024 * 1024;
+
 
 int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
 {
@@ -48,7 +64,7 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
         if (fread(hdr33, 1, 132, fh33.fp) == 132) {
           icUInt32Number tc33 = ReadU32BE(&hdr33[128]);
 
-          for (icUInt32Number i = 0; i < tc33 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc33 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs33) break;
 
@@ -143,7 +159,7 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
         if (fread(hdr34, 1, 132, fh34.fp) == 132) {
           icUInt32Number tc34 = ReadU32BE(&hdr34[128]);
 
-          for (icUInt32Number i = 0; i < tc34 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc34 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs34) break;
 
@@ -234,7 +250,7 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
         if (fread(hdr35, 1, 132, fh35.fp) == 132) {
           icUInt32Number tc35 = ReadU32BE(&hdr35[128]);
 
-          for (icUInt32Number i = 0; i < tc35 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc35 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs35) break;
 
@@ -254,14 +270,14 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
             icUInt32Number tagType35 = ReadU32BE(typeCheck);
             if (tagType35 != 0x6D414220 && tagType35 != 0x6D424120) continue;
 
-            // Read B-curve data region (bytes 32+ within the tag, up to 256 bytes)
+            // Read B-curve data region (bytes 32+ within the tag, up to kMaxTagScanCount bytes)
             size_t dataStart = (uint64_t)tOff35 + 32;
             size_t dataLen = tSz35 - 32;
-            if (dataLen > 256) dataLen = 256;
+            if (dataLen > kMaxTagScanCount) dataLen = kMaxTagScanCount;
             if (dataStart + dataLen > fs35) dataLen = fs35 - dataStart;
             if (dataLen < 16) continue;
 
-            icUInt8Number bData[256];
+            icUInt8Number bData[kMaxTagScanCount];
             fseek(fh35.fp, dataStart, SEEK_SET);
             if (fread(bData, 1, dataLen, fh35.fp) != dataLen) continue;
 
@@ -340,7 +356,7 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
           bool hasA2B[4] = {false}, hasB2A[4] = {false};
           bool hasD2B[4] = {false}, hasB2D[4] = {false};
 
-          for (icUInt32Number i = 0; i < tc36 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc36 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs36) break;
 
@@ -420,7 +436,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
         if (fread(hdr37, 1, 132, fh37.fp) == 132) {
           icUInt32Number tc37 = ReadU32BE(&hdr37[128]);
 
-          for (icUInt32Number i = 0; i < tc37 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc37 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs37) break;
 
@@ -444,7 +460,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
 
             // Scan tag data for 'calc' sub-element signatures (0x63616C63)
             // and count occurrences + check for extreme indices
-            size_t scanLen = (tSz37 < 4096) ? tSz37 : 4096;
+            size_t scanLen = (tSz37 < kMaxTagDataScan) ? tSz37 : kMaxTagDataScan;
             if (tOff37 + scanLen > fs37) scanLen = fs37 - tOff37;
             if (scanLen < 8) continue;
 
@@ -485,9 +501,9 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             // mpet: type(4) + reserved(4) + nInput(2) + nOutput(2) + nElements(4) = 16 bytes
             if (scanLen >= 16) {
               icUInt32Number nElems = ReadU32BE(&scanBuf[12]);
-              if (nElems > 256) {
-                printf("      %s[WARN]  Tag '%s': MPE has %u elements (limit 256)%s\n",
-                       ColorCritical(), sig37, nElems, ColorReset());
+              if (nElems > kMaxMpeElements) {
+                printf("      %s[WARN]  Tag '%s': MPE has %u elements (limit %u)%s\n",
+                       ColorCritical(), sig37, nElems, kMaxMpeElements, ColorReset());
                 printf("       %sRisk: DoS via excessive element processing%s\n",
                        ColorCritical(), ColorReset());
                 calcIssues++;
@@ -530,7 +546,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
         if (fread(hdr38, 1, 132, fh38.fp) == 132) {
           icUInt32Number tc38 = ReadU32BE(&hdr38[128]);
 
-          for (icUInt32Number i = 0; i < tc38 && i < 256; i++) {
+          for (icUInt32Number i = 0; i < tc38 && i < kMaxTagScanCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs38) break;
 
@@ -559,7 +575,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
               if (count > 1 && count <= 65535) {
                 size_t dataStart = (uint64_t)tOff38 + 12;
                 size_t dataLen = count * 2;
-                if (dataLen > 512) dataLen = 512; // sample first 256 entries
+                if (dataLen > kMaxCurveDataScan) dataLen = kMaxCurveDataScan; // sample first 256 entries
                 if (dataStart + dataLen > fs38) continue;
 
                 icUInt8Number *cData = new icUInt8Number[dataLen];
@@ -652,7 +668,7 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
         icUInt8Number hdr39[132];
         if (fread(hdr39, 1, 132, fh39.fp) == 132) {
           icUInt32Number tc39 = ReadU32BE(&hdr39[128]);
-          if (tc39 > 256) tc39 = 256;
+          if (tc39 > kMaxTagScanCount) tc39 = 256;
 
           struct TagEntry39 { icUInt32Number sig; icUInt32Number off; icUInt32Number sz; };
           std::vector<TagEntry39> tags39;
@@ -741,7 +757,7 @@ int RunHeuristic_H40_TagAlignmentPadding(const char *filename)
         icUInt8Number hdr40[132];
         if (fread(hdr40, 1, 132, fh40.fp) == 132) {
           icUInt32Number tc40 = ReadU32BE(&hdr40[128]);
-          if (tc40 > 256) tc40 = 256;
+          if (tc40 > kMaxTagScanCount) tc40 = 256;
 
           int misaligned = 0;
           int nonZeroPad = 0;
@@ -839,7 +855,7 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
           printf("      Profile version: %u.%u.%u\n", verMajor, (verMinor >> 4), (verMinor & 0x0F));
 
           icUInt32Number tc41 = ReadU32BE(&hdr41[128]);
-          if (tc41 > 256) tc41 = 256;
+          if (tc41 > kMaxTagScanCount) tc41 = 256;
 
           // v5-only type signatures
           static const icUInt32Number v5OnlyTypes[] = {
@@ -945,7 +961,7 @@ int RunHeuristic_H42_MatrixSingularity(const char *filename)
         icUInt8Number hdr42[132];
         if (fread(hdr42, 1, 132, fh42.fp) == 132) {
           icUInt32Number tc42 = ReadU32BE(&hdr42[128]);
-          if (tc42 > 256) tc42 = 256;
+          if (tc42 > kMaxTagScanCount) tc42 = 256;
 
           // Find rXYZ (0x7258595A), gXYZ (0x6758595A), bXYZ (0x6258595A)
           static const icUInt32Number xyzSigs[] = {0x7258595A, 0x6758595A, 0x6258595A};
@@ -1034,7 +1050,7 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
         icUInt8Number hdr43[132];
         if (fread(hdr43, 1, 132, fh43.fp) == 132) {
           icUInt32Number tc43 = ReadU32BE(&hdr43[128]);
-          if (tc43 > 256) tc43 = 256;
+          if (tc43 > kMaxTagScanCount) tc43 = 256;
 
           bool hasSdin = false, hasSwpt = false;
           bool hasEobs = false, hasRobs = false, hasSvcn = false;
@@ -1149,7 +1165,7 @@ int RunHeuristic_H44_EmbeddedImageValidation(const char *filename)
         icUInt8Number hdr44[132];
         if (fread(hdr44, 1, 132, fh44.fp) == 132) {
           icUInt32Number tc44 = ReadU32BE(&hdr44[128]);
-          if (tc44 > 256) tc44 = 256;
+          if (tc44 > kMaxTagScanCount) tc44 = 256;
 
           int embedFound = 0;
           for (icUInt32Number i = 0; i < tc44; i++) {
@@ -1241,7 +1257,7 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
         icUInt8Number hdr45[132];
         if (fread(hdr45, 1, 132, fh45.fp) == 132) {
           icUInt32Number tc45 = ReadU32BE(&hdr45[128]);
-          if (tc45 > 256) tc45 = 256;
+          if (tc45 > kMaxTagScanCount) tc45 = 256;
 
           for (icUInt32Number i = 0; i < tc45; i++) {
             size_t ePos = 132 + i * 12;
@@ -1281,7 +1297,7 @@ int RunHeuristic_H45_SparseMatrixBounds(const char *filename)
 
                 // Estimated matrix size: nChannels² entries
                 uint64_t estEntries = (uint64_t)nChannels * nChannels;
-                const uint64_t MAX_SPARSE_ENTRIES = 16ULL * 1024 * 1024;
+                const uint64_t MAX_SPARSE_ENTRIES = kMaxSparseMatrixEntries;
                 if (estEntries > MAX_SPARSE_ENTRIES) {
                   printf("      %s[WARN]  Tag '%s' (smat): %u channels → %llu potential entries (limit %llu)%s\n",
                          ColorCritical(), sig45, nChannels,
@@ -1585,10 +1601,10 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
                 bool overflow = false;
                 for (int d = 0; d < nInput; d++) {
                   product *= gridPts;
-                  if (product > 256ULL * 1024 * 1024) { overflow = true; break; }
+                  if (product > kMaxCLUTGridProduct) { overflow = true; break; }
                 }
                 if (!overflow) product *= nOutput;
-                if (product > 256ULL * 1024 * 1024) overflow = true;
+                if (product > kMaxCLUTGridProduct) overflow = true;
 
                 if (overflow) {
                   printf("      %s[WARN]  Tag '%s' (%s): grid %u^%u × %u output = overflow%s\n",
@@ -1625,11 +1641,11 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
                   for (int d = 0; d < nInput; d++) {
                     if (gridDims[d] == 0) { hasZeroDim = true; break; }
                     product *= gridDims[d];
-                    if (product > 256ULL * 1024 * 1024) { overflow = true; break; }
+                    if (product > kMaxCLUTGridProduct) { overflow = true; break; }
                   }
                   if (!overflow && !hasZeroDim && nOutput > 0) {
                     product *= nOutput;
-                    if (product > 256ULL * 1024 * 1024) overflow = true;
+                    if (product > kMaxCLUTGridProduct) overflow = true;
                   }
 
                   if (overflow) {
@@ -1713,7 +1729,7 @@ int RunHeuristic_H49_FloatNaNInfDetection(const char *filename)
             size_t dataStart = (uint64_t)tOff + 8;
             size_t dataEnd = (size_t)tOff + tSz;
             if (dataEnd > fs49) dataEnd = fs49;
-            size_t maxScan = 4096; // limit scan to first 4KB of data
+            size_t maxScan = kMaxTagDataScan; // limit scan to first 4KB of data
             if (dataEnd - dataStart > maxScan) dataEnd = dataStart + maxScan;
 
             fseek(fh49.fp, dataStart, SEEK_SET);
@@ -2563,7 +2579,7 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
 
             // Check vertex allocation: nVert * nPCS * sizeof(float)
             uint64_t vertBytes = (uint64_t)nVert * nPCS * 4;
-            if (vertBytes > 268435456ULL) { // 256MB
+            if (vertBytes > kMaxVertexDataBytes) { // 256MB
               printf("      %s[WARN]  GamutBoundaryDesc: %u vertices * %u PCS = %llu bytes%s\n",
                      ColorCritical(), nVert, nPCS, (unsigned long long)vertBytes, ColorReset());
               printf("       %sCWE-190: Integer overflow in vertex allocation%s\n",
@@ -2572,7 +2588,7 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename)
             }
             // Check triangle allocation: nTri * 3 * sizeof(uint32)
             uint64_t triBytes = (uint64_t)nTri * 3 * 4;
-            if (triBytes > 268435456ULL) {
+            if (triBytes > kMaxVertexDataBytes) {
               printf("      %s[WARN]  GamutBoundaryDesc: %u triangles → %llu bytes%s\n",
                      ColorCritical(), nTri, (unsigned long long)triBytes, ColorReset());
               printf("       %sCWE-131: Triangle array exceeds reasonable bounds%s\n",
@@ -2718,9 +2734,9 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
           printf("      %s[WARN]  Zero tags — empty or severely malformed profile%s\n",
                  ColorCritical(), ColorReset());
           heuristicCount++;
-        } else if (tagCount > 256) {
-          printf("      %s[WARN]  Excessive tag count: %u (>256) — potential DoS%s\n",
-                 ColorCritical(), tagCount, ColorReset());
+        } else if (tagCount > kMaxTagScanCount) {
+          printf("      %s[WARN]  Excessive tag count: %u (>%u) — potential DoS%s\n",
+                 ColorCritical(), tagCount, (unsigned)kMaxTagScanCount, ColorReset());
           heuristicCount++;
         }
 
@@ -2728,7 +2744,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
         printf("[H13] Per-Tag Size Check (raw)\n");
         {
           int tagSizeIssues = 0;
-          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          size_t safeTagCount = (tagCount > kMaxTagScanCount) ? kMaxTagScanCount : tagCount;
           for (size_t i = 0; i < safeTagCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fileSize) break;
@@ -2768,7 +2784,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
         printf("[H25] Tag Offset/Size Out-of-Bounds Detection (raw)\n");
         {
           int oobIssues = 0;
-          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          size_t safeTagCount = (tagCount > kMaxTagScanCount) ? kMaxTagScanCount : tagCount;
           for (size_t i = 0; i < safeTagCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fileSize) break;
@@ -2809,7 +2825,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
         printf("[H28] LUT Dimension Validation (raw)\n");
         {
           int lutIssues = 0;
-          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          size_t safeTagCount = (tagCount > kMaxTagScanCount) ? kMaxTagScanCount : tagCount;
           for (size_t i = 0; i < safeTagCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fileSize) break;
@@ -2874,7 +2890,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
         printf("[H32] Tag Data Type Confusion Detection (raw)\n");
         {
           int typeIssues = 0;
-          size_t safeTagCount = (tagCount > 256) ? 256 : tagCount;
+          size_t safeTagCount = (tagCount > kMaxTagScanCount) ? kMaxTagScanCount : tagCount;
           for (size_t i = 0; i < safeTagCount; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fileSize) break;
