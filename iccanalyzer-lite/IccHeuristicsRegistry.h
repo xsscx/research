@@ -80,7 +80,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 13, "Per Tag Size Check",                  "§7.3.1",  "CWE-400", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 14, "Tag Array Detection",                 "§10.33",  "CWE-416", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 18, "Technology Signature",                "§9.2.27", "CWE-20",  nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::LOW},
-  { 19, "Tag Offset Overlap",                  "§7.3.1",  "CWE-122", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
+  { 19, "Tag Offset Overlap",                  "§7.3.1",  "CWE-122", "CVE-2021-30942,CVE-2022-26730", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 20, "Tag Type Signature",                  "§10",     "CWE-843", "CVE-2026-21505,CVE-2026-24856", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 21, "Tag Struct Member Inspection",        "§10.32",  "CWE-843", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::MEDIUM},
   { 22, "Num Array Scalar Expectation",        "§10.21",  "CWE-20",  nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::LOW},
@@ -93,7 +93,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 29, "Colorant Table String Validation",    "§10.4",   "CWE-170", "GHSA-4wqv-pvm8-5h27", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 30, "Gamut Boundary Desc Allocation",      "§10.12",  "CWE-400", "GHSA-rc3h-95ph-j363", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 31, "MPE Channel Count",                   "§10.26",  "CWE-131", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
-  { 32, "Tag Data Type Confusion",             "§10",     "CWE-843", "CVE-2026-21683,CVE-2026-21688,CVE-2026-21691,CVE-2026-25503,GHSA-3r2x-j7v3-pg6f,GHSA-c9q5-x498-jv92,GHSA-f2wp-j3fr-938w", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
+  { 32, "Tag Data Type Confusion",             "§10",     "CWE-843", "CVE-2021-30942,CVE-2026-21683,CVE-2026-21688,CVE-2026-21691,CVE-2026-25503,GHSA-3r2x-j7v3-pg6f,GHSA-c9q5-x498-jv92,GHSA-f2wp-j3fr-938w", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
 
   // --- RAW POST ANALYSIS (H33-H55, H57-H69) ---
   { 33, "mBA/mAB Sub-Element Offset Validation", nullptr, "CWE-122", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
@@ -102,7 +102,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 36, "LUT Tag Pair Completeness",             nullptr, "CWE-20",  nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::LOW},
   { 37, "Calculator Element Complexity",          nullptr, "CWE-400", "CVE-2026-21507,CVE-2026-22047,CVE-2026-30979,GHSA-8c76-67wr-hrp4,GHSA-hgp5-r8m9-8qpj", HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   { 38, "Curve Degenerate Value Detection",       nullptr, "CWE-682", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
-  { 39, "Shared Tag Data Aliasing Detection",     nullptr, "CWE-416", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  { 39, "Shared Tag Data Aliasing Detection",     nullptr, "CWE-416", "CVE-2022-26730", HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   { 40, "Tag Alignment Padding Validation",       nullptr, "CWE-20",  nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::LOW},
   { 41, "Version Type Consistency Check",         nullptr, "CWE-20",  nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::LOW},
   { 42, "Matrix Singularity Detection",           nullptr, "CWE-369", "CVE-2026-30985,GHSA-f9wv-cq46-f9wg", HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
@@ -114,7 +114,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 48, "CLUT Grid Dimension Product Overflow",   nullptr, "CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   { 49, "Float s15Fixed16 NaN Inf Detection",     nullptr, "CWE-682", "CVE-2026-21681", HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
   { 50, "Zero-Size Profile Tag Detection",        nullptr, "CWE-835", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
-  { 51, "LUT IO Channel Count Consistency",       nullptr, "CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  { 51, "LUT IO Channel Count Consistency",       nullptr, "CWE-125", "CVE-2021-30942", HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   { 52, "Integer Underflow Tag Size Subtraction", nullptr, "CWE-191", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   { 53, "Embedded Profile Recursion Detection",   nullptr, "CWE-674", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   { 54, "Division-by-Zero Trigger Detection",     nullptr, "CWE-369", "CVE-2026-21495,GHSA-xhrm-79rg-5784", HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
@@ -139,7 +139,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 71, "Colorant Table Null Termination",       nullptr, "CWE-170", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   { 72, "Sparse Matrix Array Bounds",            nullptr, "CWE-843", "CVE-2026-21503,CVE-2026-21505", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   { 73, "Tag Array Nesting Depth",               nullptr, "CWE-674", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
-  { 74, "Tag Type Signature Consistency",        nullptr, "CWE-843", "CVE-2026-21505,CVE-2026-24856,GHSA-j577-8285-qrf9,GHSA-w585-cv3v-c396", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
+  { 74, "Tag Type Signature Consistency",        nullptr, "CWE-843", "CVE-2021-30942,CVE-2026-21505,CVE-2026-24856,GHSA-j577-8285-qrf9,GHSA-w585-cv3v-c396", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
   { 75, "Tags Very Small Size",                  nullptr, "CWE-20",  nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::LOW},
   { 76, "CIccTagData Type Flag",                 nullptr, "CWE-843", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::MEDIUM},
   { 77, "MPE Calculator Sub Element Count",      nullptr, "CWE-400", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::HIGH},
@@ -200,8 +200,8 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {128, "Version BCD",                           "§7.2.4", "CWE-20", "CVE-2026-24403,GHSA-ph33-qp8j-5q34", HeuristicPhase::INTEGRITY, HeuristicSeverity::LOW},
   {129, "PCS Illuminant D50",                    "§7.2.16", "CWE-20", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::LOW},
   {130, "Tag Alignment",                         "§7.3.1", "CWE-20", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::LOW},
-  {131, "Profile Id MD5",                        nullptr, "CWE-345", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::MEDIUM},
-  {132, "Chad Determinant",                      nullptr, "CWE-682", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::MEDIUM},
+  {131, "Profile Id MD5",                        nullptr, "CWE-345", "CVE-2022-26730", HeuristicPhase::INTEGRITY, HeuristicSeverity::MEDIUM},
+  {132, "Chad Determinant",                      nullptr, "CWE-682", "CVE-2022-26730", HeuristicPhase::INTEGRITY, HeuristicSeverity::MEDIUM},
   {133, "Flags Reserved Bits",                   "§7.2.11", "CWE-20", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::LOW},
   {134, "Tag Type Reserved Bytes",               "§10.1", "CWE-20",  nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::LOW},
   {135, "Duplicate Tag Signatures",              "§7.3.1", "CWE-694", nullptr, HeuristicPhase::INTEGRITY, HeuristicSeverity::HIGH},
@@ -222,7 +222,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
 
   // --- ADVANCED DATA VALIDATION (H146-H148) ---
   {146, "Stack Buffer Overflow GetValues",       "§10.6", "CWE-121", "CVE-2026-24404,CVE-2026-24406,GHSA-f79r-m9wh-wr6j,GHSA-h9h3-45cm-j95f,GHSA-hqfg-45jp-hp9f,GHSA-rxfr-c2c7-v5m5", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
-  {147, "Null Pointer After Tag Read",           "§7.3",  "CWE-476", "CVE-2026-24852,CVE-2026-25502,CVE-2026-31792,GHSA-4wqv-pvm8-5h27,GHSA-c2qq-jf7w-rm27,GHSA-j3mh-rjg5-8gw7,GHSA-q8g2-mp32-3j7f", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
+  {147, "Null Pointer After Tag Read",           "§7.3",  "CWE-476", "CVE-2021-30942,CVE-2022-26730,CVE-2026-24852,CVE-2026-25502,CVE-2026-31792,GHSA-4wqv-pvm8-5h27,GHSA-c2qq-jf7w-rm27,GHSA-j3mh-rjg5-8gw7,GHSA-q8g2-mp32-3j7f", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
   {148, "Memory Copy Bounds Overlap",            "§10.14","CWE-119", "CVE-2026-24407,CVE-2026-31793,GHSA-m6gx-93cp-4855,GHSA-vgr5-3xqx-vcqx", HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::CRITICAL},
 
   // ── TIFF Image Security (extended) ──
