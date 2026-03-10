@@ -73,9 +73,10 @@ for historical reference.
 | # | Patch | Bug | CWE | Files Modified |
 |---|-------|-----|-----|----------------|
 | 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
+| 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **002**)
+- Numbering: zero-padded 3-digit, sequential (next: **003**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
