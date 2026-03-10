@@ -145,7 +145,7 @@ build_config() {
       cmake_type="Release"
       c_flags="-O2 -DNDEBUG"
       cxx_flags="$c_flags -frtti"
-      tool_flags="-O2 -DNDEBUG -std=gnu++17 -Wall -frtti"
+      tool_flags="-O2 -DNDEBUG -std=gnu++17 -Wall -frtti -fstack-protector-strong -D_FORTIFY_SOURCE=2"
       ;;
     debug)
       cmake_type="Debug"
