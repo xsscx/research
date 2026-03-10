@@ -810,8 +810,7 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
     uint64_t expectedTileBytes = (uint64_t)tileW * tileH * bytesPerPixel;
 
     // Check for integer overflow in tile size calculation
-    // tileW, tileH are uint32, bytesPerPixel is small — check product exceeds 32-bit range
-    if (tileW > 0 && bytesPerPixel > 0 &&
+    if (bytesPerPixel > 0 &&
         (uint64_t)tileW * tileH > UINT32_MAX / bytesPerPixel) {
       printf("      %s[CRIT]  HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu%s\n",
              ColorCritical(), tileW, tileH, (unsigned long long)bytesPerPixel, ColorReset());

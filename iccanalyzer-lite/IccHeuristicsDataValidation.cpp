@@ -463,7 +463,7 @@ printf("[H66] Comprehensive NumArray NaN/Inf Scan\n");
                ColorCritical(), ColorReset());
         nanIssues++;
       }
-      if (extremeCount > scanLimit / 4) {
+      if (extremeCount > static_cast<int>(scanLimit / 4)) {
         printf("      %s[WARN]  Tag '%s': %d/%u extreme values (>1e10)%s\n",
                ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
                extremeCount, scanLimit, ColorReset());

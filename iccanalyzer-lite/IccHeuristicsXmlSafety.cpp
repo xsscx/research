@@ -78,7 +78,7 @@
 //
 // CWE-787, CWE-125, CWE-416, CWE-476, CWE-843, CWE-674
 // =====================================================================
-int RunHeuristic_H142_XmlSerializationSafety(CIccProfile *pIcc, const char *filename)
+int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char *filename)
 {
   printf("[H142] XML Serialization Safety (§10 Tag Type Definitions)\n");
 

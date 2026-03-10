@@ -116,7 +116,7 @@ int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
 // H104: PRMG (Perceptual Reference Medium Gamut) Evaluation
 // Exercises IccPrmg.cpp — gamut evaluation and rendering intent gamut tags
 // =====================================================================
-int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char *profilePath) {
+int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char * /*profilePath*/) {
   int heuristicCount = 0;
 
   printf("[H104] PRMG Gamut Evaluation\n");
