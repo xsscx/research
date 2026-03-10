@@ -184,7 +184,7 @@ jobs:
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
-          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -lz -llzma -lm -lssl -lcrypto -lgcov"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
 
           SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicsRawPost.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccHeuristicsXmlSafety.cpp"
 
@@ -196,7 +196,7 @@ jobs:
           wait
 
           echo "Linking..."
-          ${CXX} ${LDFLAGS} *.o ${LIBS} -ltiff -lpng -ljpeg -o iccanalyzer-lite
+          ${CXX} ${LDFLAGS} *.o ${LIBS} -o iccanalyzer-lite
 
           echo "[OK] Coverage build complete"
           ls -lh iccanalyzer-lite
