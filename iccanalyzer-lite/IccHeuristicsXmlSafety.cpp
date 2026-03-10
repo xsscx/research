@@ -464,10 +464,7 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
         icElemTypeSignature elemType = pCurveSet->GetType();
         if (elemType != icSigCurveSetElemType) {
           char typeStr[5] = {};
-          typeStr[0] = static_cast<char>(static_cast<unsigned char>((elemType >> 24) & 0xFF));
-          typeStr[1] = static_cast<char>(static_cast<unsigned char>((elemType >> 16) & 0xFF));
-          typeStr[2] = static_cast<char>(static_cast<unsigned char>((elemType >>  8) & 0xFF));
-          typeStr[3] = static_cast<char>(static_cast<unsigned char>((elemType >>  0) & 0xFF));
+          SigToChars(static_cast<uint32_t>(elemType), typeStr);
           printf("      %s[WARN]  HEURISTIC: MPE element %u has type '%s' (0x%08X) but is CIccMpeCurveSet%s\n",
                  ColorCritical(), elemIdx, typeStr, elemType, ColorReset());
           printf("       CWE-843: Access of Resource Using Incompatible Type\n");

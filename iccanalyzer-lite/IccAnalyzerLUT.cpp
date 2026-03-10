@@ -277,8 +277,8 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
       std::string safeTag = SanitizeTagName(rawTagName);
       printf("\nExtracting LUT from tag: %s\n", rawTagName);
       
-      CIccTagLut8 *pLut8 = NULL;
-      CIccTagLut16 *pLut16 = NULL;
+      CIccTagLut8 *pLut8 = nullptr;
+      CIccTagLut16 *pLut16 = nullptr;
       
       if (tagType == icSigLut8Type) {
         pLut8 = dynamic_cast<CIccTagLut8*>(pTag);

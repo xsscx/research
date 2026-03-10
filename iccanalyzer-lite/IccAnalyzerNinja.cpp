@@ -47,6 +47,7 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <vector>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -62,7 +63,7 @@ void SetXMLCompatibilityMode(bool enabled) {
 //==============================================================================
 
 static std::string GetTimestamp() {
-  time_t now = time(NULL);
+  time_t now = time(nullptr);
   struct tm tm_buf;
   char buf[64];
   gmtime_r(&now, &tm_buf);
@@ -71,7 +72,7 @@ static std::string GetTimestamp() {
 }
 
 static std::string GetSessionID() {
-  time_t now = time(NULL);
+  time_t now = time(nullptr);
   struct tm tm_buf;
   char buf[32];
   gmtime_r(&now, &tm_buf);
@@ -131,15 +132,11 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   }
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
   
-  icUInt8Number *rawData = (icUInt8Number*)malloc(fileSize);
-  if (!rawData) {
-    printf("Error: Memory allocation failed\n");
-    return -1;
-  }
+  std::vector<icUInt8Number> rawDataVec(fileSize);
+  icUInt8Number *rawData = rawDataVec.data();
   
   if (fread(rawData, 1, fileSize, fh.fp) != fileSize) {
     printf("Error: Cannot read file\n");
-    free(rawData);
     return -1;
   }
   
@@ -226,11 +223,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       if (offset < fileSize && offset + 4 <= fileSize) {
         icUInt32Number tagType = (static_cast<icUInt32Number>(rawData[offset])<<24) | (static_cast<icUInt32Number>(rawData[offset+1])<<16) | 
                                  (static_cast<icUInt32Number>(rawData[offset+2])<<8) | rawData[offset+3];
-        typeStr[0] = static_cast<char>(static_cast<unsigned char>((tagType>>24)&0xff));
-        typeStr[1] = static_cast<char>(static_cast<unsigned char>((tagType>>16)&0xff));
-        typeStr[2] = static_cast<char>(static_cast<unsigned char>((tagType>>8)&0xff));
-        typeStr[3] = static_cast<char>(static_cast<unsigned char>(tagType&0xff));
-        typeStr[4] = '\0';
+        SigToChars(static_cast<uint32_t>(tagType), typeStr);
         
         // Check for TagArrayType (CRITICAL security issue)
         if (tagType == 0x74617279) {  // 'tary'
@@ -327,7 +320,6 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   printf("Use this information for debugging malformed profiles.\n");
   printf("\n");
   
-  free(rawData);
   return 0;
 }
 

@@ -41,7 +41,7 @@ int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
   CIccTag *targTag = pIcc->FindTag(icSigCharTargetTag);
   if (!targTag) {
     printf("      [INFO] No characterization data (targ) tag — cannot assess\n\n");
-    return 0;
+    return heuristicCount;
   }
 
   CIccTagText *textTag = dynamic_cast<CIccTagText*>(targTag);
@@ -49,7 +49,8 @@ int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
     printf("      %s[WARN]  targ tag present but not readable as text%s\n",
            ColorWarning(), ColorReset());
     printf("\n");
-    return 1;
+    heuristicCount++;
+    return heuristicCount;
   }
 
   const char *text = textTag->GetText();
@@ -68,13 +69,13 @@ int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
   }
 
   const char *p = text;
-  while ((p = strstr(p, "NUMBER_OF_SETS")) != NULL) {
+  while ((p = strstr(p, "NUMBER_OF_SETS")) != nullptr) {
     p += 14;
     while (*p == ' ' || *p == '\t') p++;
     dataSetCount = atoi(p);
   }
   p = text;
-  while ((p = strstr(p, "NUMBER_OF_FIELDS")) != NULL) {
+  while ((p = strstr(p, "NUMBER_OF_FIELDS")) != nullptr) {
     p += 16;
     while (*p == ' ' || *p == '\t') p++;
     fieldCount = atoi(p);
@@ -89,10 +90,10 @@ int RunHeuristic_H121_CharDataRoundTrip(CIccProfile *pIcc) {
     if (hasBeginData)      printf("      Data section: present\n");
   }
 
-  bool hasAToB = (pIcc->FindTag(icSigAToB0Tag) != NULL ||
-                  pIcc->FindTag(icSigAToB1Tag) != NULL);
-  bool hasBToA = (pIcc->FindTag(icSigBToA0Tag) != NULL ||
-                  pIcc->FindTag(icSigBToA1Tag) != NULL);
+  bool hasAToB = (pIcc->FindTag(icSigAToB0Tag) != nullptr ||
+                  pIcc->FindTag(icSigAToB1Tag) != nullptr);
+  bool hasBToA = (pIcc->FindTag(icSigBToA0Tag) != nullptr ||
+                  pIcc->FindTag(icSigBToA1Tag) != nullptr);
 
   if (hasCGATS && hasBeginData && dataSetCount > 0 && hasAToB && hasBToA) {
     printf("      %s[OK] Profile has both characterization data and round-trip transforms%s\n",
@@ -294,12 +295,10 @@ int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
       }
       if (!isUpper) continue;
 
-      printf("      %s[INFO] '%s' (0x%08X): not required/optional for class '%c%c%c%c'%s\n",
-             ColorInfo(), sigStr, (unsigned)sig,
-             static_cast<char>(static_cast<unsigned char>((cls >> 24) & 0xFF)),
-             static_cast<char>(static_cast<unsigned char>((cls >> 16) & 0xFF)),
-             static_cast<char>(static_cast<unsigned char>((cls >> 8) & 0xFF)),
-             static_cast<char>(static_cast<unsigned char>(cls & 0xFF)), ColorReset());
+      char clsStr[5] = {};
+      SigToChars(static_cast<uint32_t>(cls), clsStr);
+      printf("      %s[INFO] '%s' (0x%08X): not required/optional for class '%s'%s\n",
+             ColorInfo(), sigStr, (unsigned)sig, clsStr, ColorReset());
       unclassified++;
     }
   }
@@ -565,7 +564,7 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
     {{0x50, 0x4B, 0x03, 0x04}, 4, "ZIP/JAR archive"},
     {{0x23, 0x21, 0x2F}, 3, "Script shebang (#!/)"},
     {{0x3C, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74}, 7, "HTML <script tag"},
-    {{0}, 0, NULL}
+    {{0}, 0, nullptr}
   };
 
   int privateScanned = 0;
@@ -590,7 +589,7 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
 
     privateScanned++;
 
-    for (int s = 0; malwareSigs[s].name != NULL; s++) {
+    for (int s = 0; malwareSigs[s].name != nullptr; s++) {
       int sigLen = malwareSigs[s].len;
       for (size_t pos = 0; pos + sigLen <= bytesRead; pos++) {
         bool match = true;
@@ -649,7 +648,7 @@ int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
     {0x6170706C, "Apple ('appl')"},          // Apple
     {0x43474154, "CGATS ('CGAT')"},          // CGATS data
     {0x44657669, "Device-specific ('Devi')"},
-    {0, NULL}
+    {0, nullptr}
   };
 
   int privateCount = 0;
@@ -694,7 +693,7 @@ int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
     privateCount++;
     icUInt32Number sigVal = (icUInt32Number)sig;
     bool found = false;
-    for (int r = 0; registry[r].registrant != NULL; r++) {
+    for (int r = 0; registry[r].registrant != nullptr; r++) {
       if (sigVal == registry[r].sig) {
         char sigStr[5] = {};
         sigStr[0] = (char)(static_cast<unsigned char>((sigVal >> 24) & 0xFF));
@@ -1519,7 +1518,7 @@ int RunHeuristic_H137_HighDimensionalGridComplexity(CIccProfile *pIcc) {
     CIccTagLutAtoB *mbbA = dynamic_cast<CIccTagLutAtoB*>(pTag);
     CIccTagLutBtoA *mbbB = dynamic_cast<CIccTagLutBtoA*>(pTag);
     uint32_t nIn = 0;
-    CIccCLUT *clut = NULL;
+    CIccCLUT *clut = nullptr;
 
     if (mbbA) {
       nIn = mbbA->InputChannels();
