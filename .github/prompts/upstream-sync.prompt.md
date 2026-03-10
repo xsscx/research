@@ -47,11 +47,16 @@ cd cfl/iccDEV && git reset --hard origin/master
 cd .. && for p in patches/*.patch; do patch -p1 -d iccDEV --forward --batch --silent < "$p" 2>/dev/null || echo "[FAIL] $(basename $p)"; done
 ```
 
-### Step 6 — Rebuild and deploy
+### Step 6 — Rebuild and verify
 ```bash
 cd cfl && ./build.sh
-cp bin/icc_*_fuzzer /mnt/g/fuzz-ssd/bin/  # or ramdisk
+./verify-patches.sh --ssd /mnt/g/fuzz-ssd   # MANDATORY ground-truth check
+cp bin/icc_*_fuzzer /mnt/g/fuzz-ssd/bin/     # or ramdisk
 ```
+
+**CRITICAL**: Do NOT skip `verify-patches.sh`. `build.sh` patch summary uses
+`--forward` which masks context-shifted failures. The verification script provides
+3-phase ground truth (source grep + binary nm + runtime test). See Anti-Pattern #13.
 
 ### Step 6b — Rebuild ASAN upstream tools
 ```bash
