@@ -28,21 +28,14 @@ fi
 
 # Create seed corpus directories for each fuzzer
 FUZZERS=(
-    "icc_apply_fuzzer"
     "icc_applynamedcmm_fuzzer"
     "icc_applyprofiles_fuzzer"
-    "icc_calculator_fuzzer"
-    "icc_deep_dump_fuzzer"
     "icc_dump_fuzzer"
     "icc_fromcube_fuzzer"
     "icc_fromxml_fuzzer"
-    "icc_io_fuzzer"
     "icc_link_fuzzer"
-    "icc_multitag_fuzzer"
-    "icc_profile_fuzzer"
     "icc_roundtrip_fuzzer"
     "icc_specsep_fuzzer"
-    "icc_spectral_fuzzer"
     "icc_tiffdump_fuzzer"
     "icc_toxml_fuzzer"
     "icc_v5dspobs_fuzzer"
@@ -64,13 +57,13 @@ if [ -d "$FUZZ_BASE/graphics/icc" ]; then
             basename_file=$(basename "$icc_file")
             
             # Copy to profile-based fuzzers
-            for fuzzer in icc_profile_fuzzer icc_io_fuzzer icc_dump_fuzzer icc_deep_dump_fuzzer icc_roundtrip_fuzzer icc_apply_fuzzer icc_applyprofiles_fuzzer icc_applynamedcmm_fuzzer icc_calculator_fuzzer icc_link_fuzzer icc_multitag_fuzzer icc_spectral_fuzzer icc_v5dspobs_fuzzer; do
+            for fuzzer in icc_dump_fuzzer icc_roundtrip_fuzzer icc_applyprofiles_fuzzer icc_applynamedcmm_fuzzer icc_link_fuzzer icc_v5dspobs_fuzzer; do
                 cp "$icc_file" "$CFL_DIR/${fuzzer}_seed_corpus/$basename_file"
             done
             ICC_COUNT=$((ICC_COUNT + 1))
         fi
     done
-    echo "  [OK] Copied $ICC_COUNT ICC files to 12 profile fuzzers"
+    echo "  [OK] Copied $ICC_COUNT ICC files to 6 profile fuzzers"
 else
     echo "  [WARN] graphics/icc directory not found"
 fi
@@ -132,21 +125,14 @@ echo "════════════════════════�
 echo ""
 
 declare -A FUZZER_DICTS
-FUZZER_DICTS[icc_apply_fuzzer]="icc_apply_fuzzer.dict"
 FUZZER_DICTS[icc_applynamedcmm_fuzzer]="icc_applynamedcmm_fuzzer.dict"
 FUZZER_DICTS[icc_applyprofiles_fuzzer]="icc_core.dict"
-FUZZER_DICTS[icc_calculator_fuzzer]="icc_core.dict"
-FUZZER_DICTS[icc_deep_dump_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_dump_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_fromcube_fuzzer]="icc_fromcube_fuzzer.dict"
 FUZZER_DICTS[icc_fromxml_fuzzer]="icc_fromxml_fuzzer.dict"
-FUZZER_DICTS[icc_io_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_link_fuzzer]="icc_link_fuzzer.dict"
-FUZZER_DICTS[icc_multitag_fuzzer]="icc_multitag.dict"
-FUZZER_DICTS[icc_profile_fuzzer]="icc_profile.dict"
 FUZZER_DICTS[icc_roundtrip_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_specsep_fuzzer]="icc_specsep_fuzzer.dict"
-FUZZER_DICTS[icc_spectral_fuzzer]="icc_core.dict"
 FUZZER_DICTS[icc_tiffdump_fuzzer]="icc_tiffdump_fuzzer.dict"
 FUZZER_DICTS[icc_toxml_fuzzer]="icc_xml_consolidated.dict"
 FUZZER_DICTS[icc_v5dspobs_fuzzer]="icc_v5dspobs_fuzzer.dict"

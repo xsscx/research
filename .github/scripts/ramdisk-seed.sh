@@ -4,7 +4,7 @@
 #
 # Usage:
 #   .github/scripts/ramdisk-seed.sh                    # seed all fuzzers
-#   .github/scripts/ramdisk-seed.sh icc_profile_fuzzer # seed one fuzzer
+#   .github/scripts/ramdisk-seed.sh icc_dump_fuzzer # seed one fuzzer
 #   .github/scripts/ramdisk-seed.sh --mount            # mount ramdisk first
 #   .github/scripts/ramdisk-seed.sh --mount --size 8G  # custom size
 #
@@ -35,21 +35,14 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CFL_DIR="$REPO_ROOT/cfl"
 
 ALL_FUZZERS=(
-  icc_apply_fuzzer
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
-  icc_calculator_fuzzer
-  icc_deep_dump_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
   icc_fromxml_fuzzer
-  icc_io_fuzzer
   icc_link_fuzzer
-  icc_multitag_fuzzer
-  icc_profile_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
-  icc_spectral_fuzzer
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
