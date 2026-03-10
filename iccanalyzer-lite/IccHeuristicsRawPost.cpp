@@ -485,6 +485,14 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
               calcIssues++;
             }
 
+            if (ifSelCount > 50) {
+              printf("      %s[WARN]  Tag '%s': %d if/sel branching opcodes — exponential path risk%s\n",
+                     ColorWarning(), sig37, ifSelCount, ColorReset());
+              printf("       %sCWE-400: Branching opcodes cause exponential path exploration%s\n",
+                     ColorCritical(), ColorReset());
+              calcIssues++;
+            }
+
             // Check for zero-length MPE (tag size < 16 means no elements)
             if (tSz37 >= 8 && tSz37 < 16) {
               printf("      %s[WARN]  Tag '%s': MPE tag size %u too small for any elements%s\n",
