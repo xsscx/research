@@ -1,0 +1,15 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index df9740e..56837a8 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -4624,6 +4624,10 @@ bool CIccTagSparseMatrixArray::Read(icUInt32Number size, CIccIO *pIO)
+   if (nNeededSize > (icUInt64Number)nSizeLeft)
+     return false;
+ 
++  // CFL patch 044: cap allocation to 16 MB to prevent OOM from crafted profiles
++  if (nNeededSize > 16777216)
++    return false;
++
+   // this sets the sizes, and allocates a huge chunk of memory for matrix storage in m_RawData
+   Reset(nNumMatrices, nChannels);
+   

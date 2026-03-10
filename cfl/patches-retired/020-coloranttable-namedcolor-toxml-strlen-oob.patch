@@ -1,0 +1,45 @@
+diff --git a/IccXML/IccLibXML/IccTagXml.cpp b/IccXML/IccLibXML/IccTagXml.cpp
+index 46d48f1..8f5f5f6 100644
+--- a/IccXML/IccLibXML/IccTagXml.cpp
++++ b/IccXML/IccLibXML/IccTagXml.cpp
+@@ -717,6 +717,9 @@ bool CIccTagXmlNamedColor2::ToXml(std::string &xml, std::string blanks/* = ""*/)
+ 
+     if (pEntry) {
+       const char *szNodeName = NULL;
++      char safeRootName[33];
++      memcpy(safeRootName, pEntry->rootName, sizeof(pEntry->rootName));
++      safeRootName[sizeof(pEntry->rootName)] = '\0';
+       if (m_csPCS==icSigLabData) {
+         icFloatNumber lab[3];
+ 
+@@ -724,7 +727,7 @@ bool CIccTagXmlNamedColor2::ToXml(std::string &xml, std::string blanks/* = ""*/)
+         icLabFromPcs(lab);
+         szNodeName = "LabNamedColor";
+         snprintf(line, bufSize, "  <%s Name=\"%s\" L=\"" icXmlFloatFmt "\" a=\"" icXmlFloatFmt "\" b=\"" icXmlFloatFmt "\"", szNodeName,
+-          icFixXml(fix, icAnsiToUtf8(str, pEntry->rootName)), lab[0], lab[1], lab[2]);
++          icFixXml(fix, icAnsiToUtf8(str, safeRootName)), lab[0], lab[1], lab[2]);
+         xml += blanks + line;
+       }
+       else {
+@@ -734,7 +737,7 @@ bool CIccTagXmlNamedColor2::ToXml(std::string &xml, std::string blanks/* = ""*/)
+         icXyzFromPcs(xyz);
+         szNodeName = "XYZNamedColor";
+         snprintf(line, bufSize, "  <%s Name=\"%s\" X=\"" icXmlFloatFmt "\" Y=\"" icXmlFloatFmt "\" Z=\"" icXmlFloatFmt "\"", szNodeName,
+-          icFixXml(fix, icAnsiToUtf8(str, pEntry->rootName)), xyz[0], xyz[1], xyz[2]);
++          icFixXml(fix, icAnsiToUtf8(str, safeRootName)), xyz[0], xyz[1], xyz[2]);
+         xml += blanks + line;
+       }
+ 
+@@ -1879,8 +1882,11 @@ bool CIccTagXmlColorantTable::ToXml(std::string &xml, std::string blanks/* = ""*
+     lab[1] = icU16toF(m_pData[i].data[1]);
+     lab[2] = icU16toF(m_pData[i].data[2]);
+     icLabFromPcs(lab);
++    char safeName[33];
++    memcpy(safeName, m_pData[i].name, sizeof(m_pData[i].name));
++    safeName[sizeof(m_pData[i].name)] = '\0';
+     snprintf(buf, bufSize, "  <Colorant Name=\"%s\" Channel1=\"" icXmlFloatFmt "\" Channel2=\"" icXmlFloatFmt "\" Channel3=\"" icXmlFloatFmt "\"/>\n",
+-      icFixXml(fix, icAnsiToUtf8(str, m_pData[i].name)), lab[0], lab[1], lab[2]);
++      icFixXml(fix, icAnsiToUtf8(str, safeName)), lab[0], lab[1], lab[2]);
+     xml += blanks + buf;
+   }
+   //xml += "\n";
