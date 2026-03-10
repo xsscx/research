@@ -61,7 +61,7 @@ for (size_t i = 0; i < sizeof(textTags)/sizeof(textTags[0]); i++) {
   }
 }
 if (missingCount > 2) {
-  printf("     %s[WARN]  HEURISTIC: Multiple required text tags missing%s\n", ColorWarning(), ColorReset());
+  printf("      %s[WARN]  HEURISTIC: Multiple required text tags missing%s\n", ColorWarning(), ColorReset());
   printf("       %sRisk: Incomplete/malformed profile%s\n", ColorWarning(), ColorReset());
   heuristicCount++;
 }
@@ -282,7 +282,7 @@ if (fh) {
       }
       
       if (foundTagArray) {
-        printf("      %s[CRITICAL] HEURISTIC: %u TagArrayType tag(s) detected%s\n", ColorCritical(), tagArrayCount, ColorReset());
+        printf("      %s[WARN]  HEURISTIC: %u TagArrayType tag(s) detected%s\n", ColorCritical(), tagArrayCount, ColorReset());
         printf("       %sRisk: CRITICAL - Heap-use-after-free in CIccTagArray::Cleanup()%s\n", ColorCritical(), ColorReset());
         printf("       %sLocation: IccProfLib/IccTagComposite.cpp:1514%s\n", ColorInfo(), ColorReset());
         printf("       %sImpact: Code execution, memory corruption%s\n", ColorCritical(), ColorReset());
@@ -580,7 +580,7 @@ printf("[H22] NumArray Scalar Expectation (cept struct)\n");
 
       icUInt32Number numVals = pNum->GetNumValues();
       if (numVals > 1) {
-        printf("      %s[HIGH]  %s has %u values (expected 1 scalar)%s\n",
+        printf("      %s[WARN]  %s has %u values (expected 1 scalar)%s\n",
                ColorCritical(), scalarMembers[s].name, numVals, ColorReset());
         printf("       %sRisk: Stack buffer overflow in GetElemNumberValue → GetValues%s\n",
                ColorCritical(), ColorReset());
