@@ -484,6 +484,35 @@ correctness. Both are required for WebUI changes. The `test_form_fields_per_tool
 test in `test_web_ui.py` catches missing `inp-*` field IDs programmatically, but
 visual rendering MUST be verified in a browser.
 
+### 12. Misattributing ASAN findings by profile filename instead of stack trace (CJF-15)
+**What happened (session 2026-03-10)**: Agent ran 230 tests, got 229/230 with an ASAN
+HUAF in `IccImageAnalyzer.cpp:962`. Because the failing test used a profile named
+`ub-runtime-error-type-confusion-CIccTagEmbeddedProfile`, agent classified it as
+"pre-existing upstream iccDEV ASAN" and stored a memory saying "229/230 is stable
+baseline, 1 upstream ASAN". User accepted this for multiple turns until noticing
+the ASAN trace frames pointed at `IccImageAnalyzer.cpp` — OUR code. Bug was a
+libtiff interior pointer lifetime issue (10-line fix in commit bfafaba). Agent's
+wrong memory reinforced the error across subsequent turns.
+**The classification error cascade**:
+```
+WRONG:
+  1. See test failure with ASAN
+  2. Read profile filename → "ub-...CIccTagEmbeddedProfile" → must be iccDEV
+  3. Store memory: "229/230 stable, 1 upstream ASAN"
+  4. All future turns skip investigation → bug festers
+
+CORRECT:
+  1. See test failure with ASAN
+  2. Read ASAN stack frame #2-#3 → IccImageAnalyzer.cpp:962
+  3. Classify: path contains "iccanalyzer-lite/" → OUR CODE
+  4. Fix immediately (10 lines)
+  5. Verify: 230/230
+```
+**Rule**: ALWAYS classify ASAN/UBSAN findings by **stack trace file paths** (frame #2-#3),
+NEVER by profile filename or tag class name. Profile names describe the *trigger*;
+stack frames identify the *bug location*. When storing regression baselines, include
+the stack trace evidence.
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:

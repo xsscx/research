@@ -484,11 +484,27 @@ You MUST accurately report failures. Do NOT claim success when errors occur.
 
 **What counts as SUCCESS:** Exit code 0 AND no ASAN/UBSAN stderr AND non-empty output.
 
+**ASAN/UBSAN Attribution — MANDATORY** (CJF Envelope Rule):
+When reporting any ASAN/UBSAN finding, you MUST:
+1. Read stack frame #2-#3 to identify the **actual source file:line**
+2. Classify by **file path**, NEVER by profile filename:
+   - Path contains `iccanalyzer-lite/`, `colorbleed_tools/`, `cfl/` (non-iccDEV) → **OUR CODE** → fix immediately
+   - Path contains `iccDEV/` → **UPSTREAM** → cite specific file:line and upstream issue#
+3. If claiming "pre-existing", provide the **commit SHA** where it was introduced
+4. NEVER store a memory or update a baseline without completing steps 1-3
+
+**Incident reference**: Session 2026-03-10 — agent misclassified HUAF in
+`IccImageAnalyzer.cpp:962` as "upstream iccDEV" because the profile was named
+`ub-runtime-error-type-confusion-*`. The ASAN trace clearly showed our code at
+frames #2 and #5. Bug sat unfixed for an entire session. Fix was 10 lines.
+
 **What you MUST NOT do:**
 - Do NOT say "analysis completed successfully" if exit code was non-zero
 - Do NOT omit ASAN/UBSAN stderr from the report
 - Do NOT summarize tool output — include it VERBATIM
 - Do NOT skip any of the 3 required commands (`-a`, `-nf`, `-r`)
+- Do NOT classify ASAN findings by profile filename — READ THE STACK FRAMES
+- Do NOT accept a test count regression as "baseline" without attribution evidence
 
 ## VERIFICATION PROTOCOL — MANDATORY
 
