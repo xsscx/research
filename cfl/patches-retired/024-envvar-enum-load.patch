@@ -1,0 +1,27 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index fbc8c1f..1b6f1be 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -329,18 +329,18 @@ class CIccOpDefEnvVar : public IIccOpDef
+ public:
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+-    icSigCmmEnvVar sig = (icSigCmmEnvVar) op->data.size;
++    icUInt32Number rawSig = op->data.size;
+     icFloatNumber val=0.0;
+ 
+-    if (sig==icSigTrueVar) {
++    if (rawSig==static_cast<icUInt32Number>(icSigTrueVar)) {
+       OsPushArg((icFloatNumber)1.0);
+       OsPushArg((icFloatNumber)1.0);
+     }
+-    else if (sig==icSigNotDefVar) {
++    else if (rawSig==static_cast<icUInt32Number>(icSigNotDefVar)) {
+       OsPushArg((icFloatNumber)0.0);
+       OsPushArg((icFloatNumber)0.0);
+     }
+-    else if (os.pApply->GetEnvVar(sig, val)) {
++    else if (os.pApply->GetEnvVar(static_cast<icSigCmmEnvVar>(rawSig), val)) {
+       OsPushArg((icFloatNumber)val);
+       OsPushArg((icFloatNumber)1.0);
+     }

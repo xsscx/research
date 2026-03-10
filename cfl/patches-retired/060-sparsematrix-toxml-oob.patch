@@ -1,0 +1,24 @@
+--- a/IccXML/IccLibXML/IccTagXml.cpp
++++ b/IccXML/IccLibXML/IccTagXml.cpp
+@@ -1095,13 +1095,20 @@
+       xml += blanks + "  <SparseRow>\n";
+       
+       n=mtx.GetNumRowColumns(j);
++      icUInt16Number rowOffset = mtx.GetRowOffset(j);
++      icUInt16Number nEntries = mtx.GetNumEntries();
++
++      // Clamp to prevent OOB read when row-start indices exceed data size
++      if (rowOffset + n > nEntries)
++        n = (rowOffset < nEntries) ? nEntries - rowOffset : 0;
+ 
+       xml += blanks + "   <ColIndices>\n";
+       CIccUInt16Array::DumpArray(xml, blanks+"    ", mtx.GetColumnsForRow(j), n, icConvert16Bit, 8);
+       xml += blanks + "   </ColIndices>\n";
+ 
+       xml += blanks + "   <ColData>\n";
+-      CIccFloatArray::DumpArray(xml, blanks+"    ", (icFloatNumber*)(mtx.GetData()->getPtr(mtx.GetRowOffset(j))), n, icConvertFloat, 8);
++      if (n > 0)
++        CIccFloatArray::DumpArray(xml, blanks+"    ", (icFloatNumber*)(mtx.GetData()->getPtr(rowOffset)), n, icConvertFloat, 8);
+       xml += blanks + "   </ColData>\n";
+ 
+       xml += blanks + "  </SparseRow>\n";

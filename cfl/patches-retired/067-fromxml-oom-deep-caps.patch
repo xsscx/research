@@ -1,0 +1,149 @@
+--- a/b/IccXML/IccLibXML/IccProfileXml.cpp	2026-03-04 21:48:30.407175201 -0500
++++ b/IccXML/IccLibXML/IccProfileXml.cpp	2026-03-04 21:48:40.754905538 -0500
+@@ -863,8 +863,15 @@
+   if (!tagNode)
+     return false;
+ 
++  // Guard against OOM from malformed XML with excessive tag count.
++  // ICC profiles rarely exceed 100 tags; cap at 256 to prevent
++  // unbounded memory growth from fuzz-generated inputs (CWE-789).
++  const int MAX_XML_TAGS = 256;
++  int tagCount = 0;
+   for (tagNode = tagNode->children; tagNode; tagNode = tagNode->next) {
+     if (tagNode->type == XML_ELEMENT_NODE) {
++      if (++tagCount > MAX_XML_TAGS)
++        break;
+       if (!ParseTag(tagNode, parseStr))
+         return false;
+     }
+--- a/b/IccXML/IccLibXML/IccTagXml.cpp	2026-03-04 21:48:30.407175201 -0500
++++ b/IccXML/IccLibXML/IccTagXml.cpp	2026-03-04 21:48:47.551189154 -0500
+@@ -1749,7 +1749,14 @@
+   xmlAttr *langCode;
+   int n = 0;
+ 
+-  for (pNode = icXmlFindNode(pNode, "LocalizedText"); pNode; pNode = icXmlFindNode(pNode->next, "LocalizedText")) {    
++  // Guard against OOM from malformed XML with excessive LocalizedText entries.
++  // Real profiles have at most ~50 language/country variants; cap at 100
++  // to prevent unbounded CIccLocalizedUnicode allocation (CWE-789).
++  const int MAX_LOCALIZED_STRINGS = 100;
++  for (pNode = icXmlFindNode(pNode, "LocalizedText"); pNode; pNode = icXmlFindNode(pNode->next, "LocalizedText")) {
++    if (n >= MAX_LOCALIZED_STRINGS)
++      break;
++
+     if ((langCode = icXmlFindAttr(pNode, "LanguageCountry"))) {
+       xmlNode *pText;
+ 
+@@ -1759,8 +1766,13 @@
+       }
+ 
+       if (pText) {
++        // Cap text content length to prevent OOM from mega-strings (CWE-789).
++        // 64KB UTF-8 is generous for any real localized text.
++        const char *content = (const char*)pText->content;
++        if (content && strlen(content) > 65536)
++          continue;
+         icUInt32Number lc = icGetSigVal(icXmlAttrValue(langCode));
+-        CIccUTF16String str((const char*)pText->content);
++        CIccUTF16String str(content);
+ 
+         SetText(str.c_str(), (icLanguageCode)(lc>>16), (icCountryCode)(lc & 0xffff));
+         n++;
+@@ -4278,7 +4290,13 @@
+ 
+   m_list->clear();
+ 
++  // Cap entries to prevent OOM from fuzz-generated XML (CWE-789).
++  const int MAX_SEQ_ENTRIES = 256;
++  const int MAX_SEQ_STRINGS = 100;
++  int entryCount = 0;
+   for (pNode = icXmlFindNode(pNode->children, "ProfileIdDesc"); pNode; pNode = icXmlFindNode(pNode->next, "ProfileIdDesc")) {
++    if (++entryCount > MAX_SEQ_ENTRIES)
++      break;
+     CIccProfileIdDesc desc;
+     const icChar *szDesc = icXmlAttrValue(pNode, "id");
+ 
+@@ -4288,7 +4306,10 @@
+     xmlAttr *langCode;
+ 
+     xmlNode* pSubNode;
++    int strCount = 0;
+     for (pSubNode = icXmlFindNode(pNode, "LocalizedText"); pSubNode; pSubNode = icXmlFindNode(pSubNode->next, "LocalizedText")) {
++      if (++strCount > MAX_SEQ_STRINGS)
++        break;
+       if ((langCode = icXmlFindAttr(pSubNode, "languageCountry")) &&
+         pSubNode->children) {
+           xmlNode *pText;
+@@ -4296,8 +4317,11 @@
+           for (pText = pSubNode->children; pText && pText->type != XML_TEXT_NODE; pText = pText->next);
+ 
+           if (pText) {
++            const char *content = (const char*)pText->content;
++            if (content && strlen(content) > 65536)
++              continue;
+             icUInt32Number lc = icGetSigVal(icXmlAttrValue(langCode));
+-            CIccUTF16String str((const char*)pText->content);
++            CIccUTF16String str(content);
+             desc.m_desc.SetText(str.c_str(), (icLanguageCode)(lc>>16), (icCountryCode)(lc & 0xffff));
+           }
+           else {
+@@ -4378,7 +4402,13 @@
+ {
+   m_Dict->clear();
+ 
++  // Cap entries and localized children to prevent OOM (CWE-789).
++  const int MAX_DICT_ENTRIES = 1024;
++  const int MAX_DICT_STRINGS = 100;
++  int dictCount = 0;
+   for (pNode = icXmlFindNode(pNode, "DictEntry"); pNode; pNode = icXmlFindNode(pNode->next, "DictEntry")) {
++    if (++dictCount > MAX_DICT_ENTRIES)
++      break;
+     CIccDictEntryPtr ptr;
+     CIccDictEntry *pDesc = new CIccDictEntry();
+     xmlAttr *pAttr;
+@@ -4401,9 +4431,12 @@
+     }
+ 
+     xmlNode *pChild;
++    int nameStrCount = 0, valueStrCount = 0;
+ 
+     for (pChild = pNode->children; pChild; pChild = pChild->next) {
+       if (pChild->type == XML_ELEMENT_NODE && !icXmlStrCmp(pChild->name, "LocalizedName")) {
++        if (++nameStrCount > MAX_DICT_STRINGS)
++          continue;
+         CIccTagMultiLocalizedUnicode *pTag = pDesc->GetNameLocalized();
+         if (!pTag) {
+           pTag = new CIccTagMultiLocalizedUnicode();
+@@ -4417,7 +4450,10 @@
+           for (pText = pChild->children; pText && pText->type != XML_TEXT_NODE && pText->type != XML_CDATA_SECTION_NODE; pText = pText->next);
+ 
+           if (pText) {
+-            CIccUTF16String str((const char*)pText->content);
++            const char *content = (const char*)pText->content;
++            if (content && strlen(content) > 65536)
++              continue;
++            CIccUTF16String str(content);
+ 
+             pTag->SetText(str.c_str(), (icLanguageCode)(lc>>16), (icCountryCode)(lc & 0xffff));
+           }
+@@ -4427,6 +4463,8 @@
+         }
+       }
+       else if (pChild->type == XML_ELEMENT_NODE && !icXmlStrCmp(pChild->name, "LocalizedValue")) {
++        if (++valueStrCount > MAX_DICT_STRINGS)
++          continue;
+         CIccTagMultiLocalizedUnicode *pTag = pDesc->GetValueLocalized();
+         if (!pTag) {
+           pTag = new CIccTagMultiLocalizedUnicode();
+@@ -4440,7 +4478,10 @@
+           for (pText = pChild->children; pText && pText->type != XML_TEXT_NODE && pText->type != XML_CDATA_SECTION_NODE; pText = pText->next);
+ 
+           if (pText) {
+-            CIccUTF16String str((const char*)pText->content);
++            const char *content = (const char*)pText->content;
++            if (content && strlen(content) > 65536)
++              continue;
++            CIccUTF16String str(content);
+             pTag->SetText(str.c_str(), (icLanguageCode)(lc>>16), (icCountryCode)(lc & 0xffff));
+           }
+           else {

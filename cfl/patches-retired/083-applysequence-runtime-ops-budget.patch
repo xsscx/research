@@ -1,0 +1,113 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -3698,8 +3698,27 @@
+ * 
+ * Return: 
+ ******************************************************************************/
++// CFL-083: Runtime ops budget — persistent across Apply() calls
++static const unsigned long kMaxRuntimeOps = 10000UL; // 10K ops
++static thread_local unsigned long s_runtimeOpsProcessed = 0;
++static thread_local bool s_runtimeBudgetExceeded = false;
++
++void CIccCalculatorFunc::ResetRuntimeBudget()
++{
++  s_runtimeOpsProcessed = 0;
++  s_runtimeBudgetExceeded = false;
++}
++
++bool CIccCalculatorFunc::IsRuntimeBudgetExceeded()
++{
++  return s_runtimeBudgetExceeded;
++}
++
+ bool CIccCalculatorFunc::ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *ops, int nDepth) const
+ {
++  // CFL-083: Fast-exit if budget already exceeded from prior Apply() calls
++  if (s_runtimeBudgetExceeded)
++    return false;
+   // CFL-079: Runtime depth limit for ApplySequence (CWE-674)
+   static const int kMaxApplyDepth = 16;
+   if (nDepth > kMaxApplyDepth)
+@@ -3863,6 +3882,13 @@
+         return false;
+     }
+ 
++    // CFL-083: Track runtime ops and enforce budget
++    s_runtimeOpsProcessed++;
++    if (s_runtimeOpsProcessed > kMaxRuntimeOps) {
++      s_runtimeBudgetExceeded = true;
++      return false;
++    }
++
+     if (g_pDebugger) {
+       g_pDebugger->AfterOp(op, os, ops);
+     }
+@@ -5037,6 +5063,9 @@
+  ******************************************************************************/
+ void CIccMpeCalculator::Apply(CIccApplyMpe *pApply, icFloatNumber *pDestPixel, const icFloatNumber *pSrcPixel) const
+ {
++  // CFL-083: Fast-exit if budget exceeded
++  if (s_runtimeBudgetExceeded)
++    return;
+   CIccApplyMpeCalculator *pApplyCalc = (CIccApplyMpeCalculator*)pApply;
+   icFloatNumber *pSrcTemp = pApplyCalc->m_temp;
+   bool rv;
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -408,6 +408,8 @@
+   void DescribeSequence(std::string &sDescription,
+                         icUInt32Number nOps, SIccCalcOp *op, int nBlanks, int nDepth = 0);
+   bool ApplySequence(CIccApplyMpeCalculator *pApply, icUInt32Number nOps, SIccCalcOp *op, int nDepth = 0) const;
++  static void ResetRuntimeBudget();
++  static bool IsRuntimeBudgetExceeded();
+ 
+   const char *ParseFuncDef(const char *szFuncDef, CIccCalcOpList &m_list, std::string &sReport);
+--- a/IccProfLib/IccEval.cpp
++++ b/IccProfLib/IccEval.cpp
+@@ -70,6 +70,7 @@
+ 
+ #include <cmath>
+ #include "IccEval.h"
++#include "IccMpeCalc.h"  // CFL-083: IsRuntimeBudgetExceeded
+ #include "IccTag.h"
+ 
+ #ifdef USEICCDEVNAMESPACE
+@@ -210,6 +211,10 @@
+     Lab2Dev2Lab.Apply(roundPcs1, devPcs);  //First round trip gets color into output gamut
+     Lab2Dev2Lab.Apply(roundPcs2, roundPcs1);  //Second round trip find reproducibility error
+ 
++    // CFL-083: Break grid loop if calculator ops budget exceeded
++    if (CIccCalculatorFunc::IsRuntimeBudgetExceeded())
++      break;
++
+     icLabFromPcs(devPcs);
+     icLabFromPcs(roundPcs1);
+     icLabFromPcs(roundPcs2);
+--- a/IccProfLib/IccPrmg.cpp
++++ b/IccProfLib/IccPrmg.cpp
+@@ -63,6 +63,7 @@
+ 
+ #include "IccPrmg.h"
+ #include "IccUtil.h"
++#include "IccMpeCalc.h"  // CFL-083: IsRuntimeBudgetExceeded
+ 
+ #ifdef USEICCDEVNAMESPACE
+ namespace iccDEV {
+@@ -256,6 +257,10 @@
+         icLabFromPcs(Lab1);
+         if (InGamut(Lab1)) {
+           Lab2Dev2Lab.Apply(Lab2, pcs);
++
++          // CFL-083: Break PRMG loops if calculator ops budget exceeded
++          if (CIccCalculatorFunc::IsRuntimeBudgetExceeded())
++            goto prmg_budget_exit;
+           icLabFromPcs(Lab2);
+ 
+           dE = icDeltaE(Lab1, Lab2);
+@@ -291,6 +296,7 @@
+     }
+   }
+ 
++prmg_budget_exit:
+   return icCmmStatOk;
+ }

@@ -1,0 +1,46 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index d3bed77..e507608 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -8875,6 +8875,7 @@ bool CIccTagColorantTable::Read(icUInt32Number size, CIccIO *pIO)
+   for (icUInt32Number i=0; i<nCount; i++) {
+     if (pIO->Read8(&m_pData[i].name[0], nNum8) != nNum8)
+       return false;
++    m_pData[i].name[nNum8-1] = '\0';  // CFL-001: Ensure null-termination (CWE-170)
+ 
+     if (pIO->Read16(&m_pData[i].data[0], nNum16) != nNum16)
+       return false;
+diff --git a/IccXML/IccLibXML/IccUtilXml.cpp b/IccXML/IccLibXML/IccUtilXml.cpp
+index 31cb109..3be36ce 100644
+--- a/IccXML/IccLibXML/IccUtilXml.cpp
++++ b/IccXML/IccLibXML/IccUtilXml.cpp
+@@ -391,7 +391,13 @@ const char *icAnsiToUtf8(std::string &buf, const char *szSrc)
+   free(szBuf);
+   free(szUnicodeBuf);
+ #else
+-  buf = szSrc;
++  // CFL-001: Use bounded copy to prevent strlen overread (CWE-126)
++  if (szSrc) {
++    size_t srcLen = strnlen(szSrc, 256);
++    buf.assign(szSrc, srcLen);
++  } else {
++    buf.clear();
++  }
+ #endif
+   return buf.c_str();
+ }
+@@ -416,7 +422,13 @@ const char *icUtf8ToAnsi(std::string &buf, const char *szSrc)
+   free(szBuf);
+   free(szUnicodeBuf);
+ #else
+-  buf = szSrc;
++  // CFL-001: Use bounded copy to prevent strlen overread (CWE-126)
++  if (szSrc) {
++    size_t srcLen = strnlen(szSrc, 256);
++    buf.assign(szSrc, srcLen);
++  } else {
++    buf.clear();
++  }
+ #endif
+   return buf.c_str();
+ }

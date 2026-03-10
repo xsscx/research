@@ -1,0 +1,16 @@
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+index 474a81b..4d1018c 100644
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -285,6 +285,11 @@ bool CIccMpeSpectralMatrix::SetSize(icUInt16Number nInputChannels, icUInt16Numbe
+ 
+   m_size = (icUInt32Number)numVectors() * range.steps;
+ 
++  if (m_size && (icUInt64Number)m_size * sizeof(icFloatNumber) > 134217728ULL) {
++    m_size = 0;
++    return false;
++  }
++
+   m_pMatrix = (icFloatNumber*)calloc(m_size, sizeof(icFloatNumber));
+   m_pOffset = (icFloatNumber*)calloc(range.steps, sizeof(icFloatNumber));
+   m_pWhite = (icFloatNumber*)calloc(range.steps, sizeof(icFloatNumber));

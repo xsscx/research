@@ -1,0 +1,68 @@
+--- a/IccXML/IccLibXML/IccTagXml.cpp	2026-03-05 19:33:05.197668993 -0500
++++ b/IccXML/IccLibXML/IccTagXml.cpp	2026-03-05 19:33:53.389432456 -0500
+@@ -2454,8 +2454,13 @@
+   m_Descriptions->clear();
+ 
+   if (pNode) {
++    // Cap entries to prevent OOM from fuzz-generated XML (CWE-789).
++    const int MAX_SEQ_DESC = 256;
++    int descCount = 0;
+     for (pNode = pNode->children; pNode; pNode=pNode->next) {
+       if (pNode->type==XML_ELEMENT_NODE && !icXmlStrCmp(pNode->name, "ProfileDesc")) {
++        if (++descCount > MAX_SEQ_DESC)
++          break;
+         CIccProfileDescStruct ProfileDescStruct;
+ 
+         if (!icXmlParseProfDesc(pNode, ProfileDescStruct, parseStr))
+@@ -2528,8 +2533,14 @@
+   if (!m_ResponseCurves->empty())
+     m_ResponseCurves->clear();
+ 
++  // Cap response curves and measurements to prevent OOM (CWE-789).
++  const int MAX_RESPONSE_CURVES = 64;
++  const int MAX_MEASUREMENTS = 8192;
++  int curveCount = 0;
+   for (pNode = pNode->next; pNode; pNode = pNode->next) {
+     if (pNode->type==XML_ELEMENT_NODE && !icXmlStrCmp(pNode->name, "ResponseCurve")) {
++      if (++curveCount > MAX_RESPONSE_CURVES)
++        break;
+       const icChar *szMeasurmentType = icXmlAttrValue(pNode, "MeasUnitSignature");
+ 
+       if (nChannels != icXmlNodeCount(pNode->children, "ChannelResponses"))
+@@ -2558,6 +2569,8 @@
+ 
+           for (pMeasurement = pChild->children; pMeasurement; pMeasurement = pMeasurement->next) {
+             if (pMeasurement->type == XML_ELEMENT_NODE && !icXmlStrCmp(pMeasurement->name, "Measurement")) {
++              if ((int)pResponseList->size() >= MAX_MEASUREMENTS)
++                break;
+               const icChar *szDeviceCode = icXmlAttrValue(pMeasurement, "DeviceCode");
+               const icChar *szValue = icXmlAttrValue(pMeasurement, "MeasValue");
+               const icChar *szReserved = icXmlAttrValue(pMeasurement, "Reserved");
+@@ -4220,8 +4233,13 @@
+   }
+ 
+   xmlNode *elemNode;
++  // Cap MPE elements to prevent OOM from fuzz-generated XML (CWE-789).
++  const int MAX_MPE_ELEMENTS = 256;
++  int mpeCount = 0;
+   for (elemNode = pNode->children; elemNode; elemNode = elemNode->next) {
+     if (elemNode->type == XML_ELEMENT_NODE) {
++      if (++mpeCount > MAX_MPE_ELEMENTS)
++        break;
+       if (!ParseElement(elemNode, parseStr)) {
+         const size_t strSize = 100;
+         char str[strSize];
+--- a/IccProfLib/IccTagBasic.cpp	2026-03-05 19:33:05.197668993 -0500
++++ b/IccProfLib/IccTagBasic.cpp	2026-03-05 19:33:59.901374946 -0500
+@@ -7638,6 +7638,11 @@
+   CIccLocalizedUnicode Unicode;
+   icUInt32Number nLastPos = 0;
+ 
++  // Cap localized string records to prevent OOM from malformed profiles (CWE-789).
++  const icUInt32Number MAX_MLUC_RECORDS = 4096;
++  if (nNumRec > MAX_MLUC_RECORDS)
++    nNumRec = MAX_MLUC_RECORDS;
++
+   for (i=0; i<nNumRec; i++) {
+     if (4*sizeof(icUInt32Number) + (i+1)*12 > size)
+       return false;
