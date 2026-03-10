@@ -895,9 +895,11 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   uint16_t tileWidth = 0, tileHeight = 0;
   float xRes = 0, yRes = 0;
   uint16_t resUnit = 0;
-  char *software = nullptr;
-  char *datetime = nullptr;
-  char *imagedesc = nullptr;
+  // libtiff returns interior pointers that TIFFSetDirectory/TIFFReadDirectory
+  // can free. Copy to owned strings before any directory-walking heuristics.
+  char *software_raw = nullptr;
+  char *datetime_raw = nullptr;
+  char *imagedesc_raw = nullptr;
 
   TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
   TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
@@ -914,9 +916,17 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
   TIFFGetField(tif, TIFFTAG_XRESOLUTION, &xRes);
   TIFFGetField(tif, TIFFTAG_YRESOLUTION, &yRes);
   TIFFGetField(tif, TIFFTAG_RESOLUTIONUNIT, &resUnit);
-  TIFFGetField(tif, TIFFTAG_SOFTWARE, &software);
-  TIFFGetField(tif, TIFFTAG_DATETIME, &datetime);
-  TIFFGetField(tif, TIFFTAG_IMAGEDESCRIPTION, &imagedesc);
+  TIFFGetField(tif, TIFFTAG_SOFTWARE, &software_raw);
+  TIFFGetField(tif, TIFFTAG_DATETIME, &datetime_raw);
+  TIFFGetField(tif, TIFFTAG_IMAGEDESCRIPTION, &imagedesc_raw);
+
+  // Own copies — safe across TIFFSetDirectory/TIFFReadDirectory calls
+  std::string software_str = software_raw ? software_raw : "";
+  std::string datetime_str = datetime_raw ? datetime_raw : "";
+  std::string imagedesc_str = imagedesc_raw ? imagedesc_raw : "";
+  const char *software = software_str.empty() ? nullptr : software_str.c_str();
+  const char *datetime = datetime_str.empty() ? nullptr : datetime_str.c_str();
+  const char *imagedesc = imagedesc_str.empty() ? nullptr : imagedesc_str.c_str();
 
   printf("  Dimensions:      %u × %u pixels\n", width, height);
   printf("  Bits/Sample:     %u\n", bps);
