@@ -513,6 +513,36 @@ NEVER by profile filename or tag class name. Profile names describe the *trigger
 stack frames identify the *bug location*. When storing regression baselines, include
 the stack trace evidence.
 
+### 13. Declaring patches applied based on dry-run output without ground-truth verification (CJF-16)
+**What happened (session 2026-03-10)**: Agent claimed "61/61 patches apply cleanly"
+and "SSD ready for fuzzing" based on `patch --dry-run --forward` output. User began
+fuzzing at 12:10 UTC. At 12:47, user reported the pattern of false claims. Agent
+spent until 13:08 building verification tooling that should have existed from the
+first patch failure (sessions earlier). Total waste: ~58 minutes.
+**Root cause**: `patch --dry-run --forward` masks 3 failure modes:
+1. "Reversed or previously applied" — can't distinguish this-checkout vs stale-checkout
+2. "Succeeded with fuzz/offset" — means WOULD apply again, not IS applied
+3. Context-shifted FAIL — upstream changed lines near patch, dry-run fails but code IS present
+**The compound cost**:
+```
+WRONG workflow (repeated across sessions):
+  1. Run patch --dry-run --forward → "ok"
+  2. Claim "61/61 patches applied"
+  3. User discovers patches didn't actually compile in
+  4. Agent re-investigates → fixes → claims success again
+  5. Repeat steps 3-4
+
+CORRECT workflow (do once, trust forever):
+  1. Build verification script on FIRST failure
+  2. Run cfl/verify-patches.sh after every build
+  3. 3-phase ground truth: source grep + binary nm + runtime test
+  4. Script output IS the evidence — not agent claims
+```
+**Rule**: NEVER declare CFL patches applied without running `cfl/verify-patches.sh`.
+The script checks source code for patch additions, binary symbols for patched function
+signatures, and runtime behavior for timeout artifact completion. Build verification
+tooling on the FIRST failure, not after repeated incidents.
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:

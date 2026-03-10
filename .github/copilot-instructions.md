@@ -524,6 +524,7 @@ Every success claim MUST include verification evidence in this format:
 - `[OK] Verified: 230 tests pass (python3 tests/run_tests.py → 230/230 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
+- `[OK] Verified: CFL patches ground-truth (cfl/verify-patches.sh → 15 PASS, 0 FAIL)`
 
 ### Exit Code Classification (CJF-13)
 

@@ -26,9 +26,20 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fu
 
 When upstream iccDEV changes:
 ```bash
-cd cfl/iccDEV && git fetch origin && git reset --hard origin/master
+cd cfl/iccDEV && git fetch origin && git reset --hard origin/master && git clean -fd
 cd .. && ./build.sh   # re-applies all patches and rebuilds
+./verify-patches.sh   # MANDATORY: ground-truth verification (source + binary + runtime)
 ```
+
+**CRITICAL**: Do NOT trust `build.sh` patch summary alone. The `--forward` flag in
+build.sh masks context-shifted failures. `verify-patches.sh` provides ground truth:
+- Phase 1: `grep` source for actual patch code additions
+- Phase 2: `nm | c++filt` binary symbols for patched function signatures
+- Phase 3: Run timeout artifacts, verify <2s completion
+
+For SSD verification: `./verify-patches.sh --ssd /mnt/g/fuzz-ssd`
+
+See Anti-Pattern #13 in `multi-agent.instructions.md` for the full incident.
 
 Then run patch reconciliation to identify NO-OPs:
 ```bash
