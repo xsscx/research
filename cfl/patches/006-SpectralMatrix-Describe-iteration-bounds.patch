@@ -1,0 +1,29 @@
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+index 474a81b..8e7f954 100644
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -340,15 +340,21 @@ void CIccMpeSpectralMatrix::Describe(std::string &sDescription, int /* nVerbosen
+ 
+   if (data) {
+     sDescription += "CHANNEL_DATA\n";
+-    for (j=0; j<m_nOutputChannels; j++) {
+-      for (i=0; i<(int)m_Range.steps; i++) {
++    // CFL-006: Use numVectors() and m_Range.steps to match SetSize() allocation.
++    // SetSize allocates numVectors()*range.steps floats in row-major order.
++    // Previously used m_nOutputChannels (wrong for EmissionMatrix where
++    // numVectors=m_nInputChannels) and advanced pointer by m_nInputChannels
++    // instead of range.steps — causing heap-buffer-overflow (CWE-122).
++    icUInt16Number nVec = numVectors();
++    for (j=0; j<(int)nVec; j++) {
++      for (i=0; i<(int)m_Range.steps && (data + i) < (m_pMatrix + m_size); i++) {
+         if (i)
+           sDescription += " ";
+         snprintf(buf, bufSize, "%12.8lf", data[i]);
+         sDescription += buf;
+       }
+       sDescription += "\n";
+-      data += m_nInputChannels;
++      data += m_Range.steps;
+     }
+   }
+ 
