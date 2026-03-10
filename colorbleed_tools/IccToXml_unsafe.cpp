@@ -120,6 +120,39 @@ int main(int argc, char* argv[])
     limits.max_fsize_mb = 128;  // reduce output budget
   }
 
+  // CRITICAL pre-flight = known dangerous patterns (SBO, HBO, unterminated strings).
+  // Route to diagnostic XML instead of risking ASAN errors in ToXml().
+  if (preflight.worst == PreflightSeverity::CRITICAL) {
+    fprintf(stderr, "[ColorBleed] CRITICAL pre-flight — routing to diagnostic XML\n");
+    std::string diagXml;
+    std::string reason = "Pre-flight CRITICAL:";
+    for (const auto& w : preflight.warnings) {
+      if (w.severity == PreflightSeverity::CRITICAL) {
+        reason += " [" + std::string(w.heuristic) + "] " + std::string(w.message) + ";";
+      }
+    }
+    if (GenerateDiagnosticXml(src_path, diagXml, reason.c_str())) {
+      int dfd = open(safe_dst.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if (dfd >= 0) {
+        FILE* df = fdopen(dfd, "wb");
+        if (df) {
+          size_t dw = fwrite(diagXml.c_str(), 1, diagXml.size(), df);
+          fclose(df);
+          if (dw == diagXml.size()) {
+            printf("[ColorBleed] Diagnostic XML written (%zu bytes) → %s\n",
+                   diagXml.size(), safe_dst.c_str());
+            printf("[ColorBleed] CRITICAL pre-flight: ToXml skipped to prevent ASAN errors\n");
+            return 6;
+          }
+        } else {
+          close(dfd);
+        }
+      }
+    }
+    // If diagnostic XML failed, fall through to normal path
+    fprintf(stderr, "[ColorBleed] WARNING: diagnostic XML generation failed, attempting ToXml\n");
+  }
+
   SandboxResult result = RunSandboxed([&]() -> int {
     CIccTagCreator::PushFactory(new CIccTagXmlFactory());
     CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());

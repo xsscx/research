@@ -30,6 +30,7 @@
 #include <cctype>
 #include <string>
 #include <vector>
+#include <set>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -518,6 +519,144 @@ static PreflightResult PreflightValidateICC(const char* filename) {
         snprintf(buf, sizeof(buf), "Tag '%.4s' gbd: PCS=%u Dev=%u out of range (signed confusion)",
                  sig4, nPCSCh, nDevCh);
         result.AddWarning("H30", buf, PreflightSeverity::WARNING);
+      }
+    }
+  }
+
+  // ── H31: NamedColor2 Name String Safety (SBO in icFixXml) ──
+  // When NamedColor2 tag has names with XML-special chars (', ", <, >, &)
+  // that aren't null-terminated, icFixXml() expands each to 4-6 chars,
+  // overflowing the fixed 256-byte `fix` buffer in IccTagXml.cpp:699.
+  for (const auto& t : tags) {
+    if (t.offset >= 128 && t.size >= 24 && t.size <= fileSize &&
+        t.offset <= fileSize - t.size) {
+      uint8_t ncl2Hdr[24];
+      fseek(fp, t.offset, SEEK_SET);
+      if (fread(ncl2Hdr, 1, 24, fp) != 24) continue;
+      uint32_t tagType = ReadBE32(ncl2Hdr);
+      if (tagType != 0x6e636c32) continue; // 'ncl2'
+
+      // Check prefix (bytes 8-39 = 32-byte prefix string)
+      uint32_t vendorFlag = ReadBE32(ncl2Hdr + 8);
+      uint32_t nColors = ReadBE32(ncl2Hdr + 12);
+      uint32_t nDevCoords = ReadBE32(ncl2Hdr + 16);
+      // Read prefix (32 bytes starting at offset+8 in the full ncl2 structure)
+      if (t.size >= 40) {
+        uint8_t prefix[32];
+        fseek(fp, t.offset + 8 + 16, SEEK_SET); // prefix starts after 8-byte type header + 16-byte ncl2 header
+        if (fread(prefix, 1, 32, fp) == 32) {
+          // Count XML-special chars in prefix
+          int xmlSpecial = 0;
+          bool hasNull = false;
+          for (int j = 0; j < 32; j++) {
+            if (prefix[j] == 0) { hasNull = true; break; }
+            if (prefix[j] == '\'' || prefix[j] == '"' ||
+                prefix[j] == '<' || prefix[j] == '>' || prefix[j] == '&')
+              xmlSpecial++;
+          }
+          if (!hasNull && xmlSpecial > 8) {
+            uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),
+                               (uint8_t)(t.sig>>8),(uint8_t)t.sig};
+            char sig4[5]; SanitizeSig4(raw4, sig4);
+            char buf[160];
+            snprintf(buf, sizeof(buf),
+                     "Tag '%.4s' ncl2 prefix: %d XML-special chars, not null-terminated (SBO in icFixXml)",
+                     sig4, xmlSpecial);
+            result.AddWarning("H31", buf, PreflightSeverity::CRITICAL);
+          }
+        }
+      }
+      // Check first color name (32 bytes at prefix + suffix + color data start)
+      // Color names start after 8+16+32+32 = 88 bytes (prefix+suffix) from tag start
+      if (t.size >= 120 && nColors > 0) {
+        uint8_t colorName[32];
+        fseek(fp, t.offset + 88, SEEK_SET);
+        if (fread(colorName, 1, 32, fp) == 32) {
+          int xmlSpecial = 0;
+          bool hasNull = false;
+          for (int j = 0; j < 32; j++) {
+            if (colorName[j] == 0) { hasNull = true; break; }
+            if (colorName[j] == '\'' || colorName[j] == '"' ||
+                colorName[j] == '<' || colorName[j] == '>' || colorName[j] == '&')
+              xmlSpecial++;
+          }
+          if (!hasNull && xmlSpecial > 8) {
+            uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),
+                               (uint8_t)(t.sig>>8),(uint8_t)t.sig};
+            char sig4[5]; SanitizeSig4(raw4, sig4);
+            char buf[160];
+            snprintf(buf, sizeof(buf),
+                     "Tag '%.4s' ncl2 color[0] name: %d XML-special chars, not null-terminated (SBO in icFixXml)",
+                     sig4, xmlSpecial);
+            result.AddWarning("H31", buf, PreflightSeverity::CRITICAL);
+          }
+        }
+      }
+    }
+  }
+
+  // ── H50: Circular Struct / Self-Reference Detection (Stack Overflow Risk) ──
+  // CIccTagStruct::Read recursion exhausts stack when a struct tag embeds
+  // another struct that points back, or when struct tags reference data
+  // regions that overlap their parent.
+  {
+    // Detect 'tstr' (tagStruct) type tags that could cause recursive Read
+    std::set<uint32_t> structOffsets;
+    for (const auto& t : tags) {
+      if (t.offset >= 128 && t.size >= 12 && t.size <= fileSize &&
+          t.offset <= fileSize - t.size) {
+        uint8_t typeHdr[8];
+        fseek(fp, t.offset, SEEK_SET);
+        if (fread(typeHdr, 1, 8, fp) != 8) continue;
+        uint32_t typeId = ReadBE32(typeHdr);
+        // 'tstr' = 0x74737472 (tagStructType)
+        if (typeId == 0x74737472) {
+          // Check for sub-tag entries within this struct that reference
+          // the same or overlapping offset ranges
+          if (t.size >= 20) {
+            uint8_t subHdr[4];
+            fseek(fp, t.offset + 12, SEEK_SET);
+            if (fread(subHdr, 1, 4, fp) == 4) {
+              uint32_t nSubTags = ReadBE32(subHdr);
+              if (nSubTags > 100) {
+                uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),
+                                   (uint8_t)(t.sig>>8),(uint8_t)t.sig};
+                char sig4[5]; SanitizeSig4(raw4, sig4);
+                char buf[128];
+                snprintf(buf, sizeof(buf),
+                         "Tag '%.4s' tstr: %u sub-tags (excessive, stack overflow risk)",
+                         sig4, nSubTags);
+                result.AddWarning("H50", buf, PreflightSeverity::CRITICAL);
+              }
+            }
+          }
+          structOffsets.insert(t.offset);
+        }
+      }
+    }
+    // Also flag cenc/spac class profiles with 'cept' tags — these are
+    // the specific crash pattern from CIccBasicStructFactory::CreateStruct
+    uint32_t profileClass = ReadBE32(hdr + 12);
+    if (profileClass == 0x63656e63 || profileClass == 0x73706163) { // cenc or spac
+      for (const auto& t : tags) {
+        if (t.offset >= 128 && t.size >= 8 && t.size <= fileSize &&
+            t.offset <= fileSize - t.size) {
+          uint8_t typeHdr[4];
+          fseek(fp, t.offset, SEEK_SET);
+          if (fread(typeHdr, 1, 4, fp) != 4) continue;
+          uint32_t typeId = ReadBE32(typeHdr);
+          // 'tstr' in cenc/spac profiles are high stack overflow risk
+          if (typeId == 0x74737472 && !structOffsets.empty()) {
+            uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),
+                               (uint8_t)(t.sig>>8),(uint8_t)t.sig};
+            char sig4[5]; SanitizeSig4(raw4, sig4);
+            char buf[128];
+            snprintf(buf, sizeof(buf),
+                     "Tag '%.4s' tstr in cenc/spac profile — recursive struct risk",
+                     sig4);
+            result.AddWarning("H50", buf, PreflightSeverity::CRITICAL);
+          }
+        }
       }
     }
   }
