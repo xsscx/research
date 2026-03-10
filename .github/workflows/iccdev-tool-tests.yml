@@ -1,0 +1,502 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build iccDEV with full ASAN+UBSAN instrumentation,
+#         generate test profiles via CreateAllProfiles.sh,
+#         then run the 103-test coverage baseline suite
+#         against all 14 iccDEV CLI tools.
+#
+# Hardening:
+#   - sanitize-sed.sh v1 sourced in every step
+#   - BASH_ENV=/dev/null to block .bashrc injection
+#   - Pinned action SHAs (no floating tags)
+#   - persist-credentials: false on checkout
+#   - All user-controllable inputs neutralized via env: block
+#   - No shell=true subprocess calls
+#   - Minimal permissions (contents: read)
+#
+# Reference:
+#   iccDEV/.github/workflows/ci-comprehensive-build-test.yml
+#   .github/workflows/iccanalyzer-lite-unit-tests.yml
+#   .github/scripts/iccdev-tool-coverage-baseline.sh
+#   docs/iccDEV/Tools/README.md
+#
+# Last Updated: 2026-03-10
+###############################################################
+
+name: iccDEV Tool Tests
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - '.github/scripts/iccdev-tool-coverage-baseline.sh'
+      - '.github/workflows/iccdev-tool-tests.yml'
+      - 'docs/iccDEV/Tools/test-data/**'
+      - 'cfl/patches/*.patch'
+  pull_request:
+    paths:
+      - '.github/scripts/iccdev-tool-coverage-baseline.sh'
+      - '.github/workflows/iccdev-tool-tests.yml'
+      - 'docs/iccDEV/Tools/test-data/**'
+      - 'cfl/patches/*.patch'
+  workflow_dispatch:
+  schedule:
+    - cron: '30 6 * * 3'  # Weekly Wednesday 06:30 UTC
+
+concurrency:
+  group: iccdev-tool-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  #############################################################################
+  # Job 1: Build iccDEV with ASAN+UBSAN + all 14 CLI tools
+  #############################################################################
+  build-and-test:
+    name: "iccDEV Tools • ASAN+UBSAN • 103 tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Checkout — pinned SHA, no credentials persisted
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      # -----------------------------------------------------------------------
+      # Harden Bash environment
+      # -----------------------------------------------------------------------
+      - name: Harden Bash environment
+        env:
+          BASH_ENV: /dev/null
+          WORKFLOW_REF: ${{ github.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Workflow:    ${WORKFLOW_NAME}"
+          echo "Ref:         ${WORKFLOW_REF}"
+          echo "Commit:      ${WORKFLOW_SHA}"
+
+      # -----------------------------------------------------------------------
+      # Verify sanitize-sed.sh exists and is functional
+      # -----------------------------------------------------------------------
+      - name: Verify sanitize-sed.sh
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          if [ ! -r .github/scripts/sanitize-sed.sh ]; then
+            echo "ERROR: sanitize-sed.sh not found" >&2
+            exit 1
+          fi
+          source .github/scripts/sanitize-sed.sh
+          echo "Sanitizer version: $(sanitizer_version)"
+
+      # -----------------------------------------------------------------------
+      # Cache APT packages
+      # -----------------------------------------------------------------------
+      - name: Cache APT packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+        id: cache-apt
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-iccdev-tools-v1
+          restore-keys: |
+            ${{ runner.os }}-apt-iccdev-tools-
+            ${{ runner.os }}-apt-
+
+      # -----------------------------------------------------------------------
+      # Install build dependencies
+      # -----------------------------------------------------------------------
+      - name: Install build dependencies
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          APT_CACHE_HIT: ${{ steps.cache-apt.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          APT_CACHE_HIT="${APT_CACHE_HIT:-false}"
+          if [ "$APT_CACHE_HIT" != 'true' ]; then
+            sudo apt-get update -qq
+          else
+            echo "Using cached APT packages"
+          fi
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang-18 \
+            clang++-18 \
+            llvm-18 \
+            libxml2-dev \
+            libtiff-dev \
+            libjpeg-dev \
+            libpng-dev \
+            zlib1g-dev \
+            liblzma-dev \
+            nlohmann-json3-dev \
+            libwxgtk3.2-dev \
+            wx-common \
+            libssl-dev \
+            libclang-rt-18-dev
+
+          echo "clang-18:    $(clang-18 --version | head -1)"
+          echo "cmake:       $(cmake --version | head -1)"
+
+      # -----------------------------------------------------------------------
+      # Cache iccDEV repository clone
+      # -----------------------------------------------------------------------
+      - name: Cache iccDEV repository
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+        id: cache-iccdev
+        with:
+          path: iccDEV
+          key: ${{ runner.os }}-iccdev-tools-${{ hashFiles('cfl/patches/*.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-tools-
+
+      # -----------------------------------------------------------------------
+      # Clone iccDEV if not cached
+      # -----------------------------------------------------------------------
+      - name: Clone iccDEV
+        if: steps.cache-iccdev.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          if [ ! -d "iccDEV" ]; then
+            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+          fi
+          echo "iccDEV commit: $(cd iccDEV && git log --oneline -1)"
+
+      # -----------------------------------------------------------------------
+      # Apply CFL patches (security hardening for tools)
+      # -----------------------------------------------------------------------
+      - name: Apply CFL patches
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Applying CFL patches to iccDEV..."
+          APPLIED=0
+          SKIPPED=0
+          for p in cfl/patches/*.patch; do
+            [ -f "$p" ] || continue
+            pname="$(basename "$p")"
+            if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
+              patch -p1 -d iccDEV --forward -s < "$p"
+              echo "  [APPLIED] $pname"
+              APPLIED=$((APPLIED + 1))
+            elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
+              echo "  [SKIP]    $pname (already applied)"
+              SKIPPED=$((SKIPPED + 1))
+            else
+              echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+          echo ""
+          echo "Patches: $APPLIED applied, $SKIPPED skipped"
+
+          # Strip stray U+FE0F (emoji variation selector) from upstream source
+          SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
+          if [ -f "$SIGUTILS" ] && grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Cache iccDEV build artifacts
+      # -----------------------------------------------------------------------
+      - name: Cache iccDEV build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+        id: cache-iccdev-build
+        with:
+          path: |
+            iccDEV/Build
+          key: ${{ runner.os }}-iccdev-tools-build-asan-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccDEV/.git/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-iccdev-tools-build-asan-
+
+      # -----------------------------------------------------------------------
+      # Build iccDEV with ASAN+UBSAN + all tools enabled
+      # -----------------------------------------------------------------------
+      - name: Build iccDEV (Debug + ASAN + UBSAN + Tools)
+        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccDEV
+          mkdir -p Build && cd Build
+
+          echo "::group::CMake Configure"
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -O0 -g3 -fstack-protector-strong" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -O0 -g3 -fstack-protector-strong -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DENABLE_TOOLS=ON \
+            -DENABLE_SHARED_LIBS=ON \
+            -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -Wno-dev
+          echo "::endgroup::"
+
+          echo "::group::Build"
+          make -j"$(nproc)" 2>&1 | tee /tmp/iccdev-build.log
+          echo "::endgroup::"
+
+          # Verify tools built
+          TOOL_COUNT=0
+          for tool_dir in Tools/*/; do
+            tool_name="$(basename "$tool_dir")"
+            tool_bin="$tool_dir/$tool_name"
+            if [ -x "$tool_bin" ]; then
+              TOOL_COUNT=$((TOOL_COUNT + 1))
+            fi
+          done
+          echo "Built $TOOL_COUNT tool binaries"
+          if [ "$TOOL_COUNT" -lt 14 ]; then
+            echo "WARNING: Expected 14+ tools, got $TOOL_COUNT"
+          fi
+
+          # Verify shared libraries
+          ls -lh IccProfLib/libIccProfLib2.so* || echo "WARN: shared lib missing"
+          ls -lh IccXML/libIccXML2.so* || echo "WARN: XML shared lib missing"
+
+          {
+            echo "### iccDEV Build"
+            echo ""
+            echo "| Setting | Value |"
+            echo "|---------|-------|"
+            echo "| Compiler | clang-18 ($(clang-18 --version | head -1)) |"
+            echo "| Build type | Debug |"
+            echo "| Sanitizers | ASAN + UBSAN |"
+            echo "| Tools built | $TOOL_COUNT |"
+            echo "| Commit | $(cd .. && git log --oneline -1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
+      # Generate upstream test profiles (CreateAllProfiles.sh)
+      # -----------------------------------------------------------------------
+      - name: Generate test profiles (CreateAllProfiles.sh)
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          # Add all tool directories to PATH
+          for d in iccDEV/Build/Tools/*/; do
+            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+          done
+
+          cd iccDEV/Testing
+          echo "::group::CreateAllProfiles.sh"
+          timeout 300 sh CreateAllProfiles.sh 2>&1 || {
+            rc=$?
+            if [ "$rc" -eq 124 ]; then
+              echo "WARN: CreateAllProfiles.sh timed out (acceptable for sanitizer builds)"
+            else
+              echo "WARN: CreateAllProfiles.sh exited with $rc"
+            fi
+          }
+          echo "::endgroup::"
+
+          PROFILE_COUNT=$(find . -name '*.icc' -o -name '*.txt' | wc -l)
+          echo "Generated $PROFILE_COUNT test artifacts"
+
+          {
+            echo ""
+            echo "### Test Profile Generation"
+            echo ""
+            echo "**CreateAllProfiles.sh** generated **$PROFILE_COUNT** test artifacts"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
+      # Run 103-test coverage baseline
+      # -----------------------------------------------------------------------
+      - name: Run iccDEV tool coverage baseline (103 tests)
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          LLVM_PROFILE_FILE: "/dev/null"
+          ICCDEV_TOOLS_DIR: "${{ github.workspace }}/iccDEV/Build/Tools"
+          ICCDEV_TESTING_DIR: "${{ github.workspace }}/iccDEV/Testing"
+          ICCDEV_TEST_OUTDIR: "/tmp/iccdev-tool-output"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          chmod +x .github/scripts/iccdev-tool-coverage-baseline.sh
+
+          echo "::group::Coverage Baseline Output"
+          # Run with --asan for full catch-and-continue
+          # Exit code 0 = no ASAN crashes; non-zero = ASAN findings
+          .github/scripts/iccdev-tool-coverage-baseline.sh --asan 2>&1 || {
+            rc=$?
+            echo "::endgroup::"
+            echo ""
+            echo "⚠️  Baseline script exited with code $rc"
+            echo "Review ASAN/UBSAN findings in test logs"
+            # Still upload artifacts — don't short-circuit
+            exit "$rc"
+          }
+          echo "::endgroup::"
+
+      # -----------------------------------------------------------------------
+      # Upload test output logs
+      # -----------------------------------------------------------------------
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: iccdev-tool-test-logs
+          path: /tmp/iccdev-tool-output/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 9
+
+      # -----------------------------------------------------------------------
+      # ASAN finding detail report (on failure)
+      # -----------------------------------------------------------------------
+      - name: Report ASAN findings
+        if: failure()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          OUTDIR="/tmp/iccdev-tool-output"
+          if [ ! -d "$OUTDIR" ]; then
+            echo "No output directory found"
+            exit 0
+          fi
+
+          {
+            echo ""
+            echo "## ⚠️ ASAN/UBSAN Finding Details"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Report ASAN findings with stack frames
+          for logf in "$OUTDIR"/*.log; do
+            [ -f "$logf" ] || continue
+            if grep -q "ERROR: AddressSanitizer" "$logf" 2>/dev/null; then
+              test_name="$(basename "$logf" .log)"
+              # Extract first error type and first 10 stack frames
+              error_type="$(grep 'ERROR: AddressSanitizer' "$logf" | head -1)"
+              safe_error="$(sanitize_line "$error_type")"
+              {
+                echo "### \`$test_name\`"
+                echo ""
+                echo '```'
+                echo "$safe_error"
+                # Show stack frames #0-#5 for attribution (sanitized)
+                grep -E '^\s+#[0-5]' "$logf" | head -6 | while IFS= read -r frame; do
+                  sanitize_line "$frame"
+                done
+                echo '```'
+                echo ""
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          # Report UBSAN findings
+          for logf in "$OUTDIR"/*.log; do
+            [ -f "$logf" ] || continue
+            if grep -q "runtime error:" "$logf" 2>/dev/null; then
+              test_name="$(basename "$logf" .log)"
+              ub_line="$(grep 'runtime error:' "$logf" | head -1)"
+              safe_ub="$(sanitize_line "$ub_line")"
+              {
+                echo "### \`$test_name\` (UBSAN)"
+                echo ""
+                echo '```'
+                echo "$safe_ub"
+                echo '```'
+                echo ""
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      # -----------------------------------------------------------------------
+      # Generate final summary
+      # -----------------------------------------------------------------------
+      - name: Generate summary
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Environment"
+            echo ""
+            echo "| Component | Version |"
+            echo "|-----------|---------|"
+            echo "| Runner | ubuntu-24.04 |"
+            echo "| Compiler | $(clang-18 --version 2>/dev/null | head -1 || echo 'N/A') |"
+            echo "| CMake | $(cmake --version 2>/dev/null | head -1 || echo 'N/A') |"
+            echo "| iccDEV | $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
+            echo "| Sanitizers | ASAN + UBSAN |"
+            echo "| Script | iccdev-tool-coverage-baseline.sh |"
+          } >> "$GITHUB_STEP_SUMMARY"
