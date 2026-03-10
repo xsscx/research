@@ -18,7 +18,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fu
 
 - **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
-- Applies 62 patches from `cfl/patches/` (all active, 0 NO-OPs remaining)
+- Applies 61 patches from `cfl/patches/` (all active, 0 NO-OPs remaining)
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
 - Binaries: `cfl/bin/icc_*_fuzzer` (18 total)
 
@@ -68,8 +68,8 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 - File: `cfl/patches/NNN-descriptive-name.patch`
 - Numbering: zero-padded 3-digit, sequential (next: **083**)
 - Format: unified diff against `cfl/iccDEV/`
-- 62 patch files total (20 patch numbers deleted — upstreamed or superseded)
-- Deleted NO-OPs: 006, 023, 027-029, 032, 039-041, 043, 045, 048, 055-056, 058, 062, 064, 066, 070, 072
+- 61 patch files total (21 patch numbers deleted — upstreamed or superseded)
+- Deleted NO-OPs: 006, 023, 027-029, 032, 039-041, 043, 045, 047, 048, 055-056, 058, 062, 064, 066, 070, 072
   (upstreamed via PRs #648-#657, or superseded by later patches)
 - NO-OP patches still in directory: **none** — all remaining patches are active
 - Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`

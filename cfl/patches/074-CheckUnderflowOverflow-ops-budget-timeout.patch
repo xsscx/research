@@ -4,32 +4,86 @@
    icFuncParseStatus SetFunction(CIccCalcOpList &opList, std::string &sReport);
  
    icUInt32Number GetMaxTemp() const;
--  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, icUInt32Number nRecurseDepth = 0) const;
+-  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const;
 +  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, icUInt32Number nRecurseDepth = 0, icUInt32Number *pOpsProcessed = nullptr) const;
    icFuncParseStatus DoesStackUnderflowOverflow(std::string &sReport) const;
    bool HasValidOperations(std::string &sReport) const;
    bool HasUnsupportedOperations(std::string &sReport, const CIccProfile *pProfile) const;
+@@ -402,7 +402,7 @@
+   bool InitSelectOps();
+   bool InitSelectOp(SIccCalcOp *ops, icUInt32Number nOps);
+ 
+-  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp);
++  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed = NULL, icUInt32Number nRecurseDepth = 0);
+ 
+   void InsertBlanks(std::string &sDescription, int nBlanks);
+   void DescribeSequence(std::string &sDescription,
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -4097,9 +4097,14 @@
+@@ -4000,11 +4000,24 @@
  * 
  * Return: 
  ******************************************************************************/
--int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, icUInt32Number nRecurseDepth) const
+-bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp)
++bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, icUInt32Number *pOpsProcessed, icUInt32Number nRecurseDepth)
+ {
+   icUInt32Number i, j;
++  icUInt32Number nLocalOps = 0;
++
++  static const icUInt32Number kMaxOpsProcessed = 1000000;
++  static const icUInt32Number kMaxRecurseDepth = 100;
++
++  if (!pOpsProcessed)
++    pOpsProcessed = &nLocalOps;
++
++  if (nRecurseDepth > kMaxRecurseDepth)
++    return true;
+ 
+   for (i=0; i<nOps; i++) {
++    if (++(*pOpsProcessed) > kMaxOpsProcessed)
++      return true;
++
+     icSigCalcOp sig = op[i].sig;
+     if (sig==icSigTempGetChanOp) {
+       icUInt32Number p = op[i].data.select.v1;
+@@ -4039,7 +4052,7 @@
+         free(ifTemps);
+         return true;
+       }
+-      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp);
++      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp, pOpsProcessed, nRecurseDepth + 1);
+ 
+       if (i<nOps && op[i+1].sig==icSigElseOp) {
+         icUInt8Number *elseTemps = (icUInt8Number *)malloc(nMaxTemp);
+@@ -4056,7 +4069,7 @@
+           free(elseTemps);
+           return true;
+         }
+-        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp);
++        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp, pOpsProcessed, nRecurseDepth + 1);
+ 
+         if (!rv) {
+           for (j=0; j<nMaxTemp; j++) {
+@@ -4092,13 +4105,26 @@
+ * 
+ * Return: 
+ ******************************************************************************/
+-int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const
 +int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, icUInt32Number nRecurseDepth, icUInt32Number *pOpsProcessed) const
  {
--  static const icUInt32Number kMaxRecurseDepth = 100;
+   icUInt32Number i, p;
+   int nIfArgs, nElseArgs, nSelArgs, nCaseArgs;
+ 
 +  static const icUInt32Number kMaxOpsProcessed = 100000;
 +  static const icUInt32Number kMaxRecurseDepth = 16;
 +
 +  icUInt32Number nLocalOps = 0;
 +  if (!pOpsProcessed)
 +    pOpsProcessed = &nLocalOps;
- 
-   if (nRecurseDepth > kMaxRecurseDepth)
-     return -1;
-@@ -4109,6 +4114,9 @@
- 
++
++  if (nRecurseDepth > kMaxRecurseDepth)
++    return -1;
++
  
    for (i=0; i<nOps; i++) {
 +    if (++(*pOpsProcessed) > kMaxOpsProcessed)
@@ -38,38 +92,38 @@
      int nArgsUsed = op[i].ArgsUsed(m_pCalc);
  
  #if 0
-@@ -4151,7 +4159,7 @@
+@@ -4141,7 +4167,7 @@
          p = i+2; 
          if (p > nOps)
            return -1;
--        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1);
+-        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport);
 +        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1, pOpsProcessed);
          if (nIfArgs<0)
            return -1;
          incI =op[i].data.size;
-@@ -4159,7 +4167,7 @@
+@@ -4149,7 +4175,7 @@
          p = i+2+op[i].data.size;
          if (p > nOps)
            return -1;
--        nElseArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i+1].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1);
+-        nElseArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i+1].data.size), nArgs, bCheckUnderflow, sReport);
 +        nElseArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i+1].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1, pOpsProcessed);
          if (nElseArgs<0)
            return -1;
          incI += op[i+1].data.size;
-@@ -4172,7 +4180,7 @@
+@@ -4162,7 +4188,7 @@
          p = i+1; 
          if (p > nOps)
            return -1;
--        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1);
+-        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport);
 +        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1, pOpsProcessed);
          if (nIfArgs<0)
            return -1;
          nArgs = bCheckUnderflow ? icIntMin(nArgs, nIfArgs) : icIntMax(nArgs, nIfArgs);
-@@ -4208,7 +4216,7 @@
+@@ -4198,7 +4224,7 @@
  
          if (pos > nOps)
            return -1;
--        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1);
+-        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport);
 +        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport, nRecurseDepth + 1, pOpsProcessed);
          if (nCaseArgs<0)
            return -1;
