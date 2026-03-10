@@ -1,5 +1,5 @@
---- IccTagBasic.cpp.pre076	2026-03-07 15:24:44.896267726 -0500
-+++ IccTagBasic.cpp	2026-03-07 15:24:55.540264201 -0500
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
 @@ -2984,6 +2984,11 @@
  
    size -= nTagHdrSize;

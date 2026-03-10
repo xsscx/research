@@ -1,5 +1,5 @@
---- IccProfLib/IccMpeCalc.h.pre074	2026-03-07 14:56:57.060442683 -0500
-+++ IccProfLib/IccMpeCalc.h	2026-03-07 14:57:06.796522310 -0500
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
 @@ -388,7 +388,7 @@
    icFuncParseStatus SetFunction(CIccCalcOpList &opList, std::string &sReport);
  
@@ -9,8 +9,8 @@
    icFuncParseStatus DoesStackUnderflowOverflow(std::string &sReport) const;
    bool HasValidOperations(std::string &sReport) const;
    bool HasUnsupportedOperations(std::string &sReport, const CIccProfile *pProfile) const;
---- IccProfLib/IccMpeCalc.cpp.pre074	2026-03-07 14:56:57.056419375 -0500
-+++ IccProfLib/IccMpeCalc.cpp	2026-03-07 14:57:48.016370231 -0500
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
 @@ -4097,9 +4097,14 @@
  * 
  * Return: 
