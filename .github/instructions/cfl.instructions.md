@@ -7,8 +7,7 @@ applyTo: "cfl/**"
 ## What This Is
 
 18 LibFuzzer harnesses (4,537 LOC, C/C++) targeting the iccDEV ICC profile library.
-Each fuzzer has a custom-built dictionary, seed corpus, and OOM-protection patches
-applied at build time.
+Each fuzzer has a custom-built dictionary, seed corpus, and ASAN+UBSAN instrumentation.
 
 ## Build
 
@@ -18,7 +17,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fu
 
 - **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
-- Applies 61 patches from `cfl/patches/` (all active, 0 NO-OPs remaining)
+- Applies targeted patches from `cfl/patches/` (new findings only — see Patch System below)
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
 - Binaries: `cfl/bin/icc_*_fuzzer` (18 total)
 
@@ -27,26 +26,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fu
 When upstream iccDEV changes:
 ```bash
 cd cfl/iccDEV && git fetch origin && git reset --hard origin/master && git clean -fd
-cd .. && ./build.sh   # re-applies all patches and rebuilds
-./verify-patches.sh   # MANDATORY: ground-truth verification (source + binary + runtime)
-```
-
-**CRITICAL**: Do NOT trust `build.sh` patch summary alone. The `--forward` flag in
-build.sh masks context-shifted failures. `verify-patches.sh` provides ground truth:
-- Phase 1: `grep` source for actual patch code additions
-- Phase 2: `nm | c++filt` binary symbols for patched function signatures
-- Phase 3: Run timeout artifacts, verify <2s completion
-
-For SSD verification: `./verify-patches.sh --ssd /mnt/g/fuzz-ssd`
-
-See Anti-Pattern #13 in `multi-agent.instructions.md` for the full incident.
-
-Then run patch reconciliation to identify NO-OPs:
-```bash
-# Check each patch against updated source
-for p in patches/*.patch; do
-  patch --dry-run -p1 -d iccDEV < "$p" 2>&1 | grep -q "FAILED\|reversed" && echo "NO-OP: $p"
-done
+cd .. && ./build.sh   # re-applies patches and rebuilds
 ```
 
 Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
@@ -74,43 +54,54 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 | 17 | icc_tiffdump_fuzzer | TIFF tag reading |
 | 18 | icc_roundtrip_fuzzer | Round-trip transforms |
 
-## Patch Conventions
+## Patch System (Post-Retirement Architecture)
+
+### History
+62 legacy CFL patches (CFL-001 through CFL-083, with gaps) were retired in March 2026
+after repeated multi-hour rework cycles caused by context conflicts, false success
+claims, and upstream sync overhead. Retired patches are preserved in `cfl/patches-retired/`
+for historical reference.
+
+### Current Approach
+- **Minimal targeted patches** in `cfl/patches/` — only for verified upstream bugs
+- Timeouts and OOMs handled by LibFuzzer's built-in `-timeout=30 -rss_limit_mb=4096`
+- Real crashes become upstream bug reports
+- build.sh applies patches with 3-state detection: applied, already-applied, FAIL
+
+### Active Patches
+
+| # | Patch | Bug | CWE | Files Modified |
+|---|-------|-----|-----|----------------|
+| 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **083**)
-- Format: unified diff against `cfl/iccDEV/`
-- 61 patch files total (21 patch numbers deleted — upstreamed or superseded)
-- Deleted NO-OPs: 006, 023, 027-029, 032, 039-041, 043, 045, 047, 048, 055-056, 058, 062, 064, 066, 070, 072
-  (upstreamed via PRs #648-#657, or superseded by later patches)
-- NO-OP patches still in directory: **none** — all remaining patches are active
-- Patches MUST be idempotent — `build.sh` applies them with `patch -p1 --forward`
-- build.sh now distinguishes "already applied" from "FAILED" — no silent failures
-- Latest active: CFL-082 (CTiffImg strip buffer bounds check)
-- CFL-074 protects BOTH CheckUnderflowOverflow AND SequenceNeedTempReset (merged from CFL-047):
-  - CheckUnderflowOverflow: kMaxRecurseDepth=16, kMaxOpsProcessed=100,000
-  - SequenceNeedTempReset: kMaxRecurseDepth=100, kMaxOpsProcessed=1,000,000
-- CFL-077 through CFL-081 (CWE-400 upstream patterns) — patch files exist and ARE applied by build.sh:
-  - CFL-077: ResponseCurveStruct nMeasurements cap (100K per channel)
-  - CFL-078: NamedColor2 Describe() iteration cap (10K entries)
-  - CFL-079: ApplySequence() runtime depth limit (16) — NOW WORKING (regenerated)
-  - CFL-080: XYZ/Chromaticity/ColorantTable Describe() output cap (1MB)
-  - CFL-081: DescribeSequence() recursion depth limit (32)
+- Numbering: zero-padded 3-digit, sequential (next: **002**)
+- Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
 
-### CFL-082: CTiffImg Strip Buffer Bounds Check
+### Adding a New Patch
 
-- **File**: `Tools/CmdLine/IccApplyProfiles/TiffImg.cpp`
-- **Bug**: `Open()` allocates `m_pStripBuf` sized by `TIFFStripSize()` (TIFF
-  StripByteCounts), but `ReadLine()` accesses `nRowOffset * m_nBytesPerLine`
-  without bounds check. Malformed TIFF with small StripByteCounts → heap-BOF.
-- **Fix**: After malloc in `Open()`, validate `m_nStripSize >= m_nRowsPerStrip * m_nBytesPerLine`
-  (contig) or `m_nStripSize >= m_nRowsPerStrip * m_nBytesPerStripLine` (separate).
-- **CWE**: CWE-122 (Heap Buffer Overflow), CWE-125 (Out-of-bounds Read)
-- **Crash**: `crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5`
-- **Repro**: `LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles crash-3c9fd44b5e25285f5fc22b0941447dd86f55d9c5 /tmp/out.tif 0 0 0 0 1 test-profiles/Rec2020rgbSpectral.icc 1`
-- **Affected tools**: iccApplyProfiles, iccSpecSepToTiff, icc_tiffdump_fuzzer, icc_specsep_fuzzer
-- **iccanalyzer-lite counterpart**: H139 (TIFF Strip Geometry Validation) detects the same CFL-082 bug pattern via defensive heuristic analysis without patching the library.
+1. Reproduce the bug with upstream `iccDEV/Build/Tools/` (ASAN-instrumented)
+2. Identify root cause — read ASAN stack frames #2-#3
+3. Apply fix in `cfl/iccDEV/`, generate with `cd cfl/iccDEV && git diff > ../patches/NNN-name.patch`
+4. Reset: `cd cfl/iccDEV && git checkout -- .`
+5. Rebuild: `cd cfl && ./build.sh` — verify "Applied: NNN-name.patch"
+6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
+7. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
+
+### CFL-001: icAnsiToUtf8 Heap-Buffer-Overflow
+
+- **PoC**: `hbo-icAnsiToUtf8-clrt-multitag-IccUtilXml_cpp-Line394.icc`
+- **ASAN trace**: `strlen` → `icAnsiToUtf8()` (IccUtilXml.cpp:394) → `CIccTagXmlColorantTable::ToXml()` (IccTagXml.cpp:1883)
+- **Root cause**: `icColorantTableEntry.name` is a fixed 32-byte `icInt8Number` array.
+  `CIccTagColorantTable::Read()` reads exactly 32 bytes but does NOT enforce null
+  termination. When `ToXml()` passes this to `icAnsiToUtf8()`, the non-WIN32 path
+  does `buf = szSrc` which calls `strlen()`, reading past the 32-byte buffer.
+- **Fix 1**: Force `name[31] = '\0'` after `Read8()` in `IccTagBasic.cpp`
+- **Fix 2**: Defense-in-depth `strnlen(szSrc, 256)` in `icAnsiToUtf8()`/`icUtf8ToAnsi()`
+- **Affected tools**: iccToXml, icc_toxml_fuzzer, icc_dump_fuzzer, icc_deep_dump_fuzzer
+- **iccanalyzer-lite counterpart**: H144 (XML String Termination Precheck) detects this pattern
 
 ## Fuzzing — Ramdisk Workflow
 
@@ -141,13 +132,12 @@ cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
 - **Begin() return check**: `CIccTagMultiProcessElement::Begin()` and
   `CIccMpeCurveSet::Begin()` can return false when sub-curves have invalid state
   (e.g., `m_nCount < 2`). Callers MUST check the return value — `Apply()` will
-  NULL-deref `m_pSamples` otherwise (CWE-476). Patched in CFL-072.
+  NULL-deref `m_pSamples` otherwise (CWE-476).
 - **Timeout triage**: ALWAYS test timeout artifacts with **unpatched** upstream
-  tools at `iccDEV/Build/Tools/` first. If upstream also hangs → upstream bug.
-  If upstream handles it → fuzzer alignment issue. NEVER use `cfl/iccDEV/` for this.
-- **CWE-400 timeout fixes**:
-  - CFL-074: `CheckUnderflowOverflow()` — added 100K ops budget + depth 16 (was 100)
-  - CFL-075: `EvaluateProfile()` — capped nGran^ndim iterations to 100K
+  tools at `iccDEV/Build/Tools/` first. If upstream also hangs → report upstream.
+  If upstream handles it → fuzzer alignment issue.
+- **Timeout/OOM handling**: LibFuzzer's `-timeout=30 -rss_limit_mb=4096` handles
+  CWE-400 patterns at the process level. No library patches needed.
 
 ## Multi-Profile Fuzzer Input Formats
 
