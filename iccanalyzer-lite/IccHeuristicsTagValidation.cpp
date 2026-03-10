@@ -28,6 +28,7 @@
 #include <cstring>
 #include <cmath>
 #include <climits>
+#include <vector>
 #include <algorithm>
 #include <string>
 
@@ -634,10 +635,9 @@ printf("[H23] NumArray Value Range Validation\n");
 
     // Allocate full numVals buffer — unpatched GetValues loops over m_nSize
     icUInt32Number sampleSize = (numVals < 64) ? numVals : 64;
-    icFloatNumber *vals = new(std::nothrow) icFloatNumber[numVals];
-    if (!vals) continue;
+    std::vector<icFloatNumber> vals(numVals);
 
-    if (pNum->GetValues(vals, 0, numVals)) {
+    if (pNum->GetValues(vals.data(), 0, numVals)) {
       int nanCount = 0, infCount = 0;
       for (icUInt32Number v = 0; v < sampleSize; v++) {
         if (std::isnan(vals[v])) nanCount++;
@@ -661,7 +661,6 @@ printf("[H23] NumArray Value Range Validation\n");
         rangeIssues++;
       }
     }
-    delete[] vals;
   }
 
   // Also check NumArrays inside tagStruct members
@@ -689,10 +688,9 @@ printf("[H23] NumArray Value Range Validation\n");
       if (numVals == 0 || numVals > 1048576) continue; // Already flagged or skip
 
       icUInt32Number sampleSize = (numVals < 64) ? numVals : 64;
-      icFloatNumber *vals = new(std::nothrow) icFloatNumber[numVals];
-      if (!vals) continue;
+      std::vector<icFloatNumber> vals(numVals);
 
-      if (pNum->GetValues(vals, 0, numVals)) {
+      if (pNum->GetValues(vals.data(), 0, numVals)) {
         int nanCount = 0, infCount = 0;
         for (icUInt32Number v = 0; v < sampleSize; v++) {
           if (std::isnan(vals[v])) nanCount++;
@@ -708,7 +706,6 @@ printf("[H23] NumArray Value Range Validation\n");
           rangeIssues++;
         }
       }
-      delete[] vals;
     }
   }
 

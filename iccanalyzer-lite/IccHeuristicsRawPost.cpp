@@ -89,8 +89,7 @@ int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename)
             if (tagType33 != 0x6D414220 && tagType33 != 0x6D424120) continue;
 
             char sig33[5];
-            sig33[0] = static_cast<char>((tSig33>>24)&0xff); sig33[1] = static_cast<char>((tSig33>>16)&0xff);
-            sig33[2] = static_cast<char>((tSig33>>8)&0xff);  sig33[3] = static_cast<char>(tSig33&0xff); sig33[4] = '\0';
+            SigToChars(tSig33, sig33);
             const char *typeName33 = (tagType33 == 0x6D414220) ? "mAB" : "mBA";
 
             // mBA/mAB internal structure (offsets from tag start):
@@ -182,8 +181,7 @@ int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename)
 
             icUInt32Number tSig34 = ReadU32BE(e34);
             char sig34[5];
-            sig34[0] = static_cast<char>((tSig34>>24)&0xff); sig34[1] = static_cast<char>((tSig34>>16)&0xff);
-            sig34[2] = static_cast<char>((tSig34>>8)&0xff);  sig34[3] = static_cast<char>(tSig34&0xff); sig34[4] = '\0';
+            SigToChars(tSig34, sig34);
 
             // Check sub-element offsets at +20 (M), +24 (CLUT), +28 (A)
             // These are the offsets parsers add small constants to for header traversal
@@ -290,8 +288,7 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
               } else {
                 if (runLen >= 16) {
                   char sig35[5];
-                  sig35[0] = static_cast<char>((tSig35>>24)&0xff); sig35[1] = static_cast<char>((tSig35>>16)&0xff);
-                  sig35[2] = static_cast<char>((tSig35>>8)&0xff);  sig35[3] = static_cast<char>(tSig35&0xff); sig35[4] = '\0';
+                  SigToChars(tSig35, sig35);
                   printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
                          ColorWarning(), sig35, runLen, bData[b-1], b - runLen, ColorReset());
                   if (bData[b-1] == 0xFF) {
@@ -306,8 +303,7 @@ int RunHeuristic_H35_SuspiciousFillPattern(const char *filename)
             // Check final run
             if (runLen >= 16) {
               char sig35[5];
-              sig35[0] = static_cast<char>((tSig35>>24)&0xff); sig35[1] = static_cast<char>((tSig35>>16)&0xff);
-              sig35[2] = static_cast<char>((tSig35>>8)&0xff);  sig35[3] = static_cast<char>(tSig35&0xff); sig35[4] = '\0';
+              SigToChars(tSig35, sig35);
               printf("      %s[WARN]  Tag '%s': %d-byte run of 0x%02X at B-curve data+%zu%s\n",
                      ColorWarning(), sig35, runLen, bData[dataLen-1], dataLen - runLen, ColorReset());
               if (bData[dataLen-1] == 0xFF) {
@@ -465,13 +461,13 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             if (tOff37 + scanLen > fs37) scanLen = fs37 - tOff37;
             if (scanLen < 8) continue;
 
-            icUInt8Number *scanBuf = new icUInt8Number[scanLen];
+            std::vector<icUInt8Number> scanBufVec(scanLen);
+            icUInt8Number *scanBuf = scanBufVec.data();
             fseek(fh37.fp, tOff37, SEEK_SET);
-            if (fread(scanBuf, 1, scanLen, fh37.fp) != scanLen) { delete[] scanBuf; continue; }
+            if (fread(scanBuf, 1, scanLen, fh37.fp) != scanLen) { continue; }
 
             char sig37[5];
-            sig37[0] = static_cast<char>((tSig37>>24)&0xff); sig37[1] = static_cast<char>((tSig37>>16)&0xff);
-            sig37[2] = static_cast<char>((tSig37>>8)&0xff);  sig37[3] = static_cast<char>(tSig37&0xff); sig37[4] = '\0';
+            SigToChars(tSig37, sig37);
 
             int calcCount = 0;
             int ifSelCount = 0;
@@ -511,7 +507,6 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
               }
             }
 
-            delete[] scanBuf;
           }
         }
       }
@@ -567,8 +562,7 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
             icUInt32Number curveType = ReadU32BE(curveHdr);
 
             char sig38[5];
-            sig38[0] = static_cast<char>((tSig38>>24)&0xff); sig38[1] = static_cast<char>((tSig38>>16)&0xff);
-            sig38[2] = static_cast<char>((tSig38>>8)&0xff);  sig38[3] = static_cast<char>(tSig38&0xff); sig38[4] = '\0';
+            SigToChars(tSig38, sig38);
 
             if (curveType == 0x63757276) { // 'curv'
               // curv: type(4) + reserved(4) + count(4) + entries(2*count)
@@ -579,7 +573,8 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
                 if (dataLen > kMaxCurveDataScan) dataLen = kMaxCurveDataScan; // sample first 256 entries
                 if (dataStart + dataLen > fs38) continue;
 
-                icUInt8Number *cData = new icUInt8Number[dataLen];
+                std::vector<icUInt8Number> cDataVec(dataLen);
+                icUInt8Number *cData = cDataVec.data();
                 fseek(fh38.fp, dataStart, SEEK_SET);
                 if (fread(cData, 1, dataLen, fh38.fp) == dataLen) {
                   bool allZero = true, allMax = true;
@@ -601,7 +596,6 @@ int RunHeuristic_H38_CurveDegenerateValue(const char *filename)
                     curveIssues++;
                   }
                 }
-                delete[] cData;
               }
             } else if (curveType == 0x70617261) { // 'para'
               // para: type(4) + reserved(4) + funcType(2) + reserved(2) + params...
@@ -692,8 +686,8 @@ int RunHeuristic_H39_SharedTagDataAliasing(const char *filename)
             for (size_t b = a+1; b < tags39.size(); b++) {
               if (tags39[a].off == tags39[b].off && tags39[a].sz == tags39[b].sz && tags39[a].sig != tags39[b].sig) {
                 char s1[5], s2[5];
-                s1[0] = static_cast<char>((tags39[a].sig>>24)&0xff); s1[1] = static_cast<char>((tags39[a].sig>>16)&0xff); s1[2] = static_cast<char>((tags39[a].sig>>8)&0xff); s1[3] = static_cast<char>(tags39[a].sig&0xff); s1[4] = '\0';
-                s2[0] = static_cast<char>((tags39[b].sig>>24)&0xff); s2[1] = static_cast<char>((tags39[b].sig>>16)&0xff); s2[2] = static_cast<char>((tags39[b].sig>>8)&0xff); s2[3] = static_cast<char>(tags39[b].sig&0xff); s2[4] = '\0';
+                SigToChars(tags39[a].sig, s1);
+                SigToChars(tags39[b].sig, s2);
 
                 sharedCount++;
                 if (sharedCount <= 5) {
@@ -890,8 +884,7 @@ int RunHeuristic_H41_VersionTypeConsistency(const char *filename)
             icUInt32Number tOff41 = ReadU32BE(&e41[4]);
 
             char sig41[5];
-            sig41[0] = static_cast<char>((tSig41>>24)&0xff); sig41[1] = static_cast<char>((tSig41>>16)&0xff);
-            sig41[2] = static_cast<char>((tSig41>>8)&0xff);  sig41[3] = static_cast<char>(tSig41&0xff); sig41[4] = '\0';
+            SigToChars(tSig41, sig41);
 
             // Check tag signature against v5-only list
             if (verMajor < 5) {
@@ -1076,8 +1069,7 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
 
             // Count BRDF tags (bAB, bDB, bMB, bMS, bcp, bsp, BPh)
             char s43[5];
-            s43[0] = static_cast<char>((tSig43>>24)&0xff); s43[1] = static_cast<char>((tSig43>>16)&0xff);
-            s43[2] = static_cast<char>((tSig43>>8)&0xff);  s43[3] = static_cast<char>(tSig43&0xff); s43[4] = '\0';
+            SigToChars(tSig43, s43);
             if ((s43[0] == 'b' && (s43[1] == 'A' || s43[1] == 'D' || s43[1] == 'M' || s43[1] == 'c' || s43[1] == 's')) ||
                 (s43[0] == 'B' && s43[1] == 'P')) {
               brdfCount++;

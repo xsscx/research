@@ -58,7 +58,7 @@ else
   SANITIZERS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
 fi
 DEBUG_FLAGS="-g3 -O0 -DDEBUG -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common"
-HARDENING="-fstack-protector-strong -D_FORTIFY_SOURCE=0"
+HARDENING="-fstack-protector-strong -D_FORTIFY_SOURCE=2"
 # NO_COVERAGE=1 disables gcov instrumentation (e.g. Docker containers)
 if [ "${NO_COVERAGE:-0}" = "1" ]; then
   COVERAGE=""
@@ -66,7 +66,7 @@ if [ "${NO_COVERAGE:-0}" = "1" ]; then
 else
   COVERAGE="-fprofile-instr-generate -fcoverage-mapping"
 fi
-STANDARD="-std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter"
+STANDARD="-std=c++17 -DICCANALYZER_LITE -Wall -Wextra -Wno-unused-parameter -Wformat=2 -Wformat-security"
 DIAGNOSTICS="-DICC_LOG_SAFE -DICC_TRACE_NAN_ENABLED"
 
 export CXXFLAGS="${SANITIZERS} ${DEBUG_FLAGS} ${HARDENING} ${COVERAGE} ${STANDARD} ${DIAGNOSTICS}"
