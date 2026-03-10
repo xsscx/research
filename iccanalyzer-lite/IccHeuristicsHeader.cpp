@@ -212,7 +212,7 @@ icUInt32Number intentLower16 = intent & 0xFFFF;
 if (intentUpper16 != 0) {
   printf("     %s[WARN]  HEURISTIC: Upper 16 bits non-zero (0x%04X) — spec requires 0%s\n",
          ColorCritical(), intentUpper16, ColorReset());
-  printf("     %sRisk: CWE-20 — non-conformant header, possible exploitation vector%s\n",
+  printf("     %sRisk: CWE-20: non-conformant header, possible exploitation vector%s\n",
          ColorWarning(), ColorReset());
   heuristicCount++;
 }

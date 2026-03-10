@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
   
   // Call graph mode (ASAN/UBSAN log analysis — no ICC profile needed)
   if (strcmp(mode, "-cg") == 0) {
-    return RunCallGraphMode(argc, argv);
+    return RecoverableRun("call graph analysis", [&]{ return RunCallGraphMode(argc, argv); });
   }
   
   // Extract LUT
@@ -349,7 +349,7 @@ int main(int argc, char **argv) {
       return ICC_EXIT_ERROR;
     }
     outXml = resolvedXml;
-    return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr);
+    return RecoverableRun("XML export", [&]{ return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr); });
   }
   
   // Registry dump — emit heuristic database as JSON (source of truth for all counts)

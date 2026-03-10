@@ -32,6 +32,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include <vector>
 #include "IccHeuristicsHelpers.h"
 
 int RunHeuristic_H56_CalculatorStackDepth(CIccProfile *pIcc) {
@@ -445,10 +446,9 @@ printf("[H66] Comprehensive NumArray NaN/Inf Scan\n");
 
     icUInt32Number scanLimit = (nVals > 4096) ? 4096 : nVals;
     // Guard against overflow: scanLimit <= 4096 so product fits in uint32
-    icFloatNumber *vals = (icFloatNumber*)malloc(static_cast<size_t>(scanLimit) * sizeof(icFloatNumber));
-    if (!vals) continue;
+    std::vector<icFloatNumber> vals(scanLimit);
 
-    if (numArr->GetValues(vals, 0, scanLimit)) {
+    if (numArr->GetValues(vals.data(), 0, scanLimit)) {
       int nanCount = 0, infCount = 0, extremeCount = 0;
       for (icUInt32Number v = 0; v < scanLimit; v++) {
         if (std::isnan(vals[v])) nanCount++;
@@ -470,7 +470,6 @@ printf("[H66] Comprehensive NumArray NaN/Inf Scan\n");
         nanIssues++;
       }
     }
-    free(vals);
   }
   if (nanIssues > 0) {
     heuristicCount += nanIssues;
@@ -496,7 +495,7 @@ printf("[H67] ResponseCurveSet Bounds\n");
 {
   int rcsIssues = 0;
   // ResponseCurveSet16 has no well-known tag signature — scan all tags by type
-  CIccTagResponseCurveSet16 *rcs = NULL;
+  CIccTagResponseCurveSet16 *rcs = nullptr;
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     CIccTag *t = pIcc->FindTag(it->TagInfo.sig);
     if (!t) continue;

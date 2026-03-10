@@ -19,6 +19,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
+#include <vector>
 #include "IccHeuristicsHelpers.h"
 
 // ── Named constants replacing magic numbers ──
@@ -2278,10 +2279,10 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
                 // Scan for orphan surrogates (limited to first 1024 code units)
                 if (strLen >= 4 && tOff + strOff + strLen <= fs55) {
                   uint32_t scanLen = (strLen > 2048) ? 2048 : strLen;
-                  icUInt8Number *strBuf = (icUInt8Number*)malloc(scanLen);
-                  if (strBuf) {
+                  std::vector<icUInt8Number> strBuf(scanLen);
+                  {
                     fseek(fh55.fp, tOff + strOff, SEEK_SET);
-                    if (fread(strBuf, 1, scanLen, fh55.fp) == scanLen) {
+                    if (fread(strBuf.data(), 1, scanLen, fh55.fp) == scanLen) {
                       for (uint32_t i = 0; i + 1 < scanLen; i += 2) {
                         uint16_t cu = ((uint16_t)strBuf[i] << 8) | strBuf[i+1];
                         if (cu >= 0xD800 && cu <= 0xDBFF) {
@@ -2312,7 +2313,6 @@ int RunHeuristic_H55_UTF16EncodingValidation(const char *filename)
                         }
                       }
                     }
-                    free(strBuf);
                   }
                 }
               }
@@ -2397,17 +2397,16 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename)
                   // Scan tag data for additional 'acsp' signatures
                   if (tSz >= 256 && (uint64_t)tOff + tSz <= fs57) {
                     uint32_t scanLimit = (tSz > 65536) ? 65536 : tSz;
-                    icUInt8Number *scanBuf = (icUInt8Number*)malloc(scanLimit);
-                    if (scanBuf) {
+                    std::vector<icUInt8Number> scanBuf(scanLimit);
+                    {
                       fseek(fh57.fp, tOff, SEEK_SET);
-                      if (fread(scanBuf, 1, scanLimit, fh57.fp) == scanLimit) {
+                      if (fread(scanBuf.data(), 1, scanLimit, fh57.fp) == scanLimit) {
                         for (uint32_t i = 36 + 132; i + 3 < scanLimit; i++) {
                           if (scanBuf[i]=='a' && scanBuf[i+1]=='c' && scanBuf[i+2]=='s' && scanBuf[i+3]=='p') {
                             depth++;
                           }
                         }
                       }
-                      free(scanBuf);
                     }
                   }
 

@@ -31,6 +31,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include <vector>
 #include "IccPrmg.h"
 #include "IccMatrixMath.h"
 #include "IccPcc.h"
@@ -613,9 +614,8 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
   }
 
   size_t scanSize = (size_t)(fileSize > 10485760 ? 10485760 : fileSize);
-  unsigned char *buf = (unsigned char *)malloc(scanSize);
-  if (!buf) { printf("\n"); return 0; }
-  size_t bytesRead = fread(buf, 1, scanSize, fh.fp);
+  std::vector<unsigned char> buf(scanSize);
+  size_t bytesRead = fread(buf.data(), 1, scanSize, fh.fp);
 
   int nopSleds = 0;
   int elfHeaders = 0;
@@ -670,8 +670,6 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
     i++;
   }
 
-  free(buf);
-
   if (nopSleds > 0 || elfHeaders > 0 || peHeaders > 0) {
     printf("      %sCWE-506: Embedded executable content — %d NOP sled(s), %d ELF, %d PE%s\n",
            ColorCritical(), nopSleds, elfHeaders, peHeaders, ColorReset());
@@ -707,7 +705,7 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
     {icSigProfileDescriptionTag, "desc"},
     {icSigCopyrightTag, "cprt"},
     {icSigMediaWhitePointTag, "wtpt"},
-    {(icTagSignature)0, NULL}
+    {(icTagSignature)0, nullptr}
   };
 
   // Check common required tags
@@ -996,8 +994,8 @@ int RunHeuristic_H113_RoundTripFidelity(CIccProfile *pIcc) {
 
     if (!tagA && !tagB) continue;
 
-    CIccMBB *mbbA = tagA ? dynamic_cast<CIccMBB*>(tagA) : NULL;
-    CIccMBB *mbbB = tagB ? dynamic_cast<CIccMBB*>(tagB) : NULL;
+    CIccMBB *mbbA = tagA ? dynamic_cast<CIccMBB*>(tagA) : nullptr;
+    CIccMBB *mbbB = tagB ? dynamic_cast<CIccMBB*>(tagB) : nullptr;
 
     printf("      %s intent:\n", pairs[p].name);
 
