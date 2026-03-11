@@ -69,7 +69,8 @@ class PathSanitizer extends DataFlow::Node {
     exists(Call c |
       c.getFunc().(Name).getId() in [
         "_validate_path", "_resolve_path", "_safe_resolve",
-        "_validate_directory", "_validate_xml_directory"
+        "_validate_directory", "_validate_xml_directory",
+        "_validate_scan_directory"
       ] and
       this.asExpr() = c
     )
@@ -89,10 +90,13 @@ module ApiPathTraversalConfig implements DataFlow::ConfigSig {
 
   predicate isSink(DataFlow::Node sink) {
     sink instanceof FileOrProcessSink and
-    // Exclude sinks inside _validate_path — they ARE the validation logic.
+    // Exclude sinks inside validation functions — they ARE the validation logic.
     // getScope+() traverses nested scopes (comprehensions, lambdas).
     not exists(Function f |
-      f.getName() = "_validate_path" and
+      f.getName() in [
+        "_validate_path", "_validate_directory",
+        "_validate_xml_directory", "_validate_scan_directory"
+      ] and
       sink.asExpr().getScope+() = f
     )
   }
