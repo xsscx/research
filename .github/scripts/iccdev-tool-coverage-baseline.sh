@@ -31,10 +31,29 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/iccDEV/Build/Tools}"
-TP="$REPO_ROOT/test-profiles"
-TP_TIFF="$REPO_ROOT/test-profiles"
-TP_IMG="$REPO_ROOT/test-profiles"
+
+# Detect if running inside iccDEV directly (cfl branch) or research repo
+if [ -d "$REPO_ROOT/IccProfLib" ]; then
+  # Running inside iccDEV repo directly
+  TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/build/Tools}"
+  ICCDEV_TESTING="${ICCDEV_TESTING_DIR:-$REPO_ROOT/Testing}"
+  export LD_LIBRARY_PATH="$REPO_ROOT/build/IccProfLib:$REPO_ROOT/build/IccXML"
+  # ICC profiles live in Testing/Fuzzing/seeds/icc/ on iccDEV
+  TP="$ICCDEV_TESTING/Fuzzing/seeds/icc"
+  TP_TIFF="$ICCDEV_TESTING/Fuzzing/seeds/tiff"
+  TP_IMG="$ICCDEV_TESTING/Fuzzing/seeds/images"
+  TP_SPECTRAL="$ICCDEV_TESTING/Fuzzing/seeds/tiff/spectral"
+else
+  # Running inside research repo
+  TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/iccDEV/Build/Tools}"
+  ICCDEV_TESTING="${ICCDEV_TESTING_DIR:-$REPO_ROOT/iccDEV/Testing}"
+  export LD_LIBRARY_PATH="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+  TP="$REPO_ROOT/test-profiles"
+  TP_TIFF="$REPO_ROOT/test-profiles"
+  TP_IMG="$REPO_ROOT/test-profiles"
+  TP_SPECTRAL="$REPO_ROOT/test-profiles/spectral"
+fi
+
 # CI-friendly: use docs/iccDEV/Tools/test-data if tmp/ doesn't exist
 if [ -d "$REPO_ROOT/tmp/iccdev-tool-tests" ]; then
   TD="$REPO_ROOT/tmp/iccdev-tool-tests"
@@ -42,9 +61,6 @@ else
   TD="$REPO_ROOT/docs/iccDEV/Tools/test-data"
 fi
 OUTDIR="${ICCDEV_TEST_OUTDIR:-/tmp/iccdev-tool-output}"
-ICCDEV_TESTING="${ICCDEV_TESTING_DIR:-$REPO_ROOT/iccDEV/Testing}"
-
-export LD_LIBRARY_PATH="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
 
 # Defaults
 ASAN_MODE=0
@@ -606,20 +622,24 @@ fi
 echo ""
 
 # =============================================================================
-# 14. iccSpecSepToTiff (2 tests)
+# 14. iccSpecSepToTiff (3 tests)
 # =============================================================================
 echo "--- 14. iccSpecSepToTiff ---"
 SPECSEP="$TOOLS/IccSpecSepToTiff/iccSpecSepToTiff"
 
-# This tool needs sequential spectral TIFF files — test with format string
-# Even if files don't exist, capture the error gracefully
-run_test "specsep-01" "SpecSepToTiff: format test (expect fail — no seq files)" \
-  "$SPECSEP" "$OUTDIR/spectral_merged.tiff" 0 0 "$OUTDIR/spec_%03d.tif" 1 10 1
+# Test with sequential spectral channel TIFFs (16-bit grayscale, 4x4)
+if [ -d "$TP_SPECTRAL" ] && [ -f "$TP_SPECTRAL/spec_001.tif" ]; then
+  run_test "specsep-01" "SpecSepToTiff: merge 10 spectral channels (no compress)" \
+    "$SPECSEP" "$OUTDIR/spectral_merged.tiff" 0 0 "$TP_SPECTRAL/spec_%03d.tif" 1 10 1
 
-# If spectral TIFF exists, use its directory
-if [ -f "$SPECTRAL_TIFF" ]; then
-  run_test "specsep-02" "SpecSepToTiff with spectral TIFF path" \
-    "$SPECSEP" "$OUTDIR/spectral_out.tiff" 1 0 "$SPECTRAL_TIFF" 1 1 1
+  run_test "specsep-02" "SpecSepToTiff: merge 5 channels with compression" \
+    "$SPECSEP" "$OUTDIR/spectral_compressed.tiff" 1 0 "$TP_SPECTRAL/spec_%03d.tif" 1 5 1
+
+  run_test "specsep-03" "SpecSepToTiff: merge with planar separation" \
+    "$SPECSEP" "$OUTDIR/spectral_separated.tiff" 0 1 "$TP_SPECTRAL/spec_%03d.tif" 1 10 1
+else
+  run_test "specsep-01" "SpecSepToTiff: format test (expect fail — no seq files)" \
+    "$SPECSEP" "$OUTDIR/spectral_merged.tiff" 0 0 "$OUTDIR/spec_%03d.tif" 1 10 1
 fi
 
 echo ""
