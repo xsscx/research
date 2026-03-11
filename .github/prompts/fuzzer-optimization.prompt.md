@@ -333,6 +333,13 @@ intent byte (size-1): mod 4 for rendering intent
 
 **Dict focus**: .cube keywords (`TITLE`, `LUT_3D_SIZE`, `DOMAIN_MIN`, `DOMAIN_MAX`, `LUT_3D_INPUT_RANGE`), float patterns, comment markers.
 
+**Dict expansion needed (March 2026)**: `icc_fromcube_fuzzer.dict` has only **282 lines** —
+critically small compared to other CFL dicts (1500-6000+ lines). Expand with:
+- Auto-extraction from `cfl/corpus-icc_fromcube_fuzzer/` using `strings` + dedup
+- .cube edge cases: negative domain values, very large LUT_3D_SIZE, empty TITLE, Unicode
+- Float edge cases: NaN, Inf, -0.0, subnormal, very large/small exponents
+- Also available as AFL fuzzing target on external SSD at `/mnt/g/fuzz-ssd/afl-fromcube/`
+
 **Dict syntax warning**: LibFuzzer dicts only support `\xHH` escapes. `\n` → `\x0a`, `\t` → `\x09`. Empty string `""` is a parse error.
 
 ---
@@ -441,6 +448,14 @@ seed = struct.pack('>I', len(display)) + display + observer
 - Format consistency validation across multi-file inputs (6 dimensions)
 - ICC profile embedding and parsing through `CIccMemIO`
 - Float TIFF paths (bitsPerSample=32)
+
+**Seed enhancement (March 2026)**: 10 spectral TIFF test files created at
+`iccDEV/Testing/Fuzzing/seeds/tiff/spectral/spec_001..010.tif` (4×4, 16-bit, MINISBLACK,
+288 bytes each). Copy to corpus for realistic spectral channel seeds. The fuzzer generates
+TIFFs internally from control headers, but these seeds help establish baseline TIFF structure.
+
+**Known upstream bug**: `iccSpecSepToTiff.cpp:207-208,232` has alloc-dealloc-mismatch
+(`unique_ptr<T>` with `new T[]` — uses `delete` not `delete[]`). CWE-762. Candidate CFL-011.
 
 **Dict focus**: TIFF tag patterns, photometric mode values, bits-per-sample options.
 
