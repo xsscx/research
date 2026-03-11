@@ -205,9 +205,54 @@ for f in "${FUZZERS[@]}"; do
   fi
 done
 
+# ── AFL++ directory setup ────────────────────────────────────────────
+# AFL uses a separate directory layout: afl-{target}/{input,output,dict}
+AFL_TARGETS=(fromcube)
+AFL_SEEDED=0
+
+for afl_target in "${AFL_TARGETS[@]}"; do
+  afl_dir="$RAMDISK/afl-${afl_target}"
+  mkdir -p "$afl_dir/input" "$afl_dir/output"
+
+  before=$(find "$afl_dir/input" -type f 2>/dev/null | wc -l)
+  afl_sources=""
+
+  case "$afl_target" in
+    fromcube)
+      # Seed from CFL fromcube corpora
+      for seed_src in "$CFL_DIR/icc_fromcube_fuzzer_seed_corpus" "$CFL_DIR/corpus-icc_fromcube_fuzzer"; do
+        if [ -d "$seed_src" ]; then
+          rsync -a --quiet --ignore-existing "$seed_src/" "$afl_dir/input/"
+          afl_sources+="$(basename "$seed_src") "
+        fi
+      done
+      # Copy dictionary
+      if [ -f "$CFL_DIR/icc_fromcube_fuzzer.dict" ]; then
+        cp "$CFL_DIR/icc_fromcube_fuzzer.dict" "$afl_dir/fromcube.dict"
+      fi
+      ;;
+  esac
+
+  after=$(find "$afl_dir/input" -type f 2>/dev/null | wc -l)
+  added=$((after - before))
+  if [ "$after" -gt 0 ]; then
+    printf "  [OK] afl-%-37s %6d inputs (+%d new)  [%s]\n" "$afl_target" "$after" "$added" "${afl_sources% }"
+    AFL_SEEDED=$((AFL_SEEDED + 1))
+  fi
+done
+
+# Copy AFL-instrumented binaries if they exist
+AFL_BIN_SRC="$REPO_ROOT/afl/bin"
+if [ -d "$AFL_BIN_SRC" ]; then
+  RAM_AFL_BIN="$RAMDISK/afl-bin"
+  mkdir -p "$RAM_AFL_BIN"
+  rsync -a --quiet --ignore-existing "$AFL_BIN_SRC/" "$RAM_AFL_BIN/"
+  echo "  [OK] AFL binaries: $(find "$RAM_AFL_BIN" -type f -executable 2>/dev/null | wc -l) tools"
+fi
+
 echo ""
 echo "── Summary ──────────────────────────────────────────────────────"
-echo "  Seeded: $SEEDED/${#FUZZERS[@]} fuzzers"
+echo "  Seeded: $SEEDED/${#FUZZERS[@]} CFL fuzzers, $AFL_SEEDED/${#AFL_TARGETS[@]} AFL targets"
 if mountpoint -q "$RAMDISK" 2>/dev/null; then
   echo "  Ramdisk: $(df -h "$RAMDISK" | tail -1 | awk '{print $4 " free (" $3 " used)"}')"
 fi
