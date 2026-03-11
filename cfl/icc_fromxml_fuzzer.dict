@@ -1549,3 +1549,6 @@ multi_sig="mwpmcl1l"
 "utf16version1"
 "\x01\x00\x00\x00\x00\x00\x00,"
 "utf16opposite"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x04\x06"
