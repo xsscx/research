@@ -123,25 +123,29 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    ```
    Commit in batches of 50 to avoid giant commits.
 
-2. **Rebuild CFL fuzzers against iccDEV v2.3.1.5**:
-   ```bash
-   cd cfl && ./build.sh   # will re-apply patches against updated source
-   ```
-   Then verify 4 NO-OP patches (047, 064, 070, 072) — upstreamed via PRs #652-#657.
+2. **Expand `icc_fromcube_fuzzer.dict`** — currently **282 lines** (critically small vs
+   1500-6000+ for other dicts). Auto-extract from corpus + add .cube edge cases.
 
-3. **Regenerate coverage data** (profdata is out of sync after iccDEV update):
+3. **Create CFL-011 patch** for `iccSpecSepToTiff.cpp:207-208,232` alloc-dealloc-mismatch:
+   `unique_ptr<T>(new T[])` uses `delete` instead of `delete[]`. CWE-762.
+
+4. **Seed spectral TIFFs into CFL corpora**:
    ```bash
-   .github/scripts/ramdisk-seed.sh --mount
-   cfl/fuzz-local.sh -t 300
-   .github/scripts/merge-profdata.sh
-   .github/scripts/generate-coverage-report.sh
+   cp test-profiles/spectral/spec_*.tif cfl/corpus-icc_specsep_fuzzer/
+   cp test-profiles/spectral/spec_*.tif cfl/corpus-icc_tiffdump_fuzzer/
    ```
 
-4. **Run targeted fuzzing on weak coverage areas** (from coverage-summary.md):
+5. **Run targeted fuzzing on weak coverage areas** (from coverage-summary.md):
    - `IccCmmSearch`: 0% coverage → needs `icc_applynamedcmm_fuzzer` seeds
    - `IccEnvVar`: 23-50% → exercise environment variable paths
    - `IccApplyBPC`: 33% → needs BPC-enabled profiles
    - Target: 65%+ line coverage (current: 59.01%)
+
+6. **Fix remaining iccDEV CI test failures** (~7 of 89):
+   - v5-001/002/003: Generate/locate v5 observer profiles for iccV5DspObsToV4Dsp
+   - dump-08 + xmlrt-named: Verify NamedColor.icc seed is valid (cascading failure)
+   - ncm-05: Fix encoding=4 data format mismatch
+   - search-04: Debug 3-profile chain initialization
 
 #### Medium Priority (Infrastructure)
 5. **Upstream sync check** — Verify CFL patches against latest iccDEV:
