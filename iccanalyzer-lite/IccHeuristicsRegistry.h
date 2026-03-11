@@ -64,7 +64,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {  2, "Magic Bytes",                         "§7.2.6",  "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
   {  3, "Color Space Signature",               "§7.2.6",  "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
   {  4, "PCS Color Space",                     "§7.2.7",  "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
-  {  5, "Platform Signature",                  "§7.2.10", "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
+  {  5, "Platform/CMM/Manufacturer/Creator",    "§7.2.10", "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
   {  6, "Rendering Intent",                    "§7.2.15", "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
   {  7, "Profile Class",                       "§7.2.5",  "CWE-20",  nullptr, HeuristicPhase::HEADER, HeuristicSeverity::LOW},
   {  8, "Illuminant XYZ",                      "§7.2.16", "CWE-682", nullptr, HeuristicPhase::HEADER, HeuristicSeverity::MEDIUM},
