@@ -188,6 +188,7 @@ for f in "${FUZZERS[@]}"; do
       -rss_limit_mb="$RSS_LIMIT" \
       -use_value_profile=1 \
       -max_len=5242880 \
+      -create_missing_dirs=1 \
       -jobs="$WORKERS" \
       -workers="$WORKERS" \
       -artifact_prefix="$RAMDISK/" \
