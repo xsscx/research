@@ -603,12 +603,22 @@ jobs:
             exit 1
           fi
 
+      - name: Package AFL artifacts
+        if: always()
+        run: |
+          # AFL filenames contain colons (id:000000,...) which upload-artifact rejects.
+          # Tar everything to avoid the invalid character issue.
+          tar cf afl-corpus.tar -C afl-output/default/queue . 2>/dev/null || true
+          tar cf afl-findings.tar \
+            -C afl-output/default crashes hangs 2>/dev/null || true
+          cp afl-output/default/fuzzer_stats afl-fuzzer_stats 2>/dev/null || true
+
       - name: Upload AFL corpus
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: afl-fromcube-corpus-${{ github.run_id }}
-          path: afl-output/default/queue/
+          path: afl-corpus.tar
           retention-days: 90
           if-no-files-found: ignore
 
@@ -618,9 +628,8 @@ jobs:
         with:
           name: afl-fromcube-crashes-${{ github.run_id }}
           path: |
-            afl-output/default/crashes/
-            afl-output/default/hangs/
-            afl-output/default/fuzzer_stats
+            afl-findings.tar
+            afl-fuzzer_stats
           retention-days: 90
           if-no-files-found: ignore
 
