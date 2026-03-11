@@ -48,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           ref: ${{ github.ref }}
@@ -56,7 +56,7 @@ jobs:
 
       - name: Cache APT packages
         id: cache-apt
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: |
             /var/cache/apt/archives
@@ -88,7 +88,7 @@ jobs:
 
       - name: Cache iccDEV repository
         id: cache-iccdev
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: cfl/iccDEV
           key: ${{ runner.os }}-iccdev-cfl-${{ hashFiles('cfl/patches/*.patch') }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Cache iccDEV build artifacts
         id: cache-iccdev-build
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: |
             cfl/iccDEV/Build/IccProfLib
@@ -246,7 +246,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload fuzzer binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: fuzzer-binaries
           path: |
@@ -284,7 +284,7 @@ jobs:
 
     steps:
       - name: Checkout scripts
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           sparse-checkout: |
             .github/scripts
@@ -292,7 +292,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download fuzzer binaries
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           name: fuzzer-binaries
 
@@ -358,7 +358,7 @@ jobs:
           find . -maxdepth 1 \( -name "crash-*" -o -name "leak-*" -o -name "oom-*" \) -exec cp {} crash-artifacts/ \; 2>/dev/null || true
 
       - name: Upload crash artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -381,7 +381,7 @@ jobs:
           fi
 
       - name: Upload dict updates
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: dict-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -404,13 +404,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           ref: ${{ github.ref }}
           token: ${{ github.token }}
 
       - name: Download all dict artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           pattern: dict-*
           path: dict-artifacts/
