@@ -1,0 +1,301 @@
+/** @file
+    File:       icc_specsep_fuzzer.cpp
+    Contains:   LibFuzzer harness for IccSpecSepToTiff spectral separation
+    Version:    V1
+    Copyright:  (c) see Software License
+*/
+
+/*
+ * Copyright (c) International Color Consortium.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. In the absence of prior written permission, the names "ICC" and "The
+ *    International Color Consortium" must not be used to imply that the
+ *    ICC organization endorses or promotes products derived from this
+ *    software.
+ *
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE INTERNATIONAL COLOR CONSORTIUM OR
+ * ITS CONTRIBUTING MEMBERS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string>
+#include <cstring>
+#include <cmath>
+#include <vector>
+#include <new>
+#include <memory>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <tiffio.h>
+
+#include "IccProfile.h"
+#include "IccUtil.h"
+#include "IccIO.h"
+#include "IccTagBasic.h"
+#include "TiffImg.h"
+#include <climits>
+#include "fuzz_utils.h"
+
+static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
+static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
+
+extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  TIFFSetErrorHandler(SilentTIFFErrorHandler);
+  TIFFSetWarningHandler(SilentTIFFWarningHandler);
+  return 0;
+}
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  if (size < 16 || size > 10 * 1024 * 1024) return 0;
+
+  // Parse fuzzer input:
+  // Upstream tool: iccSpecSepToTiff output compress sep infile_fmt start end incr {profile}
+  // Input format (fidelity-matched):
+  // [0]: number of spectral channel files (1-8)
+  // [1]: width (1-64)
+  // [2]: height (1-64)
+  // [3]: bit 0 = MINISWHITE (else MINISBLACK), bit 1 = compress, bit 2 = separate
+  // [4-14]: reserved
+  // [15-]: pixel data (1 SPP per file, single-channel) + optional ICC profile
+
+  uint8_t nFiles = (data[0] % 8) + 1;
+  const char *tmpdir = fuzz_tmpdir();
+  uint32_t width = ((data[1] % 64) + 1);
+  uint32_t height = ((data[2] % 64) + 1);
+
+  // Upstream only accepts MINISBLACK or MINISWHITE — reject everything else
+  unsigned int nPhoto = (data[3] & 1) ? PHOTO_MINISWHITE : PHOTO_MINISBLACK;
+  bool compress = (data[3] >> 1) & 1;
+  bool separate = (data[3] >> 2) & 1;
+
+  // Upstream uses 8-bit or 16-bit integer samples only (no float)
+  uint8_t bitsPerSample = (data[4] & 1) ? 16 : 8;
+
+  // Each input file has exactly 1 sample per pixel (upstream requirement)
+  unsigned int inputSpp = 1;
+
+  size_t bytesPerSample = bitsPerSample / 8;
+  size_t minDataSize = width * height * bytesPerSample * inputSpp * nFiles;
+
+  if (size < 15 + minDataSize) return 0;
+
+  // Create temporary input TIFF files
+  std::vector<char*> tmpfiles;
+  
+  for (uint8_t i = 0; i < nFiles; i++) {
+    char *tmpfile = (char*)malloc(PATH_MAX);
+    if (!tmpfile) {
+      for (auto tf : tmpfiles) { unlink(tf); free(tf); }
+      return 0;
+    }
+    // Build unique suffix without snprintf to avoid format-string CodeQL alerts
+    char suffix[64] = "/fuzz_sep_";
+    size_t slen = strlen(suffix);
+    suffix[slen++] = '0' + (i / 10);
+    suffix[slen++] = '0' + (i % 10);
+    static const char tail[] = "_XXXXXX";
+    memcpy(suffix + slen, tail, sizeof(tail));
+    if (!fuzz_build_path(tmpfile, PATH_MAX, tmpdir, suffix)) {
+      for (auto tf : tmpfiles) {
+        unlink(tf);
+        free(tf);
+      }
+      free(tmpfile);
+      return 0;
+    }
+    int fd = mkstemp(tmpfile);
+    if (fd < 0) {
+      for (auto tf : tmpfiles) {
+        unlink(tf);
+        free(tf);
+      }
+      free(tmpfile);
+      return 0;
+    }
+
+    tmpfiles.push_back(tmpfile);
+
+    // Create single-sample TIFF with MINISBLACK/MINISWHITE (upstream requirement)
+    CTiffImg tiff;
+    if (!tiff.Create(tmpfile, width, height, bitsPerSample,
+                     nPhoto, 1, 0,
+                     72, 72, false, false)) {
+      close(fd);
+      for (auto tf : tmpfiles) {
+        unlink(tf);
+        free(tf);
+      }
+      return 0;
+    }
+
+    // Write pixel data from fuzzer input (1 sample per pixel, no extra)
+    size_t pixelsPerRow = width * bytesPerSample;
+    size_t offset = 15 + (i * width * height * bytesPerSample);
+    const uint8_t *pixelData = data + offset;
+    
+    for (uint32_t row = 0; row < height; row++) {
+      size_t rowOffset = row * pixelsPerRow;
+      if (offset + rowOffset + pixelsPerRow > size) {
+        tiff.Close();
+        close(fd);
+        for (auto tf : tmpfiles) {
+          unlink(tf);
+          free(tf);
+        }
+        return 0;
+      }
+      tiff.WriteLine((icUInt8Number*)(pixelData + rowOffset));
+    }
+
+    tiff.Close();
+    close(fd);
+  }
+
+  // Create output file
+  char outfile[PATH_MAX];
+  if (!fuzz_build_path(outfile, sizeof(outfile), tmpdir, "/fuzz_out_XXXXXX")) {
+    for (auto tf : tmpfiles) { unlink(tf); free(tf); }
+    return 0;
+  }
+  int outfd = mkstemp(outfile);
+  if (outfd < 0) {
+    for (auto tf : tmpfiles) {
+      unlink(tf);
+      free(tf);
+    }
+    return 0;
+  }
+  close(outfd);
+
+  // Open all input files - pre-allocate vector to avoid moves
+  std::vector<CTiffImg> infiles(nFiles);
+  bool allOpened = true;
+  
+  for (uint8_t i = 0; i < nFiles; i++) {
+    if (!infiles[i].Open(tmpfiles[i])) {
+      allOpened = false;
+      break;
+    }
+    
+    if (infiles[i].GetSamples() != 1 || infiles[i].GetPhoto() == PHOTOMETRIC_PALETTE) {
+      allOpened = false;
+      break;
+    }
+
+    // Format consistency validation — matches iccSpecSepToTiff.cpp lines 177-185
+    // All input files must have matching width, height, bps, photo, resolution
+    if (i > 0 && (infiles[i].GetWidth() != infiles[0].GetWidth() ||
+        infiles[i].GetHeight() != infiles[0].GetHeight() ||
+        infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
+        infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
+        std::abs(infiles[i].GetXRes() - infiles[0].GetXRes()) > 0.001f ||
+        std::abs(infiles[i].GetYRes() - infiles[0].GetYRes()) > 0.001f)) {
+      allOpened = false;
+      break;
+    }
+  }
+
+  if (allOpened) {
+    CTiffImg *f = &infiles[0];
+    long bytePerLine = f->GetBytesPerLine();
+    long bytesPerSample_img = f->GetBitsPerSample() / 8;
+
+    std::unique_ptr<icUInt8Number[]> inbuffer(new (std::nothrow) icUInt8Number[bytePerLine * nFiles]);
+    // Upstream output: nFiles channels, 0 extra samples, always PHOTO_MINISBLACK
+    std::unique_ptr<icUInt8Number[]> outbuffer(new (std::nothrow) icUInt8Number[f->GetWidth() * bytesPerSample_img * nFiles]);
+    if (!inbuffer || !outbuffer) { unlink(outfile); return 0; }
+    
+    icUInt8Number *inbuf = inbuffer.get();
+    icUInt8Number *outbuf = outbuffer.get();
+
+    float xRes = f->GetXRes() > 1 ? f->GetXRes() : 72;
+    float yRes = f->GetYRes() > 1 ? f->GetYRes() : 72;
+
+    CTiffImg outimg;
+    // Upstream: always PHOTO_MINISBLACK output, nFiles channels, 0 extra samples
+    if (outimg.Create(outfile, f->GetWidth(), f->GetHeight(), f->GetBitsPerSample(),
+                      PHOTO_MINISBLACK, nFiles, 0,
+                      xRes, yRes, compress, separate)) {
+      
+      // Optional ICC profile embedding — raw bytes only (matches upstream tool)
+      // Upstream reads via CIccFileIO.Read8() and embeds raw — no IccProfLib parse
+      size_t profileOffset = 15 + minDataSize;
+      if (size > profileOffset + 128) {
+        size_t profileSize = std::min(size - profileOffset, (size_t)1024 * 1024);
+        std::unique_ptr<unsigned char[]> profile(new (std::nothrow) unsigned char[profileSize]);
+        if (!profile) { goto cleanup; }
+        memcpy(profile.get(), data + profileOffset, profileSize);
+        outimg.SetIccProfile(profile.get(), (unsigned int)profileSize);
+      }
+
+      // Process scanlines
+      for (uint32_t i = 0; i < f->GetHeight(); i++) {
+        bool readOk = true;
+        for (uint8_t j = 0; j < nFiles; j++) {
+          icUInt8Number *sptr = inbuf + j * bytePerLine;
+          if (!infiles[j].ReadLine(sptr)) {
+            readOk = false;
+            break;
+          }
+        }
+
+        if (!readOk) break;
+
+        // MINISWHITE inversion — upstream iccSpecSepToTiff.cpp lines 248-252
+        if (nPhoto == PHOTO_MINISWHITE) {
+          for (uint8_t j = 0; j < nFiles; j++) {
+            icUInt8Number *sptr = inbuf + j * bytePerLine;
+            for (long k = 0; k < bytePerLine; k++) {
+              sptr[k] ^= 0xff;
+            }
+          }
+        }
+
+        icUInt8Number *tptr = outbuf;
+        for (uint32_t k = 0; k < f->GetWidth(); k++) {
+          for (uint8_t j = 0; j < nFiles; j++) {
+            icUInt8Number *sptr = inbuf + j * bytePerLine + k * bytesPerSample_img;
+            memcpy(tptr, sptr, bytesPerSample_img);
+            tptr += bytesPerSample_img;
+          }
+        }
+        outimg.WriteLine(outbuf);
+      }
+      
+      outimg.Close();
+    }
+  }
+
+cleanup:
+  // Cleanup
+  unlink(outfile);
+  for (auto tf : tmpfiles) {
+    unlink(tf);
+    free(tf);
+  }
+
+  return 0;
+}

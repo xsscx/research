@@ -105,6 +105,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   
   // Split input into two profiles (no leading byte skip)
   size_t mid = size / 2;
+
+  // Gate 0b: Validate tag table integrity for both halves (CWE-789)
+  if (!fuzz_validate_icc_tags(data, mid)) return 0;
+  if (!fuzz_validate_icc_tags(data + mid, size - mid)) return 0;
   
   const char *tmpdir = fuzz_tmpdir();
   char tmp1[PATH_MAX];

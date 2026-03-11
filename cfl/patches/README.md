@@ -175,7 +175,7 @@ Three call sites in `IccTagXml.cpp`:
   Lab and XYZ code paths
 Fix: copy fixed-size field to `char safe[33]` with null terminator before
 passing to `icAnsiToUtf8()`.  Verified: both PoC files process cleanly
-with patched `iccToXml` and all 18 fuzzers (exit 0, no ASAN output).
+with patched `iccToXml` and all 11 fuzzers (exit 0, no ASAN output).
 
 Patch 021 fixes heap-buffer-overflow in `CIccMpeSpectralMatrix::Describe()`.
 `m_pMatrix` is allocated as `calloc(m_size, sizeof(icFloatNumber))` where

@@ -1,0 +1,14 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index 0b2f871..3a31d18 100644
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1286,7 +1298,8 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+         m_TagVals[i].ptr = m_TagVals[j].ptr;
+       }
+       else {
+-        if (tagPos[i].offset + tagPos[i].size > size) {
++        // CFL-007: overflow guard before bounds check (CWE-190 -> CWE-789)
++        if (tagPos[i].size > size || tagPos[i].offset > size - tagPos[i].size) {
+           delete [] tagPos;
+           return false;
+         }

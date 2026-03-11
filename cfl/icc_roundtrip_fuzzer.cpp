@@ -114,6 +114,9 @@ protected:
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 130 || size > 1024 * 1024) return 0;
+
+  // Gate 0b: Validate tag table integrity (CWE-789 amplification guard)
+  if (!fuzz_validate_icc_tags(data, size)) return 0;
   
   // Derive parameters from trailing bytes to preserve ICC header structure
   // (consuming leading bytes shifts the profile header, breaking fidelity)

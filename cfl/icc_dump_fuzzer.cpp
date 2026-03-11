@@ -71,23 +71,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Gate 0: minimum viable ICC profile
   if (size < 132 || size > 5 * 1024 * 1024) return 0;
 
-  // Gate 0b: Reject profiles with tag offsets/sizes exceeding file size (CWE-789)
-  {
-    uint32_t tagCount = (data[128] << 24) | (data[129] << 16) | (data[130] << 8) | data[131];
-    if (tagCount > 200) return 0;
-    for (uint32_t t = 0; t < tagCount; t++) {
-      size_t base = 132 + t * 12;
-      if (base + 12 > size) return 0;
-      uint32_t tOff  = (data[base+4] << 24) | (data[base+5] << 16) |
-                       (data[base+6] << 8) | data[base+7];
-      uint32_t tSize = (data[base+8] << 24) | (data[base+9] << 16) |
-                       (data[base+10] << 8) | data[base+11];
-      if (tOff > size || tSize > size) return 0;
-      if (tOff + tSize < tOff) return 0;
-    }
-    uint32_t hdrSize = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
-    if (hdrSize > size) return 0;
-  }
+  // Gate 0b: Validate tag table integrity (CWE-789 amplification guard)
+  if (!fuzz_validate_icc_tags(data, size)) return 0;
 
   // Write to temp file — upstream uses CIccFileIO, NOT CIccMemIO
   char tmppath[512];

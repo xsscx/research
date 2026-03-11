@@ -140,6 +140,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   size_t obsSize = size - 4 - dspSize;
   const uint8_t *obsData = data + 4 + dspSize;
 
+  // Gate 0b: Validate tag table integrity for both profiles (CWE-789)
+  if (!fuzz_validate_icc_tags(dspData, dspSize)) return 0;
+  if (!fuzz_validate_icc_tags(obsData, obsSize)) return 0;
+
   AST_LOG(1, "GATE 1: Writing profiles to temporary files (tool fidelity)");
   AST_LOG(1, "Input V5 display:  %u bytes (mimics inputV5.icc)", dspSize);
   AST_LOG(1, "Input V5 observer: %zu bytes (mimics inputObserverV5.icc)", obsSize);

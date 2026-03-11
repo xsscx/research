@@ -6,20 +6,20 @@ applyTo: "cfl/**"
 
 ## What This Is
 
-18 LibFuzzer harnesses (4,537 LOC, C/C++) targeting the iccDEV ICC profile library.
+11 LibFuzzer harnesses (~2,500 LOC, C/C++) targeting the iccDEV ICC profile library.
 Each fuzzer has a custom-built dictionary, seed corpus, and ASAN+UBSAN instrumentation.
 
 ## Build
 
 ```bash
-cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 18 fuzzers
+cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 11 fuzzers
 ```
 
 - **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
 - Applies targeted patches from `cfl/patches/` (new findings only — see Patch System below)
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
-- Binaries: `cfl/bin/icc_*_fuzzer` (18 total)
+- Binaries: `cfl/bin/icc_*_fuzzer` (11 total)
 
 ## Upstream Sync
 
@@ -31,7 +31,7 @@ cd .. && ./build.sh   # re-applies patches and rebuilds
 
 Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
-## The 18 Fuzzers
+## The 11 Fuzzers
 
 | # | Fuzzer Binary | Primary Target |
 |---|--------------|----------------|
@@ -76,9 +76,13 @@ for historical reference.
 | 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
 | 003 | TagArray alloc-dealloc mismatch | new[] in copy ctor, free() in Cleanup() | CWE-762 | IccTagComposite.cpp |
 | 004 | ToneMapFunc Read parameter count | HBO via Describe() accessing m_params[0..2] with only 1 allocated | CWE-122 | IccMpeBasic.cpp |
+| 005 | CalculatorFunc Read enum UBSAN | Enum out-of-range in calculator op read | CWE-681 | IccMpeCalc.cpp |
+| 006 | SpectralMatrix Describe iteration bounds | HBO via Describe() iterating m_nOutputChannels rows | CWE-122 | IccMpeSpectral.cpp |
+| 007 | TagArray Read overflow guard | Integer overflow in TagArray element count | CWE-190 | IccTagComposite.cpp |
+| 008 | TagCurve Apply NaN-to-unsigned | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **005**)
+- Numbering: zero-padded 3-digit, sequential (next: **009**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
@@ -163,6 +167,28 @@ for historical reference.
 - **Fuzzer alignment fix**: All 6 Describe-calling fuzzers now use `SafeDescribe()`
   from `CflSafeDescribe.h` which validates tag state before calling `Describe()`
 
+### CFL-008: CIccTagCurve::Apply NaN→unsigned UBSAN (CWE-681)
+
+- **UBSAN trace**: `IccTagLut.cpp:584:43: runtime error: -nan is outside the range of
+  representable values of type 'unsigned int'`
+- **Root cause**: `CIccTagCurve::Apply()` clamps input `v` with `if(v<0.0)` / `else if(v>1.0)`.
+  IEEE 754 NaN fails BOTH comparisons (NaN is not less than, greater than, or equal to
+  anything). Line 584 then casts `NaN * m_nMaxIndex` to `icUInt32Number` — undefined behavior.
+- **Fix**: `if(v<0.0 || std::isnan(v)) v = 0.0;` — `<cmath>` already included at line 78
+- **Sister function**: `ClutUnitClip()` at IccTagLut.cpp:1623 ALREADY has
+  `if (std::isnan(v)) return 0;` — proving NaN occurrence was known in this code area.
+  CFL-008 applies the identical pattern to the unprotected `Apply()` function.
+- **Upstream reproduction**: NOT reproducible through upstream CLI tools. The upstream
+  tool's input validation (data file parsing, profile validation) prevents the conditions
+  that produce NaN. 500+ corpus files tested through `iccApplyNamedCmm` and `iccRoundTrip`
+  with UBSAN enabled — zero triggers. The NaN originates from fuzzer mutation paths
+  that bypass tool-level input validation.
+- **Classification**: Defensive hardening — the code has a genuine bug (NaN bypass of
+  clamp checks), but upstream tools never exercise the vulnerable path. Any third-party
+  consumer of `CIccTagCurve::Apply()` with attacker-controlled profile data could hit this.
+- **Related**: `RGBClip()` at IccCmm.cpp:5380-5388 has the SAME NaN bypass bug
+  (potential future patch)
+
 ## Fuzzer Alignment — SafeDescribe Pattern
 
 All fuzzers that call `CIccTag::Describe()` use `SafeDescribe()` from `CflSafeDescribe.h`.
@@ -185,7 +211,7 @@ When `Read()` partially populates internal state, `Describe()` reads out of boun
 ## Fuzzing — Ramdisk Workflow
 
 ```bash
-# Mount ramdisk, seed corpus, run all 18 fuzzers
+# Mount ramdisk, seed corpus, run all 11 fuzzers
 cd cfl && ./ramdisk-fuzz.sh
 
 # Or use external SSD

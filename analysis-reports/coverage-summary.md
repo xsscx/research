@@ -86,7 +86,7 @@
 
 ## Coverage Improvement History
 
-| Metric | Feb 25 (18 fuzzers, 931 merged) | Mar 5 (19 fuzzers, 213K active) | Delta |
+| Metric | Feb 25 (11 fuzzers, 931 merged) | Mar 5 (11 fuzzers, 213K active) | Delta |
 |--------|--------------------------------|--------------------------------|-------|
 | Line Coverage | 42.15% | **59.01%** | +16.86 |
 | Branch Coverage | 39.48% | **56.76%** | +17.28 |

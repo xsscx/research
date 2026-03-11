@@ -1,0 +1,11 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -578,7 +578,7 @@ bool CIccTagCurve::IsIdentity()
+  */
+ icFloatNumber CIccTagCurve::Apply(icFloatNumber v) const
+ {
+-  if(v<0.0) v = 0.0;
++  if(v<0.0 || std::isnan(v)) v = 0.0;
+   else if(v>1.0) v = 1.0;
+ 
+   icUInt32Number nIndex = (icUInt32Number)(v * m_nMaxIndex);
