@@ -76,15 +76,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_validate_icc_tags(data, size)) return 0;
 
   // Write to temp file — upstream uses CIccFileIO, NOT CIccMemIO
-  char tmppath[512];
-  if (!fuzz_build_path(tmppath, sizeof(tmppath), fuzz_tmpdir(), "/fuzz_dump.icc"))
+  // Fuzzer temp file path is hardcoded, not user-controlled XML input
+  char fuzzTmp[512];
+  if (!fuzz_build_path(fuzzTmp, sizeof(fuzzTmp), fuzz_tmpdir(), "/fuzz_dump.icc"))
     return 0;
 
-  int fd = open(tmppath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  int fd = open(fuzzTmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) return 0;
   ssize_t written = write(fd, data, size);
   close(fd);
-  if (written != (ssize_t)size) { unlink(tmppath); return 0; }
+  if (written != (ssize_t)size) { unlink(fuzzTmp); return 0; }
 
   // Derive control from trailing bytes
   uint8_t verbByte = data[size - 1];
@@ -99,13 +100,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Validating path: ValidateIccProfile(path) — tool line 198 (-v flag)
     std::string report;
     icValidateStatus nStatus = icValidateOK;
-    pIcc = ValidateIccProfile(tmppath, report, nStatus);
+    pIcc = ValidateIccProfile(fuzzTmp, report, nStatus);
   } else {
     // Non-validating path: OpenIccProfile(path) — tool line 218
-    pIcc = OpenIccProfile(tmppath);
+    pIcc = OpenIccProfile(fuzzTmp);
   }
 
-  unlink(tmppath);
+  unlink(fuzzTmp);
   if (!pIcc) return 0;
 
   icHeader *pHdr = &pIcc->m_Header;

@@ -232,6 +232,16 @@ def _validate_directory(value: str) -> str:
     return value
 
 
+def _validate_xml_directory(value: str) -> str:
+    """Validate directory name for XML file listing (allowlist only)."""
+    value = value.strip()
+    if value not in _ALLOWED_XML_DIRS:
+        raise ValueError(
+            f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
+        )
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Route handlers
 # ---------------------------------------------------------------------------
@@ -268,11 +278,7 @@ async def api_list_xml(request: Request) -> Response:
     """GET /api/list-xml?directory=fuzz/xml/icc — list XML files in allowed directories."""
     try:
         directory = request.query_params.get("directory", "fuzz/xml/icc")
-        directory = directory.strip()
-        if directory not in _ALLOWED_XML_DIRS:
-            raise ValueError(
-                f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
-            )
+        directory = _validate_xml_directory(directory)
         target = (_HERE.parent / directory).resolve()
         repo_root = _HERE.parent.resolve()
         target.relative_to(repo_root)  # raises ValueError if traversal

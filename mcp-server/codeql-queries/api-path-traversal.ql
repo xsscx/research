@@ -68,7 +68,8 @@ class PathSanitizer extends DataFlow::Node {
   PathSanitizer() {
     exists(Call c |
       c.getFunc().(Name).getId() in [
-        "_validate_path", "_resolve_path", "_safe_resolve"
+        "_validate_path", "_resolve_path", "_safe_resolve",
+        "_validate_directory", "_validate_xml_directory"
       ] and
       this.asExpr() = c
     )

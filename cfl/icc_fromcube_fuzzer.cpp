@@ -366,13 +366,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!pTag) return 0;
 
   if (cube.isCustomInputRange()) {
-    // Copy values to avoid interior-pointer lifetime issues (CWE-416 pattern)
+    // Copy values immediately to avoid interior-pointer lifetime issues
     icFloatNumber minVal[3], maxVal[3];
-    icFloatNumber* pMin = cube.getMinInput();
-    icFloatNumber* pMax = cube.getMaxInput();
-    if (!pMin || !pMax) { delete pTag; return 0; }
-    memcpy(minVal, pMin, 3 * sizeof(icFloatNumber));
-    memcpy(maxVal, pMax, 3 * sizeof(icFloatNumber));
+    if (!cube.getMinInput() || !cube.getMaxInput()) { delete pTag; return 0; }
+    memcpy(minVal, cube.getMinInput(), 3 * sizeof(icFloatNumber));
+    memcpy(maxVal, cube.getMaxInput(), 3 * sizeof(icFloatNumber));
 
     CIccMpeCurveSet* pCurves = new (std::nothrow) CIccMpeCurveSet(3);
     if (!pCurves) { delete pTag; return 0; }
