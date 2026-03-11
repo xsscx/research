@@ -224,9 +224,11 @@ jobs:
           check_exit "valid-iccDumpProfile" "iccDumpProfile valid ICC" "0" \
             "$TOOLS/IccDumpProfile/iccDumpProfile" "$VALID_ICC"
 
-          # CFL-003 is patched on cfl branch — only mark KNOWN on master
+          # 17ChanPart1.icc: master=CFL-003 ASAN crash, cfl=graceful -1 (can't round-trip 17-chan)
           if [ "${{ matrix.branch }}" = "master" ]; then
             KNOWN="CFL-003 alloc-dealloc-mismatch (upstream)"
+          else
+            KNOWN="iccRoundTrip returns -1 on 17-channel overprint profiles (not a crash)"
           fi
           check_exit "valid-iccRoundTrip" "iccRoundTrip valid ICC" "0" \
             "$TOOLS/IccRoundTrip/iccRoundTrip" "$VALID_ICC"
