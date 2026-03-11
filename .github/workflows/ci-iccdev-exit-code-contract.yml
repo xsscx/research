@@ -132,6 +132,9 @@ jobs:
             local cmd=("$@")
             TOTAL=$((TOTAL + 1))
 
+            # Log the exact command for maintainer copy-paste audit
+            echo "  cmd: ${cmd[*]}"
+
             set +e
             "${cmd[@]}" >/dev/null 2>/tmp/ec-stderr-${id}.txt
             local rc=$?

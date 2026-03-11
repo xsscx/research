@@ -134,6 +134,9 @@ jobs:
             local cmd=("$@")
             TOTAL=$((TOTAL + 1))
 
+            # Log the exact command for maintainer copy-paste audit
+            echo "  cmd: ${cmd[*]}"
+
             local stderr_file="/tmp/regression-stderr-${id}.txt"
             set +e
             "${cmd[@]}" 2>"$stderr_file"
