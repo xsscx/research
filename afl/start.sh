@@ -43,7 +43,10 @@ case "$TARGET" in
         BINARY="$BIN_DIR/iccFromCube"
         AFL_DIR="$AFL_SSD/afl-fromcube"
         DICT="$REPO_ROOT/cfl/icc_fromcube_fuzzer.dict"
-        SEED_SRC="$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
+        SEED_DIRS=(
+            "$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
+            "$REPO_ROOT/cfl/corpus-icc_fromcube_fuzzer"
+        )
         # iccFromCube <input.cube> <output.icc>
         AFL_ARGS="@@ /dev/null"
         ;;
@@ -71,10 +74,14 @@ fi
 # Set up AFL directories
 mkdir -p "$AFL_DIR"/{input,output}
 
-# Seed corpus — copy if input dir is empty
-if [[ -d "$SEED_SRC" ]] && [[ $(ls "$AFL_DIR/input/" 2>/dev/null | wc -l) -eq 0 ]]; then
-    echo "[*] Seeding from $SEED_SRC"
-    cp "$SEED_SRC"/* "$AFL_DIR/input/" 2>/dev/null || true
+# Seed corpus — copy from all seed sources if input dir is empty
+if [[ $(ls "$AFL_DIR/input/" 2>/dev/null | wc -l) -eq 0 ]]; then
+    for seed_dir in "${SEED_DIRS[@]}"; do
+        if [[ -d "$seed_dir" ]]; then
+            echo "[*] Seeding from $seed_dir"
+            find "$seed_dir" -maxdepth 1 -type f -exec cp -n {} "$AFL_DIR/input/" \;
+        fi
+    done
 fi
 
 # Copy dictionary
