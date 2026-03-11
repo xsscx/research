@@ -566,7 +566,7 @@ jobs:
           # Use same duration as LibFuzzer jobs
           DURATION="${FUZZ_SECONDS}"
 
-          set +e
+          # AFL exits 1 on time limit (-V), timeout exits 124 — both expected
           timeout --kill-after=10s $((DURATION + 15))s \
             afl-fuzz \
               -i afl-input \
@@ -575,18 +575,16 @@ jobs:
               -m none \
               -t 5000 \
               -V "$DURATION" \
-              -- "$BINARY" @@ /dev/null 2>&1 | tail -20
-          AFL_EXIT=$?
-          set -e
+              -- "$BINARY" @@ /dev/null 2>&1 | tail -20 || true
 
           echo ""
           echo "=== AFL Stats ==="
           cat afl-output/default/fuzzer_stats 2>/dev/null | \
             grep -E 'execs_done|execs_per|corpus_count|saved_crashes|saved_hangs|bitmap_cvg|cycles_done|stability' || true
 
-          CRASHES=$(ls afl-output/default/crashes/ 2>/dev/null | grep -v README | wc -l)
-          HANGS=$(ls afl-output/default/hangs/ 2>/dev/null | grep -v README | wc -l)
-          CORPUS=$(ls afl-output/default/queue/ 2>/dev/null | wc -l)
+          CRASHES=$(ls afl-output/default/crashes/ 2>/dev/null | grep -v README | wc -l || echo 0)
+          HANGS=$(ls afl-output/default/hangs/ 2>/dev/null | grep -v README | wc -l || echo 0)
+          CORPUS=$(ls afl-output/default/queue/ 2>/dev/null | wc -l || echo 0)
 
           {
             echo "### AFL++ iccFromCube"
@@ -599,8 +597,10 @@ jobs:
             echo "| Hangs | $HANGS |"
           } >> $GITHUB_STEP_SUMMARY
 
+          # Fail the job only if real crashes found
           if [ "$CRASHES" -gt 0 ]; then
-            echo "::warning::AFL found $CRASHES crash(es) in iccFromCube"
+            echo "::error::AFL found $CRASHES crash(es) in iccFromCube"
+            exit 1
           fi
 
       - name: Upload AFL artifacts
