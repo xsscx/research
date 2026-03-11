@@ -322,6 +322,9 @@ jobs:
             -detect_leaks=0 \
             -rss_limit_mb=4096 \
             -timeout=30 \
+            -use_value_profile=1 \
+            -max_len=5242880 \
+            -create_missing_dirs=1 \
             $DICT_ARG \
             corpus $SEED_DIR 2>&1 | tee /tmp/fuzz-output.log
           EXIT_CODE=$?
