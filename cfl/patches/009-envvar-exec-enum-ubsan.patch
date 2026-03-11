@@ -1,0 +1,27 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1f68f4b..94616a7 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -329,18 +329,18 @@ class CIccOpDefEnvVar : public IIccOpDef
+ public:
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+-    icSigCmmEnvVar sig = (icSigCmmEnvVar) op->data.size;
++    icUInt32Number rawSig = op->data.size;  // CFL-009: avoid enum UBSAN (CWE-681)
+     icFloatNumber val=0.0;
+ 
+-    if (sig==icSigTrueVar) {
++    if (rawSig==(icUInt32Number)icSigTrueVar) {
+       OsPushArg((icFloatNumber)1.0);
+       OsPushArg((icFloatNumber)1.0);
+     }
+-    else if (sig==icSigNotDefVar) {
++    else if (rawSig==(icUInt32Number)icSigNotDefVar) {
+       OsPushArg((icFloatNumber)0.0);
+       OsPushArg((icFloatNumber)0.0);
+     }
+-    else if (os.pApply->GetEnvVar(sig, val)) {
++    else if (os.pApply->GetEnvVar((icSigCmmEnvVar)rawSig, val)) {
+       OsPushArg((icFloatNumber)val);
+       OsPushArg((icFloatNumber)1.0);
+     }
