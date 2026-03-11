@@ -1217,19 +1217,22 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
                             (static_cast<icUInt32Number>(tagEntry[10]) << 8) |
                             tagEntry[11];
 
-    if (size < 8 || offset + 8 > (icUInt32Number)fileSize)
+    if (size < 8 || offset > (icUInt32Number)fileSize || offset + 8 > (icUInt32Number)fileSize)
       continue;
 
     // Read bytes 4-7 of the tag data (reserved per §10.1)
     icUInt8Number reserved[4] = {};
-    if (fseek(fh.fp, offset + 4, SEEK_SET) != 0 || fread(reserved, 1, 4, fh.fp) != 4)
+    if (fseek(fh.fp, (long)(offset + 4), SEEK_SET) != 0 || fread(reserved, 1, 4, fh.fp) != 4)
       continue;
 
     checked++;
     if (reserved[0] != 0 || reserved[1] != 0 || reserved[2] != 0 || reserved[3] != 0) {
       char sigCC[5] = {};
-      sigCC[0] = tagEntry[0]; sigCC[1] = tagEntry[1];
-      sigCC[2] = tagEntry[2]; sigCC[3] = tagEntry[3]; sigCC[4] = '\0';
+      sigCC[0] = static_cast<char>(static_cast<unsigned char>(tagEntry[0]));
+      sigCC[1] = static_cast<char>(static_cast<unsigned char>(tagEntry[1]));
+      sigCC[2] = static_cast<char>(static_cast<unsigned char>(tagEntry[2]));
+      sigCC[3] = static_cast<char>(static_cast<unsigned char>(tagEntry[3]));
+      sigCC[4] = '\0';
       printf("      %s[WARN]  Tag '%s' (offset %u): reserved bytes 4-7 = %02X %02X %02X %02X (should be 00)%s\n",
              ColorWarning(), sigCC, offset, reserved[0], reserved[1], reserved[2], reserved[3], ColorReset());
       violations++;
