@@ -58,6 +58,7 @@
 #include <unordered_map>
 #include <new>
 #include <cstdio>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "IccProfile.h"
@@ -79,11 +80,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_build_path(tmppath, sizeof(tmppath), fuzz_tmpdir(), "/fuzz_dump.icc"))
     return 0;
 
-  FILE *fp = fopen(tmppath, "wb");
-  if (!fp) return 0;
-  size_t written = fwrite(data, 1, size, fp);
-  fclose(fp);
-  if (written != size) { unlink(tmppath); return 0; }
+  int fd = open(tmppath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (fd < 0) return 0;
+  ssize_t written = write(fd, data, size);
+  close(fd);
+  if (written != (ssize_t)size) { unlink(tmppath); return 0; }
 
   // Derive control from trailing bytes
   uint8_t verbByte = data[size - 1];
