@@ -901,14 +901,14 @@ printf("[H26] NamedColor2 String Validation\n");
                                     (static_cast<icUInt32Number>(e26[10])<<8) | e26[11];
             
             // Read first 4 bytes of tag data to check type
-            if (tOff26 + 4 > fs26 || tSz26 < 84) continue;
+            if (tOff26 > fs26 || tOff26 + 4 > fs26 || tSz26 < 84) continue;
             icUInt8Number typeCheck[4];
             fseek(fh26.fp, tOff26, SEEK_SET);
             if (fread(typeCheck, 1, 4, fh26.fp) != 4) continue;
             icUInt32Number tagType26 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
                                        (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
             if (tagType26 != 0x6E636C32) continue;  // Not 'ncl2' type
-            if (tOff26 + 84 > fs26) continue;
+            if (tOff26 > fs26 || tOff26 + 84 > fs26) continue;
             
             // NamedColor2: type(4)+reserved(4)+vendorFlags(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
             icUInt8Number prefix[32], suffix[32];
@@ -1109,7 +1109,7 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
                                   (static_cast<icUInt32Number>(e28[10])<<8) | e28[11];
 
           // Need at least type(4) + reserved(4) + nInput(1) + nOutput(1) + nGrid(1) = 11 bytes
-          if (tOff28 + 11 > fs28 || tSz28 < 11) continue;
+          if (tOff28 > fs28 || tOff28 + 11 > fs28 || tSz28 < 11) continue;
           icUInt8Number lutHdr[11];
           fseek(fh28.fp, tOff28, SEEK_SET);
           if (fread(lutHdr, 1, 11, fh28.fp) != 11) continue;
@@ -1221,7 +1221,7 @@ printf("[H29] ColorantTable String Validation\n");
                                   (static_cast<icUInt32Number>(e29[10])<<8) | e29[11];
 
           // Read type signature
-          if (tOff29 + 12 > fs29 || tSz29 < 12) continue;
+          if (tOff29 > fs29 || tOff29 + 12 > fs29 || tSz29 < 12) continue;
           icUInt8Number typeCheck29[12];
           fseek(fh29.fp, tOff29, SEEK_SET);
           if (fread(typeCheck29, 1, 12, fh29.fp) != 12) continue;
@@ -1314,7 +1314,7 @@ printf("[H30] GamutBoundaryDesc Allocation Validation\n");
                                   (static_cast<icUInt32Number>(e30[10])<<8) | e30[11];
 
           // 'gbd ' type header: type(4)+reserved(4)+reserved(4)+nVertices(4)+nTriangles(4)+nPCSCh(2)+nDevCh(2) = 24 bytes
-          if (tOff30 + 24 > fs30 || tSz30 < 24) continue;
+          if (tOff30 > fs30 || tOff30 + 24 > fs30 || tSz30 < 24) continue;
           icUInt8Number gbdHdr[24];
           fseek(fh30.fp, tOff30, SEEK_SET);
           if (fread(gbdHdr, 1, 24, fh30.fp) != 24) continue;
@@ -1527,7 +1527,7 @@ printf("[H32] Tag Data Type Confusion Detection\n");
           icUInt32Number tSz32  = (static_cast<icUInt32Number>(e32[8])<<24) | (static_cast<icUInt32Number>(e32[9])<<16) |
                                   (static_cast<icUInt32Number>(e32[10])<<8) | e32[11];
 
-          if (tOff32 + 4 > fs32 || tSz32 < 4) continue;
+          if (tOff32 > fs32 || tOff32 + 4 > fs32 || tSz32 < 4) continue;
           icUInt8Number typeData32[4];
           fseek(fh32.fp, tOff32, SEEK_SET);
           if (fread(typeData32, 1, 4, fh32.fp) != 4) continue;
