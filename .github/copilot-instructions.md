@@ -996,7 +996,7 @@ path validation, Docker build policy, tool count sync, and API details.
 - `copilot-setup-steps.yml` — Coding agent environment setup
 
 ### CI caching
-16 workflows have 3-layer caching: APT packages → iccDEV clone → iccDEV build. Cache keys include patch hashes and build config suffixes (lite-debug, lite-debug-san, lite-coverage, lite-reldbg, cfl, mcp, scan). SHA-pinned: `actions/cache@5a3ec84eff668545956fd18022155c47e93e2684`.
+16 workflows have 3-layer caching: APT packages → iccDEV clone → iccDEV build. Cache keys include patch hashes and build config suffixes (lite-debug, lite-debug-san, lite-coverage, lite-reldbg, cfl, mcp, scan). SHA-pinned: `actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0` (v5.0.0, node24).
 
 ### CI exit code handling
 With `set -euo pipefail`, non-zero exits from `timeout` abort the script. Use `EXIT_CODE=0; timeout ... || EXIT_CODE=$?` pattern instead of bare `timeout` calls.

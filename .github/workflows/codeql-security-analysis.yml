@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           submodules: recursive
@@ -65,7 +65,7 @@ jobs:
 
       - name: Cache APT packages
         id: cache-apt
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: |
             /var/cache/apt/archives
@@ -88,7 +88,7 @@ jobs:
 
       - name: Cache iccDEV repository
         id: cache-iccdev
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: iccDEV
           key: ${{ runner.os }}-iccdev-codeql-${{ matrix.target }}-${{ hashFiles('cfl/patches/*.patch') }}
@@ -250,7 +250,7 @@ jobs:
           cp ${{ matrix.target }}/codeql-config.yml analysis-bundle/${{ matrix.target }}/ 2>/dev/null || true
 
       - name: Upload Analysis Bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: codeql-analysis-${{ matrix.target }}-${{ github.run_id }}
           path: analysis-bundle/${{ matrix.target }}/
@@ -282,7 +282,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           fetch-depth: 1
@@ -325,7 +325,7 @@ jobs:
           cp -r reports/* analysis-bundle/mcp-server/
 
       - name: Upload Analysis Bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: codeql-analysis-mcp-server-${{ github.run_id }}
           path: analysis-bundle/mcp-server/
@@ -345,7 +345,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           fetch-depth: 1
