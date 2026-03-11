@@ -363,14 +363,26 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
 
             icUInt32Number tSig36 = ReadU32BE(e36);
 
-            // A2B0-A2B3: 0x41324230 - 0x41324233
-            // B2A0-B2A3: 0x42324130 - 0x42324133
-            // D2B0-D2B3: 0x44324230 - 0x44324233
-            // B2D0-B2D3: 0x42324430 - 0x42324433
-            if (tSig36 >= 0x41324230u) { icUInt32Number i = tSig36 - 0x41324230u; if (i < 4) hasA2B[i] = true; }
-            if (tSig36 >= 0x42324130u) { icUInt32Number i = tSig36 - 0x42324130u; if (i < 4) hasB2A[i] = true; }
-            if (tSig36 >= 0x44324230u) { icUInt32Number i = tSig36 - 0x44324230u; if (i < 4) hasD2B[i] = true; }
-            if (tSig36 >= 0x42324430u) { icUInt32Number i = tSig36 - 0x42324430u; if (i < 4) hasB2D[i] = true; }
+            // Match LUT tag signatures with literal indices (no arithmetic on file data)
+            switch (tSig36) {
+              case 0x41324230u: hasA2B[0] = true; break; // A2B0
+              case 0x41324231u: hasA2B[1] = true; break; // A2B1
+              case 0x41324232u: hasA2B[2] = true; break; // A2B2
+              case 0x41324233u: hasA2B[3] = true; break; // A2B3
+              case 0x42324130u: hasB2A[0] = true; break; // B2A0
+              case 0x42324131u: hasB2A[1] = true; break; // B2A1
+              case 0x42324132u: hasB2A[2] = true; break; // B2A2
+              case 0x42324133u: hasB2A[3] = true; break; // B2A3
+              case 0x44324230u: hasD2B[0] = true; break; // D2B0
+              case 0x44324231u: hasD2B[1] = true; break; // D2B1
+              case 0x44324232u: hasD2B[2] = true; break; // D2B2
+              case 0x44324233u: hasD2B[3] = true; break; // D2B3
+              case 0x42324430u: hasB2D[0] = true; break; // B2D0
+              case 0x42324431u: hasB2D[1] = true; break; // B2D1
+              case 0x42324432u: hasB2D[2] = true; break; // B2D2
+              case 0x42324433u: hasB2D[3] = true; break; // B2D3
+              default: break;
+            }
           }
 
           // Check pairing
