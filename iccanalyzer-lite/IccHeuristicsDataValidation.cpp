@@ -2576,6 +2576,7 @@ int RunHeuristic_H102_TagSizeProfileSizeCrossCheck(CIccProfile *pIcc) {
   }
 
   // Check each tag entry for offset/size validity
+  icUInt32Number maxTagEnd = 0;
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
     icUInt32Number tagOffset = it->TagInfo.offset;
     icUInt32Number tagSize = it->TagInfo.size;
@@ -2585,11 +2586,34 @@ int RunHeuristic_H102_TagSizeProfileSizeCrossCheck(CIccProfile *pIcc) {
         printf("      %s[CRIT]  Tag '%s' offset %u exceeds profile size %u%s\n",
                ColorCritical(), info.GetTagSigName(it->TagInfo.sig), tagOffset, profileSize, ColorReset());
         sizeIssues++;
-      } else if (tagOffset + tagSize > profileSize) {
+      } else if (tagSize > profileSize - tagOffset) {
         printf("      %s[WARN]  Tag '%s' extends past profile end: offset=%u size=%u total=%u%s\n",
                ColorWarning(), info.GetTagSigName(it->TagInfo.sig), tagOffset, tagSize, profileSize, ColorReset());
         sizeIssues++;
       }
+    }
+
+    // Track the furthest tag end for EOF gap detection (guard against overflow)
+    if (tagSize <= profileSize && tagOffset <= profileSize - tagSize) {
+      icUInt32Number tagEnd = tagOffset + tagSize;
+      if (tagEnd > maxTagEnd) {
+        maxTagEnd = tagEnd;
+      }
+    }
+  }
+
+  // PAWS: "EOF follows last tag (including four-byte boundary), no additional bytes"
+  // Check for trailing bytes after the last tag (potential hidden data)
+  if (profileSize > 0 && maxTagEnd > 0) {
+    // Round up to 4-byte boundary per ICC spec
+    icUInt32Number alignedEnd = (maxTagEnd + 3) & ~3u;
+    if (profileSize > alignedEnd + 4) {
+      icUInt32Number trailingBytes = profileSize - alignedEnd;
+      printf("      %s[WARN]  HEURISTIC: %u trailing bytes after last tag end (aligned=%u, profileSize=%u)%s\n",
+             ColorWarning(), trailingBytes, alignedEnd, profileSize, ColorReset());
+      printf("      %sRisk: Hidden data appended after declared profile content — ICC.1-2022-05 §7.2%s\n",
+             ColorWarning(), ColorReset());
+      sizeIssues++;
     }
   }
 

@@ -168,11 +168,14 @@ printf("\n");
 int RunHeuristic_H5_PlatformSignature(const icHeader &header) {
   int heuristicCount = 0;
 
-// 5. Platform Signature Validation (ICC.1-2022-05 §7.2.10, Table 18)
+// 5. Platform, CMM, Manufacturer, Creator Signature Validation
+// ICC.1-2022-05 §7.2.10 (Platform), §7.2.3 (CMM), §7.2.12 (Manufacturer), §7.2.17 (Creator)
+// PAWS: "Platform, Creator, Manufacturer and CMM fields correspond to registered signatures or are zero"
 icUInt32Number platform = header.platform;
 char pfFourCC[5];
 SignatureToFourCC(platform, pfFourCC);
-printf("[H5] Platform: 0x%08X (%s)\n", platform, pfFourCC);
+printf("[H5] Platform / CMM / Manufacturer / Creator Validation\n");
+printf("      Platform: 0x%08X (%s)\n", platform, pfFourCC);
 
 bool validPlatform = false;
 switch (platform) {
@@ -187,11 +190,112 @@ switch (platform) {
 }
 
 if (!validPlatform) {
-  printf("     %s[WARN]  HEURISTIC: Unknown platform signature — ICC.1-2022-05 §7.2.10 Table 18%s\n", ColorWarning(), ColorReset());
-  printf("     %sRisk: Platform-specific code path exploitation%s\n", ColorWarning(), ColorReset());
+  printf("      %s[WARN]  HEURISTIC: Unknown platform signature — ICC.1-2022-05 §7.2.10 Table 18%s\n", ColorWarning(), ColorReset());
+  printf("      %sRisk: Platform-specific code path exploitation%s\n", ColorWarning(), ColorReset());
   heuristicCount++;
 } else {
-  printf("     %s[OK] Known platform code%s\n", ColorSuccess(), ColorReset());
+  printf("      %s[OK] Known platform code%s\n", ColorSuccess(), ColorReset());
+}
+
+// CMM Type Signature (ICC.1-2022-05 §7.2.3, bytes 4-7)
+icUInt32Number cmm = header.cmmId;
+char cmmFourCC[5];
+SignatureToFourCC(cmm, cmmFourCC);
+printf("      CMM: 0x%08X (%s)\n", cmm, cmmFourCC);
+
+bool validCmm = false;
+switch (cmm) {
+  case icSigAdobe:           // 'ADBE'
+  case icSigAgfa:            // 'ACMS'
+  case icSigApple:           // 'appl'
+  case icSigColorGear:       // 'CCMS'
+  case icSigColorGearLite:   // 'UCCM'
+  case icSigColorGearC:      // 'UCMS'
+  case icSigEFI:             // 'EFI '
+  case icSigExactScan:       // 'EXAC'
+  case icSigFujiFilm:        // 'FF  '
+  case icSigHarlequinRIP:    // 'HCMM'
+  case icSigArgyllCMS:       // 'argl'
+  case icSigLogoSync:        // 'LgoS'
+  case icSigHeidelberg:      // 'HDM '
+  case icSigLinoColor:       // 'Lino'
+  case icSigMonaco:          // 'mnco'
+  case icSigLittleCMS:       // 'lcms'
+  case icSigKodak:           // 'KCMS'
+  case icSigKonicaMinolta:   // 'MCML'
+  case icSigMicrosoftCMM:    // 'MSFT'
+  case icSigWindowsCMS:      // 'WCS '
+  case icSigMutoh:           // 'SIGN'
+  case icSigOnyxGraphics:    // 'ONYX'
+  case icSigRefIccMAX:       // 'RIMX'
+  case icSigDemoIccMAX:      // 'DIMX'
+  case icSigIccDEV:          // 'ICCD'
+  case icSigRolfGierling:    // 'RGMS'
+  case icSigSampleICC:       // 'SICC'
+  case icSigToshiba:         // 'TCMM'
+  case icSigTheImagingFactory: // '32BT'
+  case icSigVivo:            // 'VIVO'
+  case icSigWareToGo:        // 'WTG '
+  case icSigZoran:           // 'zc00'
+  case 0x00000000:           // unset
+    validCmm = true;
+    break;
+}
+
+if (!validCmm) {
+  printf("      %s[WARN]  HEURISTIC: Unregistered CMM signature — ICC.1-2022-05 §7.2.3%s\n", ColorWarning(), ColorReset());
+  heuristicCount++;
+} else {
+  printf("      %s[OK] CMM signature registered or zero%s\n", ColorSuccess(), ColorReset());
+}
+
+// Device Manufacturer (ICC.1-2022-05 §7.2.12, bytes 48-51)
+icUInt32Number mfg = header.manufacturer;
+char mfgFourCC[5];
+SignatureToFourCC(mfg, mfgFourCC);
+printf("      Manufacturer: 0x%08X (%s)\n", mfg, mfgFourCC);
+
+// ICC spec §7.2.12: "shall" match ICC signature registry or be zero
+// We flag unregistered non-zero values as INFO (many valid profiles use vendor sigs)
+if (mfg != 0x00000000) {
+  // Check for printable ASCII — registered sigs are always printable 4-byte ASCII
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char c = static_cast<unsigned char>((mfg >> (24 - i * 8)) & 0xFF);
+    if (c < 0x20 || c > 0x7E) { printable = false; break; }
+  }
+  if (!printable) {
+    printf("      %s[WARN]  HEURISTIC: Manufacturer contains non-printable bytes — ICC.1-2022-05 §7.2.12%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] Manufacturer signature is printable ASCII%s\n", ColorSuccess(), ColorReset());
+  }
+} else {
+  printf("      %s[OK] Manufacturer is zero (unspecified)%s\n", ColorSuccess(), ColorReset());
+}
+
+// Profile Creator (ICC.1-2022-05 §7.2.17, bytes 80-83)
+icUInt32Number creator = header.creator;
+char crFourCC[5];
+SignatureToFourCC(creator, crFourCC);
+printf("      Creator: 0x%08X (%s)\n", creator, crFourCC);
+
+if (creator != 0x00000000) {
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char c = static_cast<unsigned char>((creator >> (24 - i * 8)) & 0xFF);
+    if (c < 0x20 || c > 0x7E) { printable = false; break; }
+  }
+  if (!printable) {
+    printf("      %s[WARN]  HEURISTIC: Creator contains non-printable bytes — ICC.1-2022-05 §7.2.17%s\n",
+           ColorWarning(), ColorReset());
+    heuristicCount++;
+  } else {
+    printf("      %s[OK] Creator signature is printable ASCII%s\n", ColorSuccess(), ColorReset());
+  }
+} else {
+  printf("      %s[OK] Creator is zero (unspecified)%s\n", ColorSuccess(), ColorReset());
 }
 printf("\n");
 
