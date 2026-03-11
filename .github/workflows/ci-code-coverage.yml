@@ -19,6 +19,15 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'iccDEV branch to build against'
+        required: false
+        default: 'cfl'
+        type: choice
+        options:
+          - cfl
+          - master
 
 concurrency:
   group: coverage-${{ github.ref }}
@@ -26,7 +35,7 @@ concurrency:
 
 jobs:
   coverage:
-    name: Coverage Report
+    name: "Coverage Report (${{ github.event.inputs.ref || 'cfl' }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -56,41 +65,47 @@ jobs:
             zlib1g-dev nlohmann-json3-dev \
             lcov
 
-      - name: Clone and build iccDEV with coverage instrumentation
+      - name: "Clone and build iccDEV (${{ github.event.inputs.ref || 'cfl' }}) with coverage instrumentation"
         env:
           CC: clang-18
           CXX: clang++-18
         run: |
           set -euo pipefail
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
 
           # Clone iccDEV
           if [ ! -d "/tmp/iccdev" ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+            git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
           fi
           cd /tmp/iccdev
 
-          echo "iccDEV HEAD: $(git log --oneline -1)"
+          echo "iccDEV HEAD ($REF): $(git log --oneline -1)"
 
           # Comment out wxWidgets requirement (no GUI needed for coverage)
           sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
 
-          # Apply CFL library patches
-          cd ${{ github.workspace }}
-          echo "Applying CFL library patches..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
-            fi
-          done
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
           if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
             sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
             echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
           fi
-          cd /tmp/iccdev
+
+          # Apply CFL patches (cfl branch only — master tested as-is)
+          if [ "$REF" = "cfl" ]; then
+            cd ${{ github.workspace }}
+            echo "Applying CFL library patches to cfl branch..."
+            for p in cfl/patches/*.patch; do
+              if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+                echo "  [OK] $(basename "$p")"
+              else
+                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+              fi
+            done
+            cd /tmp/iccdev
+          else
+            echo "Testing master branch as-is — no CFL patches applied"
+          fi
 
           mkdir -p build-coverage && cd build-coverage
           cmake ../Build/Cmake \
@@ -687,6 +702,8 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           {
             echo "## iccDEV Code Coverage Report"
+            echo ""
+            echo "**Branch**: \`${{ github.event.inputs.ref || 'cfl' }}\`"
             echo ""
             echo "### Test Execution"
             echo "| Metric | Value |"
