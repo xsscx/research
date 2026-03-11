@@ -515,4 +515,44 @@ jobs:
             echo "| iccDEV | ${{ github.event.inputs.ref || 'cfl' }} — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Script | iccdev-tool-coverage-baseline.sh |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Manual Reproduction (copy-paste 1-liners)"
+            echo ""
+            echo "Build iccDEV locally with ASAN+UBSAN, then run any tool against a test profile:"
+            echo ""
+            echo '```bash'
+            echo "# 1. Clone and build"
+            echo "git clone -b cfl https://github.com/InternationalColorConsortium/iccDEV.git"
+            echo "cd iccDEV && mkdir -p build && cd build"
+            echo 'cmake ../Build/Cmake \'
+            echo '  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \'
+            echo '  -DCMAKE_BUILD_TYPE=Debug \'
+            echo '  -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \'
+            echo '  -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \'
+            echo '  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \'
+            echo '  -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined"'
+            echo "make -j\$(nproc)"
+            echo ""
+            echo "# 2. Generate test profiles"
+            echo "cd ../Testing && ./CreateAllProfiles.sh"
+            echo ""
+            echo "# 3. Run a tool (example: iccDumpProfile)"
+            echo "LD_LIBRARY_PATH=build/IccProfLib:build/IccXML \\"
+            echo "  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \\"
+            echo "  UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \\"
+            echo "  build/Tools/IccDumpProfile/iccDumpProfile Testing/sRGBv4.icc"
+            echo ""
+            echo "# 4. Run a tool (example: iccRoundTrip)"
+            echo "LD_LIBRARY_PATH=build/IccProfLib:build/IccXML \\"
+            echo "  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \\"
+            echo "  UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \\"
+            echo "  build/Tools/IccRoundTrip/iccRoundTrip Testing/sRGBv4.icc 1"
+            echo ""
+            echo "# 5. Run the full 103-test suite"
+            echo "ICCDEV_TOOLS_DIR=build/Tools ICCDEV_TESTING_DIR=Testing \\"
+            echo "  LD_LIBRARY_PATH=build/IccProfLib:build/IccXML \\"
+            echo "  .github/scripts/iccdev-tool-coverage-baseline.sh --asan"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
