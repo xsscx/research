@@ -188,9 +188,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     nSrcSamples = icGetSpaceSamples(SrcspaceSig);
     icUInt32Number nDestSamples = icGetSpaceSamples(DestspaceSig);
 
-    // Clamp to sane buffer sizes
-    if (nSrcSamples > 32) nSrcSamples = 32;
-    if (nDestSamples > 32) nDestSamples = 32;
+    // Gate 8a: MPE Apply copies nSrcSamples/nDestSamples floats into caller buffers.
+    // Upstream tool uses CIccPixelBuf (dynamic). We use fixed stack arrays.
+    // Skip profiles with channel counts exceeding buffer capacity.
+    // Crash ref: crash-4bfc817104995c431c3cc96a8331d149f92cd740 (81-ch spac profile)
+    if (nSrcSamples == 0 || nSrcSamples > 48 || nDestSamples == 0 || nDestSamples > 48) {
+        unlink(tmp_path);
+        return 0;
+    }
 
     // Allocate pixel buffers (tool lines 432-433: CIccPixelBuf with +16 headroom)
     icFloatNumber SrcPixel[48] = {};
