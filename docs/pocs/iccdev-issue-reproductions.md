@@ -4,7 +4,7 @@ Proof-of-concept reproduction steps for closed security issues in
 [InternationalColorConsortium/iccDEV](https://github.com/InternationalColorConsortium/iccDEV).
 
 Each entry provides the exact commands to reproduce the issue. All commands
-assume iccDEV is built with ASAN+UBSAN (see [build instructions](../iccdev-shell-helpers/unix.md)).
+assume iccDEV is built with ASAN+UBSAN (see [build instructions](../iccDEV/shell-helpers/unix.md)).
 
 > **Generated**: 2026-03-09 from closed issues #480–#656
 > **Total**: 63 reproductions across 9 iccDEV tools
