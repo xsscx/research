@@ -19,7 +19,7 @@
 #   3. verify-apply       — 3 PoCs against IccApplyProfiles (30s timeout)
 #   4. summary            — Results table
 #
-# Last Updated: 2026-03-07
+# Last Updated: 2026-03-12
 ###############################################################
 
 name: CWE-400 Timeout Verification
@@ -205,13 +205,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "Checking for iccRoundTrip..."
-          find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1
-          ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1)
+          find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p'
+          ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
           test -n "$ROUNDTRIP" || { echo "ERROR: IccRoundTrip not found"; exit 1; }
 
           echo "Checking for iccApplyProfiles..."
-          find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1
-          APPLY=$(find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1)
+          find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p'
+          APPLY=$(find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
           test -n "$APPLY" || { echo "ERROR: IccApplyProfiles not found"; exit 1; }
 
           echo "All required tools present."
@@ -282,10 +282,10 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Downloaded artifact structure ==="
-          find tools -type f | head -30
+          find tools -type f 2>/dev/null | sed -n '1,30p'
 
           # Find the tool binary (handle case variants from different upstream versions)
-          ROUNDTRIP=$(find tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' | head -1)
+          ROUNDTRIP=$(find tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
           if [ -z "$ROUNDTRIP" ]; then
             echo "ERROR: IccRoundTrip not found in artifact"
             find tools -type f
@@ -297,7 +297,7 @@ jobs:
           # Set LD_LIBRARY_PATH for shared libs
           LIBDIRS=""
           for lib in libIccProfLib2 libIccXML2; do
-            DIR=$(find tools -name "${lib}*" -printf '%h\n' | head -1)
+            DIR=$(find tools -name "${lib}*" -printf '%h\n' 2>/dev/null | sed -n '1p')
             [ -n "$DIR" ] && LIBDIRS="${LIBDIRS:+$LIBDIRS:}$DIR"
           done
           echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
@@ -444,9 +444,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Downloaded artifact structure ==="
-          find tools -type f | head -30
+          find tools -type f 2>/dev/null | sed -n '1,30p'
 
-          APPLY=$(find tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' | head -1)
+          APPLY=$(find tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
           if [ -z "$APPLY" ]; then
             echo "ERROR: IccApplyProfiles not found in artifact"
             find tools -type f
@@ -458,7 +458,7 @@ jobs:
           # Set LD_LIBRARY_PATH for shared libs
           LIBDIRS=""
           for lib in libIccProfLib2 libIccXML2; do
-            DIR=$(find tools -name "${lib}*" -printf '%h\n' | head -1)
+            DIR=$(find tools -name "${lib}*" -printf '%h\n' 2>/dev/null | sed -n '1p')
             [ -n "$DIR" ] && LIBDIRS="${LIBDIRS:+$LIBDIRS:}$DIR"
           done
           echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
