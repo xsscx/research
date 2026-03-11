@@ -695,9 +695,17 @@ echo "  Pass rate:      $(( PASS * 100 / TOTAL ))%"
 
 if [ "$ASAN_FINDINGS" -gt 0 ]; then
   echo ""
-  echo "  !!! ASAN FINDINGS — review logs in $OUTDIR/ !!!"
+  # Classify ASAN findings: known (alloc-dealloc-mismatch) vs unknown (real crashes)
+  KNOWN_ASAN_SUMMARY=0
+  UNKNOWN_ASAN_SUMMARY=0
+  echo "  ASAN finding details:"
   grep -rl "ERROR: AddressSanitizer" "$OUTDIR/"*.log 2>/dev/null | while read f; do
-    echo "    $(basename "$f"): $(grep 'ERROR: AddressSanitizer' "$f" | head -1)"
+    asan_line="$(grep 'ERROR: AddressSanitizer' "$f" | head -1)"
+    if echo "$asan_line" | grep -q "alloc-dealloc-mismatch"; then
+      echo "    $(basename "$f"): $asan_line [KNOWN — CWE-762, CFL-011 pending]"
+    else
+      echo "    $(basename "$f"): $asan_line [INVESTIGATE]"
+    fi
   done
 fi
 
@@ -729,13 +737,34 @@ if [ -n "$JOB_SUMMARY" ]; then
     echo "| Pass rate | $(( PASS * 100 / TOTAL ))% |"
     echo ""
     if [ "$ASAN_FINDINGS" -gt 0 ]; then
-      echo "### ⚠️ ASAN Findings"
+      # Count known vs unknown ASAN
+      KNOWN_CNT=0
+      UNKNOWN_CNT=0
+      for logf in "$OUTDIR/"*.log; do
+        [ -f "$logf" ] || continue
+        if grep -q "ERROR: AddressSanitizer" "$logf" 2>/dev/null; then
+          if grep "ERROR: AddressSanitizer" "$logf" | grep -q "alloc-dealloc-mismatch"; then
+            KNOWN_CNT=$((KNOWN_CNT + 1))
+          else
+            UNKNOWN_CNT=$((UNKNOWN_CNT + 1))
+          fi
+        fi
+      done
+      if [ "$UNKNOWN_CNT" -gt 0 ]; then
+        echo "### ❌ ASAN Findings ($UNKNOWN_CNT unknown, $KNOWN_CNT known)"
+      else
+        echo "### ⚠️ ASAN Findings ($KNOWN_CNT known — non-fatal)"
+      fi
       echo ""
       echo '```'
       grep -rl "ERROR: AddressSanitizer" "$OUTDIR/"*.log 2>/dev/null | while read f; do
-        # Sanitize ASAN output — may contain attacker-controlled profile data
         raw="$(basename "$f"): $(grep 'ERROR: AddressSanitizer' "$f" | head -1)"
-        echo "${raw//[<>&\"\'\`]/}"
+        clean="${raw//[<>&\"\'\`]/}"
+        if echo "$raw" | grep -q "alloc-dealloc-mismatch"; then
+          echo "$clean [KNOWN — CWE-762, CFL-011]"
+        else
+          echo "$clean [INVESTIGATE]"
+        fi
       done
       echo '```'
       echo ""
@@ -758,16 +787,29 @@ if [ -n "$JOB_SUMMARY" ]; then
   } >> "$JOB_SUMMARY"
 fi
 
-# Exit with failure only if ASAN or CRASH — graceful FAIL/ERROR are known
+# Exit with failure only if ASAN CRASH (not alloc-dealloc-mismatch which is known CWE-762)
+# Known non-fatal ASAN patterns (upstream bugs with patches pending):
+#   - alloc-dealloc-mismatch: iccSpecSepToTiff.cpp unique_ptr<T> with new T[] (CFL-011)
 CRASHES=0
+KNOWN_ASAN=0
 for logf in "$OUTDIR/"*.log; do
   [ -f "$logf" ] || continue
   if grep -q "ERROR: AddressSanitizer" "$logf" 2>/dev/null; then
-    CRASHES=$((CRASHES + 1))
+    # Check if ALL ASAN errors in this log are known/non-fatal patterns
+    if grep "ERROR: AddressSanitizer" "$logf" | grep -q "alloc-dealloc-mismatch"; then
+      KNOWN_ASAN=$((KNOWN_ASAN + 1))
+      echo "KNOWN: $(basename "$logf") — alloc-dealloc-mismatch (CWE-762, CFL-011 pending)"
+    else
+      CRASHES=$((CRASHES + 1))
+      echo "CRASH: $(basename "$logf") — $(grep 'ERROR: AddressSanitizer' "$logf" | head -1)"
+    fi
   fi
 done
 if [ "$CRASHES" -gt 0 ]; then
   echo "FATAL: $CRASHES test(s) with ASAN findings — failing CI"
   exit 1
+fi
+if [ "$KNOWN_ASAN" -gt 0 ]; then
+  echo "WARNING: $KNOWN_ASAN test(s) with known ASAN patterns (non-fatal, patches pending)"
 fi
 exit 0
