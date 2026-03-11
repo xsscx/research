@@ -201,14 +201,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             return 0;
 
         // --- Gate 5: Format consistency (tool lines 177-185) ---
-        // Tool uses exact == for all comparisons including float resolution
-        if (i > 0 && (infiles[i].GetWidth() != infiles[0].GetWidth() ||
-            infiles[i].GetHeight() != infiles[0].GetHeight() ||
-            infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
-            infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
-            infiles[i].GetXRes() != infiles[0].GetXRes() ||
-            infiles[i].GetYRes() != infiles[0].GetYRes()))
-            return 0;
+        // Tool uses exact == for all comparisons including float resolution.
+        // Integer comparisons for dimensions/format, memcmp for float resolution
+        // (values from same TIFF parser — exact bit equality is correct).
+        if (i > 0) {
+            if (infiles[i].GetWidth() != infiles[0].GetWidth() ||
+                infiles[i].GetHeight() != infiles[0].GetHeight() ||
+                infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
+                infiles[i].GetPhoto() != infiles[0].GetPhoto())
+                return 0;
+            float xres_i = infiles[i].GetXRes(), xres_0 = infiles[0].GetXRes();
+            float yres_i = infiles[i].GetYRes(), yres_0 = infiles[0].GetYRes();
+            if (memcmp(&xres_i, &xres_0, sizeof(float)) != 0 ||
+                memcmp(&yres_i, &yres_0, sizeof(float)) != 0)
+                return 0;
+        }
     }
 
     // --- Gate 6: Photometric validation (tool lines 196-202) ---
