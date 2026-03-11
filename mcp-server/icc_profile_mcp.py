@@ -752,6 +752,20 @@ def _resolve_iccdev_dir() -> Path:
     )
 
 
+def _validate_scan_directory(directory: str) -> Path:
+    """Resolve and validate a scan directory stays within the repo root.
+
+    Security: prevents path traversal out of REPO_ROOT.
+    """
+    scan_dir = Path(directory).resolve()
+    repo_resolved = REPO_ROOT.resolve()
+    if not (str(scan_dir) == str(repo_resolved) or str(scan_dir).startswith(str(repo_resolved) + os.sep)):
+        raise ValueError(f"Directory escapes repository root: {directory}")
+    if not scan_dir.is_dir():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+    return scan_dir
+
+
 def _resolve_build_dir(build_dir: str) -> Path:
     """Resolve and validate a build directory name under iccDEV/Build/.
 
@@ -1840,9 +1854,10 @@ async def batch_test_profiles(
 
     # Resolve test directory
     if directory:
-        test_dir = Path(directory).resolve()
-        if not test_dir.is_dir():
-            return f"[FAIL] Directory not found: {directory}"
+        try:
+            test_dir = _validate_scan_directory(directory)
+        except (ValueError, FileNotFoundError) as e:
+            return f"[FAIL] {e}"
     else:
         test_dir = iccdev / "Testing"
         if not test_dir.is_dir():
@@ -1967,7 +1982,10 @@ async def validate_xml(
 
     # Resolve directory
     if directory:
-        xml_dir = Path(directory).resolve()
+        try:
+            xml_dir = _validate_scan_directory(directory)
+        except (ValueError, FileNotFoundError) as e:
+            return f"[FAIL] {e}"
     else:
         try:
             iccdev = _resolve_iccdev_dir()
@@ -2170,7 +2188,10 @@ async def scan_logs(
 
     # Resolve directory
     if directory:
-        scan_dir = Path(directory).resolve()
+        try:
+            scan_dir = _validate_scan_directory(directory)
+        except (ValueError, FileNotFoundError) as e:
+            return f"[FAIL] {e}"
     else:
         try:
             iccdev = _resolve_iccdev_dir()
