@@ -43,6 +43,17 @@ if [ -d "$REPO_ROOT/IccProfLib" ]; then
   TP_TIFF="$ICCDEV_TESTING/Fuzzing/seeds/tiff"
   TP_IMG="$ICCDEV_TESTING/Fuzzing/seeds/images"
   TP_SPECTRAL="$ICCDEV_TESTING/Fuzzing/seeds/tiff/spectral"
+
+  # Overlay freshly generated profiles from CreateAllProfiles.sh
+  # These may be newer than the committed seed copies
+  for gendir in Named Display; do
+    if [ -d "$ICCDEV_TESTING/$gendir" ]; then
+      for icc in "$ICCDEV_TESTING/$gendir"/*.icc; do
+        [ -f "$icc" ] || continue
+        cp -f "$icc" "$TP/" 2>/dev/null || true
+      done
+    fi
+  done
 else
   # Running inside research repo
   TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/iccDEV/Build/Tools}"
@@ -54,9 +65,12 @@ else
   TP_SPECTRAL="$REPO_ROOT/test-profiles/spectral"
 fi
 
-# CI-friendly: use docs/iccDEV/Tools/test-data if tmp/ doesn't exist
+# CI-friendly: test data search order
 if [ -d "$REPO_ROOT/tmp/iccdev-tool-tests" ]; then
   TD="$REPO_ROOT/tmp/iccdev-tool-tests"
+elif [ -d "$REPO_ROOT/IccProfLib" ] && [ -d "$ICCDEV_TESTING/Fuzzing/docs/Tools/test-data" ]; then
+  # Inside iccDEV repo — test data is under Testing/Fuzzing/docs/Tools/
+  TD="$ICCDEV_TESTING/Fuzzing/docs/Tools/test-data"
 else
   TD="$REPO_ROOT/docs/iccDEV/Tools/test-data"
 fi
