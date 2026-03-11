@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           submodules: recursive
           fetch-depth: 1
@@ -53,7 +53,7 @@ jobs:
           unset GITHUB_TOKEN || true
 
       - name: Cache APT packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-apt
         with:
           path: |
@@ -87,7 +87,7 @@ jobs:
             lcov
 
       - name: Cache iccDEV repository
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
@@ -107,7 +107,7 @@ jobs:
           echo "iccDEV commit: $(git log --oneline -1)"
 
       - name: Cache iccDEV build
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
         with:
           path: |
@@ -473,7 +473,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: iccanalyzer-lite-coverage-report
           path: coverage-report/

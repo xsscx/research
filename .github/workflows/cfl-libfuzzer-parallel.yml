@@ -60,7 +60,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           ref: ${{ github.ref }}
@@ -77,7 +77,7 @@ jobs:
           echo "Validated: ${SECS}s fuzzing, sanitizer=$SANITIZER"
 
       - name: Cache APT packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-apt
         with:
           path: |
@@ -105,7 +105,7 @@ jobs:
           echo "CXX=clang++" >> $GITHUB_ENV
 
       - name: Cache iccDEV repository
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: cfl/iccDEV
@@ -258,7 +258,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload fuzzer binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
           path: |
@@ -296,7 +296,7 @@ jobs:
 
     steps:
       - name: Checkout scripts
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           sparse-checkout: .github/scripts
@@ -304,13 +304,13 @@ jobs:
           fetch-depth: 1
 
       - name: Download fuzzer binaries
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
 
       - name: Restore corpus cache
         if: ${{ github.event.inputs.use_corpus_cache != 'false' }}
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache/restore@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: corpus-${{ matrix.fuzzer }}
           key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
@@ -447,13 +447,13 @@ jobs:
 
       - name: Save corpus cache
         if: always()
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache/save@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: corpus-${{ matrix.fuzzer }}
           key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
 
       - name: Upload crash artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -462,7 +462,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload corpus
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: corpus-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -471,7 +471,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload dict updates
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: dict-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -492,7 +492,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           ref: ${{ github.ref }}
@@ -615,7 +615,7 @@ jobs:
           cp afl-output/default/fuzzer_stats afl-fuzzer_stats 2>/dev/null || true
 
       - name: Upload AFL corpus
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-fromcube-corpus-${{ github.run_id }}
@@ -624,7 +624,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload AFL crashes and stats
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-fromcube-crashes-${{ github.run_id }}
@@ -648,14 +648,14 @@ jobs:
 
     steps:
       - name: Download all crash artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           pattern: crash-*
           path: all-crashes/
           merge-multiple: false
 
       - name: Download all dict updates
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           pattern: dict-*
           path: all-dicts/
@@ -714,7 +714,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload consolidated report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: campaign-report-${{ github.run_id }}
@@ -723,7 +723,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload consolidated dict updates
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         if: always()
         with:
           name: dict-updates-${{ github.run_id }}
@@ -746,13 +746,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           ref: ${{ github.ref }}
           token: ${{ github.token }}
 
       - name: Download all dict artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           pattern: dict-*
           path: dict-artifacts/
