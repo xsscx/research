@@ -227,11 +227,17 @@ jobs:
           #---------------------------------------------------------
           echo "--- iccApplyProfiles ---"
           APPLY="$TOOLS/IccApplyProfiles/iccApplyProfiles"
-          # ApplyProfiles needs TIFF input — test with available TIFFs
+          # Usage: src_tiff dst_tiff encoding compression planar embed_icc interpolation {profile intent}
+          #   encoding: 0=same 1=8bit 2=16bit 4=float
+          #   compression: 0=none 1=LZW
+          #   planar: 0=contig 1=separate
+          #   embed_icc: 0=no 1=yes
+          #   interpolation: 0=linear 1=tetrahedral
           SPECTRAL_TIFF=$(find "$T" -name '*.tif' -o -name '*.tiff' 2>/dev/null | head -1)
           if [ -n "$SPECTRAL_TIFF" ]; then
             run_test "apply-01" "ApplyProfiles with TIFF" "$OUT/applied.tiff" \
-              "$APPLY" "$SPECTRAL_TIFF" "$OUT/applied.tiff" 0 \
+              "$APPLY" "$SPECTRAL_TIFF" "$OUT/applied.tiff" \
+              0 0 0 1 1 \
               "$T/Display/sRGB_D65_MAT.icc" 1
           else
             echo "  ⏭  No TIFF files found — skipping"
@@ -286,8 +292,15 @@ jobs:
           #---------------------------------------------------------
           echo "--- iccApplyToLink ---"
           LINK="$TOOLS/IccApplyToLink/iccApplyToLink"
+          # Usage: dst_link link_type lut_size option title range_min range_max first_transform interp {profile intent}
+          #   link_type: 0=DeviceLink 1=.cube
+          #   lut_size: grid entries per dimension
+          #   option: 0=v4-16bit 1=v5 (when link_type=0)
+          #   first_transform: 0=use first profile's transform
+          #   interp: 0=linear 1=tetrahedral
           run_test "link-01" "Link sRGB → sRGB 500lx" "$OUT/link_srgb.icc" \
-            "$LINK" "$OUT/link_srgb.icc" 0 0 \
+            "$LINK" "$OUT/link_srgb.icc" 0 33 0 \
+            "sRGB_link" 0.0 1.0 0 1 \
             "$T/Display/sRGB_D65_MAT.icc" 1 \
             "$T/Display/sRGB_D65_MAT-500lx.icc" 1
           echo ""
