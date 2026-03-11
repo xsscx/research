@@ -60,6 +60,7 @@ jobs:
           sudo apt-get install -y -qq \
             clang-18 llvm-18 libclang-rt-18-dev \
             libxml2-dev libtiff-dev libpng-dev libjpeg-dev \
+            libssl-dev nlohmann-json3-dev libwxgtk3.2-dev \
             2>&1 | tail -3
 
       - name: "Checkout iccDEV"
@@ -86,8 +87,8 @@ jobs:
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
-            -Wno-dev 2>&1 | tail -3
-          make -j"$(nproc)" 2>&1 | tail -5
+            -Wno-dev
+          make -j"$(nproc)" 2>&1 | tail -10
           echo "Build complete"
 
       - name: "Generate test profiles"
