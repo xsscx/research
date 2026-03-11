@@ -1,0 +1,3 @@
+# AFL binaries are build artifacts — deploy with ./afl/build.sh
+*
+!.gitignore

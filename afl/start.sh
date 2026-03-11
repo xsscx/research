@@ -15,8 +15,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_SSD="${AFL_SSD:-/mnt/g/fuzz-ssd}"
 AFL_TIMEOUT="${AFL_TIMEOUT:-5000}"
 AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-131072}"
-BUILD_DIR="$REPO_ROOT/iccDEV/Build-AFL"
-LIB_DIR="$BUILD_DIR/IccProfLib"
+BIN_DIR="$REPO_ROOT/afl/bin"
 
 TARGET="${1:-}"
 PARALLEL=1
@@ -41,7 +40,7 @@ fi
 # Target-specific configuration
 case "$TARGET" in
     fromcube)
-        BINARY="$BUILD_DIR/Tools/IccFromCube/iccFromCube"
+        BINARY="$BIN_DIR/iccFromCube"
         AFL_DIR="$AFL_SSD/afl-fromcube"
         DICT="$REPO_ROOT/cfl/icc_fromcube_fuzzer.dict"
         SEED_SRC="$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
@@ -63,8 +62,8 @@ if [[ ! -x "$BINARY" ]]; then
 fi
 
 # Verify shared library
-if [[ ! -f "$LIB_DIR/libIccProfLib2.so" ]]; then
-    echo "ERROR: Shared library not found: $LIB_DIR/libIccProfLib2.so"
+if [[ ! -f "$BIN_DIR/libIccProfLib2.so" ]]; then
+    echo "ERROR: Shared library not found: $BIN_DIR/libIccProfLib2.so"
     echo "Run ./afl/build.sh first"
     exit 1
 fi
@@ -110,7 +109,7 @@ fi
 export AFL_MAP_SIZE="$AFL_MAP_SIZE_VAL"
 export AFL_SKIP_CPUFREQ=1
 export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
-export LD_LIBRARY_PATH="$LIB_DIR"
+export LD_LIBRARY_PATH="$BIN_DIR"
 export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0"
 
 if [[ "$PARALLEL" -eq 1 ]]; then
