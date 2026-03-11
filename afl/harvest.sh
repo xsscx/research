@@ -102,24 +102,45 @@ if [[ "$REPORT_ONLY" -eq 0 ]]; then
     echo "[*] Downloading AFL corpus artifact..."
     gh run download "$RUN_ID" --repo "$REPO" \
         --name "afl-fromcube-corpus-${RUN_ID}" \
-        --dir "$HARVEST_DIR/corpus" 2>/dev/null || \
+        --dir "$HARVEST_DIR/dl-corpus" 2>/dev/null || \
     gh run download "$RUN_ID" --repo "$REPO" \
         --pattern "afl-fromcube-corpus-*" \
-        --dir "$HARVEST_DIR/corpus" 2>/dev/null || \
+        --dir "$HARVEST_DIR/dl-corpus" 2>/dev/null || \
     echo "[!] No corpus artifact found (may be older run format)"
+
+    # Extract tar if present (AFL filenames contain colons, so CI tars them)
+    mkdir -p "$HARVEST_DIR/corpus"
+    TAR_FILE=$(find "$HARVEST_DIR/dl-corpus" -name 'afl-corpus.tar' -type f 2>/dev/null | head -1)
+    if [[ -n "$TAR_FILE" ]]; then
+        echo "[*] Extracting corpus tar..."
+        tar xf "$TAR_FILE" -C "$HARVEST_DIR/corpus" 2>/dev/null || true
+    else
+        # Legacy format: raw files (no colons on runner)
+        find "$HARVEST_DIR/dl-corpus" -type f ! -name '*.tar' -exec cp {} "$HARVEST_DIR/corpus/" \; 2>/dev/null || true
+    fi
 
     echo "[*] Downloading AFL crashes/stats artifact..."
     gh run download "$RUN_ID" --repo "$REPO" \
         --name "afl-fromcube-crashes-${RUN_ID}" \
-        --dir "$HARVEST_DIR/crashes" 2>/dev/null || \
+        --dir "$HARVEST_DIR/dl-crashes" 2>/dev/null || \
     gh run download "$RUN_ID" --repo "$REPO" \
         --pattern "afl-fromcube-crashes-*" \
-        --dir "$HARVEST_DIR/crashes" 2>/dev/null || \
-    # Legacy format (single artifact)
+        --dir "$HARVEST_DIR/dl-crashes" 2>/dev/null || \
     gh run download "$RUN_ID" --repo "$REPO" \
         --pattern "afl-fromcube-*" \
-        --dir "$HARVEST_DIR/crashes" 2>/dev/null || \
+        --dir "$HARVEST_DIR/dl-crashes" 2>/dev/null || \
     echo "[!] No crashes artifact found"
+
+    # Extract findings tar if present
+    mkdir -p "$HARVEST_DIR/crashes" "$HARVEST_DIR/hangs"
+    FINDINGS_TAR=$(find "$HARVEST_DIR/dl-crashes" -name 'afl-findings.tar' -type f 2>/dev/null | head -1)
+    if [[ -n "$FINDINGS_TAR" ]]; then
+        echo "[*] Extracting findings tar..."
+        tar xf "$FINDINGS_TAR" -C "$HARVEST_DIR" 2>/dev/null || true
+    fi
+    # Copy fuzzer_stats (not tarred)
+    find "$HARVEST_DIR/dl-crashes" -name 'afl-fuzzer_stats' -o -name 'fuzzer_stats' 2>/dev/null | \
+        head -1 | xargs -I{} cp {} "$HARVEST_DIR/stats/" 2>/dev/null || true
 fi
 
 # --- Deduplicate corpus ---
@@ -164,7 +185,7 @@ echo "[*] Crashes: $CRASH_FILES"
 echo "[*] Hangs: $HANG_FILES"
 
 # --- Stats ---
-STATS_FILE=$(find "$HARVEST_DIR" -name 'fuzzer_stats' -type f 2>/dev/null | head -1)
+STATS_FILE=$(find "$HARVEST_DIR" -name 'fuzzer_stats' -o -name 'afl-fuzzer_stats' -type f 2>/dev/null | head -1)
 if [[ -n "$STATS_FILE" ]]; then
     echo ""
     echo "=== CI Fuzzer Stats ==="
