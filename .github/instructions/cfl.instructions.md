@@ -82,9 +82,10 @@ for historical reference.
 | 008 | TagCurve Apply NaN-to-unsigned | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
 | 009 | EnvVar Exec enum UBSAN | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | CheckUnderflowOverflow recursion | Unbounded recursion depth 50 + 200K ops budget | CWE-674 | IccMpeCalc.cpp |
+| 011 | SpecSepToTiff unique_ptr array | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **011**)
+- Numbering: zero-padded 3-digit, sequential (next: **012**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
