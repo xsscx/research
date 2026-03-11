@@ -25,6 +25,14 @@ on:
           - colorbleed_tools
           - cfl
           - mcp-server
+      ref:
+        description: 'iccDEV branch (for C++ targets)'
+        required: false
+        default: 'cfl'
+        type: choice
+        options:
+          - cfl
+          - master
 
 permissions: {}
 
@@ -91,14 +99,15 @@ jobs:
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: iccDEV
-          key: ${{ runner.os }}-iccdev-codeql-${{ matrix.target }}-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-codeql-${{ matrix.target }}-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
 
-      - name: Clone iccDEV repository
+      - name: "Clone iccDEV repository (${{ github.event.inputs.ref || 'cfl' }})"
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
           if [ ! -d "iccDEV" ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
+            git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
           fi
           cd iccDEV
           # Comment out wxWidgets requirement
@@ -106,22 +115,29 @@ jobs:
           sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
           sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
-      - name: Apply CFL patches to iccDEV
+      - name: "Apply CFL patches to iccDEV (master only)"
         run: |
           set -euo pipefail
-          echo "Applying CFL library patches..."
-          for p in cfl/patches/*.patch; do
-            # Skip comment-only patches (upstream-adopted fixes)
-            if head -1 "$p" | grep -q '^#'; then
-              echo "  [NOOP] $(basename "$p") (upstream)"
-              continue
-            fi
-            if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-            fi
-          done
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
+
+          if [ "$REF" = "cfl" ]; then
+            echo "Testing cfl branch — CFL patches already applied upstream, skipping patch step"
+          else
+            echo "Applying CFL library patches to master branch..."
+            for p in cfl/patches/*.patch; do
+              # Skip comment-only patches (upstream-adopted fixes)
+              if head -1 "$p" | grep -q '^#'; then
+                echo "  [NOOP] $(basename "$p") (upstream)"
+                continue
+              fi
+              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+                echo "  [OK] $(basename "$p")"
+              else
+                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+              fi
+            done
+          fi
+
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
           if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then

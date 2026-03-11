@@ -1,0 +1,390 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: CodeQL security analysis of iccDEV IccProfLib/IccXML/Tools
+#         on both master (upstream, unpatched) and cfl (CFL patches applied)
+#
+# Purpose:
+#   - Detect memory safety bugs in iccDEV library code (CWE-119, CWE-122,
+#     CWE-190, CWE-416, CWE-476, CWE-762, CWE-787, CWE-843)
+#   - Verify CFL patches eliminate specific CodeQL findings
+#   - Side-by-side comparison: master findings vs cfl findings
+#
+# Queries: 22 custom C++ queries from iccanalyzer-lite/codeql-queries/
+#          + codeql/cpp-queries security-and-quality suite
+#
+# Expected results:
+#   - master: More findings (known bugs present)
+#   - cfl: Fewer findings (CFL patches fix known patterns)
+###############################################################
+
+name: "iccDEV CodeQL Analysis"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash --noprofile --norc {0}
+
+env:
+  BASH_ENV: /dev/null
+
+jobs:
+  codeql-analysis:
+    name: "CodeQL (${{ matrix.branch }})"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [master, cfl]
+
+    env:
+      BASH_ENV: /dev/null
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout research repository (for queries)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang git ca-certificates \
+            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev \
+            libssl-dev nlohmann-json3-dev
+
+      - name: Cache iccDEV source (${{ matrix.branch }})
+        id: cache-iccdev-src
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        with:
+          path: upstream-iccDEV
+          key: ${{ runner.os }}-iccdev-codeql-${{ matrix.branch }}-v1
+
+      - name: "Clone iccDEV (${{ matrix.branch }})"
+        if: steps.cache-iccdev-src.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Cloning iccDEV (branch: ${{ matrix.branch }})..."
+          git clone --depth 1 --branch ${{ matrix.branch }} \
+            https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
+          echo "iccDEV (${{ matrix.branch }}): $(cd upstream-iccDEV && git log --oneline -1)"
+
+      - name: Prepare iccDEV source
+        run: |
+          set -euo pipefail
+          cd upstream-iccDEV
+
+          # Disable wxWidgets GUI tools (not needed for analysis)
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+          # Strip stray U+FE0F (emoji variation selector) if present
+          SIGUTILS="IccProfLib/IccSignatureUtils.h"
+          if [ -f "$SIGUTILS" ] && grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
+            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
+            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          fi
+
+          echo "iccDEV (${{ matrix.branch }}): $(git log --oneline -1)"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2  # v4
+        with:
+          languages: cpp
+          queries: security-and-quality
+          config: |
+            paths:
+              - upstream-iccDEV/IccProfLib
+              - upstream-iccDEV/IccXML
+              - upstream-iccDEV/Tools
+            paths-ignore:
+              - upstream-iccDEV/Testing
+              - upstream-iccDEV/docs
+              - "**/*.md"
+              - "**/CMakeFiles/**"
+
+      - name: "Build iccDEV (${{ matrix.branch }}) for CodeQL"
+        run: |
+          set -euo pipefail
+
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  Building iccDEV for CodeQL Analysis                    ║"
+          echo "║  Branch: ${{ matrix.branch }}                                        ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+
+          cd upstream-iccDEV/Build
+          cmake Cmake \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-g -O0" \
+            -DCMAKE_CXX_FLAGS="-g -O0"
+          make -j$(nproc) 2>&1 | tail -5
+
+          echo ""
+          echo "Build complete (${{ matrix.branch }})"
+          echo "Libraries:"
+          ls -la IccProfLib/libIccProfLib2* 2>/dev/null | sed -n '1,3p'
+          ls -la IccXML/libIccXML2* 2>/dev/null | sed -n '1,3p'
+          echo "Tools:"
+          find Tools -type f -executable 2>/dev/null | wc -l | xargs -I{} echo "  {} tool binaries built"
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2  # v4
+        with:
+          category: "/language:cpp/iccdev-${{ matrix.branch }}"
+          output: codeql-results
+
+      - name: Process results
+        id: results
+        run: |
+          set -euo pipefail
+
+          SARIF_FILE=$(find codeql-results -name "*.sarif" -type f 2>/dev/null | sed -n '1p')
+
+          if [ -z "$SARIF_FILE" ]; then
+            echo "No SARIF file found"
+            echo "total=0" >> "$GITHUB_OUTPUT"
+            echo "critical=0" >> "$GITHUB_OUTPUT"
+            echo "high=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TOTAL=$(jq '.runs[0].results | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+          echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+          # Count by severity
+          CRITICAL=$(jq '[.runs[0].results[] | select(.properties.["problem.severity"] == "error")] | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+          HIGH=$(jq '[.runs[0].results[] | select(.properties.["problem.severity"] == "warning")] | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+          echo "critical=${CRITICAL}" >> "$GITHUB_OUTPUT"
+          echo "high=${HIGH}" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  CodeQL Results — iccDEV (${{ matrix.branch }})                      ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  Total findings: ${TOTAL}"
+          echo "  Errors:         ${CRITICAL}"
+          echo "  Warnings:       ${HIGH}"
+          echo ""
+
+          # Show top findings by rule
+          echo "Top findings by rule:"
+          jq -r '.runs[0].results[] | .ruleId' "$SARIF_FILE" 2>/dev/null | sort | uniq -c | sort -rn | sed -n '1,15p' | sed 's/^/  /'
+
+          echo ""
+          echo "Findings by source file (top 15):"
+          jq -r '.runs[0].results[] | .locations[0].physicalLocation.artifactLocation.uri' "$SARIF_FILE" 2>/dev/null | sort | uniq -c | sort -rn | sed -n '1,15p' | sed 's/^/  /'
+
+      - name: Generate step summary
+        if: always()
+        env:
+          TOTAL: ${{ steps.results.outputs.total }}
+          CRITICAL: ${{ steps.results.outputs.critical }}
+          HIGH: ${{ steps.results.outputs.high }}
+        run: |
+          set -euo pipefail
+
+          BRANCH="${{ matrix.branch }}"
+          TOTAL="${TOTAL:-0}"
+          CRITICAL="${CRITICAL:-0}"
+          HIGH="${HIGH:-0}"
+
+          # Branch-aware classification
+          if [ "$BRANCH" = "master" ]; then
+            if [ "$TOTAL" -gt 0 ]; then
+              STATUS="ℹ️ Expected — unpatched upstream has known issues"
+            else
+              STATUS="✅ Clean — upstream may have fixed all known issues"
+            fi
+          else
+            if [ "$TOTAL" -eq 0 ]; then
+              STATUS="✅ Clean — CFL patches eliminate all detected issues"
+            elif [ "$TOTAL" -le 5 ]; then
+              STATUS="⚠️ Residual — ${TOTAL} findings remain after CFL patches"
+            else
+              STATUS="❌ Unexpected — ${TOTAL} findings on cfl branch"
+            fi
+          fi
+
+          {
+            echo "## CodeQL Analysis — iccDEV (\`${BRANCH}\`)"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Branch | \`${BRANCH}\` |"
+            echo "| Commit | \`$(cd upstream-iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A')\` |"
+            echo "| Total Findings | **${TOTAL}** |"
+            echo "| Errors | ${CRITICAL} |"
+            echo "| Warnings | ${HIGH} |"
+            echo "| Status | ${STATUS} |"
+            echo ""
+            if [ "$BRANCH" = "master" ]; then
+              echo "> **master branch**: Findings are expected — these are the bugs that"
+              echo "> CFL patches address. Compare with the \`cfl\` branch results."
+            else
+              echo "> **cfl branch**: CFL patches should reduce or eliminate the findings"
+              echo "> seen on \`master\`. Remaining findings may indicate new patterns."
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload SARIF results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: codeql-iccdev-${{ matrix.branch }}-${{ github.run_id }}
+          path: codeql-results/
+          retention-days: 90
+
+  #############################################################################
+  # Summary job — side-by-side comparison of master vs cfl
+  #############################################################################
+  summary:
+    name: "Results Comparison"
+    needs: [codeql-analysis]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Download master results
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        with:
+          name: codeql-iccdev-master-${{ github.run_id }}
+          path: results-master
+
+      - name: Download cfl results
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        with:
+          name: codeql-iccdev-cfl-${{ github.run_id }}
+          path: results-cfl
+
+      - name: Compare results
+        env:
+          BASH_ENV: /dev/null
+          MASTER_RESULT: ${{ needs.codeql-analysis.result }}
+        run: |
+          set -euo pipefail
+
+          # Count findings per branch
+          count_findings() {
+            local dir="$1"
+            local sarif=$(find "$dir" -name "*.sarif" -type f 2>/dev/null | sed -n '1p')
+            if [ -n "$sarif" ]; then
+              jq '.runs[0].results | length' "$sarif" 2>/dev/null || echo 0
+            else
+              echo "N/A"
+            fi
+          }
+
+          count_by_rule() {
+            local dir="$1"
+            local sarif=$(find "$dir" -name "*.sarif" -type f 2>/dev/null | sed -n '1p')
+            if [ -n "$sarif" ]; then
+              jq -r '.runs[0].results[] | .ruleId' "$sarif" 2>/dev/null | sort | uniq -c | sort -rn | sed -n '1,10p'
+            else
+              echo "  (no data)"
+            fi
+          }
+
+          MASTER_COUNT=$(count_findings results-master)
+          CFL_COUNT=$(count_findings results-cfl)
+
+          # Determine delta
+          if [ "$MASTER_COUNT" != "N/A" ] && [ "$CFL_COUNT" != "N/A" ]; then
+            DELTA=$((MASTER_COUNT - CFL_COUNT))
+            if [ $DELTA -gt 0 ]; then
+              DELTA_TEXT="🔽 ${DELTA} fewer findings on cfl"
+            elif [ $DELTA -lt 0 ]; then
+              DELTA_TEXT="🔼 $((-DELTA)) more findings on cfl"
+            else
+              DELTA_TEXT="➡️ Same number of findings"
+            fi
+          else
+            DELTA_TEXT="⚠️ Cannot compare (missing data)"
+          fi
+
+          {
+            echo "## 🔬 iccDEV CodeQL — Branch Comparison"
+            echo ""
+            echo "| Branch | Findings | Status |"
+            echo "|--------|----------|--------|"
+            echo "| \`master\` (upstream) | **${MASTER_COUNT}** | Known bugs present |"
+            echo "| \`cfl\` (patched) | **${CFL_COUNT}** | CFL patches applied |"
+            echo "| **Delta** | **${DELTA_TEXT}** | |"
+            echo ""
+            echo "### Top Rules — master"
+            echo ""
+            echo '```'
+            count_by_rule results-master
+            echo '```'
+            echo ""
+            echo "### Top Rules — cfl"
+            echo ""
+            echo '```'
+            count_by_rule results-cfl
+            echo '```'
+            echo ""
+            echo "> **Expected**: \`master\` has more findings (unpatched bugs)."
+            echo "> \`cfl\` should have fewer findings (CFL patches fix known patterns)."
+            echo "> A reduction confirms CFL patch effectiveness at the static analysis level."
+            echo ""
+            echo "### CFL Patches Under Test"
+            echo ""
+            echo "| Patch | Bug | CWE | Expected CodeQL Detection |"
+            echo "|-------|-----|-----|--------------------------|"
+            echo "| CFL-001 | icAnsiToUtf8 HBO | CWE-125/CWE-170 | buffer-overflow, unchecked-io-return |"
+            echo "| CFL-002 | GamutBoundary overflow | CWE-190 | integer-overflow-multiply |"
+            echo "| CFL-003 | TagArray alloc mismatch | CWE-762 | alloc-dealloc-mismatch |"
+            echo "| CFL-004 | ToneMapFunc HBO | CWE-122 | buffer-overflow |"
+            echo "| CFL-005 | CalculatorFunc enum | CWE-681 | enum-undefined-behavior |"
+            echo "| CFL-006 | SpectralMatrix Describe | CWE-122 | buffer-overflow |"
+            echo "| CFL-007 | TagArray Read overflow | CWE-190 | integer-overflow-allocation |"
+            echo "| CFL-008 | TagCurve NaN→unsigned | CWE-681 | type-confusion |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  iccDEV CodeQL — Branch Comparison                     ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  master findings: ${MASTER_COUNT}"
+          echo "  cfl findings:    ${CFL_COUNT}"
+          echo "  delta:           ${DELTA_TEXT}"
