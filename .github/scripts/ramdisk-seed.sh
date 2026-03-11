@@ -111,6 +111,12 @@ echo "  [OK] Copied $dict_count dictionaries to ramdisk"
 
 # Create working directories for profraw (coverage) and logs
 mkdir -p "$RAMDISK/profraw" "$RAMDISK/logs"
+# Clear stale profraw from prior sessions
+stale_profraw=$(find "$RAMDISK" -name '*.profraw' -type f 2>/dev/null | wc -l)
+if [ "$stale_profraw" -gt 0 ]; then
+  find "$RAMDISK" -name '*.profraw' -type f -delete
+  echo "  [OK] Cleared $stale_profraw stale profraw files"
+fi
 # Ensure non-root user can write (script may run as root for --mount)
 if [ "$(id -u)" -eq 0 ] && [ -n "$SUDO_USER" ]; then
   chown -R "$SUDO_USER:$SUDO_USER" "$RAMDISK/profraw" "$RAMDISK/logs" \

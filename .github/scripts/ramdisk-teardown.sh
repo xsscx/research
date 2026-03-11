@@ -10,7 +10,7 @@
 # Orchestrates the full shutdown sequence:
 #   1. (optional) Merge/deduplicate corpus on ramdisk
 #   2. Sync corpus from ramdisk → cfl/corpus-*
-#   3. Save crash artifacts to cfl/findings/
+#   3. Process profraw → coverage report, then clear profraw
 #   4. Clean stray dirs/files from ramdisk
 #   5. Unmount the ramdisk
 
@@ -44,23 +44,52 @@ echo ""
 # ── Step 1: Merge (optional) ────────────────────────────────────────
 if $DO_MERGE; then
   echo "━━ Step 1: Merge/deduplicate corpus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  "$SCRIPT_DIR/ramdisk-merge.sh" || echo "  [WARN] Merge had failures (continuing with sync)"
+  "$SCRIPT_DIR/ramdisk-merge.sh" --ramdisk "$RAMDISK" || echo "  [WARN] Merge had failures (continuing with sync)"
   echo ""
 fi
 
 # ── Step 2: Sync to disk ────────────────────────────────────────────
 echo "━━ Step 2: Sync corpus → disk ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-"$SCRIPT_DIR/ramdisk-sync-to-disk.sh"
+"$SCRIPT_DIR/ramdisk-sync-to-disk.sh" --ramdisk "$RAMDISK"
 echo ""
 
-# ── Step 3: Clean stray items ───────────────────────────────────────
-echo "━━ Step 3: Clean stray items ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-"$SCRIPT_DIR/ramdisk-clean.sh" --execute
+# ── Step 3: Process profraw → coverage report ────────────────────────
+echo "━━ Step 3: Coverage report from profraw ━━━━━━━━━━━━━━━━━━━━━━━━"
+PROFRAW_DIR="$RAMDISK/profraw"
+PROFRAW_COUNT=$(find "$RAMDISK" -name '*.profraw' -type f 2>/dev/null | wc -l)
+if [ "$PROFRAW_COUNT" -gt 0 ]; then
+  # Collect any profraw files scattered outside profraw/ into it
+  find "$RAMDISK" -name '*.profraw' -type f -not -path "$PROFRAW_DIR/*" \
+    -exec mv {} "$PROFRAW_DIR/" \; 2>/dev/null || true
+
+  PROFDATA="$RAMDISK/merged.profdata"
+  if "$SCRIPT_DIR/merge-profdata.sh" "$PROFRAW_DIR" "$PROFDATA"; then
+    REPORT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)/coverage-report"
+    if "$SCRIPT_DIR/generate-coverage-report.sh" "$PROFDATA" "$REPORT_DIR"; then
+      echo "  [OK] Coverage report at $REPORT_DIR"
+    else
+      echo "  [WARN] Coverage report generation failed"
+    fi
+    rm -f "$PROFDATA"
+  else
+    echo "  [WARN] Profdata merge failed"
+  fi
+  # Clear all profraw after processing
+  find "$RAMDISK" -name '*.profraw' -type f -delete
+  echo "  [OK] Cleared $PROFRAW_COUNT profraw files"
+else
+  echo "  (no profraw files to process)"
+fi
 echo ""
 
-# ── Step 4: Unmount ─────────────────────────────────────────────────
+# ── Step 4: Clean stray items ───────────────────────────────────────
+echo "━━ Step 4: Clean stray items ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+"$SCRIPT_DIR/ramdisk-clean.sh" --execute "$RAMDISK"
+echo ""
+
+# ── Step 5: Unmount ─────────────────────────────────────────────────
 if $DO_UNMOUNT; then
-  echo "━━ Step 4: Unmount ramdisk ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "━━ Step 5: Unmount ramdisk ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   if mountpoint -q "$RAMDISK" 2>/dev/null; then
     if [ "$(id -u)" -ne 0 ]; then
       echo "  [WARN] Not root — cannot unmount. Run with sudo or use --no-unmount."
@@ -74,7 +103,7 @@ if $DO_UNMOUNT; then
     rmdir "$RAMDISK" 2>/dev/null || true
   fi
 else
-  echo "━━ Step 4: Unmount skipped (--no-unmount) ━━━━━━━━━━━━━━━━━━━━━"
+  echo "━━ Step 5: Unmount skipped (--no-unmount) ━━━━━━━━━━━━━━━━━━━━━"
 fi
 echo ""
 
