@@ -11,6 +11,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$REPO_ROOT/iccDEV/Build-AFL"
 CMAKE_DIR="$REPO_ROOT/iccDEV/Build/Cmake"
+BIN_DIR="$REPO_ROOT/afl/bin"
 JOBS=$(nproc)
 
 # Verify AFL++ is installed
@@ -51,17 +52,21 @@ echo ""
 echo "[OK] AFL-instrumented iccDEV built successfully"
 echo ""
 
-# List built tool binaries
-echo "Built tools:"
+# Deploy binaries to afl/bin/
+echo "[*] Deploying to $BIN_DIR"
+mkdir -p "$BIN_DIR"
 for tool in "$BUILD_DIR"/Tools/*/; do
     name=$(basename "$tool")
     bin="$tool/$name"
     if [[ -x "$bin" ]]; then
-        size=$(du -h "$bin" | cut -f1)
-        echo "  $size  $bin"
+        cp "$bin" "$BIN_DIR/"
+        size=$(du -h "$BIN_DIR/$name" | cut -f1)
+        echo "  $size  afl/bin/$name"
     fi
 done
 
+# Deploy shared library
+cp "$BUILD_DIR"/IccProfLib/libIccProfLib2.so* "$BIN_DIR/"
 echo ""
 echo "Shared library:"
-ls -lh "$BUILD_DIR"/IccProfLib/libIccProfLib2.so* 2>/dev/null | awk '{print "  "$5"  "$9}'
+ls -lh "$BIN_DIR"/libIccProfLib2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
