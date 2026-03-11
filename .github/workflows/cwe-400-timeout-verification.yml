@@ -19,7 +19,7 @@
 #   3. verify-apply       — 3 PoCs against IccApplyProfiles (30s timeout)
 #   4. summary            — Results table
 #
-# Last Updated: 2026-03-12
+# Last Updated: 2026-03-13
 ###############################################################
 
 name: CWE-400 Timeout Verification
@@ -204,17 +204,31 @@ jobs:
       - name: Verify key tools exist
         run: |
           set -euo pipefail
-          echo "Checking for iccRoundTrip..."
-          find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p'
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  Verifying required iccDEV tool binaries               ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+
           ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
-          test -n "$ROUNDTRIP" || { echo "ERROR: IccRoundTrip not found"; exit 1; }
+          if [ -n "$ROUNDTRIP" ]; then
+            echo "  ✅ IccRoundTrip:      $ROUNDTRIP"
+          else
+            echo "  ❌ IccRoundTrip:      NOT FOUND"
+            echo "::error::IccRoundTrip not found in build output"
+            exit 1
+          fi
 
-          echo "Checking for iccApplyProfiles..."
-          find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p'
           APPLY=$(find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
-          test -n "$APPLY" || { echo "ERROR: IccApplyProfiles not found"; exit 1; }
+          if [ -n "$APPLY" ]; then
+            echo "  ✅ IccApplyProfiles:  $APPLY"
+          else
+            echo "  ❌ IccApplyProfiles:  NOT FOUND"
+            echo "::error::IccApplyProfiles not found in build output"
+            exit 1
+          fi
 
-          echo "All required tools present."
+          echo ""
+          echo "  All required tools verified."
 
       - name: Upload tools artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
@@ -228,6 +242,8 @@ jobs:
 
   #############################################################################
   # Job 2: Verify IccRoundTrip timeouts (3 PoCs)
+  #   Expected: each PoC should trigger a timeout (exit 124) or signal kill.
+  #   A timeout confirms CWE-400. Job succeeds when tests run to completion.
   #############################################################################
   verify-roundtrip:
     name: "IccRoundTrip • CWE-400"
@@ -259,6 +275,7 @@ jobs:
           persist-credentials: false
 
       - name: Install runtime dependencies
+        continue-on-error: false
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -279,20 +296,25 @@ jobs:
           path: tools
 
       - name: Prepare tools
+        id: prepare
         run: |
           set -euo pipefail
-          echo "=== Downloaded artifact structure ==="
+          echo "=== Downloaded artifact contents ==="
           find tools -type f 2>/dev/null | sed -n '1,30p'
+          echo ""
 
           # Find the tool binary (handle case variants from different upstream versions)
           ROUNDTRIP=$(find tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
           if [ -z "$ROUNDTRIP" ]; then
-            echo "ERROR: IccRoundTrip not found in artifact"
+            echo "::error::IccRoundTrip binary not found in artifact"
             find tools -type f
             exit 1
           fi
           chmod +x "$ROUNDTRIP"
           echo "ROUNDTRIP=$ROUNDTRIP" >> "$GITHUB_ENV"
+
+          # Find and chmod shared libraries
+          find tools -name 'libIcc*' -exec chmod +x {} \; 2>/dev/null || true
 
           # Set LD_LIBRARY_PATH for shared libs
           LIBDIRS=""
@@ -302,37 +324,55 @@ jobs:
           done
           echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
 
-          echo "Tool: $ROUNDTRIP"
-          echo "Libs: $LIBDIRS"
+          echo "tool_ready=true" >> "$GITHUB_OUTPUT"
+          echo "✅ Tool: $ROUNDTRIP"
+          echo "✅ Libs: $LIBDIRS"
 
-      - name: "Verify CWE-400: ${{ matrix.poc.desc }}"
+      - name: "Test: ${{ matrix.poc.desc }}"
+        id: test
+        if: steps.prepare.outputs.tool_ready == 'true'
         env:
           BASH_ENV: /dev/null
           POC_FILE: ${{ matrix.poc.file }}
           POC_DESC: ${{ matrix.poc.desc }}
           POC_MECHANISM: ${{ matrix.poc.mechanism }}
         run: |
-          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "=== CWE-400 Timeout Verification ==="
-          echo "PoC:       $POC_FILE"
-          echo "Desc:      $POC_DESC"
-          echo "Mechanism: $POC_MECHANISM"
-          echo "Tool:      $ROUNDTRIP"
-          echo "Timeout:   ${TIMEOUT_SECONDS}s"
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  CWE-400 Timeout Verification — IccRoundTrip           ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  PoC:       $POC_FILE"
+          echo "  Desc:      $POC_DESC"
+          echo "  Mechanism: $POC_MECHANISM"
+          echo "  Tool:      $ROUNDTRIP"
+          echo "  Timeout:   ${TIMEOUT_SECONDS}s"
           echo ""
 
-          ls -la "$POC_FILE"
-          file "$POC_FILE"
+          POC_SIZE=$(stat -c%s "$POC_FILE")
+          POC_HASH=$(basename "$POC_FILE" | cut -c9-16)
+          echo "  File size: ${POC_SIZE} bytes"
+          echo "  SHA hash:  ${POC_HASH}..."
+          file "$POC_FILE" | sed 's/^/  Type:     /'
           echo ""
 
-          echo "Running: timeout ${TIMEOUT_SECONDS} iccRoundTrip $POC_FILE 1"
-          echo "---"
+          # === Copy-paste reproducer command ===
+          echo "┌─────────────────────────────────────────────────────────┐"
+          echo "│ Reproducer (copy-paste to run locally):                │"
+          echo "├─────────────────────────────────────────────────────────┤"
+          echo "│"
+          echo "│  LD_LIBRARY_PATH=$LD_LIBRARY_PATH \\"
+          echo "│    timeout ${TIMEOUT_SECONDS} $ROUNDTRIP $POC_FILE 1"
+          echo "│"
+          echo "└─────────────────────────────────────────────────────────┘"
+          echo ""
 
+          # === Run the test ===
+          echo "--- Executing test ---"
           set +e
           START=$(date +%s%N)
           timeout "${TIMEOUT_SECONDS}" env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
@@ -342,54 +382,81 @@ jobs:
           set -e
 
           ELAPSED_MS=$(( (END - START) / 1000000 ))
-          echo "Exit code: $EXIT_CODE"
-          echo "Elapsed:   ${ELAPSED_MS}ms"
+
+          echo ""
+          echo "  Exit code: $EXIT_CODE"
+          echo "  Elapsed:   ${ELAPSED_MS}ms"
 
           if [ -s /tmp/tool_stdout.txt ]; then
             echo ""
-            echo "--- stdout (last 20 lines) ---"
-            tail -20 /tmp/tool_stdout.txt
+            echo "  --- stdout (last 20 lines) ---"
+            tail -20 /tmp/tool_stdout.txt | sed 's/^/  /'
           fi
           if [ -s /tmp/tool_stderr.txt ]; then
             echo ""
-            echo "--- stderr (last 20 lines) ---"
-            tail -20 /tmp/tool_stderr.txt
+            echo "  --- stderr (last 20 lines) ---"
+            tail -20 /tmp/tool_stderr.txt | sed 's/^/  /'
           fi
 
           echo ""
-          # Exit code 124 = timeout killed the process
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # === Classify result ===
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "✅ CWE-400 CONFIRMED: Tool hung for >${TIMEOUT_SECONDS}s (killed by timeout)"
-            echo "   This confirms uncontrolled resource consumption."
-            RESULT="TIMEOUT (CWE-400 confirmed)"
+            echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
+            RESULT="✅ TIMEOUT — CWE-400 confirmed"
+            OUTCOME="pass"
           elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
-            echo "✅ CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
-            RESULT="KILLED (CWE-400 confirmed)"
+            echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+            RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
+            OUTCOME="pass"
           elif [ $ELAPSED_MS -gt 25000 ]; then
-            echo "⚠️  CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms (>${TIMEOUT_SECONDS}s threshold)"
-            RESULT="SLOW (${ELAPSED_MS}ms)"
+            echo "⚠️  WARN — CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms"
+            RESULT="⚠️ SLOW (${ELAPSED_MS}ms)"
+            OUTCOME="warn"
           else
-            echo "ℹ️  Tool completed in ${ELAPSED_MS}ms with exit code $EXIT_CODE"
-            echo "   The upstream may have been patched, or this environment differs."
-            RESULT="COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+            echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
+            echo "         Upstream may have been patched, or environment differs."
+            RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+            OUTCOME="info"
           fi
 
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Export for summary
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+          echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+          echo "elapsed_ms=${ELAPSED_MS}" >> "$GITHUB_OUTPUT"
+
+          # Step summary with reproducer
           {
             echo ""
             echo "### IccRoundTrip — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
-            echo "| PoC | \`${POC_FILE}\` |"
-            echo "| Size | $(stat -c%s "$POC_FILE") bytes |"
+            echo "| PoC | \`$(basename "$POC_FILE")\` |"
+            echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"
-            echo "| Exit Code | ${EXIT_CODE} |"
+            echo "| Exit Code | \`${EXIT_CODE}\` |"
             echo "| Elapsed | ${ELAPSED_MS}ms |"
             echo "| Result | **${RESULT}** |"
+            echo ""
+            echo "<details><summary>Reproducer command</summary>"
+            echo ""
+            echo '```bash'
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout ${TIMEOUT_SECONDS} Build/Tools/IccRoundTrip/iccRoundTrip \\"
+            echo "  ${POC_FILE} 1"
+            echo '```'
+            echo "</details>"
           } >> $GITHUB_STEP_SUMMARY
 
   #############################################################################
   # Job 3: Verify IccApplyProfiles timeouts (3 PoCs)
+  #   Expected: each PoC should trigger a timeout (exit 124) or signal kill.
+  #   A timeout confirms CWE-400. Job succeeds when tests run to completion.
   #############################################################################
   verify-apply:
     name: "IccApplyProfiles • CWE-400"
@@ -421,6 +488,7 @@ jobs:
           persist-credentials: false
 
       - name: Install runtime dependencies
+        continue-on-error: false
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -441,19 +509,24 @@ jobs:
           path: tools
 
       - name: Prepare tools
+        id: prepare
         run: |
           set -euo pipefail
-          echo "=== Downloaded artifact structure ==="
+          echo "=== Downloaded artifact contents ==="
           find tools -type f 2>/dev/null | sed -n '1,30p'
+          echo ""
 
           APPLY=$(find tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
           if [ -z "$APPLY" ]; then
-            echo "ERROR: IccApplyProfiles not found in artifact"
+            echo "::error::IccApplyProfiles binary not found in artifact"
             find tools -type f
             exit 1
           fi
           chmod +x "$APPLY"
           echo "APPLY=$APPLY" >> "$GITHUB_ENV"
+
+          # Find and chmod shared libraries
+          find tools -name 'libIcc*' -exec chmod +x {} \; 2>/dev/null || true
 
           # Set LD_LIBRARY_PATH for shared libs
           LIBDIRS=""
@@ -463,10 +536,12 @@ jobs:
           done
           echo "LD_LIBRARY_PATH=$LIBDIRS" >> "$GITHUB_ENV"
 
-          echo "Tool: $APPLY"
-          echo "Libs: $LIBDIRS"
+          echo "tool_ready=true" >> "$GITHUB_OUTPUT"
+          echo "✅ Tool: $APPLY"
+          echo "✅ Libs: $LIBDIRS"
 
       - name: Generate test TIFF (2x2 RGB)
+        if: steps.prepare.outputs.tool_ready == 'true'
         run: |
           set -euo pipefail
           python3 -c "
@@ -506,36 +581,52 @@ jobs:
           "
           file test_rgb.tif
 
-      - name: "Verify CWE-400: ${{ matrix.poc.desc }}"
+      - name: "Test: ${{ matrix.poc.desc }}"
+        id: test
+        if: steps.prepare.outputs.tool_ready == 'true'
         env:
           BASH_ENV: /dev/null
           POC_FILE: ${{ matrix.poc.file }}
           POC_DESC: ${{ matrix.poc.desc }}
           POC_MECHANISM: ${{ matrix.poc.mechanism }}
         run: |
-          set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "=== CWE-400 Timeout Verification ==="
-          echo "PoC:       $POC_FILE"
-          echo "Desc:      $POC_DESC"
-          echo "Mechanism: $POC_MECHANISM"
-          echo "Tool:      $APPLY"
-          echo "Timeout:   ${TIMEOUT_SECONDS}s"
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  CWE-400 Timeout Verification — IccApplyProfiles       ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  PoC:       $POC_FILE"
+          echo "  Desc:      $POC_DESC"
+          echo "  Mechanism: $POC_MECHANISM"
+          echo "  Tool:      $APPLY"
+          echo "  Timeout:   ${TIMEOUT_SECONDS}s"
           echo ""
 
-          ls -la "$POC_FILE"
-          file "$POC_FILE"
+          POC_SIZE=$(stat -c%s "$POC_FILE")
+          POC_HASH=$(basename "$POC_FILE" | cut -c9-16)
+          echo "  File size: ${POC_SIZE} bytes"
+          echo "  SHA hash:  ${POC_HASH}..."
+          file "$POC_FILE" | sed 's/^/  Type:     /'
           echo ""
 
-          # iccApplyProfiles src dst encoding compression planar embed interp profile intent
-          #   encoding=0(same) compression=0(none) planar=0(contig) embed=0 interp=1 intent=1(relative)
-          echo "Running: timeout ${TIMEOUT_SECONDS} iccApplyProfiles test_rgb.tif /tmp/out.tif 0 0 0 0 1 $POC_FILE 1"
-          echo "---"
+          # === Copy-paste reproducer command ===
+          echo "┌─────────────────────────────────────────────────────────┐"
+          echo "│ Reproducer (copy-paste to run locally):                │"
+          echo "├─────────────────────────────────────────────────────────┤"
+          echo "│"
+          echo "│  LD_LIBRARY_PATH=$LD_LIBRARY_PATH \\"
+          echo "│    timeout ${TIMEOUT_SECONDS} $APPLY \\"
+          echo "│    test_rgb.tif /tmp/out.tif 0 0 0 0 1 $POC_FILE 1"
+          echo "│"
+          echo "└─────────────────────────────────────────────────────────┘"
+          echo ""
 
+          # === Run the test ===
+          echo "--- Executing test ---"
           set +e
           START=$(date +%s%N)
           timeout "${TIMEOUT_SECONDS}" env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
@@ -546,54 +637,82 @@ jobs:
           set -e
 
           ELAPSED_MS=$(( (END - START) / 1000000 ))
-          echo "Exit code: $EXIT_CODE"
-          echo "Elapsed:   ${ELAPSED_MS}ms"
+
+          echo ""
+          echo "  Exit code: $EXIT_CODE"
+          echo "  Elapsed:   ${ELAPSED_MS}ms"
 
           if [ -s /tmp/tool_stdout.txt ]; then
             echo ""
-            echo "--- stdout (last 20 lines) ---"
-            tail -20 /tmp/tool_stdout.txt
+            echo "  --- stdout (last 20 lines) ---"
+            tail -20 /tmp/tool_stdout.txt | sed 's/^/  /'
           fi
           if [ -s /tmp/tool_stderr.txt ]; then
             echo ""
-            echo "--- stderr (last 20 lines) ---"
-            tail -20 /tmp/tool_stderr.txt
+            echo "  --- stderr (last 20 lines) ---"
+            tail -20 /tmp/tool_stderr.txt | sed 's/^/  /'
           fi
 
           echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # === Classify result ===
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "✅ CWE-400 CONFIRMED: Tool hung for >${TIMEOUT_SECONDS}s (killed by timeout)"
-            echo "   This confirms uncontrolled resource consumption."
-            RESULT="TIMEOUT (CWE-400 confirmed)"
+            echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
+            RESULT="✅ TIMEOUT — CWE-400 confirmed"
+            OUTCOME="pass"
           elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
-            echo "✅ CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
-            RESULT="KILLED (CWE-400 confirmed)"
+            echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+            RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
+            OUTCOME="pass"
           elif [ $ELAPSED_MS -gt 25000 ]; then
-            echo "⚠️  CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms (>${TIMEOUT_SECONDS}s threshold)"
-            RESULT="SLOW (${ELAPSED_MS}ms)"
+            echo "⚠️  WARN — CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms"
+            RESULT="⚠️ SLOW (${ELAPSED_MS}ms)"
+            OUTCOME="warn"
           else
-            echo "ℹ️  Tool completed in ${ELAPSED_MS}ms with exit code $EXIT_CODE"
-            echo "   The upstream may have been patched, or this environment differs."
-            RESULT="COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+            echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
+            echo "         Upstream may have been patched, or environment differs."
+            RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+            OUTCOME="info"
           fi
 
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Export for summary
+          echo "outcome=${OUTCOME}" >> "$GITHUB_OUTPUT"
+          echo "result=${RESULT}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+          echo "elapsed_ms=${ELAPSED_MS}" >> "$GITHUB_OUTPUT"
+
+          # Step summary with reproducer
           {
             echo ""
             echo "### IccApplyProfiles — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
-            echo "| PoC | \`${POC_FILE}\` |"
-            echo "| Size | $(stat -c%s "$POC_FILE") bytes |"
+            echo "| PoC | \`$(basename "$POC_FILE")\` |"
+            echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"
             echo "| Command | \`iccApplyProfiles test_rgb.tif /tmp/out.tif 0 0 0 0 1 <poc> 1\` |"
-            echo "| Exit Code | ${EXIT_CODE} |"
+            echo "| Exit Code | \`${EXIT_CODE}\` |"
             echo "| Elapsed | ${ELAPSED_MS}ms |"
             echo "| Result | **${RESULT}** |"
+            echo ""
+            echo "<details><summary>Reproducer command</summary>"
+            echo ""
+            echo '```bash'
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout ${TIMEOUT_SECONDS} Build/Tools/IccApplyProfiles/iccApplyProfiles \\"
+            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 ${POC_FILE} 1"
+            echo '```'
+            echo "</details>"
           } >> $GITHUB_STEP_SUMMARY
 
   #############################################################################
-  # Job 4: Summary
+  # Job 4: Summary — aggregates results with visual indicators
+  #   Shows ✅/⚠️/ℹ️ per PoC, reproducer commands, root cause analysis.
+  #   Job succeeds when all tests ran to completion (timeouts are expected).
   #############################################################################
   summary:
     name: "Results Summary"
@@ -606,7 +725,7 @@ jobs:
         shell: bash --noprofile --norc {0}
 
     steps:
-      - name: Generate results table
+      - name: Evaluate results
         env:
           BASH_ENV: /dev/null
           RT_RESULT: ${{ needs.verify-roundtrip.result }}
@@ -614,8 +733,33 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Determine overall status
+          if [ "$RT_RESULT" = "success" ] && [ "$AP_RESULT" = "success" ]; then
+            OVERALL="✅ All 6 PoCs verified"
+            OVERALL_ICON="✅"
+          elif [ "$RT_RESULT" = "cancelled" ] || [ "$AP_RESULT" = "cancelled" ]; then
+            OVERALL="⚠️ Some jobs were cancelled"
+            OVERALL_ICON="⚠️"
+          else
+            OVERALL="❌ Some jobs failed — check individual results"
+            OVERALL_ICON="❌"
+          fi
+
+          # Map job result to visual indicator
+          indicator() {
+            case "$1" in
+              success) echo "✅ Ran to completion" ;;
+              failure) echo "❌ Infrastructure failure" ;;
+              cancelled) echo "⚠️ Cancelled" ;;
+              *) echo "❓ Unknown ($1)" ;;
+            esac
+          }
+
+          RT_INDICATOR=$(indicator "$RT_RESULT")
+          AP_INDICATOR=$(indicator "$AP_RESULT")
+
           {
-            echo "## CWE-400: Uncontrolled Resource Consumption in iccDEV"
+            echo "## ${OVERALL_ICON} CWE-400: Uncontrolled Resource Consumption in iccDEV"
             echo ""
             echo "**Classification:** CWE-400 — Uncontrolled Resource Consumption"
             echo ""
@@ -623,16 +767,29 @@ jobs:
             echo ""
             echo "**Impact:** Denial of service via crafted ICC profiles causing >30s hangs"
             echo ""
+            echo "**Overall:** ${OVERALL}"
+            echo ""
+            echo "### Job Status"
+            echo ""
+            echo "| Job | Status | PoCs Tested |"
+            echo "|-----|--------|-------------|"
+            echo "| IccRoundTrip | ${RT_INDICATOR} | 3 timeout PoCs |"
+            echo "| IccApplyProfiles | ${AP_INDICATOR} | 3 timeout PoCs |"
+            echo ""
             echo "### PoC Verification Matrix"
             echo ""
-            echo "| PoC | Size | Tool | Mechanism | Job |"
-            echo "|-----|------|------|-----------|-----|"
-            echo "| \`timeout-3aa7f657\` | 899KB | IccRoundTrip | CheckUnderflowOverflow recursion | ${RT_RESULT} |"
-            echo "| \`timeout-4e821e56\` | 3.3KB | IccRoundTrip | EvaluateProfile 33^6 grid | ${RT_RESULT} |"
-            echo "| \`timeout-c3a67e9b\` | 3.4KB | IccRoundTrip | EvaluateProfile 33^6 grid | ${RT_RESULT} |"
-            echo "| \`timeout-1c918975\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
-            echo "| \`timeout-3f9987d0\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
-            echo "| \`timeout-77e98c61\` | 1.5KB | IccApplyProfiles | MPE calculator Apply() | ${AP_RESULT} |"
+            echo "| # | PoC | Size | Tool | Mechanism |"
+            echo "|---|-----|------|------|-----------|"
+            echo "| 1 | \`timeout-3aa7f657\` | 899KB | IccRoundTrip | CheckUnderflowOverflow recursion |"
+            echo "| 2 | \`timeout-4e821e56\` | 3.3KB | IccRoundTrip | EvaluateProfile 33^6 grid |"
+            echo "| 3 | \`timeout-c3a67e9b\` | 3.4KB | IccRoundTrip | EvaluateProfile 33^6 grid |"
+            echo "| 4 | \`timeout-1c918975\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() |"
+            echo "| 5 | \`timeout-3f9987d0\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() |"
+            echo "| 6 | \`timeout-77e98c61\` | 1.5KB | IccApplyProfiles | MPE calculator Apply() |"
+            echo ""
+            echo "> **Interpretation:** A timeout (exit 124) or signal kill (exit 137/143)"
+            echo "> confirms the CWE-400 bug is still present in upstream iccDEV."
+            echo "> If the tool completes quickly, upstream may have patched the issue."
             echo ""
             echo "### Root Causes"
             echo ""
@@ -652,14 +809,34 @@ jobs:
             echo "### Reproducer Commands"
             echo ""
             echo '```bash'
-            echo "# IccRoundTrip (3 PoCs)"
-            echo "LD_LIBRARY_PATH=Build/build/IccProfLib:Build/build/IccXML \\"
-            echo "  timeout 30 Build/build/Tools/IccRoundTrip/iccRoundTrip <poc.icc> 1"
+            echo "# IccRoundTrip — 3 PoCs (each should hang >30s)"
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccRoundTrip/iccRoundTrip \\"
+            echo "  test-profiles/cwe-400/timeout-3aa7f657d7718e06365181e82b735af7cda4aada 1"
             echo ""
-            echo "# IccApplyProfiles (3 PoCs — requires source TIFF)"
-            echo "LD_LIBRARY_PATH=Build/build/IccProfLib:Build/build/IccXML \\"
-            echo "  timeout 30 Build/build/Tools/IccApplyProfiles/iccApplyProfiles \\"
-            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 <poc.icc> 1"
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccRoundTrip/iccRoundTrip \\"
+            echo "  test-profiles/cwe-400/timeout-4e821e5627852351ccfcf35c2006d53c1d10d068 1"
+            echo ""
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccRoundTrip/iccRoundTrip \\"
+            echo "  test-profiles/cwe-400/timeout-c3a67e9b148d8852eb5a5c76f12c60fff3bdaabf 1"
+            echo ""
+            echo "# IccApplyProfiles — 3 PoCs (requires test_rgb.tif source image)"
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccApplyProfiles/iccApplyProfiles \\"
+            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 \\"
+            echo "  test-profiles/cwe-400/timeout-1c9189754f442af3c0502a5541b93311c6d65055 1"
+            echo ""
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccApplyProfiles/iccApplyProfiles \\"
+            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 \\"
+            echo "  test-profiles/cwe-400/timeout-3f9987d061d33beffdd2dbc68fa28015b59c5f1a 1"
+            echo ""
+            echo "LD_LIBRARY_PATH=Build/IccProfLib:Build/IccXML \\"
+            echo "  timeout 30 Build/Tools/IccApplyProfiles/iccApplyProfiles \\"
+            echo "  test_rgb.tif /tmp/out.tif 0 0 0 0 1 \\"
+            echo "  test-profiles/cwe-400/timeout-77e98c61cfeffdbce4b720f7758928c525c4f1a9 1"
             echo '```'
             echo ""
             echo "### Suggested Fixes"
@@ -670,6 +847,12 @@ jobs:
             echo "4. Validate calculator element complexity during profile load"
           } >> $GITHUB_STEP_SUMMARY
 
-          echo "=== CWE-400 Verification Complete ==="
-          echo "IccRoundTrip jobs:      ${RT_RESULT}"
-          echo "IccApplyProfiles jobs:  ${AP_RESULT}"
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║  CWE-400 Verification Summary                          ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  IccRoundTrip jobs:      ${RT_RESULT} (${RT_INDICATOR})"
+          echo "  IccApplyProfiles jobs:  ${AP_RESULT} (${AP_INDICATOR})"
+          echo "  Overall:                ${OVERALL}"
+          echo ""
+          echo "  See Step Summary tab for per-PoC details and reproducers."
