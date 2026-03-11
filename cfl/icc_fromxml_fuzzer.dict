@@ -1552,3 +1552,8 @@ multi_sig="mwpmcl1l"
 
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x04\x06"
+
+# --- added by convert-libfuzzer-dict.py ---
+"imapmailboxnam"
+"z7"
+"eucjp"
