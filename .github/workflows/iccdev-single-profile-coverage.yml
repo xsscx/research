@@ -25,6 +25,14 @@ on:
         required: false
         default: ''
         type: string
+      ref:
+        description: 'iccDEV branch to build against'
+        required: false
+        default: 'cfl'
+        type: choice
+        options:
+          - cfl
+          - master
 
 concurrency:
   group: single-profile-coverage-${{ github.ref }}-${{ inputs.profile_path || 'random' }}
@@ -32,7 +40,7 @@ concurrency:
 
 jobs:
   single-profile-coverage:
-    name: "Coverage: ${{ inputs.profile_path || 'random' }}"
+    name: "Coverage (${{ inputs.ref || 'cfl' }}): ${{ inputs.profile_path || 'random' }}"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -104,29 +112,38 @@ jobs:
         id: cache-iccdev
         with:
           path: /tmp/iccdev
-          key: ${{ runner.os }}-iccdev-coverage-single-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-coverage-single-
+            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-
 
-      - name: Clone iccDEV
+      - name: "Clone iccDEV (${{ github.event.inputs.ref || 'cfl' }})"
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
           if [ ! -d "/tmp/iccdev" ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
+            git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
           fi
 
-      - name: Apply CFL patches
+      - name: "Apply CFL patches (cfl branch only)"
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP] $(basename "$p")"
-            fi
-          done
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
+
+          if [ "$REF" = "cfl" ]; then
+            echo "Applying CFL library patches to cfl branch..."
+            for p in cfl/patches/*.patch; do
+              if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+                echo "  [OK] $(basename "$p")"
+              else
+                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
+              fi
+            done
+          else
+            echo "Testing master branch as-is — no CFL patches applied"
+          fi
+
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
           if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
@@ -139,9 +156,9 @@ jobs:
         id: cache-build
         with:
           path: /tmp/iccdev/build-coverage
-          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-build-coverage-single-
+            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-
 
       - name: Build iccDEV with coverage instrumentation
         if: steps.cache-build.outputs.cache-hit != 'true'
@@ -357,6 +374,7 @@ jobs:
           {
             echo "## iccDEV Single Profile Coverage"
             echo ""
+            echo "**Branch**: \`${{ github.event.inputs.ref || 'cfl' }}\`"
             echo "**Profile**: \`$SAFE_PROFILE\`"
             echo ""
             echo "### Tool Outputs"
