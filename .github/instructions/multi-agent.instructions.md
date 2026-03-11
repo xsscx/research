@@ -665,7 +665,7 @@ CI polling threshold must be >=80 with 120s timeout. The app uses FUZZ_OUTPUT_DI
 for output directory and generates PNG, JPEG, GIF, BMP, TIFF, HEIF formats.
 
 ### Pinned Action SHAs (both sub-repos)
-- actions/checkout: 11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2)
-- actions/upload-artifact: ea165f8d65b6e75b540449e92b4886f43607fa02 (v4.6.2)
-- actions/cache: 5a3ec84eff668545956fd18022155c47e93e2684 (v4.2.3)
-- actions/download-artifact: d3f86a106a0bac45b974a628896c90dbdf5c8093 (v4.3.0)
+- actions/checkout: 08c6903cd8c0fde910a37f88322edcfb5dd907a8 (v5.0.0, node24)
+- actions/upload-artifact: b7c566a772e6b6bfb58ed0dc250532a479d7789f (v6.0.0, node24)
+- actions/cache: a7833574556fa59680c1b7cb190c1735db73ebf0 (v5.0.0, node24)
+- actions/download-artifact: 37930b1c2abaa49bbe596cd826c3c89aef350131 (v7.0.0, node24)

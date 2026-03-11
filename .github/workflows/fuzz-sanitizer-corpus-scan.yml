@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Checkout research repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -79,7 +79,7 @@ jobs:
             python3 llvm
 
       - name: Cache iccDEV repository
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
@@ -114,7 +114,7 @@ jobs:
           fi
 
       - name: Cache iccDEV build
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
         with:
           path: |
@@ -181,7 +181,7 @@ jobs:
           ls -lh IccToXml_unsafe IccFromXml_unsafe
 
       - name: Upload tool artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: sanitizer-tools
           path: |
@@ -201,7 +201,7 @@ jobs:
 
     steps:
       - name: Checkout fuzz corpus
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           repository: ${{ env.FUZZ_REPO }}
           ref: ${{ env.FUZZ_REF }}
@@ -218,7 +218,7 @@ jobs:
             libxml2 libtiff6 libjpeg-turbo8 libpng16-16 zlib1g llvm
 
       - name: Download tools
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           name: sanitizer-tools
           path: tools
@@ -415,7 +415,7 @@ jobs:
 
       - name: Upload scan results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: icc-scan-results
           path: results/
@@ -478,7 +478,7 @@ jobs:
 
     steps:
       - name: Checkout fuzz corpus
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
           repository: ${{ env.FUZZ_REPO }}
           ref: ${{ env.FUZZ_REF }}
@@ -495,7 +495,7 @@ jobs:
             libxml2 libtiff6 libjpeg-turbo8 libpng16-16 zlib1g
 
       - name: Download tools
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
           name: sanitizer-tools
           path: tools
@@ -681,7 +681,7 @@ jobs:
 
       - name: Upload XML scan results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: xml-scan-results
           path: results/
