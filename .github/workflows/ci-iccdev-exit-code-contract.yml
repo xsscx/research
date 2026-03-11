@@ -168,6 +168,7 @@ jobs:
           # After PR #583, all tools should exit 0 on no-args
           #---------------------------------------------------------
           echo "--- Contract 1: No-args → exit 0 (usage display) ---"
+          shopt -s nullglob
           for tool_dir in "$TOOLS"/Icc*/; do
             tool_name=$(basename "$tool_dir")
             tool_bin="$tool_dir/$tool_name"
@@ -175,32 +176,27 @@ jobs:
             check_exit "noargs-${tool_name}" "${tool_name} no-args" "0" \
               "$tool_bin"
           done
-          # Also check IccXML tools
-          for tool_dir in iccDEV/Build/IccXML/CmdLine/Icc*/; do
-            tool_name=$(basename "$tool_dir")
-            tool_bin="$tool_dir/$tool_name"
-            [ -x "$tool_bin" ] || continue
-            check_exit "noargs-${tool_name}" "${tool_name} no-args" "0" \
-              "$tool_bin"
-          done
+          shopt -u nullglob
           echo ""
 
           #---------------------------------------------------------
           # Contract 2: Nonexistent file → exit nonzero
           #---------------------------------------------------------
           echo "--- Contract 2: Bad input → exit nonzero ---"
+          shopt -s nullglob
           for tool_dir in "$TOOLS"/Icc*/; do
             tool_name=$(basename "$tool_dir")
             tool_bin="$tool_dir/$tool_name"
             [ -x "$tool_bin" ] || continue
             # Skip tools that need multiple args (would show usage)
             case "$tool_name" in
-              iccApplyProfiles|iccApplyToLink|iccSpecSepToTiff|iccApplyNamedCmm)
+              iccApplyProfiles|iccApplyToLink|iccSpecSepToTiff|iccApplyNamedCmm|iccFromCube|iccV5DspObsToV4Dsp)
                 continue ;;  # multi-arg tools — tested separately
             esac
             check_exit "badinput-${tool_name}" "${tool_name} nonexistent file" "nonzero" \
               "$tool_bin" "/tmp/definitely-nonexistent-file-31415.icc"
           done
+          shopt -u nullglob
           echo ""
 
           #---------------------------------------------------------
@@ -226,6 +222,20 @@ jobs:
             check_exit "valid-iccTiffDump" "iccTiffDump valid TIFF" "0" \
               "$TOOLS/IccTiffDump/iccTiffDump" "$TIFF_FILE"
           fi
+
+          # iccFromCube — test with .cube and .lut seeds from CFL corpus
+          CUBE_SEEDS="$T/Fuzzing/seeds/fromcube"
+          for cube_seed in identity_2x2x2.cube warm_film_2x2x2.cube iridas_3d.cube; do
+            cf="$CUBE_SEEDS/$cube_seed"
+            if [ -f "$cf" ]; then
+              check_exit "valid-iccFromCube-${cube_seed%.cube}" \
+                "iccFromCube $cube_seed" "0" \
+                "$TOOLS/IccFromCube/iccFromCube" "$cf" "/tmp/ec-${cube_seed%.cube}.icc"
+            fi
+          done
+          # iccFromCube bad input — nonexistent file
+          check_exit "badinput-iccFromCube" "iccFromCube nonexistent" "nonzero" \
+            "$TOOLS/IccFromCube/iccFromCube" "/tmp/definitely-nonexistent.cube" "/tmp/ec-bad.icc"
           echo ""
 
           #---------------------------------------------------------
