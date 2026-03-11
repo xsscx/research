@@ -171,9 +171,11 @@ jobs:
           shopt -s nullglob
           for tool_dir in "$TOOLS"/Icc*/; do
             tool_name=$(basename "$tool_dir")
-            tool_bin="$tool_dir/$tool_name"
+            # Binary name uses lowercase 'icc' prefix (dir=IccDumpProfile, bin=iccDumpProfile)
+            bin_name="icc${tool_name#Icc}"
+            tool_bin="$tool_dir/$bin_name"
             [ -x "$tool_bin" ] || continue
-            check_exit "noargs-${tool_name}" "${tool_name} no-args" "0" \
+            check_exit "noargs-${bin_name}" "${bin_name} no-args" "0" \
               "$tool_bin"
           done
           shopt -u nullglob
@@ -186,14 +188,15 @@ jobs:
           shopt -s nullglob
           for tool_dir in "$TOOLS"/Icc*/; do
             tool_name=$(basename "$tool_dir")
-            tool_bin="$tool_dir/$tool_name"
+            bin_name="icc${tool_name#Icc}"
+            tool_bin="$tool_dir/$bin_name"
             [ -x "$tool_bin" ] || continue
             # Skip tools that need multiple args (would show usage)
-            case "$tool_name" in
+            case "$bin_name" in
               iccApplyProfiles|iccApplyToLink|iccSpecSepToTiff|iccApplyNamedCmm|iccFromCube|iccV5DspObsToV4Dsp)
                 continue ;;  # multi-arg tools — tested separately
             esac
-            check_exit "badinput-${tool_name}" "${tool_name} nonexistent file" "nonzero" \
+            check_exit "badinput-${bin_name}" "${bin_name} nonexistent file" "nonzero" \
               "$tool_bin" "/tmp/definitely-nonexistent-file-31415.icc"
           done
           shopt -u nullglob
