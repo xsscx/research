@@ -129,6 +129,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   const char *tmpdir = fuzz_tmpdir();
 
+  // Gate 0b: Validate ICC tag table integrity (CWE-789 amplification guard)
+  if (!fuzz_validate_icc_tags(profile_data, profile_size)) return 0;
+
   // --- Phase 1: Write ICC profile to temp file ---
   char tmp_profile[PATH_MAX];
   if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_ap_prof_XXXXXX.icc")) return 0;

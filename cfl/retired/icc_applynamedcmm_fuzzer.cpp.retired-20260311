@@ -1,0 +1,310 @@
+/*
+ * Copyright (c) 1994 - 2026 David H Hoyt LLC
+ * All Rights Reserved.
+ *
+ * This software and associated documentation files (the "Software") are the
+ * exclusive intellectual property of David H Hoyt LLC.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. The name "David H Hoyt LLC" must not be used to endorse or promote
+ *    products derived from this software without prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY DAVID H HOYT LLC "AS IS" AND ANY EXPRESSED
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL DAVID H HOYT LLC BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact: https://hoyt.net
+ */
+
+/**
+ * icc_applynamedcmm_fuzzer — Full fidelity with iccApplyNamedCmm tool
+ *
+ * AST Gates (exact match with iccApplyNamedCmm.cpp):
+ *
+ *   1. OpenIccProfile(path) via CIccFileIO       [line 330-335]
+ *      Gate: profile opened from FILE, never CIccMemIO
+ *
+ *   2. srcSpace from profile->m_Header.colorSpace [line 325-328]
+ *      combined with data file colorSpace for bInputProfile determination
+ *
+ *   3. CIccNamedColorCmm(srcSpace, icSigUnknownData, bInputProfile)  [line 339]
+ *
+ *   4. namedCmm.AddXform(filepath, intent, interp,
+ *                         pPcc, xformType, useD2B, &Hint, useV5)     [line 381-388]
+ *      Gate: PATH-based overload → OpenIccProfile internally
+ *
+ *   5. namedCmm.Begin()                                              [line 397]
+ *      Gate: stat != icCmmStatOk → bail
+ *
+ *   6. namedCmm.GetInterface() selects Apply variant                 [line 479-563]
+ *      Gate: exact switch on icApplyNamed2Pixel/Pixel2Pixel/etc.
+ *
+ *   7. CIccCmm::ToInternalEncoding / FromInternalEncoding            [line 488,522,540]
+ *
+ * Fidelity notes:
+ *   - Input is a raw ICC profile (no control header — matches file on disk)
+ *   - srcSpace determined from profile header (matching fromLegacy data file
+ *     that declares the profile's own colorSpace)
+ *   - Uses path-based AddXform (CIccFileIO), NOT CIccMemIO
+ *   - Same hint construction as tool (BPC, luminance, env vars)
+ *   - Same Apply interface switch as tool
+ */
+
+#include <stdint.h>
+#include <stddef.h>
+#include <new>
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
+#include <climits>
+#include "IccCmm.h"
+#include "IccUtil.h"
+#include "IccDefs.h"
+#include "IccApplyBPC.h"
+#include "IccEnvVar.h"
+#include "fuzz_utils.h"
+
+// Input format: raw ICC profile bytes (no control header)
+// Intent/interp/flags derived deterministically from profile header bytes
+// to maximize corpus reuse while maintaining tool fidelity.
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  // Gate 0: minimum viable ICC profile (128-byte header + tag table count)
+  if (size < 132 || size > 5 * 1024 * 1024) return 0;
+
+  // Gate 0b: Validate device class — upstream tool only processes profiles
+  // that match a known class. Data file parsing + AddXform reject unknowns.
+  // ICC.1-2022-05 §7.2.5 defines exactly 7 device classes.
+  // Compare raw bytes (endian-safe) — NOT memcpy to uint32 which reverses on LE.
+  {
+    const uint8_t *dc = data + 12;
+    if (memcmp(dc, "scnr", 4) != 0 &&
+        memcmp(dc, "mntr", 4) != 0 &&
+        memcmp(dc, "prtr", 4) != 0 &&
+        memcmp(dc, "link", 4) != 0 &&
+        memcmp(dc, "spac", 4) != 0 &&
+        memcmp(dc, "abst", 4) != 0 &&
+        memcmp(dc, "nmcl", 4) != 0) {
+      return 0;  // Invalid class — upstream tool would reject
+    }
+  }
+
+  // Gate 0c: Validate tag table integrity (CWE-789 amplification guard)
+  if (!fuzz_validate_icc_tags(data, size)) return 0;
+
+  // Write profile to temporary file — matches OpenIccProfile(path) gate
+  const char *tmpdir = fuzz_tmpdir();
+  char tmp_profile[PATH_MAX];
+  if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir,
+                       "/fuzz_namedcmm_XXXXXX"))
+    return 0;
+  int fd = mkstemp(tmp_profile);
+  if (fd == -1) return 0;
+
+  ssize_t written = write(fd, data, size);
+  close(fd);
+  if (written != (ssize_t)size) {
+    unlink(tmp_profile);
+    return 0;
+  }
+
+  // Gate 1: Open profile via CIccFileIO (same as tool line 330)
+  CIccProfile *pProf = OpenIccProfile(tmp_profile);
+  if (!pProf) {
+    unlink(tmp_profile);
+    return 0;
+  }
+
+  // Gate 2: Determine srcSpace from profile header colorSpace
+  // Tool line 325: SrcspaceSig = cfgData.m_srcSpace
+  // In legacy mode, fromLegacy reads colorSpace from data file line 1.
+  // For fidelity: use the profile's own colorSpace as the data file would declare.
+  icColorSpaceSignature srcSpace = pProf->m_Header.colorSpace;
+  int nSrcSamples = icGetSpaceSamples(srcSpace);
+
+  // If srcSpace is named data or has 0 samples, use icSigNamedData path
+  bool bNamedSrc = (srcSpace == icSigNamedData);
+  if (!bNamedSrc && nSrcSamples == 0) {
+    delete pProf;
+    unlink(tmp_profile);
+    return 0;
+  }
+
+  // Gate 2b: bInputProfile determination (tool lines 328-336)
+  bool bInputProfile = !(srcSpace == icSigXYZData || srcSpace == icSigLabData);
+  if (!bInputProfile) {
+    if (pProf->m_Header.deviceClass != icSigAbstractClass &&
+        (pProf->m_Header.colorSpace == icSigXYZData ||
+         pProf->m_Header.colorSpace == icSigLabData))
+      bInputProfile = true;
+  }
+
+  // Derive intent and flags deterministically from profile header bytes
+  // to avoid a control header while still varying parameters
+  uint8_t intentByte = data[64] & 0x03;  // from header rendering intent field
+  icRenderingIntent intent = (icRenderingIntent)intentByte;
+
+  // interp from header flags field
+  icXformInterp interp = (data[44] & 0x01) ? icInterpTetrahedral : icInterpLinear;
+
+  // BPC and luminance from header flags
+  bool useBPC = (data[44] & 0x02) != 0;
+  bool adjustLuminance = (data[44] & 0x04) != 0;
+  bool useD2BxB2Dx = true;
+  bool useV5SubProfile = (data[44] & 0x08) != 0;
+  icXformLutType xformType = icXformLutColor;
+
+  // Override from intent modifiers (tool lines 761-777)
+  uint8_t nType = (data[65] >> 4) & 0x07;
+  if (nType == 1) {
+    useD2BxB2Dx = false;
+  } else if (nType == 4) {
+    useBPC = true;
+  }
+
+  delete pProf;
+  pProf = nullptr;
+
+  // Gate 3: Construct CIccNamedColorCmm (tool line 339)
+  CIccNamedColorCmm namedCmm(srcSpace, icSigUnknownData, bInputProfile);
+
+  // Gate 3b: Build hints (tool lines 354-378)
+  CIccCreateXformHintManager Hint;
+  if (useBPC) {
+    auto *h = new (std::nothrow) CIccApplyBPCHint();
+    if (h) Hint.AddHint(h);
+  }
+  if (adjustLuminance) {
+    auto *h = new (std::nothrow) CIccLuminanceMatchingHint();
+    if (h) Hint.AddHint(h);
+  }
+
+  // Gate 4: AddXform via FILE PATH (tool lines 381-388)
+  // This is the critical fidelity gate — uses CIccFileIO internally
+  icStatusCMM stat = namedCmm.AddXform(
+      tmp_profile, intent, interp,
+      nullptr,     // no PCC profile
+      xformType, useD2BxB2Dx, &Hint, useV5SubProfile);
+
+  if (stat != icCmmStatOk) {
+    unlink(tmp_profile);
+    return 0;
+  }
+
+  // Gate 5: Begin (tool line 397)
+  stat = namedCmm.Begin();
+  if (stat != icCmmStatOk) {
+    unlink(tmp_profile);
+    return 0;
+  }
+
+  // Gate 5b: RemoveAllIO — tool line 409 releases file handles after Begin
+  namedCmm.RemoveAllIO();
+
+  // Gate 6: Get interface and apply (tool lines 479-563)
+  icApplyInterface iface = namedCmm.GetInterface();
+
+  icColorSpaceSignature actualSrc = namedCmm.GetSourceSpace();
+  icColorSpaceSignature actualDst = namedCmm.GetDestSpace();
+  int nActualSrc = icGetSpaceSamples(actualSrc);
+  int nActualDst = icGetSpaceSamples(actualDst);
+
+  if (nActualSrc <= 0 || nActualSrc > 16 ||
+      nActualDst <= 0 || nActualDst > 16) {
+    // Named data spaces have 0 samples — handled by named interface
+    if (iface != icApplyNamed2Pixel && iface != icApplyNamed2Named &&
+        iface != icApplyPixel2Named) {
+      unlink(tmp_profile);
+      return 0;
+    }
+  }
+
+  switch (iface) {
+    case icApplyPixel2Pixel: {
+      // Tool lines 528-548: pixel → pixel (most common)
+      icFloatNumber srcPx[16], dstPx[16];
+
+      // Test encoding conversion (tool line 522)
+      memset(srcPx, 0, sizeof(srcPx));
+      for (int i = 0; i < nActualSrc; i++)
+        srcPx[i] = 0.5;
+      CIccCmm::ToInternalEncoding(actualSrc, icEncodeFloat, srcPx, srcPx, true);
+      namedCmm.Apply(dstPx, srcPx);
+      CIccCmm::FromInternalEncoding(actualDst, icEncodeFloat, dstPx, dstPx, false);
+
+      // Black
+      memset(srcPx, 0, sizeof(icFloatNumber) * nActualSrc);
+      namedCmm.Apply(dstPx, srcPx);
+
+      // White
+      for (int i = 0; i < nActualSrc; i++) srcPx[i] = 1.0;
+      namedCmm.Apply(dstPx, srcPx);
+
+      // Primaries
+      for (int c = 0; c < nActualSrc && c < 6; c++) {
+        memset(srcPx, 0, sizeof(icFloatNumber) * nActualSrc);
+        srcPx[c] = 1.0;
+        namedCmm.Apply(dstPx, srcPx);
+      }
+      break;
+    }
+
+    case icApplyNamed2Pixel: {
+      // Tool lines 480-497: named → pixel
+      icFloatNumber dstPx[16];
+      const char *names[] = {"White", "Black", "Red", "Green", "Blue"};
+      for (size_t i = 0; i < 5; i++) {
+        icFloatNumber tint = 1.0;
+        namedCmm.Apply(dstPx, names[i], tint);
+      }
+      break;
+    }
+
+    case icApplyNamed2Named: {
+      // Tool lines 498-507: named → named
+      icChar srcName[256], dstName[256];
+      const char *names[] = {"White", "Black", "Red"};
+      for (size_t i = 0; i < 3; i++) {
+        strncpy(srcName, names[i], sizeof(srcName) - 1);
+        srcName[sizeof(srcName) - 1] = '\0';
+        icFloatNumber tint = 1.0;
+        namedCmm.Apply(dstName, srcName, tint);
+      }
+      break;
+    }
+
+    case icApplyPixel2Named: {
+      // Tool lines 550-558: pixel → named
+      icFloatNumber srcPx[16];
+      icChar dstName[256];
+      for (int i = 0; i < nActualSrc; i++) srcPx[i] = 0.5;
+      namedCmm.Apply(dstName, srcPx);
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  unlink(tmp_profile);
+  return 0;
+}

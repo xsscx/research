@@ -1,38 +1,25 @@
 /*
- * Copyright (c) 1994 - 2026 David H Hoyt LLC
- * All Rights Reserved.
+ * Copyright (c) 1994 - 2026 David H Hoyt LLC. All rights reserved.
  *
- * This software and associated documentation files (the "Software") are the
- * exclusive intellectual property of David H Hoyt LLC.
+ * CFL icc_fromcube_fuzzer — 1:1 fidelity with iccFromCube tool
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * Upstream tool: iccDEV/Tools/CmdLine/IccFromCube/iccFromCube.cpp
+ * Tool purpose:  Parse .cube 3D LUT file → create ICC.2 DeviceLink profile
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ * Gate sequence (upstream main() lines 290-377):
+ *   Gate 1: CubeFile::parseHeader()        [line 297]
+ *   Gate 2: cube.sizeLut3D() check          [line 302]
+ *   Gate 3: Profile header init             [lines 307-312]
+ *   Gate 4: Custom input range curves       [lines 315-354]
+ *   Gate 5: CIccCLUT::Init()               [line 359]
+ *   Gate 6: parse3DTable() — BEFORE attach  [lines 363-367]
+ *   Gate 7: SetCLUT + Attach + AttachTag    [lines 369-371]
+ *   Gate 8: cube.close()                    [line 373]
+ *   Gate 9: Description tag                 [lines 376-383]
+ *   Gate 10: Copyright tag                  [lines 386-390]
+ *   Gate 11: SaveIccProfile()               [line 392]
  *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. The name "David H Hoyt LLC" must not be used to endorse or promote
- *    products derived from this software without prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY DAVID H HOYT LLC "AS IS" AND ANY EXPRESSED
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL DAVID H HOYT LLC BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- * Contact: https://hoyt.net
+ * CubeFile class: EXACT COPY from upstream (lines 78-270)
  */
 
 #include <cstdio>
@@ -42,7 +29,6 @@
 #include <stddef.h>
 #include <new>
 #include <unistd.h>
-#include <fcntl.h>
 #include <climits>
 #include "IccProfile.h"
 #include "IccTagBasic.h"
@@ -53,7 +39,7 @@
 #include "fuzz_utils.h"
 
 // ═══════════════════════════════════════════════════════════════════
-// CubeFile class — EXACT COPY from iccFromCube.cpp (iccDEV upstream)
+// CubeFile class — VERBATIM from iccFromCube.cpp (upstream lines 78-270)
 // Parses .cube 3D LUT files used in video/color grading
 // ═══════════════════════════════════════════════════════════════════
 
@@ -75,11 +61,6 @@ public:
     m_f = nullptr;
   }
 
-  /// Parses .cube file header fields: TITLE, LUT_3D_SIZE, DOMAIN_MIN/MAX,
-  /// LUT_3D_INPUT_RANGE, LUT_IN_VIDEO_RANGE, LUT_OUT_VIDEO_RANGE, and comments.
-  /// Stops at the first line that begins with a digit, dot, or minus sign
-  /// (start of 3D LUT data). Returns false if the file cannot be opened,
-  /// contains a 1D LUT, has an unknown keyword, or reaches EOF prematurely.
   bool parseHeader()
   {
     if (!open())
@@ -96,19 +77,17 @@ public:
       long pos = ftell(m_f);
       std::string line = getNextLine();
 
-      if (!line.size()) {
-        if (m_comments.size()) {
-          bAddBlankLine = true;
-        }
-        continue;
-      }
-
       if (line[0] == '-' || line[0] == '.' || (line[0] >= '0' && line[0] <= '9')) {
         fseek(m_f, pos, SEEK_SET);
         break;
       }
 
-      if (line.substr(0, 6) == "TITLE ") {
+      if (!line.size()) {
+        if (m_comments.size()) {
+          bAddBlankLine = true;
+        }
+      }
+      else if (line.substr(0, 6) == "TITLE ") {
         if (m_title.size()) {
           m_title += "\n";
         }
@@ -127,11 +106,11 @@ public:
         bAddBlankLine = false;
       }
       else if (line.substr(0, 12) == "LUT_1D_SiZE ") {
-        // 1D LUTs not supported — reject
+        printf("1DLUTs are not supported\n");
         return false;
       }
       else if (line.substr(0, 12) == "LUT_3D_SIZE ") {
-        int64_t temp = atoll(line.c_str() + 12);
+        int64_t temp = atoll( line.c_str() + 12 );
         if (temp >= INT_MAX || temp <= 0)
             return false;
         m_sizeLut3D = (int)temp;
@@ -180,7 +159,7 @@ public:
       else if (line.substr(0, 19) == "LUT_OUT_VIDEO_RANGE")
         m_bLutOutVideoRange = true;
       else {
-        // Unknown keyword — reject
+        printf("Unknown keyword '%s'\n", line.c_str());
         return false;
       }
     }
@@ -207,7 +186,7 @@ public:
   {
     if (m_sizeLut3D < 2 || nSizeLut <= 0)
         return false;
-
+    
     uint64_t temp = (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D;
     if (temp > UINT_MAX)
         return false;
@@ -220,18 +199,18 @@ public:
     for (auto n = 0u; n < num && !isEOF();) {
       std::string line = getNextLine();
 
-      if (line.size() == 0 || line[0] == '#')
+      if (line[0] == '#' || line.size() == 0)
         continue;
       *toLut++ = (icFloatNumber)atof(line.c_str());
       next = getNext(line.c_str());
       if (!next) {
-        // Invalid 3D LUT entry
+        printf("Invalid 3DLUT entry\n");
         return false;
       }
       *toLut++ = (icFloatNumber)atof(next);
       next = getNext(next);
       if (!next) {
-        // Invalid 3D LUT entry
+        printf("Invalid 3DLUT entry\n");
         return false;
       }
       *toLut++ = (icFloatNumber)atof(next);
@@ -243,7 +222,7 @@ public:
 
 protected:
   std::string m_sFilename;
-
+  
   bool open()
   {
     if (!m_f) {
@@ -323,98 +302,102 @@ protected:
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// FUZZER HARNESS
+// RAII temp file helper
 // ═══════════════════════════════════════════════════════════════════
 
-/// @brief LibFuzzer entry point — parses CUBE LUT data into an ICC profile.
-/// @param data Fuzz input bytes (treated as CUBE text format).
-/// @param size Length of the fuzz input.
-/// @return 0 (required by LibFuzzer API).
+struct TmpFile {
+  char path[PATH_MAX];
+  bool valid;
+  TmpFile() : valid(false) { path[0] = '\0'; }
+  ~TmpFile() { if (valid) unlink(path); }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// FUZZER HARNESS — 1:1 gate alignment with iccFromCube main()
+// ═══════════════════════════════════════════════════════════════════
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // .cube files are text; reject empty or excessively large inputs
   if (size < 10 || size > 2 * 1024 * 1024) return 0;
 
-  // Write fuzzer data to temp file (CubeFile reads from file)
-  // Use FUZZ_TMPDIR env var to redirect temp I/O to ramdisk
+  // Write fuzz data to temp file — CubeFile reads from FILE*
   const char *tmpdir = fuzz_tmpdir();
-  char temp_input[PATH_MAX];
-  if (!fuzz_build_path(temp_input, sizeof(temp_input), tmpdir, "/fuzz_fromcube_XXXXXX")) return 0;
-  int fd = mkstemp(temp_input);
+  TmpFile inFile;
+  if (!fuzz_build_path(inFile.path, sizeof(inFile.path), tmpdir, "/fuzz_fromcube_XXXXXX"))
+    return 0;
+  int fd = mkstemp(inFile.path);
   if (fd == -1) return 0;
+  inFile.valid = true;
 
   ssize_t written = write(fd, data, size);
   close(fd);
+  if (written != static_cast<ssize_t>(size)) return 0;
 
-  if (written != static_cast<ssize_t>(size)) {
-    unlink(temp_input);
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 1: parseHeader() — upstream line 297
+  // ═══════════════════════════════════════════════════════════════
+  CubeFile cube(inFile.path);
+
+  if (!cube.parseHeader())
     return 0;
-  }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // TOOL CODE STARTS HERE — derived from iccFromCube.cpp main()
-  // ═══════════════════════════════════════════════════════════════════
-
-  CubeFile cube(temp_input);
-
-  if (!cube.parseHeader()) {
-    // Parse failure
-    unlink(temp_input);
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 2: sizeLut3D check — upstream line 302
+  // Cap at 64 to prevent OOM (64^3 * 3 * 4 = 3MB, safe)
+  // ═══════════════════════════════════════════════════════════════
+  if (!cube.sizeLut3D() || cube.sizeLut3D() > 64)
     return 0;
-  }
 
-  if (!cube.sizeLut3D() || cube.sizeLut3D() > 64) {
-    // 3D LUT not found
-    // Limit LUT size to prevent excessive memory allocation during fuzzing
-    unlink(temp_input);
-    return 0;
-  }
-
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 3: Profile header init — upstream lines 307-312
+  // ═══════════════════════════════════════════════════════════════
   CIccProfile profile;
-
-  // Initialize profile header
   profile.InitHeader();
   profile.m_Header.version = icVersionNumberV5;
   profile.m_Header.colorSpace = icSigRgbData;
   profile.m_Header.pcs = icSigRgbData;
   profile.m_Header.deviceClass = icSigLinkClass;
 
-  // Create A2B0 Tag with LUT
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 4: Custom input range curves — upstream lines 315-354
+  // Uses float != comparison (matches upstream, NOT memcmp)
+  // ═══════════════════════════════════════════════════════════════
   CIccTagMultiProcessElement* pTag = new (std::nothrow) CIccTagMultiProcessElement(3, 3);
-  if (!pTag) { unlink(temp_input); return 0; }
+  if (!pTag) return 0;
+
   if (cube.isCustomInputRange()) {
-    icFloatNumber minVal[3], maxVal[3];
-    memcpy(minVal, cube.getMinInput(), sizeof(minVal));
-    memcpy(maxVal, cube.getMaxInput(), sizeof(maxVal));
+    icFloatNumber* minVal = cube.getMinInput();
+    icFloatNumber* maxVal = cube.getMaxInput();
+
     CIccMpeCurveSet* pCurves = new (std::nothrow) CIccMpeCurveSet(3);
-    if (!pCurves) { delete pTag; unlink(temp_input); return 0; }
+    if (!pCurves) { delete pTag; return 0; }
 
     CIccSingleSampledCurve* pCurve0 = new (std::nothrow) CIccSingleSampledCurve(minVal[0], maxVal[0]);
-    if (!pCurve0) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+    if (!pCurve0) { delete pCurves; delete pTag; return 0; }
     pCurve0->SetSize(2);
     pCurve0->GetSamples()[0] = 0;
     pCurve0->GetSamples()[1] = 1;
     pCurves->SetCurve(0, pCurve0);
 
+    // Upstream line 336: if (minVal[1] != minVal[0] || maxVal[1] != maxVal[0])
     CIccSingleSampledCurve* pCurve1 = pCurve0;
-    if (memcmp(&minVal[1], &minVal[0], sizeof(icFloatNumber)) != 0 ||
-        memcmp(&maxVal[1], &maxVal[0], sizeof(icFloatNumber)) != 0) {
+    if (minVal[1] != minVal[0] || maxVal[1] != maxVal[0]) {
       pCurve1 = new (std::nothrow) CIccSingleSampledCurve(minVal[1], maxVal[1]);
-      if (!pCurve1) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+      if (!pCurve1) { delete pCurves; delete pTag; return 0; }
       pCurve1->SetSize(2);
       pCurve1->GetSamples()[0] = 0;
       pCurve1->GetSamples()[1] = 1;
     }
     pCurves->SetCurve(1, pCurve1);
 
+    // Upstream line 345: if (minVal[2] != minVal[0] || maxVal[2] != maxVal[0])
     CIccSingleSampledCurve* pCurve2 = pCurve0;
-    if (memcmp(&minVal[2], &minVal[0], sizeof(icFloatNumber)) != 0 ||
-        memcmp(&maxVal[2], &maxVal[0], sizeof(icFloatNumber)) != 0) {
-      if (memcmp(&minVal[2], &minVal[1], sizeof(icFloatNumber)) == 0 &&
-          memcmp(&maxVal[2], &maxVal[1], sizeof(icFloatNumber)) == 0)
+    if (minVal[2] != minVal[0] || maxVal[2] != maxVal[0]) {
+      if (minVal[2] == minVal[1] && maxVal[2] == maxVal[1])
         pCurve2 = pCurve1;
       else {
         pCurve2 = new (std::nothrow) CIccSingleSampledCurve(minVal[2], maxVal[2]);
-        if (!pCurve2) { delete pCurves; delete pTag; unlink(temp_input); return 0; }
+        if (!pCurve2) { delete pCurves; delete pTag; return 0; }
         pCurve2->SetSize(2);
         pCurve2->GetSamples()[0] = 0;
         pCurve2->GetSamples()[1] = 1;
@@ -425,78 +408,85 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     pTag->Attach(pCurves);
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 5: CLUT Init — upstream line 359
+  // ═══════════════════════════════════════════════════════════════
   CIccMpeCLUT* pMpeCLUT = new (std::nothrow) CIccMpeCLUT();
-  if (!pMpeCLUT) { delete pTag; unlink(temp_input); return 0; }
-  CIccCLUT* pCLUT = new (std::nothrow) CIccCLUT(3, 3);
-  if (!pCLUT) { delete pMpeCLUT; delete pTag; unlink(temp_input); return 0; }
-  if (!pCLUT->Init(cube.sizeLut3D())) {
-    delete pMpeCLUT;
-    delete pTag;
-    unlink(temp_input);
-    return 0;
-  }
-  icFloatNumber *lutData = pCLUT->GetData(0);
-  if (!lutData) {
-    delete pMpeCLUT;
-    delete pTag;
-    unlink(temp_input);
-    return 0;
-  }
-  bool bSuccess = cube.parse3DTable(lutData, pCLUT->NumPoints()*3);
+  if (!pMpeCLUT) { delete pTag; return 0; }
 
+  CIccCLUT* pCLUT = new (std::nothrow) CIccCLUT(3, 3);
+  if (!pCLUT) { delete pMpeCLUT; delete pTag; return 0; }
+
+  if (!pCLUT->Init(cube.sizeLut3D())) {
+    delete pCLUT;
+    delete pMpeCLUT;
+    delete pTag;
+    return 0;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 6: parse3DTable — upstream lines 363-367
+  // CRITICAL: check BEFORE attach (matches upstream gate order)
+  // Old fuzzer attached first, then checked — wrong order.
+  // ═══════════════════════════════════════════════════════════════
+  bool bSuccess = cube.parse3DTable(pCLUT->GetData(0), pCLUT->NumPoints() * 3);
+  if (!bSuccess) {
+    delete pCLUT;
+    delete pMpeCLUT;
+    delete pTag;
+    return 0;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 7: SetCLUT + Attach + AttachTag — upstream lines 369-371
+  // After this, profile owns pTag (and transitively pMpeCLUT, pCLUT)
+  // ═══════════════════════════════════════════════════════════════
   pMpeCLUT->SetCLUT(pCLUT);
   pTag->Attach(pMpeCLUT);
-
   profile.AttachTag(icSigAToB0Tag, pTag);
 
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 8: cube.close() — upstream line 373
+  // ═══════════════════════════════════════════════════════════════
   cube.close();
 
-  if (!bSuccess) {
-    // Parse failure
-    unlink(temp_input);
-    return 0;
-  }
-
-  // Add description Tag
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 9: Description tag — upstream lines 376-383
+  // ═══════════════════════════════════════════════════════════════
   CIccTagMultiLocalizedUnicode* pTextTag = new (std::nothrow) CIccTagMultiLocalizedUnicode();
-  if (!pTextTag) { unlink(temp_input); return 0; }
-  std::string desc = cube.getDescription();
-  if (desc.size()) {
-    pTextTag->SetText(desc.c_str());
+  if (pTextTag) {
+    std::string desc = cube.getDescription();
+    if (desc.size())
+      pTextTag->SetText(desc.c_str());
+    else
+      pTextTag->SetText("Device link created from fuzz input");
+    profile.AttachTag(icSigProfileDescriptionTag, pTextTag);
   }
-  else {
-    pTextTag->SetText("Device link created from fuzz input");
-  }
-  profile.AttachTag(icSigProfileDescriptionTag, pTextTag);
 
-  // Add copyright Tag
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 10: Copyright tag — upstream lines 386-390
+  // ═══════════════════════════════════════════════════════════════
   if (cube.getCopyright().size()) {
-    pTextTag = new (std::nothrow) CIccTagMultiLocalizedUnicode();
-    if (!pTextTag) { unlink(temp_input); return 0; }
-    pTextTag->SetText(cube.getCopyright().c_str());
-    profile.AttachTag(icSigCopyrightTag, pTextTag);
+    CIccTagMultiLocalizedUnicode* pCopyTag = new (std::nothrow) CIccTagMultiLocalizedUnicode();
+    if (pCopyTag) {
+      pCopyTag->SetText(cube.getCopyright().c_str());
+      profile.AttachTag(icSigCopyrightTag, pCopyTag);
+    }
   }
 
-  // Write to temp output file (replaces argv[2])
-  char temp_output[PATH_MAX];
-  if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromcube_out_XXXXXX")) {
-    unlink(temp_input);
-    return 0;
-  }
-  int out_fd = mkstemp(temp_output);
-  if (out_fd != -1) {
-    close(out_fd);
-
-    SaveIccProfile(temp_output, &profile);
-    // Profile saved successfully
-
-    unlink(temp_output);
+  // ═══════════════════════════════════════════════════════════════
+  // Gate 11: SaveIccProfile — upstream line 392
+  // Write to temp file then discard (exercises serialization path)
+  // ═══════════════════════════════════════════════════════════════
+  TmpFile outFile;
+  if (fuzz_build_path(outFile.path, sizeof(outFile.path), tmpdir, "/fuzz_fromcube_out_XXXXXX")) {
+    int out_fd = mkstemp(outFile.path);
+    if (out_fd != -1) {
+      close(out_fd);
+      outFile.valid = true;
+      SaveIccProfile(outFile.path, &profile);
+    }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // TOOL CODE ENDS HERE
-  // ═══════════════════════════════════════════════════════════════════
-
-  unlink(temp_input);
   return 0;
 }
