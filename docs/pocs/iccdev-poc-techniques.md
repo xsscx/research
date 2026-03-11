@@ -794,7 +794,7 @@ These issues are covered by iccanalyzer-lite heuristics:
 ## See Also
 
 - [iccdev-issue-reproductions.md](iccdev-issue-reproductions.md) — 63 PoC reproductions
-- [../iccdev-shell-helpers/unix.md](../iccdev-shell-helpers/unix.md) — Build and test commands
-- [../iccdev-shell-helpers/windows.md](../iccdev-shell-helpers/windows.md) — Windows MSVC build
+- [../iccDEV/shell-helpers/unix.md](../iccDEV/shell-helpers/unix.md) — Build and test commands
+- [../iccDEV/shell-helpers/windows.md](../iccDEV/shell-helpers/windows.md) — Windows MSVC build
 - [../../.github/prompts/triage-fuzzer-crash.prompt.md](../../.github/prompts/triage-fuzzer-crash.prompt.md) — Crash triage workflow
 - [../../.github/prompts/cve-enrichment.prompt.md](../../.github/prompts/cve-enrichment.prompt.md) — CVE mapping
