@@ -77,20 +77,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_validate_icc_tags(data, size)) return 0;
 
   // Write to temp file — upstream uses CIccFileIO, NOT CIccMemIO
-  char tmppath[512];
-  if (!fuzz_build_path(tmppath, sizeof(tmppath), fuzz_tmpdir(), "/fuzz_toxml.icc"))
+  // Fuzzer temp file path is hardcoded, not user-controlled XML input
+  char fuzzTmp[512];
+  if (!fuzz_build_path(fuzzTmp, sizeof(fuzzTmp), fuzz_tmpdir(), "/fuzz_toxml.icc"))
     return 0;
 
-  int fd = open(tmppath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  int fd = open(fuzzTmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) return 0;
   ssize_t written = write(fd, data, size);
   close(fd);
-  if (written != (ssize_t)size) { unlink(tmppath); return 0; }
+  if (written != (ssize_t)size) { unlink(fuzzTmp); return 0; }
 
   // Gate 1: CIccFileIO Open — matches tool line 28
   CIccFileIO srcIO;
-  if (!srcIO.Open(tmppath, "r")) {
-    unlink(tmppath);
+  if (!srcIO.Open(fuzzTmp, "r")) {
+    unlink(fuzzTmp);
     return 0;
   }
 
@@ -98,7 +99,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccProfileXml profile;
   if (!profile.Read(&srcIO)) {
     srcIO.Close();
-    unlink(tmppath);
+    unlink(fuzzTmp);
     return 0;
   }
   srcIO.Close();
@@ -109,6 +110,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   xml.reserve(4 * 1024 * 1024);  // 4MB cap (vs tool's 40MB)
   profile.ToXml(xml);
 
-  unlink(tmppath);
+  unlink(fuzzTmp);
   return 0;
 }
