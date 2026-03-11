@@ -23,8 +23,8 @@ case "$TARGET" in
     fromcube)
         UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromCube/iccFromCube"
         UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
-        # $1 = crash file, output to /dev/null
-        run_upstream() { "$UPSTREAM_BIN" "$1" /dev/null; }
+        # iccFromCube <input.cube> <output.icc>
+        UPSTREAM_EXTRA_ARGS="/dev/null"
         ;;
     *)
         echo "ERROR: Unknown target '$TARGET'"
@@ -76,9 +76,9 @@ triage_dir() {
         local fname=$(basename "$f")
         local exit_code=0
 
-        # Run with timeout
+        # Run with timeout against upstream binary directly
         local output
-        output=$(timeout "$timeout_sec" bash -c 'run_upstream "$1" 2>&1' _ "$f" 2>&1) || exit_code=$?
+        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "$f" $UPSTREAM_EXTRA_ARGS 2>&1) || exit_code=$?
 
         if [[ $exit_code -ge 128 ]]; then
             # Signal termination — potential upstream bug
