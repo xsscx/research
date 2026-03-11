@@ -152,3 +152,4 @@ xnuimagefuzzer/
 xnuimagetools/
 cfl/seeds-applyprofiles/
 wasm/
+.copilot/
