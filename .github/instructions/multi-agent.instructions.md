@@ -46,7 +46,7 @@ xcrun simctl list devices 2>/dev/null | head -3 && echo "iOS Simulator available
 # Build iccanalyzer-lite (ASAN+UBSAN+coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies patches, builds 18 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies patches, builds 11 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -514,7 +514,7 @@ stack frames identify the *bug location*. When storing regression baselines, inc
 the stack trace evidence.
 
 ### 13. Declaring patches applied based on dry-run output without ground-truth verification (CJF-16)
-**What happened (session 2026-03-10)**: Agent claimed "61/61 patches apply cleanly"
+**What happened (session 2026-03-10)**: Agent claimed "6/6 patches apply cleanly"
 and "SSD ready for fuzzing" based on `patch --dry-run --forward` output. User began
 fuzzing at 12:10 UTC. At 12:47, user reported the pattern of false claims. Agent
 spent until 13:08 building verification tooling that should have existed from the
@@ -527,7 +527,7 @@ first patch failure (sessions earlier). Total waste: ~58 minutes.
 ```
 WRONG workflow (repeated across sessions):
   1. Run patch --dry-run --forward → "ok"
-  2. Claim "61/61 patches applied"
+  2. Claim "6/6 patches applied"
   3. User discovers patches didn't actually compile in
   4. Agent re-investigates → fixes → claims success again
   5. Repeat steps 3-4
