@@ -106,7 +106,8 @@ if [[ -f "$AFL_DIR/${TARGET}.dict" ]]; then
 fi
 
 # Check for existing session (resume)
-if [[ -d "$AFL_DIR/output/default/queue" ]] && [[ $(ls "$AFL_DIR/output/default/queue/" 2>/dev/null | wc -l) -gt 0 ]]; then
+# Only resume if fuzzer_stats exists — proves a valid prior session (not a stale/corrupt dir)
+if [[ -f "$AFL_DIR/output/default/fuzzer_stats" ]]; then
     echo "[*] Existing session detected — AFL will auto-resume"
     INPUT_FLAG="-i-"
 else
