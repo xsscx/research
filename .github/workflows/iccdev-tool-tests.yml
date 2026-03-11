@@ -43,6 +43,15 @@ on:
       - 'docs/iccDEV/Tools/test-data/**'
       - 'cfl/patches/*.patch'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'iccDEV branch to test'
+        required: false
+        default: 'cfl'
+        type: choice
+        options:
+          - cfl
+          - master
   schedule:
     - cron: '30 6 * * 3'  # Weekly Wednesday 06:30 UTC
 
@@ -55,7 +64,7 @@ jobs:
   # Job 1: Build iccDEV with ASAN+UBSAN + all 14 CLI tools
   #############################################################################
   build-and-test:
-    name: "iccDEV Tools • ASAN+UBSAN • 103 tests"
+    name: "iccDEV Tools (${{ github.event.inputs.ref || 'cfl' }}) • ASAN+UBSAN • 103 tests"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -171,9 +180,9 @@ jobs:
         id: cache-iccdev
         with:
           path: iccDEV
-          key: ${{ runner.os }}-iccdev-tools-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-tools-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-tools-
+            ${{ runner.os }}-iccdev-tools-${{ github.event.inputs.ref || 'cfl' }}-
 
       # -----------------------------------------------------------------------
       # Clone iccDEV if not cached
@@ -189,15 +198,17 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
           if [ ! -d "iccDEV" ]; then
-            git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git
+            git clone --depth 1 --branch "$REF" \
+              https://github.com/InternationalColorConsortium/iccDEV.git
           fi
-          echo "iccDEV commit: $(cd iccDEV && git log --oneline -1)"
+          echo "iccDEV commit ($REF): $(cd iccDEV && git log --oneline -1)"
 
       # -----------------------------------------------------------------------
       # Apply CFL patches (security hardening for tools)
       # -----------------------------------------------------------------------
-      - name: Apply CFL patches
+      - name: Apply CFL patches (master only) and source cleanup
         env:
           BASH_ENV: /dev/null
         run: |
@@ -207,26 +218,31 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "Applying CFL patches to iccDEV..."
-          APPLIED=0
-          SKIPPED=0
-          for p in cfl/patches/*.patch; do
-            [ -f "$p" ] || continue
-            pname="$(basename "$p")"
-            if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
-              patch -p1 -d iccDEV --forward -s < "$p"
-              echo "  [APPLIED] $pname"
-              APPLIED=$((APPLIED + 1))
-            elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
-              echo "  [SKIP]    $pname (already applied)"
-              SKIPPED=$((SKIPPED + 1))
-            else
-              echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
-              SKIPPED=$((SKIPPED + 1))
-            fi
-          done
-          echo ""
-          echo "Patches: $APPLIED applied, $SKIPPED skipped"
+          REF="${{ github.event.inputs.ref || 'cfl' }}"
+          if [ "$REF" = "cfl" ]; then
+            echo "Testing cfl branch — CFL patches already applied upstream, skipping"
+          else
+            echo "Applying CFL patches to iccDEV ($REF)..."
+            APPLIED=0
+            SKIPPED=0
+            for p in cfl/patches/*.patch; do
+              [ -f "$p" ] || continue
+              pname="$(basename "$p")"
+              if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
+                patch -p1 -d iccDEV --forward -s < "$p"
+                echo "  [APPLIED] $pname"
+                APPLIED=$((APPLIED + 1))
+              elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
+                echo "  [SKIP]    $pname (already applied)"
+                SKIPPED=$((SKIPPED + 1))
+              else
+                echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
+                SKIPPED=$((SKIPPED + 1))
+              fi
+            done
+            echo ""
+            echo "Patches: $APPLIED applied, $SKIPPED skipped"
+          fi
 
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
@@ -244,9 +260,9 @@ jobs:
         with:
           path: |
             iccDEV/Build
-          key: ${{ runner.os }}-iccdev-tools-build-asan-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccDEV/.git/HEAD') }}
+          key: ${{ runner.os }}-iccdev-tools-build-asan-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccDEV/.git/HEAD') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-tools-build-asan-
+            ${{ runner.os }}-iccdev-tools-build-asan-${{ github.event.inputs.ref || 'cfl' }}-
 
       # -----------------------------------------------------------------------
       # Build iccDEV with ASAN+UBSAN + all tools enabled
@@ -496,7 +512,7 @@ jobs:
             echo "| Runner | ubuntu-24.04 |"
             echo "| Compiler | $(clang-18 --version 2>/dev/null | head -1 || echo 'N/A') |"
             echo "| CMake | $(cmake --version 2>/dev/null | head -1 || echo 'N/A') |"
-            echo "| iccDEV | $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
+            echo "| iccDEV | ${{ github.event.inputs.ref || 'cfl' }} — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Script | iccdev-tool-coverage-baseline.sh |"
           } >> "$GITHUB_STEP_SUMMARY"
