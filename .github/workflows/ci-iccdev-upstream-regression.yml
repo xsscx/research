@@ -213,7 +213,7 @@ jobs:
           #---------------------------------------------------------
           echo "--- iccFromCube ---"
           FROMCUBE="$TOOLS/IccFromCube/iccFromCube"
-          CUBE_FILE=$(find "$T" -name '*.cube' -type f 2>/dev/null | head -1)
+          CUBE_FILE=$(find "$T" -name '*.cube' -type f 2>/dev/null | sed -n '1p')
           if [ -n "$CUBE_FILE" ]; then
             run_test "cube-01" "FromCube: $(basename "$CUBE_FILE")" "$OUT/cube_test.icc" \
               "$FROMCUBE" "$CUBE_FILE" "$OUT/cube_test.icc"
@@ -343,7 +343,7 @@ jobs:
           #---------------------------------------------------------
           echo "--- iccTiffDump ---"
           TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
-          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | head -1)
+          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | sed -n '1p')
           if [ -n "$TIFF_FILE" ]; then
             run_test "tiffdump-01" "TiffDump: $(basename "$TIFF_FILE")" "-" \
               "$TIFFDUMP" "$TIFF_FILE"

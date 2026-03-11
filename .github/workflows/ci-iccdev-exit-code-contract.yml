@@ -160,7 +160,7 @@ jobs:
           echo ""
 
           # Find a valid ICC profile for testing
-          VALID_ICC=$(find "$T" -name '*.icc' -type f -size +100c 2>/dev/null | head -1)
+          VALID_ICC=$(find "$T" -name '*.icc' -type f -size +100c 2>/dev/null | sed -n '1p')
           VALID_ICC="${VALID_ICC:-$T/sRGB_v4_ICC_preference.icc}"
 
           #---------------------------------------------------------
@@ -221,7 +221,7 @@ jobs:
               "$TOOLS/IccFromXml/iccFromXml" "/tmp/ec-test.xml" "/tmp/ec-test-rt.icc"
           fi
 
-          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | head -1)
+          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | sed -n '1p')
           if [ -n "$TIFF_FILE" ]; then
             check_exit "valid-iccTiffDump" "iccTiffDump valid TIFF" "0" \
               "$TOOLS/IccTiffDump/iccTiffDump" "$TIFF_FILE"
