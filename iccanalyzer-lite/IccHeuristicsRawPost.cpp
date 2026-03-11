@@ -367,10 +367,10 @@ int RunHeuristic_H36_LUTTagPairCompleteness(const char *filename)
             // B2A0-B2A3: 0x42324130 - 0x42324133
             // D2B0-D2B3: 0x44324230 - 0x44324233
             // B2D0-B2D3: 0x42324430 - 0x42324433
-            if (tSig36 >= 0x41324230 && tSig36 <= 0x41324233) hasA2B[tSig36 - 0x41324230] = true;
-            if (tSig36 >= 0x42324130 && tSig36 <= 0x42324133) hasB2A[tSig36 - 0x42324130] = true;
-            if (tSig36 >= 0x44324230 && tSig36 <= 0x44324233) hasD2B[tSig36 - 0x44324230] = true;
-            if (tSig36 >= 0x42324430 && tSig36 <= 0x42324433) hasB2D[tSig36 - 0x42324430] = true;
+            if (tSig36 >= 0x41324230u) { icUInt32Number i = tSig36 - 0x41324230u; if (i < 4) hasA2B[i] = true; }
+            if (tSig36 >= 0x42324130u) { icUInt32Number i = tSig36 - 0x42324130u; if (i < 4) hasB2A[i] = true; }
+            if (tSig36 >= 0x44324230u) { icUInt32Number i = tSig36 - 0x44324230u; if (i < 4) hasD2B[i] = true; }
+            if (tSig36 >= 0x42324430u) { icUInt32Number i = tSig36 - 0x42324430u; if (i < 4) hasB2D[i] = true; }
           }
 
           // Check pairing

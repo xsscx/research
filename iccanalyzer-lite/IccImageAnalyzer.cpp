@@ -609,18 +609,19 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
   // libtiff's TIFFReadDirectory follows the chain but may loop forever
   // on circular references. We read the raw next-IFD pointer from each
   // directory to build a visited set.
-  struct stat st;
-  if (stat(filepath, &st) != 0) {
-    printf("      [SKIP] Cannot stat file\n\n");
-    return 0;
-  }
-  uint64_t fileSize = static_cast<uint64_t>(st.st_size);
-
   FILE *fp = fopen(filepath, "rb");
   if (!fp) {
     printf("      [SKIP] Cannot open file for raw IFD scan\n\n");
     return 0;
   }
+
+  struct stat st;
+  if (fstat(fileno(fp), &st) != 0) {
+    fclose(fp);
+    printf("      [SKIP] Cannot stat file\n\n");
+    return 0;
+  }
+  uint64_t fileSize = static_cast<uint64_t>(st.st_size);
 
   // Read byte order and first IFD offset
   uint8_t header[8];

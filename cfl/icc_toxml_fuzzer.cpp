@@ -54,6 +54,7 @@
 #include <stddef.h>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
 #include <new>
 #include <string>
 #include <unistd.h>
@@ -80,11 +81,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_build_path(tmppath, sizeof(tmppath), fuzz_tmpdir(), "/fuzz_toxml.icc"))
     return 0;
 
-  FILE *fp = fopen(tmppath, "wb");
-  if (!fp) return 0;
-  size_t written = fwrite(data, 1, size, fp);
-  fclose(fp);
-  if (written != size) { unlink(tmppath); return 0; }
+  int fd = open(tmppath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (fd < 0) return 0;
+  ssize_t written = write(fd, data, size);
+  close(fd);
+  if (written != (ssize_t)size) { unlink(tmppath); return 0; }
 
   // Gate 1: CIccFileIO Open — matches tool line 28
   CIccFileIO srcIO;

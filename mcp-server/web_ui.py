@@ -273,7 +273,9 @@ async def api_list_xml(request: Request) -> Response:
             raise ValueError(
                 f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
             )
-        target = _HERE.parent / directory
+        target = (_HERE.parent / directory).resolve()
+        repo_root = _HERE.parent.resolve()
+        target.relative_to(repo_root)  # raises ValueError if traversal
         if not target.is_dir():
             return JSONResponse({"ok": True, "files": [], "directory": directory})
         xml_files = sorted(target.glob("*.xml"))

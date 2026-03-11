@@ -117,7 +117,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     icColorSpaceSignature colorSpace = pProf->m_Header.colorSpace;
-    icColorSpaceSignature pcs = pProf->m_Header.pcs;
+    (void)pProf->m_Header.pcs;  // read but not used — retained for documentation
     icProfileClassSignature deviceClass = pProf->m_Header.deviceClass;
     icRenderingIntent headerIntent =
         (icRenderingIntent)(pProf->m_Header.renderingIntent & 0x3);
@@ -195,7 +195,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Allocate pixel buffers (tool lines 432-433: CIccPixelBuf with +16 headroom)
     icFloatNumber SrcPixel[48] = {};
     icFloatNumber DestPixel[48] = {};
-    char SrcNameBuf[256] = {};
     char DestNameBuf[256] = {};
 
     // Synthesize 1 midrange test pixel (0.5 per channel)

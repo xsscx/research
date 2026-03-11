@@ -177,7 +177,7 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
-                pass
+                pass  # Process already exited or not owned — safe to ignore
         proc.kill()
         await proc.wait()
         return f"[TIMEOUT after {timeout}s]"
@@ -186,7 +186,7 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
-                pass
+                pass  # Process already exited or not owned — safe to ignore
         proc.kill()
         await proc.wait()
         raise
@@ -523,9 +523,9 @@ def _get_upload_dir() -> Path:
                 if f.is_file() and f.stat().st_mtime < cutoff:
                     f.unlink()
             except OSError:
-                pass
+                pass  # File already removed or permission denied — skip
     except OSError:
-        pass
+        pass  # Upload directory not listable — skip cleanup
 
     return _UPLOAD_DIR
 
