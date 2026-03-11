@@ -1530,3 +1530,22 @@ multi_sig="mwpmcl1l"
 
 # --- added by convert-libfuzzer-dict.py ---
 "ibm367"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x04\xe6"
+"\x00\x00\x7f\xde\x8d\xd4\x80$"
+"R\x00\x00\x00\x00\x00\x00\x00"
+"IccProf"
+"IcAoApTa"
+"lunc"
+"\x01\x00\x00\x00\x00\x00\x08&"
+"lmbcs8"
+"ibm964p11019"
+"ibm964vpua"
+"utf16platfor"
+"utf32opposite"
+"pc"
+"macos"
+"utf16version1"
+"\x01\x00\x00\x00\x00\x00\x00,"
+"utf16opposite"
