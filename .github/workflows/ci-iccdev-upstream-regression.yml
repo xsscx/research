@@ -233,14 +233,47 @@ jobs:
           #   planar: 0=contig 1=separate
           #   embed_icc: 0=no 1=yes
           #   interpolation: 0=linear 1=tetrahedral
-          SPECTRAL_TIFF=$(find "$T" -name '*.tif' -o -name '*.tiff' 2>/dev/null | head -1)
-          if [ -n "$SPECTRAL_TIFF" ]; then
-            run_test "apply-01" "ApplyProfiles with TIFF" "$OUT/applied.tiff" \
-              "$APPLY" "$SPECTRAL_TIFF" "$OUT/applied.tiff" \
+          #
+          # Create a minimal 3-channel RGB TIFF for testing.
+          # The Testing/ TIFFs are CMYK+spot (6 SPP) which won't match an RGB profile.
+          python3 -c "
+          import struct, zlib
+          # Minimal 4x4 RGB TIFF (uncompressed, 48 bytes of pixel data)
+          W, H, SPP = 4, 4, 3
+          pixels = bytes([128]*W*H*SPP)
+          ifd_offset = 8 + len(pixels)
+          # TIFF header (little-endian)
+          hdr = struct.pack('<2sHI', b'II', 42, ifd_offset)
+          # IFD entries (12 bytes each): tag, type, count, value
+          entries = [
+              (256, 3, 1, W),           # ImageWidth
+              (257, 3, 1, H),           # ImageLength
+              (258, 3, 3, 0),           # BitsPerSample (offset filled below)
+              (259, 3, 1, 1),           # Compression=None
+              (262, 3, 1, 2),           # PhotometricInterpretation=RGB
+              (273, 3, 1, 8),           # StripOffsets
+              (277, 3, 1, SPP),         # SamplesPerPixel
+              (278, 3, 1, H),           # RowsPerStrip
+              (279, 4, 1, len(pixels)), # StripByteCounts
+          ]
+          n = len(entries)
+          ifd = struct.pack('<H', n)
+          bps_offset = ifd_offset + 2 + n*12 + 4  # after IFD + next-IFD pointer
+          for tag, typ, cnt, val in entries:
+              v = bps_offset if tag == 258 else val
+              ifd += struct.pack('<HHII', tag, typ, cnt, v)
+          ifd += struct.pack('<I', 0)  # next IFD = 0
+          bps_data = struct.pack('<HHH', 8, 8, 8)
+          with open('$OUT/rgb_test.tif', 'wb') as f:
+              f.write(hdr + pixels + ifd + bps_data)
+          " 2>&1
+          if [ -f "$OUT/rgb_test.tif" ]; then
+            run_test "apply-01" "ApplyProfiles sRGB on RGB TIFF" "$OUT/applied.tiff" \
+              "$APPLY" "$OUT/rgb_test.tif" "$OUT/applied.tiff" \
               0 0 0 1 1 \
               "$T/Display/sRGB_D65_MAT.icc" 1
           else
-            echo "  ⏭  No TIFF files found — skipping"
+            echo "  ⏭  Failed to create test TIFF — skipping"
           fi
           echo ""
 
