@@ -1,0 +1,351 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Upstream iccDEV functional regression gate.
+#         Builds master HEAD with ASAN+UBSAN, runs positive
+#         functional tests on all CLI tools. Catches regressions
+#         like PR #657 (copy-paste Begin() error) that pass
+#         negative tests (bug gone) but fail positive tests
+#         (tool broken on valid input).
+#
+# Origin: Post-merge audit of PR #657 / Issue #667.
+#         Review gap: reproducer-only approval without diff read.
+#         This workflow is the mechanical fix — catches functional
+#         regressions independent of review depth.
+#
+# Hardening:
+#   - BASH_ENV=/dev/null to block .bashrc injection
+#   - Pinned action SHAs (no floating tags)
+#   - persist-credentials: false on checkout
+#   - Minimal permissions (contents: read)
+#
+# Reference:
+#   https://github.com/InternationalColorConsortium/iccDEV/pull/657
+#   https://github.com/InternationalColorConsortium/iccDEV/issues/667
+#   ~/code-review-improvements-suggestions.md
+#
+# Last Updated: 2026-03-11
+###############################################################
+
+name: iccDEV Upstream Regression Gate
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'iccDEV ref to test (branch, tag, SHA)'
+        required: false
+        default: 'master'
+  schedule:
+    - cron: '0 5 * * 1,4'  # Monday + Thursday 05:00 UTC
+
+env:
+  CC: clang-18
+  CXX: clang++-18
+  BASH_ENV: /dev/null
+
+jobs:
+  regression-gate:
+    name: "Functional Regression Tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: "Install dependencies"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            clang-18 llvm-18 libclang-rt-18-dev \
+            libxml2-dev libtiff-dev libpng-dev libjpeg-dev \
+            2>&1 | tail -3
+
+      - name: "Checkout iccDEV"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          repository: InternationalColorConsortium/iccDEV
+          ref: ${{ github.event.inputs.ref || 'master' }}
+          path: iccDEV
+
+      - name: "Build iccDEV (Debug + ASAN + UBSAN)"
+        run: |
+          set -euo pipefail
+          cd iccDEV
+          # Disable GUI tool for headless CI
+          sed -i 's/add_subdirectory(Tools\/wxProfileDump)/#add_subdirectory(Tools\/wxProfileDump)/' \
+            Build/Cmake/CMakeLists.txt 2>/dev/null || true
+          mkdir -p Build && cd Build
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3 -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -Wno-dev 2>&1 | tail -3
+          make -j"$(nproc)" 2>&1 | tail -5
+          echo "Build complete"
+
+      - name: "Generate test profiles"
+        env:
+          LD_LIBRARY_PATH: "iccDEV/Build/IccProfLib:iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+          cd iccDEV
+          for d in Build/Tools/*/; do
+            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+          done
+          cd Testing
+          timeout 300 sh CreateAllProfiles.sh 2>&1 | tail -5 || true
+          echo "Generated $(find . -name '*.icc' | wc -l) test profiles"
+
+      - name: "Functional regression tests"
+        env:
+          LD_LIBRARY_PATH: "iccDEV/Build/IccProfLib:iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+
+          TOOLS="iccDEV/Build/Tools"
+          T="iccDEV/Testing"
+          OUT="/tmp/regression-output"
+          mkdir -p "$OUT"
+
+          PASS=0; FAIL=0; TOTAL=0; ASAN_HITS=0
+
+          ###########################################################
+          # Test runner with positive output verification
+          # Checks: exit 0 + output file exists + no ASAN/UBSAN
+          ###########################################################
+          run_test() {
+            local id="$1" desc="$2" expect_output="$3"
+            shift 3
+            local cmd=("$@")
+            TOTAL=$((TOTAL + 1))
+
+            local stderr_file="/tmp/regression-stderr-${id}.txt"
+            set +e
+            "${cmd[@]}" 2>"$stderr_file"
+            local rc=$?
+            set -e
+
+            local asan_hit=0
+            if grep -q 'AddressSanitizer\|runtime error:' "$stderr_file" 2>/dev/null; then
+              asan_hit=1
+              ASAN_HITS=$((ASAN_HITS + 1))
+            fi
+
+            local output_ok=1
+            if [ -n "$expect_output" ] && [ "$expect_output" != "-" ]; then
+              [ -s "$expect_output" ] || output_ok=0
+            fi
+
+            if [ $rc -eq 0 ] && [ $asan_hit -eq 0 ] && [ $output_ok -eq 1 ]; then
+              echo "  ✅ [$id] $desc (exit $rc)"
+              PASS=$((PASS + 1))
+            else
+              local reason=""
+              [ $rc -ne 0 ] && reason="exit=$rc "
+              [ $asan_hit -eq 1 ] && reason="${reason}ASAN "
+              [ $output_ok -eq 0 ] && reason="${reason}no-output "
+              echo "  ❌ [$id] $desc (${reason})"
+              [ $asan_hit -eq 1 ] && head -20 "$stderr_file"
+              FAIL=$((FAIL + 1))
+            fi
+          }
+
+          echo "============================================="
+          echo " iccDEV Upstream Functional Regression Tests"
+          echo " ref: ${{ github.event.inputs.ref || 'master' }}"
+          echo "============================================="
+          echo ""
+
+          #---------------------------------------------------------
+          # 1. iccDumpProfile — basic profile inspection
+          #---------------------------------------------------------
+          echo "--- iccDumpProfile ---"
+          DUMP="$TOOLS/IccDumpProfile/iccDumpProfile"
+          run_test "dump-01" "Dump sRGB v4 preference" "-" \
+            "$DUMP" "$T/sRGB_v4_ICC_preference.icc"
+          run_test "dump-02" "Dump Rec2020 spectral" "-" \
+            "$DUMP" "$T/Display/Rec2020rgbSpectral.icc"
+          run_test "dump-03" "Dump sRGB D65 MAT" "-" \
+            "$DUMP" "$T/Display/sRGB_D65_MAT.icc"
+          echo ""
+
+          #---------------------------------------------------------
+          # 2. iccToXml + iccFromXml — round-trip
+          #---------------------------------------------------------
+          echo "--- iccToXml / iccFromXml ---"
+          TOXML="$TOOLS/IccToXml/iccToXml"
+          FROMXML="$TOOLS/IccFromXml/iccFromXml"
+          run_test "toxml-01" "sRGB to XML" "$OUT/srgb.xml" \
+            "$TOXML" "$T/Display/sRGB_D65_MAT.icc" "$OUT/srgb.xml"
+          run_test "fromxml-01" "XML back to ICC" "$OUT/srgb_rt.icc" \
+            "$FROMXML" "$OUT/srgb.xml" "$OUT/srgb_rt.icc"
+          run_test "toxml-02" "Rec2020 spectral to XML" "$OUT/rec2020.xml" \
+            "$TOXML" "$T/Display/Rec2020rgbSpectral.icc" "$OUT/rec2020.xml"
+          run_test "fromxml-02" "Rec2020 XML back to ICC" "$OUT/rec2020_rt.icc" \
+            "$FROMXML" "$OUT/rec2020.xml" "$OUT/rec2020_rt.icc"
+          echo ""
+
+          #---------------------------------------------------------
+          # 3. iccRoundTrip — color transform validation
+          #---------------------------------------------------------
+          echo "--- iccRoundTrip ---"
+          ROUNDTRIP="$TOOLS/IccRoundTrip/iccRoundTrip"
+          run_test "rt-01" "RoundTrip sRGB D65" "-" \
+            "$ROUNDTRIP" "$T/Display/sRGB_D65_MAT.icc"
+          run_test "rt-02" "RoundTrip sRGB D65 500lx" "-" \
+            "$ROUNDTRIP" "$T/Display/sRGB_D65_MAT-500lx.icc"
+          echo ""
+
+          #---------------------------------------------------------
+          # 4. iccFromCube — LUT file parsing
+          #---------------------------------------------------------
+          echo "--- iccFromCube ---"
+          FROMCUBE="$TOOLS/IccFromCube/iccFromCube"
+          CUBE_FILE=$(find "$T" -name '*.cube' -type f 2>/dev/null | head -1)
+          if [ -n "$CUBE_FILE" ]; then
+            run_test "cube-01" "FromCube: $(basename "$CUBE_FILE")" "$OUT/cube_test.icc" \
+              "$FROMCUBE" "$CUBE_FILE" "$OUT/cube_test.icc"
+          else
+            echo "  ⏭  No .cube files found — skipping"
+          fi
+          echo ""
+
+          #---------------------------------------------------------
+          # 5. iccApplyProfiles — CMM application
+          #---------------------------------------------------------
+          echo "--- iccApplyProfiles ---"
+          APPLY="$TOOLS/IccApplyProfiles/iccApplyProfiles"
+          # ApplyProfiles needs TIFF input — test with available TIFFs
+          SPECTRAL_TIFF=$(find "$T" -name '*.tif' -o -name '*.tiff' 2>/dev/null | head -1)
+          if [ -n "$SPECTRAL_TIFF" ]; then
+            run_test "apply-01" "ApplyProfiles with TIFF" "$OUT/applied.tiff" \
+              "$APPLY" "$SPECTRAL_TIFF" "$OUT/applied.tiff" 0 \
+              "$T/Display/sRGB_D65_MAT.icc" 1
+          else
+            echo "  ⏭  No TIFF files found — skipping"
+          fi
+          echo ""
+
+          #---------------------------------------------------------
+          # 6. iccV5DspObsToV4Dsp — THE PR #657 REGRESSION TARGET
+          #    This is the primary gap this workflow addresses.
+          #    Tests all Display × PCC combinations.
+          #---------------------------------------------------------
+          echo "--- iccV5DspObsToV4Dsp (PR #657 regression target) ---"
+          V5DSP="$TOOLS/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp"
+
+          # Display profiles
+          REC2020="$T/Display/Rec2020rgbSpectral.icc"
+          LCD="$T/Display/LCDDisplay.icc"
+
+          # PCC profiles — these are the exact profiles that expose #657
+          PCC_D65_MAT="$T/PCC/Spec400_10_700-D65_2deg-MAT.icc"
+          PCC_D93_MAT="$T/PCC/Spec400_10_700-D93_2deg-MAT.icc"
+          PCC_D50_10="$T/PCC/Spec400_10_700-D50_10deg-MAT.icc"
+          PCC_ILLUMA="$T/PCC/Spec400_10_700-IllumA_2deg-MAT.icc"
+          PCC_LAB="$T/PCC/Lab_float-D50_2deg.icc"
+          PCC_XYZ="$T/PCC/XYZ_float-D65_2deg-MAT.icc"
+
+          # Rec2020 × 6 PCC combinations
+          run_test "v5dsp-01" "Rec2020 + D65 2deg MAT" "$OUT/v5_rec_d65.icc" \
+            "$V5DSP" "$REC2020" "$PCC_D65_MAT" "$OUT/v5_rec_d65.icc"
+          run_test "v5dsp-02" "Rec2020 + D93 2deg MAT" "$OUT/v5_rec_d93.icc" \
+            "$V5DSP" "$REC2020" "$PCC_D93_MAT" "$OUT/v5_rec_d93.icc"
+          run_test "v5dsp-03" "Rec2020 + D50 10deg MAT" "$OUT/v5_rec_d50.icc" \
+            "$V5DSP" "$REC2020" "$PCC_D50_10" "$OUT/v5_rec_d50.icc"
+          run_test "v5dsp-04" "Rec2020 + IllumA MAT" "$OUT/v5_rec_illumA.icc" \
+            "$V5DSP" "$REC2020" "$PCC_ILLUMA" "$OUT/v5_rec_illumA.icc"
+          run_test "v5dsp-05" "Rec2020 + Lab D50" "$OUT/v5_rec_lab.icc" \
+            "$V5DSP" "$REC2020" "$PCC_LAB" "$OUT/v5_rec_lab.icc"
+          run_test "v5dsp-06" "Rec2020 + XYZ D65" "$OUT/v5_rec_xyz.icc" \
+            "$V5DSP" "$REC2020" "$PCC_XYZ" "$OUT/v5_rec_xyz.icc"
+
+          # LCD × 3 PCC combinations
+          run_test "v5dsp-07" "LCD + D65 2deg MAT" "$OUT/v5_lcd_d65.icc" \
+            "$V5DSP" "$LCD" "$PCC_D65_MAT" "$OUT/v5_lcd_d65.icc"
+          run_test "v5dsp-08" "LCD + D93 2deg MAT" "$OUT/v5_lcd_d93.icc" \
+            "$V5DSP" "$LCD" "$PCC_D93_MAT" "$OUT/v5_lcd_d93.icc"
+          run_test "v5dsp-09" "LCD + IllumA MAT" "$OUT/v5_lcd_illumA.icc" \
+            "$V5DSP" "$LCD" "$PCC_ILLUMA" "$OUT/v5_lcd_illumA.icc"
+          echo ""
+
+          #---------------------------------------------------------
+          # 7. iccApplyToLink — profile linking
+          #---------------------------------------------------------
+          echo "--- iccApplyToLink ---"
+          LINK="$TOOLS/IccApplyToLink/iccApplyToLink"
+          run_test "link-01" "Link sRGB → sRGB 500lx" "$OUT/link_srgb.icc" \
+            "$LINK" "$OUT/link_srgb.icc" 0 0 \
+            "$T/Display/sRGB_D65_MAT.icc" 1 \
+            "$T/Display/sRGB_D65_MAT-500lx.icc" 1
+          echo ""
+
+          #---------------------------------------------------------
+          # 8. iccTiffDump — TIFF metadata inspection
+          #---------------------------------------------------------
+          echo "--- iccTiffDump ---"
+          TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
+          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | head -1)
+          if [ -n "$TIFF_FILE" ]; then
+            run_test "tiffdump-01" "TiffDump: $(basename "$TIFF_FILE")" "-" \
+              "$TIFFDUMP" "$TIFF_FILE"
+          else
+            echo "  ⏭  No TIFF files found — skipping"
+          fi
+          echo ""
+
+          #---------------------------------------------------------
+          # Summary
+          #---------------------------------------------------------
+          echo "============================================="
+          echo " RESULTS: $PASS/$TOTAL pass, $FAIL/$TOTAL fail"
+          [ $ASAN_HITS -gt 0 ] && echo " ASAN/UBSAN findings: $ASAN_HITS"
+          echo "============================================="
+
+          if [ $FAIL -gt 0 ] || [ $ASAN_HITS -gt 0 ]; then
+            echo "::error::Regression detected: $FAIL failures, $ASAN_HITS sanitizer findings"
+            exit 1
+          fi
+
+      - name: "Job summary"
+        if: always()
+        run: |
+          REF="${{ github.event.inputs.ref || 'master' }}"
+          {
+            echo "## iccDEV Upstream Regression Gate"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **Ref** | \`$REF\` |"
+            echo "| **Runner** | \`ubuntu-24.04\` |"
+            echo "| **Sanitizers** | ASAN + UBSAN |"
+            echo "| **Origin** | [PR #657 post-merge audit](https://github.com/InternationalColorConsortium/iccDEV/pull/657#issuecomment-4039395589) |"
+            echo ""
+            echo "### Key Regression Targets"
+            echo ""
+            echo "- **iccV5DspObsToV4Dsp**: 9 tests (Rec2020 × 6 PCC + LCD × 3 PCC)"
+            echo "  - These profiles expose the PR #657 copy-paste \`Begin()\` regression"
+            echo "  - Tests verify exit 0 AND output file created (positive functional test)"
+            echo "- **iccToXml/iccFromXml**: Round-trip serialization"
+            echo "- **iccRoundTrip**: Color transform accuracy"
+            echo "- **iccDumpProfile**: Basic profile inspection"
+            echo ""
+            echo "### Purpose"
+            echo ""
+            echo "This workflow exists because a reproducer-only code review approved"
+            echo "PR #657 without reading the diff. The UBSAN bug was fixed, but a"
+            echo "copy-paste error broke the tool on valid inputs. A positive functional"
+            echo "test (exit 0 + output exists) catches this class of regression"
+            echo "mechanically, independent of review depth."
+          } >> "$GITHUB_STEP_SUMMARY"
