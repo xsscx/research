@@ -1,0 +1,69 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1fb06f6..aba1ea6 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -4092,8 +4092,14 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nO
+ * 
+ * Return: 
+ ******************************************************************************/
+-int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const
++int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, int nDepth) const
+ {
++  // CFL-010: prevent stack overflow from deeply nested if/else/case (CWE-674)
++  if (nDepth > 64) {
++    sReport += "Calculator recursion depth exceeds limit\n";
++    return -1;
++  }
++
+   icUInt32Number i, p;
+   int nIfArgs, nElseArgs, nSelArgs, nCaseArgs;
+ 
+@@ -4141,7 +4147,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+         p = i+2; 
+         if (p > nOps)
+           return -1;
+-        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport);
++        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nDepth + 1);
+         if (nIfArgs<0)
+           return -1;
+         incI =op[i].data.size;
+@@ -4149,7 +4155,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+         p = i+2+op[i].data.size;
+         if (p > nOps)
+           return -1;
+-        nElseArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i+1].data.size), nArgs, bCheckUnderflow, sReport);
++        nElseArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i+1].data.size), nArgs, bCheckUnderflow, sReport, nDepth + 1);
+         if (nElseArgs<0)
+           return -1;
+         incI += op[i+1].data.size;
+@@ -4162,7 +4168,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+         p = i+1; 
+         if (p > nOps)
+           return -1;
+-        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport);
++        nIfArgs = CheckUnderflowOverflow(&op[p], icIntMin(nOps-p, op[i].data.size), nArgs, bCheckUnderflow, sReport, nDepth + 1);
+         if (nIfArgs<0)
+           return -1;
+         nArgs = bCheckUnderflow ? icIntMin(nArgs, nIfArgs) : icIntMax(nArgs, nIfArgs);
+@@ -4198,7 +4204,7 @@ int CIccCalculatorFunc::CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nO
+ 
+         if (pos > nOps)
+           return -1;
+-        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport);
++        nCaseArgs = CheckUnderflowOverflow(&op[pos], icIntMin(nOps-pos, len), nArgs, bCheckUnderflow, sReport, nDepth + 1);
+         if (nCaseArgs<0)
+           return -1;
+ 
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
+index 3d93ac5..c4cc063 100644
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -388,7 +388,7 @@ public:
+   icFuncParseStatus SetFunction(CIccCalcOpList &opList, std::string &sReport);
+ 
+   icUInt32Number GetMaxTemp() const;
+-  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport) const;
++  int CheckUnderflowOverflow(SIccCalcOp *op, icUInt32Number nOps, int nArgs, bool bCheckUnderflow, std::string &sReport, int nDepth = 0) const;  // CFL-010: depth limit
+   icFuncParseStatus DoesStackUnderflowOverflow(std::string &sReport) const;
+   bool HasValidOperations(std::string &sReport) const;
+   bool HasUnsupportedOperations(std::string &sReport, const CIccProfile *pProfile) const;
