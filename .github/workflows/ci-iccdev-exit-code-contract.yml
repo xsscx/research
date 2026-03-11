@@ -35,11 +35,6 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'iccDEV ref to test (branch, tag, SHA)'
-        required: false
-        default: 'master'
   schedule:
     - cron: '0 6 * * 1'  # Monday 06:00 UTC
 
@@ -50,9 +45,13 @@ env:
 
 jobs:
   exit-code-contract:
-    name: "Exit-Code Contract Tests"
+    name: "Exit-Code Contract (${{ matrix.branch }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [master, cfl]
 
     steps:
       - name: "Install dependencies"
@@ -69,7 +68,7 @@ jobs:
         with:
           persist-credentials: false
           repository: InternationalColorConsortium/iccDEV
-          ref: ${{ github.event.inputs.ref || 'master' }}
+          ref: ${{ matrix.branch }}
           path: iccDEV
 
       - name: "Build iccDEV (Debug + ASAN + UBSAN)"
@@ -166,7 +165,7 @@ jobs:
 
           echo "============================================="
           echo " iccDEV Exit-Code Contract Tests"
-          echo " ref: ${{ github.event.inputs.ref || 'master' }}"
+          echo " ref: ${{ matrix.branch }}"
           echo "============================================="
           echo ""
 
@@ -225,7 +224,10 @@ jobs:
           check_exit "valid-iccDumpProfile" "iccDumpProfile valid ICC" "0" \
             "$TOOLS/IccDumpProfile/iccDumpProfile" "$VALID_ICC"
 
-          KNOWN="CFL-003 alloc-dealloc-mismatch (upstream)"
+          # CFL-003 is patched on cfl branch — only mark KNOWN on master
+          if [ "${{ matrix.branch }}" = "master" ]; then
+            KNOWN="CFL-003 alloc-dealloc-mismatch (upstream)"
+          fi
           check_exit "valid-iccRoundTrip" "iccRoundTrip valid ICC" "0" \
             "$TOOLS/IccRoundTrip/iccRoundTrip" "$VALID_ICC"
 
@@ -274,9 +276,9 @@ jobs:
       - name: "Job summary"
         if: always()
         run: |
-          REF="${{ github.event.inputs.ref || 'master' }}"
+          REF="${{ matrix.branch }}"
           {
-            echo "## iccDEV Exit-Code Contract Tests"
+            echo "## iccDEV Exit-Code Contract Tests ($REF)"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"

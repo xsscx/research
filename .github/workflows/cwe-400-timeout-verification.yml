@@ -52,9 +52,13 @@ jobs:
   # Job 1: Build upstream iccDEV tools (unpatched)
   #############################################################################
   build-iccdev-tools:
-    name: "Build iccDEV Tools (Unpatched)"
+    name: "Build iccDEV (${{ matrix.branch }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [master, cfl]
     defaults:
       run:
         shell: bash --noprofile --norc {0}
@@ -112,9 +116,9 @@ jobs:
         id: cache-iccdev-src
         with:
           path: upstream-iccDEV
-          key: ${{ runner.os }}-iccdev-upstream-src-v1
+          key: ${{ runner.os }}-iccdev-${{ matrix.branch }}-src-v2
 
-      - name: Clone upstream iccDEV (unpatched)
+      - name: "Clone iccDEV (${{ matrix.branch }})"
         if: steps.cache-iccdev-src.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
@@ -125,9 +129,10 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "Cloning upstream iccDEV (NO CFL patches applied)..."
-          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
-          echo "iccDEV commit: $(cd upstream-iccDEV && git log --oneline -1)"
+          echo "Cloning iccDEV (branch: ${{ matrix.branch }})..."
+          git clone --depth 1 --branch ${{ matrix.branch }} \
+            https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
+          echo "iccDEV (${{ matrix.branch }}): $(cd upstream-iccDEV && git log --oneline -1)"
 
       - name: Disable wxWidgets requirement
         env:
@@ -188,7 +193,7 @@ jobs:
           done
 
           {
-            echo "### iccDEV Tools Built (Unpatched)"
+            echo "### iccDEV Tools Built (${{ matrix.branch }})"
             echo ""
             echo '```'
             echo "Commit: $(cd .. && git log --oneline -1)"
@@ -233,7 +238,7 @@ jobs:
       - name: Upload tools artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
-          name: iccdev-tools-unpatched
+          name: iccdev-tools-${{ matrix.branch }}
           path: |
             upstream-iccDEV/Build/Tools/
             upstream-iccDEV/Build/IccProfLib/libIccProfLib2*
@@ -246,7 +251,7 @@ jobs:
   #   A timeout confirms CWE-400. Job succeeds when tests run to completion.
   #############################################################################
   verify-roundtrip:
-    name: "IccRoundTrip • CWE-400"
+    name: "IccRoundTrip • ${{ matrix.branch }}"
     needs: build-iccdev-tools
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -257,6 +262,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        branch: [master, cfl]
         poc:
           - file: test-profiles/cwe-400/timeout-3aa7f657d7718e06365181e82b735af7cda4aada
             desc: "CheckUnderflowOverflow exponential recursion"
@@ -292,7 +298,7 @@ jobs:
       - name: Download tools
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
-          name: iccdev-tools-unpatched
+          name: iccdev-tools-${{ matrix.branch }}
           path: tools
 
       - name: Prepare tools
@@ -343,7 +349,8 @@ jobs:
           unset GITHUB_TOKEN || true
 
           echo "╔══════════════════════════════════════════════════════════╗"
-          echo "║  CWE-400 Timeout Verification — IccRoundTrip           ║"
+          echo "║  CWE-400 Timeout Verification — IccRoundTrip            ║"
+          echo "║  Branch: ${{ matrix.branch }}                                        ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
           echo "  PoC:       $POC_FILE"
@@ -401,24 +408,43 @@ jobs:
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          # === Classify result ===
+          # === Classify result (branch-aware) ===
+          BRANCH="${{ matrix.branch }}"
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
-            RESULT="✅ TIMEOUT — CWE-400 confirmed"
-            OUTCOME="pass"
+            if [ "$BRANCH" = "master" ]; then
+              echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
+              RESULT="✅ TIMEOUT — CWE-400 confirmed"
+              OUTCOME="pass"
+            else
+              echo "⚠️  WARN — Fix NOT effective: Tool still hangs on cfl branch"
+              RESULT="⚠️ TIMEOUT — fix not effective"
+              OUTCOME="warn"
+            fi
           elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
-            echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
-            RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
-            OUTCOME="pass"
+            if [ "$BRANCH" = "master" ]; then
+              echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+              RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
+              OUTCOME="pass"
+            else
+              echo "⚠️  WARN — Fix NOT effective: Tool killed on cfl branch"
+              RESULT="⚠️ KILLED (exit $EXIT_CODE) — fix not effective"
+              OUTCOME="warn"
+            fi
           elif [ $ELAPSED_MS -gt 25000 ]; then
             echo "⚠️  WARN — CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms"
             RESULT="⚠️ SLOW (${ELAPSED_MS}ms)"
             OUTCOME="warn"
           else
-            echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
-            echo "         Upstream may have been patched, or environment differs."
-            RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
-            OUTCOME="info"
+            if [ "$BRANCH" = "cfl" ]; then
+              echo "✅ PASS — CWE-400 FIX VERIFIED: Tool completed in ${ELAPSED_MS}ms"
+              RESULT="✅ COMPLETED (${ELAPSED_MS}ms) — fix verified"
+              OUTCOME="pass"
+            else
+              echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
+              echo "         Upstream may have been patched."
+              RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+              OUTCOME="info"
+            fi
           fi
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -432,10 +458,11 @@ jobs:
           # Step summary with reproducer
           {
             echo ""
-            echo "### IccRoundTrip — ${POC_DESC}"
+            echo "### IccRoundTrip (${{ matrix.branch }}) — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
+            echo "| Branch | \`${{ matrix.branch }}\` |"
             echo "| PoC | \`$(basename "$POC_FILE")\` |"
             echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"
@@ -459,7 +486,7 @@ jobs:
   #   A timeout confirms CWE-400. Job succeeds when tests run to completion.
   #############################################################################
   verify-apply:
-    name: "IccApplyProfiles • CWE-400"
+    name: "IccApplyProfiles • ${{ matrix.branch }}"
     needs: build-iccdev-tools
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -470,6 +497,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        branch: [master, cfl]
         poc:
           - file: test-profiles/cwe-400/timeout-1c9189754f442af3c0502a5541b93311c6d65055
             desc: "MPE calculator Apply() — Rec.2100 HLG"
@@ -505,7 +533,7 @@ jobs:
       - name: Download tools
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
         with:
-          name: iccdev-tools-unpatched
+          name: iccdev-tools-${{ matrix.branch }}
           path: tools
 
       - name: Prepare tools
@@ -596,7 +624,8 @@ jobs:
           unset GITHUB_TOKEN || true
 
           echo "╔══════════════════════════════════════════════════════════╗"
-          echo "║  CWE-400 Timeout Verification — IccApplyProfiles       ║"
+          echo "║  CWE-400 Timeout Verification — IccApplyProfiles        ║"
+          echo "║  Branch: ${{ matrix.branch }}                                        ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
           echo "  PoC:       $POC_FILE"
@@ -656,24 +685,43 @@ jobs:
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          # === Classify result ===
+          # === Classify result (branch-aware) ===
+          BRANCH="${{ matrix.branch }}"
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
-            RESULT="✅ TIMEOUT — CWE-400 confirmed"
-            OUTCOME="pass"
+            if [ "$BRANCH" = "master" ]; then
+              echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
+              RESULT="✅ TIMEOUT — CWE-400 confirmed"
+              OUTCOME="pass"
+            else
+              echo "⚠️  WARN — Fix NOT effective: Tool still hangs on cfl branch"
+              RESULT="⚠️ TIMEOUT — fix not effective"
+              OUTCOME="warn"
+            fi
           elif [ $EXIT_CODE -eq 137 ] || [ $EXIT_CODE -eq 143 ]; then
-            echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
-            RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
-            OUTCOME="pass"
+            if [ "$BRANCH" = "master" ]; then
+              echo "✅ PASS — CWE-400 CONFIRMED: Tool killed by signal (exit $EXIT_CODE)"
+              RESULT="✅ KILLED (exit $EXIT_CODE) — CWE-400 confirmed"
+              OUTCOME="pass"
+            else
+              echo "⚠️  WARN — Fix NOT effective: Tool killed on cfl branch"
+              RESULT="⚠️ KILLED (exit $EXIT_CODE) — fix not effective"
+              OUTCOME="warn"
+            fi
           elif [ $ELAPSED_MS -gt 25000 ]; then
             echo "⚠️  WARN — CWE-400 LIKELY: Tool took ${ELAPSED_MS}ms"
             RESULT="⚠️ SLOW (${ELAPSED_MS}ms)"
             OUTCOME="warn"
           else
-            echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
-            echo "         Upstream may have been patched, or environment differs."
-            RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
-            OUTCOME="info"
+            if [ "$BRANCH" = "cfl" ]; then
+              echo "✅ PASS — CWE-400 FIX VERIFIED: Tool completed in ${ELAPSED_MS}ms"
+              RESULT="✅ COMPLETED (${ELAPSED_MS}ms) — fix verified"
+              OUTCOME="pass"
+            else
+              echo "ℹ️  INFO — Tool completed in ${ELAPSED_MS}ms (exit $EXIT_CODE)"
+              echo "         Upstream may have been patched."
+              RESULT="ℹ️ COMPLETED (${ELAPSED_MS}ms, exit $EXIT_CODE)"
+              OUTCOME="info"
+            fi
           fi
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -687,10 +735,11 @@ jobs:
           # Step summary with reproducer
           {
             echo ""
-            echo "### IccApplyProfiles — ${POC_DESC}"
+            echo "### IccApplyProfiles (${{ matrix.branch }}) — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
+            echo "| Branch | \`${{ matrix.branch }}\` |"
             echo "| PoC | \`$(basename "$POC_FILE")\` |"
             echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"
@@ -763,7 +812,11 @@ jobs:
             echo ""
             echo "**Classification:** CWE-400 — Uncontrolled Resource Consumption"
             echo ""
-            echo "**Affected:** iccDEV (IccProfLib) — all versions (upstream unpatched)"
+            echo "**Tested branches:** \`master\` (upstream, unpatched) and \`cfl\` (CFL patches applied)"
+            echo ""
+            echo "**Expected results:**"
+            echo "- **master:** PoCs cause timeouts (CWE-400 confirmed)"
+            echo "- **cfl:** PoCs complete quickly (CWE-400 fix verified)"
             echo ""
             echo "**Impact:** Denial of service via crafted ICC profiles causing >30s hangs"
             echo ""
@@ -787,9 +840,11 @@ jobs:
             echo "| 5 | \`timeout-3f9987d0\` | 1.9KB | IccApplyProfiles | MPE calculator Apply() |"
             echo "| 6 | \`timeout-77e98c61\` | 1.5KB | IccApplyProfiles | MPE calculator Apply() |"
             echo ""
-            echo "> **Interpretation:** A timeout (exit 124) or signal kill (exit 137/143)"
-            echo "> confirms the CWE-400 bug is still present in upstream iccDEV."
-            echo "> If the tool completes quickly, upstream may have patched the issue."
+            echo "> **Interpretation:**"
+            echo "> - **master:** A timeout (exit 124) or signal kill (exit 137/143)"
+            echo ">   confirms the CWE-400 bug is still present in upstream iccDEV."
+            echo "> - **cfl:** Quick completion confirms the CFL patch fixes the issue."
+            echo ">   A timeout on cfl means the fix is not effective."
             echo ""
             echo "### Root Causes"
             echo ""
