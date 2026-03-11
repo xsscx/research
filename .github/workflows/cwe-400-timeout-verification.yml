@@ -214,7 +214,7 @@ jobs:
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
 
-          ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
+          ROUNDTRIP=$(find upstream-iccDEV/Build/Tools -type f \( -name 'iccRoundTrip' -o -name 'IccRoundTrip' \) 2>/dev/null | sed -n '1p')
           if [ -n "$ROUNDTRIP" ]; then
             echo "  ✅ IccRoundTrip:      $ROUNDTRIP"
           else
@@ -223,7 +223,7 @@ jobs:
             exit 1
           fi
 
-          APPLY=$(find upstream-iccDEV/Build/Tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
+          APPLY=$(find upstream-iccDEV/Build/Tools -type f \( -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' \) 2>/dev/null | sed -n '1p')
           if [ -n "$APPLY" ]; then
             echo "  ✅ IccApplyProfiles:  $APPLY"
           else
@@ -310,7 +310,7 @@ jobs:
           echo ""
 
           # Find the tool binary (handle case variants from different upstream versions)
-          ROUNDTRIP=$(find tools -name 'iccRoundTrip' -o -name 'IccRoundTrip' 2>/dev/null | sed -n '1p')
+          ROUNDTRIP=$(find tools -type f \( -name 'iccRoundTrip' -o -name 'IccRoundTrip' \) 2>/dev/null | sed -n '1p')
           if [ -z "$ROUNDTRIP" ]; then
             echo "::error::IccRoundTrip binary not found in artifact"
             find tools -type f
@@ -544,7 +544,7 @@ jobs:
           find tools -type f 2>/dev/null | sed -n '1,30p'
           echo ""
 
-          APPLY=$(find tools -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' 2>/dev/null | sed -n '1p')
+          APPLY=$(find tools -type f \( -name 'iccApplyProfiles' -o -name 'IccApplyProfiles' \) 2>/dev/null | sed -n '1p')
           if [ -z "$APPLY" ]; then
             echo "::error::IccApplyProfiles binary not found in artifact"
             find tools -type f
