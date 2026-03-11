@@ -210,15 +210,48 @@ jobs:
 
           #---------------------------------------------------------
           # 4. iccFromCube — LUT file parsing
+          #   Seeds from CFL corpus: .cube (3D LUT) and .lut (legacy)
           #---------------------------------------------------------
           echo "--- iccFromCube ---"
           FROMCUBE="$TOOLS/IccFromCube/iccFromCube"
-          CUBE_FILE=$(find "$T" -name '*.cube' -type f 2>/dev/null | sed -n '1p')
-          if [ -n "$CUBE_FILE" ]; then
-            run_test "cube-01" "FromCube: $(basename "$CUBE_FILE")" "$OUT/cube_test.icc" \
-              "$FROMCUBE" "$CUBE_FILE" "$OUT/cube_test.icc"
-          else
-            echo "  ⏭  No .cube files found — skipping"
+          CUBE_SEEDS="$T/Fuzzing/seeds/fromcube"
+          CUBE_N=0
+
+          # Test representative .cube files (identity, edge cases, production LUTs)
+          for cube_seed in \
+            identity_2x2x2.cube \
+            warm_film_2x2x2.cube \
+            negative_domain_3x3x3.cube \
+            float_edge_cases_2x2x2.cube \
+            wide_gamut_bt2020_3x3x3.cube \
+            cinema_17x17x17.cube \
+            resolve_1d3d.cube \
+            iridas_1d.cube \
+            iridas_3d.cube; do
+            CUBE_N=$((CUBE_N + 1))
+            cf="$CUBE_SEEDS/$cube_seed"
+            if [ -f "$cf" ]; then
+              run_test "cube-$(printf '%02d' $CUBE_N)" "FromCube: $cube_seed" \
+                "$OUT/cube_${cube_seed%.cube}.icc" \
+                "$FROMCUBE" "$cf" "$OUT/cube_${cube_seed%.cube}.icc"
+            fi
+          done
+
+          # Test .lut files (legacy format)
+          for lut_seed in \
+            houdini.lut \
+            logtolin_8to8.lut; do
+            CUBE_N=$((CUBE_N + 1))
+            lf="$CUBE_SEEDS/$lut_seed"
+            if [ -f "$lf" ]; then
+              run_test "cube-$(printf '%02d' $CUBE_N)" "FromCube: $lut_seed" \
+                "$OUT/lut_${lut_seed%.lut}.icc" \
+                "$FROMCUBE" "$lf" "$OUT/lut_${lut_seed%.lut}.icc"
+            fi
+          done
+
+          if [ "$CUBE_N" -eq 0 ]; then
+            echo "  ⏭  No .cube/.lut files found — skipping"
           fi
           echo ""
 
