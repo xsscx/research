@@ -1,0 +1,261 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Exit-code contract tests for all iccDEV CLI tools.
+#         Verifies behavioral invariants:
+#           1. No-args → exit 0 (usage display, not an error)
+#           2. Bad input → exit nonzero
+#           3. Valid input → exit 0
+#           4. ASAN/UBSAN clean on all paths
+#
+# Origin: Merge defect analysis of 99 iccDEV PRs (2026-03-11).
+#         PR #583 changed 14 tools from return -1 → return 0
+#         for no-args/usage. This was a silent behavioral change
+#         that could break downstream scripts. This workflow
+#         codifies the expected exit-code contract and detects
+#         future behavioral regressions.
+#
+# Hardening:
+#   - BASH_ENV=/dev/null
+#   - Pinned action SHAs
+#   - persist-credentials: false
+#   - Minimal permissions
+#
+# Reference:
+#   ~/code-review-improvements-suggestions.md
+#   PR #583: https://github.com/InternationalColorConsortium/iccDEV/pull/583
+#
+# Last Updated: 2026-03-11
+###############################################################
+
+name: iccDEV Exit-Code Contract
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'iccDEV ref to test (branch, tag, SHA)'
+        required: false
+        default: 'master'
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 06:00 UTC
+
+env:
+  CC: clang-18
+  CXX: clang++-18
+  BASH_ENV: /dev/null
+
+jobs:
+  exit-code-contract:
+    name: "Exit-Code Contract Tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: "Install dependencies"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            clang-18 llvm-18 libclang-rt-18-dev \
+            libxml2-dev libtiff-dev libpng-dev libjpeg-dev \
+            libssl-dev nlohmann-json3-dev libwxgtk3.2-dev \
+            2>&1 | tail -3
+
+      - name: "Checkout iccDEV"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          repository: InternationalColorConsortium/iccDEV
+          ref: ${{ github.event.inputs.ref || 'master' }}
+          path: iccDEV
+
+      - name: "Build iccDEV (Debug + ASAN + UBSAN)"
+        run: |
+          set -euo pipefail
+          cd iccDEV
+          sed -i 's/add_subdirectory(Tools\/wxProfileDump)/#add_subdirectory(Tools\/wxProfileDump)/' \
+            Build/Cmake/CMakeLists.txt 2>/dev/null || true
+          mkdir -p Build && cd Build
+          cmake Cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3 -std=c++17" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -Wno-dev
+          make -j"$(nproc)" 2>&1 | tail -5
+          echo "Build complete"
+
+      - name: "Generate test profiles"
+        env:
+          LD_LIBRARY_PATH: "iccDEV/Build/IccProfLib:iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+          cd iccDEV
+          for d in Build/Tools/*/; do
+            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+          done
+          cd Testing
+          timeout 300 sh CreateAllProfiles.sh 2>&1 | tail -5 || true
+          echo "Generated $(find . -name '*.icc' | wc -l) test profiles"
+
+      - name: "Exit-code contract tests"
+        env:
+          LD_LIBRARY_PATH: "iccDEV/Build/IccProfLib:iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+
+          TOOLS="iccDEV/Build/Tools"
+          T="iccDEV/Testing"
+          PASS=0; FAIL=0; TOTAL=0
+
+          ###########################################################
+          # Test runner for exit code contracts
+          ###########################################################
+          check_exit() {
+            local id="$1" desc="$2" expect_exit="$3"
+            shift 3
+            local cmd=("$@")
+            TOTAL=$((TOTAL + 1))
+
+            set +e
+            "${cmd[@]}" >/dev/null 2>/tmp/ec-stderr-${id}.txt
+            local rc=$?
+            set -e
+
+            # Check ASAN/UBSAN
+            local asan_hit=0
+            if grep -q 'AddressSanitizer\|runtime error:' /tmp/ec-stderr-${id}.txt 2>/dev/null; then
+              asan_hit=1
+            fi
+
+            local ok=1
+            if [ "$expect_exit" = "0" ] && [ $rc -ne 0 ]; then ok=0; fi
+            if [ "$expect_exit" = "nonzero" ] && [ $rc -eq 0 ]; then ok=0; fi
+            if [ $asan_hit -eq 1 ]; then ok=0; fi
+
+            if [ $ok -eq 1 ]; then
+              echo "  ✅ [$id] $desc (exit $rc, expected $expect_exit)"
+              PASS=$((PASS + 1))
+            else
+              echo "  ❌ [$id] $desc (exit $rc, expected $expect_exit${asan_hit:+, ASAN})"
+              [ $asan_hit -eq 1 ] && head -10 /tmp/ec-stderr-${id}.txt
+              FAIL=$((FAIL + 1))
+            fi
+          }
+
+          echo "============================================="
+          echo " iccDEV Exit-Code Contract Tests"
+          echo " ref: ${{ github.event.inputs.ref || 'master' }}"
+          echo "============================================="
+          echo ""
+
+          # Find a valid ICC profile for testing
+          VALID_ICC=$(find "$T" -name '*.icc' -type f -size +100c 2>/dev/null | head -1)
+          VALID_ICC="${VALID_ICC:-$T/sRGB_v4_ICC_preference.icc}"
+
+          #---------------------------------------------------------
+          # Contract 1: No-args → exit 0 (usage display)
+          # After PR #583, all tools should exit 0 on no-args
+          #---------------------------------------------------------
+          echo "--- Contract 1: No-args → exit 0 (usage display) ---"
+          for tool_dir in "$TOOLS"/Icc*/; do
+            tool_name=$(basename "$tool_dir")
+            tool_bin="$tool_dir/$tool_name"
+            [ -x "$tool_bin" ] || continue
+            check_exit "noargs-${tool_name}" "${tool_name} no-args" "0" \
+              "$tool_bin"
+          done
+          # Also check IccXML tools
+          for tool_dir in iccDEV/Build/IccXML/CmdLine/Icc*/; do
+            tool_name=$(basename "$tool_dir")
+            tool_bin="$tool_dir/$tool_name"
+            [ -x "$tool_bin" ] || continue
+            check_exit "noargs-${tool_name}" "${tool_name} no-args" "0" \
+              "$tool_bin"
+          done
+          echo ""
+
+          #---------------------------------------------------------
+          # Contract 2: Nonexistent file → exit nonzero
+          #---------------------------------------------------------
+          echo "--- Contract 2: Bad input → exit nonzero ---"
+          for tool_dir in "$TOOLS"/Icc*/; do
+            tool_name=$(basename "$tool_dir")
+            tool_bin="$tool_dir/$tool_name"
+            [ -x "$tool_bin" ] || continue
+            # Skip tools that need multiple args (would show usage)
+            case "$tool_name" in
+              iccApplyProfiles|iccApplyToLink|iccSpecSepToTiff|iccApplyNamedCmm)
+                continue ;;  # multi-arg tools — tested separately
+            esac
+            check_exit "badinput-${tool_name}" "${tool_name} nonexistent file" "nonzero" \
+              "$tool_bin" "/tmp/definitely-nonexistent-file-31415.icc"
+          done
+          echo ""
+
+          #---------------------------------------------------------
+          # Contract 3: Valid input → exit 0
+          #---------------------------------------------------------
+          echo "--- Contract 3: Valid input → exit 0 ---"
+          check_exit "valid-iccDumpProfile" "iccDumpProfile valid ICC" "0" \
+            "$TOOLS/IccDumpProfile/iccDumpProfile" "$VALID_ICC"
+
+          check_exit "valid-iccRoundTrip" "iccRoundTrip valid ICC" "0" \
+            "$TOOLS/IccRoundTrip/iccRoundTrip" "$VALID_ICC"
+
+          check_exit "valid-iccToXml" "iccToXml valid ICC" "0" \
+            "$TOOLS/IccToXml/iccToXml" "$VALID_ICC" "/tmp/ec-test.xml"
+
+          if [ -f /tmp/ec-test.xml ]; then
+            check_exit "valid-iccFromXml" "iccFromXml valid XML" "0" \
+              "$TOOLS/IccFromXml/iccFromXml" "/tmp/ec-test.xml" "/tmp/ec-test-rt.icc"
+          fi
+
+          TIFF_FILE=$(find "$T" -name '*.tif' -type f 2>/dev/null | head -1)
+          if [ -n "$TIFF_FILE" ]; then
+            check_exit "valid-iccTiffDump" "iccTiffDump valid TIFF" "0" \
+              "$TOOLS/IccTiffDump/iccTiffDump" "$TIFF_FILE"
+          fi
+          echo ""
+
+          #---------------------------------------------------------
+          # Summary
+          #---------------------------------------------------------
+          echo "============================================="
+          echo " RESULTS: $PASS/$TOTAL pass, $FAIL/$TOTAL fail"
+          echo "============================================="
+
+          if [ $FAIL -gt 0 ]; then
+            echo "::error::Exit-code contract violation: $FAIL failures"
+            exit 1
+          fi
+
+      - name: "Job summary"
+        if: always()
+        run: |
+          REF="${{ github.event.inputs.ref || 'master' }}"
+          {
+            echo "## iccDEV Exit-Code Contract Tests"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **Ref** | \`$REF\` |"
+            echo "| **Origin** | [PR #583 merge defect analysis](https://github.com/InternationalColorConsortium/iccDEV/pull/583) |"
+            echo ""
+            echo "### Contracts Tested"
+            echo ""
+            echo "1. **No-args → exit 0** — Tools display usage and exit cleanly"
+            echo "2. **Bad input → exit nonzero** — Tools reject nonexistent files"
+            echo "3. **Valid input → exit 0** — Tools process valid profiles correctly"
+            echo "4. **ASAN/UBSAN clean** — No memory errors on any code path"
+          } >> "$GITHUB_STEP_SUMMARY"
