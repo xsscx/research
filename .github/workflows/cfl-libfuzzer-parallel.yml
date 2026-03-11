@@ -478,6 +478,143 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+  afl-fromcube:
+    name: "AFL++ iccFromCube (${{ github.event.inputs.fuzz_seconds || '600' }}s)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    env:
+      BASH_ENV: /dev/null
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake afl++ \
+            libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
+            nlohmann-json3-dev libssl-dev
+
+      - name: Clone iccDEV
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git afl-iccDEV
+
+      - name: Build iccDEV with AFL++ instrumentation
+        run: |
+          set -euo pipefail
+          cd afl-iccDEV
+
+          # Disable wxWidgets
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+          mkdir -p Build-AFL && cd Build-AFL
+          AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
+          cmake ../Build/Cmake \
+            -DCMAKE_C_COMPILER=afl-clang-fast \
+            -DCMAKE_CXX_COMPILER=afl-clang-fast++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-g -O0" \
+            -DCMAKE_CXX_FLAGS="-g -O0" \
+            -Wno-dev
+
+          AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
+          make -j$(nproc) 2>&1 | tail -5
+
+          echo "Binary:"
+          ls -lh Tools/IccFromCube/iccFromCube
+
+      - name: Run AFL++
+        run: |
+          set -euo pipefail
+          BINARY="$PWD/afl-iccDEV/Build-AFL/Tools/IccFromCube/iccFromCube"
+          LIB_DIR="$PWD/afl-iccDEV/Build-AFL/IccProfLib"
+
+          # Get map size
+          MAP_SIZE=$(AFL_DEBUG=1 LD_LIBRARY_PATH="$LIB_DIR" "$BINARY" \
+            cfl/icc_fromcube_fuzzer_seed_corpus/warm_film_2x2x2.cube /dev/null 2>&1 | \
+            grep -oP '__afl_final_loc = \K[0-9]+' | tail -1 || echo "82679")
+          AFL_MAP_SIZE=131072
+          if [ "$MAP_SIZE" -gt 131072 ] 2>/dev/null; then
+            AFL_MAP_SIZE=262144
+          fi
+
+          mkdir -p afl-input afl-output
+          cp cfl/icc_fromcube_fuzzer_seed_corpus/*.cube afl-input/
+
+          export AFL_MAP_SIZE="$AFL_MAP_SIZE"
+          export AFL_SKIP_CPUFREQ=1
+          export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+          export LD_LIBRARY_PATH="$LIB_DIR"
+          export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0"
+
+          # Use same duration as LibFuzzer jobs
+          DURATION="${FUZZ_SECONDS}"
+
+          set +e
+          timeout --kill-after=10s $((DURATION + 15))s \
+            afl-fuzz \
+              -i afl-input \
+              -o afl-output \
+              -x cfl/icc_fromcube_fuzzer.dict \
+              -m none \
+              -t 5000 \
+              -V "$DURATION" \
+              -- "$BINARY" @@ /dev/null 2>&1 | tail -20
+          AFL_EXIT=$?
+          set -e
+
+          echo ""
+          echo "=== AFL Stats ==="
+          cat afl-output/default/fuzzer_stats 2>/dev/null | \
+            grep -E 'execs_done|execs_per|corpus_count|saved_crashes|saved_hangs|bitmap_cvg|cycles_done|stability' || true
+
+          CRASHES=$(ls afl-output/default/crashes/ 2>/dev/null | grep -v README | wc -l)
+          HANGS=$(ls afl-output/default/hangs/ 2>/dev/null | grep -v README | wc -l)
+          CORPUS=$(ls afl-output/default/queue/ 2>/dev/null | wc -l)
+
+          {
+            echo "### AFL++ iccFromCube"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Duration | ${DURATION}s |"
+            echo "| Corpus | $CORPUS |"
+            echo "| Crashes | $CRASHES |"
+            echo "| Hangs | $HANGS |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRASHES" -gt 0 ]; then
+            echo "::warning::AFL found $CRASHES crash(es) in iccFromCube"
+          fi
+
+      - name: Upload AFL artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: afl-fromcube-${{ github.run_id }}
+          path: |
+            afl-output/default/crashes/
+            afl-output/default/hangs/
+            afl-output/default/fuzzer_stats
+          retention-days: 90
+          if-no-files-found: ignore
+
   report:
     name: "Campaign Report"
     needs: fuzz
