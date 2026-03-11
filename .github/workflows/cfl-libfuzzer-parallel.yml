@@ -603,11 +603,20 @@ jobs:
             exit 1
           fi
 
-      - name: Upload AFL artifacts
+      - name: Upload AFL corpus
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: afl-fromcube-${{ github.run_id }}
+          name: afl-fromcube-corpus-${{ github.run_id }}
+          path: afl-output/default/queue/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload AFL crashes and stats
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: afl-fromcube-crashes-${{ github.run_id }}
           path: |
             afl-output/default/crashes/
             afl-output/default/hangs/
