@@ -24,17 +24,14 @@ packs:
 
 # Path filtering
 paths:
-  - IccProfLib/**
-  - IccXML/**
-  - Tools/**
-  - fuzzers/**
+  - colorbleed_tools/**
 
 paths-ignore:
-  - Testing/**
-  - docs/**
+  - iccDEV/**
+  - upstream-iccDEV/**
+  - cfl/iccDEV/**
   - "**/*.md"
   - "**/CMakeFiles/**"
-  - Build*/**
 
 # Language-specific configuration
 cpp:

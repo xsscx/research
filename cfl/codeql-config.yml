@@ -17,13 +17,12 @@ packs:
   - codeql/cpp-all@latest
 
 paths:
-  - IccProfLib/**
-  - IccXML/**
   - cfl/*.cpp
+  - cfl/*.h
 
 paths-ignore:
-  - Testing/**
-  - docs/**
+  - iccDEV/**
+  - upstream-iccDEV/**
+  - cfl/iccDEV/**
   - "**/*.md"
   - "**/CMakeFiles/**"
-  - Build*/**
