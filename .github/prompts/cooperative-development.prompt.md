@@ -279,6 +279,43 @@ fi
 | +10% | 70% | 69% | 67% | Targeted seeds for 0% modules, new dict entries |
 | +15% | 75% | 74% | 72% | New harness for uncovered tool paths |
 
+## Commit Discipline — Lessons from 50-Commit Analysis (March 2026)
+
+Analysis of 50 consecutive commits showed only 26% was core mission work (CFL patches,
+findings, analyzer improvements). The rest was infrastructure churn: CI fixes (28%),
+housekeeping (20%), documentation (14%), test framework (12%).
+
+### Rules
+
+1. **≥50% of commits MUST be core mission** — CFL patches, crash findings, analyzer
+   heuristics, fuzzer coverage improvements. If a session produces 10 commits, at
+   least 5 must advance security research.
+
+2. **Batch all housekeeping into 1 commit** — Artifact sorting (crash/oom/timeout
+   file moves), gitignore updates, cleanup operations. Use scripts, not manual
+   multi-commit work. Script: sort artifacts → stage → 1 commit.
+
+3. **Batch all CI/workflow fixes into 1 commit** — Validate locally BEFORE pushing:
+   `shellcheck --severity=warning *.sh`, `yamllint *.yml`. The push→fail→fix→push
+   cycle wastes commits. Target: ≤2 CI commits per session.
+
+4. **Bundle docs with code** — Documentation changes (patch tables, README updates,
+   instruction files) go in the same commit as the code they describe. Exception:
+   standalone docs (new prompt files, analysis plans).
+
+5. **Develop/test in ./research first** — Prove changes locally with full test suite,
+   THEN onboard to iccDEV cfl branch. Never commit to iccDEV without local validation.
+
+### Anti-Pattern: Artifact Sorting Sprawl
+
+5 commits (10%) were manual file moves between directories. Fix:
+```bash
+# ONE script, ONE commit
+.github/scripts/sort-artifacts.sh   # crash→fuzz/graphics/icc/
+                                     # timeout/slow-unit→test-profiles/cwe-400/
+                                     # empty/stale→delete
+```
+
 ## Communication Protocol
 
 1. **Before modifying shared files** (instructions, prompts, copilot-instructions.md):
