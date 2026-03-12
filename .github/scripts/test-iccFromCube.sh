@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccFromCube.sh — iccFromCube envelope tests
 # Usage: ./test-iccFromCube.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -63,4 +64,4 @@ if [ "${#BATCH_CUBES[@]}" -gt 0 ]; then
 fi
 
 print_summary "iccFromCube"
-exit $FAIL
+exit "$FAIL"

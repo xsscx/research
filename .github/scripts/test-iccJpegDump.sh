@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccJpegDump.sh — iccJpegDump envelope tests
 # Usage: ./test-iccJpegDump.sh [--asan] [--quick]
 # Note: exit=1 is NORMAL when JPEG has no embedded ICC profile — tool limitation
@@ -44,4 +45,4 @@ if [ -d "$FUZZ_JPG_DIR" ]; then
 fi
 
 print_summary "iccJpegDump"
-exit $FAIL
+exit "$FAIL"

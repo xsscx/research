@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccDumpProfile.sh — iccDumpProfile envelope tests
 # Usage: ./test-iccDumpProfile.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -49,4 +50,4 @@ if [ "${#BATCH_FILES[@]}" -gt 0 ]; then
 fi
 
 print_summary "iccDumpProfile"
-exit $FAIL
+exit "$FAIL"

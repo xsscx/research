@@ -1,0 +1,9 @@
+# .shellcheckrc — project-wide ShellCheck configuration
+# See https://www.shellcheck.net/wiki/
+
+# SC1091: Not following source — files are in separate directories
+disable=SC1091
+
+# SC2034: Variable appears unused — per-tool scripts source common.sh
+# which exports variables consumed by the sourcing script
+disable=SC2034

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccFromXml.sh — iccFromXml envelope tests
 # Usage: ./test-iccFromXml.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -53,7 +54,7 @@ if [ "${#FUZZ_XML_FILES[@]}" -gt 0 ]; then
     logfile="$OUTDIR/${tid}.log"
     (
       ec=0; timeout 60 "$FROMXML" "$xml_file" "$OUTDIR/fuzz_${base}.icc" > "$logfile" 2>&1 || ec=$?
-      _classify_result "$tid" "Fuzz XML: $(basename "$xml_file" | cut -c1-45)" "$ec" "$logfile"
+      _classify_result "$tid" "$(_safe_desc "Fuzz XML: $(basename "$xml_file" | cut -c1-45)")" "$ec" "$logfile"
     ) &
     _pids+=($!); _tids+=("$tid")
     [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
@@ -85,7 +86,7 @@ if [ "${#FUZZ_MIN_FILES[@]}" -gt 0 ]; then
     logfile="$OUTDIR/${tid}.log"
     (
       ec=0; timeout 60 "$FROMXML" "$xml_file" "$OUTDIR/min_${base}.icc" > "$logfile" 2>&1 || ec=$?
-      _classify_result "$tid" "Minimized: $(basename "$xml_file" | cut -c1-45)" "$ec" "$logfile"
+      _classify_result "$tid" "$(_safe_desc "Minimized: $(basename "$xml_file" | cut -c1-45)")" "$ec" "$logfile"
     ) &
     _pids+=($!); _tids+=("$tid")
     [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
@@ -105,4 +106,4 @@ if [ "${#FUZZ_MIN_FILES[@]}" -gt 0 ]; then
 fi
 
 print_summary "iccFromXml"
-exit $FAIL
+exit "$FAIL"

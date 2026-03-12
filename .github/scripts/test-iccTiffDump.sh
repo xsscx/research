@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccTiffDump.sh — iccTiffDump envelope tests
 # Usage: ./test-iccTiffDump.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -48,4 +49,4 @@ if [ -d "$FUZZ_TIFF_DIR" ]; then
 fi
 
 print_summary "iccTiffDump"
-exit $FAIL
+exit "$FAIL"

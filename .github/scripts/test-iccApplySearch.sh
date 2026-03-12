@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccApplySearch.sh — iccApplySearch envelope tests
 # Usage: ./test-iccApplySearch.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -17,4 +18,4 @@ run_test "search-04" "sRGB→sRGB encoding=3 (Float)" \
   "$APPLYSRCH" "$TD/test-data-rgb-float.txt" 3 0 "$SRGB" 1 "$SRGB" 1
 
 print_summary "iccApplySearch"
-exit $FAIL
+exit "$FAIL"

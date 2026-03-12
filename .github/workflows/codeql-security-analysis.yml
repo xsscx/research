@@ -389,6 +389,29 @@ jobs:
           fi
           echo "**Status:** [OK] All scripts pass ShellCheck" >> $GITHUB_STEP_SUMMARY
 
+      - name: ShellCheck test scripts
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          echo "## Test Script Shell Linting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          SCRIPTS=$(find .github/scripts -name 'test-icc*.sh' -o -name 'iccdev-test-common.sh' | sort)
+          FAIL=0
+          for script in $SCRIPTS; do
+            if shellcheck -s bash "$script" 2>&1; then
+              echo "- [OK] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- [FAIL] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
+              FAIL=1
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$FAIL" -ne 0 ]; then
+            echo "**Status:** [FAIL] ShellCheck found issues in test scripts" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "**Status:** [OK] All test scripts pass ShellCheck" >> $GITHUB_STEP_SUMMARY
+
       - name: Validate devcontainer.json files
         run: |
           set -euo pipefail

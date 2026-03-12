@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # variables used by sourcing scripts
 # =============================================================================
 # iccdev-test-common.sh — Shared test framework for per-tool test scripts
 # =============================================================================
@@ -11,13 +12,35 @@
 #   - run_test() — single test (sequential)
 #   - run_batch_parallel() — parallel batch over file list
 #   - Profile path variables, summary printing
+#   - sanitize-sed.sh integration for CI output safety
 # =============================================================================
 
 set -uo pipefail
 # Note: NOT set -e — run_test() handles exit codes internally
 
-# Detect repo root: walk up from script location until we find IccProfLib or .git
+# Source sanitize-sed.sh for safe output handling (CI summaries, filenames)
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=sanitize-sed.sh
+if [ -f "$_SCRIPT_DIR/sanitize-sed.sh" ]; then
+  source "$_SCRIPT_DIR/sanitize-sed.sh"
+  _HAS_SANITIZER=1
+else
+  _HAS_SANITIZER=0
+fi
+
+# _safe_desc — sanitize a filename-derived description for tab-separated result files
+# Strips control chars (tabs, newlines) that would corrupt _classify_result output
+_safe_desc() {
+  local raw="$1"
+  if [ "$_HAS_SANITIZER" -eq 1 ]; then
+    _strip_ctrl_remove_newlines "$raw"
+  else
+    # Minimal fallback: remove tabs and newlines
+    printf '%s' "$raw" | tr -d '\t\n\r'
+  fi
+}
+
+# Detect repo root: walk up from script location until we find IccProfLib or .git
 REPO_ROOT="$_SCRIPT_DIR"
 for _i in 1 2 3 4 5; do
   REPO_ROOT="$(dirname "$REPO_ROOT")"
@@ -63,7 +86,7 @@ else
   TD="$REPO_ROOT/docs/iccDEV/Tools/test-data"
 fi
 
-OUTDIR="${ICCDEV_TEST_OUTDIR:-/tmp/iccdev-tool-output}"
+OUTDIR="${ICCDEV_TEST_OUTDIR:-$(mktemp -d /tmp/iccdev-tool-output.XXXXXX)}"
 
 # Parse common options
 ASAN_MODE=0
@@ -96,6 +119,12 @@ UBSAN_FINDINGS=0
 # Parallel results directory — each job writes a 1-line result file
 _PARALLEL_DIR="$OUTDIR/.parallel-$$"
 mkdir -p "$_PARALLEL_DIR"
+
+# Cleanup trap — remove parallel temp on exit (normal or error)
+_cleanup_parallel() {
+  rm -rf "${_PARALLEL_DIR:-/nonexistent}" 2>/dev/null || true
+}
+trap _cleanup_parallel EXIT
 
 # _classify_result — classify exit code + log, write result file
 # Usage: _classify_result <test_id> <description> <exit_code> <logfile>
@@ -215,7 +244,8 @@ run_batch_parallel() {
     base=$(basename "$f" | sed 's/\.[^.]*$//' | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
     local test_id="${id_prefix}-${base}"
     local logfile="$OUTDIR/${test_id}.log"
-    local desc="${desc_prefix}: $(basename "$f" | cut -c1-50)"
+    local desc
+    desc="$(_safe_desc "${desc_prefix}: $(basename "$f" | cut -c1-50)")"
 
     # Launch in background
     (
@@ -270,7 +300,7 @@ print_summary() {
   if [ "$ASAN_FINDINGS" -gt 0 ]; then
     echo ""
     echo "  ASAN details:"
-    grep -rl "ERROR: AddressSanitizer" "$OUTDIR/"*.log 2>/dev/null | while read f; do
+    grep -rl "ERROR: AddressSanitizer" "$OUTDIR/"*.log 2>/dev/null | while read -r f; do
       local asan_line
       asan_line="$(grep 'ERROR: AddressSanitizer' "$f" | head -1)"
       if echo "$asan_line" | grep -q "alloc-dealloc-mismatch"; then
@@ -284,13 +314,12 @@ print_summary() {
   if [ "$UBSAN_FINDINGS" -gt 0 ]; then
     echo ""
     echo "  UBSAN details:"
-    grep -rl "runtime error:" "$OUTDIR/"*.log 2>/dev/null | while read f; do
+    grep -rl "runtime error:" "$OUTDIR/"*.log 2>/dev/null | while read -r f; do
       echo "    $(basename "$f"): $(grep 'runtime error:' "$f" | head -1)"
     done
   fi
 
-  # Cleanup parallel temp
-  rm -rf "$_PARALLEL_DIR"
+  # _PARALLEL_DIR cleanup handled by EXIT trap
   echo ""
 }
 

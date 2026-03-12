@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccApplyNamedCmm.sh — iccApplyNamedCmm envelope tests
 # Usage: ./test-iccApplyNamedCmm.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -41,4 +42,4 @@ if [ -f "$DISPLAY_P3" ]; then
 fi
 
 print_summary "iccApplyNamedCmm"
-exit $FAIL
+exit "$FAIL"

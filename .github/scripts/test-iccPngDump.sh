@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccPngDump.sh — iccPngDump envelope tests
 # Usage: ./test-iccPngDump.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -43,4 +44,4 @@ if [ -d "$FUZZ_PNG_DIR" ]; then
 fi
 
 print_summary "iccPngDump"
-exit $FAIL
+exit "$FAIL"
