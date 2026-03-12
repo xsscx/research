@@ -1,18 +1,36 @@
+diff --git a/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp b/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
+index 44ddd61..0dedac2 100644
 --- a/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
 +++ b/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
-@@ -200,6 +200,14 @@
+@@ -201,11 +201,20 @@ int main(int argc, char* argv[]) {
      return -1;
    }
  
 +  // CFL-015: Validate BitsPerSample is byte-aligned before integer division.
-+  // Non-byte-aligned BPS (e.g. 14) causes bytesPerSample truncation (14/8=1),
-+  // leading to undersized output buffer while libtiff writes ceil(W*BPS/8) bytes.
-+  // CWE-122: Heap-buffer-overflow in CTiffImg::WriteLine() via TIFFWriteEncodedStrip.
++  // Non-byte-aligned BPS (e.g. 14) truncates (14/8=1), undersizing the output
++  // buffer while libtiff writes ceil(W*BPS/8) bytes → heap-buffer-overflow.
++  // CWE-122 in CTiffImg::WriteLine() via TIFFWriteEncodedStrip.
 +  if (f->GetBitsPerSample() % 8 != 0 || f->GetBitsPerSample() == 0) {
 +    printf("Input BitsPerSample (%d) must be a non-zero multiple of 8\n", f->GetBitsPerSample());
 +    return -1;
 +  }
 +
    long bytesPerSample = f->GetBitsPerSample()/8;
- 
+   
    // use unique_ptr to automatically free the buffers
+-  std::unique_ptr<icUInt8Number> inbufffer( new icUInt8Number[ bytePerLine*nSamples ] );
+-  std::unique_ptr<icUInt8Number> outbuffer( new icUInt8Number[ f->GetWidth() * bytesPerSample * nSamples ] );
++  std::unique_ptr<icUInt8Number[]> inbufffer( new icUInt8Number[ bytePerLine*nSamples ] );
++  std::unique_ptr<icUInt8Number[]> outbuffer( new icUInt8Number[ f->GetWidth() * bytesPerSample * nSamples ] );
+   icUInt8Number *inbuf = inbufffer.get();
+   icUInt8Number *outbuf = outbuffer.get();
+ 
+@@ -225,7 +234,7 @@ int main(int argc, char* argv[]) {
+   }
+ 
+   // profile pointer lifetime needs to last until output file is written!
+-  std::unique_ptr<unsigned char> destProfile;
++  std::unique_ptr<unsigned char[]> destProfile;
+   if (argc>8) {
+     CIccFileIO io;
+     if (io.Open(argv[8], "rb")) {
