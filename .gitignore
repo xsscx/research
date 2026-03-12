@@ -141,6 +141,8 @@ source-of-truth/
 # Fuzz corpus (ephemeral, synced from ramdisk)
 cfl/corpus-*/
 cfl/*_seed_corpus/
+cfl/consolidated-seed/
+cfl/minimized-corpus-*/
 fuzz/
 now/
 
