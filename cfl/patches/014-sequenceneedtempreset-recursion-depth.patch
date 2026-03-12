@@ -1,0 +1,45 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -4000,8 +4000,12 @@
+ * 
+ * Return: 
+ ******************************************************************************/
+-bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp)
++bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, int nDepth)
+ {
++  // CFL-014: prevent stack overflow from deeply nested if/else in temp reset (CWE-674)
++  if (nDepth > 64)
++    return true;
++
+   icUInt32Number i, j;
+ 
+   for (i=0; i<nOps; i++) {
+@@ -4039,7 +4043,7 @@
+         free(ifTemps);
+         return true;
+       }
+-      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp);
++      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp, nDepth + 1);
+ 
+       if (i<nOps && op[i+1].sig==icSigElseOp) {
+         icUInt8Number *elseTemps = (icUInt8Number *)malloc(nMaxTemp);
+@@ -4056,7 +4060,7 @@
+           free(elseTemps);
+           return true;
+         }
+-        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp);
++        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp, nDepth + 1);
+ 
+         if (!rv) {
+           for (j=0; j<nMaxTemp; j++) {
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -402,7 +402,7 @@
+   bool InitSelectOps();
+   bool InitSelectOp(SIccCalcOp *ops, icUInt32Number nOps);
+ 
+-  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp);
++  bool SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number nOps, icUInt8Number *tempUsage, icUInt32Number nMaxTemp, int nDepth = 0);  // CFL-014: depth limit
+ 
+   void InsertBlanks(std::string &sDescription, int nBlanks);
+   void DescribeSequence(std::string &sDescription,
