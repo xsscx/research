@@ -785,8 +785,7 @@ icc_date="\x07\xe8\x00\x01\x00\x01\x00\x00\x00\x00\x00\x00"
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 20: atof() edge cases (parser attack surface)
 # ═══════════════════════════════════════════════════════════════════
-atof_empty=""
-atof_space=" "
+atof_space="\x20"
 atof_tab="\x09"
 atof_hex="0x1p+0"
 atof_hex2="0x1.fp+10"
@@ -835,7 +834,6 @@ err_big="LUT_3D_SIZE 100\x0a"
 # Extreme size
 err_huge="LUT_3D_SIZE 999999999999999\x0a"
 # Empty file
-err_empty=""
 # Only comments
 err_comments="# comment 1\x0a# comment 2\x0a"
 # Only newlines
