@@ -12,6 +12,15 @@ if [ -f "$PNG_CVE" ]; then
   run_test "pd-01" "CVE PNG with ICC" "$PNGDUMP" "$PNG_CVE"
 fi
 
+# Seed images directory PNGs (parallel — works in both research and iccDEV)
+SEED_PNGS=()
+for png_file in "$TP_IMG"/*.png; do
+  [ -f "$png_file" ] && SEED_PNGS+=("$png_file")
+done
+if [ "${#SEED_PNGS[@]}" -gt 0 ]; then
+  run_batch_parallel "pd-seed" "Seed PNG" "$PNGDUMP" -- "${SEED_PNGS[@]}"
+fi
+
 # Named PNGs in fuzz corpus (parallel)
 CVE_PNGS=()
 for png_file in "$REPO_ROOT"/fuzz/graphics/png/CVE-*.png \

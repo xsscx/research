@@ -13,6 +13,15 @@ if [ -f "$JPG_CVE" ]; then
   run_test "jd-01" "CVE JPEG with ICC" "$JPEGDUMP" "$JPG_CVE"
 fi
 
+# Seed images directory JPEGs (parallel — works in both research and iccDEV)
+SEED_JPGS=()
+for jpg_file in "$TP_IMG"/*.jpg "$TP_IMG"/*.jpeg; do
+  [ -f "$jpg_file" ] && SEED_JPGS+=("$jpg_file")
+done
+if [ "${#SEED_JPGS[@]}" -gt 0 ]; then
+  run_batch_parallel "jd-seed" "Seed JPEG" "$JPEGDUMP" -- "${SEED_JPGS[@]}"
+fi
+
 # Named JPEGs in fuzz corpus (parallel)
 CVE_JPGS=()
 for jpg_file in "$REPO_ROOT"/fuzz/graphics/jpg/CVE-*.jpg \

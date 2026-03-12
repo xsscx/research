@@ -7,6 +7,32 @@ source "$(dirname "$0")/iccdev-test-common.sh"
 TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
 echo "=== iccTiffDump ==="
 
+# Seed TIFFs from TP_TIFF and TP_TIFF/general (works in both research and iccDEV)
+SEED_TIFFS=()
+for tiff_img in "$TP_TIFF"/*.tiff "$TP_TIFF"/*.tif "$TP_TIFF"/general/*.tiff "$TP_TIFF"/general/*.tif; do
+  [ -f "$tiff_img" ] && SEED_TIFFS+=("$tiff_img")
+done
+if [ "${#SEED_TIFFS[@]}" -gt 0 ]; then
+  run_batch_parallel "td-seed" "Seed TIFF" "$TIFFDUMP" -- "${SEED_TIFFS[@]}"
+fi
+
+# Seed spectral TIFFs (iccDEV Testing/Fuzzing/seeds/tiff/spectral/)
+if [ -d "$TP_SPECTRAL" ]; then
+  SPEC_TIFFS=()
+  max=20
+  [ "$QUICK_MODE" -eq 1 ] && max=5
+  count=0
+  for tiff_img in "$TP_SPECTRAL"/*.tif; do
+    if [ -f "$tiff_img" ] && [ "$count" -lt "$max" ]; then
+      SPEC_TIFFS+=("$tiff_img")
+      count=$((count + 1))
+    fi
+  done
+  if [ "${#SPEC_TIFFS[@]}" -gt 0 ]; then
+    run_batch_parallel "td-spectral" "Spectral TIFF" "$TIFFDUMP" -- "${SPEC_TIFFS[@]}"
+  fi
+fi
+
 # Catalyst TIFFs (parallel)
 CATALYST_TIFFS=()
 for tiff_img in "$TP_TIFF"/catalyst-*.tiff; do
