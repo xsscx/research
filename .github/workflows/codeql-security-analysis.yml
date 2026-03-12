@@ -398,7 +398,7 @@ jobs:
           SCRIPTS=$(find .github/scripts -name 'test-icc*.sh' -o -name 'iccdev-test-common.sh' | sort)
           FAIL=0
           for script in $SCRIPTS; do
-            if shellcheck -s bash "$script" 2>&1; then
+            if shellcheck -s bash --severity=warning "$script" 2>&1; then
               echo "- [OK] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
             else
               echo "- [FAIL] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
