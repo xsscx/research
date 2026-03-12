@@ -271,6 +271,45 @@ To unbundle crash files from multi-profile fuzzers:
 - Runtime corpus: `$RAMDISK/corpus-<fuzzer_name>/` (in-memory during fuzzing)
 - Merge minimizes runtime corpus back to seed: `ramdisk-merge.sh`
 - Sync copies minimized corpus to disk: `ramdisk-sync-to-disk.sh`
+- Storage: local cfl/ directory + /tmp/fuzz-ramdisk (tmpfs). No external SSD.
+
+### Binary-to-Corpus Mapping
+
+Only 11 corpus dirs have matching binaries for minimization:
+`applynamedcmm`, `applyprofiles`, `dump`, `fromcube`, `fromxml`, `link`,
+`roundtrip`, `specsep`, `tiffdump`, `toxml`, `v5dspobs`
+
+9 orphaned corpus dirs are legacy/staging (no binary):
+`icc_apply`, `icc_calculator`, `icc_deep_dump`, `icc_io`, `icc_multitag`,
+`icc_profile`, `icc_spectral`, `icc_spectral_b`, `corpus-xml`
+
+### Corpus Baseline (March 12 2026, post-minimization)
+
+| Fuzzer | Files | Notes |
+|--------|-------|-------|
+| icc_toxml_fuzzer | 513 | Minimized from 9,104 (95%) |
+| icc_dump_fuzzer | 501 | Minimized from 9,112 (95%) |
+| icc_roundtrip_fuzzer | 481 | Minimized from 9,103 (95%) |
+| icc_fromcube_fuzzer | 160 | Minimized from 278 (43%) |
+| icc_tiffdump_fuzzer | 55 | Minimized from 365 (85%) |
+| icc_fromxml_fuzzer | 53 | Already minimal |
+| icc_specsep_fuzzer | 45 | Minimized from 357 (88%) |
+| icc_applynamedcmm_fuzzer | 17 | Minimized from 46 (64%) |
+| icc_applyprofiles_fuzzer | 14 | Minimized from 16 (13%) |
+| icc_v5dspobs_fuzzer | 11 | Minimized from 15 (27%) |
+| icc_link_fuzzer | 5 | Minimized from 9 (45%) |
+| **Total** | **1,855** | From 27,458 (93% reduction) |
+
+### Tournament Bracket Merge (for large corpora)
+
+LibFuzzer `-merge=1` is single-threaded per process. For corpora >500 files,
+use tournament bracket merge to saturate all 32 cores:
+
+1. Split corpus into 32 chunks (round-robin hard links)
+2. Merge each chunk on its own core (32 parallel `taskset` processes)
+3. Tournament: pair outputs 16→8→4→2→1 (parallel at each level)
+
+Result: 9103→481 files in ~2 min (vs ~30 min single-threaded).
 
 ## Coverage Baseline
 
