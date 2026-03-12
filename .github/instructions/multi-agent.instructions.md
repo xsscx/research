@@ -543,6 +543,35 @@ The script checks source code for patch additions, binary symbols for patched fu
 signatures, and runtime behavior for timeout artifact completion. Build verification
 tooling on the FIRST failure, not after repeated incidents.
 
+### 14. Infrastructure churn drowning out core mission work (CJF-17)
+**What happened (session 2026-03-12)**: Analysis of 50 consecutive commits showed only
+26% was core mission work (CFL patches, findings, analyzer improvements). CI workflow
+fixes consumed 28% (14 commits), artifact sorting consumed 10% (5 commits), documentation
+consumed 14% (7 commits). Many CI commits were fixups for issues that local validation
+would have caught (SIGPIPE, ShellCheck, persist-credentials).
+**The pattern**:
+```
+WRONG:
+  Session produces 10 commits:
+  - 2 CFL patches (core mission)
+  - 4 CI fixes (push→fail→fix→push cycle)
+  - 2 artifact sorting (manual file moves)
+  - 2 doc updates (separate from code they describe)
+
+CORRECT:
+  Session produces 6 commits:
+  - 3 CFL patches with docs bundled (core mission)
+  - 1 CI batch fix (validated locally before push)
+  - 1 housekeeping (scripted artifact sort + cleanup)
+  - 1 test infrastructure improvement
+```
+**Rules**:
+- ≥50% of commits must be core mission (findings, patches, analyzer, coverage)
+- Batch all CI fixes into 1 commit — validate locally with shellcheck + yamllint first
+- Batch all housekeeping into 1 commit — use scripts, not manual multi-commit moves
+- Bundle docs with the code they describe — no separate "update patch table" commits
+- Target: ≤2 CI commits and ≤1 housekeeping commit per session
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:
