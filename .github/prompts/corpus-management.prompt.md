@@ -196,10 +196,12 @@ done; wait
 available CPU cores. See "Parallel Processing" in Lessons Learned below.
 
 **Binary-to-corpus mapping**: Only 11 corpora have matching binaries.
-9 legacy corpus dirs (icc_apply, icc_calculator, icc_deep_dump, icc_io,
-icc_multitag, icc_profile, icc_spectral, icc_spectral_b, xml) are orphaned
-staging areas with no matching fuzzer binary. Consolidate orphans into the
-nearest matching fuzzer corpus before minimization.
+`corpus-xml` is a named XML seed staging area for `icc_fromxml_fuzzer` — it
+contains 48 descriptive-named XML files (CVE PoCs, crash reproductions) that
+are also copied into `corpus-icc_fromxml_fuzzer/`. Keep both directories.
+8 legacy corpus dirs (icc_apply, icc_calculator, icc_deep_dump, icc_io,
+icc_multitag, icc_profile, icc_spectral, icc_spectral_b) were orphaned
+staging areas — now deleted.
 
 ## Corpus Status Check
 ```bash
@@ -226,17 +228,21 @@ echo "Total: $total files"
 | icc_roundtrip_fuzzer | 481 | 9,103 | 95% |
 | icc_fromcube_fuzzer | 160 | 278 | 43% |
 | icc_tiffdump_fuzzer | 55 | 365 | 85% |
-| icc_fromxml_fuzzer | 53 | 53 | 0% |
+| icc_fromxml_fuzzer | 101 | 53 | +48 from corpus-xml |
 | icc_specsep_fuzzer | 45 | 357 | 88% |
 | icc_applynamedcmm_fuzzer | 17 | 46 | 64% |
 | icc_applyprofiles_fuzzer | 14 | 16 | 13% |
 | icc_v5dspobs_fuzzer | 11 | 15 | 27% |
 | icc_link_fuzzer | 5 | 9 | 45% |
-| **Total (active)** | **1,855** | **27,458** | **93%** |
+| **Total (active)** | **1,903** | **27,458** | **93%** |
 
-9 orphaned corpus dirs (no matching binary — legacy/staging):
+8 orphaned corpus dirs (no matching binary — legacy/staging, DELETED):
 icc_apply, icc_calculator, icc_deep_dump, icc_io, icc_multitag,
-icc_profile, icc_spectral, icc_spectral_b, corpus-xml
+icc_profile, icc_spectral, icc_spectral_b
+
+`corpus-xml` (48 files) is a named XML seed staging area for `icc_fromxml_fuzzer`.
+Contains descriptive-named CVE PoCs, crash reproductions, and spec-valid XML profiles.
+Contents are also copied into `corpus-icc_fromxml_fuzzer/`. Keep both directories.
 
 ## Coverage Baseline (March 2026)
 | Metric | Value |
@@ -251,7 +257,7 @@ icc_profile, icc_spectral, icc_spectral_b, corpus-xml
 - **Profraw naming**: Use `${fuzzer_name}_%m_%p.profraw` (not `%m.profraw`). `%m` is a numeric module hash, NOT the binary name.
 - **Parallel processing (MANDATORY)**: ALL batch operations MUST use all available CPU cores (32). NEVER run sequential for-loops for fuzzer/corpus operations. Use `taskset -c N`, background jobs (`&`) + `wait`, or tournament bracket merging. Single-process execution is unacceptable.
 - **Tournament bracket merge**: LibFuzzer `-merge=1` is single-threaded per process. For large corpora: split into N chunks (N=nproc), merge each on its own core, then pair results 16→8→4→2→1. Keeps all cores busy. 9103 files minimized to 481 in ~2 min vs ~30 min single-threaded.
-- **Binary-to-corpus mapping**: Only 11 fuzzers have binaries. 9 corpus dirs are orphaned legacy names. Always verify binary exists before attempting merge.
+- **Binary-to-corpus mapping**: Only 11 fuzzers have binaries. 8 orphaned corpus dirs deleted. `corpus-xml` (48 named XML seeds) kept as staging area for `icc_fromxml_fuzzer`.
 - **Parallel rsync**: 10 concurrent rsyncs handles large file sets fast. Safe with `--ignore-existing`.
 - **Verification**: Always compare per-fuzzer file counts (local >= source) BEFORE cleaning the source storage.
 - **Artifact preservation**: Copy crash/oom/timeout/slow-unit from storage to repo BEFORE cleanup.
