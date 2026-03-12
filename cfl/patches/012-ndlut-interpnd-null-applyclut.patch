@@ -26,7 +26,7 @@ CWE-476 (NULL Pointer Dereference)
 +            m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
 +          } else {
 +            // CFL-012: NULL ApplyCLUT — zero output to prevent use of uninitialized data
-+            memset(destPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
++            memset(DstPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
 +          }
 +          break; 
          }
@@ -42,7 +42,7 @@ CWE-476 (NULL Pointer Dereference)
 +          m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
 +        } else {
 +          // CFL-012: NULL ApplyCLUT — zero output to prevent use of uninitialized data
-+          memset(destPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
++          memset(DstPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
 +        }
 +        break;
        }
