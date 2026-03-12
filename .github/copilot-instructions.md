@@ -908,6 +908,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 - `IccProfile.cpp:3153,3155` — division by zero (m_illuminantXYZ.Y can be 0)
 - `IccTagLut.cpp:5009` — signed integer overflow in LUT matrix validation (int sum += m_XYZMatrix)
 - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange (patch 051 fixes in CFL)
+- `IccMpeBasic.cpp:1821` — NaN→unsigned int in CIccSingleSampledCurve::Apply() (same NaN cast pattern)
 
 **Fixed upstream** (no longer triggered in our pinned iccDEV at `1ffa7a8` / v2.3.1.5):
 - `IccSignatureUtils.h` — uint→char implicit conversion (fixed in PR #648, now uses static_cast)
