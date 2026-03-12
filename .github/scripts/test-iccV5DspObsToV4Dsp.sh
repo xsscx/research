@@ -6,20 +6,23 @@ source "$(dirname "$0")/iccdev-test-common.sh"
 V5DSP="$TOOLS/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp"
 echo "=== iccV5DspObsToV4Dsp ==="
 
-# V5 display profiles
+# V5 display profiles (from iccDEV Testing)
 V5_PROFILES=()
-for icc in "$REPO_ROOT"/test-profiles/*Display*.icc \
-           "$REPO_ROOT"/test-profiles/LCD*.icc \
-           "$REPO_ROOT"/test-profiles/*LCDDisplay*.icc; do
+for icc in "$ICCDEV_TESTING"/Display/LCDDisplay.icc \
+           "$ICCDEV_TESTING"/Fuzzing/seeds/icc/LCDDisplayCat8Obs.icc \
+           "$V5_DISPLAY"; do
   [ -f "$icc" ] && V5_PROFILES+=("$icc")
 done
+# Deduplicate
+V5_PROFILES=($(printf '%s\n' "${V5_PROFILES[@]}" | sort -u))
 
-# Observer profiles (from extended test profiles or test-profiles)
+# Observer profiles (from iccDEV Testing — must be actual v5 observer ICC, NOT crash PoCs)
 OBS_PROFILES=()
-for obs in "$REPO_ROOT"/test-profiles/*observer*.icc \
-           "$REPO_ROOT"/extended-test-profiles/*observer*.icc \
-           "$REPO_ROOT"/test-profiles/*Observer*.icc \
-           "$REPO_ROOT"/extended-test-profiles/*Observer*.icc; do
+for obs in "$ICCDEV_TESTING"/Fuzzing/seeds/icc/XYZ_int-D65_2deg-MAT.icc \
+           "$ICCDEV_TESTING"/Fuzzing/seeds/icc/Lab_float-D50_2deg.icc \
+           "$ICCDEV_TESTING"/Fuzzing/seeds/icc/Spec400_10_700-G_2deg-CAT02.icc \
+           "$ICCDEV_TESTING"/Fuzzing/seeds/icc/Spec400_10_700-G_2deg-Abs.icc \
+           "$ICCDEV_TESTING"/Fuzzing/seeds/icc/XYZ_int-D50_2deg.icc; do
   [ -f "$obs" ] && OBS_PROFILES+=("$obs")
 done
 
