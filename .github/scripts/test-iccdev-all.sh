@@ -90,6 +90,7 @@ done
 TOTAL_TOOLS=0
 TOTAL_PASS=0
 TOTAL_FAIL=0
+TOTAL_CRASH=0
 TOTAL_ASAN=0
 TOTAL_UBSAN=0
 HAS_FAILURE=0
@@ -107,30 +108,33 @@ for i in "${!NAMES[@]}"; do
   # Parse summary from log (look for SUMMARY line)
   pass=$(grep -oP 'PASS=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
   fail=$(grep -oP 'FAIL=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
+  crash=$(grep -oP 'CRASH=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
   asan=$(grep -oP 'ASAN=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
   ubsan=$(grep -oP 'UBSAN=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
   total=$(grep -oP 'TOTAL=\K[0-9]+' "$logfile" 2>/dev/null | tail -1)
-  pass=${pass:-0}; fail=${fail:-0}; asan=${asan:-0}; ubsan=${ubsan:-0}; total=${total:-0}
+  pass=${pass:-0}; fail=${fail:-0}; crash=${crash:-0}; asan=${asan:-0}; ubsan=${ubsan:-0}; total=${total:-0}
 
   TOTAL_PASS=$((TOTAL_PASS + pass))
   TOTAL_FAIL=$((TOTAL_FAIL + fail))
+  TOTAL_CRASH=$((TOTAL_CRASH + crash))
   TOTAL_ASAN=$((TOTAL_ASAN + asan))
   TOTAL_UBSAN=$((TOTAL_UBSAN + ubsan))
   TOTAL_TOOLS=$((TOTAL_TOOLS + 1))
 
   status="OK"
+  [ "$crash" -gt 0 ] && status="CRASH!"
   [ "$asan" -gt 0 ] && status="ASAN!"
   [ "$ubsan" -gt 0 ] && status="UBSAN!"
   [ "$ec" -gt 0 ] && HAS_FAILURE=1
 
-  printf "  %-25s %3d PASS / %3d FAIL / %3d TOTAL  ASAN=%d UBSAN=%d  [%s]\n" \
-    "$name" "$pass" "$fail" "$total" "$asan" "$ubsan" "$status"
+  printf "  %-25s %3d PASS / %3d FAIL / %3d CRASH / %3d TOTAL  ASAN=%d UBSAN=%d  [%s]\n" \
+    "$name" "$pass" "$fail" "$crash" "$total" "$asan" "$ubsan" "$status"
 done
 
 echo ""
 echo "────────────────────────────────────────────────────────────────"
-printf "  %-25s %3d PASS / %3d FAIL / %3d TOTAL  ASAN=%d UBSAN=%d\n" \
-  "GRAND TOTAL" "$TOTAL_PASS" "$TOTAL_FAIL" "$((TOTAL_PASS + TOTAL_FAIL))" "$TOTAL_ASAN" "$TOTAL_UBSAN"
+printf "  %-25s %3d PASS / %3d FAIL / %3d CRASH / %3d TOTAL  ASAN=%d UBSAN=%d\n" \
+  "GRAND TOTAL" "$TOTAL_PASS" "$TOTAL_FAIL" "$TOTAL_CRASH" "$((TOTAL_PASS + TOTAL_FAIL + TOTAL_CRASH))" "$TOTAL_ASAN" "$TOTAL_UBSAN"
 echo "────────────────────────────────────────────────────────────────"
 echo "  Tools: $TOTAL_TOOLS  Logs: $LOGDIR/"
 echo ""

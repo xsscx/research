@@ -58,6 +58,8 @@ if [ -d "$REPO_ROOT/IccProfLib" ]; then
   TP="$ICCDEV_TESTING/Fuzzing/seeds/icc"
   TP_TIFF="$ICCDEV_TESTING/Fuzzing/seeds/tiff"
   TP_IMG="$ICCDEV_TESTING/Fuzzing/seeds/images"
+  TP_XML="$ICCDEV_TESTING/Fuzzing/seeds/xml"
+  TP_CUBE="$ICCDEV_TESTING/Fuzzing/seeds/fromcube"
   TP_SPECTRAL="$ICCDEV_TESTING/Fuzzing/seeds/tiff/spectral"
   for gendir in Named Display; do
     if [ -d "$ICCDEV_TESTING/$gendir" ]; then
@@ -74,6 +76,8 @@ else
   TP="$REPO_ROOT/test-profiles"
   TP_TIFF="$REPO_ROOT/test-profiles"
   TP_IMG="$REPO_ROOT/test-profiles"
+  TP_XML="$REPO_ROOT/fuzz/xml/icc"
+  TP_CUBE="$REPO_ROOT/cfl/corpus-icc_fromcube_fuzzer"
   TP_SPECTRAL="$REPO_ROOT/test-profiles/spectral"
 fi
 
@@ -112,6 +116,7 @@ mkdir -p "$OUTDIR"
 # Counters
 PASS=0
 FAIL=0
+CRASH=0
 TOTAL=0
 ASAN_FINDINGS=0
 UBSAN_FINDINGS=0
@@ -135,11 +140,21 @@ _classify_result() {
   if grep -q "ERROR: AddressSanitizer" "$logfile" 2>/dev/null; then has_asan=1; fi
   if grep -q "runtime error:" "$logfile" 2>/dev/null; then has_ubsan=1; fi
 
-  if [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
-     [ "$exit_code" -eq 137 ] || [ "$exit_code" -eq 139 ]; then
+  # Classification priority:
+  # 1. ASAN/UBSAN findings → always CRASH regardless of exit code
+  # 2. Known crash signals (SIGABRT=134, SIGFPE=136, SIGKILL=137, SIGSEGV=139) → CRASH
+  # 3. Timeout (exit=124 from timeout(1)) → TIMEOUT
+  # 4. Any non-zero exit (including 252-255 tool error codes) → FAIL (graceful rejection)
+  # 5. Exit 0 → PASS
+  #
+  # Note: iccDEV tools use high exit codes for application errors:
+  #   255 = validation errors found, 254 = unsupported operation, 252 = parse error
+  #   These are NOT signal deaths — they are graceful rejections.
+  if [ "$has_asan" -eq 1 ] || [ "$has_ubsan" -eq 1 ]; then
+    status="CRASH"; note=" [SANITIZER exit=$exit_code]"
+  elif [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
+       [ "$exit_code" -eq 137 ] || [ "$exit_code" -eq 139 ]; then
     status="CRASH"; note=" [signal $((exit_code - 128))]"
-  elif [ "$exit_code" -ge 128 ]; then
-    status="ERROR"; note=" [exit=$exit_code]"
   elif [ "$exit_code" -eq 124 ]; then
     status="TIMEOUT"; note=" [>60s]"
   elif [ "$exit_code" -ne 0 ]; then
@@ -181,15 +196,17 @@ run_test() {
 
   local status="PASS"
   local note=""
-  if [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
+  # Classification: ASAN/UBSAN → CRASH, known signals → CRASH, timeout → TIMEOUT,
+  # any non-zero (including tool error codes 252-255) → FAIL (graceful rejection)
+  if [ "$has_asan" -eq 1 ] || [ "$has_ubsan" -eq 1 ]; then
+    status="CRASH"
+    CRASH=$((CRASH + 1))
+    note=" [SANITIZER exit=$exit_code]"
+  elif [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
      [ "$exit_code" -eq 137 ] || [ "$exit_code" -eq 139 ]; then
     status="CRASH"
-    FAIL=$((FAIL + 1))
+    CRASH=$((CRASH + 1))
     note=" [signal $((exit_code - 128))]"
-  elif [ "$exit_code" -ge 128 ]; then
-    status="ERROR"
-    FAIL=$((FAIL + 1))
-    note=" [exit=$exit_code]"
   elif [ "$exit_code" -eq 124 ]; then
     status="TIMEOUT"
     FAIL=$((FAIL + 1))
@@ -277,6 +294,8 @@ run_batch_parallel() {
       TOTAL=$((TOTAL + 1))
       if [ "$status" = "PASS" ]; then
         PASS=$((PASS + 1))
+      elif [ "$status" = "CRASH" ]; then
+        CRASH=$((CRASH + 1))
       else
         FAIL=$((FAIL + 1))
       fi
@@ -291,7 +310,7 @@ print_summary() {
   local tool_name="${1:-Tool}"
   echo ""
   echo "--- $tool_name Summary ---"
-  echo "  PASS=$PASS  FAIL=$FAIL  TOTAL=$TOTAL"
+  echo "  PASS=$PASS  FAIL=$FAIL  CRASH=$CRASH  TOTAL=$TOTAL"
   echo "  ASAN=$ASAN_FINDINGS  UBSAN=$UBSAN_FINDINGS"
   if [ "$TOTAL" -gt 0 ]; then
     echo "  Pass rate: $(( PASS * 100 / TOTAL ))%"
@@ -352,7 +371,15 @@ SRGB_CALC_DATA="$ICCDEV_TESTING/Calc/srgbCalcTest.txt"
 SIXCHAN_DATA="$ICCDEV_TESTING/SpecRef/sixChanTest.txt"
 CMYK_DATA="$ICCDEV_TESTING/hybrid/Data/cmykGrays.txt"
 HYBRID_XML="$ICCDEV_TESTING/hybrid/LCDDisplay.xml"
-MACOS_SPECTRAL="$REPO_ROOT/fuzz/xnuimagegenerator/tiff/spectral"
-FUZZ_TIF_DIR="$REPO_ROOT/fuzz/graphics/tif"
-FUZZ_JPG_DIR="$REPO_ROOT/fuzz/graphics/jpg"
-FUZZ_PNG_DIR="$REPO_ROOT/fuzz/graphics/png"
+# Fuzz corpus directories — research repo or iccDEV seeds fallback
+if [ -d "$REPO_ROOT/fuzz/graphics" ]; then
+  FUZZ_TIF_DIR="$REPO_ROOT/fuzz/graphics/tif"
+  FUZZ_JPG_DIR="$REPO_ROOT/fuzz/graphics/jpg"
+  FUZZ_PNG_DIR="$REPO_ROOT/fuzz/graphics/png"
+  MACOS_SPECTRAL="$REPO_ROOT/fuzz/xnuimagegenerator/tiff/spectral"
+else
+  FUZZ_TIF_DIR="$TP_TIFF"
+  FUZZ_JPG_DIR="$TP_IMG"
+  FUZZ_PNG_DIR="$TP_IMG"
+  MACOS_SPECTRAL="$TP_SPECTRAL"
+fi
