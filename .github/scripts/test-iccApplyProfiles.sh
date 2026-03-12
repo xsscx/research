@@ -69,18 +69,43 @@ if [ -f "$TIFF_MUTATED" ]; then
     "$APPLYPROF" "$TIFF_MUTATED" "$OUTDIR/applied_mutated.tiff" 0 0 0 0 0 "$SRGB" 1
 fi
 
-# Batch macOS catalyst TIFFs
+# Batch macOS catalyst TIFFs (parallel)
+CATALYST_APPLY=()
 for tiff_img in "$TP_TIFF"/catalyst-*.tiff; do
   if [ -f "$tiff_img" ]; then
     base=$(basename "$tiff_img" .tiff | sed 's/catalyst-//' | cut -c1-30)
-    # Skip already tested
     case "$base" in
       8bit-ACESCG|16bit-ITU2020|32bit-ITU709|16bit-mismatch|16bit-mutated) continue ;;
     esac
-    run_test "apply-cat-$base" "Catalyst TIFF: $base" \
-      "$APPLYPROF" "$tiff_img" "$OUTDIR/applied_${base}.tiff" 0 0 0 0 0 "$SRGB" 1
+    CATALYST_APPLY+=("$tiff_img")
   fi
 done
+if [ "${#CATALYST_APPLY[@]}" -gt 0 ]; then
+  _pids=() _tids=()
+  for tiff_img in "${CATALYST_APPLY[@]}"; do
+    base=$(basename "$tiff_img" .tiff | sed 's/catalyst-//' | cut -c1-30)
+    tid="apply-cat-$base"
+    logfile="$OUTDIR/${tid}.log"
+    (
+      ec=0; timeout 60 "$APPLYPROF" "$tiff_img" "$OUTDIR/applied_${base}.tiff" 0 0 0 0 0 "$SRGB" 1 > "$logfile" 2>&1 || ec=$?
+      _classify_result "$tid" "Catalyst TIFF: $base" "$ec" "$logfile"
+    ) &
+    _pids+=($!); _tids+=("$tid")
+    [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
+  done
+  for p in "${_pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  for tid in "${_tids[@]}"; do
+    rf="$_PARALLEL_DIR/$tid.result"
+    if [ -f "$rf" ]; then
+      IFS=$'\t' read -r status exit_code has_asan has_ubsan description note sanitizer_note < "$rf"
+      TOTAL=$((TOTAL + 1))
+      [ "$status" = "PASS" ] && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
+      [ "$has_asan" -eq 1 ] && ASAN_FINDINGS=$((ASAN_FINDINGS + 1))
+      [ "$has_ubsan" -eq 1 ] && UBSAN_FINDINGS=$((UBSAN_FINDINGS + 1))
+      printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
+    fi
+  done
+fi
 
 print_summary "iccApplyProfiles"
 exit $FAIL
