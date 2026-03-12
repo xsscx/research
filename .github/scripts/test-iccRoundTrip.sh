@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccRoundTrip.sh — iccRoundTrip envelope tests
 # Usage: ./test-iccRoundTrip.sh [--asan] [--quick]
 # Note: CMYK round-trip can take >30s (CWE-400 EvaluateProfile grid iteration)
@@ -35,4 +36,4 @@ if [ "$QUICK_MODE" -eq 0 ]; then
 fi
 
 print_summary "iccRoundTrip"
-exit $FAIL
+exit "$FAIL"

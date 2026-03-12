@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccV5DspObsToV4Dsp.sh — iccV5DspObsToV4Dsp envelope tests
 # Usage: ./test-iccV5DspObsToV4Dsp.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -14,7 +15,7 @@ for icc in "$ICCDEV_TESTING"/Display/LCDDisplay.icc \
   [ -f "$icc" ] && V5_PROFILES+=("$icc")
 done
 # Deduplicate
-V5_PROFILES=($(printf '%s\n' "${V5_PROFILES[@]}" | sort -u))
+mapfile -t V5_PROFILES < <(printf '%s\n' "${V5_PROFILES[@]}" | sort -u)
 
 # Observer profiles (from iccDEV Testing — must be actual v5 observer ICC, NOT crash PoCs)
 OBS_PROFILES=()
@@ -57,4 +58,4 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 
 print_summary "iccV5DspObsToV4Dsp"
-exit $FAIL
+exit "$FAIL"
