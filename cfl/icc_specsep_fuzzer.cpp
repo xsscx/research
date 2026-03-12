@@ -62,9 +62,10 @@
  *
  * Input format:
  *   [0]:     nFiles control (mod 8 + 1 → 1-8 spectral channels)
- *   [1]:     flags: bit 0 = compress, bit 1 = sep
+ *   [1]:     flags: bit 0 = compress, bit 1 = sep, bit 2 = has ICC profile
  *   [2..]:   divided into nFiles equal chunks — each is raw TIFF bytes
  *            written to a temp file then opened with CTiffImg::Open()
+ *            If bit 2 set: last 1/4 of payload is ICC profile data
  *
  * Gate sequence (matches tool main() lines 119-271):
  *   Gate 0:  Input size bounds + parse control
@@ -142,11 +143,32 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     uint8_t nFiles = (data[0] % 8) + 1;       // 1-8 spectral channels
     bool bCompress = (data[1] >> 0) & 1;       // tool argv[2]
     bool bSep      = (data[1] >> 1) & 1;       // tool argv[3]
+    bool hasICC    = (data[1] >> 2) & 1;        // tool argv[8] present
 
     const uint8_t *payload = data + 2;
     size_t payloadSize = size - 2;
 
-    // Each file gets an equal share of the payload
+    // If hasICC, reserve the tail of the payload for ICC profile data.
+    // Tool lines 229-238: CIccFileIO opens profile, reads length, Read8.
+    const uint8_t *iccData = nullptr;
+    size_t iccSize = 0;
+    if (hasICC && payloadSize > 4) {
+        // ICC profile declares its own size at bytes 0-3 (big-endian).
+        // Use the last portion of the payload as ICC data.
+        // Minimum ICC: 128-byte header + 4-byte tag count = 132 bytes.
+        // Split: last 1/4 of payload for ICC, rest for TIFF chunks.
+        iccSize = payloadSize / 4;
+        if (iccSize < 16) iccSize = 16;
+        if (iccSize > 256 * 1024) iccSize = 256 * 1024; // 256K cap
+        if (iccSize >= payloadSize - 8) {
+            hasICC = false;  // not enough room for TIFF data
+        } else {
+            iccData = payload + (payloadSize - iccSize);
+            payloadSize -= iccSize;
+        }
+    }
+
+    // Each file gets an equal share of the TIFF payload
     size_t chunkSize = payloadSize / nFiles;
     if (chunkSize < 8) return 0;  // need TIFF magic at minimum
 
@@ -249,11 +271,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         return 0;
 
     // --- Gate 9: Optional ICC profile embedding (tool lines 229-238) ---
-    // Tool reads raw ICC bytes via CIccFileIO.Open() + Read8().
-    // The last file's trailing bytes past valid TIFF serve as ICC data,
-    // or if only 1 file, skip (no separate ICC source in the input).
-    // For seed simplicity, skip ICC embedding — the raw bytes in the TIFF
-    // chunks are where LibFuzzer's value lies.
+    // Tool reads raw ICC bytes via CIccFileIO.Open() + Read8(), then
+    // calls outfile.SetIccProfile(). This exercises IccIO.cpp paths.
+    std::unique_ptr<unsigned char[]> destProfile;
+    if (hasICC && iccData && iccSize > 0) {
+        // Write ICC data to a temp file, then read via CIccFileIO
+        // (matches tool lines 229-237 exactly)
+        if (tmp.add(tmpdir, "/fuzz_icc_XXXXXX") && tmp.writeLast(iccData, iccSize)) {
+            CIccFileIO io;
+            if (io.Open(tmp.paths[tmp.count - 1], "rb")) {
+                size_t length = io.GetLength();
+                if (length > 0 && length <= 256 * 1024) {
+                    destProfile.reset(new (std::nothrow) unsigned char[length]);
+                    if (destProfile) {
+                        io.Read8(destProfile.get(), (icInt32Number)length);
+                        outimg.SetIccProfile(destProfile.get(), (unsigned int)length);
+                    }
+                }
+                io.Close();
+            }
+        }
+    }
 
     // --- Gate 10: Scanline loop (tool lines 240-263) ---
     for (unsigned int i = 0; i < f->GetHeight(); i++) {
