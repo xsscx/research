@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccSpecSepToTiff.sh — iccSpecSepToTiff envelope tests
 # Usage: ./test-iccSpecSepToTiff.sh [--asan] [--quick]
 # Uses spectral TIFF sequences from macOS agent and generate-spectral-tiffs.py
@@ -78,4 +79,4 @@ if [ "$HAS_WL" -eq 1 ] && [ -f "$SRGB" ]; then
 fi
 
 print_summary "iccSpecSepToTiff"
-exit $FAIL
+exit "$FAIL"
