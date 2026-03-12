@@ -8,21 +8,30 @@
 # Provides:
 #   - Environment detection (research repo vs iccDEV repo)
 #   - ASAN/UBSAN configuration
-#   - run_test() function with exit code classification
-#   - Profile path variables
-#   - Summary printing
+#   - run_test() — single test (sequential)
+#   - run_batch_parallel() — parallel batch over file list
+#   - Profile path variables, summary printing
 # =============================================================================
 
 set -uo pipefail
 # Note: NOT set -e — run_test() handles exit codes internally
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Detect repo root: walk up from script location until we find IccProfLib or .git
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$_SCRIPT_DIR"
+for _i in 1 2 3 4 5; do
+  REPO_ROOT="$(dirname "$REPO_ROOT")"
+  [ -d "$REPO_ROOT/IccProfLib" ] || [ -f "$REPO_ROOT/.github/copilot-instructions.md" ] && break
+done
+
+# CPU count for parallel jobs
+NCPU="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 # Detect if running inside iccDEV directly (cfl branch) or research repo
 if [ -d "$REPO_ROOT/IccProfLib" ]; then
-  TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/build/Tools}"
+  TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/Build/Tools}"
   ICCDEV_TESTING="${ICCDEV_TESTING_DIR:-$REPO_ROOT/Testing}"
-  export LD_LIBRARY_PATH="${REPO_ROOT}/build/IccProfLib:${REPO_ROOT}/build/IccXML${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  export LD_LIBRARY_PATH="${REPO_ROOT}/Build/IccProfLib:${REPO_ROOT}/Build/IccXML${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   TP="$ICCDEV_TESTING/Fuzzing/seeds/icc"
   TP_TIFF="$ICCDEV_TESTING/Fuzzing/seeds/tiff"
   TP_IMG="$ICCDEV_TESTING/Fuzzing/seeds/images"
@@ -84,6 +93,40 @@ TOTAL=0
 ASAN_FINDINGS=0
 UBSAN_FINDINGS=0
 
+# Parallel results directory — each job writes a 1-line result file
+_PARALLEL_DIR="$OUTDIR/.parallel-$$"
+mkdir -p "$_PARALLEL_DIR"
+
+# _classify_result — classify exit code + log, write result file
+# Usage: _classify_result <test_id> <description> <exit_code> <logfile>
+_classify_result() {
+  local test_id="$1" description="$2" exit_code="$3" logfile="$4"
+  local has_asan=0 has_ubsan=0 status="PASS" note=""
+
+  if grep -q "ERROR: AddressSanitizer" "$logfile" 2>/dev/null; then has_asan=1; fi
+  if grep -q "runtime error:" "$logfile" 2>/dev/null; then has_ubsan=1; fi
+
+  if [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
+     [ "$exit_code" -eq 137 ] || [ "$exit_code" -eq 139 ]; then
+    status="CRASH"; note=" [signal $((exit_code - 128))]"
+  elif [ "$exit_code" -ge 128 ]; then
+    status="ERROR"; note=" [exit=$exit_code]"
+  elif [ "$exit_code" -eq 124 ]; then
+    status="TIMEOUT"; note=" [>60s]"
+  elif [ "$exit_code" -ne 0 ]; then
+    status="FAIL"; note=" [exit=$exit_code]"
+  fi
+
+  local sanitizer_note=""
+  [ "$has_asan" -eq 1 ] && sanitizer_note="$sanitizer_note ASAN!"
+  [ "$has_ubsan" -eq 1 ] && sanitizer_note="$sanitizer_note UBSAN!"
+
+  # Write structured result (tab-separated: status exit_code has_asan has_ubsan description note sanitizer_note)
+  printf "%s\t%d\t%d\t%d\t%s\t%s\t%s\n" "$status" "$exit_code" "$has_asan" "$has_ubsan" "$description" "$note" "$sanitizer_note" \
+    > "$_PARALLEL_DIR/$test_id.result"
+}
+
+# run_test — run a single test sequentially (for named/specific tests)
 run_test() {
   local test_id="$1"
   local description="$2"
@@ -137,12 +180,89 @@ run_test() {
   printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
 }
 
+# run_batch_parallel — run a tool against a list of files using all CPUs
+# Usage: run_batch_parallel <id_prefix> <desc_prefix> <tool_binary> [tool_args...] -- <file1> <file2> ...
+# Files come after the -- separator. Each file becomes a parallel job.
+run_batch_parallel() {
+  local id_prefix="$1" desc_prefix="$2" tool="$3"
+  shift 3
+
+  # Collect tool args (before --) and files (after --)
+  local -a tool_args=()
+  local -a files=()
+  local past_separator=0
+  for arg in "$@"; do
+    if [ "$arg" = "--" ]; then
+      past_separator=1
+      continue
+    fi
+    if [ "$past_separator" -eq 1 ]; then
+      files+=("$arg")
+    else
+      tool_args+=("$arg")
+    fi
+  done
+
+  if [ "${#files[@]}" -eq 0 ]; then return 0; fi
+
+  local pids=() test_ids=() idx=0
+  local max_jobs="$NCPU"
+
+  for f in "${files[@]}"; do
+    [ -f "$f" ] || continue
+    idx=$((idx + 1))
+    local base
+    base=$(basename "$f" | sed 's/\.[^.]*$//' | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
+    local test_id="${id_prefix}-${base}"
+    local logfile="$OUTDIR/${test_id}.log"
+    local desc="${desc_prefix}: $(basename "$f" | cut -c1-50)"
+
+    # Launch in background
+    (
+      local ec=0
+      timeout 60 "$tool" "${tool_args[@]}" "$f" > "$logfile" 2>&1 || ec=$?
+      _classify_result "$test_id" "$desc" "$ec" "$logfile"
+    ) &
+    pids+=($!)
+    test_ids+=("$test_id")
+
+    # Throttle to max_jobs
+    if [ "${#pids[@]}" -ge "$max_jobs" ]; then
+      wait "${pids[0]}" 2>/dev/null || true
+      pids=("${pids[@]:1}")
+    fi
+  done
+
+  # Wait for all remaining jobs
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+
+  # Collect results from result files
+  for tid in "${test_ids[@]}"; do
+    local rf="$_PARALLEL_DIR/$tid.result"
+    if [ -f "$rf" ]; then
+      local status exit_code has_asan has_ubsan description note sanitizer_note
+      IFS=$'\t' read -r status exit_code has_asan has_ubsan description note sanitizer_note < "$rf"
+      TOTAL=$((TOTAL + 1))
+      if [ "$status" = "PASS" ]; then
+        PASS=$((PASS + 1))
+      else
+        FAIL=$((FAIL + 1))
+      fi
+      [ "$has_asan" -eq 1 ] && ASAN_FINDINGS=$((ASAN_FINDINGS + 1))
+      [ "$has_ubsan" -eq 1 ] && UBSAN_FINDINGS=$((UBSAN_FINDINGS + 1))
+      printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
+    fi
+  done
+}
+
 print_summary() {
   local tool_name="${1:-Tool}"
   echo ""
   echo "--- $tool_name Summary ---"
-  echo "  PASS: $PASS  FAIL: $FAIL  TOTAL: $TOTAL"
-  echo "  ASAN: $ASAN_FINDINGS  UBSAN: $UBSAN_FINDINGS"
+  echo "  PASS=$PASS  FAIL=$FAIL  TOTAL=$TOTAL"
+  echo "  ASAN=$ASAN_FINDINGS  UBSAN=$UBSAN_FINDINGS"
   if [ "$TOTAL" -gt 0 ]; then
     echo "  Pass rate: $(( PASS * 100 / TOTAL ))%"
   fi
@@ -168,6 +288,9 @@ print_summary() {
       echo "    $(basename "$f"): $(grep 'runtime error:' "$f" | head -1)"
     done
   fi
+
+  # Cleanup parallel temp
+  rm -rf "$_PARALLEL_DIR"
   echo ""
 }
 

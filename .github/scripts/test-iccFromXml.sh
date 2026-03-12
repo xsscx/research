@@ -40,27 +40,69 @@ fi
 run_test "fromxml-06" "FromXml with -noid flag" \
   "$FROMXML" "$OUTDIR/sRGB.xml" "$OUTDIR/sRGB_noid.icc" -noid
 
-# Batch fuzz XML corpus
-FUZZ_XML_COUNT=0
+# Batch fuzz XML corpus (parallel)
+FUZZ_XML_FILES=()
 for xml_file in "$REPO_ROOT"/fuzz/xml/icc/*.xml; do
-  if [ -f "$xml_file" ] && [ "$FUZZ_XML_COUNT" -lt 15 ]; then
+  [ -f "$xml_file" ] && FUZZ_XML_FILES+=("$xml_file")
+done
+if [ "${#FUZZ_XML_FILES[@]}" -gt 0 ]; then
+  _pids=() _tids=()
+  for xml_file in "${FUZZ_XML_FILES[@]}"; do
     base=$(basename "$xml_file" .xml | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
-    run_test "fromxml-fuzz-$base" "Fuzz XML: $(basename "$xml_file" | cut -c1-45)" \
-      "$FROMXML" "$xml_file" "$OUTDIR/fuzz_${base}.icc"
-    FUZZ_XML_COUNT=$((FUZZ_XML_COUNT + 1))
-  fi
-done
+    tid="fromxml-fuzz-$base"
+    logfile="$OUTDIR/${tid}.log"
+    (
+      ec=0; timeout 60 "$FROMXML" "$xml_file" "$OUTDIR/fuzz_${base}.icc" > "$logfile" 2>&1 || ec=$?
+      _classify_result "$tid" "Fuzz XML: $(basename "$xml_file" | cut -c1-45)" "$ec" "$logfile"
+    ) &
+    _pids+=($!); _tids+=("$tid")
+    [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
+  done
+  for p in "${_pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  for tid in "${_tids[@]}"; do
+    rf="$_PARALLEL_DIR/$tid.result"
+    if [ -f "$rf" ]; then
+      IFS=$'\t' read -r status exit_code has_asan has_ubsan description note sanitizer_note < "$rf"
+      TOTAL=$((TOTAL + 1))
+      [ "$status" = "PASS" ] && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
+      [ "$has_asan" -eq 1 ] && ASAN_FINDINGS=$((ASAN_FINDINGS + 1))
+      [ "$has_ubsan" -eq 1 ] && UBSAN_FINDINGS=$((UBSAN_FINDINGS + 1))
+      printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
+    fi
+  done
+fi
 
-# AFL-minimized XML corpus
-FUZZ_MIN_COUNT=0
+# AFL-minimized XML corpus (parallel)
+FUZZ_MIN_FILES=()
 for xml_file in "$REPO_ROOT"/fuzz/xml/icc/minimized/*; do
-  if [ -f "$xml_file" ] && [ "$FUZZ_MIN_COUNT" -lt 10 ]; then
-    base=$(basename "$xml_file" | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
-    run_test "fromxml-min-$base" "Minimized: $(basename "$xml_file" | cut -c1-45)" \
-      "$FROMXML" "$xml_file" "$OUTDIR/min_${base}.icc"
-    FUZZ_MIN_COUNT=$((FUZZ_MIN_COUNT + 1))
-  fi
+  [ -f "$xml_file" ] && FUZZ_MIN_FILES+=("$xml_file")
 done
+if [ "${#FUZZ_MIN_FILES[@]}" -gt 0 ]; then
+  _pids=() _tids=()
+  for xml_file in "${FUZZ_MIN_FILES[@]}"; do
+    base=$(basename "$xml_file" | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
+    tid="fromxml-min-$base"
+    logfile="$OUTDIR/${tid}.log"
+    (
+      ec=0; timeout 60 "$FROMXML" "$xml_file" "$OUTDIR/min_${base}.icc" > "$logfile" 2>&1 || ec=$?
+      _classify_result "$tid" "Minimized: $(basename "$xml_file" | cut -c1-45)" "$ec" "$logfile"
+    ) &
+    _pids+=($!); _tids+=("$tid")
+    [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
+  done
+  for p in "${_pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  for tid in "${_tids[@]}"; do
+    rf="$_PARALLEL_DIR/$tid.result"
+    if [ -f "$rf" ]; then
+      IFS=$'\t' read -r status exit_code has_asan has_ubsan description note sanitizer_note < "$rf"
+      TOTAL=$((TOTAL + 1))
+      [ "$status" = "PASS" ] && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
+      [ "$has_asan" -eq 1 ] && ASAN_FINDINGS=$((ASAN_FINDINGS + 1))
+      [ "$has_ubsan" -eq 1 ] && UBSAN_FINDINGS=$((UBSAN_FINDINGS + 1))
+      printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
+    fi
+  done
+fi
 
 print_summary "iccFromXml"
 exit $FAIL

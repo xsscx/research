@@ -21,32 +21,32 @@ run_test "dump-12" "Dump DisplayP3 profile" "$DUMP" -v "$DISPLAY_P3"
 run_test "dump-13" "Dump v5 LCDDisplay profile" "$DUMP" -v "$V5_DISPLAY"
 run_test "dump-14" "Dump Cat8Lab spectral profile" "$DUMP" -v "$CAT8"
 
-# Batch PoC profiles
-POC_COUNT=0
+# Batch PoC profiles (parallel)
+POC_FILES=()
 for poc in "$TP"/hbo-*.icc "$TP"/sbo-*.icc "$TP"/segv-*.icc "$TP"/npd-*.icc \
            "$TP"/so-*.icc "$TP"/ub-*.icc "$TP"/oom-*.icc "$TP"/cve-*.icc \
            "$TP"/memcpy-*.icc "$TP"/DoubleFree*.icc "$TP"/CIccMpe*.icc \
            "$TP"/CIccTag*.icc "$TP"/CIccTone*.icc; do
-  if [ -f "$poc" ] && [ "$POC_COUNT" -lt 25 ]; then
-    base=$(basename "$poc" .icc | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
-    run_test "poc-$base" "PoC: $(basename "$poc" | cut -c1-50)" "$DUMP" "$poc"
-    POC_COUNT=$((POC_COUNT + 1))
-  fi
+  [ -f "$poc" ] && POC_FILES+=("$poc")
 done
+if [ "${#POC_FILES[@]}" -gt 0 ]; then
+  run_batch_parallel "poc" "PoC" "$DUMP" -- "${POC_FILES[@]}"
+fi
 
-# Batch random profiles from test-profiles/
-BATCH_COUNT=0
+# Batch random profiles from test-profiles/ (parallel)
+BATCH_FILES=()
 for icc in "$TP"/*.icc; do
-  if [ -f "$icc" ] && [ "$BATCH_COUNT" -lt 10 ]; then
-    base=$(basename "$icc" .icc | sed 's/[^a-zA-Z0-9_-]/_/g' | cut -c1-40)
-    # Skip profiles already tested individually
+  if [ -f "$icc" ]; then
+    base=$(basename "$icc" .icc)
     case "$base" in
       sRGB_D65_MAT|CMYK*|Rec2020*|NamedColor|17Chan*|CameraModel|Cat8*) continue ;;
     esac
-    run_test "batch-$base" "Batch: $(basename "$icc" | cut -c1-50)" "$DUMP" -v "$icc"
-    BATCH_COUNT=$((BATCH_COUNT + 1))
+    BATCH_FILES+=("$icc")
   fi
 done
+if [ "${#BATCH_FILES[@]}" -gt 0 ]; then
+  run_batch_parallel "batch" "Batch" "$DUMP" -v -- "${BATCH_FILES[@]}"
+fi
 
 print_summary "iccDumpProfile"
 exit $FAIL
