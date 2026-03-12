@@ -1,0 +1,50 @@
+CFL-012: Guard CIccCLUT::InterpND against NULL CIccApplyCLUT (CWE-476)
+
+CIccXformNDLut::Apply() calls InterpND(Pixel, Pixel, pNDApply->m_pApply)
+at two sites without checking if m_pApply is NULL. When BPC (Black Point
+Compensation) creates a temporary CIccCmm during Begin() and calls Apply()
+recursively, the NDLut apply object may have a NULL CIccApplyCLUT pointer.
+
+Trigger: 11-channel MCHBData profile processed through iccApplyProfiles
+with BPC enabled. CIccApplyBPC::pixelXfm() -> CIccCmm::Apply() ->
+CIccXformNDLut::Apply() -> CIccCLUT::InterpND(pApply=NULL) -> SEGV.
+
+Confirmed 3/3 reproducible against upstream iccApplyProfiles (unpatched).
+
+Bug: IccProfLib/IccCmm.cpp lines 6579-6580 and 6609-6610
+CWE-476 (NULL Pointer Dereference)
+
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -6576,8 +6576,13 @@
+       default:
+         {
+           CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
+-          m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
+-          break;
++          if (pNDApply && pNDApply->m_pApply) {
++            m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
++          } else {
++            // CFL-012: NULL ApplyCLUT — zero output to prevent use of uninitialized data
++            memset(destPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
++          }
++          break; 
+         }
+       }
+     }
+@@ -6606,8 +6611,13 @@
+       default:
+       {
+         CIccApplyNDLutXform* pNDApply = (CIccApplyNDLutXform*)pApply;
+-        m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
+-        break;
++        if (pNDApply && pNDApply->m_pApply) {
++          m_pTag->m_CLUT->InterpND(Pixel, Pixel, pNDApply->m_pApply);
++        } else {
++          // CFL-012: NULL ApplyCLUT — zero output to prevent use of uninitialized data
++          memset(destPixel, 0, m_pTag->m_nOutput * sizeof(icFloatNumber));
++        }
++        break;
+       }
+       break;
+       }
