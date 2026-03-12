@@ -279,9 +279,15 @@ Only 11 corpus dirs have matching binaries for minimization:
 `applynamedcmm`, `applyprofiles`, `dump`, `fromcube`, `fromxml`, `link`,
 `roundtrip`, `specsep`, `tiffdump`, `toxml`, `v5dspobs`
 
-9 orphaned corpus dirs are legacy/staging (no binary):
+8 orphaned corpus dirs are legacy/staging (no binary) — DELETED:
 `icc_apply`, `icc_calculator`, `icc_deep_dump`, `icc_io`, `icc_multitag`,
-`icc_profile`, `icc_spectral`, `icc_spectral_b`, `corpus-xml`
+`icc_profile`, `icc_spectral`, `icc_spectral_b`
+
+`corpus-xml` is a **named XML seed staging area** for `icc_fromxml_fuzzer`.
+It contains 48 descriptive-named XML files (CVE PoCs, crash reproductions,
+spec-valid profiles) that are also copied into `corpus-icc_fromxml_fuzzer/`.
+Keep both: `corpus-xml` for human-readable seeds, `corpus-icc_fromxml_fuzzer`
+for the full fuzzer corpus (hash-named + named files).
 
 ### Corpus Baseline (March 12 2026, post-minimization)
 
@@ -292,7 +298,7 @@ Only 11 corpus dirs have matching binaries for minimization:
 | icc_roundtrip_fuzzer | 481 | Minimized from 9,103 (95%) |
 | icc_fromcube_fuzzer | 160 | Minimized from 278 (43%) |
 | icc_tiffdump_fuzzer | 55 | Minimized from 365 (85%) |
-| icc_fromxml_fuzzer | 53 | Already minimal |
+| icc_fromxml_fuzzer | 101 | 53 minimized + 48 from corpus-xml |
 | icc_specsep_fuzzer | 45 | Minimized from 357 (88%) |
 | icc_applynamedcmm_fuzzer | 17 | Minimized from 46 (64%) |
 | icc_applyprofiles_fuzzer | 14 | Minimized from 16 (13%) |
