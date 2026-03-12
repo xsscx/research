@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccApplyToLink.sh — iccApplyToLink envelope tests
 # Usage: ./test-iccApplyToLink.sh [--asan] [--quick]
 # Note: LUT generation with gridpoints>=17 can take 10-30s
@@ -43,4 +44,4 @@ else
 fi
 
 print_summary "iccApplyToLink"
-exit $FAIL
+exit "$FAIL"

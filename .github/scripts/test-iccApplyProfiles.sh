@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccApplyProfiles.sh — iccApplyProfiles envelope tests
 # Usage: ./test-iccApplyProfiles.sh [--asan] [--quick]
 # Requires TIFF input files (catalyst-*.tiff from macOS agent)
@@ -108,4 +109,4 @@ if [ "${#CATALYST_APPLY[@]}" -gt 0 ]; then
 fi
 
 print_summary "iccApplyProfiles"
-exit $FAIL
+exit "$FAIL"

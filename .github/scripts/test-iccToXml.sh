@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=iccdev-test-common.sh
 # test-iccToXml.sh — iccToXml envelope tests
 # Usage: ./test-iccToXml.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
@@ -28,7 +29,7 @@ if [ "${#POC_XML_FILES[@]}" -gt 0 ]; then
     logfile="$OUTDIR/${tid}.log"
     (
       ec=0; timeout 60 "$TOXML" "$poc" "$OUTDIR/poc_${base}.xml" > "$logfile" 2>&1 || ec=$?
-      _classify_result "$tid" "PoC→XML: $(basename "$poc" | cut -c1-45)" "$ec" "$logfile"
+      _classify_result "$tid" "$(_safe_desc "PoC→XML: $(basename "$poc" | cut -c1-45)")" "$ec" "$logfile"
     ) &
     _pids+=($!); _tids+=("$tid")
     [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }
@@ -48,4 +49,4 @@ if [ "${#POC_XML_FILES[@]}" -gt 0 ]; then
 fi
 
 print_summary "iccToXml"
-exit $FAIL
+exit "$FAIL"
