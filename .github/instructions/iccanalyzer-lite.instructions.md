@@ -487,6 +487,7 @@ for r in sarif['runs'][0]['results']:
   - `IccProfile.cpp:3153,3155` — div-by-zero (m_illuminantXYZ.Y can be 0)
   - `IccTagLut.cpp:5009` — signed integer overflow (int sum += m_XYZMatrix)
   - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange
+  - `IccMpeBasic.cpp:1821` — NaN→unsigned int in CIccSingleSampledCurve::Apply()
 - Fixed upstream (no longer triggered):
   - `IccSignatureUtils.h` uint→char (PR #648)
   - `iccApplyProfiles.cpp` UnitClip NaN (PR #654)
