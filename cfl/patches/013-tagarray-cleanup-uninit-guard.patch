@@ -1,0 +1,39 @@
+CFL-013: Guard CIccTagArray copy ctor + Cleanup against uninitialized/poisoned state (CWE-908/CWE-416)
+
+CIccTagArray copy constructor does not initialize m_TagVals or m_nSize
+before the `if (tagAry.m_nSize)` check. When m_nSize is 0 (or the calloc
+fails on the else-less path), both fields remain uninitialized. The
+destructor calls Cleanup() which iterates m_nSize times over m_TagVals,
+reading poisoned memory (ASAN: 0xbebebebebebebebe = freed-memory fill).
+
+Also fixes: Read() leaks the created pTag when pTag->Read() fails — the
+tag is allocated but never assigned to m_TagVals and never deleted.
+
+Crash: IccTagComposite.cpp:1524 — misaligned address 0xbebebebebebebebe
+for type 'IccTagPtr' in CIccTagArray::Cleanup().
+
+CWE-908 (Use of Uninitialized Resource)
+CWE-416 (Use After Free — poisoned pointer iteration)
+CWE-401 (Memory Leak — pTag on failed Read)
+
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1034,6 +1034,10 @@
+ CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
+ {
++  // CFL-013: Initialize before conditional to prevent uninitialized
++  // m_TagVals/m_nSize when tagAry.m_nSize == 0 or calloc fails
++  m_TagVals = NULL;
++  m_nSize = 0;
++
+   if (tagAry.m_nSize) {
+     m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));  // CFL-003: match calloc/free (CWE-762)
+     if (!m_TagVals) {
+@@ -1300,6 +1304,7 @@
+         if (pTag) {
+           if (!pTag->Read(tagPos[i].size, pIO)) {
+             delete [] tagPos;
++            delete pTag;  // CFL-013: prevent leak of allocated tag on failed Read
+             return false;
+           }
+           m_TagVals[i].ptr = pTag;

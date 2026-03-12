@@ -83,9 +83,11 @@ for historical reference.
 | 009 | EnvVar Exec enum UBSAN | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | CheckUnderflowOverflow recursion | Unbounded recursion depth 50 + 200K ops budget | CWE-674 | IccMpeCalc.cpp |
 | 011 | SpecSepToTiff unique_ptr array | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
+| 012 | NDLut InterpND null ApplyCLUT | NULL CIccApplyCLUT deref in CIccXformNDLut::Apply() | CWE-476 | IccCmm.cpp |
+| 013 | TagArray Cleanup uninit guard | Uninit m_TagVals/m_nSize in copy ctor + leaked pTag on Read fail | CWE-908/CWE-416/CWE-401 | IccTagComposite.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **012**)
+- Numbering: zero-padded 3-digit, sequential (next: **014**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
