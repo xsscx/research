@@ -154,17 +154,52 @@ rm -f /mnt/g/fuzz-ssd/crash-* /mnt/g/fuzz-ssd/oom-* /mnt/g/fuzz-ssd/timeout-* \
 sudo umount /mnt/g  # optional — leave mounted for next session
 ```
 
-### Step 7: Optional Corpus Dedup (deferred, per-fuzzer)
-LibFuzzer merge deduplicates but is slow. Run 4-6 at a time max:
+### Step 7: Corpus Dedup via Tournament Bracket Merge
+
+LibFuzzer `-merge=1` is **single-threaded per process**. For large corpora (1K+ files),
+use a tournament bracket merge to saturate all CPU cores:
+
 ```bash
-.github/scripts/ramdisk-merge.sh --ramdisk /path --jobs 4
+# For small corpora (<500 files): launch all 11 in parallel, 1 per fuzzer
+export ASAN_OPTIONS=detect_leaks=0
+export LLVM_PROFILE_FILE=/dev/null
+for name in applynamedcmm applyprofiles dump fromcube fromxml link roundtrip specsep tiffdump toxml v5dspobs; do
+  mkdir -p /tmp/merge-work/${name}-merged
+  taskset -c $((RANDOM % $(nproc))) \
+    cfl/bin/icc_${name}_fuzzer -merge=1 -timeout=10 -rss_limit_mb=2048 \
+    /tmp/merge-work/${name}-merged cfl/corpus-icc_${name}_fuzzer/ &
+done
+wait
+# Swap: rm -rf cfl/corpus-icc_${name}_fuzzer && mv /tmp/merge-work/${name}-merged cfl/corpus-icc_${name}_fuzzer
+
+# For large corpora (1K+ files): tournament bracket on 32 cores
+# 1. Split corpus into 32 chunks (round-robin)
+# 2. Merge each chunk on its own core (32 parallel processes)
+# 3. Pair results: 16 merges → 8 → 4 → 2 → 1 final
+# Each round keeps all cores busy. 9103 files → 481 in ~2 min (vs ~30 min single-threaded).
+#
+# Example for roundtrip fuzzer:
+NCPU=32
+for i in $(seq 0 $((NCPU-1))); do mkdir -p /tmp/chunks/chunk-$i /tmp/chunks/merged-$i; done
+find cfl/corpus-icc_roundtrip_fuzzer -maxdepth 1 -type f | awk '{print NR-1, $0}' | \
+  while read idx f; do ln -f "$f" "/tmp/chunks/chunk-$((idx % NCPU))/"; done
+# Phase 2: 32 parallel chunk merges
+for i in $(seq 0 $((NCPU-1))); do
+  taskset -c $i cfl/bin/icc_roundtrip_fuzzer -merge=1 -timeout=10 -rss_limit_mb=1024 \
+    /tmp/chunks/merged-$i /tmp/chunks/chunk-$i > /tmp/chunks/log-$i.txt 2>&1 &
+done; wait
+# Phases 3-5: tournament bracket (pair 16→8→4→2→1)
+# Each round: merge pairs of previous round's outputs in parallel
 ```
-Or individual:
-```bash
-mkdir -p /tmp/merged-output
-cfl/bin/icc_profile_fuzzer -merge=1 /tmp/merged-output cfl/corpus-icc_profile_fuzzer/
-# Then replace: rm -rf cfl/corpus-icc_profile_fuzzer && mv /tmp/merged-output cfl/corpus-icc_profile_fuzzer
-```
+
+**CRITICAL**: NEVER run merges sequentially. All batch operations MUST use all
+available CPU cores. See "Parallel Processing" in Lessons Learned below.
+
+**Binary-to-corpus mapping**: Only 11 corpora have matching binaries.
+9 legacy corpus dirs (icc_apply, icc_calculator, icc_deep_dump, icc_io,
+icc_multitag, icc_profile, icc_spectral, icc_spectral_b, xml) are orphaned
+staging areas with no matching fuzzer binary. Consolidate orphans into the
+nearest matching fuzzer corpus before minimization.
 
 ## Corpus Status Check
 ```bash
@@ -180,28 +215,28 @@ done
 echo "Total: $total files"
 ```
 
-## Corpus Baseline (March 2026, post-merge)
-| Fuzzer | Files |
-|--------|-------|
-| icc_tiffdump_fuzzer | 49,363 |
-| icc_applynamedcmm_fuzzer | 37,317 |
-| icc_fromxml_fuzzer | 35,032 |
-| icc_specsep_fuzzer | 31,853 |
-| icc_applyprofiles_fuzzer | 30,744 |
-| icc_v5dspobs_fuzzer | 26,487 |
-| icc_toxml_fuzzer | 25,831 |
-| icc_apply_fuzzer | 25,058 |
-| icc_calculator_fuzzer | 19,174 |
-| icc_deep_dump_fuzzer | 19,300 |
-| icc_profile_fuzzer | 17,818 |
-| icc_dump_fuzzer | 17,475 |
-| icc_multitag_fuzzer | 13,511 |
-| icc_spectral_fuzzer | 11,367 |
-| icc_link_fuzzer | 8,025 |
-| icc_roundtrip_fuzzer | 7,634 |
-| icc_io_fuzzer | 5,145 |
-| icc_fromcube_fuzzer | 1,979 |
-| **Total** | **417,170** |
+## Corpus Baseline (March 12 2026, post-tournament-merge minimization)
+
+11 active fuzzers with matching binaries:
+
+| Fuzzer | Minimized Files | Pre-Merge | Reduction |
+|--------|----------------|-----------|-----------|
+| icc_toxml_fuzzer | 513 | 9,104 | 95% |
+| icc_dump_fuzzer | 501 | 9,112 | 95% |
+| icc_roundtrip_fuzzer | 481 | 9,103 | 95% |
+| icc_fromcube_fuzzer | 160 | 278 | 43% |
+| icc_tiffdump_fuzzer | 55 | 365 | 85% |
+| icc_fromxml_fuzzer | 53 | 53 | 0% |
+| icc_specsep_fuzzer | 45 | 357 | 88% |
+| icc_applynamedcmm_fuzzer | 17 | 46 | 64% |
+| icc_applyprofiles_fuzzer | 14 | 16 | 13% |
+| icc_v5dspobs_fuzzer | 11 | 15 | 27% |
+| icc_link_fuzzer | 5 | 9 | 45% |
+| **Total (active)** | **1,855** | **27,458** | **93%** |
+
+9 orphaned corpus dirs (no matching binary — legacy/staging):
+icc_apply, icc_calculator, icc_deep_dump, icc_io, icc_multitag,
+icc_profile, icc_spectral, icc_spectral_b, corpus-xml
 
 ## Coverage Baseline (March 2026)
 | Metric | Value |
@@ -214,13 +249,15 @@ echo "Total: $total files"
 ## Lessons Learned
 - **Profraw staleness**: After rebuilding fuzzers, ALL old profraw is invalid (binary hash mismatch). Clear before collecting new coverage.
 - **Profraw naming**: Use `${fuzzer_name}_%m_%p.profraw` (not `%m.profraw`). `%m` is a numeric module hash, NOT the binary name.
-- **Parallel rsync**: 10 concurrent rsyncs handles 417K files (29GB SSD) in ~3 seconds. Safe and fast.
-- **Parallel merge limit**: >8 concurrent LibFuzzer merges cause empty output due to I/O contention. Use 4-6 max.
-- **Direct rsync vs merge**: For end-of-session migration, rsync with --ignore-existing is faster and safer. Dedup can be done later.
+- **Parallel processing (MANDATORY)**: ALL batch operations MUST use all available CPU cores (32). NEVER run sequential for-loops for fuzzer/corpus operations. Use `taskset -c N`, background jobs (`&`) + `wait`, or tournament bracket merging. Single-process execution is unacceptable.
+- **Tournament bracket merge**: LibFuzzer `-merge=1` is single-threaded per process. For large corpora: split into N chunks (N=nproc), merge each on its own core, then pair results 16→8→4→2→1. Keeps all cores busy. 9103 files minimized to 481 in ~2 min vs ~30 min single-threaded.
+- **Binary-to-corpus mapping**: Only 11 fuzzers have binaries. 9 corpus dirs are orphaned legacy names. Always verify binary exists before attempting merge.
+- **Parallel rsync**: 10 concurrent rsyncs handles large file sets fast. Safe with `--ignore-existing`.
 - **Verification**: Always compare per-fuzzer file counts (local >= source) BEFORE cleaning the source storage.
-- **Artifact preservation**: Copy crash/oom/timeout/slow-unit from SSD to repo BEFORE rm -rf.
+- **Artifact preservation**: Copy crash/oom/timeout/slow-unit from storage to repo BEFORE cleanup.
 - **Roundtrip fuzzer**: Very slow (Read→Write→Read per input). Allow 120s+ timeout for merge.
 - **Link fuzzer**: Needs quarantine_size_mb=256 (2 profiles per input = 2x ASAN memory).
+- **Storage policy**: External SSD disconnected. Use local cfl/ directory + /tmp/fuzz-ramdisk (tmpfs) only.
 
 ## See Also
 - [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) — Coverage improvement strategies
