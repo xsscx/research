@@ -106,9 +106,12 @@ run_tool() {
     output=$(timeout "$TIMEOUT" $cmd $args 2>&1) || true
     local ec=$?
 
-    local asan=$(echo "$output" | grep -c "ERROR: AddressSanitizer" || true)
-    local ubsan=$(echo "$output" | grep -c "runtime error:" || true)
-    local fname=$(basename "$input_file")
+    local asan
+    asan=$(echo "$output" | grep -c "ERROR: AddressSanitizer" || true)
+    local ubsan
+    ubsan=$(echo "$output" | grep -c "runtime error:" || true)
+    local fname
+    fname=$(basename "$input_file")
 
     if [ "$ec" -eq 124 ]; then
         TIMEOUTS=$((TIMEOUTS+1))
