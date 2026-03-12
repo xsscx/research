@@ -85,9 +85,12 @@ for historical reference.
 | 011 | SpecSepToTiff unique_ptr array | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
 | 012 | NDLut InterpND null ApplyCLUT | NULL CIccApplyCLUT deref in CIccXformNDLut::Apply() | CWE-476 | IccCmm.cpp |
 | 013 | TagArray Cleanup uninit guard | Uninit m_TagVals/m_nSize in copy ctor + leaked pTag on Read fail | CWE-908/CWE-416/CWE-401 | IccTagComposite.cpp |
+| 014 | SequenceNeedTempReset recursion depth | Unbounded recursion in SequenceNeedTempReset Apply path | CWE-674 | IccMpeCalc.cpp |
+| 015 | SpecSepToTiff strip geometry HBO | Strip buffer vs row geometry mismatch causing heap-buffer-overflow | CWE-122 | TiffImg.cpp |
+| 016 | NaN guard unsigned cast UBSAN | NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath) | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **014**)
+- Numbering: zero-padded 3-digit, sequential (next: **017**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

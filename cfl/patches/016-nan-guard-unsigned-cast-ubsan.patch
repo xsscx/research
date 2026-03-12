@@ -1,0 +1,42 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -1818,7 +1818,13 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
+   }
+ 
+   icFloatNumber pos = (v-m_firstEntry)/m_range * m_last;
++  if (std::isnan(pos) || std::isinf(pos) || pos < 0.0f)
++    return 0.0f;
++  if (pos > (icFloatNumber)m_last)
++    pos = (icFloatNumber)m_last;
+   icUInt32Number index = (icUInt32Number) pos;
++
++
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
+   if (remainder==0.0)
+--- a/IccProfLib/IccMatrixMath.cpp
++++ b/IccProfLib/IccMatrixMath.cpp
+@@ -78,6 +78,7 @@
+ #include "IccUtil.h"
+ #include <cstring>
+ #include <cstdio>
++#include <cmath>
+ 
+ #ifdef USEICCDEVNAMESPACE
+ namespace iccDEV {
+@@ -383,7 +384,14 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
+       r[srcRange.steps-1] = 1.0;
+     }
+     else {
+-      icUInt16Number p = (icUInt16Number)((w - srcStart) / srcScale);
++      if (srcScale == 0.0 || std::isnan(srcScale) || std::isnan(w))
++        continue;
++      icFloatNumber rawP = (w - srcStart) / srcScale;
++      if (std::isnan(rawP) || std::isinf(rawP) || rawP < 0.0)
++        continue;
++      if (rawP > (icFloatNumber)(srcRange.steps - 1))
++        rawP = (icFloatNumber)(srcRange.steps - 1);
++      icUInt16Number p = (icUInt16Number)rawP;
+       icFloatNumber p2 = (w - (srcStart + p * srcScale)) / srcScale;
+ 
+       if (p2<0.00001) {
