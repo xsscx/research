@@ -635,9 +635,14 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
   -dict=/tmp/fuzz-ramdisk/dict/icc_link_fuzzer.dict \
   /tmp/fuzz-ramdisk/corpus-icc_link_fuzzer/
 
-# Corpus merge/minimize
-.github/scripts/ramdisk-merge.sh              # all fuzzers
-.github/scripts/ramdisk-merge.sh --jobs 32    # parallel
+# Corpus merge/minimize (MUST use all CPU cores — never sequential)
+.github/scripts/ramdisk-merge.sh              # all fuzzers, uses nproc cores
+.github/scripts/ramdisk-merge.sh --jobs 32    # explicit parallelism
+
+# For large corpora (1K+ files): tournament bracket merge
+# Split into 32 chunks → 32 parallel merges → pair 16→8→4→2→1
+# 9103 files → 481 in ~2 min (vs ~30 min single-threaded)
+# See .github/prompts/corpus-management.prompt.md for full procedure
 
 # Validate seed corpus readiness
 .github/scripts/test-seed-corpus.sh
