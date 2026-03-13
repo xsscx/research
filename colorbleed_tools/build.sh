@@ -35,8 +35,8 @@ BIN_DIR="$REPO_ROOT/bin"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe)
-TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe)
+TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccDumpAll)
+TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccDumpAll)
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
@@ -251,7 +251,7 @@ build_config() {
     for bin in "${TOOL_BINS[@]}"; do
       ln -sf "bin/$config/$bin" "$REPO_ROOT/$bin"
     done
-    echo "  Symlinked $config → ./iccToXml_unsafe, ./iccFromXml_unsafe"
+    echo "  Symlinked $config → ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll"
   fi
 }
 
