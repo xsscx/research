@@ -1,18 +1,18 @@
 # CFL Library Patches — Active Security Fixes
 
-Last Updated: 2026-03-11
+Last Updated: 2026-03-13
 
-10 active patches targeting verified security vulnerabilities in iccDEV library code,
-discovered during LibFuzzer fuzzing campaigns.
+17 active patches targeting verified security vulnerabilities in iccDEV library code,
+discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 10 patches are applied directly to the source code.
+**On the `cfl` branch**: All 17 patches are applied directly to the source code.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (10)
+## Active Patches (17)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -26,17 +26,27 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 008 | `008-TagCurve-Apply-NaN-to-unsigned-UBSAN.patch` | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
 | 009 | `009-envvar-exec-enum-ubsan.patch` | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | `010-checkunderflow-recursion-depth.patch` | Unbounded recursion in CheckUnderflowOverflow | CWE-674 | IccMpeCalc.cpp, IccMpeCalc.h |
+| 011 | `011-specseptotiff-unique-ptr-array.patch` | unique_ptr array fix for SpecSepToTiff | CWE-762 | IccApplyBPC.cpp |
+| 012 | `012-ndlut-interpnd-null-applyclut.patch` | Null ptr deref in NdLut InterpND ApplyCLUT | CWE-476 | IccTagLut.cpp |
+| 013 | `013-tagarray-cleanup-uninit-guard.patch` | Uninitialized member in TagArray Cleanup | CWE-908 | IccTagComposite.cpp |
+| 014 | `014-sequenceneedtempreset-recursion-depth.patch` | SequenceNeedTempReset recursion depth limit | CWE-674 | IccMpeCalc.cpp |
+| 015 | `015-specsep-bps-validation.patch` | SpecSep BPS validation bounds check | CWE-20 | IccApplyBPC.cpp |
+| 016 | `016-nan-guard-unsigned-cast-ubsan.patch` | NaN/Inf guard before unsigned casts in Apply | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
+| 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 
 ## CWE Distribution
 
 | CWE | Count | Category |
 |-----|-------|----------|
-| CWE-681 | 3 | Incorrect Type Conversion (UBSAN enum) |
+| CWE-681 | 4 | Incorrect Type Conversion (UBSAN enum/NaN) |
 | CWE-122 | 2 | Heap Buffer Overflow |
 | CWE-190 | 2 | Integer Overflow |
+| CWE-674 | 2 | Uncontrolled Recursion |
+| CWE-762 | 2 | Mismatched Memory Management |
 | CWE-125/170 | 1 | Out-of-bounds Read / Missing Null Termination |
-| CWE-762 | 1 | Mismatched Memory Management |
-| CWE-674 | 1 | Uncontrolled Recursion |
+| CWE-476 | 1 | Null Pointer Dereference |
+| CWE-908 | 1 | Uninitialized Resource |
+| CWE-20 | 1 | Improper Input Validation |
 
 ## Patch Lifecycle
 
