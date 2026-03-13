@@ -191,6 +191,34 @@ for historical reference.
 - **Related**: `RGBClip()` at IccCmm.cpp:5380-5388 has the SAME NaN bypass bug
   (potential future patch)
 
+### CFL-011: iccSpecSepToTiff unique_ptr Array Mismatch (CWE-762)
+
+- **PoC input**: `test-profiles/spectral/spec_001.tif` through `spec_003.tif` (288 bytes each,
+  single-channel grayscale TIFF)
+- **ASAN trace**: `alloc-dealloc-mismatch (operator new [] vs operator delete)` at
+  iccSpecSepToTiff.cpp:281 (scope exit). Allocated at line 217 with `new[]`.
+- **Root cause**: Three `std::unique_ptr<T>` declarations at lines 216, 217, 237 use
+  `new T[]` for array allocation. `std::default_delete<T>` calls `operator delete`
+  instead of `operator delete[]` — undefined behavior per C++17 §23.11.1.2.2.
+  ```cpp
+  // BUG: unique_ptr<T> with new T[] → delete instead of delete[]
+  std::unique_ptr<icUInt8Number> inbufffer(new icUInt8Number[bytePerLine*nSamples]);
+  std::unique_ptr<icUInt8Number> outbuffer(new icUInt8Number[f->GetWidth()*bytesPerSample*nSamples]);
+  std::unique_ptr<unsigned char> destProfile;  // later: .reset(new unsigned char[sz])
+  ```
+- **Fix**: `unique_ptr<T>` → `unique_ptr<T[]>` at all 3 locations
+- **Upstream reproduction**:
+  ```bash
+  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
+  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib \
+    iccDEV/Build/Tools/IccSpecSepToTiff/iccSpecSepToTiff \
+    /tmp/specsep-output.tif 0 0 "test-profiles/spectral/spec_%03d.tif" 1 3 1
+  ```
+  → `ERROR: AddressSanitizer: alloc-dealloc-mismatch` (3/3 reproducible)
+- **Verification (patched)**: → "Image successfully written!" exit 0, 0 ASAN/UBSAN
+- **Affected tools**: iccSpecSepToTiff only (tool-level code, not library)
+- **CFL fuzzer**: `icc_specsep_fuzzer` already uses `unique_ptr<T[]>` (V2 architecture)
+
 ## Fuzzer Alignment — SafeDescribe Pattern
 
 All fuzzers that call `CIccTag::Describe()` use `SafeDescribe()` from `CflSafeDescribe.h`.
