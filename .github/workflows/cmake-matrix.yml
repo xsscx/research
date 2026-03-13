@@ -24,12 +24,12 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Branch to build (default: main)'
+        description: 'iccDEV branch to build (default: master)'
         required: false
-        default: 'main'
+        default: 'master'
         type: choice
         options:
-          - 'main'
+          - 'master'
           - 'cfl'
       pr_number:
         description: 'Pull request number to build (overrides branch)'
@@ -45,7 +45,7 @@ env:
   GH_NO_UPDATE_NOTIFIER: 1
   GH_PROMPT_DISABLED: 1
   RUN_URL: ${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}
-  CHECKOUT_REF: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/head', github.event.inputs.pr_number) || github.event.inputs.ref || 'main' }}
+  CHECKOUT_REF: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/head', github.event.inputs.pr_number) || github.event.inputs.ref || 'master' }}
 
 jobs:
   #############################################################################
@@ -73,6 +73,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
@@ -296,6 +297,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
@@ -447,6 +449,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
@@ -537,6 +540,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
@@ -626,6 +630,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
@@ -709,6 +714,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
+          repository: InternationalColorConsortium/iccDEV
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
           persist-credentials: false
