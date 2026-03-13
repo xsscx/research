@@ -82,9 +82,10 @@ for historical reference.
 | 015 | SpecSepToTiff strip geometry HBO | Strip buffer vs row geometry mismatch causing heap-buffer-overflow | CWE-122 | TiffImg.cpp |
 | 016 | NaN guard unsigned cast UBSAN | NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath) | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 | 017 | GetEnvSig parse enum UBSAN | Enum out-of-range in GetEnvSig() XML parse path (sibling of CFL-009) | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
+| 018 | TagUnknown Describe HBO underflow | m_nSize-4 underflow + m_pData+4 OOB when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **018**)
+- Numbering: zero-padded 3-digit, sequential (next: **019**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
