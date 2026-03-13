@@ -31,10 +31,10 @@ sudo mount -o defaults,noatime /dev/sde /mnt/g
 ## Fuzzing
 
 ```bash
-# All 11 fuzzers on ramdisk (default)
+# All 12 fuzzers on ramdisk (default)
 cd cfl && ./fuzz-local.sh
 
-# All 11 fuzzers on SSD
+# All 12 fuzzers on SSD
 cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
 
 # Single fuzzer smoke test (60s)
@@ -255,7 +255,7 @@ Contents are also copied into `corpus-icc_fromxml_fuzzer/`. Keep both directorie
 - **Profraw naming**: Use `${fuzzer_name}_%m_%p.profraw` (not `%m.profraw`). `%m` is a numeric module hash, NOT the binary name.
 - **Parallel processing (MANDATORY)**: ALL batch operations MUST use all available CPU cores (32). NEVER run sequential for-loops for fuzzer/corpus operations. Use `taskset -c N`, background jobs (`&`) + `wait`, or tournament bracket merging. Single-process execution is unacceptable.
 - **Tournament bracket merge**: LibFuzzer `-merge=1` is single-threaded per process. For large corpora: split into N chunks (N=nproc), merge each on its own core, then pair results 16→8→4→2→1. Keeps all cores busy. 9103 files minimized to 481 in ~2 min vs ~30 min single-threaded.
-- **Binary-to-corpus mapping**: Only 11 fuzzers have binaries. 8 orphaned corpus dirs deleted. `corpus-xml` (48 named XML seeds) kept as staging area for `icc_fromxml_fuzzer`.
+- **Binary-to-corpus mapping**: Only 12 fuzzers have binaries. 8 orphaned corpus dirs deleted. `corpus-xml` (48 named XML seeds) kept as staging area for `icc_fromxml_fuzzer`.
 - **Parallel rsync**: 10 concurrent rsyncs handles large file sets fast. Safe with `--ignore-existing`.
 - **Verification**: Always compare per-fuzzer file counts (local >= source) BEFORE cleaning the source storage.
 - **Artifact preservation**: Copy crash/oom/timeout/slow-unit from storage to repo BEFORE cleanup.
