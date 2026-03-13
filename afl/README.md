@@ -83,7 +83,7 @@ afl/afl-{target}/
 
 ## Build Details
 
-- Compiler: `afl-clang-fast++` (AFL++ 4.09c)
+- Compiler: `afl-clang-fast++` (AFL++ 4.36a)
 - Sanitizers: ASAN + UBSAN (`AFL_USE_ASAN=1 AFL_USE_UBSAN=1`)
 - Build dir: `iccDEV/Build-AFL/`
 - Libraries: `afl/bin/libIccProfLib2.so`, `afl/bin/libIccXML2.so`
