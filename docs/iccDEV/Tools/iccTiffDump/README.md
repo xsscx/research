@@ -107,6 +107,8 @@ strip buffer vulnerability (that requires ReadLine() for pixel data).
 
 ## Tested Configurations
 
+### Structured tests (7/7 PASS)
+
 | TIFF Type | BPS | ICC Present | Status |
 |-----------|-----|-------------|--------|
 | 8-bit RGB | 8 | Yes (ACES CG) | ✅ PASS |
@@ -116,6 +118,19 @@ strip buffer vulnerability (that requires ReadLine() for pixel data).
 | Mutated ICC | 16 | Yes (corrupted) | ✅ PASS |
 | ICC extraction | 8 | Yes → file | ✅ PASS |
 | 81-channel spectral | 16 | No | ✅ PASS |
+
+### Mass testing (1,000 runs, 2026-03-12)
+
+500 random TIFFs from the 22,218-file `tiff-main` corpus, each tested in 2 modes:
+
+| Mode | Runs | Success | ASAN | UBSAN |
+|------|------|---------|------|-------|
+| Metadata dump only | 500 | 500 | 0 | 0 |
+| Dump + ICC extraction | 500 | 500 | 0 | 0 |
+| **Total** | **1,000** | **1,000** | **0** | **0** |
+
+Corpus includes: TIFF-LE, TIFF-BE, BigTIFF-LE, multi-channel spectral, fuzzed,
+xnuimagefuzzer-generated, and standard photographic TIFFs.
 
 ## Related Tools
 
