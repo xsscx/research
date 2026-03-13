@@ -56,13 +56,23 @@ make -j32
 
 ## Coverage Baseline
 
-103 tests across all 14 tools. Run with:
+### Structured Test Scripts
+
+| Script | Path | Tests | Scope |
+|--------|------|-------|-------|
+| `test-iccdev-all.sh` | `.github/scripts/test-iccdev-all.sh` | 843 | All 14 tools, parallel, full corpus |
+| `test-specseptotiff.sh` | `.github/scripts/test-specseptotiff.sh` | 34 | Spectral TIFF merging, all option combos |
+| `test-iccdev-tools-comprehensive.sh` | `.github/scripts/test-iccdev-tools-comprehensive.sh` | 103 | Original baseline (see table below) |
+
+Run the primary test suite:
 
 ```bash
-.github/scripts/iccdev-tool-coverage-baseline.sh --asan
+bash .github/scripts/test-iccdev-all.sh
 ```
 
-### Results Summary (v2.3.1.5, 2026-03-10)
+### Results Summary (v2.3.1.5, 2026-03-12)
+
+**Original baseline** (103 structured tests):
 
 | Tool | Tests | Pass | Fail | Notes |
 |------|-------|------|------|-------|
@@ -83,6 +93,54 @@ make -j32
 | PoC profiles | 10 | 10 | 0 | All patched |
 | XML round-trip | 1 | 0 | 1 | NamedColor dump |
 | **Total** | **103** | **92** | **11** | **0 ASAN, 0 UBSAN** |
+
+**Mass TIFF testing** (5,748 runs against 22,218-file tiff-main corpus, 2026-03-12):
+
+| Tool | Runs | Success | ASAN | UBSAN | Option Combos |
+|------|------|---------|------|-------|---------------|
+| iccTiffDump | 1,000 | 1,000 | 0 | 0 | 500 files × 2 modes (dump, dump+extract ICC) |
+| iccDumpProfile | 1,500 | 1,500 | 0 | 0 | 500 files × 3 modes (basic, -v, ALL tags) |
+| iccApplyProfiles | 3,200 | 3,200 | 0 | 0 | 50 files × option matrix (enc×comp×planar×embed×interp×intent) |
+| iccSpecSepToTiff | 48 | 48 | 0 | 0 | 4 seed series × compress × sep × 3 ICC profiles |
+| **Total** | **5,748** | **5,748** | **0** | **0** | |
+
+**Dedicated specsep testing** (34 tests via `test-specseptotiff.sh`):
+
+| Category | Tests | Pass | Fail |
+|----------|-------|------|------|
+| Error handling | 6 | 6 | 0 |
+| Basic merging | 6 | 6 | 0 |
+| Compression | 4 | 4 | 0 |
+| Separation modes | 4 | 4 | 0 |
+| ICC profile embedding | 4 | 4 | 0 |
+| Cross-validation | 10 | 10 | 0 |
+| **Total** | **34** | **34** | **0** |
+
+### TIFF Test Corpus
+
+A consolidated deduplicated TIFF corpus at `~/po/tiff-main/`:
+
+| Metric | Count |
+|--------|-------|
+| Total unique TIFFs | 22,218 |
+| Size | 642.7 MB |
+| TIFF-LE | 15,139 |
+| TIFF-BE | 4,461 |
+| BigTIFF-LE | 2,429 |
+| Sources | cfl, xnuimagetools, fuzz, xnuimagefuzzer, external corpora |
+
+### Spectral Seed Corpus
+
+147 structured spectral TIFF seeds at `iccDEV/Testing/Fuzzing/seeds/tiff/spectral/`:
+
+| Series | Files | Channels | Description |
+|--------|-------|----------|-------------|
+| `spec_%03d.tif` | 1–10 | 10 | 4×4 8-bit MINISBLACK baseline |
+| `wl_%03d.tif` | 380–780 step 5 | 81 | Full visible spectrum 8-bit |
+| `ch8_%03d.tif` | 1–10 | 10 | 8×8 8-bit MINISBLACK |
+| `white_%03d.tif` | 1–10 | 10 | 16-bit MINISBLACK (all-white) |
+| `lg_%03d.tif` | 1–10 | 10 | 256×256 8-bit large images |
+| `big_%03d.tif` | 1–10 | 10 | BigTIFF format 4×4 8-bit |
 
 ## Tool Categories
 
@@ -157,7 +215,7 @@ Each tool has a corresponding CFL LibFuzzer harness:
 | iccApplyToLink | `icc_link_fuzzer` | ~65% |
 | iccTiffDump | `icc_tiffdump_fuzzer` | ~80% |
 | iccV5DspObsToV4Dsp | `icc_v5dspobs_fuzzer` | ~70% |
-| iccSpecSepToTiff | `icc_specsep_fuzzer` | ~85% |
+| iccSpecSepToTiff | `icc_specsep_fuzzer` (V2.1) | ~85% (+ICC embed) |
 
 ## Test Data
 
