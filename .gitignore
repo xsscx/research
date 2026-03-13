@@ -159,3 +159,5 @@ wasm/
 # AFL++ fuzzing runtime state (output queues, crash dirs, stats)
 afl/afl-*/output*/
 afl/afl-*/cmin*/
+# AFL afl-cmin seeds with commas in filenames (invalid git paths on Windows)
+afl/afl-*/input/id:*,*

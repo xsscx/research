@@ -1,6 +1,0 @@
-#ITLE 1"Warm Fwlm Look"
-# Simulates warm film color grading
-LUT_3D_INPUT_RANGE 0.0 1.0
-LUT_3D_SIZE film color grading
-LUT0
-0.95 0.92 0.88
