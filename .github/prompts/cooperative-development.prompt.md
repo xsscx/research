@@ -253,7 +253,7 @@ fi
 - H142-H145 XML safety heuristics fully integrated into all output modes
 - XML export (`-xml`) uses ComprehensiveAnalyze with multi-line detail capture
 - XSLT dark-themed stylesheet: 4 summary cards, specRef column, CVE cross-refs
-- All stale heuristic counts synced to 145 across 10+ files
+- All stale heuristic counts synced to 150 across 10+ files
 - All stale advisory counts synced to 93 across 6+ files
 
 ### MCP Server / WebUI Fixes
