@@ -1,7 +1,7 @@
 # Improve Fuzzer Code Coverage
 
 ## Goal
-Analyze LLVM coverage reports and create targeted seed ICC profiles and dictionary entries to increase code coverage for the 11 LibFuzzer harnesses.
+Analyze LLVM coverage reports and create targeted seed ICC profiles and dictionary entries to increase code coverage for the 12 LibFuzzer harnesses.
 
 ## Prerequisites
 - Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 18
