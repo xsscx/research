@@ -3,18 +3,16 @@
 Manage fuzzing corpus across storage tiers: permanent (cfl/corpus-*/), ramdisk (/tmp/fuzz-ramdisk), and external SSD (/mnt/g/fuzz-ssd).
 
 ## Prerequisites
-- Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 19
+- Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 11
 - LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
 - For SSD: mounted at /mnt/g with `sudo mount -o defaults,noatime /dev/sde /mnt/g`
 
-## The 19 Fuzzers
+## The 11 Fuzzers
 ```
-icc_apply_fuzzer  icc_applynamedcmm_fuzzer  icc_applyprofiles_fuzzer
-icc_calculator_fuzzer  icc_deep_dump_fuzzer  icc_dump_fuzzer
-icc_fromcube_fuzzer  icc_fromxml_fuzzer  icc_io_fuzzer
-icc_link_fuzzer  icc_multitag_fuzzer  icc_profile_fuzzer
-icc_spectral_fuzzer  icc_tiffdump_fuzzer  icc_toxml_fuzzer
-icc_v5dspobs_fuzzer
+icc_applynamedcmm_fuzzer  icc_applyprofiles_fuzzer  icc_dump_fuzzer
+icc_fromcube_fuzzer  icc_fromxml_fuzzer  icc_link_fuzzer
+icc_roundtrip_fuzzer  icc_specsep_fuzzer  icc_tiffdump_fuzzer
+icc_toxml_fuzzer  icc_v5dspobs_fuzzer
 ```
 
 ## Storage Setup
@@ -33,10 +31,10 @@ sudo mount -o defaults,noatime /dev/sde /mnt/g
 ## Fuzzing
 
 ```bash
-# All 19 fuzzers on ramdisk (default)
+# All 11 fuzzers on ramdisk (default)
 cd cfl && ./fuzz-local.sh
 
-# All 19 fuzzers on SSD
+# All 11 fuzzers on SSD
 cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
 
 # Single fuzzer smoke test (60s)

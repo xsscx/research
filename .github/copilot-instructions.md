@@ -313,9 +313,9 @@ or recursion depth needs a spec-derived upper bound. Seven patterns identified:
    `Describe()` methods loop over file-controlled counters with no output cap.
    Ref: CFL-080, CFL-081.
 
-**Patches CFL-077 through CFL-081** are in `cfl/patches/` and ARE applied
-to CFL fuzzer builds (build.sh applies all `*.patch` files). They harden the
-fuzzers against CWE-400 timeout patterns. iccanalyzer-lite is NOT patched —
+**Patches CFL-074 through CFL-082 were retired** in March 2026 (see `cfl/patches-retired/`).
+The patterns they addressed are now handled by LibFuzzer's `-timeout=30 -rss_limit_mb=4096`.
+iccanalyzer-lite is NOT patched —
 it links the unpatched upstream iccDEV library and handles all user-controllable
 inputs through its own defensive programming (H136-H138 detect these patterns
 via bounds checks and complexity estimation, not library patches).
@@ -917,7 +917,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 
 ### CFL patch workflow
 See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
-NO-OP management, and reproducer testing. Next patch number: **083**.
+NO-OP management, and reproducer testing. Next patch number: **018**.
 
 ### Crash reproducer testing
 ```bash

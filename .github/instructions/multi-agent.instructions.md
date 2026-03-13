@@ -160,7 +160,7 @@ macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
                                       docker run -p 8080:8080 \
   curl -F file=@profile.icc  ───────→  ghcr.io/xsscx/icc-profile-mcp web
     POST /api/upload                    │
-                                        ├── iccanalyzer-lite -a (141 heuristics)
+                                        ├── iccanalyzer-lite -a (150 heuristics)
   ← JSON {path: "/tmp/uploads/..."}     ├── iccanalyzer-lite --json
                                         └── colorbleed_tools/iccToXml_unsafe
   curl /api/security-json?path=... ──→  Returns structured JSON analysis
@@ -174,8 +174,8 @@ macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
 |----------|--------|---------|
 | `/api/upload` | POST | Upload ICC/TIFF file (20MB max, multipart/form-data) |
 | `/api/health` | GET | Liveness check (`{ok: true, tools: 24}`) |
-| `/api/security?path=...` | GET | 141-heuristic scan (text) |
-| `/api/security-json?path=...` | GET | 141-heuristic scan (structured JSON) |
+| `/api/security?path=...` | GET | 150-heuristic scan (text) |
+| `/api/security-json?path=...` | GET | 150-heuristic scan (structured JSON) |
 | `/api/security-report?path=...` | GET | Severity-sorted professional report |
 | `/api/inspect?path=...` | GET | Profile structure inspection |
 | `/api/roundtrip?path=...` | GET | AToB/BToA tag pair validation |
@@ -195,7 +195,7 @@ curl -s -F "file=@harvested-profile.icc" http://<wsl-ip>:8080/api/upload
 # → {"ok":true,"path":"/tmp/mcp-uploads/a1b2c3_harvested-profile.icc","filename":"harvested-profile.icc","size":41234}
 
 curl -s "http://<wsl-ip>:8080/api/security-json?path=/tmp/mcp-uploads/a1b2c3_harvested-profile.icc"
-# → Full 141-heuristic JSON analysis
+# → Full 150-heuristic JSON analysis
 
 curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-profile.icc"
 # → Combined analysis (inspect + security + roundtrip)
@@ -216,7 +216,7 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
-**Analyzed**: 39 profiles/images with full 141-heuristic reports in `analysis-reports/`
+**Analyzed**: 39 profiles/images with full 150-heuristic reports in `analysis-reports/`
 **Total test profiles**: 329 ICC profiles in `test-profiles/` (+ 426 crash/oom/slow-unit/timeout artifacts)
 **Gap**: ~290 profiles still need analysis
 **macOS agent activity**: Seeded 6 starved fuzzer corpora, organized docs, added cross-refs
