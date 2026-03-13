@@ -95,7 +95,10 @@ case "$TARGET" in
         AFL_DIR="$AFL_BASE/afl-tiffdump"
         DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
         SEED_DIRS=(
+            "$AFL_BASE/afl-tiffdump/input"
             "$REPO_ROOT/fuzz/graphics/tif"
+            "$REPO_ROOT/mangled-images"
+            "$REPO_ROOT/test-profiles"
         )
         # iccTiffDump tiff_file
         AFL_ARGS="@@"
