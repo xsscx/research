@@ -407,7 +407,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
-          persist-credentials: false
+          persist-credentials: true
           ref: ${{ github.ref }}
           token: ${{ github.token }}
 
@@ -435,9 +435,10 @@ jobs:
               # Count new entries before merge
               NEW=$(python3 .github/scripts/convert-libfuzzer-dict.py \
                 "$dict_file" "$TARGET" --append --dry-run 2>&1 | \
-                grep -oP 'New:\s+\K[0-9]+' || echo 0)
+                grep -oP 'New:\s+\K[0-9]+' | head -1 || echo 0)
+              NEW=${NEW:-0}
 
-              if [ "$NEW" -gt 0 ]; then
+              if [ "$NEW" -gt 0 ] 2>/dev/null; then
                 python3 .github/scripts/convert-libfuzzer-dict.py \
                   "$dict_file" "$TARGET" --append
                 echo "  [OK] ${FUZZER}: +${NEW} entries → ${TARGET}"
