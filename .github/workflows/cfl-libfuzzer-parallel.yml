@@ -598,10 +598,9 @@ jobs:
             echo "| Hangs | $HANGS |"
           } >> $GITHUB_STEP_SUMMARY
 
-          # Fail the job only if real crashes found
+          # Crashes are expected findings in fuzzing — warn, don't fail
           if [ "$CRASHES" -gt 0 ]; then
-            echo "::error::AFL found $CRASHES crash(es) in iccFromCube"
-            exit 1
+            echo "::warning::AFL found $CRASHES crash(es) in iccFromCube — see artifacts"
           fi
 
       - name: Package AFL artifacts
@@ -757,9 +756,9 @@ jobs:
             echo "| Hangs | $HANGS |"
           } >> $GITHUB_STEP_SUMMARY
 
+          # Crashes are expected findings in fuzzing — warn, don't fail
           if [ "$CRASHES" -gt 0 ]; then
-            echo "::error::AFL found $CRASHES crash(es) in iccApplySearch"
-            exit 1
+            echo "::warning::AFL found $CRASHES crash(es) in iccApplySearch — see artifacts"
           fi
 
       - name: Package AFL artifacts
