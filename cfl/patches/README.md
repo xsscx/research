@@ -2,17 +2,17 @@
 
 Last Updated: 2026-03-13
 
-17 active patches targeting verified security vulnerabilities in iccDEV library code,
+18 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 17 patches are applied directly to the source code.
+**On the `cfl` branch**: All 18 patches are applied directly to the source code.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (17)
+## Active Patches (18)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -33,17 +33,20 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 015 | `015-specsep-bps-validation.patch` | SpecSep BPS validation bounds check | CWE-20 | IccApplyBPC.cpp |
 | 016 | `016-nan-guard-unsigned-cast-ubsan.patch` | NaN/Inf guard before unsigned casts in Apply | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
+| 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 
 ## CWE Distribution
 
 | CWE | Count | Category |
 |-----|-------|----------|
 | CWE-681 | 4 | Incorrect Type Conversion (UBSAN enum/NaN) |
+| CWE-125 | 2 | Out-of-bounds Read |
 | CWE-122 | 2 | Heap Buffer Overflow |
 | CWE-190 | 2 | Integer Overflow |
 | CWE-674 | 2 | Uncontrolled Recursion |
 | CWE-762 | 2 | Mismatched Memory Management |
-| CWE-125/170 | 1 | Out-of-bounds Read / Missing Null Termination |
+| CWE-191 | 1 | Integer Underflow |
+| CWE-170 | 1 | Missing Null Termination |
 | CWE-476 | 1 | Null Pointer Dereference |
 | CWE-908 | 1 | Uninitialized Resource |
 | CWE-20 | 1 | Improper Input Validation |

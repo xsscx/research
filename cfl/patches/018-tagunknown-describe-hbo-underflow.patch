@@ -1,0 +1,21 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index e507608..ce18c28 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -347,10 +347,14 @@ void CIccTagUnknown::Describe(std::string &sDescription, int nVerboseness)
+   icChar buf[bufSize];
+ 
+   sDescription = "Unknown Tag Type of ";
+-  snprintf(buf, bufSize, "%u Bytes.", m_nSize-4);
++  if (m_nSize > 4) {
++    snprintf(buf, bufSize, "%u Bytes.", m_nSize-4);
++  } else {
++    snprintf(buf, bufSize, "%u Bytes.", m_nSize);
++  }
+   sDescription += buf;
+ 
+-  if (nVerboseness > 50) {
++  if (nVerboseness > 50 && m_nSize > 4 && m_pData) {
+     sDescription += "\n\nData Follows:\n";
+ 
+     icMemDump(sDescription, m_pData+4, m_nSize-4);
