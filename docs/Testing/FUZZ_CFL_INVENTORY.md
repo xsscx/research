@@ -144,9 +144,9 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 ```
 
 ### Patch Directory
-**patches/** — 18 active patches (CFL-001 through CFL-018):
+**patches/** — 19 active patches (CFL-001 through CFL-019):
 - 62 legacy patches (CFL-001 through CFL-083 with gaps) retired March 2026 to `patches-retired/`
-- Current: 18 targeted patches for verified upstream bugs
+- Current: 19 targeted patches for verified upstream bugs
 - Format: `NNN-descriptive-name.patch` (unified diff)
 - All patches idempotent (`build.sh` applies with `patch -p1 --forward`)
 
