@@ -41,6 +41,7 @@ if [[ -z "$TARGET" ]]; then
     echo "  jpegdump    — iccJpegDump (JPEG → ICC extraction)"
     echo "  pngdump     — iccPngDump (PNG → ICC extraction)"
     echo "  fromcube    — iccFromCube (.cube LUT text → ICC)"
+    echo "  search      — iccApplySearch (ICC search/optimization)"
     exit 1
 fi
 
@@ -134,9 +135,21 @@ case "$TARGET" in
         # iccFromCube input.cube output.icc
         AFL_ARGS="@@ /dev/null"
         ;;
+    search)
+        BINARY="$BIN_DIR/iccApplySearch"
+        AFL_DIR="$AFL_BASE/afl-search"
+        DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/test-profiles"
+            "$REPO_ROOT/fuzz/graphics/icc"
+        )
+        # iccApplySearch data_file encoding interp profile1 intent1 profile2 intent2
+        # Fuzz profile1 (@@), use fixed data file and profile2=profile1
+        AFL_ARGS="$AFL_BASE/afl-search/search-data.txt 0 0 @@ 1 @@ 1"
+        ;;
     *)
         echo "ERROR: Unknown target '$TARGET'"
-        echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube"
+        echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search"
         exit 1
         ;;
 esac
