@@ -208,7 +208,8 @@ if [[ "$SEED_LOCAL" -eq 1 && "$UNIQUE" -gt 0 ]]; then
     fi
 
     # Seed local AFL input
-    AFL_INPUT="/mnt/g/fuzz-ssd/afl-fromcube/input"
+    REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+    AFL_INPUT="$REPO_ROOT/afl/afl-fromcube/input"
     if [[ -d "$AFL_INPUT" ]]; then
         BEFORE=$(ls "$AFL_INPUT" | wc -l)
         cp -n "$HARVEST_DIR/corpus-dedup/"* "$AFL_INPUT/" 2>/dev/null || true

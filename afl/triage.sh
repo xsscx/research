@@ -9,21 +9,55 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AFL_SSD="${AFL_SSD:-/mnt/g/fuzz-ssd}"
+AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 TARGET="${1:-}"
 
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target>"
-    echo "Available: fromcube"
+    echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube"
     exit 1
 fi
 
 # Target-specific: upstream binary and argument template
 case "$TARGET" in
+    dump)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS="ALL"
+        ;;
+    toxml)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccToXml/iccToXml"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS="/dev/null"
+        ;;
+    fromxml)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromXml/iccFromXml"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS="/dev/null"
+        ;;
+    roundtrip)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS=""
+        ;;
+    tiffdump)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccTiffDump/iccTiffDump"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS=""
+        ;;
+    jpegdump)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccJpegDump/iccJpegDump"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS=""
+        ;;
+    pngdump)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccPngDump/iccPngDump"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS=""
+        ;;
     fromcube)
         UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromCube/iccFromCube"
         UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
-        # iccFromCube <input.cube> <output.icc>
         UPSTREAM_EXTRA_ARGS="/dev/null"
         ;;
     *)
@@ -32,7 +66,7 @@ case "$TARGET" in
         ;;
 esac
 
-AFL_DIR="$AFL_SSD/afl-$TARGET/output"
+AFL_DIR="$AFL_BASE/afl-$TARGET/output"
 
 # Verify upstream binary
 if [[ ! -x "$UPSTREAM_BIN" ]]; then

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>,.00</ProfileVersion>
+    <ProfileDeviceClass>spsngfac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS>////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////</PCS>
+   #<CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="gslosy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimeirtc</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfil2dbge>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+  * <PreferredCMMType>ADBE    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourSpadnv ce>
+   
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourSpadnv ce>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>1013-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.PrimaryPlatfo824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedTexa tnLguaeeCountry="enUS">TnDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmb*a*eddedDataOnly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.99999ding="UTF-8"?>
+<IccProfile>
+! <Heae>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>signature>desc</TagSiD4B0gnature>
+      <LocalizedText LanguageCountry="enUS"><![C
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="faeata/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediProfileIDcolour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.17799999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</Spe    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber x="0.96PreferredCMMType>
+   Z="0.824890136719"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <AToB0Tag> <lutAtoBType>
+      <Channeltcoes InputChannels="3" OutputChannels="1"/>
+    0 <MCurves>
+        <Parametric@2B0Curve FunctionType="4">
+          2.222229003906 0.909912109375 0.090087890625 0.222229003906 0.080993652344 0.000000000000 0.000000000000
+        </ParametricCurve>
+      </MCurves>
+      <Mamnttr*a*        e1="0.217269897461" e2="0.191879272461"3e ="0.071273803711"
+        e4="0.110855102539" e5=2"/>
+      <BCurves>
+        <Curve/>
+      </BCurves>
+    </lutAtoBType> </AToB0Tag>
+
+    <AToB2Tag SameAs="AToB0Tag"/>
+
+    <AToB1Tag> <lutAtoBType>chromaticAdap
+      <Channels InputChannels="3" OutputChannels="3"/>
+      <MCurves>
+        <ParametricCurve FunctionType="4">
+          2.222229003906 0.909912109375 0.090087890625 0.222229003906 0.080993652344 0.000000000000 0.000000000000
+        </ParametricCurve>
+        <ParametricCurve FunctionType="4">
+          2.222229003906 0.909912109375 0.090087890625 0.2222290MediaPolari03906 0.n>1.00</ProfileSubClassVersixElement>
+		  </SubEl_ments>
+		  <MainFunction>
+{
+%define cF
+env(MxLm) if { tput{Lw} } else { hpop 800 tput{Lw} }
+env(MnLm) if { tput{Lb} } else { pop 5 tput{Lb} }
+tget{Lw} tget{Lb} sub tget{Lw} div tput{alpha}
+tget{Lb} tget{Lw} div tput{beta}[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[
+tget{Lw} 0500 le if { 0.2 } elseSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDAcsedTA[Copyright 2019 International Color re>
+  s>
+    </lutAtoBType> </AToB1Tag>
+
+    <BToA0Tag> <lutBtoAType>
+      <Channels InpMCChannels="3" OutputChannels="3"/>
+      <BCurves>
+        <Curve/>
+        <Curve/>
+        <Curve/>
+      </BCurves>
+      <Matrix
+        e1="6.289962768555" e2="-3.245407014492" e3="-0.984848022461"
+        e4="-1.964279174807" e5="3.845520019531" e6="0.067123413086"
+        e7="0.144500732422" e8="><![C
+	<ProfiLocalizedNamesion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc0012</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFraile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttribwtes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity=]positive" MediProfileIDcolour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0ObserverFuncs.3410653285957595" Y="0.9999999  <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourS{
+%define cF
+env(MxLm) if { tput{Lw} } else { hpop 800 tput{Lw} }
+env(MnLm) if { tput{Lb} } else { pop 5 tput{Lb} }
+tget{Lw} tget{Lb} sub tget{Lw} div tput{alpve" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.99999ding="UTF-8"?>
+<IccProfile>
+! <Heae>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>signature>desc</TagSiD4B0gnature>
+      <LocalizedText Languag019 International Color re>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDQTA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

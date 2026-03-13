@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="ASCIIUTF-6"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCpeMTMy>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<Profile)ev993iceSubClass>sren</ProfileDeviceISO-8SubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCSgutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+  .  <RenderingIntent>Absolute Colorimetric<TA[Copyright 20alizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

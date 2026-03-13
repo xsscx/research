@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glos'y" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE    <````ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatnature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingI3956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468166403 91.652934776082219 92.933577205151451 76.891414787009083
+
+%apply illuminant to incomming spectral reflectance
+in(0,33)
+mul(33)
+
+%apply cameS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>
+t16NumberType>
+    
+	<multiLocalizedUnicodeType>
+      <TagSignature>cprt<۫agSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDAcsedTA[Copyright 2019 International Color re>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

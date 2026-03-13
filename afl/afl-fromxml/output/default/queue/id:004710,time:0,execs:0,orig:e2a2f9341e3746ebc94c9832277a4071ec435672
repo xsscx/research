@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UT-F8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></Preferre<?xml version="1.0" encoding="UTF-8"?>
+<IccProfiledCMMType>
+    <ProfileVersion>5.00</Pro>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>2.20</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2023-07-151T38807:38807:38807</CreationDateTime>
+    <PrimaryPlatform>97979797h</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmBeddedDataOnly="true" VendorFlags="97979794"/>
+    <DeviceManufacturer>97979797h</DeviceManufacturer>
+    <DeviceModel>97979797h</DeviceModel>
+    <DeviceAttributes ReflectiveOrTransparency="transparency" GlossyOrMatte="matte" MediaPolarity="negatien^v(ve" MediaColour="colour" VendorSpecific="979792lcn7979790"/>
+    <RenderingIntent>rPeceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="-26728.40f`i

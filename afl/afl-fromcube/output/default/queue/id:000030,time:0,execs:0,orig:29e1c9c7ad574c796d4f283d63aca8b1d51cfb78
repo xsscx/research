@@ -1,0 +1,33 @@
+TITLE "Wide Gamut BT.2020"
+# BT.2020/DCI-P3 wide gamut â€” values slightly outside [0,1]
+# Inspired by Skia LUT sha3 wide gamut â€” values slightly outside [0,1]
+# Inspired by Skia LUT shader: 64-slice grid with bilinear interpolation
+DOMAIN_MIN -0.05 -0.05 -0.05
+DOMAIN_MAX 1.09 1.0.05 -0.05
+DOMAIN_MAX 1.09 1.09 1.09
+LUT_3D_SIZE 3
+-0.0
+1.05 0.0 0.0
+0.0 0.52 0.0
+0.5 0.5 0.01
+1.02 0.49 0.0
+0.0 1.04 0.0
+0.5 1.0 0.0
+1.0 1.0 0.01
+-0.01 0.0 0.5
+0.5 0.0 0.52
+1.03 0.0 0.48
+0.0 0.5 0.5
+0.5 0.5 0.5
+1.0 0.5 0.5
+0.00.0 0.5
+0.5 0.0 0.52
+1.03 0.0 0.48
+0.0 0.5 0.5
+0.5 0.5 0.DOMPUT_RANG.5
+0.0 1.0 0.5
+0.5 1.0 0.5
+1.0 1.0 0.5
+0.0 0.0ÿÿÿÿÿÿÿÿÿÿÿ 1.04
+0.5 0..0 1.0
+1.0 1.0 1.0

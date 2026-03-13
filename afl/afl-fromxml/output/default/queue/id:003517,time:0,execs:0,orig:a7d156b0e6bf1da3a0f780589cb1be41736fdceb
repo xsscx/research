@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>3.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDeviceClass>
+    <DataColourSpace>RGB dsed</DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:*0</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+  000 tget{Lw} 0000 div log mul add } tput{gamma}
+0 tget{gamma} sub tget{gamma} div tput{gamma}
+%00000000000000001
+		00000000000 c00 00 000000 00 000 000 000000 00000000000
+%000000000000000000
+0000000 mtx{XYZ0RGB}
+%0000000000000000000000000000000000000000000000000000
+00000000000000000 0000000
+%000000000000000000000000000000000000
+tget{beta} 000000001 0000000 tsav{rgb}
+%000000000000000000
+000000 000000 000000 000000 000000 tget{beta} 000 tget{alpha} 000
+0000 0 00 00 0 tget{gamma} 0000 0 0000 0 000 0 0 tput{s}
+tget{rgb} tget{beta} 0Name00 tget{alpha} 0000000 tget{s} 0000000 tput{rgb}
+%000000000000000000
+tget{rgb.r} #one0twelth 00 00 0 0 00 tget{rgb.r} 000 #b 000 00 #a 000 #c 000  <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguageCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 101 200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>

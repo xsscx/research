@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+	<Header>
+		<PreferredCMMType></PreferredCMMType>
+		<ProfileVersion>5.00</ProfileVersion>
+		<ProfileDeviceClass>scnr</ProfileDeviceClass>
+		<DataColourSpace>RGB </DataColourSpace>
+		<PCS>XYZ </PCS>
+		<CreationDateTime>now</CreationDateTime>
+		<ProfileFlags EmbeddedInFile="true" uInt64ArUseWithEmbeddedDataOnly="false"/>
+		<DevicProfileSueAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="negative" MediaColour="colour"/>
+		<RenderingIntent>Absolute</RenderingIntent>
+		<PCSIlluminant>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</PCSIlluminant>
+		<ProfileCreator></ProfileCreator>
+		<ProfileID>1</ProfileID>
+		<SpectralPCS>rs8021</SpectralPCS>
+		<SpectralRange>
+			<Wavelengths start="400" end="720" steps="33"/>
+		</SpectralRange>
+	</Header>
+	<Tags>
+		<multiLocalizedUnicodeType>
+			<TagSignature>desc</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Canon 1DMarkIII Camera Model under D50 Light S>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TaoSignature>desc</TagSignature>
+      93035764230 0.000346420457450 0.000355643325701 0.000243540011615 0.000159278501685 0.000131566597083 0.000123545299696 0.000147814866148 0.000186687307320 0.000207536185558 0.000126078340976 0.000025814288635 0.000005412481368 0.000001796943814 0.000001031618949 0.000000919039336
+							</MatrixData>
+						</MatrixElement>
+					</SubElements>
+					<MainF5.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 87.4241784681664 91.6529347760822 92.9335772051515 76.8914147870091 86.5514856528592
+			</IlluminantSPD>
+			<SurroundXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+		</spectralViewingConditionsType>
+
+		<XYZType>
+			<TagSignature>wtpt</TagSignature>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</XYZType>
+
+		<multiLocalizedUnicodeType>
+			<TagSignature>cprt</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2014 International Color Consortium]]></LocalizedText>
+		</multiLocalizedUnicodeType>
+
+	</Tags>
+</IccProfile>

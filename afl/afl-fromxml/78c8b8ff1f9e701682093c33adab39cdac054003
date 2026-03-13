@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-6"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVeqsion>
+    <DataColourSpace>nc00.000
+		</Data>
+	</float16NumberTstepsype and Standard 2dego sberver]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+   <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </XYZType>
+	
+	<float16NumberType>
+		<TagSignature>swpt</TagSignature>/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+  a>
+	</float16NumberType>
+    
+	<multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </TagsMaNM>
+</IccProfile>

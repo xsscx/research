@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<ProfileDeviceSubÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ1ÿÿÿÿÿÿÿÿClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc000F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceIttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarityfmrp="positive" MediaColour="colour"/>
+    <R.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<ProfileDeviceSubÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc000F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceIttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarityfmrp="positive" MediaColour="colour"/>
+   M<Tyep>/PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>signature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![C
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpht 1009 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

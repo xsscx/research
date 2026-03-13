@@ -1,0 +1,15 @@
+TITLE "First Title"
+TITLE "Second Title Appended"
+
+# Blank line above resets bAddBlankLine
+# This comment follows the blank line
+
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0

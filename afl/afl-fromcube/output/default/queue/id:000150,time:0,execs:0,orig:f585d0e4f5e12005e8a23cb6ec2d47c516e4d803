@@ -1,0 +1,13 @@
+TITLE "Truncated Data"
+LUT_3D_SIZE 3
+# Only 10 of 27 required entries — triggers parse3DTable failure
+0.0 0.0 0.0
+0.5 0.0 0.0
+1.0 0.0 0.0
+0.0 0.5 0.0
+0.5 0.5 0.0
+1.0 0.5 0.0
+0.0 1.0 0.0
+0.5 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 0.5

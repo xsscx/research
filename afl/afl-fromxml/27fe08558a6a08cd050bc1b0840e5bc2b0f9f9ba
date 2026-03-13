@@ -1,0 +1,892 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.0</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </PCSIlluminant>
+    <ProfileCreator>ICC </ProfileCreator>
+    <ProfileID>34562ABF994CCD066D2C5721D0D68C5D</ProfileID>
+  </Header>
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[sRGB calc tester]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+    <multiProcessElementType>
+      <TagSignature>A2B1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+			  <CalculatorElement InputChannels="3" OutputChannels="3">
+				  <SubElements>
+					  <!--Element 0 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 0.5 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 1.0 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 1.5 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 1 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 2 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+								1.00000000 1.00000000 -1.00000000
+								2.00000000 1.00000000 -1.00000000
+								1.00000000 -1.00000000 1.00000000
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 3 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+							 0.4660 0.3851 0.1431
+							 0.2225 0.7169 0.0606
+							 0.0139 0.0971 0.7139
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 4 -->
+						<CLutElement InputChannels="3" OutputChannels="3">
+							<GridPoints>2 2 2</GridPoints>
+							<TableData>
+								0.0 0.0 0.0 
+								0.0 0.0 0.75
+								0.0 0.5 0.0
+								0.0 0.5 0.75
+								0.25 0.0 0.0
+								0.25 0.0 0.75
+								0.25 0.5 0.0
+								0.25 0.5 0.75
+							</TableData>
+						</CLutElement>
+					  <!--Element 5 -->
+						<CalculatorElement InputChannels="3" OutputChannels="3">
+							<MainFunction>{ in(0,3) 1 1 1 add(3) out(0,3) }</MainFunction>
+						</CalculatorElement>
+					  <!--Element 6 -->
+						<JabToXYZElement InputChannels="3" OutputChannels="3">
+						  <ColorAppearanceParams>
+							  <WhitePoint>
+								  <XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/>
+								</WhitePoint>
+								<Luminance>500.0</Luminance>
+								<BackgroundLuminance>20.0</BackgroundLuminance>
+								<ImpactSurround>0.69</ImpactSurround>
+								<ChromaticInductionFactor>1.00</ChromaticInductionFactor>
+								<AdaptationFactor>1.00</AdaptationFactor>
+							</ColorAppearanceParams>
+						</JabToXYZElement>
+			BiSpectralRaent 7 -->
+						<XYZToJabElement InputChannels="3" OutputChannels="3">
+						  <ColorAppearanceParams>
+							  <WhitePoint>
+								  <XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/>
+								</WhitePoint>
+								<Luminance>500.0</Luminance>
+								<BackgroundLuminance>20.0</BackgroundLuminance>
+								<ImpactSurround>0.69</ImpactSurround>
+								<ChromaticInductionFactor>1.00</ChromaticInductionFactor>
+								<AdaptationFactor>1.00</AdaptationFactor>
+							</ColorAppearanceParams>
+						</XYZToJabElement>
+					  <!--Element 8 -->
+						<TintArrayElement InputChannels="1" OutputChannels="3">
+						  <float32NumberType>
+							  <Data>
+									0  2  4
+									2  4  8 
+				              </Data>
+							</float32NumberType>
+						</TintArrayElement>
+          </SubElements>
+          <MainFunction>
+{
+1 1 1
+tput(0,3)
+
+tget(0, 3)
+sum(3)
+3 eq
+tput(3)
+
+1 1 1
+tsav(4, 3)
+sum(3)
+3 eq
+tput(7)
+
+1 1 1
+curv(0) %y=.5x; y=x; y=1.5x
+sum(3)
+3 eq
+tput(8)
+
+1 2 3
+mtx(2) %[1 1 -1; 2 1 -1; 1 -1 1]
+0 1 2
+sub(3)
+sum(3)
+0 eq
+tput(9)
+
+1 1 1
+clut(4) %clut with 0.25 0.5 0.75 at entry 1 1 1
+0.25 0.5 0.75
+sub(3)
+sum(3)
+0 eq
+tput(10)
+
+1 2 3
+calc(5) %{ in(0,3) 1 1 1 add(3) out(0,3) }
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(11)
+
+.5
+tint(8)
+1 3 6
+sub(3)
+sum(3)
+0 eq
+tput(12)
+
+100 0 0
+fJab(6) %JabToXYZ
+0.9642 1.0 0.8249
+sub(3)
+abs(3)
+sum(3)
+0.001 le
+tput(13)
+
+0.9642 1.0 0.8249
+tJab(7) %XYZToJab
+100 0 0
+sub(3)
+abs(3)
+sum(3)
+0.1 le
+tput(14)
+
+1
+elem(8)
+2 4 8
+sub(3)
+sum(3)
+0 eq
+tput(15)
+
+1 2 3 4 5 6
+copy(3,2)
+sum(12)
+51 eq
+tput(16)
+
+1 2 3 4 5
+rotl(5,2)
+3 4 5 1 2
+sub(5)
+sum(5)
+0 eq
+tput(17)
+
+1 2 3 4 5
+rotr(5,2)
+4 5 1 2 3
+sub(5)
+sum(5)
+0 eq
+tput(18)
+
+1 2 3 4 5
+posd(4,2)
+sum(7)
+19 eq
+tput(19)
+
+1 2 3 4 5
+flip(5)
+5 4 3 2 1
+sub(5)
+abs(5)
+sum(5)
+0 eq
+tput(20)
+
+1 2 3 4 5
+pop(2)
+sum(3)
+6 eq
+tput(21)
+
+1 2 3
+4 5 6
+7 8 9
+6 15 24
+solv(3,3)
+1 eq if { 1 1 1 sub(3) abs(1) 0.00001 0.00001 0.00001 lt(3) } 
+else { 0 0 0 eq(3) }
+sum(3)
+3 eq
+tput(22)
+
+1 2 3 4
+5 6 7 8
+tran(2,4)
+1 5
+2 6
+3 7
+4 8
+eq(8) and(8)
+tput(23)
+
+2 3 4 5
+prod(4)
+120 eq
+tput(24)
+
+5 3 1 2 4
+min(5)
+1 eq
+tput(25)
+
+1 3 5 4 2
+max(5)
+5 eq
+tput(26)
+
+1 1 1 1 1
+and(5)
+tput(27)
+
+0 0 1 0 0
+or(5)
+tput(28Q
+
+pi 
+3.1415 sub abs 
+0.1 lt
+tput(29)
+
++INF
+1.0E35 gt
+tput(30)
+
+-INF
+-1.0E35 lt
+tput(31)
+
+NaN NaN eq
+tput(32)
+
+1 2 3 4
+-1 -2 -3 -4
+add(4)
+sum(4)
+0 eq
+tput(33)
+
+1 2 3 4 1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(34)
+
+2 4 6 8
+0.5 0.5 0.5 0.5
+mul(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(35)
+
+2 4 6 8
+2 2 2 2
+div(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(36)
+
+5 11 3.25 2 4 1
+mod(3)
+1 3 0.25
+sub(3)
+sum(3)
+0 eq
+tput(37)
+
+2 2 2 2
+2 3 4 5
+pow(4)
+4 8 16 32
+sub(4)
+sum(4)
+0 eq
+tput(38)
+
+2 3 4 2
+gama(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(39)
+
+2 3 4 2
+sadd(3)
+4 5 6
+sub(3)
+sum(3)
+0 eq
+tput(40)
+
+3 4 5 2
+ssub(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(41)
+
+2 3 4 2
+smul(3)
+4 6 8
+sub(3)
+sum(3)
+0 eq
+tput(42)
+
+2 4 8 2
+sdiv(3)
+1 2 4
+sub(3)
+sum(3)
+0 eq
+tput(43)
+
+2 3 4
+sq(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(44)
+
+4 9 16
+sqrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(45)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+sum(3)
+0 eq
+tput(46)
+
+8 27 64
+cbrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(47)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+s)m(3)
+0 eq
+tput(48)
+
+8 27 64
+cbrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(49)
+
+1 -2 3 -4 5
+abs(5)
+sum(5)
+15 eq
+tput(ProfileCreatoneg(4)
+-1 -2 -3 -4
+sub(4)
+sum(4)
+0 eq
+tput(51)
+
+1.1 2.5 3.7
+rond(3)
+1 3 4
+sub(3)
+sum(3)
+0 eq
+tput(52)
+
+1.1 2.5 3.7
+flor(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(53)
+
+1.1 2.5 3.7
+ceil(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(54)
+
+1.1 2.5 3.7
+trnc(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(55)
+
+1 2 3
+exp(3)
+sum(3)
+copy
+30 ge
+flip
+31 le
+and
+tput(56)
+
+10 100 1000
+log(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(57)
+
+3 7 20
+ln(3)
+sum(3)
+copy
+6 ge
+flip
+7 le
+and
+tput(58)
+
+0.00000   1.57080   0.78540
+sin(3)
+0.00000   1.00000   0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(59)
+
+0.00000   1.57080   0.78540
+cos(3)
+1 0 0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(60)
+
+0.00000   1.0   0.78540
+tan(3)
+0 1.5574 1
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(61)
+
+0.00000   1.00000   0.70711
+asin(3)
+0.00000   1.57080   0.78540
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(62)
+
+0.00000   1.00000   0.70711
+acos(3)
+1.57080   0.00000   0.78539
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(63)
+
+0.00000   1.00000   0.70711
+atan(3)
+0.00000   0.78540   0.61548
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(64)
+
+1 2 2 0 1 2
+atn2(3)
+0.00000   0.46365   0.78540
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(65)
+
+0 28.2843 40 40 28.2843 0
+ctop(3)
+40 40 40 0 45 90
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(66)
+
+40 40 40 0 45 90
+ptoc(3)
+0 28.2843 40 40 28.2843 0
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(67)
+
+pi +INF -INF NaN 4
+rnum(5)
+1 0 0 0 1
+eq(5)
+sum(5)
+5 eq
+tput(68)
+
+1 2 3 4 5 3 3 3 3 3
+lt(5)
+1 1 0 0 0
+sub(5)
+sum(5)
+0 eq
+tput(69)
+
+1 2 3 4 5 3 3 3 3 3
+le(5)
+1 1 1 0 0
+sub(5)
+sum(5)
+0 eq
+tput(70)
+
+1 2 3 4 5 1 0 3 0 5
+eq(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(71)
+
+1 2 3 4 5 1 0 3 0 5
+near(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(72)
+
+1 2 3 4 5 3 3 3 3 3
+ge(5)
+0 0 1 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(73)
+
+1 2 3 4 5 3 3 3 3 3
+gt(5)
+0 0 0 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(74)
+
+1 0 1 0 1
+not(5)
+0 1 0 1 0
+sub(5)
+sum(5)
+0 eq
+tput(75)
+
+0 1 2 3 3 2 1 0
+vmax(4)
+3 2 2 3
+sub(4)
+sum(4)
+0 eq
+tput(76)
+
+0 1 2 3 3 2 1 0
+vmin(4)
+0 1 1 0
+sub(4)
+sum(4)
+0 eq
+tput(77)
+
+0 1 0 1 0 0 1 1
+vand(4)
+0 0 0 1
+sub(4)
+sum(4)
+0 eq
+tput(78)
+
+0 1 0 1 0 0 1 1
+vor(4)
+0 1 1 1
+sub(4)
+sum(4)
+0 eq
+tput(79)
+
+1 .5 .25 1 .5 .25 1 .5 .25
+tLab(3)
+100 76.06926 57.07542 0 0 0 0 0 0
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(80)
+
+100 76.06926 57.07542 0 0 0 0 0 0
+tXYZ(3)
+1 .5 .25 1 .5 .25 1 .5 .25
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(81)
+
+20
+0 if { pop 10 }
+20 eq
+tput(82)
+
+20
+1 if { pop 10 }
+10 eq
+tput(83)
+
+1 if { 10 } else { 20 }
+10 eq
+tput(84)
+
+0 if { 10 } else { 20 }
+20 eq
+tput(85)
+
+2 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+4 eq
+tput(86)
+
+8 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+-1 eq
+tput(87)
+
+0
+1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+3 eq
+tput(88)
+
+0
+-1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+0 eq
+tput(89)
+
+env(true) 
+1 1 eq(2) sum(2)
+2 eq
+tput(90)
+
+env(ndef)
+0 0 eq(2) sum(2)
+2 eq
+tput(91)
+
+tget(0,46)
+tget(46,46)
+sum(92)
+92 eq
+if {
+env(01020304) if {
+  copy(1,2)
+}
+else {
+  in(0,3)
+  curv(1)
+  mtx(3)
+}
+out(0,3)
+}
+else {
+0 0 0
+out(0,3)
+}
+
+}
+          </MainFunction>					
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <multiProcessElementType>
+      <TagSignature>B2A1</TagSignature>
+      <MultiProcessElements InputChannels="4" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						 3.134578  -0.978957   0.072119
+						-1.617306   1.916218  -0.229142
+						-0.491034   0.033570   1.405751
+					</MatrixData>
+				</MatrixElement>
+				<CurveSetElement InputChannels="3" OutputChannels="3">
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.mtx{4234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+				</CurveSetElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </XYZType>
+    <multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyrigh86886 0.023171915230856 0.016233114117626 0.007436857648673 0.001356909078851 0.000254624773456 0.000054439820091 0.000014979583433 0.000004784633529
+								0.000244990556622 0.000980189550705 0.004406625830224 0.005194141869206 0.007496827942226 0.010650031337347 0.012965057867886 0.018381869220553 0.033647231669657 0.049918233156857 0.102549201975141 0.090859324717456 0.097081513297619 0.108249627351470 0.100449159204523 0.094961985594077 0.081019433591208 0.069163934403675 0.036496361861548 0.034775192786660 0.018142637544106 .0008936764485255 0.004710157785317 0.003158182877979 0.002095604535897 0.001457256483405 0.001087151007491 0.000671310064020 0.000181307300851 0.000048136444291 0.000014409107897 0.000004297510206 0.000001851068628
+								0.001187714911300 0.009011781477010 0.044583691520976 0.061740174959911 0.077923494248955 0.082451576161067 0.091048761565321 0.089393624763117 0.084818995511244 0.068145305410297 0.073974547843174 0.033204490693790 0.015624751211911 0.007865742672240 0.004488787297383 0.002473828733863 0.001126986870356 0.000693035764230 0.000346420457450 0.000355643325701 0.000243540011615 0.000159278501685 0.000131566597083 0.000123545299696 0.000147814866148 0.000186687307330 0.000207536185558 0.000126078340976 0.000025814288635 0.000005412481368 0.000001796943814 0.000001031618949 0.000000919039336
+							</MatrixData>
+						</MatrixElement>
+					</SubElements>
+					<MainFunction>
+{
+%start with Illuminant spectral power distribution (range adjusted to fit spectral reflectance PCS range)
+49.257439517235735 56.461255244668401 59.984099824651970 57.773270260542645 74.775973108825966 87.198033528040042 90.566943033914555 91.328621954075601 95.072887390768642 91.934526578157701 95.700812701292861 96.594366276348850 97.115371634362518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468066403 91.652934776082219 92.933577205151451 76.891414787009083
+
+%apply illuminant to incomming spectral reflectance
+in(0,33)
+mul(33)
+
+%apply camera sensitivities
+mtx(0)
+
+%apply exposure adjustement (divide by sum of illuminant)
+2974.87665543836 2974.87665543836 2974.87665543836
+div(3)
+
+out(0,3)
+}					
+					</MainFunction>
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProct 2015 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+  </Tags>
+</IccProfile>

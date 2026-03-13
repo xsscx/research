@@ -1,0 +1,12 @@
+TITLE "Domain with INAX overrides
+Ýß«—–Œßmoniabštion
+DOMAIN_MAX 3.0 3.0 3.0
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0

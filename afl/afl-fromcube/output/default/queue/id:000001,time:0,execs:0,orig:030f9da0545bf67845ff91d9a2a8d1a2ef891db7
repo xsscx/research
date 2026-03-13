@@ -1,0 +1,6 @@
+# Film eeulation LUT
+TITLE  Warm Film Look"
+# Simulates warm film color grading
+LUT_3D_INPUT_0.1 0.
+570.1 0.8 0.78
+0.95 0.92 0.88

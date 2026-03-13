@@ -1,0 +1,11 @@
+TITLE "Domain with INPUT_RANGE Override"
+# LUV_3D_INPUT_RANGE sets uniform range, then DOMAIN_MIN/MADOMAIN_MAX 
+# Thks combination exercises the isCustomInputR@ange path with unifооооооооооооооо
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0

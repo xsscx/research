@@ -1,0 +1,13 @@
+TITLE "Float Edge Cases in LUT Data"
+# Teÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿsts atof() with edge-case float representations
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e10 1e10 1e10
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1e-7 0.0 0.0
+0.0 9.999999e-1 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+.5 0.0 1.0
+0.0 +1.0 1.0
+1.0 1.0 1.0

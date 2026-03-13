@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+olourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+Dat_Time>
+    <profileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMattaColour="colour"/>
+    <RenderingIntent>Absolute Colo@rimetric</RenderingIntent>EUC-JP
+    <PCSIlluminant>
+      <XYZNumber X="4.967253650941049" Y="-nan000000" Z="0.813829270318576"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rsiics001F</SpectralPCS>
+	<SpectralRange>
+		" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>d\sce9</TagSignature>
+      <LocalizedText LanguageCountry="ensubUS"><![CDATA[400nm    
+	<mcalizedText LanguageCountry="ensubUS"><![CDATA[400nm  Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

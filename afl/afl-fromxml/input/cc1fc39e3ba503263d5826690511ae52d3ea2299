@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>MCHspac</ProfileDeviceClass>
+	<PRofileDeviceSubClas EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <Devi666666666666666666666666666666666666ceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 ametricCurve>
+        <ParametricCurve FunctionType="4">
+          0.449996948242 1.233398437500 0.000000000000 4.500000000000 0?.0180053710940-0.098999023438 0.000000000000
+        </ParametricCurve>
+      </MCurves>
+    </lutBtoAType> </BToA1Tag>
+`
+    <chromaticAdaptationTag> <s15Fixed16ArrayType>
+      <Array>
+            1.047=82080087 00.22918701172 -0.050216674805 0.029586791992 0.990478515625 -0.017074584961 -0.009246826172 0.015075683594
+          " 0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signatureType>
+      <Signature>vidc</Signature>
+    </signatureTSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <Renderiure>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 ametricCurve>
+        <ParametricCurve FunctionType="4">
+          0.449996948242 1.233398437500 0.000000000000 4.500000000000 0?.018005371094 -0.098999023438 0.000000000000
+        </ParametricCurve>
+      </MCurves>
+    </lutBtoAType> </BToA1Tag>
+`
+    <chromaticAdaptationTag> <s15Fixed16ArrayType>
+      <Array>
+            1.047=82080078 0.022918701172 -0.05021667480CLUT029586791992 0.990478515625 -0.017074584961 -0.009246826172 0.015075683594
+          " 0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signatureType>
+      <Signature>vidc</Signature>
+    </signatureTSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTimeass>sref</Profile>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.82490call{08"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText Languaes>sref</ProfileDeviceSubClass-
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    I<DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIn 0.015075683594
+          " 0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signatureType>
+      <Signature>vidc</Signature>
+    </signatureTSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="1.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeTypet:LocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 ametricCurmulve>
+        <ParametricCurve FunctionType="4">
+          0.449996948242 1.2333eDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaPolari="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285+57594" Y="0.9999999999999999" Z="0.177luminanceTag0"/>
+    </PCSIlluminant>
+odeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Conso9tent>
+    <PCSIlluminant>
+      <XYZNumbercall{ X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <Profil&eID>0</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[401nm to 700nmni0 ametricCurmulve>
+        <ParametricCurve FunctionType="4">
+          0.449996948242 1.2333eDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</SpectralRangessVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaPolari="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSItss=inant>
+      <XYZNumber X="0.3410653285+57594" Y="0.9999999999999999" Z="0.177luminanceTag0"/>
+    </PCSIlluminant>
+odeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Conso98437500 0.00000000 </PCSIlluminant>
+odeType>
+      <TagSignature>cprt</TagSignature>
+      <Localiz0000 4.500000000000 0?.018005371094 -e.098999023438 0.000000000000
+        </ParametricCurve>
+      </MCurves>
+    </lutBtoAType> </BToA1Tag>
+
+    <chromaticAdaptationTag> <s15Fixed16ArrayType>
+      <Array>
+            1.047=82080078 0.022918701172 -0.050216674805 0.029586791992 0.990478515625 -0.0170A74584961 -0.009246826172 0.015075683594
+          " 0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signatureType>
+      <Signature>vidc</Signature>
+    </signatureTSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDakteTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <Localizedolor Co stepsocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color CoMeasurementnsortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

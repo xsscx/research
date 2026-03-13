@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+	<Header>
+		<PreferredCMMType></PreferredCMMType>
+		<ProfileVersion>7.00</ProfileVersion>
+		<ProfileDeviceClass>scnr</ProfileDeviceClass>
+		<DataColourSpace>RGB </DataColourSpace>
+		<PCS>XYZ </PCS>
+		<CreationDateTime>now</CreationDateTime>
+		<ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+		<DeviceAttributes ReflectiveOrTransparency="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossiOrMatte="glossy" MediaPolarityfmrp="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumbXYZNumberer X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>zs001F</SpectralPCS>
+	<SpectralRange>
+		<WavelengAths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[800nm to 700nmni0 1 nml version="1.0"bapsoding="UTF-8"?>
+<IccProfile>
+  <Heae>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileeivDceClass>signature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![C
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediProfileIDcolour"/>
+    <RenderingIntent>Arsolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="1.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCbtadS>
+	<SpectralRange>
+		<Wavelengths start="400" enBileSubClassVersion>
+    <DataCmlourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediProfileIDcolour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999"</Macro> Zisciigur="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs0assVersion>
+    <DataColourSpace>nc001F<ileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicdcurype>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[800nm to 700nmni0 1 nmmetric</RenderingInctralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags1F</DataColTA[400#QNnm to 700nmni0 1 nm stepsembeddedV5ProfileTage using "G" light and Standard 2deg observerator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs0assVersion>
+    <DataColourSpace>nc001F<ileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicdcurype>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[800nm to 700nmni0 1 nml version="1.0"bapsoding="UTF-8"?>
+<IccP01F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags1F</DataColTA[400#QNnm to 700nmni0 1 nm stepsembeddedV5ProfileTage using "G" light and Standard 2deg observer]]     <LctralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc<ثagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <eDeviceSubCalss>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc00onDateTime>
+    <Pnofi" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags1F</DataColTA[400#QNnm to 700nmni0 1 nm stepsembeddedV5ProfileTagens  iug"G" light and Standard 2deg observer]]     <LctralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc<ثagSignature>
+      <LocalizedText LanguageCountry="enUS"><![2.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468166403 91.652934776082219 92.933577205151450 76.891414787009083
+
+%apply illuminant to incomming spectral reflectance
+in(0,33)
+mul(33)
+
+%apply camera sensitivities
+mtx(0)
+
+%apply exposure adjustement (divide by sum of illuminant)
+2974.87665543836 2974.87665543836 2974.87665543836
+div(3)
+
+out(0,3)
+}					
+					</MainFunction>
+				</Calculat8246520 57.7732702605426 74.7759731088260 87.1980335280400 90.5669430339146 91.3286219540756 95.0728873907686 91.9345265781577 95.7008127012929 96.5943662763489 97.1153716343625 102.0888883432111 100.7483593793286 102.3138613416943 100.0000000000000 97.7374503496754	98.9235890079811 93.5102480304754 97.7057456929942 99.2918446185279 99.0679449773440 95.7506760921408 98.8934383400158 95.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 87.4241784681664 91.6529347760822 92.9335772051515 76.8914147870091 86.5514856528592
+			</IlluminantSPD>
+			<SurroundXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+		</spectralViewingConditionsType>
+
+		<XYZType>
+			<TagSignature>wtpt</TagSignature>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</XYZType>
+
+		<multiLocalizedUnicodeType>
+			<TagSignature>cprt</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2014 International Color Consortium]]></LocalizedText>
+		</multiLocalizedUnicodeType>
+
+	</Tags>
+</IccProfile>

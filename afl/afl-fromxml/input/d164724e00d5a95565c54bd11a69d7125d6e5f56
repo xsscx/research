@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+	<Header>
+		<PreferredCMMType></PreferredCMMType>
+		<ProfileVersion>5.00</ProfileVersion>
+		<ProfileDeviceClass>scnr</ProfileDeviceClass>
+		<DataColourSpace>RGB </DataColourSpace>
+		<PCS>XYZ </PCS>
+		<CreationDateTime>now</CreationDateTime>
+		<ProfileFlags EmbeddedInFile="true" uInt64ArUseWithEmbeddedDataOnly="false"/>
+		<DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="negative" MediaColour="colour"/>
+		<RenderingIntent>Absolute</RenderingIntent>
+		<PCSIlluminant>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</PCSIlluminant>
+		<ProfileCreator></ProfileCreator>
+		<ProfileID>1</ProfileID>
+		<SpectralPCS>rs8021</SpectralPCS>
+		<SpectralRange>
+			<Wavelengths start="400" end="720" steps="33"/>
+		</SpectralRange>
+	</Header>
+	<Tags>
+		<multiLocalizedUnicodeType>
+			<TagSignature>desc</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Canon 1DMarkIII Camera Model under D50 Light S>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0"bapsoding="UTF-8"?>
+<IccProfile>
+  <Heae>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>signature>desc</TagSignature>
+      <LocalizedText LanguageCountry="APPLenUS"><![C
+	<ProfileSubClassVersion>1.00</Profile
+						1.274327197753011	 1.977722322511197	-4.353931336717119
+					</MatrixData>
+				</MatrixElement>
+				<!-- Next apply inverse of 2-degree/D50 inverse WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.9642455651282466	 0.2052585528895002	 0.0478091047162643
+						0.9999999999999999	 0.0146501684258497	 0.0176213538916487
+						0.8246790940919668	 0.0357366850084837	-0.4005890947751716
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+
+		<multiProcessElementType>
+			<TagSignature>B2D3</TagSignature>
+			<MultiProcessElements InputChannels="33" OutputChannels="3">
+				<CalculatorElement InputChannels="1Tag> <lutBtoAType>
+      <Channels InputChannels="3" OutputChannels="3"/>
+      <BCurves>
+        <Curve/>
+        <Curve/>
+        <Curve/>
+      </BCurves>
+      <Matrix
+        e1="6.268051147461" e2="-3.234130859375" e3="-0.981430053711"
+        e4="-1.957443237305" e5="3.832153320312" e6="0.066894531250"
+        e7="0.143997192383" e8="-0.458053588867" e9="2.811508178711"
+        e10   <DataColourSpace>nc001F</DataColTA[400nm to 700nmni0 1 nm stepsembeddedV5ProfileTage using "G" light and Standard 2deg observer]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+   <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774660584537325"/>
+    </XYZType>
+	
+	<float16NumberType>
+		<TagSignature>swpt</TagSignature>
+		<Data>
+		 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.p00 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1+000 1.000 1.000 1.000 1.000
+		</Data>
+	</float16NumberType>
+    
+	<multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[276348850 97.115371634362518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.1849540212929 96.5943662763489 97.1153716343625 102.0888883432111 100.7483593793286 102.3138613416943 100.0000000000000 97.7374503496754	94.9235890079811 93.5102480304754 97.7057456929942 99.2918446185279 99.0679449773440 95.7506760921408 98.8934383400158 95.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 33" OutputChannels="3">
+					<SubElements>
+						<!-- Camera sensitivities normalized so that max(sum(cs,2))=1.0 !-->
+						<MatrixElement InputChannels="33" OutputChannels="3">
+							<MatrixData>
+								0.000063066232895 0.000166109053171 0.000353413383377 0.000194502930425 0.000122614352901 0.000109743472209 0.000133774889481 0.000171185960694 0.050006262837095 0.000359724336652 0.00108screeningTag.002134574401744 0.005659507017190 0.012468192078342 0.014062709089229 0.011393273278742 0.015516501584560 0.030570777260329 0.033723006408803 0.060345919759624 0.058205824626842 0.05348938out(082 0.046035319023760 0.039401781859661 0.029836844786886 0.023171915230856 0.016233114117626 0.007436857648673 0.001356909078851 0.000254624773456 0.000054439820091 0.000917940583433 0.000004784633529
+								0.000244990556622 0.000980189550705 0.004406625830224 0.005194141869206 0.007496827942226 0.010650031337347 0.012965057867886 0.018381869220553 0.033647231669657 0.049918233156857 0.102549201975141 0.090859324717456 0.09708151metricCurve FunctionType="4">
+          0.449996948243 1.233398437500 0.000000000000 4.500000000000 0.018005371094 -0.098999023438 0.000000000000
+        </ParametricCurve>
+      </MCurves>
+    </lutBtoAType> </BToA0Tag>
+
+    <BToA2Tag SameAs="BToA0Tag"/>
+
+    <BToA1Tag> <lutBtoAType>
+      <Channels InputChannels="3" OutputChannels="3"/>
+      <BCurves>
+        <Curve/>
+        <Curve/>
+        <Curve/>
+      </BCurves>
+      <Matrix
+        e1="6.268051147461" e2="-3.234130859375" e3="-0.981430053711"
+        e4="-1.957443237305" e5="3.832153320312" e6="0.066894531250"
+        e7="0.143997192383" e8="-0.458053588867" e9="2.811508178711"
+        e10   <DataColourSpace>nc001F</DataColTA[400nm to 700nmni0 1 nm stepsembeddedV5ProfileTage using "G" light and Standard 2deg observer]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+   <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774660584537325"/>
+    </XYZType>
+	
+	<float16NumberType>
+		<TagSignature>swpt</TagSignature>
+		<Data>
+		 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.p00 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1+000 1.000 1.000 1.000 1.000
+		</Data>
+	</float16NumberType>
+    
+	<multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[276348850 97.115371634362518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.1849540212929 96.5943662763489 97.1153716343625 102.0888883432111 100.7483593793286 102.3138613416943 100.0000000000000 97.7374503496754	94.9235890079811 93.5102480304754 97.7057456929942 99.2918446185279 99.0679449773440 95.7506760921408 98.8934383400158 95.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 87.4241784681664 91.6529347760822 92.9335772051515 76.8914147870091 86.5514856528592
+			</IlluminantSPD>
+			<SurroundXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+		</spectralViewingConditionsType>
+
+		<XYZType>
+			<TagSignature>wtpt</TagSignature>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</XYZType>
+
+		<multiLocalizedUnicodeType>
+			<TagSignature>cprt</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2014 International Color Consortium]]></LocalizedText>
+		</multiLocalizedUnicodeType>
+
+	</Tags>
+</IccProfile>

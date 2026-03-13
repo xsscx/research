@@ -1,0 +1,9 @@
+TITLE "Domain with INPUQT_RANGE Override"
+# ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ3D_INPUT_RANGE sets uniform range, then DOMAIN_MIN/MAX oŠ™rride•s
+#erhis combination exercisGE Override"
+# ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿLUT_3D_INPUT_RANGE sets uniform range, then DOMAIN_MIN/MAX oŠ™ÿÿÿes
+#erhis combination exeres the isCustomÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿInputRange path with uniform values
+LUT_3D_INPUT_RANGE -1.0 20.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0

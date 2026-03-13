@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeuiceAeuributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaPolari="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285+57594" Y="0.9999999999999999" Z="0.177luminanceTag0"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelzengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVet>0</SubElements>0<MainFunction>{
+%0
+env(0000) if { tput{Lw} } else { pop 000 Tput }env(0000) if { tput{Lb} } else { pop 0 tput{Lb} }
+tget{Lw} tget{Lb} sub tget{Lw} div tput{alpha}
+tget{Lb} tget{Lw} div tput{beta}
+tget{Lw} 0000 le if { 000 } else { 000 0000 tget{Lw} 0000 div log 000 add } tput{gamma} %000000000000000000000000
+in(0,5)
+%000000000000000000000000000000000000
+0 0 0 vmax(0) tput{rgb}
+%0000000000
+tget{rgb.r} 000 le if { tget{rgb.r} copy 000 0 div } else { tget{rgb.r} #c sub #a div exp #b add 00 div }
+tget{rocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

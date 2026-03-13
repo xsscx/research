@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>s.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-2*one_twelth*6T01:30:*0</CreationDateTime>
+    <RenderingIntent>PCCCCCCCCCerceptuan</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202888"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguageCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 101 200 300 nan</Curve>
+  $ </curveType>
+  </Tags>
+</IccProfile>

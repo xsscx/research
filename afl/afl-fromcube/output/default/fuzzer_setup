@@ -1,0 +1,9 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=/home/h02332/po/research/afl/bin/iccFromCube
+AFL_CUSTOM_INFO_PROGRAM_ARGV=@@ /dev/null
+AFL_CUSTOM_INFO_OUT=afl/afl-fromcube/output/default
+AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+AFL_MAP_SIZE=131072
+AFL_PATH=/usr/share/afl
+# command line:
+'afl-fuzz' '-D' '-i' 'afl/afl-fromcube/input' '-o' 'afl/afl-fromcube/output' '-x' '/home/h02332/latest.dict' '-m' 'none' '-t' '5000' '--' '/home/h02332/po/research/afl/bin/iccFromCube' '@@' '/dev/null'

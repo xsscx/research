@@ -42,6 +42,8 @@ cmake "$CMAKE_DIR" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_C_FLAGS="-g -O0" \
     -DCMAKE_CXX_FLAGS="-g -O0" \
+    -DENABLE_TOOLS=ON \
+    -DENABLE_SHARED_LIBS=ON \
     2>&1 | tail -5
 
 echo "[*] Building with $JOBS cores..."
@@ -65,8 +67,14 @@ for tool in "$BUILD_DIR"/Tools/*/; do
     fi
 done
 
-# Deploy shared library
+# Deploy shared libraries
 cp "$BUILD_DIR"/IccProfLib/libIccProfLib2.so* "$BIN_DIR/"
+cp "$BUILD_DIR"/IccXML/libIccXML2.so* "$BIN_DIR/" 2>/dev/null || true
 echo ""
-echo "Shared library:"
+echo "Shared libraries:"
 ls -lh "$BIN_DIR"/libIccProfLib2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
+ls -lh "$BIN_DIR"/libIccXML2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
+
+echo ""
+TOOL_COUNT=$(ls "$BIN_DIR"/icc* 2>/dev/null | wc -l)
+echo "[OK] $TOOL_COUNT AFL-instrumented tools deployed to afl/bin/"

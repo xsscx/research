@@ -1,0 +1,6 @@
+# Film emurm film color grading
+LUT_3D_INPUT_RANGE 0.0 1.0
+LUT_3D_SIZE 2
+0.02 0.01 0.0
+0.95 0
+0.95 0.92 0.88

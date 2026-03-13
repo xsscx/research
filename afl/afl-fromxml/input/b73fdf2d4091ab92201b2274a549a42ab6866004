@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="STF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>0tfm</ProfileDeviceClass>
+	<ProfileDeviceSubCleFlags EmbeddedInFile="true" UseWithEmDeviceModelSignaturebeddedDataOnly="false"/>
+    <Dev1.iceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarityfmrp="positive" MediaColour="colour"/>
+    <RenderingIntent>AbsoluteIllumTypetric</RenderingInrotrtent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0*a*.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <PlofileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLoe   <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+    <ProfileCreator>ADBE</ProfileCreator>
+    <ProfileID>741C24A6121789485183EFCrredCMMType></PreferredCMMType>
+    <Prof_ilreioesVn>4.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceclass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColTA[400nm to 700nmni0 1 nm stepsembeddedV5ProfileTage using "G" light and Standard 2deg observer]]     <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

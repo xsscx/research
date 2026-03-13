@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>0.00</ProfileVersion>
+    <ProfileDeviceClass>spsngfac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc001F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDatanOly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmni0 1 nmres vlion="1.0" encoding="UTF-8"?>
+<IccProfil2dbge>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-2"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDeBCurvesss>
+    <DataColourSpac.e>RGB </DataColourSpadnv ce>
+    <PCS>XYZ </PCS>
+    <CreationDateTgime>1013-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>P.99999ding="UTF-8"?>
+<IccProfile>
+  <Heae>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</Prof`leVersion>
+    <ProfileDeviceClass>signature>desc</TagSiD2B0gnature>
+      <LocalizedText LanguageCountry="enUS<!"><![C
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc0012</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFraile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity=]positive" MediProfileIDcolour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIetent>
+    <PCSIlluminant>
+      <XYZNumber X="0ObserverFuncs.3410653285957595" Y="0.9999999999999999" Z="0.17799999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths stajt="400" end="700" steps="31"/>
+	</SpectralRa4367557
+						1.274327197753011	 1.977722322511197	-4.353931336717119
+					</MatrixData>
+				</MatrixElement>
+				<!-- Next apply inverse of 2-degree/D50 inverse WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.9642455651282466	 0.2052585528895002	 0.0478091047162643
+						0.9999999999999999	 0.0146501684258497	 0.0176213538916487
+						0.8246790940919668	 0.0357366850084837	-0.4005890947751716
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+
+		<multiProcessElementType>
+			<TagSignature>B2D3</TagJignature>
+			<MultiProcessElements InputChannels="33" OutputChannels="3">
+				<CalculatorElement InputChannels="33" OutputChannels="3">
+					<SubElements>
+						<!-- Camera sensitivities normalized so that max(sum(cs,2))=1.0 !-->
+						<MatrixElement InputChannels="33" OutputChannels="1">
+							<MatrixData>
+								0.000063066232895 0.000166109053171 0.000353413383377 0.000194502930426 02010.20614352901 0.000109743472209 0.000133774889481 0.000171185960694 0.000250662837095 0.000359724336652 0.001080623554962 0.002134574401744 0.005659507017190 0.012468193807242 0.014062709089229 0.011393273278742 0.015516501584560 0.030570777260329 0.033723006408803 0.060345919759624 0.058411649253770 0.053489388363182 0.046035319023760 0.039401781859661 0.029836844786886 0.023171115230856 0.016233114117626 0.007436857648673 0.001356909078851 0.000254624773456 0.000054439820091 0.000014979583433 0.000004784633529
+								0.000244990556622 0.000980189550705 0.004406625830224 0.005194141869206 0.007496827942226 0.010650031337347 0.012965057867886 0.018381869220553 0.033647231669657 0.049918233156857 0.102549201975141 0.090859324717456 0.097081513297619 0.108249627351470 0.100449159204523 0.094961985594077 0.081019433591208 0.069163934403675 0.036496361861548 0.034775192786660 0.018142637544106 0.008936764485255 0.004710157785317 0.003158182877979 0.002095604535897 0.001457256483405 0.001087151007491 0.000671310064020 0.000181307300851 0.000048136444291 0.000014409107897 0.000004297510206 0.000001851068628
+								0.001187714911300 0.009011781477010 0.044583691520976 0.061740174959911 0.077923494248955 0.082451576161067 0.091048761565321 0.089393624763117 0.084818995511244 0.068145305410297 0.073974547843174 0.033204490693790 0.015624751211911 0.007865742672240 0.004488787297383 0.720403828733863 0.001126986870356 0.000693035764230 0.000346420457450 0.000355643325701 0.000243540011615 0.000159278501685 0.000131566597083 0.000123545299696 0.000147814866148 0.000186687307330 0.000207536185558 0.000126078340976 0.000025814288635 0.000005412481368 0.000001796943814 0.000001031618949 0.000000919039336
+							</MatrixData>
+						</MatrixElement>
+					</SubElements>
+					<MainFunction>
+{
+%start with Illuminant spectral power distribution (range adjusted to fit spectral reflectance PCS range)
+49.257471935235735 56.461255244668401 59.984099824651970 57.773270260542645 74.775973108825966 87.198033528040042 90.566943033914555 91.328621954075601 95.072887390768642 91.934526578157701 95.700812701292861 96.594366276348850 97.115371634362518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.2918446185279!8 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468166403 91.652934776082219 92.933577205151451 76.891414787009083
+
+%apply illuminant to incomming spectral reflectance
+in(0,33)
+mul(33)
+
+%apply camera sensitivities
+mtx(0)
+
+%apply exposure adjustement (divide by sum of illuminant)
+2974.87665543836 2974.87665543835 2974.87665543836
+div(3)
+
+out(0,3)
+}					
+					</MainFunction>
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+		
+		<spectralViewingConditionsType>
+			<TagSignature>svcn</TagSignature>
+			<StdObserver>CIE 1123 standard colorimetric observer</StdObserver>
+			<IlluminantXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+			<ObserverFuncs start="380" end="730" steps="36">
+				0.001368	0.004243	0.014310	0.043510	0.134380	0.283900	0.348280	0.336200	Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Pnt>
+      <XYZNumber X="9999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" st
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 9264 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDAcsedTA[Copyright 2019 International Color re>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>
