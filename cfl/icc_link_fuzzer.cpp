@@ -109,12 +109,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (prof1Size < 128 || prof1Size >= profileData - 127)
     return 0;
 
-  // OOM guard: reject declared sizes that would cause icRealloc bombs
-  if (prof1Size > 2 * 1024 * 1024)
-    return 0;
-  if (profileData - prof1Size > 2 * 1024 * 1024)
-    return 0;
-
   // Write both profiles to temp files
   const char *tmpdir = fuzz_tmpdir();
   char path1[PATH_MAX], path2[PATH_MAX];
