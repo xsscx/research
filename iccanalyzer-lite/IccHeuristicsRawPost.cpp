@@ -1068,6 +1068,7 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
 
           bool hasSdin = false, hasSwpt = false;
           bool hasEobs = false, hasRobs = false, hasSvcn = false;
+          bool hasChad = false;
           int brdfCount = 0;
 
           for (icUInt32Number i = 0; i < tc43; i++) {
@@ -1084,6 +1085,7 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
             if (tSig43 == 0x7364696E) hasSdin = true; // 'sdin'
             if (tSig43 == 0x73777074) hasSwpt = true; // 'swpt'
             if (tSig43 == 0x7376636E) hasSvcn = true; // 'svcn'
+            if (tSig43 == 0x63686164) hasChad = true; // 'chad'
             if (tSig43 == 0x656F6273) hasEobs = true; // 'eobs'
             if (tSig43 == 0x726F6273) hasRobs = true; // 'robs'
 
@@ -1144,6 +1146,23 @@ int RunHeuristic_H43_SpectralBRDFTagStructure(const char *filename)
             printf("      %s[WARN]  svcn present but sdin (spectral data info) missing%s\n",
                    ColorWarning(), ColorReset());
             spectralIssues++;
+          }
+
+          // GAP-B: Check chad tag when illuminant ≠ D50 (ICC.1-2022-05 Annex G)
+          // This catches the spec violation on truncated profiles where H110 is skipped.
+          if (!hasChad) {
+            // Read illuminant from raw header bytes 68-79
+            int32_t rawIllumX = static_cast<int32_t>(ReadU32BE(&hdr43[68]));
+            int32_t rawIllumY = static_cast<int32_t>(ReadU32BE(&hdr43[72]));
+            int32_t rawIllumZ = static_cast<int32_t>(ReadU32BE(&hdr43[76]));
+            double iX = rawIllumX / 65536.0, iY = rawIllumY / 65536.0, iZ = rawIllumZ / 65536.0;
+            if (fabs(iX - 0.9642) > 0.002 || fabs(iY - 1.0) > 0.002 || fabs(iZ - 0.8249) > 0.002) {
+              printf("      %s[WARN]  Illuminant ≠ D50 but 'chad' (chromaticAdaptation) tag missing%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sCWE-20: ICC.1-2022-05 Annex G requires chad when adopted white ≠ D50%s\n",
+                     ColorCritical(), ColorReset());
+              spectralIssues++;
+            }
           }
         }
       }
@@ -2755,6 +2774,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
         printf("[H13] Per-Tag Size Check (raw)\n");
         {
           int tagSizeIssues = 0;
+          int tagsAccessible = 0, tagsTotal = 0;
           size_t safeTagCount = (tagCount > kMaxTagScanCount) ? kMaxTagScanCount : tagCount;
           for (size_t i = 0; i < safeTagCount; i++) {
             size_t ePos = 132 + i * 12;
@@ -2769,12 +2789,23 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
+            tagsTotal++;
             // Check offset + size overflow
             uint64_t endPos = (uint64_t)tOffset + tSize;
             if (endPos > fileSize) {
-              printf("      %s[WARN]  Tag '%s': offset=0x%X size=0x%X extends past file (0x%lX)%s\n",
-                     ColorCritical(), tagSig, tOffset, tSize, (unsigned long)fileSize, ColorReset());
+              if (tOffset >= fileSize) {
+                // Tag offset entirely past EOF — fully inaccessible
+                printf("      %s[WARN]  Tag '%s': offset=0x%X past EOF (0x%lX) — fully inaccessible%s\n",
+                       ColorCritical(), tagSig, tOffset, (unsigned long)fileSize, ColorReset());
+              } else {
+                // Tag offset within file but data extends past EOF — partially accessible
+                size_t accessible = fileSize - tOffset;
+                printf("      %s[WARN]  Tag '%s': offset=0x%X size=0x%X — only %zu/%u bytes accessible (truncated at EOF)%s\n",
+                       ColorCritical(), tagSig, tOffset, tSize, accessible, tSize, ColorReset());
+              }
               tagSizeIssues++;
+            } else {
+              tagsAccessible++;
             }
 
             // Check oversized tags (>16MB is suspicious)
@@ -2786,6 +2817,11 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
           }
           if (tagSizeIssues > 0) {
             heuristicCount += tagSizeIssues;
+            if (tagsTotal > 0) {
+              int inaccessible = tagsTotal - tagsAccessible;
+              printf("      %sTag accessibility: %d/%d accessible (%d inaccessible due to truncation)%s\n",
+                     ColorWarning(), tagsAccessible, tagsTotal, inaccessible, ColorReset());
+            }
           } else {
             printf("      %s[OK] All tag sizes within file bounds%s\n", ColorSuccess(), ColorReset());
           }
@@ -2934,7 +2970,79 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
                      typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3], ColorReset());
               printf("       %sRisk: Type confusion → wrong parser invoked → memory corruption%s\n",
                      ColorCritical(), ColorReset());
+
+              // GAP-A: Quantify exploitation severity — if a confused parser
+              // interprets this data as mpet, how many elements would it see?
+              icUInt32Number tSize32 = ReadU32BE(&entry[8]);
+              if ((uint64_t)tOffset + 16 <= fileSize && tSize32 >= 16) {
+                icUInt8Number mpetHdr[8];
+                fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+                if (fread(mpetHdr, 1, 8, fhRaw.fp) == 8) {
+                  uint16_t pseudoIn  = (static_cast<uint16_t>(mpetHdr[0]) << 8) | mpetHdr[1];
+                  uint16_t pseudoOut = (static_cast<uint16_t>(mpetHdr[2]) << 8) | mpetHdr[3];
+                  uint32_t pseudoElem = ReadU32BE(&mpetHdr[4]);
+                  if (pseudoElem > 1000 || pseudoIn > 16 || pseudoOut > 16) {
+                    printf("       %sExploitability: if parsed as mpet → %u inputs, %u outputs, %u elements%s\n",
+                           ColorCritical(), pseudoIn, pseudoOut, pseudoElem, ColorReset());
+                    printf("       %sCWE-131: Catastrophic OOB if element count used for allocation/iteration%s\n",
+                           ColorCritical(), ColorReset());
+                  }
+                }
+              }
+
               typeIssues++;
+            }
+
+            // GAP-C: For valid mpet tags, parse element position table to detect
+            // sub-element type confusion without loading through the library.
+            // mpet layout: type(4) + reserved(4) + inputs(2) + outputs(2) + elements(4)
+            //              + position table: [ offset(4) + size(4) ] × elements
+            //              + per-element data starting with 4-byte type signature
+            icUInt32Number tagTypeSig = ReadU32BE(typeBuf);
+            icUInt32Number tSize32_c = ReadU32BE(&entry[8]);
+            if (tagTypeSig == 0x6D706574 && tSize32_c >= 16 &&
+                (uint64_t)tOffset + 16 <= fileSize) { // 'mpet'
+              icUInt8Number mpetInfo[8];
+              fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+              if (fread(mpetInfo, 1, 8, fhRaw.fp) == 8) {
+                uint32_t nElem = ReadU32BE(&mpetInfo[4]);
+                // Only parse if element count is sane
+                if (nElem > 0 && nElem <= 64) {
+                  size_t posTableStart = tOffset + 16;
+                  size_t posTableEnd = posTableStart + nElem * 8;
+                  if (posTableEnd <= fileSize) {
+                    for (uint32_t e = 0; e < nElem; e++) {
+                      icUInt8Number posEntry[8];
+                      fseek(fhRaw.fp, posTableStart + e * 8, SEEK_SET);
+                      if (fread(posEntry, 1, 8, fhRaw.fp) != 8) break;
+                      uint32_t eOff = ReadU32BE(posEntry);
+                      // Element offset is relative to mpet start (after type+reserved)
+                      size_t absOff = tOffset + 8 + eOff;
+                      if (absOff + 4 <= fileSize) {
+                        icUInt8Number eSig[4];
+                        fseek(fhRaw.fp, absOff, SEEK_SET);
+                        if (fread(eSig, 1, 4, fhRaw.fp) == 4) {
+                          bool elemValid = true;
+                          for (int b = 0; b < 4; b++) {
+                            if (eSig[b] != 0 && (eSig[b] < 0x20 || eSig[b] > 0x7E)) {
+                              elemValid = false;
+                              break;
+                            }
+                          }
+                          if (!elemValid) {
+                            printf("      %s[WARN]  Tag '%s' mpet element[%u]: type 0x%02X%02X%02X%02X is non-printable%s\n",
+                                   ColorCritical(), tagSig, e,
+                                   eSig[0], eSig[1], eSig[2], eSig[3], ColorReset());
+                            printf("       %sCWE-843: Sub-element type confusion in MPE chain%s\n",
+                                   ColorCritical(), ColorReset());
+                            typeIssues++;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
           if (typeIssues > 0) {

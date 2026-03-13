@@ -49,6 +49,9 @@ if (actualFileSize > 0 && profileSize > 0 && profileSize > actualFileSize) {
          ColorCritical(), profileSize, actualFileSize, ColorReset());
   printf("     %sRisk: Tags referencing past EOF will cause heap-buffer-overflow reads%s\n",
          ColorCritical(), ColorReset());
+  double truncPct = 100.0 * (1.0 - (double)actualFileSize / (double)profileSize);
+  printf("     %sTruncation: %.1f%% of declared data missing (%zu bytes absent)%s\n",
+         ColorWarning(), truncPct, (size_t)(profileSize - actualFileSize), ColorReset());
   heuristicCount++;
 }
 // Appended data: file is larger than declared profile size
