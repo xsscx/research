@@ -1,0 +1,92 @@
+# icc_applysearch_fuzzer dictionary
+# Targets: CIccCmmSearch (Nelder-Mead optimization, costFunc, boundsCheck)
+# Based on icc_core.dict + CmmSearch-specific tokens
+
+# ICC magic and header
+icc_magic="\x61\x63\x73\x70"
+icc_size_128="\x00\x00\x00\x80"
+
+# Profile classes exercised by search
+class_mntr="\x6D\x6E\x74\x72"
+class_prtr="\x70\x72\x74\x72"
+class_scnr="\x73\x63\x6E\x72"
+class_link="\x6C\x69\x6E\x6B"
+class_abst="\x61\x62\x73\x74"
+class_spac="\x73\x70\x61\x63"
+class_nmcl="\x6E\x6D\x63\x6C"
+
+# Color spaces (src/dst for search pipeline)
+cs_RGB="\x52\x47\x42\x20"
+cs_CMYK="\x43\x4D\x59\x4B"
+cs_Lab="\x4C\x61\x62\x20"
+cs_XYZ="\x58\x59\x5A\x20"
+cs_Gray="\x47\x52\x41\x59"
+cs_named="\x6E\x6D\x63\x6C"
+
+# PCS
+pcs_XYZ="\x58\x59\x5A\x20"
+pcs_Lab="\x4C\x61\x62\x20"
+
+# Version fields
+ver_2="\x02\x00\x00\x00"
+ver_4="\x04\x00\x00\x00"
+ver_440="\x04\x40\x00\x00"
+ver_5="\x05\x00\x00\x00"
+ver_510="\x05\x10\x00\x00"
+
+# D50 illuminant (s15Fixed16)
+d50_x="\x00\x00\xF6\xD6"
+d50_y="\x00\x01\x00\x00"
+d50_z="\x00\x00\xD3\x2D"
+
+# Key tags for color transforms (AToB/BToA)
+tag_A2B0="\x41\x32\x42\x30"
+tag_A2B1="\x41\x32\x42\x31"
+tag_B2A0="\x42\x32\x41\x30"
+tag_B2A1="\x42\x32\x41\x31"
+tag_D2B0="\x44\x32\x42\x30"
+tag_B2D0="\x42\x32\x44\x30"
+tag_gamt="\x67\x61\x6D\x74"
+
+# Tag types used in transform pipeline
+type_mft1="\x6D\x66\x74\x31"
+type_mft2="\x6D\x66\x74\x32"
+type_mAB="\x6D\x41\x42\x20"
+type_mBA="\x6D\x42\x41\x20"
+type_curv="\x63\x75\x72\x76"
+type_para="\x70\x61\x72\x61"
+type_clut="\x63\x6C\x75\x74"
+
+# Required tags
+tag_desc="\x64\x65\x73\x63"
+tag_wtpt="\x77\x74\x70\x74"
+tag_cprt="\x63\x70\x72\x74"
+tag_chad="\x63\x68\x61\x64"
+
+# PCC-related tags (exercises IccPcc.cpp)
+tag_c2sp="\x63\x32\x73\x70"
+tag_s2cp="\x73\x32\x63\x70"
+tag_svcn="\x73\x76\x63\x6E"
+
+# Rendering intents (control bytes)
+intent_0="\x00"
+intent_1="\x01"
+intent_2="\x02"
+intent_3="\x03"
+
+# Tag counts (common)
+tags_1="\x00\x00\x00\x01"
+tags_3="\x00\x00\x00\x03"
+tags_5="\x00\x00\x00\x05"
+tags_8="\x00\x00\x00\x08"
+tags_10="\x00\x00\x00\x0A"
+
+# Curve/LUT dimensions
+grid_17="\x11"
+grid_33="\x21"
+channels_3="\x03"
+channels_4="\x04"
+
+# Zero padding
+zero_4="\x00\x00\x00\x00"
+zero_8="\x00\x00\x00\x00\x00\x00\x00\x00"
