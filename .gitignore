@@ -155,3 +155,7 @@ xnuimagetools/
 cfl/seeds-applyprofiles/
 wasm/
 .copilot/
+
+# AFL++ fuzzing runtime state (output queues, crash dirs, stats)
+afl/afl-*/output*/
+afl/afl-*/cmin*/
