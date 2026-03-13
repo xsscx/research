@@ -1,7 +1,0 @@
-TITLE "Domain with INPUT_RANGE Override"
-# ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿLUT_3D_INPUT_RANGE sets uniform range, then DOMAIN_MIN/MAX overrides
-#erhis c.0 3.0 3.0
-LUT_3D_SIZE 2
-0
-0.0 1.0 1.0
-1.0 1.0 1.0
