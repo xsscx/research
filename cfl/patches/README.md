@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-13
 
-18 active patches targeting verified security vulnerabilities in iccDEV library code,
+19 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
@@ -35,6 +35,35 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
+
+### CFL-019 Detail — Cross-Tool Validation
+
+**Bug**: `getPccViewingConditions()` returns NULL when PCC profile lacks `svcn` tag.
+Two NPD sites: line 294 (`getReflectanceObserver`) and line 322-337
+(`CIccCombinedConnectionConditions` constructor). Lines 164, 200, 233 in the same
+file already had proper NULL checks — pattern inconsistency.
+
+**Trigger requirements** (ALL must be true):
+1. Transform profile has `multiProcessElementType` tags (creates `CIccXformMpe`)
+2. MPE contains late-binding spectral elements (`emtx`/`iemx`) → `IsLateBinding()` = true
+3. `CIccNamedColorCmm::Begin()` calls `SetLateBindingCC()` → `SetAppliedCC()`
+4. PCC profile lacks `spectralViewingConditionsTag` (`svcn`)
+
+**Affected tools**: `iccApplyNamedCmm` (only tool using `CIccNamedColorCmm`)
+**Affected profiles**: Any with late-binding elements — `Rec2020rgbSpectral.icc`, `LCDDisplay.icc` (2 of 416 testing profiles)
+
+**1-liner reproduction** (from repo root):
+```bash
+printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tmp/pcc-test-data.txt && ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML source-of-truth/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm /tmp/pcc-test-data.txt 0 0 iccDEV/Testing/Display/Rec2020rgbSpectral.icc 0 -PCC test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc
+```
+
+**Not affected**: `iccDumpProfile`, `iccToXml`, `iccRoundTrip`, `iccV5DspObsToV4Dsp`,
+`iccApplyToLink` (rejects before Begin), `iccApplyProfiles` (requires TIFF I/O),
+`iccApplySearch` (requires 2-3 profiles). Non-spectral profiles have 0 late-binding
+elements so `SetAppliedCC()` is never called.
+
+**PoC profile**: `test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc`
+(832-byte v5 MPE profile with A2B0/B2A0 but no `svcn` tag)
 
 ## CWE Distribution
 
