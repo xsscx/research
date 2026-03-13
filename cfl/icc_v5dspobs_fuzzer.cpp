@@ -108,8 +108,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // === TOOL LINE 121: FindTagOfType(AToB1, MPE) ===
   CIccTagMultiProcessElement *pTagIn =
-      (CIccTagMultiProcessElement *)dspIcc->FindTagOfType(
-          icSigAToB1Tag, icSigMultiProcessElementType);
+      static_cast<CIccTagMultiProcessElement *>(dspIcc->FindTagOfType(
+          icSigAToB1Tag, icSigMultiProcessElementType));
   if (!pTagIn) {
     unlink(dspPath); unlink(obsPath);
     return 0;
@@ -144,11 +144,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // === TOOL LINES 153-161: PCC tag search ===
   CIccTagSpectralViewingConditions *pTagSvcn =
-      (CIccTagSpectralViewingConditions *)pccIcc->FindTagOfType(
-          icSigSpectralViewingConditionsTag, icSigSpectralViewingConditionsType);
+      static_cast<CIccTagSpectralViewingConditions *>(pccIcc->FindTagOfType(
+          icSigSpectralViewingConditionsTag, icSigSpectralViewingConditionsType));
   CIccTagMultiProcessElement *pTagC2S =
-      (CIccTagMultiProcessElement *)pccIcc->FindTagOfType(
-          icSigCustomToStandardPccTag, icSigMultiProcessElementType);
+      static_cast<CIccTagMultiProcessElement *>(pccIcc->FindTagOfType(
+          icSigCustomToStandardPccTag, icSigMultiProcessElementType));
 
   if (!pTagSvcn || !pTagC2S ||
       pTagC2S->NumInputChannels() != 3 ||
@@ -207,21 +207,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   pIcc->m_Header.version = icVersionNumberV4_3;
 
   CIccTag *pDesc = dspIcc->FindTag(icSigProfileDescriptionTag);
-  CIccTagMultiLocalizedUnicode *pDspText = new CIccTagMultiLocalizedUnicode();
+  CIccTagMultiLocalizedUnicode *pDspText = new(std::nothrow) CIccTagMultiLocalizedUnicode();
+  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; unlink(dspPath); unlink(obsPath); return 0; }
   std::string text;
   if (!icGetTagText(pDesc, text))
     text = "Fuzzed V5 to V4 display conversion";
   pDspText->SetText(text.c_str());
   pIcc->AttachTag(icSigProfileDescriptionTag, pDspText);
 
-  pDspText = new CIccTagMultiLocalizedUnicode();
+  pDspText = new(std::nothrow) CIccTagMultiLocalizedUnicode();
+  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
   pDspText->SetText("Copyright (C) 2026 International Color Consortium");
   pIcc->AttachTag(icSigCopyrightTag, pDspText);
 
   // === TOOL LINES 211-226: TRC curves (2048 samples) ===
-  CIccTagCurve *pTrcR = new CIccTagCurve(2048);
-  CIccTagCurve *pTrcG = new CIccTagCurve(2048);
-  CIccTagCurve *pTrcB = new CIccTagCurve(2048);
+  CIccTagCurve *pTrcR = new(std::nothrow) CIccTagCurve(2048);
+  CIccTagCurve *pTrcG = new(std::nothrow) CIccTagCurve(2048);
+  CIccTagCurve *pTrcB = new(std::nothrow) CIccTagCurve(2048);
+  if (!pTrcR || !pTrcG || !pTrcB) {
+    delete pTrcR; delete pTrcG; delete pTrcB;
+    delete pApplyC2S; delete pApplyMpe; delete pIcc;
+    unlink(dspPath); unlink(obsPath); return 0;
+  }
 
   icFloatNumber in[3], out[3];
   for (icUInt16Number i = 0; i < 2048; i++) {
@@ -242,7 +249,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   matrixMpe->Apply(mtxApply, in, rRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
-  CIccTagS15Fixed16 *primaryXYZ = new CIccTagS15Fixed16(3);
+  CIccTagS15Fixed16 *primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);
@@ -250,7 +258,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   matrixMpe->Apply(mtxApply, in, gRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
-  primaryXYZ = new CIccTagS15Fixed16(3);
+  primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);
@@ -258,7 +267,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   matrixMpe->Apply(mtxApply, in, bRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
-  primaryXYZ = new CIccTagS15Fixed16(3);
+  primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);

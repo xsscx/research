@@ -86,6 +86,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -124,10 +125,12 @@ struct TmpFiles {
         count++;
         return true;
     }
-    // Write raw bytes to the last temp file
+    // Write raw bytes to the last temp file (0600 permissions — not world-writable)
     bool writeLast(const uint8_t *buf, size_t len) {
-        FILE *fp = fopen(paths[count - 1], "wb");
-        if (!fp) return false;
+        int fd = open(paths[count - 1], O_WRONLY | O_TRUNC, 0600);
+        if (fd < 0) return false;
+        FILE *fp = fdopen(fd, "wb");
+        if (!fp) { close(fd); return false; }
         size_t written = fwrite(buf, 1, len, fp);
         fclose(fp);
         return written == len;
@@ -152,7 +155,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Tool lines 229-238: CIccFileIO opens profile, reads length, Read8.
     const uint8_t *iccData = nullptr;
     size_t iccSize = 0;
-    if (hasICC && payloadSize > 4) {
+    if (hasICC) {
         // ICC profile declares its own size at bytes 0-3 (big-endian).
         // Use the last portion of the payload as ICC data.
         // Minimum ICC: 128-byte header + 4-byte tag count = 132 bytes.
@@ -176,11 +179,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     TmpFiles tmp;
 
     // --- Gate 1: Write N raw TIFF blobs to temp files ---
+    static const char *const kSuffixes[8] = {
+        "/fuzz_sep_00_XXXXXX", "/fuzz_sep_01_XXXXXX",
+        "/fuzz_sep_02_XXXXXX", "/fuzz_sep_03_XXXXXX",
+        "/fuzz_sep_04_XXXXXX", "/fuzz_sep_05_XXXXXX",
+        "/fuzz_sep_06_XXXXXX", "/fuzz_sep_07_XXXXXX",
+    };
     for (uint8_t i = 0; i < nFiles; i++) {
-        char suffix[64];
-        snprintf(suffix, sizeof(suffix), "/fuzz_sep_%02d_XXXXXX", i);
 
-        if (!tmp.add(tmpdir, suffix))
+        if (!tmp.add(tmpdir, kSuffixes[i]))
             return 0;
 
         const uint8_t *blob = payload + (size_t)i * chunkSize;
