@@ -35,24 +35,17 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
 | # | Fuzzer Binary | Primary Target |
 |---|--------------|----------------|
-| 1 | icc_profile_fuzzer | CIccProfile::Read() |
-| 2 | icc_toxml_fuzzer | CIccProfile::SaveXml() |
-| 3 | icc_fromxml_fuzzer | CIccProfile::LoadXml() |
-| 4 | icc_dump_fuzzer | CIccProfile::Describe() |
-| 5 | icc_deep_dump_fuzzer | Full tag enumeration |
-| 6 | icc_io_fuzzer | Byte-level I/O |
-| 7 | icc_apply_fuzzer | CIccCmm::Apply() |
-| 8 | icc_applyprofiles_fuzzer | Multi-profile transforms |
-| 9 | icc_applynamedcmm_fuzzer | Named color CMM |
-| 10 | icc_calculator_fuzzer | MPE Calculator |
-| 11 | icc_link_fuzzer | Profile linking |
-| 12 | icc_fromcube_fuzzer | .cube LUT parsing |
-| 13 | icc_multitag_fuzzer | Multi-tag load |
-| 14 | icc_spectral_fuzzer | Spectral PCS |
-| 15 | icc_specsep_fuzzer | Spectral separation |
-| 16 | icc_v5dspobs_fuzzer | v5 DspObs→v4 conversion |
-| 17 | icc_tiffdump_fuzzer | TIFF tag reading |
-| 18 | icc_roundtrip_fuzzer | Round-trip transforms |
+| 1 | icc_applynamedcmm_fuzzer | Named color CMM |
+| 2 | icc_applyprofiles_fuzzer | Multi-profile transforms |
+| 3 | icc_dump_fuzzer | CIccProfile::Describe() |
+| 4 | icc_fromcube_fuzzer | .cube LUT parsing |
+| 5 | icc_fromxml_fuzzer | CIccProfile::LoadXml() |
+| 6 | icc_link_fuzzer | Profile linking |
+| 7 | icc_roundtrip_fuzzer | Round-trip transforms |
+| 8 | icc_specsep_fuzzer | Spectral separation |
+| 9 | icc_tiffdump_fuzzer | TIFF tag reading |
+| 10 | icc_toxml_fuzzer | CIccProfile::SaveXml() |
+| 11 | icc_v5dspobs_fuzzer | v5 DspObs→v4 conversion |
 
 ## Patch System (Post-Retirement Architecture)
 
