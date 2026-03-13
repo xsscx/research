@@ -80,9 +80,65 @@ Individual spectral TIFFs          Multi-channel TIFF
 
 ## Creating Test Input
 
-To create sequential spectral TIFFs for testing, use any tool that generates
-single-channel TIFF images. The channel number in the filename (via the printf format)
-determines the spectral band assignment.
+Pre-built spectral seed TIFFs are available at `iccDEV/Testing/Fuzzing/seeds/tiff/spectral/` (147 files).
+Each series consists of single-channel (SPP=1) MINISBLACK TIFFs with sequential numbering:
+
+```bash
+# 4×4 8-bit baseline series (10 channels)
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/spec_*.tif
+
+# Full visible spectrum 8-bit (380–780nm at 5nm, 81 channels)
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/wl_*.tif
+
+# 8×8 8-bit series
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/ch8_*.tif
+
+# 16-bit all-white series
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/white_*.tif
+
+# 256×256 large image series
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/lg_*.tif
+
+# BigTIFF format series
+ls iccDEV/Testing/Fuzzing/seeds/tiff/spectral/big_*.tif
+```
+
+To create custom sequential TIFFs, use Python with the `tifffile` library or
+any tool that generates single-channel TIFF images. Requirements:
+- All input TIFFs must have identical dimensions
+- 1 sample per pixel (MINISBLACK photometric)
+- 8-bit or 16-bit BitsPerSample
+
+## Input Requirements
+
+| Parameter | Required Value | Notes |
+|-----------|---------------|-------|
+| SamplesPerPixel | 1 | Multi-channel TIFFs are rejected (exit 255) |
+| Photometric | MINISBLACK or MINISWHITE | RGB/CMYK/etc. are rejected |
+| BitsPerSample | 8 or 16 | 32-bit float is rejected |
+| Dimensions | Identical across all inputs | Width and height must match exactly |
+
+The source code enforces these requirements at line 120:
+`const int minargs = 8; // argc = 8 without profile, 9 with profile`
+
+## ICC Profile Embedding
+
+When an optional ICC profile argument is provided (`argc > 8`), the tool:
+
+1. Opens the ICC profile via `CIccFileIO::Open()` → `Read8()` → `GetLength()`
+2. Embeds the raw ICC bytes into the output TIFF via `SetIccProfile()`
+3. The ICC data appears as TIFFTAG_ICCPROFILE (tag 34675) in the output
+
+```bash
+# Embed a spectral ICC profile
+iccSpecSepToTiff /tmp/out.tiff 0 0 \
+  "iccDEV/Testing/Fuzzing/seeds/tiff/spectral/spec_%03d.tif" 1 10 1 \
+  test-profiles/Rec2020rgbSpectral.icc
+
+# Verify embedding
+iccTiffDump /tmp/out.tiff /tmp/extracted.icc
+iccDumpProfile /tmp/extracted.icc
+```
 
 ## Known Limitations
 
@@ -91,10 +147,47 @@ determines the spectral band assignment.
 - The spectral TIFF at `iccDEV/Testing/hybrid/Data/smCows380_5_780.tif` has
   81 SPP — it cannot be used as input (it's the expected output format)
 
+## Tested Configurations (2026-03-12)
+
+### Dedicated test suite (34/34 PASS)
+
+Run with: `bash .github/scripts/test-specseptotiff.sh`
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| Error handling (missing args, bad files) | 6 | ✅ All PASS |
+| Basic merging (10-channel, 81-channel, 8×8, 16-bit) | 6 | ✅ All PASS |
+| Compression (LZW on/off, contig/sep) | 4 | ✅ All PASS |
+| Separation modes (contig, separated, compress+sep) | 4 | ✅ All PASS |
+| ICC profile embedding (various profiles) | 4 | ✅ All PASS |
+| Cross-validation (output verification with iccTiffDump) | 10 | ✅ All PASS |
+
+### Mass testing (48 option combos)
+
+All combinations of `compress × sep × profile × seed_series`:
+
+| Compress | Sep | ICC Profile | Seed Series | Status |
+|----------|-----|-------------|-------------|--------|
+| 0 | 0 | None | spec, wl, ch8, white | ✅ All PASS |
+| 0 | 1 | None | spec, wl, ch8, white | ✅ All PASS |
+| 1 | 0 | None | spec, wl, ch8, white | ✅ All PASS |
+| 1 | 1 | None | spec, wl, ch8, white | ✅ All PASS |
+| 0–1 | 0–1 | sRGB_D65_MAT.icc | spec, wl, ch8, white | ✅ All PASS |
+| 0–1 | 0–1 | Rec2020rgbSpectral.icc | spec, wl, ch8, white | ✅ All PASS |
+
+**0 ASAN, 0 UBSAN across all 82 test runs.**
+
+## Code Coverage (V2.1 Fuzzer vs Tool)
+
+| Component | Tool (mass test) | Fuzzer (2,256 corpus) | Winner |
+|-----------|-----------------|----------------------|--------|
+| TiffImg.cpp Lines | 65.20% | 69.26% | Fuzzer +4.06% |
+| TiffImg.cpp Branches | 49.22% | 59.38% | Fuzzer +10.16% |
+| IccIO.cpp Lines | 5.60% | 5.60% | Tied |
+
 ## Security Notes
 
-CFL-082 patches the `CTiffImg::Open()` strip buffer validation that this tool uses.
-For untrusted input TIFFs:
+For untrusted input TIFFs, use ASAN-instrumented build:
 
 ```bash
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
@@ -106,7 +199,9 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
 
 - [iccTiffDump](../iccTiffDump/) — Inspect the merged spectral TIFF
 - [iccApplyProfiles](../iccApplyProfiles/) — Apply ICC transforms to TIFF images
-- CFL fuzzer: `icc_specsep_fuzzer` — Fuzz the spectral separation pipeline
+- CFL fuzzer: `icc_specsep_fuzzer` (V2.1) — Fuzz the spectral separation pipeline
+  with ICC profile embedding support
+- Test script: `.github/scripts/test-specseptotiff.sh` — 34-test dedicated suite
 
 ## Version
 

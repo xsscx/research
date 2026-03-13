@@ -153,3 +153,53 @@
 
   Output logs: /home/h02332/po/research/tmp/iccdev-tool-tests/output/
 =============================================================================
+
+=============================================================================
+ TIFF Mass Testing Update
+ 2026-03-12 22:45:00 UTC
+ Corpus: ~/po/tiff-main (22,218 unique TIFFs, 642.7 MB)
+ ASAN: halt_on_error=0,detect_leaks=0
+=============================================================================
+
+--- Mass Test: iccTiffDump (500 files × 2 modes) ---
+  Mode 1: metadata dump only — 500 runs, 500 success
+  Mode 2: dump + ICC extraction — 500 runs, 500 success
+  TOTAL: 1,000 runs, 0 ASAN, 0 UBSAN
+
+--- Mass Test: iccDumpProfile (500 files × 3 modes) ---
+  Mode 1: basic dump — 500 runs, 500 success
+  Mode 2: dump with validation (-v) — 500 runs, 500 success
+  Mode 3: dump ALL tags — 500 runs, 500 success
+  TOTAL: 1,500 runs, 0 ASAN, 0 UBSAN
+
+--- Mass Test: iccApplyProfiles (50 files × option matrix) ---
+  Option matrix: encoding(0,1,2) × compression(0,1) × planar(0,1) ×
+                 embed(0,1) × interpolation(0,1) × intent(0,1,2,3)
+  10 diverse ICC profiles from test-profiles/
+  3,200 runs (capped from 9,600 total combos), 3,200 success
+  TOTAL: 3,200 runs, 0 ASAN, 0 UBSAN
+
+--- Mass Test: iccSpecSepToTiff (48 option combos) ---
+  Seed series: spec, wl, ch8, white (from seeds/tiff/spectral/)
+  Options: compress(0,1) × sep(0,1) × profile(none, sRGB, Rec2020)
+  TOTAL: 48 runs, 48 success, 0 ASAN, 0 UBSAN
+
+--- Dedicated: test-specseptotiff.sh (34 tests) ---
+  Error handling: 6/6 PASS
+  Basic merging: 6/6 PASS
+  Compression: 4/4 PASS
+  Separation: 4/4 PASS
+  ICC embedding: 4/4 PASS
+  Cross-validation: 10/10 PASS
+  TOTAL: 34/34 PASS, 0 ASAN, 0 UBSAN
+
+=============================================================================
+ MASS TESTING SUMMARY (2026-03-12)
+=============================================================================
+  Total runs:      5,748
+  Success:         5,748
+  ASAN findings:   0
+  UBSAN findings:  0
+  Corpus size:     22,218 unique TIFFs
+  Tools tested:    iccTiffDump, iccDumpProfile, iccApplyProfiles, iccSpecSepToTiff
+=============================================================================
