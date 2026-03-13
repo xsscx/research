@@ -41,4 +41,8 @@
 int RoundTripAnalyze(const char *filename);
 int RecursiveScan(const char *directory, bool quiet = false, int depth = 0);
 
+/// Defensive check: returns true if profile header claims more bytes than file contains.
+/// Use before CIccProfile::Read() to prevent UBSAN/ASAN from truncated tag data. CWE-125.
+bool IsProfileTruncated(const char *filename);
+
 #endif

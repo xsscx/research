@@ -100,6 +100,15 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
   printf("%sPHASE 3: SIGNATURE ANALYSIS%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
+  // Defensive programming: truncated profiles cause UBSAN/ASAN during Read().
+  if (IsProfileTruncated(filename)) {
+    printf("%s[SKIP] Profile TRUNCATED — phases 3-5 skipped (CWE-125)%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sHeader claims more bytes than file contains%s\n",
+           ColorInfo(), ColorReset());
+    return totalIssues > 0 ? totalIssues : -1;
+  }
+
   CIccFileIO io;
   if (!io.Open(filename, "rb")) {
     printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
