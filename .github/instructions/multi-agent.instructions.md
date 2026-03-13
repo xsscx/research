@@ -46,7 +46,7 @@ xcrun simctl list devices 2>/dev/null | head -3 && echo "iOS Simulator available
 # Build iccanalyzer-lite (ASAN+UBSAN+coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies patches, builds 11 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies patches, builds 12 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools

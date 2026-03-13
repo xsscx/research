@@ -46,7 +46,7 @@ messages:
       Step 5 — Verify
       - `ASAN_OPTIONS=detect_leaks=0 /path/to/rebuilt/fuzzer oom-file`
       - Peak RSS should be <100MB (was typically >4000MB)
-      - Run smoke test on all 11 fuzzers
+      - Run smoke test on all 12 fuzzers
 
       Allocation cap guidelines:
       | Element type          | Recommended cap | Rationale                    |

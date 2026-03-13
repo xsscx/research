@@ -7,7 +7,7 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 | Tool | LOC | Description |
 |------|-----|-------------|
 | **iccanalyzer-lite** | 22,400+ | 150-heuristic security analyzer with ASAN/UBSAN, TIFF image analysis, JSON/XML/Report output, callgraph, OOM protection, Ninja mode |
-| **cfl** (11 fuzzers) | ~2,500 | LibFuzzer harnesses targeting iccDEV (dump, roundtrip, apply, etc.) |
+| **cfl** (12 fuzzers) | ~2,500 | LibFuzzer harnesses targeting iccDEV (dump, roundtrip, apply, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
 | **mcp-server** | — | ICC Profile MCP server with web UI (24 tools) |
 

@@ -5,7 +5,7 @@
 #
 # Last Updated: 2026-02-25 14:00:00 UTC
 #
-# Targets: iccanalyzer-lite, colorbleed_tools, cfl (11 fuzzers), mcp-server (Python)
+# Targets: iccanalyzer-lite, colorbleed_tools, cfl (12 fuzzers), mcp-server (Python)
 # Queries: 17 custom C++ (per target) + 6 custom Python + security-and-quality + security-experimental
 ###############################################################
 
@@ -201,7 +201,7 @@ jobs:
         if: matrix.target == 'cfl'
         run: |
           set -euo pipefail
-          # Build all 11 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
+          # Build all 12 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
           cd cfl
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
           INC_CORE="-I../iccDEV/IccProfLib"
