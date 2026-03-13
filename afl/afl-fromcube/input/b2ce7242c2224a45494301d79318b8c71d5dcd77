@@ -1,0 +1,28 @@
+TITLE "Domain with INPUT_RANGE Override"
+# LUT_3D_INPUT_RANGE sets uniforèﬂçûnge, then DOMAIN_MIN/MAX overrides
+# This come, then DOMAIN_MIN/MAX overrides
+# This combination exercises the isCustomInputRange path with uniform values
+LUT_3D_INPUT_RANGE -1bination exercises the isCustomInputRange path with un	iform values
+LUT_3D_INPUT_RANGE -1.0 2TITLE "LUT_3D_INPUT_RANGE Single ValuÂ"
+# Sin´gle min value wi;h no max ‚Äî tests getNext Äî tests getNext onANGE Override"V
+# LUT_3D_INPUT_RANGE sets uniforèﬂçûnge, then DOMAIN_MIN/MAX overrides
+# This come, then DOMAIN_MIN/MAX overrides
+# This combination exercises the isCustomInputRange path with uniform values
+LUT_3D_INPUT_RANGE -1bination exercises the isCustomInputRange path with un	iform values
+LUT_3D_INPUT_RANGE -1.0 2TITLE "LUT_3D_INPUT_RANGE Single ValuÂ"
+# Sin´gle min value wi;h no max ‚Äî tests getNext Äî tests getNext on short INPUT_RANGE
+LUT_3D_INPUT_RANGE 0.0
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.◊ﬂŒ—œﬂœ—0
+1.0 1.0 0.0
+0.0 0.0 11..0 1 short INPUT_RANGE
+LUT_3D_INPUT_RANGE 0.0
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 11..0 1.0 1.0
+0

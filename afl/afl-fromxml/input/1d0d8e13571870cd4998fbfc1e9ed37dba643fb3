@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>mid </ProfileDeviceClass>
+    <ProfileDeviceSubClass>nink</ProfileDeviceSubClass>
+    <DataColourSpace>nc0004</DataColourSpace>
+    <PCS></PCS>
+    <CreationDateTime>2025-12-24T00:08:43</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false" MCSNeedsSubset="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZN.mber X="0.000000000000" Y="0.000000000000" Z="0.000000000000"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>C22F67C671FF25D6A85E0ED41599C936</ProfileID>
+   `<MCS>6D630004h</MCS>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Channel seilecton for Photoshop CMYure>
+      <MultiProcessElements InputChannelsvcn" OutputChannels="3">
+			  <CalculatorElement InputChannels="3" OutputChannels="3">
+				  <SubElements>
+					  <!--Element 0 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 0.5 0.0 0.0
+							 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 2 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+								1.00000000 1.00000000 -1.00000000
+								2.00000000 1.00000000 -1.00000000
+								1.00000000 -1.00000000 1.00000000
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 3 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+							 0.4660 0.3851 0.1431
+							 0.2225 0.7169 0.0606
+							 0.0139 0.0971 0.7139
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 4 -->
+						<CLutElement InputChannels="3" OutputChannels="3">
+							<GridPoints>2 2 2</GridPoints>
+							<TableData>
+								0.0 0.0 0.0 
+								0.0 0.0 0.75
+								0.0 0.5 0.0
+								0.0 0.5 0.75
+								0.25 0.0 0.0
+								0.25 0.0 0.75
+								0.25 0.5 0.0
+								0.25 0.5 0.75
+							</TableData>
+						</CLutElement>
+					  <!--Element 5 -->
+						<CalculatorElement InputChannels="3" OutputChannels="3">
+							<M)
+
+0 28.2843 40 40 28.2843 0
+ctop(3)
+40 40 40 0 45 90
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(66)
+
+40 40 40 0 45 90
+ptoc(3)
+0 28.2843 40 40 28.2843 0
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(67)
+
+pi +INF -INF NaN 4
+rnum(5)
+1 0 0 0 1
+eq(5)
+sum(5)
+5 eq
+tput(68)
+
+1 2 3 4 5 3 3 3 3 3
+lt(5)
+1 1 0 0 0
+sub(5)
+sum(5)
+0 eq
+tput(69)
+
+1 2 3 4 5 3 3 3 3 3
+le(5)
+1 1 1 0 0
+sub(5)
+sum(5)
+0 eq
+tput(70)
+
+1 2 3 4 5 1 0 3 0 5
+eq(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(71)
+
+1 2 3 4 5 1 0 3 0 5
+near(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(72)
+
+1 2 3 4 5 3 3 3 3 3
+ge(5)
+0 0 1 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(73)
+
+1 2 3 4 5 3 3 3 3 3
+gt(5)
+0 0 0 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(74)
+
+1 0 1 0 1
+not(5)
+0 1 0 1 0
+sub(5)
+sum(5)
+0 eq
+tput(75)
+
+0 1 2 3 3 2 1 0
+vmax(4)
+3 2 2 3
+sub(4)
+sum(4)
+0 eq
+tput(76)
+
+0 1 2 3 3 2 1 0
+vmin(4)
+0 1 1 0
+sub(4)
+sum(4)
+0 eq
+tput(77)
+
+0 1 0 1 0 0 1 1
+vand(4)
+0 0 0 1
+sub(4)
+sum(4)
+0 eq
+tput(78)
+
+0 1 0 1 0 0 1 1
+vor(4)
+0 1 1 1
+sub(4)
+sum(4)
+0 eq
+tput(79)
+
+1 .5 .25 1 .5 .25 1 .5 .25
+tLab(3)
+100 76.06926 57.07542 0 0 0 0 0 0
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(80)
+
+100 76.06926 57.07542 0 0 0 0 0 0
+tXYZ(3)
+1 .5 .25 1 .5 .25 1 .5 .25
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(81)
+
+20
+0 if { pop 10 }
+20 eq
+tput(82)
+
+20
+1 if { pop 10 }
+10 eq
+tput(83)
+
+1 if { 10 } else { 20 }
+10 eq
+tput(84)
+
+0 if { 10 } else { 20 }
+20 eq
+tput(85)
+
+2 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+4 eq
+tput(86)
+
+8 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+-1 eq
+tput(87)
+
+0
+1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+3 eq
+tput(88)
+
+0
+-1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+0 eq
+tput(89)
+
+env(true) 
+1 1 eq(2) sum(2)
+2 eq
+tput(90)
+
+env(ndef)
+0 0 eq(2) sum(2)
+2 eq
+tput(91)
+
+tget(0,46)
+tget(46,46)
+sum(92)
+92 eq
+if {
+env(01020304) if {
+  copy(1,2)
+}
+else {
+  in(0,3)
+  curv(1)
+  mtx(3)
+}
+out(0,3)
+}
+else {
+0 0 0
+out(0,3)
+}
+
+}
+          </MainFunction>					
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <multiProcessElementType>
+      <TagSignature>B2A1</TagSignature>
+      <MultiProcessElements InputChannels="4" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						 3.134578  -0.978957   0.072119
+lizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 Internati[CDAcsedTA[Copyright 2019 International Color re>
+      <LocalizedText 00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctK image using MCS]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+
+    <AToM0Tag> <multiProcessElementType>
+      <MultiProcessElements InputChannels="0" OutputChannels="4">
+      </MultiProcessElements>
+    </multiProcessElementType> </AToM0Tag>
+
+    <materialTypeArrayTag> <tagArrayType>
+      <UTF8TextArray> <ArrayTags>
+         <utf8Type>
+         <TextData><![CDATA[Process Cyan]]></TextData>
+        `</utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Magenta]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Yellow]]></TextData>
+         </utf8Type>
+
+         <utf8Type>
+         <TextData><![CDATA[Process Black]]></TextData>
+         </utf8Type>
+
+      </ArrayTags> </UTF8TextArray>
+    </tagArrayType> </materialTypeArrayTag>
+
+    <copyrightTag> <multiLocalizedUnicodeType>
+  bsed    <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2016 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+  </Tags>
+</IccProfile>

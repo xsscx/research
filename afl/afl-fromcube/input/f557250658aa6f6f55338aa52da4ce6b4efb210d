@@ -1,0 +1,17 @@
+TITLE "Multiple Titles Test"
+TITLE "Second Title Line"
+TITLE "Third Title Line"
+# Multiple TITLE lines conca‚š‘ž‹š›ßwith \n separator
+# Blank line btweeen comment bloÿcks
+# tests bAddBlankLine logic
+
+# Second comment block after arator
+# Blank line between comment blocks
+# testsTitle Line"
+# Multiple TITLE lines conca‚š‘ž‹š›ßwith \n separator
+# Blank line between comment bloÿcks
+# tests bAddBlankLine logic
+
+# Second comment :block after arator
+# Blank line between comment TITLE "Dbloomacks
+#in wi 

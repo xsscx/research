@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>mntr</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </PCSIlluminant>
+    <ProfileCreator>SEED</ProfileCreator>
+    <ProfileID>1</ProfileID>
+  </Header>
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Multi-Language UTF Coverage Seed]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[マルチ言語UTFカバレッジシード日本語テスト]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[多语言UTF覆盖种子配置文件中文测试]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[다국어 UTF 커버리지 시드 한국어 테스트]]></LocalizedText>
+      <LocalizedText LanguageCountry="ruRU"><![CDATA[Многоязычный профиль покрытия русский тест]]></LocalizedText>
+      <LocalizedText LanguageCountry="arSA"><![CDATA[ملف تعريف تغطية متعدد اللغات عربي]]></LocalizedText>
+      <LocalizedText LanguageCountry="heIL"><![CDATA[פרופיל כיסוי רב לשוני עברית]]></LocalizedText>
+      <LocalizedText LanguageCountry="thTH"><![CDATA[โปรไฟล์ความครอบคลุมหลายภาษาไทย]]></LocalizedText>
+      <LocalizedText LanguageCountry="deDE"><![CDATA[Mehrsprachiges Profil Umlaute äöüß]]></LocalizedText>
+      <LocalizedText LanguageCountry="frFR"><![CDATA[Profil multilingue accents éèêë àâ ùû]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+    <multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2026 ICC Coverage Test]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[著作権 2026 ICC カバレッジテスト]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[版权所有 2026 ICC 覆盖率测试]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[저작권 2026 ICC 커버리지 테스트]]></LocalizedText>
+      <LocalizedText LanguageCountry="arSA"><![CDATA[حقوق النشر 2026 اختبار تغطية]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+    <multiProcessElementType>
+      <TagSignature>A2B1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+           0.43606567 0.38515091 0.14307022
+           0.22249985 0.71687317 0.06060791
+           0.01392822 0.09707642 0.71409607
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType>
+    <multiProcessElementType>
+      <TagSignature>B2A1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+        <MatrixElement InputChannels="3" OutputChannels="3">
+          <MatrixData>
+           3.1338561 -1.6168667 -0.4906146
+          -0.9787684  1.9161415  0.0334540
+           0.0719453 -0.2289914  1.4052427
+          </MatrixData>
+        </MatrixElement>
+      </MultiProcessElements>
+    </multiProcessElementType>
+  </Tags>
+</IccProfile>

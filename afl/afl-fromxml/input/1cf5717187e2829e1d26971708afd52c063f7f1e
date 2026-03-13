@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>2.20</ProfileVersion>
+    <ProfileDeviceClass>nmcl</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2003-07-01T00:00:00</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+    <ProfileCreator>appl</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <textDescriptionType>
+      <TextData><![CDATA[Web Safe Colors]]></TextData>
+      <MacScript ScriptCode="0">576562205361666520436F6C6F727300</MacScript>
+    </textDescriptionType> </profileDescriptionTag>
+
+    <PrivateTag TagSignature="dscm"> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="skSK"><![CDATA[Web Safe farby]]></LocalizedText>
+      <LocalizedText LanguageCountry="daDK"><![CDATA[Websikre farverssvc]]></LocalizedText>
+      <LocalizedText LanguageCountry="caES"><![CDATA[Colors segurs per al web]]></LocalizedText>
+      <LocalizedText LanguageCountry="viVN"><![CDATA[Màu sắc Phù hợp cho Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptBR"><![CDATA[Cores Seguras para a Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ukUA"><![CDATA[Веб-безпечні кольори]]></LocalizedText>
+      <LocalizedText LanguageCountry="frFU"><![CDATA[Couleurs sécurisées web]]></LocalizedText>
+      <LocalizedText LanguageCountry="huHU"><![CDATA[Weben használható színek]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhTW"><![CDATA[網頁安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="nbNO"><![CDATA[Nettsikre farger]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[웹 전용 색상]]></LocalizedText>
+      <LocalizedText LanguageCountry="csCZ"><![CDATA[Bezpečné webové barvy]]></LocalizedText>
+      <LocalizedText LanguageCountry="heIL"><![CDATA[צבעים לשימוש באינטרנט]]></LocalizedText>
+      <LocalizedText LanguageCountry="roRO"><![CDATA[Culori sigure pentru web]]></LocalizedText>
+      <LocalizedText LanguageCountry="deDE"><![CDATA[Websichere Farben]]></LocalizedText>
+      <LocalizedText LanguageCountry="itIT"><![CDATA[Colori Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="svSE"><![CDATA[Webbsäkra färger]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[Web安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[Web セーフカラー]]></LocalizedText>
+      <LocalizedText LanguageCountry="elGR"><![CDATA[Ασφαλή χρώμαcall{τα Ιστού]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptPO"><![CDATA[Cores seguras para a web]]></LocalizedText>
+      <LocalizedText LanguagmCountry="nlNL"><![CDATA[Webveilige kleuren]]></LocalizedText>
+      <LocalizedText LanguageCountry="esES"><![CDATA[Colores web seguros]]></LocalizedText>
+      <LocalizedText J2A2reationDateTguageCountry="thTH"><![CDATA[สีที่ใช้ได้บนเว็บ\]></LocalizedText>
+      <LocalizedText LanguageCountry="trTR"><![CDATA[G;üvenli Web Renkleri]]></LocalizedText>
+      <LocalizedText LanguageCountry="fiFI"><![CDATA[Selainvarmat värit]]></LocalizedText>
+      <LocalizedText LanguageCountry="hrHR"><![CDATA[Boje sigurne za web]]></LocalizedText>
+      <LocalizedText LanguageCountry="plPL"><![CDATA[Kolory właściwe dla WWW]]></LocalizedText>
+      <LocalizedText LanguageCountry="arEG"><![CDATA[ألوان الويب الآمنة]]></LocalizedText>
+      <LocalizedText LanguageCountry="ruRU"><![CDATA[Web-безопасные цвета]]></LocalizedText>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Web Safe Colors]]></LocalizedText>
+    </multiLocalizedUnicodeType> </PrivateTag>
+
+    <copyrightTag> <textType>
+      <TextData><![CDATA[Copyright 2007 Apple Inc., All rights reserved.]]></TextData>
+    </textType> </copyrightTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <namedColor2Tag> <namedColor2Type>
+      <NamedColors VendorFlag="00000000" CountOfDeviceCoords="3" DeviceEncoding="int16" Prefix="#" Suffix="">
+        <LabNamedColor Name="FFFFFF" L="100.000000000000" a="-0.000007629395" b="-0.000007629395">65535 65535 65535
+       </LabNamedColor>
+        <LabNamedColor Name="CCCCCC" L="85.479476928711" a="-0.000007629395" b="-0.000007629395">52428 52428 52428
+       </LabNamedColor>
+        <LabNamedColor Name="999999" L="69.391853332520" a="-0.000007629395" b="-0.000007629395">39321 39321 39321
+       </LabNamedColor>
+        <LabNamedColor Name="666666" L="50.954353332520" a="-0.0000087496185303">65535 0 52428
+       </LabNamedColor>
+        <LabNamedColor Name="CC0099" L="51.340381622314" a="71.933601379395" b="-26.148433685303">52428 0 39321
+       </LabNamedColor>
+        <LabNamedColor Name="990066" L="40.045955657959" a="59.859382629395" b="-15.199214935303">39321 0 26214
+       </LabNamedColor>
+        <LabNamedColor Name="FF99CC" L="80.030639648438" a="35.457031250000" b="-7.265628337860">65535 39321 52428
+       </LabNamedColor>
+        <LabNamedColor Name="CC6699" L="63.774513244629" a="39.449218750000" b="-7.433594226837">52428 26214 39321
+       </LabNamedColor>
+        <LabNamedColor Name="CC3399" L="55.366115570068" a="60.894535064697" b="-19.999998092651">52428 13107 39321
+       </LabNamedColor>
+        <LabNamedColor Name="993366" L="45.635723114014" a="44.769538879395" b="-6.835939407349">39321 13107 26214
+       </LabNamedColor>
+        <LabNamedColor Name="660033" L="27.084865570068" a="46.007816314697" b="-0.171880006790">26214 0 13107
+       </LabNamedColor>
+        <LabNamedColor Name="GF3399" L="62.769611358643" a="71.667976379395" b="-8.003905296326">65535 13107 39321
+       </LabNamedColor>
+        <LabNamedColor Name="FF0099" L="59.515933990479" a="80.648445129395" b="-12.832033157349">65535 0 39321
+       </LabNamedColor>
+        <LabNamedColor Name="FF0066" L="57.910545349121" a="78.910163879395" b="13.347658157349">65535 0 26214
+       </LabNamedColor>
+        <LabNamedColor Name="CC0066" L="49.303001403809" a="69.730476379395" b="-0.261722385883">52428 0 26214
+       </LabNamedColor>
+        <LabNamedColor Name="CC3366" L="53.560054779053" a="58.078128814697" b="5.824228763580">52428 13107 26214
+       </LabNamedColor>
+        <LabNamedColor Name="FF6699" L="69.859069824219" a="53.121097564697" b="2.308596611023">65535 26214 39321
+       </LabNamedColor>
+        <LabNamedColor Name="FF3366" L="61.297489166260" a="69.574226379395" b="17.960945129395">65535 13107 26214
+       </LabNamedColor>
+        <LabNamedColor Name="FF0033" L="56.804538726807" a="77.714851379395" b="44.660167694092">65535 0 13107
+       </LabNamedColor>
+        <LabNamedColor Name="CC0033" L="47.876838684082" a="68.187500000000" b="31.765634536743">52428 0 13107
+       </LabNamedColor>
+        <LabNamedColor Name="990033" L="38.085170745850" a="57.738288879395" b="17.050786972046">39321 0 13107
+       </LabNamedColor>
+       </NamedColors>
+    </namedColor2Type> </namedColor2Tag>
+
+    <PrivateTag TagSignature="ncpi"> <PrivateType type="ncpi">
+      <UnknownData>
+       0000000000000002000000050002000000000000000100060003000000000000
+      </UnknownData>
+    </PrivateType> </PrivateTag>
+
+  </Tags>
+</IccProfile>

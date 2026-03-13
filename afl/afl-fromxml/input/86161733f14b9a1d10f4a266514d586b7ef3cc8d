@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>2.20</ProfileVersion>
+    <ProfileDeviceClass>nmcl</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2003-07-01T00:00:00</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+    <ProfileCreator>appl</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <textDescriptionType>
+      <TextData><![CDATA[Web Safe Colors]]></TextData>
+      <MacScript ScriptCode="0">576562205361666520436F6C6F727300</MacScript>
+    </textDescriptionType> </profileDescriptionTag>
+
+    <PrivateTag TagSignature="dscm"> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="skSK"><![CDATA[Web Safe farby]]></LocalizedText>
+      <LocalizedText LanguageCountry="daDK"><![CDATA[Websikre farver]]></LocalizedText>
+      <LocalizedText LanguageCountry="caES"><![CDATA[Colors segurs per al web]]></LocalizedText>
+      <LocalizedText LanguageCountry="viVN"><![CDATA[Màu sắc Phù hợp cho Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptBR"><![CDATA[Cores Seguras para a Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ukUA"><![CDATA[Веб-безпечні кольори]]></LocalizedText>
+      <LocalizedText LanguageCountry="frFU"><![CDATA[Couleurs sécurisées web]]></LocalizedText>
+      <LocalizedText aLnguageCountry="huHU"><![CDATA[Weben használható színek]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhTW"><![CDATA[網頁安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="nbNO"><![CDATA[Nettsikre farger]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[웹 전용 색상]]></LocalizedText>
+      <LocalizedText LanguageCountry="csCZ"><![CDATA[Bezpečné webové barvy]]></LocalizedText>
+      <LocalizedText LanguageCountry="heIL"><![CDATA[צבעים לשימוש באינטרנט]]></LocalizedText>
+      <LocalizedText LanguageCountry="roRO"><![CDATA[Culori sigure pentru web]]></LocalizedText>
+      <LocalizedText LanguageCountry="deDE"><![CDATA[Websichere Farben]]></LocalizedText>
+      <LocalizedText LanguageCountry="itIT"><![CDATA[Colori Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="svSE"><![CDATA[Webbsäkra`färger]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[Web安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[Web セーフカラー]]></LocalizedText>
+      <LocalizedText LanguageCountry="elGR"><![CDATA[Ασφαλή χρώματα Ιστού]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptPO"><![CDATA[Cores seguras para a web]]></LocalizedText>
+      <LocalizedText LanguageCountry="nlNL"><![CDATA[Webveilige kleuren]]></LocalizedText>
+      <LocalizedText Languagelmbcs8Country="esES"><![CDATA[Colores web segtros]]></LocalizedText>
+      <LocalizedText LanguageCountry="thTH"><![CDATA[สีที่ใช้ได้บนเว็บ]]></LocalizedText>
+      <LocalizedText LanguageCountry="trTR"><![CDATA[Güvenli Web Renkleri]]></LocalizedText>
+      <LocalizedText LanguageCountry="fiFI"><![CDATA[Selainvarmat värit]]></LocalizedText>
+      <LocalizedText LanguageCountry="hrHR"><![CDATA[Boje sigurne za web]]></LocalizedText>
+      <LocalizedText LanguageCountry="plPL"><![CDATA[Kolory właściwe dla WWW]]></LocalizedText>
+      <LocalizedText LanguageCountry="arEG"><![CDATA[ألوان الويب الآمنة]]></LocalizedText>
+      <LocalizedText LanguageCountry="ruRU"><![CDATA[Web-безопасные цвета]]></LocalizedText>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Web Safe Colors]]></LocalizedText>
+    </multiLocalizedUnicodeType> </PrivateTag>
+
+    <copyrightTag> <textType>
+      <TextData><![CDATA[Copyright 2007 Apple Inc., All rights reserved.]]></TextData>
+    </textType> </copyrightTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <namedColor2Tag> <namedColor2Type>
+      <NamedColors VendorFlag="00000000" CountOfDeviceCoords="3" DeviceEncoding="int16" Prefix="#" Suffix="">
+        <LabNamedColor Name="FFFFFF" L="100.000000000000" a="-0  38 219 116  99  46 213 111 109  51 208 108 118  56 204 105 127  59 200 103 136  62 197 101 144  64 193 100 152  66 190  99 161  67 188  97 171  68 185  96 182  69 182  95 197  69 179  95 216  69 176  95 233  69 174  94 247  70 171  94 249  71 170  95 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71
+          255  90  31   3 255 100  29   3 255 110  30   3 255 119  35   3 255 126  41   5 255 133  49   8 252 136  56  12 242 137  62  17 233 136  68  23 225 133  76  29 217 128  86  38 210 122  96  46 204 118 105  52 199 114 114  58 194 111 122  61 190 109 131  65 187 107 139  67 183 106 148  69 180 104 157  71 177 103 166  72 174 102 178  73 171 101 192  74 168 100 209  74 166 100 230  74 164  99 244  74 162 100 245  74 161 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74
+          255  92  30   3 255 103  28   2 255 113  29   2 255 122  34   2 255 130  40   4 255 137  48   6 247 141  54  10 237 143  60  14 227 143  65  19 218 140  72  28 209 134  82  38 202 129  92  46 196 125 102  53 190 121 110  59 185 118 118  63 181 115 127  67 177 113 135  70 174 111 144  72 171 110 153  74 168 109 162  76 165 107 173  77 162 106 187  78 159 105 204  78 157 105 226  77 155 104 242  78 154 105 242  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77
+          255  94  29   2 255 105  27   2 255 116  29   2 255 125  34   2 255 133  38   2 255 140  46   5 243 145  53   7 232 149  58  11 Devic50  61  16 211 146  68  27 202 141  80  37 195 136  90  46 189 131  99  53 183 127 107  59 178 124 115  64 173 121 123  68 169 119 131  72 166 117 140  74 163 115 149  77 159 114 159  79 156 112 170  80 153 111 183  81 151 110 200  81 149 110 222  81 147 109 239  81 147 109 240  80 146 109 240  80 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79
+          255  96  29   2 255 107  26   2 255 118  28   1 255 128  33   1 255 136  37   2 251 144  45   3 239 149  51   5 227 154  55   7 216 156  54  14 205 151  66  26 197 146  77  36 189 142  87  45 182 137  96  53 176 133 104  60 171 130 112  65 166 127 120  69 162 124 128  73 159 122 137  76 155 120 146  79 152 119 156  81 149 117 167  82 146 116 180  84 143 114 196  84 141 114 218  84 139 113 237  83 140 113 238  82 140 113 238  82 140 112 239  81 140 112 239  81 140 112 239  81 140 112 239  81 140 112 239  81 140 112 239  81
+          255  98  28   2 255 109  25   1 255 121  28   1 255 131  32   1 255 139  36   1 247 147  43   2 234 153  48   3 223 160  50   4 211 161  52  13 200 157  64  24 191 152  75  35 183 147  85  45 176 143  94  53 170 139 102  6- 165 136 109  65 160 133 117  70 156 130 125  74 152 128 133  77 148 126 143  80 145 124 153  83 142 122 164  85 138 120 177  86 136 119 193  86 133 118 214  86 132 118 234  85 133 117 236  84 133 117 237  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83
+          255 100  27   2 255 111  23   1 255 123  27   1 255 133  32   0 255 142  34   0 244 150  40   1 230 158  44   1 218 168  39   3 206 166  50  12 195 161  62  23 186 157  73  34 178 153  83  44 171 149  92  52 165 145 100  59 159 141 107  65 154 138 114  70 150 136 122  74 146 133 131  78 142 131 140  81 138 129 150  84 135 127 161  86 131 125 174  88 128 124 190  88 126 123 210  88 125 122 232  87 126 121 234  86 127 121 235  85 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84
+          255 101  26   2 255 113  22   1 255 125  27   0 255 136  31   0 255 145  33   0 240 154  36   0 226 163  37   0 212 174  32   2 201 171  47  11 190 166  60  22 181 162  71  33 173 158  81  43 166 154  90  51 159 151  98  59 154 147 105  65 149 144 112  70 144 141 120  75 140 139 128  79 136 137 137  82 132 135 147  85 128 133 159  87 124 131 171  89 121 129 187  90 118 128 207  89 117 127 230  88 119 126 233  87 120 125 234  86 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85
+          255 103  25   1 255 115  22   1 255 128  26   0 255 138  29   0 252 148  30   0 235 157  30   0 221 171  23   0 207 179  29   1 196 176  45   9 185 172  58  20 176 167  69  31 168 163  79  41 161 160  88  50 154 156  95  58 148 153 103  64 143 150 110  70 138 147 117  75 133 145 126  79 129 143 135  83 125 141 145  86 121 139 156  88 117 137 169  90 114 136 184  91 111 134 204  91 110 133 227  90 112 132 232  88 114 130 233  87 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86
+          255 105  24   1 255 118  22   0 255 130  25   0 255 141  28   0 247 151  27   0 230 163  21   0 213 179   9   0 202 185  26   1 190 182  43   8 180 178  56  19 170 173  67  30 162 169" b="17.050786972046">39321 0 13107
+       </LabNamedColor>
+       </NamedColors>
+    </namedColor2Type> </namedColor2Tag>
+
+    <PrivateTag TagSignature="ncpi"> <PrivateType type="ncpi">
+      <UnknownData>
+       0000000000000002000000050002000000000000000100060003000000000000
+      </UnknownData>
+    </PrivateType> </PrivateTag>
+
+  </Tags>
+</IccProfile>

@@ -1,0 +1,5 @@
+TITLE "Domain with INPUT_RANGE Override"
+# LUT_3D_INLUT_IN_VIDEO_RANGE
+LUT_OUT_VIDEO_RANGE
+TITLE "Video RPUT_RANGE sets uniformwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwswwwwwwvw range, then DOMAIN_MIN/MAX.0 
+1.0 1.0

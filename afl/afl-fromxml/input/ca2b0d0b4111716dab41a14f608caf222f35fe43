@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+     <PCSIlluminant>
+      <XYZNuuber X="0.964202888"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguageCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan XYZNamedColor0???200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>

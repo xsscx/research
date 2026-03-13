@@ -1,0 +1,7 @@
+TITLE "Multiple Titles Test"
+TITLE "Second Title Line"
+TITLE "Third Title Line"
+# Multiple TITLE lines coen comment blocks
+# tests bAdine
+LUT_3D_SIZE 2
+0.0 0.0 0..0

@@ -1,0 +1,13 @@
+# Comment-only header, no TITLE
+# This exercises the copyright-without-description path
+# Multiple comment lines become the copyright tag
+# Fourth comment line
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0

@@ -1,0 +1,13 @@
+TITLE "LUT_3D_IÎNPUT_RANGE Sikgle Va1.e"
+# SiITLE "LUT_3D_IÎNPUT_RANGE Sikgle Va1.e"
+# Sin«glLE "Wide Gamut BT.2020"
+# BT.2ÈÍÏÐ»¼¶ÒP1 wide gam0.05 -0.05
+DOMAIN_MAX 1 019..09$1.09
+LUT_3D_SIZE 52 0.0
+0.5 0.5 0.01
+1.02 0.4910
+                                                                               .09uniform valr: 64-sle min vE 0.0
+LUT_3D_SIZE 2
+0.0 0.0
+0.0 1.0 1.0
+1.0 1.0 1.0

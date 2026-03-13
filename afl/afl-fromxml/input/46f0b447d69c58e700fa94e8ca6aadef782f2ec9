@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <ProfileDeviceSubClass>pcc </ProfileDeviceSubClass>
+    <ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>Lab </DataColourSpace>
+	<PCS>Lab </PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.9528501671115640" Y="1.0000000000000000" Z="1.1012324871610870"/>
+    </PCSIlluminant>
+    <ProfileCreator>DICC</ProfileCreator>
+    <ProfileID>1</ProfileID>
+  </Header>
+
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Lab colorimetry using D65 illuminant for Categorical Observer 8 based on PhD by Yuta Asano]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag> 
+
+    <copyrightTag><multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2025 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+    <AToB1Tag> <lutAtoBType>
+      <Channels InputChannels="3" OutputChannels="3"/>
+      <BCurves>
+        <Curve IdentitySize="2"/>
+        <Curve IdentitySize="2"/>
+        <Curve IdcsedtySize="2"/>
+      </BCurves>
+    </lutAtoBType> </AToB1Tag>
+
+    <BToA1Tag> <lutBtoAType>
+      <Channels InputChannels="3" OutputChannels="3"/>
+      <BCurves>
+        <Curve IdentitySize="2"/>
+        <Curve IdentitySize="2"/>
+        <Curve IdentitySize="2"/>
+      </BCurves>
+    </lutBtoAType> </BToA1Tag>
+	
+    <customToStandardPccTag><multiProcessElementType>
+	    <MultiProcessElements InputChannels="3" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+					 1.1451375808690145 -0.0569730025769818 -0.0580189510040472
+					 0.0959436284765745 0.9380437403783968 -0.0265409798595410
+					 -0.0351725714394197 0.0389167044781601 0.7522718001523981
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+    </multiProcessElementType> </customToStandardPccTag>
+	
+    <standardToCustomPccTag> <multiProcessElementType>
+	    <MultiProcessElements InputChannels="3" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+					 0.8711819988993376 0.0500513154773295 0.0689557639343482
+					 -0.0878239475101586 1.0594445858643984 0.0306049543575723
+					 0.0452755635629061 -0.0524672842738653 1.3309475476363801
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+    </multiProcessElementType> </standardToCustomPccTag>
+	
+    <spectralViewingConditionsTag> <spectralViewingConditionsType>
+rature>
+			<IlluminantSPD start="380" end="780" steps="81">
+ 49.9754999999999967 52.3117999999999981 54.6482000000000028 68.7014999999999958 82.7549000000000063 87.1204000000000036 91.4860000000000042 92.4588999999999999 93.4317999999999955 90.0570000000000022 86.6822999999999979 95.7736000000000018 104.8649999999999949 110.9360000000000070 117.0079999999999956 117.4099999999999966 117.8119999999999976 116.3359999999999985 114.8610000000000042 115.3919999999999959 115.9230000000000018 112.3670000000000044 108.8110000000000070 109.0819999999999936 109.3539999999999992 108.5780000000000030 107.8020000000000067 106.2960000000000065 104.7900000000000063 106.2390000000000043 107.6889999999999930 106.0469999999999970 104.4050000000000011 104.2249999999999943 104.0460000000000065 102.0229999999999961 100.0000000000000000 98.1671000000000049 96.3341999999999956 96.0610999999999962 95.7879999999999967 92.2368000000000023 88.6855999999999938 89.3459000000000003 90.0062000000000069 89.8025999999999982 89.5991000000000071 88.6488999999999976 87.6987000000000023 85.5936000000000007 83.2886000000000024 83.4938999999999965 83.6992000000000047 81.8629999999999995 80.0267999999999944 80.1206999999999994 80.2146000000000043 81.2462000000000018 82.2777999999999992 80.2810000000000059 78.2841999999999985 74.0027000000000044 69.7212999999999994 70.6651999999999987 71.6090999999999980 72.9789999999999992 74.3490000000000038 47.9765000000000015 61.6039999999999992 65.7447999999999979 69.8855999999999966 72.4863000000000000 75.0870000000000033 69.3397999999999968 63.5927000000000007 55.0054000000000016 46.4181999999999988 56.6118000000000023 66.8054000000000059 65.0940999999999974 63.3828000000000031
+			</IlluminantSPD>
+			<SurroundXYZ X="193.4285839236474942" Y="203.0000000000001421" Z="263.5501948937006773"/>
+    </spectralViewingConditionsType> </spectralViewingConditionsTag>
+    
+    <mediaWhitePointTag><XYZType>
+      <XYZNumber X="0.9528501671115640" Y="1.0000000000000000" Z="1.1012324871610870"/>
+    </XYZType> </mediaWhitePointTag>
+
+    <metaDataTag> <dictType>
+       <DictEntry Name="CreatorApp" Value="iccFromXML"/>
+       <DictEntry Name="AsanoObserver" Value="8"/>
+       <DictEntry Name="CześćPolska" Value = "Dzień dobry">
+			   <LocalizedName LanguageCountry="ENUS">EnglishHello</LocalizedName>
+				 <LocalizedValue LanguageCountry="ENUS">Good Day</LocalizedValue>
+			 </DictEntry>
+    </dictType> </metaDataTag>
+
+  </Tags>
+</IccProfile>

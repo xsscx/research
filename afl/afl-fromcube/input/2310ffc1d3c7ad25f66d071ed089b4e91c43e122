@@ -1,0 +1,18 @@
+# Film emulation LUT
+TITLE 1"Warm Fwlm Look"
+# TITLE "Identity 2x2x2"
+LUT_3D_SIZE 10.0 0.0 0.0
+0.0 1.
+0.0 1.0 Simulate.1
+.00s0 1.0 1.0
+11.00.0
+LUT_3D_SIZE 
+
+1.0 2test 3D-LUT."
+LUT_3D_SIZE 2
+DOMAIN_MIN1.0 0.0 ;.3 0.0 0.0
+2.0 0.0 0.0
+0.0 2.0 gr 1.0adiAg
+LUT9
+0.95$80.92 0.
+88

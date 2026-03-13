@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>2.20</ProfileVersion>
+    <ProfileDeviceClass>nmcl</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2003-07-01T00:00:00</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+    <ProfileCreator>appl</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <textDescriptionType>
+      <TextData><![CDATA[Web Safe Colors]]></TextData>
+      <MacScript ScriptCode="0">576562205361666520436F6C6F727300</MacScript>
+    </textDescriptionType> </profileDescriptionTag>
+
+    <PrivateTag TagSignature="dscm"> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="skSK"><![CDATA[Web Safe farby]]></LocalizedText>
+      <LocalizedText LanguageCountry="daDK"><![CDATA[Websikre farver]]></LocalizedText>
+      <LocalizedText LanguageCountry="caES"><![CDATA[Colors segurs per al web]]></LocalizedText>
+      <LocalizedText LanguageCountry="viVN"><![CDATA[Màu sắc Phù hợp cho Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptBR"><![CDATA[Cores Seguras para a Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ukUA"><![CDATA[Веб-безпечні кольори]]></LocalizedText>
+      <LocalizedText LanguageCountry="frFU"><![CDATA[Couleurs sécurisées web]]></LocalizedText>
+      <LocalizedText aLnguageCountry="huHU"><![CDATA[Weben használható színek]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhTW"><![CDATA[網頁安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="nbNO"><![CDATA[Nettsikre farger]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[웹 전용 색상]]></LocalizedText>
+      <LocalizedText LanguageCountry="csCZ"><![CDATA[Bezpečné webové barvy]]></LocalizedText>
+      <LocalizedText LanguageCountry="heIL"><![CDATA[צבעים לשימוש באינטרנט]]></LocalizedText>
+      <LocalizedText LanguageCountry="roRO"><![CDATA[Culori sigure pentru web]]></LocalizedText>
+      <LocalizedText LanguageCountry="deDE"><![CDATA[Websichere Farben]]></LocalizedText>
+      <LocalizedText LanguageCountry="itIT"><![CDATA[Colori Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="svSE"><![CDATA[Webbsäkra`färger]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[Web安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[Web セーフカラー]]></LocalizedText>
+      <LocalizedText LanguageCountry="elGR"><![CDATA[Ασφαλή χρώματα Ιστού]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptPO"><![CDATA[Cores seguras para a web]]></LocalizedText>
+      <LocalizedText LanguageCountry="nlNL"><![CDATA[Webveilige kleuren]]></LocalizedText>
+      <LocalizedText Languagelmbcs8Country="esES"><![CDATA[Colores web segtros]]></LocalizedText>
+      <LocalizedText LanguageCountry="thTH"><![CDATA[สีที่ใช้ได้บนเว็บ]]></LocalizedText>
+      <LocalizedText LanguageCountry="trTR"><![CDATA[Güvenli Web Renkleri]]></LocalizedText>
+      <LocalizedText LanguageCountry="fiFI"><![CDATA[Selainvarmat värit]]></LocalizedText>
+      <LocalizedText LanguageCountry="hrHR"><![CDATA[Boje sigurne za web]]></LocalizedText>
+      <LocalizedText LanguageCountry="plPL"><![CDATA[Kolory właściwe dla WWW]]></LocalizedText>
+      <LocalizedText LanguageCountry="arEG"><![CDATA[ألوان الويب الآمنة]]></LocalizedText>
+      <LocalizedText LanguageCountry="ruRU"><![CDATA[Web-безопасные цвета]]></LocalizedText>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Web Safe Colors]]></LocalizedText>
+    </multiLocalizedUnicodeType> </PrivateTag>
+
+    <copyrightTag> <textType>
+      <TextData><![CDATA[Copyright 2007 Apple Inc., All rights reserved.]]></TextData>
+    </textType> </copyrightTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <namedColor2Tag> <namedColor2Type>
+      <NamedColors VendorFlag="00000000" CountOfDeviceCoords="3" DeviceEncoding="int16" Prefix="#" Suffix="">
+        <LabNamedColor Name="FFFFFF" L="100.000000000000" a="-0.000007629395" b="-0.000007629395">65535 65535 65535
+       </LabNamedColor>
+        <LabNamedColor Name="CCCCCC" L="85.479476928711" a="-0.000007629395" b="-0.000007629395">52428 52428 52428
+      56 202  40 255  55 216  40 255  55 229  40 255  54 239  40 255  54 249  39 255  54 255  39 255  53 255  38 255  53 255  37 255  53 255  38 255  53 255  38 255  53 255  38 255metaDataTag8 255  53 255  38 255  53 255  38
+          255  68  43   4 255  73  42   5 255  78  43   6 255  80  46   8 255  82  52  11 255  86  61  17 255  87  71  22 255  86  82  27 255  85  91  31 255  82 101  34 255  79 110  37 255  75 120  38 255  72 129  40 255  69 139  40 255  67 148  41 255  65 156  41 255  63 165  42 255  62 175  42 255  60 186  42 255  59 200  42 255  58 212  42 255  58 226  41 255  57 237  41 255  57 247  40 255  56 254  40 255  54 255  39 253  55 255  39 250  55 255  40 250  55 255  40 250  55 255  40 250  55 255  40 250  55 255  40 250  55 255  40
+          255  69  42   4 255  76  41   5 255  81  41   6 255  83  44   8 255  86  50  11 255  90  60  17 255  91  69  22 255  90  80  27 255  88  89  32 255  86  99  35 255  83 108  38 255  79 118  40 255  76 127  41 255  73 137  42 255  71 146  43 255  69 154  43 255  67 163  43 255  65 173  43 255  64 184  43 255  63 196  43 255  62 208  43 255  62 223  43 255  61 235  42 254  60 244  42 252  58 251  41 251  57 255  41 247  57 255  42 244  56 255  44 244  56 255  44 244  56 255  44 244  56 255  44 244  56 255  44 244  56 255  44
+          255  72  40   4 255  79  39   5 255  84  40   6 255  87  42   7 255  92  49  11 255  95  58  17 255  95  67  22 255  95  77  27 255  93  87  32 255  90  97  36 255  87 106  39 255  84 115  41 255  80 125  43 255  77 134  44 255  75 143  44 255  73 152  45 255  71 161  45 255  69 170  45 254  68 181  45 252  68 192  45 251  67 204  45 249  67 219  45 248  65 231  44 246  64 240  43 245  63 250  43 243  60 255  45 239  59 255  46 235  59 255  47 235  59 255  47 235  59 255  47 235  59 255  47 235  59 255  47 235  59 255  47
+          255  75  39   4 255  82  38   5 255  88  38   5 255  92  40   7 255  97  48  10 255 101  57  16 255 101  65  22 255  99  74  27 255  98  84  32 255  95  94  37 255  92 103  40 255  89 113  42 255  85 122  44 255  82 132  45 253  80 141  46 251  78 150  47 249  76 159  47 247  74 168  47 246  73 177  47 244  73 188  47 243  72 200  47 241  71 212  46 239  69 227  46 237  69 239  45 235  65 249  47 232  63 255  49 227  62 255  50 224  64 255  51 224  64 255  51 224  64 255  51 224  64 255  51 224  64 255  51 224  64 255  51
+          255  78  38   4 255  85  36   4 255  92  36   5 255  97  39   7 255 103  47  10 255 107  55  15 255 107  63  21 255 105  71  27 255 102  81  32 255 100  91  37 255  97 101  41 253  94 110  44 249  90 120  46 247  87 129  47 244  84 139  48 242  82 148  49 240  81 157  49 238  80 165  50 237  79 174  50 235  78 185  49 233  76 195  49 231  76 209  48 229  75 226  47 226  72 239  49 222  69 249  52 220  68 255  54 215  69 255  55 211  71 255  56 211  71 255  56 211  71 255  56 211  71 255  56 211  71 255  56 211  71 255  56
+          255  80  36   4 255  89  35   4 255  95  35   5 255 102  38   6 255 108  45   9 255 112  54  14 255 113  61  20 255 111  69  26 255 108  78  32 253 105  88  37 249 102  98  41 245  98 108  45 241  95 117  47 238  92 127  49 235  89 137  50 233  87 146  51 231  86 155  52 228  85 163  52 226  84 172  52 224  82 182  52 222  81 195  52 220  79 211  52 216  79 229  52 212  77 240  55 209  76 250  57 206  75 255  58 202  76 255  59 199  77 255  60 199  77 255  60 199  77 255  60 199  77 255  60 199  77 255  60 199  77 255  60
+          255  83  35   4 255  92  33   4 255  99  33   4 255 106  37   5 255 113  44   8 255 118  52  13 255 119  60  18 255 118  67  24 252 114  75  30 246 110  85  36 241 107  95  41 236 103 105  45 232 100 115  48 229  96 125  51 225  94 135  52 223  92 144  54 220  90 153  55 217  88 162  56 214  87 171  57 211  85 181  58 209  85 194  58 206  84 209  58 203  84 227  58 200  83 241  60 197  82 250  61 193  82 255  63 190  83 255  63 188  84 255  64 188  84 255  64 188  84 255  64 188  84 255  64 188  84 255  64 188  84 255  64
+          255  86  34   3 255  95  32   3 255 103  31   4 255 111  37   5 255 118  43   7 255 123  51  11 255 125  58  17 253 125  65  22 245 122  72  28 239 116  81  34 233 113  92  40 228 109 103  45 223 105 113  49 219 101 122  53 214  98 132  56 211  97 141  58 207  95 149  60 205  94 157  61 202  93 166  62 199  91 176  63 196  90 188  64 194  90 203  64 191  89 222  64 188  89 237  65 185  88 250  66 182  88 252  67 179  89 252  67 177  90 252  68 177  90 252  68 177  90 252  68 177  90 252  68 177  90 252  68 177  90 252  68
+          255  88  33   3 255  98  30   3 255 106  30   3 255 115  36   4 255 122  42   6 255 128  50  10 255 131  57  14 247 131  64  20 239 129  70  26 232 125  78  32 225 121  89  38 219 116  99  46 213 111 109  51 208 108 118  56 204 105 127  59 200 103 136  62 197 101 144  64 193 100 152  66 190  99 161  67 188  97 171  68 185  96 182  69 182  95 197  69 179  95 216  69 176  95 233  69 174  94 247  70 171  94 249  71 170  95 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71 168  96 248  71
+          255  90  31   3 255 100  29   3 255 110  30   3 255 119  35   3 255 126  41   5 255 133  49   8 252 136  56  12 242 137  62  17 233 136  68  23 225 133  76  29 217 128  86  38 210 122  96  46 204 118 105  52 199 114 114  58 194 111 122  61 190 109 131  65 187 107 139  67 183 106 148  69 180 104 157  71 177 103 166  72 174 102 178  73 171 101 192  74 168 100 209  74 166 100 230  74 164  99 244  74 162 100 245  74 161 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74 160 100 245  74
+          255  92  30   3 255 103  28   2 255 113  29   2 255 122  34   2 255 130  40   4 255 137  48   6 247 141  54  10 237 143  60  14 227 143  65  19 218 140  72  28 209 134  82  38 202 129  92  46 196 125 102  53 190 121 110  59 185 118 118  63 181 115 127  67 177 113 135  70 174 111 144  72 171 110 153  74 168 109 162  76 165 107 173  77 162 106 187  78 159 105 204  78 157 105 226  77 155 104 242  78 154 105 242  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77 153 105 243  77
+          255  94  29   2 255 105  27   2 255 116  29   2 255 125  34   2 255 133  38   2 255 140  46   5 243 145  53   7 232 149  58  11 222 150  61  16 211 146  68  27 202 141  80  37 195 13D2B20  46 189 131  99  53 183 127 107  59 178 124 115  64 173 121 123  68 169 119 131  72 166 117 140  74 163 115 149  77 159 114 159  79 156 112 170  80 153 111 183  81 151 110 200  81 149 110 222  81 147 109 239  81 147 109 240  80 146 109 240  80 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79 146 109 241  79
+          255  96  29   2 255 107  26   2 255 118  28   1 255 128  33   1 255 136  37   2 251 144  45   3 239 149  51   5 227 154  55   7 216 156  54  14 205 151  66  26 197 146  77  36 189 142  87  45 182 137  96  53 176 133 104  60 171 130 112  65 166 127 120  69 162 124 128  73 159 122 137  76 155 120 146  79 152 119 156  81 149 117 167  82 146 116 180  84 143 114 196  84 141 114 218  84 139 113"68.187500000000" b="31.765634536743">52428 0 13107
+       </LabNamedColor>
+        <LabNamedColor Name="990033" L="38.085170745850" a="57.738288879395" b="17.050786972046">39321 0 13107
+       </LabNamedColor>
+       </NamedColors>
+    </namedColor2Type> </namedColor2Tag>
+
+    <PrivateTag TagSignature="ncpi"> <PrivateType type="ncpi">
+      <UnknownData>
+       0000000000000002000000050002000000000000000100060003000000000000
+      </UnknownData>
+    </PrivateType> </PrivateTag>
+
+  </Tags>
+</IccProfile>

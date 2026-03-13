@@ -1,0 +1,224 @@
+TITLE "Float Edge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1@1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1eT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿDOMAIN_MIN 0.5 0.5 0.5ÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.tof() with edge-case float representatiosn
+DOMAIN_MIN -1@1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ-1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß9999999999999999999Ì9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Tes9×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e0.250829 0.081950 0.839949ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿDOMAIN_MIN 0.5 0.5 0.5ÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1eT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e1. -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿDOMAIN_MIN 0.5 0.5 0.5ÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -2e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.tof() with edge-case float representatiosn
+DOMAIN_MIN -1@1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ-1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatt LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿDOMAIN_MIN 0.5 0.5 0.5ÿÿÿÿÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿE "De commen0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZEc
+# Red channel›õÍÑÏß×.0 0.0
+# SeIZE 2ö‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘‘LUT_¶D_SIZE 64E 2ö»°¿AIN_MLUT_PTITLE "Wide Gamut!BT.2021" +#BT.2ÈÍÏĞ»¼¶ÒP           ÿÿÿÿÿÿÿÿÿÿB2A0ÿÿÿresentatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 
+# Sec
+# Red channel›4õÍÑÏß×.0 0.0
+# SeIZge Cases in LUT jData"
+# Tests atof() with edge-case float representatiosn
+DOMAIN_MIN -1e1
+DOMAIN_MIN -1e10 -1e10 -1e10
+DOMAIN_MAX 1e1ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿTITLE "Test LUT"ÿÿÿÿÿÿÿÿÿÿÿÿÿE "De comments"-0.0 0.0 1.0
+.5 0.0 1.0
+0.01+ .0 1.0 1.0

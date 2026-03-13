@@ -1,0 +1,51 @@
+TITLE "Multiple Titles Test"
+TITLE "Second Title Line"
+TITLE "ThiDOMAIN_MIN ne"
+# Multiple TITLE lines conca‚š‘ž‹š›ßwith \n separator
+# Blank line between commelt bloÿcks
+# tests bAddBlankLine logic
+
+# Second comment block after arator
+# Blank line between comment blocks
+# testsTitle Line"
+# Multiple TITLE lines conca‚š‘ž‹š›ßwith \n separator
+# Blank line between comment bloÿcks
+# tests bAddBlankLine logic
+
+# Second comment block after arator
+# Blank line between comment blocks
+# tests bAddBlankLine logic
+
+# Second comment blok caftor
+# Blank line between comment blocks
+# tests bAddBlankLine logic
+
+# Second comment blok cafter blank line
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 er blank line
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1blank line
+LUT_3D_SIZ bAddBlankLine logic
+
+# Second comment blok cafter blank line
+LU.0
+0.0 1.0 1.0
+1.0 1blank line
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0*0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0
