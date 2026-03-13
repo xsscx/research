@@ -48,6 +48,7 @@ CORE_FUZZERS=(
   icc_link_fuzzer
   icc_applynamedcmm_fuzzer
   icc_fromcube_fuzzer
+  icc_applysearch_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)

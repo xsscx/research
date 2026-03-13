@@ -150,6 +150,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // --- Gate 5: Construct CIccNamedColorCmm (tool line 339) ---
     CIccNamedColorCmm namedCmm(srcSpace, icSigUnknownData, bInputProfile);
 
+    // --- Gate 5b: Optional PCC profile (exercises IccPcc.cpp) ---
+    // Tool supports PCC via cfgProfile.m_pccFile (tool lines 347-355).
+    // Use input byte to decide whether to try PCC path — the profile
+    // itself may or may not have valid PCC tags, which exercises validation.
+    CIccProfile *pPccProfile = nullptr;
+    if (size > 132 && (data[100] & 0x80)) {
+        pPccProfile = OpenIccProfile(tmp_path);
+        if (pPccProfile && !pPccProfile->ReadPccTags()) {
+            delete pPccProfile;
+            pPccProfile = nullptr;
+        }
+    }
+
     // --- Gate 6: AddXform — path-based (tool lines 381-388) ---
     // The tool iterates over a profile sequence; we use a single profile.
     // Intent from header (tool gets it from fromArgs → nIntent%10, clamped 0-3).
@@ -161,7 +174,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         tmp_path,
         headerIntent,
         icInterpLinear,
-        nullptr,               // pPcc
+        pPccProfile,           // pPcc — exercises IccPcc.cpp when non-null
         icXformLutColor,       // nLutType
         true,                  // bUseD2BxB2DxTags
         nullptr,               // pHintManager — no BPC/luminance for base case
@@ -233,6 +246,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             break;
     }
 
+    delete pPccProfile;
     unlink(tmp_path);
     return 0;
 }
