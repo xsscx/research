@@ -88,9 +88,10 @@ for historical reference.
 | 014 | SequenceNeedTempReset recursion depth | Unbounded recursion in SequenceNeedTempReset Apply path | CWE-674 | IccMpeCalc.cpp |
 | 015 | SpecSepToTiff strip geometry HBO | Strip buffer vs row geometry mismatch causing heap-buffer-overflow | CWE-122 | TiffImg.cpp |
 | 016 | NaN guard unsigned cast UBSAN | NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath) | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
+| 017 | GetEnvSig parse enum UBSAN | Enum out-of-range in GetEnvSig() XML parse path (sibling of CFL-009) | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **017**)
+- Numbering: zero-padded 3-digit, sequential (next: **018**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

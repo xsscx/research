@@ -1,0 +1,60 @@
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
+index 1f68f4b..a1b2c3d 100644
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -334,7 +334,7 @@ public:
+   bool GetIndex(icUInt16Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
+   bool GetIndex(icUInt32Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
+   icFloat32Number GetValue();
+-  bool GetEnvSig(icSigCmmEnvVar &envSig);
++  bool GetEnvSig(icUInt32Number &envSig);  // CFL-017: avoid enum UBSAN on untrusted XML input (CWE-681)
+ 
+ protected:
+   std::string *m_token;
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1f68f4b..a1b2c3d 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -2797,7 +2797,7 @@ double d = strtod( ascii, &p );
+ }
+ 
+ 
+-bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
++bool CIccFuncTokenizer::GetEnvSig(icUInt32Number &envSig)  // CFL-017: icUInt32Number avoids enum UBSAN (CWE-681)
+ {
+   const char *pos = GetPos();
+ 
+@@ -2814,7 +2814,7 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
+     if (l==10) {
+       sscanf(szToken+1, "%x", &sig);
+ 
+-      envSig = (icSigCmmEnvVar)sig;
++      envSig = sig;
+       return true;
+     }
+ 
+@@ -2828,11 +2828,11 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
+       sig |= 0x20;
+     }
+ 
+-    envSig = (icSigCmmEnvVar)sig;
++    envSig = sig;
+   }
+   else {
+     SetPos(pos); //Undo get token
+-    envSig = (icSigCmmEnvVar)0;
++    envSig = 0;
+     return false;
+   }
+ 
+@@ -3251,8 +3251,8 @@ CIccCalculatorFunc *CIccCalculatorFunc::ParseFuncDef(const char *szFuncDef, std:
+ 
+       case icSigEnvVarOp:
+         {
+-          icSigCmmEnvVar envSig;
+-          if (!scan.GetEnvSig(envSig))
++          icUInt32Number envSig;  // CFL-017: parse as raw uint32 to avoid enum UBSAN
++          if (!scan.GetEnvSig(envSig))  
+             return NULL;
+           op.data.size = (icUInt32Number)envSig;
+           scanList.push_back(op);
