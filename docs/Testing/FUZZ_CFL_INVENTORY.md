@@ -113,7 +113,7 @@
 | File | Size | Purpose |
 |------|------|---------|
 | README.md | 10K | CFL documentation & fuzzer table |
-| CMakeLists.txt | 8.4K | Build config for 11 fuzzers + iccDEV |
+| CMakeLists.txt | 8.4K | Build config for 12 fuzzers + iccDEV |
 | build.sh | 11K (executable) | Build orchestrator — clones iccDEV, applies patches, compiles |
 | Dockerfile | 454B | Container image definition |
 | codeql-config.yml | 620B | CodeQL analysis config |
@@ -144,15 +144,15 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 ```
 
 ### Patch Directory
-**patches/** — 19 active patches (CFL-001 through CFL-019):
+**patches/** — 20 active patches (CFL-001 through CFL-020):
 - 62 legacy patches (CFL-001 through CFL-083 with gaps) retired March 2026 to `patches-retired/`
-- Current: 19 targeted patches for verified upstream bugs
+- Current: 20 targeted patches for verified upstream bugs
 - Format: `NNN-descriptive-name.patch` (unified diff)
 - All patches idempotent (`build.sh` applies with `patch -p1 --forward`)
 
-### Corpus Directories (11 corresponding to fuzzers)
+### Corpus Directories (12 corresponding to fuzzers)
 **corpus/** + **corpus-icc_*_fuzzer/** (per-fuzzer)
-- Total: 11 active corpora matching built fuzzers
+- Total: 12 active corpora matching built fuzzers
 - Largest:
   - corpus-icc_deep_dump_fuzzer: 3.4 MB
   - corpus-icc_applynamedcmm_fuzzer: 2.6 MB
@@ -214,14 +214,14 @@ Located at: `cfl/*.dict`
 
 ### Instructions (`.github/instructions/`)
 - **cfl.instructions.md** (MAIN) — Full CFL documentation
-  - Build, upstream sync, 11 fuzzer table, patch conventions
+  - Build, upstream sync, 12 fuzzer table, patch conventions
   - Multi-profile input formats, corpus management, coverage baseline (63.23% functions)
   - Adding new fuzzers (next: #20)
 
 ### Prompts (`.github/prompts/`)
 - **fuzzer-optimization.prompt.md** — Per-fuzzer coverage gap analysis & seed crafting
 - **improve-fuzzer-coverage.prompt.md** — LLVM coverage report generation & interpretation
-- **corpus-management.prompt.md** — Ramdisk/SSD lifecycle, 11 fuzzer list
+- **corpus-management.prompt.md** — Ramdisk/SSD lifecycle, 12 fuzzer list
 - **triage-fuzzer-crash.prompt.yml** — Crash analysis workflow
 - **triage-fuzzer-oom.prompt.yml** — OOM investigation
 - **triage-cve-poc.prompt.yml** — CVE PoC analysis
