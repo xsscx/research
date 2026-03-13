@@ -120,6 +120,18 @@ The output includes:
 | NamedColor (nmcl) | NamedColor.icc | ⚠️ exit 255 |
 | ColorSpace (spac) | ICS/*.icc | ✅ PASS |
 
+### Mass testing (1,500 runs, 2026-03-12)
+
+500 random TIFFs from the 22,218-file `tiff-main` corpus tested as ICC profile
+inputs (the tool attempts to read ICC data from any file):
+
+| Mode | Runs | Success | ASAN | UBSAN |
+|------|------|---------|------|-------|
+| Basic dump | 500 | 500 | 0 | 0 |
+| Dump with validation (`-v`) | 500 | 500 | 0 | 0 |
+| Dump ALL tags | 500 | 500 | 0 | 0 |
+| **Total** | **1,500** | **1,500** | **0** | **0** |
+
 ## Security Testing
 
 Use with ASAN-instrumented build for crash analysis:

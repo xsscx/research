@@ -471,6 +471,94 @@ grep -E 'AddressSanitizer|runtime error:' *.log
 
 ---
 
+## Testing — Automated Test Suites
+
+### Full 14-Tool Test Suite (parallel, 843 tests)
+
+```bash
+bash .github/scripts/test-iccdev-all.sh
+```
+
+Runs all 14 tools with ASAN+UBSAN, parallel execution on all cores.
+Expected baseline: 843 tests / ~30s / 0 ASAN / 0 UBSAN.
+
+### Dedicated iccSpecSepToTiff Tests (34 tests)
+
+```bash
+bash .github/scripts/test-specseptotiff.sh
+```
+
+Covers error handling, basic merging, compression, separation modes,
+ICC profile embedding, and cross-validation with iccTiffDump.
+Uses pre-built spectral seed TIFFs at `iccDEV/Testing/Fuzzing/seeds/tiff/spectral/`.
+
+### TIFF Mass Testing (all tools × large corpus)
+
+```bash
+# Mass test all TIFF-capable tools against a large corpus
+# Uses 32-core parallelism, ASAN+UBSAN, coverage profiling
+python3 << 'PYEOF'
+import os, subprocess, random
+
+REPO = os.path.expanduser("~/po/research")
+LD_PATH = f"{REPO}/iccDEV/Build/IccProfLib:{REPO}/iccDEV/Build/IccXML"
+env = os.environ.copy()
+env["LD_LIBRARY_PATH"] = LD_PATH
+env["ASAN_OPTIONS"] = "halt_on_error=0,detect_leaks=0"
+
+# iccTiffDump: read-only, safe for all TIFFs
+TIFFDUMP = f"{REPO}/iccDEV/Build/Tools/IccTiffDump/iccTiffDump"
+for tiff in random.sample(tiff_files, 500):
+    subprocess.run([TIFFDUMP, tiff], env=env, timeout=30,
+                   capture_output=True)
+PYEOF
+```
+
+### iccSpecSepToTiff — All Option Combinations
+
+```bash
+export LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML
+export ASAN_OPTIONS=halt_on_error=0,detect_leaks=0
+SEEDS=iccDEV/Testing/Fuzzing/seeds/tiff/spectral
+
+# All combos: compress(0,1) × sep(0,1) × profile(none, sRGB, spectral)
+for c in 0 1; do
+  for s in 0 1; do
+    for p in "" "test-profiles/sRGB_D65_MAT.icc" "test-profiles/Rec2020rgbSpectral.icc"; do
+      out="/tmp/ss_c${c}_s${s}.tif"
+      args="$out $c $s $SEEDS/spec_%03d.tif 1 10 1"
+      [ -n "$p" ] && args="$args $p"
+      iccSpecSepToTiff $args
+    done
+  done
+done
+```
+
+### iccApplyProfiles — Full Option Matrix
+
+```bash
+export LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML
+export ASAN_OPTIONS=halt_on_error=0,detect_leaks=0
+
+# encoding(0,1,2) × compression(0,1) × planar(0,1) × embed(0,1) × interp(0,1) × intent(0,1,2,3)
+for enc in 0 1 2; do
+  for comp in 0 1; do
+    for plan in 0 1; do
+      for embed in 0 1; do
+        for interp in 0 1; do
+          for intent in 0 1 2 3; do
+            iccApplyProfiles input.tiff /tmp/out_${enc}${comp}${plan}${embed}${interp}${intent}.tiff \
+              $enc $comp $plan $embed $interp test-profiles/sRGB_D65_MAT.icc $intent
+          done
+        done
+      done
+    done
+  done
+done
+```
+
+---
+
 ## xmllint Validation
 
 ### Comprehensive Per-File Check
