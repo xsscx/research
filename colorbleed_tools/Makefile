@@ -43,7 +43,7 @@ endif
 # Auto-detect config: sanitizer for clang (needs llvm runtime), release for gcc
 CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
-TARGETS = iccToXml_unsafe iccFromXml_unsafe
+TARGETS = iccToXml_unsafe iccFromXml_unsafe iccDumpAll
 
 .PHONY: all clean distclean test setup help
 
