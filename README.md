@@ -25,8 +25,8 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 | **CodeQL** | 0 alerts | v4, 3 targets × 14 custom queries + security-and-quality |
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
-| **Fuzzers** | 19/19 | Build + smoke test pass, aligned to project tool scope |
-| **OOM Patches** | 57 active patches | Security fixes in cfl/patches/ |
+| **Fuzzers** | 11/11 | Build + smoke test pass, aligned to project tool scope |
+| **CFL Patches** | 17 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-017) |
 
 ## Build
 
@@ -50,7 +50,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 57 security patches for iccDEV (OOM caps, OOB reads, UBSAN fixes, null-deref guards, heap-buffer-overflow fixes, stack-overflow fixes, IO underflow guards, XML parsing limits). Applied automatically by `cfl/build.sh`. See `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 17 active security patches for iccDEV (CFL-001 through CFL-017: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits). Applied automatically by `cfl/build.sh`. 62 legacy patches retired March 2026 — see `cfl/patches/README.md` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
