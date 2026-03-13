@@ -8,11 +8,11 @@ discovered during LibFuzzer and AFL++ fuzzing campaigns.
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 18 patches are applied directly to the source code.
+**On the `cfl` branch**: All 19 patches are applied directly to the source code.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (18)
+## Active Patches (19)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -34,6 +34,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 016 | `016-nan-guard-unsigned-cast-ubsan.patch` | NaN/Inf guard before unsigned casts in Apply | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
+| 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
 
 ## CWE Distribution
 
@@ -47,7 +48,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | CWE-762 | 2 | Mismatched Memory Management |
 | CWE-191 | 1 | Integer Underflow |
 | CWE-170 | 1 | Missing Null Termination |
-| CWE-476 | 1 | Null Pointer Dereference |
+| CWE-476 | 2 | Null Pointer Dereference |
 | CWE-908 | 1 | Uninitialized Resource |
 | CWE-20 | 1 | Improper Input Validation |
 
