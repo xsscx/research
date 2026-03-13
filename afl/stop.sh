@@ -9,13 +9,14 @@
 set -euo pipefail
 
 TARGET="${1:-}"
-AFL_SSD="${AFL_SSD:-/mnt/g/fuzz-ssd}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 
 if [[ -z "$TARGET" ]]; then
     echo "[*] Stopping ALL afl-fuzz processes..."
     PIDS=$(pgrep -f "afl-fuzz" 2>/dev/null || true)
 else
-    AFL_DIR="$AFL_SSD/afl-$TARGET"
+    AFL_DIR="$AFL_BASE/afl-$TARGET"
     echo "[*] Stopping afl-fuzz for target: $TARGET"
     PIDS=$(pgrep -f "afl-fuzz.*afl-$TARGET" 2>/dev/null || true)
 fi

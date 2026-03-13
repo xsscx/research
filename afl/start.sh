@@ -3,16 +3,16 @@
 #
 # Usage: ./afl/start.sh <target> [--parallel N]
 #
-# Targets: fromcube
+# Targets: dump, toxml, fromxml, roundtrip, tiffdump, jpegdump, pngdump, fromcube
 #
 # Examples:
-#   ./afl/start.sh fromcube              # Single instance
-#   ./afl/start.sh fromcube --parallel 4  # 4 parallel instances
+#   ./afl/start.sh dump                 # Single instance
+#   ./afl/start.sh dump --parallel 4    # 4 parallel instances
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AFL_SSD="${AFL_SSD:-/mnt/g/fuzz-ssd}"
+AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 AFL_TIMEOUT="${AFL_TIMEOUT:-5000}"
 AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-131072}"
 BIN_DIR="$REPO_ROOT/afl/bin"
@@ -32,27 +32,108 @@ done
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target> [--parallel N]"
     echo ""
-    echo "Available targets:"
-    echo "  fromcube    — iccFromCube (.cube LUT parser)"
+    echo "Available targets (single-file input):"
+    echo "  dump        — iccDumpProfile (ICC binary → text dump)"
+    echo "  toxml       — iccToXml (ICC binary → XML)"
+    echo "  fromxml     — iccFromXml (ICC XML → binary)"
+    echo "  roundtrip   — iccRoundTrip (ICC binary round-trip)"
+    echo "  tiffdump    — iccTiffDump (TIFF → ICC extraction)"
+    echo "  jpegdump    — iccJpegDump (JPEG → ICC extraction)"
+    echo "  pngdump     — iccPngDump (PNG → ICC extraction)"
+    echo "  fromcube    — iccFromCube (.cube LUT text → ICC)"
     exit 1
 fi
 
 # Target-specific configuration
 case "$TARGET" in
+    dump)
+        BINARY="$BIN_DIR/iccDumpProfile"
+        AFL_DIR="$AFL_BASE/afl-dump"
+        DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/test-profiles"
+            "$REPO_ROOT/fuzz/graphics/icc"
+        )
+        # iccDumpProfile {-v} {int} profile {tagId/"ALL"}
+        AFL_ARGS="@@ ALL"
+        ;;
+    toxml)
+        BINARY="$BIN_DIR/iccToXml"
+        AFL_DIR="$AFL_BASE/afl-toxml"
+        DICT="$REPO_ROOT/cfl/icc_toxml_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/test-profiles"
+            "$REPO_ROOT/fuzz/graphics/icc"
+        )
+        # IccToXml src_icc_profile dest_xml_file
+        AFL_ARGS="@@ /dev/null"
+        ;;
+    fromxml)
+        BINARY="$BIN_DIR/iccFromXml"
+        AFL_DIR="$AFL_BASE/afl-fromxml"
+        DICT="$REPO_ROOT/cfl/icc_fromxml_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/fuzz/xml/icc"
+            "$REPO_ROOT/cfl/corpus-icc_fromxml_fuzzer"
+        )
+        # IccFromXml xml_file saved_profile_file
+        AFL_ARGS="@@ /dev/null"
+        ;;
+    roundtrip)
+        BINARY="$BIN_DIR/iccRoundTrip"
+        AFL_DIR="$AFL_BASE/afl-roundtrip"
+        DICT="$REPO_ROOT/cfl/icc_roundtrip_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/test-profiles"
+            "$REPO_ROOT/fuzz/graphics/icc"
+        )
+        # iccRoundTrip profile {rendering_intent=1}
+        AFL_ARGS="@@"
+        ;;
+    tiffdump)
+        BINARY="$BIN_DIR/iccTiffDump"
+        AFL_DIR="$AFL_BASE/afl-tiffdump"
+        DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/fuzz/graphics/tif"
+        )
+        # iccTiffDump tiff_file
+        AFL_ARGS="@@"
+        ;;
+    jpegdump)
+        BINARY="$BIN_DIR/iccJpegDump"
+        AFL_DIR="$AFL_BASE/afl-jpegdump"
+        DICT="$REPO_ROOT/cfl/icc.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/fuzz/graphics/jpg"
+        )
+        # iccJpegDump input.jpg
+        AFL_ARGS="@@"
+        ;;
+    pngdump)
+        BINARY="$BIN_DIR/iccPngDump"
+        AFL_DIR="$AFL_BASE/afl-pngdump"
+        DICT="$REPO_ROOT/cfl/icc.dict"
+        SEED_DIRS=(
+            "$REPO_ROOT/fuzz/graphics/png"
+        )
+        # iccPngDump input.png
+        AFL_ARGS="@@"
+        ;;
     fromcube)
         BINARY="$BIN_DIR/iccFromCube"
-        AFL_DIR="$AFL_SSD/afl-fromcube"
+        AFL_DIR="$AFL_BASE/afl-fromcube"
         DICT="$REPO_ROOT/cfl/icc_fromcube_fuzzer.dict"
         SEED_DIRS=(
             "$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
             "$REPO_ROOT/cfl/corpus-icc_fromcube_fuzzer"
         )
-        # iccFromCube <input.cube> <output.icc>
+        # iccFromCube input.cube output.icc
         AFL_ARGS="@@ /dev/null"
         ;;
     *)
         echo "ERROR: Unknown target '$TARGET'"
-        echo "Available: fromcube"
+        echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube"
         exit 1
         ;;
 esac
@@ -76,10 +157,17 @@ mkdir -p "$AFL_DIR"/{input,output}
 
 # Seed corpus — copy from all seed sources if input dir is empty
 if [[ $(ls "$AFL_DIR/input/" 2>/dev/null | wc -l) -eq 0 ]]; then
+    echo "[*] Seeding input corpus..."
     for seed_dir in "${SEED_DIRS[@]}"; do
         if [[ -d "$seed_dir" ]]; then
-            echo "[*] Seeding from $seed_dir"
-            find "$seed_dir" -maxdepth 1 -type f -exec cp -n {} "$AFL_DIR/input/" \;
+            count=$(find "$seed_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
+            echo "    $seed_dir ($count files)"
+            # For large directories, sample up to 200 seeds to keep AFL startup fast
+            if [[ "$count" -gt 200 ]]; then
+                find "$seed_dir" -maxdepth 1 -type f | shuf -n 200 | xargs -I{} cp -n {} "$AFL_DIR/input/"
+            else
+                find "$seed_dir" -maxdepth 1 -type f -exec cp -n {} "$AFL_DIR/input/" \;
+            fi
         fi
     done
 fi

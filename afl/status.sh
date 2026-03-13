@@ -8,12 +8,13 @@
 
 set -euo pipefail
 
-AFL_SSD="${AFL_SSD:-/mnt/g/fuzz-ssd}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 TARGET="${1:-}"
 
 print_status() {
     local name="$1"
-    local dir="$AFL_SSD/afl-$name/output"
+    local dir="$AFL_BASE/afl-$name/output"
 
     # Find all instance directories (default, main, secondary_*)
     local instances=()
@@ -94,7 +95,7 @@ print_status() {
 }
 
 # Known targets
-TARGETS=(fromcube)
+TARGETS=(dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube)
 
 if [[ -n "$TARGET" ]]; then
     print_status "$TARGET"
