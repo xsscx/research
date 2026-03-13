@@ -24,12 +24,12 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Branch to build (default: master)'
+        description: 'Branch to build (default: main)'
         required: false
-        default: 'master'
+        default: 'main'
         type: choice
         options:
-          - 'master'
+          - 'main'
           - 'cfl'
       pr_number:
         description: 'Pull request number to build (overrides branch)'
@@ -45,7 +45,7 @@ env:
   GH_NO_UPDATE_NOTIFIER: 1
   GH_PROMPT_DISABLED: 1
   RUN_URL: ${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}
-  CHECKOUT_REF: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/head', github.event.inputs.pr_number) || github.event.inputs.ref || 'master' }}
+  CHECKOUT_REF: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/head', github.event.inputs.pr_number) || github.event.inputs.ref || 'main' }}
 
 jobs:
   #############################################################################
