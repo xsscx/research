@@ -26,7 +26,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 008 | `008-TagCurve-Apply-NaN-to-unsigned-UBSAN.patch` | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
 | 009 | `009-envvar-exec-enum-ubsan.patch` | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | `010-checkunderflow-recursion-depth.patch` | Unbounded recursion in CheckUnderflowOverflow | CWE-674 | IccMpeCalc.cpp, IccMpeCalc.h |
-| 011 | `011-specseptotiff-unique-ptr-array.patch` | unique_ptr array fix for SpecSepToTiff | CWE-762 | IccApplyBPC.cpp |
+| 011 | `011-specseptotiff-unique-ptr-array.patch` | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
 | 012 | `012-ndlut-interpnd-null-applyclut.patch` | Null ptr deref in NdLut InterpND ApplyCLUT | CWE-476 | IccTagLut.cpp |
 | 013 | `013-tagarray-cleanup-uninit-guard.patch` | Uninitialized member in TagArray Cleanup | CWE-908 | IccTagComposite.cpp |
 | 014 | `014-sequenceneedtempreset-recursion-depth.patch` | SequenceNeedTempReset recursion depth limit | CWE-674 | IccMpeCalc.cpp |
