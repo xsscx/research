@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType> <ProfileVersion>5.00</ProfileVersion>
+    <ProfileDeviceClass>mid </ProfileDeviceClass> <ProfileDeviceSubClass>nink</ProfileDeviceSubClass> <DataColourSpace>nc0004</DataColourSpace>
+    <PCS></PCS>
+    <CreationDateTime>202</CreationDateTime>
+<ProfileFlags EmbeddedInFile="true" UseWithEmbeddedDataOnly="false" MCSNeedsSubset="e"/> <DeviceAttributes ReflectiveOrTransparency="refive" GlossyOrMatte="sy" MediaPolarity="pive" MediaColour="co"/>
+<RenderingIntent>Relative</RenderingIntent>
+<PCSIlluminant>
+  <XYZNumber X="00" Y="00" Z="0."/>
+</PCSIlluminant> <ProfileCreator></ProfileCreator>
+    <ProfileID>C22F67C671FF25D6A85E0ED41599C936</ProfileID>
+    <MCS>6D630004h</MCS>
+  </Header>
+  <Tags> <profileDescriptionTag> <multiLocalizedUnicodeType>   <LocalizedText LanguageCountry="enUS"><![CDATA[ChCS]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+ <AToM0Tag> <multiProcessElementType>
+  <MultiProcessElements InputChannels="4" OutputChannels="4">
+  </MultiProcessElements>
+    </multiProcessElementType> </AToM0Tag>  <materialTypeArrayTag> <tagArrayType>
+  <UTF8TextArray> <ArrayTags>
+     <utf8Type>
+     <TextData><![CDATA[Pran]]></TextData>  </utf8Type>
+
+ <utf8Type>
+ <TextData><![CDATA[Pta]]></TextData>  </utf8Type>
+
+ <utf8Type>
+ <TextData><![CDATA[Pw]]></TextData>
+ </utf8Type>   <utf8Type>
+     <TextData><![CDATA[Prack]]></TextData>
+     </utf8Type>
+
+  </ArrayTags> </UTF8TextArray>
+</tagArrayType> </materialTypeArrayTag>
+ <copyrightTag> <multiLocalizedUnicodeType>
+  <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2016 lor Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+  </Tags>
+</IccProfile>
