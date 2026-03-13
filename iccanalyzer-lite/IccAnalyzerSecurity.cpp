@@ -258,6 +258,19 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("=======================================================================\n\n");
     }
   }
+
+  // Truncation gate: if header.size > actualFileSize, tag data lies beyond EOF.
+  // Library lazy-loading will read garbage → UBSAN enum loads, ASAN OOB reads.
+  // CWE-125: Out-of-bounds Read. Defensive programming — skip library phase.
+  if (actualFileSize > 0 && header.size > 0 && header.size > actualFileSize) {
+    skipLibraryPhase = true;
+    printf("=======================================================================\n");
+    printf("[PREFLIGHT] Profile TRUNCATED — header claims %u bytes, file is %zu bytes\n",
+           header.size, actualFileSize);
+    printf("            Library-API heuristics skipped (tag data extends beyond EOF)\n");
+    printf("            CWE-125: Tags will read out-of-bounds on lazy load\n");
+    printf("=======================================================================\n\n");
+  }
   
   // PHASE 0.5: External File Metadata (when tools available)
   printf("=======================================================================\n");
