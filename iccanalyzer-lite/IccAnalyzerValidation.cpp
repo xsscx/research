@@ -39,6 +39,31 @@
 #include "IccAnalyzerValidation.h"
 #include "IccAnalyzerSignatures.h"
 #include <new>
+#include <sys/stat.h>
+#include <cstdio>
+#include <cstdint>
+
+// Defensive programming: detect truncated profiles before library loading.
+// Truncated profiles cause UBSAN (invalid enum loads) and ASAN (OOB reads)
+// when CIccProfile::Read() eagerly loads tags whose data lies beyond EOF.
+// CWE-125: Out-of-bounds Read.
+bool IsProfileTruncated(const char *filename) {
+  struct stat fileStat;
+  if (stat(filename, &fileStat) != 0 || fileStat.st_size < 128)
+    return (fileStat.st_size < 128); // Too small to even have a header
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) return false;
+  unsigned char sizeBytes[4];
+  bool truncated = false;
+  if (fread(sizeBytes, 1, 4, fp) == 4) {
+    uint32_t declaredSize = ((uint32_t)sizeBytes[0] << 24) |
+                            ((uint32_t)sizeBytes[1] << 16) |
+                            ((uint32_t)sizeBytes[2] << 8) | sizeBytes[3];
+    truncated = (declaredSize > (uint32_t)fileStat.st_size);
+  }
+  fclose(fp);
+  return truncated;
+}
 
 // Check if a profile supports round-trip color transforms via any of the
 // standard tag pair mechanisms (AToB/BToA, DToB/BToD, or Matrix/TRC).
@@ -72,6 +97,12 @@ int RoundTripAnalyze(const char *filename)
   printf("\n=== Round-Trip Tag Pair Analysis ===\n");
   printf("Profile: %s\n\n", filename);
   
+  if (IsProfileTruncated(filename)) {
+    printf("[SKIP] Profile TRUNCATED — round-trip validation skipped\n");
+    printf("       Header claims more bytes than file contains (CWE-125)\n\n");
+    return -1;
+  }
+
   CIccFileIO io;
   if (!io.Open(filename, "rb")) {
     printf("Error opening file: %s\n", filename);
