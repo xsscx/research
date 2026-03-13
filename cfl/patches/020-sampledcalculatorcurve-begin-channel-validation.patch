@@ -1,0 +1,17 @@
+--- a/IccProfLib/IccMpeBasic.cpp	2026-03-13 18:42:52.499911422 -0400
++++ IccProfLib/IccMpeBasic.cpp	2026-03-13 18:43:03.591831654 -0400
+@@ -2360,7 +2360,13 @@
+ {
+   if (m_nDesiredSize < 2 || !m_pCalc || !m_pCalc->Begin(nInterp, pMPE))
+     return false;
+-  
++
++  // CFL-020: Validate calculator has exactly 1 input and 1 output channel.
++  // A sampled calculator curve is 1->1 by definition. If the calculator declares
++  // more output channels, Apply() writes past the single-float stack buffer 'dst'.
++  if (m_pCalc->NumInputChannels() != 1 || m_pCalc->NumOutputChannels() != 1)
++    return false;
++
+   icUInt32Number nSize = m_nDesiredSize;
+   if (nSize < 2)
+     nSize = 2;

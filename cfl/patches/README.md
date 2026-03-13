@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-13
 
-19 active patches targeting verified security vulnerabilities in iccDEV library code,
+20 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
@@ -12,7 +12,7 @@ CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes re
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (19)
+## Active Patches (20)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -35,6 +35,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
+| 020 | `020-sampledcalculatorcurve-begin-channel-validation.patch` | SBO in Apply() via single-float stack buffer when NumOutputChannels > 1 | CWE-121 | IccMpeBasic.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
@@ -65,6 +66,40 @@ elements so `SetAppliedCC()` is never called.
 **PoC profile**: `test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc`
 (832-byte v5 MPE profile with A2B0/B2A0 but no `svcn` tag)
 
+### CFL-020 Detail — SBO in CIccSampledCalculatorCurve::Begin
+
+**Bug**: `CIccSampledCalculatorCurve::Begin()` at IccMpeBasic.cpp:2377 declares
+`icFloatNumber src, dst;` — single floats (4 bytes each) on the stack. It then calls
+`m_pCalc->Apply(pApply, &dst, &src)`. When the calculator element declares
+`NumOutputChannels() > 1`, `CIccCalculatorFunc::Apply()` at IccMpeCalc.cpp:3873
+writes `pOut[i] = -1` for each output channel, overflowing past the `dst` variable.
+
+**Root cause**: A sampled calculator curve is 1→1 by definition, but there was no
+validation that the embedded calculator element actually has 1 input and 1 output
+channel. Malformed profiles can declare arbitrary channel counts.
+
+**Call chain**:
+1. `CIccMpeCurveSet::Begin()` → iterates curves
+2. `CIccSampledCalculatorCurve::Begin()` → stack: `icFloatNumber dst;` (4 bytes)
+3. `m_pCalc->Apply(pApply, &dst, &src)` → `CIccMpeCalculator::Apply()`
+4. `CIccCalculatorFunc::Apply()` → error path: `for (i=0; i<NumOutputChannels(); i++) pOut[i] = -1;`
+5. When `NumOutputChannels() > 1`: WRITE past `dst` → stack-buffer-overflow
+
+**Fix**: Validate `m_pCalc->NumInputChannels() == 1 && m_pCalc->NumOutputChannels() == 1`
+after `Begin()` succeeds, before using single-float buffers.
+
+**Affected tools**: Any tool that calls `CIccTagMultiProcessElement::Begin()` with a
+profile containing `CIccSampledCalculatorCurve` elements — `iccApplyNamedCmm`,
+`iccApplyProfiles`, `iccRoundTrip`, `iccV5DspObsToV4Dsp`.
+
+**1-liner reproduction** (from repo root):
+```bash
+printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tmp/pcc-test-data.txt && ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML source-of-truth/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm /tmp/pcc-test-data.txt 0 0 test-profiles/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc 0
+```
+
+**PoC profile**: `test-profiles/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc`
+(2,980-byte profile with CIccSampledCalculatorCurve where calculator has > 1 output channel)
+
 ## CWE Distribution
 
 | CWE | Count | Category |
@@ -75,9 +110,10 @@ elements so `SetAppliedCC()` is never called.
 | CWE-190 | 2 | Integer Overflow |
 | CWE-674 | 2 | Uncontrolled Recursion |
 | CWE-762 | 2 | Mismatched Memory Management |
+| CWE-476 | 2 | Null Pointer Dereference |
+| CWE-121 | 1 | Stack Buffer Overflow |
 | CWE-191 | 1 | Integer Underflow |
 | CWE-170 | 1 | Missing Null Termination |
-| CWE-476 | 2 | Null Pointer Dereference |
 | CWE-908 | 1 | Uninitialized Resource |
 | CWE-20 | 1 | Improper Input Validation |
 
