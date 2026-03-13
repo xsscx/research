@@ -634,6 +634,162 @@ jobs:
           retention-days: 90
           if-no-files-found: ignore
 
+  afl-search:
+    name: "AFL++ iccApplySearch (${{ github.event.inputs.fuzz_seconds || '600' }}s)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    env:
+      BASH_ENV: /dev/null
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          persist-credentials: false
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake afl++ \
+            libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
+            nlohmann-json3-dev libssl-dev
+
+      - name: Clone iccDEV
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git afl-iccDEV
+
+      - name: Build iccDEV with AFL++ instrumentation
+        run: |
+          set -euo pipefail
+          cd afl-iccDEV
+
+          # Disable wxWidgets
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' Build/Cmake/CMakeLists.txt
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
+
+          mkdir -p Build-AFL && cd Build-AFL
+          AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
+          cmake ../Build/Cmake \
+            -DCMAKE_C_COMPILER=afl-clang-fast \
+            -DCMAKE_CXX_COMPILER=afl-clang-fast++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-g -O0" \
+            -DCMAKE_CXX_FLAGS="-g -O0" \
+            -Wno-dev
+
+          AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
+          make -j$(nproc) 2>&1 | tail -5
+
+          echo "Binary:"
+          ls -lh Tools/IccApplySearch/iccApplySearch
+
+      - name: Run AFL++
+        run: |
+          set -euo pipefail
+          BINARY="$PWD/afl-iccDEV/Build-AFL/Tools/IccApplySearch/iccApplySearch"
+          LIB_DIR="$PWD/afl-iccDEV/Build-AFL/IccProfLib"
+
+          # Create data file for iccApplySearch
+          printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > search-data.txt
+
+          # Get map size
+          MAP_SIZE=$(AFL_DEBUG=1 LD_LIBRARY_PATH="$LIB_DIR" "$BINARY" \
+            search-data.txt 0 0 test-profiles/sRGB_D65_MAT.icc 1 test-profiles/sRGB_D65_MAT.icc 1 2>&1 | \
+            grep -oP '__afl_final_loc = \K[0-9]+' | tail -1 || echo "82679")
+          AFL_MAP_SIZE=131072
+          if [ "$MAP_SIZE" -gt 131072 ] 2>/dev/null; then
+            AFL_MAP_SIZE=262144
+          fi
+
+          # Seed from test-profiles (ICC profiles)
+          mkdir -p afl-input afl-output
+          cp test-profiles/*.icc afl-input/ 2>/dev/null || true
+
+          export AFL_MAP_SIZE="$AFL_MAP_SIZE"
+          export AFL_SKIP_CPUFREQ=1
+          export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+          export LD_LIBRARY_PATH="$LIB_DIR"
+          export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0"
+
+          DURATION="${FUZZ_SECONDS}"
+
+          # iccApplySearch: data_file encoding interp profile1 intent1 profile2 intent2
+          # Fuzz profile via @@ (used as both source and destination)
+          timeout --kill-after=10s $((DURATION + 15))s \
+            afl-fuzz \
+              -i afl-input \
+              -o afl-output \
+              -x cfl/icc_applysearch_fuzzer.dict \
+              -m none \
+              -t 10000 \
+              -V "$DURATION" \
+              -- "$BINARY" search-data.txt 0 0 @@ 1 @@ 1 2>&1 | tail -20 || true
+
+          echo ""
+          echo "=== AFL Stats ==="
+          cat afl-output/default/fuzzer_stats 2>/dev/null | \
+            grep -E 'execs_done|execs_per|corpus_count|saved_crashes|saved_hangs|bitmap_cvg|cycles_done|stability' || true
+
+          CRASHES=$(ls afl-output/default/crashes/ 2>/dev/null | grep -v README | wc -l || echo 0)
+          HANGS=$(ls afl-output/default/hangs/ 2>/dev/null | grep -v README | wc -l || echo 0)
+          CORPUS=$(ls afl-output/default/queue/ 2>/dev/null | wc -l || echo 0)
+
+          {
+            echo "### AFL++ iccApplySearch"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Duration | ${DURATION}s |"
+            echo "| Corpus | $CORPUS |"
+            echo "| Crashes | $CRASHES |"
+            echo "| Hangs | $HANGS |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRASHES" -gt 0 ]; then
+            echo "::error::AFL found $CRASHES crash(es) in iccApplySearch"
+            exit 1
+          fi
+
+      - name: Package AFL artifacts
+        if: always()
+        run: |
+          tar cf afl-corpus.tar -C afl-output/default/queue . 2>/dev/null || true
+          tar cf afl-findings.tar \
+            -C afl-output/default crashes hangs 2>/dev/null || true
+          cp afl-output/default/fuzzer_stats afl-fuzzer_stats 2>/dev/null || true
+
+      - name: Upload AFL corpus
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        if: always()
+        with:
+          name: afl-search-corpus-${{ github.run_id }}
+          path: afl-corpus.tar
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload AFL crashes and stats
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        if: always()
+        with:
+          name: afl-search-crashes-${{ github.run_id }}
+          path: |
+            afl-findings.tar
+            afl-fuzzer_stats
+          retention-days: 90
+          if-no-files-found: ignore
+
   report:
     name: "Campaign Report"
     needs: fuzz
