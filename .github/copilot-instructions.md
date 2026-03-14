@@ -337,6 +337,33 @@ via bounds checks and complexity estimation, not library patches).
 If upstream also hangs → report upstream + create CFL patch.
 If upstream handles it → fuzzer-only alignment issue.
 
+### CWE-681 Float-to-Integer Cast Patterns in iccDEV
+
+**Systemic theme**: every `(int)` or `(unsigned int)` cast of a file-controlled floating
+point value must validate finite-ness AND range before casting. Three patterns identified:
+
+9. **Calculator operator int overflow** — `CIccOpDefTruncate::Exec()` at
+   `IccMpeCalc.cpp:1215` has NaN/Inf guards but casts `(int)temp` for finite values
+   without checking `temp` fits in INT_MIN..INT_MAX. Values like 2.254e+15 overflow.
+   Same issue in `CIccOpDefFloor` (no guards at all), `CIccOpDefCeiling` (no guards),
+   `CIccOpDefRound` (partial guards with arbitrary 10000.0 Inf cap).
+   Fix: CFL-022 (range-check `kIntMax`/`kIntMin` before `(int)` cast in all 4 ops).
+
+10. **Sampled curve NaN-to-unsigned** — `CIccSingleSampledCurve::Apply()` at
+    `IccMpeBasic.cpp:2446` casts `-nan` to `unsigned int`. NaN bypasses
+    the `if(v < 0)...if(v > 1)` clamp pattern (IEEE 754 NaN fails all ordered
+    comparisons). CFL-008 fixed the `CIccTagCurve` variant; CFL-016 (retired)
+    fixed `CIccSingleSampledCurve` and `CIccMatrixMath::SetRange`.
+    iccanalyzer-lite H153 detects the sampled curve variant via raw byte scanning
+    for sngf/clcf/samf curve signatures.
+
+**Detection**: Run corpus merge or fuzzer with UBSAN:
+```bash
+UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
+  cfl/bin/icc_applynamedcmm_fuzzer -merge=1 -detect_leaks=0 \
+  -rss_limit_mb=4096 -timeout=30 corpus/ new-seeds/ 2>&1 | grep "runtime error"
+```
+
 ### CWE-122 TIFF Image Reader Patterns in iccDEV
 
 **Theme**: TIFF parameters read from file (strip sizes, row counts, dimensions)
@@ -1017,6 +1044,9 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 - `IccTagLut.cpp:5009` — signed integer overflow in LUT matrix validation (int sum += m_XYZMatrix)
 - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange (patch 051 fixes in CFL)
 - `IccMpeBasic.cpp:1821` — NaN→unsigned int in CIccSingleSampledCurve::Apply() (same NaN cast pattern)
+- `IccMpeBasic.cpp:2446` — NaN→unsigned int in CIccSingleSampledCurve (sampled calculator variant, CFL-016 retired)
+- `IccMpeCalc.cpp:1215` — 2.254e+15 → int overflow in CIccOpDefTruncate::Exec() (CFL-022 fixes)
+- `IccMpeCalc.cpp` — Floor/Ceiling/Round operators: same float→int overflow as Truncate (CFL-022 fixes)
 
 **Fixed upstream** (no longer triggered in our pinned iccDEV at `1ffa7a8` / v2.3.1.5):
 - `IccSignatureUtils.h` — uint→char implicit conversion (fixed in PR #648, now uses static_cast)
@@ -1025,7 +1055,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 
 ### CFL patch workflow
 See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
-NO-OP management, and reproducer testing. Next patch number: **021**.
+NO-OP management, and reproducer testing. Next patch number: **023**.
 
 ### Crash reproducer testing
 ```bash

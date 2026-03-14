@@ -73,6 +73,17 @@ echo "Upstream: $(cd iccDEV && git rev-parse --short HEAD)"
 - Fix: Add `if (v != v) return 0.0;` as the FIRST check (NaN self-inequality idiom).
 - Upstream affected: UnitClip in iccApplyProfiles.cpp, SetRange in IccMatrixMath.cpp.
 
+### Float-to-integer overflow in calculator ops (CWE-681)
+- Calculator operators (`Truncate`, `Floor`, `Ceiling`, `Round`) cast `(int)temp` without
+  range-checking. Values like 2.254e+15 overflow `int` range (±2.147e+9).
+- NaN guards alone are insufficient — must also check finite range.
+- **UBSAN trigger**: `IccMpeCalc.cpp:1215: runtime error: 2.254e+15 is outside the range
+  of representable values of type 'int'`
+- Fix: `static constexpr double kIntMax = INT_MAX; kIntMin = INT_MIN;` + range-check
+  before `(int)` cast. See CFL-022.
+- **NaN-to-unsigned variant**: `IccMpeBasic.cpp:2446` casts `-nan` to `unsigned int` in
+  `CIccSingleSampledCurve::Apply()`. iccanalyzer-lite H153 detects this via raw byte scan.
+
 ### SEGV in CIccCLUT::Interp functions (CWE-125)
 - Array index computed from grid points can exceed allocated buffer.
 - Fix: Add `maxDataOffset` bounds check before array access. See patch 069.

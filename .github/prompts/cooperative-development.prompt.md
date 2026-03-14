@@ -126,8 +126,8 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
 2. **Expand `icc_fromcube_fuzzer.dict`** — currently **282 lines** (critically small vs
    1500-6000+ for other dicts). Auto-extract from corpus + add .cube edge cases.
 
-3. **Create CFL-011 patch** for `iccSpecSepToTiff.cpp:207-208,232` alloc-dealloc-mismatch:
-   `unique_ptr<T>(new T[])` uses `delete` instead of `delete[]`. CWE-762.
+3. ~~**Create CFL-011 patch**~~ — ✅ Done. `iccSpecSepToTiff.cpp:207-208,232`
+   alloc-dealloc-mismatch fixed (CFL-011 in active patches).
 
 4. **Seed spectral TIFFs into CFL corpora**:
    ```bash
@@ -165,7 +165,8 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    - `fuzz/graphics/icc/ios-gen-Display-P3.icc`
    - `fuzz/graphics/icc/ios-gen-Adobe-RGB-1998.icc`
 
-8. **Generate TIFF-with-ICC test images** for H139-H141 testing
+8. ~~**Generate TIFF-with-ICC test images**~~ — ✅ Done. H139-H141 + H149-H150 tests
+   added (9 tests), including corrupt TIFF edge cases (239/239 total).
 
 ### macOS Agent — Prioritized Task List
 
@@ -269,6 +270,19 @@ fi
   (cached iterators→range-based for)
 - Local CodeQL analysis workflow documented in `iccanalyzer-lite.instructions.md`
 - Remaining alerts are custom query informational findings (not bugs)
+
+### Upstream Sync & Rebuild Session (2026-03-14)
+- Upstream synced: iccDEV cfl branch → 85163a0 (H151 calculator enum, H152 OOM)
+- CFL patches 012/013/015/016 retired (fixed upstream), 18 active patches
+- AFL corpus minimized: 5 targets, 51-76% reduction (afl-cmin.bash, not Python version)
+- TIFF TIFFOpen failure path fixed: reports CRITICAL CWE-20 for corrupt TIFFs
+- H153 added: Sampled Curve NaN-to-Unsigned Cast Detection (CWE-681, CRITICAL)
+- CFL-022 added: Calculator Trunc/Floor/Ceil/Round int overflow (CWE-681)
+- build.sh fixed: added `git checkout -- .` before patch application
+- 9 TIFF tests added: H149/H150 valid TIFF + 7 corrupt TIFF tests (230→239)
+- 5 CodeQL code scanning alerts fixed
+- Compiler warnings removed from colorbleed_tools (3 unused variables)
+- All tests pass: 239/239 analyzer, 1851/1851 MCP, 256/256 WebUI
 
 ## Coverage Target Roadmap
 
