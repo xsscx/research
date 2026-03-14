@@ -2,17 +2,17 @@
 
 Last Updated: 2026-03-14
 
-21 active patches targeting verified security vulnerabilities in iccDEV library code,
+17 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 21 patches are applied directly to the source code.
+**On the `cfl` branch**: All 17 patches are applied at build time by `src/build.sh`.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (21)
+## Active Patches (17)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -27,11 +27,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 009 | `009-envvar-exec-enum-ubsan.patch` | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | `010-checkunderflow-recursion-depth.patch` | Unbounded recursion in CheckUnderflowOverflow | CWE-674 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 011 | `011-specseptotiff-unique-ptr-array.patch` | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
-| 012 | `012-ndlut-interpnd-null-applyclut.patch` | Null ptr deref in NdLut InterpND ApplyCLUT | CWE-476 | IccTagLut.cpp |
-| 013 | `013-tagarray-cleanup-uninit-guard.patch` | Uninitialized member in TagArray Cleanup | CWE-908 | IccTagComposite.cpp |
 | 014 | `014-sequenceneedtempreset-recursion-depth.patch` | SequenceNeedTempReset recursion depth limit | CWE-674 | IccMpeCalc.cpp |
-| 015 | `015-specsep-bps-validation.patch` | SpecSep BPS validation bounds check | CWE-20 | IccApplyBPC.cpp |
-| 016 | `016-nan-guard-unsigned-cast-ubsan.patch` | NaN/Inf guard before unsigned casts in Apply | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
@@ -67,40 +63,14 @@ elements so `SetAppliedCC()` is never called.
 **PoC profile**: `test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc`
 (832-byte v5 MPE profile with A2B0/B2A0 but no `svcn` tag)
 
-### CFL-020 Detail — SampledCalculatorCurve Channel Validation
-
-**Bug**: `CIccSampledCalculatorCurve::Begin()` in IccMpeBasic.cpp does not validate
-`m_nDesiredSize` or channel parameters before allocating calculator evaluator resources.
-A crafted profile can supply invalid channel counts that bypass the calculator's
-internal validation, leading to out-of-bounds access during curve application.
-
-**Fix**: Added channel count validation against profile-declared values before
-proceeding with calculator evaluation setup.
-
-**Files Modified**: `IccProfLib/IccMpeBasic.cpp`
-
 ### CFL-021 Detail — SingleSampledCurve OOM Size Validation
 
-**Bug**: `CIccSingleSampledCurve::Read()` at IccMpeBasic.cpp:~1638 calls
-`SetSize(m_nCount)` → `malloc(nCount * sizeof(icFloatNumber))` BEFORE validating
-nCount against the remaining stream size. A crafted profile with
-`nCount = 0xEB001000` (14.7 GB) or `nCount = 0xDA000002` (13.6 GB) triggers
-immediate OOM abort (SIGABRT).
+**Bug**: `CIccSingleSampledCurve::Read()` calls `SetSize(m_nCount)` →
+`malloc(nCount * sizeof(icFloatNumber))` BEFORE validating nCount against
+remaining stream size. Crafted profiles with `nCount = 0xEB001000` (14.7 GB)
+or `nCount = 0xDA000002` (13.6 GB) trigger OOM abort (SIGABRT).
 
-**Fix**: Added stream-remaining-size check before `SetSize()`:
-```cpp
-icUInt64Number allocBytes = (icUInt64Number)m_nCount * sizeof(icFloatNumber);
-if (allocBytes > 256*1024*1024 || (nEnd > nStart && allocBytes > (icUInt64Number)(nEnd - nStart) * 64))
-  return false;
-```
-
-**Trigger**: Any profile containing a `sngf` (SingleSampledCurve) element with
-nCount field set to a value requiring > 256 MB allocation.
-
-**1-liner reproduction** (from repo root):
-```bash
-ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=0 iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip "crash-file.icc"
-```
+**Fix**: Reorder — check `m_nCount > size - headerSize` BEFORE `SetSize()`.
 
 **Files Modified**: `IccProfLib/IccMpeBasic.cpp`
 
@@ -108,17 +78,16 @@ ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=0 iccDEV/Build/Tools/IccR
 
 | CWE | Count | Category |
 |-----|-------|----------|
-| CWE-681 | 4 | Incorrect Type Conversion (UBSAN enum/NaN) |
+| CWE-681 | 3 | Incorrect Type Conversion (UBSAN enum) |
 | CWE-125 | 2 | Out-of-bounds Read |
 | CWE-122 | 2 | Heap Buffer Overflow |
 | CWE-190 | 2 | Integer Overflow |
 | CWE-674 | 2 | Uncontrolled Recursion |
-| CWE-762 | 2 | Mismatched Memory Management |
-| CWE-476 | 2 | Null Pointer Dereference |
-| CWE-20  | 2 | Improper Input Validation |
+| CWE-762 | 1 | Mismatched Memory Management |
+| CWE-476 | 1 | Null Pointer Dereference |
+| CWE-20  | 1 | Improper Input Validation |
 | CWE-191 | 1 | Integer Underflow |
 | CWE-170 | 1 | Missing Null Termination |
-| CWE-908 | 1 | Uninitialized Resource |
 | CWE-770 | 1 | Allocation without Limits (OOM) |
 
 ## Patch Lifecycle
