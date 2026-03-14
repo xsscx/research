@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsRegistry.h — Metadata registry for all 151 heuristics
+ * IccHeuristicsRegistry.h — Metadata registry for all 152 heuristics
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -231,6 +231,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
 
   // --- CALCULATOR OPERATOR ENUM VALIDATION (H151) ---
   {151, "Calculator Operator Enum Validation",    "§10.26","CWE-681", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {152, "SingleSampledCurve OOM Size Validation", "§10.26","CWE-770", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
