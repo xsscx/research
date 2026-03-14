@@ -39,7 +39,9 @@
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSignatures.h"
+#include "IccAnalyzerColors.h"
 #include <new>
+#include <ctime>
 
 void PrintHexDump(const icUInt8Number *data, icUInt32Number size, icUInt32Number offset)
 {
@@ -74,30 +76,154 @@ void PrintHexDump(const icUInt8Number *data, icUInt32Number size, icUInt32Number
 // Profile Inspection Functions
 //==============================================================================
 
+// Format a 4-byte ICC signature as printable string
+static void FormatSig4(icUInt32Number sig, char *out)
+{
+  for (int i = 3; i >= 0; i--) {
+    unsigned char c = (sig >> (i * 8)) & 0xff;
+    out[3 - i] = (c >= 32 && c <= 126) ? static_cast<char>(c) : '.';
+  }
+  out[4] = '\0';
+}
+
+// Decode ICC date/time from header
+static void FormatIccDateTime(const icDateTimeNumber &dt, char *buf, size_t bufSize)
+{
+  snprintf(buf, bufSize, "%04u-%02u-%02u %02u:%02u:%02u",
+           dt.year, dt.month, dt.day, dt.hours, dt.minutes, dt.seconds);
+}
+
+// Decode ICC version as human-readable string
+static void FormatIccVersion(icUInt32Number ver, char *buf, size_t bufSize)
+{
+  int major = (ver >> 24) & 0xff;
+  int minor = (ver >> 20) & 0x0f;
+  int bugfix = (ver >> 16) & 0x0f;
+  snprintf(buf, bufSize, "%d.%d.%d.0", major, minor, bugfix);
+}
+
 void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO)
 {
-  printf("\n=== ICC Profile Header (0x0000-0x007F) ===\n");
-  
+  printf("\n%s=== ICC Profile Header (0x0000-0x007F) ===%s\n", ColorInfo(), ColorReset());
+
   pIO->Seek(0, icSeekSet);
   icUInt8Number header[128];
   if (pIO->Read8(header, 128) != 128) {
     printf("Error reading header\n");
     return;
   }
-  
+
   PrintHexDump(header, 128, 0);
-  
-  printf("\nHeader Fields:\n");
-  printf("  Size:            0x%08X (%u bytes)\n", pIcc->m_Header.size, pIcc->m_Header.size);
-  printf("  CMM:             %c%c%c%c\n", 
-         pIcc->m_Header.cmmId>>24, (pIcc->m_Header.cmmId>>16)&0xff,
-         (pIcc->m_Header.cmmId>>8)&0xff, pIcc->m_Header.cmmId&0xff);
-  printf("  Version:         0x%08X\n", pIcc->m_Header.version);
-  
+
+  icHeader *pHdr = &pIcc->m_Header;
   CIccInfo info;
-  printf("  Device Class:    %s\n", info.GetProfileClassSigName(pIcc->m_Header.deviceClass));
-  printf("  Color Space:     %s\n", info.GetColorSpaceSigName(pIcc->m_Header.colorSpace));
-  printf("  PCS:             %s\n", info.GetColorSpaceSigName(pIcc->m_Header.pcs));
+  char sigBuf[5];
+  char verBuf[32];
+  char dateBuf[32];
+
+  FormatIccVersion(pHdr->version, verBuf, sizeof(verBuf));
+
+  printf("\n%sHeader Fields:%s\n", ColorInfo(), ColorReset());
+  printf("  Size:              0x%08X (%u bytes)\n", pHdr->size, pHdr->size);
+
+  FormatSig4(pHdr->cmmId, sigBuf);
+  printf("  CMM Type:          '%s' (0x%08X)\n", sigBuf, pHdr->cmmId);
+
+  printf("  Version:           %s (0x%08X)\n", verBuf, pHdr->version);
+  printf("  Device Class:      %s\n", info.GetProfileClassSigName(pHdr->deviceClass));
+  printf("  Color Space:       %s (%u channels)\n",
+         info.GetColorSpaceSigName(pHdr->colorSpace),
+         icGetSpaceSamples(pHdr->colorSpace));
+  printf("  PCS:               %s\n", info.GetColorSpaceSigName(pHdr->pcs));
+
+  FormatIccDateTime(pHdr->date, dateBuf, sizeof(dateBuf));
+  printf("  Date/Time:         %s\n", dateBuf);
+
+  printf("  Magic:             0x%08X %s\n", pHdr->magic,
+         pHdr->magic == icMagicNumber ? "[OK]" : "[INVALID]");
+  printf("  Platform:          %s\n", info.GetPlatformSigName(pHdr->platform));
+  printf("  Profile Flags:     0x%08X", pHdr->flags);
+  if (pHdr->flags & icEmbeddedProfileTrue)
+    printf(" [Embedded]");
+  if (pHdr->flags & icUseWithEmbeddedDataOnly)
+    printf(" [EmbeddedOnly]");
+  printf("\n");
+
+  FormatSig4(pHdr->manufacturer, sigBuf);
+  printf("  Manufacturer:      '%s' (0x%08X)\n", sigBuf, pHdr->manufacturer);
+  FormatSig4(pHdr->model, sigBuf);
+  printf("  Model:             '%s' (0x%08X)\n", sigBuf, pHdr->model);
+
+  printf("  Device Attribs:    0x%016llX",
+         (unsigned long long)pHdr->attributes);
+  if (pHdr->attributes & icTransparency)
+    printf(" [Transparency]");
+  if (pHdr->attributes & icMatte)
+    printf(" [Matte]");
+  printf("\n");
+
+  printf("  Rendering Intent:  %s (%u)\n",
+         info.GetRenderingIntentName((icRenderingIntent)(pHdr->renderingIntent)),
+         pHdr->renderingIntent);
+  printf("  PCS Illuminant:    X=%.4f Y=%.4f Z=%.4f\n",
+         icFtoD(pHdr->illuminant.X),
+         icFtoD(pHdr->illuminant.Y),
+         icFtoD(pHdr->illuminant.Z));
+
+  FormatSig4(pHdr->creator, sigBuf);
+  printf("  Creator:           '%s' (0x%08X)\n", sigBuf, pHdr->creator);
+
+  // Profile ID (MD5)
+  bool hasID = false;
+  for (int i = 0; i < 16; i++) {
+    if (pHdr->profileID.ID8[i] != 0) { hasID = true; break; }
+  }
+  printf("  Profile ID:        ");
+  if (hasID) {
+    for (int i = 0; i < 16; i++) printf("%02x", pHdr->profileID.ID8[i]);
+    printf("\n");
+  } else {
+    printf("(not set)\n");
+  }
+
+  // V5/iccMAX extended header fields
+  if (pHdr->version >= icVersionNumberV5) {
+    printf("\n%s  --- ICC v5/iccMAX Extended Header ---%s\n", ColorInfo(), ColorReset());
+
+    if (pHdr->deviceSubClass) {
+      FormatSig4(pHdr->deviceSubClass, sigBuf);
+      printf("  Device SubClass:   '%s' (0x%08X)\n", sigBuf, pHdr->deviceSubClass);
+      printf("  SubClass Version:  %s\n", info.GetSubClassVersionName(pHdr->version));
+    }
+
+    printf("  Spectral PCS:      %s\n",
+           info.GetSpectralColorSigName(pHdr->spectralPCS));
+
+    if (pHdr->spectralRange.start || pHdr->spectralRange.end || pHdr->spectralRange.steps) {
+      printf("  Spectral Range:    %.1f - %.1f nm, %u steps\n",
+             icF16toF(pHdr->spectralRange.start),
+             icF16toF(pHdr->spectralRange.end),
+             pHdr->spectralRange.steps);
+    } else {
+      printf("  Spectral Range:    Not Defined\n");
+    }
+
+    if (pHdr->biSpectralRange.start || pHdr->biSpectralRange.end || pHdr->biSpectralRange.steps) {
+      printf("  BiSpectral Range:  %.1f - %.1f nm, %u steps\n",
+             icF16toF(pHdr->biSpectralRange.start),
+             icF16toF(pHdr->biSpectralRange.end),
+             pHdr->biSpectralRange.steps);
+    } else {
+      printf("  BiSpectral Range:  Not Defined\n");
+    }
+
+    if (pHdr->mcs) {
+      printf("  MCS Color Space:   %s\n",
+             info.GetColorSpaceSigName(static_cast<icColorSpaceSignature>(pHdr->mcs)));
+    } else {
+      printf("  MCS Color Space:   Not Defined\n");
+    }
+  }
 }
 
 void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
