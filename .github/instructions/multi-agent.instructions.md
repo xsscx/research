@@ -217,7 +217,7 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 ## Analysis Report Gap — Current State (Updated 2026-03-08)
 
 **Analyzed**: 39 profiles/images with full 150-heuristic reports in `analysis-reports/`
-**Total test profiles**: 329 ICC profiles in `test-profiles/` (+ 426 crash/oom/slow-unit/timeout artifacts)
+**Total test profiles**: 335 ICC profiles in `test-profiles/` (+ 426 crash/oom/slow-unit/timeout artifacts)
 **Gap**: ~290 profiles still need analysis
 **macOS agent activity**: Seeded 6 starved fuzzer corpora, organized docs, added cross-refs
 

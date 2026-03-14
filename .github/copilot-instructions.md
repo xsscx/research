@@ -57,7 +57,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Heuristics | 150 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H148 data validation + H149-H150 TIFF extended) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 12 | cfl.instructions.md, README.md |
-| iccDEV advisories | 93 (85 CVEs + 95 GHSAs = 180 unique, 52 heuristics with refs) | 6 files (see CVE count sync memory) |
+| iccDEV advisories | 93 (87 CVEs + 95 GHSAs = 182 unique, 52 heuristics with refs) | 6 files (see CVE count sync memory) |
 | Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
 
 ## ICC Specification References — Sources of Truth
@@ -280,7 +280,7 @@ All heuristic, CVE, and severity counts are computed dynamically from
 
 ```bash
 ./iccanalyzer-lite --registry | jq .totalHeuristics    # → 150
-./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 85
+./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 87
 ./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 95
 ./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 52
 ./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:44, HIGH:36, ...}
@@ -705,7 +705,7 @@ Key endpoints: `/api/upload` (POST), `/api/security-json` (GET), `/api/full` (GE
 
 ### Reusable Prompts
 
-Sixteen prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
+Eighteen prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
 - `analyze-icc-profile.prompt.yml` — full 150-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
@@ -714,6 +714,8 @@ Sixteen prompt templates in `.github/prompts/` guide AI through standard analysi
 - `health-check.prompt.yml` — MCP server verification
 - `image-fuzzer-quality.prompt.md` — xnuimagefuzzer output quality assessment
 - `mac-catalyst-ci.prompt.md` — Mac Catalyst CI debugging guide
+- `macos-image-seeds.prompt.md` — macOS image seed harvesting and CFL injection
+- `macos-spectral-images.prompt.md` — macOS spectral image generation workflow
 - `improve-fuzzer-coverage.prompt.md` — Coverage gap analysis and seed creation workflow
 - `corpus-management.prompt.md` — SSD/ramdisk corpus lifecycle, migration, and coverage reporting
 - `upstream-sync.prompt.md` — CFL iccDEV patch reconciliation after upstream updates
@@ -854,12 +856,12 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 | Component | Purpose | Instructions |
 |-----------|---------|--------------|
 | **iccanalyzer-lite/** | 150-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
-| **cfl/** | 12 LibFuzzer harnesses + 6 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
+| **cfl/** | 12 LibFuzzer harnesses + 20 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
 | **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
 | **call-graph/** | LLVM-based call graphs + AST dumps for 37 compilation targets. | [call-graph.instructions.md](instructions/call-graph.instructions.md) |
-| **test-profiles/** | 329 ICC profiles for fuzzing and regression testing. |
+| **test-profiles/** | 335 ICC profiles for fuzzing and regression testing. |
 | **.github/scripts/** | Shell/Python scripts for analysis, fuzzing, ramdisk, coverage, corpus handling. |
 
 Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is an independent
@@ -930,7 +932,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 
 ### CFL patch workflow
 See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
-NO-OP management, and reproducer testing. Next patch number: **018**.
+NO-OP management, and reproducer testing. Next patch number: **021**.
 
 ### Crash reproducer testing
 ```bash
@@ -942,7 +944,7 @@ for f in /tmp/fuzz-ramdisk/bin/icc_*_fuzzer; do echo -n "$(basename $f): "; ASAN
 ```
 
 ### CVE/GHSA reference
-77 CVEs reported for iccDEV (as of Feb 2026). Top CWEs by frequency:
+87 CVEs reported for iccDEV (as of March 2026). Top CWEs by frequency:
 CWE-20 (49), CWE-122 (17), CWE-476 (16), CWE-125 (11), CWE-758 (11), CWE-787 (10).
 1 Critical (CVE-2026-21675: UAF in CIccXform::Create, CVSS 9.8), 45 High, 30 Medium, 1 Low.
 Full list: `https://github.com/InternationalColorConsortium/iccDEV/security/advisories`
@@ -1004,7 +1006,7 @@ See [mcp-server.instructions.md](instructions/mcp-server.instructions.md) for se
 path validation, Docker build policy, tool count sync, and API details.
 
 ### CI workflows
-31 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
+39 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
 - `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on agent `workflow_run` completion
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 12 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
