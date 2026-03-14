@@ -116,8 +116,6 @@ void DumpV5Summary(CIccProfile *pIcc)
     return;
 
   CIccInfo Fmt;
-  const size_t bufSize = 64;
-  char buf[bufSize];
 
   printf("\nVersion 5 / iccMAX Profile Summary\n");
   printf("----------------------------------\n");
