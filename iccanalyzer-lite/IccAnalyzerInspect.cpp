@@ -103,6 +103,8 @@ static void FormatIccVersion(icUInt32Number ver, char *buf, size_t bufSize)
 }
 
 // Dump all ICC header fields (§7.2) with V2/V4/V5 version-aware formatting.
+// Reads 128-byte raw header via CIccIO, decodes each field per ICC.1-2022-05,
+// and prints human-readable labels with hex values and symbolic names.
 void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO)
 {
   printf("\n%s=== ICC Profile Header (0x0000-0x007F) ===%s\n", ColorInfo(), ColorReset());
