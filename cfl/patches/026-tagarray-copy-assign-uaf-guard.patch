@@ -1,0 +1,40 @@
+--- a/IccProfLib/IccTagComposite.cpp	2026-03-14 22:38:13.303871109 +0000
++++ b/IccProfLib/IccTagComposite.cpp	2026-03-14 22:38:30.028687691 +0000
+@@ -1033,6 +1033,19 @@
+ ******************************************************************************/
+ CIccTagArray::CIccTagArray(const CIccTagArray &tagAry)
+ {
++  // CFL-026: Validate source before copy — reject freed objects (CWE-416).
++  // ASAN fills freed memory with 0xbe: m_nSize=0xbebebebe (>100K),
++  // m_TagVals=0xbebebebebebebebe (misaligned). Either pattern = invalid source.
++  if (tagAry.m_nSize > 100000 ||
++      (tagAry.m_nSize && tagAry.m_TagVals &&
++       ((size_t)tagAry.m_TagVals % sizeof(void*)) != 0)) {
++    m_nSize = 0;
++    m_TagVals = nullptr;
++    m_sigArrayType = icSigUndefinedArray;
++    m_pArray = NULL;
++    return;
++  }
++
+   if (tagAry.m_nSize) {
+     m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));  // CFL-003: match calloc/free (CWE-762)
+     if (!m_TagVals) {
+@@ -1076,6 +1089,17 @@
+ 
+   Cleanup();
+ 
++  // CFL-026: Validate source before copy — reject freed objects (CWE-416).
++  if (tagAry.m_nSize > 100000 ||
++      (tagAry.m_nSize && tagAry.m_TagVals &&
++       ((size_t)tagAry.m_TagVals % sizeof(void*)) != 0)) {
++    m_nSize = 0;
++    m_TagVals = nullptr;
++    m_sigArrayType = icSigUndefinedArray;
++    m_pArray = NULL;
++    return *this;
++  }
++
+   if (tagAry.m_nSize) {
+     m_TagVals = (IccTagPtr*)calloc(tagAry.m_nSize, sizeof(IccTagPtr));  // CFL-003: match calloc/free (CWE-762)
+     if (!m_TagVals) {
