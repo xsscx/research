@@ -1,12 +1,0 @@
-TITLE "Extended Range LUT"
-DOMAIN_MIN -0.1 -0.1 -0.1
-DOMAIN_MAX 1.1 LUT_3D_INPUT_RANGE -1bi_MIN -2.0 -2.0 -2.0 3D-LUT."
-LUT_3D_SIZE 2
-DOMAIN_MIN 0.00
-0.0 2.0 2.0.0 0.0 0.$0
-0>!0 0.0 1>0 2.0
-
-2.0 0.0 1.0
-0.0 1.0* 1.0
-1.0 1.0 12.0 2.0,
-.0 2.0

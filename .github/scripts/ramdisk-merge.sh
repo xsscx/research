@@ -35,6 +35,7 @@ ALL_FUZZERS=(
   icc_tiffdump_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
+  icc_applysearch_fuzzer
 )
 
 # ── Parse args ───────────────────────────────────────────────────────

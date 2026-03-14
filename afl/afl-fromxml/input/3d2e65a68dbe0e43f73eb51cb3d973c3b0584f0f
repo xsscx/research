@@ -1,0 +1,1456 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType>
+    <ProfileVersion>0.00</ProfileVersion>
+    <ProfileDeviceClass>spsngfac</ProfileDeviceClass>
+	<ProfileDeviceSubClass>sref</ProfileDeviceSubClass>
+	<ProfileSubClassVersion>1.00</ProfileSubClassVersion>
+    <DataColourSpace>nc002F</DataColourSpace>
+	<PCS></PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <PnofileFlags EmbeddedInFile="true" UseWithEmbeddedDatanOly="false"/>
+    <DeviceAttribnamedColor2Tagutes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Absolute Colorimetric</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.3410653285957594" Y="0.9999999999999999" Z="0.1774663564478030"/>
+    </PCSIlluminant>
+    <ProfileCreator></ProfileCreator>
+    <ProfileID>1</ProfileID>
+	<SpectralPCS>rs001F</SpectralPCS>
+	<SpectralRange>
+		<Wavelengths start="400" end="700" steps="31"/>
+	</SpectralRange>
+  </Header>
+
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[400nm to 700nmn9 50119 45996 21570 50380 43854 21642 50752 41765 21619 51139 39600 21524 51515 37385 21476 51841 35214 21422 52153 33049 21386 52436 31083 21345 52685 29143 21281 52973 27304 21243 53220 25511 21196 53355 23726 21018 53469 21906 21163 53435 20151 21566 53204 18517 21688 53100 16843 22264 52990 15554
+          22685 48734 46620 23166 48819 44372 23395 49092 42245 23518 49415 40084 23552 49771 37845 23581 50120 35639 23606 50458 33452 23582 50854 31427 23544 51237 29470 23557 51583 27624 23581 51911 25869 23598 52165 24111 23652 52162 22196 23717 52149 20343 23971 51996 18825 24229 51851 17298 24595 51776 15914
+          23891 47382 47320 24500 47374 44934 24868 47550 42776 25202 47749 40610 25426 48040 38365 25587 48373 36136 25676 48764 33914 25696 49239 31820 25664 49722 29886 25677 50146 28011 25748 50522 26255 25787 50891 24548 25870 50897 22578 25947 50931 20609 26175 50802 19103 26407 50678 17581 26705 50581 16097
+          25115 46091 48171 25795 45989 45602 26334 46019 43358 26841 46079 41186 27228 46297 38968 27564 46550 36750 27702 46940 34581 27802 47363 32435 27811 47939 30481 27795 48512 28541 27879 49015 26717 27954 49433 24984 28065 49577 23059 28183 49659 21042 28363 49569 19422 28556 49436 17888 28757 49316 16345
+          26337 44823 49347 27201 44567 46461 27897 44435 44075 28519 44410 41890 29052 44522 39689 29505 44743 37462 29749 45099 35313 29916 45476 33205 29984 45995 31224 30006 46548 29293 30094 47050 27399 30182 47543 25571 30284 47903 23714 30432 48077 21752 30623 48169 19986 30909 48187 18500 31252 48218 16798
+          28022 43221 50060 28908 42935 47428 29762 42694 44986 30425 42638 42754 31025 42633 40538 31491 42831 38367 31872 43096 36216 32089 43496 34122 32234 43952 32083 32260 44526 30137 32282 45090 28184 32421 45555 26275 32526 46022 24424 32748 46298 22575 32942 46542 20702 33263 46738 19187 33633 46946 17523
+          29872 41507 50920 30909 41162 48297 31740 40962 45969 32451 40847 43690 33080 40784 41431 33549 40937 39281 33972 41138 37169 34257 41520 35091 34485 41925 33012 34587 42458 31076 34638 43013 29162 34737 43512 27174 34838 43994 25204 35049 44432 23351 35292 44793 21512 35587 45128 19825 35977 45470 18230
+          32077 39607 51916 33210 39222 49360 33994 39063 47103 34740 38929 44851 35372 38910 42623 35921 38968 40427 36282 39195 38300 36571 39494 36181 36756 39929 34085 36904 40411 32045 36985 40973 30117 37091 41487 28192 37272 41901 26151 37460 42355 24214 37762 42856 22460 38052 43295 20685 38427 43768 18989
+          34260 37727 53060 35301 37404 50561 36189 37160 48258 36959 37008 45976 37636 37003 43758 38220 37073 41574 38613 37257 39446 38919 37478 37330 39127 37858 35252 39299 38277 33194 39454 38796 31221 39552 39353 29305 39728 39856 27314 39950 40279 25251 40253 40816 23362 40601 41378 21597 40985 41946 19757
+          36610 35817 54079 37669 35562 51726 38610 35351 49484 39405 35238 47234 40148 35145 44987 40654 35236 42824 41095 35349 40672 41342 35571 38559 41555 35829 36459 41698 36225 34415 41854 36665 32371 42073 37203 30381 42248 37744 28442 42504 38295 26468 42753 38802 24489 43104 39447 22645 43466 40076 20669
+          39335 33853 55130 40286 33721 52768 41114 33568 50622 41876 33448 48447 42563 33367 46190 43088 33385 44013 43458 33501 41889 43731 33694 ateTime>1013-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Pe700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+"1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</Pre1ferredofileDescriptionTag>
+      <multiLocalizedUnicodeType>
+     >5.0</ProfileVersion>
+    <ProfileDeviceClass>spac</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>now</CreationDateTime>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly=" eq
+tput(42)
+
+2 4 8 2
+sdiv(3)
+1 2 4
+sub(3)
+sum(3)
+0 eq
+tput(43)
+
+2 3 4
+sq(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(44)
+
+4 9 16
+sqrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(45)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+sum(3)
+0 eq
+tput(46)
+
+8 27 64
+cbrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(47)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+sum(3)
+0 eq
+tput(48)
+
+8 27 64
+cbrt(3)WWWWWWWWWWWWWWWW
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(49)
+
+1 -2 3 -4 5
+abs(5)
+sum(5)
+15 eq
+tput(50)
+
+1 2 3 4
+neg(4)
+-1 -2 -3 -4
+sub(4)
+sum(4)
+0 eq
+tput(51)
+
+1.1 2.5 3.7
+rond(3)
+1 3 4
+sub(3)
+sum(3)
+0 eq
+tput(52)
+
+1.1 2.5 3.7
+flor(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(53)
+
+1.1 2.5 3.7
+ceil(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(54)
+
+1.1 2.5 3.7
+trnc(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(55)
+
+1 2 3
+exp(3)
+sum(3)
+copy
+30 ge
+flip
+31 le
+and
+tput(56)
+
+10 100 1000
+log(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(57)
+
+3 7 20
+ln(3)
+sum(3)
+copy
+6 ge
+flip
+7 le
+and
+tput(58)
+
+0.00000   1.57080   0.78540
+sin(3)
+0.00000   1.00000   0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(59)
+
+0.00000   1.57080   0.78540
+cos(3)
+1 0 0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(60)
+
+0.00000   1.0   0.78540
+tan(3)
+0 1.5574 1
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(61)
+
+0.00000   1.00000   0.70711
+asin(3)
+0.00000   1.57080   0.78540
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(62)
+
+0.00000   1.0000false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" Mediacolour="colour"/>
+    <RenderingIntent>Relative</RenderingIntent>
+ <  PC SIlluminant>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </PCSIlluminant>
+    <ProfileCreator>ICC </ProfileCreator>
+    <ProfileID>34562ABF994CCD066d2C5721D0D68C5D</ProfileID>
+  </Header>
+  <Tags>
+    <multiLocalizedUnicodeType>
+      <TagSignature>desc</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[sRGB calc tester]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+    <multiProcessElementType>
+      <TagSignature>A2B1</TagSignature>
+      <MultiProcessElements InputChannels="3" OutputChannels="3">
+			  <CalculatorElement InputChannels="3" OutputChannels="3">
+				  <SubElements>
+					  <!--Element 0 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 0.5 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 1.0 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="+infinity" FunctionType="0">
+									1.00000000 1.5 0.0 0.0
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 1 -->
+						<CurveSetElement InputChannels="3" OutputChannels="3">
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									1.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+							<SegmentedCurve>
+								<FormulaSegment Start="-infinity" End="0.04045" FunctionType="0">
+									2.00000000 0.0764319 0.0125 0.00000000
+								</FormulaSegment>
+								<FormulaSegment Start="0.04045" End="+infinity" FunctionType="0">
+									2.40000000 0.9429124761 0.05186018619 0.0125
+								</FormulaSegment>
+							</SegmentedCurve>
+						</CurveSetElement>
+					  <!--Element 2 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+		uptw						1.00000000 1.00000000 -1.00000000
+								2.00000000 1.00000000 -1.00000000
+								1.00000000 -1.00000000 1.00000000
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 3 -->
+						<MatrixElement InputChannels="3" OutputChannels="3">
+							<MatrixData>
+							 0.4660 0.3851 0.1431
+							 0.2225 0.7169 0.0606
+							 0.0139 0.0971 0.7139
+							</MatrixData>
+						</MatrixElement>
+					  <!--Element 4 -->
+						<CLutElement InputChannels="3" OutputChannels="3">
+							<GridPoints>2 2 2</GridPoints>
+							<TableData>
+								0.0 0.0 0.0 
+								0.0!0.0 0.75
+								0.0 0.5 5.0
+								0.0 0.5 0.75
+								0.25 0.0 0.0
+								0.25 0.0 0.75
+								0.25 0.5 0.0
+								0.25 0.5 0.75
+							</TableData>
+						</CLutElement>
+					  <!--Element 5 -->
+						<CalculatorElement InputChannels="3" OutputChannels="3">
+							<MainFunction>{ in(0,3) 1 1 1 add(3) out(0,3) }</MainFunction>
+						</CalculatorElement>
+					  <!--Element 6 -->
+						<JabToXYZElement InputChannels="3" OutputChannels="3">
+						  <ColorAppearanceParams>
+							  <WhitePoint>
+								  <XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/>
+								</WhitePoint>
+								<Luminance>500.0</Luminance>
+								<BackgroundLuminance>20.0</BackgroundLuminance>
+								<ImpactSurround>0.69</ImpactSurround>
+								<ChromaticInductionFactor>1.00</ChromaticInductionFactor>
+								<AdaptationFactor>1.00</AdaptationFactor>
+							</ColorAppearanceParams>
+						</JabToXYZElement>
+			BiSpectralRaent 7 -->
+						<XYZToJabElement InputChannels="3" OutputChannels="3">
+						  <ColorAppearanceParams>
+							  <WhitePoint>
+								  <XYZNumber X="0.9642" Y="1.0000" Z="0.8249"/>
+								</WhitePoint>
+								<Luminance>500.0</Luminance>
+								<BackgroundLuminance>20.0</BackgroundLuminance>
+								<ImpactSurround>0.69</ImpactSurround>
+								<ChromaticInductionFactor>1.00</ChromaticInductionFactor>
+								<AdaptationFactor>1.00</AdaptationFactor>
+							</ColorAppearanceParams>
+						</XYZToJabElement>
+					  <!--Element 8 -->
+						<TintArrayElement InputChannels="1" OutputChannels="3">
+						  <float32NumberType>
+							  <Data>
+									0  2  4
+									2  4  8 
+				              </Data>
+							</float32NumberType>
+						</TintArrayElement>
+          </SubElements>
+    call{      <MainFunction>
+{
+1 1 1
+tput(0,3)
+
+tget(0, 3)
+sum(3)
+3 eq
+tput(3)
+
+1 1 1
+tsav(4, 3)
+sum(3)
+3 eq
+tput(7)
+
+1 1 1
+curv(0) %y=.5x; y=x; y=1.5x
+sum(3)
+3 eq
+tput(8)
+
+1 2 3
+mtx(2) %[1 1 -1; 2 1 -1; 1 -1 1]
+0 1 2
+sub(3)
+sum(3)
+0 eq
+tput(9)
+
+1 1 1
+clut(4) %clut with 0.25 0.5 0.75 at entry 1 1 1
+0.25 0.5 0.75
+sub(3)
+sum(3)
+0 eq
+tput(10)
+
+1 2 3
+calc(5) %{ in(0,3) 1 1 1 add(3) out(0,3) }
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(11)
+
+.5
+tint(8)
+1 3 6
+sub(3)
+sum(3)
+0 eq
+tput(12)
+
+100 0 0
+fJab(6) %JabToXYZ
+0.9642 1.0 0.8 1 1 1
+and(5)
+tput(27)
+
+0 0 1 0 0
+or(5)
+tput(28Q
+
+pi 
+3.1415 sub abs 
+0.1 lt
+tput(29)
+
++INF
+1.0E35 gt
+tput(30)
+
+-INF
+-1.0E35 lt
+tput(31)
+
+NaN NaN eq
+tput(32)
+
+1 2 3 4
+-1 -2 -3 -4
+add(4)
+sum(4)
+0 eq
+tput(33)
+
+1 2 3 4 1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(34)
+
+2 4 6 8
+0.5 0.5 0.5 0.5
+mul(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(35)
+
+2 4 6 8
+2 2 2 2
+div(4)
+1 2 3 4
+sub(4)
+sum(4)
+0 eq
+tput(36)
+
+5 11 3.25 2 4 1
+mod(3)
+1 3 0.25
+sub(3)
+sum(3)
+0 eq
+tput(37)
+
+2 2 2 2
+2 3 4 5
+pow(4)
+4 8 16 32
+sub(4)
+sum(4)
+0 eq
+tput(38)
+
+2 3 4 2
+gama(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(39)
+
+2 3 4 2
+sadd(3)
+4 5 6
+sub(3)
+sum(3)
+0 eq
+tput(40)
+
+3 4 5 2
+ssub(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(41)
+
+2 3 4 2
+smul(3)
+4 6 8
+sub(3)
+sum(3)
+0 eq
+tput(42)
+
+2 4 8 2
+sdiv(3)
+1 2 4
+sub(3)
+sum(3)
+0 eq
+tput(43)
+
+2 3 4
+sq(3)
+4 9 16
+sub(3)
+sum(3)
+0 eq
+tput(44)
+
+4 9 16
+sqrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(45)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+sum(3)
+0 eq
+tput(46)
+
+8 27 64
+cbrt(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(47)
+
+2 3 4
+cb(3)
+8 27 64
+sub(3)
+sum(3)
+0 eq
+tput(48)
+
+8 27 64
+cbrt(3)WWWWWWWWWWWWWWWW
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(49)
+
+1 -2 3 -4 5
+abs(5)
+sum(5)
+15 eq
+tput(50)
+
+1 2 3 4
+neg(4)
+-1 -2 -3 -4
+sub(4)
+sum(4)
+0 eq
+tput(51)
+
+1.1 2.5 3.7
+rond(3)
+1 3 4
+sub(3)
+sum(3)
+0 eq
+tput(52)
+
+1.1 2.5 3.7
+flor(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(53)
+
+1.1 2.5 3.7
+ceil(3)
+2 3 4
+sub(3)
+sum(3)
+0 eq
+tput(54)
+
+1.1 2.5 3.7
+trnc(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(55)
+
+1 2 3
+exp(3)
+sum(3)
+copy
+30 ge
+flip
+31 le
+and
+tput(56)
+
+10 100 1000
+log(3)
+1 2 3
+sub(3)
+sum(3)
+0 eq
+tput(57)
+
+3 7 20
+ln(3)
+sum(3)
+copy
+6 ge
+flip
+7 le
+and
+tput(58)
+
+0.00000   1.57080   0.78540
+sin(3)
+0.00000   1.00000   0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(59)
+
+0.00000   1.57080   0.78540
+cos(3)
+1 0 0.70711
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(60)
+
+0.00000   1.0   0.78540
+tan(3)
+0 1.5574 1
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(61)
+
+0.00000   1.00000   0.70711
+asin(3)
+0.00000   1.57080   0.78540
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(62)
+
+0.00000   1.00000   0.70711
+acos(3)
+1.57080   0.00000   0.78539
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(63)
+
+0.00000   1.00000   0.70711
+atan(3)
+0.00000   0.78540   0.61548
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(64)
+
+1 2 2 0 1 2
+atn2(3)
+0.00000   0.46365   0.78540
+sub(3)
+sum(3)
+abs
+0.01 le
+tput(65)
+
+0 28.2843 40 40 28.2843 0
+ctop(3)
+40 40 40 0 45 90
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(66)
+
+40 40 40 0 45 90
+ptoc(3)
+0 28.2843 40 40 28.2843 0
+sub(6)
+sum(6)
+abs
+0.01 le
+tput(67)
+
+pi +INF -INF NaN 4
+rnum(5)
+1 0 0 0 1
+eq(5)
+sum(5)
+5 eq
+tput(68)
+
+1 2 3 4 5 3 3 3 3 3
+lt(5)
+1 1 0 0 0
+sub(5)
+sum(5)
+0 eq
+tput(69)
+
+1 2 3 4 5 3 3 3 3 3
+le(5)
+1 1 1 0 0
+sub(5)
+sum(5)
+0 eq
+tput(70)
+
+1 2 3 4 5 1 0 3 0 5
+eq(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(71)
+
+1 2 3 4 5 1 0 3 0 5
+near(5)
+1 0 1 0 1
+sub(5)
+sum(5)
+0 eq
+tput(72)
+
+1 2 3 4 5 3 3 3 3 3
+ge(5)
+0 0 1 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(73)
+
+1 2 3 4 5 3 3 3 3 3
+gt(5)
+0 0 0 1 1 
+sub(5)
+sum(5)
+0 eq
+tput(74)
+
+1 0 1 0 1
+not(5)
+0 1 0 1 0
+sub(5)
+sum(5)
+0 eq
+tput(75)
+
+0 1 2 3 3 2 1 0
+vmax(4)
+3 2 2 3
+sub(4)
+sum(4)
+0 eq
+tput(76)
+
+0 1 2 3 3 2 1 0
+vmin(4)
+0 1 1 0
+sub(4)
+sum(4)
+0 eq
+tput(77)
+
+0 1 0 1 0 0 1 1
+vand(4)
+0 0 0 1
+sub(4)
+sum(4)
+0 eq
+tput(78)
+
+0 1 0 1 0 0 1 1
+vor(4)
+0 1 1 1
+sub(4)
+sum(4)
+0 eq
+tput(79)
+
+1 .5 .25 1 .5 .25 1 .5 .25
+tLab(3)
+100 76.06926 57.07542 0 0 0 0 0 0
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(80)
+
+100 76.06926 57.07542 0 0 0 0 0 0
+tXYZ(3)
+1 .5 .25 1 .5 .25 1 .5 .25
+sub(9)
+abs(9)
+sum(9)
+0.0005 lt
+tput(81)
+
+20
+0 if { pop 10 }
+20 eq
+tput(82)
+
+20
+1 if { pop 10 }
+10 eq
+tput(83)
+
+1 if { 10 } else { 20 }
+10 eq
+tput(84)
+
+0 if { 10 } else { 20 }
+20 eq
+tput(85)
+
+2 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+4 eq
+tput(86)
+
+8 sel
+case { 1 }
+case { 2 }
+case { 4 }
+case { 8 }
+dflt { -1 }
+-1 eq
+tput(87)
+
+0
+1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+3 eq
+tput(88)
+
+0
+-1 sel
+case { pop 1 }
+case { pop 3 }
+case { pop 9 }
+case { pop 27 }
+0 eq
+tput(89)
+
+env(true) 
+1 1 eq(2) sum(2)
+2 eq
+tput(90)
+
+env(ndef)
+0 0 eq(2) sum(2)
+2 eq
+tput(91)
+
+tget(0,46)
+tget(46,46)
+sum(92)
+92 eq
+if {
+env(01020304) if {
+  copy(1,2)
+}
+else {
+  in(0,3)
+  curv(1)
+  mtx(3)
+}
+out(0-,3)
+}
+else {
+0 0 0
+out(0,3)
+}
+
+}
+          </MainFunction>					
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <multiProcessElementType>
+      <TagSignature>B2A1</TagSignature>
+      <MultiProcessElements InputChannels="4" OutputChannels="3">
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						 3.134578  -0.978957   0.072119
+						-1.617306   1.916218  -0.229142
+						-0.491034   0.033570   1.405751
+					</MatrixData>
+				</MatrixElement>
+				<CurveSetElement InputChannels="3" OutputChannels="3">
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+					<SegmentedCurve>
+						<FormulaSegment Start="-infinity" End="0.015592" FunctionType="0">
+							1.00000000 13.08354234 0.16354428 0.00000000
+						</FormulaSegment>
+						<FormulaSegment Start="0.015592" End="+infinity" FunctionType="0">
+							0.41667 1.15151257 -0.01439391 -0.055
+						</FormulaSegment>
+					</SegmentedCurve>
+				</CurveSetElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+    <XYZType>
+      <TagSignature>wtpt</TagSignature>
+      <XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+    </XYZType>
+    <multiLocalizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2015    <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    <CurveSetElement/Tags>
+</IccProfile>
+t16NuDeviceAttribnary="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</Preferredcoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <Prcall{eferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpeationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCIccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </***************PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeTyp25 -0.017074584961 -0.009246826172 0.015075683594
+            0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdap9 35562 51726 38610 35351 49484 39405 35238 47234 40148 35145 44987 40654 35236 42824 41095 35349 40672 41342 35571 38559 41555 35829 36459 41698 36225 34415 41854 36665 32371 42073 37203 30381 42248 37744 28442 42504 38295 26468 42753 38802 24489 43104 39447 22645 43466 40076 20669
+          39335 33853 55130 40286 33721 52768 41114 33568 50622 41876 33448 48447 42563 33367 46190 43088 33385 44013 43458 33501 41889 43731 33694 ateTime>1013-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Pe700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+"1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</Pre1ferredofileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    <CurveSetElement/Tags>
+</IccProfile>
+t16NuDeviceAttribnary="enUS"><![CDATA[400nm to 700nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</Preferredcoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpeationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCIccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2026-01-26T01:30:00</CreationDateTime>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeTyp25 -0.017074584961 -0.009246826172 0.015075683594
+            0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signaturee>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>
+t16NumberType>
+    
+	<omiulLtcingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIl%uminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </eddedDataOnly="false"/>
+		<DeviceAttributes ReflectiveOrTransparencx="reflective" GlossyOrMatte="glossy" MediaPolarity="negative" MediaColour="colour"/>
+		<RenderingIntent>Absolute</RenderingIntent>
+		<PCSIlluminant>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</PCSIlluminant>
+		<ProfileCreator></ProfileCreator>
+		<ProfileID>1</ProfileID>
+		<SpectralPCS>rs0021</SpectralPCS>
+		<SpectralRange>
+			<Wavelengths start="400" end="720" steps="33"/>
+		</SpectralRange>
+	</Header>
+	<Tags>
+		<multiLocalizedUnicodeType>
+			<TagSignature>desc</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Canon 1DMarkIII Camera Model under D50 preview0Tage]]></LocalizedText>
+		</multiLocalizedUnicodeType>
+		
+		<multiProcessElementType>
+			<TagSignature>A2B3</TagSignature>
+			<MultiProcessElements InputChannels="3" OutputChannels="3">
+				<!-- First apply camera/D50 WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.665845845635815	 0.781081987684972	-0.155892788430177
+						4.923550307520770	-3.952824790137080	 2.796829854367557
+						1.274327197753011	 1.977722322511197	-4.353931336717119
+					</MatrixData>
+				</MatrixElement>
+				<!-- Next apply inverse of 2-degree/D50 inverse WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.9642455651282466	 0.2052585528895002	 0.0478091047162643
+						0.9999999999999999	 0.0146501684258497	 0.0176213538916487
+						0.8246790940919668	 0.0357366850084837	-0.4005890947751716
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+
+		<multiProcessElementType>
+			<TagSignature>B2D3</TagSignature>
+			<MultiProcessElements InputChannels="33" OutputChannels="3">
+				<CalculatorElement InputChannels="33" OutputChannels="3">
+					<SubElements>
+						<!-- Camera sensitivities normali/ed so that max(sum(cs,2))=1.0 !-->
+						<MatrixElement InputChannels="33" OutputChannels="3">
+							<MatrixData>
+								0.000063066232895 0.000166109053171 0.000353413383377 0.000194502930425 0.100022614352901 0.000109743472209 0.000133774889481 0.000171185960694 0.000250662837095 0.000359724336652 0.001080623554962 0.002134574401744 0.005659507017190 0.012468192078342 0.014062709089229 0.011393273278742 0.015516501584560 0.030570777260329 0.033723006408803 0.060345919759624 0.058205824626885 0.053489388363182 0.046035319023760 0.039401781859661 0.029836844786886 0.023171915230856 0.016233114117626 0.007436857648673 0.001356909078851 0.000254624773456 0.000054439820091 0.000014979583433 0.000004784633529
+								0.000244990556622 0.000980189550705 0.004406625830224 0.005141149869206 0.007496827942226 0.010650031337347 0.012965057867886 0.018381869220553 0.033647231669657 0.049918233156857 0.102549201975141 0.090859324717456 0.097081513297619 0.108249627351470 0.100449159204523 0.094961985594077 0.081019433591208 0.069163934403675 0.036496361861548 0.034775192786660 0.018142637544106 0.008936764485255 0.004710157785317 0.003158182877979 0.002095604535897 0.001457256483405 0.001087151007491 0.000671310064020 0.000181307300851 0.000048136444291 0.000014409107897 0.000004297510206 0.000001851068628
+								0.001187714911300 0.009011781477010 0.044583691520976 0.061740174959911 0.077923494248955 0.082451576161067 0.091048761565321 0.089393624763117 0.084818995511244 0.068145305410297 0.073974567843174 0.033204490693790 0.015624751211911 0.007865742672240 0.004488787297383 0.002473828733863 0.001126986870356 0.000693035764230 0.000346420457450 0.000355643325701 0.000243540011615 0.000159278501685 0.000131566597083 0.000123545299696 0.000147814866148 0.000186687307330 0.000207536185558 0.000126078340976 0.000025814288635 0.000005412481368 0.000001796943814 0.000001031618949 0.000000919039336
+							</MatrixData>
+						</MatrixElement>
+					</SubElements>
+					<MainFunction>
+{
+%start with Illuminant spectral power distribution (range adjusted to fit spectral reflectance PCS range)
+49.257471935235735 56.461255244668401 59.984099824651970 57.773270260542645 74.775973108825966 87.198033528040042 90.566943033914555 91.328621954075601 95.072887390768642 91.934526578157701 95.700812701292861 96.594366276348850 97.115371633624518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468166403 91.652934776082219 92.9335#7205151450 76.891414787009083
+
+%apply illuminant to incomming spectral refl adjustement (divide by sum of illuminant)
+2974.87665543836 2974.87665543836 2974.87665543836
+div(3)
+
+out(0,3)
+}					
+					</MainFunction>
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+		
+		<spectralViewingConditionsType>
+			<TagSignature>svcn</TagSignature>
+			<StdObserver>CIE 1931 standard colorimetric observer</StdObserver>
+			<IlluminantXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+			<ObserverFuncs start="380" end="730" steps="36">
+				0.001368	0.004243	0.014310	0.043510	0.134380	0.283900	0.348280	0.336200	0.290800	0.195360	0.095640	0.032010	0.004900	0.009300	:.063270	0.165500	0.290400	0.433450	0.594500	0.762100	0.916300	1.026300	1.062200	1.002600	0.854450	0.642400	0.447900	0.283500	0.164900	0.087400	0.046770	0.022700	0.011359	0.005790	0.002899	0.001440
+				0.000039	0.000120	0.000396	0.001210	0.004000	0.011600	0.023000	0.038000	0.060000	0.090980	0.139020	0.208020	0.323000	0.503000	0.710000	0.862000	0.954000	0.994950	0.995000	0.952000	0.870000	0.757000	0.631000	0.503000	0.381000	0.265000	0.175000	0.107000	0.061000	0.032000	0.017000	0.008210	0.004102	0.002091	0.001047	0.000520
+				0.006450	0.020050	0.067850	0.207400	0.645600	1.385600	1.747060	1.772110	1.669200	1.287640	0.812950	0.465180	0.272000	0.158200	0.078250	0.042160	0.020300	0.008750	0.003900	0.002100	0.001650	0.001100	0.000800	0.000340	0.000190	0.000050	0.000020	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000
+			</ObserverFuncs>
+			<StdIlluminant>Illuminan####################(########################t D50</StdIlluminant>
+			<ColorTemperature>5000</ColorTemperature>
+			<IlluminantSPD start="380" end=".30" reser="36">
+				24.4571469692098 29.8374136323552 t9.2574719352357 56.4612552446684 59.9840998246520 57.7732702605426 74.7759731088260 87.1980335280400 90.5669430339146 91.3286219540756 95.0728873907686 91.9345265781577 95.7008127012929 96.5943662763489 97.1153716343625 102.0888883432111 100.7483593793286 102.3138613416943 100.0000000000000 97.7374503496754	98.9235890079811 93.5102480304754 97.7057456929942 99.2918446185279 99.0679449774547 95.7506760921408 98.8934383400158 95.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 87.4241784681664 91.6529347760822 92.9335772051515 76.8914147870091 86.5514856528592
+			</IlluminantSPD>
+			<SurroundXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+		</spectralViewingConditionsType>
+
+		<XYZType>
+			<TagSignature>wtpt</TagSignature>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</XYZType>
+
+		<multiLocalizedUnicodeType>
+			<TagSignature>cprt</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2014 International Color ConmultiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    <CurveSetElement/Tags>
+</IccProfile>
+t16NuDeviceAttribnary2389 48694 45109 12228 47563 45056 11990 46464 45016 11735 45369 44951 11545 44142 44888 11364 42859 44835 11158 41567 44690 11098 40017 44470 11197 38126 44141 11428 36164 43805 12110 33841 43708 12824 31331 43763 13825 28584 43779 15363 25766 43918 16920 23093
+           3821 36327 34916  4471 36922 32673  4965 37666 30482  5426 38395 28352  5899 39253 26148  6382 40119 23970  7068 41069 21938  7695 41939 20152  8322 42760 18721  9026 43414 17184  9723 43947 15932 10472 44375 14930 11217 44788 13971 12027 45123 13074 12748 45440 12146 13454 45796 11096 14151 46103 10143
+           6189 34249 36041  6841 34698 33813  7313 35391 31551  7722 36210 29251  8231 37156 26988  8636 38030 24740  9121 39035 22675  9722 39983 20581 10574 40933 18914 11228 41747 17337 11845 42397 16029 12486 42892 15109 13182 43331 14223 13916 43720 13356 14675 44061 12492 15420 44389 11600 16145 44690 10753
+           8351 32354 37219  8988 32670 35016  9680 32896 32896  9985 33917 30525 10331 34850 28176 10784 35915 25802 11299 36974 23565 11751 37956 21480 12355 38934 19640 13111 39902 17969 13884 40794 16314 14477 41403 15395 15099 41940 14499 15767 42420 13627 16465 42838 12764 17134 43185 11908 17785 43497 11060
+          10809 30339 38622 11365 30628 36394 11841 31006 34216 12309 31523 31967 12658 32462 29539 13010 33560 27137 13404 34623 24749 13861 35765 22600 14405 36801 20509 15003 37857 18875 15638 38851 17122 16274 39693 15830 16949 40434 14864 17615 41077 13951 18227 41556 13077 18836 41977 12195 19471 42326 11351
+          13497 28238 40105 14071 28472 37912 14511 28864 35703 14866 29350 33503 15095 30088 31094 15330 30987 28619 15734 32177 26216 16159 33351 23911 16545 34513 21777 17038 35617 19863 17678 36756 18211 18236 37727 16556 18790 38534 15473 19376 39285 14472 19981 39981 13507 20597 40622 12556 21255 41098 11675
+          16638 26070 41741 17038 26330 39634 17393 26609 37546 17556 27071 35249 17767 27636 32907 17987 28632 30275 18143 29614 27813 18446 30750 25459 18869 31990 23223 19327 33211 21102 19718 34396 19321 20212 35537 17669 20784 36566 16178 21305 37432 15093 21834 38188 14050 22383 38869 13043 22978 39492 12056
+          19580 23880 43422 20317 24200 41260 20588 24502 39205 20777 24806 37173 20671 25373 34731 20654 26080 32208 20721 27106 29508 20965 28265 27080 21259 29415 24798 21556 30706 22585 22006 31924 20483 22459 33227 18812 22878 34377 17119 23362 35383 15787 23870 36285 14679 24374 37092 13592 24871 37813 12480
+          22584 21745 45187 23045 22061 43093 23598 22381 41042 23569 22728 38900 23597 23097 36754 23506 23811 34100 23490 24764 31333 23465 25762 28673 23629 26959 26283 23955 28137 24091 24299 29489 21996 24686 30740 20002 25127 32039 18296 25564 33245 16610 25960 34239 15365 26398 35151 14179 26871 36006 12982
+          25835 19760 46833 26459 20155 44618 26801 20482 42622 27076 20807 40669 26792 21156 38507 26585 21570 36258 26366 22223 33613 26168 23278 30683 26213 24556 27844 26346 25712 25480 26615 26927 23356 27004 28267 21375 27374 29572 19515 27752 30833 17789 28161 32043 16172 28554 33135 14896 28941 34079 13604
+          29017 18198 48352 29492 18492 46298 29799 18728 44331 29887 18915 42463 29944 19150 40520 29699 19515 38258 29489 19982 35865 29268 20591 33209 28946 21841 30108 28899 23140 27228 29065 24399 24736 29336 25702 22722 29661 26984 20760 30053 28415 19046 30392 29662 17337 30742 30840 15762 31123 31993 14333
+          32524 16927 49347 32726 17140 47568 32930 17362 45781 32969 17501 43983 32900 17586 42204 32763 17725 40281 32401 17970 38023 32086 18397 35503 31825 18973 32760 31730 20499 29525 31688 21875 26571 31802 23134 24119 32020 24519 22105 32286 25817 20222 32642 27236 18598 33019 28533 16929 33349 29762 15297
+          35343 15974 49986 35582 16115 48296 35729 16226 46744 35914 16391 45157 35736 16399 43472 35538 16400 41778 35253 16491 39837 34883 16675 37643 34640 17158 34984 34437 17891 32061 34299 19233 28851 34437 20827 25753 34471 22143 23506 34602 23463 21584 34914 24837 19790 35248 26228 18114 35585 27540 16359
+          37701 15283 50515 37943 15413 48819 38018 15413 47426 38096 15422 46027 38089 15414 44572 37872 15368 42943 37644 15310 41311 37374 15398 39302 37084 15542 37170 37081 16168 34334 36985 17075 31291 36846 18373 28179 36981 19911 24912 37073 21369 22986 37191 22658 21185 37476 23988 19369 37824 25350 17524
+          39794 14722 50891 40089 14870 49206 40151 14843 47913 40207 14819 46625 40258 14789 45347 40113 14734 43861 39888 14666 42296 39648 14607 40671 39393 14694 38640 39153 14854 36514 39169 15596 33612 39224 16620 30553 39151 17899 27572 39229 19380 24503 39414 20798 22541 39581 22026 20769 39939 23299 18847
+          41804 14198 51229 42039 14331 49619 42120 14318 48313 42157 14275 47082 42187 14223 45862 42152 14170 44565 41980 14115 43082 41795 14058 41592 41604 14076 39859 41411 14168 37918 41277 14489 35656 41259 15185 32906 41398 16187 29928 41383 17524 27060 41442 18958 24203 41629 20262 22153 41863 21476 20258
+          43741 13707 51473 43921 13830 49971 44015 13842 48639 44028 13773 47440 44030 13689 46257 44026 13600 45081 43895 13551 43691 43750 13497 42293 43592 13437 40879 43441 13526 39005 43286 13619 37131 43200 14042 34809 43169 14629 32293 43243 15691 29466 43285 17036 26653 43396 18423 23939 43633 19710 21702
+          45858 13160 51755 45895 13337 50306 45997 13407 48957 45988 13314 47786 45961 13207 46630 45937 13085 45485 45857 13006 44232 45765 12947 42918 45659 12888 41600 45521 12902 40046 45427 12986 38229 45289 13145 36348 45203 13571 34127 45149 14192 31739 45200 15246 29055 45225 16565 26308 45377 17911 23624
+           5395 37956 35858  6009 38437 33737  6488 39049 31620  6879 39712 29521  7258 40448 27302  7580 41182 24892  8193 42103 23011  8711 42974 21082  9334 43721 19490  9986 44353 17923 10686 44853 16374 11453 45240 15383 12068 45665 14453 12825 45949 13567 13658 46141 12687 14387 46409 11755 15116 46689 10858
+           7582 35952 36937  8203 36425 34687  8757 36947 32476  9177 37635 30327  9562 38349 28167  9953 39177 25842 10401 40040 23591 11009 40962 21440 11597 41836 19688 12228 42616 18087 12849 43258 16504 13539 43710 15572 14275 44102 14686 15039 44438 13830 15818 44723 12987 16568 44980 12144 17180 45304 11266
+           9687 34133 38122 10375 34418 35897 10992 34769 33741 11429 35426 31470 11762 36219 29127 12197 37153 26789 12623 37986 24501 13102 38942 22423 13643 39849 20339 14366 40799 18648 14962 41581 16987 15561 42177 15856 16217 42678 14963 16900 43102 14109 17576 43471 13258 18227 43799 12385 18865 44107 11536
+          11883 32265 39384 12529 32501 37113 13222 32720 34990 13937 32896 32896 14209 33891 30493 14519 34798 28121 14922 35800 25756 15378 36798 23524 15799 37764 21432 16320 38746 19560 16931 39680 17882 17564 40492 16299 18198 41161 15365 18795 41693 14475 19390 42156 13590 19973 42564 12699 20584 42926 11810
+          14554 30139 40818 15191 30346 38628 15810 30574 36486 16316 30968 34306 16771 31488 32034 17039 32377 29574 17363 33399 27204 17708 34388 24888 18084 35485 22746 18528 36486 20665 19046 37548 19006 19580 38483 17344 20132 39289 15990 20708 40017 14986 21311 40671 14021 21871 41209 13088 22433 41657 12140
+          17449 27978 42299 18101 28153 40160 18624 28415 38021 19071 28819 35806 19425 29343 33586 19653 30057 31201 19848 30902 28746 20177 31964 26442 20575 32979 24203 20879 34149 22079 21269 35222 20117 21745 36330 18490 22262 37312 16824 22741 38138 15632 23245 38864 14594 23763 39515 13585 24308 40115 12566
+          20430 25787 43905 21199 26032 41789 21664 26308 39705 21976 26620 37590 22162 27137 35267 22392 27747 32912 22550 28652 30396 22699 29559 28018 22944 30602 25757 23275 31712 23572 23714 32877 21501 24060 34014 19639 24461 35131 17980 24928 36123 16375 25392 36988 15246 25818 37744 14121 26294 38448 12969
+          23393 23525 45560 24069 23820 43460 24811 24128 41408 25062 24517 39255 25189 24932 37104 25176 25592 34625 25237 26317 32150 25298 27247 29617 25505 28261 27288 25749 29266 25089 26027 30465 22966 26414 31602 20937 26827 32815 19175 27150 33941 17479 27538 34933 15982 27953 35829 14764 28411 36681 13498
+          26676 21555 47110 27412 21948 44890 27815 22237 42937 28271 22518 40978 28177 22909 38807 28144 23340 36591 28049 24044 34003 28011 24950 31345 28031 25907 28779 28208 26968 26512 28486 27998 24365 28798 29263 22369 29121 30374 20401 29461 31596 18689 29827 32757 16991 30153 33777 15531 30532 34718 14160
+          29814 19771 48605 30487 20117 46364 30961 20438 44268 31163 20729 42426 31312 21030 40524 31150 21409 38389 31013 21840 36145 30848 22442 33590 30738 23508 30735 30770 24655 27990 30937 25690 25776 31174 26812 23711 31479 28053 21778 31801 29234 19931 32091 30408 18234 32403 31516 16536 32767 32661 14991
+          33151 18384 49690 33457 18643 47750 33786 18904 45820 33947 19116 43953 34014 19309 42136 34014 19569 40184 33861 19928 38003 33730 20365 35646 33567 20846 33140 33467 22115 30162 33505 23352 27392 33702 24452 25049 33878 25661 23085 34146 26839 21198 34495 28096 19449 34768 29339 17719 35036 30575 15920
+          36091 17275 50386 36378 17504 48526 36567 17672 46888 36774 17857 45227 36724 17961 43501 36666 18071 41761 36527 18273 39808 36330 18568 37664 36209 19023 35172 36108 19591 32503 36153 20897 29500 36194 22226 26690 36388 23399 24350 36547 24637 22516 36795 25746 20701 37113 27056 18943 37456 28414 16977
+          38396 16378 51209 38840 16631 48994 38960 16723 47538 39086 16827 46074 39150 16912 44559 39054 16952 42920 38963 16996 41279 38790 17164 39318 38606 17381 37263 38534 18002 34584 38493 18807 31764 38580 19969 28858 38677 21354 25899 38817 22590 23785 39004 23781 21963 39297 24885 20074 39721 26309 18000
+          40539 15784 51293 40979 15957 49437 41107 15994 48038 41196 16021 46702 41287 16049 45370 41238 16065 43868 41145 16073 42313 41048 16091 40713 40917 16208 38791 40769 16336 36860 40753 17262 33928 40793 18224 31059 40904 19337 28215 41031 20687 25064 41154 21926 23280 41363 23068 21457 41745 24218 19358
+          42484 15186 51635 42780 15317 49957 42953 15372 48507 43030 15368 47229 43103 15364 45958 43130 15363 44626 43028 15373 43121 42926 15380 41615 42823 15448 39909 42725 15577 38034 42657 15877 35910 42667 16520 33272 42746 17555 30479 42841 18713 27689 42945 20056 24681 43180 21269 22749 43525 22576 20501
+          44429 14652 51878 44650 14768 50326 44825 14836 48880 44883 14808 47643 44935 14773 46417 44981 14736 45194 44911 14735 43795 44823 14741 42363 44730 14747 40925 44660 14872 39104 44593 15006 37287 44552 15381 35083 44543 15857 32692 44638 16988 29971 44759 18173 27245 44879 19478 24439 45187 20680 22097
+          46516 14049 52207 46663 14198 50760 46840 14358 49324 46887 14323 48101 46922 14266 46905 46952 14200 45715 46927 14160 44450 46853 14152 43081 46773 14142 41709 46692 14180 40178 46640 14277 38412 46575 14405 36633 46557 14846 34422 46568 15391 32110 46595 16345 29501 46681 17530 26790 46875 18826 24008
+           7108 39487 36963  7653 39993 34859  8111 40517 32798  8431 41122 30705  8718 41721 28639  9023 42490 26297  9317 43327 24117  9810 44131 22144 10328 44779 20208 11008 45301 18646 11567 45797 17030 12305 46132 15904 12663 46694 14965 13498 46889 14054 14584 46881 13189 15339 47050 12309 16095 47301 11443
+           9074 37680 37979  9751 38032 35776 10282 38473 33664 10702 39037 31527 11015 39698 29376 11343 40416 27030 11664 41092 24535 12202 42009 22539 12646 42809 20460 13289 43516 18896 13904 44104 17245 14592 44547 16012 15371 44883 15135 16139 45170 14289 16827 45445 13455 17468 45694 12597 18083 45971 11720
+          11045 35900 39139 11800 36118 36789 12335 36543 34604 12829 37023 32409 13238 37670 30212 13617 38381 27998 14003 39159 25642 14428 39998 23393 14935 40853 21199 15493 41678 19443 16067 42392 17825 16652 42978 16306 17341 43430 15448 18020 43821 14589 18683 44162 13730 19322 44461 12862 19959 44749 11962
+          13164 34063 40356 13911 34230 38066 14614 34443 35880 15213 34793 33702 15617 35440 31398 15943 36179 29047 16350 37053 26733 16748 37856 24493 17167 38792 22405 17633 39647 20333 18235 40536 18677 18825 41273 17025 19389 41870 15884 19972 42380 14980 20552 42819 14085 21128 43205 13193 21723 43567 12250
+          15381 32151 41532 16153 32269 39341 16912 32384 37218 17575 32656 35052 18247 32896 32896 18524 33835 30504 18829 34674 28158 19168 35596 25856 19534 36535 23644 19945 37482 21611 20399 38412 19771 20928 39307 18146 21490 40080 16503 22057 40775 15480 22582 41344 14535 23085 41823 13607 23636 42286 12584
+          18192 29995 42980 19050 30071 40824 19679 30290 38693 20295 30531 36547 20758 30962 34336 21167 31482 32068 21401 32317 29657 21706 33236 27363 22013 34139 25130 22354 35168 23014 22773 36137 20979 23222 37164 19272 23672 38102 17634 24145 38908 16146 24626 39598 15112 25125 40220 14086 25666 40809 13016
+          21106 27769 44494 21936 27910 42352 22640 28103 40229 23104 28413 38030 23512 28853 35787 23851 29383 33585 24069 30083 31266 24267 30893 28908 24534 31847 26674 24873 32773 24486 25206 33861 22434 25600 34844 20431 25982 35923 18779 26438 36878 17156 26824 37707 15795 27233 38442 14643 27714 39154 13405
+          24081 25407 46030 24884 25690 43904 25679 25972 41833 26119 26310 39700 26381 26695 37520 26568 27247 35203 26794 27834 32900 26949 28719 30465 27112 29574 28160 27360 30509 25988 27688 31501 23879 28073 32570 21898 28398 33602 19988 28705 34698 18297 29088 35658 16659 29496 36534 15345 29905 37356 13986
+          27245 23352 47736 28195 23710 45271 28746 23963 43251 29264 24203 41240 29381 24605 39081 29491 25049 36948 29513 25713 34558 29599 26417 32170 29704 27347 29680 29926 28305 27427 30171 29232 25311 30438 30284 23277 30774 31305 21333 31127 32361 19544 31403 33467 17830 31723 34452 16200 32114 35417 14702
+          30472 21405 49013 31187 21802 46768 31779 22144 44653 32083 22418 42753 32393 22694 40822 32369 23105 38683 32392 23559 36487 32365 24248 33966 32377 25102 31395 32446 26023 28862 32662 27006 26717 32928 27963 24653 33199 29103 22715 33511 30086 20795 33785 31213 19053 34061 32327 17334 34380 33482 15553
+          33677 19731 50315 34158 20070 47993 34611 20360 45931 34900 20656 44020 35077 20949 42211 35193 21272 40297 35146 21665 38208 35113 22115 35976 35061 22712 33480 35064 23748 30720 35140 24800 28090 35382 25790 25972 35644 26817 23975 35959 27896 22133 36359 28888 20305 36492 30146 18524 36707 31489 16462
+          36574 18579 51177 37034 18843 48833 37274 19041 47106 37544 19264 45351 37641 19453 43580 37735 19658 41797 37760 19938 39840 37728 20296 37732 37681 20744 35390 37618 21276 32897 37676 22484 30103 37790 23628 27480 38053 24671 25232 38265 25750 23349 38580 26779 21522 38978 27847 19680 39296 29213 17597
+          38860 17529 52147 39479 17886 49421 39692 18024 47846 39890 18168 46301 40061 18310 44727 40077 18428 43036 40117 18559 41339 40073 18788 39382 40024 19061 37343 40008 19617 34818 40027 20275 32183 40145 21436 29450 40275 22663 26832 40522 23719 24550 40771 24813 22707 41106 25809 20871 41617 27183 18565
+          41071 16746 52251 41622 17026 49923 41867 17149 48349 42006 17232 46946 42151 17320 45540 42187 17408 43999 42171 17495 42388 42162 17601 40736 42119 17813 38808 42088 18043 36866 42106 18728 34210 42176 19519 31536 42333 20463 28809 42458 21825 26161 42697 22958 23995 42993 24058 22048 43499 25231 19764
+          43133 16127 52094 43483 16253 50354 43754 16344 48768 43879 16383 47452 44009 16428 46142 44115 16484 44794 44065 16561 43247 44023 16645 41694 43996 16787 39993 43984 16991 38147 43994 17318 36109 44038 17907 33599 44147 18794 30960 44297 19774 28257 44441 21107 25527 44755 22265 23451 45253 23689 20726
+          45105 15565 52334 45369 15663 50769 45650 15777 49241 45771 15795 47967 45888 15812 46704 46004 15828 45439 46005 15868 44021 45958 15920 42530 45907 15977 41031 45890 16116 39272 45881 16266 37502 45896 16621 35386 45953 17136 33028 46083 18132 30431 46223 19156 27767 46350 20435 24929 46791 21633 22558
+          47202 14883 52677 47407 15044 51231 47666 15233 49808 47812 15299 48501 47896 15290 47257 47979 15276 46015 48034 15268 44738 48002 15301 43308 47981 15332 41879 47945 15392 40353 47932 15493 38634 47914 15604 36924 47946 16021 34748 48004 16496 32485 48141 17359 30048 48156 18493 27304 48360 19797 24374
+           8887 41125 38155  9453 41488 36046  9837 41947 34018 10141 42468 31959 10363 43105 29850 10588 43783 27656 10814 44519 25379 11189 45192 23252 11403 45839 21107 11890 46363 19470 12333 46884 17962 13205 47060 16498 13470 47641 15505 14660 47561 14579 15529 47657 13682 16294 47783 12809 16984 47967 11908
+          10788 39360 39207 11484 39600 36933 11944 40005 34829 12366 40395 32723 12621 41092 30553 12858 41772 28402 13172 42435 25998 13530 43160 23751 13911 43879 21567 14409 44499 19685 15039 45010 18067 15612 45426 16502 16347 45727 15605 17049 46000 14772 17724 46238 13927 18361 46451 13060 18974 46649 12166
+          12521 37643 40443 13339 37821 37922 13968 38118 35718 14458 38547 33569 14844 39125 31396 15124 39795 29232 15427 40493 26861 15739 41153 24408 16228 41946 22331 16663 42636 20269 17253 43289 18695 17824 43832 17060 18470 44261 15917 19144 44615 15050 19796 44920 14185 20392 45185 13317 20958 45445 12420
+          14427 35912 41321 15251 36019 39022 16065 36118 36796 16551 36566 34543 17013 37071 32301 17433 37686 30120 17799 38367 27932 18135 39108 25613 18511 39901 23391 18969 40692 21259 19497 41454 19507 20042 42117 17935 20582 42672 16374 21155 43153 15472 21725 43564 14575 22283 43929 13680 22865 44278 12715
+          16455 34087 42438 17417 34126 40220 18251 34215 38071 18981 34421 35901 19555 34794 33703 19953 35403 31414 20275 36068 29087 20594 36879 26784 20900 37657 24563 21321 38560 22569 21762 39374 20542 22281 40224 18909 22831 40958 17245 23313 41556 15983 23800 42073 15046 24283 42529 14111 24821 42977 13057
+          18905 32107 43738 19874 32133 41544 20652 32243 39400 21402 32360 37241 22000 32642 35058 22551 32896 32896 22843 33786 30565 23129 34570 28276 23431 35399 26057 23775 36230 23904 24207 37165 21906 24625 38075 20031 25050 38969 18401 25512 39732 16739 25983 40387 15600 26470 40980 14551 26922 41491 13488
+          21834 29846 45165 22724 29935 42997 23606 30029 40895 24203 30278 38703 24775 30542 36505 25141 30979 34322 25462 31492 32100 25718 32285 29787 26021 33135 27559 26312 33985 25387 26642 34907 23311 27050 35828 21308 27473 36775 19532 27830 37694 17925 28218 38477 16357 28615 39187 15178 29069 39839 13951
+          24721 27506 46607 25630 27702 44412 26458 27876 42318 27103 28107 40181 27522 28451 37982 27889 28894 35775 28156 29405 33589 28348 30104 31313 28575 30899 29025 28881 31771 26870 29270 32634 24753 29546 33607 22756 29881 34504 20771 30197 35524 19045 30583 36447 17432 30968 37269 15943 31327 38038 14552
+          27922 25278 48108 28847 25571 45823 29519 25806 43726 30109 26031 41684 30441 26378 39574 30697 26774 37425 30875 27328 35158 31078 27908 32911 31259 28780 30527 31439 29610 28271 31684 30491 26179 32000 31385 24128 32357 32320 22221 32717 33177 20336 32925 34270 18595 33244 35230 16940 33633 36154 15364
+          31051 23175 49513 31802 23512 47268 32547 23834 45107 32967 24093 43121 33403 24356 41102 33535 24784 38994 33699 25214 36898 33761 25862 34537 33875 26546 32195 34019 27432 29763 34266 28344 27576 34513 29238 25528 34791 30164 23553 35135 31097 21669 35468 32082 19850 35663 33186 18099 35889 34232 16295
+          34209 21243 50762 34813 21674 48404 35334 22019 46386 35767 22338 44438 36035 22622 42533 36282 22928 40566 36374 23328 38498 36496 23776 36354 36555 24468 33872 36608 25269 31404 36709 26140 28949 36977 27091 26852 37289 28010 24836 37631 28961 22978 37979 29863 21106 38205 30983 19260 38431 32190 17305
+          37111 19864 51652 37645 20110 49249 37981 20345 47420 38358 20637 45583 38604 20942 43788 38808 21231 41972 38940 21557 40039 38991 21934 37998 39044 22408 35778 39086 23041 33330 39186 24010 30698 39324 24965 28203 39585 25920 26147 39899 26843 24188 40302 27778 22349 40846 28578 20482 41020 29948 18421
+          39481 18717 52558 40095 19033 50037 40460 19245 48249 40737 19435 46621 41022 19640 44972 41142 19825 43219 41294 20028 41447 41370 20304 39482 41424 20626 37452 41436 21154 35127 41470 21781 32696 41598 22863 30073 41788 23902 27580 42066 24868 25426 42354 25875 23501 42786 26860 21596 43420 27918 19475
+          41737 17887 52648 42235 18131 50572 42619 18320 48804 42821 18449 47312 43039 18591 45809 43180 18738 44214 43248 18888 42536 43335 19055 40826 43383 19314 38901 43455 19590 36965 43511 20110 34497 43594 20763 31983 43739 21797 29427 43956 22966 26987 44300 23965 24774 44657 25045 22750 45183 26169 2Typ25 -0.017074584961 -0.009246826172 0.015075683594
+            0.751678466797      </Array>
+    </s15Fixed16ArrayType> </chromaticAdaptationTag>
+
+    <technologyTag> <signaturee>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>
+t16NumberType>
+    
+	<omiulLtcingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIl%uminant>
+  </Header>
+  <Tags>
+    <profileDescriptionTag>
+      <multiLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </eddedDataOnly="false"/>
+		<DeviceAttributes ReflectiveOrTransparencx="reflective" GlossyOrMatte="glossy" MediaPolarity="negative" MediaColour="colour"/>
+		<RenderingIntent>Absolute</RenderingIntent>
+		<PCSIlluminant>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</PCSIlluminant>
+		<ProfileCreator></ProfileCreator>
+		<ProfileID>1</ProfileID>
+		<SpectralPCS>rs0021</SpectralPCS>
+		<SpectralRange>
+			<Wavelengths start="400" end="720" steps="33"/>
+		</SpectralRange>
+	</Header>
+	<Tags>
+		<multiLocalizedUnicodeType>
+			<TagSignature>desc</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Canon 1DMarkIII Camera Model under D50 preview0Tage]]></LocalizedText>
+		</multiLocalizedUnicodeType>
+		
+		<multiProcessElementType>
+			<TagSignature>A2B3</TagSignature>
+			<MultiProcessElements InputChannels="3" OutputChannels="3">
+				<!-- First apply camera/D50 WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.665845845635815	 0.781081987684972	-0.155892788430177
+						4.923550307520770	-3.952824790137080	 2.796829854367557
+						1.274327197753011	 1.977722322511197	-4.353931336717119
+					</MatrixData>
+				</MatrixElement>
+				<!-- Next apply inverse of 2-degree/D50 inverse WayPoinT normalization matrix !-->
+				<MatrixElement InputChannels="3" OutputChannels="3">
+					<MatrixData>
+						0.9642455651282466	 0.2052585528895002	 0.0478091047162643
+						0.9999999999999999	 0.0146501684258497	 0.0176213538916487
+						0.8246790940919668	 0.0357366850084837	-0.4005890947751716
+					</MatrixData>
+				</MatrixElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+
+		<multiProcessElementType>
+			<TagSignature>B2D3</TagSignature>
+			<MultiProcessElements InputChannels="33" OutputChannels="3">
+				<CalculatorElement InputChannels="33" OutputChannels="3">
+					<SubElements>
+						<!-- Camera sensitivities normali/ed so that max(sum(cs,2))=1.0 !-->
+						<MatrixElement InputChannels="33" OutputChannels="3">
+							<MatrixData>
+								0.000063066232895 0.000166109053171 0.000353413383377 0.000194502930425 0.100022614352901 0.000109743472209 0.000133774889481 0.000171185960694 0.000250662837095 0.000359724336652 0.001080623554962 0.002134574401744 0.005659507017190 0.012468192078342 0.014062709089229 0.011393273278742 0.015516501584560 0.030570777260329 0.033723006408803 0.060345919759624 0.058205824626885 0.053489388363182 0.046035319023760 0.039401781859661 0.029836844786886 0.023171915230856 0.016233114117626 0.007436857648673 0.001356909078851 0.000254624773456 0.000054439820091 0.000014979583433 0.000004784633529
+								0.000244990556622 0.000980189550705 0.004406625830224 0.005141149869206 0.007496827942226 0.010650031337347 0.012965057867886 0.018381869220553 0.033647231669657 0.049918233156857 0.102549201975141 0.090859324717456 0.097081513297619 0.108249627351470 0.100449159204523 0.094961985594077 0.081019433591208 0.069163934403675 0.036496361861548 0.034775192786660 0.018142637544106 0.008936764485255 0.004710157785317 0.003158182877979 0.002095604535897 0.001457256483405 0.001087151007491 0.000671310064020 0.000181307300851 0.000048136444291 0.000014409107897 0.000004297510206 0.000001851068628
+								0.001187714911300 0.009011781477010 0.044583691520976 0.061740174959911 0.077923494248955 0.082451576161067 0.091048761565321 0.089393624763117 0.084818995511244 0.068145305410297 0.073974567843174 0.033204490693790 0.015624751211911 0.007865742672240 0.004488787297383 0.002473828733863 0.001126986870356 0.000693035764230 0.000346420457450 0.000355643325701 0.000243540011615 0.000159278501685 0.000131566597083 0.000123545299696 0.000147814866148 0.000186687307330 0.000207536185558 0.000126078340976 0.000025814288635 0.000005412481368 0.000001796943814 0.000001031618949 0.000000919039336
+							</MatrixData>
+						</MatrixElement>
+					</SubElements>
+					<MainFunction>
+{
+%start with Illuminant spectral power distribution (range adjusted to fit spectral reflectance PCS range)
+49.257471935235735 56.461255244668401 59.984099824651970 57.773270260542645 74.775973108825966 87.198033528040042 90.566943033914555 91.328621954075601 95.072887390768642 91.934526578157701 95.700812701292861 96.594366276348850 97.115371633624518 102.088888343211138 100.748359379328633 102.313861341694320 100.000000000000000 97.737450349675370 98.923589007981050 93.510248030475438 97.705745692994213 99.291844618527918 99.067944977343956 95.750676092140793 98.893438340015791 95.705420726968256 98.234177034884084 103.054318766584331 99.184954029242036 87.424178468166403 91.652934776082219 92.9335#7205151450 76.891414787009083
+
+%apply illuminant to incomming spectral refl adjustement (divide by sum of illuminant)
+2974.87665543836 2974.87665543836 2974.87665543836
+div(3)
+
+out(0,3)
+}					
+					</MainFunction>
+				</CalculatorElement>
+			</MultiProcessElements>
+		</multiProcessElementType>
+		
+		<spectralViewingConditionsType>
+			<TagSignature>svcn</TagSignature>
+			<StdObserver>CIE 1931 standard colorimetric observer</StdObserver>
+			<IlluminantXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+			<ObserverFuncs start="380" end="730" steps="36">
+				0.001368	0.004243	0.014310	0.043510	0.134380	0.283900	0.348280	0.336200	0.290800	0.195360	0.095640	0.032010	0.004900	0.009300	:.063270	0.165500	0.290400	0.433450	0.594500	0.762100	0.916300	1.026300	1.062200	1.002600	0.854450	0.642400	0.447900	0.283500	0.164900	0.087400	0.046770	0.022700	0.011359	0.005790	0.002899	0.001440
+				0.000039	0.000120	0.000396	0.001210	0.004000	0.011600	0.023000	0.038000	0.060000	0.090980	0.139020	0.208020	0.323000	0.503000	0.710000	0.862000	0.954000	0.994950	0.995000	0.952000	0.870000	0.757000	0.631000	0.503000	0.381000	0.265000	0.175000	0.107000	0.061000	0.032000	0.017000	0.008210	0.004102	0.002091	0.001047	0.000520
+				0.006450	0.020050	0.067850	0.207400	0.645600	1.385600	1.747060	1.772110	1.669200	1.287640	0.812950	0.465180	0.272000	0.158200	0.078250	0.042160	0.020300	0.008750	0.003900	0.002100	0.001650	0.001100	0.000800	0.000340	0.000190	0.000050	0.000020	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000	0.000000
+			</ObserverFuncs>
+			<StdIlluminant>Illuminan####################(########################t D50</StdIlluminant>
+			<ColorTemperature>5000</ColorTemperature>
+			<IlluminantSPD start="380" end=".30" reser="36">
+				24.4571469692098 29.8374136323552 t9.2574719352357 56.4612552446684 59.9840998246520 57.7732702605426 74.7759731088260 87.1980335280400 90.5669430339146 91.3286219540756 95.0728873907686 91.9345265781577 95.7008127012929 96.5943662763489 97.1153716343625 102.0888883432111 100.7483593793286 102.3138613416943 100.0000000000000 97.7374503496754	98.9235890079811 93.5102480304754 97.7057456929942 99.2918446185279 99.0679449774547 95.7506760921408 98.8934383400158 95.7054207269683 98.2341770348841 103.0543187665843 99.1849540292420 87.4241784681664 91.6529347760822 92.9335772051515 76.8914147870091 86.5514856528592
+			</IlluminantSPD>
+			<SurroundXYZ X="0.963888028773223" Y="1.00000000" Z="0.824088400239466"/>
+		</spectralViewingConditionsType>
+
+		<XYZType>
+			<TagSignature>wtpt</TagSignature>
+			<XYZNumber X="0.96420288" Y="1.00000000" Z="0.82490540"/>
+		</XYZType>
+
+		<multiLocalizedUnicodeType>
+			<TagSignature>cprt</TagSignature>
+			<LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2014 International Color ConmultiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    <CurveSetElement/Tags>
+</IccProfile>
+t16NuDeviceAttribnary2389 48694 45109 12228 47563 45056 11990 46464 45016 11735 45369 44951 11545 44142 44888 11364 42859 44835 11158 41567 44690 11098 40017 44470 11197 38126 44141 11428 36164 43805 12110 33841 43708 12824 31331 43763 13825 28584 43779 15363 25766 43918 16920 23093
+           3821 36327 34916  4471 36922 32673  4965 37666 30482  5426 38395 28352  5899 39253 26148  6382 40119 23970  7068 41069 21938  7695 41939 20152  8322 42760 18721  9026 43414 17184  9723 43947 15932 10472 44375 14930 11217 44788 13971 12027 45123 13074 12748 45440 12146 13454 45796 11096 14151 46103 10143
+           6189 34249 36041  6841 34698 33813  7313 35391 31551  7722 36210 29251  8231 37156 26988  8636 38030 24740  9121 39035 22675  9722 39983 20581 10574 40933 18914 11228 41747 17337 11845 42397 16029 12486 42892 15109 13182 43331 14223 13916 43720 13356 14675 44061 12492 15420 44389 11600 16145 44690 10753
+           8351 32354 37219  8988 32670 35016  9680 32896 32896  9985 33917 30525 10331 34850 28176 10784 35915 25802 11299 36974 23565 11751 37956 21480 12355 38934 19640 13111 39902 17969 13884 40794 16314 14477 41403 15395 15099 41940 14499 15767 42420 13627 16465 42838 12764 17134 43185 11908 17785 43497 11060
+          10809 30339 38622 11365 30628 36394 11841 31006 34216 12309 31523 31967 12658 32462 29539 13010 33560 27137 13404 34623 24749 13861 35765 22600 14405 36801 20509 15003 37857 18875 15638 38851 17122 16274 39693 15830 16949 40434 14864 17615 41077 13951 18227 41556 13077 18836 41977 12195 19471 42326 11351
+          13497 28238 40105 14071 28472 37912 14511 28864 35703 14866 29350 33503 15095 30088 31094 15330 30987 28619 15734 32177 26216 16159 33351 23911 16545 34513 21777 17038 35617 19863 17678 36756 18211 18236 37727 16556 18790 38534 15473 19376 39285 14472 19981 39981 13507 20597 40622 12556 21255 41098 11675
+          16638 26070 41741 17038 26330 39634 17393 26609 37546 17556 27071 35249 17767 27636 32907 17987 28632 30275 18143 29614 27813 18446 30750 25459 18869 31990 23223 19327 33211 21102 19718 34396 19321 20212 35537 17669 20784 36566 16178 21305 37432 15093 21834 38188 14050 22383 38869 13043 22978 39492 12056
+          19580 23880 43422 20317 24200 41260 20588 24502 39205 20777 24806 37173 20671 25373 34731 20654 26080 32208 20721 27106 29508 20965 28265 27080 21259 29415 24798 21556 30706 22585 22006 31924 20483 22459 33227 18812 22878 34377 17119 23362 35383 15787 23870 36285 14679 24374 37092 13592 24871 37813 12480
+          22584 21745 45187 23045 22061 43093 23598 22381 41042 23569 22728 38900 23597 23097 36754 23506 23811 34100 23490 24764 31333 23465 25762 28673 23629 26959 26283 23955 28137 24091 24299 29489 21996 24686 30740 20002 25127 32039 18296 25564 33245 16610 25960 34239 15365 26398 35151 14179 26871 36006 12982
+          25835 19760 46833 26459 20155 44618 26801 20482 42622 27076 20807 40669 26792 21156 38507 26585 21570 36258 26366 22223 33613 26168 23278 30683 26213 24556 27844 26346 25712 25480 26615 26927 23356 27004 28267 21375 27374 29572 19515 27752 30833 17789 28161 32043 16172 28554 33135 14896 28941 34079 13604
+          29017 18198 48352 29492 18492 46298 29799 18728 44331 29887 18915 42463 29944 19150 40520 29699 19515 38258 29489 19982 35865 29268 20591 33209 28946 21841 30108 28899 23140 27228 29065 24399 24736 29336 25702 22722 29661 26984 20760 30053 28415 19046 30392 29662 17337 30742 30840 15762 31123 31993 14333
+          32524 16927 49347 32726 17140 47568 32930 17362 45781 32969 17501 43983 32900 17586 42204 32763 17725 40281 32401 17970 38023 32086 18397 35503 31825 18973 32760 31730 20499 29525 31688 21875 26571 31802 23134 24119 32020 24519 22105 32286 25817 20222 32642 27236 18598 33019 28533 16929 33349 29762 15297
+          35343 15974 49986 35582 16115 48296 35729 16226 46744 35914 16391 45157 35736 16399 43472 35538 16400 41778 35253 16491 39837 34883 16675 37643 34640 17158 34984 34437 17891 32061 34299 19233 28851 34437 20827 25753 34471 22143 23506 34602 23463 21584 34914 24837 19790 35248 26228 18114 35585 27540 16359
+          37701 15283 50515 37943 15413 48819 38018 15413 47426 38096 15422 46027 38089 15414 44572 37872 15368 42943 37644 15310 41311 37374 15398 39302 37084 15542 37170 37081 16168 34334 36985 17075 31291 36846 18373 28179 36981 19911 24912 37073 21369 22986 37191 22658 21185 37476 23988 19369 37824 25350 17524
+          39794 14722 50891 40089 14870 49206 40151 14843 47913 40207 14819 46625 40258 14789 45347 40113 14734 43861 39888 14666 42296 39648 14607 40671 39393 14694 38640 39153 14854 36514 39169 15596 33612 39224 16620 30553 39151 17899 27572 39229 19380 24503 39414 20798 22541 39581 22026 20769 39939 23299 18847
+          41804 14198 51229 42039 14331 49619 42120 14318 48313 42157 14275 47082 42187 14223 45862 42152 14170 44565 41980 14115 43082 41795 14058 41592 41604 14076 39859 41411 14168 37918 41277 14489 35656 41259 15185 32906 41398 16187 29928 41383 17524 27060 41442 18958 24203 41629 20262 22153 41863 21476 20258
+          43741 13707 51473 43921 13830 49971 44015 13842 48639 44028 13773 47440 44030 13689 46257 44026 13600 45081 43895 13551 43691 43750 13497 42293 43592 13437 40879 43441 13526 39005 43286 13619 37131 43200 14042 34809 43169 14629 32293 43243 15691 29466 43285 17036 26653 43396 18423 23939 43633 19710 21702
+          45858 13160 51755 45895 13337 50306 45997 13407 48957 45988 13314 47786 45961 13207 46630 45937 13085 45485 45857 13006 44232 45765 12947 42918 45659 12888 41600 45521 12902 40046 45427 12986 38229 45289 13145 36348 45203 13571 34127 45149 14192 31739 45200 15246 29055 45225 16565 26308 45377 17911 23624
+           5395 37956 35858  6009 38437 33737  6488 39049 31620  6879 39712 29521  7258 40448 27302  7580 41182 24892  8193 42103 23011  8711 42974 21082  9334 43721 19490  9986 44353 17923 10686 44853 16374 11453 45240 15383 12068 45665 14453 12825 45949 13567 13658 46141 12687 14387 46409 11755 15116 46689 10858
+           7582 35952 36937  8203 36425 34687  8757 36947 32476  9177 37635 30327  9562 38349 28167  9953 39177 25842 10401 40040 23591 11009 40962 21440 11597 41836 19688 12228 42616 18087 12849 43258 16504 13539 43710 15572 14275 44102 14686 15039 44438 13830 15818 44723 12987 16568 44980 12144 17180 45304 11266
+           9687 34133 38122 10375 34418 35897 10992 34769 33741 11429 35426 31470 11762 36219 29127 12197 37153 26789 12623 37986 24501 13102 38942 22423 13643 39849 20339 14366 40799 18648 14962 41581 16987 15561 42177 15856 16217 42678 14963 16900 43102 14109 17576 43471 13258 18227 43799 12385 18865 44107 11536
+          11883 32265 39384 12529 32501 37113 13222 32720 34990 13937 32896 32896 14209 33891 30493 14519 34798 28121 14922 35800 25756 15378 36798 23524 15799 37764 21432 16320 38746 19560 16931 39680 17882 17564 40492 16299 18198 41161 15365 18795 41693 14475 19390 42156 13590 19973 42564 12699 20584 42926 11810
+          14554 30139 40818 15191 30346 38628 15810 30574 36486 16316 30968 34306 16771 31488 32034 17039 32377 29574 17363 33399 27204 17708 34388 24888 18084 35485 22746 18528 36486 20665 19046 37548 19006 19580 38483 17344 20132 39289 15990 20708 40017 14986 21311 40671 14021 21871 41209 13088 22433 41657 12140
+          17449 27978 42299 18101 28153 40160 18624 28415 38021 19071 28819 35806 19425 29343 33586 19653 30057 31201 19848 30902 28746 20177 31964 26442 20575 32979 24203 20879 34149 22079 21269 35222 20117 21745 36330 18490 22262 37312 16824 22741 38138 15632 23245 38864 14594 23763 39515 13585 24308 40115 12566
+          20430 25787 43905 21199 26032 41789 21664 26308 39705 21976 26620 37590 22162 27137 35267 22392 27747 32912 22550 28652 30396 22699 29559 28018 22944 30602 25757 23275 31712 23572 23714 32877 21501 24060 34014 19639 24461 35131 17980 24928 36123 16375 25392 36988 15246 25818 37744 14121 26294 38448 12969
+          23393 23525 45560 24069 23820 43460 24811 24128 41408 25062 24517 39255 25189 24932 37104 25176 25592 34625 25237 26317 32150 25298 27247 29617 25505 28261 27288 25749 29266 25089 26027 30465 22966 26414 31602 20937 26827 32815 19175 27150 33941 17479 27538 34933 15982 27953 35829 14764 28411 36681 13498
+          26676 21555 47110 27412 21948 44890 27815 22237 42937 28271 22518 40978 28177 22909 38807 28144 23340 36591 28049 24044 34003 28011 24950 31345 28031 25907 28779 28208 26968 26512 28486 27998 24365 28798 29263 22369 29121 30374 20401 29461 31596 18689 29827 32757 16991 30153 33777 15531 30532 34718 14160
+          29814 19771 48605 30487 20117 46364 30961 20438 44268 31163 20729 42426 31312 21030 40524 31150 21409 38389 31013 21840 36145 30848 22442 33590 30738 23508 30735 30770 24655 27990 30937 25690 25776 31174 26812 23711 31479 28053 21778 31801 29234 19931 32091 30408 18234 32403 31516 16536 32767 32661 14991
+          33151 18384 49690 33457 18643 47750 33786 18904 45820 33947 19116 43953 34014 19309 42136 34014 19569 40184 33861 19928 38003 33730 20365 35646 33567 20846 33140 33467 22115 30162 33505 23352 27392 33702 24452 25049 33878 25661 23085 34146 26839 21198 34495 28096 19449 34768 29339 17719 35036 30575 15920
+          36091 17275 50386 36378 17504 48526 36567 17672 46888 36774 17857 45227 36724 17961 43501 36666 18071 41761 36527 18273 39808 36330 18568 37664 36209 19023 35172 36108 19591 32503 36153 20897 29500 36194 22226 26690 36388 23399 24350 36547 24637 22516 36795 25746 20701 37113 27056 18943 37456 28414 16977
+          38396 16378 51209 38840 16631 48994 38960 16723 47538 39086 16827 46074 39150 16912 44559 39054 16952 42920 38963 16996 41279 38790 17164 39318 38606 17381 37263 38534 18002 34584 38493 18807 31764 38580 19969 28858 38677 21354 25899 38817 22590 23785 39004 23781 21963 39297 24885 20074 39721 26309 18000
+          40539 15784 51293 40979 15957 49437 41107 15994 48038 41196 16021 46702 41287 16049 45370 41238 16065 43868 41145 16073 42313 41048 16091 40713 40917 16208 38791 40769 16336 36860 40753 17262 33928 40793 18224 31059 40904 19337 28215 41031 20687 25064 41154 21926 23280 41363 23068 21457 41745 24218 19358
+          42484 15186 51635 42780 15317 49957 42953 15372 48507 43030 15368 47229 43103 15364 45958 43130 15363 44626 43028 15373 43121 42926 15380 41615 42823 15448 39909 42725 15577 38034 42657 15877 35910 42667 16520 33272 42746 17555 30479 42841 18713 27689 42945 20056 24681 43180 21269 22749 43525 22576 20501
+          44429 14652 51878 44650 14768 50326 44825 14836 48880 44883 14808 47643 44935 14773 46417 44981 14736 45194 44911 14735 43795 44823 14741 42363 44730 14747 40925 44660 14872 39104 44593 15006 37287 44552 15381 35083 44543 15857 32692 44638 16988 29971 44759 18173 27245 44879 19478 24439 45187 20680 22097
+          46516 14049 52207 46663 14198 50760 46840 14358 49324 46887 14323 48101 46922 14266 46905 46952 14200 45715 46927 14160 44450 46853 14152 43081 46773 14142 41709 46692 14180 40178 46640 14277 38412 46575 14405 36633 46557 14846 34422 46568 15391 32110 46595 16345 29501 46681 17530 26790 46875 18826 24008
+           7108 39487 36963  7653 39993 34859  8111 40517 32798  8431 41122 30705  8718 41721 28639  9023 42490 26297  9317 43327 24117  9810 44131 22144 10328 44779 20208 11008 45301 18646 11567 45797 17030 12305 46132 15904 12663 46694 14965 13498 46889 14054 14584 46881 13189 15339 47050 12309 16095 47301 11443
+           9074 37680 37979  9751 38032 35776 10282 38473 33664 10702 39037 31527 11015 39698 29376 11343 40416 27030 11664 41092 24535 12202 42009 22539 12646 42809 20460 13289 43516 18896 13904 44104 17245 14592 44547 16012 15371 44883 15135 16139 45170 14289 16827 45445 13455 17468 45694 12597 18083 45971 11720
+          11045 35900 39139 11800 36118 36789 12335 36543 34604 12829 37023 32409 13238 37670 30212 13617 38381 27998 14003 39159 25642 14428 39998 23393 14935 40853 21199 15493 41678 19443 16067 42392 17825 16652 42978 16306 17341 43430 15448 18020 43821 14589 18683 44162 13730 19322 44461 12862 19959 44749 11962
+          13164 34063 40356 13911 34230 38066 14614 34443 35880 15213 34793 33702 15617 35440 31398 15943 36179 29047 16350 37053 26733 16748 37856 24493 17167 38792 22405 17633 39647 20333 18235 40536 18677 18825 41273 17025 19389 41870 15884 19972 42380 14980 20552 42819 14085 21128 43205 13193 21723 43567 12250
+          15381 32151 41532 16153 32269 39341 16912 32384 37218 17575 32656 35052 18247 32896 32896 18524 33835 30504 18829 34674 28158 19168 35596 25856 19534 36535 23644 19945 37482 21611 20399 38412 19771 20928 39307 18146 21490 40080 16503 22057 40775 15480 22582 41344 14535 23085 41823 13607 23636 42286 12584
+          18192 29995 42980 19050 30071 40824 19679 30290 38693 20295 30531 36547 20758 30962 34336 21167 31482 32068 21401 32317 29657 21706 33236 27363 22013 34139 25130 22354 35168 23014 22773 36137 20979 23222 37164 19272 23672 38102 17634 24145 38908 16146 24626 39598 15112 25125 40220 14086 25666 40809 13016
+          21106 27769 44494 21936 27910 42352 22640 28103 40229 23104 28413 38030 23512 28853 35787 23851 29383 33585 24069 30083 31266 24267 30893 28908 24534 31847 26674 24873 32773 24486 25206 33861 22434 25600 34844 20431 25982 35923 18779 26438 36878 17156 26824 37707 15795 27233 38442 14643 27714 39154 13405
+          24081 25407 46030 24884 25690 43904 25679 25972 41833 26119 26310 39700 26381 26695 37520 26568 27247 35203 26794 27834 32900 26949 28719 30465 27112 29574 28160 27360 30509 25988 27688 31501 23879 28073 32570 21898 28398 33602 19988 28705 34698 18297 29088 35658 16659 29496 36534 15345 29905 37356 13986
+          27245 23352 47736 28195 23710 45271 28746 23963 43251 29264 24203 41240 29381 24605 39081 29491 25049 36948 29513 25713 34558 29599 26417 32170 29704 27347 29680 29926 28305 27427 30171 29232 25311 30438 30284 23277 30774 31305 21333 31127 32361 19544 31403 33467 17830 31723 34452 16200 32114 35417 14702
+          30472 21405 49013 31187 21802 46768 31779 22144 44653 32083 22418 42753 32393 22694 40822 32369 23105 38683 32392 23559 36487 32365 24248 33966 32377 25102 31395 32446 26023 28862 32662 27006 26717 32928 27963 24653 33199 29103 22715 33511 30086 20795 33785 31213 19053 34061 32327 17334 34380 33482 15553
+          33677 19731 50315 34158 20070 47993 34611 20360 45931 34900 20656 44020 35077 20949 42211 35193 21272 40297 35146 21665 38208 35113 22115 35976 35061 22712 33480 35064 23748 30720 35140 24800 28090 0nmni0 1 nml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType></PreferredCMMType<?xml version="1.0" encoding="UTF-8"?>
+<call{IccProfile>
+  <Header>
+    <PreferredCMMType>ADBE</PreferredCMMType>
+    <ProfileVersion>4.00</ProfileVersion>
+    <ProfileDeviceClass>scnr</ProfileDevCreatiss>
+    <DataColourSpace>RG0043 107.6889999999999930 106.0469999999999970 104.4050000000000011 104.2249999999999943 104.0460000000000065 102.0229999999999961 100.0000000000000000 98.1671000000000049 96.3341999999999956 96.0610999999999962 95.7879999999999967 92.2368000000000023 88.6855999999999938 89.3459000000000003 90.0062000000000069 89.8025999999999982 89.5991000000000071 88.6488999999999976 87.6987000000000023 85.4936000000000007 83.2886000000000024 83.4938999999999965 83.6992000000000047 81.8629999999999995 80.0267999999999944 80.1206999999999994 80.2146000000000043 81.24620utf8TextType00000000018 82.2777999999999992 80.2810000000000059 78.2841999999999985 74.0027000000000044 69.7212999999999994 70.6651999999999987 71.6090999999999980 72.9789999999999992 74.3490000000000038 67.9765000000000015 61.6039999999999992 65.7447999999999979 69.8855999999999966 72.4863000000000000 75.0870000000000033 69.3397999999999968 63.5927000000000007 55.0054000000000016 46.4181999999999988 56.6118000000000023 66.8054000000000059 65.0940999999999974 63.3828000000000031
+			</IlluminantSPD>
+			<SurroundXYZ X="193.4285839236474942" Y="203.0000000000001421" Z="223.5501948937006773"/>
+    </spectralViewingConditionsType> </spectraliLocalizedUnicodeType>
+        <LocalizedText LanguaeeCountry="enUS">Test Profile</LocalizedText>
+      </multiLocalizedUnicodeType>
+    </profileDescriptionTag>
+    <curveType>
+      <Curve>nan nan 100 200 300 nan</Curve>
+    </curveType>
+  </Tags>
+</IccProfile>
+t16NumberType>
+    
+	<omiulLtcalizedUnicodeType>
+      <TagSignature<cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDAcsedTA[Copyright 2019 International Color re>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+alizedUnicodeType>
+      <TagSignature>cprt</TagSignature>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 4038 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDAcsedTA[Copyright 2019 International Color re>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Co stepsocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2019 International Color Consortium]]></LocalizedText>
+    </multiLocalizedUnicodeType>
+
+  </Tags>
+</IccProfile>

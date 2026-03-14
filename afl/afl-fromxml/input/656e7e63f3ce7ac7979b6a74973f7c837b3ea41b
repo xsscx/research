@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType>
+    <ProfileVersion>1.20</ProfileVersion>
+    <ProfileDeviceClass>nmcl</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>Lab </PCS>
+    <CreationDateTime>2003-07-01T00:00:00</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </PCSIlluminant>
+    <ProfileCreator>appl</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <textDescriptionType>
+      <TextData><![CDATA[Web Safe Colors]]></TextData>
+      <MacScript ScriptCode="0">576562205361666520436F6C6F727300</MacScript>
+    </textDescriptionType> </profileDescriptionTag>
+
+    <PrivateTag TagSignature="dscm"> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="skSK"><![CDATA[Web Safe farby]]></LocalizedText>
+      <LocalizedText LanguageCountry="daDK"><![CDATA[Websikre farver]]></LocalizedText>
+      <LocalizedText LanguageCountry="caES"><![CDATA[Colors segurs per al web]]></LocalizedText>
+      <LocalizedText LanguageCountry="viVN"><![CDATA[Màu sắc Phù hợp cho Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptBR"><![CDATA[Cores Seguras para a Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="ukUA"><![CDATA[Веб-безпечні кольори]]></LocalizedText>
+      <LocalizedText LanguageCountry="frFU"><![CDATA[Couleurs sécurisées web]]></LocalizedText>
+      <LocalizedText aLnguageCountry="huHU"><![CDATA[Weben használható színek]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhTW"><![CDATA[網頁安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="nbNO"><![CDATA[Nettsikre farger]]></LocalizedText>
+      <LocalizedText LanguageCountry="koKR"><![CDATA[웹 전용 색상]]></LocalizedText>
+      <LocalizedText LanguageCountry="csCZ"><![CDATA[Bezpečné webové barvy]]></LocalizedText>
+      <LocalizedText LanguageCountry="heIL"><![CDATA[צבעים לשימוש באינטרנט]]></LocalizedText>
+      <LocalizedText LanguageCountry="roRO"><![CDATA[Culori sigure pentru web]]></LocalizedText>
+      <LocalizedText LanguageCountry="deDE"><![CDATA[Websichere Farben]]></LocalizedText>
+      <LocalizedText LanguageCclutountry="itIT"><![CDATA[Colori Web]]></LocalizedText>
+      <LocalizedText LanguageCountry="svSE"><![CDATA[Webbsäkra`färger]]></LocalizedText>
+      <LocalizedText LanguageCountry="zhCN"><![CDATA[Web安全色]]></LocalizedText>
+      <LocalizedText LanguageCountry="jaJP"><![CDATA[Web セーフカラー]]></LocalizedText>
+      <LocalizedText LanguageCountry="elGR"><![CDATA[Ασφαλή χρώματα Ιστού]]></LocalizedText>
+      <LocalizedText LanguageCountry="ptPO"><![CDATA[Cores seguras para a web]]></LocalizedText>
+      <LocalizedText LanguageCountry="nlNL"><![CDATA[Webveilige kleuren]]></LocalizedText>
+      <LocalizedText Languagelmbcs8Country="esES"><![CDATA[Colores web segtros]]></LocalizedText>
+      <LocalizedText LanguageCountry="thTH"><![CDATA[สีที่ใช้ได้บนเว็บ]]></LocalizedText>
+      <LocalizedText LanguageCountry="trTR"><![CDATA[Güvenli Web Renkleri]]></LocalizedText>
+      <LocalizedText LanguageCountry="fiFI"><![CDATA[Selainvarmat värit]]></LocalizedText>
+      <LocalizedText LanguageCountry="hrHR"><![CDATA[Boje sigurne za web]]></LocalizedText>
+      <LocalizedText LanguageCountry="plPL"><![CDATA[Kolory właściwe dla WWW]]></LocalizedText>
+      <LocalizedText LanguageCountry="arEG"><![CDATA[ألوان الويب الآمنة]]></LocalizedText>
+      <LocalizedText LanguageCountry="ruRU"><![CDATA[Web-безопасные цвета]]></LocalizedText>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Web Safe Colors]]></LocalizedText>
+    </multiLocalizedUnicodeType> </PrivateTag>
+
+    <copyrightTag> <textType>
+      <TextData><![CDATA[Copyright 2007 Apple Inc., All rights reserved.]]></TextData>
+    </textType> </copyrightTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.964202880859" Y="1.000000000000" Z="0.824905395508"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <namedColor2Tag> <namedColor2Type>
+      <NamedColors VendorFlag="00000000" CountOfDeviceCoords="3" DeviceEncoding="int16" Prefix="#" Suffix="">
+        <LabNamedColor Name="FFFFFF" L="100.000000000000" a="-0.000007629395" b="-0.000007629395">65535 65237  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83
+          255 100  27   2 255 111  23   1 255 123  27   1 255 133  32   0 255 142  34   0 244 150  40   1 230 158  44   1 218 168  39   3 206 166  50  12 195 161  62  23 186 157  73  34 178 153  83  44 171 149  92  52 165 145 100  59 159 141 107  65 154 138 114  70 150 136 122  74 146 133 131  78 142 131 140  81 138 129 150  84 135 127 161  86 131 125 174  88 128 124 190  88 126 123 210  88 125 122 232  87 126 121 234  86 127 121 235  85 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84
+          255 101  26   2 255 113  22   1 255 125  27   0 255 136  31   0 255 145  33   0 240 154  36   0 226 163  37   0 212 174  32   2 201 171  47  11 190 166  60  22 181 162  71  33 173 158  81  43 166 154  90  51 159 151  98  59 154 147 105  65 149 144 112  70 144 141 120  75 140 139 128  79 136 137 137  82 132 135 147  85 128 133 159  87 124 131 171  89 121 129 187  90 118 128 207  89 117 127 230  88 119 126 233  87 120 125 234  86 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85
+          255 103  25   1 255 115  22   1 255 128  26   0 255 138  29   0 252 148  30   0 235 157  30   0 221 171  23   0 207 179  29   1 196 176  45   9 185 172  58  20 176 16!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!7  69  31 168 163  79  41 161 160  88  50 154 156  95  58 148 153 103  64 143 150 110  70 138 147 117  75 133 145 126  79 129 143 135  83 125 141 145  86 121 139 156  88 117 137 169  90 114 136 184  91 111 134 204  91 110 133 227  90 112 132 232  88 114 130 233  87 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86
+          255 105  24   1 255 118  22   0 255 130  25   0 255 141  28   0 247 151  27   0 230 163  21   0 213 179   9   0 202 185  26   1 190 182  43   8 180 178  56  19 170 173  67  30 162 169  76  40 155 166  85  49 149 163  93  57 143 160 101  63 137 157 108  69 132 154 115  74 127 152 123  79 122 150 132  82 118 148 142  86 113 146 154  88 110 144 166  90 106 142 182  91 104 141 201  91 103 140 225  90 104 138 232  89 107 136 233  88 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87
+          255 108  22   1 2 a="-0.000007629395" b="-0.000007629395">65535 65237  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83 134 116 238  83
+          255 100  27   2 255 111  23   1 255 123  27   1 255 133  32   0 255 142  34   0 244 150  40   1 230 158  44   1 218 168  39   3 206 166  50  12 195 161  62  23 186 157  73  34 178 153  83  44 171 149  92  52 165 145 100  59 159 141 107  65 154 138 114  70 150 136 122  74 146 133 131  78 142 131 140  81 138 129 150  84 135 127 161  86 131 125 174  88 128 124 190  88 126 123 210  88 125 122 232  87 126 121 234  86 127 121 235  85 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84 128 120 236  84
+          255 101  26   2 255 113  22   1 255 125  27   0 255 136  31   0 255 145  33   0 240 154  36   0 226 163  37   0 212 174  32   2 201 171  47  11 190 166  60  22 181 162  71  33 173 158  81  43 166 154  90  51 159 151  98  59 154 147 105  65 149 144 112  70 144 141 120  75 140 139 128  79 136 137 137  82 132 135 147  85 128 133 159  87 124 131 171  89 121 129 187  90 118 128 207  89 117 127 230  88 119 126 233  87 120 125 234  86 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85 122 124 235  85
+          255 103  25   1 255 115  22   1 255 128  26   0 255 138  29   0 252 148  30   0 235 157  30   0 221 171  23   0 207 179  29   1 196 176  45   9 185 172  58  20 176 167  69  31 168 163  79  41 161 160  88  50 154 156  95  58 148 153 103  64 143 150 110  70 138 147 117  75 133 145 126  79 129 143 135  83 125 141 145  86 121 139 156  88 117 137 169  90 114 136 184  91 111 134 204  91 110 133 227  90 112 132 232  88 114 130 233  87 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86 115 129 234  86
+          255 105  24   1 255 118  22   0 255 130  25   0 255 141  28   0 247 151  27   0 230 163  21   0 213 179   9   0 202 185  26   1 190 182  43   8 180 178  56  19 170 173  67  30 162 169  76  40 155 166  85  49 149 163  93  57 143 160 101  63 137 157 108  69 132 154 115  74 127 152 123  79 122 150 132  82 118 148 142  86 113 146 154  88 110 144 166  90 106 142 182  91 104 141 201  91 103 140 225  90 104 138 232  89 107 136 233  88 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87 108 135 234  87
+          255 108  22   1 255 121  21   0 255 133  24   0 255 144  25   0 242 155  22   0 216 170   8   0 207 183   7   0 195 191  22   0 184 189  40   6 174 185  53  17 165 180  64  28 157 176  74  38 150 173  83  47 143 170  91  55 137 167  99  62 131 164 106  68 125 161 113  73 120 159 121  78 115 157 130  82 111 155 140  85 106 154 151  88 102 152 164  90  99 150 179  91  96 149 198  91  95 147 222  90  97 145 232  89  99 143 233  88 101 141 233  87 101 141 233  87 101 141 233  87 101 141 233  87 101 141 233  87 101 141 233  87
+          255 111  21   0 255 124  20   0 255 137  22   0 255 148  22   0 236 161  13   0 210 174   7   0 200 187   5   0 188 197  17   0 178 196  36   5 168 193  50  14 159 189  62  25 151 185  72  35 143 181  81  45 137 178  89  53 130 175  96  60 124 173 103  66 119 170 111  71 113 168 11ssub(2) pop(2)
+-1000.5 0 0 ssub(2) pop(2)
+1000.5 NaN NaN ssub(2) pop(2)
+1000.5 NaN -INF ssub(2) pop(2)
+1000.5 NaN +INF ssub(2) pop(2)
+1000.5 NaN -1000.5 ssub(2) pop(2)
+1000.5 NaN 1000.5 ssub(2) pop(2)
+1000.5 NaN -1 ssub(2) pop(2)
+1000.5 NaN 1 ssub(2) pop(2)
+1000.5 NaN 0 ssub(2) pop(2)
+1000.5 -INF NaN ssub(2) pop(2)
+1000.5 -INF -INF ssub(2) pop(2)
+1000.5 -INF +INF ssub(2) pop(2)
+1000.5 -INF -1000.5 ssub(2) pop(2)
+1000.5 -INF 1000.5 ssub(2) pop(2)
+1000.5 -INF -1 ssub(2) pop(2)
+1000.5 -INF 1 ssub(2) pop(2)
+1000.5 -INF 0 ssub(2) pop(2)
+1000.5 +INF NaN ssub(2) pop(2)
+1000.5 +INF -INF ssub(2) pop(2)
+1000.5 +INF +INF ssub(2) pop(2)
+1000.5 +INF -1000.5 ssub(2) pop(2)
+1000.5 +INF 1000.5 ssub(2) pop(2)
+1000.5 +INF -1 ssub(2) pop(2)
+1000.5 +INF 1 ssub(2) pop(2)
+1000.5 +INF 0 ssub(2) pop(2)
+1000.5 -1000.5 NaN ssub(2) pop(2)
+1000.5 -1000.5 -INF ssub(2) pop(2)
+1000.5 -1000.5 +INF ssub(2) pop(2)
+1000.5 -1000.5 -1000.5 ssub(2) pop(2)
+1000.5 -1000.5 1000.5 ssub(2) pop(2)
+1000.5 -1000.5 -1 ssub(2) pop(2)
+1000.5 -1000.5 1 ssub(2) pop(2)
+1000.5 -1000.5 0 ssub(2) pop(2)
+1000.5 1000.5 NaN ssub(2) pop(2)
+1000.5 1000.5 -INF ssub(2) pop(2)
+1000.5 1000.5 +INF ssub(2) pop(2)
+1000.5 1000.5 -1000.5 ssub(2) pop(2)
+1000.5 1000.5 1000.5 ssub(2) pop(2)
+1000.5 1000.5 -1 ssub(2) pop(2)
+1000.5 1000.5 1 ssub(2) pop(2)
+1000.5 1000.5 0 ssub(2) pop(2)
+1000.5 -1 NaN ssub(2) pop(2)
+1000.5 -1 -INF ssub(2) pop(2)
+1000.5 -1 +INF ssub(2) pop(2)
+1000.5 -1 -1000.5 ssub(2) pop(2)
+1000.5 -1 1000.5 ssub(2) pop(2)
+1000.5 -1 -1 ssub(2) pop(2)
+1000.5 -1 1 ssub(2) pop(2)
+1000.5 -1 0 ssub(2) pop(2)
+1000.5 1 NaN ssub(2) pop(2)
+1000.5 1 -INF ssub(2) pop(2)
+1000.5 1 +INF ssub(2) pop(2)
+1000.5 1 -1000.5 ssub(2) pop(2)
+1000.5 1 1000.5 ssub(2) pop(2)
+1000.5 1 -1 ssub(2) pop(2)
+1000.5 1 1 ssub(2) pop(2)
+1000.5 1 0 ssub(2) pop(2)
+1000.5 0 NaN ssub(2) pop(2)
+1000.5 0 -INF ssub(2) pop(2)
+1000.5 0 +INF ssub(2) pop(2)
+1000.5 0 -1000.5 ssub(2) pop(2)
+1000.5 0 1000.5 ssub(2) pop(2)
+1000.5 0 -1 ssub(2) pop(2)
+1000.5 0 1 ssub(2) pop(2)
+1000.5 0 0 ssub(2) pop(2)
+-1 NaN NaN ssub(2) pop(2)
+-1 NaN -INF ssub(2) pop(2)
+-1 NaN +INF ssub(2) pop(2)
+-1 NaN -1000.5 ssub(2) pop(2)
+-1 NaN 1000.5 ssub(2) pop(2)
+-1 NaN -1 ssub(2) pop(2)
+-1 NaN 1 ssub(2) pop(2)
+-1 NaN 0 ssub(2) pop(2)
+-1 -INF NaN ssub(2) pop(2)
+-1 -INF -INF ssub(2) pop(2)
+-1 -INF +INF ssub(2) pop(2)
+-1 -INF -1000.5 ssub(2) pop(2)
+-1 -INF 1000.5 ssub(2) pop(2)
+-1 -INF -1 ssub(2) pop(2)
+-1 -INF 1 ssub(2) pop(2)
+-1 -INF 0 ssub(2) pop(2)
+-1 +INF NaN ssub(2) pop(2)
+-1 +INF -INF ssub(2) pop(2)
+-1 +INF +INF ssub(2) pop(2)
+-1 +INF -1000.5 ssub(2) pop(2)
+-1 +INF 1000.5 ssu804538726807" a="77.714851379395" b="44.660167694092">65535 0 13107
+       </LabNamedColor>
+        <LabNamedColor Name="CC0033" L="47.876838684082" a="68.187500000000" b="31.765634536743">52428 0 13107
+z       </LabNamedColor>
+        <LabNamedColor Name="990033" L="38.085170745850" a="57.738288879395" b="17.050786972046">39321 0 13107
+       </LabNamedColor>
+       </NamedColors>
+    </namedColor2Type> </namedColor2Tag>
+
+    <PrivateTag TagSignature="ncpi"> <PrivateType type="ncpi">
+      <UnknownData>
+       0000000000000002000000050002000000000000000100060003000000000000
+      </UnknownData>
+    </PrivateType> </PrivateTag>
+
+  </Tags>
+</IccProfile>
