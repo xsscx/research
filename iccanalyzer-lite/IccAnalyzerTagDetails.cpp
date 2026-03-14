@@ -36,11 +36,13 @@
  */
 
 #include "IccAnalyzerTagDetails.h"
+#include "IccAnalyzerCommon.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
 #include "IccProfile.h"
+#include "IccMpeBasic.h"
 #include <cmath>
 
 //==============================================================================
@@ -156,9 +158,25 @@ static int AnalyzeLutTags(CIccProfile *pIcc)
 //==============================================================================
 // 5B: MPE Tag Analysis — element chain walk, calculator detection
 //==============================================================================
+
+// Identify late-binding spectral elements that require PCC at runtime
+static bool IsLateBindingSpectral(icElemTypeSignature sig)
+{
+  switch (sig) {
+    case icSigEmissionMatrixElemType:
+    case icSigInvEmissionMatrixElemType:
+    case icSigEmissionObserverElemType:
+    case icSigReflectanceObserverElemType:
+      return true;
+    default:
+      return false;
+  }
+}
+
 static int AnalyzeMpeTags(CIccProfile *pIcc)
 {
   int issues = 0;
+  CIccInfo info;
 
   // MPE tags can appear under A2B/B2A/D2B/B2D signatures
   static const icTagSignature mpeSigs[] = {
@@ -195,7 +213,12 @@ static int AnalyzeMpeTags(CIccProfile *pIcc)
       issues++;
     }
 
+    // Element chain visualization (inspired by IccDumpAll)
+    printf("\n      === MPE Element Chain: %u elements, %u→%u channels ===\n",
+           nElem, pMPE->NumInputChannels(), pMPE->NumOutputChannels());
+
     bool hasCalc = false;
+    int lateBindCount = 0;
     for (icUInt32Number e = 0; e < nElem && e < 256; e++) {
       CIccMultiProcessElement *pElem = pMPE->GetElement(e);
       if (!pElem) continue;
@@ -203,17 +226,29 @@ static int AnalyzeMpeTags(CIccProfile *pIcc)
       icElemTypeSignature elemType = pElem->GetType();
       char typeStr[5];
       SigToStr(static_cast<icUInt32Number>(elemType), typeStr);
-      printf("        [%u] type='%s' in=%u out=%u\n",
-             e, typeStr, pElem->NumInputChannels(), pElem->NumOutputChannels());
+
+      const char *typeName = info.GetElementTypeSigName(elemType);
+      bool lateBind = IsLateBindingSpectral(elemType);
+      if (lateBind) lateBindCount++;
+
+      printf("      [%u] %s ('%s') %u→%u%s\n",
+             e + 1, typeName, typeStr,
+             pElem->NumInputChannels(), pElem->NumOutputChannels(),
+             lateBind ? " [LATE-BINDING SPECTRAL]" : "");
 
       if (elemType == icSigCalculatorElemType) {
         hasCalc = true;
       }
     }
+    printf("      ===\n");
 
     if (hasCalc) {
       printf("      %s[INFO] Calculator element detected — #1 source of UBSAN findings%s\n",
              ColorWarning(), ColorReset());
+    }
+    if (lateBindCount > 0) {
+      printf("      %s[INFO] %d late-binding spectral element(s) — require PCC (svcn tag) for rendering%s\n",
+             ColorInfo(), lateBindCount, ColorReset());
     }
     printf("\n");
   }
@@ -429,15 +464,31 @@ static int AnalyzeSpectralTags(CIccProfile *pIcc)
         dynamic_cast<CIccTagSpectralViewingConditions*>(pTag);
     if (pSVC) {
       found++;
-      CIccInfo info;
+      CIccInfo svcInfo;
       printf("  SpectralViewingConditions:\n");
-      printf("      Observer:    %s\n", info.GetStandardObserverName(pSVC->getStdObserver()));
+      printf("      Observer:    %s\n", svcInfo.GetStandardObserverName(pSVC->getStdObserver()));
       printf("      Illuminant:  %s (CCT=%.0f K)\n",
-             info.GetIlluminantName(pSVC->getStdIllumiant()),
+             svcInfo.GetIlluminantName(pSVC->getStdIllumiant()),
              pSVC->getIlluminantCCT());
       printf("      Illuminant XYZ: (%.4f, %.4f, %.4f)\n",
              pSVC->m_illuminantXYZ.X, pSVC->m_illuminantXYZ.Y, pSVC->m_illuminantXYZ.Z);
     }
+  }
+
+  // Spectral White Point
+  pTag = pIcc->FindTag(icSigSpectralWhitePointTag);
+  if (pTag) {
+    found++;
+    printf("  SpectralWhitePoint:  PRESENT\n");
+  }
+
+  // Custom-to-Standard / Standard-to-Custom PCC
+  CIccTag *c2sp = pIcc->FindTag(icSigCustomToStandardPccTag);
+  CIccTag *s2cp = pIcc->FindTag(icSigStandardToCustomPccTag);
+  if (c2sp || s2cp) {
+    found++;
+    printf("  PCC Transform Tags:  c2sp=%s  s2cp=%s\n",
+           c2sp ? "PRESENT" : "---", s2cp ? "PRESENT" : "---");
   }
 
   if (found == 0) {
@@ -533,6 +584,178 @@ static int AnalyzeTagSizes(CIccProfile *pIcc)
 }
 
 //==============================================================================
+// 5I: V5/iccMAX Summary — BRDF, Gamut Boundary, MPE stats, Late-Binding
+//==============================================================================
+static int AnalyzeV5Summary(CIccProfile *pIcc)
+{
+  icHeader *pHdr = &pIcc->m_Header;
+  if (pHdr->version < icVersionNumberV5) {
+    printf("  %s(Profile is v2/v4 — v5/iccMAX summary not applicable)%s\n",
+           ColorInfo(), ColorReset());
+    printf("\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccInfo fmtInfo;
+
+  printf("  %s--- V5/iccMAX Profile Summary ---%s\n\n", ColorHeader(), ColorReset());
+
+  // BRDF tags (4 sets × 4 intents = 16 possible)
+  static const icTagSignature brdfTags[] = {
+    icSigBRDFAToB0Tag, icSigBRDFAToB1Tag, icSigBRDFAToB2Tag, icSigBRDFAToB3Tag,
+    icSigBRDFDToB0Tag, icSigBRDFDToB1Tag, icSigBRDFDToB2Tag, icSigBRDFDToB3Tag,
+    icSigBRDFMToB0Tag, icSigBRDFMToB1Tag, icSigBRDFMToB2Tag, icSigBRDFMToB3Tag,
+    icSigBRDFMToS0Tag, icSigBRDFMToS1Tag, icSigBRDFMToS2Tag, icSigBRDFMToS3Tag,
+  };
+  int brdfCount = 0;
+  for (int i = 0; i < 16; i++) {
+    if (pIcc->FindTag(brdfTags[i]))
+      brdfCount++;
+  }
+  printf("  BRDF Tags:              %d of 16 present\n", brdfCount);
+
+  // Gamut Boundary Descriptions
+  CIccTag *gbd0 = pIcc->FindTag(icSigGamutBoundaryDescription0Tag);
+  CIccTag *gbd1 = pIcc->FindTag(icSigGamutBoundaryDescription1Tag);
+  printf("  Gamut Boundary Desc:    gbd0=%s  gbd1=%s\n",
+         gbd0 ? "PRESENT" : "---", gbd1 ? "PRESENT" : "---");
+
+  // MCS
+  if (pHdr->mcs) {
+    printf("  MCS Color Space:        %s\n",
+           fmtInfo.GetColorSpaceSigName(static_cast<icColorSpaceSignature>(pHdr->mcs)));
+  }
+
+  // Count MPE tags and late-binding elements
+  int mpeTagCount = 0;
+  int totalElements = 0;
+  int lateBindCount = 0;
+  int calcCount = 0;
+
+  TagEntryList::iterator it;
+  for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag((*it).TagInfo.sig);
+    if (pTag && pTag->GetType() == icSigMultiProcessElementType) {
+      CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+      if (!pMpe) continue;
+      mpeTagCount++;
+      for (icUInt32Number j = 0; j < pMpe->NumElements() && j < 256; j++) {
+        CIccMultiProcessElement *pElem = pMpe->GetElement(j);
+        if (!pElem) continue;
+        totalElements++;
+        if (IsLateBindingSpectral(pElem->GetType()))
+          lateBindCount++;
+        if (pElem->GetType() == icSigCalculatorElemType)
+          calcCount++;
+      }
+    }
+  }
+
+  printf("\n  MPE Tags:               %d (multiProcessElementType)\n", mpeTagCount);
+  printf("  Total MPE Elements:     %d\n", totalElements);
+  printf("  Calculator Elements:    %d\n", calcCount);
+  printf("  Late-Binding Elements:  %d (spectral observer/emission)\n", lateBindCount);
+
+  if (lateBindCount > 0) {
+    printf("    %sNOTE: Late-binding elements require PCC (svcn tag) for proper rendering%s\n",
+           ColorInfo(), ColorReset());
+  }
+  if (calcCount > 0) {
+    printf("    %sNOTE: Calculator elements are primary source of CWE-674/CWE-400 findings%s\n",
+           ColorWarning(), ColorReset());
+  }
+
+  printf("\n");
+  return issues;
+}
+
+//==============================================================================
+// 5J: Profile Version Classification & Capabilities
+//==============================================================================
+static int AnalyzeVersionCapabilities(CIccProfile *pIcc)
+{
+  icHeader *pHdr = &pIcc->m_Header;
+  CIccInfo info;
+
+  int major = (pHdr->version >> 24) & 0xff;
+  int minor = (pHdr->version >> 20) & 0x0f;
+  int bugfix = (pHdr->version >> 16) & 0x0f;
+
+  printf("  Version Classification:\n");
+  printf("    ICC Version:       %d.%d.%d\n", major, minor, bugfix);
+
+  if (pHdr->version >= icVersionNumberV5) {
+    printf("    Specification:     ICC.2 (iccMAX)\n");
+    printf("    Features:          MPE, Spectral PCS, Calculator, BRDF, MCS, Named Colors\n");
+  } else if (pHdr->version >= icVersionNumberV4) {
+    printf("    Specification:     ICC.1-2022-05 (v4)\n");
+    printf("    Features:          chromaticAdaptationTag, lut16/lutAToB, profileID\n");
+  } else if (pHdr->version >= icVersionNumberV2_1) {
+    printf("    Specification:     ICC.1 (v2.1+)\n");
+    printf("    Features:          lut8/lut16 only, no profileID\n");
+  } else {
+    printf("    Specification:     ICC.1 (v2.x legacy)\n");
+    printf("    Features:          lut8/lut16 only, limited tag types\n");
+  }
+
+  printf("    Device Class:      %s\n", info.GetProfileClassSigName(pHdr->deviceClass));
+  printf("    Color Space:       %s (%u channels)\n",
+         info.GetColorSpaceSigName(pHdr->colorSpace),
+         icGetSpaceSamples(pHdr->colorSpace));
+
+  // Connection space classification
+  if (pHdr->deviceClass == icSigLinkClass) {
+    printf("    Connection:        Device-to-Device (DeviceLink)\n");
+  } else {
+    printf("    Connection Space:  %s\n", info.GetColorSpaceSigName(pHdr->pcs));
+  }
+
+  // Transform capability summary
+  printf("\n  Transform Capabilities:\n");
+
+  bool hasA2B = pIcc->FindTag(icSigAToB0Tag) != nullptr;
+  bool hasB2A = pIcc->FindTag(icSigBToA0Tag) != nullptr;
+  bool hasD2B = pIcc->FindTag(icSigDToB0Tag) != nullptr;
+  bool hasB2D = pIcc->FindTag(icSigBToD0Tag) != nullptr;
+  bool hasTRC = pIcc->FindTag(icSigRedTRCTag) != nullptr ||
+                pIcc->FindTag(icSigGrayTRCTag) != nullptr;
+  bool hasGamut = pIcc->FindTag(icSigGamutTag) != nullptr;
+  bool hasChad = pIcc->FindTag(icSigChromaticAdaptationTag) != nullptr;
+  bool hasPreview = pIcc->FindTag(icSigPreview0Tag) != nullptr;
+
+  printf("    AToB (device→PCS):   %s%s%s\n",
+         hasA2B ? ColorSuccess() : ColorInfo(),
+         hasA2B ? "YES" : "no", ColorReset());
+  printf("    BToA (PCS→device):   %s%s%s\n",
+         hasB2A ? ColorSuccess() : ColorInfo(),
+         hasB2A ? "YES" : "no", ColorReset());
+  if (pHdr->version >= icVersionNumberV4) {
+    printf("    DToB (device→PCS):   %s%s%s\n",
+           hasD2B ? ColorSuccess() : ColorInfo(),
+           hasD2B ? "YES" : "no", ColorReset());
+    printf("    BToD (PCS→device):   %s%s%s\n",
+           hasB2D ? ColorSuccess() : ColorInfo(),
+           hasB2D ? "YES" : "no", ColorReset());
+  }
+  printf("    TRC (matrix/gamma):  %s%s%s\n",
+         hasTRC ? ColorSuccess() : ColorInfo(),
+         hasTRC ? "YES" : "no", ColorReset());
+  printf("    Gamut check:         %s%s%s\n",
+         hasGamut ? ColorSuccess() : ColorInfo(),
+         hasGamut ? "YES" : "no", ColorReset());
+  printf("    Chromatic adapt:     %s%s%s\n",
+         hasChad ? ColorSuccess() : ColorInfo(),
+         hasChad ? "YES" : "no", ColorReset());
+  printf("    Preview:             %s%s%s\n",
+         hasPreview ? ColorSuccess() : ColorInfo(),
+         hasPreview ? "YES" : "no", ColorReset());
+
+  printf("\n");
+  return 0;
+}
+
+//==============================================================================
 // Phase 5 Entry Point
 //==============================================================================
 int TagDetailAnalyze(CIccProfile *pIcc, const char *filename)
@@ -564,6 +787,12 @@ int TagDetailAnalyze(CIccProfile *pIcc, const char *filename)
 
   printf("--- 5H: Per-Tag Size Analysis ---\n\n");
   totalIssues += AnalyzeTagSizes(pIcc);
+
+  printf("--- 5I: V5/iccMAX Summary ---\n\n");
+  totalIssues += AnalyzeV5Summary(pIcc);
+
+  printf("--- 5J: Version Classification & Capabilities ---\n\n");
+  totalIssues += AnalyzeVersionCapabilities(pIcc);
 
   return totalIssues;
 }
