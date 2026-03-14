@@ -160,15 +160,6 @@ else
   echo "No patches to apply (zero-patch mode)"
 fi
 
-# Strip stray U+FE0F (emoji variation selector) from upstream source
-SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
-if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-  sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-  echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-else
-  echo "[INFO] IccSignatureUtils.h already clean"
-fi
-
 # --- Step 2: Patch wxWidgets out ---
 banner "Step 2: Patch wxWidgets"
 CMAKELISTS="$ICCDEV_DIR/Build/Cmake/CMakeLists.txt"
