@@ -77,18 +77,21 @@ for historical reference.
 | 009 | EnvVar Exec enum UBSAN | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
 | 010 | CheckUnderflowOverflow recursion | Unbounded recursion depth 50 + 200K ops budget | CWE-674 | IccMpeCalc.cpp |
 | 011 | SpecSepToTiff unique_ptr array | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
-| 012 | NDLut InterpND null ApplyCLUT | NULL CIccApplyCLUT deref in CIccXformNDLut::Apply() | CWE-476 | IccCmm.cpp |
-| 013 | TagArray Cleanup uninit guard | Uninit m_TagVals/m_nSize in copy ctor + leaked pTag on Read fail | CWE-908/CWE-416/CWE-401 | IccTagComposite.cpp |
+| 012 | ~~NDLut InterpND null ApplyCLUT~~ | ~~NULL CIccApplyCLUT deref in CIccXformNDLut::Apply()~~ | ~~CWE-476~~ | ~~IccCmm.cpp~~ *(retired)* |
+| 013 | ~~TagArray Cleanup uninit guard~~ | ~~Uninit m_TagVals/m_nSize in copy ctor + leaked pTag on Read fail~~ | ~~CWE-908/CWE-416/CWE-401~~ | ~~IccTagComposite.cpp~~ *(retired)* |
 | 014 | SequenceNeedTempReset recursion depth | Unbounded recursion in SequenceNeedTempReset Apply path | CWE-674 | IccMpeCalc.cpp |
-| 015 | SpecSepToTiff strip geometry HBO | Strip buffer vs row geometry mismatch causing heap-buffer-overflow | CWE-122 | TiffImg.cpp |
-| 016 | NaN guard unsigned cast UBSAN | NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath) | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
+| 015 | ~~SpecSepToTiff strip geometry HBO~~ | ~~Strip buffer vs row geometry mismatch causing heap-buffer-overflow~~ | ~~CWE-122~~ | ~~TiffImg.cpp~~ *(retired)* |
+| 016 | ~~NaN guard unsigned cast UBSAN~~ | ~~NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath)~~ | ~~CWE-681~~ | ~~IccMpeBasic.cpp, IccMatrixMath.cpp~~ *(retired)* |
 | 017 | GetEnvSig parse enum UBSAN | Enum out-of-range in GetEnvSig() XML parse path (sibling of CFL-009) | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | TagUnknown Describe HBO underflow | m_nSize-4 underflow + m_pData+4 OOB when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | PCC null spectral viewing conditions | getPccViewingConditions() returns NULL when profile lacks svcn tag | CWE-476 | IccPcc.cpp |
 | 020 | SampledCalculatorCurve Begin channel validation | Begin() uses single-float dst/src but Apply() writes NumOutputChannels() | CWE-121 | IccMpeCalc.cpp |
+| 021 | Calculator enum UBSAN trunc/floor | Enum out-of-range for icSigTruncateOp and icSigFloorOp | CWE-681 | IccMpeCalc.cpp |
+| 022 | Calc Trunc/Floor/Ceil/Round int overflow | Large float→int cast in 4 calculator ops | CWE-681 | IccMpeCalc.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **021**)
+- Numbering: zero-padded 3-digit, sequential (next: **023**)
+- 18 active patches (CFL-001 through CFL-022, with 012/013/015/016 retired)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

@@ -6,7 +6,7 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 22,400+ | 150-heuristic security analyzer with ASAN/UBSAN, TIFF image analysis, JSON/XML/Report output, callgraph, OOM protection, Ninja mode |
+| **iccanalyzer-lite** | 22,400+ | 153-heuristic security analyzer with ASAN/UBSAN, TIFF image analysis, JSON/XML/Report output, callgraph, OOM protection, Ninja mode |
 | **cfl** (12 fuzzers) | ~2,500 | LibFuzzer harnesses targeting iccDEV (dump, roundtrip, apply, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
 | **mcp-server** | — | ICC Profile MCP server with web UI (24 tools) |
@@ -26,7 +26,7 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
 | **Fuzzers** | 12/12 | Build + smoke test pass, aligned to project tool scope |
-| **CFL Patches** | 20 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-020) |
+| **CFL Patches** | 18 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-022) |
 
 ## Build
 
@@ -50,7 +50,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 20 active security patches for iccDEV (CFL-001 through CFL-020: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards). Applied automatically by `cfl/build.sh`. 62 legacy patches retired March 2026 — see `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 18 active security patches for iccDEV (CFL-001 through CFL-022, with 012/013/015/016 retired: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards). Applied automatically by `cfl/build.sh`. 62 legacy patches retired March 2026 — see `cfl/patches/README.md` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
@@ -106,7 +106,7 @@ See [dev-demo/README.md](dev-demo/README.md) for full usage.
 
 Pre-built prompt templates for AI-assisted analysis in [`.github/prompts/`](.github/prompts/):
 
-- **analyze-icc-profile** — Full 150-heuristic security scan
+- **analyze-icc-profile** — Full 153-heuristic security scan
 - **compare-icc-profiles** — Side-by-side structural diff
 - **triage-cve-poc** — CVE PoC analysis with CVE cross-referencing
 - **health-check** — MCP server verification
