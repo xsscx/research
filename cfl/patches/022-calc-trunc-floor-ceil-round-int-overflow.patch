@@ -1,0 +1,117 @@
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -1193,6 +1193,11 @@
+ class CIccOpDefTruncate : public IIccOpDef
+ {
+ public:
++  // CFL-022: Clamp finite values to INT_MIN..INT_MAX before (int) cast.
++  // Without this, values like 2.254e+15 cause UBSAN: "X is outside the
++  // range of representable values of type 'int'" (CWE-681).
++  static constexpr double kIntMax = (double)std::numeric_limits<int>::max();
++  static constexpr double kIntMin = (double)std::numeric_limits<int>::lowest();
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+     int j, n = op->data.select.v1+1;
+@@ -1205,11 +1210,14 @@
+       icFloatNumber temp = s[j];
+       if (std::isnan(temp))
+         s[j] = 0.0;
+-      else if (std::isinf(temp)) {
+-        if (temp > 0.0)
+-            s[j] = (icFloatNumber)std::numeric_limits<int>::max();
++      else if (std::isinf(temp) || (double)temp > kIntMax) {
++        if (temp > 0.0f)
++            s[j] = (icFloatNumber)kIntMax;
+         else
+-            s[j] = (icFloatNumber)std::numeric_limits<int>::lowest();
++            s[j] = (icFloatNumber)kIntMin;
++      }
++      else if ((double)temp < kIntMin) {
++        s[j] = (icFloatNumber)kIntMin;
+       }
+       else
+         s[j] = (icFloatNumber)((int)temp);
+@@ -1221,6 +1229,9 @@
+ class CIccOpDefFloor : public IIccOpDef
+ {
+ public:
++  // CFL-022: Add NaN/Inf/range guards (floor had none).
++  static constexpr double kIntMax = (double)std::numeric_limits<int>::max();
++  static constexpr double kIntMin = (double)std::numeric_limits<int>::lowest();
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+     int j, n = op->data.select.v1+1;
+@@ -1229,7 +1240,15 @@
+       return false;
+     icFloatNumber *s = &(*os.pStack)[ss-n];
+     for (j=0; j<n; j++) {
+-      s[j] = (icFloatNumber)floor(s[j]);
++      icFloatNumber temp = s[j];
++      if (std::isnan(temp))
++        s[j] = 0.0f;
++      else if ((double)temp > kIntMax)
++        s[j] = (icFloatNumber)kIntMax;
++      else if ((double)temp < kIntMin)
++        s[j] = (icFloatNumber)kIntMin;
++      else
++        s[j] = (icFloatNumber)floor(temp);
+     }
+     return true;
+   }
+@@ -1238,6 +1257,9 @@
+ class CIccOpDefCeiling : public IIccOpDef
+ {
+ public:
++  // CFL-022: Add NaN/Inf/range guards (ceiling had none).
++  static constexpr double kIntMax = (double)std::numeric_limits<int>::max();
++  static constexpr double kIntMin = (double)std::numeric_limits<int>::lowest();
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+     int j, n = op->data.select.v1+1;
+@@ -1246,7 +1268,15 @@
+       return false;
+     icFloatNumber *s = &(*os.pStack)[ss-n];
+     for (j=0; j<n; j++) {
+-      s[j] = (icFloatNumber)ceil(s[j]);
++      icFloatNumber temp = s[j];
++      if (std::isnan(temp))
++        s[j] = 0.0f;
++      else if ((double)temp > kIntMax)
++        s[j] = (icFloatNumber)kIntMax;
++      else if ((double)temp < kIntMin)
++        s[j] = (icFloatNumber)kIntMin;
++      else
++        s[j] = (icFloatNumber)ceil(temp);
+     }
+     return true;
+   }
+@@ -1255,6 +1285,9 @@
+ class CIccOpDefRound : public IIccOpDef
+ {
+ public:
++  // CFL-022: Replace arbitrary 10000.0 Inf cap with proper INT_MAX/MIN.
++  static constexpr double kIntMax = (double)std::numeric_limits<int>::max();
++  static constexpr double kIntMin = (double)std::numeric_limits<int>::lowest();
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+     int j, n = op->data.select.v1+1;
+@@ -1267,11 +1300,15 @@
+       if (std::isnan(temp))
+         temp = 0.0;
+       else if (std::isinf(temp))
+-        temp = 10000.0;          // value chosen arbitrarily to not overflow int
+-      if (temp < 0.0)
+-        s[j] = icFloatNumber((int)(temp-0.5));
++        temp = (temp > 0.0f) ? (icFloatNumber)kIntMax : (icFloatNumber)kIntMin;
++      if ((double)temp > kIntMax)
++        s[j] = (icFloatNumber)kIntMax;
++      else if ((double)temp < kIntMin)
++        s[j] = (icFloatNumber)kIntMin;
++      else if (temp < 0.0)
++        s[j] = (icFloatNumber)((int)(temp-0.5));
+       else
+-        s[j] = icFloatNumber((int)(temp+0.5));
++        s[j] = (icFloatNumber)((int)(temp+0.5));
+     }
+     return true;
+   }
