@@ -7,12 +7,12 @@ Manage fuzzing corpus across storage tiers: permanent (cfl/corpus-*/), ramdisk (
 - LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
 - For SSD: mounted at /mnt/g with `sudo mount -o defaults,noatime /dev/sde /mnt/g`
 
-## The 11 Fuzzers
+## The 12 Fuzzers
 ```
-icc_applynamedcmm_fuzzer  icc_applyprofiles_fuzzer  icc_dump_fuzzer
-icc_fromcube_fuzzer  icc_fromxml_fuzzer  icc_link_fuzzer
-icc_roundtrip_fuzzer  icc_specsep_fuzzer  icc_tiffdump_fuzzer
-icc_toxml_fuzzer  icc_v5dspobs_fuzzer
+icc_applynamedcmm_fuzzer  icc_applyprofiles_fuzzer  icc_applysearch_fuzzer
+icc_dump_fuzzer  icc_fromcube_fuzzer  icc_fromxml_fuzzer
+icc_link_fuzzer  icc_roundtrip_fuzzer  icc_specsep_fuzzer
+icc_tiffdump_fuzzer  icc_toxml_fuzzer  icc_v5dspobs_fuzzer
 ```
 
 ## Storage Setup
