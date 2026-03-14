@@ -19,7 +19,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 12 fu
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
 - Applies targeted patches from `cfl/patches/` (new findings only — see Patch System below)
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
-- Binaries: `cfl/bin/icc_*_fuzzer` (11 total)
+- Binaries: `cfl/bin/icc_*_fuzzer` (12 total)
 
 ## Upstream Sync
 
@@ -31,7 +31,7 @@ cd .. && ./build.sh   # re-applies patches and rebuilds
 
 Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
-## The 11 Fuzzers
+## The 12 Fuzzers
 
 | # | Fuzzer Binary | Primary Target |
 |---|--------------|----------------|
@@ -84,9 +84,11 @@ for historical reference.
 | 016 | NaN guard unsigned cast UBSAN | NaN/Inf→unsigned cast in Apply paths (SingleSampledCurve + MatrixMath) | CWE-681 | IccMpeBasic.cpp, IccMatrixMath.cpp |
 | 017 | GetEnvSig parse enum UBSAN | Enum out-of-range in GetEnvSig() XML parse path (sibling of CFL-009) | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | TagUnknown Describe HBO underflow | m_nSize-4 underflow + m_pData+4 OOB when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
+| 019 | PCC null spectral viewing conditions | getPccViewingConditions() returns NULL when profile lacks svcn tag | CWE-476 | IccPcc.cpp |
+| 020 | SampledCalculatorCurve Begin channel validation | Begin() uses single-float dst/src but Apply() writes NumOutputChannels() | CWE-121 | IccMpeCalc.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **019**)
+- Numbering: zero-padded 3-digit, sequential (next: **021**)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
