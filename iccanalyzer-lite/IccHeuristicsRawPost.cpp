@@ -581,6 +581,7 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
               if (nOps > 0 && nOps < 100000) {
                 size_t opsStart = absFuncOff + 12;
                 icUInt32Number invalidOps = 0;
+                int dangerousOps = 0;
                 icUInt32Number checkedOps = (nOps < 1000) ? nOps : 1000;
                 for (icUInt32Number op = 0; op < checkedOps; op++) {
                   size_t opOff = opsStart + (size_t)op * 8;
@@ -593,6 +594,15 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
                     if (ch < 0x20 || ch > 0x7E) { valid = false; break; }
                   }
                   if (!valid) invalidOps++;
+                  // H151 enhancement: count dangerous float→int cast operators.
+                  // CFL-022 patches these — they cast (int)float without range check.
+                  if (opSig == 0x74726E63 || // trnc (Truncate)
+                      opSig == 0x666C6F72 || // flor (Floor)
+                      opSig == 0x6365696C || // ceil (Ceiling)
+                      opSig == 0x726F6E64 || // rond (Round)
+                      opSig == 0x6D6F6420) { // mod  (Modulus)
+                    dangerousOps++;
+                  }
                 }
                 if (invalidOps > 0) {
                   printf("      %s[CRITICAL] Tag '%s': %u/%u calculator operator signatures "
@@ -600,6 +610,17 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
                          ColorCritical(), sig37, invalidOps, checkedOps, ColorReset());
                   printf("       %sCWE-681: Invalid operator enum at m_Op[i].sig "
                          "(IccMpeCalc.cpp:3514)%s\n",
+                         ColorCritical(), ColorReset());
+                  calcIssues++;
+                }
+                if (dangerousOps > 0) {
+                  printf("      %s[WARN]  Tag '%s': Calculator has %d float-to-int cast "
+                         "operators (trnc/flor/ceil/rond/mod)%s\n",
+                         ColorWarning(), sig37, dangerousOps, ColorReset());
+                  printf("       %sCWE-681: Unguarded (int)float cast overflows for "
+                         "|value| > 2.147e9 (IccMpeCalc.cpp:953,1215,1240,1257,1285)%s\n",
+                         ColorCritical(), ColorReset());
+                  printf("       %sRef: CFL-022 patch, UBSAN runtime error in applyprofiles/applynamedcmm fuzzers%s\n",
                          ColorCritical(), ColorReset());
                   calcIssues++;
                 }
