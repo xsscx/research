@@ -1,18 +1,18 @@
 # CFL Library Patches — Active Security Fixes
 
-Last Updated: 2026-03-13
+Last Updated: 2026-03-14
 
-20 active patches targeting verified security vulnerabilities in iccDEV library code,
+21 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 19 patches are applied directly to the source code.
+**On the `cfl` branch**: All patches are applied directly to the source code.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
-## Active Patches (20)
+## Active Patches (21)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
@@ -36,6 +36,7 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
 | 020 | `020-sampledcalculatorcurve-begin-channel-validation.patch` | SBO in Apply() via single-float stack buffer when NumOutputChannels > 1 | CWE-121 | IccMpeBasic.cpp |
+| 021 | `021-singlesampled-curve-oom-size-validation.patch` | OOM DoS: SetSize() allocates before validating m_nCount against stream size | CWE-770 | IccMpeBasic.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
@@ -100,6 +101,38 @@ printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tm
 **PoC profile**: `test-profiles/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc`
 (2,980-byte profile with CIccSampledCalculatorCurve where calculator has > 1 output channel)
 
+### CFL-021 Detail — OOM in CIccSingleSampledCurve::Read
+
+**Bug**: `CIccSingleSampledCurve::Read()` at IccMpeBasic.cpp:1638 calls
+`SetSize(m_nCount, false)` which does `malloc(nCount * sizeof(icFloatNumber))` BEFORE
+validating `m_nCount` against `size - headerSize`. A crafted ICC profile with
+`m_nCount = 0xEB001000` (~3.9 billion) triggers a 14.7 GB allocation attempt, causing
+ASAN OOM abort (or system-level memory exhaustion without ASAN).
+
+**Root cause**: The size validation check at line 1641 (`m_nCount > size - headerSize`)
+is correct but occurs AFTER the allocation. Compare with `CIccSampledCurveSegment::Read()`
+at line 1095 which correctly validates BEFORE allocating.
+
+**Call chain**:
+1. `ReadIccProfile()` → `CIccProfile::Read()` → `LoadTag()`
+2. `CIccTagMultiProcessElement::Read()` → iterates MPE sub-elements
+3. `CIccMpeCalculator::Read()` → `CIccMpeCurveSet::Read()`
+4. `CIccSingleSampledCurve::Read()` → reads `m_nCount` from file (uint32)
+5. `SetSize(m_nCount, false)` → `malloc(3942649856 * 4)` → OOM
+
+**Fix**: Reorder: move `m_nCount > size - headerSize` check before `SetSize()` call.
+
+**Affected tools**: All tools that read ICC profiles with MPE CurveSet elements —
+`iccRoundTrip`, `iccDumpProfile`, `iccToXml`, `iccApplyProfiles`, `iccApplyNamedCmm`.
+
+**1-liner reproduction** (from repo root):
+```bash
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=1 iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip afl/afl-roundtrip/output/default/crashes/id:000000,sig:06,src:000003,time:39750,execs:17510,op:quick,pos:924
+```
+
+**PoC profile**: AFL-generated mutant from xnuimagetools-extracted ICC seed
+(33,924-byte profile with CIccSingleSampledCurve element declaring ~4B sample count)
+
 ## CWE Distribution
 
 | CWE | Count | Category |
@@ -116,6 +149,7 @@ printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tm
 | CWE-170 | 1 | Missing Null Termination |
 | CWE-908 | 1 | Uninitialized Resource |
 | CWE-20 | 1 | Improper Input Validation |
+| CWE-770 | 1 | Allocation of Resources Without Limits |
 
 ## Patch Lifecycle
 
