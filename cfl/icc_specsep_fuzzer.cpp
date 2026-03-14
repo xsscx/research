@@ -88,6 +88,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstring>
+#include <cmath>
 #include <memory>
 #include <vector>
 #include <new>
@@ -220,8 +221,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 infiles[i].GetHeight() != infiles[0].GetHeight() ||
                 infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
                 infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
-                infiles[i].GetXRes() != infiles[0].GetXRes() ||
-                infiles[i].GetYRes() != infiles[0].GetYRes())
+                fabsf(infiles[i].GetXRes() - infiles[0].GetXRes()) > 0.001f ||
+                fabsf(infiles[i].GetYRes() - infiles[0].GetYRes()) > 0.001f)
                 return 0;
         }
     }
