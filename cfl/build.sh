@@ -131,6 +131,9 @@ echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 # --- Step 1b: Apply CFL patches (if any) ---
 # Legacy 62-patch kit retired March 2026 (see patches-retired/).
 # New patches (CFL-001+) fix verified upstream bugs with minimal, targeted fixes.
+# Reset working tree to clean state before applying patches (prevents conflicts
+# from previously-applied patches when line numbers shift between builds).
+(cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
 PATCH_DIR="$SCRIPT_DIR/patches"
 if [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
   PATCH_OK=0
