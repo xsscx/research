@@ -178,7 +178,7 @@ cd colorbleed_tools && make setup && make
 cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
 cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
   -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
-make -j24
+make -j$(nproc)
 ```
 
 ### iccDEV Tools — Source of Truth
@@ -209,7 +209,7 @@ cmake Cmake \
   -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
   -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
   -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate"
-make -j24
+make -j$(nproc)
 
 # Run upstream tool against a PoC (catch-and-continue for full chain)
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
