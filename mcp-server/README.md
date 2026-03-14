@@ -31,7 +31,7 @@ ICC color profiles control how colors are translated between devices (cameras, m
 **You say:**
 > "Analyze the security of the CVE-2022-26730 proof-of-concept profile"
 
-**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 150-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
+**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 153-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
 
 ---
 
@@ -60,7 +60,7 @@ curl -s http://127.0.0.1:8080/api/health
 # List available profiles
 curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
-# 150-heuristic security scan
+# 153-heuristic security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 
 # Structural inspection
@@ -114,7 +114,7 @@ Ten pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
 
 | Prompt | Purpose | Variables |
 |---|---|---|
-| `analyze-icc-profile` | Full 150-heuristic security scan | `{{profile_path}}` |
+| `analyze-icc-profile` | Full 153-heuristic security scan | `{{profile_path}}` |
 | `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
 | `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
 | `triage-fuzzer-crash` | ASAN/UBSAN crash triage workflow | (none) |
@@ -246,7 +246,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 |---|------|------|-------------|
 | 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 3 | `analyze_security` | Analysis | 150-heuristic security scan (H1–H150) |
+| 3 | `analyze_security` | Analysis | 153-heuristic security scan (H1–H153) |
 | 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | Analysis | All modes combined in one pass |
 | 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
@@ -276,7 +276,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 | `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 22}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `path` | 150-heuristic security scan |
+| `GET` | `/api/security` | `path` | 153-heuristic security scan |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
