@@ -210,7 +210,7 @@ PoC: #577.
 
 ## CVE Coverage (93 iccDEV Advisories)
 
-52 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across the 93 iccDEV
+52 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique) across the 93 iccDEV
 security advisories. Use `./iccanalyzer-lite --registry | jq` for authoritative counts.
 All 25 XML parser/serializer advisories are now in-scope via H142-H145.
 All 93 advisories are in scope (iccFromCube mapped to H34).
