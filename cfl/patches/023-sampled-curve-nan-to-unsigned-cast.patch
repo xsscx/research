@@ -1,0 +1,51 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7b5977a..257a844 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -1196,12 +1196,17 @@ bool CIccSampledCurveSegment::Begin(CIccCurveSegment *pPrevSeg = NULL)
+  ******************************************************************************/
+ icFloatNumber CIccSampledCurveSegment::Apply(icFloatNumber v) const
+ {
++  // CFL-023: NaN bypasses ordered comparisons — clamp explicitly
++  if (std::isnan(v) || std::isinf(v))
++    return 0.0;
+   if (v<m_startPoint)
+     v=m_startPoint;
+   else if (v>m_endPoint)
+     v=m_endPoint;
+ 
+   icFloatNumber pos = (v-m_startPoint)/m_range * m_last;
++  if (std::isnan(pos) || std::isinf(pos) || pos < 0.0)
++    return m_pSamples ? m_pSamples[0] : 0.0f;
+   icUInt32Number index = (icUInt32Number) pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
+@@ -1818,6 +1823,9 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
+   }
+ 
+   icFloatNumber pos = (v-m_firstEntry)/m_range * m_last;
++  // CFL-023: Guard pos against NaN/Inf/negative before unsigned cast
++  if (std::isnan(pos) || std::isinf(pos) || pos < 0.0)
++    return m_pSamples ? m_pSamples[0] : 0.0f;
+   icUInt32Number index = (icUInt32Number) pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 
+@@ -2420,6 +2428,9 @@ bool CIccSampledCalculatorCurve::Begin(icElemInterp nInterp, CIccTagMultiProcess
+ ******************************************************************************/
+ icFloatNumber CIccSampledCalculatorCurve::Apply(icFloatNumber v) const
+ {
++  // CFL-023: NaN/Inf bypass ordered comparisons — guard before cast
++  if (std::isnan(v) || std::isinf(v))
++    return 0.0;
+   if (v < m_firstEntry) {
+     return m_loSlope * v + m_loIntercept;;
+   }
+@@ -2428,6 +2439,8 @@ icFloatNumber CIccSampledCalculatorCurve::Apply(icFloatNumber v) const
+   }
+ 
+   icFloatNumber pos = (v - m_firstEntry) / m_range * m_last;
++  if (std::isnan(pos) || std::isinf(pos) || pos < 0.0)
++    return m_pSamples ? m_pSamples[0] : 0.0f;
+   icUInt32Number index = (icUInt32Number)pos;
+   icFloatNumber remainder = pos - (icFloatNumber)index;
+ 

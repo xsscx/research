@@ -1,0 +1,55 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index 0b2f871..3342ca4 100644
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -1507,21 +1507,41 @@ void CIccTagArray::Cleanup()
+   icUInt32Number i, j;
+   CIccTag* pTag;
+ 
+-  for (i=0; i<m_nSize; i++) {
+-    pTag = m_TagVals[i].ptr;
++  // CFL-024: Guard against double-cleanup and use-after-free (CWE-416).
++  // When the object itself is freed, ASAN fills members with 0xbe:
++  //   m_TagVals = 0xbebebebebebebebe (non-null but invalid)
++  //   m_nSize   = 0xbebebebe = 3.2 billion (unreasonable)
++  // The size sanity check catches this pattern.
++  if (!m_TagVals || m_nSize == 0 || m_nSize > 100000) {
++    m_nSize = 0;
++    m_TagVals = nullptr;
++    if (m_pArray)
++      delete m_pArray;
++    m_pArray = NULL;
++    m_sigArrayType = icSigUndefinedArray;
++    return;
++  }
++
++  // Claim-then-clear: prevent re-entrant cleanup if a tag destructor
++  // triggers another Cleanup() call on this same object.
++  IccTagPtr* tagVals = m_TagVals;
++  icUInt32Number nSize = m_nSize;
++  m_TagVals = nullptr;
++  m_nSize = 0;
++
++  for (i=0; i<nSize; i++) {
++    pTag = tagVals[i].ptr;
+     if (pTag) {
+-      for (j=i+1; j<m_nSize; j++) {
+-        if (m_TagVals[j].ptr == pTag)
+-          m_TagVals[j].ptr = NULL;
++      for (j=i+1; j<nSize; j++) {
++        if (tagVals[j].ptr == pTag)
++          tagVals[j].ptr = NULL;
+       }
+       delete pTag;
+-      m_TagVals[i].ptr = NULL;
++      tagVals[i].ptr = NULL;
+     }
+   }
+ 
+-  if (m_TagVals)
+-    free(m_TagVals);
+-  m_TagVals = nullptr;
++  free(tagVals);
+ 
+   if (m_pArray)
+     delete m_pArray;
