@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsRegistry.h — Metadata registry for all 150 heuristics
+ * IccHeuristicsRegistry.h — Metadata registry for all 151 heuristics
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -228,6 +228,9 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   // ── TIFF Image Security (extended) ──
   {149, "TIFF IFD Chain Cycle Detection",         nullptr, "CWE-835", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::HIGH},
   {150, "TIFF Tile Geometry Validation",           nullptr, "CWE-122", nullptr, HeuristicPhase::IMAGE, HeuristicSeverity::CRITICAL},
+
+  // --- CALCULATOR OPERATOR ENUM VALIDATION (H151) ---
+  {151, "Calculator Operator Enum Validation",    "§10.26","CWE-681", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
