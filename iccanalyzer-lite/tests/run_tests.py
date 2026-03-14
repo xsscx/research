@@ -1057,6 +1057,18 @@ def test_tiff_analysis(suite):
         ["-a", tiff], r"\[H141\].*IFD"
     )
 
+    # H149 IFD chain cycle detection should run
+    suite.assert_output_contains(
+        "tiff.h149_runs",
+        ["-a", tiff], r"\[H149\].*IFD Chain Cycle"
+    )
+
+    # H150 tile geometry validation should run
+    suite.assert_output_contains(
+        "tiff.h150_runs",
+        ["-a", tiff], r"\[H150\].*Tile Geometry"
+    )
+
     # Should extract and analyze embedded ICC profile
     suite.assert_output_contains(
         "tiff.icc_extraction",
@@ -1065,6 +1077,52 @@ def test_tiff_analysis(suite):
 
     # ASAN clean
     suite.assert_no_asan("tiff.asan_clean", ["-a", tiff])
+
+
+def test_tiff_corrupt(suite):
+    """Test TIFF analysis when TIFFOpen fails (corrupt/truncated file)."""
+    corrupt_path = CORPUS_DIR / "corrupt_truncated.tif"
+    if not corrupt_path.exists():
+        return
+
+    corrupt = str(corrupt_path)
+
+    # Should detect TIFF format and attempt analysis
+    suite.assert_output_contains(
+        "tiff_corrupt.detects_format",
+        ["-a", corrupt], r"IMAGE FILE ANALYSIS.*TIFF"
+    )
+
+    # Should report CWE-20 for TIFFOpen failure
+    suite.assert_output_contains(
+        "tiff_corrupt.cwe20_tiffopen",
+        ["-a", corrupt], r"CRIT.*Cannot open TIFF.*TIFFOpen failed"
+    )
+
+    # H149 should still run (uses raw file I/O, not TIFF handle)
+    suite.assert_output_contains(
+        "tiff_corrupt.h149_runs",
+        ["-a", corrupt], r"\[H149\].*IFD Chain Cycle"
+    )
+
+    # H139/H140/H141/H150 should SKIP (require valid TIFF handle)
+    suite.assert_output_contains(
+        "tiff_corrupt.h139_skips",
+        ["-a", corrupt], r"\[H139\].*Strip Geometry"
+    )
+    suite.assert_output_contains(
+        "tiff_corrupt.h139_skip_msg",
+        ["-a", corrupt], r"\[SKIP\].*Requires parseable TIFF"
+    )
+
+    # Should output IMAGE ANALYSIS SUMMARY
+    suite.assert_output_contains(
+        "tiff_corrupt.summary",
+        ["-a", corrupt], r"IMAGE ANALYSIS SUMMARY"
+    )
+
+    # ASAN clean
+    suite.assert_no_asan("tiff_corrupt.asan_clean", ["-a", corrupt])
 
 
 def test_html_xml_output(suite):
@@ -1331,6 +1389,7 @@ def main():
         ("JSON Output", test_json_output),
         ("Registry Output", test_registry_output),
         ("TIFF Analysis", test_tiff_analysis),
+        ("TIFF Corrupt", test_tiff_corrupt),
         ("HTML/XML Output", test_html_xml_output),
         ("Report Output", test_report_output),
         ("Extended Profiles", test_extended_profiles_coverage),
