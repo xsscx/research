@@ -14,6 +14,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `.venv/bin/pip install -e .` ∥ `.venv/bin/python web_ui.py` |
 | **fuzz/** | [fuzz.instructions.md](instructions/fuzz.instructions.md) | Seed corpus (input data only) |
 | **colorbleed_tools/** | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) | `make setup && make` |
+| **afl/** | [afl.instructions.md](instructions/afl.instructions.md) | `./afl/build.sh` ∥ `./afl/start.sh dump` |
 | **call-graph/** | [call-graph.instructions.md](instructions/call-graph.instructions.md) | `python3 scripts/generate-callgraphs.py` |
 | Multi-agent coordination | [multi-agent.instructions.md](instructions/multi-agent.instructions.md) | Platform detection, handoff protocols |
 
@@ -665,6 +666,98 @@ FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
 .github/scripts/unbundle-fuzzer-input.sh applyprofiles <crash-file>
 # Extracts profiles to ./tmp/icc_<fuzzer>/, runs tool if found in iccDEV/Build/Tools/
 ```
+
+## AFL++ Fuzzing (Tool-Level)
+
+AFL++ fuzzes the **actual upstream iccDEV CLI tools** (no harness wrapper) with ASAN+UBSAN instrumentation.
+See [afl.instructions.md](instructions/afl.instructions.md) for full details.
+
+```bash
+# Build AFL-instrumented iccDEV tools (14 binaries → afl/bin/)
+./afl/build.sh
+
+# Start a single fuzzer (interactive UI)
+./afl/start.sh dump            # iccDumpProfile
+./afl/start.sh toxml           # iccToXml
+./afl/start.sh fromxml         # iccFromXml
+./afl/start.sh roundtrip       # iccRoundTrip
+./afl/start.sh tiffdump        # iccTiffDump
+./afl/start.sh jpegdump        # iccJpegDump
+./afl/start.sh pngdump         # iccPngDump
+./afl/start.sh fromcube        # iccFromCube
+./afl/start.sh search          # iccApplySearch
+
+# Parallel instances
+./afl/start.sh dump --parallel 4
+
+# Monitor / stop
+./afl/status.sh                # all targets
+./afl/status.sh dump           # specific target
+./afl/stop.sh dump             # stop specific
+./afl/stop.sh                  # stop all
+
+# Triage crashes against unpatched upstream
+./afl/triage.sh dump
+```
+
+**CFL vs AFL distinction**: CFL fuzzers (`cfl/`) use LibFuzzer with in-process harnesses
+and 20 security patches applied. AFL fuzzers (`afl/`) test the unpatched upstream tools
+directly via `afl-fuzz`. Both share seed corpora and dictionaries from `cfl/`.
+
+## Single-Test Commands
+
+Run individual tests without the full suite:
+
+```bash
+# iccanalyzer-lite — single profile
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+  ./iccanalyzer-lite/iccanalyzer-lite -a test-profiles/sRGB_D65_MAT-500lx.icc
+
+# iccanalyzer-lite — single test by name (grep output for specific test)
+python3 iccanalyzer-lite/tests/run_tests.py 2>&1 | grep -A2 "test_srgb"
+
+# CFL — single fuzzer smoke test (60s)
+ASAN_OPTIONS=detect_leaks=0 cfl/bin/icc_dump_fuzzer \
+  -max_total_time=60 -timeout=30 -rss_limit_mb=4096 \
+  cfl/corpus-icc_dump_fuzzer/
+
+# AFL — single target smoke test (60s, headless)
+AFL_NO_UI=1 afl-fuzz -i afl/afl-dump/input -o /tmp/afl-test \
+  -m none -t 5000 -V 60 \
+  -- afl/bin/iccDumpProfile @@ ALL
+
+# MCP server — single test file
+cd mcp-server && .venv/bin/python -m pytest test_mcp.py -k "test_health" -v
+cd mcp-server && .venv/bin/python -m pytest test_web_ui.py -k "test_upload" -v
+
+# MCP server — all tests
+cd mcp-server && .venv/bin/python test_mcp.py    # 1816+ tests
+cd mcp-server && .venv/bin/python test_web_ui.py  # 256 tests
+
+# iccDEV upstream tool — single profile
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+  iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile test-profiles/sRGB_D65_MAT-500lx.icc ALL
+
+# CodeQL — run a single query
+gh codeql query run iccanalyzer-lite/codeql-queries/buffer-overflow.ql \
+  -d /tmp/codeql-db-analyzer --output=/tmp/single-query.bqrs
+```
+
+## Fuzzer → Tool Scope Mapping
+
+| Fuzzer(s) | Upstream Tool | API Surface |
+|-----------|--------------|-------------|
+| dump | IccDumpProfile | Describe, Validate, FindTag |
+| roundtrip | IccRoundTrip | Read, Write, EvaluateProfile |
+| fromxml, toxml | IccFromXml, IccToXml | LoadXml, ToXml, Validate |
+| fromcube | IccFromCube | CUBE LUT import pipeline |
+| tiffdump | IccTiffDump | CTiffImg, OpenIccProfile, FindTag |
+| jpegdump | IccJpegDump | JPEG APP2 ICC_PROFILE extraction |
+| pngdump | IccPngDump | PNG iCCP chunk ICC extraction |
+| search | IccApplySearch | CIccCmm search/optimization |
+
+CFL fuzzers cover additional scope — see `cfl.instructions.md` for the full 12-fuzzer matrix.
 
 ## MCP Server
 

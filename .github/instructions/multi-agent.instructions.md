@@ -113,6 +113,44 @@ curl -s "http://localhost:8080/api/security-json?path=<uploaded_path>"
 curl -s "http://localhost:8080/api/full?path=<uploaded_path>"
 ```
 
+## Copilot CLI Agent Setup (Bare-Metal Linux / Hyper-V)
+
+The Copilot CLI agent runs directly on the bare-metal Hyper-V VM alongside
+other agents. It has full access to all tools and can perform fuzzing,
+analysis, and documentation tasks.
+
+### Platform Details
+- **OS**: Ubuntu 24.04.4 LTS, 24 cores, 16GB RAM (dynamic), 512GB NVMe
+- **User**: `xss` — home `/home/xss`, repo at `~/research`
+- **Model**: Claude Opus 4.6 (model ID: `claude-opus-4.6`)
+- **Shell**: Interactive bash with persistent sessions
+- **Tools**: git, curl, gh, Python 3.12, clang-18, cmake, AFL++ 4.40c
+
+### Pre-Built Binaries (available without building)
+- `iccanalyzer-lite/iccanalyzer-lite` — 150-heuristic security analyzer (ASAN+UBSAN)
+- `cfl/bin/icc_*_fuzzer` — 12 LibFuzzer harnesses
+- `afl/bin/icc*` — 14 AFL-instrumented iccDEV tools + shared libs
+- `colorbleed_tools/icc{To,From}Xml_unsafe` — unsafe ICC↔XML converters
+- `mcp-server/.venv/bin/python` — MCP server Python venv
+
+### AFL++ Fuzzing Capabilities
+The Copilot CLI agent can run AFL++ tool-level fuzzing alongside CFL LibFuzzer campaigns:
+```bash
+# Start AFL fuzzer (9 targets available)
+./afl/start.sh dump|toxml|fromxml|roundtrip|tiffdump|jpegdump|pngdump|fromcube|search
+
+# Monitor and triage
+./afl/status.sh && ./afl/triage.sh <target>
+```
+
+### Agent-to-Agent Handoff
+When handing off work to/from the Copilot CLI agent:
+- **Incoming**: Check `git --no-pager log --oneline -10` for recent changes from other agents
+- **Outgoing**: Commit with `[cli]` scope prefix (e.g., `[cli] add JPEG seeds for AFL jpegdump`)
+- **Shared files**: Always `git pull` before editing `.github/instructions/`, `.github/prompts/`
+- **Fuzzer artifacts**: AFL crashes go in `afl/afl-*/output/default/crashes/`,
+  CFL crashes go in repo root as `crash-*` files
+
 ## Cloud CI Agent Setup
 
 The cloud agent runs in Docker via `copilot-setup-steps.yml`. Binaries are pre-built.
@@ -128,25 +166,26 @@ Pre-built binaries:
 ### Git-Based Flow (Default)
 
 ```
-macOS Agent                    WSL-2 Agent                  Cloud CI
-────────────                   ──────────                   ────────
+macOS Agent                    WSL-2 Agent                  Copilot CLI         Cloud CI
+────────────                   ──────────                   ───────────         ────────
 iOS Image Generator ──→ fuzz/graphics/icc/ios-gen-*
 xnuimagefuzzer      ──→ fuzz/graphics/tif/xig-*
                               │
-                              ├─ git push ─────────────────→ CI triggers
-                              │                              CodeQL scan
-                              ▼                              Docker build
+                              ├─ git push ──────────────────────────────────→ CI triggers
+                              │                                               CodeQL scan
+                              ▼                                               Docker build
                          WSL-2 pulls ──→ Seeds into
                          cfl/corpus-*/
                               │
                          Fuzzing campaign ──→ crash-*.icc
                          Analysis ──→ analysis-reports/
                               │
-                              ├─ git push ─────────────────→ CI triggers
-                              ▼
-macOS pulls ──→ Test crashes
-               against ColorSync
-               sips / ImageIO
+                              ├─ git push ──────────────────────────────────→ CI triggers
+                              ▼                              ▼
+macOS pulls ──→ Test crashes               Copilot CLI pulls ──→
+               against ColorSync           AFL++ tool-level fuzzing
+               sips / ImageIO              Seed creation + docs
+                                           Dict consolidation
 ```
 
 ### MCP Docker API Flow (Remote Analysis — Reduced Commit Traffic)
@@ -339,6 +378,8 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 Types:
 - `analysis:` — Profile analysis reports
 - `cfl:` — Fuzzer seeds, patches, dictionaries
+- `afl:` — AFL++ fuzzer changes, seeds, triage
+- `cli:` — Copilot CLI agent changes (seeds, docs, testing)
 - `coverage:` — Coverage data updates
 - `fuzz:` — Corpus additions to fuzz/
 - `docs:` — Documentation, prompts, instructions
