@@ -1,0 +1,16 @@
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -3178,6 +3178,14 @@ void CIccCLUT::InterpND(icFloatNumber *destPixel, const icFloatNumber *srcPixel,
+ {
+   icUInt32Number i,j, index = 0;
++
++  // CFL-025: Guard against null pApply from GetNewApply() failure.
++  // GetNewApply() returns NULL when m_nInput==0 or m_nNodes==0 (Init fails).
++  // Without this guard, pApply->m_df dereferences null → CWE-476 crash.
++  if (!pApply || !destPixel || !srcPixel || m_nInput == 0 || !m_pData) {
++    return;
++  }
++
+   icFloatNumber* df = pApply->m_df;
+   icFloatNumber* g = pApply->m_g;
+   icFloatNumber* s = pApply->m_s;
