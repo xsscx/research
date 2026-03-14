@@ -622,6 +622,50 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
   }
   printf("\n");
 
+  // H152: SingleSampledCurve OOM size validation (CWE-770).
+  // Full-file scan — sngf elements can be deeply nested in calc sub-elements
+  // beyond the kMaxTagDataScan (4KB) per-tag scan window.
+  // CIccSingleSampledCurve::Read() at IccMpeBasic.cpp:1638 calls
+  // SetSize(m_nCount) → malloc(nCount*4) BEFORE checking nCount against
+  // remaining stream size. CFL-021 patches this.
+  // sngf = 0x736E6766 (icSigSingleSampledCurve)
+  // Layout: sig(4) + reserved(4) + nCount(4) + ...
+  {
+    RawFileHandle fh152 = OpenRawFile(filename);
+    if (fh152) {
+      size_t fs152 = (size_t)fh152.fileSize;
+      if (fs152 > 12) {
+        std::vector<icUInt8Number> buf152(fs152);
+        if (fread(buf152.data(), 1, fs152, fh152.fp) == fs152) {
+          int oomIssues = 0;
+          for (size_t b = 0; b + 11 < fs152; b++) {
+            icUInt32Number w = ReadU32BE(&buf152[b]);
+            if (w != 0x736E6766) continue;  // 'sngf'
+
+            icUInt32Number nCount = ReadU32BE(&buf152[b + 8]);
+            uint64_t allocBytes = (uint64_t)nCount * 4;
+            size_t remaining = fs152 - b - 12;
+
+            if (allocBytes > 256 * 1024 * 1024 || allocBytes > remaining * 64) {
+              printf("      %s[CRITICAL] SingleSampledCurve at offset 0x%zX: nCount=%u → "
+                     "%.1f GB allocation (file has %zu bytes remaining)%s\n",
+                     ColorCritical(), b, nCount,
+                     (double)allocBytes / (1024.0 * 1024.0 * 1024.0),
+                     remaining, ColorReset());
+              printf("       %sCWE-770: Allocation without limits — OOM abort "
+                     "(IccMpeBasic.cpp:1638, CFL-021 fix)%s\n",
+                     ColorCritical(), ColorReset());
+              oomIssues++;
+            }
+          }
+          if (oomIssues > 0) {
+            heuristicCount += oomIssues;
+          }
+        }
+      }
+    }
+  }
+
   return heuristicCount;
 }
 
