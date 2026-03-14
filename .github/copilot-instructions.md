@@ -1055,7 +1055,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 
 ### CFL patch workflow
 See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
-NO-OP management, and reproducer testing. Next patch number: **023**.
+NO-OP management, and reproducer testing. Next patch number: **027**.
 
 ### Crash reproducer testing
 ```bash

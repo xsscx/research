@@ -88,10 +88,14 @@ for historical reference.
 | 020 | SampledCalculatorCurve Begin channel validation | Begin() uses single-float dst/src but Apply() writes NumOutputChannels() | CWE-121 | IccMpeCalc.cpp |
 | 021 | Calculator enum UBSAN trunc/floor | Enum out-of-range for icSigTruncateOp and icSigFloorOp | CWE-681 | IccMpeCalc.cpp |
 | 022 | Calc Trunc/Floor/Ceil/Round int overflow | Large float→int cast in 4 calculator ops | CWE-681 | IccMpeCalc.cpp |
+| 023 | Sampled curve NaN-to-unsigned cast | 3 Apply() NaN→unsigned casts in IccMpeBasic.cpp | CWE-681 | IccMpeBasic.cpp |
+| 024 | TagArray Cleanup UAF guard | m_nSize>100K check prevents freed-object access in Cleanup() | CWE-416 | IccTagComposite.cpp |
+| 025 | CLUT InterpNd null Apply guard | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
+| 026 | TagArray copy/assign UAF guard | Freed-object access in copy constructor + operator= (CWE-416) | CWE-416 | IccTagComposite.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **023**)
-- 18 active patches (CFL-001 through CFL-022, with 012/013/015/016 retired)
+- Numbering: zero-padded 3-digit, sequential (next: **027**)
+- 22 active patches (CFL-001 through CFL-026, with 012/013/015/016 retired)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
