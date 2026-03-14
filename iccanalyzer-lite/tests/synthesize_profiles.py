@@ -993,6 +993,284 @@ def synth_calculator_deep_nesting():
     return bytes(profile)
 
 
+def synth_mluc_bidi_override():
+    """mluc tag with Unicode bidi override characters (U+200B-U+206F).
+    Triggers H86 bidi text injection detection (CWE-116)."""
+    # Build mluc with U+202E (RIGHT-TO-LEFT OVERRIDE) embedded in text
+    text_chars = "Test \u202Eprofile\u202C name"  # RLO ... PDF
+    utf16 = text_chars.encode("utf-16-be")
+    record_size = 12
+    string_offset = 16 + record_size
+    mluc = b"mluc" + b"\x00" * 4
+    mluc += struct.pack(">II", 1, record_size)
+    mluc += b"enUS"
+    mluc += struct.pack(">II", len(utf16), string_offset)
+    mluc += utf16
+    while len(mluc) % 4:
+        mluc += b"\x00"
+
+    tags = [
+        (b"desc", mluc),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+    ]
+    return build_profile(tags)
+
+
+def synth_mluc_mixed_scripts():
+    """mluc tag mixing Latin and CJK characters.
+    Triggers H86 mixed-script detection (CWE-116)."""
+    text_chars = "sRGB \u534F\u5B9A Profile"  # 协定 = Chinese chars
+    utf16 = text_chars.encode("utf-16-be")
+    record_size = 12
+    string_offset = 16 + record_size
+    mluc = b"mluc" + b"\x00" * 4
+    mluc += struct.pack(">II", 1, record_size)
+    mluc += b"enUS"
+    mluc += struct.pack(">II", len(utf16), string_offset)
+    mluc += utf16
+    while len(mluc) % 4:
+        mluc += b"\x00"
+
+    tags = [
+        (b"desc", mluc),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+    ]
+    return build_profile(tags)
+
+
+def synth_mluc_control_chars():
+    """mluc tag with C0 control characters in text.
+    Triggers H86 control character injection detection (CWE-116)."""
+    # Build mluc with control chars manually (U+0001, U+0007 BEL, U+001B ESC)
+    text = "Test\x01Prof\x07ile\x1BName"
+    utf16 = text.encode("utf-16-be")
+    record_size = 12
+    string_offset = 16 + record_size
+    mluc = b"mluc" + b"\x00" * 4
+    mluc += struct.pack(">II", 1, record_size)
+    mluc += b"enUS"
+    mluc += struct.pack(">II", len(utf16), string_offset)
+    mluc += utf16
+    while len(mluc) % 4:
+        mluc += b"\x00"
+
+    tags = [
+        (b"desc", mluc),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+    ]
+    return build_profile(tags)
+
+
+def synth_mluc_embedded_nulls():
+    """mluc tag with embedded null characters (not just terminator).
+    Triggers H86 embedded null / string truncation detection (CWE-170)."""
+    # "Test\x00\x00Hidden\x00\x00Data" — nulls in middle, not just at end
+    raw_utf16 = b"\x00T\x00e\x00s\x00t\x00\x00\x00\x00\x00H\x00i\x00d\x00d\x00e\x00n"
+    record_size = 12
+    string_offset = 16 + record_size
+    mluc = b"mluc" + b"\x00" * 4
+    mluc += struct.pack(">II", 1, record_size)
+    mluc += b"enUS"
+    mluc += struct.pack(">II", len(raw_utf16), string_offset)
+    mluc += raw_utf16
+    while len(mluc) % 4:
+        mluc += b"\x00"
+
+    tags = [
+        (b"desc", mluc),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+    ]
+    return build_profile(tags)
+
+
+def synth_lut_null_clut():
+    """AToB0 LUT tag with curves but NO CLUT data.
+    Triggers H147 null CLUT detection (CWE-476, IccTagLut.cpp:3181).
+    mAB type: type sig + reserved + inputChans + outputChans + padding
+    + offsets (B curves, matrix, M curves, CLUT, A curves).
+    Set CLUT offset to 0 = absent."""
+    # mAB tag: input=3, output=3, CLUT offset=0 (null CLUT)
+    mab = bytearray()
+    mab += b"mAB " + b"\x00" * 4  # type sig + reserved
+    mab += struct.pack(">BB", 3, 3)  # inputChans, outputChans
+    mab += b"\x00\x00"  # padding
+    # Offsets: B curves, matrix, M curves, CLUT, A curves
+    # B curves at offset 32 (right after header), all others 0
+    b_offset = 32
+    mab += struct.pack(">IIIII", b_offset, 0, 0, 0, 0)
+    # B curves: 3 identity curves (curveType with 0 entries = identity)
+    for _ in range(3):
+        mab += b"curv" + b"\x00" * 4 + struct.pack(">I", 0)
+    while len(mab) % 4:
+        mab += b"\x00"
+
+    tags = [
+        (b"desc", make_mluc_tag("Null CLUT Test")),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"A2B0", bytes(mab)),
+    ]
+    return build_profile(tags)
+
+
+def synth_lut_degenerate_clut():
+    """AToB0 LUT tag with a CLUT that has 0 grid points.
+    Triggers H147 degenerate CLUT detection (CWE-476).
+    Uses mft2 (lut16Type) format for simpler construction."""
+    # lut16Type: 'mft2' + reserved + inputChan + outputChan + clutGridPts + padding
+    # + 3x3 matrix + inputTableEntries + outputTableEntries
+    # + input tables + CLUT + output tables
+    mft2 = bytearray()
+    mft2 += b"mft2" + b"\x00" * 4  # type + reserved
+    mft2 += struct.pack(">BBB", 3, 3, 0)  # in=3, out=3, gridPts=0 (degenerate!)
+    mft2 += b"\x00"  # padding
+    # 3x3 identity matrix (s15Fixed16Number)
+    for r in range(3):
+        for c in range(3):
+            val = 1.0 if r == c else 0.0
+            mft2 += struct.pack(">i", int(val * 65536))
+    # Input/output table entries
+    mft2 += struct.pack(">HH", 2, 2)  # 2 entries each
+    # Input tables: 3 channels × 2 entries
+    for _ in range(3):
+        mft2 += struct.pack(">HH", 0, 65535)
+    # CLUT: 0 grid points → 0^3 * 3 = 0 entries (empty)
+    # Output tables: 3 channels × 2 entries
+    for _ in range(3):
+        mft2 += struct.pack(">HH", 0, 65535)
+    while len(mft2) % 4:
+        mft2 += b"\x00"
+
+    tags = [
+        (b"desc", make_mluc_tag("Degenerate CLUT Test")),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"A2B0", bytes(mft2)),
+    ]
+    return build_profile(tags)
+
+
+def synth_calc_trunc_operator():
+    """Profile with calculator element containing trnc (truncate) operator.
+    Triggers H151 float→int cast operator detection (CWE-681).
+    Raw bytes match scanner layout:
+      calc(4) + reserved(4) + nInput(2) + nOutput(2) + nSubElem(4)
+      position table: (nSubElem+1) entries × (offset(4) + size(4))
+      channel function: sig('func',4) + reserved(4) + nOps(4) + ops[](sig(4)+data(4))
+    """
+    calc_elem = bytearray()
+    calc_elem += b"calc"                          # +0: type sig
+    calc_elem += b"\x00\x00\x00\x00"              # +4: reserved
+    calc_elem += struct.pack(">HH", 1, 1)         # +8: nInput=1, nOutput=1
+    calc_elem += struct.pack(">I", 0)             # +12: nSubElem=0
+    # Position table: (0+1=1) entry starting at +16
+    func_offset = 24  # relative to calc start: 16 (header) + 8 (1 pos entry) = 24
+    func_size = 28     # func header(12) + 2 ops × 8 = 28
+    calc_elem += struct.pack(">II", func_offset, func_size)  # +16: pos[0]
+    # Channel function at +24:
+    calc_elem += b"func"                          # +24: chanFuncSig = 'func'
+    calc_elem += b"\x00\x00\x00\x00"              # +28: reserved
+    calc_elem += struct.pack(">I", 2)             # +32: nOps=2
+    calc_elem += b"data" + b"\x00\x00\x00\x00"    # +36: op[0] = data push
+    calc_elem += b"trnc" + b"\x00\x00\x00\x00"    # +44: op[1] = TRUNCATE (dangerous!)
+    while len(calc_elem) % 4:
+        calc_elem += b"\x00"
+
+    # mpet wrapper
+    mpet = bytearray()
+    mpet += b"mpet" + b"\x00" * 4  # type + reserved
+    mpet += struct.pack(">HHI", 1, 1, 1)  # input=1, output=1, numElements=1
+    elem_data_start = 16 + 8  # header(16) + 1 pos entry(8) = 24
+    mpet += struct.pack(">II", elem_data_start, len(calc_elem))
+    mpet += calc_elem
+    while len(mpet) % 4:
+        mpet += b"\x00"
+
+    tags = [
+        (b"desc", make_mluc_tag("Calc Trunc Test")),
+        (b"cprt", make_mluc_tag("Copyright 2024")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"A2B0", bytes(mpet)),
+    ]
+    return build_profile(tags)
+
+
+def synth_tag_shared_pointers():
+    """Two different tag signatures pointing to the same data offset with mutable types.
+    Triggers H73 shared tag pointer detection for risky (non-immutable) types.
+    Uses raw profile construction to force shared offsets.
+    rTRC and gTRC share the same curve data — this is safe for immutable curv,
+    but we also share desc-like tags which are mutable → risky."""
+    desc_data = make_mluc_tag("Shared Pointer Test")
+    cprt_data = make_mluc_tag("Copyright 2024")
+    wtpt_data = make_xyz_tag(0.9505, 1.0, 1.089)
+    rXYZ_data = make_xyz_tag(0.4124, 0.2126, 0.0193)
+    gXYZ_data = make_xyz_tag(0.3576, 0.7152, 0.1192)
+    rTRC_data = make_curve_tag(gamma=2.2)
+
+    tag_count = 7  # desc, cprt, wtpt, rXYZ, gXYZ, rTRC, gTRC (gTRC shares rTRC)
+    header_size = 128
+    tag_table_size = 4 + tag_count * 12
+    data_start = header_size + tag_table_size
+    if data_start % 4:
+        data_start += 4 - (data_start % 4)
+
+    off_desc = data_start
+    off_cprt = off_desc + len(desc_data)
+    while off_cprt % 4:
+        off_cprt += 1
+    off_wtpt = off_cprt + len(cprt_data)
+    while off_wtpt % 4:
+        off_wtpt += 1
+    off_rXYZ = off_wtpt + len(wtpt_data)
+    while off_rXYZ % 4:
+        off_rXYZ += 1
+    off_gXYZ = off_rXYZ + len(rXYZ_data)
+    while off_gXYZ % 4:
+        off_gXYZ += 1
+    off_rTRC = off_gXYZ + len(gXYZ_data)
+    while off_rTRC % 4:
+        off_rTRC += 1
+    # gTRC intentionally shares rTRC offset (shared pointer — safe for curve)
+    off_gTRC = off_rTRC
+
+    total_size = off_rTRC + len(rTRC_data)
+    while total_size % 4:
+        total_size += 1
+
+    header = write_icc_header(total_size)
+    profile = bytearray(header)
+    # Tag table
+    profile += struct.pack(">I", tag_count)
+    profile += make_tag_entry(b"desc", off_desc, len(desc_data))
+    profile += make_tag_entry(b"cprt", off_cprt, len(cprt_data))
+    profile += make_tag_entry(b"wtpt", off_wtpt, len(wtpt_data))
+    profile += make_tag_entry(b"rXYZ", off_rXYZ, len(rXYZ_data))
+    profile += make_tag_entry(b"gXYZ", off_gXYZ, len(gXYZ_data))
+    profile += make_tag_entry(b"rTRC", off_rTRC, len(rTRC_data))
+    profile += make_tag_entry(b"gTRC", off_gTRC, len(rTRC_data))  # shared with rTRC!
+
+    # Pad to data start
+    while len(profile) < data_start:
+        profile += b"\x00"
+    # Write tag data in order
+    for off, data in [(off_desc, desc_data), (off_cprt, cprt_data),
+                       (off_wtpt, wtpt_data), (off_rXYZ, rXYZ_data),
+                       (off_gXYZ, gXYZ_data), (off_rTRC, rTRC_data)]:
+        while len(profile) < off:
+            profile += b"\x00"
+        profile += data
+    while len(profile) % 4:
+        profile += b"\x00"
+
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -1041,6 +1319,18 @@ def main():
         "named_color2_large_nsize.icc": synth_named_color2_large_nsize(),
         "xyz_large_array.icc": synth_xyz_large_array(),
         "calculator_deep_nesting.icc": synth_calculator_deep_nesting(),
+        # H86 Unicode content detection (CWE-116)
+        "mluc_bidi_override.icc": synth_mluc_bidi_override(),
+        "mluc_mixed_scripts.icc": synth_mluc_mixed_scripts(),
+        "mluc_control_chars.icc": synth_mluc_control_chars(),
+        "mluc_embedded_nulls.icc": synth_mluc_embedded_nulls(),
+        # H147 null/degenerate CLUT detection (CWE-476)
+        "lut_null_clut.icc": synth_lut_null_clut(),
+        "lut_degenerate_clut.icc": synth_lut_degenerate_clut(),
+        # H151 float→int cast operator detection (CWE-681)
+        "calc_trunc_operator.icc": synth_calc_trunc_operator(),
+        # H73 shared tag pointer detection (CWE-416)
+        "tag_shared_pointers.icc": synth_tag_shared_pointers(),
     }
 
     for name, data in profiles.items():

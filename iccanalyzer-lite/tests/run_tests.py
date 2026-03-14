@@ -621,6 +621,70 @@ def test_heuristic_detection(suite):
         r"153 heuristics"
     )
 
+    # --- H86 Unicode content detection tests (CWE-116) ---
+
+    # H86: bidi override characters in mluc text
+    suite.assert_output_contains(
+        "heuristic.h86_bidi_override",
+        ["-a", f"{corpus}/mluc_bidi_override.icc"],
+        r"bidi override.*formatting characters"
+    )
+
+    # H86: mixed Latin + non-Latin scripts
+    suite.assert_output_contains(
+        "heuristic.h86_mixed_scripts",
+        ["-a", f"{corpus}/mluc_mixed_scripts.icc"],
+        r"mixes Latin.*non-Latin scripts"
+    )
+
+    # H86: control characters in mluc text
+    suite.assert_output_contains(
+        "heuristic.h86_control_chars",
+        ["-a", f"{corpus}/mluc_control_chars.icc"],
+        r"non-printable control characters"
+    )
+
+    # H86: embedded null characters (string truncation)
+    suite.assert_output_contains(
+        "heuristic.h86_embedded_nulls",
+        ["-a", f"{corpus}/mluc_embedded_nulls.icc"],
+        r"embedded null characters"
+    )
+
+    # --- H147 null/degenerate CLUT detection tests (CWE-476) ---
+
+    # H147: null CLUT in AToB LUT tag
+    suite.assert_output_contains(
+        "heuristic.h147_null_clut",
+        ["-a", f"{corpus}/lut_null_clut.icc"],
+        r"null CLUT.*Apply\(\) will crash"
+    )
+
+    # H147: degenerate CLUT (0 grid points via pTag null)
+    suite.assert_output_contains(
+        "heuristic.h147_degenerate_clut",
+        ["-a", f"{corpus}/lut_degenerate_clut.icc"],
+        r"pTag pointer is null|gridPoints = 0"
+    )
+
+    # --- H151 float→int cast operator detection (CWE-681) ---
+
+    # H151: truncate operator in calculator element
+    suite.assert_output_contains(
+        "heuristic.h151_calc_trunc",
+        ["-a", f"{corpus}/calc_trunc_operator.icc"],
+        r"float-to-int cast operators.*trnc"
+    )
+
+    # --- H73 shared tag pointer detection ---
+
+    # H73: shared curve tag pointers (immutable type → safe)
+    suite.assert_output_contains(
+        "heuristic.h73_shared_pointers",
+        ["-a", f"{corpus}/tag_shared_pointers.icc"],
+        r"shared tag pair.*immutable.*safe"
+    )
+
 
 def test_runtime_safety(suite):
     """Test that CWE-400 profiles don't hang the analyzer (runtime cap validation).
