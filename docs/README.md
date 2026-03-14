@@ -19,6 +19,12 @@ Research documentation organized by topic.
 | [tiffimg/](tiffimg/) | CTiffImg code paths, analysis index, checklists | 7 |
 | [xnuimagefuzzer/](xnuimagefuzzer/) | ICC profile injection analysis, function reference | 2 |
 
+## ICC Format Reference
+
+| Directory | Contents | Files |
+|-----------|----------|-------|
+| [icc-format/](icc-format/) | ICC binary format specification, security patterns, CWE catalog | 1 |
+
 ## Analysis
 
 | Directory | Contents | Files |
@@ -28,6 +34,7 @@ Research documentation organized by topic.
 
 ## Quick Links
 
+- **ICC binary format reference**: [icc-format/ICC-Binary-Format-Reference.md](icc-format/ICC-Binary-Format-Reference.md)
 - **iccDEV tool reference**: [iccDEV/Tools/README.md](iccDEV/Tools/README.md)
 - **Build helpers (Unix)**: [iccDEV/shell-helpers/unix.md](iccDEV/shell-helpers/unix.md)
 - **Build helpers (Windows)**: [iccDEV/shell-helpers/windows.md](iccDEV/shell-helpers/windows.md)
