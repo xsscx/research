@@ -766,6 +766,33 @@ printf("[H73] TagArray/TagStruct Nesting Depth\n");
                  ColorCritical(), ColorReset());
           nestIssues++;
         }
+
+        // Detect shared pointers in TagArray — Cleanup() deduplicates via pointer
+        // comparison (m_TagVals[j].ptr == pTag) then deletes. If the dedup logic
+        // fails (e.g., freed object at 0xbebebebebebebebe), double-free occurs.
+        // Check if any two entries share the same tag object pointer.
+        int sharedPtrs = 0;
+        for (icUInt32Number i = 0; i < nSz && i < 100; i++) {
+          CIccTag *ci = ta->GetIndex(i);
+          if (!ci) continue;
+          for (icUInt32Number j = i + 1; j < nSz && j < 100; j++) {
+            CIccTag *cj = ta->GetIndex(j);
+            if (cj && ci == cj) {
+              sharedPtrs++;
+              break;
+            }
+          }
+        }
+        if (sharedPtrs > 0) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s': TagArray has %d shared tag pointers%s\n",
+                 ColorCritical(), info.GetTagSigName(sit->TagInfo.sig), sharedPtrs, ColorReset());
+          printf("       %sCWE-416: Shared pointers in Cleanup() dedup loop → "
+                 "double-free / use-after-free (IccTagComposite.cpp:1524)%s\n",
+                 ColorCritical(), ColorReset());
+          printf("       %sRef: CFL-024 patch — guard against freed-object access (0xbe pattern)%s\n",
+                 ColorCritical(), ColorReset());
+          nestIssues++;
+        }
       }
     }
   }
@@ -2834,6 +2861,43 @@ int RunHeuristic_H147_NullPointerAfterTagRead(CIccProfile *pIcc) {
         printf("       %sCWE-476: Null tag pointer in tag table — any access crashes%s\n",
                ColorCritical(), ColorReset());
         npdIssues++;
+      }
+    }
+
+    // Check LUT CLUT — GetCLUT() returns null when CLUT data is missing/invalid.
+    // CIccCLUT::InterpND() at IccTagLut.cpp:3181 dereferences pApply->m_df
+    // without null check. If GetNewApply() fails (null CLUT, 0 grid points,
+    // 0 input channels), pApply is null → NPD. CWE-476.
+    icTagSignature clutLutTags[] = {
+      icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+      icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+      (icTagSignature)0
+    };
+    for (int t = 0; clutLutTags[t] != (icTagSignature)0; t++) {
+      CIccMBB *pMBB = FindAndCast<CIccMBB>(pIcc, clutLutTags[t]);
+      if (!pMBB) continue;
+
+      CIccCLUT *pCLUT = pMBB->GetCLUT();
+      if (!pCLUT) {
+        // LUT tag exists but has no CLUT — Apply() will NPD
+        printf("      %s[CRIT]  HEURISTIC: Tag '%s' LUT has null CLUT — Apply() will crash%s\n",
+               ColorCritical(), info.GetTagSigName(clutLutTags[t]), ColorReset());
+        printf("       %sCWE-476: CIccCLUT::InterpND() dereferences null pApply "
+               "(IccTagLut.cpp:3181)%s\n",
+               ColorCritical(), ColorReset());
+        npdIssues++;
+      } else {
+        // Check for degenerate CLUT: zero grid points or zero input channels
+        icUInt8Number nInput = pCLUT->GetInputDim();
+        icUInt32Number nGridPts = pCLUT->NumPoints();
+        if (nInput == 0 || nGridPts == 0) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' CLUT has %u input dims, %u grid points%s\n",
+                 ColorCritical(), info.GetTagSigName(clutLutTags[t]),
+                 (unsigned)nInput, nGridPts, ColorReset());
+          printf("       %sCWE-476: Degenerate CLUT → GetNewApply() Init() fails → null pApply%s\n",
+                 ColorCritical(), ColorReset());
+          npdIssues++;
+        }
       }
     }
 
