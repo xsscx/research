@@ -181,113 +181,93 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     PrintSig4(pcs);
     printf("'\n");
 
+    // All fields below are within the 128-byte header (already bounds-checked)
+
     // Date/Time (bytes 24-35)
-    if (fileSize >= 36) {
-      icUInt16Number year  = (static_cast<icUInt16Number>(rawData[24])<<8) | rawData[25];
-      icUInt16Number month = (static_cast<icUInt16Number>(rawData[26])<<8) | rawData[27];
-      icUInt16Number day   = (static_cast<icUInt16Number>(rawData[28])<<8) | rawData[29];
-      icUInt16Number hour  = (static_cast<icUInt16Number>(rawData[30])<<8) | rawData[31];
-      icUInt16Number min   = (static_cast<icUInt16Number>(rawData[32])<<8) | rawData[33];
-      icUInt16Number sec   = (static_cast<icUInt16Number>(rawData[34])<<8) | rawData[35];
-      printf("  Date/Time:       %04u-%02u-%02u %02u:%02u:%02u\n",
-             year, month, day, hour, min, sec);
-    }
+    icUInt16Number year  = (static_cast<icUInt16Number>(rawData[24])<<8) | rawData[25];
+    icUInt16Number month = (static_cast<icUInt16Number>(rawData[26])<<8) | rawData[27];
+    icUInt16Number day   = (static_cast<icUInt16Number>(rawData[28])<<8) | rawData[29];
+    icUInt16Number hour  = (static_cast<icUInt16Number>(rawData[30])<<8) | rawData[31];
+    icUInt16Number min   = (static_cast<icUInt16Number>(rawData[32])<<8) | rawData[33];
+    icUInt16Number sec   = (static_cast<icUInt16Number>(rawData[34])<<8) | rawData[35];
+    printf("  Date/Time:       %04u-%02u-%02u %02u:%02u:%02u\n",
+           year, month, day, hour, min, sec);
 
     // Magic (bytes 36-39)
-    if (fileSize >= 40) {
-      icUInt32Number magic = ReadU32BE(rawData + 36);
-      printf("  Magic:           0x%08X  %s\n", magic,
-             magic == 0x61637370 ? "[OK 'acsp']" : "[INVALID]");
-    }
+    icUInt32Number magic = ReadU32BE(rawData + 36);
+    printf("  Magic:           0x%08X  %s\n", magic,
+           magic == 0x61637370 ? "[OK 'acsp']" : "[INVALID]");
 
     // Platform (bytes 40-43)
-    if (fileSize >= 44) {
-      icUInt32Number platform = ReadU32BE(rawData + 40);
-      printf("  Platform:        0x%08X  '", platform);
-      PrintSig4(platform);
-      printf("'\n");
-    }
+    icUInt32Number platform = ReadU32BE(rawData + 40);
+    printf("  Platform:        0x%08X  '", platform);
+    PrintSig4(platform);
+    printf("'\n");
 
     // Flags (bytes 44-47)
-    if (fileSize >= 48) {
-      icUInt32Number flags = ReadU32BE(rawData + 44);
-      printf("  Flags:           0x%08X", flags);
-      if (flags & 0x01) printf(" [Embedded]");
-      if (flags & 0x02) printf(" [EmbeddedOnly]");
-      printf("\n");
-    }
+    icUInt32Number flags = ReadU32BE(rawData + 44);
+    printf("  Flags:           0x%08X", flags);
+    if (flags & 0x01) printf(" [Embedded]");
+    if (flags & 0x02) printf(" [EmbeddedOnly]");
+    printf("\n");
 
     // Manufacturer (bytes 48-51), Model (bytes 52-55)
-    if (fileSize >= 56) {
-      icUInt32Number mfr = ReadU32BE(rawData + 48);
-      icUInt32Number mdl = ReadU32BE(rawData + 52);
-      printf("  Manufacturer:    0x%08X  '", mfr);
-      PrintSig4(mfr);
-      printf("'\n");
-      printf("  Model:           0x%08X  '", mdl);
-      PrintSig4(mdl);
-      printf("'\n");
-    }
+    icUInt32Number mfr = ReadU32BE(rawData + 48);
+    icUInt32Number mdl = ReadU32BE(rawData + 52);
+    printf("  Manufacturer:    0x%08X  '", mfr);
+    PrintSig4(mfr);
+    printf("'\n");
+    printf("  Model:           0x%08X  '", mdl);
+    PrintSig4(mdl);
+    printf("'\n");
 
     // Device Attributes (bytes 56-63)
-    if (fileSize >= 64) {
-      icUInt32Number attrHi = ReadU32BE(rawData + 56);
-      icUInt32Number attrLo = ReadU32BE(rawData + 60);
-      printf("  Dev Attributes:  0x%08X%08X", attrHi, attrLo);
-      if (attrLo & 0x01) printf(" [Transparency]");
-      if (attrLo & 0x02) printf(" [Matte]");
-      printf("\n");
-    }
+    icUInt32Number attrHi = ReadU32BE(rawData + 56);
+    icUInt32Number attrLo = ReadU32BE(rawData + 60);
+    printf("  Dev Attributes:  0x%08X%08X", attrHi, attrLo);
+    if (attrLo & 0x01) printf(" [Transparency]");
+    if (attrLo & 0x02) printf(" [Matte]");
+    printf("\n");
 
     // Rendering Intent (bytes 64-67)
-    if (fileSize >= 68) {
-      icUInt32Number intent = ReadU32BE(rawData + 64);
-      const char *intentNames[] = {"Perceptual", "Relative Colorimetric", "Saturation", "Absolute Colorimetric"};
-      printf("  Rendering Intent:0x%08X  %s\n", intent,
-             (intent < 4) ? intentNames[intent] : "UNKNOWN");
-    }
+    icUInt32Number intent = ReadU32BE(rawData + 64);
+    const char *intentNames[] = {"Perceptual", "Relative Colorimetric", "Saturation", "Absolute Colorimetric"};
+    printf("  Rendering Intent:0x%08X  %s\n", intent,
+           (intent < 4) ? intentNames[intent] : "UNKNOWN");
 
     // PCS Illuminant (bytes 68-79, 3x s15Fixed16)
-    if (fileSize >= 80) {
-      icUInt32Number illX = ReadU32BE(rawData + 68);
-      icUInt32Number illY = ReadU32BE(rawData + 72);
-      icUInt32Number illZ = ReadU32BE(rawData + 76);
-      icS15Fixed16Number sX, sY, sZ;
-      memcpy(&sX, &illX, 4); memcpy(&sY, &illY, 4); memcpy(&sZ, &illZ, 4);
-      printf("  PCS Illuminant:  X=%.4f Y=%.4f Z=%.4f\n",
-             icFtoD(sX), icFtoD(sY), icFtoD(sZ));
-    }
+    icUInt32Number illX = ReadU32BE(rawData + 68);
+    icUInt32Number illY = ReadU32BE(rawData + 72);
+    icUInt32Number illZ = ReadU32BE(rawData + 76);
+    icS15Fixed16Number sX, sY, sZ;
+    memcpy(&sX, &illX, 4); memcpy(&sY, &illY, 4); memcpy(&sZ, &illZ, 4);
+    printf("  PCS Illuminant:  X=%.4f Y=%.4f Z=%.4f\n",
+           icFtoD(sX), icFtoD(sY), icFtoD(sZ));
 
     // Creator (bytes 80-83)
-    if (fileSize >= 84) {
-      icUInt32Number creator = ReadU32BE(rawData + 80);
-      printf("  Creator:         0x%08X  '", creator);
-      PrintSig4(creator);
-      printf("'\n");
-    }
+    icUInt32Number creator = ReadU32BE(rawData + 80);
+    printf("  Creator:         0x%08X  '", creator);
+    PrintSig4(creator);
+    printf("'\n");
 
     // Profile ID (bytes 84-99)
-    if (fileSize >= 100) {
-      printf("  Profile ID:      ");
-      bool allZero = true;
-      for (int pi = 84; pi < 100; pi++) {
-        if (rawData[pi] != 0) allZero = false;
-        printf("%02x", rawData[pi]);
-      }
-      printf("%s\n", allZero ? "  (not set)" : "");
+    printf("  Profile ID:      ");
+    bool allZero = true;
+    for (int pi = 84; pi < 100; pi++) {
+      if (rawData[pi] != 0) allZero = false;
+      printf("%02x", rawData[pi]);
     }
+    printf("%s\n", allZero ? "  (not set)" : "");
 
     // Reserved bytes 100-127
-    if (fileSize >= 128) {
-      bool reservedClean = true;
-      for (int ri = 100; ri < 128; ri++) {
-        if (rawData[ri] != 0) { reservedClean = false; break; }
-      }
-      printf("  Reserved 100-127:%s\n", reservedClean ? " all zeros [OK]" : " NON-ZERO [VIOLATION]");
+    bool reservedClean = true;
+    for (int ri = 100; ri < 128; ri++) {
+      if (rawData[ri] != 0) { reservedClean = false; break; }
     }
+    printf("  Reserved 100-127:%s\n", reservedClean ? " all zeros [OK]" : " NON-ZERO [VIOLATION]");
 
     // V5/iccMAX extended fields (version >= 5.0)
-    if (verMaj >= 5 && fileSize >= 128) {
+    if (verMaj >= 5) {
       printf("\n  --- V5/iccMAX Extended Header ---\n");
 
       // Device SubClass (bytes 12-15 reinterpreted) — actually at offset 44
@@ -305,37 +285,33 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       PrintSig4(spectralPCS);
       printf("'\n");
 
-      // Check spectral range (from reserved area in v5)
-      // In v5 profiles, spectral data is signaled by spectralRange.steps > 0
-      // The library parses these from the header struct
-      if (fileSize >= 128) {
-        icUInt16Number srStart  = (static_cast<icUInt16Number>(rawData[104])<<8) | rawData[105];
-        icUInt16Number srEnd    = (static_cast<icUInt16Number>(rawData[106])<<8) | rawData[107];
-        icUInt16Number srSteps  = (static_cast<icUInt16Number>(rawData[108])<<8) | rawData[109];
+      // Spectral range (bytes 104-115, within 128-byte header)
+      icUInt16Number srStart  = (static_cast<icUInt16Number>(rawData[104])<<8) | rawData[105];
+      icUInt16Number srEnd    = (static_cast<icUInt16Number>(rawData[106])<<8) | rawData[107];
+      icUInt16Number srSteps  = (static_cast<icUInt16Number>(rawData[108])<<8) | rawData[109];
 
-        icUInt16Number brStart  = (static_cast<icUInt16Number>(rawData[110])<<8) | rawData[111];
-        icUInt16Number brEnd    = (static_cast<icUInt16Number>(rawData[112])<<8) | rawData[113];
-        icUInt16Number brSteps  = (static_cast<icUInt16Number>(rawData[114])<<8) | rawData[115];
+      icUInt16Number brStart  = (static_cast<icUInt16Number>(rawData[110])<<8) | rawData[111];
+      icUInt16Number brEnd    = (static_cast<icUInt16Number>(rawData[112])<<8) | rawData[113];
+      icUInt16Number brSteps  = (static_cast<icUInt16Number>(rawData[114])<<8) | rawData[115];
 
-        if (srSteps > 0) {
-          printf("  Spectral Range:  %.1f - %.1f nm, %u steps\n",
-                 icF16toF(srStart), icF16toF(srEnd), srSteps);
-        } else {
-          printf("  Spectral Range:  Not defined\n");
-        }
+      if (srSteps > 0) {
+        printf("  Spectral Range:  %.1f - %.1f nm, %u steps\n",
+               icF16toF(srStart), icF16toF(srEnd), srSteps);
+      } else {
+        printf("  Spectral Range:  Not defined\n");
+      }
 
-        if (brSteps > 0) {
-          printf("  BiSpectral:      %.1f - %.1f nm, %u steps\n",
-                 icF16toF(brStart), icF16toF(brEnd), brSteps);
-        }
+      if (brSteps > 0) {
+        printf("  BiSpectral:      %.1f - %.1f nm, %u steps\n",
+               icF16toF(brStart), icF16toF(brEnd), brSteps);
+      }
 
-        // MCS (bytes 116-119 in some v5 layouts)
-        icUInt32Number mcs = ReadU32BE(rawData + 116);
-        if (mcs) {
-          printf("  MCS:             0x%08X  '", mcs);
-          PrintSig4(mcs);
-          printf("'\n");
-        }
+      // MCS (bytes 116-119 in some v5 layouts)
+      icUInt32Number mcs = ReadU32BE(rawData + 116);
+      if (mcs) {
+        printf("  MCS:             0x%08X  '", mcs);
+        PrintSig4(mcs);
+        printf("'\n");
       }
     }
 
