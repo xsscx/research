@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (150 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (153 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
   Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
   JSON output available via --json mode for programmatic consumption.
@@ -16,7 +16,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 150 security heuristics (H1-H150)
+        analyze_security    — run 153 security heuristics (H1-H153)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -33,7 +33,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 150-heuristic scan.
+      2. Call analyze_security to run the 153-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -47,16 +47,16 @@ messages:
       - IccHeuristicsTagValidation.cpp: H9-H32 (tag structure)
       - IccHeuristicsRawPost.cpp: H33-H55, H57-H69 (raw file I/O)
       - IccHeuristicsDataValidation.cpp: H56-H102, H146-H148 (data integrity)
-      - IccImageAnalyzer.cpp: H139-H141, H149-H150 (TIFF image security)
+      - IccImageAnalyzer.cpp: H139-H141, H149-H153 (TIFF image security + advanced)
       - IccHeuristicsProfileCompliance.cpp: H103-H120 (spec compliance)
       - IccHeuristicsIntegrity.cpp: H121-H138 (integrity + CWE-400)
       - IccImageAnalyzer.cpp: H139-H141 (TIFF security)
       - IccHeuristicsXmlSafety.cpp: H142-H145 (XML serialization safety)
 
-      IccHeuristicsRegistry.h provides 150-entry metadata table with:
+      IccHeuristicsRegistry.h provides 153-entry metadata table with:
       - id, name, specRef, primaryCWE, cveRefs, phase, severity
 
-      CVE coverage: 52 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
+      CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
       93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for
       authoritative counts. Key high-severity CVE detections:
       - CVE-2026-21675 (Critical 9.8, UAF) → H80
@@ -107,7 +107,7 @@ messages:
       - The `-a` mode auto-detects TIFF via magic bytes and extracts embedded ICC
       - Reports TIFF metadata (dimensions, BPS, compression, photometric)
       - Scans pixel data for xnuimagefuzzer injection signatures
-      - Runs full 150-heuristic analysis on any extracted ICC profile
+      - Runs full 153-heuristic analysis on any extracted ICC profile
       - Use `-img` mode for explicit image analysis
 
       Report ASAN / UBSAN output verbatim if present.
@@ -119,7 +119,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H150)
+      - Security heuristic results (H1-H153)
       - Round-trip validation status
       - Any anomalies or findings
 
