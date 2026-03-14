@@ -2827,6 +2827,107 @@ int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename)
   return heuristicCount;
 }
 
+// =====================================================================
+// H153 — Sampled Curve NaN-to-Unsigned Cast Detection (CWE-681)
+// Scans raw file bytes for SingleSampledCurve ('sngf'), SampledCalculatorCurve
+// ('clcf'), and SampledCurveSegment ('samf') elements. Checks their
+// firstEntry/lastEntry float32 fields for:
+//   1. NaN or Inf values (direct UB on cast)
+//   2. Equal values (range=0 → division by zero → NaN → UB cast)
+// Bug: CIccSampledCalculatorCurve::Apply() at IccMpeBasic.cpp:2446 casts
+//   (icUInt32Number)pos where pos = (v - firstEntry) / range * last.
+//   When range=0 or inputs produce NaN, this is undefined behavior.
+// Also covers CIccSingleSampledCurve::Apply() at IccMpeBasic.cpp:1823
+// and CIccSampledCurveSegment::Apply() at IccMpeBasic.cpp:1204.
+// Retired CFL-030 patch addressed this; upstream bug remains.
+// =====================================================================
+int RunHeuristic_H153_SampledCurveNaNCast(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H153] Sampled Curve NaN-to-Unsigned Cast Detection (§10.26 MPE)\n");
+  {
+    RawFileHandle fh153 = OpenRawFile(filename);
+    if (fh153) {
+      size_t fs153 = (size_t)fh153.fileSize;
+      if (fs153 > 20) {
+        std::vector<icUInt8Number> buf153(fs153);
+        if (fread(buf153.data(), 1, fs153, fh153.fp) == fs153) {
+          int castIssues = 0;
+
+          // Scan for curve type signatures
+          // sngf = 0x736E6766 (SingleSampledCurve)
+          // clcf = 0x636C6366 (SampledCalculatorCurve)
+          // samf = 0x73616D66 (SampledCurveSegment)
+          // Layout: sig(4) + reserved(4) + count/desiredSize(4) + firstEntry(4) + lastEntry(4)
+          for (size_t b = 0; b + 19 < fs153; b++) {
+            icUInt32Number w = ReadU32BE(&buf153[b]);
+            const char *curveName = nullptr;
+            const char *applyLoc = nullptr;
+
+            if (w == 0x736E6766) {
+              curveName = "SingleSampledCurve";
+              applyLoc = "IccMpeBasic.cpp:1823";
+            } else if (w == 0x636C6366) {
+              curveName = "SampledCalculatorCurve";
+              applyLoc = "IccMpeBasic.cpp:2446";
+            } else if (w == 0x73616D66) {
+              curveName = "SampledCurveSegment";
+              applyLoc = "IccMpeBasic.cpp:1204";
+            } else {
+              continue;
+            }
+
+            // firstEntry at offset +12, lastEntry at offset +16
+            float firstEntry, lastEntry;
+            memcpy(&firstEntry, &buf153[b + 12], 4);
+            memcpy(&lastEntry, &buf153[b + 16], 4);
+
+            // Convert from big-endian: reinterpret the 4 BE bytes as float
+            icUInt32Number feBE = ReadU32BE(&buf153[b + 12]);
+            icUInt32Number leBE = ReadU32BE(&buf153[b + 16]);
+            memcpy(&firstEntry, &feBE, 4);
+            memcpy(&lastEntry, &leBE, 4);
+
+            bool feNaN = std::isnan(firstEntry);
+            bool feInf = std::isinf(firstEntry);
+            bool leNaN = std::isnan(lastEntry);
+            bool leInf = std::isinf(lastEntry);
+            bool rangeZero = (!feNaN && !leNaN && !feInf && !leInf &&
+                              firstEntry == lastEntry);
+
+            if (feNaN || feInf || leNaN || leInf || rangeZero) {
+              printf("      %s[CRITICAL] %s at offset 0x%zX: ", ColorCritical(), curveName, b);
+              if (feNaN || leNaN)
+                printf("NaN in range entries (first=%g, last=%g)", (double)firstEntry, (double)lastEntry);
+              else if (feInf || leInf)
+                printf("Inf in range entries (first=%g, last=%g)", (double)firstEntry, (double)lastEntry);
+              else
+                printf("degenerate range (first=last=%g → div-by-zero)", (double)firstEntry);
+              printf("%s\n", ColorReset());
+              printf("       %sCWE-681: NaN/Inf → unsigned int cast is undefined behavior (%s)%s\n",
+                     ColorCritical(), applyLoc, ColorReset());
+              printf("       %sRisk: Apply() computes (v-first)/range*last → NaN → (unsigned)NaN = UB%s\n",
+                     ColorCritical(), ColorReset());
+              castIssues++;
+              if (castIssues >= 8) break;
+            }
+          }
+          if (castIssues > 0) {
+            heuristicCount += castIssues;
+          } else {
+            printf("      %s[OK] No sampled curve degenerate range entries%s\n",
+                   ColorSuccess(), ColorReset());
+          }
+        }
+      }
+    }
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
 int RunRawPostLibraryHeuristics(const char *filename)
 {
   int heuristicCount = 0;
@@ -2858,6 +2959,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H59_SpectralWavelengthRange(filename);
   heuristicCount += RunHeuristic_H68_GamutBoundaryDescOverflow(filename);
   heuristicCount += RunHeuristic_H69_ProfileIDMD5Consistency(filename);
+  heuristicCount += RunHeuristic_H153_SampledCurveNaNCast(filename);
 
   return heuristicCount;
 }
