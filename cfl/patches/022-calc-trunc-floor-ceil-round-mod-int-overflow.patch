@@ -1,6 +1,35 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 1f68f4b..742bf20 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -1193,6 +1193,11 @@
+@@ -934,6 +934,10 @@ public:
+ class CIccOpDefModulus : public IIccOpDef
+ {
+ public:
++  // CFL-022: Clamp quotient to INT_MIN..INT_MAX before (int) cast.
++  // Without this, temp/tempN values like 7.49e+31 cause UBSAN (CWE-681).
++  static constexpr double kIntMax = (double)std::numeric_limits<int>::max();
++  static constexpr double kIntMin = (double)std::numeric_limits<int>::lowest();
+   virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
+   {
+     const icFloatNumber epsilon = 1e-12;        // value chosen somewhat arbitrarily to allow division to work and not overflow
+@@ -949,8 +953,13 @@ public:
+       if (std::isnan(temp) || std::isinf(temp)
+         || std::isnan(tempN) || std::isinf(tempN) || fabs(tempN) < epsilon)
+         s[j] = 0.0;
+-      else
+-        s[j] = temp - (icFloatNumber)((int)(temp / tempN))*tempN;
++      else {
++        double quotient = (double)(temp / tempN);
++        if (quotient > kIntMax || quotient < kIntMin)
++          s[j] = 0.0;
++        else
++          s[j] = temp - (icFloatNumber)((int)quotient)*tempN;
++      }
+     }
+     OsShrinkArgs(n);
+     return true;
+@@ -1193,6 +1202,11 @@ public:
  class CIccOpDefTruncate : public IIccOpDef
  {
  public:
@@ -12,7 +41,7 @@
    virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
    {
      int j, n = op->data.select.v1+1;
-@@ -1205,11 +1210,14 @@
+@@ -1205,11 +1219,14 @@ public:
        icFloatNumber temp = s[j];
        if (std::isnan(temp))
          s[j] = 0.0;
@@ -31,7 +60,7 @@
        }
        else
          s[j] = (icFloatNumber)((int)temp);
-@@ -1221,6 +1229,9 @@
+@@ -1221,6 +1238,9 @@ public:
  class CIccOpDefFloor : public IIccOpDef
  {
  public:
@@ -41,7 +70,7 @@
    virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
    {
      int j, n = op->data.select.v1+1;
-@@ -1229,7 +1240,15 @@
+@@ -1229,7 +1249,15 @@ public:
        return false;
      icFloatNumber *s = &(*os.pStack)[ss-n];
      for (j=0; j<n; j++) {
@@ -58,7 +87,7 @@
      }
      return true;
    }
-@@ -1238,6 +1257,9 @@
+@@ -1238,6 +1266,9 @@ public:
  class CIccOpDefCeiling : public IIccOpDef
  {
  public:
@@ -68,7 +97,7 @@
    virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
    {
      int j, n = op->data.select.v1+1;
-@@ -1246,7 +1268,15 @@
+@@ -1246,7 +1277,15 @@ public:
        return false;
      icFloatNumber *s = &(*os.pStack)[ss-n];
      for (j=0; j<n; j++) {
@@ -85,7 +114,7 @@
      }
      return true;
    }
-@@ -1255,6 +1285,9 @@
+@@ -1255,6 +1294,9 @@ public:
  class CIccOpDefRound : public IIccOpDef
  {
  public:
@@ -95,7 +124,7 @@
    virtual bool Exec(SIccCalcOp *op, SIccOpState &os)
    {
      int j, n = op->data.select.v1+1;
-@@ -1267,11 +1300,15 @@
+@@ -1267,11 +1309,15 @@ public:
        if (std::isnan(temp))
          temp = 0.0;
        else if (std::isinf(temp))
