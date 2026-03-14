@@ -11,7 +11,7 @@ This file contains cross-cutting rules that apply to ALL components.
 |-----------|------------------|--------------|
 | **iccanalyzer-lite/** | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) | `cd iccanalyzer-lite && ./build.sh` ∥ `python3 tests/run_tests.py` |
 | **cfl/** | [cfl.instructions.md](instructions/cfl.instructions.md) | `cd cfl && ./build.sh` ∥ `./fuzz-local.sh` |
-| **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `pip install -e .` ∥ `python3 web_ui.py` |
+| **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `.venv/bin/pip install -e .` ∥ `.venv/bin/python web_ui.py` |
 | **fuzz/** | [fuzz.instructions.md](instructions/fuzz.instructions.md) | Seed corpus (input data only) |
 | **colorbleed_tools/** | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) | `make setup && make` |
 | **call-graph/** | [call-graph.instructions.md](instructions/call-graph.instructions.md) | `python3 scripts/generate-callgraphs.py` |
@@ -116,18 +116,18 @@ All classes require: profileDescriptionTag, mediaWhitePointTag, copyrightTag
 ## Multi-Agent Coordination
 
 This repo is developed by multiple Copilot agents on different platforms (WSL-2/Linux,
-macOS, Cloud CI). See `.github/instructions/multi-agent.instructions.md` for setup,
+macOS, Bare-Metal Linux, Cloud CI). See `.github/instructions/multi-agent.instructions.md` for setup,
 handoff protocols, file ownership rules, and conflict prevention. See
 `.github/prompts/cooperative-development.prompt.md` for prioritized task lists,
 coverage targets, and batch analysis workflows.
 
-**Key principle**: WSL-2 owns analysis/fuzzing artifacts (`analysis-reports/`, `cfl/`,
+**Key principle**: Bare-metal/WSL-2 owns analysis/fuzzing artifacts (`analysis-reports/`, `cfl/`,
 `call-graph/`). macOS owns iOS/image artifacts (`xnuimagetools/`, `fuzz/graphics/*/xig-*`).
 Both contribute to shared docs (`.github/prompts/`, `.github/instructions/`).
 
 ## Environment Detection
 
-This repo is used in three contexts. Detect which one you are in:
+This repo is used in four contexts. Detect which one you are in:
 
 ### GitHub Copilot Coding Agent (cloud)
 If `copilot-setup-steps.yml` ran, binaries are pre-built in the Docker image.
@@ -137,7 +137,19 @@ Binaries:
 - `colorbleed_tools/iccToXml_unsafe` — ICC to XML converter
 - `colorbleed_tools/iccFromXml_unsafe` — XML to ICC converter
 
-### Local / Copilot CLI
+### Bare-Metal Linux (xss@ubuntu, Hyper-V VM)
+**Platform**: Ubuntu 24.04.4 LTS, 24 cores, 16GB RAM (dynamic), 512GB NVMe
+**User**: xss — home `/home/xss`, repo at `~/research`
+**AFL++**: v4.40c at `/usr/local/bin/afl-fuzz` (built from source against LLVM 18.1.3)
+**MCP venv**: `~/research/mcp-server/.venv/bin/python` (NOT system pip)
+**iccDEV**: `~/research/iccDEV` — UNPATCHED, built with ASAN+UBSAN+coverage for iccanalyzer-lite
+**cfl/iccDEV**: separate clone inside `cfl/` — 20 patches applied (CFL-001–CFL-020)
+**afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
+**Build cores**: use `-j24` (not `-j32`)
+**colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
+**Tests verified**: iccanalyzer-lite 230/230 · MCP 1816/1816 · web_ui 256/256
+
+### Local / Copilot CLI (WSL-2 or other Linux)
 Binaries must be built before use. See **Local Build** section below.
 
 **First action** on any analysis issue: run `ls -la iccanalyzer-lite/iccanalyzer-lite` to confirm the binary exists. If missing, build it (local) or report the error (cloud).
@@ -166,7 +178,7 @@ cd colorbleed_tools && make setup && make
 cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
 cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
   -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
-make -j32
+make -j24
 ```
 
 ### iccDEV Tools — Source of Truth
@@ -177,7 +189,7 @@ make -j32
 |------|---------|----------|
 | `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Debug+ASAN+UBSAN+Coverage)** | No |
 | `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage, alternate build dir)** | No |
-| `cfl/iccDEV/` | CFL fuzzer build (60+ patches applied) | Yes |
+| `cfl/iccDEV/` | CFL fuzzer build (20 patches applied (CFL-001–CFL-020)) | Yes |
 
 **CRITICAL BUILD POLICY**: `iccDEV/Build/` must ALWAYS be built with full
 Debug+ASAN+UBSAN+coverage instrumentation. **NEVER use Release builds.**
@@ -197,7 +209,7 @@ cmake Cmake \
   -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
   -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
   -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate"
-make -j32
+make -j24
 
 # Run upstream tool against a PoC (catch-and-continue for full chain)
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
@@ -662,12 +674,13 @@ The ICC Profile MCP server exposes 24 tools (11 analysis + 7 maintainer + 6 oper
 
 #### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
-- Command: `python3 mcp-server/icc_profile_mcp.py`
-- Prereq: `cd mcp-server && pip install -e .`
+- Command: `~/research/mcp-server/.venv/bin/python mcp-server/icc_profile_mcp.py`
+- Prereq (bare-metal): venv already at `~/research/mcp-server/.venv` — use `mcp-python` alias
+- Prereq (other): `cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .`
 
 #### 2. VS Code Copilot Chat
 Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools auto-register.
-Prereq: `cd mcp-server && pip install -e .`
+Prereq: `cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .`
 
 #### 3. GitHub Copilot Coding Agent (cloud)
 Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes all 24 tools (11 analysis + 7 maintainer + 6 operations).
