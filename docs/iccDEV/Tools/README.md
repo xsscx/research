@@ -268,7 +268,7 @@ Used by iccApplyNamedCmm, iccApplySearch, iccApplyProfiles:
 ## Related Resources
 
 - [iccanalyzer-lite](../../../iccanalyzer-lite/) — 150-heuristic ICC security analyzer
-- [CFL Fuzzers](../../../cfl/) — 11 LibFuzzer harnesses for iccDEV
+- [CFL Fuzzers](../../../cfl/) — 12 LibFuzzer harnesses for iccDEV
 - [colorbleed_tools](../../../colorbleed_tools/) — Unsafe ICC↔XML for mutation testing
 - [ICC.1-2022-05](https://www.color.org/specification/ICC.1-2022-05.pdf) — ICC specification
 - [iccDEV Doxygen](https://xss.cx/public/docs/iccdev/hierarchy.html) — Class hierarchy docs

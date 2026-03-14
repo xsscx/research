@@ -152,7 +152,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 6 patches, builds 12 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 20 patches, builds 12 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools

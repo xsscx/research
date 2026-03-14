@@ -9,7 +9,7 @@ LLVM-based call graphs and Clang AST dumps for all ICC security research compone
 | `iccdev/tools/` | 13 iccDEV CLI tools | ~130K | ~14K | LLVM IR |
 | `iccdev/proflib/` | IccProfLib (36 files) | ~300K | ~30K | LLVM IR |
 | `iccdev/xml/` | IccLibXML (7 files) | ~20K | ~4K | LLVM IR |
-| `cfl/` | 11 CFL fuzzers | ~113K | ~2.3K | LLVM IR |
+| `cfl/` | 12 CFL fuzzers | ~113K | ~2.3K | LLVM IR |
 | `colorbleed/` | 3 colorbleed tools | ~14K | ~735 | LLVM IR |
 | `analyzer/` | iccanalyzer-lite (24 files) | ~190K | ~21.5K | LLVM IR |
 
