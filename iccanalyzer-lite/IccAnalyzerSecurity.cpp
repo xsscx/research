@@ -383,16 +383,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
   io.Close();
   
-  // Gate: skip library-API phase if profile is too malformed.
-  // Raw-file heuristics (H1-H8, H15-H17, H25-H32) are safe (they read bytes directly).
-  // Library-API heuristics (H9-H14, H18-H24) call into unpatched iccDEV which can
-  // infinite-recurse, stack-overflow, or OOM on severely malformed profiles.
-  if (skipLibraryPhase || heuristicCount >= kCriticalHeuristicThreshold) {
+  if (skipLibraryPhase) {
     printf("=======================================================================\n");
-    printf("[SKIP] Profile too malformed for library analysis (%d warnings, %u tags)\n",
-           heuristicCount, rawTagCount);
-    printf("       Library-API heuristics skipped to avoid crash/hang\n");
-    printf("       Use -n (ninja mode) for byte-level raw analysis\n");
+    printf("[SKIP] Profile structurally unsafe for library loading (%u tags, %zu bytes)\n",
+           rawTagCount, actualFileSize);
+    printf("       Library-API heuristics skipped — raw analysis continues below\n");
     printf("=======================================================================\n\n");
   } else {
   // Now open profile with IccProfLib for tag-level analysis
@@ -471,7 +466,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
     delete pIcc;
   }
-  } // end of critical-threshold gate
+  } // end of skipLibraryPhase gate
 
   // Raw-file fallback engine (H10, H13, H25, H28, H32 when library fails)
   // Extracted to IccHeuristicsRawPost.cpp
