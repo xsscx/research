@@ -102,6 +102,7 @@ static void FormatIccVersion(icUInt32Number ver, char *buf, size_t bufSize)
   snprintf(buf, bufSize, "%d.%d.%d.0", major, minor, bugfix);
 }
 
+// Dump all ICC header fields (§7.2) with V2/V4/V5 version-aware formatting.
 void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO)
 {
   printf("\n%s=== ICC Profile Header (0x0000-0x007F) ===%s\n", ColorInfo(), ColorReset());
