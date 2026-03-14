@@ -79,6 +79,9 @@ timeout-*
 !test-profiles/oom-*
 !test-profiles/cwe-400/*
 !test-profiles/crashes/*
+!extended-test-profiles/oom-*
+!extended-test-profiles/timeout-*
+!extended-test-profiles/slow-unit-*
 slow-unit-*
 latestcrash-*
 latestslow-unit-*
