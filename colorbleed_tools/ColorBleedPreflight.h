@@ -536,10 +536,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
       uint32_t tagType = ReadBE32(ncl2Hdr);
       if (tagType != 0x6e636c32) continue; // 'ncl2'
 
-      // Check prefix (bytes 8-39 = 32-byte prefix string)
-      uint32_t vendorFlag = ReadBE32(ncl2Hdr + 8);
       uint32_t nColors = ReadBE32(ncl2Hdr + 12);
-      uint32_t nDevCoords = ReadBE32(ncl2Hdr + 16);
       // Read prefix (32 bytes starting at offset+8 in the full ncl2 structure)
       if (t.size >= 40) {
         uint8_t prefix[32];
