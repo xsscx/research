@@ -2,7 +2,7 @@
   "mcpServers": {
     "icc-profile-mcp": {
       "type": "local",
-      "command": "python",
+      "command": "/home/xss/research/mcp-server/.venv/bin/python",
       "args": ["mcp-server/icc_profile_mcp.py"],
       "tools": [
         "health_check",
