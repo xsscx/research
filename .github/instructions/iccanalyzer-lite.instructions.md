@@ -146,6 +146,27 @@ and TileLength are multiples of 16 (TIFF 6.0 §15), tile count matches expected
 grid layout, tile byte counts checked for integer overflow and EOF overrun.
 CWE-122/CWE-131.
 
+### Implemented Sampled Curve Validation (H151-H153)
+
+**H151: Calculator Element Enum Validation** — Validates calculator operator
+enum values are within the defined icSigCalcOp range. Detects the enum
+out-of-range UBSAN pattern (sibling of CFL-005/CFL-009/CFL-017). CWE-681.
+Added upstream in iccDEV cfl branch.
+
+**H152: SingleSampledCurve OOM Size Validation** — Validates that
+SingleSampledCurve element allocation sizes are reasonable before the library
+allocates. Detects potential OOM from oversized m_nCount values. CWE-400.
+Added upstream in iccDEV cfl branch.
+
+**H153: Sampled Curve NaN-to-Unsigned Cast Detection** — Scans raw profile
+bytes for MPE curve type signatures (sngf=0x736E6766, clcf=0x636C6366,
+samf=0x73616D66). At each match, reads firstEntry (offset+12) and lastEntry
+(offset+16) as big-endian float32. Validates: not NaN (IEEE 754 self-inequality),
+not ±Inf, not equal (range=0 → division by zero in Apply()). Max 8 findings.
+CWE-681. Phase: RAW_POST. Severity: CRITICAL.
+**UBSAN trigger**: `IccMpeBasic.cpp:2446 — -nan is outside the range of
+representable values of type 'unsigned int'`.
+
 ### Candidate Heuristics (Not Yet Implemented)
 
 **H154: TIFF Compression Bomb Detection** — Detect decompression bombs where
@@ -200,13 +221,14 @@ PoC: #577.
 |-------|--------|-------|
 | H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
 | H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates) |
+| H33-H55, H57-H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) |
 | H56-H102 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
-| H139-H141, H149-H153 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) + advanced |
+| H139-H141, H149-H150 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) |
 | H142-H145 | IccHeuristicsXmlSafety.cpp | XML serialization safety (ToXml crash, arrays, strings, curves) |
 | H146-H148 | IccHeuristicsDataValidation.cpp | Advanced data validation (SBO GetValues, NPD post-Read, memcpy bounds) |
+| H151-H152 | IccHeuristicsDataValidation.cpp | Calculator enum + SingleSampledCurve OOM (added upstream) |
 
 ## CVE Coverage (93 iccDEV Advisories)
 

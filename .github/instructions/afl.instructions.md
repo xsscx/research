@@ -159,3 +159,30 @@ echo core | sudo tee /proc/sys/kernel/core_pattern
 - Crash files with commas in names are gitignored (Windows path issues)
 - `afl-cmin` minimized seeds go in `afl/afl-*/cmin/` (also gitignored)
 - Commit prefix: `[afl]` for AFL-specific changes
+
+## Corpus Minimization
+
+**CRITICAL**: The Python `afl-cmin` (default) deadlocks or OOMs with ASAN-instrumented
+binaries. It spawns N parallel workers (default: `nproc`), each forking an ASAN binary
+that uses 4-6× base memory. On a 16GB VM, 16 workers × 500MB = 8GB → OOM killer.
+
+**Use `afl-cmin.bash` (shell version) instead**:
+```bash
+AFL_PATH=/usr/local/bin AFL_MAP_SIZE=131072 \
+LD_LIBRARY_PATH=afl/bin \
+ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0 \
+  afl-cmin.bash -i afl/afl-dump/input -o /tmp/afl-dump-cmin \
+  -m none -t 5000 \
+  -- afl/bin/iccDumpProfile @@ ALL
+```
+
+The shell version runs sequentially (safe for ASAN) and typically achieves 51-76% reduction.
+Results from March 2026 minimization:
+
+| Target | Before | After | Reduction |
+|--------|--------|-------|-----------|
+| dump | 3,649 | 1,406 | 61% |
+| fromxml | 4,159 | 1,081 | 74% |
+| roundtrip | 3,290 | 1,042 | 68% |
+| tiffdump | 1,307 | 641 | 51% |
+| toxml | 4,819 | 1,178 | 76% |

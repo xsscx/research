@@ -83,6 +83,14 @@ This keeps the ASAN-instrumented upstream tools in sync for fidelity comparison.
 - iccDEV upstream cmake has `ENABLE_SANITIZERS` and `ENABLE_COVERAGE` options built-in
 - Fidelity measurement: use `llvm-cov-18 export -format=lcov` + `FNDA` extraction to diff covered functions
 
+## Key lessons (2026-03-14 sync)
+- `build.sh` MUST `git checkout -- .` in `cfl/iccDEV/` before applying patches — previously-applied patches leave modified files that cause context conflicts for subsequent patches targeting the same file (e.g., IccMpeCalc.cpp has 7 patches)
+- After upstream retires patches (e.g., CFL-012/013/015/016 fixed upstream), verify retirement by checking if the fix is in the upstream source — do NOT blindly delete patches
+- Stale `CMakeCache.txt` can retain `ENABLE_SANITIZERS=OFF` across rebuilds — delete `Build/` dir for clean cmake reconfiguration when changing source
+- Verify ASAN instrumentation with `nm bin/fuzzer | grep -c __asan` after every rebuild
+- When upstream adds new heuristics (H151, H152), update ALL doc sync locations (10+ files) and test expectations simultaneously — partial updates cause cascading test failures
+- `afl-cmin` Python version OOMs on 16GB VM with ASAN binaries — use `afl-cmin.bash` (shell version) with `AFL_PATH=/usr/local/bin`
+
 ## See Also
 - [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent coordination
 - [cve-enrichment.prompt.md](cve-enrichment.prompt.md) — CVE-to-heuristic mapping

@@ -106,6 +106,29 @@ for historical reference.
 6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
 7. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
 
+### Build Troubleshooting
+
+**Patch conflicts on re-build**: `build.sh` runs `git checkout -- .` in `cfl/iccDEV/`
+before applying patches. If you get "FAIL" for patches that previously worked, verify
+the checkout step succeeded. Patches targeting the same file (e.g., `IccMpeCalc.cpp`
+is patched by CFL-005, CFL-009, CFL-010, CFL-014, CFL-017, CFL-020, CFL-021, CFL-022)
+MUST be applied in order — each depends on context from previous patches.
+
+**Stale CMakeCache**: After changing iccDEV source or patches, the `Build/CMakeCache.txt`
+may retain old cmake settings (e.g., `ENABLE_SANITIZERS=OFF`). If `nm` shows 0 ASAN
+symbols after rebuild, delete `Build/` and let cmake reconfigure from scratch:
+```bash
+cd cfl/iccDEV && rm -rf Build && mkdir Build && cd Build
+cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
+make -j$(nproc)
+```
+
+**Missing ASAN instrumentation check**: After building, verify ASAN is linked:
+```bash
+nm cfl/bin/icc_dump_fuzzer | grep -c __asan   # should be > 0
+```
+
 ### CFL-001: icAnsiToUtf8 Heap-Buffer-Overflow
 
 - **PoC**: `hbo-icAnsiToUtf8-clrt-multitag-IccUtilXml_cpp-Line394.icc`

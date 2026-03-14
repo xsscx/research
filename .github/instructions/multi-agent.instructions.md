@@ -121,10 +121,10 @@ analysis, and documentation tasks.
 
 ### Platform Details
 - **OS**: Ubuntu 24.04.4 LTS, 24 cores, 16GB RAM (dynamic), 512GB NVMe
-- **User**: `xss` — home `/home/xss`, repo at `~/research`
+- **User**: `xss` or `h02332` — home varies by VM, repo at `~/po/research` or `~/research`
 - **Model**: Claude Opus 4.6 (model ID: `claude-opus-4.6`)
 - **Shell**: Interactive bash with persistent sessions
-- **Tools**: git, curl, gh, Python 3.12, clang-18, cmake, AFL++ 4.40c
+- **Tools**: git, curl, gh, Python 3.12, clang-18, cmake, AFL++ 4.36a+
 
 ### Pre-Built Binaries (available without building)
 - `iccanalyzer-lite/iccanalyzer-lite` — 153-heuristic security analyzer (ASAN+UBSAN)
@@ -612,6 +612,20 @@ CORRECT:
 - Batch all housekeeping into 1 commit — use scripts, not manual multi-commit moves
 - Bundle docs with the code they describe — no separate "update patch table" commits
 - Target: ≤2 CI commits and ≤1 housekeeping commit per session
+
+### 15. Stale cmake cache retaining wrong sanitizer flags (CJF-18)
+**What happened (session 2026-03-14)**: After syncing upstream and applying new CFL
+patches, `./build.sh` rebuilt CFL fuzzers but `nm` showed 0 ASAN symbols. Root cause:
+`cfl/iccDEV/Build/CMakeCache.txt` retained `ENABLE_SANITIZERS=OFF` from a prior
+configuration. The cmake reconfigure step detected the cache and skipped re-evaluation
+of flags. Build completed successfully (exit 0) but produced uninstrumented binaries.
+**The cost**: ~30 minutes debugging "why does fuzzer find nothing" before discovering
+the cache issue. Uninstrumented fuzzers miss all memory bugs.
+**Rule**: After ANY upstream sync or source change in `cfl/iccDEV/`:
+1. Delete `Build/` dir: `cd cfl/iccDEV && rm -rf Build`
+2. Rebuild from scratch: `./build.sh`
+3. Verify ASAN: `nm cfl/bin/icc_dump_fuzzer | grep -c __asan` → must be > 0
+Never trust a rebuild that reuses cmake cache after source changes.
 
 ## Cross-Repository Structure
 

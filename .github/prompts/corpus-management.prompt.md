@@ -258,6 +258,9 @@ Contents are also copied into `corpus-icc_fromxml_fuzzer/`. Keep both directorie
 - **Binary-to-corpus mapping**: Only 12 fuzzers have binaries. 8 orphaned corpus dirs deleted. `corpus-xml` (48 named XML seeds) kept as staging area for `icc_fromxml_fuzzer`.
 - **Parallel rsync**: 10 concurrent rsyncs handles large file sets fast. Safe with `--ignore-existing`.
 - **Verification**: Always compare per-fuzzer file counts (local >= source) BEFORE cleaning the source storage.
+- **AFL corpus minimization (afl-cmin)**: The Python `afl-cmin` version OOMs on VMs with ASAN binaries (spawns N workers × ASAN 4-6× memory). Use `afl-cmin.bash` (shell version) with `AFL_PATH=/usr/local/bin` for sequential safe execution. Typical reduction: 51-76%.
+- **UBSAN during merge**: Running `-merge=1` with UBSAN enabled surfaces upstream bugs (float→int overflow, NaN→unsigned cast) that don't crash but indicate CWE-681 patterns. Filter UBSAN stderr and create CFL patches for any new findings.
+- **Do NOT create custom merge scripts**: Use existing `.github/scripts/ramdisk-merge.sh`. For non-ramdisk paths, pass `--ramdisk /path/to/corpus/parent`. User corrected this anti-pattern twice.
 - **Artifact preservation**: Copy crash/oom/timeout/slow-unit from storage to repo BEFORE cleanup.
 - **Roundtrip fuzzer**: Very slow (Read→Write→Read per input). Allow 120s+ timeout for merge.
 - **Link fuzzer**: Needs quarantine_size_mb=256 (2 profiles per input = 2x ASAN memory).
