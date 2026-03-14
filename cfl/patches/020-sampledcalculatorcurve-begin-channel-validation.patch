@@ -1,6 +1,8 @@
---- a/IccProfLib/IccMpeBasic.cpp	2026-03-13 18:42:52.499911422 -0400
-+++ IccProfLib/IccMpeBasic.cpp	2026-03-13 18:43:03.591831654 -0400
-@@ -2360,7 +2360,13 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7b5977a..7058959 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -2354,7 +2354,13 @@ bool CIccSampledCalculatorCurve::Begin(icElemInterp nInterp, CIccTagMultiProcess
  {
    if (m_nDesiredSize < 2 || !m_pCalc || !m_pCalc->Begin(nInterp, pMPE))
      return false;
