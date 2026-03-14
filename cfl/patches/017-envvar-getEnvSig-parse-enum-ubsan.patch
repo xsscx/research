@@ -1,21 +1,8 @@
-diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
-index 1f68f4b..a1b2c3d 100644
---- a/IccProfLib/IccMpeCalc.h
-+++ b/IccProfLib/IccMpeCalc.h
-@@ -334,7 +334,7 @@ public:
-   bool GetIndex(icUInt16Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
-   bool GetIndex(icUInt32Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
-   icFloat32Number GetValue();
--  bool GetEnvSig(icSigCmmEnvVar &envSig);
-+  bool GetEnvSig(icUInt32Number &envSig);  // CFL-017: avoid enum UBSAN on untrusted XML input (CWE-681)
- 
- protected:
-   std::string *m_token;
 diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
-index 1f68f4b..a1b2c3d 100644
+index 1f68f4b..976644a 100644
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -2797,7 +2797,7 @@ double d = strtod( ascii, &p );
+@@ -2797,7 +2797,7 @@ icFloat32Number CIccFuncTokenizer::GetValue()
  }
  
  
@@ -33,12 +20,7 @@ index 1f68f4b..a1b2c3d 100644
        return true;
      }
  
-@@ -2828,11 +2828,11 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
-       sig |= 0x20;
-     }
- 
--    envSig = (icSigCmmEnvVar)sig;
-+    envSig = sig;
+@@ -2832,7 +2832,7 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
    }
    else {
      SetPos(pos); //Undo get token
@@ -47,7 +29,7 @@ index 1f68f4b..a1b2c3d 100644
      return false;
    }
  
-@@ -3251,8 +3251,8 @@ CIccCalculatorFunc *CIccCalculatorFunc::ParseFuncDef(const char *szFuncDef, std:
+@@ -3251,8 +3251,8 @@ const char *CIccCalculatorFunc::ParseFuncDef(const char *szFuncDef, CIccCalcOpLi
  
        case icSigEnvVarOp:
          {
@@ -58,3 +40,16 @@ index 1f68f4b..a1b2c3d 100644
              return NULL;
            op.data.size = (icUInt32Number)envSig;
            scanList.push_back(op);
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
+index 3d93ac5..3bf95d3 100644
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -334,7 +334,7 @@ public:
+   icSigCalcOp GetSig();
+   bool GetIndex(icUInt16Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
+   icFloat32Number GetValue();
+-  bool GetEnvSig(icSigCmmEnvVar &envSig);
++  bool GetEnvSig(icUInt32Number &envSig);  // CFL-017: avoid enum UBSAN on untrusted XML input (CWE-681)
+ 
+   //The following are used by XML variable and macro parsing
+   std::string GetName() const;
