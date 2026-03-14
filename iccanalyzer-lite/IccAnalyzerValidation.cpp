@@ -48,18 +48,23 @@
 // when CIccProfile::Read() eagerly loads tags whose data lies beyond EOF.
 // CWE-125: Out-of-bounds Read.
 bool IsProfileTruncated(const char *filename) {
-  struct stat fileStat;
-  if (stat(filename, &fileStat) != 0 || fileStat.st_size < 128)
-    return (fileStat.st_size < 128); // Too small to even have a header
   FILE *fp = fopen(filename, "rb");
   if (!fp) return false;
+
+  // Get file size via seek (avoids stat→fopen TOCTOU)
+  if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return false; }
+  long fileSize = ftell(fp);
+  if (fileSize < 128) { fclose(fp); return true; }
+
+  // Read declared size from first 4 bytes
+  rewind(fp);
   unsigned char sizeBytes[4];
   bool truncated = false;
   if (fread(sizeBytes, 1, 4, fp) == 4) {
     uint32_t declaredSize = ((uint32_t)sizeBytes[0] << 24) |
                             ((uint32_t)sizeBytes[1] << 16) |
                             ((uint32_t)sizeBytes[2] << 8) | sizeBytes[3];
-    truncated = (declaredSize > (uint32_t)fileStat.st_size);
+    truncated = (declaredSize > (uint32_t)fileSize);
   }
   fclose(fp);
   return truncated;
