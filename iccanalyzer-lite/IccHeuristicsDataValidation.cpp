@@ -1479,6 +1479,82 @@ printf("[H86] Localized Unicode Text Bounds Validation\n");
              ColorCritical(), ColorReset());
       unicodeIssues++;
     }
+
+    // H86 enhancement: Scan mluc text content for suspicious Unicode patterns.
+    // Fuzzed profiles inject non-ASCII into profile descriptions that should be
+    // plain text (e.g., "Channel seleI协⁭on" instead of "Channel selection").
+    // Detects: Unicode bidi overrides (injection), control chars, mixed-script
+    // corruption, and null bytes in text — all user-controllable attack surface.
+    for (mlucIt = pMluc->m_Strings->begin(); mlucIt != pMluc->m_Strings->end(); mlucIt++) {
+      icUInt32Number textLen = mlucIt->GetLength();
+      const icUInt16Number *textBuf = mlucIt->GetBuf();
+      if (!textBuf || textLen == 0) continue;
+      if (textLen > 10000) textLen = 10000; // cap scan length
+
+      int controlChars = 0, bidiOverrides = 0, nullChars = 0;
+      int nonLatinMixed = 0;
+      bool hasLatin = false, hasNonLatin = false;
+      for (icUInt32Number c = 0; c < textLen; c++) {
+        icUInt16Number ch = textBuf[c];
+        if (ch == 0x0000) { nullChars++; continue; }
+        // C0/C1 control chars (except tab/LF/CR)
+        if ((ch < 0x0020 && ch != 0x0009 && ch != 0x000A && ch != 0x000D) ||
+            (ch >= 0x007F && ch <= 0x009F)) {
+          controlChars++;
+        }
+        // Unicode bidi overrides and formatting (U+200B-U+206F, U+FEFF)
+        if ((ch >= 0x200B && ch <= 0x206F) || ch == 0xFEFF) {
+          bidiOverrides++;
+        }
+        // Track script mixing: basic Latin (0x20-0x7E) vs non-Latin
+        if (ch >= 0x0020 && ch <= 0x007E) hasLatin = true;
+        if (ch > 0x024F) hasNonLatin = true; // beyond Latin Extended-B
+      }
+      if (hasLatin && hasNonLatin) nonLatinMixed = 1;
+
+      if (bidiOverrides > 0) {
+        printf("      %s[CRIT]  HEURISTIC: Tag '%s': mluc text contains %d Unicode "
+               "bidi override/formatting characters (U+200B-U+206F)%s\n",
+               ColorCritical(), info.GetTagSigName(sit->TagInfo.sig),
+               bidiOverrides, ColorReset());
+        printf("       %sCWE-116: Bidi text injection — can reverse displayed text "
+               "direction for spoofing/phishing%s\n",
+               ColorCritical(), ColorReset());
+        unicodeIssues++;
+      }
+      if (controlChars > 0) {
+        printf("      %s[WARN]  Tag '%s': mluc text contains %d non-printable "
+               "control characters%s\n",
+               ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
+               controlChars, ColorReset());
+        printf("       %sCWE-116: Control character injection in profile text%s\n",
+               ColorCritical(), ColorReset());
+        unicodeIssues++;
+      }
+      if (nullChars > 0 && nullChars < (int)textLen) {
+        // A single null at the very end is just a standard terminator — not suspicious
+        bool isJustTerminator = (nullChars == 1 && textBuf[textLen - 1] == 0x0000);
+        if (!isJustTerminator) {
+          printf("      %s[WARN]  Tag '%s': mluc text contains %d embedded null "
+                 "characters (string truncation attack)%s\n",
+                 ColorWarning(), info.GetTagSigName(sit->TagInfo.sig),
+                 nullChars, ColorReset());
+          printf("       %sCWE-170: Embedded nulls truncate text differently per "
+                 "consumer (injection vector)%s\n",
+                 ColorCritical(), ColorReset());
+          unicodeIssues++;
+        }
+      }
+      if (nonLatinMixed) {
+        printf("      %s[WARN]  Tag '%s': mluc text mixes Latin + non-Latin scripts "
+               "(possible homoglyph/corruption)%s\n",
+               ColorWarning(), info.GetTagSigName(sit->TagInfo.sig), ColorReset());
+        printf("       %sCWE-116: Mixed-script text may indicate fuzzed/corrupted "
+               "Unicode data%s\n", ColorCritical(), ColorReset());
+        unicodeIssues++;
+      }
+      if (unicodeIssues > 4) break; // cap findings per tag
+    }
   }
   if (unicodeIssues > 0) {
     heuristicCount += unicodeIssues;

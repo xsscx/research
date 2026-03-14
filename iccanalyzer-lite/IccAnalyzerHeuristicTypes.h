@@ -8,8 +8,7 @@
 #ifndef ICCANALYZERHEURISTICTYPES_H
 #define ICCANALYZERHEURISTICTYPES_H
 
-// If heuristicCount reaches this threshold, skip library-API phase
-// to avoid crashes/hangs from severely malformed profiles.
-static constexpr int kCriticalHeuristicThreshold = 5;
+// Heuristic type definitions — no gating thresholds.
+// iccanalyzer-lite runs ALL heuristics on ALL profiles.
 
 #endif // ICCANALYZERHEURISTICTYPES_H
