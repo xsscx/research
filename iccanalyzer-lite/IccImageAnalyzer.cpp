@@ -598,8 +598,12 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
 int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
   printf("[H149] TIFF IFD Chain Cycle Detection (CWE-835)\n");
 
-  if (!tif || !filepath) {
-    printf("      [SKIP] No TIFF handle or filepath\n\n");
+  // tif handle is unused — H149 reads raw file bytes independently.
+  // This allows it to run even when TIFFOpen fails on corrupt files.
+  (void)tif;
+
+  if (!filepath) {
+    printf("      [SKIP] No filepath\n\n");
     return 0;
   }
 
@@ -878,12 +882,50 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
 
   TIFF *tif = TIFFOpen(filepath, "r");
   if (!tif) {
-    printf("%s[ERROR] Cannot open TIFF file (libtiff TIFFOpen failed)%s\n",
+    printf("%s[CRIT]  HEURISTIC: Cannot open TIFF file (libtiff TIFFOpen failed)%s\n",
            ColorCritical(), ColorReset());
-    printf("        This may indicate a severely corrupted or non-TIFF file.\n\n");
+    printf("        This may indicate a severely corrupted or truncated TIFF file.\n");
+    printf("       %sCWE-20: Improper Input Validation — file has TIFF magic but is unparseable%s\n",
+           ColorCritical(), ColorReset());
+    findings++;
+
+    // Report file size — truncation is the most common cause
+    struct stat stFail;
+    if (stat(filepath, &stFail) == 0) {
+      printf("        File size: %lld bytes", (long long)stFail.st_size);
+      if (stFail.st_size < 8)
+        printf(" %s(< 8 byte TIFF header minimum)%s", ColorCritical(), ColorReset());
+      else if (stFail.st_size < 64)
+        printf(" %s(severely truncated — no IFD possible)%s", ColorCritical(), ColorReset());
+      printf("\n");
+    }
+    printf("\n");
+
+    // H149 uses raw file I/O — can run without TIFFOpen
+    // Pass nullptr for tif; H149 opens the file independently
+    findings += RunHeuristic_H149_TiffIfdChainCycle(nullptr, filepath);
+
+    // H139/H140/H141/H150 require a valid TIFF handle — skip with explanation
+    printf("[H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)\n");
+    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
+    printf("[H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)\n");
+    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
+    printf("[H141] TIFF IFD Offset Bounds Validation (CWE-125)\n");
+    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
+    printf("[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)\n");
+    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
+
     TIFFSetWarningHandler(oldWarn);
     TIFFSetErrorHandler(oldErr);
-    return -1;
+
+    printf("=======================================================================\n");
+    printf("IMAGE ANALYSIS SUMMARY\n");
+    printf("=======================================================================\n");
+    printf("Format:     TIFF (corrupt/truncated — TIFFOpen failed)\n");
+    printf("Findings:   %d\n", findings);
+    printf("=======================================================================\n\n");
+
+    return findings;
   }
 
   // ── TIFF Metadata ──
