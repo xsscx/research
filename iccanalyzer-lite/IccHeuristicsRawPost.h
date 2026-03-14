@@ -50,5 +50,6 @@ int RunHeuristic_H57_EmbeddedProfileRecursionDepth(const char *filename);
 int RunHeuristic_H59_SpectralWavelengthRange(const char *filename);
 int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename);
 int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename);
+int RunHeuristic_H153_SampledCurveNaNCast(const char *filename);
 
 #endif // ICCHEURISTICSRAWPOST_H
