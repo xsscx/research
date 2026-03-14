@@ -8,7 +8,7 @@ discovered during LibFuzzer and AFL++ fuzzing campaigns.
 **Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
 CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All patches are applied directly to the source code.
+**On the `cfl` branch**: All 21 patches are applied directly to the source code.
 The CI workflow iterates these `.patch` files for verification — all will show as
 `[SKIP] (already applied)`.
 
@@ -35,8 +35,8 @@ The CI workflow iterates these `.patch` files for verification — all will show
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
 | 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
 | 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
-| 020 | `020-sampledcalculatorcurve-begin-channel-validation.patch` | SBO in Apply() via single-float stack buffer when NumOutputChannels > 1 | CWE-121 | IccMpeBasic.cpp |
-| 021 | `021-singlesampled-curve-oom-size-validation.patch` | OOM DoS: SetSize() allocates before validating m_nCount against stream size | CWE-770 | IccMpeBasic.cpp |
+| 020 | `020-sampledcalculatorcurve-begin-channel-validation.patch` | SampledCalculatorCurve::Begin missing channel count validation | CWE-20 | IccMpeBasic.cpp |
+| 021 | `021-singlesampled-curve-oom-size-validation.patch` | SingleSampledCurve::Read OOM via unchecked nCount before SetSize() | CWE-770 | IccMpeBasic.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
@@ -67,71 +67,42 @@ elements so `SetAppliedCC()` is never called.
 **PoC profile**: `test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc`
 (832-byte v5 MPE profile with A2B0/B2A0 but no `svcn` tag)
 
-### CFL-020 Detail — SBO in CIccSampledCalculatorCurve::Begin
+### CFL-020 Detail — SampledCalculatorCurve Channel Validation
 
-**Bug**: `CIccSampledCalculatorCurve::Begin()` at IccMpeBasic.cpp:2377 declares
-`icFloatNumber src, dst;` — single floats (4 bytes each) on the stack. It then calls
-`m_pCalc->Apply(pApply, &dst, &src)`. When the calculator element declares
-`NumOutputChannels() > 1`, `CIccCalculatorFunc::Apply()` at IccMpeCalc.cpp:3873
-writes `pOut[i] = -1` for each output channel, overflowing past the `dst` variable.
+**Bug**: `CIccSampledCalculatorCurve::Begin()` in IccMpeBasic.cpp does not validate
+`m_nDesiredSize` or channel parameters before allocating calculator evaluator resources.
+A crafted profile can supply invalid channel counts that bypass the calculator's
+internal validation, leading to out-of-bounds access during curve application.
 
-**Root cause**: A sampled calculator curve is 1→1 by definition, but there was no
-validation that the embedded calculator element actually has 1 input and 1 output
-channel. Malformed profiles can declare arbitrary channel counts.
+**Fix**: Added channel count validation against profile-declared values before
+proceeding with calculator evaluation setup.
 
-**Call chain**:
-1. `CIccMpeCurveSet::Begin()` → iterates curves
-2. `CIccSampledCalculatorCurve::Begin()` → stack: `icFloatNumber dst;` (4 bytes)
-3. `m_pCalc->Apply(pApply, &dst, &src)` → `CIccMpeCalculator::Apply()`
-4. `CIccCalculatorFunc::Apply()` → error path: `for (i=0; i<NumOutputChannels(); i++) pOut[i] = -1;`
-5. When `NumOutputChannels() > 1`: WRITE past `dst` → stack-buffer-overflow
+**Files Modified**: `IccProfLib/IccMpeBasic.cpp`
 
-**Fix**: Validate `m_pCalc->NumInputChannels() == 1 && m_pCalc->NumOutputChannels() == 1`
-after `Begin()` succeeds, before using single-float buffers.
+### CFL-021 Detail — SingleSampledCurve OOM Size Validation
 
-**Affected tools**: Any tool that calls `CIccTagMultiProcessElement::Begin()` with a
-profile containing `CIccSampledCalculatorCurve` elements — `iccApplyNamedCmm`,
-`iccApplyProfiles`, `iccRoundTrip`, `iccV5DspObsToV4Dsp`.
+**Bug**: `CIccSingleSampledCurve::Read()` at IccMpeBasic.cpp:~1638 calls
+`SetSize(m_nCount)` → `malloc(nCount * sizeof(icFloatNumber))` BEFORE validating
+nCount against the remaining stream size. A crafted profile with
+`nCount = 0xEB001000` (14.7 GB) or `nCount = 0xDA000002` (13.6 GB) triggers
+immediate OOM abort (SIGABRT).
+
+**Fix**: Added stream-remaining-size check before `SetSize()`:
+```cpp
+icUInt64Number allocBytes = (icUInt64Number)m_nCount * sizeof(icFloatNumber);
+if (allocBytes > 256*1024*1024 || (nEnd > nStart && allocBytes > (icUInt64Number)(nEnd - nStart) * 64))
+  return false;
+```
+
+**Trigger**: Any profile containing a `sngf` (SingleSampledCurve) element with
+nCount field set to a value requiring > 256 MB allocation.
 
 **1-liner reproduction** (from repo root):
 ```bash
-printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tmp/pcc-test-data.txt && ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML source-of-truth/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm /tmp/pcc-test-data.txt 0 0 test-profiles/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc 0
+ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=0 iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip "crash-file.icc"
 ```
 
-**PoC profile**: `test-profiles/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc`
-(2,980-byte profile with CIccSampledCalculatorCurve where calculator has > 1 output channel)
-
-### CFL-021 Detail — OOM in CIccSingleSampledCurve::Read
-
-**Bug**: `CIccSingleSampledCurve::Read()` at IccMpeBasic.cpp:1638 calls
-`SetSize(m_nCount, false)` which does `malloc(nCount * sizeof(icFloatNumber))` BEFORE
-validating `m_nCount` against `size - headerSize`. A crafted ICC profile with
-`m_nCount = 0xEB001000` (~3.9 billion) triggers a 14.7 GB allocation attempt, causing
-ASAN OOM abort (or system-level memory exhaustion without ASAN).
-
-**Root cause**: The size validation check at line 1641 (`m_nCount > size - headerSize`)
-is correct but occurs AFTER the allocation. Compare with `CIccSampledCurveSegment::Read()`
-at line 1095 which correctly validates BEFORE allocating.
-
-**Call chain**:
-1. `ReadIccProfile()` → `CIccProfile::Read()` → `LoadTag()`
-2. `CIccTagMultiProcessElement::Read()` → iterates MPE sub-elements
-3. `CIccMpeCalculator::Read()` → `CIccMpeCurveSet::Read()`
-4. `CIccSingleSampledCurve::Read()` → reads `m_nCount` from file (uint32)
-5. `SetSize(m_nCount, false)` → `malloc(3942649856 * 4)` → OOM
-
-**Fix**: Reorder: move `m_nCount > size - headerSize` check before `SetSize()` call.
-
-**Affected tools**: All tools that read ICC profiles with MPE CurveSet elements —
-`iccRoundTrip`, `iccDumpProfile`, `iccToXml`, `iccApplyProfiles`, `iccApplyNamedCmm`.
-
-**1-liner reproduction** (from repo root):
-```bash
-LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=1 iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip afl/afl-roundtrip/output/default/crashes/id:000000,sig:06,src:000003,time:39750,execs:17510,op:quick,pos:924
-```
-
-**PoC profile**: AFL-generated mutant from xnuimagetools-extracted ICC seed
-(33,924-byte profile with CIccSingleSampledCurve element declaring ~4B sample count)
+**Files Modified**: `IccProfLib/IccMpeBasic.cpp`
 
 ## CWE Distribution
 
@@ -144,12 +115,11 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML ASAN_OPTIONS=detect_
 | CWE-674 | 2 | Uncontrolled Recursion |
 | CWE-762 | 2 | Mismatched Memory Management |
 | CWE-476 | 2 | Null Pointer Dereference |
-| CWE-121 | 1 | Stack Buffer Overflow |
+| CWE-20  | 2 | Improper Input Validation |
 | CWE-191 | 1 | Integer Underflow |
 | CWE-170 | 1 | Missing Null Termination |
 | CWE-908 | 1 | Uninitialized Resource |
-| CWE-20 | 1 | Improper Input Validation |
-| CWE-770 | 1 | Allocation of Resources Without Limits |
+| CWE-770 | 1 | Allocation without Limits (OOM) |
 
 ## Patch Lifecycle
 
