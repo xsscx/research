@@ -527,6 +527,88 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
               }
             }
 
+            // H151: Validate calculator channel function & operator enum signatures.
+            // calc element layout:
+            //   sig('calc',4) + reserved(4) + nInput(2) + nOutput(2) + nSubElem(4)
+            //   position table: (nSubElem+1) entries * (offset(4) + size(4))
+            //   pos[0] = channel function, pos[1..n] = sub-elements
+            // Channel function layout:
+            //   icChannelFuncSignature(4, must be 0x66756E63='func') + reserved(4) + nOps(4)
+            //   ops[nOps] * (sig(4) + data(4))
+            // Bug: CIccCalculatorFunc::Read() at IccMpeCalc.cpp:3482 loads the sig as
+            //   icChannelFuncSignature enum — invalid values cause UBSAN UB.
+            //   CFL-005 patches this to read as icUInt32Number.
+            // Also: operator sigs at m_Op[i].sig must be valid FourCC (printable ASCII).
+            for (size_t b = 0; b + 15 < scanLen; b++) {
+              icUInt32Number w = ReadU32BE(&scanBuf[b]);
+              // Look for 'calc' signature (0x63616C63)
+              if (w != 0x63616C63) continue;
+
+              // Parse calc header: sig(4) + reserved(4) + nInput(2) + nOutput(2) + nSubElem(4)
+              size_t calcOff = b;
+              if (calcOff + 16 > scanLen) break;
+              icUInt32Number nSubElem = ReadU32BE(&scanBuf[calcOff + 12]);
+              if (nSubElem > 10000) continue;  // sanity limit
+
+              // Position table starts at calcOff+16, has (nSubElem+1) entries of 8 bytes
+              icUInt32Number nPos = nSubElem + 1;
+              size_t posTableStart = calcOff + 16;
+              if (posTableStart + (size_t)nPos * 8 > scanLen) continue;
+
+              // pos[0] = channel function position (relative to calc element start)
+              icUInt32Number funcOff = ReadU32BE(&scanBuf[posTableStart]);
+              icUInt32Number funcSz  = ReadU32BE(&scanBuf[posTableStart + 4]);
+              size_t absFuncOff = calcOff + funcOff;
+
+              if (absFuncOff + 12 > scanLen || funcSz < 12) continue;
+
+              // Validate icChannelFuncSignature (must be 0x66756E63 = 'func')
+              icUInt32Number chanFuncSig = ReadU32BE(&scanBuf[absFuncOff]);
+              if (chanFuncSig != 0x66756E63) {
+                printf("      %s[CRITICAL] Tag '%s': Calculator channel function signature "
+                       "0x%08X is not 'func' (0x66756E63)%s\n",
+                       ColorCritical(), sig37, chanFuncSig, ColorReset());
+                printf("       %sCWE-681: Invalid icChannelFuncSignature enum load causes "
+                       "undefined behavior (UBSAN at IccMpeCalc.cpp:3482)%s\n",
+                       ColorCritical(), ColorReset());
+                printf("       %sRef: CFL-005 patch, iccDEV upstream issues%s\n",
+                       ColorCritical(), ColorReset());
+                calcIssues++;
+              }
+
+              // Also validate operator signatures in the func block
+              icUInt32Number nOps = ReadU32BE(&scanBuf[absFuncOff + 8]);
+              if (nOps > 0 && nOps < 100000) {
+                size_t opsStart = absFuncOff + 12;
+                icUInt32Number invalidOps = 0;
+                icUInt32Number checkedOps = (nOps < 1000) ? nOps : 1000;
+                for (icUInt32Number op = 0; op < checkedOps; op++) {
+                  size_t opOff = opsStart + (size_t)op * 8;
+                  if (opOff + 4 > scanLen) break;
+                  icUInt32Number opSig = ReadU32BE(&scanBuf[opOff]);
+                  if (opSig == 0x00000000) continue;
+                  bool valid = true;
+                  for (int byte = 0; byte < 4; byte++) {
+                    icUInt8Number ch = (opSig >> (24 - byte * 8)) & 0xFF;
+                    if (ch < 0x20 || ch > 0x7E) { valid = false; break; }
+                  }
+                  if (!valid) invalidOps++;
+                }
+                if (invalidOps > 0) {
+                  printf("      %s[CRITICAL] Tag '%s': %u/%u calculator operator signatures "
+                         "are invalid enum values (non-FourCC)%s\n",
+                         ColorCritical(), sig37, invalidOps, checkedOps, ColorReset());
+                  printf("       %sCWE-681: Invalid operator enum at m_Op[i].sig "
+                         "(IccMpeCalc.cpp:3514)%s\n",
+                         ColorCritical(), ColorReset());
+                  calcIssues++;
+                }
+              }
+
+              // Skip past this calc element to avoid re-matching inner 'calc' ops
+              b = calcOff + 15;
+            }
+
           }
         }
       }
