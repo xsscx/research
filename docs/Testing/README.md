@@ -219,6 +219,28 @@ Values parsed by `CIccCfgProfile::fromJson()`:
 - `"linear"` — Linear interpolation
 - `"tetrahedral"` — Tetrahedral interpolation (default, best for most cases)
 
+## CFL-026 Patch Status
+
+The 5 toJson() bugs discovered during testing have been addressed:
+
+| Asset | Location | Status |
+|-------|----------|--------|
+| CFL-026 patch (research repo) | `cfl/patches/026-json-tojson-key-typos.patch` | ✅ Applied, 12/12 fuzzers built |
+| CFL-026 patch (iccDEV cfl branch) | `Testing/Fuzzing/patches/026-json-tojson-key-typos.patch` | ✅ Onboarded |
+| Standalone upstream patch | `~/typos.patch` | ✅ Complete (all 5 fixes) |
+| Patches README (iccDEV cfl) | `Testing/Fuzzing/patches/README.md` | ✅ Updated (17→22 patches) |
+
+### Verification
+
+```
+[OK] Verified: patch applies on cfl branch (git apply --check → exit 0)
+[OK] Verified: patch applies on master (git apply --check → exit 0)
+[OK] Verified: 12/12 fuzzers built (ls cfl/bin/icc_*_fuzzer | wc -l → 12)
+[OK] Verified: 666 ASAN symbols (nm icc_applynamedcmm_fuzzer | grep -c __asan → 666)
+[OK] Verified: 0 toJson typo matches (grep -c 'dstDigits]"' → 0)
+[OK] Verified: 90/90 tests pass, 0 ASAN/UBSAN
+```
+
 ## How to Run
 
 ```bash
