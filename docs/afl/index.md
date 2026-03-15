@@ -226,3 +226,131 @@ AFL++ finds crash
 | `fuzz/` | Seed corpus source + crash artifact destination |
 | `test-profiles/` | ICC profile seeds for dump/toxml/roundtrip |
 | `.github/workflows/` | CI runs AFL++ campaigns (when configured) |
+
+## Individual Fuzzer Startup Commands
+
+Prerequisites:
+```bash
+echo core | sudo tee /proc/sys/kernel/core_pattern
+export AFL_BASE=/home/h02332/po/research
+cd $AFL_BASE
+```
+
+Common environment (set once per shell session):
+```bash
+export LD_LIBRARY_PATH=$AFL_BASE/afl/bin
+export ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0
+export AFL_MAP_SIZE=131072
+export AFL_SKIP_CPUFREQ=1
+export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+```
+
+> **Note**: Use `-i -` to resume from existing output. For first runs, use
+> `-i afl/afl-<target>/input` instead.
+
+### 1. iccDumpProfile — Profile Describe/Validate
+
+```bash
+afl-fuzz -i - -o afl/afl-dump/output \
+  -x cfl/icc_dump_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccDumpProfile @@ ALL
+```
+
+### 2. iccToXml — ICC→XML serialization
+
+```bash
+afl-fuzz -i - -o afl/afl-toxml/output \
+  -x cfl/icc_toxml_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccToXml @@ /dev/null
+```
+
+### 3. iccFromXml — XML→ICC parsing
+
+```bash
+afl-fuzz -i - -o afl/afl-fromxml/output \
+  -x cfl/icc_fromxml_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccFromXml @@ /dev/null
+```
+
+### 4. iccRoundTrip — Round-trip transforms
+
+```bash
+afl-fuzz -i - -o afl/afl-rt/output \
+  -x cfl/icc_roundtrip_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccRoundTrip @@
+```
+
+### 5. iccTiffDump — TIFF tag reading + ICC extraction
+
+```bash
+afl-fuzz -i - -o afl/afl-tiffdump/output \
+  -x cfl/icc_tiffdump_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccTiffDump @@
+```
+
+### 6. iccJpegDump — JPEG APP2 ICC extraction
+
+```bash
+afl-fuzz -i - -o afl/afl-jpegdump/output \
+  -x cfl/icc.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccJpegDump @@
+```
+
+### 7. iccPngDump — PNG iCCP chunk ICC extraction
+
+```bash
+afl-fuzz -i - -o afl/afl-pngdump/output \
+  -x cfl/icc.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccPngDump @@
+```
+
+### 8. iccFromCube — .cube LUT text parsing
+
+```bash
+afl-fuzz -i - -o afl/afl-fromcube/output \
+  -x cfl/icc_fromcube_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccFromCube @@ /dev/null
+```
+
+### 9. iccApplySearch — CMM search/optimization
+
+```bash
+afl-fuzz -i - -o afl/afl-search/output \
+  -x cfl/icc_applysearch_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccApplySearch \
+     afl/afl-search/search-data.txt 0 0 @@ 1 @@ 1
+```
+
+### Quick Smoke Test (60 seconds, headless)
+
+```bash
+AFL_NO_UI=1 afl-fuzz -i afl/afl-dump/input -o /tmp/afl-smoke \
+  -x cfl/icc_dump_fuzzer.dict -m none -t 5000 -V 60 \
+  -- $AFL_BASE/afl/bin/iccDumpProfile @@ ALL
+```
+
+### Parallel Fuzzing
+
+```bash
+# Main instance
+afl-fuzz -M main0 -i - -o afl/afl-dump/output \
+  -x cfl/icc_dump_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccDumpProfile @@ ALL
+
+# Secondary instances (share queue with main)
+afl-fuzz -S sec1 -i - -o afl/afl-dump/output \
+  -x cfl/icc_dump_fuzzer.dict -m none -t 5000 \
+  -- $AFL_BASE/afl/bin/iccDumpProfile @@ ALL
+```
+
+### First Run Seed Sources
+
+| Target | First-run `-i` path |
+|--------|---------------------|
+| dump, toxml, roundtrip | `afl/afl-dump/input` (auto-sampled from test-profiles/) |
+| fromxml | `afl/afl-fromxml/input` (XML seeds) |
+| tiffdump | `afl/afl-tiffdump/input` or `fuzz/graphics/tif/` |
+| jpegdump | `fuzz/graphics/jpg/` |
+| pngdump | `fuzz/graphics/png/` |
+| fromcube | `afl/afl-fromcube/input` |
+| search | `afl/afl-search/input` |
