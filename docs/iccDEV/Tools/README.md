@@ -99,6 +99,8 @@ Data type fields also use strings: `"colorData"`, `"legacy"`, `"it8"`.
 | Duplicate `transform` key | CIccCfgProfile::fromJson L633+L655 | Same key for transform type AND interpolation |
 
 All 5 bugs affect `toJson()` output — input `fromJson()` parsing works correctly.
+**Fix**: CFL-026 patch — onboarded to both `cfl/patches/` (research repo) and
+`Testing/Fuzzing/patches/` (iccDEV cfl branch). Standalone upstream patch at `~/typos.patch`.
 
 ### JSON Test Suite (90 tests)
 
