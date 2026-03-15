@@ -536,12 +536,36 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
              ColorWarning(), specEnd, specStart, ColorReset());
       heuristicCount++;
     }
+    // CFL-028 pattern: steps==1 causes division by zero in SetRange() (CWE-369/CWE-681)
+    if (specSteps == 1) {
+      printf("      %s[WARN]  HEURISTIC: Spectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369%s\n",
+             ColorCritical(), ColorReset());
+      printf("       CWE-369: Divide By Zero / CWE-681: NaN-to-integer cast\n");
+      heuristicCount++;
+    }
+    // Degenerate range: start==end with any steps causes 0/0=NaN scale factor
+    if (specStart == specEnd && specSteps > 0) {
+      printf("      %s[WARN]  HEURISTIC: Spectral start==end (%.2fnm) with steps=%u — degenerate range causes NaN scale — CWE-681%s\n",
+             ColorCritical(), specStart, specSteps, ColorReset());
+      printf("       CWE-681: Incorrect Conversion between Numeric Types\n");
+      heuristicCount++;
+    }
   }
   if (hasBiSpectral) {
     printf("      BiSpectral: start=%.2fnm end=%.2fnm steps=%u\n", biStart, biEnd, biSteps);
     if (biSteps > 10000) {
       printf("      %s[WARN]  HEURISTIC: Excessive bispectral steps: %u%s\n",
              ColorWarning(), biSteps, ColorReset());
+      heuristicCount++;
+    }
+    if (biSteps == 1) {
+      printf("      %s[WARN]  HEURISTIC: BiSpectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369%s\n",
+             ColorCritical(), ColorReset());
+      heuristicCount++;
+    }
+    if (biStart == biEnd && biSteps > 0) {
+      printf("      %s[WARN]  HEURISTIC: BiSpectral start==end (%.2fnm) — degenerate range causes NaN scale — CWE-681%s\n",
+             ColorCritical(), biStart, ColorReset());
       heuristicCount++;
     }
   }
