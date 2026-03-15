@@ -1,0 +1,17 @@
+{
+  "comment": "SBO reproduction: CIccCalculatorFunc::Apply() stack-buffer-overflow at IccMpeCalc.cpp:3873",
+  "imageFiles": {
+    "srcImageFile": "docs/Testing/test-data/rgb-4x4-8bit.tif",
+    "dstImageFile": "/tmp/sbo-repro-output.tif",
+    "dstEncoding": "sameAsSource",
+    "dstCompression": false,
+    "dstPlanar": false,
+    "dstEmbedIcc": false
+  },
+  "profileSequence": [
+    {
+      "iccFile": "sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc",
+      "intent": "relative"
+    }
+  ]
+}
