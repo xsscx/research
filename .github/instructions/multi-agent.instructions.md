@@ -253,11 +253,12 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 - Apple Silicon Macs: **Docker Desktop only** (Rosetta 2 supports ASAN correctly)
 - **Colima/OrbStack NOT supported** — QEMU/VZ backends cannot handle ASAN shadow memory
 
-## Analysis Report Gap — Current State (Updated 2026-03-08)
+## Analysis Report Gap — Current State (Updated 2026-03-15)
 
-**Analyzed**: 39 profiles/images with full 153-heuristic reports in `analysis-reports/`
-**Total test profiles**: 335 ICC profiles in `test-profiles/` (+ 426 crash/oom/slow-unit/timeout artifacts)
-**Gap**: ~290 profiles still need analysis
+**Analyzed**: 49 profiles/images with full 153-heuristic reports in `analysis-reports/`
+**Total test profiles**: 329 ICC profiles in `test-profiles/` root (+ 505 in subdirs: crashes/4 + cwe-400/491 + spectral/10)
+**Extended test profiles**: 116 ICC profiles in `extended-test-profiles/` (CVE PoCs, crash artifacts, malformed)
+**Gap**: ~280 profiles still need analysis
 **macOS agent activity**: Seeded 6 starved fuzzer corpora, organized docs, added cross-refs
 
 ### Completed Analysis (sessions to date)

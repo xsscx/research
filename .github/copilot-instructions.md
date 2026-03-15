@@ -1007,7 +1007,7 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
 | **call-graph/** | LLVM-based call graphs + AST dumps for 37 compilation targets. | [call-graph.instructions.md](instructions/call-graph.instructions.md) |
-| **test-profiles/** | 335 ICC profiles for fuzzing and regression testing. |
+| **test-profiles/** | 329 ICC profiles (root) + 505 in subdirs (crashes/cwe-400/spectral) for fuzzing and regression testing. |
 | **.github/scripts/** | Shell/Python scripts for analysis, fuzzing, ramdisk, coverage, corpus handling. |
 
 Each iccDEV subdirectory (under cfl/, iccanalyzer-lite/, colorbleed_tools/) is an independent
