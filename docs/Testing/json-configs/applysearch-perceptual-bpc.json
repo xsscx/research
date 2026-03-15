@@ -1,0 +1,81 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "srcFile": "",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "value",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "searchApply": {
+    "profileSequence": [
+      {
+        "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "intent": 0,
+        "interpolation": "tetrahedral",
+        "useBPC": true
+      },
+      {
+        "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "intent": 0,
+        "interpolation": "tetrahedral",
+        "useBPC": true
+      }
+    ],
+    "initial": {
+      "intent": 0,
+      "adjustPcsLuminance": false,
+      "useV5SubProfile": false
+    },
+    "pccWeights": []
+  },
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      {
+        "values": [
+          255,
+          255,
+          255
+        ]
+      },
+      {
+        "values": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "values": [
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "values": [
+          255,
+          0,
+          0
+        ]
+      },
+      {
+        "values": [
+          0,
+          255,
+          0
+        ]
+      },
+      {
+        "values": [
+          0,
+          0,
+          255
+        ]
+      }
+    ]
+  }
+}

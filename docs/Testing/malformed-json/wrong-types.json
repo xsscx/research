@@ -1,0 +1,18 @@
+{
+  "dataFiles": {
+    "srcType": "not-a-number",
+    "dstEncoding": "also-not-a-number"
+  },
+  "profileSequence": [
+    {
+      "iccFile": 12345,
+      "intent": "not-a-number",
+      "interpolation": 999
+    }
+  ],
+  "colorData": {
+    "space": 12345,
+    "encoding": 99999,
+    "data": "not-an-array"
+  }
+}

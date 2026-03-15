@@ -1,0 +1,19 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstEncoding": "float"
+  },
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      {
+        "values": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    ]
+  }
+}

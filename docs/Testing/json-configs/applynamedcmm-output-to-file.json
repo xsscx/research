@@ -1,0 +1,46 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "srcFile": "",
+    "dstType": "colorData",
+    "dstFile": "/tmp/iccdev-json-test-output.json",
+    "dstEncoding": "float",
+    "dstPrecision": 6,
+    "dstDigits": 12
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 1,
+      "interpolation": "tetrahedral",
+      "useBPC": false
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      {
+        "values": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "values": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "values": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    ]
+  }
+}
