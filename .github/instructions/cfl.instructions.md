@@ -92,10 +92,11 @@ for historical reference.
 | 024 | TagArray Cleanup UAF guard | m_nSize>100K check prevents freed-object access in Cleanup() | CWE-416 | IccTagComposite.cpp |
 | 025 | CLUT InterpNd null Apply guard | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
 | 026 | TagArray copy/assign UAF guard | Freed-object access in copy constructor + operator= (CWE-416) | CWE-416 | IccTagComposite.cpp |
+| 027 | JSON toJson() key typo fixes | 5 toJson() key mismatches vs fromJson() in JSON config | CWE-20 | IccCmmConfig.cpp |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **027**)
-- 22 active patches (CFL-001 through CFL-026, with 012/013/015/016 retired)
+- Numbering: zero-padded 3-digit, sequential (next: **028**)
+- 23 active patches (CFL-001 through CFL-027, with 012/013/015/016 retired)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
