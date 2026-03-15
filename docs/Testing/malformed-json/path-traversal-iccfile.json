@@ -1,0 +1,25 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstEncoding": "float"
+  },
+  "profileSequence": [
+    {
+      "iccFile": "/etc/passwd",
+      "intent": 1
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      {
+        "values": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    ]
+  }
+}

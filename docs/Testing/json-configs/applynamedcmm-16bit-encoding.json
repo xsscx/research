@@ -1,0 +1,67 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "srcFile": "",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "16Bit",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 1,
+      "interpolation": "tetrahedral",
+      "useBPC": false
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "16Bit",
+    "data": [
+      {
+        "values": [
+          65535,
+          65535,
+          65535
+        ]
+      },
+      {
+        "values": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "values": [
+          32768,
+          32768,
+          32768
+        ]
+      },
+      {
+        "values": [
+          65535,
+          0,
+          0
+        ]
+      },
+      {
+        "values": [
+          0,
+          65535,
+          0
+        ]
+      },
+      {
+        "values": [
+          0,
+          0,
+          65535
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "srcFile": "",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "value",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 0
+    },
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 1
+    },
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 2
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      {
+        "values": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      {
+        "values": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "values": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      }
+    ]
+  }
+}
