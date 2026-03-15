@@ -35,6 +35,10 @@ on:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
       - '.github/scripts/iccdev-json-cfg-tests.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
+      - 'docs/Testing/json-cli-exercise/**'
+      - 'docs/Testing/test-data/**'
+      - 'docs/Testing/json-configs/**'
+      - 'docs/Testing/malformed-json/**'
       - 'docs/iccDEV/Tools/test-data/**'
       - 'cfl/patches/*.patch'
   pull_request:
@@ -42,6 +46,10 @@ on:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
       - '.github/scripts/iccdev-json-cfg-tests.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
+      - 'docs/Testing/json-cli-exercise/**'
+      - 'docs/Testing/test-data/**'
+      - 'docs/Testing/json-configs/**'
+      - 'docs/Testing/malformed-json/**'
       - 'docs/iccDEV/Tools/test-data/**'
       - 'cfl/patches/*.patch'
   workflow_dispatch:
@@ -462,6 +470,43 @@ jobs:
             echo "- Intent variations: perceptual, relative, saturation, absolute"
             echo "- Malformed JSON: 9 negative tests (syntax, types, missing fields, path traversal)"
             echo "- Cross-tool: 5 malformed tests across ApplySearch + ApplyProfiles"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
+      # JSON CLI Exercise Tests (125 tests — all CLI options for all 3 tools)
+      # -----------------------------------------------------------------------
+      - name: JSON CLI Exercise Tests (125 tests)
+        if: success() || failure()
+        env:
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          chmod +x docs/Testing/json-cli-exercise/json-cli-exercise.sh
+
+          echo "::group::JSON CLI Exercise Output"
+          docs/Testing/json-cli-exercise/json-cli-exercise.sh 2>&1 || {
+            rc=$?
+            echo "::endgroup::"
+            echo "::error::JSON CLI exercise failed with exit code $rc"
+            exit "$rc"
+          }
+          echo "::endgroup::"
+
+          {
+            echo ""
+            echo "### JSON CLI Exercise Tests"
+            echo ""
+            echo "**125 tests** across 26 groups covering all JSON CLI options"
+            echo ""
+            echo "- Groups 1-22: JSON -cfg field variations (97 tests)"
+            echo "- Group 23: ApplyProfiles real TIFF processing (10 tests)"
+            echo "- Group 24: ApplyProfiles CLI legacy mode (8 tests)"
+            echo "- Group 25: ApplyNamedCmm additional CLI modes (6 tests)"
+            echo "- Group 26: ApplySearch additional CLI modes (4 tests)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
