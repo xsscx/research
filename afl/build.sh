@@ -9,10 +9,18 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_DIR="$REPO_ROOT/iccDEV/Build-AFL"
-CMAKE_DIR="$REPO_ROOT/iccDEV/Build/Cmake"
+ICCDEV_DIR="$REPO_ROOT/iccDEV"
+BUILD_DIR="$ICCDEV_DIR/Build-AFL"
+CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="$REPO_ROOT/afl/bin"
 JOBS=$(nproc)
+
+# Clone iccDEV if not present or incomplete (AFL tests unpatched upstream)
+if [ ! -f "$CMAKE_DIR/CMakeLists.txt" ]; then
+    echo "[*] Cloning iccDEV (unpatched upstream for AFL)..."
+    rm -rf "$ICCDEV_DIR"
+    git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
+fi
 
 # Verify AFL++ is installed
 if ! command -v afl-clang-fast++ &>/dev/null; then
@@ -35,15 +43,27 @@ echo "    Compiler: afl-clang-fast++"
 echo "    Sanitizers: ASAN + UBSAN"
 echo "    Jobs: $JOBS"
 
+# Detect multiarch include/lib paths (Ubuntu puts headers in /usr/include/<arch>/)
+ARCH_INCLUDE="/usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
+ARCH_LIB="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
+
 AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
 cmake "$CMAKE_DIR" \
     -DCMAKE_C_COMPILER=afl-clang-fast \
     -DCMAKE_CXX_COMPILER=afl-clang-fast++ \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_C_FLAGS="-g -O0" \
-    -DCMAKE_CXX_FLAGS="-g -O0" \
+    -DCMAKE_C_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
+    -DCMAKE_CXX_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
     -DENABLE_TOOLS=ON \
     -DENABLE_SHARED_LIBS=ON \
+    -DTIFF_INCLUDE_DIR="$ARCH_INCLUDE" \
+    -DTIFF_LIBRARY="$ARCH_LIB/libtiff.so" \
+    -DZLIB_INCLUDE_DIR=/usr/include \
+    -DZLIB_LIBRARY="$ARCH_LIB/libz.so" \
+    -DPNG_PNG_INCLUDE_DIR=/usr/include \
+    -DPNG_LIBRARY="$ARCH_LIB/libpng.so" \
+    -DJPEG_INCLUDE_DIR=/usr/include \
+    -DJPEG_LIBRARY="$ARCH_LIB/libjpeg.so" \
     2>&1 | tail -5
 
 echo "[*] Building with $JOBS cores..."
