@@ -262,9 +262,9 @@ ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
   iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm \
   -cfg docs/Testing/json-configs/applynamedcmm-srgb-basic.json
 
-# Full test suites (187 total tests)
+# Full test suites (215 total tests)
 bash docs/Testing/test-json-tools.sh              # 90 tests
-bash docs/Testing/json-cli-exercise/json-cli-exercise.sh  # 97 tests
+bash docs/Testing/json-cli-exercise/json-cli-exercise.sh  # 125 tests
 ```
 
 See `.github/prompts/json-tooling.prompt.md` for full JSON field inventory,
