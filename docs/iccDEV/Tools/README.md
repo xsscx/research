@@ -54,6 +54,71 @@ cmake Cmake \
 make -j32
 ```
 
+## JSON Configuration Feature
+
+Three tools support a JSON configuration mode via the `-cfg` flag:
+
+| Tool | JSON Support | Top-Level Keys |
+|------|-------------|----------------|
+| [iccApplyNamedCmm](iccApplyNamedCmm/) | ✓ `-cfg` | `dataFiles`, `profileSequence`, `colorData` |
+| [iccApplyProfiles](iccApplyProfiles/) | ✓ `-cfg` | `imageFiles`, `profileSequence` |
+| [iccApplySearch](iccApplySearch/) | ✓ `-cfg` | `dataFiles`, `searchApply`, `colorData` |
+| iccApplyToLink | ✗ | Args only |
+
+### Shared Infrastructure
+
+All JSON parsing uses a shared implementation:
+- **IccJsonUtil.{h,cpp}** — nlohmann/json wrappers (`loadJsonFrom`, `saveJsonAs`, type converters)
+- **IccCmmConfig.{h,cpp}** — 9 configuration classes with `fromJson()`/`toJson()` methods (2,426 LOC)
+
+### Critical: String Encoding Values
+
+JSON configs use **string** encoding names — NOT numeric enum integers.
+Numeric values silently return `icEncodeUnknown` → `"Invalid source data encoding"`.
+
+| JSON String | C++ Enum | Range |
+|-------------|----------|-------|
+| `"value"` | icEncodeValue | Varies |
+| `"percent"` | icEncodePercent | 0–100 |
+| `"unitFloat"` | icEncodeUnitFloat | 0.0–1.0 |
+| `"float"` | icEncodeFloat | Unbounded |
+| `"8Bit"` | icEncode8Bit | 0–255 |
+| `"16Bit"` | icEncode16Bit | 0–65535 |
+| `"16BitV2"` | icEncode16BitV2 | 0–65535 |
+
+Data type fields also use strings: `"colorData"`, `"legacy"`, `"it8"`.
+
+### Known JSON Serialization Bugs (toJson round-trip)
+
+| Bug | Location | Description |
+|-----|----------|-------------|
+| `dstDigits]"` typo | CIccCfgDataApply::toJson ~L303 | "]" inside key string |
+| `srcImageFile` ↔ `srcImgFile` | CIccCfgImageApply L405 vs L422 | fromJson/toJson key mismatch |
+| `iccFile` ↔ `iccProfile` | CIccCfgProfile L623 vs L683 | fromJson/toJson key mismatch |
+| `interpolation` array assign | CIccCfgProfile::toJson ~L706 | Assigns `icInterpNames` array, not `icInterpNames[i]` |
+| Duplicate `transform` key | CIccCfgProfile::fromJson L633+L655 | Same key for transform type AND interpolation |
+
+All 5 bugs affect `toJson()` output — input `fromJson()` parsing works correctly.
+
+### JSON Test Suite (90 tests)
+
+| Section | Tests | Pass | Tool(s) |
+|---------|-------|------|---------|
+| Valid configs | 9 | 9 | ApplyNamedCmm, ApplySearch |
+| Malformed JSON (ApplyNamedCmm) | 14 | 14 | ApplyNamedCmm |
+| Malformed JSON (ApplySearch) | 14 | 14 | ApplySearch |
+| Malformed JSON (ApplyProfiles) | 14 | 14 | ApplyProfiles |
+| Edge cases | 3 | 3 | ApplyNamedCmm |
+| All intents (×3 profiles) | 12 | 12 | ApplyNamedCmm |
+| All encodings | 7 | 7 | ApplyNamedCmm |
+| Profile variants | 7 | 7 | ApplyNamedCmm |
+| Crash profiles | 10 | 10 | ApplyNamedCmm |
+| **Total** | **90** | **90** | **0 ASAN, 0 UBSAN** |
+
+Test configs: `docs/Testing/json-configs/` (9 valid) + `docs/Testing/malformed-json/` (14 malformed)
+Test runner: `docs/Testing/test-json-tools.sh`
+Results: `docs/Testing/README.md`
+
 ## Coverage Baseline
 
 ### Structured Test Scripts
@@ -61,6 +126,7 @@ make -j32
 | Script | Path | Tests | Scope |
 |--------|------|-------|-------|
 | `test-iccdev-all.sh` | `.github/scripts/test-iccdev-all.sh` | 843 | All 14 tools, parallel, full corpus |
+| `test-json-tools.sh` | `docs/Testing/test-json-tools.sh` | 90 | JSON `-cfg` mode (3 tools, ASAN+UBSAN) |
 | `test-specseptotiff.sh` | `.github/scripts/test-specseptotiff.sh` | 34 | Spectral TIFF merging, all option combos |
 | `test-iccdev-tools-comprehensive.sh` | `.github/scripts/test-iccdev-tools-comprehensive.sh` | 103 | Original baseline (see table below) |
 

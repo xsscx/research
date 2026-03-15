@@ -15,7 +15,7 @@ Research documentation organized by topic.
 
 | Directory | Contents | Files |
 |-----------|----------|-------|
-| [Testing/](Testing/) | CFL corpus inventory, TIFF fuzzer analysis | 2 |
+| [Testing/](Testing/) | CFL corpus inventory, TIFF fuzzer analysis, JSON config test suite | 4+ |
 | [tiffimg/](tiffimg/) | CTiffImg code paths, analysis index, checklists | 7 |
 | [xnuimagefuzzer/](xnuimagefuzzer/) | ICC profile injection analysis, function reference | 2 |
 
@@ -38,6 +38,7 @@ Research documentation organized by topic.
 - **iccDEV tool reference**: [iccDEV/Tools/README.md](iccDEV/Tools/README.md)
 - **Build helpers (Unix)**: [iccDEV/shell-helpers/unix.md](iccDEV/shell-helpers/unix.md)
 - **Build helpers (Windows)**: [iccDEV/shell-helpers/windows.md](iccDEV/shell-helpers/windows.md)
+- **JSON config test suite**: [Testing/README.md](Testing/README.md)
 - **CFL corpus inventory**: [Testing/FUZZ_CFL_INVENTORY.md](Testing/FUZZ_CFL_INVENTORY.md)
 - **TIFF fuzzer analysis**: [Testing/TIFF_FUZZER_COMPREHENSIVE_ANALYSIS.md](Testing/TIFF_FUZZER_COMPREHENSIVE_ANALYSIS.md)
 - **Start with TIFF code paths**: [tiffimg/START_HERE.md](tiffimg/START_HERE.md)

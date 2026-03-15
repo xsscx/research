@@ -177,11 +177,147 @@ Provided in `docs/iccDEV/Tools/test-data/`:
 | `test-data-cmyk-percent.txt` | CMYK | Percent (0–100) | 10 |
 | `test-data-lab-float.txt` | Lab | Float | 9 |
 
+## JSON Configuration (`-cfg`)
+
+Instead of command-line arguments, iccApplyNamedCmm accepts a JSON configuration file:
+
+```bash
+iccApplyNamedCmm -cfg docs/Testing/json-configs/applynamedcmm-srgb-basic.json
+```
+
+### JSON Schema
+
+```json
+{
+  "dataFiles": {
+    "srcType": "colorData",       // "colorData" | "legacy" | "it8"
+    "srcFile": "",                // Path to external data file (when srcType != "colorData")
+    "dstType": "colorData",       // "colorData" | "legacy" | "it8"
+    "dstFile": "",                // Path to output file (empty = stdout)
+    "dstEncoding": "float",       // See encoding strings table below
+    "dstPrecision": 4,            // Decimal places in output
+    "dstDigits": 9                // Total digits in output
+  },
+  "profileSequence": [
+    {
+      "iccFile": "path/to/profile.icc",
+      "intent": 1,                // 0=Perceptual, 1=Relative, 2=Saturation, 3=Absolute
+      "interpolation": "tetrahedral",  // "linear" | "tetrahedral"
+      "useBPC": false,            // Black Point Compensation
+      "useD2BxB2Dx": true,        // Use DToB/BToD tags if available
+      "adjustPcsLuminance": false, // Adjust PCS luminance
+      "useV5SubProfile": false,   // Use v5 sub-profile
+      "useHToS": false,           // Use HToS transform
+      "pccFile": "",              // Profile Connection Conditions file
+      "iccEnvVars": [],           // Environment variables [{name, value}]
+      "pccEnvVars": []            // PCC environment variables [{name, value}]
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",              // 4-char ICC color space signature (trailing space)
+    "encoding": "float",          // Input data encoding string
+    "data": [
+      { "values": [1.0, 1.0, 1.0] },
+      { "values": [0.0, 0.0, 0.0] }
+    ]
+  }
+}
+```
+
+### JSON Encoding Strings (CRITICAL)
+
+The JSON parser requires **string** encoding values, NOT numeric enum integers.
+Numeric values (0, 1, 2...) are silently rejected as `icEncodeUnknown`.
+
+**Color data encoding** (`colorData.encoding`, `dataFiles.dstEncoding`):
+
+| String | Enum | Range |
+|--------|------|-------|
+| `"value"` | icEncodeValue | Normalized (Lab conversion for 3-ch) |
+| `"percent"` | icEncodePercent | 0–100 |
+| `"unitFloat"` | icEncodeUnitFloat | 0.0–1.0 (clips) |
+| `"float"` | icEncodeFloat | Unbounded |
+| `"8Bit"` | icEncode8Bit | 0–255 |
+| `"16Bit"` | icEncode16Bit | 0–65535 |
+| `"16BitV2"` | icEncode16BitV2 | 0–65535 |
+
+**Data type** (`dataFiles.srcType`, `dataFiles.dstType`):
+
+| String | Enum |
+|--------|------|
+| `"colorData"` | icCfgColorData (inline JSON data) |
+| `"legacy"` | icCfgLegacy (external file) |
+| `"it8"` | icCfgIt8 (IT8 file) |
+
+### CLI Arguments ↔ JSON Field Mapping
+
+| CLI Argument | JSON Path |
+|-------------|-----------|
+| `data_file_path` | `dataFiles.srcFile` (or inline `colorData`) |
+| `final_data_encoding` | `dataFiles.dstEncoding` |
+| `interpolation` | `profileSequence[].interpolation` |
+| `profile_file_path` | `profileSequence[].iccFile` |
+| `Rendering_intent` | `profileSequence[].intent` |
+| `-debugcalc` | `profileSequence[].debugCalc` (bool) |
+| `-PCC path` | `profileSequence[].pccFile` |
+| `-ENV:Name value` | `profileSequence[].iccEnvVars` |
+| `FmtPrecision` | `dataFiles.dstPrecision` |
+| `FmtDigits` | `dataFiles.dstDigits` |
+
+### JSON Config Examples
+
+Example configs are in `docs/Testing/json-configs/`:
+
+| Config | Description |
+|--------|-------------|
+| `applynamedcmm-srgb-basic.json` | Single sRGB profile, float encoding, 6 RGB samples |
+| `applynamedcmm-chain-two-profiles.json` | Two sRGB profiles chained |
+| `applynamedcmm-three-profile-chain.json` | Three profiles with intents 0, 1, 2 |
+| `applynamedcmm-debugcalc-bpc.json` | debugCalc + BPC, 8Bit encoding |
+| `applynamedcmm-8bit-encoding.json` | 8-bit input encoding |
+| `applynamedcmm-16bit-encoding.json` | 16-bit input encoding |
+| `applynamedcmm-output-to-file.json` | Output to dstFile |
+
+### JSON Output
+
+When the tool writes results, the output JSON uses `colorData` structure:
+
+```json
+{
+  "colorData": {
+    "data": [{ "v": [0.9642, 1.0, 0.8249] }],
+    "encoding": "float",
+    "space": "XYZ ",
+    "srcEncoding": "float",
+    "srcSpace": "RGB "
+  }
+}
+```
+
+### Known JSON Bugs
+
+**Bug 1: `dstDigits]"` key typo** (IccCmmConfig.cpp:~303) — `toJson()` serializes
+`dstDigits` as `"dstDigits]"` (bracket inside key string). Breaks round-trip load→save→load.
+
+**Bug 2: `iccFile`/`iccProfile` field mismatch** — `fromJson()` reads `"iccFile"` but
+`toJson()` writes `"iccProfile"`. Round-trip serialization loses the profile path.
+
+**Bug 3: `icInterpNames` array assignment** (IccCmmConfig.cpp:~706) — `toJson()` assigns
+the entire `icInterpNames` array pointer instead of `icInterpNames[i]`. Interpolation
+value is corrupted in output JSON.
+
+### JSON Test Suite
+
+90 automated tests covering valid configs, malformed JSON, edge cases, all intents,
+all encodings, profile variants, and crash profiles — 0 ASAN/UBSAN findings.
+See `docs/Testing/README.md` and `docs/Testing/test-json-tools.sh`.
+
 ## Known Limitations
 
 - Encoding 4 (icEncode8Bit) returns exit 255 with some profiles
 - Chained transforms with 2+ profiles may trigger upstream memory leak
   (`CIccPcsStepScale::Mult` at IccCmm.cpp:4325 — 24-byte leak, upstream)
+- JSON `toJson()` output has 3 serialization bugs (see Known JSON Bugs above)
 
 ## Related Tools
 

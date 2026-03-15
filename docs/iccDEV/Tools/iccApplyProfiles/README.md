@@ -99,6 +99,75 @@ iccApplyProfiles fuzz/graphics/tif/BigEndian-image.tiff /tmp/out.tiff 1 0 0 0 0 
   test-profiles/sRGB_D65_MAT.icc 1
 ```
 
+## JSON Configuration (`-cfg`)
+
+iccApplyProfiles also accepts a JSON configuration file:
+
+```bash
+iccApplyProfiles -cfg config.json
+```
+
+### JSON Schema
+
+```json
+{
+  "imageFiles": {
+    "srcImageFile": "input.tiff",     // Source TIFF path
+    "dstImageFile": "output.tiff",    // Destination TIFF path
+    "dstEncoding": "8Bit",            // "8Bit" | "16Bit" | "float" | "sameAsSource"
+    "dstCompression": false,          // true=LZW, false=None
+    "dstPlanar": false,               // true=Separation, false=Contiguous
+    "dstEmbedIcc": false              // true=Embed ICC in output TIFF
+  },
+  "profileSequence": [
+    {
+      "iccFile": "path/to/profile.icc",
+      "intent": 1,
+      "interpolation": "tetrahedral",
+      "useBPC": false,
+      "adjustPcsLuminance": false,
+      "pccFile": "",
+      "iccEnvVars": []
+    }
+  ]
+}
+```
+
+### JSON File Encoding Strings
+
+| String | Enum | Description |
+|--------|------|-------------|
+| `"8Bit"` | icEncode8Bit | 8 bits per sample |
+| `"16Bit"` | icEncode16Bit | 16 bits per sample |
+| `"float"` | icEncodeFloat | 32-bit float |
+| `"sameAsSource"` | icEncodeUnknown | Match source encoding |
+
+### CLI Arguments ↔ JSON Field Mapping
+
+| CLI Argument | JSON Path |
+|-------------|-----------|
+| `src_tiff` | `imageFiles.srcImageFile` |
+| `dst_tiff` | `imageFiles.dstImageFile` |
+| `dst_encoding` | `imageFiles.dstEncoding` |
+| `dst_compression` | `imageFiles.dstCompression` |
+| `dst_planar` | `imageFiles.dstPlanar` |
+| `dst_embed_icc` | `imageFiles.dstEmbedIcc` |
+| `interpolation` | `profileSequence[].interpolation` |
+| `profile_path` | `profileSequence[].iccFile` |
+| `rendering_intent` | `profileSequence[].intent` |
+
+### Known JSON Bugs
+
+**`srcImageFile`/`srcImgFile` field mismatch** — `fromJson()` reads `"srcImageFile"` and
+`"dstImageFile"` but `toJson()` writes `"srcImgFile"` and `"dstImgFile"`. Round-trip
+serialization (load→save→load) loses the image file paths. Use `"srcImageFile"` and
+`"dstImageFile"` in input configs.
+
+### JSON Test Suite
+
+14 malformed JSON configs tested against iccApplyProfiles — all rejected gracefully
+(exit 0 or 255, 0 ASAN/UBSAN). See `docs/Testing/README.md`.
+
 ## TIFF Requirements
 
 - Input must be a valid TIFF file (II\* or MM\0\* magic bytes)
