@@ -55,17 +55,21 @@ echo "[OK] AFL-instrumented iccDEV built successfully"
 echo ""
 
 # Deploy binaries to afl/bin/
+# Note: cmake directory names use PascalCase (IccDumpProfile/) but binary
+# names use camelCase (iccDumpProfile). Find the actual executable in each dir.
 echo "[*] Deploying to $BIN_DIR"
 mkdir -p "$BIN_DIR"
-for tool in "$BUILD_DIR"/Tools/*/; do
-    name=$(basename "$tool")
-    bin="$tool/$name"
-    if [[ -x "$bin" ]]; then
+DEPLOYED=0
+for tool_dir in "$BUILD_DIR"/Tools/*/; do
+    while IFS= read -r bin; do
+        bin_name=$(basename "$bin")
         cp "$bin" "$BIN_DIR/"
-        size=$(du -h "$BIN_DIR/$name" | cut -f1)
-        echo "  $size  afl/bin/$name"
-    fi
+        size=$(du -h "$BIN_DIR/$bin_name" | cut -f1)
+        echo "  $size  afl/bin/$bin_name"
+        DEPLOYED=$((DEPLOYED + 1))
+    done < <(find "$tool_dir" -maxdepth 1 -type f -executable 2>/dev/null)
 done
+echo "  $DEPLOYED tool binaries deployed"
 
 # Deploy shared libraries
 cp "$BUILD_DIR"/IccProfLib/libIccProfLib2.so* "$BIN_DIR/"
@@ -76,5 +80,4 @@ ls -lh "$BIN_DIR"/libIccProfLib2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
 ls -lh "$BIN_DIR"/libIccXML2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
 
 echo ""
-TOOL_COUNT=$(ls "$BIN_DIR"/icc* 2>/dev/null | wc -l)
-echo "[OK] $TOOL_COUNT AFL-instrumented tools deployed to afl/bin/"
+echo "[OK] $DEPLOYED AFL-instrumented tools deployed to afl/bin/"
