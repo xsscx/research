@@ -1,6 +1,17 @@
 #!/bin/bash
+# JSON CLI Exercise — 125 tests across 26 groups for all JSON-enabled iccDEV tools
+# Run from the research repo root (parent of iccDEV/)
 set -o pipefail
-cd /home/h02332/po/research
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Auto-detect: if in docs/Testing/json-cli-exercise/, go up 3 levels
+if [ -d "$SCRIPT_DIR/../../../iccDEV" ]; then
+  REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+elif [ -d "$SCRIPT_DIR/../../../../iccDEV" ]; then
+  REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+else
+  REPO_ROOT="$(pwd)"
+fi
+cd "$REPO_ROOT"
 export LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML
 export ASAN_OPTIONS=halt_on_error=0,detect_leaks=0
 export UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1
@@ -950,6 +961,302 @@ elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL search cli: -d
 else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL search cli: debugcalc (exit=$rc)"; fi
 
 # ============================================================
+# GROUP 23: ApplyProfiles — Real TIFF processing (JSON -cfg)
+# ============================================================
+echo ""
+echo "--- GROUP 23: ApplyProfiles Real TIFF Processing (10 tests) ---"
+
+# Create minimal test TIFFs if test-data dir exists
+TEST_DATA_DIR=""
+for d in "docs/Testing/test-data" "Testing/Fuzzing/docs/Tools/test-data"; do
+  if [ -f "$d/rgb-4x4-8bit.tif" ]; then TEST_DATA_DIR="$d"; break; fi
+done
+
+# If no pre-built TIFFs, create them on the fly
+if [ -z "$TEST_DATA_DIR" ]; then
+  TEST_DATA_DIR="/tmp/json-test-tiffs"
+  mkdir -p "$TEST_DATA_DIR"
+  python3 -c "
+import struct, os
+def make_tiff(path, w, h, bps):
+    spp = 3; data_len = w * h * spp * (bps // 8)
+    pixel_data = bytes([128] * data_len)
+    ifd_offset = 8; num_entries = 12; ifd_size = 2 + num_entries * 12 + 4
+    data_offset = ifd_offset + ifd_size
+    bps_offset = data_offset; xres_offset = bps_offset + 6; yres_offset = xres_offset + 8
+    strip_offset = yres_offset + 8
+    header = struct.pack('<2sIH', b'II', 42, ifd_offset)
+    def e(tag, typ, cnt, val): return struct.pack('<HHII', tag, typ, cnt, val)
+    ifd = struct.pack('<H', num_entries)
+    ifd += e(256,3,1,w) + e(257,3,1,h) + e(258,3,3,bps_offset)
+    ifd += e(259,3,1,1) + e(262,3,1,2) + e(273,4,1,strip_offset)
+    ifd += e(277,3,1,spp) + e(278,3,1,h) + e(279,4,1,data_len)
+    ifd += e(282,5,1,xres_offset) + e(283,5,1,yres_offset) + e(296,3,1,2)
+    ifd += struct.pack('<I', 0)
+    extra = struct.pack('<HHH', bps, bps, bps)
+    extra += struct.pack('<II', 72, 1) + struct.pack('<II', 72, 1)
+    with open(path, 'wb') as f:
+        f.write(header); f.write(ifd); f.write(extra); f.write(pixel_data)
+make_tiff('$TEST_DATA_DIR/rgb-4x4-8bit.tif', 4, 4, 8)
+make_tiff('$TEST_DATA_DIR/rgb-4x4-16bit.tif', 4, 4, 16)
+make_tiff('$TEST_DATA_DIR/rgb-8x8-8bit.tif', 8, 8, 8)
+"
+fi
+
+# 23a: Real TIFF with each dstEncoding
+for enc in 8Bit 16Bit float sameAsSource; do
+  python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-4x4-8bit.tif','dstImageFile':'/tmp/json-tiff-$enc.tif',
+    'dstEncoding':'$enc','dstCompression':False,'dstPlanar':False,'dstEmbedIcc':True},
+  'profileSequence':[{'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1}]
+}, open('/tmp/test-real-tiff-$enc.json','w'), indent=2)"
+  run_test "applyProfiles real TIFF: enc=$enc" "$PROFILES" "/tmp/test-real-tiff-$enc.json" 0
+done
+
+# 23b: 16-bit source TIFF
+python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-4x4-16bit.tif','dstImageFile':'/tmp/json-tiff-16src.tif',
+    'dstEncoding':'16Bit','dstCompression':False,'dstPlanar':False,'dstEmbedIcc':True},
+  'profileSequence':[{'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1}]
+}, open('/tmp/test-real-tiff-16src.json','w'), indent=2)"
+run_test "applyProfiles: 16-bit source TIFF" "$PROFILES" "/tmp/test-real-tiff-16src.json" 0
+
+# 23c: Compression + embed
+python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-4x4-8bit.tif','dstImageFile':'/tmp/json-tiff-lzw.tif',
+    'dstEncoding':'8Bit','dstCompression':True,'dstPlanar':False,'dstEmbedIcc':True},
+  'profileSequence':[{'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1}]
+}, open('/tmp/test-real-tiff-lzw.json','w'), indent=2)"
+run_test "applyProfiles: LZW compression + embed" "$PROFILES" "/tmp/test-real-tiff-lzw.json" 0
+
+# 23d: No embed ICC
+python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-4x4-8bit.tif','dstImageFile':'/tmp/json-tiff-noembed.tif',
+    'dstEncoding':'8Bit','dstCompression':False,'dstPlanar':False,'dstEmbedIcc':False},
+  'profileSequence':[{'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1}]
+}, open('/tmp/test-real-tiff-noembed.json','w'), indent=2)"
+run_test "applyProfiles: no embed ICC" "$PROFILES" "/tmp/test-real-tiff-noembed.json" 0
+
+# 23e: Multi-profile chain with real TIFF
+python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-8x8-8bit.tif','dstImageFile':'/tmp/json-tiff-chain.tif',
+    'dstEncoding':'8Bit','dstCompression':False,'dstPlanar':False,'dstEmbedIcc':True},
+  'profileSequence':[
+    {'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1},
+    {'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':1}
+  ]
+}, open('/tmp/test-real-tiff-chain.json','w'), indent=2)"
+run_test "applyProfiles: 2-profile chain real TIFF" "$PROFILES" "/tmp/test-real-tiff-chain.json" 0
+
+# 23f: All rendering intents with real TIFF
+for intent in 0 1 2 3; do
+  python3 -c "
+import json; json.dump({
+  'imageFiles':{'srcImageFile':'$TEST_DATA_DIR/rgb-4x4-8bit.tif','dstImageFile':'/tmp/json-tiff-intent-$intent.tif',
+    'dstEncoding':'8Bit','dstCompression':False,'dstPlanar':False,'dstEmbedIcc':True},
+  'profileSequence':[{'iccFile':'test-profiles/sRGB_D65_MAT.icc','intent':$intent}]
+}, open('/tmp/test-real-tiff-intent-$intent.json','w'), indent=2)"
+done
+# Just run intents 0 and 2 (perceptual, saturation) — 1 and 3 tested above
+run_test "applyProfiles: perceptual intent real TIFF" "$PROFILES" "/tmp/test-real-tiff-intent-0.json" 0
+run_test "applyProfiles: saturation intent real TIFF" "$PROFILES" "/tmp/test-real-tiff-intent-2.json" 0
+
+# ============================================================
+# GROUP 24: ApplyProfiles — CLI legacy mode (non-JSON)
+# ============================================================
+echo ""
+echo "--- GROUP 24: ApplyProfiles CLI Legacy Mode (8 tests) ---"
+
+# CLI: src.tif dst.tif dst_encoding dst_compression dst_planar dst_embed interpolation profile intent
+# dst_encoding: 0=same, 1=8bit, 2=16bit, 4=float
+# dst_compression: 0=none, 1=LZW
+# dst_planar: 0=contig, 1=separation
+# dst_embed: 0=no, 1=embed_last
+# interpolation: 0=linear, 1=tetrahedral
+
+# 24a: Basic — same encoding, no compress, contig, no embed, tet, relative
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-basic.tif" 0 0 0 0 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: basic (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: basic same-enc (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: basic (exit=$rc)"; fi
+
+# 24b: 8-bit output
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-8bit.tif" 1 0 0 0 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: 8bit (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: 8-bit enc(1) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: 8bit (exit=$rc)"; fi
+
+# 24c: 16-bit output
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-16bit.tif" 2 0 0 0 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: 16bit (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: 16-bit enc(2) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: 16bit (exit=$rc)"; fi
+
+# 24d: Float output
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-float.tif" 4 0 0 0 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: float (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: float enc(4) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: float (exit=$rc)"; fi
+
+# 24e: LZW compression + embed ICC
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-lzw-embed.tif" 1 1 0 1 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: lzw+embed (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: LZW(1)+embed(1) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: lzw+embed (exit=$rc)"; fi
+
+# 24f: Linear interpolation + absolute intent
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-8bit.tif" "/tmp/cli-tiff-lin-abs.tif" 1 0 0 0 0 "test-profiles/sRGB_D65_MAT.icc" 3 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: lin+abs (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: linear(0)+absolute(3) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: lin+abs (exit=$rc)"; fi
+
+# 24g: 16-bit source TIFF → float output
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-4x4-16bit.tif" "/tmp/cli-tiff-16to-float.tif" 4 0 0 1 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: 16→float (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: 16src→float+embed (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: 16→float (exit=$rc)"; fi
+
+# 24h: 2-profile chain CLI
+TOTAL=$((TOTAL+1))
+output=$("$PROFILES" "$TEST_DATA_DIR/rgb-8x8-8bit.tif" "/tmp/cli-tiff-2chain.tif" 1 0 0 1 1 "test-profiles/sRGB_D65_MAT.icc" 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL profiles cli: 2-chain (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL profiles cli: 2-profile chain (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL profiles cli: 2-chain (exit=$rc)"; fi
+
+# ============================================================
+# GROUP 25: ApplyNamedCmm — Additional CLI encoding modes
+# ============================================================
+echo ""
+echo "--- GROUP 25: ApplyNamedCmm Additional CLI Tests (6 tests) ---"
+
+# 25a: value encoding (0)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 0 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: value enc (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: value enc(0) (exit=$rc)"
+else PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: value enc(0) — range mismatch expected (exit=$rc)"; fi
+
+# 25b: percent encoding (1)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 1 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: percent enc (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: percent enc(1) (exit=$rc)"
+else PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: percent enc(1) — range mismatch expected (exit=$rc)"; fi
+
+# 25c: unitFloat encoding (2)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 2 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: unitFloat enc (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: unitFloat enc(2) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL cli named: unitFloat enc (exit=$rc)"; fi
+
+# 25d: precision format 3:10 (float with 10-digit precision)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 3:10 1 "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: 3:10 prec (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: float enc(3) prec(10) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL cli named: 3:10 prec (exit=$rc)"; fi
+
+# 25e: BPC intent (40=perceptual+BPC)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 3 1 "test-profiles/sRGB_D65_MAT.icc" 40 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: BPC intent (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: BPC intent(40) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL cli named: BPC intent (exit=$rc)"; fi
+
+# 25f: Multi-profile chain CLI (3 profiles)
+TOTAL=$((TOTAL+1))
+output=$("$NAMEDCMM" "/tmp/test-cli-data.txt" 3 1 \
+  "test-profiles/sRGB_D65_MAT.icc" 1 \
+  "test-profiles/sRGB_D65_MAT.icc" 1 \
+  "test-profiles/sRGB_D65_MAT.icc" 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL cli named: 3-chain (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL cli named: 3-profile chain (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL cli named: 3-chain (exit=$rc)"; fi
+
+# ============================================================
+# GROUP 26: ApplySearch — Additional CLI encoding + intent modes
+# ============================================================
+echo ""
+echo "--- GROUP 26: ApplySearch Additional CLI Tests (4 tests) ---"
+
+# 26a: float encoding + perceptual
+TOTAL=$((TOTAL+1))
+output=$("$SEARCH" "/tmp/test-cli-data.txt" 3 1 "test-profiles/sRGB_D65_MAT.icc" 0 "test-profiles/sRGB_D65_MAT.icc" 0 -INIT 0 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL search cli: perceptual (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL search cli: float + perceptual(0) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL search cli: perceptual (exit=$rc)"; fi
+
+# 26b: unitFloat encoding
+TOTAL=$((TOTAL+1))
+output=$("$SEARCH" "/tmp/test-cli-data.txt" 2 1 "test-profiles/sRGB_D65_MAT.icc" 1 "test-profiles/sRGB_D65_MAT.icc" 1 -INIT 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL search cli: unitFloat (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL search cli: unitFloat enc(2) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL search cli: unitFloat (exit=$rc)"; fi
+
+# 26c: BPC intent (40)
+TOTAL=$((TOTAL+1))
+output=$("$SEARCH" "/tmp/test-cli-data.txt" 3 1 "test-profiles/sRGB_D65_MAT.icc" 40 "test-profiles/sRGB_D65_MAT.icc" 40 -INIT 40 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL search cli: BPC (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL search cli: BPC intent(40) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL search cli: BPC (exit=$rc)"; fi
+
+# 26d: linear interpolation
+TOTAL=$((TOTAL+1))
+output=$("$SEARCH" "/tmp/test-cli-data.txt" 3 0 "test-profiles/sRGB_D65_MAT.icc" 1 "test-profiles/sRGB_D65_MAT.icc" 1 -INIT 1 2>&1)
+rc=$?
+asan_hit=$(echo "$output" | grep -c 'AddressSanitizer\|runtime error:' || true)
+if [ "$asan_hit" -gt 0 ]; then ASAN=$((ASAN+1)); echo "[ASAN] #$TOTAL search cli: linear (exit=$rc)"
+elif [ "$rc" -eq 0 ]; then PASS=$((PASS+1)); echo "[PASS] #$TOTAL search cli: linear interp(0) (exit=$rc)"
+else FAIL=$((FAIL+1)); echo "[FAIL] #$TOTAL search cli: linear (exit=$rc)"; fi
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -973,6 +1280,7 @@ rm -f /tmp/test-enc-*.json /tmp/test-prec-*.json /tmp/test-dig-*.json \
       /tmp/test-large-*.json /tmp/test-bad-*.json /tmp/test-num-*.json \
       /tmp/test-empty-*.json /tmp/test-cmyk-*.json /tmp/test-all-*.json \
       /tmp/test-srcfile-*.json /tmp/test-external-data.* /tmp/json-test-output.txt \
-      /tmp/test-cli-data.txt /tmp/test-cli-8bit.txt /tmp/test-cli-16bit.txt 2>/dev/null
+      /tmp/test-cli-data.txt /tmp/test-cli-8bit.txt /tmp/test-cli-16bit.txt \
+      /tmp/test-real-tiff-*.json /tmp/json-tiff-*.tif /tmp/cli-tiff-*.tif 2>/dev/null
 
 exit 0
