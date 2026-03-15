@@ -113,7 +113,7 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
 ### WSL-2 Agent — Prioritized Task List
 
 #### High Priority (Coverage & Analysis Gaps)
-1. **Batch-analyze ~290 unanalyzed test profiles** (currently 39/329 = 11.9%):
+1. **Batch-analyze ~280 unanalyzed test profiles** (currently 49/329 = 14.9%):
    ```bash
    for f in test-profiles/*.icc; do
      bn=$(basename "$f" .icc)
