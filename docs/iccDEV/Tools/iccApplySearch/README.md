@@ -82,6 +82,89 @@ iccApplySearch docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 \
   -INIT 1
 ```
 
+## JSON Configuration (`-cfg`)
+
+iccApplySearch accepts a JSON configuration file with a `searchApply` section:
+
+```bash
+iccApplySearch -cfg docs/Testing/json-configs/applysearch-basic.json
+```
+
+### JSON Schema
+
+```json
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "searchApply": {
+    "profileSequence": [
+      {
+        "iccFile": "path/to/profile.icc",
+        "intent": 1,
+        "useBPC": false,
+        "interpolation": "tetrahedral",
+        "pccFile": ""
+      }
+    ],
+    "initial": {
+      "lab": [50.0, 0.0, 0.0],     // Starting Lab values for search
+      "last": false                 // Use last result as starting point
+    },
+    "pccWeights": {
+      "luminance": 1.0,
+      "chroma": 1.0,
+      "hue": 1.0
+    }
+  },
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [1.0, 0.0, 0.0] }
+    ]
+  }
+}
+```
+
+### Top-Level JSON Structure (vs iccApplyNamedCmm)
+
+| Key | iccApplyNamedCmm | iccApplySearch |
+|-----|------------------|----------------|
+| `dataFiles` | ✓ | ✓ (identical) |
+| `profileSequence` | ✓ (top-level) | ✗ (inside `searchApply`) |
+| `searchApply` | ✗ | ✓ (wraps profiles + search params) |
+| `colorData` | ✓ | ✓ (identical) |
+
+### CLI Arguments ↔ JSON Field Mapping
+
+| CLI Argument | JSON Path |
+|-------------|-----------|
+| `data_file_path` | `dataFiles.srcFile` |
+| `interpolation` | `searchApply.profileSequence[].interpolation` |
+| `profile_file_path` | `searchApply.profileSequence[].iccFile` |
+| `rendering_intent` | `searchApply.profileSequence[].intent` |
+| `Lab_L Lab_a Lab_b` | `searchApply.initial.lab` |
+| `-PCC path` | `searchApply.profileSequence[].pccFile` |
+| `-ENV:Name value` | `searchApply.profileSequence[].iccEnvVars` |
+
+### JSON Config Examples
+
+| Config | Description |
+|--------|-------------|
+| `applysearch-basic.json` | Basic search with sRGB, float encoding |
+| `applysearch-perceptual-bpc.json` | Perceptual intent with BPC enabled |
+
+### JSON Test Suite
+
+14 malformed JSON configs + 2 valid configs tested — all handled gracefully,
+0 ASAN/UBSAN. See `docs/Testing/README.md` and `docs/Testing/test-json-tools.sh`.
+
 ## Known Limitations
 
 - Profile chain searches (3+ profiles) may fail with "Error 6 — Unable to begin"
