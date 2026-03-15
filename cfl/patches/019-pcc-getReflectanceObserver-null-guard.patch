@@ -1,0 +1,14 @@
+diff --git a/IccProfLib/IccPcc.cpp b/IccProfLib/IccPcc.cpp
+index abcdef0..1234567 100644
+--- a/IccProfLib/IccPcc.cpp
++++ b/IccProfLib/IccPcc.cpp
+@@ -293,6 +293,9 @@ CIccMatrixMath *IIccProfileConnectionConditions::getReflectanceObserver(const ic
+   CIccMatrixMath *pAdjust=NULL, *pMtx;
+   const CIccTagSpectralViewingConditions *pView = getPccViewingConditions();
+ 
++  if (!pView)
++    return NULL;
++
+   icSpectralRange illumRange;
+   const icFloatNumber *illum = pView->getIlluminant(illumRange);
+ 
