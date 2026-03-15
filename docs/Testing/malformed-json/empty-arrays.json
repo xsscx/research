@@ -1,0 +1,12 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstEncoding": "float"
+  },
+  "profileSequence": [],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": []
+  }
+}
