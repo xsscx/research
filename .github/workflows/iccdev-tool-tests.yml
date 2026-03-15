@@ -33,12 +33,14 @@ on:
   push:
     paths:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
+      - '.github/scripts/iccdev-json-cfg-tests.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
       - 'docs/iccDEV/Tools/test-data/**'
       - 'cfl/patches/*.patch'
   pull_request:
     paths:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
+      - '.github/scripts/iccdev-json-cfg-tests.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
       - 'docs/iccDEV/Tools/test-data/**'
       - 'cfl/patches/*.patch'
@@ -64,7 +66,7 @@ jobs:
   # Job 1: Build iccDEV with ASAN+UBSAN + all 14 CLI tools
   #############################################################################
   build-and-test:
-    name: "iccDEV Tools (${{ github.event.inputs.ref || 'cfl' }}) • ASAN+UBSAN • 103 tests"
+    name: "iccDEV Tools (${{ github.event.inputs.ref || 'cfl' }}) • ASAN+UBSAN • 134 tests"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -412,6 +414,55 @@ jobs:
             exit "$rc"
           }
           echo "::endgroup::"
+
+      # -----------------------------------------------------------------------
+      # Run JSON configuration (-cfg) tests (31 tests)
+      # -----------------------------------------------------------------------
+      - name: Run JSON -cfg configuration tests (31 tests)
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          LLVM_PROFILE_FILE: "/dev/null"
+          ICCDEV_TOOLS_DIR: "${{ github.workspace }}/iccDEV/Build/Tools"
+          ICCDEV_TESTING_DIR: "${{ github.workspace }}/iccDEV/Testing"
+          ICCDEV_TEST_OUTDIR: "/tmp/iccdev-tool-output"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          chmod +x .github/scripts/iccdev-json-cfg-tests.sh
+
+          echo "::group::JSON Configuration Tests Output"
+          .github/scripts/iccdev-json-cfg-tests.sh 2>&1 || {
+            rc=$?
+            echo "::endgroup::"
+            echo ""
+            if [ "$rc" -eq 2 ]; then
+              echo "::error::JSON tests found ASAN/UBSAN issues"
+            else
+              echo "⚠️  JSON tests had $rc test failures (non-sanitizer)"
+            fi
+            exit "$rc"
+          }
+          echo "::endgroup::"
+
+          {
+            echo ""
+            echo "### JSON Configuration Tests"
+            echo ""
+            echo "**31 tests** covering \`-cfg\` mode for iccApplyNamedCmm, iccApplySearch, iccApplyProfiles"
+            echo ""
+            echo "- Valid configs: 7 ApplyNamedCmm + 1 ApplySearch"
+            echo "- Encoding variations: float, unitFloat, percent, 16BitV2, value"
+            echo "- Intent variations: perceptual, relative, saturation, absolute"
+            echo "- Malformed JSON: 9 negative tests (syntax, types, missing fields, path traversal)"
+            echo "- Cross-tool: 5 malformed tests across ApplySearch + ApplyProfiles"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
       # Upload test output logs
