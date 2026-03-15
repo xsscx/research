@@ -1,0 +1,13 @@
+{
+  "comment": "SBO reproduction: CIccCalculatorFunc::Apply() stack-buffer-overflow at IccMpeCalc.cpp:3873",
+  "dataFiles": {
+    "srcDataFile": "docs/Testing/test-data/rgb-float.txt",
+    "dstEncoding": "float"
+  },
+  "profileSequence": [
+    {
+      "iccFile": "sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc",
+      "intent": "relative"
+    }
+  ]
+}
