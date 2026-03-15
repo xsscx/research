@@ -286,5 +286,57 @@ docs/Testing/
 │   ├── empty-arrays.json
 │   └── channel-count-mismatch.json
 ├── test-data/                 # Additional test data files
-└── results/                   # Test result logs (timestamped)
+├── results/                   # Test result logs (timestamped)
+└── json-cli-exercise/         # Comprehensive CLI option exercise
+    ├── json-cli-exercise.sh   # 978-line script, 97 tests across 22 groups
+    └── results.log            # Full run output (97/97 PASS, 0 ASAN/UBSAN)
 ```
+
+## CLI Exercise — All JSON Options (97 tests)
+
+Comprehensive exercise of every JSON field and CLI argument across all 3 tools.
+Script: `json-cli-exercise/json-cli-exercise.sh` (978 lines, 22 test groups).
+
+| Metric | Result |
+|--------|--------|
+| **Total tests** | 97 |
+| **Passed** | 97 |
+| **Failed** | 0 |
+| **ASAN/UBSAN** | 0 |
+
+### Test Groups
+
+| # | Group | Tests | Coverage |
+|---|-------|-------|----------|
+| 1 | Color encoding strings | 7 | value, float, unitFloat, percent, 8Bit, 16Bit, 16BitV2 |
+| 2 | dstPrecision | 7 | 0, 1, 2, 4, 8, 12, 20 |
+| 3 | dstDigits | 5 | 1, 5, 9, 15, 30 |
+| 4 | debugCalc boolean | 2 | true, false |
+| 5 | srcType | 3 | colorData, legacy, it8 |
+| 6 | dstFile output | 2 | file path, stdout |
+| 7 | srcSpace override | 2 | RGB, Lab |
+| 8 | Rendering intents | 10 | 0–3 basic + 41, 43, 91, 93, 101, 1001 extended |
+| 9 | Interpolation | 2 | linear, tetrahedral |
+| 10 | Profile booleans | 8 | useBPC, useD2BxB2Dx, adjustPcsLuminance, useHToS × true/false |
+| 11 | Environment vars | 3 | iccEnvVars, pccEnvVars, empty arrays |
+| 12 | PCC file | 2 | sRGB path, empty |
+| 13 | Multi-profile chains | 3 | 2-prof, 3-prof, empty sequence |
+| 14 | colorData encoding | 4 | float, 8Bit, 16Bit, value |
+| 15 | Multiple samples | 2 | 1 sample, 10 samples |
+| 16 | ApplySearch fields | 8 | basic, 3-prof, BPC, adjustPcsLuminance, useV5SubProfile, initial, pccWeights, 8Bit |
+| 17 | ApplyProfiles fields | 6 | dstEncoding variants, compression, planar, embed, 2-prof chain |
+| 18 | Edge-case values | 6 | negative intent, large intent, invalid encoding, numeric encoding, empty data, CMYK mismatch |
+| 19 | Stress configs | 4 | all fields set, all booleans true/false, mixed search |
+| 20 | External srcFile | 2 | legacy text file, JSON data file |
+| 21 | CLI args comparison | 6 | float, 8Bit, 16Bit, linear, absolute, -debugcalc |
+| 22 | ApplySearch CLI args | 3 | basic 2-prof, 3-prof, -debugcalc |
+
+### Notable Findings
+
+- **8Bit output encoding on XYZ PCS**: `FromInternalEncoding()` returns `icCmmStatBadColorEncoding` for XYZ+8Bit — XYZ has no 8-bit encoding defined (tests #5, #90 accept this as expected)
+- **"value" input encoding**: `ToInternalEncoding()` with `icEncodeValue` on raw 0.5/0.5/0.5 fails for XYZ PCS destination — the value range mismatch causes encoding failure (test #60)
+- **Empty profileSequence**: Correctly rejected — no profiles means no CMM pipeline (test #56)
+- **Incompatible 3-profile chains**: sRGB→sRGB→sRGB with mixed intents correctly fails at `Begin()` for certain intent combinations (tests #64, #96)
+- **All 8 profile booleans**: useBPC, useD2BxB2Dx, adjustPcsLuminance, useHToS all parse and apply correctly in both true/false states
+- **10 rendering intents**: All basic (0–3) and extended (41, 43, 91, 93, 101, 1001) intents accepted by CMM
+- **Numeric encoding values silently accepted**: Passing `3` instead of `"float"` maps to `icEncodeFloat` via C enum cast — works but undocumented
