@@ -7,7 +7,7 @@ Use this prompt when:
 - Creating new JSON test configurations
 - Triaging JSON-related bugs in IccCmmConfig.cpp
 - Reviewing CFL-027 patch status or upstream merge readiness
-- Running the JSON test suites (187 total tests)
+- Running the JSON test suites (215 total tests)
 
 ## JSON-Enabled Tools (3 of 15)
 
@@ -31,11 +31,11 @@ iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm -cfg docs/Testing/json-conf
 
 # Run full test suites
 bash docs/Testing/test-json-tools.sh              # 90 tests
-bash docs/Testing/json-cli-exercise/json-cli-exercise.sh  # 97 tests
+bash docs/Testing/json-cli-exercise/json-cli-exercise.sh  # 125 tests
 
 # Run from iccDEV paths (same tests, adapted paths)
 bash iccDEV/Testing/Fuzzing/scripts/test-json-tools.sh              # 90 tests
-bash iccDEV/Testing/Fuzzing/scripts/json-cli-exercise.sh            # 97 tests
+bash iccDEV/Testing/Fuzzing/scripts/json-cli-exercise.sh            # 125 tests
 ```
 
 ## JSON Encoding Values (CRITICAL — strings, NOT integers)
