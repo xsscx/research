@@ -37,6 +37,7 @@
 #include "IccUtil.h"
 
 #include "fuzz_utils.h"
+#include "CflSafeDescribe.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // CubeFile class — VERBATIM from iccFromCube.cpp (upstream lines 78-270)
@@ -492,6 +493,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       close(out_fd);
       outFile.valid = true;
       SaveIccProfile(outFile.path, &profile);
+
+      // ═══════════════════════════════════════════════════════════
+      // Gate 12: Read-back verification (NEW — not in upstream tool)
+      // Re-read the written profile to exercise tag Read() paths,
+      // Validate(), and Describe() — triples coverage surface.
+      // ═══════════════════════════════════════════════════════════
+      CIccProfile *pReadback = ReadIccProfile(outFile.path);
+      if (pReadback) {
+        std::string sReport;
+        pReadback->Validate(sReport);
+
+        TagEntryList::iterator ti;
+        for (ti = pReadback->m_Tags.begin(); ti != pReadback->m_Tags.end(); ti++) {
+          if (ti->pTag) {
+            std::string tagDesc;
+            SafeDescribe(ti->pTag, tagDesc, 100);
+          }
+        }
+        delete pReadback;
+      }
     }
   }
 
