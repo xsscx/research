@@ -3329,7 +3329,7 @@ int RunHeuristic_H156_AllocationFailurePathProfiles(const char *filename)
   }
 
   // Profile size vs tag total mismatch (tags claim more data than file contains)
-  if (totalDeclaredSize > profileSize * 2 && profileSize > 0) {
+  if (totalDeclaredSize > (uint64_t)profileSize * 2 && profileSize > 0) {
     printf("      %s[WARN]  Tag sizes total %llu bytes but profile is %u bytes%s\n",
            ColorWarning(), (unsigned long long)totalDeclaredSize,
            profileSize, ColorReset());
