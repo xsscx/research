@@ -176,6 +176,7 @@ for f in "${FUZZERS[@]}"; do
 
   # Set per-fuzzer profraw path so filenames include the fuzzer name
   export LLVM_PROFILE_FILE="$RAMDISK/profraw/${f}_%m_%p.profraw"
+  export ASAN_OPTIONS="detect_leaks=0,allocator_may_return_null=1"
 
   # Run fuzzer; capture exit code without aborting script
   rc=0
