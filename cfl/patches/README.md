@@ -59,13 +59,38 @@ S15Fixed16 and U16Fixed16 branches (2 sites).
 **Trigger path**: v5 `cenc` profile with `cept` struct tag → `icConvertEncodingProfile()` →
 `ConvertFromParams()` → `GetElemNumberValue()` → `GetValues(&rv, 0, 1)` with `m_nSize > 1`.
 
-**PoC**: `extended-test-profiles/sbo-GetValues-FixedNum-IccTagBasic_cpp-Line5519.icc`
+**PoC (fuzzer)**: `extended-test-profiles/sbo-GetValues-FixedNum-IccTagBasic_cpp-Line5519.icc`
 (5410-byte link fuzzer input — unbundle with `unbundle-fuzzer-input.sh link`)
 
-**Upstream tools**: NOT reproducible through CLI tools — they reject `cenc` profiles
-before reaching `AddXform`/`ConvertFromParams`. Any third-party library consumer
-calling `GetElemNumberValue()` on a `cenc` struct with multi-element fixed-num tags
-would be vulnerable.
+**PoC (crafted)**: `extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc`
+(704-byte v5 cenc profile — based on ISO22028-Encoded-sRGB.icc with `ceptWhitePointLuminanceMbr`
+changed from `float32ArrayType` (1 element) to `s15Fixed16ArrayType` (4 elements))
+
+**Upstream tools**: Confirmed reproducible in 3 upstream CLI tools:
+
+```bash
+# iccApplyToLink — SBO at IccTagBasic.cpp:5520 (exit 1/SIGABRT)
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
+  iccDEV/Build/Tools/IccApplyToLink/iccApplyToLink \
+  /tmp/out.icc 0 33 0 test 0.0 1.0 0 0 \
+  extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc 1 \
+  source-of-truth/Testing/Display/sRGB_D65_MAT.icc 1
+
+# iccApplyNamedCmm — SBO at IccTagBasic.cpp:5520 (exit 141/SIGABRT)
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
+  iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm \
+  -cfg <(echo '{"dataFiles":{"srcType":"colorData"},"profileSequence":[{"iccFile":"extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc","intent":1},{"iccFile":"source-of-truth/Testing/Display/sRGB_D65_MAT.icc","intent":1}],"colorData":{"space":"RGB ","encoding":"float","data":[{"values":[0.5,0.5,0.5]}]}}')
+
+# iccApplyProfiles — SBO at IccTagBasic.cpp:5520 (exit 141/SIGABRT)
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
+  iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles \
+  source-of-truth/Testing/mcs/CMYKSS-Numbered-Overprint.tif /tmp/out.tif 1 0 0 0 0 \
+  extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc 1 \
+  source-of-truth/Testing/Display/sRGB_D65_MAT.icc 1
+```
 
 **iccanalyzer-lite**: H22 (NumArray Scalar Expectation) detects this pattern.
 
