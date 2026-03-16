@@ -6,13 +6,13 @@ applyTo: "cfl/**"
 
 ## What This Is
 
-12 LibFuzzer harnesses (~2,500 LOC, C/C++) targeting the iccDEV ICC profile library.
+12 LibFuzzer harnesses + 1 JSON config fuzzer (~2,800 LOC, C/C++) targeting the iccDEV ICC profile library.
 Each fuzzer has a custom-built dictionary, seed corpus, and ASAN+UBSAN instrumentation.
 
 ## Build
 
 ```bash
-cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 12 fuzzers
+cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 13 fuzzers
 ```
 
 - **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
@@ -31,7 +31,7 @@ cd .. && ./build.sh   # re-applies patches and rebuilds
 
 Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 
-## The 12 Fuzzers
+## The 13 Fuzzers
 
 | # | Fuzzer Binary | Primary Target |
 |---|--------------|----------------|
@@ -47,6 +47,7 @@ Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
 | 10 | icc_toxml_fuzzer | CIccProfile::SaveXml() |
 | 11 | icc_v5dspobs_fuzzer | v5 DspObs→v4 conversion |
 | 12 | icc_applysearch_fuzzer | CIccCmmSearch optimization |
+| 13 | icc_cfg_fuzzer | JSON config parsing (IccCmmConfig) |
 
 ## Patch System (Post-Retirement Architecture)
 
@@ -287,7 +288,7 @@ When `Read()` partially populates internal state, `Describe()` reads out of boun
 ## Fuzzing — Ramdisk Workflow
 
 ```bash
-# Mount ramdisk, seed corpus, run all 12 fuzzers
+# Mount ramdisk, seed corpus, run all 13 fuzzers
 cd cfl && ./ramdisk-fuzz.sh
 
 # Or use external SSD

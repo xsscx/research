@@ -201,7 +201,7 @@ jobs:
         if: matrix.target == 'cfl'
         run: |
           set -euo pipefail
-          # Build all 12 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
+          # Build all 13 fuzzer harnesses for CodeQL analysis (compile-only, no fuzzer engine)
           cd cfl
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
           INC_CORE="-I../iccDEV/IccProfLib"
