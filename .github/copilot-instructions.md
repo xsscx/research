@@ -48,7 +48,7 @@ This file contains cross-cutting rules that apply to ALL components.
 |------|--------|-----------|
 | `gh codeql` | Installed (v2.24.1+) | `.github/scripts/codeql-build.sh` + DB at `/tmp/codeql-db-analyzer` |
 | iccanalyzer-lite | Built at `iccanalyzer-lite/iccanalyzer-lite` | `ls -la iccanalyzer-lite/iccanalyzer-lite` to verify |
-| CFL fuzzers | Built at `cfl/bin/icc_*_fuzzer` | `ls cfl/bin/icc_*_fuzzer \| wc -l` → 12 |
+| CFL fuzzers | Built at `cfl/bin/icc_*_fuzzer` | `ls cfl/bin/icc_*_fuzzer \| wc -l` → 13 |
 | colorbleed_tools | Built at `colorbleed_tools/icc{To,From}Xml_unsafe` | `ls colorbleed_tools/icc*_unsafe` |
 | Query packs | Lock file at `iccanalyzer-lite/codeql-queries/codeql-pack.lock.yml` | Never re-download |
 
@@ -58,7 +58,7 @@ This file contains cross-cutting rules that apply to ALL components.
 |--------|-------|----------------|
 | Heuristics | 159 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H159 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
-| CFL fuzzers | 12 | cfl.instructions.md, README.md |
+| CFL fuzzers | 13 | cfl.instructions.md, README.md |
 | iccDEV advisories | 93 (87 CVEs + 95 GHSAs = 182 unique, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
 | Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
 
@@ -166,7 +166,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 20 patches, builds 12 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 22 patches, builds 13 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -633,7 +633,7 @@ See Anti-Pattern #5 in `multi-agent.instructions.md`.
 
 ### Contradiction Detection
 
-If you make a numeric claim (e.g., "built 12 fuzzers", "329 test profiles"),
+If you make a numeric claim (e.g., "built 13 fuzzers", "329 test profiles"),
 verify it with a command before stating it:
 ```bash
 ls cfl/bin/icc_*_fuzzer | wc -l     # verify fuzzer count
@@ -663,7 +663,7 @@ These commands are for CI documentation. For local builds, see **Local Build** a
 ## Fuzzing
 
 ```bash
-# Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 12 fuzzers)
+# Automated ramdisk workflow (mounts tmpfs, seeds corpus, runs all 13 fuzzers)
 cd cfl && ./ramdisk-fuzz.sh
 
 # Local fuzzing (uses existing ramdisk or external SSD)
@@ -809,7 +809,7 @@ gh codeql query run iccanalyzer-lite/codeql-queries/buffer-overflow.ql \
 | pngdump | IccPngDump | PNG iCCP chunk ICC extraction |
 | search | IccApplySearch | CIccCmm search/optimization |
 
-CFL fuzzers cover additional scope — see `cfl.instructions.md` for the full 12-fuzzer matrix.
+CFL fuzzers cover additional scope — see `cfl.instructions.md` for the full 13-fuzzer matrix.
 
 ## MCP Server
 
@@ -1002,7 +1002,7 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 | Component | Purpose | Instructions |
 |-----------|---------|--------------|
 | **iccanalyzer-lite/** | 159-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
-| **cfl/** | 12 LibFuzzer harnesses + 18 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
+| **cfl/** | 13 LibFuzzer harnesses + 22 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
 | **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
@@ -1157,7 +1157,7 @@ path validation, Docker build policy, tool count sync, and API details.
 ### CI workflows
 39 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
 - `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on agent `workflow_run` completion
-- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 12 fuzzers
+- `libfuzzer-smoke-test.yml` — 60-second smoke test for all 13 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
 - `iccanalyzer-cli-release.yml` — CLI test suite + release artifacts

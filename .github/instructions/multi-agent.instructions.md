@@ -46,7 +46,7 @@ xcrun simctl list devices 2>/dev/null | head -3 && echo "iOS Simulator available
 # Build iccanalyzer-lite (ASAN+UBSAN+coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies patches, builds 12 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies patches, builds 13 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -128,7 +128,7 @@ analysis, and documentation tasks.
 
 ### Pre-Built Binaries (available without building)
 - `iccanalyzer-lite/iccanalyzer-lite` — 159-heuristic security analyzer (ASAN+UBSAN)
-- `cfl/bin/icc_*_fuzzer` — 12 LibFuzzer harnesses
+- `cfl/bin/icc_*_fuzzer` — 13 LibFuzzer harnesses
 - `afl/bin/icc*` — 14 AFL-instrumented iccDEV tools + shared libs
 - `colorbleed_tools/icc{To,From}Xml_unsafe` — unsafe ICC↔XML converters
 - `mcp-server/.venv/bin/python` — MCP server Python venv
