@@ -1,0 +1,19 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+index 296f9b5..c6480ee 100644
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -5516,12 +5516,12 @@ bool CIccTagFixedNum<T, Tsig>::GetValues(icFloatNumber *DstVector, icUInt32Numbe
+ 
+   switch (Tsig) {
+     case icSigS15Fixed16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = (icFloatNumber)icFtoD(m_Num[i+nStart]);
+       }
+       break;
+     case icSigU16Fixed16ArrayType:
+-      for (i=0; i<m_nSize; i++) {
++      for (i=0; i<nVectorSize; i++) {
+         DstVector[i] = (icFloatNumber)icUFtoD(m_Num[i+nStart]);
+       }
+       break;
