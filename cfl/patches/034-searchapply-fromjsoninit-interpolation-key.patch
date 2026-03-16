@@ -1,0 +1,13 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..557aa4f 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1117,7 +1117,7 @@ bool CIccCfgSearchApply::fromJsonInit(json j)
+   jsonToValue(j["adjustPcsLuminance"], m_adjustPcsLuminanceInitial);
+   jsonToValue(j["useV5SubProfile"], m_useV5SubProfileInitial);
+ 
+-  if (jsonToValue(j["transform"], str)) {
++  if (jsonToValue(j["interpolation"], str)) {
+     int i;
+     for (i = 0; icInterpNames[i]; i++) {
+       if (str == icInterpNames[i])

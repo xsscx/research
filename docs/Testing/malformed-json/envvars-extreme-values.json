@@ -1,0 +1,40 @@
+{
+  "comment": "iccEnvVars and pccEnvVars with extreme/malicious values - tests env var handling",
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 1,
+      "interpolation": "tetrahedral",
+      "iccEnvVars": {
+        "": "empty-key",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA": "long-key",
+        "normal_key": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "null_byte_key\u0000evil": "null-in-key",
+        "path_key": "../../../../etc/passwd",
+        "int_key": 42,
+        "bool_key": true,
+        "null_key": null,
+        "array_key": [1, 2, 3]
+      },
+      "pccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "pccEnvVars": {
+        "": "",
+        "key": null
+      }
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [0.5, 0.5, 0.5] }
+    ]
+  }
+}

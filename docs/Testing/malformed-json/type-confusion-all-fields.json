@@ -1,0 +1,30 @@
+{
+  "comment": "BUG-3: Type confusion - string values where numbers expected, numbers where strings expected. Tests all jsonToValue template paths.",
+  "dataFiles": {
+    "srcType": 12345,
+    "srcFile": 99999,
+    "dstType": false,
+    "dstFile": [],
+    "dstEncoding": 42,
+    "dstPrecision": "not-a-number",
+    "dstDigits": "NaN"
+  },
+  "profileSequence": [
+    {
+      "iccFile": 0,
+      "intent": "perceptual",
+      "interpolation": 999,
+      "useBPC": "yes",
+      "useD2BxB2Dx": 1,
+      "adjustPcsLuminance": "true",
+      "useHToS": 42,
+      "useV5SubProfile": [],
+      "transform": 7
+    }
+  ],
+  "colorData": {
+    "space": 12345,
+    "encoding": true,
+    "data": "not-an-array"
+  }
+}

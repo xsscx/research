@@ -1,0 +1,29 @@
+{
+  "comment": "Empty string fields where file paths expected - tests empty iccFile, pccFile, srcFile paths",
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "profileSequence": [
+    {
+      "iccFile": "",
+      "intent": 1,
+      "interpolation": "tetrahedral",
+      "pccFile": ""
+    },
+    {
+      "iccFile": "",
+      "intent": 0
+    }
+  ],
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [0.5, 0.5, 0.5] }
+    ]
+  }
+}
