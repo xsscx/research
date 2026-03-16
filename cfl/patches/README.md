@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-16
 
-18 active patches targeting verified security vulnerabilities in iccDEV library code,
+19 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 9 patches retired after upstream
@@ -32,6 +32,7 @@ acceptance (PRs #680-#695). Only verified, targeted fixes remain.
 | 028 | `028-matrixmath-setrange-nan-guard.patch` | NaN-to-unsigned-short in SetRange() | CWE-681 | IccMatrixMath.cpp |
 | 029 | `029-tagarray-operator-eq-loop-var.patch` | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
 | 030 | `030-fixednum-getvalues-sbo.patch` | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
+| 031 | `031-loadjsonfrom-ftell-overflow.patch` | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
@@ -94,6 +95,40 @@ ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
 
 **iccanalyzer-lite**: H22 (NumArray Scalar Expectation) detects this pattern.
 
+### CFL-031 Detail — loadJsonFrom ftell() Integer Overflow
+
+**Bug**: `loadJsonFrom()` in `IccJsonUtil.cpp:439` calls `ftell(f)` after `fseek(SEEK_END)`
+and assigns the result directly to `unsigned long flen` without checking for error.
+`ftell()` returns `-1` on non-seekable file descriptors (pipes, process substitutions,
+FIFOs). Cast to `unsigned long`, `-1` becomes `0xFFFFFFFFFFFFFFFF`. Then:
+
+1. `malloc(flen+1)` → `malloc(0)` (integer wrap, CWE-190) → tiny allocation
+2. `buf[flen] = 0` → pointer arithmetic overflow (UBSAN: "addition of unsigned offset overflowed")
+
+**UBSAN trace**: `IccJsonUtil.cpp:444:7: runtime error: addition of unsigned offset to 0x502000000070 overflowed to 0x50200000006f`
+
+**Root cause**: `ftell()` return value is **unchecked** — CWE-252 (Unchecked Return Value)
+combined with CWE-190 (Integer Overflow). The function was written assuming regular files
+only, but process substitutions (`<(echo '...')`) and named pipes produce non-seekable fds.
+
+**Fix**: Check `ftell()` return before use: `long pos = ftell(f); if (pos <= 0) { fclose(f); return false; }`
+
+**Affected tools**: `iccApplyNamedCmm`, `iccApplyProfiles`, `iccApplySearch` — any tool
+using `-cfg <file>` with a non-seekable file descriptor.
+
+**Note**: This is a **CLI tool infrastructure bug**, not a library/profile bug.
+`IccJsonUtil.cpp` is compiled into CLI tools only — NOT into IccProfLib or CFL fuzzer
+binaries. iccanalyzer-lite cannot detect this from ICC profile content.
+
+**Reproduction**:
+```bash
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
+  iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm \
+  -cfg <(echo '{"dataFiles":{"srcType":"colorData"},"profileSequence":[{"iccFile":"source-of-truth/Testing/Display/sRGB_D65_MAT.icc","intent":1}],"colorData":{"space":"RGB ","encoding":"float","data":[{"values":[0.5,0.5,0.5]}]}}')
+```
+
 ## Retired Patches (accepted upstream via PRs #680-#695)
 
 | # | Patch | Upstream PR |
@@ -131,7 +166,8 @@ or `nCount = 0xDA000002` (13.6 GB) trigger OOM abort (SIGABRT).
 | CWE-125 | 1 | Out-of-bounds Read |
 | CWE-121 | 1 | Stack Buffer Overflow |
 | CWE-122 | 2 | Heap Buffer Overflow |
-| CWE-190 | 2 | Integer Overflow |
+| CWE-190 | 3 | Integer Overflow |
+| CWE-252 | 1 | Unchecked Return Value |
 | CWE-674 | 1 | Uncontrolled Recursion |
 | CWE-476 | 2 | Null Pointer Dereference |
 | CWE-170 | 1 | Missing Null Termination |
