@@ -235,7 +235,7 @@ export AFL_MAP_SIZE="$AFL_MAP_SIZE_VAL"
 export AFL_SKIP_CPUFREQ=1
 export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
 export LD_LIBRARY_PATH="$BIN_DIR"
-export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0"
+export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1"
 
 if [[ "$PARALLEL" -eq 1 ]]; then
     echo "[*] Starting AFL (single instance)..."

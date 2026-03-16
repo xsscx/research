@@ -104,7 +104,7 @@ merge_one() {
   local SOURCES=("$corpus_dir")
   [ -d "$seed_dir" ] && SOURCES+=("$seed_dir")
 
-  if ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null "$fuzzer_bin" \
+  if ASAN_OPTIONS=detect_leaks=0,allocator_may_return_null=1 LLVM_PROFILE_FILE=/dev/null "$fuzzer_bin" \
        -merge=1 \
        -detect_leaks=0 \
        -rss_limit_mb=4096 \

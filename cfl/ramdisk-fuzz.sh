@@ -205,6 +205,7 @@ for f in "${FUZZERS[@]}"; do
       break
     fi
   done
+  export ASAN_OPTIONS="detect_leaks=0,allocator_may_return_null=1"
   timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
     "$fuzzer_bin" \
       -max_total_time="$FUZZ_SECONDS" \

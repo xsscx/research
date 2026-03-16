@@ -81,7 +81,7 @@ if [[ ! -x "$UPSTREAM_BIN" ]]; then
 fi
 
 export LD_LIBRARY_PATH="$UPSTREAM_LIB"
-export ASAN_OPTIONS="halt_on_error=0,detect_leaks=0,symbolize=1"
+export ASAN_OPTIONS="halt_on_error=0,detect_leaks=0,symbolize=1,allocator_may_return_null=1"
 export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
 
 triage_dir() {
