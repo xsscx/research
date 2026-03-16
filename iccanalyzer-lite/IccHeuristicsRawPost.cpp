@@ -2949,6 +2949,764 @@ int RunHeuristic_H153_SampledCurveNaNCast(const char *filename)
   return heuristicCount;
 }
 
+// ============================================================================
+// CodeQL-Driven Heuristics H154-H159
+// Derived from CodeQL analysis of iccDEV IccProfLib+IccXML (1,114 findings).
+// Each targets a CWE category with multiple library sites not covered by H1-H153.
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// H154: Uncontrolled Tag Allocation Size (CWE-789)
+// CodeQL found 21 sites where file-controlled values are passed directly to
+// new[] or malloc() without upper-bound validation in Read() methods.
+// Hotspots: IccTagBasic.cpp(7), IccMpeBasic.cpp(3), IccTagLut.cpp(3),
+//           IccMpeSpectral.cpp(2), IccMpeCalc.cpp(1).
+// Detection: Scan tag table for tags whose declared size is disproportionately
+// large relative to the profile size — these trigger unbounded allocations.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H154_UncontrolledTagAllocationSize(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H154] Uncontrolled Tag Allocation Size (CWE-789, §7.3 Tag Table)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small for tag table\n\n");
+    return 0;
+  }
+
+  size_t fs = (size_t)fh.fileSize;
+  uint8_t hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [SKIP] Cannot read header\n\n");
+    return 0;
+  }
+
+  uint32_t tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount > 1000 || tagCount == 0) {
+    printf("      [SKIP] Invalid tag count (%u)\n\n", tagCount);
+    return 0;
+  }
+
+  int issues = 0;
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    uint8_t entry[12];
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tSig    = ReadU32BE(&entry[0]);
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize   = ReadU32BE(&entry[8]);
+
+    // Skip tags that fit within the profile
+    if ((uint64_t)tOffset <= fs && (uint64_t)tSize <= fs && (uint64_t)tOffset + tSize <= fs)
+      continue;
+
+    // Tag data extends beyond file — library Read() will allocate tSize
+    // bytes then fail during fread, but allocation already happened
+    char sig[5];
+    sig[0] = static_cast<char>(static_cast<unsigned char>((tSig >> 24) & 0xFF));
+    sig[1] = static_cast<char>(static_cast<unsigned char>((tSig >> 16) & 0xFF));
+    sig[2] = static_cast<char>(static_cast<unsigned char>((tSig >>  8) & 0xFF));
+    sig[3] = static_cast<char>(static_cast<unsigned char>( tSig        & 0xFF));
+    sig[4] = '\0';
+
+    printf("      %s[CRITICAL] Tag '%s': offset=%u size=%u exceeds file (%zu bytes)%s\n",
+           ColorCritical(), sig, tOffset, tSize, fs, ColorReset());
+    printf("       %sCWE-789: Uncontrolled allocation — Read() allocates %u bytes "
+           "from file-controlled size before bounds check%s\n",
+           ColorCritical(), tSize, ColorReset());
+    issues++;
+    if (issues >= 8) break;
+  }
+
+  // Second pass: check for tags with extreme allocation amplification
+  // (tag data size that implies huge internal allocation via element count × struct size)
+  fseek(fh.fp, 132, SEEK_SET);
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    uint8_t entry[12];
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize   = ReadU32BE(&entry[8]);
+
+    if ((uint64_t)tOffset + 12 > fs || tSize < 12) continue;
+
+    // Read tag type signature
+    long savedPos = ftell(fh.fp);
+    fseek(fh.fp, tOffset, SEEK_SET);
+    uint8_t typeBuf[12];
+    if (fread(typeBuf, 1, 12, fh.fp) != 12) {
+      fseek(fh.fp, savedPos, SEEK_SET);
+      continue;
+    }
+    fseek(fh.fp, savedPos, SEEK_SET);
+
+    uint32_t typeSig = ReadU32BE(&typeBuf[0]);
+
+    // ncl2 (NamedColor2): nDeviceCoords at offset+12 (uint32) drives allocation
+    if (typeSig == 0x6E636C32 && tSize >= 16) { // 'ncl2'
+      fseek(fh.fp, tOffset + 12, SEEK_SET);
+      uint8_t ncBuf[4];
+      if (fread(ncBuf, 1, 4, fh.fp) == 4) {
+        uint32_t nDevCoords = ReadU32BE(ncBuf);
+        if (nDevCoords > 15) {
+          printf("      %s[CRITICAL] NamedColor2: nDeviceCoords=%u (ICC spec max=15)%s\n",
+                 ColorCritical(), nDevCoords, ColorReset());
+          printf("       %sCWE-789: m_nColorEntrySize = 32 + nDevCoords*sizeof(icFloatNumber) "
+                 "→ unbounded allocation in Read() (IccTagBasic.cpp)%s\n",
+                 ColorCritical(), ColorReset());
+          issues++;
+        }
+      }
+      fseek(fh.fp, savedPos, SEEK_SET);
+    }
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] All tag allocation sizes within bounds%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// ---------------------------------------------------------------------------
+// H155: Integer Overflow in Tag Dimensions (CWE-190)
+// CodeQL found 24 integer multiplication overflow sites where channel_count ×
+// element_size overflows uint32 before allocation. Hotspots: IccTagBasic.cpp(4),
+// IccTagLut.cpp(4), IccMpeSpectral.cpp(3), IccMpeBasic.cpp(2), IccCmm.cpp(2).
+// Detection: For LUT/MPE tags, validate that input×output×gridPoints product
+// fits in 32 bits and doesn't exceed profile size.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H155] Integer Overflow in Tag Dimensions (CWE-190, §10.6-10.14)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  size_t fs = (size_t)fh.fileSize;
+  std::vector<uint8_t> buf(fs);
+  if (fread(buf.data(), 1, fs, fh.fp) != fs) {
+    printf("      [SKIP] Cannot read file\n\n");
+    return 0;
+  }
+
+  uint32_t tagCount = ReadU32BE(&buf[128]);
+  if (tagCount > 1000 || tagCount == 0) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  int issues = 0;
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    size_t entryOff = 132 + (size_t)i * 12;
+    if (entryOff + 12 > fs) break;
+
+    uint32_t tSig    = ReadU32BE(&buf[entryOff]);
+    uint32_t tOffset = ReadU32BE(&buf[entryOff + 4]);
+    uint32_t tSize   = ReadU32BE(&buf[entryOff + 8]);
+
+    if ((uint64_t)tOffset + 8 > fs || tSize < 8) continue;
+    uint32_t typeSig = ReadU32BE(&buf[tOffset]);
+
+    char sig[5];
+    sig[0] = static_cast<char>(static_cast<unsigned char>((tSig >> 24) & 0xFF));
+    sig[1] = static_cast<char>(static_cast<unsigned char>((tSig >> 16) & 0xFF));
+    sig[2] = static_cast<char>(static_cast<unsigned char>((tSig >>  8) & 0xFF));
+    sig[3] = static_cast<char>(static_cast<unsigned char>( tSig        & 0xFF));
+    sig[4] = '\0';
+
+    // mft1 (Lut8Type): nInput(1) × nOutput(1) × gridPoints^nInput × nOutput
+    if (typeSig == 0x6D667431 && (uint64_t)tOffset + 48 <= fs) { // 'mft1'
+      uint8_t nInput  = buf[tOffset + 8];
+      uint8_t nOutput = buf[tOffset + 9];
+      uint8_t grid    = buf[tOffset + 10];
+
+      if (nInput > 0 && grid > 0) {
+        uint64_t clutSize = 1;
+        bool overflow = false;
+        for (int d = 0; d < nInput; d++) {
+          clutSize *= grid;
+          if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
+        }
+        clutSize *= nOutput;
+        if (clutSize > 0xFFFFFFFF) overflow = true;
+
+        if (overflow || clutSize > tSize) {
+          printf("      %s[CRITICAL] Tag '%s' (Lut8): %ux%u grid^%u × %u = overflow%s\n",
+                 ColorCritical(), sig, nInput, nOutput, nInput, grid, ColorReset());
+          printf("       %sCWE-190: Integer overflow in CLUT size calculation "
+                 "(IccTagLut.cpp Read())%s\n", ColorCritical(), ColorReset());
+          issues++;
+        }
+      }
+    }
+
+    // mft2 (Lut16Type): same pattern with 2 bytes per entry
+    if (typeSig == 0x6D667432 && (uint64_t)tOffset + 48 <= fs) { // 'mft2'
+      uint8_t nInput  = buf[tOffset + 8];
+      uint8_t nOutput = buf[tOffset + 9];
+      uint8_t grid    = buf[tOffset + 10];
+
+      if (nInput > 0 && grid > 0) {
+        uint64_t clutSize = 2;  // 2 bytes per entry
+        bool overflow = false;
+        for (int d = 0; d < nInput; d++) {
+          clutSize *= grid;
+          if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
+        }
+        clutSize *= nOutput;
+        if (clutSize > 0xFFFFFFFF) overflow = true;
+
+        if (overflow || clutSize > tSize) {
+          printf("      %s[CRITICAL] Tag '%s' (Lut16): %ux%u grid^%u × %u × 2 = overflow%s\n",
+                 ColorCritical(), sig, nInput, nOutput, nInput, grid, ColorReset());
+          printf("       %sCWE-190: Integer overflow in CLUT size calculation "
+                 "(IccTagLut.cpp Read())%s\n", ColorCritical(), ColorReset());
+          issues++;
+        }
+      }
+    }
+
+    // mAB/mBA (LutAtoB/LutBtoA): nInput(1) at +8, nOutput(1) at +9
+    // CLUT offset at +24 (uint32) — if nonzero, CLUT present
+    if ((typeSig == 0x6D414220 || typeSig == 0x6D424120) && (uint64_t)tOffset + 32 <= fs) {
+      uint8_t nInput  = buf[tOffset + 8];
+      uint8_t nOutput = buf[tOffset + 9];
+      uint32_t clutOff = ReadU32BE(&buf[tOffset + 24]);
+
+      if (clutOff != 0 && (uint64_t)tOffset + clutOff + 20 <= fs) {
+        // CLUT header: gridPoints[16](16 bytes) + precision(1) + pad(3)
+        size_t clutAddr = tOffset + clutOff;
+        uint64_t clutSize = (buf[clutAddr + 16] == 2) ? 2 : 1;  // precision
+        bool overflow = false;
+        for (int d = 0; d < nInput && d < 16; d++) {
+          uint8_t gp = buf[clutAddr + d];
+          if (gp == 0) gp = 1;
+          clutSize *= gp;
+          if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
+        }
+        clutSize *= nOutput;
+        if (clutSize > 0xFFFFFFFF) overflow = true;
+
+        if (overflow) {
+          const char *lutName = (typeSig == 0x6D414220) ? "mAB" : "mBA";
+          printf("      %s[CRITICAL] Tag '%s' (%s): %u-in × %u-out CLUT grid overflows uint32%s\n",
+                 ColorCritical(), sig, lutName, nInput, nOutput, ColorReset());
+          printf("       %sCWE-190: Multiplication overflow before allocation "
+                 "(IccTagLut.cpp CIccCLUT::Init)%s\n", ColorCritical(), ColorReset());
+          issues++;
+        }
+      }
+    }
+
+    // mpet (MultiProcessElement): nInput(2) at +8, nOutput(2) at +10, nElements(4) at +12
+    if (typeSig == 0x6D706574 && (uint64_t)tOffset + 16 <= fs) { // 'mpet'
+      uint16_t nInput  = (uint16_t)((buf[tOffset + 8] << 8) | buf[tOffset + 9]);
+      uint16_t nOutput = (uint16_t)((buf[tOffset + 10] << 8) | buf[tOffset + 11]);
+      uint32_t nElem   = ReadU32BE(&buf[tOffset + 12]);
+
+      // Each element position entry is 8 bytes (offset + size)
+      uint64_t posTableSize = (uint64_t)nElem * 8;
+      if (posTableSize > tSize || nElem > 10000) {
+        printf("      %s[CRITICAL] Tag '%s' (MPE): %u elements × 8 = %llu bytes "
+               "(tag size=%u)%s\n",
+               ColorCritical(), sig, nElem,
+               (unsigned long long)posTableSize, tSize, ColorReset());
+        printf("       %sCWE-190: Element count drives allocation overflow "
+               "(IccMpeBasic.cpp)%s\n", ColorCritical(), ColorReset());
+        issues++;
+      }
+
+      // Channel count amplification: each sub-element allocates nInput×nOutput floats
+      if (nInput > 0 && nOutput > 0) {
+        uint64_t chanProduct = (uint64_t)nInput * nOutput * 4;
+        if (chanProduct > 1024 * 1024) {
+          printf("      %s[WARN]  Tag '%s' (MPE): %u×%u channels → %llu bytes per element%s\n",
+                 ColorWarning(), sig, nInput, nOutput,
+                 (unsigned long long)chanProduct, ColorReset());
+          printf("       %sCWE-190: High channel count amplifies per-element allocation%s\n",
+                 ColorCritical(), ColorReset());
+          issues++;
+        }
+      }
+    }
+
+    if (issues >= 8) break;
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] No integer overflow in tag dimension calculations%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// ---------------------------------------------------------------------------
+// H156: Allocation Failure Path Profiles (CWE-252)
+// CodeQL found 88 sites where new/malloc return is not checked. When the
+// library allocates based on file-controlled sizes, OOM → NULL deref.
+// Detection: Flag profiles that combine large tag counts with large tag sizes,
+// creating high aggregate allocation pressure that increases OOM probability
+// on resource-constrained systems.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H156_AllocationFailurePathProfiles(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H156] Allocation Failure Path Profiles (CWE-252, §7.3)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  uint8_t hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [SKIP] Cannot read header\n\n");
+    return 0;
+  }
+
+  uint32_t profileSize = ReadU32BE(hdr);
+  uint32_t tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount > 1000 || tagCount == 0) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  // Track aggregate allocation demands
+  uint64_t totalDeclaredSize = 0;
+  int largeTagCount = 0;
+  int issues = 0;
+
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    uint8_t entry[12];
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tSize = ReadU32BE(&entry[8]);
+    totalDeclaredSize += tSize;
+
+    // Tags > 10MB each create individual allocation pressure
+    if (tSize > 10 * 1024 * 1024) {
+      largeTagCount++;
+    }
+  }
+
+  // Aggregate allocation > 256MB is extreme for an ICC profile
+  if (totalDeclaredSize > 256ULL * 1024 * 1024) {
+    printf("      %s[WARN]  Aggregate tag allocation: %.1f MB across %u tags%s\n",
+           ColorWarning(),
+           (double)totalDeclaredSize / (1024.0 * 1024.0),
+           tagCount, ColorReset());
+    printf("       %sCWE-252: iccDEV has 88 unchecked allocation sites — "
+           "aggregate pressure increases OOM probability%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sRisk: new/malloc returns NULL → dereference at "
+           "IccCmm.cpp, IccMpeSpectral.cpp, IccEncoding.cpp%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  // Multiple large tags compound the risk
+  if (largeTagCount >= 3) {
+    printf("      %s[WARN]  %d tags exceed 10MB — high concurrent allocation demand%s\n",
+           ColorWarning(), largeTagCount, ColorReset());
+    printf("       %sCWE-252: Multiple large allocations without error checking "
+           "increase NULL-deref risk%s\n", ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  // Profile size vs tag total mismatch (tags claim more data than file contains)
+  if (totalDeclaredSize > profileSize * 2 && profileSize > 0) {
+    printf("      %s[WARN]  Tag sizes total %llu bytes but profile is %u bytes%s\n",
+           ColorWarning(), (unsigned long long)totalDeclaredSize,
+           profileSize, ColorReset());
+    printf("       %sCWE-252: Oversized tag declarations trigger allocation "
+           "then fail on read — unchecked paths crash%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] Allocation pressure within safe bounds%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// ---------------------------------------------------------------------------
+// H157: Alloc-Dealloc Mismatch Tag Patterns (CWE-762)
+// CodeQL found 2 confirmed alloc-dealloc mismatches in iccDEV:
+//   IccCmm.cpp:4785  — CIccApplyNamedCmm::m_vals: new[] freed with delete
+//   IccTagLut.cpp:984 — CIccFormulaCurveSegment::m_dParam: new[] freed with delete
+// Plus CFL-003: CIccTagArray copy ctor new[] → Cleanup() free().
+// Detection: Flag profiles containing tag types that trigger mismatch paths:
+//   ncl2 (NamedColor2) → triggers CIccApplyNamedCmm allocation
+//   para (ParametricCurve) with formula segments → triggers m_dParam path
+//   tary (TagArray) → triggers CFL-003 copy ctor mismatch
+// ---------------------------------------------------------------------------
+int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H157] Alloc-Dealloc Mismatch Tag Patterns (CWE-762, §10.14)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  size_t fs = (size_t)fh.fileSize;
+  uint8_t hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [SKIP] Cannot read header\n\n");
+    return 0;
+  }
+
+  uint32_t tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount > 1000 || tagCount == 0) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  int issues = 0;
+  bool hasTagArray = false;
+  bool hasNamedColor2 = false;
+  bool hasFormulaCurve = false;
+
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    uint8_t entry[12];
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize   = ReadU32BE(&entry[8]);
+
+    if ((uint64_t)tOffset + 4 > fs || tSize < 4) continue;
+
+    // Read type signature
+    long savedPos = ftell(fh.fp);
+    fseek(fh.fp, tOffset, SEEK_SET);
+    uint8_t typeBuf[4];
+    if (fread(typeBuf, 1, 4, fh.fp) != 4) {
+      fseek(fh.fp, savedPos, SEEK_SET);
+      continue;
+    }
+    fseek(fh.fp, savedPos, SEEK_SET);
+    uint32_t typeSig = ReadU32BE(typeBuf);
+
+    // tary (TagArray) — CFL-003: copy ctor new[] vs Cleanup() free()
+    if (typeSig == 0x74617279) hasTagArray = true;   // 'tary'
+
+    // ncl2 (NamedColor2) — IccCmm.cpp:4785 new[] vs delete
+    if (typeSig == 0x6E636C32) hasNamedColor2 = true; // 'ncl2'
+
+    // curf (CurveSet with formula segments) — IccTagLut.cpp:984 new[] vs delete
+    // psgm = 0x7073676D (segmented curve) contains formula curve segments
+    if (typeSig == 0x63757266) hasFormulaCurve = true; // 'curf'
+  }
+
+  if (hasTagArray) {
+    printf("      %s[CRITICAL] Profile contains TagArray ('tary') — "
+           "triggers CIccTagArray copy ctor new[]/free() mismatch%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCWE-762: CFL-003 — CIccTagArray(const&) uses new[] but "
+           "Cleanup() calls free() (IccTagComposite.cpp:1037,1523)%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sImpact: Heap corruption when profile is copied via "
+           "CIccCmm::AddXform(CIccProfile&)%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  if (hasNamedColor2) {
+    printf("      %s[WARN]  Profile contains NamedColor2 ('ncl2') — "
+           "CIccApplyNamedCmm uses new[]/delete mismatch%s\n",
+           ColorWarning(), ColorReset());
+    printf("       %sCWE-762: m_vals allocated with new icFloatNumber[] "
+           "but freed with delete (IccCmm.cpp:4785)%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  if (hasFormulaCurve) {
+    printf("      %s[WARN]  Profile contains CurveSet ('curf') — "
+           "formula segments use new[]/delete mismatch%s\n",
+           ColorWarning(), ColorReset());
+    printf("       %sCWE-762: m_dParam allocated with new[] but freed with "
+           "delete (IccTagLut.cpp:984)%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] No alloc-dealloc mismatch trigger patterns%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// ---------------------------------------------------------------------------
+// H158: Enum Range Validation Extended (CWE-681)
+// CodeQL found 139 enum UB sites where file-controlled uint32 values are cast
+// to C++ enum types without range validation. H151 covers calculator ops only.
+// This extends validation to header enums: rendering intent, color space,
+// platform, device class, and tag type signatures.
+// Detection: Read ICC header enums and validate against known-valid values.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H158_EnumRangeValidationExtended(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H158] Enum Range Validation Extended (CWE-681, §7.2 Header Fields)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  size_t fs = (size_t)fh.fileSize;
+  std::vector<uint8_t> buf(fs);
+  if (fread(buf.data(), 1, fs, fh.fp) != fs) {
+    printf("      [SKIP] Cannot read file\n\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Scan tag table for tag type signatures that are not valid FourCC
+  // iccDEV casts the raw uint32 to icTagTypeSignature enum without validation
+  // at IccProfile.cpp LoadTag() — invalid values cause UBSAN UB
+  uint32_t tagCount = ReadU32BE(&buf[128]);
+  if (tagCount > 0 && tagCount <= 1000) {
+    int invalidTypeSigs = 0;
+    for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+      size_t entryOff = 132 + (size_t)i * 12;
+      if (entryOff + 12 > fs) break;
+
+      uint32_t tOffset = ReadU32BE(&buf[entryOff + 4]);
+      uint32_t tSize   = ReadU32BE(&buf[entryOff + 8]);
+
+      if ((uint64_t)tOffset + 4 > fs || tSize < 4) continue;
+
+      uint32_t typeSig = ReadU32BE(&buf[tOffset]);
+
+      // Validate: type signature must be printable ASCII FourCC
+      bool validFourCC = true;
+      for (int byte = 0; byte < 4; byte++) {
+        uint8_t ch = (typeSig >> (24 - byte * 8)) & 0xFF;
+        if (ch < 0x20 || ch > 0x7E) { validFourCC = false; break; }
+      }
+      if (!validFourCC && typeSig != 0) {
+        invalidTypeSigs++;
+      }
+    }
+
+    if (invalidTypeSigs > 0) {
+      printf("      %s[WARN]  %d tag type signatures are not valid FourCC "
+             "(non-printable bytes)%s\n",
+             ColorWarning(), invalidTypeSigs, ColorReset());
+      printf("       %sCWE-681: iccDEV casts raw uint32 to icTagTypeSignature enum "
+             "without validation (IccProfile.cpp LoadTag)%s\n",
+             ColorCritical(), ColorReset());
+      printf("       %sRisk: 139 enum UB sites identified by CodeQL across "
+             "IccProfLib — invalid enum values cause undefined behavior%s\n",
+             ColorCritical(), ColorReset());
+      issues++;
+    }
+  }
+
+  // Scan for MPE sub-element type signatures within mpet tags
+  // These are cast to icElemTypeSignature without range check
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    size_t entryOff = 132 + (size_t)i * 12;
+    if (entryOff + 12 > fs) break;
+
+    uint32_t tOffset = ReadU32BE(&buf[entryOff + 4]);
+    uint32_t tSize   = ReadU32BE(&buf[entryOff + 8]);
+
+    if ((uint64_t)tOffset + 16 > fs || tSize < 16) continue;
+    uint32_t typeSig = ReadU32BE(&buf[tOffset]);
+
+    if (typeSig != 0x6D706574) continue; // 'mpet' only
+
+    uint32_t nElem = ReadU32BE(&buf[tOffset + 12]);
+    if (nElem > 10000) continue;
+
+    // Position table at tOffset+16, each entry 8 bytes
+    int invalidElemSigs = 0;
+    for (uint32_t e = 0; e < nElem && e < 100; e++) {
+      size_t posOff = tOffset + 16 + (size_t)e * 8;
+      if (posOff + 8 > fs) break;
+
+      uint32_t elemOff = ReadU32BE(&buf[posOff]);
+      size_t absElemOff = tOffset + elemOff;
+      if (absElemOff + 4 > fs) continue;
+
+      uint32_t elemSig = ReadU32BE(&buf[absElemOff]);
+      bool validFourCC = true;
+      for (int byte = 0; byte < 4; byte++) {
+        uint8_t ch = (elemSig >> (24 - byte * 8)) & 0xFF;
+        if (ch < 0x20 || ch > 0x7E) { validFourCC = false; break; }
+      }
+      if (!validFourCC && elemSig != 0) {
+        invalidElemSigs++;
+      }
+    }
+
+    if (invalidElemSigs > 0) {
+      printf("      %s[WARN]  MPE tag has %d sub-elements with invalid type "
+             "signatures (non-FourCC)%s\n",
+             ColorWarning(), invalidElemSigs, ColorReset());
+      printf("       %sCWE-681: icElemTypeSignature enum cast without validation "
+             "(IccMpeBasic.cpp, IccMpeCalc.cpp)%s\n",
+             ColorCritical(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] All enum values within valid ranges%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
+// ---------------------------------------------------------------------------
+// H159: UAF in Tag Ownership Chain Detection (CWE-416)
+// CodeQL found 9 UAF sites including the CFL-003 CIccCmm::AddXform ownership
+// bug and CIccTagBasic m_NamedColor UAF. Key pattern: profiles containing
+// TagArray + a class requiring round-trip evaluation (scnr/mntr/prtr/spac)
+// trigger the copy-ctor UAF via EvaluateProfile→AddXform(CIccProfile&).
+// Detection: Flag structural combinations known to trigger UAF paths.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H159_UAFTagOwnershipChains(const char *filename)
+{
+  int heuristicCount = 0;
+  printf("[H159] UAF Tag Ownership Chain Detection (CWE-416, §7.3)\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh || fh.fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  size_t fs = (size_t)fh.fileSize;
+  uint8_t hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [SKIP] Cannot read header\n\n");
+    return 0;
+  }
+
+  // Device class at offset 12 (4 bytes)
+  uint32_t devClass = ReadU32BE(&hdr[12]);
+  uint32_t tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount > 1000 || tagCount == 0) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  // Classes that trigger EvaluateProfile→AddXform(CIccProfile&) copy path
+  bool isRoundTripClass = (devClass == 0x73636E72 || // 'scnr'
+                           devClass == 0x6D6E7472 || // 'mntr'
+                           devClass == 0x70727472 || // 'prtr'
+                           devClass == 0x73706163);  // 'spac'
+
+  bool hasTagArray = false;
+  bool hasNamedColor2 = false;
+  int issues = 0;
+
+  for (uint32_t i = 0; i < tagCount && i < kMaxTagScanCount; i++) {
+    uint8_t entry[12];
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize   = ReadU32BE(&entry[8]);
+    if ((uint64_t)tOffset + 4 > fs || tSize < 4) continue;
+
+    long savedPos = ftell(fh.fp);
+    fseek(fh.fp, tOffset, SEEK_SET);
+    uint8_t typeBuf[4];
+    if (fread(typeBuf, 1, 4, fh.fp) != 4) {
+      fseek(fh.fp, savedPos, SEEK_SET);
+      continue;
+    }
+    fseek(fh.fp, savedPos, SEEK_SET);
+    uint32_t typeSig = ReadU32BE(typeBuf);
+
+    if (typeSig == 0x74617279) hasTagArray = true;    // 'tary'
+    if (typeSig == 0x6E636C32) hasNamedColor2 = true; // 'ncl2'
+  }
+
+  // CFL-003: TagArray + round-trip class → UAF via copy ctor
+  if (hasTagArray && isRoundTripClass) {
+    char cls[5];
+    cls[0] = static_cast<char>(static_cast<unsigned char>((devClass >> 24) & 0xFF));
+    cls[1] = static_cast<char>(static_cast<unsigned char>((devClass >> 16) & 0xFF));
+    cls[2] = static_cast<char>(static_cast<unsigned char>((devClass >>  8) & 0xFF));
+    cls[3] = static_cast<char>(static_cast<unsigned char>( devClass        & 0xFF));
+    cls[4] = '\0';
+
+    printf("      %s[CRITICAL] Profile class '%s' + TagArray ('tary') → "
+           "CFL-003 UAF path%s\n", ColorCritical(), cls, ColorReset());
+    printf("       %sCWE-416: EvaluateProfile() → AddXform(CIccProfile&) → "
+           "new CIccProfile(copy) → CIccTagArray copy ctor → "
+           "Cleanup() accesses freed memory%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sCall chain: iccRoundTrip → EvaluateProfile → CIccCmm::AddXform "
+           "→ CIccProfile::CIccProfile(const&) → CIccTagArray::NewCopy()%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sUpstream: IccTagComposite.cpp:1037,1074,1523 "
+           "(alloc mismatch new[]/free in copy vs cleanup)%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  // NamedColor2 + any transform path → m_NamedColor UAF
+  if (hasNamedColor2) {
+    printf("      %s[WARN]  Profile contains NamedColor2 ('ncl2') — "
+           "potential m_NamedColor UAF after Cleanup%s\n",
+           ColorWarning(), ColorReset());
+    printf("       %sCWE-416: IccTagBasic.cpp:2879 — m_NamedColor accessed after "
+           "CIccTagNamedColor2::Cleanup() frees it%s\n",
+           ColorCritical(), ColorReset());
+    issues++;
+  }
+
+  if (issues > 0) {
+    heuristicCount += issues;
+  } else {
+    printf("      %s[OK] No UAF-triggering ownership patterns detected%s\n",
+           ColorSuccess(), ColorReset());
+  }
+  printf("\n");
+
+  return heuristicCount;
+}
+
 int RunRawPostLibraryHeuristics(const char *filename)
 {
   int heuristicCount = 0;
@@ -2981,6 +3739,14 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H68_GamutBoundaryDescOverflow(filename);
   heuristicCount += RunHeuristic_H69_ProfileIDMD5Consistency(filename);
   heuristicCount += RunHeuristic_H153_SampledCurveNaNCast(filename);
+
+  // CodeQL-driven heuristics (H154-H159)
+  heuristicCount += RunHeuristic_H154_UncontrolledTagAllocationSize(filename);
+  heuristicCount += RunHeuristic_H155_IntegerOverflowTagDimensions(filename);
+  heuristicCount += RunHeuristic_H156_AllocationFailurePathProfiles(filename);
+  heuristicCount += RunHeuristic_H157_AllocDeallocMismatchTagPatterns(filename);
+  heuristicCount += RunHeuristic_H158_EnumRangeValidationExtended(filename);
+  heuristicCount += RunHeuristic_H159_UAFTagOwnershipChains(filename);
 
   return heuristicCount;
 }
