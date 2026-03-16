@@ -1,0 +1,25 @@
+{
+  "comment": "BUG-2b: searchApply with only profileSequence, missing initial and pccWeights",
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "searchApply": {
+    "profileSequence": [
+      {
+        "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "intent": 1
+      }
+    ]
+  },
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [0.5, 0.5, 0.5] }
+    ]
+  }
+}

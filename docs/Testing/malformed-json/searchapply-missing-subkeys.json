@@ -1,0 +1,18 @@
+{
+  "comment": "BUG-2: CIccCfgSearchApply::fromJson accesses j[profileSequence], j[initial], j[pccWeights] without existence checks (IccCmmConfig.cpp:1150-1152). Missing all 3 required searchApply sub-keys.",
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "searchApply": {},
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [0.5, 0.5, 0.5] }
+    ]
+  }
+}

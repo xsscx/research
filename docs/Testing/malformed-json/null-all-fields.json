@@ -1,0 +1,35 @@
+{
+  "comment": "Null values in every field - tests null handling in jsonToValue for all 38 config fields",
+  "dataFiles": {
+    "srcType": null,
+    "srcFile": null,
+    "dstType": null,
+    "dstFile": null,
+    "dstEncoding": null,
+    "dstPrecision": null,
+    "dstDigits": null
+  },
+  "profileSequence": [
+    {
+      "iccFile": null,
+      "intent": null,
+      "interpolation": null,
+      "useBPC": null,
+      "useD2BxB2Dx": null,
+      "adjustPcsLuminance": null,
+      "useHToS": null,
+      "useV5SubProfile": null,
+      "transform": null,
+      "pccFile": null,
+      "iccEnvVars": null,
+      "pccEnvVars": null
+    }
+  ],
+  "colorData": {
+    "space": null,
+    "encoding": null,
+    "srcSpace": null,
+    "srcEncoding": null,
+    "data": null
+  }
+}

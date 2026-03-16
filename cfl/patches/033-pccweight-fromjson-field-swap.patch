@@ -1,0 +1,15 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..557aa4f 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -863,8 +863,8 @@ bool CIccCfgPccWeight::fromJson(json j, bool /*bReset*/)
+   if (!j.is_object())
+     return false;
+ 
+-  jsonToValue(j["pccFile"], m_dWeight);
+-  jsonToValue(j["weight"], m_pccPath);
++  jsonToValue(j["pccFile"], m_pccPath);
++  jsonToValue(j["weight"], m_dWeight);
+   
+   return true;
+ }

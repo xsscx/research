@@ -1,0 +1,122 @@
+# =============================================================================
+# CFL JSON Configuration Fuzzer Dictionary
+# =============================================================================
+# Targets: IccCmmConfig.cpp fromJson()/fromArgs() and IccJsonUtil.cpp loadJsonFrom()
+# 38 unique JSON field names + 7 encoding values + structural tokens + sentinel names
+
+# --- JSON structural tokens ---
+json_obj_open="{"
+json_obj_close="}"
+json_arr_open="["
+json_arr_close="]"
+json_null="null"
+json_true="true"
+json_false="false"
+json_colon=":"
+json_comma=","
+
+# --- Top-level config sections ---
+key_dataFiles="\"dataFiles\""
+key_profileSequence="\"profileSequence\""
+key_searchApply="\"searchApply\""
+key_colorData="\"colorData\""
+
+# --- CIccCfgDataApply fields (dataFiles) ---
+key_srcType="\"srcType\""
+key_srcSpace="\"srcSpace\""
+key_dstType="\"dstType\""
+key_dstEncoding="\"dstEncoding\""
+key_dstPrecision="\"dstPrecision\""
+key_dstDigits="\"dstDigits\""
+
+# --- CIccCfgImageApply fields ---
+key_srcImageFile="\"srcImageFile\""
+key_dstImageFile="\"dstImageFile\""
+
+# --- CIccCfgProfile fields (profileSequence entry) ---
+key_iccFile="\"iccFile\""
+key_pccFile="\"pccFile\""
+key_intent="\"intent\""
+key_transform="\"transform\""
+key_interpolation="\"interpolation\""
+key_adjustPcsLuminance="\"adjustPcsLuminance\""
+key_useV5SubProfile="\"useV5SubProfile\""
+key_useD2BxB2Dx="\"useD2BxB2Dx\""
+key_iccEnvVars="\"iccEnvVars\""
+key_pccEnvVars="\"pccEnvVars\""
+
+# --- CIccCfgPccWeight fields ---
+key_weight="\"weight\""
+
+# --- CIccCfgSearchApply fields ---
+key_initial="\"initial\""
+key_pccWeights="\"pccWeights\""
+
+# --- CIccCfgColorData fields ---
+key_space="\"space\""
+key_encoding="\"encoding\""
+key_data="\"data\""
+key_values="\"values\""
+key_name="\"name\""
+
+# --- srcType/dstType string values ---
+val_colorData="\"colorData\""
+val_imageFile="\"imageFile\""
+
+# --- Encoding string values (7 recognized + invalid) ---
+enc_value="\"value\""
+enc_float="\"float\""
+enc_unitFloat="\"unitFloat\""
+enc_percent="\"percent\""
+enc_8Bit="\"8Bit\""
+enc_16Bit="\"16Bit\""
+enc_16BitV2="\"16BitV2\""
+
+# --- Transform string values (from icTranNames[]) ---
+tran_default="\"default\""
+tran_named="\"named\""
+tran_colorimetric="\"colorimetric\""
+
+# --- Interpolation string values (from icInterpNames[]) ---
+interp_default="\"default\""
+interp_linear="\"linear\""
+interp_tetrahedral="\"tetrahedral\""
+
+# --- Color space signatures (4-char padded) ---
+space_RGB="\"RGB \""
+space_CMYK="\"CMYK\""
+space_Lab="\"Lab \""
+space_XYZ="\"XYZ \""
+space_Gray="\"GRAY\""
+
+# --- Numeric edge cases ---
+num_zero="0"
+num_one="1"
+num_neg1="-1"
+num_intmax="2147483647"
+num_intmin="-2147483648"
+num_uintmax="4294967295"
+num_float_max="3.402823e+38"
+num_float_min="-3.402823e+38"
+num_tiny="5e-324"
+num_negzero="-0.0"
+num_huge="1e308"
+
+# --- String edge cases ---
+str_empty="\"\""
+
+# --- Intent values (0-3 valid, others trigger enum UB) ---
+intent_0="0"
+intent_1="1"
+intent_2="2"
+intent_3="3"
+intent_255="255"
+intent_neg="-1"
+
+# --- IT8 format tokens ---
+it8_prefix="\"it8\""
+it8_colordata="\"colorData\""
+it8_srctype="\"srcType\""
+
+# --- ICC profile path tokens ---
+path_srgb="\"test-profiles/sRGB_D65_MAT.icc\""
