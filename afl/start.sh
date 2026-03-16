@@ -210,12 +210,25 @@ if [[ -f "$AFL_DIR/${TARGET}.dict" ]]; then
 fi
 
 # Check for existing session (resume)
-# Only resume if fuzzer_stats exists — proves a valid prior session (not a stale/corrupt dir)
-if [[ -f "$AFL_DIR/output/default/fuzzer_stats" ]]; then
-    echo "[*] Existing session detected — AFL will auto-resume"
-    INPUT_FLAG="-i-"
+# Parallel mode uses output/main/, single mode uses output/default/
+if [[ "$PARALLEL" -gt 1 ]]; then
+    if [[ -f "$AFL_DIR/output/main/fuzzer_stats" ]]; then
+        echo "[*] Existing parallel session detected — AFL will auto-resume"
+        INPUT_FLAG="-i-"
+    else
+        # Clean stale parallel dirs that lack fuzzer_stats (failed prior launch)
+        for stale in "$AFL_DIR/output/main" "$AFL_DIR/output"/secondary_*; do
+            [[ -d "$stale" && ! -f "$stale/fuzzer_stats" ]] && rm -rf "$stale"
+        done
+        INPUT_FLAG="-i $AFL_DIR/input"
+    fi
 else
-    INPUT_FLAG="-i $AFL_DIR/input"
+    if [[ -f "$AFL_DIR/output/default/fuzzer_stats" ]]; then
+        echo "[*] Existing session detected — AFL will auto-resume"
+        INPUT_FLAG="-i-"
+    else
+        INPUT_FLAG="-i $AFL_DIR/input"
+    fi
 fi
 
 export AFL_MAP_SIZE="$AFL_MAP_SIZE_VAL"

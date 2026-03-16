@@ -95,7 +95,7 @@ print_status() {
 }
 
 # Known targets
-TARGETS=(dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube)
+TARGETS=(dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search)
 
 if [[ -n "$TARGET" ]]; then
     print_status "$TARGET"

@@ -14,7 +14,7 @@ TARGET="${1:-}"
 
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target>"
-    echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube"
+    echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search"
     exit 1
 fi
 
@@ -59,6 +59,11 @@ case "$TARGET" in
         UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromCube/iccFromCube"
         UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
         UPSTREAM_EXTRA_ARGS="/dev/null"
+        ;;
+    search)
+        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccApplySearch/iccApplySearch"
+        UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+        UPSTREAM_EXTRA_ARGS=""
         ;;
     *)
         echo "ERROR: Unknown target '$TARGET'"
@@ -112,7 +117,7 @@ triage_dir() {
 
         # Run with timeout against upstream binary directly
         local output
-        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "$f" $UPSTREAM_EXTRA_ARGS 2>&1) || exit_code=$?
+        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "$f" ${UPSTREAM_EXTRA_ARGS:+"$UPSTREAM_EXTRA_ARGS"} 2>&1) || exit_code=$?
 
         if [[ $exit_code -ge 128 ]]; then
             # Signal termination — potential upstream bug

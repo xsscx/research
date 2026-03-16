@@ -178,7 +178,7 @@ fi
 
 # --- Crashes ---
 CRASH_FILES=$(find "$HARVEST_DIR/crashes" -type f -name 'id:*' 2>/dev/null | wc -l)
-HANG_FILES=$(find "$HARVEST_DIR/crashes" -path '*/hangs/*' -type f 2>/dev/null | wc -l)
+HANG_FILES=$(find "$HARVEST_DIR/hangs" -type f 2>/dev/null | wc -l)
 echo ""
 echo "=== Findings ==="
 echo "[*] Crashes: $CRASH_FILES"
