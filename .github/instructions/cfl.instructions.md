@@ -81,6 +81,9 @@ for historical reference.
 | 022 | Calc Trunc/Floor/Ceil/Round/Mod int overflow | Large float-to-int cast in 5 calculator ops | CWE-681 | IccMpeCalc.cpp |
 | 023 | Sampled curve NaN-to-unsigned cast | 3 Apply() NaN-to-unsigned casts in IccMpeBasic.cpp | CWE-681 | IccMpeBasic.cpp |
 | 025 | CLUT InterpNd null Apply guard | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
+| 028 | MatrixMath SetRange NaN guard | NaN-to-unsigned-short in SetRange() | CWE-681 | IccMatrixMath.cpp |
+| 029 | TagArray operator= loop var | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
+| 030 | FixedNum GetValues SBO | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 
 ### Retired Patches (accepted upstream)
 
