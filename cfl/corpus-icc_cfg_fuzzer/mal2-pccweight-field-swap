@@ -1,0 +1,47 @@
+{
+  "comment": "BUG-1: CIccCfgPccWeight::fromJson field swap - pccFile read into m_dWeight, weight read into m_pccPath (IccCmmConfig.cpp:866-867). Round-trip fromJson->toJson will diverge.",
+  "dataFiles": {
+    "srcType": "colorData",
+    "dstType": "colorData",
+    "dstEncoding": "float",
+    "dstPrecision": 4,
+    "dstDigits": 9
+  },
+  "searchApply": {
+    "profileSequence": [
+      {
+        "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "intent": 1,
+        "interpolation": "tetrahedral"
+      },
+      {
+        "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "intent": 1,
+        "interpolation": "tetrahedral"
+      }
+    ],
+    "initial": {
+      "intent": 1,
+      "adjustPcsLuminance": false,
+      "useV5SubProfile": false
+    },
+    "pccWeights": [
+      {
+        "pccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "weight": 0.75
+      },
+      {
+        "pccFile": "test-profiles/sRGB_D65_MAT.icc",
+        "weight": 0.25
+      }
+    ]
+  },
+  "colorData": {
+    "space": "RGB ",
+    "encoding": "float",
+    "data": [
+      { "values": [1.0, 0.0, 0.0] },
+      { "values": [0.0, 1.0, 0.0] }
+    ]
+  }
+}

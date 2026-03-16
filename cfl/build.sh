@@ -283,6 +283,24 @@ else
   echo "SKIP" >> "$BUILD_RESULTS"
 fi
 
+echo ""
+echo "JSON config fuzzer (1):"
+CFGCOMMON_DIR="$ICCDEV_DIR/Tools/CmdLine/IccCommon"
+CFG_BUILD_TMP="$SCRIPT_DIR/.build_cfg_tmp"
+mkdir -p "$CFG_BUILD_TMP"
+if [ -f "$CFGCOMMON_DIR/IccCmmConfig.cpp" ] && [ -f "$CFGCOMMON_DIR/IccJsonUtil.cpp" ]; then
+  echo "  Compiling IccCmmConfig.o + IccJsonUtil.o..."
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$CFGCOMMON_DIR/IccCmmConfig.cpp" -o "$CFG_BUILD_TMP/IccCmmConfig.o" 2>&1
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$CFGCOMMON_DIR/IccJsonUtil.cpp" -o "$CFG_BUILD_TMP/IccJsonUtil.o" 2>&1
+  build_fuzzer "icc_cfg_fuzzer" "$CFG_BUILD_TMP/IccCmmConfig.o" "$CFG_BUILD_TMP/IccJsonUtil.o"
+  rm -rf "$CFG_BUILD_TMP"
+else
+  echo "  SKIP (IccCmmConfig.cpp not found)"
+  echo "SKIP" >> "$BUILD_RESULTS"
+fi
+
 # --- Summary ---
 banner "Build Summary"
 BUILT=$(grep -c '^OK$' "$BUILD_RESULTS" || true)

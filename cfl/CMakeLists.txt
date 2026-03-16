@@ -82,6 +82,18 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_applyprofiles_fuzzer IccProfLib2)
   
+  # JSON Config fuzzer (IccCmmConfig.cpp + IccJsonUtil.cpp compiled in — not in shared lib)
+  set(CFG_FUZZER_SOURCES
+    icc_cfg_fuzzer.cpp
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon/IccJsonUtil.cpp
+  )
+  add_executable(icc_cfg_fuzzer ${CFG_FUZZER_SOURCES})
+  target_compile_options(icc_cfg_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_cfg_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_cfg_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_cfg_fuzzer IccProfLib2)
+  
   # XML-based fuzzers (require IccXML)
   if(TARGET IccXML2)
     # FromXML fuzzer
@@ -120,6 +132,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles (2)")
+  message(STATUS "  Config: cfg (1)")
   if(TARGET IccXML2)
     message(STATUS "  XML: fromxml, toxml (2)")
   endif()
