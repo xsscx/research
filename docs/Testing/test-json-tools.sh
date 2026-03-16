@@ -422,6 +422,140 @@ print(json.dumps(cfg, indent=2))
 done
 
 # =============================================================================
+# SECTION 11: Extended test-profiles crash profiles (CFL-030 regression)
+# =============================================================================
+log_section "SECTION 11: Extended Test-Profiles (CFL-030 Regression)"
+
+for profile in "$REPO_ROOT/extended-test-profiles/"sbo-*.icc \
+               "$REPO_ROOT/extended-test-profiles/"hbo-*.icc \
+               "$REPO_ROOT/extended-test-profiles/"oom-*.icc; do
+    if [ -f "$profile" ]; then
+        relpath="${profile#$REPO_ROOT/}"
+        python3 -c "
+import json, sys
+cfg = {
+    'dataFiles': {'srcType': 'colorData'},
+    'profileSequence': [{'iccFile': '$relpath', 'intent': 1}],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [{'values': [0.5, 0.5, 0.5]}]}
+}
+print(json.dumps(cfg, indent=2))
+" > "/tmp/ext-crashprofile-$(basename "$profile" .icc).json"
+        run_test "$APPLY_NAMED_CMM" "/tmp/ext-crashprofile-$(basename "$profile" .icc).json" "any" \
+            "ApplyNamedCmm ext-crash: $(basename "$profile")"
+    fi
+done
+
+# =============================================================================
+# SECTION 12: Non-seekable fd — FIFO test (CFL-031 regression)
+# =============================================================================
+log_section "SECTION 12: Non-Seekable fd via FIFO (CFL-031 Regression)"
+
+CFL031_FIFO="/tmp/cfl031-test-fifo-$$"
+CFL031_JSON="/tmp/cfl031-fifo-config.json"
+
+# Generate a clean JSON config
+python3 -c "
+import json
+cfg = {
+    'dataFiles': {'srcType': 'colorData'},
+    'profileSequence': [{'iccFile': 'test-profiles/sRGB_D65_MAT.icc', 'intent': 1}],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [{'values': [0.5, 0.5, 0.5]}]}
+}
+print(json.dumps(cfg, indent=2))
+" > "$CFL031_JSON"
+
+mkfifo "$CFL031_FIFO" 2>/dev/null || true
+
+TOTAL=$((TOTAL + 1))
+# Feed JSON via FIFO in background
+cat "$CFL031_JSON" > "$CFL031_FIFO" &
+CFL031_PID=$!
+
+fifo_output=$(cd "$REPO_ROOT" && timeout 10 "$APPLY_NAMED_CMM" -cfg "$CFL031_FIFO" 2>&1) || true
+wait "$CFL031_PID" 2>/dev/null || true
+
+fifo_has_asan=0
+fifo_has_ubsan=0
+if echo "$fifo_output" | grep -q "ERROR: AddressSanitizer"; then
+    fifo_has_asan=1
+    ASAN_HITS=$((ASAN_HITS + 1))
+fi
+if echo "$fifo_output" | grep -q "runtime error:"; then
+    fifo_has_ubsan=1
+    ASAN_HITS=$((ASAN_HITS + 1))
+fi
+
+if [ $fifo_has_asan -eq 1 ] || [ $fifo_has_ubsan -eq 1 ]; then
+    WARN=$((WARN + 1))
+    log "[WARN-ASAN] CFL-031: FIFO non-seekable fd ftell() overflow"
+    log "    *** ASAN/UBSAN detected on non-seekable fd input ***"
+    echo "$fifo_output" | grep -E "runtime error:|ERROR: Address|SUMMARY:" | head -5 | sed 's/^/    | /' | tee -a "$RESULT_LOG"
+else
+    PASS=$((PASS + 1))
+    log "[PASS] CFL-031: FIFO non-seekable fd (no ASAN/UBSAN)"
+fi
+
+rm -f "$CFL031_FIFO" "$CFL031_JSON"
+
+# =============================================================================
+# SECTION 13: Invalid interpolation enum value (CFL-032 regression)
+# =============================================================================
+log_section "SECTION 13: Invalid Interpolation Value (CFL-032 Regression)"
+
+SRGB_PROFILE="$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+if [ -f "$SRGB_PROFILE" ]; then
+    # Test invalid interp values via CLI args (not -cfg mode)
+    for interp_val in 2 33 255; do
+        TOTAL=$((TOTAL + 1))
+        cli_output=$(cd "$REPO_ROOT" && timeout 10 "$APPLY_NAMED_CMM" \
+            /tmp/cfl032-out.icc 0 "$interp_val" 0 test 0.0 1.0 0 0 \
+            "$SRGB_PROFILE" 1 "$SRGB_PROFILE" 1 2>&1) || true
+
+        cli_has_ubsan=0
+        if echo "$cli_output" | grep -q "runtime error:"; then
+            cli_has_ubsan=1
+            ASAN_HITS=$((ASAN_HITS + 1))
+        fi
+
+        if [ $cli_has_ubsan -eq 1 ]; then
+            WARN=$((WARN + 1))
+            log "[WARN-ASAN] CFL-032: interp=$interp_val → UBSAN enum out-of-range"
+            echo "$cli_output" | grep -E "runtime error:|SUMMARY:" | head -3 | sed 's/^/    | /' | tee -a "$RESULT_LOG"
+        else
+            PASS=$((PASS + 1))
+            log "[PASS] CFL-032: interp=$interp_val (no UBSAN)"
+        fi
+    done
+
+    # Also test iccApplyToLink if available
+    APPLY_TO_LINK="$TOOL_DIR/IccApplyToLink/iccApplyToLink"
+    if [ -x "$APPLY_TO_LINK" ]; then
+        for interp_val in 2 33; do
+            TOTAL=$((TOTAL + 1))
+            link_output=$(cd "$REPO_ROOT" && timeout 10 "$APPLY_TO_LINK" \
+                /tmp/cfl032-link-out.icc 0 9 0 "cfl032-test" 0.0 1.0 0 "$interp_val" \
+                "$SRGB_PROFILE" 1 "$SRGB_PROFILE" 1 2>&1) || true
+
+            link_has_ubsan=0
+            if echo "$link_output" | grep -q "runtime error:"; then
+                link_has_ubsan=1
+                ASAN_HITS=$((ASAN_HITS + 1))
+            fi
+
+            if [ $link_has_ubsan -eq 1 ]; then
+                WARN=$((WARN + 1))
+                log "[WARN-ASAN] CFL-032: iccApplyToLink interp=$interp_val → UBSAN"
+                echo "$link_output" | grep -E "runtime error:|SUMMARY:" | head -3 | sed 's/^/    | /' | tee -a "$RESULT_LOG"
+            else
+                PASS=$((PASS + 1))
+                log "[PASS] CFL-032: iccApplyToLink interp=$interp_val (no UBSAN)"
+            fi
+        done
+    fi
+    rm -f /tmp/cfl032-out.icc /tmp/cfl032-link-out.icc
+fi
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 log_section "SUMMARY"
@@ -437,6 +571,7 @@ log "Results saved to: $RESULT_LOG"
 rm -f /tmp/empty-json-test.json /tmp/deeply-nested.json /tmp/large-colordata.json \
       /tmp/nullbyte-path.json /tmp/unicode-path.json /tmp/intent-test-*.json \
       /tmp/encoding-test-*.json /tmp/v5-test-*.json /tmp/crashprofile-*.json \
+      /tmp/ext-crashprofile-*.json /tmp/cfl031-*.json /tmp/cfl032-*.icc \
       /tmp/iccdev-json-test-output.json
 
 # Exit with error if any ASAN/UBSAN hits or unexpected failures
