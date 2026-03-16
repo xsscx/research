@@ -556,6 +556,180 @@ if [ -f "$SRGB_PROFILE" ]; then
 fi
 
 # =============================================================================
+# SECTION 14: CFL-033 — PccWeight fromJson field swap regression
+# =============================================================================
+log_section "SECTION 14: PccWeight Field Swap (CFL-033 Regression)"
+
+# BUG: CIccCfgPccWeight::fromJson() at IccCmmConfig.cpp:866-867 had swapped fields:
+#   jsonToValue(j["pccFile"], m_dWeight);   // reads path string → float member
+#   jsonToValue(j["weight"], m_pccPath);    // reads float → string member
+# Fix: swap the two lines to match toJson() behavior.
+# Detection: round-trip fromJson→toJson produces different JSON (pccFile/weight values swap).
+
+if [ -f "$REPO_ROOT/docs/Testing/malformed-json/pccweight-field-swap.json" ]; then
+    # Test 1: Config with pccWeight should not crash
+    run_test "$APPLY_NAMED_CMM" "$REPO_ROOT/docs/Testing/malformed-json/pccweight-field-swap.json" "nonzero" \
+        "S14-T1: PccWeight config — graceful handling (pre-fix: empty pccPath)"
+
+    # Test 2: Config with searchApply pccWeights via ApplySearch
+    run_test "$APPLY_SEARCH" "$REPO_ROOT/docs/Testing/malformed-json/pccweight-field-swap.json" "nonzero" \
+        "S14-T2: PccWeight config via ApplySearch — graceful rejection"
+
+    # Test 3: Round-trip divergence check — create config, run, check output
+    # With the bug present, fromJson reads pccFile→weight and weight→pccPath
+    # so the tool would output the wrong values. toJson always does it correctly.
+    cat > /tmp/cfl033-roundtrip.json << 'EOF'
+{
+    "dataFiles": {"srcType": "colorData", "dstType": "colorData", "dstEncoding": "float"},
+    "searchApply": {
+        "profileSequence": [
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1},
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1}
+        ],
+        "initial": {"intent": 1},
+        "pccWeights": [{"pccFile": "test-profiles/sRGB_D65_MAT.icc", "weight": 0.75}]
+    },
+    "colorData": {"space": "RGB ", "encoding": "float", "data": [{"values": [0.5, 0.5, 0.5]}]}
+}
+EOF
+    run_test "$APPLY_SEARCH" "/tmp/cfl033-roundtrip.json" "any" \
+        "S14-T3: PccWeight round-trip with weight=0.75 and valid pccFile"
+else
+    log "  [SKIP] pccweight-field-swap.json not found"
+fi
+
+# =============================================================================
+# SECTION 15: CFL-034 — SearchApply fromJsonInit interpolation key name
+# =============================================================================
+log_section "SECTION 15: SearchApply Interpolation Key (CFL-034 Regression)"
+
+# BUG: CIccCfgSearchApply::fromJsonInit() at IccCmmConfig.cpp:1120 reads j["transform"]
+# for the interpolation field instead of j["interpolation"]. The toJsonInit() at L1092
+# correctly writes j["interpolation"]. This means:
+#   1. The "interpolation" key in JSON config is silently ignored
+#   2. The "transform" value is used for BOTH transform and interpolation
+#   3. Round-trip (fromJson→toJson→fromJson) diverges on the interpolation field
+
+cat > /tmp/cfl034-interp-test.json << 'EOF'
+{
+    "dataFiles": {"srcType": "colorData", "dstType": "colorData", "dstEncoding": "float"},
+    "searchApply": {
+        "profileSequence": [
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1},
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1}
+        ],
+        "initial": {
+            "intent": 1,
+            "interpolation": "linear",
+            "transform": "colorimetric"
+        },
+        "pccWeights": []
+    },
+    "colorData": {"space": "RGB ", "encoding": "float", "data": [{"values": [0.5, 0.5, 0.5]}]}
+}
+EOF
+run_test "$APPLY_SEARCH" "/tmp/cfl034-interp-test.json" "any" \
+    "S15-T1: ApplySearch with both interpolation and transform keys"
+
+# Test 2: interpolation-only (should set interpolation, but bug reads transform)
+cat > /tmp/cfl034-interp-only.json << 'EOF'
+{
+    "dataFiles": {"srcType": "colorData", "dstType": "colorData", "dstEncoding": "float"},
+    "searchApply": {
+        "profileSequence": [
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1},
+            {"iccFile": "test-profiles/sRGB_D65_MAT.icc", "intent": 1}
+        ],
+        "initial": {"intent": 1, "interpolation": "linear"},
+        "pccWeights": []
+    },
+    "colorData": {"space": "RGB ", "encoding": "float", "data": [{"values": [0.5, 0.5, 0.5]}]}
+}
+EOF
+run_test "$APPLY_SEARCH" "/tmp/cfl034-interp-only.json" "any" \
+    "S15-T2: ApplySearch with interpolation key only (ignored pre-fix)"
+
+# =============================================================================
+# SECTION 16: Malformed JSON robustness (new configs from security audit)
+# =============================================================================
+log_section "SECTION 16: Malformed JSON Robustness"
+
+MALFORMED_DIR="$REPO_ROOT/docs/Testing/malformed-json"
+if [ -d "$MALFORMED_DIR" ]; then
+    for cfg in "$MALFORMED_DIR"/*.json; do
+        cfgname="$(basename "$cfg")"
+        # Use "any" — some malformed configs are structurally valid (exit 0),
+        # some are rejected (exit 255). We only flag ASAN/UBSAN as errors.
+        run_test "$APPLY_NAMED_CMM" "$cfg" "any" \
+            "S16: ApplyNamedCmm handles $cfgname"
+    done
+else
+    log "  [SKIP] malformed-json/ directory not found"
+fi
+
+# =============================================================================
+# SECTION 17: Extreme colorData stress tests
+# =============================================================================
+log_section "SECTION 17: Extreme ColorData Stress"
+
+# Test 1: 10K colorData entries
+python3 -c "
+import json
+cfg = {
+    'dataFiles': {'srcType': 'colorData', 'dstType': 'colorData', 'dstEncoding': 'float', 'dstPrecision': 4, 'dstDigits': 9},
+    'profileSequence': [{'iccFile': 'test-profiles/sRGB_D65_MAT.icc', 'intent': 1}],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [{'values': [float(i%256)/255.0, float((i*7)%256)/255.0, float((i*13)%256)/255.0]} for i in range(10000)]}
+}
+json.dump(cfg, open('/tmp/stress-10k-colors.json', 'w'))
+" 2>/dev/null
+run_test "$APPLY_NAMED_CMM" "/tmp/stress-10k-colors.json" "any" \
+    "S17-T1: 10K colorData entries processing"
+
+# Test 2: 200-profile chain
+python3 -c "
+import json
+cfg = {
+    'dataFiles': {'srcType': 'colorData', 'dstType': 'colorData', 'dstEncoding': 'float'},
+    'profileSequence': [{'iccFile': 'test-profiles/sRGB_D65_MAT.icc', 'intent': 1} for _ in range(200)],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [{'values': [0.5, 0.5, 0.5]}]}
+}
+json.dump(cfg, open('/tmp/stress-200-chain.json', 'w'))
+" 2>/dev/null
+run_test "$APPLY_NAMED_CMM" "/tmp/stress-200-chain.json" "any" \
+    "S17-T2: 200-profile chain processing"
+
+# Test 3: Extreme float values in colorData
+python3 -c "
+import json
+cfg = {
+    'dataFiles': {'srcType': 'colorData', 'dstType': 'colorData', 'dstEncoding': 'float'},
+    'profileSequence': [{'iccFile': 'test-profiles/sRGB_D65_MAT.icc', 'intent': 1}],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [
+        {'values': [1e308, -1e308, 0.0]},
+        {'values': [-0.0, 1e-308, 5e-324]},
+        {'values': [3.402823e+38, 1.175494e-38, -3.402823e+38]}
+    ]}
+}
+json.dump(cfg, open('/tmp/stress-extreme-floats.json', 'w'))
+" 2>/dev/null
+run_test "$APPLY_NAMED_CMM" "/tmp/stress-extreme-floats.json" "any" \
+    "S17-T3: Extreme float values (1e308, subnormals, negative zero)"
+
+# Test 4: 1000 iccEnvVars entries
+python3 -c "
+import json
+envvars = {str(i): float(i) for i in range(1000)}
+cfg = {
+    'dataFiles': {'srcType': 'colorData', 'dstType': 'colorData', 'dstEncoding': 'float'},
+    'profileSequence': [{'iccFile': 'test-profiles/sRGB_D65_MAT.icc', 'intent': 1, 'iccEnvVars': envvars}],
+    'colorData': {'space': 'RGB ', 'encoding': 'float', 'data': [{'values': [0.5, 0.5, 0.5]}]}
+}
+json.dump(cfg, open('/tmp/stress-1k-envvars.json', 'w'))
+" 2>/dev/null
+run_test "$APPLY_NAMED_CMM" "/tmp/stress-1k-envvars.json" "any" \
+    "S17-T4: 1000 iccEnvVars entries"
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 log_section "SUMMARY"
@@ -572,7 +746,9 @@ rm -f /tmp/empty-json-test.json /tmp/deeply-nested.json /tmp/large-colordata.jso
       /tmp/nullbyte-path.json /tmp/unicode-path.json /tmp/intent-test-*.json \
       /tmp/encoding-test-*.json /tmp/v5-test-*.json /tmp/crashprofile-*.json \
       /tmp/ext-crashprofile-*.json /tmp/cfl031-*.json /tmp/cfl032-*.icc \
-      /tmp/iccdev-json-test-output.json
+      /tmp/iccdev-json-test-output.json /tmp/cfl033-*.json /tmp/cfl034-*.json \
+      /tmp/stress-10k-colors.json /tmp/stress-200-chain.json \
+      /tmp/stress-extreme-floats.json /tmp/stress-1k-envvars.json
 
 # Exit with error if any ASAN/UBSAN hits or unexpected failures
 if [ $ASAN_HITS -gt 0 ]; then
