@@ -1,67 +1,91 @@
 # CFL Library Patches — Active Security Fixes
 
-Last Updated: 2026-03-14
+Last Updated: 2026-03-16
 
-17 active patches targeting verified security vulnerabilities in iccDEV library code,
+18 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
-**Architecture**: Post-retirement minimal patch set. 62 legacy patches (CFL-001 through
-CFL-083, with gaps) were retired in March 2026. Only verified, targeted fixes remain.
+**Architecture**: Post-retirement minimal patch set. 9 patches retired after upstream
+acceptance (PRs #680-#695). Only verified, targeted fixes remain.
 
-**On the `cfl` branch**: All 17 patches are applied at build time by `src/build.sh`.
-The CI workflow iterates these `.patch` files for verification — all will show as
-`[SKIP] (already applied)`.
+**Build**: `cd cfl && ./build.sh` applies all patches from this directory automatically.
 
-## Active Patches (17)
+## Active Patches (18)
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|
 | 001 | `001-icAnsiToUtf8-null-termination.patch` | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
 | 002 | `002-gamutboundary-triangles-signed-overflow.patch` | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
-| 003 | `003-tagarray-alloc-dealloc-mismatch.patch` | new[] in copy ctor, free() in Cleanup() | CWE-762 | IccTagComposite.cpp |
 | 004 | `004-ToneMapFunc-Read-parameter-count-validation.patch` | HBO via Describe() accessing m_params[0..2] with only 1 allocated | CWE-122 | IccMpeBasic.cpp |
 | 005 | `005-calculatorfunc-read-enum-ubsan.patch` | Enum out-of-range in calculator op read | CWE-681 | IccMpeCalc.cpp |
 | 006 | `006-SpectralMatrix-Describe-iteration-bounds.patch` | HBO via Describe() iterating m_nOutputChannels rows | CWE-122 | IccMpeSpectral.cpp |
 | 007 | `007-TagArray-Read-overflow-guard.patch` | Integer overflow in TagArray element count | CWE-190 | IccTagComposite.cpp |
 | 008 | `008-TagCurve-Apply-NaN-to-unsigned-UBSAN.patch` | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
 | 009 | `009-envvar-exec-enum-ubsan.patch` | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
-| 010 | `010-checkunderflow-recursion-depth.patch` | Unbounded recursion in CheckUnderflowOverflow | CWE-674 | IccMpeCalc.cpp, IccMpeCalc.h |
-| 011 | `011-specseptotiff-unique-ptr-array.patch` | unique_ptr\<T\> with new T[] uses delete not delete[] | CWE-762 | iccSpecSepToTiff.cpp |
 | 014 | `014-sequenceneedtempreset-recursion-depth.patch` | SequenceNeedTempReset recursion depth limit | CWE-674 | IccMpeCalc.cpp |
 | 017 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Enum out-of-range in GetEnvSig() XML parse path | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
-| 018 | `018-tagunknown-describe-hbo-underflow.patch` | HBO in icMemDump via m_nSize-4 underflow when tag data < 4 bytes | CWE-125/CWE-191 | IccTagBasic.cpp |
-| 019 | `019-pcc-null-spectral-viewing-conditions.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
-| 020 | `020-sampledcalculatorcurve-begin-channel-validation.patch` | SampledCalculatorCurve::Begin missing channel count validation | CWE-20 | IccMpeBasic.cpp |
+| 019 | `019-pcc-getReflectanceObserver-null-guard.patch` | NPD when PCC profile lacks spectralViewingConditionsTag | CWE-476 | IccPcc.cpp |
 | 021 | `021-singlesampled-curve-oom-size-validation.patch` | SingleSampledCurve::Read OOM via unchecked nCount before SetSize() | CWE-770 | IccMpeBasic.cpp |
+| 022 | `022-calc-trunc-floor-ceil-round-mod-int-overflow.patch` | Large float-to-int cast in 5 calculator ops | CWE-681 | IccMpeCalc.cpp |
+| 023 | `023-sampled-curve-nan-to-unsigned-cast.patch` | 3 Apply() NaN-to-unsigned casts | CWE-681 | IccMpeBasic.cpp |
+| 025 | `025-clut-interpnd-null-apply-guard.patch` | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
+| 028 | `028-matrixmath-setrange-nan-guard.patch` | NaN-to-unsigned-short in SetRange() | CWE-681 | IccMatrixMath.cpp |
+| 029 | `029-tagarray-operator-eq-loop-var.patch` | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
+| 030 | `030-fixednum-getvalues-sbo.patch` | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
 **Bug**: `getPccViewingConditions()` returns NULL when PCC profile lacks `svcn` tag.
-Two NPD sites: line 294 (`getReflectanceObserver`) and line 322-337
-(`CIccCombinedConnectionConditions` constructor). Lines 164, 200, 233 in the same
-file already had proper NULL checks — pattern inconsistency.
+NPD in `getReflectanceObserver()` (line 294). Lines 164, 200, 233 already had NULL checks.
 
-**Trigger requirements** (ALL must be true):
-1. Transform profile has `multiProcessElementType` tags (creates `CIccXformMpe`)
-2. MPE contains late-binding spectral elements (`emtx`/`iemx`) → `IsLateBinding()` = true
-3. `CIccNamedColorCmm::Begin()` calls `SetLateBindingCC()` → `SetAppliedCC()`
-4. PCC profile lacks `spectralViewingConditionsTag` (`svcn`)
+### CFL-030 Detail — FixedNum GetValues Stack Buffer Overflow
 
-**Affected tools**: `iccApplyNamedCmm` (only tool using `CIccNamedColorCmm`)
-**Affected profiles**: Any with late-binding elements — `Rec2020rgbSpectral.icc`, `LCDDisplay.icc` (2 of 416 testing profiles)
+**Bug**: `CIccTagFixedNum::GetValues()` loop iterates `m_nSize` (total elements in tag)
+instead of `nVectorSize` (caller-requested count). When `GetElemNumberValue()` calls
+`GetValues(&rv, 0, 1)` with a single `icFloatNumber rv` on the stack, and the tag has
+`m_nSize > 1`, the loop writes past the stack variable — stack-buffer-overflow.
 
-**1-liner reproduction** (from repo root):
-```bash
-printf "'RGB '\t; Data Format\nicEncodeFloat\t; Encoding\n\n0.5 0.5 0.5\n" > /tmp/pcc-test-data.txt && ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML source-of-truth/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm /tmp/pcc-test-data.txt 0 0 iccDEV/Testing/Display/Rec2020rgbSpectral.icc 0 -PCC test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc
-```
+**ASAN trace**: `WRITE of size 4` at `IccTagBasic.cpp:5525` →
+`CIccTagFixedNum<unsigned int, 1969632050>::GetValues(float*, unsigned int, unsigned int)`
 
-**Not affected**: `iccDumpProfile`, `iccToXml`, `iccRoundTrip`, `iccV5DspObsToV4Dsp`,
-`iccApplyToLink` (rejects before Begin), `iccApplyProfiles` (requires TIFF I/O),
-`iccApplySearch` (requires 2-3 profiles). Non-spectral profiles have 0 late-binding
-elements so `SetAppliedCC()` is never called.
+**Root cause**: Guard check `nVectorSize+nStart > m_nSize` passes, but the loop
+condition `i < m_nSize` should be `i < nVectorSize`. Sibling functions
+`CIccTagNum::GetValues()` and `CIccTagFloatNum::GetValues()` already use `nVectorSize`
+correctly — this was a copy-paste inconsistency in `CIccTagFixedNum` only.
 
-**PoC profile**: `test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc`
-(832-byte v5 MPE profile with A2B0/B2A0 but no `svcn` tag)
+**Fix**: Change `for (i=0; i<m_nSize; i++)` to `for (i=0; i<nVectorSize; i++)` in both
+S15Fixed16 and U16Fixed16 branches (2 sites).
+
+**Trigger path**: v5 `cenc` profile with `cept` struct tag → `icConvertEncodingProfile()` →
+`ConvertFromParams()` → `GetElemNumberValue()` → `GetValues(&rv, 0, 1)` with `m_nSize > 1`.
+
+**PoC**: `extended-test-profiles/sbo-GetValues-FixedNum-IccTagBasic_cpp-Line5519.icc`
+(5410-byte link fuzzer input — unbundle with `unbundle-fuzzer-input.sh link`)
+
+**Upstream tools**: NOT reproducible through CLI tools — they reject `cenc` profiles
+before reaching `AddXform`/`ConvertFromParams`. Any third-party library consumer
+calling `GetElemNumberValue()` on a `cenc` struct with multi-element fixed-num tags
+would be vulnerable.
+
+**iccanalyzer-lite**: H22 (NumArray Scalar Expectation) detects this pattern.
+
+## Retired Patches (accepted upstream via PRs #680-#695)
+
+| # | Patch | Upstream PR |
+|---|-------|-------------|
+| 003 | TagArray alloc-dealloc mismatch | #680, #693 |
+| 010 | CheckUnderflowOverflow recursion | #684 |
+| 011 | SpecSepToTiff unique_ptr array | pre-v2.3.1.5 |
+| 012 | NDLut InterpND null ApplyCLUT | pre-v2.3.1.5 |
+| 013 | TagArray Cleanup uninit guard | pre-v2.3.1.5 |
+| 015 | SpecSepToTiff strip geometry HBO | pre-v2.3.1.5 |
+| 016 | NaN guard unsigned cast UBSAN | pre-v2.3.1.5 |
+| 018 | TagUnknown Describe HBO underflow | #689 |
+| 019-old | PCC null spectral viewing (both sites) | #691 (partial) |
+| 020 | SampledCalculatorCurve Begin channel | #694 |
+| 024 | TagArray Cleanup UAF guard | #683 |
+| 026 | TagArray copy/assign UAF guard | #680, #693 |
+| 027 | JSON toJson() key typos | #692 |
 
 ### CFL-021 Detail — SingleSampledCurve OOM Size Validation
 
@@ -78,17 +102,16 @@ or `nCount = 0xDA000002` (13.6 GB) trigger OOM abort (SIGABRT).
 
 | CWE | Count | Category |
 |-----|-------|----------|
-| CWE-681 | 3 | Incorrect Type Conversion (UBSAN enum) |
-| CWE-125 | 2 | Out-of-bounds Read |
+| CWE-681 | 6 | Incorrect Type Conversion (UBSAN enum, NaN, int overflow) |
+| CWE-125 | 1 | Out-of-bounds Read |
+| CWE-121 | 1 | Stack Buffer Overflow |
 | CWE-122 | 2 | Heap Buffer Overflow |
 | CWE-190 | 2 | Integer Overflow |
-| CWE-674 | 2 | Uncontrolled Recursion |
-| CWE-762 | 1 | Mismatched Memory Management |
-| CWE-476 | 1 | Null Pointer Dereference |
-| CWE-20  | 1 | Improper Input Validation |
-| CWE-191 | 1 | Integer Underflow |
+| CWE-674 | 1 | Uncontrolled Recursion |
+| CWE-476 | 2 | Null Pointer Dereference |
 | CWE-170 | 1 | Missing Null Termination |
 | CWE-770 | 1 | Allocation without Limits (OOM) |
+| CWE-824 | 1 | Uninitialized Pointer Access |
 
 ## Patch Lifecycle
 

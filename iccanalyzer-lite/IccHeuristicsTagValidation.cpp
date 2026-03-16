@@ -585,7 +585,7 @@ printf("[H22] NumArray Scalar Expectation (cept struct)\n");
                ColorCritical(), scalarMembers[s].name, numVals, ColorReset());
         printf("       %sRisk: Stack buffer overflow in GetElemNumberValue → GetValues%s\n",
                ColorCritical(), ColorReset());
-        printf("       %s(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL patch 027)%s\n",
+        printf("       %s(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL-030)%s\n",
                ColorCritical(), ColorReset());
         scalarIssues++;
       } else {

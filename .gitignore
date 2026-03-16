@@ -82,6 +82,8 @@ timeout-*
 !extended-test-profiles/oom-*
 !extended-test-profiles/timeout-*
 !extended-test-profiles/slow-unit-*
+!extended-test-profiles/sbo-*
+!extended-test-profiles/hbo-*
 slow-unit-*
 latestcrash-*
 latestslow-unit-*
