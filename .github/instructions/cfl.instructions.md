@@ -85,6 +85,7 @@ for historical reference.
 | 029 | TagArray operator= loop var | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
 | 030 | FixedNum GetValues SBO | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 | 031 | loadJsonFrom ftell overflow | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
+| 032 | icXformInterp enum range | Unchecked atoi() → enum out-of-range UBSAN | CWE-20/CWE-681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
 
 ### Retired Patches (accepted upstream)
 
@@ -105,8 +106,8 @@ for historical reference.
 | 027 | JSON toJson() key typos | #692 |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **032**)
-- 19 active patches (13 retired after upstream acceptance in PRs #680-#695)
+- Numbering: zero-padded 3-digit, sequential (next: **033**)
+- 20 active patches (13 retired after upstream acceptance in PRs #680-#695)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

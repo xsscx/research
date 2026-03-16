@@ -1,0 +1,38 @@
+diff --git a/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp b/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp
+index 5406c16..28e5039 100644
+--- a/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp
++++ b/Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp
+@@ -689,7 +689,8 @@ int main(int argc, icChar* argv[])
+ 
+   //Retrieve command line arguments
+   bool bFirstTransform = atoi(argv[8]) != 0;
+-  icXformInterp nInterp = (icXformInterp)atoi(argv[9]);
++  int nInterpVal = atoi(argv[9]);
++  icXformInterp nInterp = (nInterpVal == 0) ? icInterpLinear : icInterpTetrahedral;
+ 
+   int nIntent, nType, nLuminance;
+ 
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..e688397 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -723,7 +723,8 @@ int CIccCfgProfileSequence::fromArgs(const char** args, int nArg, bool bReset)
+   icXformInterp interpolation = icInterpTetrahedral;
+ 
+   if (nArg > 1) {
+-    interpolation = (icXformInterp)atoi(args[0]);
++    int nInterpVal = atoi(args[0]);
++    interpolation = (nInterpVal == 0) ? icInterpLinear : icInterpTetrahedral;
+     args++;
+     nArg--;
+     nUsed++;
+@@ -894,7 +895,8 @@ int CIccCfgSearchApply::fromArgs(const char** args, int nArg, bool bReset)
+   icXformInterp interpolation = icInterpTetrahedral;
+ 
+   if (nArg > 1) {
+-    interpolation = (icXformInterp)atoi(args[0]);
++    int nInterpVal = atoi(args[0]);
++    interpolation = (nInterpVal == 0) ? icInterpLinear : icInterpTetrahedral;
+     args++;
+     nArg--;
+     nUsed++;

@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-16
 
-19 active patches targeting verified security vulnerabilities in iccDEV library code,
+20 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
 **Architecture**: Post-retirement minimal patch set. 9 patches retired after upstream
@@ -33,6 +33,7 @@ acceptance (PRs #680-#695). Only verified, targeted fixes remain.
 | 029 | `029-tagarray-operator-eq-loop-var.patch` | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
 | 030 | `030-fixednum-getvalues-sbo.patch` | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 | 031 | `031-loadjsonfrom-ftell-overflow.patch` | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
+| 032 | `032-icxforminterp-enum-range.patch` | icXformInterp enum out-of-range from unchecked CLI atoi() | CWE-20/CWE-681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 
@@ -158,11 +159,36 @@ or `nCount = 0xDA000002` (13.6 GB) trigger OOM abort (SIGABRT).
 
 **Files Modified**: `IccProfLib/IccMpeBasic.cpp`
 
+### CFL-032 Detail — icXformInterp Enum Out-of-Range
+
+**Bug**: `atoi()` on CLI interpolation argument cast directly to `icXformInterp` enum
+without range validation. The enum only defines 2 values: `icInterpLinear=0` and
+`icInterpTetrahedral=1`. Any other integer (e.g., 33) is undefined behavior per C++.
+
+**UBSAN trace**: `IccCmmConfig.cpp:778: runtime error: load of value 33, which is not
+a valid value for type 'icXformInterp'`
+
+**Reproduction (upstream)**:
+```bash
+UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
+LD_LIBRARY_PATH=source-of-truth/IccProfLib:source-of-truth/IccXML \
+  source-of-truth/Tools/CmdLine/IccApplyNamedCmm/iccApplyNamedCmm \
+  /tmp/out.icc 0 33 0 test 0.0 1.0 0 0 \
+  extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc 1 \
+  source-of-truth/Testing/Display/sRGB_D65_MAT.icc 1
+```
+
+**Fix**: Parse `atoi()` into `int`, then map: `0 → icInterpLinear`, else `icInterpTetrahedral`.
+Applied at 3 sites: IccCmmConfig.cpp (2 sites) and iccApplyToLink.cpp (1 site).
+
+**Files Modified**: `Tools/CmdLine/IccCommon/IccCmmConfig.cpp`, `Tools/CmdLine/IccApplyToLink/iccApplyToLink.cpp`
+
 ## CWE Distribution
 
 | CWE | Count | Category |
 |-----|-------|----------|
-| CWE-681 | 6 | Incorrect Type Conversion (UBSAN enum, NaN, int overflow) |
+| CWE-681 | 7 | Incorrect Type Conversion (UBSAN enum, NaN, int overflow) |
+| CWE-20  | 1 | Improper Input Validation |
 | CWE-125 | 1 | Out-of-bounds Read |
 | CWE-121 | 1 | Stack Buffer Overflow |
 | CWE-122 | 2 | Heap Buffer Overflow |
