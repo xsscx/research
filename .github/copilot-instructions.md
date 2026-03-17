@@ -495,6 +495,11 @@ absent — eliminates CI dependency on `Testing/Display/` (disabled with `-DENAB
 **npm package**: `iccdev@2.3.5` — `wasm-pages/package.json`. Build artifacts are gitignored;
 `wasm.sh` copies them from `Build-*/Tools/` into `wasm-pages/` after build.
 
+**CSP architecture**: All 14 tool pages enforce `script-src 'self'`. JavaScript is in
+external `app.js` files — no inline `<script>` or `onclick=`. Each tool dir has:
+`index.html` (markup), `{tool}.js` (WASM module, gitignored), `app.js` (app logic).
+CI assembly: `cp -r wasm-pages/* $PKG_DIR/` includes app.js automatically.
+
 **emsdk versioning**: emsdk git tags are emsdk releases (e.g., `5.0.3`), NOT Emscripten SDK
 versions (`3.1.78`). Clone without `--branch`, then `./emsdk install latest`.
 
