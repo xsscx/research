@@ -56,7 +56,7 @@ This file contains cross-cutting rules that apply to ALL components.
 
 | Metric | Value | Sync locations |
 |--------|-------|----------------|
-| Heuristics | 159 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H161 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
+| Heuristics | 161 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H161 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 13 | cfl.instructions.md, README.md |
 | iccDEV advisories | 93 (87 CVEs + 95 GHSAs = 182 unique, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
@@ -149,7 +149,7 @@ Binaries:
 **afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
 **Build cores**: use `-j24` (not `-j32`)
 **colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
-**Tests verified**: iccanalyzer-lite 230/230 · MCP 1816/1816 · web_ui 256/256
+**Tests verified**: iccanalyzer-lite 254/254 · MCP 1816/1816 · web_ui 256/256
 
 ### Local / Copilot CLI (WSL-2 or other Linux)
 Binaries must be built before use. See **Local Build** section below.
@@ -305,11 +305,11 @@ All heuristic, CVE, and severity counts are computed dynamically from
 `IccHeuristicsRegistry.h` at runtime. Use `--registry` mode for authoritative data:
 
 ```bash
-./iccanalyzer-lite --registry | jq .totalHeuristics    # → 159
+./iccanalyzer-lite --registry | jq .totalHeuristics    # → 161
 ./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 87
 ./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 95
 ./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 57
-./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:52, HIGH:39, ...}
+./iccanalyzer-lite --registry | jq .severity           # → {CRITICAL:54, HIGH:39, ...}
 ```
 
 Adding a new entry to `kHeuristicRegistry[]` in `IccHeuristicsRegistry.h` automatically
@@ -631,7 +631,7 @@ Every success claim MUST include verification evidence in this format:
 
 **Examples:**
 - `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
-- `[OK] Verified: 230 tests pass (python3 tests/run_tests.py → 230/230 passed)`
+- `[OK] Verified: 254 tests pass (python3 tests/run_tests.py → 254/254 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
 - `[OK] Verified: CFL patches ground-truth (cfl/verify-patches.sh → 15 PASS, 0 FAIL)`
@@ -1033,7 +1033,7 @@ see [mcp-server.instructions.md](instructions/mcp-server.instructions.md).
 **Path resolution**: filename (`sRGB_D65_MAT.icc`), relative (`test-profiles/sRGB_D65_MAT.icc`),
 or absolute path. GitHub blocks `.icc` attachments — rename to `.icc.txt` before uploading.
 
-**Interpreting results**: Exit 0=clean, 1=finding, 2=error. Look for `[H1]`–`[H159]` prefixes.
+**Interpreting results**: Exit 0=clean, 1=finding, 2=error. Look for `[H1]`–`[H161]` prefixes.
 ASAN/UBSAN in stderr = CRITICAL memory safety finding.
 
 **Automated issue→PR→merge**: Create issue → assign Copilot via GitHub UI → agent runs MCP tools +
