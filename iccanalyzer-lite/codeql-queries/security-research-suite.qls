@@ -82,3 +82,6 @@
     tags contain:
       - security
       - experimental
+
+# Cross-container size mismatch (CFL-035 pattern)
+- query: ./cross-container-oob.ql

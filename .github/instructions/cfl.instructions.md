@@ -87,6 +87,17 @@ for historical reference.
 | 030 | FixedNum GetValues SBO | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 | 031 | loadJsonFrom ftell overflow | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
 | 032 | icXformInterp enum range | Unchecked atoi() → enum out-of-range UBSAN | CWE-20/CWE-681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
+| 033 | PccWeight fromJson field swap | pccFile↔weight members swapped in fromJson | CWE-843 | IccCmmConfig.cpp |
+| 034 | SearchApply fromJsonInit interpolation key | Reads j["transform"] instead of j["interpolation"] | CWE-345 | IccCmmConfig.cpp |
+| 035 | ApplyCmmSearch m_nApply OOB clamp | HBO via unclamped m_nApply index into m_dst_to_mid | CWE-122 | IccCmmSearch.cpp |
+| 036 | CreateLink toJson missing linkGridSize | toJson never writes m_linkGridSize — data loss | CWE-345 | IccCmmConfig.cpp |
+| 037 | Profile toJson missing transform | toJson never writes m_transform + interpolation guard fix | CWE-345 | IccCmmConfig.cpp |
+| 038 | SearchApply toJsonInit missing transform | toJsonInit never writes m_transformInitial + interp guard fix | CWE-345 | IccCmmConfig.cpp |
+| 039 | SearchApply toJson dead guards | jsonExistsField on fresh empty json → nothing written | CWE-561 | IccCmmConfig.cpp |
+| 040 | fromIt8 CMYK missing push_back | CMYK branch missing samples.push_back(val) | CWE-787/CWE-125 | IccCmmConfig.cpp |
+| 041 | fromIt8 LAB/XYZ val(4) OOB | val(4) should be val(3) for 3-channel LAB/XYZ | CWE-125 | IccCmmConfig.cpp |
+| 042 | ParseNumbers 'n' vs '\n' typo | Skip-number loop uses 'n' instead of newline | CWE-20 | IccCmmConfig.cpp |
+| 043 | Tool toJson is_object vs is_array | seq.is_object() fails on array from ProfileSequence::toJson | CWE-697 | iccApplyNamedCmm.cpp, iccApplySearch.cpp |
 
 ### Retired Patches (accepted upstream)
 
@@ -107,8 +118,8 @@ for historical reference.
 | 027 | JSON toJson() key typos | #692 |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **033**)
-- 20 active patches (13 retired after upstream acceptance in PRs #680-#695)
+- Numbering: zero-padded 3-digit, sequential (next: **044**)
+- 31 active patches (13 retired after upstream acceptance in PRs #680-#695)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
