@@ -527,9 +527,10 @@ jobs:
     timeout-minutes: 30
     env:
       POWERSHELL_TELEMETRY_OPTOUT: "1"
+      POWERSHELL_UPDATECHECK: "Off"
     defaults:
       run:
-        shell: pwsh
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
 
     strategy:
       fail-fast: false
@@ -546,39 +547,28 @@ jobs:
           persist-credentials: false
 
       - name: Configure Git Environment
-        shell: pwsh
         run: |
-          set -euo pipefail
-          Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
           git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2.0.0
 
       - name: Install Dependencies
-        shell: pwsh
         run: |
-          set -euo pipefail
-          Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           Write-Host "Fetching dependencies..."
           Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
           tar -xf deps.zip
 
       - name: Configure
-        shell: pwsh
         run: |
-          set -euo pipefail
-          Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           cd Build/Cmake
           cmake -B build -S . `
                 -DCMAKE_TOOLCHAIN_FILE="..\..\scripts\buildsystems\vcpkg.cmake" `
@@ -587,25 +577,16 @@ jobs:
                 -Wno-dev
 
       - name: Build
-        shell: pwsh
         run: |
-          set -euo pipefail
-          Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           cd Build/Cmake
-          cmake --build build --config ${{ matrix.build_type }} -- /m /maxcpucount
           cmake --build build --config ${{ matrix.build_type }} -- /m /maxcpucount
 
       - name: Test
-        shell: pwsh
         run: |
-          set -euo pipefail
-          Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           cd Build/Cmake
           $exeDirs = Get-ChildItem -Recurse -File -Include *.exe -Path .\build\ |
               Where-Object { $_.FullName -match 'icc' -and $_.FullName -notmatch '\\CMakeFiles\\' -and $_.Name -notmatch '^CMake(C|CXX)CompilerId\.exe$' } |
