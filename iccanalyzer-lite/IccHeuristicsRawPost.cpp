@@ -643,14 +643,19 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
   }
   printf("\n");
 
-  // H152: SingleSampledCurve OOM size validation (CWE-770).
-  // Full-file scan — sngf elements can be deeply nested in calc sub-elements
+  // H152: Curve element OOM size validation (CWE-770).
+  // Full-file scan — curve elements can be deeply nested in calc sub-elements
   // beyond the kMaxTagDataScan (4KB) per-tag scan window.
-  // CIccSingleSampledCurve::Read() at IccMpeBasic.cpp:1638 calls
-  // SetSize(m_nCount) → malloc(nCount*4) BEFORE checking nCount against
-  // remaining stream size. CFL-021 patches this.
-  // sngf = 0x736E6766 (icSigSingleSampledCurve)
-  // Layout: sig(4) + reserved(4) + nCount(4) + ...
+  // Three curve element types share the same Read() OOM pattern:
+  //   sngf = 0x736E6766 (CIccSingleSampledCurve)   — IccMpeBasic.cpp:1638
+  //   samf = 0x73616D66 (CIccSampledCurveSegment)   — IccMpeBasic.cpp:1070
+  //   clcf = 0x636C6366 (CIccSampledCalculatorCurve) — IccMpeBasic.cpp:2446
+  // All read nCount(uint32) at offset+8, then SetSize(nCount) → malloc(nCount*4)
+  // BEFORE checking nCount against remaining stream size.
+  // Additionally curf = 0x63757266 (CIccSegmentedCurve) at IccMpeBasic.cpp:2652
+  // reads nSegments(uint16) at offset+8 and computes size-(pos-startPos) which
+  // causes unsigned underflow (CWE-191) when segment data exceeds available size.
+  // Layout: sig(4) + reserved(4) + nCount/nSegments(4 or 2) + ...
   {
     RawFileHandle fh152 = OpenRawFile(filename);
     if (fh152) {
@@ -661,21 +666,55 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
           int oomIssues = 0;
           for (size_t b = 0; b + 11 < fs152; b++) {
             icUInt32Number w = ReadU32BE(&buf152[b]);
-            if (w != 0x736E6766) continue;  // 'sngf'
+            const char *curveName = nullptr;
+            const char *fixRef = nullptr;
 
+            if (w == 0x736E6766) {       // 'sngf'
+              curveName = "SingleSampledCurve";
+              fixRef = "IccMpeBasic.cpp:1638, CFL-021";
+            } else if (w == 0x73616D66) { // 'samf'
+              curveName = "SampledCurveSegment";
+              fixRef = "IccMpeBasic.cpp:1070";
+            } else if (w == 0x636C6366) { // 'clcf'
+              curveName = "SampledCalculatorCurve";
+              fixRef = "IccMpeBasic.cpp:2446";
+            } else if (w == 0x63757266) { // 'curf'
+              // SegmentedCurve: nSegments is uint16 at offset+8
+              uint16_t nSeg = (uint16_t)((buf152[b + 8] << 8) | buf152[b + 9]);
+              if (nSeg > 0) {
+                size_t bpBytes = (nSeg > 1) ? ((size_t)(nSeg - 1) * 4) : 0;
+                size_t segMin = (size_t)nSeg * 12;
+                size_t totalMin = 12 + bpBytes + segMin;
+                size_t remaining = fs152 - b;
+                if (totalMin > remaining) {
+                  printf("      %s[CRITICAL] SegmentedCurve at offset 0x%zX: nSegments=%u "
+                         "needs %zu bytes minimum, only %zu available%s\n",
+                         ColorCritical(), b, nSeg, totalMin, remaining, ColorReset());
+                  printf("       %sCWE-191: Unsigned underflow in CIccSegmentedCurve::Read() "
+                         "size-(pos-startPos) at IccMpeBasic.cpp:2779%s\n",
+                         ColorCritical(), ColorReset());
+                  oomIssues++;
+                }
+              }
+              continue;
+            } else {
+              continue;
+            }
+
+            // sngf/samf/clcf: nCount is uint32 at offset+8
             icUInt32Number nCount = ReadU32BE(&buf152[b + 8]);
             uint64_t allocBytes = (uint64_t)nCount * 4;
             size_t remaining = fs152 - b - 12;
 
             if (allocBytes > 256 * 1024 * 1024 || allocBytes > remaining * 64) {
-              printf("      %s[CRITICAL] SingleSampledCurve at offset 0x%zX: nCount=%u → "
+              printf("      %s[CRITICAL] %s at offset 0x%zX: nCount=%u → "
                      "%.1f GB allocation (file has %zu bytes remaining)%s\n",
-                     ColorCritical(), b, nCount,
+                     ColorCritical(), curveName, b, nCount,
                      (double)allocBytes / (1024.0 * 1024.0 * 1024.0),
                      remaining, ColorReset());
               printf("       %sCWE-770: Allocation without limits — OOM abort "
-                     "(IccMpeBasic.cpp:1638, CFL-021 fix)%s\n",
-                     ColorCritical(), ColorReset());
+                     "(%s)%s\n",
+                     ColorCritical(), fixRef, ColorReset());
               oomIssues++;
             }
           }
@@ -3026,6 +3065,7 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(const char *filename)
     uint8_t entry[12];
     if (fread(entry, 1, 12, fh.fp) != 12) break;
 
+    uint32_t tSig    = ReadU32BE(&entry[0]);
     uint32_t tOffset = ReadU32BE(&entry[4]);
     uint32_t tSize   = ReadU32BE(&entry[8]);
 
@@ -3056,6 +3096,38 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(const char *filename)
                  "→ unbounded allocation in Read() (IccTagBasic.cpp)%s\n",
                  ColorCritical(), ColorReset());
           issues++;
+        }
+      }
+      fseek(fh.fp, savedPos, SEEK_SET);
+    }
+
+    // mAB/mBA: sub-element offsets (Bcurves, Matrix, Acurves, CLUT) must be
+    // within tag size. Out-of-bounds offsets cause the parser to read adjacent
+    // tag data as curve elements, triggering OOM from garbage nCount values.
+    // mAB = 0x6D414220, mBA = 0x6D424120
+    if ((typeSig == 0x6D414220 || typeSig == 0x6D424120) && tSize >= 28) {
+      fseek(fh.fp, tOffset + 12, SEEK_SET);
+      uint8_t mabBuf[16];
+      if (fread(mabBuf, 1, 16, fh.fp) == 16) {
+        const char *subNames[] = {"Bcurves", "Matrix", "Acurves", "CLUT"};
+        for (int s = 0; s < 4; s++) {
+          uint32_t subOff = ReadU32BE(&mabBuf[s * 4]);
+          if (subOff > 0 && subOff >= tSize) {
+            char tagSig[5];
+            tagSig[0] = static_cast<char>(static_cast<unsigned char>((tSig >> 24) & 0xFF));
+            tagSig[1] = static_cast<char>(static_cast<unsigned char>((tSig >> 16) & 0xFF));
+            tagSig[2] = static_cast<char>(static_cast<unsigned char>((tSig >>  8) & 0xFF));
+            tagSig[3] = static_cast<char>(static_cast<unsigned char>( tSig        & 0xFF));
+            tagSig[4] = '\0';
+            printf("      %s[CRITICAL] Tag '%s' (%s): %s offset=%u exceeds tag size (%u)%s\n",
+                   ColorCritical(), tagSig,
+                   typeSig == 0x6D414220 ? "mAB" : "mBA",
+                   subNames[s], subOff, tSize, ColorReset());
+            printf("       %sCWE-789: Out-of-bounds sub-element offset causes parser to read "
+                   "adjacent data as curve elements → OOM allocation%s\n",
+                   ColorCritical(), ColorReset());
+            issues++;
+          }
         }
       }
       fseek(fh.fp, savedPos, SEEK_SET);
