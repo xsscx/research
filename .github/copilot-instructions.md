@@ -477,8 +477,9 @@ cd wasm-pages && npx http-server . -p 8080 -c-1
 - `-sINVOKE_RUN=0` — MANDATORY with `-sMODULARIZE=1` to prevent auto-`main()` execution
 - `-sEXPORTED_RUNTIME_METHODS=callMain,FS` — exposes `Module.callMain()` and `Module.FS`
 - `-sALLOW_MEMORY_GROWTH=1` — dynamic memory expansion for large profiles
-- Must `sed`-strip ELF-only flags from CMakeLists.txt before cmake:
+- CMakeLists.txt has `if(EMSCRIPTEN)` guards that skip ELF-only flags automatically:
   `-Wl,-z,relro,-z,now`, `-fstack-protector-strong`, `-fstack-clash-protection`
+  (no `sed` stripping needed)
 - ASan and SAFE_HEAP are **mutually exclusive** in Emscripten
 
 **JSON config support**: 3 tools accept `-cfg config.json` in WASM:
