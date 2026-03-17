@@ -130,13 +130,8 @@ is NOT permanently modified (it must remain valid for native builds).
 | `-fstack-protector-strong` | 924 | Unsupported for WASM target |
 | `-fstack-clash-protection` | 925 | Unsupported for WASM target |
 
-Stripping commands (applied in wasm.sh and both CI workflows):
-
-```bash
-sed -i 's/-Wl,-z,relro,-z,now//' Build/Cmake/CMakeLists.txt
-sed -i 's/-fstack-protector-strong//' Build/Cmake/CMakeLists.txt
-sed -i 's/-fstack-clash-protection//' Build/Cmake/CMakeLists.txt
-```
+**Resolution**: CMakeLists.txt has `if(EMSCRIPTEN)` platform guards that skip these flags
+automatically. No `sed` stripping needed — the cmake build system handles it natively.
 
 ## CI Workflows
 
