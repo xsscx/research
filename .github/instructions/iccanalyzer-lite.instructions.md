@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 230 tests (19 functions), ~36s
+python3 iccanalyzer-lite/tests/run_tests.py   # 254 tests (19 functions), ~36s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -86,7 +86,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 159-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
+| `IccHeuristicsRegistry.h` | 161-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
 | `IccAnalyzerJson.cpp/.h` | `--json` structured output mode |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
@@ -108,8 +108,8 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 3. Add function declaration to the corresponding `.h` file
 4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
 5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-6. Update heuristic count (159→160) in these files:
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.161_heuristics`
+6. Update heuristic count (161→162) in these files:
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.162_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
@@ -258,7 +258,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 230/230 tests pass
+# 8. Verify: 254/254 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
@@ -309,7 +309,7 @@ severity). This is the **source of truth** for all counts — adding a new entry
 ## Severity Classification (v3.6.0+)
 
 All 161 heuristics are classified by CWE impact:
-- **CRITICAL** (~52): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
+- **CRITICAL** (54): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
 - **HIGH** (~39): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
 - **LOW** (~37): Spec compliance — CWE-20
