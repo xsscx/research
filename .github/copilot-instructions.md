@@ -444,14 +444,51 @@ Proven techniques for improving fuzzer coverage and crash discovery:
    **Note**: xnuimagetools uses xnuimagefuzzer as a git submodule — clone with
    `git clone --recurse-submodules` to ensure fuzzed-images are populated.
 
-### WASM Build (Deferred)
+### WASM Build — iccanalyzer-lite (Deferred)
 
 WASM build of iccanalyzer-lite is **not yet supported**. Known blockers:
 - POSIX signal recovery (alarm, sigsetjmp, sigaltstack) — needs `#ifndef __EMSCRIPTEN__` guards
 - ASAN/UBSAN `__asan_default_options` / `__ubsan_default_options` — must be stubbed
 - `ICCANALYZER_LITE` compile flag required to skip fingerprint DB code (`RiskLevel` enum)
 - Third-party deps (zlib, libpng, libjpeg, libtiff, libxml2, nlohmann/json) **do** build successfully with Emscripten
-- Reference: upstream `iccDEV/.github/workflows/wasm-latest-matrix.yml`
+
+### WASM Build — iccDEV Tools (Working)
+
+14 iccDEV CLI tools build as WASM via Emscripten. Source: `iccDEV/` repo, `wasm` branch.
+
+```bash
+# Build all 14 WASM tools (downloads emsdk, builds deps, produces .js + .wasm)
+cd iccDEV && ./wasm.sh release     # or: debug, sanitizer, all
+
+# Artifacts: iccDEV/wasm/iccDEV/Build-release/Tools/*/icc*.{js,wasm}
+# Demo pages: iccDEV/wasm-pages/ (14 per-tool HTML pages + test suite)
+
+# Test with Node.js
+cd wasm-pages && node test_all.js   # 14/14 tests
+
+# Serve locally
+cd wasm-pages && npx http-server . -p 8080 -c-1
+```
+
+**3 build configs**: Release (`-O3`, 128MB), Debug (`-g -O0 -sASSERTIONS=2 -sSAFE_HEAP=1`,
+256MB), Asan (`-fsanitize=address -O1 -sSTACK_OVERFLOW_CHECK=2`, 256MB, NO SAFE_HEAP).
+
+**Critical build flags** (all configs):
+- `-sINVOKE_RUN=0` — MANDATORY with `-sMODULARIZE=1` to prevent auto-`main()` execution
+- `-sEXPORTED_RUNTIME_METHODS=callMain,FS` — exposes `Module.callMain()` and `Module.FS`
+- `-sALLOW_MEMORY_GROWTH=1` — dynamic memory expansion for large profiles
+- Must `sed`-strip ELF-only flags from CMakeLists.txt before cmake:
+  `-Wl,-z,relro,-z,now`, `-fstack-protector-strong`, `-fstack-clash-protection`
+- ASan and SAFE_HEAP are **mutually exclusive** in Emscripten
+
+**JSON config support**: 3 tools accept `-cfg config.json` in WASM:
+`iccApplyNamedCmm`, `iccApplyProfiles`, `iccApplySearch`.
+`iccApplyToLink` does NOT support JSON.
+
+**CI workflows**: `ci-wasm-build-test.yml` (PR trigger), `wasm-latest-matrix.yml` (dispatch).
+
+**npm package**: `iccdev@2.3.5` — `wasm-pages/package.json`. Build artifacts are gitignored;
+`wasm.sh` copies them from `Build-*/Tools/` into `wasm-pages/` after build.
 
 ## Fuzz Corpus (`fuzz/`)
 
