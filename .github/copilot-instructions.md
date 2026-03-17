@@ -487,9 +487,14 @@ cd wasm-pages && npx http-server . -p 8080 -c-1
 `iccApplyToLink` does NOT support JSON.
 
 **CI workflows**: `ci-wasm-build-test.yml` (PR trigger), `wasm-latest-matrix.yml` (dispatch).
+**CI test fallback**: `test_all.js` self-generates a minimal ICC profile when `test.icc` is
+absent — eliminates CI dependency on `Testing/Display/` (disabled with `-DENABLE_TESTS=OFF`).
 
 **npm package**: `iccdev@2.3.5` — `wasm-pages/package.json`. Build artifacts are gitignored;
 `wasm.sh` copies them from `Build-*/Tools/` into `wasm-pages/` after build.
+
+**emsdk versioning**: emsdk git tags are emsdk releases (e.g., `5.0.3`), NOT Emscripten SDK
+versions (`3.1.78`). Clone without `--branch`, then `./emsdk install latest`.
 
 ## Fuzz Corpus (`fuzz/`)
 
