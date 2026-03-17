@@ -1526,6 +1526,10 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
     if (mbbA->OutputChannels() != mbbB->InputChannels() ||
         mbbA->OutputChannels() < 1 || mbbA->OutputChannels() > 15) continue;
 
+    // Initialize CLUT interpolation structures (m_MaxGridPoint, m_nNodes, m_nOffset)
+    // Required before any Interp*d() call — Read() loads data but not interp metadata
+    clutB->Begin();
+
     uint32_t pcsChannels = mbbA->OutputChannels();
     uint32_t gridA = (uint32_t)clutA->GridPoints();  // icUInt8Number → uint32_t
     uint32_t inputA = mbbA->InputChannels();
@@ -1554,7 +1558,15 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
         pcsOut[c] = nodeData[c];
 
       icFloatNumber roundTrip[16] = {};
-      clutB->Interp3d(roundTrip, pcsOut);
+      icUInt8Number clutBInput = mbbB->InputChannels();
+      if (clutBInput == 3)
+        clutB->Interp3d(roundTrip, pcsOut);
+      else if (clutBInput == 4)
+        clutB->Interp4d(roundTrip, pcsOut);
+      else if (clutBInput == 1)
+        clutB->Interp1d(roundTrip, pcsOut);
+      else
+        continue;
 
       double de2 = 0.0;
       for (uint32_t c = 0; c < pcsChannels && c < 3; c++) {
