@@ -1,0 +1,21 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1508,7 +1508,7 @@ bool CIccCfgColorData::fromIt8(const char* filename, bool bReset)
+       szFmt += 4;
+       if (space != lastSpace) {
+         lastSpace = space;
+-        icValueVector val(4);
++        icValueVector val(3);
+         val[0].space = icSigLabData;
+         samples.push_back(val);
+         spaces.push_back(space);
+@@ -1521,7 +1521,7 @@ bool CIccCfgColorData::fromIt8(const char* filename, bool bReset)
+       szFmt += 4;
+       if (space != lastSpace) {
+         lastSpace = space;
+-        icValueVector val(4);
++        icValueVector val(3);
+         val[0].space = icSigXYZData;
+         samples.push_back(val);
+         spaces.push_back(space);

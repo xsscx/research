@@ -1,0 +1,12 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1249,7 +1249,7 @@ static bool ParseNumbers(icChar* pString, icFloatNumber* pData, icUInt32Number n
+     if (sscanf(ptr, ICFLOATFMT, &pData[nNumbersRead]) == 1)
+       nNumbersRead++;
+     else
+       break;
+-    while (*ptr && *ptr != ' ' && *ptr != '\t' && *ptr != 'n' && *ptr != '\r')
++    while (*ptr && *ptr != ' ' && *ptr != '\t' && *ptr != '\n' && *ptr != '\r')
+       ptr++;
+   }
