@@ -539,10 +539,10 @@ int RunHeuristic_H37_CalculatorElementComplexity(const char *filename)
             //   icChannelFuncSignature enum — invalid values cause UBSAN UB.
             //   CFL-005 patches this to read as icUInt32Number.
             // Also: operator sigs at m_Op[i].sig must be valid FourCC (printable ASCII).
-            for (size_t b = 0; b + 15 < scanLen; b++) {
+            for (size_t b = 0; b + 15 < scanLen; /* increment below */) {
               icUInt32Number w = ReadU32BE(&scanBuf[b]);
               // Look for 'calc' signature (0x63616C63)
-              if (w != 0x63616C63) continue;
+              if (w != 0x63616C63) { b++; continue; }
 
               // Parse calc header: sig(4) + reserved(4) + nInput(2) + nOutput(2) + nSubElem(4)
               size_t calcOff = b;
