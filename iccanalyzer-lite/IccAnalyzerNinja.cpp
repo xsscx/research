@@ -233,7 +233,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     icUInt32Number intent = ReadU32BE(rawData + 64);
     const char *intentNames[] = {"Perceptual", "Relative Colorimetric", "Saturation", "Absolute Colorimetric"};
     const char *intentStr = "UNKNOWN";
-    if (intent < 4) intentStr = intentNames[intent];
+    if (intent < 4u) intentStr = intentNames[intent];
     printf("  Rendering Intent:0x%08X  %s\n", intent, intentStr);
 
     // PCS Illuminant (bytes 68-79, 3x s15Fixed16)

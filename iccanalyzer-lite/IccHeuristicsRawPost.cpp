@@ -1817,7 +1817,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
                 // Product = gridPts^nInput × nOutput
                 uint64_t product = 1;
                 bool overflow = false;
-                for (int d = 0; d < nInput; d++) {
+                for (int d = 0; d < static_cast<int>(nInput); d++) {
                   product *= gridPts;
                   if (product > kMaxCLUTGridProduct) { overflow = true; break; }
                 }
@@ -1856,7 +1856,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(const char *filename)
                   uint64_t product = 1;
                   bool overflow = false;
                   bool hasZeroDim = false;
-                  for (int d = 0; d < nInput; d++) {
+                  for (int d = 0; d < static_cast<int>(nInput); d++) {
                     if (gridDims[d] == 0) { hasZeroDim = true; break; }
                     product *= gridDims[d];
                     if (product > kMaxCLUTGridProduct) { overflow = true; break; }
@@ -2382,7 +2382,7 @@ int RunHeuristic_H54_DivisionByZeroTrigger(const char *filename)
                 icUInt8Number gridDims[16];
                 fseek(fh54.fp, tOff + clutOff, SEEK_SET);
                 if (fread(gridDims, 1, 16, fh54.fp) == 16) {
-                  for (int d = 0; d < nInput; d++) {
+                  for (int d = 0; d < static_cast<int>(nInput); d++) {
                     if (gridDims[d] == 0) {
                       printf("      %s[WARN]  Tag '%s' (%s): CLUT grid dimension[%d] = 0%s\n",
                              ColorCritical(), sig54,
@@ -2954,7 +2954,7 @@ int RunHeuristic_H153_SampledCurveNaNCast(const char *filename)
             bool leNaN = std::isnan(lastEntry);
             bool leInf = std::isinf(lastEntry);
             bool rangeZero = (!feNaN && !leNaN && !feInf && !leInf &&
-                              firstEntry == lastEntry);
+                              !(firstEntry < lastEntry) && !(lastEntry < firstEntry));
 
             if (feNaN || feInf || leNaN || leInf || rangeZero) {
               printf("      %s[CRITICAL] %s at offset 0x%zX: ", ColorCritical(), curveName, b);
@@ -3205,7 +3205,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename)
       if (nInput > 0 && grid > 0) {
         uint64_t clutSize = 1;
         bool overflow = false;
-        for (int d = 0; d < nInput; d++) {
+        for (int d = 0; d < static_cast<int>(nInput); d++) {
           clutSize *= grid;
           if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
         }
@@ -3231,7 +3231,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename)
       if (nInput > 0 && grid > 0) {
         uint64_t clutSize = 2;  // 2 bytes per entry
         bool overflow = false;
-        for (int d = 0; d < nInput; d++) {
+        for (int d = 0; d < static_cast<int>(nInput); d++) {
           clutSize *= grid;
           if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
         }
@@ -3260,7 +3260,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename)
         size_t clutAddr = tOffset + clutOff;
         uint64_t clutSize = (buf[clutAddr + 16] == 2) ? 2 : 1;  // precision
         bool overflow = false;
-        for (int d = 0; d < nInput && d < 16; d++) {
+        for (int d = 0; d < static_cast<int>(nInput) && d < 16; d++) {
           uint8_t gp = buf[clutAddr + d];
           if (gp == 0) gp = 1;
           clutSize *= gp;
@@ -3875,7 +3875,7 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(const char *filename)
     tagSig[4] = '\0';
 
     // Scan for format specifiers
-    for (size_t f = 0; f < kNumFmtSpecs && findings < kMaxFindings; f++) {
+    for (size_t f = 0; f < kNumFmtSpecs && findings < static_cast<int>(kMaxFindings); f++) {
       const char *found = strstr(buf.data(), kFmtSpecs[f]);
       if (found) {
         size_t pos = static_cast<size_t>(found - buf.data());
@@ -3947,7 +3947,7 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
   }
 
   uint32_t colorSpaceSig = ReadU32BE(&header[16]);
-  uint32_t pcsSig = ReadU32BE(&header[20]);
+  (void)ReadU32BE(&header[20]);  // PCS sig — reserved for future use
 
   // Estimate channel count from color space signature
   auto channelsFromSig = [](uint32_t sig) -> int {
@@ -4057,7 +4057,7 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
       if (type == kLutTypes[i]) {
         lutCount++;
         // For Lut8/Lut16, output channels are at offset 9
-        if ((type == 0x6D667431 || type == 0x6D667432) && tSize >= 12) {
+        if ((type == 0x6D667431 || type == 0x6D667432) && tSize >= 12u) {
           icUInt8Number lutHdr[4];
           fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
           if (fread(lutHdr, 1, 4, fhRaw.fp) == 4) {
@@ -4324,7 +4324,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             }
             if (nGrid > 0 && nInput > 0) {
               uint64_t clutSize = 1;
-              for (int d = 0; d < nInput; d++) {
+              for (int d = 0; d < static_cast<int>(nInput); d++) {
                 clutSize *= nGrid;
                 if (clutSize > 1073741824ULL) { // >1GB
                   printf("      %s[WARN]  Tag '%s': CLUT %u^%u×%u entries → >1GB allocation%s\n",

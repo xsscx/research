@@ -118,7 +118,7 @@ printf("      Max safe CLUT entries per tag: %llu (16M)\n",
     icUInt8Number nIn = pMBB->InputChannels();
     uint64_t entries = 1;
     bool overflow = false;
-    for (int ch = 0; ch < nIn && ch < 16; ch++) {
+    for (int ch = 0; ch < static_cast<int>(nIn) && ch < 16; ch++) {
       if (!SafeMul64(&entries, entries, pCLUT->GridPoint(ch))) { overflow = true; break; }
     }
     if (!overflow) SafeMul64(&entries, entries, pCLUT->GetOutputChannels());
@@ -1142,7 +1142,7 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
           // Compute CLUT point count: nGrid^nInput * nOutput
           uint64_t points = 1;
           bool overflow28 = false;
-          for (int ch = 0; ch < nInput28; ch++) {
+          for (int ch = 0; ch < static_cast<int>(nInput28); ch++) {
             uint64_t prev = points;
             points *= nGrid28;
             if (nGrid28 > 0 && points / nGrid28 != prev) { overflow28 = true; break; }
