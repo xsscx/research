@@ -56,7 +56,7 @@ This file contains cross-cutting rules that apply to ALL components.
 
 | Metric | Value | Sync locations |
 |--------|-------|----------------|
-| Heuristics | 159 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H159 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
+| Heuristics | 159 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H161 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 13 | cfl.instructions.md, README.md |
 | iccDEV advisories | 93 (87 CVEs + 95 GHSAs = 182 unique, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
@@ -896,7 +896,7 @@ Key endpoints: `/api/upload` (POST), `/api/security-json` (GET), `/api/full` (GE
 ### Reusable Prompts
 
 Nineteen prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
-- `analyze-icc-profile.prompt.yml` — full 159-heuristic security scan
+- `analyze-icc-profile.prompt.yml` — full 161-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
 - `triage-fuzzer-crash.prompt.md` — fuzzer crash triage, minimization, and patch workflow
@@ -926,13 +926,13 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 When an issue asks to analyze an ICC profile, perform **two phases**:
 
 **Note**: For TIFF image files, use `./iccanalyzer-lite/iccanalyzer-lite -a <file.tif>` which
-auto-detects TIFF format, extracts embedded ICC profiles, and runs full 159-heuristic analysis (H1-H138 on ICC + H139-H141, H149-H150 on TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H159 CodeQL-driven).
+auto-detects TIFF format, extracts embedded ICC profiles, and runs full 161-heuristic analysis (H1-H138 on ICC + H139-H141, H149-H150 on TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H161 CodeQL-driven).
 
 #### Phase 1 — MCP tool analysis (Copilot's independent review)
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
 1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
-2. **`analyze_security`** — Run the 159-heuristic security scan (H1–H159)
+2. **`analyze_security`** — Run the 161-heuristic security scan (H1–H161)
 3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
 4. **`profile_to_xml`** — Convert to XML for human-readable inspection
 
@@ -1022,7 +1022,7 @@ For the complete 24-tool reference (11 analysis + 7 maintainer + 6 operations),
 see [mcp-server.instructions.md](instructions/mcp-server.instructions.md).
 
 **Key analysis tools** (exposed to coding agent):
-- `analyze_security` — 159-heuristic security scan (fastest, most actionable)
+- `analyze_security` — 161-heuristic security scan (fastest, most actionable)
 - `full_analysis` — All 3 modes (`-a`, `-nf`, `-r`) for comprehensive reports
 - `inspect_profile` — Header fields, tag table, data values
 - `validate_roundtrip` — AToB/BToA tag pair completeness
@@ -1046,7 +1046,7 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 
 | Component | Purpose | Instructions |
 |-----------|---------|--------------|
-| **iccanalyzer-lite/** | 159-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
+| **iccanalyzer-lite/** | 161-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
 | **cfl/** | 13 LibFuzzer harnesses + 22 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
 | **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |

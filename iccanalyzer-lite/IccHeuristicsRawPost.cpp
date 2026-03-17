@@ -3779,6 +3779,328 @@ int RunHeuristic_H159_UAFTagOwnershipChains(const char *filename)
   return heuristicCount;
 }
 
+// H160: Format String Injection in Text Tags (CWE-134)
+// CodeQL found 6 tainted-format-string sites in IccCmmConfig.cpp where CLI
+// args flow to fprintf/snprintf format positions. While the analyzer itself
+// never uses tag text as format args, downstream consumers (tools, browsers,
+// CMS engines) may sprintf tag descriptions without escaping. Detection:
+// scan text-type tags (desc, cprt, dmnd, dmdd, vued, targ) for printf format
+// specifiers (%n, %s, %p, %x, %d, %f) that indicate injection attempts.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H160_FormatStringInjectionTextTags(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H160] Format String Injection in Text Tags (CWE-134, §10.24/§10.22)\n");
+
+  RawFileHandle fhRaw = OpenRawFile(filename);
+  if (!fhRaw.fp) {
+    printf("      [SKIP] Cannot open file\n\n");
+    return 0;
+  }
+
+  fseek(fhRaw.fp, 0, SEEK_END);
+  long fileSize = ftell(fhRaw.fp);
+  if (fileSize < 132) {
+    printf("      [SKIP] File too small for tag table\n\n");
+    return 0;
+  }
+
+  // Read tag count
+  icUInt8Number tagCountBuf[4];
+  fseek(fhRaw.fp, 128, SEEK_SET);
+  if (fread(tagCountBuf, 1, 4, fhRaw.fp) != 4) {
+    printf("      [SKIP] Cannot read tag count\n\n");
+    return 0;
+  }
+  uint32_t tagCount = ReadU32BE(tagCountBuf);
+  if (tagCount > 200 || 132 + tagCount * 12 > (uint64_t)fileSize) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  // Text-bearing tag signatures (4CC as big-endian uint32)
+  static const uint32_t kTextTags[] = {
+    0x64657363, // 'desc' profileDescriptionTag
+    0x63707274, // 'cprt' copyrightTag
+    0x646D6E64, // 'dmnd' deviceMfgDescTag
+    0x646D6464, // 'dmdd' deviceModelDescTag
+    0x76756564, // 'vued' viewingConditionsDescTag
+    0x74617267, // 'targ' charTargetTag
+    0x74656368, // 'tech' technologyTag (4 bytes but may have text)
+  };
+  static const size_t kNumTextTags = sizeof(kTextTags) / sizeof(kTextTags[0]);
+
+  // Dangerous format specifiers — %n is write-what-where, others leak data
+  static const char *kFmtSpecs[] = {"%n", "%s", "%p", "%x", "%X", "%d", "%i",
+                                     "%u", "%f", "%e", "%g", "%hn", "%ln",
+                                     "%hhn", "%lln", "%%n"};
+  static const size_t kNumFmtSpecs = sizeof(kFmtSpecs) / sizeof(kFmtSpecs[0]);
+
+  int findings = 0;
+  const int kMaxFindings = 8;
+
+  for (uint32_t t = 0; t < tagCount && findings < kMaxFindings; t++) {
+    icUInt8Number entry[12];
+    fseek(fhRaw.fp, 132 + t * 12, SEEK_SET);
+    if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
+
+    uint32_t sig = ReadU32BE(entry);
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize = ReadU32BE(&entry[8]);
+
+    // Check if this is a text-bearing tag
+    bool isTextTag = false;
+    for (size_t i = 0; i < kNumTextTags; i++) {
+      if (sig == kTextTags[i]) { isTextTag = true; break; }
+    }
+    if (!isTextTag) continue;
+    if (tSize < 12 || tSize > 65536 || (uint64_t)tOffset + tSize > (uint64_t)fileSize)
+      continue;
+
+    // Read tag data (skip type sig + reserved = 8 bytes)
+    size_t textLen = tSize - 8;
+    if (textLen > 4096) textLen = 4096; // cap scan length
+    std::vector<char> buf(textLen + 1, 0);
+    fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+    size_t nread = fread(buf.data(), 1, textLen, fhRaw.fp);
+    if (nread == 0) continue;
+    buf[nread] = '\0';
+
+    char tagSig[5];
+    tagSig[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
+    tagSig[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
+    tagSig[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
+    tagSig[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
+    tagSig[4] = '\0';
+
+    // Scan for format specifiers
+    for (size_t f = 0; f < kNumFmtSpecs && findings < kMaxFindings; f++) {
+      const char *found = strstr(buf.data(), kFmtSpecs[f]);
+      if (found) {
+        size_t pos = static_cast<size_t>(found - buf.data());
+        printf("      %s[WARN]  HEURISTIC: Tag '%s' contains format specifier \"%s\" at "
+               "offset +%zu — ICC.1-2022-05 §10.24%s\n",
+               ColorCritical(), tagSig, kFmtSpecs[f], pos, ColorReset());
+        if (strcmp(kFmtSpecs[f], "%n") == 0 || strcmp(kFmtSpecs[f], "%hn") == 0 ||
+            strcmp(kFmtSpecs[f], "%ln") == 0 || strcmp(kFmtSpecs[f], "%hhn") == 0 ||
+            strcmp(kFmtSpecs[f], "%lln") == 0) {
+          printf("       %sCWE-134: Write-format specifier (%s) enables arbitrary memory write%s\n",
+                 ColorCritical(), kFmtSpecs[f], ColorReset());
+        } else {
+          printf("       %sCWE-134: Format specifier injection — data leak via printf-family%s\n",
+                 ColorCritical(), ColorReset());
+        }
+        findings++;
+        break; // one finding per tag per specifier type
+      }
+    }
+  }
+
+  if (findings > 0) {
+    heuristicCount += findings;
+  } else {
+    printf("      %s[OK] No format string specifiers in text tags%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// H161: Stack Address Escape via Deep Apply Chains (CWE-121)
+// CodeQL found 8 stack-address-escape sites where local pixel buffers in
+// IccCmm.cpp, IccMpeCalc.cpp, IccTagLut.cpp, IccTagMPE.cpp are passed through
+// deep call chains. H146 covers the GetValues() SBO vector. H161 extends
+// coverage to detect profiles whose structural complexity maximizes stack frame
+// depth during Apply() — high channel counts combined with deeply nested MPE
+// elements or multi-stage LUT chains cause local buffer addresses to propagate
+// across function boundaries where their lifetime may be exceeded.
+// Detection: flag profiles with (channels > 8 AND nested MPE) OR (multi-stage
+// LUT with output channels > colorspace declared), indicating deep Apply() paths.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H161] Stack Address Escape via Deep Apply Chains (CWE-121, §10.6/§10.14)\n");
+
+  RawFileHandle fhRaw = OpenRawFile(filename);
+  if (!fhRaw.fp) {
+    printf("      [SKIP] Cannot open file\n\n");
+    return 0;
+  }
+
+  fseek(fhRaw.fp, 0, SEEK_END);
+  long fileSize = ftell(fhRaw.fp);
+  if (fileSize < 132) {
+    printf("      [SKIP] File too small\n\n");
+    return 0;
+  }
+
+  // Read header: color space (offset 16), PCS (offset 20)
+  icUInt8Number header[128];
+  fseek(fhRaw.fp, 0, SEEK_SET);
+  if (fread(header, 1, 128, fhRaw.fp) != 128) {
+    printf("      [SKIP] Cannot read header\n\n");
+    return 0;
+  }
+
+  uint32_t colorSpaceSig = ReadU32BE(&header[16]);
+  uint32_t pcsSig = ReadU32BE(&header[20]);
+
+  // Estimate channel count from color space signature
+  auto channelsFromSig = [](uint32_t sig) -> int {
+    switch (sig) {
+      case 0x58595A20: return 3;  // 'XYZ '
+      case 0x4C616220: return 3;  // 'Lab '
+      case 0x52474220: return 3;  // 'RGB '
+      case 0x47524159: return 1;  // 'GRAY'
+      case 0x434D594B: return 4;  // 'CMYK'
+      case 0x48535620: return 3;  // 'HSV '
+      default: {
+        // nCLR signatures: 0x3243..0x4643 → 2..15 channels
+        uint8_t hi = static_cast<uint8_t>((sig >> 24) & 0xFF);
+        uint8_t lo = static_cast<uint8_t>((sig >> 16) & 0xFF);
+        uint32_t suffix = sig & 0x0000FFFF;
+        if (suffix == 0x434C && hi >= '0' && hi <= '9' && lo >= '0' && lo <= '9') {
+          return (hi - '0') * 10 + (lo - '0');
+        }
+        if (suffix == 0x434C && hi >= '1' && hi <= 'F') {
+          return (hi <= '9') ? (hi - '0') : (hi - 'A' + 10);
+        }
+        return 3; // default
+      }
+    }
+  };
+
+  int nChannels = channelsFromSig(colorSpaceSig);
+
+  // Read tag table
+  icUInt8Number tagCountBuf[4];
+  fseek(fhRaw.fp, 128, SEEK_SET);
+  if (fread(tagCountBuf, 1, 4, fhRaw.fp) != 4) {
+    printf("      [SKIP] Cannot read tag count\n\n");
+    return 0;
+  }
+  uint32_t tagCount = ReadU32BE(tagCountBuf);
+  if (tagCount > 200 || 132 + tagCount * 12 > (uint64_t)fileSize) {
+    printf("      [SKIP] Invalid tag count\n\n");
+    return 0;
+  }
+
+  // Count MPE ('mpet') tags, multi-stage LUTs, and check output channel mismatches
+  int mpetCount = 0;
+  int lutCount = 0;
+  int findings = 0;
+
+  // LUT type signatures
+  static const uint32_t kLutTypes[] = {
+    0x6D414220, // 'mAB ' LutAtoBType
+    0x6D424120, // 'mBA ' LutBtoAType
+    0x6D667431, // 'mft1' Lut8Type
+    0x6D667432, // 'mft2' Lut16Type
+  };
+
+  for (uint32_t t = 0; t < tagCount; t++) {
+    icUInt8Number entry[12];
+    fseek(fhRaw.fp, 132 + t * 12, SEEK_SET);
+    if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
+
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize = ReadU32BE(&entry[8]);
+
+    if (tSize < 12 || (uint64_t)tOffset + 12 > (uint64_t)fileSize) continue;
+
+    // Read tag type signature
+    icUInt8Number typeSig[4];
+    fseek(fhRaw.fp, tOffset, SEEK_SET);
+    if (fread(typeSig, 1, 4, fhRaw.fp) != 4) continue;
+    uint32_t type = ReadU32BE(typeSig);
+
+    if (type == 0x6D706574) { // 'mpet' multiProcessElementType
+      mpetCount++;
+      // Check element count for deep nesting
+      if (tSize >= 16 && (uint64_t)tOffset + 16 <= (uint64_t)fileSize) {
+        icUInt8Number mpetHdr[8];
+        fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+        if (fread(mpetHdr, 1, 8, fhRaw.fp) == 8) {
+          uint32_t nInputChannels = static_cast<uint32_t>(mpetHdr[0]) << 8 |
+                                    static_cast<uint32_t>(mpetHdr[1]);
+          uint32_t nOutputChannels = static_cast<uint32_t>(mpetHdr[2]) << 8 |
+                                     static_cast<uint32_t>(mpetHdr[3]);
+          uint32_t nElements = ReadU32BE(&mpetHdr[4]);
+
+          // Deep chain: many elements × high channels = deep stack Apply() path
+          if (nElements > 4 && (nInputChannels > 8 || nOutputChannels > 8)) {
+            char tagSig[5];
+            uint32_t sig = ReadU32BE(entry);
+            tagSig[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
+            tagSig[1] = static_cast<char>(static_cast<unsigned char>((sig >> 16) & 0xFF));
+            tagSig[2] = static_cast<char>(static_cast<unsigned char>((sig >> 8) & 0xFF));
+            tagSig[3] = static_cast<char>(static_cast<unsigned char>(sig & 0xFF));
+            tagSig[4] = '\0';
+            printf("      %s[WARN]  HEURISTIC: Tag '%s' MPE chain: %u elements × %u→%u channels "
+                   "— deep Apply() stack risk — ICC.1-2022-05 §10.14%s\n",
+                   ColorCritical(), tagSig, nElements, nInputChannels, nOutputChannels,
+                   ColorReset());
+            printf("       %sCWE-121: Local pixel buffers propagated across %u function frames%s\n",
+                   ColorCritical(), nElements, ColorReset());
+            findings++;
+          }
+        }
+      }
+    }
+
+    // Check LUT output channel mismatch (extends H146 to cover local-var-escape path)
+    for (size_t i = 0; i < sizeof(kLutTypes) / sizeof(kLutTypes[0]); i++) {
+      if (type == kLutTypes[i]) {
+        lutCount++;
+        // For Lut8/Lut16, output channels are at offset 9
+        if ((type == 0x6D667431 || type == 0x6D667432) && tSize >= 12) {
+          icUInt8Number lutHdr[4];
+          fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+          if (fread(lutHdr, 1, 4, fhRaw.fp) == 4) {
+            uint8_t nInput = lutHdr[0];
+            uint8_t nOutput = lutHdr[1];
+            // Output channels exceeding colorspace → tmpPixel[16] SBO risk
+            if (nOutput > 16 || (nOutput > 0 && nInput > 0 && nInput * nOutput > 256)) {
+              printf("      %s[WARN]  HEURISTIC: LUT %ux%u channels — local buffer overflow "
+                     "risk in Apply() tmpPixel — ICC.1-2022-05 §10.6%s\n",
+                     ColorCritical(), nInput, nOutput, ColorReset());
+              printf("       %sCWE-121: Stack buffer sized for declared channels (%d) may be "
+                     "overwritten by LUT output (%u)%s\n",
+                     ColorCritical(), nChannels, nOutput, ColorReset());
+              findings++;
+            }
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // High channel count profile with multiple MPE = amplified stack depth
+  if (nChannels > 8 && mpetCount >= 2 && findings == 0) {
+    printf("      %s[WARN]  HEURISTIC: %d-channel profile with %d MPE tags — "
+           "deep Apply() stack chain risk — ICC.1-2022-05 §10.14%s\n",
+           ColorCritical(), nChannels, mpetCount, ColorReset());
+    printf("       %sCWE-121: High channel count amplifies local buffer size across "
+           "stack frames%s\n", ColorCritical(), ColorReset());
+    findings++;
+  }
+
+  if (findings > 0) {
+    heuristicCount += findings;
+  } else {
+    printf("      %s[OK] No deep Apply() chain stack-escape risk patterns%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
 int RunRawPostLibraryHeuristics(const char *filename)
 {
   int heuristicCount = 0;
@@ -3812,13 +4134,15 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H69_ProfileIDMD5Consistency(filename);
   heuristicCount += RunHeuristic_H153_SampledCurveNaNCast(filename);
 
-  // CodeQL-driven heuristics (H154-H159)
+  // CodeQL-driven heuristics (H154-H161)
   heuristicCount += RunHeuristic_H154_UncontrolledTagAllocationSize(filename);
   heuristicCount += RunHeuristic_H155_IntegerOverflowTagDimensions(filename);
   heuristicCount += RunHeuristic_H156_AllocationFailurePathProfiles(filename);
   heuristicCount += RunHeuristic_H157_AllocDeallocMismatchTagPatterns(filename);
   heuristicCount += RunHeuristic_H158_EnumRangeValidationExtended(filename);
   heuristicCount += RunHeuristic_H159_UAFTagOwnershipChains(filename);
+  heuristicCount += RunHeuristic_H160_FormatStringInjectionTextTags(filename);
+  heuristicCount += RunHeuristic_H161_StackAddressEscapeDeepApply(filename);
 
   return heuristicCount;
 }

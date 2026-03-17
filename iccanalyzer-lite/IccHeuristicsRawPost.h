@@ -52,14 +52,16 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename);
 int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename);
 int RunHeuristic_H153_SampledCurveNaNCast(const char *filename);
 
-// ── CodeQL-Driven Heuristics (H154-H159) ──
+// ── CodeQL-Driven Heuristics (H154-H161) ──
 // Derived from CodeQL analysis of iccDEV IccProfLib+IccXML (1,114 findings).
-// Each targets a CWE category with ≥9 library sites not covered by H1-H159.
+// Each targets a CWE category with ≥9 library sites not covered by H1-H153.
 int RunHeuristic_H154_UncontrolledTagAllocationSize(const char *filename);
 int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename);
 int RunHeuristic_H156_AllocationFailurePathProfiles(const char *filename);
 int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(const char *filename);
 int RunHeuristic_H158_EnumRangeValidationExtended(const char *filename);
 int RunHeuristic_H159_UAFTagOwnershipChains(const char *filename);
+int RunHeuristic_H160_FormatStringInjectionTextTags(const char *filename);
+int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename);
 
 #endif // ICCHEURISTICSRAWPOST_H

@@ -234,7 +234,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {152, "Curve Element OOM Size Validation",       "§10.26","CWE-770", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {153, "Sampled Curve NaN-to-Unsigned Cast",     "§10.26","CWE-681", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
 
-  // --- CODEQL-DRIVEN HEURISTICS (H154-H159) ---
+  // --- CODEQL-DRIVEN HEURISTICS (H154-H161) ---
   // Derived from CodeQL analysis of iccDEV (1,114 findings across 43 source files).
   {154, "Uncontrolled Tag Allocation Size",       "§7.3",  "CWE-789", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {155, "Integer Overflow in Tag Dimensions",     "§10.6", "CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
@@ -242,6 +242,8 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {157, "Alloc-Dealloc Mismatch Tag Patterns",    "§10.14","CWE-762", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {158, "Enum Range Validation Extended",         "§7.2",  "CWE-681", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {159, "UAF Tag Ownership Chain Detection",      "§7.3",  "CWE-416", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {160, "Format String Injection in Text Tags",   "§10.24","CWE-134", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {161, "Stack Address Escape Deep Apply Chains", "§10.14","CWE-121", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
