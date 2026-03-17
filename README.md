@@ -1,6 +1,6 @@
 # Security Research Tools for ICC Color Profiles
 
-Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
+Last Updated: 2026-03-17 16:47:00 UTC by David Hoyt
 
 ## Tools
 
@@ -24,9 +24,9 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 |-------|--------|---------|
 | **CodeQL** | 0 alerts | v4, 3 targets × 14 custom queries + security-and-quality |
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
-| **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v4.2.2: `11bd7190`) |
-| **Fuzzers** | 12/12 | Build + smoke test pass, aligned to project tool scope |
-| **CFL Patches** | 18 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-022) |
+| **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v5.0.0: `08c6903`) |
+| **Fuzzers** | 13/13 | Build + smoke test pass, aligned to project tool scope |
+| **CFL Patches** | 32 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-044) |
 
 ## Build
 
@@ -34,7 +34,7 @@ Last Updated: 2026-03-08 15:44:00 UTC by David Hoyt
 # iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# CFL fuzzers (auto-applies OOM patches to iccDEV)
+# CFL fuzzers (auto-applies security patches to iccDEV)
 cd cfl && ./build.sh
 
 # colorbleed_tools
@@ -50,22 +50,24 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 18 active security patches for iccDEV (CFL-001 through CFL-022, with 012/013/015/016 retired: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards). Applied automatically by `cfl/build.sh`. 62 legacy patches retired March 2026 — see `cfl/patches/README.md` for the full catalog.
+The `cfl/patches/` directory contains 32 active security patches for iccDEV (CFL-001 through CFL-044, with 12 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
 | Fuzzers | Project Tool | API Scope |
 |---------|-------------|-----------|
-| dump, deep_dump, profile, calculator, multitag | IccDumpProfile | Describe, Validate, FindTag |
-| io, roundtrip | IccRoundTrip | Read, Write, EvaluateProfile |
-| apply, applyprofiles | IccApplyProfiles | CIccCmm: AddXform, Begin, Apply |
+| dump | IccDumpProfile | Describe, Validate, FindTag |
+| roundtrip | IccRoundTrip | Read, Write, EvaluateProfile |
+| applyprofiles | IccApplyProfiles | CIccCmm: AddXform, Begin, Apply |
 | applynamedcmm | IccApplyNamedCmm | CIccNamedColorCmm: all Apply variants |
+| applysearch | IccApplySearch | CIccCmmSearch optimization |
 | link | IccApplyToLink | CIccCmm 2-profile link |
-| spectral, spectral_b, v5dspobs | IccV5DspObsToV4Dsp | MPE: Begin, GetNewApply, Apply |
+| v5dspobs | IccV5DspObsToV4Dsp | MPE: Begin, GetNewApply, Apply |
 | fromxml, toxml | XML tools | LoadXml, ToXml, Validate |
 | fromcube | IccFromCube | CUBE LUT import pipeline |
 | specsep | IccSpecSepToTiff | CTiffImg pipeline |
 | tiffdump | IccTiffDump | CTiffImg, OpenIccProfile, FindTag |
+| cfg | IccApplyNamedCmm | JSON config parsing (IccCmmConfig) |
 
 ## CodeQL
 
@@ -75,8 +77,8 @@ Run via Actions → CodeQL Security Analysis.
 ## iccAnalyzer Web UI
 
 ```bash
-docker pull ghcr.io/xsscx/icc-profile-mcp:dev
-docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:dev web
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
 Open http://localhost:8080/
