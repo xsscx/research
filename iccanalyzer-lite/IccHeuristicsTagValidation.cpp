@@ -1245,6 +1245,7 @@ printf("[H29] ColorantTable String Validation\n");
           }
 
           // Check each colorant name for null termination
+          icUInt32Number unterminatedCount = 0;
           for (icUInt32Number ci = 0; ci < colorantCount && ci < 256; ci++) {
             size_t namePos = tOff29 + 12 + ci * 38;
             if (namePos + 32 > fs29) break;
@@ -1258,12 +1259,28 @@ printf("[H29] ColorantTable String Validation\n");
               if (name29[j] == 0) { hasNull = true; break; }
             }
             if (!hasNull) {
-              printf("      %s[WARN]  Colorant[%u] name not null-terminated (all 32 bytes non-zero)%s\n",
+              printf("      %s[CRITICAL]  HEURISTIC: Colorant[%u] name not null-terminated (all 32 bytes non-zero)%s\n",
                      ColorCritical(), ci, ColorReset());
-              printf("       %sRisk: strlen overflow in ToXml → heap-buffer-overflow read%s\n",
+              printf("       %sCWE-125: Out-of-bounds Read — strlen() reads past allocation%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sCWE-170: Improper Null Termination — ICC.1-2022-05 §10.4%s\n",
+                     ColorCritical(), ColorReset());
+              printf("       %sGHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name[32]%s\n",
                      ColorCritical(), ColorReset());
               clrtIssues++;
+              unterminatedCount++;
             }
+          }
+
+          // Multi-entry allocation-spanning HBO detection
+          if (unterminatedCount > 1) {
+            size_t allocSize = (size_t)colorantCount * 38;
+            printf("      %s[CRITICAL]  HEURISTIC: %u/%u colorant entries lack null terminator%s\n",
+                   ColorCritical(), unterminatedCount, colorantCount, ColorReset());
+            printf("       %sAllocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer%s\n",
+                   ColorCritical(), colorantCount, allocSize, ColorReset());
+            printf("       %sPoC: iccDumpProfile triggers heap-buffer-overflow READ in Describe()%s\n",
+                   ColorCritical(), ColorReset());
           }
         }
       }

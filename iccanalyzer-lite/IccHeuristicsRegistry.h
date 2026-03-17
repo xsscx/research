@@ -90,7 +90,7 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   { 26, "Named Color2String Validation",       "§10.20",  "CWE-170", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 27, "MPE Matrix Output Channel",           "§10.26",  "CWE-131", "CVE-2026-27692,GHSA-3869-prw8-gjqr", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 28, "LUT Dimension Validation",            "§10.10",  "CWE-400", "CVE-2026-21490,CVE-2026-21494,GHSA-9q9c-699q-xr2q,GHSA-hjxv-xr7w-84fc,GHSA-x9hr-pxxc-h38p", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
-  { 29, "Colorant Table String Validation",    "§10.4",   "CWE-170", "GHSA-4wqv-pvm8-5h27", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
+  { 29, "Colorant Table String Validation",    "§10.4",   "CWE-125/CWE-170", "GHSA-4wqv-pvm8-5h27", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 30, "Gamut Boundary Desc Allocation",      "§10.12",  "CWE-400", "GHSA-rc3h-95ph-j363", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::HIGH},
   { 31, "MPE Channel Count",                   "§10.26",  "CWE-131", nullptr, HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
   { 32, "Tag Data Type Confusion",             "§10",     "CWE-843", "CVE-2021-30942,CVE-2026-21683,CVE-2026-21688,CVE-2026-21691,CVE-2026-25503,GHSA-3r2x-j7v3-pg6f,GHSA-c9q5-x498-jv92,GHSA-f2wp-j3fr-938w", HeuristicPhase::TAG_VALIDATION, HeuristicSeverity::CRITICAL},
