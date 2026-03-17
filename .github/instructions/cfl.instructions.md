@@ -157,18 +157,32 @@ make -j$(nproc)
 nm cfl/bin/icc_dump_fuzzer | grep -c __asan   # should be > 0
 ```
 
-### CFL-001: icAnsiToUtf8 Heap-Buffer-Overflow
+### CFL-001: icAnsiToUtf8 / Describe Heap-Buffer-Overflow (CWE-125/CWE-170)
 
-- **PoC**: `hbo-icAnsiToUtf8-clrt-multitag-IccUtilXml_cpp-Line394.icc`
-- **ASAN trace**: `strlen` → `icAnsiToUtf8()` (IccUtilXml.cpp:394) → `CIccTagXmlColorantTable::ToXml()` (IccTagXml.cpp:1883)
+- **PoC 1**: `hbo-icAnsiToUtf8-clrt-multitag-IccUtilXml_cpp-Line394.icc`
+- **PoC 2**: `test-profiles/hbo-CIccTagColorantTable-Describe-IccTagBasic_cpp-Line8953.icc`
+  — 308 bytes, prtr/RGB/XYZ v4.4, 4 colorant entries × 38B = 152B (8-byte aligned), all 0x41 fill, no null terminators
+- **ASAN trace (Describe path)**: `strlen` → `CIccTagColorantTable::Describe()` (IccTagBasic.cpp:8953) — HBO READ of size 153, 0 bytes after 152-byte region
+- **ASAN trace (ToXml path)**: `strlen` → `icAnsiToUtf8()` (IccUtilXml.cpp:394) → `CIccTagXmlColorantTable::ToXml()` (IccTagXml.cpp:1883)
 - **Root cause**: `icColorantTableEntry.name` is a fixed 32-byte `icInt8Number` array.
   `CIccTagColorantTable::Read()` reads exactly 32 bytes but does NOT enforce null
-  termination. When `ToXml()` passes this to `icAnsiToUtf8()`, the non-WIN32 path
-  does `buf = szSrc` which calls `strlen()`, reading past the 32-byte buffer.
+  termination. Both `Describe()` and `ToXml()→icAnsiToUtf8()` call `strlen()` on
+  the unterminated name, reading past the allocation boundary.
+- **Alignment insight**: `sizeof(icColorantTableEntry) = 38`. `calloc()` zero-pads
+  to the next 8-byte boundary. For `nCount * 38 % 8 != 0`, accidental zero bytes
+  after the allocation act as null terminators. Use nCount where `nCount * 38 % 8 == 0`
+  (e.g., 4, 8, 12) to defeat calloc padding and trigger the HBO.
 - **Fix 1**: Force `name[31] = '\0'` after `Read8()` in `IccTagBasic.cpp`
 - **Fix 2**: Defense-in-depth `strnlen(szSrc, 256)` in `icAnsiToUtf8()`/`icUtf8ToAnsi()`
-- **Affected tools**: iccToXml, icc_toxml_fuzzer, icc_dump_fuzzer, icc_deep_dump_fuzzer
-- **iccanalyzer-lite counterpart**: H144 (XML String Termination Precheck) detects this pattern
+- **Affected tools**: iccDumpProfile, iccToXml, icc_toxml_fuzzer, icc_dump_fuzzer, icc_deep_dump_fuzzer, colorbleed_tools/iccDumpAll
+- **Verified reproducer**:
+  ```bash
+  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
+    iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile \
+    test-profiles/hbo-CIccTagColorantTable-Describe-IccTagBasic_cpp-Line8953.icc ALL
+  ```
+- **iccanalyzer-lite counterpart**: H29 (CRITICAL, CWE-125/CWE-170), H144 (XML String Termination Precheck)
 
 ### CFL-003: CIccTagArray alloc-dealloc-mismatch (CWE-762)
 
