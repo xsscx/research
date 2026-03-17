@@ -486,7 +486,9 @@ cd wasm-pages && npx http-server . -p 8080 -c-1
 `iccApplyNamedCmm`, `iccApplyProfiles`, `iccApplySearch`.
 `iccApplyToLink` does NOT support JSON.
 
-**CI workflows**: `ci-wasm-build-test.yml` (PR trigger), `wasm-latest-matrix.yml` (dispatch).
+**CI workflows**: `ci-wasm-build-test.yml` (PR trigger), `wasm-latest-matrix.yml` (dispatch),
+`ci-latest-release.yml` (dispatch — builds native Linux/macOS/Windows + WASM, creates unified
+GitHub Release with all platform zips + WASM archives). Tag format: `v{CMAKE_VERSION}`.
 **CI test fallback**: `test_all.js` self-generates a minimal ICC profile when `test.icc` is
 absent — eliminates CI dependency on `Testing/Display/` (disabled with `-DENABLE_TESTS=OFF`).
 

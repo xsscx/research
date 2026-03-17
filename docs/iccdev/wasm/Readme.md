@@ -151,7 +151,19 @@ automatically. No `sed` stripping needed — the cmake build system handles it n
 - **Runner**: `ubuntu-24.04` (pinned)
 - **Timeout**: 30 minutes
 - **Same build pattern** as ci-wasm-build-test.yml
+- **Package job**: assembles npm package, runs tests, npm pack, SBOM, attestation
+- **GitHub Release**: creates `wasm-v{VERSION}` prerelease with tarball + SBOM
 - **Artifact upload**: `.js` + `.wasm` + `.a` files, 7-day retention
+- **npm publish**: commented out pending ICC npm account setup
+
+### ci-latest-release.yml (unified release)
+
+- **Triggers**: Manual dispatch only
+- **Jobs**: `linux` (gcc/clang matrix), `macos`, `windows`, `wasm`, `release`
+- **WASM job**: Release config only, emsdk + deps cached, creates zip/tarball/npm archives
+- **Release job**: downloads all platform artifacts, creates GitHub Release tag `v{CMAKE_VERSION}`
+- **Release assets**: 4 native platform zips + WASM zip + tarball + npm tgz + SHA-256 checksums
+- **Version alignment**: all platforms built from same commit
 
 ### Security Hardening (both workflows)
 
@@ -440,18 +452,21 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/IccDumpProfile/  # 
 ## Git History (wasm branch)
 
 ```
+dd01caf ci: add WASM build + release job to ci-latest-release
+c3a9206 ci: comment out npm publish pending ICC npm account setup
+373dc31 ci: add emsdk and third-party dependency caching to WASM workflows
 bf9431e wasm: complete WASM build infrastructure with demo pages and hardened CI
 60087d5 fix: wasm.sh checkout correct branch name
 e30da88 Add WASM build script for iccDEV project
 4df1fe0 (origin/master) ... upstream master HEAD
 ```
 
-All work squashed into single commit `bf9431e` (as of 2026-03-17).
-
-Key changes in the squashed commit (25 files, ~2300 ins):
+Key changes:
 - CMakeLists.txt: `AND NOT EMSCRIPTEN` guard + dedicated Emscripten block
 - wasm.sh: INVOKE_RUN=0, 3 configs, wasm-pages assembly, npm pack
 - ci-wasm-build-test.yml: hardened PR workflow (matrix [Release, Debug, Asan])
-- wasm-latest-matrix.yml: dispatch workflow + package job (SBOM, attestation)
+- wasm-latest-matrix.yml: dispatch workflow + package job (SBOM, attestation, GitHub Releases)
+- ci-latest-release.yml: unified release (5 jobs: linux/macos/windows/wasm/release)
 - wasm-pages/: 14 HTML demo pages, test suite, package.json, CSP headers
 - test_all.js: self-generating ICC profile fallback for CI
+- Dependency caching: emsdk + third_party across all WASM workflows
