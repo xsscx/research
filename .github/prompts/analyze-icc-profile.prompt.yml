@@ -16,7 +16,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 159 security heuristics (H1-H161)
+        analyze_security    — run 161 security heuristics (H1-H161)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -53,7 +53,7 @@ messages:
       - IccImageAnalyzer.cpp: H139-H141 (TIFF security)
       - IccHeuristicsXmlSafety.cpp: H142-H145 (XML serialization safety)
 
-      IccHeuristicsRegistry.h provides 159-entry metadata table with:
+      IccHeuristicsRegistry.h provides 161-entry metadata table with:
       - id, name, specRef, primaryCWE, cveRefs, phase, severity
 
       CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
