@@ -145,7 +145,7 @@ Binaries:
 **AFL++**: v4.40c at `/usr/local/bin/afl-fuzz` (built from source against LLVM 18.1.3)
 **MCP venv**: `~/research/mcp-server/.venv/bin/python` (NOT system pip)
 **iccDEV**: `~/research/iccDEV` — UNPATCHED, built with ASAN+UBSAN+coverage for iccanalyzer-lite
-**cfl/iccDEV**: separate clone inside `cfl/` — 20 patches applied (CFL-001–CFL-032, 13 retired upstream)
+**cfl/iccDEV**: separate clone inside `cfl/` — 31 patches applied (CFL-001–CFL-043, 13 retired upstream)
 **afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
 **Build cores**: use `-j24` (not `-j32`)
 **colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
@@ -191,7 +191,7 @@ make -j$(nproc)
 |------|---------|----------|
 | `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Debug+ASAN+UBSAN+Coverage)** | No |
 | `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage, alternate build dir)** | No |
-| `cfl/iccDEV/` | CFL fuzzer build (20 patches applied (CFL-001–CFL-032, 13 retired upstream)) | Yes |
+| `cfl/iccDEV/` | CFL fuzzer build (31 patches applied (CFL-001–CFL-043, 13 retired upstream)) | Yes |
 
 **CRITICAL BUILD POLICY**: `iccDEV/Build/` must ALWAYS be built with full
 Debug+ASAN+UBSAN+coverage instrumentation. **NEVER use Release builds.**

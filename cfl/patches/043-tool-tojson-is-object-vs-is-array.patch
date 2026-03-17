@@ -1,0 +1,22 @@
+--- a/Tools/CmdLine/IccApplyNamedCmm/iccApplyNamedCmm.cpp
++++ b/Tools/CmdLine/IccApplyNamedCmm/iccApplyNamedCmm.cpp
+@@ -583,7 +583,7 @@
+     json out;
+     json seq;
+     cfgProfiles.toJson(seq);
+-    if (seq.is_object())
++    if (!seq.is_null())
+       out["appliedProfileSequence"] = seq;
+ 
+     json data;
+--- a/Tools/CmdLine/IccApplySearch/iccApplySearch.cpp
++++ b/Tools/CmdLine/IccApplySearch/iccApplySearch.cpp
+@@ -544,7 +544,7 @@
+     json out;
+     json seq;
+     cfgSearchApply.toJson(seq);
+-    if (seq.is_object())
++    if (!seq.is_null())
+       out["appliedProfileSequence"] = seq;
+ 
+     json data;
