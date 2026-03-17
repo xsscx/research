@@ -118,7 +118,7 @@ static int AnalyzeLutTags(CIccProfile *pIcc)
       printf("        Grid points:   ");
       uint64_t totalEntries = 1;
       bool overflow = false;
-      for (int ch = 0; ch < nIn && ch < 16; ch++) {
+      for (int ch = 0; ch < static_cast<int>(nIn) && ch < 16; ch++) {
         icUInt8Number gp = pCLUT->GridPoint(ch);
         if (ch > 0) printf(" x ");
         printf("%u", gp);
@@ -325,7 +325,7 @@ static int AnalyzeCurveTags(CIccProfile *pIcc)
       icUInt16Number nParams = pPara->GetNumParam();
       printf("      Parameters (%u):", nParams);
       const icFloatNumber *params = pPara->GetParams();
-      for (int p = 0; p < nParams && p < 8; p++) {
+      for (int p = 0; p < static_cast<int>(nParams) && p < 8; p++) {
         printf(" %.4f", params[p]);
         if (std::isnan(params[p]) || std::isinf(params[p])) {
           issues++;

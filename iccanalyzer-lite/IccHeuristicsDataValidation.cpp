@@ -1014,7 +1014,7 @@ printf("[H78] CLUT Grid Dimension Product Overflow\n");
       // Check grid dimension product for exponential blowup
       uint64_t gridProduct = 1;
       bool overflow = false;
-      for (int d = 0; d < nIn && d < 16; d++) {
+      for (int d = 0; d < static_cast<int>(nIn) && d < 16; d++) {
         icUInt8Number gridPt = clut->GridPoint(d);
         if (gridPt == 0) { overflow = true; break; }
         gridProduct *= gridPt;
