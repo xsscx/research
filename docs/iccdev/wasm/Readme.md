@@ -352,12 +352,14 @@ These are mutually exclusive in Emscripten. ASan config must NOT include
 em++: error: ASan does not work with SAFE_HEAP
 ```
 
-### 3. ELF hardening flags in CMakeLists.txt
+### 3. ELF hardening flags in CMakeLists.txt (RESOLVED)
 
 The CMakeLists.txt adds `-Wl,-z,relro,-z,now`, `-fstack-protector-strong`,
-and `-fstack-clash-protection`. These produce dozens of `wasm-ld: warning`
-lines. Strip them with `sed` before cmake — do NOT permanently remove them
-from CMakeLists.txt (needed for native builds).
+and `-fstack-clash-protection` in the Linux platform block. These produce
+`wasm-ld: warning` lines when Emscripten builds hit that block (Emscripten
+sets `UNIX=ON`, `APPLE=OFF`). **Resolved**: CMakeLists.txt line 908 now has
+`AND NOT EMSCRIPTEN` guard + a dedicated `elseif(EMSCRIPTEN)` platform block
+at lines 937-939. No `sed` stripping needed.
 
 ### 4. nlohmann-json find_package
 
@@ -376,10 +378,19 @@ Setting only `PNG_INCLUDE_DIR` may not be sufficient.
 Never pipe Node.js or shell output through `head` in CI — it causes
 SIGPIPE/SIGABRT. Use `sed -n '1,Np'` instead.
 
-### 7. test.icc for smoke tests
+### 7. test.icc for smoke tests (RESOLVED)
 
-The wasm.sh build copies `Testing/sRGB_D65_MAT.icc` → `wasm-pages/test.icc`.
-If this file is missing, `test_all.js` and CI smoke tests fail.
+`test_all.js` now self-generates a minimal valid ICC v4 profile header
+(132 bytes: mntr/RGB/XYZ, D50 illuminant, 0 tags) when `test.icc` is
+absent. This eliminates the CI dependency on `Testing/Display/sRGB_D65_MAT.icc`
+which only exists when `-DENABLE_TESTS=ON` (not feasible in WASM cross-compile).
+If `test.icc` exists (e.g., from a local wasm.sh build), it is used instead.
+
+### 8. emsdk git tags vs SDK versions
+
+emsdk repo tags are emsdk release versions (`5.0.3`), NOT Emscripten SDK
+versions (`3.1.78`). **Never** use `--branch 3.1.78` when cloning emsdk.
+Correct pattern: clone without `--branch`, then `./emsdk install latest`.
 
 ## npm Package Publishing
 
@@ -429,13 +440,18 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/IccDumpProfile/  # 
 ## Git History (wasm branch)
 
 ```
-c8c6fe6 ci: harden WASM workflows — security review + alignment
-9157b39 wasm: integrate wasm-pages assembly into build script
-af9862a wasm-pages: fresh HTML/JS demo pages for all 14 WASM tools
-2315e76 wasm: align script and workflows for all 3 build configs
+bf9431e wasm: complete WASM build infrastructure with demo pages and hardened CI
 60087d5 fix: wasm.sh checkout correct branch name
 e30da88 Add WASM build script for iccDEV project
 4df1fe0 (origin/master) ... upstream master HEAD
 ```
 
-4 unpushed commits above `60087d5` (as of 2026-03-17).
+All work squashed into single commit `bf9431e` (as of 2026-03-17).
+
+Key changes in the squashed commit (25 files, ~2300 ins):
+- CMakeLists.txt: `AND NOT EMSCRIPTEN` guard + dedicated Emscripten block
+- wasm.sh: INVOKE_RUN=0, 3 configs, wasm-pages assembly, npm pack
+- ci-wasm-build-test.yml: hardened PR workflow (matrix [Release, Debug, Asan])
+- wasm-latest-matrix.yml: dispatch workflow + package job (SBOM, attestation)
+- wasm-pages/: 14 HTML demo pages, test suite, package.json, CSP headers
+- test_all.js: self-generating ICC profile fallback for CI
