@@ -1,8 +1,8 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-08 14:00:00 UTC
+Last Updated: 2026-03-17 16:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 150 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 161 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H161 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,7 +14,7 @@ tl;dr ICC Profile Security Analyzer — 150 heuristics (H1-H138 ICC + H139-H141,
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (150 checks)
+  -h  <file.icc>              Security heuristics (161 checks)
   -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
@@ -26,7 +26,7 @@ iccAnalyzer-lite [MODE] <file>
   --json <file.icc>           JSON structured output
 ```
 
-## Architecture (27 modules, 20,400+ LOC)
+## Architecture (30 modules, 22,400+ LOC)
 
 ### Heuristic Modules (8 files)
 
@@ -34,18 +34,19 @@ iccAnalyzer-lite [MODE] <file>
 |--------|-----------|-----|---------|
 | IccHeuristicsHeader.cpp | H1-H8, H15-H17 | ~500 | Raw header byte validation |
 | IccHeuristicsTagValidation.cpp | H9-H32 | 1,627 | Tag structure and type checks |
-| IccHeuristicsRawPost.cpp | H33-H55, H57-H69 | 2,955 | Raw file I/O heuristics |
-| IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102 | 2,624 | Deep data validation |
+| IccHeuristicsRawPost.cpp | H33-H55, H57-H69, H153-H161 | 2,955 | Raw file I/O + CodeQL-driven heuristics |
+| IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102, H146-H152 | 2,624 | Deep data validation |
 | IccHeuristicsProfileCompliance.cpp | H103-H120 | 1,749 | ICC spec compliance |
 | IccHeuristicsIntegrity.cpp | H121-H138 | 1,707 | Integrity and CWE-400 checks |
 | IccImageAnalyzer.cpp | H139-H141, H149-H150 | ~1000 | TIFF image security analysis |
+| IccHeuristicsXmlSafety.cpp | H142-H145 | ~600 | XML serialization safety |
 | IccHeuristicsLibrary.cpp | — | 99 | Thin dispatcher for H9-H138 |
 
 ### Support Modules
 
 | Module | Purpose |
 |--------|---------|
-| IccHeuristicsRegistry.h | 150-entry metadata table (name, CWE, CVE, phase) |
+| IccHeuristicsRegistry.h | 161-entry metadata table (name, CWE, CVE, phase, severity) |
 | IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
 | IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
 | IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
@@ -66,10 +67,9 @@ iccAnalyzer-lite [MODE] <file>
 
 ## CVE Coverage
 
-38 heuristics detect patterns from 46 CVEs (from 77 iccDEV security advisories).
-22 XML-parser CVEs are out of scope (binary-only analyzer).
+57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique across 93 iccDEV security advisories).
 
-## Security Heuristics (H1–H150)
+## Security Heuristics (H1–H161)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -242,6 +242,40 @@ iccAnalyzer-lite [MODE] <file>
 | H141 | IFD offset bounds | TIFF IFD tag data offsets within file — CWE-125 |
 | H149 | IFD chain cycle detection | Circular IFD next-pointers cause infinite loops — CWE-835 |
 | H150 | Tile geometry validation | TileWidth/TileLength multiples of 16, tile count, overflow — CWE-122/CWE-131 |
+
+### XML Safety Heuristics (H142–H145)
+| ID | Check | Risk |
+|----|-------|------|
+| H142 | XML serialization safety | Fork-isolated ToXml() crash/hang detection — CWE-787/CWE-125 |
+| H143 | XML array bounds precheck | Array element count vs data size validation — CWE-131 |
+| H144 | XML string termination | Null-termination of fixed 32-byte name fields — CWE-170 |
+| H145 | XML curve type consistency | MPE CurveSet type signature validation — CWE-843 |
+
+### Advanced Data Validation (H146–H148)
+| ID | Check | Risk |
+|----|-------|------|
+| H146 | Stack buffer overflow GetValues | Numeric array tags exceeding 16-element safe max — CWE-121 |
+| H147 | Null pointer after tag Read | Post-Read() null internal pointer detection — CWE-476 |
+| H148 | Memory copy bounds overlap | MPE channel count oscillation causing memcpy overlap — CWE-119 |
+
+### Sampled Curve Validation (H151–H153)
+| ID | Check | Risk |
+|----|-------|------|
+| H151 | Calculator element enum validation | Enum out-of-range in calculator ops — CWE-681 |
+| H152 | SingleSampledCurve OOM size | Oversized m_nCount allocation detection — CWE-400 |
+| H153 | Sampled curve NaN-to-unsigned cast | NaN/Inf in curve firstEntry/lastEntry — CWE-681 |
+
+### CodeQL-Driven Heuristics (H154–H161)
+| ID | Check | Risk |
+|----|-------|------|
+| H154 | Uncontrolled tag allocation size | Allocation size from file-controlled values — CWE-789 |
+| H155 | Integer overflow in tag dimensions | Multiplication overflow in size calculations — CWE-190 |
+| H156 | Allocation failure path profiles | Missing null-check after allocation — CWE-252 |
+| H157 | Alloc-dealloc mismatch tag patterns | new[] vs free mismatch detection — CWE-762 |
+| H158 | Enum range validation extended | Extended enum out-of-range detection — CWE-681 |
+| H159 | UAF tag ownership chain detection | Use-after-free in tag ownership transfers — CWE-416 |
+| H160 | Format string injection in text tags | User-controlled format specifiers — CWE-134 |
+| H161 | Stack address escape deep Apply chains | Stack address returned from deep call chains — CWE-562 |
 
 ## Call Graph Analysis (-cg)
 
