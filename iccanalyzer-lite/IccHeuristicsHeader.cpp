@@ -544,7 +544,7 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
       heuristicCount++;
     }
     // Degenerate range: start==end with any steps causes 0/0=NaN scale factor
-    if (specStart == specEnd && specSteps > 0) {
+    if (specSteps > 0 && (specEnd - specStart) < 0.001f && (specStart - specEnd) < 0.001f) {
       printf("      %s[WARN]  HEURISTIC: Spectral start==end (%.2fnm) with steps=%u — degenerate range causes NaN scale — CWE-681%s\n",
              ColorCritical(), specStart, specSteps, ColorReset());
       printf("       CWE-681: Incorrect Conversion between Numeric Types\n");
@@ -563,7 +563,7 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
              ColorCritical(), ColorReset());
       heuristicCount++;
     }
-    if (biStart == biEnd && biSteps > 0) {
+    if (biSteps > 0 && (biEnd - biStart) < 0.001f && (biStart - biEnd) < 0.001f) {
       printf("      %s[WARN]  HEURISTIC: BiSpectral start==end (%.2fnm) — degenerate range causes NaN scale — CWE-681%s\n",
              ColorCritical(), biStart, ColorReset());
       heuristicCount++;
