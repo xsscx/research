@@ -2977,6 +2977,41 @@ int RunHeuristic_H147_NullPointerAfterTagRead(CIccProfile *pIcc) {
       }
     }
 
+    // CFL-044: CIccXformNDLut::Apply() dispatch gap.
+    // When colorSpace is NOT 3-channel or 4-channel, the CMM selects NDLut.
+    // NDLut::Apply() switch(nInput) only has cases for 5 and 6 — inputs 1-4
+    // fall through to InterpND(pApply) but GetNewApply() only allocates pApply
+    // when m_nNumInput > 6. Result: null deref at IccTagLut.cpp:3181.
+    // Detect: BToA tag with CLUT input dim 1-4 on a non-3CLR/4CLR profile.
+    icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+    bool isNDLutPath = (cs != icSigRgbData && cs != icSigLabData &&
+                        cs != icSigXYZData && cs != icSigHsvData &&
+                        cs != icSigHlsData && cs != icSigCmyData &&
+                        cs != icSig3colorData &&
+                        cs != icSigCmykData && cs != icSig4colorData);
+    if (isNDLutPath) {
+      icTagSignature btoaSigs[] = {
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        (icTagSignature)0
+      };
+      for (int t = 0; btoaSigs[t] != (icTagSignature)0; t++) {
+        CIccMBB *pMBB = FindAndCast<CIccMBB>(pIcc, btoaSigs[t]);
+        if (!pMBB) continue;
+        CIccCLUT *pCLUT = pMBB->GetCLUT();
+        if (!pCLUT) continue;
+        icUInt8Number nIn = pCLUT->GetInputDim();
+        if (nIn >= 1 && nIn <= 4) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s' CLUT has %u input dims on NDLut path%s\n",
+                 ColorCritical(), info.GetTagSigName(btoaSigs[t]),
+                 (unsigned)nIn, ColorReset());
+          printf("       %sCWE-476: CIccXformNDLut::Apply() missing Interp%ud dispatch — "
+                 "falls to InterpND(pApply=NULL) (IccCmm.cpp:6570/6600)%s\n",
+                 ColorCritical(), (unsigned)nIn, ColorReset());
+          npdIssues++;
+        }
+      }
+    }
+
     if (npdIssues == 0) {
       printf("      %s[OK] No null pointer patterns detected in loaded tags%s\n",
              ColorSuccess(), ColorReset());
