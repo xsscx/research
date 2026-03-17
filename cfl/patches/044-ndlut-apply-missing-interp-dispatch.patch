@@ -1,0 +1,42 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index bf22ca3..77d0901 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -6568,6 +6568,18 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
+ 
+     if (m_pTag->m_CLUT) {
+       switch(nInput) {
++      case 1:
++        m_pTag->m_CLUT->Interp1d(Pixel, Pixel);
++        break;
++      case 2:
++        m_pTag->m_CLUT->Interp2d(Pixel, Pixel);
++        break;
++      case 3:
++        m_pTag->m_CLUT->Interp3d(Pixel, Pixel);
++        break;
++      case 4:
++        m_pTag->m_CLUT->Interp4d(Pixel, Pixel);
++        break;
+       case 5:
+         m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
+         break;
+@@ -6598,6 +6610,18 @@ void CIccXformNDLut::Apply(CIccApplyXform* pApply, icFloatNumber *DstPixel, cons
+ 
+     if (m_pTag->m_CLUT) {
+       switch(m_nNumInput) {
++      case 1:
++        m_pTag->m_CLUT->Interp1d(Pixel, Pixel);
++        break;
++      case 2:
++        m_pTag->m_CLUT->Interp2d(Pixel, Pixel);
++        break;
++      case 3:
++        m_pTag->m_CLUT->Interp3d(Pixel, Pixel);
++        break;
++      case 4:
++        m_pTag->m_CLUT->Interp4d(Pixel, Pixel);
++        break;
+       case 5:
+         m_pTag->m_CLUT->Interp5d(Pixel, Pixel);
+         break;
