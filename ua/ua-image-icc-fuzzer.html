@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UA — User Agent Image &amp; ICC Profile Fuzzer Harness</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; }
+        #header { background: #161b22; border-bottom: 1px solid #30363d; padding: 8px 16px; display: flex; align-items: center; gap: 12px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 44px; }
+        #header h1 { font-size: 14px; color: #58a6ff; white-space: nowrap; }
+        .btn { background: #238636; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
+        .btn:hover { background: #2ea043; }
+        .btn.stop { background: #da3633; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        input[type=number], select { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; padding: 2px 6px; border-radius: 4px; font-family: inherit; font-size: 12px; width: 70px; }
+        label { font-size: 11px; color: #8b949e; }
+        #stats { display: flex; gap: 14px; margin-left: auto; font-size: 12px; color: #8b949e; }
+        #stats b { color: #58a6ff; }
+        #stats .err b { color: #f85149; }
+        #stats .icc b { color: #bc8cff; }
+        #progress { height: 3px; background: #21262d; position: fixed; top: 44px; left: 0; right: 0; z-index: 99; }
+        #progress-fill { height: 100%; background: #238636; width: 0%; transition: width 0.3s; }
+        #main { margin-top: 52px; display: flex; height: calc(100vh - 52px); }
+        #render { flex: 1; background: #010409; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        #render img, #render canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #icc-info { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.88); border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #bc8cff; max-width: 420px; max-height: 220px; overflow-y: auto; display: none; z-index: 10; }
+        #file-bar { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(22,27,34,0.92); padding: 4px 12px; font-size: 11px; color: #8b949e; }
+        #sidebar { width: 400px; display: flex; flex-direction: column; border-left: 1px solid #30363d; }
+        #log-hdr { background: #161b22; padding: 5px 10px; border-bottom: 1px solid #30363d; font-size: 12px; color: #8b949e; display: flex; justify-content: space-between; }
+        #log { flex: 1; overflow-y: auto; padding: 4px 8px; font-size: 11px; line-height: 1.5; background: #0d1117; }
+        .l { padding: 1px 0; border-bottom: 1px solid #21262d; }
+        .l-ok { color: #3fb950; }
+        .l-w { color: #d29922; }
+        .l-e { color: #f85149; }
+        .l-i { color: #8b949e; }
+        .l-c { color: #f85149; font-weight: bold; background: #1c0c0c; }
+        .l-p { color: #bc8cff; }
+        #findings { width: 360px; display: flex; flex-direction: column; border-left: 1px solid #30363d; background: #0d1117; }
+        #find-hdr { background: #161b22; padding: 5px 10px; border-bottom: 1px solid #30363d; font-size: 12px; color: #d29922; }
+        #find-list { flex: 1; overflow-y: auto; padding: 4px 8px; font-size: 11px; }
+        .f { padding: 3px 0; border-bottom: 1px solid #21262d; }
+        .f .fp { color: #58a6ff; word-break: break-all; }
+        .f .fd { color: #f85149; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>🔬 UA Fuzzer</h1>
+    <button class="btn" id="btn-start">▶ Start</button>
+    <button class="btn stop" id="btn-stop" disabled>⏹ Stop</button>
+    <button class="btn" id="btn-shuffle">🔀 Shuffle</button>
+    <label>Type:</label>
+    <select id="filt">
+        <option value="all">All</option>
+        <option value="image">Images</option>
+        <option value="icc">ICC</option>
+        <option value=".png">PNG</option>
+        <option value=".jpg">JPEG</option>
+        <option value=".tif">TIFF</option>
+        <option value=".gif">GIF</option>
+        <option value=".bmp">BMP</option>
+        <option value=".svg">SVG</option>
+    </select>
+    <label>Delay:</label>
+    <input type="number" id="delay" value="50" min="0" max="5000" step="10">
+    <label>Batch:</label>
+    <input type="number" id="batch" value="4" min="1" max="64" step="1">
+    <label>Workers:</label>
+    <input type="number" id="workers" value="4" min="0" max="32" step="1">
+    <div id="stats">
+        <div>Done: <b id="s-done">0</b></div>
+        <div class="err">Err: <b id="s-err">0</b></div>
+        <div class="icc">ICC: <b id="s-icc">0</b></div>
+        <div>Crash: <b id="s-crash" style="color:#f85149">0</b></div>
+        <div>Rate: <b id="s-rate">0</b>/s</div>
+        <div><b id="s-idx">0</b>/<b id="s-tot">0</b></div>
+    </div>
+</div>
+<div id="progress"><div id="progress-fill"></div></div>
+
+<div id="main">
+    <div id="render">
+        <div id="icc-info"></div>
+        <div id="file-bar">Ready — click Start</div>
+    </div>
+    <div id="sidebar">
+        <div id="log-hdr"><span>Event Log</span><button class="btn" id="btn-clear" style="font-size:10px;padding:2px 8px">Clear</button></div>
+        <div id="log"></div>
+    </div>
+    <div id="findings">
+        <div id="find-hdr">⚠ Findings: <b id="f-cnt">0</b> <button class="btn" id="btn-export" style="font-size:10px;padding:2px 8px;margin-left:8px;background:#1f6feb">Export JSON</button></div>
+        <div id="find-list"></div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+// ── State ──────────────────────────────────────────────────────────
+let manifest = null, filtered = [], idx = 0, running = false, timer = null;
+let S = { done: 0, err: 0, icc: 0, crash: 0, t0: 0 };
+let findings = [], logN = 0;
+const MAX_LOG = 3000;
+
+// ── DOM ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const $log = $('log'), $fl = $('find-list'), $render = $('render'), $icc = $('icc-info'), $fb = $('file-bar'), $pf = $('progress-fill');
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function log(cls, msg) {
+    const d = document.createElement('div');
+    d.className = 'l l-' + cls;
+    d.textContent = '[' + new Date().toISOString().substr(11,12) + '] ' + msg;
+    $log.appendChild(d);
+    if (++logN > MAX_LOG) { $log.removeChild($log.firstChild); logN--; }
+    $log.scrollTop = $log.scrollHeight;
+}
+
+function finding(path, detail) {
+    findings.push({ path, detail, ts: Date.now() });
+    $('f-cnt').textContent = findings.length;
+    const d = document.createElement('div');
+    d.className = 'f';
+    d.innerHTML = '<div class="fp">' + esc(path) + '</div><div class="fd">' + esc(detail) + '</div>';
+    $fl.appendChild(d);
+    $fl.scrollTop = $fl.scrollHeight;
+}
+
+function updStats() {
+    $('s-done').textContent = S.done;
+    $('s-err').textContent = S.err;
+    $('s-icc').textContent = S.icc;
+    $('s-crash').textContent = S.crash;
+    $('s-idx').textContent = idx;
+    const el = (Date.now() - S.t0) / 1000;
+    $('s-rate').textContent = el > 0 ? (S.done / el).toFixed(1) : '0';
+    $pf.style.width = (filtered.length > 0 ? idx / filtered.length * 100 : 0).toFixed(1) + '%';
+}
+
+// ── Manifest ───────────────────────────────────────────────────────
+(async function init() {
+    try {
+        const r = await fetch('manifest.json');
+        manifest = await r.json();
+        filtered = manifest.files.slice();
+        $('s-tot').textContent = manifest.total;
+        const nImg = manifest.files.filter(f => f.type === 'image').length;
+        const nIcc = manifest.files.filter(f => f.type === 'icc').length;
+        log('i', 'Manifest: ' + manifest.total + ' files (' + nImg + ' images, ' + nIcc + ' ICC)');
+        $fb.textContent = 'Ready — ' + manifest.total + ' files';
+    } catch(e) {
+        log('e', 'Manifest load failed: ' + e.message);
+    }
+})();
+
+// ── Filter / Shuffle ───────────────────────────────────────────────
+$('filt').onchange = function() {
+    if (!manifest) return;
+    const v = this.value;
+    if (v === 'all') filtered = manifest.files.slice();
+    else if (v === 'image') filtered = manifest.files.filter(f => f.type === 'image');
+    else if (v === 'icc') filtered = manifest.files.filter(f => f.type === 'icc');
+    else filtered = manifest.files.filter(f => f.ext === v || (v === '.jpg' && f.ext === '.jpeg') || (v === '.tif' && f.ext === '.tiff'));
+    idx = 0;
+    $('s-tot').textContent = filtered.length;
+    log('i', 'Filter → ' + v + ': ' + filtered.length + ' files');
+};
+
+$('btn-shuffle').onclick = function() {
+    for (let i = filtered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+    }
+    idx = 0;
+    log('i', 'Shuffled');
+};
+
+// ── Worker Pool for ICC parsing ────────────────────────────────────
+// Workers parse ICC binary headers off-main-thread and stress-test ArrayBuffer handling
+const WORKER_CODE = `
+self.onmessage = function(e) {
+    const buf = e.data.buf;
+    const path = e.data.path;
+    const result = { path: path, warnings: [], info: {} };
+
+    try {
+        const view = new DataView(buf);
+        if (buf.byteLength < 128) {
+            result.warnings.push('Truncated: ' + buf.byteLength + ' bytes');
+            self.postMessage(result);
+            return;
+        }
+
+        // Parse header fields
+        result.info.size = view.getUint32(0);
+        if (result.info.size !== buf.byteLength)
+            result.warnings.push('Size mismatch: hdr=' + result.info.size + ' actual=' + buf.byteLength);
+
+        const major = view.getUint8(8);
+        const minor = (view.getUint8(9) >> 4) & 0xF;
+        const bugfix = view.getUint8(9) & 0xF;
+        result.info.version = major + '.' + minor + '.' + bugfix;
+
+        function sig(off) {
+            return String.fromCharCode(view.getUint8(off), view.getUint8(off+1), view.getUint8(off+2), view.getUint8(off+3)).trim();
+        }
+        result.info.cls = sig(12);
+        result.info.cs = sig(16);
+        result.info.pcs = sig(20);
+
+        const magic = sig(36);
+        if (magic !== 'acsp') result.warnings.push('Bad magic: ' + magic);
+
+        result.info.intent = view.getUint32(64);
+        if (buf.byteLength >= 132) result.info.tags = view.getUint32(128);
+        if (result.info.tags > 200) result.warnings.push('Suspicious tag count: ' + result.info.tags);
+
+        // PCS illuminant D50 check
+        if (buf.byteLength >= 80) {
+            const pX = view.getInt32(68) / 65536.0;
+            const pY = view.getInt32(72) / 65536.0;
+            const pZ = view.getInt32(76) / 65536.0;
+            result.info.illum = pX.toFixed(4) + ',' + pY.toFixed(4) + ',' + pZ.toFixed(4);
+            if (Math.abs(pX - 0.9642) > 0.01 || Math.abs(pY - 1.0) > 0.01 || Math.abs(pZ - 0.8249) > 0.01)
+                result.warnings.push('PCS != D50: (' + result.info.illum + ')');
+        }
+
+        // Reserved bytes 100-127
+        let nz = 0;
+        for (let i = 100; i < 128; i++) if (view.getUint8(i) !== 0) nz++;
+        if (nz > 0) result.warnings.push(nz + ' non-zero reserved bytes');
+
+        // Memory stress: create fragmented views of the ICC data to exercise GC
+        const frags = [];
+        const chunkSize = Math.max(64, Math.floor(buf.byteLength / 16));
+        for (let off = 0; off + chunkSize <= buf.byteLength; off += chunkSize) {
+            const slice = buf.slice(off, off + chunkSize);
+            const v = new Uint8Array(slice);
+            // Read every byte to force page faults / decode
+            let sum = 0;
+            for (let k = 0; k < v.length; k++) sum += v[k];
+            frags.push({ off: off, sum: sum, len: v.length });
+        }
+        result.info.fragments = frags.length;
+
+        // Tag table walk — exercise DataView on every tag entry
+        if (result.info.tags && result.info.tags < 500 && buf.byteLength >= 132 + result.info.tags * 12) {
+            const tagInfo = [];
+            for (let t = 0; t < result.info.tags; t++) {
+                const base = 132 + t * 12;
+                const tSig = sig(base);
+                const tOff = view.getUint32(base + 4);
+                const tSz = view.getUint32(base + 8);
+                tagInfo.push(tSig + '@' + tOff + '+' + tSz);
+                // Bounds check
+                if (tOff + tSz > buf.byteLength)
+                    result.warnings.push('Tag ' + tSig + ' overflows: off=' + tOff + ' sz=' + tSz);
+                // Read tag data to exercise the full buffer
+                if (tOff < buf.byteLength && tOff + Math.min(tSz, 4096) <= buf.byteLength) {
+                    const tagSlice = new Uint8Array(buf, tOff, Math.min(tSz, 4096));
+                    let tagSum = 0;
+                    for (let k = 0; k < tagSlice.length; k++) tagSum += tagSlice[k];
+                }
+            }
+            result.info.tagList = tagInfo;
+        }
+
+    } catch(ex) {
+        result.warnings.push('PARSE CRASH: ' + ex.message);
+        result.crash = true;
+    }
+    self.postMessage(result);
+};
+`;
+
+let workerPool = [];
+let workerQueue = [];
+let workerBusy = [];
+
+function initWorkers() {
+    const n = parseInt($('workers').value) || 4;
+    // Tear down old pool
+    workerPool.forEach(w => w.terminate());
+    workerPool = [];
+    workerBusy = [];
+    const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    for (let i = 0; i < n; i++) {
+        const w = new Worker(url);
+        w.onmessage = function(e) {
+            workerBusy[i] = false;
+            handleWorkerResult(e.data);
+            drainQueue();
+        };
+        w.onerror = function(e) {
+            workerBusy[i] = false;
+            S.crash++;
+            log('c', 'WORKER CRASH: ' + e.message);
+            drainQueue();
+        };
+        workerPool.push(w);
+        workerBusy.push(false);
+    }
+    URL.revokeObjectURL(url);
+}
+
+function submitToWorker(buf, path) {
+    workerQueue.push({ buf, path });
+    drainQueue();
+}
+
+function drainQueue() {
+    while (workerQueue.length > 0) {
+        const free = workerBusy.indexOf(false);
+        if (free === -1) break;
+        workerBusy[free] = true;
+        const job = workerQueue.shift();
+        workerPool[free].postMessage({ buf: job.buf, path: job.path }, [job.buf]);
+    }
+}
+
+function handleWorkerResult(r) {
+    if (r.crash) {
+        S.crash++;
+        log('c', 'ICC WORKER CRASH: ' + r.path);
+        finding(r.path, 'Worker parse crash');
+    }
+    for (const w of r.warnings) {
+        finding(r.path, w);
+    }
+    if (r.info) {
+        const i = r.info;
+        const sum = 'v' + (i.version||'?') + ' ' + (i.cls||'?') + '/' + (i.cs||'?') + '→' + (i.pcs||'?') + ' ' + (i.tags||'?') + 'tags';
+        $icc.style.display = 'block';
+        $icc.innerHTML = '<b>ICC</b> ' + esc(sum) + (r.warnings.length ? '<br><span style="color:#f85149">⚠ ' + r.warnings.length + ' warnings</span>' : '<br><span style="color:#3fb950">✓ clean</span>');
+    }
+}
+
+// ── Image Processing (main thread) ────────────────────────────────
+function loadImage(file) {
+    return new Promise(resolve => {
+        const url = '../' + file.path.replace(/^\.\//, '');
+        const img = new Image();
+        const to = setTimeout(() => { S.err++; log('w', 'TIMEOUT: ' + file.path); finding(file.path, 'Load timeout 10s'); resolve(); }, 10000);
+
+        img.onload = () => {
+            clearTimeout(to);
+            S.done++;
+
+            // Show in render zone
+            while ($render.lastChild && $render.lastChild !== $icc && $render.lastChild !== $fb)
+                $render.removeChild($render.lastChild);
+            $render.insertBefore(img, $fb);
+            $icc.style.display = 'none';
+            $fb.textContent = '[' + idx + '/' + filtered.length + '] ' + file.path + ' (' + img.naturalWidth + '×' + img.naturalHeight + ')';
+
+            // Canvas decode + pixel readback — forces full decode pipeline
+            try {
+                const c = document.createElement('canvas');
+                c.width = Math.min(img.naturalWidth || 1, 4096);
+                c.height = Math.min(img.naturalHeight || 1, 4096);
+                let ctx;
+                try { ctx = c.getContext('2d', { colorSpace: 'display-p3' }); } catch(_) { ctx = c.getContext('2d'); }
+                ctx.drawImage(img, 0, 0, c.width, c.height);
+                const px = ctx.getImageData(0, 0, Math.min(c.width, 256), Math.min(c.height, 256));
+                checkPixels(file, px, img);
+            } catch(e) {
+                S.crash++;
+                log('c', 'CANVAS CRASH: ' + file.path + ' — ' + e.message);
+                finding(file.path, 'Canvas: ' + e.message);
+            }
+
+            // createImageBitmap path — exercises a different decode path
+            try {
+                createImageBitmap(img, { resizeWidth: 64, resizeHeight: 64, resizeQuality: 'high' }).then(bmp => {
+                    const c2 = document.createElement('canvas');
+                    c2.width = 64; c2.height = 64;
+                    const ctx2 = c2.getContext('2d');
+                    ctx2.drawImage(bmp, 0, 0);
+                    ctx2.getImageData(0, 0, 64, 64); // force readback
+                    bmp.close();
+                }).catch(() => {});
+            } catch(_) {}
+
+            log('ok', '✓ ' + file.path + ' (' + img.naturalWidth + '×' + img.naturalHeight + ')');
+            resolve();
+        };
+
+        img.onerror = () => {
+            clearTimeout(to);
+            S.err++;
+            log('e', '✗ ' + file.path);
+            finding(file.path, 'Image load error (decoder rejected)');
+            resolve();
+        };
+
+        img.crossOrigin = 'anonymous';
+        img.src = url;
+    });
+}
+
+function checkPixels(file, pd, img) {
+    const d = pd.data, len = d.length / 4;
+    if (len < 16) return;
+
+    // Flat image
+    let flat = true;
+    for (let i = 4; i < Math.min(d.length, 4096); i += 4)
+        if (d[i] !== d[0] || d[i+1] !== d[1] || d[i+2] !== d[2]) { flat = false; break; }
+    if (flat) { log('w', 'FLAT: ' + file.path + ' (' + d[0]+','+d[1]+','+d[2]+')'); finding(file.path, 'Flat/degenerate'); }
+
+    // All transparent
+    let trans = true;
+    for (let i = 3; i < Math.min(d.length, 4096); i += 4) if (d[i] !== 0) { trans = false; break; }
+    if (trans) { log('w', 'TRANSPARENT: ' + file.path); finding(file.path, 'Fully transparent'); }
+
+    // Extreme dimensions
+    if (img.naturalWidth > 16384 || img.naturalHeight > 16384)
+        finding(file.path, 'Extreme: ' + img.naturalWidth + '×' + img.naturalHeight);
+    if (img.naturalWidth === 0 || img.naturalHeight === 0)
+        finding(file.path, 'Zero-dimension loaded without error');
+}
+
+// ── ICC Processing (main thread fetch + worker parse) ──────────────
+async function loadICC(file) {
+    const url = '../' + file.path.replace(/^\.\//, '');
+    try {
+        const r = await fetch(url);
+        if (!r.ok) { S.err++; log('e', '✗ ICC ' + r.status + ': ' + file.path); finding(file.path, 'HTTP ' + r.status); return; }
+        const buf = await r.arrayBuffer();
+        S.icc++;
+        S.done++;
+
+        $fb.textContent = '[' + idx + '/' + filtered.length + '] ' + file.path + ' (' + buf.byteLength + ' bytes ICC)';
+
+        // Submit to worker pool for off-thread parsing + memory stress
+        submitToWorker(buf.slice(0), file.path); // slice to create transferable copy
+
+        // Main-thread exercises: Blob URL, createImageBitmap (should fail for ICC — exercises error paths)
+        const blob = new Blob([buf], { type: 'application/vnd.icc' });
+        const blobUrl = URL.createObjectURL(blob);
+        try {
+            const bmp = await createImageBitmap(blob);
+            // Unexpected success — the browser decoded ICC as an image
+            S.crash++;
+            log('c', 'ICC AS IMAGE: ' + file.path);
+            finding(file.path, 'ICC decoded as ImageBitmap (unexpected)');
+            bmp.close();
+        } catch(_) {
+            // Expected — ICC is not an image
+        }
+
+        // CSS color-profile exercise
+        try {
+            if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('color', 'color(display-p3 1 0 0)')) {
+                const el = document.createElement('div');
+                el.style.cssText = 'width:1px;height:1px;position:fixed;top:-9999px';
+                el.style.color = 'color(display-p3 1 0 0)';
+                document.body.appendChild(el);
+                getComputedStyle(el).color;
+                document.body.removeChild(el);
+            }
+        } catch(_) {}
+
+        URL.revokeObjectURL(blobUrl);
+        log('p', '♦ ' + file.path + ' (' + buf.byteLength + 'B)');
+    } catch(e) {
+        S.err++;
+        log('e', '✗ ICC: ' + file.path + ' — ' + e.message);
+        finding(file.path, 'Fetch error: ' + e.message);
+    }
+}
+
+// ── Fuzzing Loop ───────────────────────────────────────────────────
+async function tick() {
+    if (!running) return;
+    if (idx >= filtered.length) {
+        log('i', '✅ Complete — ' + S.done + ' done, ' + S.err + ' errors, ' + findings.length + ' findings');
+        stop();
+        return;
+    }
+    const batch = parseInt($('batch').value) || 4;
+    const promises = [];
+    for (let i = 0; i < batch && idx < filtered.length; i++) {
+        const f = filtered[idx++];
+        promises.push(f.type === 'icc' ? loadICC(f) : loadImage(f));
+    }
+    await Promise.allSettled(promises);
+    updStats();
+    timer = setTimeout(tick, parseInt($('delay').value) || 50);
+}
+
+function start() {
+    if (running || !manifest) return;
+    running = true;
+    S.t0 = Date.now();
+    $('btn-start').disabled = true;
+    $('btn-stop').disabled = false;
+    initWorkers();
+    log('i', 'Started — ' + filtered.length + ' files, batch=' + $('batch').value + ', workers=' + $('workers').value);
+    tick();
+}
+
+function stop() {
+    running = false;
+    if (timer) { clearTimeout(timer); timer = null; }
+    $('btn-start').disabled = false;
+    $('btn-stop').disabled = true;
+    log('w', 'Stopped at ' + idx + '/' + filtered.length);
+}
+
+$('btn-start').onclick = start;
+$('btn-stop').onclick = stop;
+$('btn-clear').onclick = () => { $log.innerHTML = ''; logN = 0; };
+$('btn-export').onclick = () => {
+    const d = JSON.stringify({ ts: new Date().toISOString(), stats: S, findings }, null, 2);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([d], { type: 'application/json' }));
+    a.download = 'ua-findings-' + Date.now() + '.json';
+    a.click();
+};
+
+// Keyboard: space = toggle, s = shuffle
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === ' ') { e.preventDefault(); running ? stop() : start(); }
+    if (e.key === 's') shuffleFiles();
+});
+
+// Global error handlers — catch decoder crashes
+window.addEventListener('error', e => { S.crash++; log('c', 'GLOBAL: ' + e.message); updStats(); });
+window.addEventListener('unhandledrejection', e => { S.crash++; log('c', 'REJECTION: ' + e.reason); updStats(); });
+</script>
+</body>
+</html>
