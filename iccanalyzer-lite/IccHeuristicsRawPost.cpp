@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 #include "IccHeuristicsHelpers.h"
 
 // ── Named constants replacing magic numbers ──
@@ -3991,7 +3992,6 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
 
   // Count MPE ('mpet') tags, multi-stage LUTs, and check output channel mismatches
   int mpetCount = 0;
-  int lutCount = 0;
   int findings = 0;
 
   // LUT type signatures
@@ -4055,7 +4055,6 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
     // Check LUT output channel mismatch (extends H146 to cover local-var-escape path)
     for (size_t i = 0; i < sizeof(kLutTypes) / sizeof(kLutTypes[0]); i++) {
       if (type == kLutTypes[i]) {
-        lutCount++;
         // For Lut8/Lut16, output channels are at offset 9
         if ((type == 0x6D667431 || type == 0x6D667432) && tSize >= 12u) {
           icUInt8Number lutHdr[4];
@@ -4094,6 +4093,550 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename)
     heuristicCount += findings;
   } else {
     printf("      %s[OK] No deep Apply() chain stack-escape risk patterns%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H162: Partial Tag Data Overlap Detection (CWE-119/CWE-787)
+// Detects tags with different offsets whose data ranges overlap.
+// ICC.1-2022-05 §7.3: tag data shall not partially overlap.
+// H39 checks identical-offset sharing; this catches partial overlaps.
+// =====================================================================
+int RunHeuristic_H162_PartialTagDataOverlap(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H162] Partial Tag Data Overlap Detection\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("      [INFO] Cannot open file for tag overlap scan\n\n");
+    return 0;
+  }
+
+  size_t fileSize = static_cast<size_t>(fh.fileSize);
+  if (fileSize < 132) {
+    printf("      [INFO] File too small for tag table\n\n");
+    return 0;
+  }
+
+  icUInt8Number hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [INFO] Cannot read tag table header\n\n");
+    return 0;
+  }
+
+  icUInt32Number tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount == 0 || tagCount > kMaxTagScanCount) {
+    printf("      [INFO] Tag count %u out of range\n\n", tagCount);
+    return 0;
+  }
+
+  struct TagEntry { char sig[5]; uint32_t offset; uint32_t size; uint64_t end; };
+  std::vector<TagEntry> tags;
+  tags.reserve(tagCount);
+
+  for (uint32_t i = 0; i < tagCount; i++) {
+    size_t ePos = 132 + i * 12;
+    if (ePos + 12 > fileSize) break;
+
+    icUInt8Number entry[12];
+    fseek(fh.fp, static_cast<long>(ePos), SEEK_SET);
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    TagEntry t;
+    t.sig[0] = static_cast<char>(entry[0]);
+    t.sig[1] = static_cast<char>(entry[1]);
+    t.sig[2] = static_cast<char>(entry[2]);
+    t.sig[3] = static_cast<char>(entry[3]);
+    t.sig[4] = '\0';
+    t.offset = ReadU32BE(&entry[4]);
+    t.size   = ReadU32BE(&entry[8]);
+    t.end    = static_cast<uint64_t>(t.offset) + t.size;
+    tags.push_back(t);
+  }
+
+  // Sort by offset
+  std::sort(tags.begin(), tags.end(),
+    [](const TagEntry &a, const TagEntry &b) { return a.offset < b.offset; });
+
+  int findings = 0;
+  for (size_t i = 0; i + 1 < tags.size() && findings < 8; i++) {
+    // Skip shared-offset pairs (handled by H39)
+    if (tags[i].offset == tags[i+1].offset) continue;
+    // Check partial overlap: tag[i] ends after tag[i+1] starts
+    if (tags[i].end > tags[i+1].offset) {
+      uint64_t overlapBytes = tags[i].end - tags[i+1].offset;
+      printf("      %s[CRITICAL] Tags '%s' (off=%u,sz=%u) and '%s' (off=%u,sz=%u) "
+             "overlap by %llu bytes%s\n",
+             ColorCritical(), tags[i].sig, tags[i].offset, tags[i].size,
+             tags[i+1].sig, tags[i+1].offset, tags[i+1].size,
+             (unsigned long long)overlapBytes, ColorReset());
+      printf("       %sCWE-119/CWE-787: Partial tag data overlap — write to one tag "
+             "corrupts adjacent tag data%s\n", ColorCritical(), ColorReset());
+      findings++;
+      heuristicCount++;
+    }
+  }
+
+  if (findings == 0) {
+    printf("      %s[OK] No partial tag data overlaps detected%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H163: Executable Signature Scan in All Tag Data (CWE-506)
+// Scans ALL tag data (including standard ICC tags) for embedded
+// executable signatures (PE/MZ, ELF, Mach-O, ZIP, shebang).
+// H126 only scans private tags; H109 requires valid PE offset for MZ.
+// This catches polyglot ICC+PE files and steganographic embedding.
+// =====================================================================
+int RunHeuristic_H163_ExecutableSignatureInTagData(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H163] Executable Signature Scan in Tag Data\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("      [INFO] Cannot open file\n\n");
+    return 0;
+  }
+
+  size_t fileSize = static_cast<size_t>(fh.fileSize);
+  if (fileSize < 132) {
+    printf("      [INFO] File too small\n\n");
+    return 0;
+  }
+
+  icUInt8Number hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [INFO] Cannot read header\n\n");
+    return 0;
+  }
+
+  icUInt32Number tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount == 0 || tagCount > kMaxTagScanCount) {
+    printf("      [INFO] Tag count %u out of range\n\n", tagCount);
+    return 0;
+  }
+
+  static const struct { const unsigned char sig[8]; int len; const char *name; } exeSigs[] = {
+    {{0x4D, 0x5A},                         2, "PE/MZ"},
+    {{0x7F, 0x45, 0x4C, 0x46},             4, "ELF"},
+    {{0xFE, 0xED, 0xFA, 0xCE},             4, "Mach-O 32"},
+    {{0xFE, 0xED, 0xFA, 0xCF},             4, "Mach-O 64"},
+    {{0xCF, 0xFA, 0xED, 0xFE},             4, "Mach-O 64 (LE)"},
+    {{0xCA, 0xFE, 0xBA, 0xBE},             4, "Mach-O Universal"},
+    {{0x50, 0x4B, 0x03, 0x04},             4, "ZIP/JAR"},
+    {{0x23, 0x21, 0x2F},                   3, "Shebang (#!/)"},
+    {{0}, 0, nullptr}
+  };
+
+  int totalFindings = 0;
+  int tagsWithExeSigs = 0;
+
+  for (uint32_t t = 0; t < tagCount && totalFindings < 8; t++) {
+    size_t ePos = 132 + t * 12;
+    if (ePos + 12 > fileSize) break;
+
+    icUInt8Number entry[12];
+    fseek(fh.fp, static_cast<long>(ePos), SEEK_SET);
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    char tagSig[5] = {static_cast<char>(entry[0]), static_cast<char>(entry[1]),
+                       static_cast<char>(entry[2]), static_cast<char>(entry[3]), '\0'};
+    uint32_t tOffset = ReadU32BE(&entry[4]);
+    uint32_t tSize   = ReadU32BE(&entry[8]);
+
+    if (tSize < 4 || tOffset < 128 || tOffset >= fileSize) continue;
+    size_t scanLen = (tSize < 65536u) ? tSize : 65536u;
+    if (tOffset + scanLen > fileSize) scanLen = fileSize - tOffset;
+    if (scanLen < 4) continue;
+
+    std::vector<icUInt8Number> buf(scanLen);
+    fseek(fh.fp, static_cast<long>(tOffset), SEEK_SET);
+    size_t bytesRead = fread(buf.data(), 1, scanLen, fh.fp);
+    if (bytesRead < 4) continue;
+
+    // Skip the first 4 bytes (tag type signature) to avoid matching ICC type sigs
+    bool tagHasExe = false;
+    for (size_t pos = 4; pos + 4 <= bytesRead && totalFindings < 8; pos++) {
+      for (int s = 0; exeSigs[s].name != nullptr; s++) {
+        int sigLen = exeSigs[s].len;
+        if (pos + static_cast<size_t>(sigLen) > bytesRead) continue;
+        bool match = true;
+        for (int b = 0; b < sigLen; b++) {
+          if (buf[pos + b] != exeSigs[s].sig[b]) { match = false; break; }
+        }
+        if (!match) continue;
+
+        // For MZ: strengthen by checking if it's at a tag-data-aligned offset
+        // or if there are multiple hits (reduces false positives in large LUT data)
+        if (exeSigs[s].sig[0] == 0x4D && exeSigs[s].sig[1] == 0x5A && sigLen == 2) {
+          // MZ is only 2 bytes — require either (a) at tag data start, or
+          // (b) valid PE offset at +60, or (c) count and report as polyglot indicator
+          if (pos != 4) {
+            // Not at start — check for valid PE header pointer
+            if (pos + 64 <= bytesRead) {
+              uint32_t peOff = static_cast<uint32_t>(buf[pos+60]) |
+                              (static_cast<uint32_t>(buf[pos+61]) << 8) |
+                              (static_cast<uint32_t>(buf[pos+62]) << 16) |
+                              (static_cast<uint32_t>(buf[pos+63]) << 24);
+              if (pos + peOff + 4 <= bytesRead &&
+                  buf[pos+peOff] == 'P' && buf[pos+peOff+1] == 'E' &&
+                  buf[pos+peOff+2] == 0 && buf[pos+peOff+3] == 0) {
+                // Valid PE signature — this is a real embedded PE
+              } else {
+                continue; // Bare MZ without PE header — skip to reduce FP
+              }
+            } else {
+              continue; // Can't verify PE offset
+            }
+          }
+        }
+
+        if (!tagHasExe) {
+          tagsWithExeSigs++;
+          tagHasExe = true;
+        }
+        printf("      %s[WARN]  Tag '%s': %s signature at offset +%zu within tag data%s\n",
+               ColorWarning(), tagSig, exeSigs[s].name, pos, ColorReset());
+        printf("       %sCWE-506: Embedded executable content in ICC tag data "
+               "(polyglot/steganography indicator)%s\n", ColorCritical(), ColorReset());
+        totalFindings++;
+        heuristicCount++;
+        break; // One finding per position
+      }
+    }
+  }
+
+  if (totalFindings == 0) {
+    printf("      %s[OK] No executable signatures detected in tag data%s\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("      %s[INFO] %d executable signature(s) in %d tag(s)%s\n",
+           ColorInfo(), totalFindings, tagsWithExeSigs, ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H164: Raw LUT Channel Count vs ColorSpace/PCS Cross-Check (CWE-131)
+// Reads LUT n_in/n_out from raw tag bytes and compares against header
+// colorSpace/PCS channel counts. Catches mismatches that H107 misses
+// when the library normalizes or fails to parse malformed tags.
+// =====================================================================
+int RunHeuristic_H164_RawLUTChannelCrossCheck(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H164] Raw LUT Channel Count vs ColorSpace/PCS\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("      [INFO] Cannot open file\n\n");
+    return 0;
+  }
+
+  size_t fileSize = static_cast<size_t>(fh.fileSize);
+  if (fileSize < 132) {
+    printf("      [INFO] File too small\n\n");
+    return 0;
+  }
+
+  icUInt8Number hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [INFO] Cannot read header\n\n");
+    return 0;
+  }
+
+  // Decode colorspace and PCS channel counts from header
+  icUInt32Number csSig  = ReadU32BE(&hdr[16]);
+  icUInt32Number pcsSig = ReadU32BE(&hdr[20]);
+
+  auto channelsForSig = [](uint32_t sig) -> int {
+    switch (sig) {
+      case 0x58595A20: return 3;  // 'XYZ '
+      case 0x4C616220: return 3;  // 'Lab '
+      case 0x52474220: return 3;  // 'RGB '
+      case 0x434D594B: return 4;  // 'CMYK'
+      case 0x47524159: return 1;  // 'GRAY'
+      case 0x48535620: return 3;  // 'HSV '
+      case 0x484C5320: return 3;  // 'HLS '
+      case 0x594362FF: return 3;  // 'YCbr' (YCbCr)
+      case 0x32434C52: return 2;  // '2CLR'
+      case 0x33434C52: return 3;  // '3CLR'
+      case 0x34434C52: return 4;  // '4CLR'
+      case 0x35434C52: return 5;  // '5CLR'
+      case 0x36434C52: return 6;  // '6CLR'
+      case 0x37434C52: return 7;  // '7CLR'
+      case 0x38434C52: return 8;  // '8CLR'
+      case 0x39434C52: return 9;  // '9CLR'
+      case 0x41434C52: return 10; // 'ACLR'
+      case 0x42434C52: return 11; // 'BCLR'
+      case 0x43434C52: return 12; // 'CCLR'
+      case 0x44434C52: return 13; // 'DCLR'
+      case 0x45434C52: return 14; // 'ECLR'
+      case 0x46434C52: return 15; // 'FCLR'
+      default: return -1; // Unknown
+    }
+  };
+
+  int csChannels  = channelsForSig(csSig);
+  int pcsChannels = channelsForSig(pcsSig);
+  if (csChannels < 0 || pcsChannels < 0) {
+    printf("      [INFO] Unknown colorspace/PCS signature — skipping raw channel check\n\n");
+    return 0;
+  }
+
+  icUInt32Number tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount == 0 || tagCount > kMaxTagScanCount) {
+    printf("      [INFO] Tag count %u out of range\n\n", tagCount);
+    return 0;
+  }
+
+  // A2B sigs: input=CS, output=PCS; B2A sigs: input=PCS, output=CS
+  static const struct { uint32_t sig; const char *name; bool isA2B; } lutTags[] = {
+    {0x41324230, "A2B0", true},  {0x41324231, "A2B1", true},  {0x41324232, "A2B2", true},
+    {0x42324130, "B2A0", false}, {0x42324131, "B2A1", false}, {0x42324132, "B2A2", false},
+  };
+
+  int findings = 0;
+  for (uint32_t t = 0; t < tagCount && findings < 8; t++) {
+    size_t ePos = 132 + t * 12;
+    if (ePos + 12 > fileSize) break;
+
+    icUInt8Number entry[12];
+    fseek(fh.fp, static_cast<long>(ePos), SEEK_SET);
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tagSigVal = ReadU32BE(&entry[0]);
+    uint32_t tOffset   = ReadU32BE(&entry[4]);
+    uint32_t tSize     = ReadU32BE(&entry[8]);
+
+    // Find matching LUT tag
+    const char *tagName = nullptr;
+    bool isA2B = false;
+    for (const auto &lt : lutTags) {
+      if (lt.sig == tagSigVal) { tagName = lt.name; isA2B = lt.isA2B; break; }
+    }
+    if (!tagName) continue;
+
+    // Read tag type + LUT header (n_in at offset+8, n_out at offset+9)
+    if (tSize < 12 || tOffset + 12 > fileSize) continue;
+
+    icUInt8Number tagData[12];
+    fseek(fh.fp, static_cast<long>(tOffset), SEEK_SET);
+    if (fread(tagData, 1, 12, fh.fp) != 12) continue;
+
+    uint32_t typeVal = ReadU32BE(&tagData[0]);
+    // lut8=0x6D667431, lut16=0x6D667432, mAB=0x6D414220, mBA=0x6D424120
+    if (typeVal != 0x6D667431 && typeVal != 0x6D667432 &&
+        typeVal != 0x6D414220 && typeVal != 0x6D424120) continue;
+
+    uint8_t nIn  = tagData[8];
+    uint8_t nOut = tagData[9];
+
+    int expectedIn  = isA2B ? csChannels  : pcsChannels;
+    int expectedOut = isA2B ? pcsChannels : csChannels;
+
+    if (static_cast<int>(nIn) != expectedIn) {
+      printf("      %s[CRITICAL] %s: raw n_in=%u but %s expects %d channels%s\n",
+             ColorCritical(), tagName, nIn,
+             isA2B ? "colorSpace" : "PCS", expectedIn, ColorReset());
+      printf("       %sCWE-131: LUT input channel mismatch — heap-buffer-overflow "
+             "in Apply() when indexing caller buffer%s\n", ColorCritical(), ColorReset());
+      findings++;
+      heuristicCount++;
+    }
+    if (static_cast<int>(nOut) != expectedOut) {
+      printf("      %s[CRITICAL] %s: raw n_out=%u but %s expects %d channels%s\n",
+             ColorCritical(), tagName, nOut,
+             isA2B ? "PCS" : "colorSpace", expectedOut, ColorReset());
+      printf("       %sCWE-121: LUT output channel mismatch — stack-buffer-overflow "
+             "in Apply() writing to fixed-size output%s\n", ColorCritical(), ColorReset());
+      findings++;
+      heuristicCount++;
+    }
+  }
+
+  if (findings == 0) {
+    printf("      %s[OK] All raw LUT channel counts match colorSpace/PCS%s\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  printf("\n");
+  return heuristicCount;
+}
+
+// =====================================================================
+// H165: LUT Data Sufficiency Validation (CWE-125/CWE-122)
+// Validates that lut8/lut16 tag size is large enough to hold the data
+// declared by the LUT header (input tables + CLUT + output tables).
+// H28/H155 check point count overflow and allocation limits, but NOT
+// whether the tag has enough bytes for the declared contents.
+// =====================================================================
+int RunHeuristic_H165_LUTDataSufficiency(const char *filename)
+{
+  int heuristicCount = 0;
+
+  printf("[H165] LUT Data Sufficiency Validation\n");
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("      [INFO] Cannot open file\n\n");
+    return 0;
+  }
+
+  size_t fileSize = static_cast<size_t>(fh.fileSize);
+  if (fileSize < 132) {
+    printf("      [INFO] File too small\n\n");
+    return 0;
+  }
+
+  icUInt8Number hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) {
+    printf("      [INFO] Cannot read header\n\n");
+    return 0;
+  }
+
+  icUInt32Number tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount == 0 || tagCount > kMaxTagScanCount) {
+    printf("      [INFO] Tag count %u out of range\n\n", tagCount);
+    return 0;
+  }
+
+  // LUT tag signatures to check
+  static const uint32_t lutSigs[] = {
+    0x41324230, 0x41324231, 0x41324232,  // A2B0, A2B1, A2B2
+    0x42324130, 0x42324131, 0x42324132,  // B2A0, B2A1, B2A2
+    0x67616D74, // gamt
+    0x70726530, 0x70726531, 0x70726532,  // pre0, pre1, pre2
+    0
+  };
+
+  int findings = 0;
+  for (uint32_t t = 0; t < tagCount && findings < 8; t++) {
+    size_t ePos = 132 + t * 12;
+    if (ePos + 12 > fileSize) break;
+
+    icUInt8Number entry[12];
+    fseek(fh.fp, static_cast<long>(ePos), SEEK_SET);
+    if (fread(entry, 1, 12, fh.fp) != 12) break;
+
+    uint32_t tagSigVal = ReadU32BE(&entry[0]);
+    uint32_t tOffset   = ReadU32BE(&entry[4]);
+    uint32_t tSize     = ReadU32BE(&entry[8]);
+
+    // Check if this is a LUT tag
+    bool isLUT = false;
+    for (int s = 0; lutSigs[s] != 0; s++) {
+      if (tagSigVal == lutSigs[s]) { isLUT = true; break; }
+    }
+    if (!isLUT) continue;
+
+    if (tSize < 12 || tOffset + 12 > fileSize) continue;
+
+    // Read tag type signature + LUT header
+    icUInt8Number tagHdr[52];
+    size_t readLen = (tSize < 52) ? tSize : 52;
+    if (tOffset + readLen > fileSize) readLen = fileSize - tOffset;
+    fseek(fh.fp, static_cast<long>(tOffset), SEEK_SET);
+    if (fread(tagHdr, 1, readLen, fh.fp) != readLen) continue;
+
+    uint32_t typeVal = ReadU32BE(&tagHdr[0]);
+    char tagName[5];
+    tagName[0] = static_cast<char>(entry[0]);
+    tagName[1] = static_cast<char>(entry[1]);
+    tagName[2] = static_cast<char>(entry[2]);
+    tagName[3] = static_cast<char>(entry[3]);
+    tagName[4] = '\0';
+
+    // lut8 (mft1): header=48, inputTable=256*nIn, CLUT=grid^nIn*nOut, outputTable=256*nOut
+    if (typeVal == 0x6D667431 && readLen >= 12) {
+      uint8_t nIn   = tagHdr[8];
+      uint8_t nOut  = tagHdr[9];
+      uint8_t grid  = tagHdr[10];
+
+      if (nIn == 0 || nOut == 0 || grid == 0) continue;
+      // Guard against overflow: if grid^nIn would overflow, skip (caught by H48/H155)
+      uint64_t clutEntries = 1;
+      bool overflow = false;
+      for (int d = 0; d < static_cast<int>(nIn); d++) {
+        clutEntries *= grid;
+        if (clutEntries > 0x100000000ULL) { overflow = true; break; }
+      }
+      if (overflow) continue; // Already caught by H48/H155
+
+      uint64_t inputTableSize  = 256ULL * nIn;
+      uint64_t clutSize        = clutEntries * nOut;
+      uint64_t outputTableSize = 256ULL * nOut;
+      uint64_t minRequired     = 48ULL + inputTableSize + clutSize + outputTableSize;
+
+      if (tSize < minRequired) {
+        printf("      %s[CRITICAL] Tag '%s' (lut8): n_in=%u n_out=%u grid=%u → "
+               "min %llu bytes but tag size is %u%s\n",
+               ColorCritical(), tagName, nIn, nOut, grid,
+               (unsigned long long)minRequired, tSize, ColorReset());
+        printf("       %sCWE-125/CWE-122: Tag data insufficient for declared LUT contents "
+               "— Read() will access %llu bytes beyond tag boundary%s\n",
+               ColorCritical(), (unsigned long long)(minRequired - tSize), ColorReset());
+        findings++;
+        heuristicCount++;
+      }
+    }
+
+    // lut16 (mft2): header=52, inputTable=2*nIn*inputEntries,
+    //               CLUT=2*grid^nIn*nOut, outputTable=2*nOut*outputEntries
+    if (typeVal == 0x6D667432 && readLen >= 52) {
+      uint8_t nIn   = tagHdr[8];
+      uint8_t nOut  = tagHdr[9];
+      uint8_t grid  = tagHdr[10];
+
+      uint16_t inputEntries  = (static_cast<uint16_t>(tagHdr[48]) << 8) | tagHdr[49];
+      uint16_t outputEntries = (static_cast<uint16_t>(tagHdr[50]) << 8) | tagHdr[51];
+
+      if (nIn == 0 || nOut == 0 || grid == 0) continue;
+      uint64_t clutEntries = 1;
+      bool overflow = false;
+      for (int d = 0; d < static_cast<int>(nIn); d++) {
+        clutEntries *= grid;
+        if (clutEntries > 0x100000000ULL) { overflow = true; break; }
+      }
+      if (overflow) continue;
+
+      uint64_t inputTableSize  = 2ULL * nIn * inputEntries;
+      uint64_t clutSize        = 2ULL * clutEntries * nOut;
+      uint64_t outputTableSize = 2ULL * nOut * outputEntries;
+      uint64_t minRequired     = 52ULL + inputTableSize + clutSize + outputTableSize;
+
+      if (tSize < minRequired) {
+        printf("      %s[CRITICAL] Tag '%s' (lut16): n_in=%u n_out=%u grid=%u "
+               "inTbl=%u outTbl=%u → min %llu bytes but tag size is %u%s\n",
+               ColorCritical(), tagName, nIn, nOut, grid, inputEntries, outputEntries,
+               (unsigned long long)minRequired, tSize, ColorReset());
+        printf("       %sCWE-125/CWE-122: Tag data insufficient for declared LUT16 contents "
+               "— Read() will access %llu bytes beyond tag boundary%s\n",
+               ColorCritical(), (unsigned long long)(minRequired - tSize), ColorReset());
+        findings++;
+        heuristicCount++;
+      }
+    }
+  }
+
+  if (findings == 0) {
+    printf("      %s[OK] All LUT tags have sufficient data for declared contents%s\n",
            ColorSuccess(), ColorReset());
   }
 
@@ -4143,6 +4686,12 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H159_UAFTagOwnershipChains(filename);
   heuristicCount += RunHeuristic_H160_FormatStringInjectionTextTags(filename);
   heuristicCount += RunHeuristic_H161_StackAddressEscapeDeepApply(filename);
+
+  // Exploit-gap heuristics (H162-H165)
+  heuristicCount += RunHeuristic_H162_PartialTagDataOverlap(filename);
+  heuristicCount += RunHeuristic_H163_ExecutableSignatureInTagData(filename);
+  heuristicCount += RunHeuristic_H164_RawLUTChannelCrossCheck(filename);
+  heuristicCount += RunHeuristic_H165_LUTDataSufficiency(filename);
 
   return heuristicCount;
 }
