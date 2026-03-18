@@ -127,7 +127,7 @@ analysis, and documentation tasks.
 - **Tools**: git, curl, gh, Python 3.12, clang-18, cmake, AFL++ 4.36a+
 
 ### Pre-Built Binaries (available without building)
-- `iccanalyzer-lite/iccanalyzer-lite` — 161-heuristic security analyzer (ASAN+UBSAN)
+- `iccanalyzer-lite/iccanalyzer-lite` — 170-heuristic security analyzer (ASAN+UBSAN)
 - `cfl/bin/icc_*_fuzzer` — 13 LibFuzzer harnesses
 - `afl/bin/icc*` — 14 AFL-instrumented iccDEV tools + shared libs
 - `colorbleed_tools/icc{To,From}Xml_unsafe` — unsafe ICC↔XML converters
@@ -199,7 +199,7 @@ macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
                                       docker run -p 8080:8080 \
   curl -F file=@profile.icc  ───────→  ghcr.io/xsscx/icc-profile-mcp web
     POST /api/upload                    │
-                                        ├── iccanalyzer-lite -a (161 heuristics)
+                                        ├── iccanalyzer-lite -a (170 heuristics)
   ← JSON {path: "/tmp/uploads/..."}     ├── iccanalyzer-lite --json
                                         └── colorbleed_tools/iccToXml_unsafe
   curl /api/security-json?path=... ──→  Returns structured JSON analysis
@@ -213,8 +213,8 @@ macOS/Cloud Agent                     WSL-2 Host (or any Docker host)
 |----------|--------|---------|
 | `/api/upload` | POST | Upload ICC/TIFF file (20MB max, multipart/form-data) |
 | `/api/health` | GET | Liveness check (`{ok: true, tools: 24}`) |
-| `/api/security?path=...` | GET | 161-heuristic scan (text) |
-| `/api/security-json?path=...` | GET | 161-heuristic scan (structured JSON) |
+| `/api/security?path=...` | GET | 170-heuristic scan (text) |
+| `/api/security-json?path=...` | GET | 170-heuristic scan (structured JSON) |
 | `/api/security-report?path=...` | GET | Severity-sorted professional report |
 | `/api/inspect?path=...` | GET | Profile structure inspection |
 | `/api/roundtrip?path=...` | GET | AToB/BToA tag pair validation |
@@ -234,7 +234,7 @@ curl -s -F "file=@harvested-profile.icc" http://<wsl-ip>:8080/api/upload
 # → {"ok":true,"path":"/tmp/mcp-uploads/a1b2c3_harvested-profile.icc","filename":"harvested-profile.icc","size":41234}
 
 curl -s "http://<wsl-ip>:8080/api/security-json?path=/tmp/mcp-uploads/a1b2c3_harvested-profile.icc"
-# → Full 161-heuristic JSON analysis
+# → Full 170-heuristic JSON analysis
 
 curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-profile.icc"
 # → Combined analysis (inspect + security + roundtrip)
@@ -255,7 +255,7 @@ curl -s "http://<wsl-ip>:8080/api/full?path=/tmp/mcp-uploads/a1b2c3_harvested-pr
 
 ## Analysis Report Gap — Current State (Updated 2026-03-15)
 
-**Analyzed**: 49 profiles/images with full 161-heuristic reports in `analysis-reports/`
+**Analyzed**: 49 profiles/images with full 170-heuristic reports in `analysis-reports/`
 **Total test profiles**: 329 ICC profiles in `test-profiles/` root (+ 505 in subdirs: crashes/4 + cwe-400/491 + spectral/10)
 **Extended test profiles**: 116 ICC profiles in `extended-test-profiles/` (CVE PoCs, crash artifacts, malformed)
 **Gap**: ~280 profiles still need analysis

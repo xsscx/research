@@ -407,62 +407,18 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     // Extracted to IccHeuristicsLibrary.cpp
     heuristicCount += RunLibraryAPIHeuristics(pIcc, filename);
 
-    // H103-H106: Coverage-gap heuristics (PCC, PRMG, Matrix-TRC, EnvVar)
-    heuristicCount += RunHeuristic_H103_PCC(pIcc);
-    heuristicCount += RunHeuristic_H104_PRMG(pIcc, filename);
-    heuristicCount += RunHeuristic_H105_MatrixTRC(pIcc);
-    heuristicCount += RunHeuristic_H106_EnvVar(pIcc);
+    // Profile compliance heuristics (H103-H120)
+    // Sub-dispatched via RunComplianceHeuristics()
+    heuristicCount += RunComplianceHeuristics(pIcc, filename);
 
-    // H107-H115: Feedback-driven heuristics (channel cross-check, private tags,
-    // shellcode, class validation, reserved bytes, wtpt, round-trip, TRC, targ)
-    heuristicCount += RunHeuristic_H107_ChannelCrossCheck(pIcc);
-    heuristicCount += RunHeuristic_H108_PrivateTags(pIcc);
-    heuristicCount += RunHeuristic_H109_ShellcodePatterns(filename);
-    heuristicCount += RunHeuristic_H110_ClassTagValidation(pIcc);
-    heuristicCount += RunHeuristic_H111_ReservedBytes(filename);
-    heuristicCount += RunHeuristic_H112_WtptValidation(pIcc);
-    heuristicCount += RunHeuristic_H113_RoundTripFidelity(pIcc);
-    heuristicCount += RunHeuristic_H114_CurveSmoothness(pIcc);
-    heuristicCount += RunHeuristic_H115_CharacterizationData(pIcc);
+    // Profile integrity heuristics (H121-H135, H137-H138)
+    // Sub-dispatched via RunIntegrityHeuristics()
+    // NOTE: H136 excluded — raw-file scan, called separately below.
+    heuristicCount += RunIntegrityHeuristics(pIcc, filename);
 
-    // H116-H127: ICC Technical Secretary / Profile Assessment WG feedback
-    // Conformance, quality metrics, and enhanced private tag analysis
-    heuristicCount += RunHeuristic_H116_CprtDescEncoding(pIcc);
-    heuristicCount += RunHeuristic_H117_TagTypeAllowed(pIcc);
-    heuristicCount += RunHeuristic_H118_CalcCostEstimate(pIcc);
-    heuristicCount += RunHeuristic_H119_RoundTripDeltaE(pIcc);
-    heuristicCount += RunHeuristic_H120_CurveInvertibility(pIcc);
-    heuristicCount += RunHeuristic_H121_CharDataRoundTrip(pIcc);
-    heuristicCount += RunHeuristic_H122_TagEncoding(pIcc);
-    heuristicCount += RunHeuristic_H123_NonRequiredTags(pIcc);
-    heuristicCount += RunHeuristic_H124_VersionTags(pIcc);
-    heuristicCount += RunHeuristic_H125_TransformSmoothness(pIcc);
-    heuristicCount += RunHeuristic_H126_PrivateTagMalware(pIcc, filename);
-    heuristicCount += RunHeuristic_H127_PrivateTagRegistry(pIcc);
-
-    // H128-H132: ICC.1-2022-05 spec compliance heuristics
-    heuristicCount += RunHeuristic_H128_VersionBCD(filename);
-    heuristicCount += RunHeuristic_H129_PCSIlluminantD50(filename);
-    heuristicCount += RunHeuristic_H130_TagAlignment(filename);
-    heuristicCount += RunHeuristic_H131_ProfileIdMD5(filename);
-    heuristicCount += RunHeuristic_H132_ChadDeterminant(pIcc);
-
-    // H133-H135: ICC.1-2022-05 additional spec compliance
-    heuristicCount += RunHeuristic_H133_FlagsReservedBits(filename);
-    heuristicCount += RunHeuristic_H134_TagTypeReservedBytes(pIcc, filename);
-    heuristicCount += RunHeuristic_H135_DuplicateTagSignatures(filename);
-
-    // H136-H138: CWE-400 systemic patterns (CFL-074 through CFL-076 findings)
-    // NOTE: H136 uses raw file I/O only — moved to always-run phase below.
-    // H137/H138 require pIcc and stay in library phase.
-    heuristicCount += RunHeuristic_H137_HighDimensionalGridComplexity(pIcc);
-    heuristicCount += RunHeuristic_H138_CalculatorBranchingDepth(pIcc);
-
-    // H142-H145: XML serialization safety (covers 25 XML-related advisories)
-    heuristicCount += RunHeuristic_H142_XmlSerializationSafety(pIcc, filename);
-    heuristicCount += RunHeuristic_H143_XmlArrayBoundsPrecheck(pIcc);
-    heuristicCount += RunHeuristic_H144_XmlStringTerminationPrecheck(pIcc);
-    heuristicCount += RunHeuristic_H145_XmlCurveTypeConsistency(pIcc);
+    // XML serialization safety heuristics (H142-H145)
+    // Sub-dispatched via RunXmlSafetyHeuristics()
+    heuristicCount += RunXmlSafetyHeuristics(pIcc, filename);
 
     delete pIcc;
   }

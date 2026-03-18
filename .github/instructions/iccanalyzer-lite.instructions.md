@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 161-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
+A 170-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
@@ -15,7 +15,7 @@ violations, malformed structures, and potential exploitation vectors. Heuristics
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-161-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H161 CodeQL-driven) on extracted ICC profiles. New explicit `-img` mode available.
+170-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H170 CodeQL-driven) on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -61,7 +61,7 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 254 tests (19 functions), ~36s
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.161_heuristics` pattern
+- When adding heuristics, update the test for `summary.170_heuristics` pattern
 
 ## Architecture — 8 Heuristic Modules + 1 Image Analysis
 
@@ -86,7 +86,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 161-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
+| `IccHeuristicsRegistry.h` | 169-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
 | `IccAnalyzerJson.cpp/.h` | `--json` structured output mode |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
@@ -98,7 +98,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H162** (current max is H161)
+1. Choose the next ID: **H170** (current max is H169)
 2. Add `RunHeuristic_H160_Name()` function to the appropriate category file:
    - Tag structure → `IccHeuristicsTagValidation.cpp`
    - Data integrity → `IccHeuristicsDataValidation.cpp`
@@ -108,7 +108,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 3. Add function declaration to the corresponding `.h` file
 4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
 5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-6. Update heuristic count (161→162) in these files:
+6. Update heuristic count (169→162) in these files:
    - `iccanalyzer-lite/tests/run_tests.py` — `summary.162_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
@@ -167,13 +167,66 @@ CWE-681. Phase: RAW_POST. Severity: CRITICAL.
 **UBSAN trigger**: `IccMpeBasic.cpp:2446 — -nan is outside the range of
 representable values of type 'unsigned int'`.
 
+### Implemented CodeQL-Driven Heuristics (H154-H170)
+
+These heuristics were derived from CodeQL static analysis patterns and detect
+library-level vulnerability patterns in the raw profile binary data:
+
+**H154: Uncontrolled Tag Allocation Size** — Detects file-controlled tag sizes
+that would be passed to `new[]`/`malloc()` without bounds checking. CWE-789.
+
+**H155: Integer Overflow in Tag Dimensions** — Detects dimension multiplication
+overflows in LUT, Named Color, and CLUT tags (e.g., `m_NumberOfTriangles * 3`). CWE-190.
+
+**H156: Allocation Failure Path Profiles** — Detects patterns where allocation
+failure (null return) would not be checked before use. CWE-252.
+
+**H157: Alloc-Dealloc Mismatch Tag Patterns** — Detects `new[]` vs `free()`
+mismatches in tag copy/assignment paths (CIccTagArray, CIccFormulaCurve). CWE-762.
+
+**H158: Enum Range Violation Detection** — Extended enum out-of-range detection
+beyond H151's calculator-specific scope. CWE-681.
+
+**H159: UAF Tag Ownership Chain Detection** — Detects use-after-free in tag
+ownership transfer chains (AddXform consuming then freeing profiles). CWE-416.
+
+**H160: Format String Injection in Text Tags** — Detects `%n`, `%s`, `%x`
+format specifiers in text tag content that could exploit printf-family calls. CWE-134.
+
+**H161: Stack Address Escape Deep Apply Chains** — Detects deep MPE chains
+where ToneMapFunc `Describe()` accesses beyond allocated `m_params`. CWE-121.
+
+**H162: Partial Tag Data Overlap Detection** — Detects overlapping tag data
+regions where two tags share data but with mismatched sizes. CWE-119.
+
+**H163: Executable Signature Scan in Tag Data** — Scans tag data for ELF/PE/MachO
+headers that indicate embedded executable content. CWE-506.
+
+**H164: Raw LUT Channel vs ColorSpace/PCS Cross-Check** — Cross-validates
+LUT input/output channel counts against declared color space channels. CWE-131.
+
+**H165: LUT Data Sufficiency Validation** — Validates LUT data size is sufficient
+for declared grid dimensions and channel counts. CWE-125.
+
+**H166: Division-by-Zero in CAM/Array/MPE** — Detects zero divisors in
+calculator operations, matrix columns, and array element sizes. CWE-369.
+
+**H167: Null MPE CLUT/Curve Application Guard** — Detects null `CIccApplyCLUT`
+after `GetNewApply()` failure in CLUT/curve application paths. CWE-476.
+
+**H168: Unchecked Allocation Size Overflow** — Detects multiplication overflows
+in allocation size computations before `new[]`/`malloc()`. CWE-789.
+
+**H169: Dictionary Tag Element Bounds** — Validates dictionary tag element
+counts and access indices against available data. CWE-789.
+
 ### Candidate Heuristics (Not Yet Implemented)
 
-**H154: TIFF Compression Bomb Detection** — Detect decompression bombs where
+**H170: TIFF Compression Bomb Detection** — Detect decompression bombs where
 compressed tile/strip size is tiny but uncompressed size is enormous. CWE-400.
 
-**H155: PNG iCCP Chunk ICC Extraction** — Extract ICC profiles from PNG iCCP
-chunks and run full heuristic analysis. Requires libpng. CWE-125.
+**H171: Matrix Determinant Range Check** — Detect singular or near-singular
+matrices in chromatic adaptation and matrix/TRC tags. CWE-682.
 
 ### Implemented XML Safety Heuristics (H142-H145)
 
@@ -221,7 +274,7 @@ PoC: #577.
 |-------|--------|-------|
 | H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
 | H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69, H153-H161 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) + CodeQL-driven library pattern detection (alloc size, overflow, mismatch, enum, UAF, format string, stack escape) |
+| H33-H55, H57-H69, H153-H170 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) + CodeQL-driven library pattern detection (alloc size, overflow, mismatch, enum, UAF, format string, stack escape) |
 | H56-H102 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
@@ -308,9 +361,9 @@ severity). This is the **source of truth** for all counts — adding a new entry
 
 ## Severity Classification (v3.6.0+)
 
-All 161 heuristics are classified by CWE impact:
-- **CRITICAL** (54): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
-- **HIGH** (~39): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681
+All 170 heuristics are classified by CWE impact:
+- **CRITICAL** (60): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
+- **HIGH** (41): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681, CWE-369
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
 - **LOW** (~37): Spec compliance — CWE-20
 - **INFO** (3): Metadata — H16, H35, H108
@@ -335,7 +388,7 @@ only a handler function + 1 table entry.
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 161 heuristics
+   ComprehensiveAnalyze() with all 170 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
@@ -349,7 +402,7 @@ only a handler function + 1 table entry.
 ### PNG Analysis Pipeline
 1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
 2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
-   full ComprehensiveAnalyze() with all 161 heuristics
+   full ComprehensiveAnalyze() with all 170 heuristics
 3. **Security checks**: dimensions, color type validation
 
 ### JPEG Analysis Pipeline
