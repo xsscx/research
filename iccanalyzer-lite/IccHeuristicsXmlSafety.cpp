@@ -482,3 +482,16 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
   printf("\n");
   return warnings;
 }
+
+// ============================================================================
+// Sub-Dispatcher: RunXmlSafetyHeuristics (H142-H145)
+// ============================================================================
+int RunXmlSafetyHeuristics(CIccProfile *pIcc, const char *filename)
+{
+  int heuristicCount = 0;
+  heuristicCount += RunHeuristic_H142_XmlSerializationSafety(pIcc, filename);
+  heuristicCount += RunHeuristic_H143_XmlArrayBoundsPrecheck(pIcc);
+  heuristicCount += RunHeuristic_H144_XmlStringTerminationPrecheck(pIcc);
+  heuristicCount += RunHeuristic_H145_XmlCurveTypeConsistency(pIcc);
+  return heuristicCount;
+}

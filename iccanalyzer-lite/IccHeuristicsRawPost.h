@@ -8,8 +8,12 @@
 #ifndef ICCHEURISTICSRAWPOST_H
 #define ICCHEURISTICSRAWPOST_H
 
-/// Run raw-file post-library heuristics (H33-H55, H57, H59, H68-H69).
-/// Dispatches to individual RunHeuristic_H##_*() functions below.
+// Sub-module headers (split from this file for maintainability)
+#include "IccHeuristicsCodeQLPatterns.h"
+#include "IccHeuristicsExploitGap.h"
+
+/// Run raw-file post-library heuristics (H33-H55, H57, H59, H68-H69, H153)
+/// plus CodeQL-driven (H154-H161) and exploit-gap (H162-H170) via sub-dispatchers.
 /// @param filename Path to the ICC profile to analyze
 /// @return Number of heuristic warnings detected
 int RunRawPostLibraryHeuristics(const char *filename);
@@ -21,7 +25,7 @@ int RunRawPostLibraryHeuristics(const char *filename);
 /// @return Number of heuristic warnings detected
 int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed);
 
-// Individual raw-file heuristic functions (H33-H55, H57, H59, H68-H69).
+// Individual raw-file heuristic functions (H33-H55, H57, H59, H68-H69, H153).
 // Each opens its own FILE*, returns number of findings (0 = OK).
 int RunHeuristic_H33_mBAmABSubElementOffset(const char *filename);
 int RunHeuristic_H34_IntegerOverflowSubElement(const char *filename);
@@ -51,23 +55,5 @@ int RunHeuristic_H59_SpectralWavelengthRange(const char *filename);
 int RunHeuristic_H68_GamutBoundaryDescOverflow(const char *filename);
 int RunHeuristic_H69_ProfileIDMD5Consistency(const char *filename);
 int RunHeuristic_H153_SampledCurveNaNCast(const char *filename);
-
-// ── CodeQL-Driven Heuristics (H154-H161) ──
-// Derived from CodeQL analysis of iccDEV IccProfLib+IccXML (1,114 findings).
-// Each targets a CWE category with ≥9 library sites not covered by H1-H153.
-int RunHeuristic_H154_UncontrolledTagAllocationSize(const char *filename);
-int RunHeuristic_H155_IntegerOverflowTagDimensions(const char *filename);
-int RunHeuristic_H156_AllocationFailurePathProfiles(const char *filename);
-int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(const char *filename);
-int RunHeuristic_H158_EnumRangeValidationExtended(const char *filename);
-int RunHeuristic_H159_UAFTagOwnershipChains(const char *filename);
-int RunHeuristic_H160_FormatStringInjectionTextTags(const char *filename);
-int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename);
-
-// ── Exploit-Gap Heuristics (H162-H165) ──
-int RunHeuristic_H162_PartialTagDataOverlap(const char *filename);
-int RunHeuristic_H163_ExecutableSignatureInTagData(const char *filename);
-int RunHeuristic_H164_RawLUTChannelCrossCheck(const char *filename);
-int RunHeuristic_H165_LUTDataSufficiency(const char *filename);
 
 #endif // ICCHEURISTICSRAWPOST_H

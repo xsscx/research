@@ -32,4 +32,11 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc);
 int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc);
 int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc);
 
+/// Sub-dispatcher for all profile compliance heuristics (H103-H120).
+/// Call instead of 18 individual RunHeuristic_H103-H120 calls.
+/// @param pIcc Profile loaded via CIccProfile (must not be NULL)
+/// @param filename Path for heuristics needing raw file access (H104, H109, H111)
+/// @return Number of heuristic warnings detected
+int RunComplianceHeuristics(CIccProfile *pIcc, const char *filename);
+
 #endif

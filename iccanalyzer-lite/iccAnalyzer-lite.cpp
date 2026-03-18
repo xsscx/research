@@ -18,6 +18,7 @@
 #include "IccImageAnalyzer.h"
 #include "IccAnalyzerJson.h"
 #include "IccAnalyzerReport.h"
+#include "IccAnalyzerLUTVisualization.h"
 #include "IccHeuristicsRegistry.h"
 
 #include <cstdio>
@@ -200,6 +201,8 @@ void PrintUsage() {
   printf("  -n <file.icc>              Ninja mode (minimal output)\n");
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
   printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
+  printf("  -luts <file.icc> [base]    LUT visualization (SVG curves + TIFF 3D CLUTs)\n");
+  printf("  -dump <file.icc>           Full profile dump (DumpAll: header, tags, v5 summary)\n");
   
   printf("\nOutput Formats:\n");
   printf("  --json <file>              JSON structured output\n");
@@ -303,6 +306,17 @@ int main(int argc, char **argv) {
   // Call graph mode (ASAN/UBSAN log analysis — no ICC profile needed)
   if (strcmp(mode, "-cg") == 0) {
     return RecoverableRun("call graph analysis", [&]{ return RunCallGraphMode(argc, argv); });
+  }
+
+  // LUT visualization mode (SVG 1D curves + TIFF 3D CLUTs)
+  if (strcmp(mode, "-luts") == 0 && argc >= 3) {
+    const char *outBase = (argc >= 4) ? argv[3] : nullptr;
+    return RecoverableRun("LUT visualization", [&]{ return ProcessLutVisualization(profilePath, outBase); });
+  }
+
+  // DumpAll mode (full profile dump: header, tags, v5 summary, MPE chains)
+  if (strcmp(mode, "-dump") == 0 && argc >= 3) {
+    return RecoverableRun("profile dump", [&]{ return DumpAllAnalysis(profilePath, 100); });
   }
   
   // Extract LUT
