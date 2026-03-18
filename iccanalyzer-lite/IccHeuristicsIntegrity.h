@@ -32,4 +32,13 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename);
 int RunHeuristic_H137_HighDimensionalGridComplexity(CIccProfile *pIcc);
 int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc);
 
+/// Sub-dispatcher for profile integrity heuristics (H121-H135, H137-H138).
+/// NOTE: H136 (ResponseCurveMeasurementCount) is excluded — it is a raw-file
+/// scan that must always run regardless of library load success.
+/// It is called separately in IccAnalyzerSecurity.cpp.
+/// @param pIcc Profile loaded via CIccProfile (must not be NULL)
+/// @param filename Path for heuristics needing raw file access
+/// @return Number of heuristic warnings detected
+int RunIntegrityHeuristics(CIccProfile *pIcc, const char *filename);
+
 #endif

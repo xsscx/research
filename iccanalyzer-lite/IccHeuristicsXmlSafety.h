@@ -34,4 +34,10 @@ int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc);
 // match expected element types before ToXmlCurve. Catches type confusion.
 int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc);
 
+/// Sub-dispatcher for XML serialization safety heuristics (H142-H145).
+/// @param pIcc Profile loaded via CIccProfile (must not be NULL)
+/// @param filename Path for heuristics needing raw file access (H142)
+/// @return Number of heuristic warnings detected
+int RunXmlSafetyHeuristics(CIccProfile *pIcc, const char *filename);
+
 #endif // ICC_HEURISTICS_XML_SAFETY_H

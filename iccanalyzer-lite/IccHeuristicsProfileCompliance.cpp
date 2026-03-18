@@ -1737,3 +1737,31 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
 // If targ (characterization data) is CGATS format, reports data set size
 // and flags whether the profile has matching transform tags for evaluation.
 // =====================================================================
+
+// ============================================================================
+// Sub-Dispatcher: RunComplianceHeuristics (H103-H120)
+// Replaces 18 inline calls in IccAnalyzerSecurity.cpp with a single call.
+// ============================================================================
+int RunComplianceHeuristics(CIccProfile *pIcc, const char *filename)
+{
+  int heuristicCount = 0;
+  heuristicCount += RunHeuristic_H103_PCC(pIcc);
+  heuristicCount += RunHeuristic_H104_PRMG(pIcc, filename);
+  heuristicCount += RunHeuristic_H105_MatrixTRC(pIcc);
+  heuristicCount += RunHeuristic_H106_EnvVar(pIcc);
+  heuristicCount += RunHeuristic_H107_ChannelCrossCheck(pIcc);
+  heuristicCount += RunHeuristic_H108_PrivateTags(pIcc);
+  heuristicCount += RunHeuristic_H109_ShellcodePatterns(filename);
+  heuristicCount += RunHeuristic_H110_ClassTagValidation(pIcc);
+  heuristicCount += RunHeuristic_H111_ReservedBytes(filename);
+  heuristicCount += RunHeuristic_H112_WtptValidation(pIcc);
+  heuristicCount += RunHeuristic_H113_RoundTripFidelity(pIcc);
+  heuristicCount += RunHeuristic_H114_CurveSmoothness(pIcc);
+  heuristicCount += RunHeuristic_H115_CharacterizationData(pIcc);
+  heuristicCount += RunHeuristic_H116_CprtDescEncoding(pIcc);
+  heuristicCount += RunHeuristic_H117_TagTypeAllowed(pIcc);
+  heuristicCount += RunHeuristic_H118_CalcCostEstimate(pIcc);
+  heuristicCount += RunHeuristic_H119_RoundTripDeltaE(pIcc);
+  heuristicCount += RunHeuristic_H120_CurveInvertibility(pIcc);
+  return heuristicCount;
+}

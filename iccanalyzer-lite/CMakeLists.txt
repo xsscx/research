@@ -20,6 +20,9 @@ set(SOURCES
     IccAnalyzerSecurity.cpp
     IccAnalyzerPathValidation.cpp
     IccHeuristicsRawPost.cpp
+    IccHeuristicsCodeQLPatterns.cpp
+    IccHeuristicsExploitGap.cpp
+    IccHeuristicsRegistry.cpp
     IccHeuristicsLibrary.cpp
     IccHeuristicsTagValidation.cpp
     IccHeuristicsDataValidation.cpp
@@ -32,6 +35,7 @@ set(SOURCES
     IccAnalyzerInspect.cpp
     IccAnalyzerNinja.cpp
     IccAnalyzerLUT.cpp
+    IccAnalyzerLUTVisualization.cpp
     IccAnalyzerXMLExport.cpp
     IccAnalyzerCallGraph.cpp
     IccAnalyzerTagDetails.cpp
