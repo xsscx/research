@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-17 16:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 161 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H161 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 170 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H170 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,7 +14,7 @@ tl;dr ICC Profile Security Analyzer — 161 heuristics (H1-H138 ICC + H139-H141,
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (161 checks)
+  -h  <file.icc>              Security heuristics (169 checks)
   -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
@@ -46,7 +46,7 @@ iccAnalyzer-lite [MODE] <file>
 
 | Module | Purpose |
 |--------|---------|
-| IccHeuristicsRegistry.h | 161-entry metadata table (name, CWE, CVE, phase, severity) |
+| IccHeuristicsRegistry.h | 169-entry metadata table (name, CWE, CVE, phase, severity) |
 | IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
 | IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
 | IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
@@ -69,7 +69,7 @@ iccAnalyzer-lite [MODE] <file>
 
 57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique across 93 iccDEV security advisories).
 
-## Security Heuristics (H1–H161)
+## Security Heuristics (H1–H170)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -265,7 +265,7 @@ iccAnalyzer-lite [MODE] <file>
 | H152 | SingleSampledCurve OOM size | Oversized m_nCount allocation detection — CWE-400 |
 | H153 | Sampled curve NaN-to-unsigned cast | NaN/Inf in curve firstEntry/lastEntry — CWE-681 |
 
-### CodeQL-Driven Heuristics (H154–H161)
+### CodeQL-Driven Heuristics (H154–H169)
 | ID | Check | Risk |
 |----|-------|------|
 | H154 | Uncontrolled tag allocation size | Allocation size from file-controlled values — CWE-789 |
@@ -275,7 +275,15 @@ iccAnalyzer-lite [MODE] <file>
 | H158 | Enum range validation extended | Extended enum out-of-range detection — CWE-681 |
 | H159 | UAF tag ownership chain detection | Use-after-free in tag ownership transfers — CWE-416 |
 | H160 | Format string injection in text tags | User-controlled format specifiers — CWE-134 |
-| H161 | Stack address escape deep Apply chains | Stack address returned from deep call chains — CWE-562 |
+| H161 | Stack address escape deep Apply chains | Stack address returned from deep call chains — CWE-121 |
+| H162 | Partial tag data overlap detection | Overlapping tag data regions — CWE-119 |
+| H163 | Executable signature scan in tag data | ELF/PE/MachO headers embedded in tag data — CWE-506 |
+| H164 | Raw LUT channel vs ColorSpace/PCS cross-check | Channel count mismatch in LUT tags — CWE-131 |
+| H165 | LUT data sufficiency validation | LUT data too small for declared dimensions — CWE-125 |
+| H166 | Division-by-zero in CAM/Array/MPE | Zero divisors in calculator/matrix operations — CWE-369 |
+| H167 | Null MPE CLUT/Curve application guard | Null pointer after GetNewApply failure — CWE-476 |
+| H168 | Unchecked allocation size overflow | Multiplication overflow before allocation — CWE-789 |
+| H169 | Dictionary tag element bounds | Out-of-bounds access in dictionary tag elements — CWE-789 |
 
 ## Call Graph Analysis (-cg)
 

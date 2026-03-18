@@ -1644,3 +1644,33 @@ int RunHeuristic_H138_CalculatorBranchingDepth(CIccProfile *pIcc) {
   printf("\n");
   return heuristicCount;
 }
+
+// ============================================================================
+// Sub-Dispatcher: RunIntegrityHeuristics (H121-H135, H137-H138)
+// NOTE: H136 (ResponseCurveMeasurementCount) is deliberately excluded.
+// It is a raw-file scan that must run regardless of library load success,
+// and is called separately in IccAnalyzerSecurity.cpp.
+// ============================================================================
+int RunIntegrityHeuristics(CIccProfile *pIcc, const char *filename)
+{
+  int heuristicCount = 0;
+  heuristicCount += RunHeuristic_H121_CharDataRoundTrip(pIcc);
+  heuristicCount += RunHeuristic_H122_TagEncoding(pIcc);
+  heuristicCount += RunHeuristic_H123_NonRequiredTags(pIcc);
+  heuristicCount += RunHeuristic_H124_VersionTags(pIcc);
+  heuristicCount += RunHeuristic_H125_TransformSmoothness(pIcc);
+  heuristicCount += RunHeuristic_H126_PrivateTagMalware(pIcc, filename);
+  heuristicCount += RunHeuristic_H127_PrivateTagRegistry(pIcc);
+  heuristicCount += RunHeuristic_H128_VersionBCD(filename);
+  heuristicCount += RunHeuristic_H129_PCSIlluminantD50(filename);
+  heuristicCount += RunHeuristic_H130_TagAlignment(filename);
+  heuristicCount += RunHeuristic_H131_ProfileIdMD5(filename);
+  heuristicCount += RunHeuristic_H132_ChadDeterminant(pIcc);
+  heuristicCount += RunHeuristic_H133_FlagsReservedBits(filename);
+  heuristicCount += RunHeuristic_H134_TagTypeReservedBytes(pIcc, filename);
+  heuristicCount += RunHeuristic_H135_DuplicateTagSignatures(filename);
+  // H136 excluded — see comment above.
+  heuristicCount += RunHeuristic_H137_HighDimensionalGridComplexity(pIcc);
+  heuristicCount += RunHeuristic_H138_CalculatorBranchingDepth(pIcc);
+  return heuristicCount;
+}

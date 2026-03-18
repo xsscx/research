@@ -15,6 +15,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
+#include <vector>
 
 // ── ICC Signature Conversion Helpers ──
 // UBSAN-safe: uses static_cast<unsigned char> to avoid implicit-conversion warnings
@@ -118,6 +120,75 @@ inline RawFileHandle OpenRawFile(const char *filename) {
   }
   rewind(h.fp);
   return h;
+}
+
+// ── Shared Raw Profile Context ──
+// Pre-parsed ICC header and tag table for raw-file heuristics.
+// Created once per profile, shared across all raw heuristics to
+// eliminate redundant fopen/header-parse/tag-table-parse cycles.
+// The FILE* remains open for heuristics that need to seek to tag data.
+
+static constexpr uint32_t kMaxContextTags = 256;
+
+struct RawProfileContext {
+  RawFileHandle fh;
+  uint8_t header[132];
+  uint32_t tagCount;
+
+  struct TagEntry {
+    uint32_t sig;
+    uint32_t offset;
+    uint32_t size;
+  };
+  std::vector<TagEntry> tags;
+  bool valid;
+
+  RawProfileContext() : tagCount(0), valid(false) {
+    memset(header, 0, sizeof(header));
+  }
+
+  size_t fileSize() const { return static_cast<size_t>(fh.fileSize); }
+
+  // Read bytes at absolute file offset.
+  bool ReadAt(size_t offset, void *buf, size_t count) {
+    if (!valid || offset + count > fileSize()) return false;
+    return fh.Seek(static_cast<long>(offset)) && fh.ReadBytes(buf, count);
+  }
+
+  // Find first tag entry matching a signature (or nullptr).
+  const TagEntry *FindTag(uint32_t sig) const {
+    for (const auto &t : tags)
+      if (t.sig == sig) return &t;
+    return nullptr;
+  }
+};
+
+// Factory: opens file, reads 132-byte header, parses tag table.
+inline RawProfileContext OpenRawProfileContext(const char *filename) {
+  RawProfileContext ctx;
+  ctx.fh = OpenRawFile(filename);
+  if (!ctx.fh) return ctx;
+  if (ctx.fileSize() < 132) return ctx;
+  if (!ctx.fh.ReadBytes(ctx.header, 132)) return ctx;
+
+  ctx.tagCount = ReadU32BE(&ctx.header[128]);
+  if (ctx.tagCount > kMaxContextTags) ctx.tagCount = kMaxContextTags;
+
+  ctx.tags.reserve(ctx.tagCount);
+  for (uint32_t i = 0; i < ctx.tagCount; i++) {
+    size_t ePos = 132 + i * 12;
+    if (ePos + 12 > ctx.fileSize()) break;
+    uint8_t entry[12];
+    if (!ctx.fh.Seek(static_cast<long>(ePos)) || !ctx.fh.ReadBytes(entry, 12)) break;
+    RawProfileContext::TagEntry t;
+    t.sig    = ReadU32BE(entry);
+    t.offset = ReadU32BE(&entry[4]);
+    t.size   = ReadU32BE(&entry[8]);
+    ctx.tags.push_back(t);
+  }
+
+  ctx.valid = true;
+  return ctx;
 }
 
 #endif

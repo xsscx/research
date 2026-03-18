@@ -23,5 +23,12 @@ where
   ) and
   counter.getType().getSize() < bound.getType().getSize() and
   counter.getType().getSize() <= 2 and
-  bound.getType().getSize() >= 4
+  bound.getType().getSize() >= 4 and
+  // Exclude comparisons where the narrow variable is explicitly widened via static_cast
+  not exists(RelationalOperation cmp2, Cast wideningCast |
+    (cmp2 = fs.getCondition() or cmp2 = fs.getCondition().(BinaryLogicalOperation).getAnOperand()) and
+    wideningCast = cmp2.getAnOperand() and
+    wideningCast.getExpr().(VariableAccess).getTarget() = counter and
+    wideningCast.getType().getSize() >= bound.getType().getSize()
+  )
 select fs, "Loop counter '" + counter.getName() + "' (" + counter.getType().toString() + ") compared with '" + bound.getName() + "' (" + bound.getType().toString() + ") — may wrap at " + (2.pow(counter.getType().getSize() * 8) - 1).toString()
