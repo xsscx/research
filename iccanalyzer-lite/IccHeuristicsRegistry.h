@@ -244,6 +244,12 @@ static const HeuristicEntry kHeuristicRegistry[] = {
   {159, "UAF Tag Ownership Chain Detection",      "§7.3",  "CWE-416", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {160, "Format String Injection in Text Tags",   "§10.24","CWE-134", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {161, "Stack Address Escape Deep Apply Chains", "§10.14","CWE-121", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+
+  // ── Exploit-Gap Heuristics (H162-H165) ──
+  {162, "Partial Tag Data Overlap Detection", "§7.3","CWE-119", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {163, "Executable Signature Scan In Tag Data", "§7.3","CWE-506", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
+  {164, "Raw LUT Channel vs ColorSpace/PCS Cross-Check", "§10.6","CWE-131", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {165, "LUT Data Sufficiency Validation", "§10.6","CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
 };
 
 static constexpr size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);

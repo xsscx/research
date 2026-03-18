@@ -64,4 +64,10 @@ int RunHeuristic_H159_UAFTagOwnershipChains(const char *filename);
 int RunHeuristic_H160_FormatStringInjectionTextTags(const char *filename);
 int RunHeuristic_H161_StackAddressEscapeDeepApply(const char *filename);
 
+// ── Exploit-Gap Heuristics (H162-H165) ──
+int RunHeuristic_H162_PartialTagDataOverlap(const char *filename);
+int RunHeuristic_H163_ExecutableSignatureInTagData(const char *filename);
+int RunHeuristic_H164_RawLUTChannelCrossCheck(const char *filename);
+int RunHeuristic_H165_LUTDataSufficiency(const char *filename);
+
 #endif // ICCHEURISTICSRAWPOST_H
