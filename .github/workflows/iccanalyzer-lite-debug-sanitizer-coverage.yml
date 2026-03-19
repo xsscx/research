@@ -733,7 +733,17 @@ jobs:
               # which triggers -fsanitize=integer false positives
               asan_count=$(grep -E "ERROR: AddressSanitizer|ERROR: LeakSanitizer" "$stderr_file" 2>/dev/null | wc -l || true)
               local ubsan_count
-              ubsan_count=$(grep "runtime error:" "$stderr_file" 2>/dev/null | grep -v "IccMD5.cpp" | wc -l || true)
+              # Filter out -fsanitize=integer false positives (defined C/C++ behavior):
+              #   "unsigned integer overflow" — unsigned wrapping is well-defined
+              #   "implicit conversion" — truncation/sign-change sanitizer
+              #   "negation of .* cannot be represented" — unsigned negation
+              # Also exclude IccMD5.cpp (RFC 1321 intentional wrapping)
+              ubsan_count=$(grep "runtime error:" "$stderr_file" 2>/dev/null \
+                | grep -v "IccMD5.cpp" \
+                | grep -v "unsigned integer overflow" \
+                | grep -v "implicit conversion" \
+                | grep -v "negation of .* cannot be represented" \
+                | wc -l || true)
               asan_count=$((asan_count + ubsan_count))
             fi
             if [ "$asan_count" -gt 0 ]; then
