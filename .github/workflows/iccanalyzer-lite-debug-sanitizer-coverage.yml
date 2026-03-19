@@ -612,6 +612,81 @@ jobs:
           path: results/
           retention-days: 90
 
+      # -----------------------------------------------------------------------
+      # Generate LUT visualization SVGs (iccanalyzer-lite -luts)
+      # -----------------------------------------------------------------------
+      - name: Generate LUT visualization SVGs
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          BINARY="iccanalyzer-lite/iccanalyzer-lite"
+          SVGDIR="results/lut-svgs"
+          mkdir -p "$SVGDIR"
+
+          if [ ! -x "$BINARY" ]; then
+            echo "WARN: iccanalyzer-lite not found, skipping SVG generation"
+            exit 0
+          fi
+
+          # Use the same selected profiles from the test run
+          PROFILES="results/selected-profiles.txt"
+          if [ ! -f "$PROFILES" ]; then
+            find test-profiles/ -name '*.icc' -type f 2>/dev/null | head -50 > /tmp/svg-profiles.txt
+            PROFILES="/tmp/svg-profiles.txt"
+          fi
+
+          while IFS= read -r profile; do
+            [ -f "$profile" ] || continue
+            name="$(basename "$profile" .icc)"
+            echo "  -luts: $profile"
+            timeout 30 "$BINARY" -luts "$profile" 2>/dev/null || true
+            svg_path="$(dirname "$profile")/${name}_luts.svg"
+            if [ -f "$svg_path" ]; then
+              cp "$svg_path" "$SVGDIR/"
+            fi
+          done < "$PROFILES"
+
+          TOTAL=$(find "$SVGDIR" -name '*.svg' 2>/dev/null | wc -l)
+          echo "Generated $TOTAL SVG files"
+
+          {
+            echo ""
+            echo "### LUT Visualization SVGs"
+            echo ""
+            echo "**$TOTAL** SVG files generated via \`iccanalyzer-lite -luts\`"
+            if [ "$TOTAL" -gt 0 ]; then
+              echo ""
+              echo "| SVG File | Size |"
+              echo "|----------|------|"
+              for svg in "$SVGDIR"/*.svg; do
+                [ -f "$svg" ] || continue
+                sz=$(stat -c%s "$svg" 2>/dev/null || echo "?")
+                echo "| $(basename "$svg") | ${sz} bytes |"
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
+      # Upload LUT visualization SVGs
+      # -----------------------------------------------------------------------
+      - name: Upload LUT SVGs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: iccanalyzer-lut-svgs
+          path: results/lut-svgs/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
+
       - name: Report to summary
         if: always()
         env:
