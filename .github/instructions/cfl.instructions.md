@@ -132,7 +132,17 @@ for historical reference.
 4. Reset: `cd cfl/iccDEV && git checkout -- .`
 5. Rebuild: `cd cfl && ./build.sh` — verify "Applied: NNN-name.patch"
 6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
-7. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
+7. Create 1-liner reproduction commands (unpatched vs patched) per
+   [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700) standard
+8. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
+
+**1-liner format** (mandatory for every patch):
+```bash
+# Unpatched
+LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 source-of-truth/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
+# Patched
+LD_LIBRARY_PATH=cfl/iccDEV/Build/IccProfLib:cfl/iccDEV/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 cfl/iccDEV/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
+```
 
 ### Build Troubleshooting
 

@@ -330,6 +330,22 @@ iccPngDump image.png
 iccPngDump image.png extracted.icc
 ```
 
+### iccApplySearch (JSON config — search/optimization bugs)
+
+```bash
+# JSON-driven search (exercises CIccCmmSearch pipeline)
+iccApplySearch -cfg config.json
+
+# Printf pipe with search
+printf "'RGB '\nicEncodeFloat\n0.5 0.5 0.5\n" | iccApplySearch search-data.txt 0 0 profile.icc 1 profile.icc 1
+```
+
+**Trigger pattern**: JSON config parsing → `fromJson()` → CMM search pipeline.
+Malformed JSON or field swaps cause uninitialized members → HBO in `costFunc()`.
+See [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)
+for the standard reporting format. 3 tools accept `-cfg`: `iccApplyNamedCmm`,
+`iccApplyProfiles`, `iccApplySearch`. `iccApplyToLink` does NOT support JSON.
+
 ### iccFromCube (.cube LUT parsing)
 
 ```bash
@@ -791,8 +807,59 @@ These issues are covered by iccanalyzer-lite heuristics:
 
 ---
 
+## 12. Upstream Bug Reporting Standard
+
+**Reference**: [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)
+
+All upstream iccDEV security bug reports must follow this format:
+
+### Issue Structure
+
+1. **Title**: `<BugType> in <Class>::<Method>() at <File>:<Line>`
+2. **Maintainer Repro** section with UTC date
+3. Numbered patches with unified diffs
+4. Build + test steps (clone → checkout cfl → cmake + make → ASAN run)
+5. Full ASAN/UBSAN output with stack trace
+6. Patch diff
+7. Expected patched output
+
+### 1-Liner Reproduction Commands
+
+Every patch MUST have copy-paste 1-liners for both unpatched and patched:
+
+```bash
+# Unpatched (source-of-truth = upstream iccDEV, unmodified)
+LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 source-of-truth/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
+
+# Patched (cfl/iccDEV = upstream + CFL patches applied)
+LD_LIBRARY_PATH=cfl/iccDEV/Build/IccProfLib:cfl/iccDEV/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 cfl/iccDEV/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
+```
+
+### Upstream cfl Branch Structure
+
+Patches and PoC inputs are mirrored on the iccDEV `cfl` branch:
+
+| Local Path | Upstream cfl Branch Path |
+|------------|-------------------------|
+| `cfl/patches/*.patch` | `Testing/Fuzzing/patches/*.patch` |
+| Test JSON configs | `Testing/Fuzzing/docs/Tools/malformed-json/` |
+| Test ICC profiles | `Testing/` subdirectories |
+
+### ASAN Environment Variables
+
+```bash
+# Standard unpatched run (catch-and-continue)
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0
+
+# Full diagnostics (for issue reports)
+ASAN_OPTIONS=print_scariness=1:halt_on_error=0:abort_on_error=0:print_full_stacktrace=1:detect_leaks=0
+```
+
+---
+
 ## See Also
 
+- [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700) — Upstream reporting standard (HBO in costFunc)
 - [iccdev-issue-reproductions.md](iccdev-issue-reproductions.md) — 63 PoC reproductions
 - [../iccDEV/shell-helpers/unix.md](../iccDEV/shell-helpers/unix.md) — Build and test commands
 - [../iccDEV/shell-helpers/windows.md](../iccDEV/shell-helpers/windows.md) — Windows MSVC build
