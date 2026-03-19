@@ -40,6 +40,7 @@
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSecurity.h"
 #include "IccHeuristicsHelpers.h"
+#include <cmath>
 #include <cstring>
 #include <cstdarg>
 #include <climits>
