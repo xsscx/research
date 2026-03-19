@@ -1,4 +1,4 @@
-digraph "Call graph: /home/h02332/po/research/call-graph/colorbleed/ColorBleedAlloc.ll" {
+digraph "Call graph: /home/xss/research/call-graph/colorbleed/ColorBleedAlloc.ll" {
 	// Clean graph styling — auto-sized for browser viewing
 	graph [
 		rankdir=LR,
@@ -21,5 +21,6 @@ digraph "Call graph: /home/h02332/po/research/call-graph/colorbleed/ColorBleedAl
 		color="#4a6fa5",
 		arrowsize=0.6
 	];
-	Node0x61346f821230 [label="icRealloc()"];
+
+	Node0x5f385e4bd1f0 [label="icRealloc()"];
 }

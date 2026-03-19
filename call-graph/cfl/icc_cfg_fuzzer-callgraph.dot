@@ -1,0 +1,70 @@
+digraph "icc_cfg_fuzzer" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#2d2d2d", fontcolor="white", fontname="Consolas"];
+  edge [color="#666666"];
+
+  "CIccCfgDataApply";
+  "FuzzCreateLink";
+  "FuzzDataApply";
+  "FuzzDataEntry";
+  "FuzzImageApply";
+  "FuzzPccWeight";
+  "FuzzProfile";
+  "FuzzProfileSequence";
+  "FuzzSearchApply";
+  "end";
+  "find";
+  "fromJson";
+  "if";
+  "is_array";
+  "size";
+  "switch";
+  "toJson";
+
+  "FuzzDataApply" -> "fromJson";
+  "FuzzDataApply" -> "toJson";
+  "FuzzImageApply" -> "fromJson";
+  "FuzzImageApply" -> "toJson";
+  "FuzzSearchApply" -> "fromJson";
+  "FuzzSearchApply" -> "toJson";
+  "FuzzProfile" -> "fromJson";
+  "FuzzProfile" -> "toJson";
+  "FuzzProfileSequence" -> "fromJson";
+  "FuzzProfileSequence" -> "toJson";
+  "FuzzPccWeight" -> "fromJson";
+  "FuzzPccWeight" -> "toJson";
+  "FuzzCreateLink" -> "fromJson";
+  "FuzzCreateLink" -> "toJson";
+  "if" -> "find";
+  "if" -> "end";
+  "if" -> "is_array";
+  "if" -> "size";
+  "FuzzDataEntry" -> "fromJson";
+  "FuzzDataEntry" -> "toJson";
+  "switch" -> "CIccCfgDataApply";
+  "if" -> "FuzzDataApply";
+  "if" -> "FuzzImageApply";
+  "if" -> "FuzzSearchApply";
+}
