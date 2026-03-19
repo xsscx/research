@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 170-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
+A 171-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
@@ -15,7 +15,7 @@ violations, malformed structures, and potential exploitation vectors. Heuristics
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-170-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H170 CodeQL-driven) on extracted ICC profiles. New explicit `-img` mode available.
+171-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H171 CodeQL-driven) on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -56,12 +56,12 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 254 tests (19 functions), ~36s
+python3 iccanalyzer-lite/tests/run_tests.py   # 290 tests (21 functions), ~36s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.170_heuristics` pattern
+- When adding heuristics, update the test for `summary.171_heuristics` pattern
 
 ## Architecture — 8 Heuristic Modules + 1 Image Analysis
 
@@ -98,7 +98,7 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H170** (current max is H169)
+1. Choose the next ID: **H172** (current max is H171)
 2. Add `RunHeuristic_H160_Name()` function to the appropriate category file:
    - Tag structure → `IccHeuristicsTagValidation.cpp`
    - Data integrity → `IccHeuristicsDataValidation.cpp`
@@ -108,8 +108,8 @@ After v3.6.0 refactoring, heuristics are organized into standalone functions acr
 3. Add function declaration to the corresponding `.h` file
 4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
 5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-6. Update heuristic count (169→162) in these files:
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.162_heuristics`
+6. Update heuristic count (171→172) in these files:
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.171_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
@@ -167,7 +167,7 @@ CWE-681. Phase: RAW_POST. Severity: CRITICAL.
 **UBSAN trigger**: `IccMpeBasic.cpp:2446 — -nan is outside the range of
 representable values of type 'unsigned int'`.
 
-### Implemented CodeQL-Driven Heuristics (H154-H170)
+### Implemented CodeQL-Driven Heuristics (H154-H171)
 
 These heuristics were derived from CodeQL static analysis patterns and detect
 library-level vulnerability patterns in the raw profile binary data:
@@ -220,12 +220,19 @@ in allocation size computations before `new[]`/`malloc()`. CWE-789.
 **H169: Dictionary Tag Element Bounds** — Validates dictionary tag element
 counts and access indices against available data. CWE-789.
 
+**H170: Copy Constructor UB via Null PCS** — Detects copy constructor undefined
+behavior when PCS is null, causing type confusion in profile cloning. CWE-843.
+
+**H171: Curve Param Count vs FuncType Validation** — Validates curve parameter
+counts match expected counts for each function type, preventing out-of-bounds
+reads in ToneMapFunc and ParametricCurve Describe/Apply paths. CWE-125.
+
 ### Candidate Heuristics (Not Yet Implemented)
 
-**H170: TIFF Compression Bomb Detection** — Detect decompression bombs where
+**H172: TIFF Compression Bomb Detection** — Detect decompression bombs where
 compressed tile/strip size is tiny but uncompressed size is enormous. CWE-400.
 
-**H171: Matrix Determinant Range Check** — Detect singular or near-singular
+**H173: Matrix Determinant Range Check** — Detect singular or near-singular
 matrices in chromatic adaptation and matrix/TRC tags. CWE-682.
 
 ### Implemented XML Safety Heuristics (H142-H145)
@@ -274,7 +281,7 @@ PoC: #577.
 |-------|--------|-------|
 | H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
 | H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69, H153-H170 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) + CodeQL-driven library pattern detection (alloc size, overflow, mismatch, enum, UAF, format string, stack escape) |
+| H33-H55, H57-H69, H153-H171 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) + CodeQL-driven library pattern detection (alloc size, overflow, mismatch, enum, UAF, format string, stack escape) |
 | H56-H102 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
@@ -311,7 +318,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 254/254 tests pass
+# 8. Verify: 290/290 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
@@ -361,8 +368,8 @@ severity). This is the **source of truth** for all counts — adding a new entry
 
 ## Severity Classification (v3.6.0+)
 
-All 170 heuristics are classified by CWE impact:
-- **CRITICAL** (60): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
+All 171 heuristics are classified by CWE impact:
+- **CRITICAL** (62): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
 - **HIGH** (41): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681, CWE-369
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
 - **LOW** (~37): Spec compliance — CWE-20
@@ -370,6 +377,36 @@ All 170 heuristics are classified by CWE impact:
 
 Severity field is included in `--json`, `--report`, and `-xml` output modes.
 `HeuristicSeverity` enum and `severity` field are defined in `IccHeuristicsRegistry.h`.
+
+## LUT Text I/O and .cube Support (v3.7.0+)
+
+```bash
+# Text export — extracts curves, CLUTs, matrices as tab-delimited text
+./iccanalyzer-lite -xt profile.icc /tmp/output_prefix_
+
+# Text import — reads edited text files back into ICC profile
+./iccanalyzer-lite -it /tmp/output_prefix_ profile.icc modified.icc
+
+# Cube export — 3D CLUT as .cube format (requires 3D→3 channel CLUT)
+./iccanalyzer-lite -cube profile.icc AToB0Tag output.cube
+
+# Cube import — create ICC profile from .cube file
+./iccanalyzer-lite -from-cube input.cube output.icc
+```
+
+Implementation: `IccAnalyzerLUTTextIO.cpp` (1634 LOC), linked against patched
+`cfl/iccDEV` for hostile input safety. Declarations in `IccAnalyzerLUT.h`.
+
+**Key API note**: `CIccCLUT::GridPoint(i)` returns grid node count per axis.
+`CIccCLUT::GetDimSize(i)` returns total entries per dimension — NOT the grid size.
+Always use `GridPoint()` for grid dimensions in text I/O.
+
+**Cube format constraints**: `.cube` requires exactly 3 input → 3 output channels.
+Profiles with matrix-only LUTs or 2D CLUTs cannot export to `.cube` (exit code 2).
+Known 3D CLUT test profile: `test-profiles/fuzzed-prtr-Lab-414k.icc` (AToB0Tag, 17³ grid).
+
+**CI exercises**: `analyze-profile.sh` runs `-xt` and `-cube` with ASAN checks.
+`iccanalyzer-lite-debug-sanitizer-coverage.yml` has a 200-line LUT I/O exercise step.
 
 ## Image Analysis (v3.4.0+)
 
@@ -388,7 +425,7 @@ only a handler function + 1 table entry.
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 170 heuristics
+   ComprehensiveAnalyze() with all 171 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
@@ -402,7 +439,7 @@ only a handler function + 1 table entry.
 ### PNG Analysis Pipeline
 1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
 2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
-   full ComprehensiveAnalyze() with all 170 heuristics
+   full ComprehensiveAnalyze() with all 171 heuristics
 3. **Security checks**: dimensions, color type validation
 
 ### JPEG Analysis Pipeline
