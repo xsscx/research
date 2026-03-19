@@ -1,0 +1,32 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..aecf1d0 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1648,13 +1648,13 @@ bool CIccCfgColorData::fromIt8(const char* filename, bool bReset)
+     }
+     else {
+       for (nSrcIndex = 0; nSrcIndex < spaces.size(); nSrcIndex++) {
+-        if (!strncmp(spaces[nValueIdx].c_str(), "SRC_", 4))
++        if (!strncmp(spaces[nSrcIndex].c_str(), "SRC_", 4))
+           break;
+       }
+       if (nSrcIndex != spaces.size() && nSrcIndex < samples.size()) {
+         m_srcSpace = samples[nSrcIndex][0].space;
+-        for (size_t j = 0; j < samples[nValueIdx].size(); j++) {
+-          size_t nPos = samples[nValueIdx][j].nIndex;
++        for (size_t j = 0; j < samples[nSrcIndex].size(); j++) {
++          size_t nPos = samples[nSrcIndex][j].nIndex;
+           if (nPos < line.size()) {
+             pData->m_srcValues.push_back((icFloatNumber)atof(line[nPos].c_str()));
+           }
+@@ -1667,8 +1667,8 @@ bool CIccCfgColorData::fromIt8(const char* filename, bool bReset)
+         }
+         if (nSrcIndex < samples.size()) {
+           m_srcSpace = samples[nSrcIndex][0].space;
+-          for (size_t j = 0; j < samples[nValueIdx].size(); j++) {
+-            size_t nPos = samples[nValueIdx][j].nIndex;
++          for (size_t j = 0; j < samples[nSrcIndex].size(); j++) {
++            size_t nPos = samples[nSrcIndex][j].nIndex;
+             if (nPos < line.size()) {
+               pData->m_srcValues.push_back((icFloatNumber)atof(line[nPos].c_str()));
+             }
