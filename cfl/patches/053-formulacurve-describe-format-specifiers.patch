@@ -1,0 +1,20 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -275,7 +275,7 @@
+       snprintf(buf, bufSize, "Y = %.8f * X + %.8f\n\n",
+       m_params[1], m_params[3]);
+     else
+-      snprintf(buf, bufSize, "Y = %8f * (%.8f * X + %.8f)^%.4f + %.8f\n\n",
++      snprintf(buf, bufSize, "Y = %.8f * (%.8f * X + %.8f)^%.4f + %.8f\n\n",
+               m_params[1], m_params[2], m_params[3], m_params[0], m_params[4]);
+     sDescription += buf;
+     return;
+@@ -283,7 +283,7 @@
+   case 0x0004:
+     if (m_nParameters < 5) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (!icIsNear(m_params[0], 1.0))
+-      snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X^%8.f - %.8f) + %.8f\n\n",
++      snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X^%.8f - %.8f) + %.8f\n\n",
+         m_params[1], m_params[4], m_params[0], m_params[2], m_params[3]);
+     else
+       snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X - %.8f) + %.8f\n\n",

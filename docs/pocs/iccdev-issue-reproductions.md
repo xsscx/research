@@ -6,8 +6,8 @@ Proof-of-concept reproduction steps for closed security issues in
 Each entry provides the exact commands to reproduce the issue. All commands
 assume iccDEV is built with ASAN+UBSAN (see [build instructions](../iccDEV/shell-helpers/unix.md)).
 
-> **Generated**: 2026-03-09 from closed issues #480–#656
-> **Total**: 63 reproductions across 9 iccDEV tools
+> **Generated**: 2026-03-09 from closed issues #480–#656; updated 2026-03-19 with open #700
+> **Total**: 64 reproductions across 10 iccDEV tools
 
 ## Summary
 
@@ -37,6 +37,7 @@ assume iccDEV is built with ASAN+UBSAN (see [build instructions](../iccDEV/shell
 | `iccTiffDump` | 4 |
 | `iccV5DspObsToV4Dsp` | 3 |
 | `iccFromCube` | 1 |
+| `iccApplySearch` | 1 |
 
 ---
 
@@ -788,6 +789,32 @@ wget https://github.com/xsscx/fuzz/raw/refs/heads/master/graphics/icc/heap-buffe
 # Step 3
 iccV5DspObsToV4Dsp heap-buffer-overflow-display-CIccFileIO-Read8-IccIO_cpp-Line508.icc heap-buffer-overflow-observer-CIccFileIO-Read8-IccIO_cpp-Line508.icc foo.bar
 ```
+
+---
+
+## iccApplySearch
+
+### #700 — HBO: HBO in CIccApplyCmmSearch::costFunc() at IccCmmSearch.cpp:112
+
+CWE-122 · [Issue](https://github.com/InternationalColorConsortium/iccDEV/issues/700) · Status: Open, Triaged
+
+Three bugs combined: CFL-033 (PccWeight::fromJson field swap), CFL-034
+(SearchApply interpolation key copy-paste error), CFL-035 (m_nApply OOB
+clamp). The field swap feeds garbage pointers into the search pipeline;
+the unclamped m_nApply reads past `m_dst_to_mid` vector bounds.
+
+```bash
+# Unpatched (reproduces HBO)
+ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 Build/Tools/IccApplySearch/iccApplySearch -cfg Testing/Fuzzing/docs/Tools/malformed-json/pccweight-field-swap.json
+
+# Patched (clean JSON output)
+ASAN_OPTIONS=print_scariness=1:halt_on_error=0:abort_on_error=0:print_full_stacktrace=1:detect_leaks=0 Build/Tools/IccApplySearch/iccApplySearch -cfg Testing/Fuzzing/docs/Tools/malformed-json/pccweight-field-swap.json
+```
+
+Patches: `033-pccweight-fromjson-field-swap.patch`,
+`034-searchapply-fromjsoninit-interpolation-key.patch`,
+`035-applycmmsearch-m_napply-oob-clamp.patch` (on `cfl` branch at
+`Testing/Fuzzing/patches/`).
 
 ---
 
