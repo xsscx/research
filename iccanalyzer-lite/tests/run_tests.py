@@ -1397,6 +1397,166 @@ def test_report_output(suite):
         ))
 
 
+def test_pawg_output(suite):
+    """Test -pawg ICC Profile Assessment Working Group report output mode."""
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+    bad = str(CORPUS_DIR / "huge_tag_count.icc")
+
+    # PAWG report should contain banner
+    rc, stdout, stderr = suite.run_analyzer(["-pawg", good])
+    has_banner = "ICC PROFILE ASSESSMENT REPORT (PAWG)" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_banner", has_banner,
+        "Missing PAWG report banner" if not has_banner else "",
+        0.0, "", ""
+    ))
+
+    # Should contain tool version
+    has_version = "iccAnalyzer-lite" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_version", has_version,
+        "Missing tool version in PAWG banner" if not has_version else "",
+        0.0, "", ""
+    ))
+
+    # Should contain SHA-256
+    has_sha = "SHA-256:" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_sha256", has_sha,
+        "Missing SHA-256 hash in PAWG report" if not has_sha else "",
+        0.0, "", ""
+    ))
+
+    # Should contain all 3 sections
+    has_security = "[ SECURITY ]" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_security_section", has_security,
+        "Missing SECURITY section" if not has_security else "",
+        0.0, "", ""
+    ))
+
+    has_conformance = "[ CONFORMANCE ]" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_conformance_section", has_conformance,
+        "Missing CONFORMANCE section" if not has_conformance else "",
+        0.0, "", ""
+    ))
+
+    has_quality = "[ QUALITY ]" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_quality_section", has_quality,
+        "Missing QUALITY section" if not has_quality else "",
+        0.0, "", ""
+    ))
+
+    # Should contain assessment summary
+    has_summary = "ASSESSMENT SUMMARY" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_summary", has_summary,
+        "Missing ASSESSMENT SUMMARY section" if not has_summary else "",
+        0.0, "", ""
+    ))
+
+    # Should contain heuristic coverage
+    has_coverage = "HEURISTIC COVERAGE" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_heuristic_coverage", has_coverage,
+        "Missing HEURISTIC COVERAGE section" if not has_coverage else "",
+        0.0, "", ""
+    ))
+
+    # Should contain spec references
+    has_specs = "SPECIFICATION REFERENCES" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_spec_references", has_specs,
+        "Missing SPECIFICATION REFERENCES section" if not has_specs else "",
+        0.0, "", ""
+    ))
+
+    # Summary should show total of 31 checklist items
+    has_31 = "Total checklist items:  31" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_31_items", has_31,
+        "PAWG report should have exactly 31 checklist items" if not has_31 else "",
+        0.0, "", ""
+    ))
+
+    # Should have PASS/WARN/FAIL counts in summary
+    import re
+    pass_match = re.search(r"PASS:\s+(\d+)", stdout)
+    warn_match = re.search(r"WARN:\s+(\d+)", stdout)
+    fail_match = re.search(r"FAIL:\s+(\d+)", stdout)
+    has_counts = pass_match is not None and warn_match is not None and fail_match is not None
+    suite.results.append(TestResult(
+        "pawg.has_verdict_counts", has_counts,
+        "Missing PASS/WARN/FAIL counts in summary" if not has_counts else "",
+        0.0, "", ""
+    ))
+
+    # Counts should sum to 31
+    if has_counts:
+        total = int(pass_match.group(1)) + int(warn_match.group(1)) + int(fail_match.group(1))
+        suite.results.append(TestResult(
+            "pawg.counts_sum_31", total == 31,
+            f"PASS+WARN+FAIL={total}, expected 31" if total != 31 else "",
+            0.0, "", ""
+        ))
+
+    # Should contain Overall verdict
+    has_overall = "Overall:" in stdout
+    suite.results.append(TestResult(
+        "pawg.has_overall_verdict", has_overall,
+        "Missing Overall verdict line" if not has_overall else "",
+        0.0, "", ""
+    ))
+
+    # Check S1-S13 security items present
+    s_items = sum(1 for i in range(1, 14) if f"S{i}" in stdout)
+    suite.results.append(TestResult(
+        "pawg.has_13_security_items", s_items == 13,
+        f"Found {s_items}/13 security items" if s_items != 13 else "",
+        0.0, "", ""
+    ))
+
+    # Check C1-C14 conformance items present
+    c_items = sum(1 for i in range(1, 15) if f"C{i}" in stdout)
+    suite.results.append(TestResult(
+        "pawg.has_14_conformance_items", c_items == 14,
+        f"Found {c_items}/14 conformance items" if c_items != 14 else "",
+        0.0, "", ""
+    ))
+
+    # Check Q1-Q4 quality items present
+    q_items = sum(1 for i in range(1, 5) if f"Q{i}" in stdout)
+    suite.results.append(TestResult(
+        "pawg.has_4_quality_items", q_items == 4,
+        f"Found {q_items}/4 quality items" if q_items != 4 else "",
+        0.0, "", ""
+    ))
+
+    # Bad profile should trigger WARN items (more than good profile)
+    rc2, stdout2, stderr2 = suite.run_analyzer(["-pawg", bad])
+    warn_match2 = re.search(r"WARN:\s+(\d+)", stdout2)
+    has_bad_warns = warn_match2 is not None and int(warn_match2.group(1)) > 0
+    suite.results.append(TestResult(
+        "pawg.bad_profile_has_warns", has_bad_warns,
+        "Bad profile should have WARN items" if not has_bad_warns else "",
+        0.0, "", ""
+    ))
+
+    # Bad profile detail lines should show heuristic IDs
+    has_detail = re.search(r"H\d+:.*\[WARN\]", stdout2) is not None
+    suite.results.append(TestResult(
+        "pawg.bad_has_detail_lines", has_detail,
+        "Bad profile WARN items should include H## detail lines" if not has_detail else "",
+        0.0, "", ""
+    ))
+
+    # ASAN clean on both profiles
+    suite.assert_no_asan("pawg.asan_clean_good", ["-pawg", good])
+    suite.assert_no_asan("pawg.asan_clean_bad", ["-pawg", bad])
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -1464,6 +1624,7 @@ def main():
         ("TIFF Corrupt", test_tiff_corrupt),
         ("HTML/XML Output", test_html_xml_output),
         ("Report Output", test_report_output),
+        ("PAWG Output", test_pawg_output),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 
