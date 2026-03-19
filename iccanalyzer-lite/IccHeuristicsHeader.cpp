@@ -11,6 +11,7 @@
  */
 
 #include "IccHeuristicsHeader.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerColors.h"
