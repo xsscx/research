@@ -6,7 +6,7 @@ applyTo: "cfl/**"
 
 ## What This Is
 
-12 LibFuzzer harnesses + 1 JSON config fuzzer (~2,800 LOC, C/C++) targeting the iccDEV ICC profile library.
+13 LibFuzzer harnesses (~2,800 LOC, C/C++) targeting the iccDEV ICC profile library.
 Each fuzzer has a custom-built dictionary, seed corpus, and ASAN+UBSAN instrumentation.
 
 ## Build
@@ -19,7 +19,7 @@ cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 13 fu
 - **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
 - Applies targeted patches from `cfl/patches/` (new findings only — see Patch System below)
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
-- Binaries: `cfl/bin/icc_*_fuzzer` (12 total)
+- Binaries: `cfl/bin/icc_*_fuzzer` (13 total)
 
 ## Upstream Sync
 
@@ -29,7 +29,7 @@ cd cfl/iccDEV && git fetch origin && git reset --hard origin/master && git clean
 cd .. && ./build.sh   # re-applies patches and rebuilds
 ```
 
-Current upstream: commit **1ffa7a8** / v2.3.1.5 (2026-03-08)
+Current upstream: commit **e62525a** / v2.3.1.5 (2026-03-19)
 
 ## The 13 Fuzzers
 
@@ -98,6 +98,20 @@ for historical reference.
 | 041 | fromIt8 LAB/XYZ val(4) OOB | val(4) should be val(3) for 3-channel LAB/XYZ | CWE-125 | IccCmmConfig.cpp |
 | 042 | ParseNumbers 'n' vs '\n' typo | Skip-number loop uses 'n' instead of newline | CWE-20 | IccCmmConfig.cpp |
 | 043 | Tool toJson is_object vs is_array | seq.is_object() fails on array from ProfileSequence::toJson | CWE-697 | iccApplyNamedCmm.cpp, iccApplySearch.cpp |
+| 044 | NDLut Apply missing interp dispatch | Missing interpolation method dispatch in NDLut Apply path | CWE-476 | IccCmm.cpp |
+| 045 | AddXform null PCS guard | NULL PCS pointer dereference in AddXform | CWE-476 | IccCmm.cpp |
+| 046 | PCS step src matrix delete[] | delete vs delete[] mismatch on matrix array | CWE-762 | IccCmm.cpp |
+| 047 | pushXYZNormalize null PCC guard | NULL PCC pointer dereference in pushXYZNormalize | CWE-476 | IccCmm.cpp |
+| 048 | DumpLut iterate missing bufsize | Missing buffer size in DumpLut iteration | CWE-122 | IccTagLut.cpp |
+| 049 | MBB Describe BToA missing bUseLegacy | Missing bUseLegacy check in MBB Describe BToA path | CWE-125 | IccTagLut.cpp |
+| 050 | FormulaCurve Describe param bounds | OOB read in FormulaCurve Describe parameter access | CWE-125 | IccMpeBasic.cpp |
+| 051 | ParametricCurve Describe param bounds | OOB read in ParametricCurve Describe parameter access | CWE-125 | IccTagLut.cpp |
+| 052 | fromIt8 wrong index variable | Wrong loop index variable in fromIt8 | CWE-125 | IccCmmConfig.cpp |
+| 053 | FormulaCurve Describe format specifiers | Wrong printf format specifiers in FormulaCurve Describe | CWE-134 | IccMpeBasic.cpp |
+| 054 | ParametricCurve Describe format specifiers | Wrong printf format specifiers in ParametricCurve Describe | CWE-134 | IccTagLut.cpp |
+| 055 | fromIt8 signed-unsigned mismatch | Signed/unsigned comparison in fromIt8 loop | CWE-681 | IccCmmConfig.cpp |
+| 056 | Spectral Describe null pointer guards | NULL pointer dereference in spectral Describe methods | CWE-476 | IccMpeSpectral.cpp |
+| 057 | SearchApply uninitialized members | Uninitialized member variables in SearchApply constructor | CWE-908 | IccCmmConfig.cpp |
 
 ### Retired Patches (accepted upstream)
 
@@ -118,8 +132,8 @@ for historical reference.
 | 027 | JSON toJson() key typos | #692 |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **044**)
-- 31 active patches (13 retired after upstream acceptance in PRs #680-#695)
+- Numbering: zero-padded 3-digit, sequential (next: **058**)
+- 45 active patches (12 retired after upstream acceptance in PRs #680-#695)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

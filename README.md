@@ -54,7 +54,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 32 active security patches for iccDEV (CFL-001 through CFL-044, with 12 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
+The `cfl/patches/` directory contains 45 active security patches for iccDEV (CFL-001 through CFL-057, with 12 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes, format specifier fixes, uninitialized member fixes). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
