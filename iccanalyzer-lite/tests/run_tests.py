@@ -10,13 +10,19 @@ Usage:
     python3 run_tests.py -k exit_code       # Run tests matching pattern
     python3 run_tests.py --binary /path     # Override binary path
     python3 run_tests.py --xml report.xml   # JUnit XML output
+    python3 run_tests.py --list             # List all test sections
+    python3 run_tests.py --fail-fast        # Stop on first failure
+    python3 run_tests.py --debug            # Show commands being run
+    python3 run_tests.py --no-color         # Disable colored output
 """
 
 import os
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -38,22 +44,76 @@ EXIT_USAGE = 3
 TIMEOUT_SEC = 30
 
 # --- Test infrastructure ---
+
+# ANSI color codes
+class _Colors:
+    """Terminal color codes with auto-detection."""
+    def __init__(self):
+        use_color = (
+            hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+            and os.environ.get("NO_COLOR") is None
+            and os.environ.get("TERM") != "dumb"
+        )
+        self.enabled = use_color
+
+    def green(self, text):
+        return f"\033[32m{text}\033[0m" if self.enabled else text
+
+    def red(self, text):
+        return f"\033[31m{text}\033[0m" if self.enabled else text
+
+    def yellow(self, text):
+        return f"\033[33m{text}\033[0m" if self.enabled else text
+
+    def cyan(self, text):
+        return f"\033[36m{text}\033[0m" if self.enabled else text
+
+    def bold(self, text):
+        return f"\033[1m{text}\033[0m" if self.enabled else text
+
+    def dim(self, text):
+        return f"\033[2m{text}\033[0m" if self.enabled else text
+
+C = _Colors()
+
+SLOW_TEST_THRESHOLD = 5.0  # seconds
+
+
 class TestResult:
-    def __init__(self, name, passed, message="", duration=0.0, stdout="", stderr=""):
+    def __init__(self, name, passed, message="", duration=0.0, stdout="", stderr="",
+                 skipped=False):
         self.name = name
         self.passed = passed
         self.message = message
         self.duration = duration
         self.stdout = stdout
         self.stderr = stderr
+        self.skipped = skipped
+
+
+class _RecordingList(list):
+    """List subclass that routes append() through TestSuite._record()."""
+    def __init__(self, suite):
+        super().__init__()
+        self._suite = suite
+
+    def append(self, result):
+        self._suite._record(result)
 
 
 class TestSuite:
-    def __init__(self, binary_path=None, verbose=False, pattern=None):
+    def __init__(self, binary_path=None, verbose=False, pattern=None,
+                 fail_fast=False, debug=False):
         self.binary = str(binary_path or BINARY)
         self.verbose = verbose
         self.pattern = pattern
-        self.results = []
+        self.fail_fast = fail_fast
+        self.debug = debug
+        self._results_list = []
+        self.results = _RecordingList(self)
+        self._section_results = {}  # section_name → list of TestResult
+        self._current_section = None
+        self._stop_requested = False
         self.env = os.environ.copy()
         self.env["ASAN_OPTIONS"] = "detect_leaks=0"
         self.env["LLVM_PROFILE_FILE"] = "/dev/null"
@@ -61,6 +121,8 @@ class TestSuite:
     def run_analyzer(self, args, timeout=TIMEOUT_SEC):
         """Run iccanalyzer-lite with given args, return (exit_code, stdout, stderr)."""
         cmd = [self.binary] + args
+        if self.debug:
+            print(f"    {C.dim('$ ' + ' '.join(cmd))}")
         try:
             proc = subprocess.run(
                 cmd, capture_output=True,
@@ -74,8 +136,43 @@ class TestSuite:
         except FileNotFoundError:
             return -99, "", f"Binary not found: {self.binary}"
 
+    def _record(self, result):
+        """Record a test result with live progress output."""
+        list.append(self.results, result)  # bypass proxy to avoid recursion
+        if self._current_section:
+            self._section_results.setdefault(self._current_section, []).append(result)
+
+        dur_str = f"{result.duration:.2f}s" if result.duration > 0 else ""
+
+        if result.skipped:
+            if self.verbose:
+                print(f"  {C.yellow('⊘')} {result.name} {C.dim('(skipped)')}")
+        elif result.passed:
+            slow = ""
+            if result.duration >= SLOW_TEST_THRESHOLD:
+                slow = C.yellow(f" ⚠ slow ({dur_str})")
+            if self.verbose:
+                print(f"  {C.green('✓')} {result.name} {C.dim(f'({dur_str})')}{slow}")
+        else:
+            print(f"  {C.red('✗')} {C.red(result.name)} {C.dim(f'({dur_str})')}")
+            print(f"    {result.message}")
+            if result.stderr:
+                stderr_lines = result.stderr.splitlines()
+                for line in stderr_lines[:10]:
+                    print(f"    {C.dim('stderr:')} {line}")
+                if len(stderr_lines) > 10:
+                    print(f"    {C.dim(f'... ({len(stderr_lines) - 10} more lines)')}")
+            if result.stdout and "ASAN" in result.message:
+                stdout_lines = [l for l in result.stdout.splitlines() if l.strip()][:5]
+                for line in stdout_lines:
+                    print(f"    {C.dim('stdout:')} {line}")
+            if self.fail_fast:
+                self._stop_requested = True
+
     def assert_exit_code(self, name, args, expected_code, check_stderr=True):
         """Test that analyzer returns expected exit code."""
+        if self._stop_requested:
+            return False
         t0 = time.monotonic()
         rc, stdout, stderr = self.run_analyzer(args)
         dur = time.monotonic() - t0
@@ -92,11 +189,13 @@ class TestSuite:
                 passed = False
                 msg = f"ASAN error in analyzer code: {asan_hit}"
 
-        self.results.append(TestResult(name, passed, msg, dur, stdout, stderr))
+        self._record(TestResult(name, passed, msg, dur, stdout, stderr))
         return passed
 
     def assert_output_contains(self, name, args, pattern, expected_code=None):
         """Test that stdout contains a regex pattern."""
+        if self._stop_requested:
+            return False
         t0 = time.monotonic()
         rc, stdout, stderr = self.run_analyzer(args)
         dur = time.monotonic() - t0
@@ -115,11 +214,13 @@ class TestSuite:
             passed = False
             msg += f"; ASAN: {asan_hit}"
 
-        self.results.append(TestResult(name, passed, msg, dur, stdout, stderr))
+        self._record(TestResult(name, passed, msg, dur, stdout, stderr))
         return passed
 
     def assert_output_not_contains(self, name, args, pattern, expected_code=None):
         """Test that stdout does NOT contain a regex pattern."""
+        if self._stop_requested:
+            return False
         t0 = time.monotonic()
         rc, stdout, stderr = self.run_analyzer(args)
         dur = time.monotonic() - t0
@@ -133,11 +234,13 @@ class TestSuite:
             passed = False
             msg += f"; exit code {rc} != expected {expected_code}"
 
-        self.results.append(TestResult(name, passed, msg, dur, stdout, stderr))
+        self._record(TestResult(name, passed, msg, dur, stdout, stderr))
         return passed
 
     def assert_no_asan(self, name, args):
         """Test that no ASAN/UBSAN errors occur in analyzer code."""
+        if self._stop_requested:
+            return False
         t0 = time.monotonic()
         rc, stdout, stderr = self.run_analyzer(args)
         dur = time.monotonic() - t0
@@ -146,7 +249,7 @@ class TestSuite:
         passed = (asan_hit is None)
         msg = asan_hit or ""
 
-        self.results.append(TestResult(name, passed, msg, dur, stdout, stderr))
+        self._record(TestResult(name, passed, msg, dur, stdout, stderr))
         return passed
 
     def _check_asan_analyzer(self, stderr):
@@ -162,6 +265,7 @@ class TestSuite:
                     "IccTagLut.cpp",      # upstream signed integer overflow (m_XYZMatrix)
                     "IccMatrixMath.cpp",  # upstream NaN→unsigned short in SetRange
                     "IccMD5.cpp",         # MD5 intentional unsigned wrapping
+                    "IccMpeBasic.cpp",    # upstream NaN→unsigned int in Apply()
                 ]):
                     continue
                 return line.strip()
@@ -173,32 +277,64 @@ class TestSuite:
             return True
         return self.pattern.lower() in name.lower()
 
+    def begin_section(self, name):
+        """Mark the start of a test section for grouping."""
+        self._current_section = name
+
     def report(self, xml_path=None):
         """Print results and optionally write JUnit XML."""
         total = len(self.results)
-        passed = sum(1 for r in self.results if r.passed)
-        failed = total - passed
+        passed = sum(1 for r in self.results if r.passed and not r.skipped)
+        skipped = sum(1 for r in self.results if r.skipped)
+        failed = total - passed - skipped
         total_time = sum(r.duration for r in self.results)
 
+        # Section breakdown
         print(f"\n{'=' * 70}")
-        print(f"RESULTS: {passed}/{total} passed, {failed} failed ({total_time:.1f}s)")
+        print(C.bold(f"RESULTS: {passed}/{total - skipped} passed, {failed} failed"
+                     f"{f', {skipped} skipped' if skipped else ''} ({total_time:.1f}s)"))
         print(f"{'=' * 70}")
 
+        # Per-section summary
+        if self._section_results:
+            print(f"\n{C.bold('Section Breakdown:')}")
+            for section, results in self._section_results.items():
+                s_pass = sum(1 for r in results if r.passed and not r.skipped)
+                s_fail = sum(1 for r in results if not r.passed and not r.skipped)
+                s_skip = sum(1 for r in results if r.skipped)
+                s_time = sum(r.duration for r in results)
+                status = C.green("PASS") if s_fail == 0 else C.red(f"FAIL ({s_fail})")
+                skip_str = f", {s_skip} skipped" if s_skip else ""
+                print(f"  {status}  {section}: {s_pass}/{s_pass + s_fail} "
+                      f"({s_time:.1f}s{skip_str})")
+
+        # Slow tests
+        slow = [r for r in self.results if r.duration >= SLOW_TEST_THRESHOLD]
+        if slow:
+            print(f"\n{C.yellow('Slow tests (>' + str(SLOW_TEST_THRESHOLD) + 's):')}")
+            for r in sorted(slow, key=lambda x: -x.duration):
+                print(f"  {C.yellow('⚠')} {r.name} ({r.duration:.2f}s)")
+
+        # Failures detail
         if failed > 0:
-            print(f"\nFAILURES:")
+            print(f"\n{C.red(C.bold('FAILURES:'))}")
             for r in self.results:
-                if not r.passed:
-                    print(f"  ✗ {r.name}")
+                if not r.passed and not r.skipped:
+                    print(f"  {C.red('✗')} {C.red(r.name)}")
                     print(f"    {r.message}")
-                    if self.verbose and r.stderr:
-                        for line in r.stderr.splitlines()[:5]:
-                            print(f"    stderr: {line}")
+                    if r.stderr:
+                        for line in r.stderr.splitlines()[:10]:
+                            print(f"    {C.dim('stderr:')} {line}")
 
         if self.verbose:
-            print(f"\nALL TESTS:")
+            print(f"\n{C.bold('ALL TESTS:')}")
             for r in self.results:
-                mark = "✓" if r.passed else "✗"
-                print(f"  {mark} {r.name} ({r.duration:.2f}s)")
+                if r.skipped:
+                    print(f"  {C.yellow('⊘')} {r.name} {C.dim('(skipped)')}")
+                elif r.passed:
+                    print(f"  {C.green('✓')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
+                else:
+                    print(f"  {C.red('✗')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
 
         if xml_path:
             self._write_junit_xml(xml_path, total_time)
@@ -207,28 +343,47 @@ class TestSuite:
         return 0 if failed == 0 else 1
 
     def _write_junit_xml(self, path, total_time):
-        """Write JUnit-compatible XML report."""
+        """Write JUnit-compatible XML report with section grouping."""
         total = len(self.results)
-        failures = sum(1 for r in self.results if not r.passed)
+        failures = sum(1 for r in self.results if not r.passed and not r.skipped)
+        skips = sum(1 for r in self.results if r.skipped)
 
-        suite = ET.Element("testsuite", {
+        suites = ET.Element("testsuites", {
             "name": "iccanalyzer-lite",
             "tests": str(total),
             "failures": str(failures),
+            "skipped": str(skips),
             "time": f"{total_time:.3f}",
         })
 
-        for r in self.results:
-            tc = ET.SubElement(suite, "testcase", {
-                "name": r.name,
-                "time": f"{r.duration:.3f}",
-            })
-            if not r.passed:
-                fail = ET.SubElement(tc, "failure", {"message": r.message})
-                if r.stderr:
-                    fail.text = r.stderr[:2000]
+        # Group test cases by section
+        for section_name, results in self._section_results.items():
+            s_failures = sum(1 for r in results if not r.passed and not r.skipped)
+            s_skips = sum(1 for r in results if r.skipped)
+            s_time = sum(r.duration for r in results)
 
-        tree = ET.ElementTree(suite)
+            suite = ET.SubElement(suites, "testsuite", {
+                "name": section_name,
+                "tests": str(len(results)),
+                "failures": str(s_failures),
+                "skipped": str(s_skips),
+                "time": f"{s_time:.3f}",
+            })
+
+            for r in results:
+                tc = ET.SubElement(suite, "testcase", {
+                    "name": r.name,
+                    "classname": section_name,
+                    "time": f"{r.duration:.3f}",
+                })
+                if r.skipped:
+                    ET.SubElement(tc, "skipped", {"message": r.message or "skipped"})
+                elif not r.passed:
+                    fail = ET.SubElement(tc, "failure", {"message": r.message})
+                    if r.stderr:
+                        fail.text = r.stderr[:2000]
+
+        tree = ET.ElementTree(suites)
         ET.indent(tree)
         tree.write(path, xml_declaration=True, encoding="unicode")
 
@@ -293,17 +448,6 @@ def test_analysis_modes(suite):
         good_profile = str(CORPUS_DIR / "valid_srgb.icc")
 
     for mode in ["-a", "-h", "-r", "-nf", "-n"]:
-        suite.assert_exit_code(
-            f"mode.{mode[1:]}_runs",
-            [mode, good_profile], None, check_stderr=True
-        )
-        # Override: just check it doesn't crash (exit code varies)
-        suite.results[-1].passed = suite.results[-1].passed or (
-            suite.results[-1].message.startswith("Expected exit code") and
-            "ASAN" not in suite.results[-1].message
-        )
-        # Fix: re-check without expected code
-        suite.results.pop()
         suite.assert_no_asan(
             f"mode.{mode[1:]}_no_crash",
             [mode, good_profile]
@@ -697,8 +841,7 @@ def test_runtime_safety(suite):
     ]
     for poc in poc_files:
         poc_path = str(CORPUS_DIR.parent.parent.parent / poc)
-        import os as _os
-        if _os.path.exists(poc_path):
+        if os.path.exists(poc_path):
             suite.assert_output_contains(
                 f"runtime_safety.poc_{poc[:12]}",
                 ["-a", poc_path],
@@ -725,7 +868,7 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.169_heuristics",
+        "summary.171_heuristics",
         ["-a", str(CORPUS_DIR / "bad_magic.icc")],
         r"171 heuristics"
     )
@@ -765,7 +908,6 @@ def test_repo_profiles_sample(suite):
 
 def test_xml_export(suite):
     """Test XML export mode."""
-    import tempfile
     good = str(CORPUS_DIR / "valid_srgb.icc")
     with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
         xml_path = f.name
@@ -796,7 +938,6 @@ def test_multiple_modes_same_profile(suite):
 
 def test_lut_extraction(suite):
     """Test LUT extraction mode (-x) on profiles with curves/LUTs."""
-    import tempfile
     good = str(CORPUS_DIR / "valid_srgb.icc")
     with tempfile.TemporaryDirectory() as tmpdir:
         basename = os.path.join(tmpdir, "lut_test")
@@ -829,7 +970,6 @@ def test_lut_extraction(suite):
 
 def test_call_graph_mode(suite):
     """Test call graph mode (-cg) with a sample ASAN log."""
-    import tempfile
 
     # Create a minimal ASAN-style crash log
     asan_log = (
@@ -863,7 +1003,6 @@ def test_call_graph_mode(suite):
 
 def test_xml_heuristic_export(suite):
     """Test XML export mode (-xml) produces valid XML output."""
-    import tempfile
     # Test with valid profile
     good = str(CORPUS_DIR / "valid_srgb.icc")
     with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
@@ -931,7 +1070,6 @@ def test_json_output(suite):
     # JSON should be valid and parseable
     rc, stdout, stderr = suite.run_analyzer(["--json", good])
     try:
-        import json
         data = json.loads(stdout)
         valid = True
     except (json.JSONDecodeError, ValueError):
@@ -958,7 +1096,7 @@ def test_json_output(suite):
         s = data["summary"]
         has_total = s.get("totalHeuristics", 0) == 171
         suite.results.append(TestResult(
-            "json.total_heuristics_150", has_total,
+            "json.total_heuristics_171", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -1191,7 +1329,6 @@ def test_tiff_corrupt(suite):
 
 def test_html_xml_output(suite):
     """Test XML+XSLT (HTML) export mode."""
-    import tempfile
     good = str(CORPUS_DIR / "valid_srgb.icc")
 
     with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as tmp:
@@ -1373,7 +1510,6 @@ def test_report_output(suite):
     # JSON severity field test
     rc3, stdout3, stderr3 = suite.run_analyzer(["--json", good])
     try:
-        import json
         data = json.loads(stdout3)
         results = data.get("results", [])
         has_severity = any("severity" in r for r in results)
@@ -1559,7 +1695,6 @@ def test_pawg_output(suite):
 
 def test_lut_text_io(suite):
     """Test LUT text export/import (-xt, -it) and .cube round-trip (-from-cube, -cube)."""
-    import tempfile
 
     good = str(CORPUS_DIR / "valid_srgb.icc")
 
@@ -1654,7 +1789,6 @@ def test_lut_text_io(suite):
                     break
             if matrix_file:
                 # Copy profile, import matrix back
-                import shutil
                 mod_icc = os.path.join(tmpdir, "modified.icc")
                 shutil.copy2(str(srgb), mod_icc)
                 out_icc = os.path.join(tmpdir, "imported.icc")
@@ -1686,7 +1820,6 @@ def test_lut_text_io(suite):
                         clut_file = os.path.join(tmpdir, f)
                         break
                 if clut_file:
-                    import shutil
                     icc2 = os.path.join(tmpdir, "clut_mod.icc")
                     shutil.copy2(icc1, icc2)
                     out_icc = os.path.join(tmpdir, "clut_imported.icc")
@@ -1746,30 +1879,72 @@ def test_extended_profiles_coverage(suite):
 
 # --- Main ---
 
+def _print_environment(binary):
+    """Print environment info for debugging."""
+    print(C.bold("Environment:"))
+    print(f"  Binary:  {binary}")
+    try:
+        proc = subprocess.run(
+            [str(binary), "--version"], capture_output=True, timeout=5,
+            env={**os.environ, "LLVM_PROFILE_FILE": "/dev/null"}
+        )
+        ver = proc.stdout.decode("utf-8", errors="replace").strip().split("\n")[0]
+        print(f"  Version: {ver}")
+    except Exception:
+        print(f"  Version: (could not determine)")
+    print(f"  Python:  {sys.version.split()[0]}")
+    print(f"  Platform: {sys.platform}")
+    print(f"  ASAN_OPTIONS: detect_leaks=0")
+    print(f"  Corpus:  {CORPUS_DIR}")
+    corpus_count = len(list(CORPUS_DIR.glob("*.icc"))) if CORPUS_DIR.exists() else 0
+    print(f"  Corpus profiles: {corpus_count}")
+    if TEST_PROFILES.exists():
+        tp_count = len(list(TEST_PROFILES.glob("*.icc")))
+        print(f"  test-profiles/: {tp_count}")
+    if EXTENDED_PROFILES.exists():
+        ep_count = len(list(EXTENDED_PROFILES.glob("*.icc")))
+        print(f"  extended-test-profiles/: {ep_count}")
+
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="iccanalyzer-lite unit tests")
-    parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("-k", "--pattern", help="Filter tests by name pattern")
-    parser.add_argument("--binary", help="Path to iccanalyzer-lite binary")
-    parser.add_argument("--xml", help="Write JUnit XML report to this path")
-    parser.add_argument("--ci", action="store_true", help="CI mode: synthesize + test")
+    parser = argparse.ArgumentParser(
+        description="iccanalyzer-lite unit tests",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  python3 run_tests.py                    Run all tests
+  python3 run_tests.py -v                 Verbose (show each test)
+  python3 run_tests.py -k json            Run tests matching 'json'
+  python3 run_tests.py --fail-fast        Stop on first failure
+  python3 run_tests.py --debug            Show commands being run
+  python3 run_tests.py --list             List test sections
+  python3 run_tests.py --xml report.xml   JUnit XML output"""
+    )
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Show each test result as it runs")
+    parser.add_argument("-k", "--pattern",
+                        help="Filter tests by name pattern")
+    parser.add_argument("--binary",
+                        help="Path to iccanalyzer-lite binary")
+    parser.add_argument("--xml",
+                        help="Write JUnit XML report to this path")
+    parser.add_argument("--ci", action="store_true",
+                        help="CI mode: synthesize + test")
+    parser.add_argument("--list", action="store_true",
+                        help="List all test sections and exit")
+    parser.add_argument("--fail-fast", action="store_true",
+                        help="Stop on first test failure")
+    parser.add_argument("--debug", action="store_true",
+                        help="Show commands being run")
+    parser.add_argument("--no-color", action="store_true",
+                        help="Disable colored output")
     args = parser.parse_args()
 
-    # Synthesize corpus if not present
-    if not CORPUS_DIR.exists() or len(list(CORPUS_DIR.glob("*.icc"))) == 0:
-        print("Synthesizing test corpus...")
-        subprocess.run([sys.executable, str(SCRIPT_DIR / "synthesize_profiles.py")], check=True)
+    if args.no_color:
+        C.enabled = False
 
-    binary = Path(args.binary) if args.binary else BINARY
-    if not binary.exists():
-        print(f"ERROR: Binary not found: {binary}")
-        print("Build with: cd iccanalyzer-lite && ./build.sh")
-        return 2
-
-    suite = TestSuite(binary, verbose=args.verbose, pattern=args.pattern)
-
-    # Discover and run test functions
+    # Discover test functions
     test_functions = [
         ("Exit Codes", test_exit_codes),
         ("Analysis Modes", test_analysis_modes),
@@ -1795,15 +1970,56 @@ def main():
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 
-    for section_name, test_fn in test_functions:
-        if suite.should_run(section_name):
-            print(f"\n--- {section_name} ---")
-            test_fn(suite)
-            # Print progress
-            recent = suite.results[-1] if suite.results else None
-            if recent and not recent.passed:
-                print(f"  ✗ {recent.name}: {recent.message}")
+    # --list mode
+    if args.list:
+        print(C.bold(f"Test sections ({len(test_functions)}):"))
+        for i, (name, fn) in enumerate(test_functions, 1):
+            doc = (fn.__doc__ or "").strip().split("\n")[0]
+            print(f"  {i:2d}. {name}")
+            if doc:
+                print(f"      {C.dim(doc)}")
+        return 0
 
+    # Synthesize corpus if not present
+    if not CORPUS_DIR.exists() or len(list(CORPUS_DIR.glob("*.icc"))) == 0:
+        print("Synthesizing test corpus...")
+        subprocess.run([sys.executable, str(SCRIPT_DIR / "synthesize_profiles.py")], check=True)
+
+    binary = Path(args.binary) if args.binary else BINARY
+    if not binary.exists():
+        print(f"{C.red('ERROR')}: Binary not found: {binary}")
+        print("Build with: cd iccanalyzer-lite && ./build.sh")
+        return 2
+
+    # Show environment info
+    _print_environment(binary)
+
+    suite = TestSuite(binary, verbose=args.verbose, pattern=args.pattern,
+                      fail_fast=args.fail_fast, debug=args.debug)
+
+    # Run test sections
+    t_start = time.monotonic()
+    for section_name, test_fn in test_functions:
+        if suite._stop_requested:
+            break
+        if suite.should_run(section_name):
+            count_before = len(suite.results)
+            suite.begin_section(section_name)
+            print(f"\n{C.bold('--- ' + section_name + ' ---')}")
+            test_fn(suite)
+            count_after = len(suite.results)
+            section_count = count_after - count_before
+            section_pass = sum(1 for r in suite.results[count_before:]
+                             if r.passed and not r.skipped)
+            section_fail = sum(1 for r in suite.results[count_before:]
+                             if not r.passed and not r.skipped)
+            if not suite.verbose:
+                # Compact: show pass/fail count per section
+                if section_fail == 0:
+                    print(f"  {C.green('✓')} {section_pass}/{section_count} passed")
+                # failures already printed by _record
+
+    wall_time = time.monotonic() - t_start
     return suite.report(xml_path=args.xml)
 
 
