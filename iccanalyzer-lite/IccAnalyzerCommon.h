@@ -72,32 +72,28 @@
 #include "IccUtil.h"
 #include "IccIO.h"
 #include "IccProfLibVer.h"
-#include "IccSignatureUtils.h"
 
-// Override upstream diagnostic macros to be non-fatal for the analyzer.
-// The originals call __builtin_trap() / assert(false) which crash the tool.
-#undef ICC_TRACE_NAN
-#ifdef ICC_TRACE_NAN_ENABLED
-#include <cmath>
-#define ICC_TRACE_NAN(val, label) \
-  do { \
-    if (std::isnan(static_cast<float>(val))) { \
-      union { float f; uint32_t u; } raw; \
-      raw.f = static_cast<float>(val); \
-      ICC_LOG_WARNING("NaN detected in %s: value=NaN [bits=0x%08x]", label, raw.u); \
-    } \
-  } while(0)
-#else
-#define ICC_TRACE_NAN(val, label) ((void)0)
+// iccanalyzer-lite does NOT include IccSignatureUtils.h from iccDEV.
+// All signature validation is handled by our own hardened heuristics (H1-H170).
+// We define the ICC_LOG_* macros as no-ops to suppress any upstream diagnostic noise.
+#ifndef ICC_LOG_WARNING
+#define ICC_LOG_WARNING(...) ((void)0)
+#endif
+#ifndef ICC_LOG_ERROR
+#define ICC_LOG_ERROR(...)   ((void)0)
+#endif
+#ifndef ICC_LOG_INFO
+#define ICC_LOG_INFO(...)    ((void)0)
+#endif
+#ifndef ICC_LOG_DEBUG
+#define ICC_LOG_DEBUG(...)   ((void)0)
 #endif
 
+// Override upstream diagnostic macros to be non-fatal no-ops for the analyzer.
+#undef ICC_TRACE_NAN
+#define ICC_TRACE_NAN(val, label) ((void)0)
+
 #undef ICC_SANITY_CHECK_SIGNATURE
-#define ICC_SANITY_CHECK_SIGNATURE(sig, label) \
-  do { \
-    if (((sig) & 0xFF000000) == 0x3F000000) { \
-      ICC_LOG_WARNING("%s: suspicious signature 0x%08x", \
-                      label, (uint32_t)(sig)); \
-    } \
-  } while(0)
+#define ICC_SANITY_CHECK_SIGNATURE(sig, label) ((void)0)
 
 #endif // ICCANALYZERCOMMON_H
