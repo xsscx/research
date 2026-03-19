@@ -146,10 +146,10 @@ static icTagSignature ResolveTagSig(const char *name) {
     if (strcmp(name, "standardToCustomPccTag") == 0) return icSigStandardToCustomPccTag;
     // 4-byte raw signature
     if (strlen(name) == 4) {
-        return (icTagSignature)(((unsigned char)name[0] << 24) |
-               ((unsigned char)name[1] << 16) |
-               ((unsigned char)name[2] << 8) |
-                (unsigned char)name[3]);
+        return (icTagSignature)(((uint32_t)(unsigned char)name[0] << 24) |
+               ((uint32_t)(unsigned char)name[1] << 16) |
+               ((uint32_t)(unsigned char)name[2] << 8) |
+                (uint32_t)(unsigned char)name[3]);
     }
     return icSigAToB0Tag;
 }
@@ -1065,7 +1065,7 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
             return -1;
         }
 
-        int inDim, outCh;
+        int inDim = 0, outCh = 0;
         std::vector<int> grid;
         std::vector<float> clutData;
         if (!ParseCLUTText(textFile, inDim, outCh, grid, clutData, err)) {
@@ -1122,7 +1122,7 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
         }
 
         float e[12];
-        bool useConst;
+        bool useConst = false;
         if (!ParseMatrixText(textFile, e, useConst, err)) {
             printf("Error parsing matrix: %s\n", err.c_str());
             delete pIcc;
@@ -1158,7 +1158,7 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
         int elemIdx = ParseElementIndex(textFile);
 
         float e[12];
-        bool useConst;
+        bool useConst = false;
         if (!ParseMatrixText(textFile, e, useConst, err)) {
             printf("Error parsing MPE matrix: %s\n", err.c_str());
             delete pIcc;
@@ -1207,7 +1207,7 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
         }
 
         int elemIdx = ParseElementIndex(textFile);
-        int inDim, outCh;
+        int inDim = 0, outCh = 0;
         std::vector<int> grid;
         std::vector<float> clutData;
         if (!ParseCLUTText(textFile, inDim, outCh, grid, clutData, err)) {
@@ -1266,7 +1266,8 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
             return -1;
         }
 
-        int elemIdx = ParseElementIndex(textFile);
+        // Parse element index (reserved for future per-element replacement)
+        (void)ParseElementIndex(textFile);
 
         // Parse MPE CurveSet: multi-channel samples
         FILE *csvF = fopen(textFile, "r");
