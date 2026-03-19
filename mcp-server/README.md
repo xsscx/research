@@ -19,7 +19,7 @@ Open <http://127.0.0.1:8080> — that's it. 126 test profiles are pre-loaded, no
 
 ```bash
 curl -s http://127.0.0.1:8080/api/health
-# {"ok":true,"tools":22}
+# {"ok":true,"tools":24}
 ```
 
 ---
@@ -31,7 +31,7 @@ ICC color profiles control how colors are translated between devices (cameras, m
 **You say:**
 > "Analyze the security of the CVE-2022-26730 proof-of-concept profile"
 
-**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 170-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
+**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 171-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
 
 ---
 
@@ -60,7 +60,7 @@ curl -s http://127.0.0.1:8080/api/health
 # List available profiles
 curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
-# 170-heuristic security scan
+# 171-heuristic security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 
 # Structural inspection
@@ -114,7 +114,7 @@ Ten pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
 
 | Prompt | Purpose | Variables |
 |---|---|---|
-| `analyze-icc-profile` | Full 170-heuristic security scan | `{{profile_path}}` |
+| `analyze-icc-profile` | Full 171-heuristic security scan | `{{profile_path}}` |
 | `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
 | `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
 | `triage-fuzzer-crash` | ASAN/UBSAN crash triage workflow | (none) |
@@ -141,7 +141,7 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
 ```
 
-Expected: `{"ok": true, "tools": 22}`
+Expected: `{"ok": true, "tools": 24}`
 
 **WebUI:** Open <http://127.0.0.1:8080>
 
@@ -159,7 +159,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-All 150 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
+All 171 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
 
 ### 4. Security Scan — CVE PoC
 
@@ -240,32 +240,34 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 
 ---
 
-## All 22 MCP Tools
+## All 24 MCP Tools
 
 | # | Tool | Type | Description |
 |---|------|------|-------------|
 | 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 3 | `analyze_security` | Analysis | 170-heuristic security scan (H1–H170) |
+| 3 | `analyze_security` | Analysis | 171-heuristic security scan (H1–H171) |
 | 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | Analysis | All modes combined in one pass |
 | 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
 | 7 | `compare_profiles` | Analysis | Unified diff of two profiles |
 | 8 | `list_test_profiles` | Analysis | Browse available profiles by directory |
 | 9 | `upload_and_analyze` | Analysis | Base64 upload + any analysis mode |
-| 10 | `build_tools` | Maintainer | Build C++ analysis tools from source |
-| 11 | `cmake_configure` | Maintainer | Configure iccDEV cmake |
-| 12 | `cmake_build` | Maintainer | Compile cmake build |
-| 13 | `create_all_profiles` | Maintainer | Generate ~80+ ICC test profiles |
-| 14 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
-| 15 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
-| 16 | `windows_build` | Maintainer | MSVC + vcpkg cross-platform build |
-| 17 | `check_dependencies` | Operations | Check build dependency availability |
-| 18 | `find_build_artifacts` | Operations | Find binaries, checksums, linkage |
-| 19 | `batch_test_profiles` | Operations | Run tools over all .icc files |
-| 20 | `validate_xml` | Operations | xmllint validation of ICC XML |
-| 21 | `coverage_report` | Operations | Merge profraw + llvm-cov report |
-| 22 | `scan_logs` | Operations | Grep logs for errors/crashes/sanitizer |
+| 10 | `security_json` | Analysis | Structured JSON security analysis |
+| 11 | `security_report` | Analysis | Professional severity-sorted report |
+| 12 | `build_tools` | Maintainer | Build C++ analysis tools from source |
+| 13 | `cmake_configure` | Maintainer | Configure iccDEV cmake |
+| 14 | `cmake_build` | Maintainer | Compile cmake build |
+| 15 | `create_all_profiles` | Maintainer | Generate ~80+ ICC test profiles |
+| 16 | `run_iccdev_tests` | Maintainer | Validate generated profiles |
+| 17 | `cmake_option_matrix` | Maintainer | Test 17 cmake toggles |
+| 18 | `windows_build` | Maintainer | MSVC + vcpkg cross-platform build |
+| 19 | `check_dependencies` | Operations | Check build dependency availability |
+| 20 | `find_build_artifacts` | Operations | Find binaries, checksums, linkage |
+| 21 | `batch_test_profiles` | Operations | Run tools over all .icc files |
+| 22 | `validate_xml` | Operations | xmllint validation of ICC XML |
+| 23 | `coverage_report` | Operations | Merge profraw + llvm-cov report |
+| 24 | `scan_logs` | Operations | Grep logs for errors/crashes/sanitizer |
 
 ---
 
@@ -273,10 +275,10 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 22}` |
+| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 24}` |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `path` | 170-heuristic security scan |
+| `GET` | `/api/security` | `path` | 171-heuristic security scan |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
