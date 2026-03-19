@@ -272,6 +272,59 @@ def test_security_scan():
     check("Security has output", len(d["result"]) > 50)
 
 
+def test_security_json():
+    r = c.get("/api/security-json?path=BlacklightPoster_411039.icc")
+    check("SecurityJSON 200", r.status_code == 200)
+    d = r.json()
+    check("SecurityJSON ok", d["ok"] is True)
+    check("SecurityJSON has result", "result" in d and len(d["result"]) > 50)
+    # Result should be parseable JSON string
+    import json
+    try:
+        parsed = json.loads(d["result"])
+        check("SecurityJSON valid nested JSON", True)
+        check("SecurityJSON has summary", "summary" in parsed)
+        if "summary" in parsed:
+            check("SecurityJSON totalHeuristics >= 170",
+                  parsed["summary"].get("totalHeuristics", 0) >= 170)
+    except (json.JSONDecodeError, TypeError):
+        check("SecurityJSON valid nested JSON", False)
+        check("SecurityJSON has summary", False)
+        check("SecurityJSON totalHeuristics >= 170", False)
+    # Bad path returns 400
+    r2 = c.get("/api/security-json?path=nonexistent-xyz.icc")
+    check("SecurityJSON bad path 400", r2.status_code == 400)
+
+
+def test_security_report():
+    r = c.get("/api/security-report?path=BlacklightPoster_411039.icc")
+    check("SecurityReport 200", r.status_code == 200)
+    d = r.json()
+    check("SecurityReport ok", d["ok"] is True)
+    check("SecurityReport has result", "result" in d and len(d["result"]) > 100)
+    check("SecurityReport has severity keyword",
+          any(kw in d.get("result", "") for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")))
+    # Bad path returns 400
+    r2 = c.get("/api/security-report?path=nonexistent-xyz.icc")
+    check("SecurityReport bad path 400", r2.status_code == 400)
+
+
+def test_registry():
+    r = c.get("/api/registry")
+    check("Registry 200", r.status_code == 200)
+    d = r.json()
+    check("Registry ok", d["ok"] is True)
+    check("Registry has registry key", "registry" in d)
+    if "registry" in d:
+        reg = d["registry"]
+        check("Registry totalHeuristics >= 170", reg.get("totalHeuristics", 0) >= 170)
+        check("Registry has uniqueCVEs", "uniqueCVEs" in reg and reg["uniqueCVEs"] > 0)
+        check("Registry has uniqueGHSAs", "uniqueGHSAs" in reg and reg["uniqueGHSAs"] > 0)
+        check("Registry has severity", "severity" in reg and isinstance(reg["severity"], dict))
+        check("Registry has heuristics array",
+              "heuristics" in reg and isinstance(reg["heuristics"], list) and len(reg["heuristics"]) >= 170)
+
+
 def test_roundtrip():
     r = c.get("/api/roundtrip?path=BlacklightPoster_411039.icc")
     check("Roundtrip 200", r.status_code == 200)
@@ -837,6 +890,9 @@ def main():
         ("Unknown Routes", test_unknown_routes),
         ("Inspect", test_inspect),
         ("Security Scan", test_security_scan),
+        ("Security JSON", test_security_json),
+        ("Security Report", test_security_report),
+        ("Registry", test_registry),
         ("Round-Trip", test_roundtrip),
         ("Full Analysis", test_full_analysis),
         ("XML", test_xml),
