@@ -288,7 +288,7 @@ async def inspect_profile(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security(path: str) -> str:
-    """Run 170-heuristic security analysis on an ICC profile.
+    """Run 171-heuristic security analysis on an ICC profile.
 
     Validates against ICC.1-2022-05 specification constraints and detects:
     fingerprint matches, tag anomalies, overflow indicators, malformed
@@ -322,7 +322,7 @@ async def validate_roundtrip(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security_json(path: str) -> str:
-    """Run 170-heuristic security analysis with structured JSON output.
+    """Run 171-heuristic security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
     severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), CWE categories, CVE
@@ -341,7 +341,7 @@ async def analyze_security_json(path: str) -> str:
 
 @mcp.tool()
 async def analyze_security_report(path: str) -> str:
-    """Run 170-heuristic security analysis with professional report output.
+    """Run 171-heuristic security analysis with professional report output.
 
     Returns a severity-sorted security report with executive summary,
     findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
@@ -536,13 +536,15 @@ async def upload_and_analyze(
     filename: str = "uploaded.icc",
     mode: str = "security",
 ) -> str:
-    """Upload an ICC profile (base64-encoded) and run analysis on it.
+    """Upload an ICC profile or image (base64-encoded) and run analysis.
 
-    Accepts a base64-encoded ICC profile, saves it to a secure temp directory,
-    and runs the requested analysis mode. The file is cleaned up after analysis.
+    Accepts a base64-encoded ICC profile or image file (TIFF, PNG, JPEG),
+    saves it to a secure temp directory, and runs the requested analysis mode.
+    Image files are auto-detected and analyzed for embedded ICC profiles.
+    The file is cleaned up after analysis.
 
     Args:
-        data_base64: Base64-encoded ICC profile data
+        data_base64: Base64-encoded file data
         filename: Original filename (used for display, sanitized before use)
         mode: Analysis mode — "security" (default), "inspect", "roundtrip",
               "full", "xml", or "all" (runs security + inspect + roundtrip)
@@ -553,16 +555,27 @@ async def upload_and_analyze(
     except Exception:
         return "[FAIL] Invalid base64 data. Encode the ICC file with: base64 < profile.icc"
 
-    if len(raw) < 128:
-        return "[FAIL] Data too small to be a valid ICC profile (min 128 bytes for header)"
+    # Detect file type from magic bytes for appropriate min-size check
+    _IMAGE_EXTENSIONS = (".tif", ".tiff", ".png", ".jpg", ".jpeg")
+    is_image = (
+        raw[:4] in (b"II\x2a\x00", b"MM\x00\x2a", b"II\x2b\x00", b"MM\x00\x2b")  # TIFF
+        or raw[:4] == b"\x89PNG"  # PNG
+        or raw[:3] == b"\xff\xd8\xff"  # JPEG
+        or filename.lower().endswith(_IMAGE_EXTENSIONS)
+    )
+    min_size = 8 if is_image else 128  # Images can be small; ICC needs 128-byte header
+    if len(raw) < min_size:
+        kind = "image" if is_image else "ICC profile"
+        return f"[FAIL] Data too small to be a valid {kind} (min {min_size} bytes)"
     if len(raw) > MAX_UPLOAD_BYTES:
-        return f"[FAIL] Profile too large ({len(raw):,} bytes, max {MAX_UPLOAD_BYTES:,})"
+        return f"[FAIL] File too large ({len(raw):,} bytes, max {MAX_UPLOAD_BYTES:,})"
 
     # Sanitize filename
     safe_name = re.sub(r"[^\w.\-]", "_", os.path.basename(filename))
     if not safe_name or safe_name.startswith("."):
         safe_name = "uploaded.icc"
-    if not safe_name.lower().endswith((".icc", ".icm", ".iccp")):
+    _ALLOWED_EXTENSIONS = (".icc", ".icm", ".iccp") + _IMAGE_EXTENSIONS
+    if not safe_name.lower().endswith(_ALLOWED_EXTENSIONS):
         safe_name += ".icc"
 
     # Write to secure temp dir
