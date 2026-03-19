@@ -129,28 +129,12 @@ jobs:
           echo "Sanitizer version: $(sanitizer_version)"
 
       # -----------------------------------------------------------------------
-      # Cache APT packages
-      # -----------------------------------------------------------------------
-      - name: Cache APT packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-apt
-        with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-iccdev-tools-v1
-          restore-keys: |
-            ${{ runner.os }}-apt-iccdev-tools-
-            ${{ runner.os }}-apt-
-
-      # -----------------------------------------------------------------------
       # Install build dependencies
       # -----------------------------------------------------------------------
       - name: Install build dependencies
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
-          APT_CACHE_HIT: ${{ steps.cache-apt.outputs.cache-hit }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -158,12 +142,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          APT_CACHE_HIT="${APT_CACHE_HIT:-false}"
-          if [ "$APT_CACHE_HIT" != 'true' ]; then
-            sudo apt-get update -qq
-          else
-            echo "Using cached APT packages"
-          fi
+          sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
@@ -186,22 +165,9 @@ jobs:
           echo "cmake:       $(cmake --version | head -1)"
 
       # -----------------------------------------------------------------------
-      # Cache iccDEV repository clone
-      # -----------------------------------------------------------------------
-      - name: Cache iccDEV repository
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-iccdev
-        with:
-          path: iccDEV
-          key: ${{ runner.os }}-iccdev-tools-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-tools-${{ github.event.inputs.ref || 'cfl' }}-
-
-      # -----------------------------------------------------------------------
-      # Clone iccDEV if not cached
+      # Clone iccDEV
       # -----------------------------------------------------------------------
       - name: Clone iccDEV
-        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
         run: |
@@ -212,16 +178,15 @@ jobs:
           unset GITHUB_TOKEN || true
 
           REF="${{ github.event.inputs.ref || 'cfl' }}"
-          if [ ! -d "iccDEV" ]; then
-            git clone --depth 1 --branch "$REF" \
-              https://github.com/InternationalColorConsortium/iccDEV.git
-          fi
+          rm -rf iccDEV
+          git clone --depth 1 --branch "$REF" \
+            https://github.com/InternationalColorConsortium/iccDEV.git
           echo "iccDEV commit ($REF): $(cd iccDEV && git log --oneline -1)"
 
       # -----------------------------------------------------------------------
       # Apply CFL patches (security hardening for tools)
       # -----------------------------------------------------------------------
-      - name: Apply CFL patches (master only) and source cleanup
+      - name: Apply CFL patches and source cleanup
         env:
           BASH_ENV: /dev/null
         run: |
@@ -231,31 +196,26 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          REF="${{ github.event.inputs.ref || 'cfl' }}"
-          if [ "$REF" = "cfl" ]; then
-            echo "Testing cfl branch — CFL patches already applied upstream, skipping"
-          else
-            echo "Applying CFL patches to iccDEV ($REF)..."
-            APPLIED=0
-            SKIPPED=0
-            for p in cfl/patches/*.patch; do
-              [ -f "$p" ] || continue
-              pname="$(basename "$p")"
-              if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
-                patch -p1 -d iccDEV --forward -s < "$p"
-                echo "  [APPLIED] $pname"
-                APPLIED=$((APPLIED + 1))
-              elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
-                echo "  [SKIP]    $pname (already applied)"
-                SKIPPED=$((SKIPPED + 1))
-              else
-                echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
-                SKIPPED=$((SKIPPED + 1))
-              fi
-            done
-            echo ""
-            echo "Patches: $APPLIED applied, $SKIPPED skipped"
-          fi
+          echo "Applying CFL patches to iccDEV..."
+          APPLIED=0
+          SKIPPED=0
+          for p in cfl/patches/*.patch; do
+            [ -f "$p" ] || continue
+            pname="$(basename "$p")"
+            if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
+              patch -p1 -d iccDEV --forward -s < "$p"
+              echo "  [APPLIED] $pname"
+              APPLIED=$((APPLIED + 1))
+            elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
+              echo "  [SKIP]    $pname (already applied)"
+              SKIPPED=$((SKIPPED + 1))
+            else
+              echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+          echo ""
+          echo "Patches: $APPLIED applied, $SKIPPED skipped"
 
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
@@ -265,23 +225,9 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # Cache iccDEV build artifacts
-      # -----------------------------------------------------------------------
-      - name: Cache iccDEV build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-iccdev-build
-        with:
-          path: |
-            iccDEV/Build
-          key: ${{ runner.os }}-iccdev-tools-build-asan-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}-${{ hashFiles('iccDEV/.git/HEAD') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-tools-build-asan-${{ github.event.inputs.ref || 'cfl' }}-
-
-      # -----------------------------------------------------------------------
       # Build iccDEV with ASAN+UBSAN + all tools enabled
       # -----------------------------------------------------------------------
       - name: Build iccDEV (Debug + ASAN + UBSAN + Tools)
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           CC: clang-18
