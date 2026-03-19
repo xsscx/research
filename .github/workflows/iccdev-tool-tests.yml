@@ -579,6 +579,75 @@ jobs:
           compression-level: 6
 
       # -----------------------------------------------------------------------
+      # Generate LUT text exports (iccDumpProfile TXTS)
+      # -----------------------------------------------------------------------
+      - name: Generate LUT text exports (TXTS)
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          DUMP="iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile"
+          OUTDIR="/tmp/iccdev-lut-txt"
+          mkdir -p "$OUTDIR"
+
+          if [ ! -x "$DUMP" ]; then
+            echo "WARN: iccDumpProfile not found, skipping LUT text export"
+            exit 0
+          fi
+
+          find iccDEV/Testing -name '*.icc' -type f 2>/dev/null | sort | while read -r profile; do
+            name="$(basename "$profile" .icc)"
+            dir="$(dirname "$profile")"
+            echo "  TXTS: $profile"
+            timeout 30 "$DUMP" "$profile" TXTS 2>/dev/null || true
+            # Collect text exports (e.g. _A2B0_curveA_0.txt, _A2B0_clut.txt, _mpe0_matrix.txt)
+            for txt in "$dir"/${name}_*.txt; do
+              [ -f "$txt" ] || continue
+              cp "$txt" "$OUTDIR/"
+            done
+          done
+
+          TXT_COUNT=$(find "$OUTDIR" -name '*.txt' 2>/dev/null | wc -l)
+          echo "Generated $TXT_COUNT LUT text export files"
+
+          {
+            echo ""
+            echo "### LUT Text Exports (TXTS)"
+            echo ""
+            echo "**$TXT_COUNT** TSV files via \`iccDumpProfile <profile> TXTS\`"
+            if [ "$TXT_COUNT" -gt 0 ]; then
+              echo ""
+              echo "| File | Size |"
+              echo "|------|------|"
+              for f in "$OUTDIR"/*.txt; do
+                [ -f "$f" ] || continue
+                sz=$(stat -c%s "$f" 2>/dev/null || echo "?")
+                echo "| $(basename "$f") | ${sz} bytes |"
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
+      # Upload LUT text exports
+      # -----------------------------------------------------------------------
+      - name: Upload LUT text exports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: iccdev-lut-text-exports
+          path: /tmp/iccdev-lut-txt/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
+
+      # -----------------------------------------------------------------------
       # Upload test output logs
       # -----------------------------------------------------------------------
       - name: Upload test logs
