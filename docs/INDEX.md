@@ -184,3 +184,18 @@ Example: `seed_icc_perm01_sRGB2014_001.png`
 
 Generated: 2024
 Analysis Coverage: Complete ICC profile handling pipeline
+
+---
+
+## iccDEV Documentation
+
+| Document | Path | Description |
+|----------|------|-------------|
+| **CodeQL Overview** | [iccDEV/codeql/README.md](iccDEV/codeql/README.md) | Quick-start, query categories, prerequisites |
+| **How to Run CodeQL** | [iccDEV/codeql/how-to-run.md](iccDEV/codeql/how-to-run.md) | Step-by-step database build and query execution |
+| **Query Catalog** | [iccDEV/codeql/query-catalog.md](iccDEV/codeql/query-catalog.md) | All 42 queries with CWE mappings and CFL cross-refs |
+| **Maintainer Workflow** | [iccDEV/codeql/maintainer-workflow.md](iccDEV/codeql/maintainer-workflow.md) | CI integration, PR review, false positive management |
+| **Shell Helpers (Unix)** | [iccDEV/shell-helpers/unix.md](iccDEV/shell-helpers/unix.md) | Build, test, ASAN, coverage, Homebrew |
+| **Shell Helpers (Windows)** | [iccDEV/shell-helpers/windows.md](iccDEV/shell-helpers/windows.md) | MSVC, vcpkg, ASAN, SARIF analysis |
+| **PoC Reproductions** | [pocs/iccdev-issue-reproductions.md](pocs/iccdev-issue-reproductions.md) | 63 PoC reproductions from closed issues |
+| **PoC Techniques** | [pocs/iccdev-poc-techniques.md](pocs/iccdev-poc-techniques.md) | printf pipe, image format helpers, regression |

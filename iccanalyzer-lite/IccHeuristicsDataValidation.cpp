@@ -1629,6 +1629,19 @@ printf("[H87] TRC Curve Anomaly Detection\n");
         trcIssues++;
       }
       icUInt16Number nParams = pParam->GetNumParam();
+      // Validate param count sufficiency for funcType (CFL-051 pattern)
+      static const int kParaMinParams[] = {1, 3, 4, 5, 7};
+      if (funcType <= 4) {
+        int required = kParaMinParams[funcType];
+        if (static_cast<int>(nParams) < required) {
+          printf("      %s[CRIT]  HEURISTIC: Tag '%s': funcType %u requires %d params, has %u "
+                 "— HBO in Describe() — ICC.1-2022-05 §10.15%s\n",
+                 ColorCritical(), info.GetTagSigName(trcSigs[t]), funcType,
+                 required, nParams, ColorReset());
+          printf("       CWE-125: Heap-Buffer-Overflow via insufficient parametric curve params\n");
+          trcIssues++;
+        }
+      }
       icFloatNumber *params = pParam->GetParams();
       if (params && nParams > 0) {
         for (icUInt16Number p = 0; p < nParams; p++) {
@@ -2442,6 +2455,25 @@ int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc) {
             printf("       CWE-125: Out-of-bounds Read via pointer drift\n");
             spectralIssues++;
           }
+        }
+
+        // CFL-056 pattern: null m_pWhite/m_pOffset in Describe()
+        // SpectralMatrix::Describe() dereferences m_pWhite and m_pOffset
+        // without null checks. If Read() fails to allocate these, Describe()
+        // crashes with NPD (CWE-476).
+        if (!pSpecMtx->GetWhite()) {
+          printf("      %s[CRIT]  HEURISTIC: SpectralMatrix has null white point array "
+                 "— NPD in Describe() — ICC.2-2023 §10.2.4%s\n",
+                 ColorCritical(), ColorReset());
+          printf("       CWE-476: Null Pointer Dereference in spectral white access\n");
+          spectralIssues++;
+        }
+        if (!pSpecMtx->GetOffset()) {
+          printf("      %s[WARN]  SpectralMatrix has null offset array "
+                 "— potential NPD in Describe() — ICC.2-2023 §10.2.4%s\n",
+                 ColorWarning(), ColorReset());
+          printf("       CWE-476: Null Pointer Dereference in spectral offset access\n");
+          spectralIssues++;
         }
       }
 

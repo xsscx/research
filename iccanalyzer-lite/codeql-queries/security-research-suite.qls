@@ -46,6 +46,15 @@
 - query: ./iccdev-file-controlled-enum-cast.ql
 - query: ./iccdev-tag-ownership-uaf.ql
 
+# Maintainer queries (CFL-048 through CFL-057 patterns)
+- query: ./iccdev-describe-param-bounds.ql
+- query: ./iccdev-describe-null-array.ql
+- query: ./iccdev-format-specifier.ql
+- query: ./iccdev-signed-unsigned-format.ql
+- query: ./iccdev-uninitialized-constructor.ql
+- query: ./iccdev-wrong-variable-index.ql
+- query: ./iccdev-dumplut-missing-arg.ql
+
 # Built-in security queries
 - queries: .
   from: codeql/cpp-queries
