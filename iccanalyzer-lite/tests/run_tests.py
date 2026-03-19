@@ -1557,6 +1557,172 @@ def test_pawg_output(suite):
     suite.assert_no_asan("pawg.asan_clean_bad", ["-pawg", bad])
 
 
+def test_lut_text_io(suite):
+    """Test LUT text export/import (-xt, -it) and .cube round-trip (-from-cube, -cube)."""
+    import tempfile
+
+    good = str(CORPUS_DIR / "valid_srgb.icc")
+
+    # --- Text extraction (-xt) on corpus profile ---
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = os.path.join(tmpdir, "xt_")
+        suite.assert_no_asan("lut_text.xt_corpus", ["-xt", good, base])
+
+    # --- Text extraction on real MPE profile (sRGB_D65_MAT.icc) ---
+    srgb = TEST_PROFILES / "sRGB_D65_MAT.icc"
+    if srgb.exists():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = os.path.join(tmpdir, "xt_srgb_")
+            rc, stdout, stderr = suite.run_analyzer(["-xt", str(srgb), base])
+            has_mpe = "MPE" in stdout
+            suite.results.append(TestResult(
+                "lut_text.xt_srgb_has_mpe", has_mpe,
+                "sRGB_D65_MAT should have MPE elements" if not has_mpe else "",
+                0.0, "", ""
+            ))
+            # Should produce matrix and curve files
+            files = os.listdir(tmpdir)
+            has_matrix = any("matrix" in f for f in files)
+            has_curves = any("curves" in f for f in files)
+            suite.results.append(TestResult(
+                "lut_text.xt_srgb_matrix_file", has_matrix,
+                "Should produce matrix text file" if not has_matrix else "",
+                0.0, "", ""
+            ))
+            suite.results.append(TestResult(
+                "lut_text.xt_srgb_curves_file", has_curves,
+                "Should produce curves text file" if not has_curves else "",
+                0.0, "", ""
+            ))
+
+    # --- .cube import (-from-cube) ---
+    cube_seeds = REPO_ROOT / "cfl" / "icc_fromcube_fuzzer_seed_corpus"
+    if cube_seeds.exists():
+        cubes = sorted(cube_seeds.glob("*.cube"))
+        # Find a valid cube (identity_2x2x2 is known-good)
+        valid_cube = None
+        for c in cubes:
+            if "identity_2x2x2" in c.name or "custom_domain_3x3x3" in c.name:
+                valid_cube = c
+                break
+        if not valid_cube and cubes:
+            valid_cube = cubes[0]
+
+        if valid_cube:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_icc = os.path.join(tmpdir, "from_cube.icc")
+                suite.assert_output_contains(
+                    "lut_text.from_cube_creates_icc",
+                    ["-from-cube", str(valid_cube), out_icc],
+                    r"Created ICC DeviceLink",
+                    expected_code=0,
+                )
+                # Verify the ICC was written
+                icc_exists = os.path.exists(out_icc) and os.path.getsize(out_icc) > 0
+                suite.results.append(TestResult(
+                    "lut_text.from_cube_file_exists", icc_exists,
+                    "from-cube should create non-empty ICC" if not icc_exists else "",
+                    0.0, "", ""
+                ))
+
+                # --- .cube export (-cube) round-trip ---
+                if icc_exists:
+                    rt_cube = os.path.join(tmpdir, "roundtrip.cube")
+                    suite.assert_output_contains(
+                        "lut_text.cube_export",
+                        ["-cube", out_icc, "AToB0Tag", rt_cube],
+                        r"Exported \.cube",
+                        expected_code=0,
+                    )
+                    cube_exists = os.path.exists(rt_cube) and os.path.getsize(rt_cube) > 0
+                    suite.results.append(TestResult(
+                        "lut_text.cube_roundtrip_file", cube_exists,
+                        "cube export should create non-empty file" if not cube_exists else "",
+                        0.0, "", ""
+                    ))
+
+    # --- MPE matrix import round-trip (-it) ---
+    if srgb.exists():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Extract
+            base = os.path.join(tmpdir, "rt_")
+            suite.run_analyzer(["-xt", str(srgb), base])
+            matrix_file = None
+            for f in os.listdir(tmpdir):
+                if "matrix" in f and f.endswith(".txt"):
+                    matrix_file = os.path.join(tmpdir, f)
+                    break
+            if matrix_file:
+                # Copy profile, import matrix back
+                import shutil
+                mod_icc = os.path.join(tmpdir, "modified.icc")
+                shutil.copy2(str(srgb), mod_icc)
+                out_icc = os.path.join(tmpdir, "imported.icc")
+                suite.assert_output_contains(
+                    "lut_text.it_mpe_matrix",
+                    ["-it", mod_icc, matrix_file, out_icc],
+                    r"Imported MPE matrix",
+                    expected_code=0,
+                )
+                out_exists = os.path.exists(out_icc) and os.path.getsize(out_icc) > 0
+                suite.results.append(TestResult(
+                    "lut_text.it_matrix_file_written", out_exists,
+                    "import should create output ICC" if not out_exists else "",
+                    0.0, "", ""
+                ))
+
+    # --- MPE CLUT import round-trip (-it) ---
+    if cube_seeds.exists() and valid_cube:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create ICC from cube, extract CLUT text, import back
+            icc1 = os.path.join(tmpdir, "clut_src.icc")
+            suite.run_analyzer(["-from-cube", str(valid_cube), icc1])
+            if os.path.exists(icc1):
+                base = os.path.join(tmpdir, "clut_")
+                suite.run_analyzer(["-xt", icc1, base])
+                clut_file = None
+                for f in os.listdir(tmpdir):
+                    if "clut" in f and f.endswith(".txt"):
+                        clut_file = os.path.join(tmpdir, f)
+                        break
+                if clut_file:
+                    import shutil
+                    icc2 = os.path.join(tmpdir, "clut_mod.icc")
+                    shutil.copy2(icc1, icc2)
+                    out_icc = os.path.join(tmpdir, "clut_imported.icc")
+                    suite.assert_output_contains(
+                        "lut_text.it_mpe_clut",
+                        ["-it", icc2, clut_file, out_icc],
+                        r"Imported MPE CLUT",
+                        expected_code=0,
+                    )
+
+    # --- Error handling: bad cube ---
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.cube', delete=False) as f:
+        f.write("TITLE bad\nLUT_3D_SIZE 0\n")
+        bad_cube = f.name
+    try:
+        suite.assert_exit_code("lut_text.bad_cube_rejected", ["-from-cube", bad_cube, "/dev/null"], 2)
+    finally:
+        os.unlink(bad_cube)
+
+    # --- Error handling: -xt with nonexistent profile ---
+    suite.assert_exit_code(
+        "lut_text.xt_nonexistent",
+        ["-xt", "/tmp/nonexistent_profile.icc", "/tmp/out_"],
+        3,  # usage/error
+    )
+
+    # --- ASAN clean: diverse profiles through -xt ---
+    diverse = ["sRGB_D65_MAT.icc", "sRGB_D65_MAT-500lx.icc", "17ChanPart1.icc"]
+    for name in diverse:
+        p = TEST_PROFILES / name
+        if p.exists():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                base = os.path.join(tmpdir, "div_")
+                suite.assert_no_asan(f"lut_text.xt_asan_{name}", ["-xt", str(p), base])
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -1625,6 +1791,7 @@ def main():
         ("HTML/XML Output", test_html_xml_output),
         ("Report Output", test_report_output),
         ("PAWG Output", test_pawg_output),
+        ("LUT Text I/O", test_lut_text_io),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 

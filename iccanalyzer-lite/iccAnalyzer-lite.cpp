@@ -210,8 +210,14 @@ void PrintUsage() {
   printf("  --report <file>            Professional report (severity-sorted)\n");
   printf("  -pawg <file>               ICC PAWG assessment report (31-item checklist)\n");
 
-  printf("\nExtraction:\n");
-  printf("  -x <file.icc> <basename>   Extract LUT tables\n");
+  printf("\nLUT I/O:\n");
+  printf("  -x <file.icc> <basename>   Extract LUT tables (binary CLUT)\n");
+  printf("  -xt <file.icc> <basename>  Extract LUT tables as editable text (TSV)\n");
+  printf("  -i <file.icc> <clut.bin> <output.icc>   Inject binary CLUT (lut8/16)\n");
+  printf("  -im <file.icc> <clut.bin> <output.icc>  Inject binary CLUT (MPE)\n");
+  printf("  -it <file.icc> <text.txt> <output.icc> [tag]  Import edited text LUT\n");
+  printf("  -cube <file.icc> <output.cube> [tag]    Export 3D CLUT as .cube\n");
+  printf("  -from-cube <file.cube> <output.icc>     Create ICC profile from .cube\n");
   printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
 
   printf("\nRegistry:\n");
@@ -337,6 +343,59 @@ int main(int argc, char **argv) {
       return ICC_EXIT_ERROR;
     }
     return RecoverableRun("LUT extraction", [&]{ return ExtractLutData(profilePath, argv[3]); });
+  }
+
+  // Extract LUT as editable text (TSV)
+  if (strcmp(mode, "-xt") == 0 && argc >= 4) {
+    // argv[3] is a filename prefix, not a single file — validate parent dir exists
+    const char *baseName = argv[3];
+    if (!baseName || baseName[0] == '\0' || strlen(baseName) > 4000) {
+      fprintf(stderr, "[ERR] Invalid output prefix\n");
+      return ICC_EXIT_ERROR;
+    }
+    return RecoverableRun("LUT text extraction", [&]{ return ExtractLutText(profilePath, baseName); });
+  }
+
+  // Inject binary CLUT (lut8/lut16)
+  if (strcmp(mode, "-i") == 0 && argc >= 5) {
+    return RecoverableRun("CLUT injection", [&]{ return InjectLutData(argc, argv); });
+  }
+
+  // Inject binary CLUT (MPE)
+  if (strcmp(mode, "-im") == 0 && argc >= 5) {
+    return RecoverableRun("MPE CLUT injection", [&]{ return InjectMpeLutData(argc, argv); });
+  }
+
+  // Import edited text LUT into profile
+  if (strcmp(mode, "-it") == 0 && argc >= 5) {
+    const char *textFile = argv[3];
+    const char *outFile = argv[4];
+    const char *tagSig = (argc >= 6) ? argv[5] : nullptr;
+    return RecoverableRun("text LUT import", [&]{
+      return ImportTextLutData(profilePath, outFile, textFile, tagSig);
+    });
+  }
+
+  // Export .cube from ICC profile
+  if (strcmp(mode, "-cube") == 0 && argc >= 4) {
+    const char *tagSig = argv[3];
+    const char *cubeOut = (argc >= 5) ? argv[4] : nullptr;
+    if (!cubeOut) {
+      fprintf(stderr, "Usage: %s -cube <profile> <tag> <output.cube>\n", argv[0]);
+      return 3;
+    }
+    return RecoverableRun("cube export", [&]{
+      return ExportCubeFromProfile(profilePath, tagSig, cubeOut);
+    });
+  }
+
+  // Import .cube into ICC DeviceLink profile
+  if (strcmp(mode, "-from-cube") == 0 && argc >= 4) {
+    const char *cubeIn = argv[2];
+    const char *outFile = argv[3];
+    return RecoverableRun("cube import", [&]{
+      return ImportCubeToProfile(cubeIn, outFile);
+    });
   }
   
   // XML report export
