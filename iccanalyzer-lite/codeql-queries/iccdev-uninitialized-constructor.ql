@@ -50,6 +50,9 @@ from Constructor ctor, IccClass cls, ScalarMember field
 where
   ctor.getDeclaringType() = cls and
   field.getDeclaringType() = cls and
+  // Only report findings in our code — exclude upstream iccDEV library
+  not ctor.getLocation().getFile().getRelativePath().matches("iccDEV/%") and
+  not ctor.getLocation().getFile().getRelativePath().matches("cfl/iccDEV/%") and
   // Constructor is explicitly defined (not compiler-generated)
   not ctor.isCompilerGenerated() and
   // Default constructor (no parameters, or only default params)
