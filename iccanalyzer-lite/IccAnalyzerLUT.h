@@ -47,4 +47,12 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename);
 void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename);
 int InjectMpeData(const char *profileFile, const char *outputFile, const char *clutFile);
 
+// Text-based LUT I/O (IccAnalyzerLUTTextIO.cpp)
+int ExtractLutText(const char *filename, const char *baseName);
+int ImportTextLutData(const char *profileFile, const char *outputFile,
+                      const char *textFile, const char *tagSigStr);
+int ExportCubeFromProfile(const char *profileFile, const char *tagSigStr,
+                          const char *cubeFile);
+int ImportCubeToProfile(const char *cubeFile, const char *outputFile);
+
 #endif

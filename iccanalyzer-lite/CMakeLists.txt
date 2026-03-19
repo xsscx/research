@@ -35,6 +35,7 @@ set(SOURCES
     IccAnalyzerInspect.cpp
     IccAnalyzerNinja.cpp
     IccAnalyzerLUT.cpp
+    IccAnalyzerLUTTextIO.cpp
     IccAnalyzerLUTVisualization.cpp
     IccAnalyzerXMLExport.cpp
     IccAnalyzerCallGraph.cpp
