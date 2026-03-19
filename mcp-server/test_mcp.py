@@ -43,6 +43,8 @@ from icc_profile_mcp import (
     list_test_profiles,
     inspect_profile,
     analyze_security,
+    analyze_security_json,
+    analyze_security_report,
     validate_roundtrip,
     full_analysis,
     profile_to_xml,
@@ -300,6 +302,75 @@ async def test_analyze_security_all():
                 T.ok(f"security({f[:45]})", False, str(e))
 
     await asyncio.gather(*[_check(f) for f in files])
+    T.section_summary()
+
+
+async def test_analyze_security_json():
+    """Test analyze_security_json returns valid JSON with expected structure."""
+    T.section("Functional: analyze_security_json")
+
+    # Test with a known-good profile
+    r = await analyze_security_json("sRGB_D65_MAT.icc")
+    T.ok("json: returns non-empty", len(r) > 50, f"len={len(r)}")
+    T.ok("json: starts with brace", r.strip().startswith("{"), r[:80])
+
+    # Parse and validate JSON structure
+    import json
+    try:
+        data = json.loads(r.strip())
+        T.ok("json: valid JSON", True)
+        T.ok("json: has summary", "summary" in data, str(list(data.keys())[:5]))
+        if "summary" in data:
+            summary = data["summary"]
+            T.ok("json: summary has totalHeuristics",
+                 "totalHeuristics" in summary, str(list(summary.keys())[:5]))
+            T.ok("json: totalHeuristics >= 170",
+                 summary.get("totalHeuristics", 0) >= 170,
+                 f"got {summary.get('totalHeuristics')}")
+        T.ok("json: has results array", "results" in data and isinstance(data["results"], list),
+             str(type(data.get("results"))))
+    except json.JSONDecodeError as e:
+        T.ok("json: valid JSON", False, str(e))
+        T.ok("json: has summary", False, "invalid JSON")
+        T.ok("json: summary has totalHeuristics", False, "invalid JSON")
+        T.ok("json: totalHeuristics >= 170", False, "invalid JSON")
+        T.ok("json: has results array", False, "invalid JSON")
+
+    # Test error handling — bad path
+    try:
+        r2 = await analyze_security_json("nonexistent-profile-xyz.icc")
+        T.ok("json: bad path returns error", "not found" in r2.lower() or "error" in r2.lower()
+             or len(r2) < 10, r2[:80])
+    except Exception:
+        T.ok("json: bad path returns error", True)
+
+    T.section_summary()
+
+
+async def test_analyze_security_report():
+    """Test analyze_security_report returns a formatted report."""
+    T.section("Functional: analyze_security_report")
+
+    r = await analyze_security_report("sRGB_D65_MAT.icc")
+    T.ok("report: returns non-empty", len(r) > 100, f"len={len(r)}")
+    # Report mode includes severity-sorted output with banner
+    T.ok("report: contains severity keyword",
+         any(kw in r for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "Security")),
+         r[:120])
+    T.ok("report: contains CWE reference",
+         "CWE" in r, r[:120])
+    T.ok("report: contains heuristic count",
+         any(f"{n}" in r for n in range(160, 180)),
+         "no heuristic count found")
+
+    # Test error handling — bad path
+    try:
+        r2 = await analyze_security_report("nonexistent-profile-xyz.icc")
+        T.ok("report: bad path returns error", "not found" in r2.lower() or "error" in r2.lower()
+             or len(r2) < 10, r2[:80])
+    except Exception:
+        T.ok("report: bad path returns error", True)
+
     T.section_summary()
 
 
@@ -1031,6 +1102,8 @@ async def main():
     await test_list_test_profiles()
     await test_inspect_all_profiles()
     await test_analyze_security_all()
+    await test_analyze_security_json()
+    await test_analyze_security_report()
     await test_validate_roundtrip_all()
     await test_full_analysis_all()
     await test_profile_to_xml_all()
