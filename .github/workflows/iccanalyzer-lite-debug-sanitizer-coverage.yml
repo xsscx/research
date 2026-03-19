@@ -728,7 +728,13 @@ jobs:
             TOTAL=$((TOTAL + 1))
             local asan_count=0
             if [ -f "$stderr_file" ]; then
-              asan_count=$(grep -c "ERROR: AddressSanitizer\|ERROR: LeakSanitizer\|runtime error:" "$stderr_file" 2>/dev/null || true)
+              # Count real ASAN/UBSAN errors, excluding IccMD5.cpp noise
+              # MD5 uses intentional 32-bit wrapping arithmetic (RFC 1321),
+              # which triggers -fsanitize=integer false positives
+              asan_count=$(grep -E "ERROR: AddressSanitizer|ERROR: LeakSanitizer" "$stderr_file" 2>/dev/null | wc -l || true)
+              local ubsan_count
+              ubsan_count=$(grep "runtime error:" "$stderr_file" 2>/dev/null | grep -v "IccMD5.cpp" | wc -l || true)
+              asan_count=$((asan_count + ubsan_count))
             fi
             if [ "$asan_count" -gt 0 ]; then
               ASAN_HITS=$((ASAN_HITS + 1))
