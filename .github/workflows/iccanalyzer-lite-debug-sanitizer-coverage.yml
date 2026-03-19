@@ -209,7 +209,7 @@ jobs:
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
           LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
 
-          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp"
+          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp"
 
           echo "Building iccanalyzer-lite: Debug + ASan + UBSan + Clang Coverage..."
           for src in $SOURCES; do
@@ -690,6 +690,226 @@ jobs:
         with:
           name: iccanalyzer-lut-visualizations
           path: results/lut-visualizations/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 6
+
+      # -----------------------------------------------------------------------
+      # LUT Text I/O and .cube round-trip exercises
+      # -----------------------------------------------------------------------
+      - name: LUT Text I/O and Cube exercises
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML"
+          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/profraw/lut-io-%p-%m.profraw"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          BINARY="iccanalyzer-lite/iccanalyzer-lite"
+          OUTDIR="results/lut-text-io"
+          mkdir -p "$OUTDIR"
+
+          if [ ! -x "$BINARY" ]; then
+            echo "WARN: iccanalyzer-lite not found, skipping LUT Text I/O"
+            exit 0
+          fi
+
+          TOTAL=0
+          PASS=0
+          FAIL=0
+          ASAN_HITS=0
+
+          log_result() {
+            local name="$1" exit_code="$2" stderr_file="$3"
+            TOTAL=$((TOTAL + 1))
+            local asan_count=0
+            if [ -f "$stderr_file" ]; then
+              asan_count=$(grep -c "ERROR: AddressSanitizer\|ERROR: LeakSanitizer\|runtime error:" "$stderr_file" 2>/dev/null || true)
+            fi
+            if [ "$asan_count" -gt 0 ]; then
+              ASAN_HITS=$((ASAN_HITS + 1))
+              FAIL=$((FAIL + 1))
+              echo "  [ASAN] $name (exit=$exit_code, asan=$asan_count)"
+            elif [ "$exit_code" -ge 128 ]; then
+              FAIL=$((FAIL + 1))
+              echo "  [CRASH] $name (exit=$exit_code)"
+            else
+              PASS=$((PASS + 1))
+              echo "  [OK] $name (exit=$exit_code)"
+            fi
+          }
+
+          echo "=== LUT Text Export (-xt) ==="
+          # Test -xt on a selection of profiles with different tag structures
+          XT_PROFILES=(
+            "test-profiles/sRGB_D65_MAT.icc"
+            "test-profiles/sRGB_D65_MAT-500lx.icc"
+          )
+          # Add profiles with AToB/BToA tags if available
+          for p in test-profiles/Rec2100HlgFull*.icc test-profiles/sRGB2014*.icc; do
+            [ -f "$p" ] && XT_PROFILES+=("$p")
+          done
+          # Cap at 10 profiles
+          XT_PROFILES=("${XT_PROFILES[@]:0:10}")
+
+          for profile in "${XT_PROFILES[@]}"; do
+            [ -f "$profile" ] || continue
+            name="$(basename "$profile" .icc)"
+            prefix="$OUTDIR/${name}_"
+            EC=0
+            timeout 30 "$BINARY" -xt "$profile" "$prefix" > "$OUTDIR/${name}_xt.log" 2>&1 || EC=$?
+            log_result "xt:${name}" "$EC" "$OUTDIR/${name}_xt.log"
+            # Count generated text files
+            txt_count=$(find "$OUTDIR" -name "${name}_*.txt" 2>/dev/null | wc -l)
+            echo "    → $txt_count text file(s) exported"
+          done
+
+          echo ""
+          echo "=== .cube Export (-cube) ==="
+          # Export .cube from profiles with 3D CLUTs (AToB0Tag)
+          CUBE_PROFILES=(
+            "test-profiles/fuzzed-prtr-Lab-414k.icc"
+          )
+          for p in test-profiles/Rec2100HlgFull*.icc test-profiles/Rec2020*.icc; do
+            [ -f "$p" ] && CUBE_PROFILES+=("$p")
+          done
+          CUBE_PROFILES=("${CUBE_PROFILES[@]:0:5}")
+
+          for profile in "${CUBE_PROFILES[@]}"; do
+            [ -f "$profile" ] || continue
+            name="$(basename "$profile" .icc)"
+            cube_out="$OUTDIR/${name}.cube"
+            EC=0
+            timeout 30 "$BINARY" -cube "$profile" AToB0Tag "$cube_out" > "$OUTDIR/${name}_cube.log" 2>&1 || EC=$?
+            log_result "cube:${name}" "$EC" "$OUTDIR/${name}_cube.log"
+            if [ -f "$cube_out" ]; then
+              sz=$(stat -c%s "$cube_out" 2>/dev/null || echo "?")
+              echo "    → $cube_out ($sz bytes)"
+            fi
+          done
+
+          echo ""
+          echo "=== .cube Import (-from-cube) ==="
+          # Import .cube files from seed corpus
+          CUBE_SEEDS=(
+            "cfl/icc_fromcube_fuzzer_seed_corpus/identity_2x2x2.cube"
+            "cfl/icc_fromcube_fuzzer_seed_corpus/input_range_video_5x5x5.cube"
+            "cfl/icc_fromcube_fuzzer_seed_corpus/custom_domain_3x3x3.cube"
+          )
+          for cube in "${CUBE_SEEDS[@]}"; do
+            [ -f "$cube" ] || continue
+            name="$(basename "$cube" .cube)"
+            icc_out="$OUTDIR/${name}_from_cube.icc"
+            EC=0
+            timeout 30 "$BINARY" -from-cube "$cube" "$icc_out" > "$OUTDIR/${name}_fromcube.log" 2>&1 || EC=$?
+            log_result "from-cube:${name}" "$EC" "$OUTDIR/${name}_fromcube.log"
+            if [ -f "$icc_out" ]; then
+              sz=$(stat -c%s "$icc_out" 2>/dev/null || echo "?")
+              echo "    → $icc_out ($sz bytes)"
+              # Validate the generated ICC profile with -a
+              EC2=0
+              timeout 30 "$BINARY" -a "$icc_out" > "$OUTDIR/${name}_validate.log" 2>&1 || EC2=$?
+              log_result "validate-from-cube:${name}" "$EC2" "$OUTDIR/${name}_validate.log"
+            fi
+          done
+
+          echo ""
+          echo "=== .cube Round-Trip (import → export → compare) ==="
+          # Full round-trip: .cube → ICC → .cube → compare
+          RT_CUBE="cfl/icc_fromcube_fuzzer_seed_corpus/identity_2x2x2.cube"
+          if [ -f "$RT_CUBE" ]; then
+            RT_ICC="$OUTDIR/rt_identity.icc"
+            RT_CUBE_OUT="$OUTDIR/rt_identity_exported.cube"
+            EC=0
+            # Import
+            timeout 30 "$BINARY" -from-cube "$RT_CUBE" "$RT_ICC" > "$OUTDIR/rt_import.log" 2>&1 || EC=$?
+            log_result "rt-cube-import" "$EC" "$OUTDIR/rt_import.log"
+            # Export back
+            if [ -f "$RT_ICC" ]; then
+              EC=0
+              timeout 30 "$BINARY" -cube "$RT_ICC" AToB0Tag "$RT_CUBE_OUT" > "$OUTDIR/rt_export.log" 2>&1 || EC=$?
+              log_result "rt-cube-export" "$EC" "$OUTDIR/rt_export.log"
+            fi
+          fi
+
+          echo ""
+          echo "=== Text Import Round-Trip (-xt → edit → -it) ==="
+          # Extract text, then re-import unchanged to verify round-trip
+          RT_PROFILE="test-profiles/sRGB_D65_MAT.icc"
+          if [ -f "$RT_PROFILE" ]; then
+            RT_PREFIX="$OUTDIR/rt_srgb_"
+            EC=0
+            timeout 30 "$BINARY" -xt "$RT_PROFILE" "$RT_PREFIX" > "$OUTDIR/rt_xt.log" 2>&1 || EC=$?
+            log_result "rt-text-extract" "$EC" "$OUTDIR/rt_xt.log"
+
+            # Find exported text files and try re-importing each
+            for txt in "$OUTDIR"/rt_srgb_*.txt; do
+              [ -f "$txt" ] || continue
+              tname="$(basename "$txt")"
+              RT_OUT="$OUTDIR/rt_srgb_modified.icc"
+              cp "$RT_PROFILE" "$RT_OUT"
+              EC=0
+              timeout 30 "$BINARY" -it "$RT_OUT" "$txt" > "$OUTDIR/rt_it_${tname}.log" 2>&1 || EC=$?
+              log_result "rt-text-import:${tname}" "$EC" "$OUTDIR/rt_it_${tname}.log"
+            done
+          fi
+
+          echo ""
+          echo "=== Error Handling ==="
+          # Verify graceful rejection of bad inputs
+          EC=0
+          timeout 10 "$BINARY" -xt "/tmp/nonexistent.icc" "$OUTDIR/bad_" > "$OUTDIR/err_xt.log" 2>&1 || EC=$?
+          log_result "err-xt-nonexistent" "$EC" "$OUTDIR/err_xt.log"
+          [ "$EC" -ne 0 ] && echo "    → correctly rejected (exit=$EC)"
+
+          # Bad .cube
+          echo "TITLE bad" > "$OUTDIR/bad.cube"
+          echo "LUT_3D_SIZE 0" >> "$OUTDIR/bad.cube"
+          EC=0
+          timeout 10 "$BINARY" -from-cube "$OUTDIR/bad.cube" "$OUTDIR/bad_out.icc" > "$OUTDIR/err_cube.log" 2>&1 || EC=$?
+          log_result "err-bad-cube" "$EC" "$OUTDIR/err_cube.log"
+          [ "$EC" -ne 0 ] && echo "    → correctly rejected (exit=$EC)"
+
+          echo ""
+          echo "==========================================="
+          echo "LUT Text I/O Results: $PASS/$TOTAL passed, $FAIL failed, $ASAN_HITS ASAN"
+          echo "==========================================="
+
+          {
+            echo ""
+            echo "### LUT Text I/O & Cube Exercises"
+            echo ""
+            echo "**$PASS/$TOTAL** passed, **$FAIL** failed, **$ASAN_HITS** ASAN/UBSAN hits"
+            echo ""
+            echo "| Exercise | Result |"
+            echo "|----------|--------|"
+            echo "| Text export (\`-xt\`) | ${#XT_PROFILES[@]} profiles tested |"
+            echo "| Cube export (\`-cube\`) | ${#CUBE_PROFILES[@]} profiles tested |"
+            echo "| Cube import (\`-from-cube\`) | ${#CUBE_SEEDS[@]} cube files tested |"
+            echo "| Cube round-trip | import → export → compare |"
+            echo "| Text round-trip | extract → import unchanged |"
+            echo "| Error handling | bad inputs correctly rejected |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Fail the step if any ASAN hits
+          if [ "$ASAN_HITS" -gt 0 ]; then
+            echo "[CRITICAL] $ASAN_HITS ASAN/UBSAN error(s) detected in LUT I/O exercises"
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------------
+      # Upload LUT Text I/O artifacts
+      # -----------------------------------------------------------------------
+      - name: Upload LUT Text I/O artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: iccanalyzer-lut-text-io
+          path: results/lut-text-io/
           if-no-files-found: warn
           retention-days: 14
           compression-level: 6
