@@ -505,9 +505,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
-      # Generate LUT visualization SVGs (iccDumpProfile LUTS)
+      # Generate LUT visualization SVGs + TIFFs (iccDumpProfile LUTS)
       # -----------------------------------------------------------------------
-      - name: Generate LUT visualization SVGs
+      - name: Generate LUT visualizations (SVG + TIFF)
         if: always()
         env:
           BASH_ENV: /dev/null
@@ -520,53 +520,60 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
           DUMP="iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile"
-          SVGDIR="/tmp/iccdev-lut-svgs"
-          mkdir -p "$SVGDIR"
+          OUTDIR="/tmp/iccdev-lut-viz"
+          mkdir -p "$OUTDIR"
 
           if [ ! -x "$DUMP" ]; then
-            echo "WARN: iccDumpProfile not found, skipping SVG generation"
+            echo "WARN: iccDumpProfile not found, skipping LUT visualization"
             exit 0
           fi
 
           find iccDEV/Testing -name '*.icc' -type f 2>/dev/null | sort | while read -r profile; do
             name="$(basename "$profile" .icc)"
+            dir="$(dirname "$profile")"
             echo "  LUTS: $profile"
             timeout 30 "$DUMP" "$profile" LUTS 2>/dev/null || true
-            svg_path="$(dirname "$profile")/${name}_luts.svg"
-            if [ -f "$svg_path" ]; then
-              cp "$svg_path" "$SVGDIR/"
+            # Collect SVG
+            if [ -f "$dir/${name}_luts.svg" ]; then
+              cp "$dir/${name}_luts.svg" "$OUTDIR/"
             fi
+            # Collect TIFFs (e.g. _A2B0.tif, _B2A0.tif, _kTRC.tif)
+            for tif in "$dir"/${name}_*.tif; do
+              [ -f "$tif" ] || continue
+              cp "$tif" "$OUTDIR/"
+            done
           done
 
-          TOTAL=$(find "$SVGDIR" -name '*.svg' 2>/dev/null | wc -l)
-          echo "Generated $TOTAL SVG files"
+          SVG_COUNT=$(find "$OUTDIR" -name '*.svg' 2>/dev/null | wc -l)
+          TIF_COUNT=$(find "$OUTDIR" -name '*.tif' 2>/dev/null | wc -l)
+          echo "Generated $SVG_COUNT SVG + $TIF_COUNT TIFF files"
 
           {
             echo ""
-            echo "### LUT Visualization SVGs"
+            echo "### LUT Visualizations (SVG + TIFF)"
             echo ""
-            echo "**$TOTAL** SVG files generated via \`iccDumpProfile <profile> LUTS\`"
-            if [ "$TOTAL" -gt 0 ]; then
+            echo "**$SVG_COUNT** SVG + **$TIF_COUNT** TIFF files via \`iccDumpProfile <profile> LUTS\`"
+            if [ "$SVG_COUNT" -gt 0 ] || [ "$TIF_COUNT" -gt 0 ]; then
               echo ""
-              echo "| SVG File | Size |"
-              echo "|----------|------|"
-              for svg in "$SVGDIR"/*.svg; do
-                [ -f "$svg" ] || continue
-                sz=$(stat -c%s "$svg" 2>/dev/null || echo "?")
-                echo "| $(basename "$svg") | ${sz} bytes |"
+              echo "| File | Size |"
+              echo "|------|------|"
+              for f in "$OUTDIR"/*.svg "$OUTDIR"/*.tif; do
+                [ -f "$f" ] || continue
+                sz=$(stat -c%s "$f" 2>/dev/null || echo "?")
+                echo "| $(basename "$f") | ${sz} bytes |"
               done
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
-      # Upload LUT visualization SVGs
+      # Upload LUT visualizations (SVG + TIFF)
       # -----------------------------------------------------------------------
-      - name: Upload LUT SVGs
+      - name: Upload LUT visualizations
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
-          name: iccdev-lut-svgs
-          path: /tmp/iccdev-lut-svgs/
+          name: iccdev-lut-visualizations
+          path: /tmp/iccdev-lut-viz/
           if-no-files-found: warn
           retention-days: 14
           compression-level: 6
