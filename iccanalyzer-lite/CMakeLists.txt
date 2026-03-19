@@ -42,6 +42,7 @@ set(SOURCES
     IccImageAnalyzer.cpp
     IccAnalyzerJson.cpp
     IccAnalyzerReport.cpp
+    IccAnalyzerPAWG.cpp
     IccHeuristicsXmlSafety.cpp
 )
 

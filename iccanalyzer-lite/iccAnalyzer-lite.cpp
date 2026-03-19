@@ -18,6 +18,7 @@
 #include "IccImageAnalyzer.h"
 #include "IccAnalyzerJson.h"
 #include "IccAnalyzerReport.h"
+#include "IccAnalyzerPAWG.h"
 #include "IccAnalyzerLUTVisualization.h"
 #include "IccHeuristicsRegistry.h"
 
@@ -207,6 +208,7 @@ void PrintUsage() {
   printf("\nOutput Formats:\n");
   printf("  --json <file>              JSON structured output\n");
   printf("  --report <file>            Professional report (severity-sorted)\n");
+  printf("  -pawg <file>               ICC PAWG assessment report (31-item checklist)\n");
 
   printf("\nExtraction:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables\n");
@@ -269,6 +271,11 @@ int main(int argc, char **argv) {
   // Report output mode (severity-sorted professional report)
   if (strcmp(mode, "--report") == 0 && argc >= 3) {
     return RecoverableRun("report analysis", [&]{ return RunWithReportOutput(profilePath, nullptr); });
+  }
+
+  // PAWG assessment report (ICC Profile Assessment Working Group checklist)
+  if (strcmp(mode, "-pawg") == 0 && argc >= 3) {
+    return RecoverableRun("PAWG assessment", [&]{ return RunWithPAWGOutput(profilePath, nullptr); });
   }
 
   // Comprehensive mode (pass NULL for fingerprint_db in lite version)
