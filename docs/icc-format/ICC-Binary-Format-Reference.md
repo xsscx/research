@@ -5,9 +5,10 @@
 > heuristic authoring.
 >
 > **Sources**: ICC.1-2022-05, ICC.2-2023, iccanalyzer-lite source code,
-> CFL fuzzer corpus, 93 iccDEV security advisories (85 CVEs + 95 GHSAs).
+> CFL fuzzer corpus, 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-14 — 171 heuristics, 45 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-03-20 — 171 heuristics (legacy) + 98 conformance checks (CF-001..CF-122),
+> 45 CFL patches, 13 fuzzers.
 
 ---
 
@@ -25,8 +26,9 @@
 10. [Data Type Encodings](#10-data-type-encodings)
 11. [Image Container Formats (TIFF / PNG / JPEG)](#11-image-container-formats-tiff--png--jpeg)
 12. [Security Patterns — CWE Catalog](#12-security-patterns--cwe-catalog)
-13. [CFL Patch Catalog (20 Active)](#13-cfl-patch-catalog-20-active)
+13. [CFL Patch Catalog (45 Active)](#13-cfl-patch-catalog-45-active)
 14. [Heuristic → Format Mapping](#14-heuristic--format-mapping)
+14.5. [ICC Conformance Checks (CF-001..CF-122)](#145-icc-conformance-checks-cf-001cf-122)
 15. [Version History and BCD Encoding](#15-version-history-and-bcd-encoding)
 16. [Profile ID (MD5) Computation](#16-profile-id-md5-computation)
 17. [Useful Code Patterns](#17-useful-code-patterns)
@@ -181,18 +183,18 @@ Common tags validated by iccanalyzer-lite heuristics:
 ### Transform Tags (AToB / BToA / DToB / BToD)
 
 ```
-AToB0  'A2B0'    Device → PCS, perceptual intent
-AToB1  'A2B1'    Device → PCS, relative colorimetric
-AToB2  'A2B2'    Device → PCS, saturation
-AToB3  'A2B3'    Device → PCS, absolute colorimetric
-BToA0  'B2A0'    PCS → Device, perceptual
-BToA1  'B2A1'    PCS → Device, relative
-BToA2  'B2A2'    PCS → Device, saturation
-BToA3  'B2A3'    PCS → Device, absolute
-DToB0  'D2B0'    Device → PCS, spectral (v5)
-DToB1  'D2B1'    ...
-BToD0  'B2D0'    PCS → Device, spectral (v5)
-BToD1  'B2D1'    ...
+AToB0  'A2B0'    Device → PCS, perceptual intent       (ICC.1 §9.2.1)
+AToB1  'A2B1'    Device → PCS, relative colorimetric  (ICC.1 §9.2.2)
+AToB2  'A2B2'    Device → PCS, saturation              (ICC.1 §9.2.3)
+AToB3  'A2B3'    Device → PCS, absolute colorimetric   (ICC.2 v5+ ONLY — NOT in ICC.1-2022-05)
+BToA0  'B2A0'    PCS → Device, perceptual              (ICC.1 §9.2.4)
+BToA1  'B2A1'    PCS → Device, relative                (ICC.1 §9.2.5)
+BToA2  'B2A2'    PCS → Device, saturation              (ICC.1 §9.2.6)
+BToA3  'B2A3'    PCS → Device, absolute                (ICC.2 v5+ ONLY — NOT in ICC.1-2022-05)
+DToB0  'D2B0'    Device → PCS, spectral                (ICC.1 §9.2.51, v4.0+)
+DToB1  'D2B1'    ...                                    (ICC.1 §9.2.52)
+BToD0  'B2D0'    PCS → Device, spectral                (ICC.1 §9.2.7)
+BToD1  'B2D1'    ...                                    (ICC.1 §9.2.8)
 ```
 
 ### Other Important Tags
@@ -288,8 +290,9 @@ Processing Element (at each offset):
 ### MPE Chain Depth Risk (CWE-674)
 
 Calculator elements can reference sub-elements which themselves contain calculators,
-enabling unbounded recursion. Heuristic H138 estimates chain depth; CFL-010 limits
-recursion to depth 50 with a 200K operations budget.
+enabling unbounded recursion. Heuristic H138 estimates chain depth; CFL-014 limits
+recursion depth in SequenceNeedTempReset. CFL-010 (CheckUnderflowOverflow recursion
+budget) was retired after upstream acceptance (PR #684).
 
 ---
 
@@ -502,7 +505,7 @@ iCCP chunk:
   Compression method (1 byte, must be 0 = zlib)
   Compressed ICC profile data (zlib deflate)
 
-Extraction: png_get_iCCP() → inflate → temp file → 150-heuristic analysis
+Extraction: png_get_iCCP() → inflate → temp file → 171-heuristic analysis
 ```
 
 ### JPEG ICC Extraction
@@ -557,34 +560,64 @@ Multi-segment reassembly:
 
 ---
 
-## 13. CFL Patch Catalog (20 Active)
+## 13. CFL Patch Catalog (45 Active)
 
-Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs:
+Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs.
+Patches numbered CFL-001 through CFL-057, with 12 gaps (003/010/011/012/013/015/016/018/020/024/026/027)
+retired after upstream acceptance.
 
 | # | Patch | Bug | CWE | File |
 |---|-------|-----|-----|------|
 | 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/170 | IccTagBasic.cpp, IccUtilXml.cpp |
 | 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles×3 | CWE-190 | IccTagLut.cpp |
-| 003 | TagArray alloc-dealloc mismatch | `new[]` in copy ctor, `free()` in Cleanup() | CWE-762 | IccTagComposite.cpp |
 | 004 | ToneMapFunc Read parameter count | HBO via Describe() accessing m_params[0..2] with 1 allocated | CWE-122 | IccMpeBasic.cpp |
 | 005 | CalculatorFunc Read enum UBSAN | Enum out-of-range in calculator op read | CWE-681 | IccMpeCalc.cpp |
 | 006 | SpectralMatrix Describe bounds | HBO via Describe() iterating m_nOutputChannels rows | CWE-122 | IccMpeSpectral.cpp |
 | 007 | TagArray Read overflow guard | Integer overflow in TagArray element count | CWE-190 | IccTagComposite.cpp |
 | 008 | TagCurve Apply NaN-to-unsigned | NaN bypasses [0,1] clamp, cast to unsigned = UB | CWE-681 | IccTagLut.cpp |
 | 009 | EnvVar Exec enum UBSAN | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
-| 010 | CheckUnderflowOverflow recursion | Unbounded recursion: depth 50 + 200K ops budget | CWE-674 | IccMpeCalc.cpp |
-| 011 | SpecSepToTiff unique_ptr array | unique_ptr array mismatch | CWE-762 | IccApplyBPC.h |
-| 012 | ndLUT InterpND null ApplyCLUT | NULL deref in CLUT interpolation | CWE-476 | IccTagLut.cpp |
-| 013 | TagArray cleanup uninit guard | Uninitialized members + UAF in tag array | CWE-908/416 | IccTagComposite.cpp |
 | 014 | SequenceNeedTempReset recursion | Unbounded recursion depth in sequence reset | CWE-674 | IccMpeCalc.cpp |
-| 015 | SpecSep BPS validation | BPS validation for spectral separation | CWE-20 | IccApplyBPC.cpp |
-| 016 | NaN guard unsigned cast UBSAN | NaN→unsigned conversion UB | CWE-681 | IccMpeBasic.cpp |
-| 017 | EnvVar GetEnvSig parse enum | Enum parse UB in env variable signature | CWE-681 | IccMpeCalc.cpp |
-| 018 | TagUnknown Describe HBO | Underflow in Describe() size calculation | CWE-122 | IccTagBasic.cpp |
-| 019 | PCC null spectral viewing | NULL deref: spectral viewing conditions | CWE-476 | IccPcc.cpp |
-| 020 | SampledCalculatorCurve Begin | SBO: channel count mismatch in Begin() | CWE-121 | IccMpeBasic.cpp |
+| 017 | EnvVar GetEnvSig parse enum | Enum parse UB in env variable signature | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
+| 019 | PCC getReflectanceObserver null | NULL deref: spectral viewing conditions | CWE-476 | IccPcc.cpp |
+| 021 | SingleSampledCurve OOM size | Oversized m_nCount allocation | CWE-400 | IccMpeBasic.cpp |
+| 022 | Calc Trunc/Floor/Ceil/Round/Mod | Large float-to-int cast in 5 calculator ops | CWE-681 | IccMpeCalc.cpp |
+| 023 | Sampled curve NaN-to-unsigned | 3 Apply() NaN-to-unsigned casts | CWE-681 | IccMpeBasic.cpp |
+| 025 | CLUT InterpNd null Apply guard | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
+| 028 | MatrixMath SetRange NaN guard | NaN-to-unsigned-short in SetRange() | CWE-681 | IccMatrixMath.cpp |
+| 029 | TagArray operator= loop var | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
+| 030 | FixedNum GetValues SBO | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
+| 031 | loadJsonFrom ftell overflow | ftell() unchecked return on non-seekable fd | CWE-190/252 | IccJsonUtil.cpp |
+| 032 | icXformInterp enum range | Unchecked atoi() → enum out-of-range UBSAN | CWE-20/681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
+| 033 | PccWeight fromJson field swap | pccFile↔weight members swapped in fromJson | CWE-843 | IccCmmConfig.cpp |
+| 034 | SearchApply fromJsonInit interp | Reads j["transform"] instead of j["interpolation"] | CWE-345 | IccCmmConfig.cpp |
+| 035 | ApplyCmmSearch m_nApply OOB | HBO via unclamped m_nApply index into m_dst_to_mid | CWE-122 | IccCmmSearch.cpp |
+| 036 | CreateLink toJson linkGridSize | toJson never writes m_linkGridSize — data loss | CWE-345 | IccCmmConfig.cpp |
+| 037 | Profile toJson missing transform | toJson never writes m_transform + interpolation guard | CWE-345 | IccCmmConfig.cpp |
+| 038 | SearchApply toJsonInit transform | toJsonInit never writes m_transformInitial | CWE-345 | IccCmmConfig.cpp |
+| 039 | SearchApply toJson dead guards | jsonExistsField on fresh empty json → nothing written | CWE-561 | IccCmmConfig.cpp |
+| 040 | fromIt8 CMYK missing push_back | CMYK branch missing samples.push_back(val) | CWE-787/125 | IccCmmConfig.cpp |
+| 041 | fromIt8 LAB/XYZ val(4) OOB | val(4) should be val(3) for 3-channel LAB/XYZ | CWE-125 | IccCmmConfig.cpp |
+| 042 | ParseNumbers 'n' vs '\\n' typo | Skip-number loop uses 'n' instead of newline | CWE-20 | IccCmmConfig.cpp |
+| 043 | Tool toJson is_object vs is_array | seq.is_object() fails on array from toJson | CWE-697 | iccApplyNamedCmm.cpp, iccApplySearch.cpp |
+| 044 | NDLut Apply missing interp dispatch | Missing interpolation method dispatch in NDLut | CWE-476 | IccCmm.cpp |
+| 045 | AddXform null PCS guard | NULL PCS pointer dereference in AddXform | CWE-476 | IccCmm.cpp |
+| 046 | PCS step src matrix delete[] | delete vs delete[] mismatch on matrix array | CWE-762 | IccCmm.cpp |
+| 047 | pushXYZNormalize null PCC guard | NULL PCC pointer dereference | CWE-476 | IccCmm.cpp |
+| 048 | DumpLut iterate missing bufsize | Missing buffer size in DumpLut iteration | CWE-122 | IccTagLut.cpp |
+| 049 | MBB Describe BToA missing legacy | Missing bUseLegacy check in MBB Describe BToA | CWE-125 | IccTagLut.cpp |
+| 050 | FormulaCurve Describe param bounds | OOB read in FormulaCurve Describe parameter access | CWE-125 | IccMpeBasic.cpp |
+| 051 | ParametricCurve Describe param | OOB read in ParametricCurve Describe | CWE-125 | IccTagLut.cpp |
+| 052 | fromIt8 wrong index variable | Wrong loop index variable in fromIt8 | CWE-125 | IccCmmConfig.cpp |
+| 053 | FormulaCurve Describe format | Wrong printf format specifiers | CWE-134 | IccMpeBasic.cpp |
+| 054 | ParametricCurve Describe format | Wrong printf format specifiers | CWE-134 | IccTagLut.cpp |
+| 055 | fromIt8 signed-unsigned mismatch | Signed/unsigned comparison in fromIt8 loop | CWE-681 | IccCmmConfig.cpp |
+| 056 | Spectral Describe null guards | NULL pointer dereference in spectral Describe | CWE-476 | IccMpeSpectral.cpp |
+| 057 | SearchApply uninitialized members | Uninitialized member variables in constructor | CWE-908 | IccCmmConfig.cpp |
 
-**Next patch**: CFL-021. 62 legacy patches in `cfl/patches-retired/`.
+**Retired patches** (accepted upstream in PRs #680–#695):
+003, 010, 011, 012, 013, 015, 016, 018, 020, 024, 026, 027 — 12 patches, 71 total in `cfl/patches-retired/`.
+
+**Next patch**: CFL-058.
 
 ---
 
@@ -603,6 +636,29 @@ Which ICC binary format fields each heuristic group validates:
 | H139–H141, H149–H150 | IccImageAnalyzer.cpp | TIFF strip/tile geometry, IFD bounds, cycle detection |
 | H142–H145 | IccHeuristicsXmlSafety.cpp | XML serialization crash isolation (fork + alarm) |
 | H146–H148 | IccHeuristicsDataValidation.cpp | Advanced: SBO GetValues, NPD post-Read, memcpy bounds |
+
+---
+
+## 14.5. ICC Conformance Checks (CF-001..CF-122)
+
+98 conformance checks across 7 source files, validating ICC.1-2022-05 and ICC.2-2023
+specification requirements. These run by default in `-a` mode (conformance audit).
+Legacy vulnerability heuristics (H1-H171) require `--legacy` flag.
+
+Registry: `IccConformanceRegistry.h` (IDs offset by 1000 to avoid collision with H1-H171).
+
+| CF Range | Module | Spec Coverage |
+|----------|--------|---------------|
+| CF-001..CF-015 | IccConformanceHeader.cpp | Header field validation: size, magic, version BCD, class, color space, PCS, rendering intent, D50 illuminant, reserved bytes (§7.2) |
+| CF-020..CF-034 | IccConformanceTagTypes.cpp | Tag type signatures, s15Fixed16 validation, XYZ values, text tag structure, LUT type consistency (§9-10) |
+| CF-040..CF-053 | IccConformanceRequired.cpp | Required tags per profile class: desc/copyright/wtpt + class-specific tags for mntr/prtr/scnr/link/spac/abst/nmcl, chad requirement when adopted white ≠ D50 (§8.2-8.9) |
+| CF-060..CF-070 | IccConformanceLUT.cpp | LUT channel consistency, CLUT grid dimensions, curve point counts, matrix element ranges, AToB/BToA pair completeness (§10.8-10.11) |
+| CF-080..CF-089 | IccConformanceV5.cpp | v5/iccMAX: spectral PCS wavelength ranges, MPE element structure, multiProcessElementsType validation (ICC.2 §7-10) |
+| CF-091..CF-094 | IccConformanceSecurity.cpp | CWE-400 complexity estimation, tag size vs profile size ratio, MPE amplification guard |
+| CF-095..CF-102 | IccConformanceQuality.cpp | Profile quality: curve monotonicity, white point accuracy, gamut coverage, round-trip fidelity |
+| CF-103..CF-122 | Deep spec (across files) | Tag data alignment (§7.3.5), date/time leap validation (§4.2), parametricCurveType function types (§10.18), named color device coords (§10.14), profile sequence desc (§10.22), media white point proximity (§8), colorimetric intent image state (§8.2.4) |
+
+**Spec coverage**: v4 (ICC.1-2022-05) ~90%, v5 (ICC.2-2023) ~40%.
 
 ---
 
@@ -770,4 +826,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.6.2+ · 171 heuristics · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 171 heuristics · 98 conformance checks (CF-001..CF-122) · 45 CFL patches · 13 fuzzers · 93 advisories*
