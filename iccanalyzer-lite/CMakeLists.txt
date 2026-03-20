@@ -19,6 +19,7 @@ set(SOURCES
     IccAnalyzerErrors.cpp
     IccAnalyzerSecurity.cpp
     IccAnalyzerPathValidation.cpp
+    IccHeuristicResult.cpp
     IccHeuristicsRawPost.cpp
     IccHeuristicsCodeQLPatterns.cpp
     IccHeuristicsExploitGap.cpp
