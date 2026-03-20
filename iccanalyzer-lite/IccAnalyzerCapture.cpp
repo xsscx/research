@@ -75,7 +75,8 @@ std::vector<std::string> ParseCSVRefs(const char *csv) {
 }
 
 CapturedAnalysis CaptureAndParseAnalysis(const char *profilePath,
-                                          const char *fingerprint_db) {
+                                          const char *fingerprint_db,
+                                          bool legacy) {
   CapturedAnalysis result;
   result.exitCode = 2;
   result.okCount = result.warnCount = result.critCount = 0;
@@ -96,7 +97,7 @@ CapturedAnalysis CaptureAndParseAnalysis(const char *profilePath,
     close(devNull);
   }
 
-  result.exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
+  result.exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db, legacy);
 
   // Restore stdout and quiet mode
   fflush(stdout);

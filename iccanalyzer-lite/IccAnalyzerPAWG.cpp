@@ -291,7 +291,7 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
     close(devNull);
   }
 
-  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
+  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db, true);
 
   fflush(stdout);
   if (savedStdout >= 0) {

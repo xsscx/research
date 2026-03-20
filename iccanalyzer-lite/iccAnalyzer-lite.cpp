@@ -191,25 +191,33 @@ static int RecoverableRun(const char *label, Fn fn) {
 }
 
 void PrintUsage() {
-  printf(ICCANALYZER_VERSION_FULL " - Static Build (No Database Features)\n\n");
-  printf("Usage: iccAnalyzer-lite [OPTIONS] <file>\n\n");
+  printf(ICCANALYZER_VERSION_FULL " - ICC Profile Conformance Auditor\n\n");
+  printf("Usage: iccAnalyzer-lite [OPTIONS] [--legacy] <file>\n\n");
   
-  printf("Analysis Modes:\n");
-  printf("  -h <file.icc>              Security heuristics analysis\n");
+  printf("Conformance Modes (default — ICC specification auditing):\n");
+  printf("  -a <file>                  Conformance audit (auto-detects TIFF/PNG/JPEG/ICC)\n");
+  printf("  -pawg <file>               ICC PAWG assessment report (31-item checklist)\n");
+  printf("  --json <file>              Conformance results as structured JSON\n");
+  printf("  --report <file>            Conformance report (severity-sorted)\n");
+  printf("  -xml <file.icc> <out.xml>  Conformance report as XML + XSLT\n");
+  printf("  --registry                 Emit heuristic database as JSON (source of truth)\n");
+
+  printf("\nLegacy Mode (backward-looking vulnerability analysis):\n");
+  printf("  --legacy                   Add 171-heuristic CVE/GHSA pattern analysis\n");
+  printf("  -h <file.icc>              Security heuristics only (always legacy)\n");
+  printf("  Examples:\n");
+  printf("    -a --legacy <file>       Full conformance + vulnerability analysis\n");
+  printf("    --json --legacy <file>   JSON with heuristic findings included\n");
+
+  printf("\nStructure & Inspection:\n");
   printf("  -r <file.icc>              Round-trip accuracy test\n");
-  printf("  -a <file>                  Comprehensive analysis (auto-detects TIFF/PNG/JPEG/ICC)\n");
   printf("  -img <file>                Image analysis (TIFF/PNG/JPEG with ICC extraction)\n");
   printf("  -n <file.icc>              Ninja mode (minimal output)\n");
   printf("  -nf <file.icc>             Ninja mode (full dump, no truncation)\n");
+  printf("  -dump <file.icc>           Full profile dump (DumpAll: header, tags, v5 summary)\n");
   printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
   printf("  -luts <file.icc> [base]    LUT visualization (SVG curves + TIFF 3D CLUTs)\n");
-  printf("  -dump <file.icc>           Full profile dump (DumpAll: header, tags, v5 summary)\n");
   
-  printf("\nOutput Formats:\n");
-  printf("  --json <file>              JSON structured output\n");
-  printf("  --report <file>            Professional report (severity-sorted)\n");
-  printf("  -pawg <file>               ICC PAWG assessment report (31-item checklist)\n");
-
   printf("\nLUT I/O:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables (binary CLUT)\n");
   printf("  -xt <file.icc> <basename>  Extract LUT tables as editable text (TSV)\n");
@@ -218,28 +226,46 @@ void PrintUsage() {
   printf("  -it <file.icc> <text.txt> <output.icc> [tag]  Import edited text LUT\n");
   printf("  -cube <file.icc> <output.cube> [tag]    Export 3D CLUT as .cube\n");
   printf("  -from-cube <file.cube> <output.icc>     Create ICC profile from .cube\n");
-  printf("  -xml <file.icc> <out.xml>  Export heuristics report as XML + XSLT\n");
 
-  printf("\nRegistry:\n");
-  printf("  --registry                 Emit heuristic database as JSON (source of truth)\n");
-  
   printf("\nImage Analysis (-a auto-detect, or -img explicit):\n");
   printf("  TIFF: Extract embedded ICC (tag 34675), report metadata, scan injections\n");
-  printf("  PNG:  (planned) Extract ICC from iCCP chunk\n");
-  printf("  JPEG: (planned) Extract ICC from APP2 marker\n");
+  printf("  PNG:  Extract ICC from iCCP chunk\n");
+  printf("  JPEG: Extract ICC from APP2 marker\n");
   
   printf("\nExit Codes:\n");
   printf("  0  Clean    - Profile analyzed, no issues detected\n");
-  printf("  1  Finding  - Security heuristic warnings or validation failures\n");
+  printf("  1  Finding  - Conformance issues or heuristic warnings detected\n");
   printf("  2  Error    - I/O error (file not found, profile read failure)\n");
   printf("  3  Usage    - Bad arguments or unknown option\n");
   
-  printf("\nNote: This is the LITE version - fingerprint database features disabled\n");
-  printf("      For full version with all features, use regular iccAnalyzer\n");
+  printf("\nNote: Default mode is conformance auditing (ICC spec validation).\n");
+  printf("      Use --legacy to include backward-looking vulnerability heuristics.\n");
 }
 
 int main(int argc, char **argv) {
   InstallCrashRecovery();
+
+  if (argc < 2) {
+    PrintUsage();
+    return ICC_EXIT_USAGE;
+  }
+
+  // Scan for --legacy modifier flag and strip it from effective argv.
+  // --legacy re-enables the 171-heuristic vulnerability analysis (disabled by
+  // default in conformance-first mode). Can appear anywhere in argv.
+  bool legacyMode = false;
+  static char *effectiveArgv[128];
+  int effectiveArgc = 0;
+  for (int i = 0; i < argc && effectiveArgc < 127; i++) {
+    if (strcmp(argv[i], "--legacy") == 0) {
+      legacyMode = true;
+    } else {
+      effectiveArgv[effectiveArgc++] = argv[i];
+    }
+  }
+  effectiveArgv[effectiveArgc] = nullptr;
+  argc = effectiveArgc;
+  argv = effectiveArgv;
 
   if (argc < 2) {
     PrintUsage();
@@ -271,12 +297,12 @@ int main(int argc, char **argv) {
   
   // JSON output mode
   if (strcmp(mode, "--json") == 0 && argc >= 3) {
-    return RecoverableRun("JSON analysis", [&]{ return RunWithJsonOutput(profilePath, nullptr); });
+    return RecoverableRun("JSON analysis", [&]{ return RunWithJsonOutput(profilePath, nullptr, legacyMode); });
   }
 
   // Report output mode (severity-sorted professional report)
   if (strcmp(mode, "--report") == 0 && argc >= 3) {
-    return RecoverableRun("report analysis", [&]{ return RunWithReportOutput(profilePath, nullptr); });
+    return RecoverableRun("report analysis", [&]{ return RunWithReportOutput(profilePath, nullptr, legacyMode); });
   }
 
   // PAWG assessment report (ICC Profile Assessment Working Group checklist)
@@ -298,7 +324,7 @@ int main(int argc, char **argv) {
     if (fmt == ImageFormat::JPEG) {
       return RecoverableRun("JPEG image analysis", [&]{ return AnalyzeJpegImage(profilePath, nullptr); });
     }
-    return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr); });
+    return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr, legacyMode); });
   }
   
   // Image analysis mode (explicit — any image format)
@@ -429,7 +455,7 @@ int main(int argc, char **argv) {
       return ICC_EXIT_ERROR;
     }
     outXml = resolvedXml;
-    return RecoverableRun("XML export", [&]{ return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr); });
+    return RecoverableRun("XML export", [&]{ return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr, legacyMode); });
   }
   
   // Registry dump — emit heuristic database as JSON (source of truth for all counts)

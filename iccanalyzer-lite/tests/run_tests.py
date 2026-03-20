@@ -417,7 +417,7 @@ def test_exit_codes(suite):
     )
     suite.assert_exit_code(
         "exit_code.empty_file",
-        ["-a", f"{corpus}/empty_file.icc"], EXIT_FINDING, check_stderr=False
+        ["-a", f"{corpus}/empty_file.icc"], EXIT_ERROR, check_stderr=False
     )
 
     # Exit 1 or 2: truncated/corrupt profiles
@@ -473,77 +473,77 @@ def test_heuristic_detection(suite):
     # H1: bad magic
     suite.assert_output_contains(
         "heuristic.bad_magic_detected",
-        ["-a", f"{corpus}/bad_magic.icc"],
+        ["-a", "--legacy", f"{corpus}/bad_magic.icc"],
         r"magic|acsp|WARN|CRITICAL"
     )
 
     # H108/H127: private tags
     suite.assert_output_contains(
         "heuristic.private_tags_detected",
-        ["-a", f"{corpus}/private_tags.icc"],
+        ["-a", "--legacy", f"{corpus}/private_tags.icc"],
         r"H108|H127|[Pp]rivate|unknown tag"
     )
 
     # H112: bad wtpt
     suite.assert_output_contains(
         "heuristic.bad_wtpt_detected",
-        ["-a", f"{corpus}/bad_wtpt.icc"],
+        ["-a", "--legacy", f"{corpus}/bad_wtpt.icc"],
         r"H112|wtpt|[Ww]hite.?[Pp]oint|D50|WARN"
     )
 
     # H116: wrong encoding for version
     suite.assert_output_contains(
         "heuristic.wrong_version_encoding",
-        ["-a", f"{corpus}/wrong_version_encoding.icc"],
+        ["-a", "--legacy", f"{corpus}/wrong_version_encoding.icc"],
         r"H116|H117|encoding|mluc|text|WARN|wrong type"
     )
 
     # H117: wrong tag type
     suite.assert_output_contains(
         "heuristic.wrong_tag_type",
-        ["-a", f"{corpus}/wrong_tag_type.icc"],
+        ["-a", "--legacy", f"{corpus}/wrong_tag_type.icc"],
         r"H117|not in allowed|disallowed|WARN"
     )
 
     # H126: malware private tag
     suite.assert_output_contains(
         "heuristic.malware_signature",
-        ["-a", f"{corpus}/malware_private_tag.icc"],
+        ["-a", "--legacy", f"{corpus}/malware_private_tag.icc"],
         r"H126|[Mm]alware|MZ|PE|executable|WARN|CRITICAL"
     )
 
     # H122: XYZ out of range
     suite.assert_output_contains(
         "heuristic.xyz_out_of_range",
-        ["-a", f"{corpus}/xyz_out_of_range.icc"],
+        ["-a", "--legacy", f"{corpus}/xyz_out_of_range.icc"],
         r"H122|out of.*range|XYZ|WARN"
     )
 
     # H111: reserved bytes
     suite.assert_output_contains(
         "heuristic.reserved_bytes",
-        ["-a", f"{corpus}/reserved_bytes_nonzero.icc"],
+        ["-a", "--legacy", f"{corpus}/reserved_bytes_nonzero.icc"],
         r"H111|[Rr]eserved|non-zero|WARN"
     )
 
     # Huge tag count triggers preflight
     suite.assert_output_contains(
         "heuristic.huge_tag_count",
-        ["-a", f"{corpus}/huge_tag_count.icc"],
+        ["-a", "--legacy", f"{corpus}/huge_tag_count.icc"],
         r"tag count|CRITICAL|preflight|threshold|999999|WARN"
     )
 
     # H124: v5 tags on v4
     suite.assert_output_contains(
         "heuristic.v5_tags_on_v4",
-        ["-a", f"{corpus}/v5_tags_on_v4.icc"],
+        ["-a", "--legacy", f"{corpus}/v5_tags_on_v4.icc"],
         r"H124|version|D2B|v5|WARN"
     )
 
     # H114: non-monotonic TRC
     suite.assert_output_contains(
         "heuristic.non_monotonic_trc",
-        ["-a", f"{corpus}/non_monotonic_curve.icc"],
+        ["-a", "--legacy", f"{corpus}/non_monotonic_curve.icc"],
         r"H114|[Mm]onoton|TRC|WARN"
     )
 
@@ -552,126 +552,126 @@ def test_heuristic_detection(suite):
     # H3: null/invalid colorSpace
     suite.assert_output_contains(
         "heuristic.null_colorspace",
-        ["-a", f"{corpus}/null_colorspace.icc"],
+        ["-a", "--legacy", f"{corpus}/null_colorspace.icc"],
         r"Invalid/null colorSpace"
     )
 
     # H4: invalid PCS signature
     suite.assert_output_contains(
         "heuristic.invalid_pcs",
-        ["-a", f"{corpus}/invalid_pcs.icc"],
+        ["-a", "--legacy", f"{corpus}/invalid_pcs.icc"],
         r"Invalid PCS signature"
     )
 
     # H5: unknown platform signature
     suite.assert_output_contains(
         "heuristic.unknown_platform",
-        ["-a", f"{corpus}/unknown_platform.icc"],
+        ["-a", "--legacy", f"{corpus}/unknown_platform.icc"],
         r"Unknown platform signature"
     )
 
     # H6: invalid rendering intent
     suite.assert_output_contains(
         "heuristic.invalid_rendering_intent",
-        ["-a", f"{corpus}/invalid_rendering_intent.icc"],
+        ["-a", "--legacy", f"{corpus}/invalid_rendering_intent.icc"],
         r"Invalid rendering intent value 99"
     )
 
     # H7: unknown device class
     suite.assert_output_contains(
         "heuristic.unknown_device_class",
-        ["-a", f"{corpus}/unknown_device_class.icc"],
+        ["-a", "--legacy", f"{corpus}/unknown_device_class.icc"],
         r"Unknown profile class"
     )
 
     # H8: negative illuminant
     suite.assert_output_contains(
         "heuristic.negative_illuminant",
-        ["-a", f"{corpus}/negative_illuminant.icc"],
+        ["-a", "--legacy", f"{corpus}/negative_illuminant.icc"],
         r"Negative illuminant values"
     )
 
     # H15: invalid date fields
     suite.assert_output_contains(
         "heuristic.invalid_date",
-        ["-a", f"{corpus}/invalid_date.icc"],
+        ["-a", "--legacy", f"{corpus}/invalid_date.icc"],
         r"Invalid month: 13|Invalid day: 32"
     )
 
     # H128: non-BCD version nibble
     suite.assert_output_contains(
         "heuristic.version_bcd_invalid",
-        ["-a", f"{corpus}/version_bcd_invalid.icc"],
+        ["-a", "--legacy", f"{corpus}/version_bcd_invalid.icc"],
         r"Non-BCD nibble in version"
     )
 
     # H129: D50 illuminant mismatch
     suite.assert_output_contains(
         "heuristic.wrong_d50_illuminant",
-        ["-a", f"{corpus}/wrong_d50_illuminant.icc"],
+        ["-a", "--legacy", f"{corpus}/wrong_d50_illuminant.icc"],
         r"PCS illuminant does not match D50"
     )
 
     # H133: flags reserved bits
     suite.assert_output_contains(
         "heuristic.flags_reserved_bits",
-        ["-a", f"{corpus}/flags_reserved_bits.icc"],
+        ["-a", "--legacy", f"{corpus}/flags_reserved_bits.icc"],
         r"Reserved flag bits non-zero"
     )
 
     # H135: duplicate tag signatures
     suite.assert_output_contains(
         "heuristic.duplicate_tags",
-        ["-a", f"{corpus}/duplicate_tags.icc"],
+        ["-a", "--legacy", f"{corpus}/duplicate_tags.icc"],
         r"Duplicate tag signature.*desc"
     )
 
     # H130/H40: tag alignment
     suite.assert_output_contains(
         "heuristic.tag_misaligned",
-        ["-a", f"{corpus}/tag_misaligned.icc"],
+        ["-a", "--legacy", f"{corpus}/tag_misaligned.icc"],
         r"not 4-byte aligned"
     )
 
     # H1: extra trailing bytes (size mismatch)
     suite.assert_output_contains(
         "heuristic.extra_trailing_bytes",
-        ["-a", f"{corpus}/extra_trailing_bytes.icc"],
+        ["-a", "--legacy", f"{corpus}/extra_trailing_bytes.icc"],
         r"EXTRA BYTES appended"
     )
 
     # H20: null tag type signature
     suite.assert_output_contains(
         "heuristic.null_tag_type",
-        ["-a", f"{corpus}/null_tag_type.icc"],
+        ["-a", "--legacy", f"{corpus}/null_tag_type.icc"],
         r"null type signature"
     )
 
     # H49: NaN/Inf in float tag
     suite.assert_output_contains(
         "heuristic.nan_float_tag",
-        ["-a", f"{corpus}/nan_float_tag.icc"],
+        ["-a", "--legacy", f"{corpus}/nan_float_tag.icc"],
         r"NaN detected at offset|Inf detected at offset"
     )
 
     # H55: odd byte length UTF-16
     suite.assert_output_contains(
         "heuristic.odd_utf16_mluc",
-        ["-a", f"{corpus}/odd_utf16_mluc.icc"],
+        ["-a", "--legacy", f"{corpus}/odd_utf16_mluc.icc"],
         r"odd byte length.*invalid UTF-16"
     )
 
     # H69: suspicious profile ID
     suite.assert_output_contains(
         "heuristic.suspicious_profile_id",
-        ["-a", f"{corpus}/suspicious_profile_id.icc"],
+        ["-a", "--legacy", f"{corpus}/suspicious_profile_id.icc"],
         r"suspicious pattern.*0xFF|Profile ID.*suspicious"
     )
 
     # H10: zero tags (verify library-level detection)
     suite.assert_output_contains(
         "heuristic.zero_tags_detected",
-        ["-a", f"{corpus}/zero_tags.icc"],
+        ["-a", "--legacy", f"{corpus}/zero_tags.icc"],
         r"Zero tags.*invalid"
     )
 
@@ -680,34 +680,34 @@ def test_heuristic_detection(suite):
     # H64: NamedColor2 device coords > 15
     suite.assert_output_contains(
         "heuristic.named_color2_excessive_coords",
-        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        ["-a", "--legacy", f"{corpus}/named_color2_excessive_coords.icc"],
         r"NamedColor2.*20 device coords.*>15"
     )
 
     # H136: ResponseCurve excessive measurements
     suite.assert_output_contains(
         "heuristic.response_curve_excessive_measurements",
-        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        ["-a", "--legacy", f"{corpus}/response_curve_excessive_measurements.icc"],
         r"ResponseCurve.*channel.*500000 measurements.*>100K"
     )
 
     # H137: high-dimensional color space
     suite.assert_output_contains(
         "heuristic.high_dimensional_grid_complexity",
-        ["-a", f"{corpus}/high_dimensional_colorspace.icc"],
+        ["-a", "--legacy", f"{corpus}/high_dimensional_colorspace.icc"],
         r"Input color space has 8 channels"
     )
 
     # Verify H136/H137 produce CWE-400 annotations
     suite.assert_output_contains(
         "heuristic.cwe400_in_response_curve",
-        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        ["-a", "--legacy", f"{corpus}/response_curve_excessive_measurements.icc"],
         r"CWE-400.*Unbounded measurement count"
     )
 
     suite.assert_output_contains(
         "heuristic.cwe400_in_high_dim",
-        ["-a", f"{corpus}/high_dimensional_colorspace.icc"],
+        ["-a", "--legacy", f"{corpus}/high_dimensional_colorspace.icc"],
         r"CWE-400.*O\(nGran\^ndim\)"
     )
 
@@ -716,14 +716,14 @@ def test_heuristic_detection(suite):
     # H47 raw-byte ncl2 check fires nDevCoords>15 (always-run, covers library-load failures)
     suite.assert_output_contains(
         "symmetry.h47_raw_ndevcoords_gt15",
-        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        ["-a", "--legacy", f"{corpus}/named_color2_excessive_coords.icc"],
         r"ncl2.*nDeviceCoords.*>15 ICC spec max"
     )
 
     # H47 raw-byte ncl2 check fires CFL-076 pattern annotation
     suite.assert_output_contains(
         "symmetry.h47_raw_cfl076_pattern",
-        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        ["-a", "--legacy", f"{corpus}/named_color2_excessive_coords.icc"],
         r"CWE-787.*CFL-076"
     )
 
@@ -732,14 +732,14 @@ def test_heuristic_detection(suite):
     # so the library may reject it. H47 always catches it at raw level.
     suite.assert_output_contains(
         "symmetry.h47_raw_ncolors_gt10000",
-        ["-a", f"{corpus}/named_color2_large_nsize.icc"],
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
         r"ncl2.*entries.*>10000.*Describe.*DoS"
     )
 
     # H47 CWE-400 Describe() pattern annotation
     suite.assert_output_contains(
         "symmetry.h47_raw_cfl078_pattern",
-        ["-a", f"{corpus}/named_color2_large_nsize.icc"],
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
         r"CWE-400.*Describe.*m_nSize.*CFL-078"
     )
 
@@ -747,21 +747,21 @@ def test_heuristic_detection(suite):
     # Verify it fires on response_curve_excessive_measurements.icc even with malformed header
     suite.assert_output_contains(
         "symmetry.h136_always_runs",
-        ["-a", f"{corpus}/response_curve_excessive_measurements.icc"],
+        ["-a", "--legacy", f"{corpus}/response_curve_excessive_measurements.icc"],
         r"\[H136\].*ResponseCurve"
     )
 
     # XYZ large array completes without hanging (runtime safety)
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
-        ["-a", f"{corpus}/xyz_large_array.icc"],
+        ["-a", "--legacy", f"{corpus}/xyz_large_array.icc"],
         r"171 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
-        ["-a", f"{corpus}/calculator_deep_nesting.icc"],
+        ["-a", "--legacy", f"{corpus}/calculator_deep_nesting.icc"],
         r"171 heuristics"
     )
 
@@ -770,28 +770,28 @@ def test_heuristic_detection(suite):
     # H86: bidi override characters in mluc text
     suite.assert_output_contains(
         "heuristic.h86_bidi_override",
-        ["-a", f"{corpus}/mluc_bidi_override.icc"],
+        ["-a", "--legacy", f"{corpus}/mluc_bidi_override.icc"],
         r"bidi override.*formatting characters"
     )
 
     # H86: mixed Latin + non-Latin scripts
     suite.assert_output_contains(
         "heuristic.h86_mixed_scripts",
-        ["-a", f"{corpus}/mluc_mixed_scripts.icc"],
+        ["-a", "--legacy", f"{corpus}/mluc_mixed_scripts.icc"],
         r"mixes Latin.*non-Latin scripts"
     )
 
     # H86: control characters in mluc text
     suite.assert_output_contains(
         "heuristic.h86_control_chars",
-        ["-a", f"{corpus}/mluc_control_chars.icc"],
+        ["-a", "--legacy", f"{corpus}/mluc_control_chars.icc"],
         r"non-printable control characters"
     )
 
     # H86: embedded null characters (string truncation)
     suite.assert_output_contains(
         "heuristic.h86_embedded_nulls",
-        ["-a", f"{corpus}/mluc_embedded_nulls.icc"],
+        ["-a", "--legacy", f"{corpus}/mluc_embedded_nulls.icc"],
         r"embedded null characters"
     )
 
@@ -800,14 +800,14 @@ def test_heuristic_detection(suite):
     # H147: null CLUT in AToB LUT tag
     suite.assert_output_contains(
         "heuristic.h147_null_clut",
-        ["-a", f"{corpus}/lut_null_clut.icc"],
+        ["-a", "--legacy", f"{corpus}/lut_null_clut.icc"],
         r"null CLUT.*Apply\(\) will crash"
     )
 
     # H147: degenerate CLUT (0 grid points via pTag null)
     suite.assert_output_contains(
         "heuristic.h147_degenerate_clut",
-        ["-a", f"{corpus}/lut_degenerate_clut.icc"],
+        ["-a", "--legacy", f"{corpus}/lut_degenerate_clut.icc"],
         r"pTag pointer is null|gridPoints = 0"
     )
 
@@ -816,7 +816,7 @@ def test_heuristic_detection(suite):
     # H151: truncate operator in calculator element
     suite.assert_output_contains(
         "heuristic.h151_calc_trunc",
-        ["-a", f"{corpus}/calc_trunc_operator.icc"],
+        ["-a", "--legacy", f"{corpus}/calc_trunc_operator.icc"],
         r"float-to-int cast operators.*trnc"
     )
 
@@ -825,7 +825,7 @@ def test_heuristic_detection(suite):
     # H73: shared curve tag pointers (immutable type → safe)
     suite.assert_output_contains(
         "heuristic.h73_shared_pointers",
-        ["-a", f"{corpus}/tag_shared_pointers.icc"],
+        ["-a", "--legacy", f"{corpus}/tag_shared_pointers.icc"],
         r"shared tag pair.*immutable.*safe"
     )
 
@@ -844,7 +844,7 @@ def test_runtime_safety(suite):
         if os.path.exists(poc_path):
             suite.assert_output_contains(
                 f"runtime_safety.poc_{poc[:12]}",
-                ["-a", poc_path],
+                ["-a", "--legacy", poc_path],
                 r"HEURISTIC SUMMARY"
             )
 
@@ -860,7 +860,7 @@ def test_runtime_safety(suite):
     for profile in cwe400_profiles:
         suite.assert_output_contains(
             f"runtime_safety.{profile.replace('.icc', '')}",
-            ["-a", f"{corpus}/{profile}"],
+            ["-a", "--legacy", f"{corpus}/{profile}"],
             r"HEURISTIC SUMMARY"
         )
 
@@ -869,13 +869,13 @@ def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
         "summary.171_heuristics",
-        ["-a", str(CORPUS_DIR / "bad_magic.icc")],
+        ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
         r"171 heuristics"
     )
 
     suite.assert_output_contains(
         "summary.heuristic_summary_header",
-        ["-a", str(CORPUS_DIR / "bad_magic.icc")],
+        ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
         r"HEURISTIC SUMMARY"
     )
 
@@ -1068,7 +1068,7 @@ def test_json_output(suite):
     good = str(CORPUS_DIR / "valid_srgb.icc")
 
     # JSON should be valid and parseable
-    rc, stdout, stderr = suite.run_analyzer(["--json", good])
+    rc, stdout, stderr = suite.run_analyzer(["--json", "--legacy", good])
     try:
         data = json.loads(stdout)
         valid = True
@@ -1335,7 +1335,7 @@ def test_html_xml_output(suite):
         xml_out = tmp.name
 
     try:
-        rc, stdout, stderr = suite.run_analyzer(["-xml", good, xml_out])
+        rc, stdout, stderr = suite.run_analyzer(["-xml", "--legacy", good, xml_out])
         suite.results.append(TestResult(
             "html.exit_code_ok", rc != 2,
             f"Exit code {rc} (I/O error)" if rc == 2 else "",
@@ -1430,7 +1430,7 @@ def test_report_output(suite):
     bad = str(CORPUS_DIR / "huge_tag_count.icc")
 
     # Report should contain banner
-    rc, stdout, stderr = suite.run_analyzer(["--report", good])
+    rc, stdout, stderr = suite.run_analyzer(["--report", "--legacy", good])
     has_banner = "ICC PROFILE SECURITY REPORT" in stdout
     suite.results.append(TestResult(
         "report.has_banner", has_banner,
@@ -1487,7 +1487,7 @@ def test_report_output(suite):
     ))
 
     # Report on bad profile should have severity sections with findings
-    rc2, stdout2, stderr2 = suite.run_analyzer(["--report", bad])
+    rc2, stdout2, stderr2 = suite.run_analyzer(["--report", "--legacy", bad])
     has_critical = "CRITICAL FINDINGS" in stdout2
     suite.results.append(TestResult(
         "report.bad_has_critical_section", has_critical,
@@ -1507,8 +1507,8 @@ def test_report_output(suite):
     suite.assert_no_asan("report.asan_clean_good", ["--report", good])
     suite.assert_no_asan("report.asan_clean_bad", ["--report", bad])
 
-    # JSON severity field test
-    rc3, stdout3, stderr3 = suite.run_analyzer(["--json", good])
+    # JSON severity field test (requires --legacy for heuristic severity data)
+    rc3, stdout3, stderr3 = suite.run_analyzer(["--json", "--legacy", good])
     try:
         data = json.loads(stdout3)
         results = data.get("results", [])
