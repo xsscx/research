@@ -81,14 +81,8 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   for (const auto *f : activeFindings) {
     if (f->primaryCWE) cweCounts[f->primaryCWE]++;
     if (f->cveRefs) {
-      std::string refs(f->cveRefs);
-      size_t start = 0;
-      for (size_t pos = 0; pos <= refs.size(); pos++) {
-        if (pos == refs.size() || refs[pos] == ',') {
-          if (pos > start) cveSet.insert(refs.substr(start, pos - start));
-          start = pos + 1;
-        }
-      }
+      for (const auto &r : ParseCSVRefs(f->cveRefs))
+        cveSet.insert(r);
     }
   }
 

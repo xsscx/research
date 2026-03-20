@@ -27,17 +27,9 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
   for (const auto &f : cap.findings) {
     if (f.cveRefs) {
       cveHeuristicsTriggered++;
-      std::string refs(f.cveRefs);
-      totalCveRefs++;
-      size_t start = 0;
-      for (size_t pos = 0; pos <= refs.size(); pos++) {
-        if (pos == refs.size() || refs[pos] == ',') {
-          if (pos > start)
-            uniqueCves.insert(refs.substr(start, pos - start));
-          start = pos + 1;
-          if (pos < refs.size()) totalCveRefs++;
-        }
-      }
+      auto refs = ParseCSVRefs(f.cveRefs);
+      totalCveRefs += static_cast<int>(refs.size());
+      for (const auto &r : refs) uniqueCves.insert(r);
     }
   }
 
@@ -89,16 +81,10 @@ int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
     }
     if (f.cveRefs) {
       printf(",\n      \"cveRefs\": [");
-      std::string refs(f.cveRefs);
-      bool first = true;
-      size_t pos = 0;
-      while (pos < refs.size()) {
-        size_t comma = refs.find(',', pos);
-        if (comma == std::string::npos) comma = refs.size();
-        if (!first) printf(",");
-        printf("\"%s\"", JsonEscapeString(refs.substr(pos, comma - pos)).c_str());
-        first = false;
-        pos = comma + 1;
+      auto refs = ParseCSVRefs(f.cveRefs);
+      for (size_t ri = 0; ri < refs.size(); ri++) {
+        if (ri > 0) printf(",");
+        printf("\"%s\"", JsonEscapeString(refs[ri]).c_str());
       }
       printf("]");
     }
