@@ -45,4 +45,9 @@ int RecursiveScan(const char *directory, bool quiet = false, int depth = 0);
 /// Use before CIccProfile::Read() to prevent UBSAN/ASAN from truncated tag data. CWE-125.
 bool IsProfileTruncated(const char *filename);
 
+/// Run iccDEV library CIccProfile::ReadValidate() on a profile file.
+/// Uses ValidateIccProfile() for full Read+Validate in one pass.
+/// Returns count of NonCompliant + CriticalError findings (Warning/Information printed but not counted).
+int RunIccLibraryValidation(const char *filename);
+
 #endif

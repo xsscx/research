@@ -39,6 +39,7 @@
 #include "IccAnalyzerSecurity.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerHeuristicTypes.h"
+#include "IccAnalyzerValidation.h"
 #include "IccHeuristicsRawPost.h"
 #include "IccHeuristicsLibrary.h"
 #include "IccHeuristicsHeader.h"
@@ -441,6 +442,11 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("=======================================================================\n\n");
   } else {
     libraryAnalyzed = true;
+    
+    // ICC Library Conformance Validation — CIccProfile::ReadValidate()
+    // Runs header, required tags, tag types, and per-tag content checks
+    heuristicCount += RunIccLibraryValidation(filename);
+
     printf("=======================================================================\n");
     printf("TAG-LEVEL HEURISTICS\n");
     printf("=======================================================================\n\n");
