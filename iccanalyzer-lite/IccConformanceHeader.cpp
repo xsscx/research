@@ -189,7 +189,7 @@ int RunCF002_DateTimeLeapYear(CIccProfile *pIcc) {
   printf("%s[CF-002]%s Date/Time Leap Year Validation (%sICC.1-2022-05 §7.2.8%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  if (dt.month != 2 || dt.month < 1 || dt.month > 12) {
+  if (dt.month != 2) {
     printf("         Month=%u — leap year check not applicable\n", dt.month);
     printf("         %s[OK]%s Not February, skip leap year validation\n",
            ColorSuccess(), ColorReset());
@@ -531,7 +531,7 @@ int RunCF009_ChadTagRequirement(CIccProfile *pIcc) {
                      fabs(iy - 1.0000) <= kTolerance &&
                      fabs(iz - 0.8249) <= kTolerance);
 
-  CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+  const CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
 
   if (!illumIsD50 && !chadTag) {
     printf("         Illuminant deviates from D50, chad tag: %smissing%s\n",
@@ -609,7 +609,6 @@ int RunCF010_ProfileSizeVsFileSize(CIccProfile *pIcc, const char *filename) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 int RunCF012_ProfileClassSignature(CIccProfile *pIcc) {
-  int issues = 0;
   icUInt32Number devClass = static_cast<icUInt32Number>(pIcc->m_Header.deviceClass);
 
   printf("%s[CF-012]%s Profile Class Signature (%sICC.1-2022-05 §7.2.5 Table 18%s)\n",
@@ -645,12 +644,12 @@ int RunCF012_ProfileClassSignature(CIccProfile *pIcc) {
              ColorWarning(), major, ColorReset());
       printf("         %s[WARN]%s v5 class used in pre-v5 profile — ICC.2-2023 §7.2.5\n",
              ColorWarning(), ColorReset());
-      issues++;
+      return 1;
     } else {
       printf("         %s[OK]%s Valid v5 profile class\n",
              ColorSuccess(), ColorReset());
     }
-    return issues;
+    return 0;
   }
 
   // Unknown class
