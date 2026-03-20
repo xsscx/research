@@ -6,7 +6,7 @@
  *
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  *
- * Captures analysis stdout, parses [H##] markers with [OK]/[WARN]/[CRIT] status,
+ * Uses shared CaptureAndParseAnalysis() to capture stdout, parse [H##] markers,
  * then emits a professional report sorted by severity (CRITICAL → HIGH → MEDIUM →
  * LOW → INFO) with banner header, CWE category summary, and CVE cross-references.
  */
@@ -14,49 +14,18 @@
 #include "IccAnalyzerReport.h"
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerHash.h"
-#include "IccAnalyzerComprehensive.h"
+#include "IccAnalyzerCapture.h"
 #include "IccHeuristicsRegistry.h"
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <algorithm>
 #include <map>
-#include <regex>
 #include <set>
 #include <string>
 #include <sstream>
 #include <vector>
-#include <unistd.h>
 #include <sys/stat.h>
-
-struct ReportFinding {
-  int id;
-  std::string name;
-  std::string status;   // "ok", "warn", "critical"
-  std::string detail;
-  HeuristicSeverity severity;
-  const char *cwe;
-  const char *specRef;
-  const char *cveRefs;
-};
-
-// Strip ANSI escape codes
-static std::string StripAnsiReport(const std::string &s) {
-  std::string out;
-  out.reserve(s.size());
-  size_t i = 0;
-  while (i < s.size()) {
-    if (s[i] == '\033' && i + 1 < s.size() && s[i + 1] == '[') {
-      i += 2;
-      while (i < s.size() && s[i] != 'm') i++;
-      if (i < s.size()) i++;
-    } else {
-      out += s[i++];
-    }
-  }
-  return out;
-}
 
 // Get file size
 static long GetFileSize(const char *path) {
@@ -84,108 +53,17 @@ static void PrintBanner(const char *title, int width) {
 }
 
 int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
-  // Capture stdout via pipe (same pattern as --json mode)
-  int pipefd[2];
-  if (pipe(pipefd) != 0) {
-    fprintf(stderr, "Failed to create pipe for report capture\n");
-    return 2;
-  }
-
-  int savedStdout = dup(STDOUT_FILENO);
-  dup2(pipefd[1], STDOUT_FILENO);
-  close(pipefd[1]);
-
-  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
-
-  fflush(stdout);
-  dup2(savedStdout, STDOUT_FILENO);
-  close(savedStdout);
-
-  // Read captured output
-  std::string captured;
-  char buf[4096];
-  ssize_t nr;
-  while ((nr = read(pipefd[0], buf, sizeof(buf))) > 0) {
-    captured.append(buf, nr);
-  }
-  close(pipefd[0]);
-
-  std::string clean = StripAnsiReport(captured);
-
-  // Parse [H##] blocks
-  std::vector<ReportFinding> findings;
-  int okCount = 0, warnCount = 0, critCount = 0;
-
-  std::regex hRegex(R"(\[H(\d+)\]\s+(.+))");
-  std::regex warnRegex(R"(\[WARN\])");
-  std::regex critRegex(R"(\[CRIT(?:ICAL)?\])");
-
-  std::istringstream stream(clean);
-  std::string line;
-  int currentH = -1;
-  std::string currentTitle;
-  std::string currentDetail;
-  std::string currentStatus = "ok";
-
-  auto flushFinding = [&]() {
-    if (currentH > 0) {
-      const HeuristicEntry *entry = LookupHeuristic(currentH);
-      ReportFinding f;
-      f.id = currentH;
-      f.name = entry ? entry->name : currentTitle;
-      f.status = currentStatus;
-      f.detail = currentDetail;
-      f.severity = entry ? entry->severity : HeuristicSeverity::INFO;
-      f.cwe = entry ? entry->primaryCWE : nullptr;
-      f.specRef = entry ? entry->specRef : nullptr;
-      f.cveRefs = entry ? entry->cveRefs : nullptr;
-
-      if (currentStatus == "ok") okCount++;
-      else if (currentStatus == "warn") warnCount++;
-      else if (currentStatus == "critical") critCount++;
-
-      findings.push_back(f);
-    }
-  };
-
-  while (std::getline(stream, line)) {
-    std::smatch m;
-    if (std::regex_search(line, m, hRegex)) {
-      flushFinding();
-      currentH = std::stoi(m[1].str());
-      currentTitle = m[2].str();
-      currentDetail.clear();
-      currentStatus = "ok";
-    } else if (currentH > 0) {
-      // Stop collecting detail on section boundaries
-      if (line.find("HEURISTIC SUMMARY") != std::string::npos ||
-          line.find("PHASE 2:") != std::string::npos ||
-          line.find("PHASE 3:") != std::string::npos ||
-          line.find("========") != std::string::npos) {
-        flushFinding();
-        currentH = -1;
-        continue;
-      }
-      if (std::regex_search(line, critRegex)) currentStatus = "critical";
-      else if (std::regex_search(line, warnRegex) && currentStatus != "critical")
-        currentStatus = "warn";
-      if (!line.empty()) {
-        if (!currentDetail.empty()) currentDetail += "\n";
-        currentDetail += line;
-      }
-    }
-  }
-  flushFinding();
+  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db);
 
   // Collect only findings with warnings/critical (not OK)
-  std::vector<const ReportFinding*> activeFindings;
-  for (const auto &f : findings) {
+  std::vector<const CapturedFinding*> activeFindings;
+  for (const auto &f : cap.findings) {
     if (f.status != "ok") activeFindings.push_back(&f);
   }
 
   // Sort by severity (CRITICAL first, then HIGH, MEDIUM, LOW, INFO)
   std::sort(activeFindings.begin(), activeFindings.end(),
-    [](const ReportFinding *a, const ReportFinding *b) {
+    [](const CapturedFinding *a, const CapturedFinding *b) {
       if (a->severity != b->severity)
         return static_cast<int>(a->severity) < static_cast<int>(b->severity);
       return a->id < b->id;
@@ -201,7 +79,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   std::map<std::string, int> cweCounts;
   std::set<std::string> cveSet;
   for (const auto *f : activeFindings) {
-    if (f->cwe) cweCounts[f->cwe]++;
+    if (f->primaryCWE) cweCounts[f->primaryCWE]++;
     if (f->cveRefs) {
       std::string refs(f->cveRefs);
       size_t start = 0;
@@ -245,7 +123,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   // === EXECUTIVE SUMMARY ===
   PrintBanner("EXECUTIVE SUMMARY", W);
   printf("\n");
-  printf("  Heuristics Run:  %zu / %d\n", findings.size(), kTotalHeuristics);
+  printf("  Heuristics Run:  %zu / %d\n", cap.findings.size(), kTotalHeuristics);
   printf("  Findings:        %zu", activeFindings.size());
   if (!activeFindings.empty()) {
     printf(" (");
@@ -261,8 +139,8 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
     printf(")");
   }
   printf("\n");
-  printf("  Clean:           %d\n", okCount);
-  printf("  Exit Code:       %d\n", exitCode);
+  printf("  Clean:           %d\n", cap.okCount);
+  printf("  Exit Code:       %d\n", cap.exitCode);
   printf("\n");
 
   // === FINDINGS BY SEVERITY ===
@@ -288,7 +166,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
       if (f->severity != sevOrder[si]) continue;
 
       printf("  [H%d] %s", f->id, f->name.c_str());
-      if (f->cwe) printf(" (%s)", f->cwe);
+      if (f->primaryCWE) printf(" (%s)", f->primaryCWE);
       printf("\n");
 
       if (f->specRef)
@@ -302,7 +180,6 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
       std::istringstream dstream(f->detail);
       std::string dline;
       while (std::getline(dstream, dline)) {
-        // Skip empty lines and redundant header lines
         size_t first = dline.find_first_not_of(" \t");
         if (first == std::string::npos) continue;
         std::string trimmed = dline.substr(first);
@@ -319,7 +196,6 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
     PrintBanner("CWE CATEGORY SUMMARY", W);
     printf("\n");
 
-    // Sort CWE categories by count (descending)
     std::vector<std::pair<std::string, int>> sortedCwe(cweCounts.begin(), cweCounts.end());
     std::sort(sortedCwe.begin(), sortedCwe.end(),
       [](const auto &a, const auto &b) { return a.second > b.second; });
@@ -347,17 +223,14 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   PrintBanner("CVE COVERAGE STATISTICS", W);
   printf("\n");
 
-  // All counts derived dynamically from the registry — no hardcoded sync needed
   RegistryStats regStats = ComputeRegistryStats();
   printf("  Total Heuristics:     %d\n", regStats.totalHeuristics);
-
   printf("  Heuristics with CVE:  %d\n", regStats.heuristicsWithCVE);
   printf("  Unique CVEs:          %d\n", regStats.uniqueCVEs);
   printf("  Unique GHSAs:         %d\n", regStats.uniqueGHSAs);
   printf("  Advisory Total:       93 iccDEV security advisories\n");
   printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 0 tool-specific (iccFromCube now in scope via H34)\n");
 
-  // Severity distribution from registry
   printf("\n");
   printf("  Severity Distribution:\n");
   printf("    CRITICAL:  %d heuristics\n", regStats.severity[0]);
@@ -374,5 +247,5 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   PrintRule("=", W);
   printf("\n");
 
-  return exitCode;
+  return cap.exitCode;
 }
