@@ -660,6 +660,175 @@ int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc) {
   return issues;
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-113: Spectral Range Physical Bounds (ICC.2-2023 §7.2.23)
+//
+// Spectral start/end wavelengths must be within the visible spectrum:
+//   - UV start: ≥ 100 nm (some instruments go below 380)
+//   - IR end: ≤ 2500 nm (some near-IR instruments)
+//   - Start < End
+//   - Typical visible: 380-780 nm
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF113_SpectralRangePhysicalBounds(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-113]%s Spectral Range Physical Bounds (%sICC.2-2023 §7.2.23%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSpectralRange spec = pIcc->m_Header.spectralRange;
+  if (spec.steps == 0) {
+    printf("         No spectral range defined — check not applicable\n");
+    return 0;
+  }
+
+  icFloatNumber startNm = icF16toF(spec.start);
+  icFloatNumber endNm   = icF16toF(spec.end);
+
+  // Physical bounds check
+  if (startNm < 100.0f || startNm > 2500.0f) {
+    printf("         Start wavelength %.1f nm outside physical range [100-2500]\n",
+           static_cast<double>(startNm));
+    printf("         %s[FAIL]%s Wavelength must be physically meaningful — §7.2.23\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (endNm < 100.0f || endNm > 2500.0f) {
+    printf("         End wavelength %.1f nm outside physical range [100-2500]\n",
+           static_cast<double>(endNm));
+    printf("         %s[FAIL]%s Wavelength must be physically meaningful — §7.2.23\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (startNm >= endNm && spec.steps > 1) {
+    printf("         Start (%.1f nm) >= End (%.1f nm) with %u steps\n",
+           static_cast<double>(startNm), static_cast<double>(endNm), spec.steps);
+    printf("         %s[FAIL]%s Start must be < End for multi-step spectra — §7.2.23\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral range within physical bounds\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-114: MCS Colour Space Consistency (ICC.2-2023 §7.2.19)
+//
+// If the profile has Material Connection Space (MCS), the MCS signature must
+// be a valid colour space and must be consistent with profile sub-class.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF114_MCSColourSpaceConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-114]%s MCS Colour Space Consistency (%sICC.2-2023 §7.2.19%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icMaterialColorSignature mcs = pIcc->m_Header.mcs;
+  if (mcs == icSigNoMCSData) {
+    printf("         No MCS data — check not applicable\n");
+    return 0;
+  }
+
+  // MCS must have valid channel count
+  int nMCS = (int)icGetMaterialColorSpaceSamples(mcs);
+  if (nMCS == 0) {
+    char s[5] = {};
+    SigToChars((icUInt32Number)mcs, s);
+    printf("         MCS signature '%s' (0x%08X) has 0 channels\n",
+           s, (unsigned)mcs);
+    printf("         %s[FAIL]%s MCS signature must specify valid colour space — §7.2.19\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0) {
+    char s[5] = {};
+    SigToChars((icUInt32Number)mcs, s);
+    printf("         MCS='%s' (%d channels)\n", s, nMCS);
+    printf("         %s[OK]%s MCS colour space is valid\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-115: Calculator Element Complexity (ICC.2-2023 §10.2.6)
+//
+// Calculator elements with excessive sub-elements or deep nesting may indicate
+// malformed profiles. This is a quality/performance conformance check.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF115_CalculatorElementComplexity(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-115]%s Calculator Element Complexity (%sICC.2-2023 §10.2.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan all tags for MPE elements containing calculators
+  int calcCount = 0;
+  int totalSubElements = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    // Count via Describe output length as complexity proxy
+    // (protected iterators prevent direct element access from outside)
+    int elemCount = 0;
+    std::string desc;
+    mpe->Describe(desc, 0);
+    // Count "Element" occurrences in description as proxy
+    size_t pos = 0;
+    while ((pos = desc.find("Element", pos)) != std::string::npos) {
+      elemCount++;
+      pos += 7;
+    }
+    if (elemCount > 0) {
+      // Check for calculator elements
+      if (desc.find("Calculator") != std::string::npos ||
+          desc.find("calc") != std::string::npos) {
+        calcCount++;
+        // Count sub-element references
+        size_t subPos = 0;
+        int subCount = 0;
+        while ((subPos = desc.find("SubElement", subPos)) != std::string::npos) {
+          subCount++;
+          subPos += 10;
+        }
+        totalSubElements += subCount > 0 ? subCount : elemCount;
+
+        if (elemCount > 256) {
+          printf("         MPE tag with %d elements (excessive)\n", elemCount);
+          printf("         %s[WARN]%s Excessive calculator complexity — §10.2.6\n",
+                 ColorError(), ColorReset());
+          issues++;
+        }
+      }
+    }
+  }
+
+  if (calcCount == 0)
+    printf("         No calculator elements found — check not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s %d calculator(s), %d total sub-elements\n",
+           ColorSuccess(), ColorReset(), calcCount, totalSubElements);
+
+  return issues;
+}
+
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -692,6 +861,10 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1087, "CF-087: MPE Element Signature", RunCF087_MPEElementSignature(pIcc));
   CF_WRAP(1088, "CF-088: Calculator Stack Structure", RunCF088_CalculatorStackStructure(pIcc));
   CF_WRAP(1089, "CF-089: Spectral Wavelength Range", RunCF089_SpectralWavelengthRange(pIcc));
+
+  CF_WRAP(1113, "CF-113: Spectral Range Physical Bounds", RunCF113_SpectralRangePhysicalBounds(pIcc));
+  CF_WRAP(1114, "CF-114: MCS Colour Space Consistency", RunCF114_MCSColourSpaceConsistency(pIcc));
+  CF_WRAP(1115, "CF-115: Calculator Element Complexity", RunCF115_CalculatorElementComplexity(pIcc));
 
 #undef CF_WRAP
   return issues;

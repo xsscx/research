@@ -1,0 +1,10 @@
+# ICC Profile MPE Matrix Export
+# Tag: AToB1Tag
+# Element: 1
+# Dimensions: 3x3 + offsets
+# ApplyConstants: true
+#
+m[0]	m[1]	m[2]	offset
+0.412348479	0.357601374	0.180450127	0.000000000
+0.212617189	0.715202749	0.072180055	0.000000000
+0.019328834	0.119200461	0.950370729	0.000000000

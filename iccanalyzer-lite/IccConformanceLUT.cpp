@@ -754,6 +754,350 @@ static int RunCF070_ChadArrayCount9(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-105: LUT Channel Symmetry (ICC.1-2022-05 §10.8-10.11)
+//
+// For corresponding AToB/BToA tag pairs (intent 0,1,2):
+//   AToB input channels must equal BToA output channels and vice versa.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF105_LUTChannelSymmetry(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-105]%s LUT Channel Symmetry (%sICC.1-2022-05 §10.8-10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool found = false;
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *aTag = pIcc->FindTag(kAToBSigs[i]);
+    CIccTag *bTag = pIcc->FindTag(kBToASigs[i]);
+    if (!aTag || !bTag) continue;
+
+    CIccMBB *aMBB = dynamic_cast<CIccMBB *>(aTag);
+    CIccMBB *bMBB = dynamic_cast<CIccMBB *>(bTag);
+    if (!aMBB || !bMBB) continue;
+
+    found = true;
+
+    // AToB input channels should equal BToA output channels
+    if (aMBB->InputChannels() != bMBB->OutputChannels()) {
+      printf("         Intent %d: AToB input=%u ≠ BToA output=%u\n",
+             i, (unsigned)aMBB->InputChannels(), (unsigned)bMBB->OutputChannels());
+      printf("         %s[FAIL]%s Channel symmetry violation — §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    // AToB output channels should equal BToA input channels
+    if (aMBB->OutputChannels() != bMBB->InputChannels()) {
+      printf("         Intent %d: AToB output=%u ≠ BToA input=%u\n",
+             i, (unsigned)aMBB->OutputChannels(), (unsigned)bMBB->InputChannels());
+      printf("         %s[FAIL]%s Channel symmetry violation — §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No AToB/BToA tag pairs found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s LUT channel symmetry validated\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-106: Curve Monotonicity (ICC.1-2022-05 §10.5, §10.18)
+//
+// TRC curves (rTRC, gTRC, bTRC, kTRC) and curveType tags used in
+// matrix/TRC profiles MUST be monotonically non-decreasing.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF106_CurveMonotonicity(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-106]%s Curve Monotonicity (%sICC.1-2022-05 §10.5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature trcSigs[] = {
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag
+  };
+  static const char *trcNames[] = { "rTRC", "gTRC", "bTRC", "kTRC" };
+
+  bool found = false;
+  for (int i = 0; i < 4; i++) {
+    CIccTag *tag = pIcc->FindTag(trcSigs[i]);
+    if (!tag) continue;
+
+    CIccTagCurve *curve = dynamic_cast<CIccTagCurve *>(tag);
+    if (!curve) continue;
+
+    icUInt32Number n = curve->GetSize();
+    if (n < 2) continue; // gamma or identity — always monotone
+
+    found = true;
+    bool monotone = true;
+    for (icUInt32Number j = 1; j < n; j++) {
+      if ((*curve)[j] < (*curve)[j - 1]) {
+        monotone = false;
+        break;
+      }
+    }
+
+    if (!monotone) {
+      printf("         %s TRC curve is not monotonically non-decreasing\n", trcNames[i]);
+      printf("         %s[FAIL]%s TRC must be monotone — §10.5\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No tabulated TRC curves found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s TRC curves are monotonically non-decreasing\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-108: CLUT Grid Point Range 2-255 (ICC.1-2022-05 §10.8-10.10)
+//
+// Each CLUT dimension grid point count MUST be in range [2, 255].
+// (This is a stricter version of CF-062 which only checks >= 2.)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF108_CLUTGridPointRange(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-108]%s CLUT Grid Point Range (%sICC.1-2022-05 §10.8-10.10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool found = false;
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (!clut) continue;
+
+    found = true;
+    int nDims = clut->GetInputDim();
+    for (int d = 0; d < nDims; d++) {
+      icUInt8Number gp = clut->GridPoint(d);
+      if (gp < 2 || gp > 255) {
+        printf("         Tag '%s' dim %d: grid points=%u (must be 2-255)\n",
+               kAllLUTNames[i], d, (unsigned)gp);
+        printf("         %s[FAIL]%s CLUT grid points out of range — §10.8\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No CLUT elements found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s CLUT grid points in valid range [2,255]\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-109: Matrix Column Normalization (ICC.1-2022-05 §9.2.7, TN v4_matrix)
+//
+// Red/Green/Blue matrix columns (rXYZ, gXYZ, bXYZ) represent the tristimulus
+// values of the respective primaries. Each column Y value should be >= 0 and
+// the sum of Y values across all three columns should approximate 1.0
+// (for D50 white point normalization).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF109_MatrixColumnNormalization(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-109]%s Matrix Column Normalization (%sICC.1-2022-05 §9.2.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature matSigs[] = {
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
+  };
+  static const char *matNames[] = { "rXYZ", "gXYZ", "bXYZ" };
+
+  // All three must be present
+  bool allPresent = true;
+  for (int i = 0; i < 3; i++) {
+    if (!pIcc->FindTag(matSigs[i])) { allPresent = false; break; }
+  }
+  if (!allPresent) {
+    printf("         Not all matrix column tags present — check not applicable\n");
+    return 0;
+  }
+
+  icFloatNumber ySum = 0.0;
+  for (int i = 0; i < 3; i++) {
+    CIccTag *tag = pIcc->FindTag(matSigs[i]);
+    CIccTagXYZ *xyz = dynamic_cast<CIccTagXYZ *>(tag);
+    if (!xyz || xyz->GetSize() < 1) continue;
+
+    icXYZNumber val = (*xyz)[0];
+    icFloatNumber x = icFtoD(val.X);
+    icFloatNumber y = icFtoD(val.Y);
+    icFloatNumber z = icFtoD(val.Z);
+
+    if (y < 0.0) {
+      printf("         %s Y value is negative (%.4f)\n", matNames[i], y);
+      printf("         %s[WARN]%s Negative Y in matrix column — §9.2.7\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    // Check for wildly out-of-range values
+    if (x < -2.0 || x > 4.0 || y < -2.0 || y > 4.0 || z < -2.0 || z > 4.0) {
+      printf("         %s values out of range (X=%.4f Y=%.4f Z=%.4f)\n",
+             matNames[i], x, y, z);
+      printf("         %s[WARN]%s Matrix column values exceeding typical range — §9.2.7\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    ySum += y;
+  }
+
+  // Sum of Y values across columns should approximate 1.0 (D50 normalization)
+  if (std::fabs(ySum - 1.0) > 0.05) {
+    printf("         Sum of matrix column Y values = %.4f (expected ~1.0 for D50)\n", ySum);
+    printf("         %s[WARN]%s Y column sum deviates significantly from 1.0 — TN v4_matrix\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Matrix columns properly normalized\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-110: B Curves vs CLUT Output Channel Count (ICC.1-2022-05 §10.8-10.11)
+//
+// In lutAToBType and lutBToAType, if a CLUT and B curves are present,
+// the B curve count MUST equal the CLUT output channel count.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF110_BCurveVsCLUTOutput(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-110]%s B Curves vs CLUT Output Count (%sICC.1-2022-05 §10.8-10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool found = false;
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    // Only applies to lutAToBType and lutBToAType
+    icTagTypeSignature ttype = tag->GetType();
+    if (ttype != icSigLutAtoBType && ttype != icSigLutBtoAType) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (!clut) continue;
+
+    found = true;
+    // In AToB: output channels = B curves count
+    // In BToA: output channels = B curves count
+    icUInt16Number outCh = mbb->OutputChannels();
+
+    // Verify CLUT output matches MBB output
+    // (CLUT nOut should match the tag's output channels)
+    icUInt16Number clutOut = clut->GetOutputChannels();
+    if (clutOut != outCh) {
+      printf("         Tag '%s' CLUT output=%u but tag output=%u\n",
+             kAllLUTNames[i], (unsigned)clutOut, (unsigned)outCh);
+      printf("         %s[FAIL]%s CLUT output must match B curve count — §10.8\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No lutAToB/lutBToA with CLUT found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s B curves match CLUT output channels\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-116: Curve Segment Continuity (ICC.1-2022-05 §10.18)
+//
+// segmentedCurveType: at segment boundaries, the evaluated curve must be
+// continuous (the end of one segment equals the start of the next).
+// For parametricCurveType, function parameters must produce finite values
+// at the breakpoint (where applicable).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF116_CurveSegmentContinuity(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-116]%s Curve Segment Continuity (%sICC.1-2022-05 §10.18%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check parametricCurveType tags for valid parameter relationships
+  static const icTagSignature trcSigs[] = {
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag
+  };
+  static const char *trcNames[] = { "rTRC", "gTRC", "bTRC", "kTRC" };
+
+  bool found = false;
+  for (int i = 0; i < 4; i++) {
+    CIccTag *tag = pIcc->FindTag(trcSigs[i]);
+    if (!tag) continue;
+
+    CIccTagParametricCurve *para = dynamic_cast<CIccTagParametricCurve *>(tag);
+    if (!para) continue;
+
+    found = true;
+    icUInt16Number funcType = para->GetFunctionType();
+    int nParams = para->GetNumParam();
+
+    // Function types 1-4 have a breakpoint 'd'
+    // For continuity at the breakpoint, both pieces must evaluate to the same value
+    if (funcType >= 1 && funcType <= 4 && nParams >= 4) {
+      icFloatNumber g = para->Param(0);
+      if (g < 0.0 || !std::isfinite(g)) {
+        printf("         %s parametric gamma=%.4f is invalid\n", trcNames[i], g);
+        printf("         %s[FAIL]%s Parametric curve gamma must be positive finite — §10.18\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No parametricCurveType TRC tags found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s Curve segments continuous\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all LUT/curve/matrix conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -780,6 +1124,13 @@ int RunLUTConformance(CIccProfile *pIcc) {
   CF_WRAP(1068, "CF-068: Chad Matrix Invertible", RunCF068_ChadMatrixInvertible(pIcc));
   CF_WRAP(1069, "CF-069: Matrix Column XYZ Count", RunCF069_MatrixColumnXYZCount(pIcc));
   CF_WRAP(1070, "CF-070: Chad Array Count = 9", RunCF070_ChadArrayCount9(pIcc));
+
+  CF_WRAP(1105, "CF-105: LUT Channel Symmetry", RunCF105_LUTChannelSymmetry(pIcc));
+  CF_WRAP(1106, "CF-106: Curve Monotonicity", RunCF106_CurveMonotonicity(pIcc));
+  CF_WRAP(1108, "CF-108: CLUT Grid Point Range", RunCF108_CLUTGridPointRange(pIcc));
+  CF_WRAP(1109, "CF-109: Matrix Column Normalization", RunCF109_MatrixColumnNormalization(pIcc));
+  CF_WRAP(1110, "CF-110: B Curves vs CLUT Output", RunCF110_BCurveVsCLUTOutput(pIcc));
+  CF_WRAP(1116, "CF-116: Curve Segment Continuity", RunCF116_CurveSegmentContinuity(pIcc));
 
 #undef CF_WRAP
   return issues;

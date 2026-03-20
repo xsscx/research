@@ -1,0 +1,38 @@
+https://github.com/InternationalColorConsortium/iccDEV/actions/runs/23201965018/job/67426576982
+
+
+Setting up EMSDK environment (suppress these messages with EMSDK_QUIET=1)
+Adding directories to PATH:
+PATH += /home/runner/work/iccDEV/iccDEV/emsdk
+PATH += /home/runner/work/iccDEV/iccDEV/emsdk/upstream/emscripten
+
+Setting environment variables:
+PATH = /home/runner/work/iccDEV/iccDEV/emsdk:/home/runner/work/iccDEV/iccDEV/emsdk/upstream/emscripten:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+EMSDK = /home/runner/work/iccDEV/iccDEV/emsdk
+EMSDK_NODE = /home/runner/work/iccDEV/iccDEV/emsdk/node/22.16.0_64bit/bin/node
+Assembled 14/14 WASM tools
+  (using generated minimal ICC profile for testing)
+iccDEV WASM Tool Tests
+
+node:internal/modules/cjs/loader:1207
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module './IccDumpProfile/iccDumpProfile.js'
+Require stack:
+- /home/runner/work/iccDEV/iccDEV/wasm-package/test_all.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at /home/runner/work/iccDEV/iccDEV/wasm-package/test_all.js:45:36
+    at Object.<anonymous> (/home/runner/work/iccDEV/iccDEV/wasm-package/test_all.js:109:3)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/home/runner/work/iccDEV/iccDEV/wasm-package/test_all.js' ]
+}
+
+Node.js v20.20.1
