@@ -1781,6 +1781,212 @@ def synth_adgc_bad_type_sig():
                          pcs=b"XYZ ", version=0x04400000)
 
 
+def synth_adgc_h_equal():
+    """ADGC with H_baseline == H_alternate (CF-133: div-by-zero in Output Evaluator)."""
+    adgc_data = _make_adgc_tag(h_baseline=3.0, h_alternate=3.0)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC H Equal")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_gain_inverted():
+    """ADGC with Red GainMin > GainMax (CF-134: inverted gain range)."""
+    adgc_data = _make_adgc_tag(r_gain_min=6.0, r_gain_max=0.0)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Gain Inverted")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bad_curve_range():
+    """ADGC with curve x-values outside [0,1] (CF-135: domain violation)."""
+    bad_range_curve = [
+        (-0.5, 0.0, 1.0),   # first x < 0
+        (0.5, 0.5, 1.0),
+        (1.5, 1.0, 1.0),    # last x > 1
+    ]
+    adgc_data = _make_adgc_tag(curve_data=bad_range_curve)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Bad Curve Range")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_equal_x_curve():
+    """ADGC with adjacent curve points having equal x (CF-136: cubic div-by-zero)."""
+    equal_x_curve = [
+        (0.0, 0.0, 1.0),
+        (0.5, 0.3, 1.0),
+        (0.5, 0.7, 1.0),   # same x as previous → div-by-zero in C3
+        (1.0, 1.0, 1.0),
+    ]
+    adgc_data = _make_adgc_tag(curve_data=equal_x_curve)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Equal X Curve")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bt2100_pq():
+    """BT.2100 PQ-realistic ADGC (H_base=0, H_alt=4.0, Rec.2020 weights)."""
+    # BT.2100 PQ: ~10000 cd/m² peak → log2(10000/100) ≈ 6.64 stops above SDR
+    # Use H_base=0 (SDR baseline), H_alt=4.0 (4 stops of headroom)
+    # Rec.2020 luminance weights: R=0.2627, G=0.6780, B=0.0593
+    pq_curve = [
+        (0.0, 0.0, 0.5),
+        (0.1, 0.15, 0.8),
+        (0.3, 0.35, 1.0),
+        (0.5, 0.55, 1.2),
+        (0.7, 0.75, 1.0),
+        (0.9, 0.92, 0.8),
+        (1.0, 1.0, 0.5),
+    ]
+    adgc_data = _make_adgc_tag(
+        h_baseline=0.0, h_alternate=4.0,
+        r_gain_min=0.0, r_gain_max=4.0,
+        g_gain_min=0.0, g_gain_max=4.0,
+        b_gain_min=0.0, b_gain_max=4.0,
+        k_red=0.2627, k_green=0.6780, k_blue=0.0593,
+        k_max=0.0, k_min=0.0, k_component=0.0,
+        pre_cicp=16,   # BT.2100 PQ EOTF
+        post_cicp=16,
+        a2b0_headroom=4.0,
+        curve_data=pq_curve,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("ADGC BT.2100 PQ")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.7080, 0.2920, 0.0)),
+        (b"gXYZ", make_xyz_tag(0.1700, 0.7970, 0.0)),
+        (b"bXYZ", make_xyz_tag(0.1310, 0.0460, 0.0)),
+        (b"rTRC", make_curve_tag(gamma=2.4)),
+        (b"gTRC", make_curve_tag(gamma=2.4)),
+        (b"bTRC", make_curve_tag(gamma=2.4)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bt2100_hlg():
+    """BT.2100 HLG-realistic ADGC (H_base=0, H_alt=3.0, Rec.2020 weights)."""
+    hlg_curve = [
+        (0.0, 0.0, 0.3),
+        (0.2, 0.25, 0.8),
+        (0.5, 0.55, 1.0),
+        (0.8, 0.85, 0.8),
+        (1.0, 1.0, 0.3),
+    ]
+    adgc_data = _make_adgc_tag(
+        h_baseline=0.0, h_alternate=3.0,
+        r_gain_min=0.0, r_gain_max=3.0,
+        g_gain_min=0.0, g_gain_max=3.0,
+        b_gain_min=0.0, b_gain_max=3.0,
+        k_red=0.2627, k_green=0.6780, k_blue=0.0593,
+        k_max=0.0, k_min=0.0, k_component=0.0,
+        pre_cicp=18,   # BT.2100 HLG OETF
+        post_cicp=18,
+        a2b0_headroom=3.0,
+        curve_data=hlg_curve,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("ADGC BT.2100 HLG")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.7080, 0.2920, 0.0)),
+        (b"gXYZ", make_xyz_tag(0.1700, 0.7970, 0.0)),
+        (b"bXYZ", make_xyz_tag(0.1310, 0.0460, 0.0)),
+        (b"rTRC", make_curve_tag(gamma=2.4)),
+        (b"gTRC", make_curve_tag(gamma=2.4)),
+        (b"bTRC", make_curve_tag(gamma=2.4)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_single_point_curve():
+    """ADGC with minimal 1-triplet curve (edge case)."""
+    single_curve = [(0.5, 0.5, 1.0)]
+    adgc_data = _make_adgc_tag(curve_data=single_curve)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Single Point Curve")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_many_point_curve():
+    """ADGC with 50-triplet curve (stress test)."""
+    many_curve = [(i / 49.0, i / 49.0, 1.0) for i in range(50)]
+    adgc_data = _make_adgc_tag(curve_data=many_curve)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Many Point Curve")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -1864,6 +2070,15 @@ def main():
         "cf_adgc_bad_weight_sum.icc": synth_adgc_bad_weight_sum(),
         "cf_adgc_non_monotonic.icc": synth_adgc_non_monotonic_curve(),
         "cf_adgc_bad_type_sig.icc": synth_adgc_bad_type_sig(),
+        # ADGC formula-derived test profiles (CF-133..CF-136)
+        "cf_adgc_h_equal.icc": synth_adgc_h_equal(),
+        "cf_adgc_gain_inverted.icc": synth_adgc_gain_inverted(),
+        "cf_adgc_bad_curve_range.icc": synth_adgc_bad_curve_range(),
+        "cf_adgc_equal_x_curve.icc": synth_adgc_equal_x_curve(),
+        "cf_adgc_bt2100_pq.icc": synth_adgc_bt2100_pq(),
+        "cf_adgc_bt2100_hlg.icc": synth_adgc_bt2100_hlg(),
+        "cf_adgc_single_point_curve.icc": synth_adgc_single_point_curve(),
+        "cf_adgc_many_point_curve.icc": synth_adgc_many_point_curve(),
     }
 
     for name, data in profiles.items():

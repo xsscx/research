@@ -511,6 +511,22 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-132", "ADGC Curve Data Monotonicity",
    "ADGC Table 2 (x values monotonically increasing)", "ICC.1-ADGC-2025",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-133", "ADGC H_baseline vs H_alternate Division-by-Zero",
+   "ADGC §1.2.3 (W_target denominator H_alt-H_base must be nonzero)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-134", "ADGC Per-Channel GainMin ≤ GainMax",
+   "ADGC §1.2.3 (GainMin > GainMax inverts gain range)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-135", "ADGC Curve X-Value Domain Range",
+   "ADGC §1.2.2 (first x ≥ 0.0, last x ≤ 1.0 for normalized input)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-136", "ADGC Curve Adjacent-Point X-Equality",
+   "ADGC §1.2.2 (x1 == x2 → div-by-zero in cubic coefficient C3)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =

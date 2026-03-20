@@ -2167,7 +2167,7 @@ def test_conformance_checks(suite):
 
 
 def test_adgc_conformance(suite):
-    """Test ADGC (Adaptive Gain Curve) conformance checks CF-123..CF-132."""
+    """Test ADGC (Adaptive Gain Curve) conformance checks CF-123..CF-136."""
     corpus = str(Path(__file__).resolve().parent / "corpus")
 
     # --- CF-123: ADGC Class Restriction ---
@@ -2232,11 +2232,67 @@ def test_adgc_conformance(suite):
         r"CF-132"
     )
 
-    # --- Valid profile: no ADGC failures ---
+    # --- CF-133: H_baseline == H_alternate (division-by-zero) ---
+    suite.assert_output_contains(
+        "adgc.cf133.h_equal",
+        ["-a", f"{corpus}/cf_adgc_h_equal.icc"],
+        r"CF-133"
+    )
+
+    # --- CF-134: GainMin > GainMax (inverted gain range) ---
+    suite.assert_output_contains(
+        "adgc.cf134.gain_inverted",
+        ["-a", f"{corpus}/cf_adgc_gain_inverted.icc"],
+        r"CF-134"
+    )
+
+    # --- CF-135: Curve x-values outside [0,1] ---
+    suite.assert_output_contains(
+        "adgc.cf135.bad_curve_range",
+        ["-a", f"{corpus}/cf_adgc_bad_curve_range.icc"],
+        r"CF-135"
+    )
+
+    # --- CF-136: Adjacent curve points with equal x ---
+    suite.assert_output_contains(
+        "adgc.cf136.equal_x_curve",
+        ["-a", f"{corpus}/cf_adgc_equal_x_curve.icc"],
+        r"CF-136"
+    )
+
+    # --- BT.2100 PQ realistic profile: should pass all ADGC checks ---
+    suite.assert_output_not_contains(
+        "adgc.bt2100_pq.no_fail",
+        ["-a", f"{corpus}/cf_adgc_bt2100_pq.icc"],
+        r"CF-12[3-9].*\[FAIL\]|CF-13[0-6].*\[FAIL\]"
+    )
+
+    # --- BT.2100 HLG realistic profile: should pass all ADGC checks ---
+    suite.assert_output_not_contains(
+        "adgc.bt2100_hlg.no_fail",
+        ["-a", f"{corpus}/cf_adgc_bt2100_hlg.icc"],
+        r"CF-12[3-9].*\[FAIL\]|CF-13[0-6].*\[FAIL\]"
+    )
+
+    # --- Single-point curve: valid edge case ---
+    suite.assert_output_not_contains(
+        "adgc.single_point.no_fail",
+        ["-a", f"{corpus}/cf_adgc_single_point_curve.icc"],
+        r"CF-13[2-6].*\[FAIL\]"
+    )
+
+    # --- Many-point curve: valid stress test ---
+    suite.assert_output_not_contains(
+        "adgc.many_point.no_fail",
+        ["-a", f"{corpus}/cf_adgc_many_point_curve.icc"],
+        r"CF-13[2-6].*\[FAIL\]"
+    )
+
+    # --- Valid profile: no ADGC failures (updated range CF-123..CF-136) ---
     suite.assert_output_not_contains(
         "adgc.valid.no_cf_fail",
         ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
-        r"CF-12[4-9].*\[FAIL\]|CF-13[0-2].*\[FAIL\]"
+        r"CF-12[4-9].*\[FAIL\]|CF-13[0-6].*\[FAIL\]"
     )
 
     # --- ADGC checks produce output for valid profiles ---
@@ -2246,11 +2302,11 @@ def test_adgc_conformance(suite):
         r"ADGC"
     )
 
-    # --- Profile without ADGC tag: CF-123..CF-132 should not fire false alarms ---
+    # --- Profile without ADGC tag: CF-123..CF-136 should not fire false alarms ---
     suite.assert_output_not_contains(
         "adgc.no_tag.no_false_alarm",
         ["-a", f"{corpus}/valid_srgb.icc"],
-        r"CF-12[3-9].*\[FAIL\]|CF-13[0-2].*\[FAIL\]"
+        r"CF-12[3-9].*\[FAIL\]|CF-13[0-6].*\[FAIL\]"
     )
 
 
