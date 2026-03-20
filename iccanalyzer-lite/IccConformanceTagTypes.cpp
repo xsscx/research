@@ -263,6 +263,91 @@ int RunCF020_TagTypeAllowed(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-021: Tag Type Reserved Bytes Zero (ICC.1-2022-05 §10)
+//
+// Every tag type has a 4-byte type signature followed by 4 reserved bytes
+// (offset 4-7 within the tag data) that SHALL be zero.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+int RunCF021_TagTypeReservedZero(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+  int violations = 0;
+
+  printf("%s[CF-021]%s Tag Type Reserved Bytes Zero (%sICC.1-2022-05 §10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         %sNo filename provided — cannot verify reserved bytes%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Reserved bytes check skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("         %sCannot open file for reserved bytes check%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Reserved bytes check skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  // Track offsets already visited to skip shared-offset duplicates
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    // Skip duplicate entries sharing the same data offset
+    bool duplicate = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++) {
+      if (visitedOffsets[v] == tagOffset) { duplicate = true; break; }
+    }
+    if (duplicate) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    // Need at least 8 bytes (4 type sig + 4 reserved)
+    if (tagSize < 8) continue;
+    if (static_cast<long>(tagOffset + 8) > fh.fileSize) continue;
+
+    uint8_t reserved[4];
+    if (!fh.Seek(static_cast<long>(tagOffset + 4)) || !fh.ReadBytes(reserved, 4))
+      continue;
+
+    checked++;
+
+    bool allZero = (reserved[0] == 0 && reserved[1] == 0 &&
+                    reserved[2] == 0 && reserved[3] == 0);
+
+    if (!allZero) {
+      char sigBuf[5];
+      SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+      printf("         Tag '%s' at offset %u: reserved bytes = %02X %02X %02X %02X — %smust be zero%s\n",
+             sigBuf, tagOffset, reserved[0], reserved[1], reserved[2], reserved[3],
+             ColorError(), ColorReset());
+      printf("         %s[FAIL]%s Tag type reserved bytes non-zero — ICC.1-2022-05 §10\n",
+             ColorError(), ColorReset());
+      violations++;
+      issues++;
+    }
+  }
+
+  if (violations == 0)
+    printf("         %s[OK]%s %d tag(s) checked, all reserved bytes are zero\n",
+           ColorSuccess(), ColorReset(), checked);
+  else
+    printf("         Summary: %d/%d tags checked, %s%d violation(s)%s\n",
+           checked, checked, ColorError(), violations, ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CF-022: curveType Entry Count Mode (ICC.1-2022-05 §10.6)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -616,6 +701,237 @@ int RunCF029_DateTimeFieldRanges(CIccProfile *pIcc) {
 
   if (issues == 0)
     printf("         %s[OK]%s %d dateTimeType tag(s) checked, all fields in range\n",
+           ColorSuccess(), ColorReset(), checked);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-030: multiLocalizedUnicodeType Structure (ICC.1-2022-05 §10.13)
+//
+// mluc type: record count (4B at +8), record size (4B at +12, must be 12),
+// then N records of (lang 2B, country 2B, length 4B, offset 4B).
+// String offsets+lengths must not exceed tag data size.
+// No duplicate language/country pairs.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+int RunCF030_MlucStructure(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-030]%s multiLocalizedUnicodeType Structure (%sICC.1-2022-05 §10.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         %sNo filename provided — cannot verify mluc structure%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s mluc check skipped\n", ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("         %sCannot open file for mluc verification%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s mluc check skipped\n", ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  // mluc type signature: 'mluc' = 0x6D6C7563
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    // Skip duplicates
+    bool duplicate = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++) {
+      if (visitedOffsets[v] == tagOffset) { duplicate = true; break; }
+    }
+    if (duplicate) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    // Need at least 16 bytes to read type sig + reserved + count + record size
+    if (tagSize < 16) continue;
+    if (static_cast<long>(tagOffset + 16) > fh.fileSize) continue;
+
+    // Read type signature
+    uint8_t hdr[16];
+    if (!fh.Seek(static_cast<long>(tagOffset)) || !fh.ReadBytes(hdr, 16))
+      continue;
+
+    uint32_t typeSig = ReadU32BE(hdr);
+    if (typeSig != kMlucTypeSig) continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+
+    uint32_t recordCount = ReadU32BE(hdr + 8);
+    uint32_t recordSize = ReadU32BE(hdr + 12);
+
+    // §10.13: Record size SHALL be 12
+    if (recordSize != 12) {
+      printf("         Tag '%s': mluc record size=%u — %smust be 12%s\n",
+             sigBuf, recordSize, ColorError(), ColorReset());
+      printf("         %s[FAIL]%s mluc record size invalid — ICC.1-2022-05 §10.13\n",
+             ColorError(), ColorReset());
+      issues++;
+      continue;  // Can't parse records if size is wrong
+    }
+
+    // Validate total record data fits within tag
+    uint64_t recordsEnd = 16ULL + (uint64_t)recordCount * 12ULL;
+    if (recordsEnd > tagSize) {
+      printf("         Tag '%s': %u records × 12 = %llu bytes, exceeds tag size %u\n",
+             sigBuf, recordCount, (unsigned long long)(recordCount * 12ULL), tagSize);
+      printf("         %s[FAIL]%s mluc record table overflows tag data — §10.13\n",
+             ColorError(), ColorReset());
+      issues++;
+      continue;
+    }
+
+    // Read all records
+    size_t recBytes = recordCount * 12;
+    std::vector<uint8_t> recBuf(recBytes);
+    if (!fh.Seek(static_cast<long>(tagOffset + 16)) || !fh.ReadBytes(recBuf.data(), recBytes))
+      continue;
+
+    // Validate each record
+    struct LangCountry { uint16_t lang; uint16_t country; };
+    std::vector<LangCountry> pairs;
+
+    for (uint32_t r = 0; r < recordCount; r++) {
+      const uint8_t *rec = recBuf.data() + r * 12;
+      uint16_t lang    = (uint16_t)((rec[0] << 8) | rec[1]);
+      uint16_t country = (uint16_t)((rec[2] << 8) | rec[3]);
+      uint32_t strLen  = ReadU32BE(rec + 4);
+      uint32_t strOff  = ReadU32BE(rec + 8);
+
+      // String offset is relative to tag start; must fit within tag data
+      if ((uint64_t)strOff + strLen > tagSize) {
+        printf("         Tag '%s': record %u string offset=%u + length=%u exceeds tag size %u\n",
+               sigBuf, r, strOff, strLen, tagSize);
+        printf("         %s[FAIL]%s mluc string overflows tag data — §10.13\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+
+      // Check for duplicate language/country pairs
+      for (size_t p = 0; p < pairs.size(); p++) {
+        if (pairs[p].lang == lang && pairs[p].country == country) {
+          printf("         Tag '%s': duplicate language/country pair (0x%04X/0x%04X) at record %u\n",
+                 sigBuf, lang, country, r);
+          printf("         %s[WARN]%s Duplicate mluc language/country pair — §10.13\n",
+                 ColorWarning(), ColorReset());
+          issues++;
+          break;
+        }
+      }
+      pairs.push_back({lang, country});
+    }
+  }
+
+  if (checked == 0)
+    printf("         No multiLocalizedUnicodeType tags found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s %d mluc tag(s) checked, all structurally valid\n",
+           ColorSuccess(), ColorReset(), checked);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-031: s15Fixed16ArrayType Element Count (ICC.1-2022-05 §10.18)
+//
+// The element count must be (tagDataSize - 8) / 4 with no remainder.
+// The 8-byte header is the type signature (4B) + reserved (4B).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+int RunCF031_S15Fixed16ArrayCount(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-031]%s s15Fixed16ArrayType Element Count (%sICC.1-2022-05 §10.18%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         %sNo filename provided — cannot verify sf32 element count%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s sf32 check skipped\n", ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("         %sCannot open file for sf32 verification%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s sf32 check skipped\n", ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  // sf32 type signature: 'sf32' = 0x73663332
+  static const uint32_t kSf32TypeSig = 0x73663332;
+
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    // Skip duplicates
+    bool duplicate = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++) {
+      if (visitedOffsets[v] == tagOffset) { duplicate = true; break; }
+    }
+    if (duplicate) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    // Need at least 8 bytes for the type header
+    if (tagSize < 8) continue;
+    if (static_cast<long>(tagOffset + 4) > fh.fileSize) continue;
+
+    // Read type signature
+    uint8_t typeBuf[4];
+    if (!fh.Seek(static_cast<long>(tagOffset)) || !fh.ReadBytes(typeBuf, 4))
+      continue;
+
+    uint32_t typeSig = ReadU32BE(typeBuf);
+    if (typeSig != kSf32TypeSig) continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+
+    uint32_t dataBytes = tagSize - 8;  // subtract type sig + reserved
+    uint32_t remainder = dataBytes % 4;
+
+    if (remainder != 0) {
+      uint32_t elemCount = dataBytes / 4;
+      printf("         Tag '%s': data size=%u bytes, %u elements + %u extra bytes\n",
+             sigBuf, dataBytes, elemCount, remainder);
+      printf("         %s[FAIL]%s s15Fixed16Array data size not divisible by 4 — ICC.1-2022-05 §10.18\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      uint32_t elemCount = dataBytes / 4;
+      printf("         Tag '%s': %u s15Fixed16 element(s)\n", sigBuf, elemCount);
+    }
+  }
+
+  if (checked == 0)
+    printf("         No s15Fixed16ArrayType tags found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s %d sf32 tag(s) checked, all element counts valid\n",
            ColorSuccess(), ColorReset(), checked);
 
   return issues;
@@ -1364,6 +1680,7 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   issues += r
 
   CF_WRAP(1020, "CF-020: Tag Signature → Allowed Type", RunCF020_TagTypeAllowed(pIcc));
+  CF_WRAP(1021, "CF-021: Tag Type Reserved Bytes Zero", RunCF021_TagTypeReservedZero(pIcc, filename));
   CF_WRAP(1022, "CF-022: curveType Entry Count", RunCF022_CurveTypeEntryCount(pIcc));
   CF_WRAP(1023, "CF-023: parametricCurveType Function Type", RunCF023_ParametricCurveFunction(pIcc));
   CF_WRAP(1024, "CF-024: parametricCurveType Parameter Count", RunCF024_ParametricCurveParamCount(pIcc));
@@ -1372,6 +1689,8 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1027, "CF-027: Colorant Order Count", RunCF027_ColorantOrderCount(pIcc));
   CF_WRAP(1028, "CF-028: Named Color2 Device Coordinate Count", RunCF028_NamedColor2CoordCount(pIcc));
   CF_WRAP(1029, "CF-029: dateTimeType Field Ranges", RunCF029_DateTimeFieldRanges(pIcc));
+  CF_WRAP(1030, "CF-030: multiLocalizedUnicodeType Structure", RunCF030_MlucStructure(pIcc, filename));
+  CF_WRAP(1031, "CF-031: s15Fixed16ArrayType Element Count", RunCF031_S15Fixed16ArrayCount(pIcc, filename));
   CF_WRAP(1032, "CF-032: XYZType Triplet Count", RunCF032_XYZTypeTripletCount(pIcc));
   CF_WRAP(1033, "CF-033: Measurement Standard Observer", RunCF033_MeasurementStandardObserver(pIcc));
   CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));

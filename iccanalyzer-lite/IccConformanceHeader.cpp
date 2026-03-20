@@ -18,10 +18,12 @@
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
+#include <openssl/evp.h>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <vector>
 
 // ── Days-per-month table (non-leap) ─────────────────────────────────────────
 
@@ -606,6 +608,123 @@ int RunCF010_ProfileSizeVsFileSize(CIccProfile *pIcc, const char *filename) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-011: Profile ID MD5 Verification (ICC.1-2022-05 §7.2.18, RFC 1321)
+//
+// The Profile ID is the MD5 hash of the entire profile with bytes
+// 44-47 (flags), 64-67 (rendering intent), and 84-99 (profile ID) zeroed.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+int RunCF011_ProfileIDMD5(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+
+  printf("%s[CF-011]%s Profile ID MD5 Verification (%sICC.1-2022-05 §7.2.18%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check if profile ID is all zeros (not computed)
+  const icUInt8Number *profileID = pIcc->m_Header.profileID.ID8;
+  bool allZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (profileID[i] != 0) { allZero = false; break; }
+  }
+
+  if (allZero) {
+    printf("         Profile ID is all zeros — not computed\n");
+    printf("         %s[INFO]%s Profile ID not set — §7.2.18\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  if (!filename) {
+    printf("         %sNo filename provided — cannot verify MD5%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s MD5 verification skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("         %sCannot open file for MD5 verification%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s MD5 verification skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  if (fh.fileSize < 128) {
+    printf("         %sFile too small for MD5 verification (%ld bytes)%s\n",
+           ColorError(), fh.fileSize, ColorReset());
+    printf("         %s[FAIL]%s File truncated\n", ColorError(), ColorReset());
+    return 1;
+  }
+
+  // Read entire profile into memory
+  std::vector<uint8_t> data(static_cast<size_t>(fh.fileSize));
+  if (!fh.Seek(0) || !fh.ReadBytes(data.data(), data.size())) {
+    printf("         %sFailed to read file data%s\n", ColorError(), ColorReset());
+    printf("         %s[WARN]%s MD5 verification skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  // Zero the three ranges per §7.2.18 before computing MD5
+  // Bytes 44-47 (profile flags)
+  for (int i = 44; i <= 47 && i < (int)data.size(); i++) data[i] = 0;
+  // Bytes 64-67 (rendering intent)
+  for (int i = 64; i <= 67 && i < (int)data.size(); i++) data[i] = 0;
+  // Bytes 84-99 (profile ID itself)
+  for (int i = 84; i <= 99 && i < (int)data.size(); i++) data[i] = 0;
+
+  // Compute MD5 using OpenSSL EVP
+  unsigned char computedMD5[EVP_MAX_MD_SIZE];
+  unsigned int md5Len = 0;
+  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+  if (!ctx) {
+    printf("         %sFailed to allocate MD5 context%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s MD5 verification skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  bool ok = (EVP_DigestInit_ex(ctx, EVP_md5(), nullptr) == 1) &&
+            (EVP_DigestUpdate(ctx, data.data(), data.size()) == 1) &&
+            (EVP_DigestFinal_ex(ctx, computedMD5, &md5Len) == 1);
+  EVP_MD_CTX_free(ctx);
+
+  if (!ok || md5Len < 16) {
+    printf("         %sMD5 computation failed%s\n", ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s MD5 verification skipped\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  // Compare computed MD5 with stored profile ID
+  if (memcmp(computedMD5, profileID, 16) != 0) {
+    char stored[33] = {}, computed[33] = {};
+    for (int i = 0; i < 16; i++) {
+      snprintf(stored + i * 2, 3, "%02x", profileID[i]);
+      snprintf(computed + i * 2, 3, "%02x", computedMD5[i]);
+    }
+    printf("         Stored:   %s\n", stored);
+    printf("         Computed: %s\n", computed);
+    printf("         %s[WARN]%s Profile ID MD5 mismatch — ICC.1-2022-05 §7.2.18\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    char hex[33] = {};
+    for (int i = 0; i < 16; i++)
+      snprintf(hex + i * 2, 3, "%02x", profileID[i]);
+    printf("         Profile ID: %s — MD5 verified\n", hex);
+    printf("         %s[OK]%s Profile ID matches computed MD5\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CF-012: Profile Class Signature (ICC.1-2022-05 §7.2.5 Table 18)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -982,6 +1101,7 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1008, "CF-008: PCS Illuminant D50 Values", RunCF008_PCSIlluminantD50(pIcc));
   CF_WRAP(1009, "CF-009: Chromatic Adaptation Tag Requirement", RunCF009_ChadTagRequirement(pIcc));
   CF_WRAP(1010, "CF-010: Profile Size vs File Size", RunCF010_ProfileSizeVsFileSize(pIcc, filename));
+  CF_WRAP(1011, "CF-011: Profile ID MD5 Verification", RunCF011_ProfileIDMD5(pIcc, filename));
   CF_WRAP(1012, "CF-012: Profile Class Signature", RunCF012_ProfileClassSignature(pIcc));
   CF_WRAP(1013, "CF-013: Data Colour Space Signature", RunCF013_DataColourSpace(pIcc));
   CF_WRAP(1014, "CF-014: PCS Field for Non-DeviceLink", RunCF014_PCSForNonDeviceLink(pIcc));
