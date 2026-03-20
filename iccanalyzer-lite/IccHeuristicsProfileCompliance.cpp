@@ -36,36 +36,32 @@
 #include "IccMatrixMath.h"
 #include "IccPcc.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 
 int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H103] Profile Connection Conditions (PCC)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(103, "Profile Connection Conditions (PCC)");
 
   // CIccProfile implements IIccProfileConnectionConditions
   const CIccTagSpectralViewingConditions *pSvc = pIcc->getPccViewingConditions();
 
   if (!pSvc) {
-    printf("      %s[INFO] No spectral viewing conditions tag (svcn)%s\n",
-           ColorInfo(), ColorReset());
+    hc.info("      No spectral viewing conditions tag (svcn)");
     // Still check standard PCC fields
     bool isStd = pIcc->isStandardPcc();
     icIlluminant illum = pIcc->getPccIlluminant();
     icFloatNumber cct = pIcc->getPccCCT();
     icStandardObserver obs = pIcc->getPccObserver();
 
-    printf("      Standard PCC: %s\n", isStd ? "yes (D50/2deg)" : "no (custom)");
-    printf("      Illuminant: 0x%08X, CCT: %.1f, Observer: 0x%08X\n",
+    hc.info("      Standard PCC: %s", isStd ? "yes (D50/2deg)" : "no (custom)");
+    hc.info("      Illuminant: 0x%08X, CCT: %.1f, Observer: 0x%08X",
            (unsigned)illum, (double)cct, (unsigned)obs);
 
     if (!isStd) {
-      printf("      %s[WARN] Non-standard PCC — profile uses custom viewing conditions%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Non-standard PCC — profile uses custom viewing conditions");
     }
   } else {
-    printf("      %s[INFO] Spectral viewing conditions present%s\n",
-           ColorInfo(), ColorReset());
+    hc.info("      Spectral viewing conditions present");
 
     bool isStd = pIcc->isStandardPcc();
     icIlluminant illum = pIcc->getPccIlluminant();
@@ -73,43 +69,36 @@ int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
     icStandardObserver obs = pIcc->getPccObserver();
     bool hasSPD = pIcc->hasIlluminantSPD();
 
-    printf("      Standard PCC: %s\n", isStd ? "yes" : "no (custom)");
-    printf("      Illuminant: 0x%08X, CCT: %.1f\n", (unsigned)illum, (double)cct);
-    printf("      Observer: 0x%08X, Has SPD: %s\n", (unsigned)obs, hasSPD ? "yes" : "no");
+    hc.info("      Standard PCC: %s", isStd ? "yes" : "no (custom)");
+    hc.info("      Illuminant: 0x%08X, CCT: %.1f", (unsigned)illum, (double)cct);
+    hc.info("      Observer: 0x%08X, Has SPD: %s", (unsigned)obs, hasSPD ? "yes" : "no");
 
     if (cct < 0.0f || cct > 100000.0f) {
-      printf("      %s[WARN] Suspicious CCT value: %.1f (expected 0-25000K)%s\n",
-             ColorWarning(), (double)cct, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Suspicious CCT value: %.1f (expected 0-25000K)", (double)cct);
     }
 
     // Check normalized illuminant XYZ
     icFloatNumber normXYZ[3] = {0};
     pIcc->getNormIlluminantXYZ(normXYZ);
-    printf("      Norm illuminant XYZ: [%.4f, %.4f, %.4f]\n",
+    hc.info("      Norm illuminant XYZ: [%.4f, %.4f, %.4f]",
            (double)normXYZ[0], (double)normXYZ[1], (double)normXYZ[2]);
 
     if (normXYZ[1] < 0.001f || normXYZ[1] > 2.0f) {
-      printf("      %s[WARN] Abnormal Y illuminant: %.4f%s\n",
-             ColorWarning(), (double)normXYZ[1], ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Abnormal Y illuminant: %.4f", (double)normXYZ[1]);
     }
 
     // Check media white XYZ
     icFloatNumber mediaWhite[3] = {0};
     pIcc->getMediaWhiteXYZ(mediaWhite);
-    printf("      Media white XYZ: [%.4f, %.4f, %.4f]\n",
+    hc.info("      Media white XYZ: [%.4f, %.4f, %.4f]",
            (double)mediaWhite[0], (double)mediaWhite[1], (double)mediaWhite[2]);
 
     if (mediaWhite[0] == 0.0f && mediaWhite[1] == 0.0f && mediaWhite[2] == 0.0f) {
-      printf("      %s[WARN] Media white is all zeros%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Media white is all zeros");
     }
   }
-  printf("\n");
 
-  return heuristicCount;
+  return hc.end("PCC fields within expected parameters");
 }
 
 // =====================================================================
@@ -117,40 +106,36 @@ int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
 // Exercises IccPrmg.cpp — gamut evaluation and rendering intent gamut tags
 // =====================================================================
 int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char * /*profilePath*/) {
-  int heuristicCount = 0;
-
-  printf("[H104] PRMG Gamut Evaluation\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(104, "PRMG Gamut Evaluation");
 
   // Check for rendering intent gamut tags
   CIccTag *pRig0 = pIcc->FindTag(icSigPerceptualRenderingIntentGamutTag);
   CIccTag *pRig2 = pIcc->FindTag(icSigSaturationRenderingIntentGamutTag);
 
   if (pRig0) {
-    printf("      Perceptual rendering intent gamut tag present\n");
+    hc.info("      Perceptual rendering intent gamut tag present");
     CIccTagSignature *pSigTag = dynamic_cast<CIccTagSignature *>(pRig0);
     if (pSigTag) {
       icUInt32Number gamutSig = pSigTag->GetValue();
       char fourCC[5];
       SignatureToFourCC(gamutSig, fourCC);
-      printf("      Gamut signature: 0x%08X (%s)\n", gamutSig, fourCC);
+      hc.info("      Gamut signature: 0x%08X (%s)", gamutSig, fourCC);
 
       if (gamutSig == icSigPerceptualReferenceMediumGamut) {
-        printf("      %s[OK] Profile declares PRMG compliance%s\n",
-               ColorSuccess(), ColorReset());
+        hc.info("      Profile declares PRMG compliance");
       } else {
-        printf("      %s[INFO] Non-PRMG gamut: %s%s\n",
-               ColorInfo(), fourCC, ColorReset());
+        hc.info("      Non-PRMG gamut: %s", fourCC);
       }
     }
   }
 
   if (pRig2) {
-    printf("      Saturation rendering intent gamut tag present\n");
+    hc.info("      Saturation rendering intent gamut tag present");
   }
 
   if (!pRig0 && !pRig2) {
-    printf("      %s[INFO] No rendering intent gamut tags%s\n",
-           ColorInfo(), ColorReset());
+    hc.info("      No rendering intent gamut tags");
   }
 
   // Only attempt PRMG evaluation for device profiles (Input/Display/Output/ColorSpace)
@@ -177,11 +162,10 @@ int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char * /*profilePath*/) {
         }
       }
     }
-    printf("      PRMG boundary: %d/%d test points in gamut\n", inGamutCount, totalTests);
+    hc.info("      PRMG boundary: %d/%d test points in gamut", inGamutCount, totalTests);
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("PRMG gamut evaluation complete");
 }
 
 // =====================================================================
@@ -189,16 +173,12 @@ int RunHeuristic_H104_PRMG(CIccProfile *pIcc, const char * /*profilePath*/) {
 // Exercises IccMatrixMath.cpp — determinant, inversion, chromaticity
 // =====================================================================
 int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H105] Matrix-TRC Validation\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(105, "Matrix-TRC Validation");
 
   icColorSpaceSignature cs = (icColorSpaceSignature)pIcc->m_Header.colorSpace;
   if (cs != icSigRgbData) {
-    printf("      %s[INFO] Not an RGB profile — matrix-TRC check skipped%s\n",
-           ColorInfo(), ColorReset());
-    printf("\n");
-    return 0;
+    return hc.skip("Not an RGB profile — matrix-TRC check skipped");
   }
 
   // Extract rXYZ, gXYZ, bXYZ tags (columns of the 3x3 matrix)
@@ -207,10 +187,7 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
   CIccTag *pbXYZ = pIcc->FindTag(icSigBlueColorantTag);
 
   if (!prXYZ || !pgXYZ || !pbXYZ) {
-    printf("      %s[INFO] Missing rXYZ/gXYZ/bXYZ colorant tags%s\n",
-           ColorInfo(), ColorReset());
-    printf("\n");
-    return 0;
+    return hc.skip("Missing rXYZ/gXYZ/bXYZ colorant tags");
   }
 
   CIccTagXYZ *pR = dynamic_cast<CIccTagXYZ *>(prXYZ);
@@ -239,16 +216,13 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
       m[1][0] = (*pRf)[1]; m[1][1] = (*pGf)[1]; m[1][2] = (*pBf)[1];
       m[2][0] = (*pRf)[2]; m[2][1] = (*pGf)[2]; m[2][2] = (*pBf)[2];
     } else {
-      printf("      %s[INFO] Colorant tags are not XYZ or float type — skipping%s\n",
-             ColorInfo(), ColorReset());
-      printf("\n");
-      return 0;
+      return hc.skip("Colorant tags are not XYZ or float type");
     }
   }
 
-  printf("      Matrix:\n");
+  hc.info("      Matrix:");
   for (int r = 0; r < 3; r++) {
-    printf("        [%8.5f  %8.5f  %8.5f]\n", (double)m[r][0], (double)m[r][1], (double)m[r][2]);
+    hc.info("        [%8.5f  %8.5f  %8.5f]", (double)m[r][0], (double)m[r][1], (double)m[r][2]);
   }
 
   // Compute determinant (ad-bc style for 3x3)
@@ -256,23 +230,16 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
                     - m[0][1] * (m[1][0]*m[2][2] - m[1][2]*m[2][0])
                     + m[0][2] * (m[1][0]*m[2][1] - m[1][1]*m[2][0]);
 
-  printf("      Determinant: %.6f\n", (double)det);
+  hc.info("      Determinant: %.6f", (double)det);
 
   if (det == 0.0f) {
-    printf("      %s[CRIT] Singular matrix (det=0) — profile cannot map colors%s\n",
-           ColorCritical(), ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Singular matrix (det=0) — profile cannot map colors");
   } else if (det < 0.0f) {
-    printf("      %s[WARN] Negative determinant — flipped color space orientation%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Negative determinant — flipped color space orientation");
   } else if (det < 0.001f) {
-    printf("      %s[WARN] Near-singular matrix (det=%.6f) — may cause numerical instability%s\n",
-           ColorWarning(), (double)det, ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Near-singular matrix (det=%.6f) — may cause numerical instability", (double)det);
   } else {
-    printf("      %s[OK] Matrix is invertible (det=%.6f)%s\n",
-           ColorSuccess(), (double)det, ColorReset());
+    hc.info("      Matrix is invertible (det=%.6f)", (double)det);
   }
 
   // Row sums should approximate D50 white point (0.9642, 1.0000, 0.8249)
@@ -280,23 +247,19 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
   for (int r = 0; r < 3; r++) {
     rowSum[r] = m[r][0] + m[r][1] + m[r][2];
   }
-  printf("      Row sums (≈D50 XYZ): [%.4f, %.4f, %.4f]\n",
+  hc.info("      Row sums (≈D50 XYZ): [%.4f, %.4f, %.4f]",
          (double)rowSum[0], (double)rowSum[1], (double)rowSum[2]);
 
   // Y row sum (luminance) should be ~1.0
   if (rowSum[1] < 0.5f || rowSum[1] > 1.5f) {
-    printf("      %s[WARN] Y row sum %.4f far from 1.0 — unusual white point%s\n",
-           ColorWarning(), (double)rowSum[1], ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Y row sum %.4f far from 1.0 — unusual white point", (double)rowSum[1]);
   }
 
   // Check for NaN/Inf in matrix values
   for (int r = 0; r < 3; r++) {
     for (int c = 0; c < 3; c++) {
       if (std::isnan(m[r][c]) || std::isinf(m[r][c])) {
-        printf("      %s[CRIT] NaN/Inf in matrix[%d][%d]%s\n",
-               ColorCritical(), r, c, ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: NaN/Inf in matrix[%d][%d]", r, c);
       }
     }
   }
@@ -317,26 +280,18 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
       CIccMatrixMath *pProduct = mtx.Mult(pInv);
       if (pProduct) {
         bool isIdent = pProduct->isIdentityMtx();
-        if (isIdent) {
-          printf("      %s[OK] Matrix × Inverse = Identity%s\n",
-                 ColorSuccess(), ColorReset());
-        } else {
-          printf("      %s[WARN] Matrix × Inverse ≠ Identity (precision issue)%s\n",
-                 ColorWarning(), ColorReset());
-          heuristicCount++;
+        if (!isIdent) {
+          hc.warn("HEURISTIC: Matrix × Inverse ≠ Identity (precision issue)");
         }
         delete pProduct;
       }
     } else {
-      printf("      %s[WARN] Matrix inversion failed%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Matrix inversion failed");
     }
     delete pInv;
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Matrix-TRC validation passed");
 }
 
 // =====================================================================
@@ -344,47 +299,46 @@ int RunHeuristic_H105_MatrixTRC(CIccProfile *pIcc) {
 // Exercises IccEnvVar.cpp — env var lookup and validation
 // =====================================================================
 int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H106] Environment Variable Tags\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(106, "Environment Variable Tags");
 
   // Look for customToStandardPcc and standardToCustomPcc MPE tags
   CIccTag *pCustomToStd = pIcc->FindTag((icTagSignature)0x63327370);  // 'c2sp'
   CIccTag *pStdToCustom = pIcc->FindTag((icTagSignature)0x73326370);  // 's2cp'
 
   if (pCustomToStd) {
-    printf("      Custom-to-standard PCC transform present\n");
+    hc.info("      Custom-to-standard PCC transform present");
     CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pCustomToStd);
     if (pMpe) {
-      printf("      Input channels: %u, Output channels: %u\n",
+      hc.info("      Input channels: %u, Output channels: %u",
              pMpe->NumInputChannels(), pMpe->NumOutputChannels());
-      printf("      Elements: %u\n", pMpe->NumElements());
+      hc.info("      Elements: %u", pMpe->NumElements());
     }
   }
 
   if (pStdToCustom) {
-    printf("      Standard-to-custom PCC transform present\n");
+    hc.info("      Standard-to-custom PCC transform present");
     CIccTagMultiProcessElement *pMpe = dynamic_cast<CIccTagMultiProcessElement *>(pStdToCustom);
     if (pMpe) {
-      printf("      Input channels: %u, Output channels: %u\n",
+      hc.info("      Input channels: %u, Output channels: %u",
              pMpe->NumInputChannels(), pMpe->NumOutputChannels());
-      printf("      Elements: %u\n", pMpe->NumElements());
+      hc.info("      Elements: %u", pMpe->NumElements());
     }
   }
 
   // Check for CIccTagSpectralViewingConditions with custom illuminant
   const CIccTagSpectralViewingConditions *pSvc = pIcc->getPccViewingConditions();
   if (pSvc) {
-    printf("      Spectral viewing conditions:\n");
-    printf("        Illuminant type: 0x%08X\n", (unsigned)pSvc->getStdIllumiant());
-    printf("        Observer type: 0x%08X\n", (unsigned)pSvc->getStdObserver());
+    hc.info("      Spectral viewing conditions:");
+    hc.info("        Illuminant type: 0x%08X", (unsigned)pSvc->getStdIllumiant());
+    hc.info("        Observer type: 0x%08X", (unsigned)pSvc->getStdObserver());
     
     // Use getIlluminant() which takes icSpectralRange& output
     icSpectralRange illumRange = {};
     const icFloatNumber *pIllumData = pSvc->getIlluminant(illumRange);
     
     if (illumRange.steps > 0 && pIllumData) {
-      printf("        Illuminant range: %.0f–%.0f nm, %u steps\n",
+      hc.info("        Illuminant range: %.0f–%.0f nm, %u steps",
              (double)icF16toF(illumRange.start), (double)icF16toF(illumRange.end),
              illumRange.steps);
 
@@ -392,25 +346,20 @@ int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
       icFloatNumber startNm = icF16toF(illumRange.start);
       icFloatNumber endNm = icF16toF(illumRange.end);
       if (startNm >= endNm) {
-        printf("        %s[WARN] Illuminant range inverted: start %.0f >= end %.0f%s\n",
-               ColorWarning(), (double)startNm, (double)endNm, ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Illuminant range inverted: start %.0f >= end %.0f",
+               (double)startNm, (double)endNm);
       }
       if (illumRange.steps > 1000) {
-        printf("        %s[WARN] Excessive illuminant steps: %u%s\n",
-               ColorWarning(), illumRange.steps, ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Excessive illuminant steps: %u", illumRange.steps);
       }
     }
   }
 
   if (!pCustomToStd && !pStdToCustom && !pSvc) {
-    printf("      %s[INFO] No environment variable or PCC transform tags%s\n",
-           ColorInfo(), ColorReset());
+    hc.info("      No environment variable or PCC transform tags");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Environment variable tags validated");
 }
 
 // =====================================================================
@@ -419,23 +368,20 @@ int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
 // colorspace and PCS. Mismatch is the root cause of patch 071 SBO.
 // =====================================================================
 int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H107] LUT Channel vs Colorspace Cross-Check\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(107, "LUT Channel vs Colorspace Cross-Check");
 
   icUInt32Number dataChannels = icGetSpaceSamples(pIcc->m_Header.colorSpace);
   icUInt32Number pcsChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
 
   if (dataChannels == 0 || pcsChannels == 0) {
-    printf("      %s[WARN]  Cannot determine channel counts (data=%u, PCS=%u)%s\n",
-           ColorWarning(), dataChannels, pcsChannels, ColorReset());
-    heuristicCount++;
-    printf("\n");
-    return heuristicCount;
+    hc.warn("HEURISTIC: Cannot determine channel counts (data=%u, PCS=%u)",
+           dataChannels, pcsChannels);
+    return hc.end("LUT channel cross-check complete");
   }
 
-  printf("      Declared data colorspace channels: %u\n", dataChannels);
-  printf("      Declared PCS channels: %u\n", pcsChannels);
+  hc.info("      Declared data colorspace channels: %u", dataChannels);
+  hc.info("      Declared PCS channels: %u", pcsChannels);
 
   // AToB tags: input=data space, output=PCS
   icTagSignature atobSigs[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, (icTagSignature)0};
@@ -447,18 +393,14 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
     icUInt8Number nOut = mbb->OutputChannels();
 
     if (nIn != dataChannels) {
-      printf("      %s[WARN]  AToB%d: input channels (%u) != data colorspace (%u)%s\n",
-             ColorCritical(), i, nIn, dataChannels, ColorReset());
-      printf("       %sCWE-131: Channel/colorspace mismatch — buffer overflow risk%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: AToB%d: input channels (%u) != data colorspace (%u)",
+             i, nIn, dataChannels);
+      hc.cweNote("CWE-131: Channel/colorspace mismatch — buffer overflow risk");
     }
     if (nOut != pcsChannels) {
-      printf("      %s[WARN]  AToB%d: output channels (%u) != PCS (%u)%s\n",
-             ColorCritical(), i, nOut, pcsChannels, ColorReset());
-      printf("       %sCWE-121: Output channel mismatch — SBO risk (see patch 071)%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: AToB%d: output channels (%u) != PCS (%u)",
+             i, nOut, pcsChannels);
+      hc.cweNote("CWE-121: Output channel mismatch — SBO risk (see patch 071)");
     }
   }
 
@@ -472,18 +414,14 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
     icUInt8Number nOut = mbb->OutputChannels();
 
     if (nIn != pcsChannels) {
-      printf("      %s[WARN]  BToA%d: input channels (%u) != PCS (%u)%s\n",
-             ColorCritical(), i, nIn, pcsChannels, ColorReset());
-      printf("       %sCWE-131: Channel/PCS mismatch — buffer overflow risk%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: BToA%d: input channels (%u) != PCS (%u)",
+             i, nIn, pcsChannels);
+      hc.cweNote("CWE-131: Channel/PCS mismatch — buffer overflow risk");
     }
     if (nOut != dataChannels) {
-      printf("      %s[WARN]  BToA%d: output channels (%u) != data colorspace (%u)%s\n",
-             ColorCritical(), i, nOut, dataChannels, ColorReset());
-      printf("       %sCWE-121: Output channel mismatch — SBO risk%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: BToA%d: output channels (%u) != data colorspace (%u)",
+             i, nOut, dataChannels);
+      hc.cweNote("CWE-121: Output channel mismatch — SBO risk");
     }
   }
 
@@ -497,24 +435,16 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
     if (!mpe) continue;
 
     if (mpe->NumInputChannels() != dataChannels) {
-      printf("      %s[WARN]  DToB%d: input channels (%u) != data colorspace (%u)%s\n",
-             ColorCritical(), i, mpe->NumInputChannels(), dataChannels, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: DToB%d: input channels (%u) != data colorspace (%u)",
+             i, mpe->NumInputChannels(), dataChannels);
     }
     if (mpe->NumOutputChannels() != pcsChannels) {
-      printf("      %s[WARN]  DToB%d: output channels (%u) != PCS (%u)%s\n",
-             ColorCritical(), i, mpe->NumOutputChannels(), pcsChannels, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: DToB%d: output channels (%u) != PCS (%u)",
+             i, mpe->NumOutputChannels(), pcsChannels);
     }
   }
 
-  if (heuristicCount == 0) {
-    printf("      %s[OK] All LUT channel counts match declared colorspace/PCS%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("All LUT channel counts match declared colorspace/PCS");
 }
 
 // =====================================================================
@@ -522,9 +452,8 @@ int RunHeuristic_H107_ChannelCrossCheck(CIccProfile *pIcc) {
 // Identifies tags with signatures not in the ICC registry.
 // =====================================================================
 int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H108] Private Tag Identification\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(108, "Private Tag Identification");
 
   static const icTagSignature knownTags[] = {
     icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
@@ -565,26 +494,19 @@ int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
     if (!isKnown) {
       char sigStr[5] = {};
       SigToChars(sig, sigStr);
-      printf("      %s[INFO] Private/unknown tag: '%s' (0x%08X) offset=%u size=%u%s\n",
-             ColorInfo(), sigStr, (unsigned)sig,
-             it->TagInfo.offset, it->TagInfo.size, ColorReset());
+      hc.info("      Private/unknown tag: '%s' (0x%08X) offset=%u size=%u",
+             sigStr, (unsigned)sig,
+             it->TagInfo.offset, it->TagInfo.size);
       privateCount++;
     }
   }
 
   if (privateCount > 0) {
-    printf("      %s[WARN]  %d private/unregistered tag(s) detected%s\n",
-           ColorWarning(), privateCount, ColorReset());
-    printf("       %sCWE-829: Private tags may contain unvalidated data%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount += privateCount;
-  } else {
-    printf("      %s[OK] All tags are registered ICC signatures%s\n",
-           ColorSuccess(), ColorReset());
+    hc.warn("HEURISTIC: %d private/unregistered tag(s) detected", privateCount);
+    hc.cweNote("CWE-829: Private tags may contain unvalidated data");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("All tags are registered ICC signatures");
 }
 
 // =====================================================================
@@ -593,24 +515,18 @@ int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
 // ELF/PE headers embedded in profile data.
 // =====================================================================
 int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
-  int heuristicCount = 0;
-
-  printf("[H109] NOP Sled / Shellcode Pattern Scan\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(109, "NOP Sled / Shellcode Pattern Scan");
 
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
-    printf("      %s[ERROR] Cannot open file for shellcode scan%s\n",
-           ColorCritical(), ColorReset());
-    printf("\n");
-    return 1;
+    hc.warn("HEURISTIC: Cannot open file for shellcode scan");
+    return hc.end("Shellcode scan complete");
   }
   long fileSize = fh.fileSize;
 
   if (fileSize <= 128 || fileSize > 100 * 1024 * 1024) {
-    printf("      %s[OK] File size %ld — skipping pattern scan%s\n",
-           ColorSuccess(), fileSize, ColorReset());
-    printf("\n");
-    return 0;
+    return hc.skip("File size not suitable for pattern scan");
   }
 
   size_t scanSize = (size_t)(fileSize > 10485760 ? 10485760 : fileSize);
@@ -627,8 +543,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
       size_t run = 1;
       while (i + run < bytesRead && buf[i + run] == 0x90 && run < 256) run++;
       if (run >= 16) {
-        printf("      %s[WARN]  x86 NOP sled at offset 0x%zX (%zu bytes)%s\n",
-               ColorCritical(), i, run, ColorReset());
+        hc.warn("HEURISTIC: x86 NOP sled at offset 0x%zX (%zu bytes)", i, run);
         nopSleds++;
         i += run;
         continue;
@@ -637,8 +552,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
     // ELF magic: 7F 45 4C 46
     if (i + 4 <= bytesRead && buf[i] == 0x7F && buf[i+1] == 0x45 &&
         buf[i+2] == 0x4C && buf[i+3] == 0x46) {
-      printf("      %s[WARN]  ELF header at offset 0x%zX%s\n",
-             ColorCritical(), i, ColorReset());
+      hc.warn("HEURISTIC: ELF header at offset 0x%zX", i);
       elfHeaders++;
     }
     // PE magic: 4D 5A (MZ) with valid PE offset
@@ -647,8 +561,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
                        ((uint32_t)buf[i+62] << 16) | ((uint32_t)buf[i+63] << 24);
       if (peOff < 1024 && i + peOff + 4 <= bytesRead &&
           buf[i+peOff] == 'P' && buf[i+peOff+1] == 'E') {
-        printf("      %s[WARN]  PE/MZ executable at offset 0x%zX%s\n",
-               ColorCritical(), i, ColorReset());
+        hc.warn("HEURISTIC: PE/MZ executable at offset 0x%zX", i);
         peHeaders++;
       }
     }
@@ -662,8 +575,7 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
         armNops++; j += 4;
       }
       if (armNops >= 4) {
-        printf("      %s[WARN]  ARM64 NOP sled at offset 0x%zX (%d instructions)%s\n",
-               ColorCritical(), i, armNops, ColorReset());
+        hc.warn("HEURISTIC: ARM64 NOP sled at offset 0x%zX (%d instructions)", i, armNops);
         nopSleds++;
       }
     }
@@ -671,16 +583,11 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
   }
 
   if (nopSleds > 0 || elfHeaders > 0 || peHeaders > 0) {
-    printf("      %sCWE-506: Embedded executable content — %d NOP sled(s), %d ELF, %d PE%s\n",
-           ColorCritical(), nopSleds, elfHeaders, peHeaders, ColorReset());
-    heuristicCount += nopSleds + elfHeaders + peHeaders;
-  } else {
-    printf("      %s[OK] No shellcode or executable patterns detected%s\n",
-           ColorSuccess(), ColorReset());
+    hc.cweNote("CWE-506: Embedded executable content — %d NOP sled(s), %d ELF, %d PE",
+           nopSleds, elfHeaders, peHeaders);
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("No shellcode or executable patterns detected");
 }
 
 // =====================================================================
@@ -689,9 +596,8 @@ int RunHeuristic_H109_ShellcodePatterns(const char *filename) {
 // class↔colorspace consistency.
 // =====================================================================
 int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H110] Profile-Class Required Tag Validation\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(110, "Profile-Class Required Tag Validation");
 
   icProfileClassSignature profileClass = pIcc->m_Header.deviceClass;
 
@@ -712,9 +618,8 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
   if (profileClass != icSigLinkClass) {
     for (int i = 0; commonRequired[i].sig != (icTagSignature)0; i++) {
       if (!pIcc->FindTag(commonRequired[i].sig)) {
-        printf("      %s[WARN]  Missing required tag '%s' for non-DeviceLink class%s\n",
-               ColorWarning(), commonRequired[i].name, ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Missing required tag '%s' for non-DeviceLink class",
+               commonRequired[i].name);
       }
     }
   }
@@ -738,14 +643,10 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
     case icSigLinkClass:
       className = "DeviceLink (link)";
       if (!pIcc->FindTag(icSigAToB0Tag)) {
-        printf("      %s[WARN]  DeviceLink missing required AToB0 tag%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: DeviceLink missing required AToB0 tag");
       }
       if (!pIcc->FindTag(icSigProfileDescriptionTag)) {
-        printf("      %s[WARN]  DeviceLink missing required desc tag%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: DeviceLink missing required desc tag");
       }
       break;
     case icSigAbstractClass:
@@ -760,25 +661,21 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
       className = "NamedColor (nmcl)";
       break;
     default:
-      printf("      %s[WARN]  Unknown profile class: 0x%08X%s\n",
-             ColorWarning(), (unsigned)profileClass, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Unknown profile class: 0x%08X", (unsigned)profileClass);
       break;
   }
 
-  printf("      Profile class: %s\n", className);
+  hc.info("      Profile class: %s", className);
 
   if (needsA2B && !pIcc->FindTag(icSigAToB0Tag)) {
     if ((profileClass == icSigDisplayClass || profileClass == icSigInputClass) &&
         pIcc->FindTag(icSigRedTRCTag) && pIcc->FindTag(icSigGreenTRCTag) &&
         pIcc->FindTag(icSigBlueTRCTag)) {
-      printf("      [OK] Using Matrix/TRC instead of AToB0\n");
+      hc.info("      Using Matrix/TRC instead of AToB0");
     } else if (profileClass == icSigInputClass && pIcc->FindTag(icSigGrayTRCTag)) {
-      printf("      [OK] Grayscale input using kTRC\n");
+      hc.info("      Grayscale input using kTRC");
     } else {
-      printf("      %s[WARN]  Missing AToB0 tag (required for %s class)%s\n",
-             ColorWarning(), className, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Missing AToB0 tag (required for %s class)", className);
     }
   }
 
@@ -787,11 +684,9 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
     if (pIcc->m_Header.pcs != icSigLabData && pIcc->m_Header.pcs != icSigXYZData) {
       icUInt32Number pcsVal = (icUInt32Number)pIcc->m_Header.pcs;
       if (pcsVal < 0x72300000 || pcsVal > 0x72FFFFFF) {
-        printf("      %s[WARN]  Non-DeviceLink PCS is not Lab/XYZ/spectral: 0x%08X%s\n",
-               ColorCritical(), (unsigned)pIcc->m_Header.pcs, ColorReset());
-        printf("       %sCWE-20: Invalid PCS for profile class%s\n",
-               ColorCritical(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Non-DeviceLink PCS is not Lab/XYZ/spectral: 0x%08X",
+               (unsigned)pIcc->m_Header.pcs);
+        hc.cweNote("CWE-20: Invalid PCS for profile class");
       }
     }
   }
@@ -808,23 +703,14 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
         double wpZ = icFtoD((*wpXyz)[0].Z);
         // D50: X=0.9642, Y=1.0000, Z=0.8249
         if (fabs(wpX - 0.9642) > 0.01 || fabs(wpY - 1.0) > 0.01 || fabs(wpZ - 0.8249) > 0.01) {
-          printf("      %s[WARN]  wtpt ≠ D50 but 'chad' tag missing (ICC.1-2022-05 Annex G)%s\n",
-                 ColorWarning(), ColorReset());
-          printf("       %sCWE-20: chromaticAdaptationTag required when adopted white ≠ D50%s\n",
-                 ColorWarning(), ColorReset());
-          heuristicCount++;
+          hc.warn("HEURISTIC: wtpt ≠ D50 but 'chad' tag missing (ICC.1-2022-05 Annex G)");
+          hc.cweNote("CWE-20: chromaticAdaptationTag required when adopted white ≠ D50");
         }
       }
     }
   }
 
-  if (heuristicCount == 0) {
-    printf("      %s[OK] Profile class and required tags are consistent%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Profile class and required tags are consistent");
 }
 
 // =====================================================================
@@ -832,23 +718,19 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
 // Checks that ICC header reserved fields are zero.
 // =====================================================================
 int RunHeuristic_H111_ReservedBytes(const char *filename) {
-  int heuristicCount = 0;
-
-  printf("[H111] Reserved Byte Validation\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(111, "Reserved Byte Validation");
 
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
-    printf("      %s[ERROR] Cannot open file%s\n", ColorCritical(), ColorReset());
-    printf("\n");
-    return 1;
+    hc.warn("HEURISTIC: Cannot open file");
+    return hc.end("Reserved byte validation complete");
   }
 
   unsigned char hdr[128];
   if (fread(hdr, 1, 128, fh.fp) != 128) {
-    printf("      %s[WARN]  File too small for ICC header%s\n",
-           ColorWarning(), ColorReset());
-    printf("\n");
-    return 1;
+    hc.warn("HEURISTIC: File too small for ICC header");
+    return hc.end("Reserved byte validation complete");
   }
 
   // ICC header bytes 44-47: reserved (shall be zero)
@@ -861,30 +743,21 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
   }
 
   if (!reserved44_ok) {
-    printf("      %s[WARN]  Header bytes 44-47 non-zero: %02X %02X %02X %02X%s\n",
-           ColorWarning(), hdr[44], hdr[45], hdr[46], hdr[47], ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Header bytes 44-47 non-zero: %02X %02X %02X %02X",
+           hdr[44], hdr[45], hdr[46], hdr[47]);
   }
 
   if (!reserved100_ok) {
-    printf("      %s[WARN]  Header bytes 100-127 contain non-zero reserved data%s\n",
-           ColorWarning(), ColorReset());
+    hc.warn("HEURISTIC: Header bytes 100-127 contain non-zero reserved data");
     for (int i = 100; i < 128; i++) {
       if (hdr[i] != 0) {
-        printf("       First non-zero at byte %d: 0x%02X\n", i, hdr[i]);
+        hc.info("       First non-zero at byte %d: 0x%02X", i, hdr[i]);
         break;
       }
     }
-    heuristicCount++;
   }
 
-  if (heuristicCount == 0) {
-    printf("      %s[OK] All reserved header bytes are zero%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("All reserved header bytes are zero");
 }
 
 // =====================================================================
@@ -892,30 +765,23 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
 // For v4+ Display profiles, wtpt must be D50.
 // =====================================================================
 int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H112] Wtpt Profile-Class Validation\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(112, "Wtpt Profile-Class Validation");
 
   CIccTag *tag = pIcc->FindTag(icSigMediaWhitePointTag);
   if (!tag) {
     if (pIcc->m_Header.deviceClass != icSigLinkClass) {
-      printf("      %s[WARN]  Missing wtpt tag (required for non-DeviceLink)%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Missing wtpt tag (required for non-DeviceLink)");
     } else {
-      printf("      %s[OK] DeviceLink — wtpt not required%s\n", ColorInfo(), ColorReset());
+      hc.info("      DeviceLink — wtpt not required");
     }
-    printf("\n");
-    return heuristicCount;
+    return hc.end("Wtpt validation complete");
   }
 
   CIccTagXYZ *xyz = dynamic_cast<CIccTagXYZ*>(tag);
   if (!xyz || xyz->GetSize() < 1) {
-    printf("      %s[WARN]  wtpt tag present but not valid XYZ type%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount++;
-    printf("\n");
-    return heuristicCount;
+    hc.warn("HEURISTIC: wtpt tag present but not valid XYZ type");
+    return hc.end("Wtpt validation complete");
   }
 
   icXYZNumber wp = (*xyz)[0];
@@ -923,7 +789,7 @@ int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
   double wpY = icFtoD(wp.Y);
   double wpZ = icFtoD(wp.Z);
 
-  printf("      wtpt: X=%.6f Y=%.6f Z=%.6f\n", wpX, wpY, wpZ);
+  hc.info("      wtpt: X=%.6f Y=%.6f Z=%.6f", wpX, wpY, wpZ);
 
   // ICC.1-2022-05 §7.2.16: D50 illuminant X=0.9642, Y=1.0000, Z=0.8249
   double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;
@@ -937,34 +803,23 @@ int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
 
   if (version >= 4 && pIcc->m_Header.deviceClass == icSigDisplayClass) {
     if (!isD50) {
-      printf("      %s[WARN]  v4+ Display profile wtpt is NOT D50%s\n",
-             ColorCritical(), ColorReset());
-      printf("       Expected: X=0.9642 Y=1.0000 Z=0.8249 (ICC.1-2022-05 §7.2.16)\n");
-      printf("       %sCWE-20: ICC v4 Display profiles must use D50 media white point%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: v4+ Display profile wtpt is NOT D50");
+      hc.info("       Expected: X=0.9642 Y=1.0000 Z=0.8249 (ICC.1-2022-05 §7.2.16)");
+      hc.cweNote("CWE-20: ICC v4 Display profiles must use D50 media white point");
     } else {
-      printf("      %s[OK] v4 Display wtpt is D50%s\n", ColorSuccess(), ColorReset());
+      hc.info("      v4 Display wtpt is D50");
     }
   } else {
     if (wpX < 0.0 || wpY < 0.0 || wpZ < 0.0) {
-      printf("      %s[WARN]  wtpt has negative component(s)%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: wtpt has negative component(s)");
     }
     if (wpY < 0.5 || wpY > 2.0) {
-      printf("      %s[WARN]  wtpt Y=%.4f outside plausible range [0.5, 2.0]%s\n",
-             ColorWarning(), wpY, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: wtpt Y=%.4f outside plausible range [0.5, 2.0]", wpY);
     }
-    if (heuristicCount == 0) {
-      printf("      %s[OK] wtpt is physically plausible%s\n", ColorSuccess(), ColorReset());
-      if (isD50) printf("      (Matches D50 reference illuminant)\n");
-    }
+    if (isD50) hc.info("      (Matches D50 reference illuminant)");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("wtpt is physically plausible");
 }
 
 // =====================================================================
@@ -972,9 +827,8 @@ int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
 // Checks AToB/BToA tag pair geometry for round-trip compatibility.
 // =====================================================================
 int RunHeuristic_H113_RoundTripFidelity(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H113] Round-Trip Fidelity Assessment\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(113, "Round-Trip Fidelity Assessment");
 
   struct IntentPair {
     icTagSignature atob;
@@ -997,51 +851,40 @@ int RunHeuristic_H113_RoundTripFidelity(CIccProfile *pIcc) {
     CIccMBB *mbbA = tagA ? dynamic_cast<CIccMBB*>(tagA) : nullptr;
     CIccMBB *mbbB = tagB ? dynamic_cast<CIccMBB*>(tagB) : nullptr;
 
-    printf("      %s intent:\n", pairs[p].name);
+    hc.info("      %s intent:", pairs[p].name);
 
     if (mbbA && mbbB) {
-      printf("        AToB%d: %uin → %uout\n", p,
+      hc.info("        AToB%d: %uin → %uout", p,
              mbbA->InputChannels(), mbbA->OutputChannels());
-      printf("        BToA%d: %uin → %uout\n", p,
+      hc.info("        BToA%d: %uin → %uout", p,
              mbbB->InputChannels(), mbbB->OutputChannels());
 
       if (mbbA->OutputChannels() != mbbB->InputChannels()) {
-        printf("        %s[WARN]  Channel mismatch: AToB output=%u != BToA input=%u%s\n",
-               ColorWarning(), mbbA->OutputChannels(), mbbB->InputChannels(), ColorReset());
-        printf("         %sCWE-682: Incompatible round-trip dimensions%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Channel mismatch: AToB output=%u != BToA input=%u",
+               mbbA->OutputChannels(), mbbB->InputChannels());
+        hc.cweNote("CWE-682: Incompatible round-trip dimensions");
       }
       if (mbbA->InputChannels() != mbbB->OutputChannels()) {
-        printf("        %s[WARN]  Channel mismatch: AToB input=%u != BToA output=%u%s\n",
-               ColorWarning(), mbbA->InputChannels(), mbbB->OutputChannels(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Channel mismatch: AToB input=%u != BToA output=%u",
+               mbbA->InputChannels(), mbbB->OutputChannels());
       }
 
       CIccCLUT *clutA = mbbA->GetCLUT();
       CIccCLUT *clutB = mbbB->GetCLUT();
-      if (clutA) printf("        AToB%d CLUT grid: %u points\n", p, clutA->GridPoints());
-      if (clutB) printf("        BToA%d CLUT grid: %u points\n", p, clutB->GridPoints());
+      if (clutA) hc.info("        AToB%d CLUT grid: %u points", p, clutA->GridPoints());
+      if (clutB) hc.info("        BToA%d CLUT grid: %u points", p, clutB->GridPoints());
     } else if (mbbA && !tagB) {
-      printf("        AToB%d present (%uin→%uout) but BToA%d MISSING\n", p,
+      hc.info("        AToB%d present (%uin→%uout) but BToA%d MISSING", p,
              mbbA->InputChannels(), mbbA->OutputChannels(), p);
-      printf("        %s[INFO] One-way transform only — no round-trip possible%s\n",
-             ColorInfo(), ColorReset());
+      hc.info("        One-way transform only — no round-trip possible");
     } else if (!tagA && mbbB) {
-      printf("        BToA%d present (%uin→%uout) but AToB%d MISSING\n", p,
+      hc.info("        BToA%d present (%uin→%uout) but AToB%d MISSING", p,
              mbbB->InputChannels(), mbbB->OutputChannels(), p);
-      printf("        %s[INFO] One-way transform only — no round-trip possible%s\n",
-             ColorInfo(), ColorReset());
+      hc.info("        One-way transform only — no round-trip possible");
     }
   }
 
-  if (heuristicCount == 0) {
-    printf("      %s[OK] Round-trip tag geometry is consistent%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Round-trip tag geometry is consistent");
 }
 
 // =====================================================================
@@ -1049,9 +892,8 @@ int RunHeuristic_H113_RoundTripFidelity(CIccProfile *pIcc) {
 // Samples TRC curves for non-monotonic regions or extreme jumps.
 // =====================================================================
 int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H114] TRC Curve Smoothness and Monotonicity\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(114, "TRC Curve Smoothness and Monotonicity");
 
   icTagSignature trcTags[] = {
     icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
@@ -1069,12 +911,10 @@ int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc) {
     if (nEntries < 2) {
       if (nEntries == 1) {
         icFloatNumber gamma = (*curve)[0];
-        printf("      %s: gamma=%.4f", trcNames[t], (double)gamma);
+        hc.info("      %s: gamma=%.4f", trcNames[t], (double)gamma);
         if (gamma < 0.1 || gamma > 10.0) {
-          printf(" %s[WARN] extreme gamma%s", ColorWarning(), ColorReset());
-          heuristicCount++;
+          hc.warn("HEURISTIC: %s: extreme gamma value %.4f", trcNames[t], (double)gamma);
         }
-        printf("\n");
       }
       curvesChecked++;
       continue;
@@ -1097,28 +937,21 @@ int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc) {
     double expectedStep = 1.0 / (double)(nEntries - 1);
     bool extremeJump = (maxJump > expectedStep * 50.0 && maxJump > 0.1);
 
-    printf("      %s: %u entries", trcNames[t], nEntries);
+    hc.info("      %s: %u entries", trcNames[t], nEntries);
     if (nonMonotonic > 0) {
-      printf(" %s[WARN] %d non-monotonic region(s)%s",
-             ColorWarning(), nonMonotonic, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: %s: %d non-monotonic region(s)", trcNames[t], nonMonotonic);
     }
     if (extremeJump) {
-      printf(" %s[WARN] extreme jump %.4f at [%zu]%s",
-             ColorWarning(), maxJump, maxJumpIdx, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: %s: extreme jump %.4f at [%zu]", trcNames[t], maxJump, maxJumpIdx);
     }
-    if (nonMonotonic == 0 && !extremeJump) printf(" [OK]");
-    printf("\n");
     curvesChecked++;
   }
 
   if (curvesChecked == 0) {
-    printf("      %s[INFO] No TRC curve tags found%s\n", ColorInfo(), ColorReset());
+    hc.info("      No TRC curve tags found");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("TRC curves are smooth and monotonic");
 }
 
 // =====================================================================
@@ -1126,55 +959,46 @@ int RunHeuristic_H114_CurveSmoothness(CIccProfile *pIcc) {
 // Checks for 'targ' tag containing characterization/measurement data.
 // =====================================================================
 int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H115] Characterization Data Presence\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(115, "Characterization Data Presence");
 
   CIccTag *targTag = pIcc->FindTag(icSigCharTargetTag);
   if (!targTag) {
-    printf("      %s[INFO] No characterization data (targ) tag present%s\n",
-           ColorInfo(), ColorReset());
-    printf("\n");
-    return 0;
+    return hc.skip("No characterization data (targ) tag present");
   }
 
-  printf("      Characterization data (targ) tag present\n");
+  hc.info("      Characterization data (targ) tag present");
 
   CIccTagText *textTag = dynamic_cast<CIccTagText*>(targTag);
   if (textTag) {
     const char *text = textTag->GetText();
     size_t len = text ? strlen(text) : 0;
-    printf("      Text content: %zu bytes\n", len);
+    hc.info("      Text content: %zu bytes", len);
 
     if (len > 0) {
       if (strncmp(text, "BEGIN_DATA_FORMAT", 17) == 0 ||
           strncmp(text, "CGATS", 5) == 0 ||
           strncmp(text, "CTI", 3) == 0 ||
           strncmp(text, "NUMBER_OF_SETS", 14) == 0) {
-        printf("      Format: CGATS/IT8 characterization data\n");
+        hc.info("      Format: CGATS/IT8 characterization data");
       } else {
         char preview[81] = {};
         strncpy(preview, text, 80);
         for (int i = 0; i < 80 && preview[i]; i++) {
           if (preview[i] < 32 || preview[i] > 126) preview[i] = '.';
         }
-        printf("      Preview: %.80s\n", preview);
+        hc.info("      Preview: %.80s", preview);
       }
     }
 
     if (len > 10 * 1024 * 1024) {
-      printf("      %s[WARN]  Characterization data exceeds 10MB (%zu bytes)%s\n",
-             ColorWarning(), len, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Characterization data exceeds 10MB (%zu bytes)", len);
     }
   } else {
-    printf("      %s[WARN]  targ tag is not text type%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: targ tag is not text type");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Characterization data present and valid");
 }
 
 // =====================================================================
@@ -1184,14 +1008,13 @@ int RunHeuristic_H115_CharacterizationData(CIccProfile *pIcc) {
 // H116: Validate copyrightTag and profileDescriptionTag encoding types.
 // ICC.1-2022-05 §9.2.22: v4+ profiles MUST use multiLocalizedUnicodeType.
 int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H116] cprt/desc Encoding vs Profile Version\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(116, "cprt/desc Encoding vs Profile Version");
 
   icUInt32Number version = pIcc->m_Header.version;
   int majorVer = (version >> 24) & 0xFF;
 
-  printf("      Profile version: %d.%d.%d\n", majorVer,
+  hc.info("      Profile version: %d.%d.%d", majorVer,
          (version >> 20) & 0xF, (version >> 16) & 0xF);
 
   struct TagCheck {
@@ -1206,7 +1029,7 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
   for (int i = 0; i < 2; i++) {
     CIccTag *tag = pIcc->FindTag(checks[i].sig);
     if (!tag) {
-      printf("      %s: not present\n", checks[i].name);
+      hc.info("      %s: not present", checks[i].name);
       continue;
     }
 
@@ -1217,36 +1040,26 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
     typeStr[2] = (char)(static_cast<unsigned char>((tagType >> 8) & 0xFF));
     typeStr[3] = (char)(static_cast<unsigned char>(tagType & 0xFF));
 
-    printf("      %s: type='%s' (0x%08X)\n", checks[i].name, typeStr, (unsigned)tagType);
+    hc.info("      %s: type='%s' (0x%08X)", checks[i].name, typeStr, (unsigned)tagType);
 
     if (majorVer >= 4) {
       if (tagType != icSigMultiLocalizedUnicodeType) {
-        printf("      %s[WARN]  %s: v%d profile should use multiLocalizedUnicodeType, found '%s'%s\n",
-               ColorWarning(), checks[i].name, majorVer, typeStr, ColorReset());
-        printf("       %sCWE-20: Encoding does not match specification version%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
-      } else {
-        printf("      %s[OK] %s uses correct type for v%d%s\n",
-               ColorSuccess(), checks[i].name, majorVer, ColorReset());
+        hc.warn("HEURISTIC: %s: v%d profile should use multiLocalizedUnicodeType, found '%s'",
+               checks[i].name, majorVer, typeStr);
+        hc.cweNote("CWE-20: Encoding does not match specification version");
       }
     } else if (majorVer == 2) {
       bool ok = (tagType == icSigTextType ||
                  tagType == icSigTextDescriptionType ||
                  tagType == icSigMultiLocalizedUnicodeType);
       if (!ok) {
-        printf("      %s[WARN]  %s: v2 profile should use textType or textDescriptionType, found '%s'%s\n",
-               ColorWarning(), checks[i].name, typeStr, ColorReset());
-        heuristicCount++;
-      } else {
-        printf("      %s[OK] %s uses acceptable type for v2%s\n",
-               ColorSuccess(), checks[i].name, ColorReset());
+        hc.warn("HEURISTIC: %s: v2 profile should use textType or textDescriptionType, found '%s'",
+               checks[i].name, typeStr);
       }
     }
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("cprt/desc encoding matches profile version");
 }
 
 // =====================================================================
@@ -1269,9 +1082,8 @@ int RunHeuristic_H116_CprtDescEncoding(CIccProfile *pIcc) {
 // H117: Validate that each tag's type signature is in the allowed set for its tag signature.
 // Uses a static table of (tagSig → allowed typeSig[]) mappings from ICC.1-2022-05 §10.
 int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H117] Tag Type Allowed Per Signature\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(117, "Tag Type Allowed Per Signature");
 
   struct AllowedType {
     icTagSignature sig;
@@ -1336,7 +1148,7 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
      {icSigMultiLocalizedUnicodeType, icSigTextDescriptionType}, 2},
   };
 
-  int checked = 0, violations = 0;
+  int checked = 0;
 
   // Check each present tag's type against the whitelist
   for (size_t t = 0; t < sizeof(table) / sizeof(table[0]); t++) {
@@ -1357,24 +1169,19 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
       typeStr[1] = (char)(static_cast<unsigned char>((actualType >> 16) & 0xFF));
       typeStr[2] = (char)(static_cast<unsigned char>((actualType >> 8) & 0xFF));
       typeStr[3] = (char)(static_cast<unsigned char>(actualType & 0xFF));
-      printf("      %s[WARN]  '%s': type '%s' (0x%08X) not in allowed set%s\n",
-             ColorWarning(), table[t].name, typeStr, (unsigned)actualType, ColorReset());
-      printf("       %sCWE-20: Tag uses disallowed type for its signature%s\n",
-             ColorWarning(), ColorReset());
-      violations++;
-      heuristicCount++;
+      hc.warn("HEURISTIC: '%s': type '%s' (0x%08X) not in allowed set",
+             table[t].name, typeStr, (unsigned)actualType);
+      hc.cweNote("CWE-20: Tag uses disallowed type for its signature");
     }
   }
 
-  if (violations == 0 && checked > 0) {
-    printf("      %s[OK] %d tags checked — all use allowed types%s\n",
-           ColorSuccess(), checked, ColorReset());
-  } else if (checked == 0) {
-    printf("      [INFO] No applicable tags found\n");
+  if (checked == 0) {
+    hc.info("      No applicable tags found");
   }
 
-  printf("\n");
-  return heuristicCount;
+  char endMsg[128];
+  snprintf(endMsg, sizeof(endMsg), "%d tags checked — all use allowed types", checked);
+  return hc.end(endMsg);
 }
 
 // =====================================================================
@@ -1382,9 +1189,8 @@ int RunHeuristic_H117_TagTypeAllowed(CIccProfile *pIcc) {
 // Walks calculator MPE elements and estimates FLOPs per evaluation.
 // =====================================================================
 int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H118] Calculator Computation Cost Estimate\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(118, "Calculator Computation Cost Estimate");
 
   icTagSignature mpeTags[] = {
     icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
@@ -1452,15 +1258,12 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
       icUInt32Number sig = (icUInt32Number)mpeTags[t];
       SigToChars(sig, sigStr);
 
-      printf("      '%s': %d calc element(s), est. cost: %llu ops\n",
+      hc.info("      '%s': %d calc element(s), est. cost: %llu ops",
              sigStr, calcCount, (unsigned long long)tagCost);
 
       if (tagCost > 100000000ULL) {
-        printf("      %s[WARN]  '%s': excessive computation cost (>100M ops per pixel)%s\n",
-               ColorWarning(), sigStr, ColorReset());
-        printf("       %sCWE-400: Potential algorithmic complexity DoS%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: '%s': excessive computation cost (>100M ops per pixel)", sigStr);
+        hc.cweNote("CWE-400: Potential algorithmic complexity DoS");
       }
     }
 
@@ -1468,19 +1271,16 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
   }
 
   if (tagsWithCalc > 0) {
-    printf("      Total estimated cost: %llu ops per pixel\n",
+    hc.info("      Total estimated cost: %llu ops per pixel",
            (unsigned long long)totalCost);
     if (totalCost > 1000000000ULL) {
-      printf("      %s[WARN]  Total computation cost exceeds 1B ops — extreme DoS risk%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Total computation cost exceeds 1B ops — extreme DoS risk");
     }
   } else {
-    printf("      [INFO] No MPE calculator/CLUT elements found\n");
+    hc.info("      No MPE calculator/CLUT elements found");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Computation cost within acceptable limits");
 }
 
 // =====================================================================
@@ -1493,9 +1293,8 @@ int RunHeuristic_H118_CalcCostEstimate(CIccProfile *pIcc) {
 int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
   // Sample test colors through AToB→BToA CLUTs and compute avg/max ΔE.
   // Uses CLUT node values for accurate sampling without CMM pipeline.
-  int heuristicCount = 0;
-
-  printf("[H119] Round-Trip ΔE Measurement\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(119, "Round-Trip ΔE Measurement");
 
   struct IntentPair {
     icTagSignature atob;
@@ -1583,30 +1382,23 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
       anyMeasured = true;
       double avgDE = sumDE / (double)samples;
 
-      printf("      %s intent (%d samples):\n", pairs[p].name, samples);
-      printf("        AToB%d→BToA%d: avg ΔE=%.4f  max ΔE=%.4f\n",
+      hc.info("      %s intent (%d samples):", pairs[p].name, samples);
+      hc.info("        AToB%d→BToA%d: avg ΔE=%.4f  max ΔE=%.4f",
              p, p, avgDE, maxDE);
 
       if (maxDE > 5.0) {
-        printf("        %s[WARN]  max ΔE > 5.0 — poor round-trip fidelity%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: max ΔE > 5.0 — poor round-trip fidelity");
       } else if (maxDE > 2.0) {
-        printf("        %s[INFO] max ΔE > 2.0 — moderate round-trip error%s\n",
-               ColorInfo(), ColorReset());
-      } else {
-        printf("        %s[OK] Good round-trip fidelity%s\n",
-               ColorSuccess(), ColorReset());
+        hc.info("        max ΔE > 2.0 — moderate round-trip error");
       }
     }
   }
 
   if (!anyMeasured) {
-    printf("      [INFO] No AToB/BToA CLUT pairs available for ΔE measurement\n");
+    hc.info("      No AToB/BToA CLUT pairs available for ΔE measurement");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("Round-trip ΔE within acceptable range");
 }
 
 // =====================================================================
@@ -1629,9 +1421,8 @@ int RunHeuristic_H119_RoundTripDeltaE(CIccProfile *pIcc) {
 // H120: Assess TRC curve invertibility by checking monotonicity and sufficient dynamic range.
 // Non-invertible curves indicate broken round-trip transforms (CWE-682).
 int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
-  int heuristicCount = 0;
-
-  printf("[H120] Curve Invertibility Assessment\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(120, "Curve Invertibility Assessment");
 
   icTagSignature trcTags[] = {
     icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
@@ -1650,12 +1441,10 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
       if (nEntries == 1) {
         icFloatNumber gamma = (*curve)[0];
         if (gamma > 0.01) {
-          printf("      %s: gamma=%.4f — invertible (1/gamma=%.4f)\n",
+          hc.info("      %s: gamma=%.4f — invertible (1/gamma=%.4f)",
                  trcNames[t], (double)gamma, 1.0/(double)gamma);
         } else {
-          printf("      %s[WARN]  %s: gamma=%.6f ≈ 0 — NOT invertible%s\n",
-                 ColorWarning(), trcNames[t], (double)gamma, ColorReset());
-          heuristicCount++;
+          hc.warn("HEURISTIC: %s: gamma=%.6f ≈ 0 — NOT invertible", trcNames[t], (double)gamma);
         }
       }
       curvesChecked++;
@@ -1671,11 +1460,8 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
     bool isFlat = (fabs(range) < 1e-6);
 
     if (isFlat) {
-      printf("      %s[WARN]  %s: flat curve (range=%.6f) — NOT invertible%s\n",
-             ColorWarning(), trcNames[t], range, ColorReset());
-      printf("       %sCWE-682: Degenerate transform destroys color data%s\n",
-             ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: %s: flat curve (range=%.6f) — NOT invertible", trcNames[t], range);
+      hc.cweNote("CWE-682: Degenerate transform destroys color data");
       curvesChecked++;
       continue;
     }
@@ -1708,28 +1494,22 @@ int RunHeuristic_H120_CurveInvertibility(CIccProfile *pIcc) {
     }
 
     double avgErr = (testCount > 0) ? sumErr / testCount : 0.0;
-    printf("      %s (%u entries): inv avg err=%.6f  max err=%.6f\n",
+    hc.info("      %s (%u entries): inv avg err=%.6f  max err=%.6f",
            trcNames[t], nEntries, avgErr, maxErr);
 
     // Check invertibility: max round-trip error > 1% indicates poor transform fidelity
     if (maxErr > 0.01) {
-      printf("      %s[WARN]  %s: poor invertibility (max err > 1%%)%s\n",
-             ColorWarning(), trcNames[t], ColorReset());
-      heuristicCount++;
-    } else {
-      printf("      %s[OK] %s: good invertibility%s\n",
-             ColorSuccess(), trcNames[t], ColorReset());
+      hc.warn("HEURISTIC: %s: poor invertibility (max err > 1%%)", trcNames[t]);
     }
 
     curvesChecked++;
   }
 
   if (curvesChecked == 0) {
-    printf("      [INFO] No TRC curves found for invertibility check\n");
+    hc.info("      No TRC curves found for invertibility check");
   }
 
-  printf("\n");
-  return heuristicCount;
+  return hc.end("TRC curves are invertible");
 }
 
 // =====================================================================

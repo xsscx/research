@@ -15,8 +15,8 @@
 #include "IccImageAnalyzer.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerSecurity.h"
-#include "IccAnalyzerHeuristics.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -326,11 +326,11 @@ int RunHeuristic_H139_TiffStripGeometry(TIFF *tif, const char * /*filepath*/,
                                          uint32_t width, uint16_t bps,
                                          uint16_t spp, uint32_t rowsPerStrip,
                                          uint16_t planarConfig) {
-  printf("[H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(139, "TIFF Strip Geometry Validation (CWE-122/CWE-190)");
 
   if (!tif) {
-    printf("      [SKIP] No TIFF handle\n\n");
-    return 0;
+    return hc.skip("No TIFF handle");
   }
 
   // Only applies to strip-based images (not tiled)
@@ -338,48 +338,37 @@ int RunHeuristic_H139_TiffStripGeometry(TIFF *tif, const char * /*filepath*/,
   TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileW);
   TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
   if (tileW > 0 || tileH > 0) {
-    printf("      [OK] Tiled image — strip geometry N/A\n\n");
-    return 0;
+    return hc.end("Tiled image — strip geometry N/A");
   }
 
   if (rowsPerStrip == 0) {
-    printf("      [OK] RowsPerStrip=0 — no strip layout\n\n");
-    return 0;
+    return hc.end("RowsPerStrip=0 — no strip layout");
   }
 
-  int findings = 0;
   tmsize_t stripSize = TIFFStripSize(tif);
 
   // Check 1: Zero or negative strip size
   if (stripSize <= 0) {
-    printf("      %s[CRIT]  HEURISTIC: Zero or negative strip size — corrupted geometry%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sCWE-122: Heap buffer overflow in ReadLine/ReadEncodedStrip%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Zero or negative strip size — corrupted geometry");
+    hc.cweNote("CWE-122: Heap buffer overflow in ReadLine/ReadEncodedStrip");
   }
 
   // Check 2: Integer multiplication overflow in bytesPerLine
   // CodeQL cpp/integer-multiplication-cast-to-long: width*bps*spp can overflow uint32
   uint64_t bytesPerLine = ((uint64_t)width * (uint64_t)bps * (uint64_t)spp + 7) >> 3;
   if (bps > 0 && spp > 0 && width > 0 && bytesPerLine > (uint64_t)UINT32_MAX) {
-    printf("      %s[CRIT]  HEURISTIC: Integer overflow in bytesPerLine: %u × %u × %u overflows uint32%s\n",
-           ColorCritical(), width, bps, spp, ColorReset());
-    printf("       %sCWE-190: Integer overflow in buffer size calculation%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sCodeQL: cpp/integer-multiplication-cast-to-long — TiffImg.cpp:324%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Integer overflow in bytesPerLine: %u × %u × %u overflows uint32",
+                width, bps, spp);
+    hc.cweNote("CWE-190: Integer overflow in buffer size calculation");
+    hc.cweNote("CodeQL: cpp/integer-multiplication-cast-to-long — TiffImg.cpp:324");
   }
 
   // Check 3: Strip buffer underallocation (CFL-082 pattern)
   uint64_t expectedStripBuf = bytesPerLine * (uint64_t)rowsPerStrip;
   if (expectedStripBuf > 0 && stripSize > 0 && (uint64_t)stripSize < expectedStripBuf) {
-    printf("      %s[CRIT]  HEURISTIC: Strip buffer too small: stripSize=%lld < rowsPerStrip×bytesPerLine=%llu%s\n",
-           ColorCritical(), (long long)stripSize, (unsigned long long)expectedStripBuf, ColorReset());
-    printf("       %sCWE-122: Heap buffer overflow — ReadLine memcpy exceeds strip allocation%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Strip buffer too small: stripSize=%lld < rowsPerStrip×bytesPerLine=%llu",
+                (long long)stripSize, (unsigned long long)expectedStripBuf);
+    hc.cweNote("CWE-122: Heap buffer overflow — ReadLine memcpy exceeds strip allocation");
   }
 
   // Check 4: stripSize * nStripSamples allocation overflow
@@ -387,21 +376,13 @@ int RunHeuristic_H139_TiffStripGeometry(TIFF *tif, const char * /*filepath*/,
   uint32_t nStripSamples = (planarConfig == PLANARCONFIG_SEPARATE && spp > 1) ? spp : 1;
   uint64_t allocSize = (uint64_t)stripSize * (uint64_t)nStripSamples;
   if (nStripSamples > 1 && allocSize > (uint64_t)SIZE_MAX / 2) {
-    printf("      %s[CRIT]  HEURISTIC: Strip allocation overflow: stripSize(%lld) × nStripSamples(%u) exceeds safe limit%s\n",
-           ColorCritical(), (long long)stripSize, nStripSamples, ColorReset());
-    printf("       %sCWE-190: Integer overflow in malloc argument%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sCodeQL: cpp/multiplication-overflow-in-alloc — TiffImg.cpp:324%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Strip allocation overflow: stripSize(%lld) × nStripSamples(%u) exceeds safe limit",
+                (long long)stripSize, nStripSamples);
+    hc.cweNote("CWE-190: Integer overflow in malloc argument");
+    hc.cweNote("CodeQL: cpp/multiplication-overflow-in-alloc — TiffImg.cpp:324");
   }
 
-  if (findings == 0) {
-    printf("      [OK] Strip geometry valid (bytesPerLine=%llu, stripSize=%lld, rowsPerStrip=%u)\n",
-           (unsigned long long)bytesPerLine, (long long)stripSize, rowsPerStrip);
-  }
-  printf("\n");
-  return findings;
+  return hc.end("Strip geometry valid");
 }
 
 /// H140: TIFF Dimension and Sample Validation (CWE-400/CWE-131/CWE-369)
@@ -409,71 +390,50 @@ int RunHeuristic_H139_TiffStripGeometry(TIFF *tif, const char * /*filepath*/,
 /// resource exhaustion, buffer miscalculation, and division-by-zero patterns.
 int RunHeuristic_H140_TiffDimensionValidation(uint32_t width, uint32_t height,
                                                uint16_t bps, uint16_t spp) {
-  printf("[H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)\n");
-
-  int findings = 0;
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(140, "TIFF Dimension and Sample Validation (CWE-400/CWE-131)");
 
   // Check 1: Zero dimensions — division by zero in row/stride calculations
   if (width == 0 || height == 0) {
-    printf("      %s[CRIT]  HEURISTIC: Zero dimension: %u×%u%s\n",
-           ColorCritical(), width, height, ColorReset());
-    printf("       %sCWE-369: Division by zero in image processing%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Zero dimension: %u×%u", width, height);
+    hc.cweNote("CWE-369: Division by zero in image processing");
   }
 
   // Check 2: Extreme dimensions — resource exhaustion
   uint64_t pixelCount = (uint64_t)width * (uint64_t)height;
   if (pixelCount > 100000000ULL) {
-    printf("      %s[WARN]  HEURISTIC: Extreme dimensions: %u×%u = %llu pixels (>100M)%s\n",
-           ColorWarning(), width, height, (unsigned long long)pixelCount, ColorReset());
-    printf("       %sCWE-400: Resource exhaustion via large image decode%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: Extreme dimensions: %u×%u = %llu pixels (>100M)",
+            width, height, (unsigned long long)pixelCount);
+    hc.cweNote("CWE-400: Resource exhaustion via large image decode");
   }
 
   // Check 3: Unusual BitsPerSample — buffer miscalculation risk
   if (bps != 0 && bps != 1 && bps != 2 && bps != 4 && bps != 8 &&
       bps != 16 && bps != 32 && bps != 64) {
-    printf("      %s[WARN]  HEURISTIC: Unusual BitsPerSample: %u (expected 1/2/4/8/16/32/64)%s\n",
-           ColorWarning(), bps, ColorReset());
-    printf("       %sCWE-131: Incorrect buffer size calculation%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: Unusual BitsPerSample: %u (expected 1/2/4/8/16/32/64)", bps);
+    hc.cweNote("CWE-131: Incorrect buffer size calculation");
   }
 
   // Check 4: Excessive SamplesPerPixel — buffer overflow in channel loops
   if (spp > 16) {
-    printf("      %s[WARN]  HEURISTIC: Excessive SamplesPerPixel: %u (>16)%s\n",
-           ColorWarning(), spp, ColorReset());
-    printf("       %sCWE-131: Buffer size overflow (nOutput×BPS×width)%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: Excessive SamplesPerPixel: %u (>16)", spp);
+    hc.cweNote("CWE-131: Buffer size overflow (nOutput×BPS×width)");
   }
 
   // Check 5: Total uncompressed size overflow
   uint64_t bytesPerPixel = ((uint64_t)bps * (uint64_t)spp + 7) >> 3;
   uint64_t totalBytes = pixelCount * bytesPerPixel;
   if (bytesPerPixel > 0 && totalBytes / bytesPerPixel != pixelCount) {
-    printf("      %s[CRIT]  HEURISTIC: Uncompressed size overflows uint64: %u×%u×%llu%s\n",
-           ColorCritical(), width, height, (unsigned long long)bytesPerPixel, ColorReset());
-    printf("       %sCWE-190: Integer overflow in image buffer allocation%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.critical("HEURISTIC: Uncompressed size overflows uint64: %u×%u×%llu",
+                width, height, (unsigned long long)bytesPerPixel);
+    hc.cweNote("CWE-190: Integer overflow in image buffer allocation");
   } else if (totalBytes > 4ULL * 1024 * 1024 * 1024) {
-    printf("      %s[WARN]  HEURISTIC: Uncompressed size %llu bytes (>4GB)%s\n",
-           ColorWarning(), (unsigned long long)totalBytes, ColorReset());
-    printf("       %sCWE-400: Memory exhaustion via large uncompressed image%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: Uncompressed size %llu bytes (>4GB)",
+            (unsigned long long)totalBytes);
+    hc.cweNote("CWE-400: Memory exhaustion via large uncompressed image");
   }
 
-  if (findings == 0) {
-    printf("      [OK] Dimensions %u×%u, BPS=%u, SPP=%u (%llu pixels)\n",
-           width, height, bps, spp, (unsigned long long)pixelCount);
-  }
-  printf("\n");
-  return findings;
+  return hc.end("Dimensions valid");
 }
 
 /// H141: TIFF IFD Offset Bounds Validation (CWE-125)
@@ -481,20 +441,17 @@ int RunHeuristic_H140_TiffDimensionValidation(uint32_t width, uint32_t height,
 /// within the file boundaries. Detects file truncation attacks and
 /// corrupted offset tables that cause out-of-bounds reads.
 int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
-  printf("[H141] TIFF IFD Offset Bounds Validation (CWE-125)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(141, "TIFF IFD Offset Bounds Validation (CWE-125)");
 
   if (!tif || !filepath) {
-    printf("      [SKIP] No TIFF handle or filepath\n\n");
-    return 0;
+    return hc.skip("No TIFF handle or filepath");
   }
-
-  int findings = 0;
 
   // Get file size for bounds checking
   struct stat st;
   if (stat(filepath, &st) != 0) {
-    printf("      [SKIP] Cannot stat file\n\n");
-    return 0;
+    return hc.skip("Cannot stat file");
   }
   uint64_t fileSize = (uint64_t)st.st_size;
 
@@ -502,6 +459,8 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
   uint32_t tileW = 0, tileH = 0;
   TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileW);
   TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
+
+  int findingCount = 0;
 
   if (tileW == 0 && tileH == 0) {
     // Strip-based: check strip offsets and byte counts
@@ -515,24 +474,21 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
       uint32_t checkLimit = (nStrips < 256) ? nStrips : 256;
       for (uint32_t s = 0; s < checkLimit; s++) {
         if (bytecounts[s] > 0 && offsets[s] + bytecounts[s] > fileSize) {
-          printf("      %s[CRIT]  HEURISTIC: Strip %u: offset+size (%llu+%llu) exceeds file size (%llu)%s\n",
-                 ColorCritical(), s,
-                 (unsigned long long)offsets[s], (unsigned long long)bytecounts[s],
-                 (unsigned long long)fileSize, ColorReset());
-          printf("       %sCWE-125: Out-of-bounds read via corrupted strip offset%s\n",
-                 ColorCritical(), ColorReset());
-          findings++;
-          if (findings >= 3) break;
+          hc.critical("HEURISTIC: Strip %u: offset+size (%llu+%llu) exceeds file size (%llu)",
+                      s,
+                      (unsigned long long)offsets[s], (unsigned long long)bytecounts[s],
+                      (unsigned long long)fileSize);
+          hc.cweNote("CWE-125: Out-of-bounds read via corrupted strip offset");
+          findingCount++;
+          if (findingCount >= 3) break;
         }
       }
       // Check for zero-offset strips with non-zero byte counts (corruption)
       for (uint32_t s = 0; s < checkLimit; s++) {
         if (offsets[s] == 0 && bytecounts[s] > 0 && s > 0) {
-          printf("      %s[WARN]  HEURISTIC: Strip %u: offset=0 with bytecount=%llu (null data pointer)%s\n",
-                 ColorWarning(), s, (unsigned long long)bytecounts[s], ColorReset());
-          printf("       %sCWE-476: Null pointer in strip data access%s\n",
-                 ColorCritical(), ColorReset());
-          findings++;
+          hc.warn("HEURISTIC: Strip %u: offset=0 with bytecount=%llu (null data pointer)",
+                  s, (unsigned long long)bytecounts[s]);
+          hc.cweNote("CWE-476: Null pointer in strip data access");
           break;
         }
       }
@@ -549,14 +505,13 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
       uint32_t checkLimit = (nTiles < 256) ? nTiles : 256;
       for (uint32_t t = 0; t < checkLimit; t++) {
         if (bytecounts[t] > 0 && offsets[t] + bytecounts[t] > fileSize) {
-          printf("      %s[CRIT]  HEURISTIC: Tile %u: offset+size (%llu+%llu) exceeds file size (%llu)%s\n",
-                 ColorCritical(), t,
-                 (unsigned long long)offsets[t], (unsigned long long)bytecounts[t],
-                 (unsigned long long)fileSize, ColorReset());
-          printf("       %sCWE-125: Out-of-bounds read via corrupted tile offset%s\n",
-                 ColorCritical(), ColorReset());
-          findings++;
-          if (findings >= 3) break;
+          hc.critical("HEURISTIC: Tile %u: offset+size (%llu+%llu) exceeds file size (%llu)",
+                      t,
+                      (unsigned long long)offsets[t], (unsigned long long)bytecounts[t],
+                      (unsigned long long)fileSize);
+          hc.cweNote("CWE-125: Out-of-bounds read via corrupted tile offset");
+          findingCount++;
+          if (findingCount >= 3) break;
         }
       }
     }
@@ -567,11 +522,8 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
   do {
     nPages++;
     if (nPages > 1000) {
-      printf("      %s[WARN]  HEURISTIC: Excessive IFD pages: >1000 directories%s\n",
-             ColorWarning(), ColorReset());
-      printf("       %sCWE-400: Resource exhaustion via IFD chain loop%s\n",
-             ColorCritical(), ColorReset());
-      findings++;
+      hc.warn("HEURISTIC: Excessive IFD pages: >1000 directories");
+      hc.cweNote("CWE-400: Resource exhaustion via IFD chain loop");
       break;
     }
   } while (TIFFReadDirectory(tif));
@@ -580,15 +532,10 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
   TIFFSetDirectory(tif, 0);
 
   if (nPages > 1 && nPages <= 1000) {
-    printf("      [INFO] Multi-page TIFF: %d directories\n", nPages);
+    hc.info("[INFO] Multi-page TIFF: %d directories", nPages);
   }
 
-  if (findings == 0) {
-    printf("      [OK] All IFD offsets within file bounds (size=%llu, pages=%d)\n",
-           (unsigned long long)fileSize, nPages);
-  }
-  printf("\n");
-  return findings;
+  return hc.end("All IFD offsets within file bounds");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -596,18 +543,16 @@ int RunHeuristic_H141_TiffIfdOffsetBounds(TIFF *tif, const char *filepath) {
 // ═══════════════════════════════════════════════════════════════════════
 
 int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
-  printf("[H149] TIFF IFD Chain Cycle Detection (CWE-835)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(149, "TIFF IFD Chain Cycle Detection (CWE-835)");
 
   // tif handle is unused — H149 reads raw file bytes independently.
   // This allows it to run even when TIFFOpen fails on corrupt files.
   (void)tif;
 
   if (!filepath) {
-    printf("      [SKIP] No filepath\n\n");
-    return 0;
+    return hc.skip("No filepath");
   }
-
-  int findings = 0;
 
   // Read raw IFD offsets from the file to detect circular pointers.
   // libtiff's TIFFReadDirectory follows the chain but may loop forever
@@ -615,15 +560,13 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
   // directory to build a visited set.
   FILE *fp = fopen(filepath, "rb");
   if (!fp) {
-    printf("      [SKIP] Cannot open file for raw IFD scan\n\n");
-    return 0;
+    return hc.skip("Cannot open file for raw IFD scan");
   }
 
   struct stat st;
   if (fstat(fileno(fp), &st) != 0) {
     fclose(fp);
-    printf("      [SKIP] Cannot stat file\n\n");
-    return 0;
+    return hc.skip("Cannot stat file");
   }
   uint64_t fileSize = static_cast<uint64_t>(st.st_size);
 
@@ -631,8 +574,7 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
   uint8_t header[8];
   if (fread(header, 1, 8, fp) < 8) {
     fclose(fp);
-    printf("      [SKIP] File too small for TIFF header\n\n");
-    return 0;
+    return hc.skip("File too small for TIFF header");
   }
 
   bool littleEndian = (header[0] == 'I' && header[1] == 'I');
@@ -655,7 +597,7 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
     isBigTiff = true;
     // BigTIFF: 8-byte offset at bytes 8-15
     uint8_t ext[8];
-    if (fread(ext, 1, 8, fp) < 8) { fclose(fp); return 0; }
+    if (fread(ext, 1, 8, fp) < 8) { fclose(fp); return hc.end("BigTIFF header truncated"); }
     // Simplified: read lower 4 bytes (BigTIFFs > 4GB are rare in fuzzing)
     ifdOffset = readU32(ext);
   } else {
@@ -669,11 +611,9 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
 
   while (ifdOffset != 0 && ifdOffset < fileSize && chainLen < kMaxChainDepth) {
     if (visited.count(ifdOffset)) {
-      printf("      %s[CRIT]  HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d%s\n",
-             ColorCritical(), (unsigned long long)ifdOffset, chainLen, ColorReset());
-      printf("       %sCWE-835: Infinite loop via circular IFD next-pointer%s\n",
-             ColorCritical(), ColorReset());
-      findings++;
+      hc.critical("HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d",
+                  (unsigned long long)ifdOffset, chainLen);
+      hc.cweNote("CWE-835: Infinite loop via circular IFD next-pointer");
       break;
     }
     visited.insert(ifdOffset);
@@ -707,20 +647,12 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
 
   fclose(fp);
 
-  if (chainLen >= kMaxChainDepth && findings == 0) {
-    printf("      %s[WARN]  HEURISTIC: IFD chain exceeds %d directories — possible loop%s\n",
-           ColorWarning(), kMaxChainDepth, ColorReset());
-    printf("       %sCWE-835: Excessive IFD chain depth%s\n",
-           ColorWarning(), ColorReset());
-    findings++;
+  if (chainLen >= kMaxChainDepth) {
+    hc.warn("HEURISTIC: IFD chain exceeds %d directories — possible loop", kMaxChainDepth);
+    hc.cweNote("CWE-835: Excessive IFD chain depth");
   }
 
-  if (findings == 0) {
-    printf("      [OK] IFD chain is acyclic (%d %s)\n",
-           chainLen, chainLen == 1 ? "directory" : "directories");
-  }
-  printf("\n");
-  return findings;
+  return hc.end("IFD chain is acyclic");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -728,13 +660,13 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
 // ═══════════════════════════════════════════════════════════════════════
 
 int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
-                                        uint32_t width, uint32_t height,
-                                        uint16_t bps, uint16_t spp) {
-  printf("[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)\n");
+                                         uint32_t width, uint32_t height,
+                                         uint16_t bps, uint16_t spp) {
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(150, "TIFF Tile Geometry Validation (CWE-122/CWE-131)");
 
   if (!tif) {
-    printf("      [SKIP] No TIFF handle\n\n");
-    return 0;
+    return hc.skip("No TIFF handle");
   }
 
   uint32_t tileW = 0, tileH = 0;
@@ -742,55 +674,37 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
   TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileH);
 
   if (tileW == 0 && tileH == 0) {
-    printf("      [OK] Strip-based image — tile geometry N/A\n\n");
-    return 0;
+    return hc.end("Strip-based image — tile geometry N/A");
   }
-
-  int findings = 0;
 
   // Tile dimensions must be multiples of 16 (TIFF 6.0 §15)
   if (tileW % 16 != 0) {
-    printf("      %s[WARN]  HEURISTIC: TileWidth=%u is not a multiple of 16 (TIFF 6.0 §15)%s\n",
-           ColorWarning(), tileW, ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: TileWidth=%u is not a multiple of 16 (TIFF 6.0 §15)", tileW);
   }
   if (tileH % 16 != 0) {
-    printf("      %s[WARN]  HEURISTIC: TileLength=%u is not a multiple of 16 (TIFF 6.0 §15)%s\n",
-           ColorWarning(), tileH, ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: TileLength=%u is not a multiple of 16 (TIFF 6.0 §15)", tileH);
   }
 
   // Tile dimensions must not be zero
   if (tileW == 0 || tileH == 0) {
-    printf("      %s[CRIT]  HEURISTIC: Zero tile dimension (TileWidth=%u, TileLength=%u)%s\n",
-           ColorCritical(), tileW, tileH, ColorReset());
-    printf("       %sCWE-369: Division by zero in tile count calculation%s\n",
-           ColorCritical(), ColorReset());
-    findings++;
-    printf("\n");
-    return findings;
+    hc.critical("HEURISTIC: Zero tile dimension (TileWidth=%u, TileLength=%u)", tileW, tileH);
+    hc.cweNote("CWE-369: Division by zero in tile count calculation");
+    return hc.end("Zero tile dimension detected");
   }
 
   // Tile dimensions should not exceed image dimensions unreasonably
   if (tileW > width * 2 && width > 0) {
-    printf("      %s[WARN]  HEURISTIC: TileWidth=%u exceeds 2× image width=%u%s\n",
-           ColorWarning(), tileW, width, ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: TileWidth=%u exceeds 2× image width=%u", tileW, width);
   }
   if (tileH > height * 2 && height > 0) {
-    printf("      %s[WARN]  HEURISTIC: TileLength=%u exceeds 2× image height=%u%s\n",
-           ColorWarning(), tileH, height, ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: TileLength=%u exceeds 2× image height=%u", tileH, height);
   }
 
   // Validate tile byte counts
   uint32_t nTiles = TIFFNumberOfTiles(tif);
   if (nTiles == 0) {
-    printf("      %s[WARN]  HEURISTIC: Tiled image reports 0 tiles%s\n",
-           ColorWarning(), ColorReset());
-    findings++;
-    printf("\n");
-    return findings;
+    hc.warn("HEURISTIC: Tiled image reports 0 tiles");
+    return hc.end("Zero tile count detected");
   }
 
   // Expected tiles = ceil(width/tileW) × ceil(height/tileH) × (planar ? spp : 1)
@@ -802,9 +716,8 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
   if (planar == PLANARCONFIG_SEPARATE) expectedTiles *= spp;
 
   if (nTiles != expectedTiles) {
-    printf("      %s[WARN]  HEURISTIC: Tile count mismatch: expected %u (%u×%u), got %u%s\n",
-           ColorWarning(), expectedTiles, tilesAcross, tilesDown, nTiles, ColorReset());
-    findings++;
+    hc.warn("HEURISTIC: Tile count mismatch: expected %u (%u×%u), got %u",
+            expectedTiles, tilesAcross, tilesDown, nTiles);
   }
 
   // Validate individual tile byte counts against expected uncompressed size
@@ -817,23 +730,19 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
     // Check for integer overflow in tile size calculation
     if (bytesPerPixel > 0 &&
         (uint64_t)tileW * tileH > UINT32_MAX / bytesPerPixel) {
-      printf("      %s[CRIT]  HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu%s\n",
-             ColorCritical(), tileW, tileH, (unsigned long long)bytesPerPixel, ColorReset());
-      printf("       %sCWE-190: Integer overflow → heap buffer overflow%s\n",
-             ColorCritical(), ColorReset());
-      findings++;
+      hc.critical("HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu",
+                  tileW, tileH, (unsigned long long)bytesPerPixel);
+      hc.cweNote("CWE-190: Integer overflow → heap buffer overflow");
     }
 
     // Check for suspicious tile sizes (much larger than expected)
     uint32_t checkLimit = (nTiles < 64) ? nTiles : 64;
     for (uint32_t t = 0; t < checkLimit; t++) {
       if (bytecounts[t] > expectedTileBytes * 4 && bytecounts[t] > 1048576) {
-        printf("      %s[WARN]  HEURISTIC: Tile %u bytecount=%llu far exceeds expected=%llu (4× threshold)%s\n",
-               ColorWarning(), t, (unsigned long long)bytecounts[t],
-               (unsigned long long)expectedTileBytes, ColorReset());
-        printf("       %sCWE-131: Incorrect buffer size calculation%s\n",
-               ColorWarning(), ColorReset());
-        findings++;
+        hc.warn("HEURISTIC: Tile %u bytecount=%llu far exceeds expected=%llu (4× threshold)",
+                t, (unsigned long long)bytecounts[t],
+                (unsigned long long)expectedTileBytes);
+        hc.cweNote("CWE-131: Incorrect buffer size calculation");
         break;  // Report once to avoid flooding
       }
     }
@@ -846,26 +755,21 @@ int RunHeuristic_H150_TiffTileGeometry(TIFF *tif, const char *filepath,
     uint64_t *offsets = nullptr;
     if (TIFFGetField(tif, TIFFTAG_TILEOFFSETS, &offsets) && offsets && bytecounts) {
       uint32_t checkLimit = (nTiles < 64) ? nTiles : 64;
+      int oobCount = 0;
       for (uint32_t t = 0; t < checkLimit; t++) {
         if (offsets[t] + bytecounts[t] > fileSize && bytecounts[t] > 0) {
-          printf("      %s[CRIT]  HEURISTIC: Tile %u extends beyond EOF: offset=%llu + size=%llu > filesize=%llu%s\n",
-                 ColorCritical(), t, (unsigned long long)offsets[t],
-                 (unsigned long long)bytecounts[t], (unsigned long long)fileSize, ColorReset());
-          printf("       %sCWE-122: Heap buffer overflow via out-of-bounds tile read%s\n",
-                 ColorCritical(), ColorReset());
-          findings++;
-          if (findings >= 5) break;
+          hc.critical("HEURISTIC: Tile %u extends beyond EOF: offset=%llu + size=%llu > filesize=%llu",
+                      t, (unsigned long long)offsets[t],
+                      (unsigned long long)bytecounts[t], (unsigned long long)fileSize);
+          hc.cweNote("CWE-122: Heap buffer overflow via out-of-bounds tile read");
+          oobCount++;
+          if (oobCount >= 5) break;
         }
       }
     }
   }
 
-  if (findings == 0) {
-    printf("      [OK] Tile geometry valid (TileWidth=%u, TileLength=%u, tiles=%u)\n",
-           tileW, tileH, nTiles);
-  }
-  printf("\n");
-  return findings;
+  return hc.end("Tile geometry valid");
 }
 
 int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
@@ -906,14 +810,17 @@ int AnalyzeTiffImage(const char *filepath, const char *fingerprintDb) {
     findings += RunHeuristic_H149_TiffIfdChainCycle(nullptr, filepath);
 
     // H139/H140/H141/H150 require a valid TIFF handle — skip with explanation
-    printf("[H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)\n");
-    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
-    printf("[H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)\n");
-    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
-    printf("[H141] TIFF IFD Offset Bounds Validation (CWE-125)\n");
-    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
-    printf("[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)\n");
-    printf("      [SKIP] Requires parseable TIFF (TIFFOpen failed)\n\n");
+    {
+      auto &hc = HeuristicCollector::instance();
+      hc.begin(139, "TIFF Strip Geometry Validation (CWE-122/CWE-190)");
+      hc.skip("Requires parseable TIFF (TIFFOpen failed)");
+      hc.begin(140, "TIFF Dimension and Sample Validation (CWE-400/CWE-131)");
+      hc.skip("Requires parseable TIFF (TIFFOpen failed)");
+      hc.begin(141, "TIFF IFD Offset Bounds Validation (CWE-125)");
+      hc.skip("Requires parseable TIFF (TIFFOpen failed)");
+      hc.begin(150, "TIFF Tile Geometry Validation (CWE-122/CWE-131)");
+      hc.skip("Requires parseable TIFF (TIFFOpen failed)");
+    }
 
     TIFFSetWarningHandler(oldWarn);
     TIFFSetErrorHandler(oldErr);
