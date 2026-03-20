@@ -222,6 +222,8 @@ int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
   allowed.insert(icSigNamedColor2Tag);
   allowed.insert(icSigOutputResponseTag);
   allowed.insert(icSigGamutTag);
+  allowed.insert(icSigPerceptualRenderingIntentGamutTag);   // 'rig0'
+  allowed.insert(icSigSaturationRenderingIntentGamutTag);   // 'rig2'
   allowed.insert(icSigPreview0Tag);
   allowed.insert(icSigPreview1Tag);
   allowed.insert(icSigPreview2Tag);
@@ -311,6 +313,8 @@ int RunHeuristic_H124_VersionTags(CIccProfile *pIcc) {
     icSigColorantTableTag,
     icSigColorantTableOutTag,
     icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,   // 'rig0' — ICC.1-2022-05 §9.2.37
+    icSigSaturationRenderingIntentGamutTag,   // 'rig2' — ICC.1-2022-05 §9.2.38
     (icTagSignature)0
   };
 
@@ -482,6 +486,8 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
     icSigViewingConditionsTag, icSigColorantOrderTag,
     icSigColorantTableTag, icSigColorantTableOutTag,
     icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,   // 'rig0' — ICC.1-2022-05 §9.2.37
+    icSigSaturationRenderingIntentGamutTag,   // 'rig2' — ICC.1-2022-05 §9.2.38
     (icTagSignature)0x44324230, (icTagSignature)0x44324231,
     (icTagSignature)0x44324232,
     (icTagSignature)0x42324430, (icTagSignature)0x42324431,
@@ -613,6 +619,8 @@ int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
     icSigViewingConditionsTag, icSigColorantOrderTag,
     icSigColorantTableTag, icSigColorantTableOutTag,
     icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,   // 'rig0' — ICC.1-2022-05 §9.2.37
+    icSigSaturationRenderingIntentGamutTag,   // 'rig2' — ICC.1-2022-05 §9.2.38
     (icTagSignature)0x44324230, (icTagSignature)0x44324231,
     (icTagSignature)0x44324232,
     (icTagSignature)0x42324430, (icTagSignature)0x42324431,
@@ -930,11 +938,11 @@ int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc) {
     return hc.end(nullptr);
   }
 
-  // Read 3x3 matrix
+  // Read 3x3 matrix — s15Fixed16Number is 16.16 fixed-point (divide by 65536.0)
   double m[3][3];
   for (int r = 0; r < 3; r++)
     for (int c = 0; c < 3; c++)
-      m[r][c] = (double)(*s15Tag)[r * 3 + c];
+      m[r][c] = (double)(*s15Tag)[r * 3 + c] / 65536.0;
 
   hc.info("chad matrix:");
   hc.info("  [%.6f  %.6f  %.6f]", m[0][0], m[0][1], m[0][2]);
@@ -955,14 +963,16 @@ int RunHeuristic_H132_ChadDeterminant(CIccProfile *pIcc) {
     hc.warn("chad matrix has negative determinant (reflection transform)");
   }
 
-  // Check for extreme values (each element should be in [-5, 5] for normal adaptation)
+  // Check for extreme values — Bradford adaptation matrices for wide illuminant
+  // changes (e.g., D93→D50, A→D50) can have elements up to ~10.0.
+  // Use 20.0 threshold to avoid false positives on valid chromatic adaptations.
   bool extreme = false;
   for (int r = 0; r < 3; r++)
     for (int c = 0; c < 3; c++)
-      if (fabs(m[r][c]) > 5.0) extreme = true;
+      if (fabs(m[r][c]) > 20.0) extreme = true;
 
   if (extreme) {
-    hc.warn("chad matrix contains extreme values (|element| > 5.0)");
+    hc.warn("chad matrix contains extreme values (|element| > 20.0)");
     hc.cweNote("CWE-682: May cause float overflow in adaptation transforms");
   }
 
