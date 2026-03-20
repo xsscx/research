@@ -38,10 +38,112 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerValidation.h"
 #include "IccAnalyzerSignatures.h"
+#include "IccAnalyzerColors.h"
 #include <new>
 #include <sys/stat.h>
 #include <cstdio>
 #include <cstdint>
+#include <string>
+#include <sstream>
+
+//==============================================================================
+// ICC Library Validation (CIccProfile::Validate)
+//==============================================================================
+
+int RunIccLibraryValidation(const char *filename) {
+  if (!filename) return 0;
+
+  printf("\n=======================================================================\n");
+  printf("%sICC LIBRARY CONFORMANCE VALIDATION%s\n", ColorHeader(), ColorReset());
+  printf("=======================================================================\n\n");
+  printf("  Running CIccProfile::ReadValidate() — ICC.1-2022-05 conformance checks\n");
+  printf("  Checks: header, required tags, tag types, per-tag content validation\n\n");
+
+  // Use ReadValidate via ValidateIccProfile — this does a full Read + Validate
+  // in one pass, unlike OpenIccProfile(Attach) which lazy-loads and may miss
+  // tag type registration needed for accurate conformance checking.
+  std::string sReport;
+  icValidateStatus status = icValidateOK;
+  CIccProfile *pIcc = ValidateIccProfile(filename, sReport, status);
+  // pIcc may be NULL on critical error — that's OK, we still have the report
+  delete pIcc;
+
+  const char *statusLabel = "UNKNOWN";
+  const char *statusColor = ColorInfo();
+  switch (status) {
+    case icValidateOK:
+      statusLabel = "OK — Profile conforms to ICC specification";
+      statusColor = ColorSuccess();
+      break;
+    case icValidateWarning:
+      statusLabel = "WARNING — Profile conforms with concerns";
+      statusColor = ColorWarning();
+      break;
+    case icValidateNonCompliant:
+      statusLabel = "NON-COMPLIANT — Profile does not conform to ICC specification";
+      statusColor = ColorCritical();
+      break;
+    case icValidateCriticalError:
+      statusLabel = "CRITICAL ERROR — Profile is not usable";
+      statusColor = ColorCritical();
+      break;
+  }
+
+  printf("  %sValidation Status: %s%s\n\n", statusColor, statusLabel, ColorReset());
+
+  if (sReport.empty()) {
+    printf("  %s[OK] No conformance findings — profile is spec-compliant%s\n\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Parse report line-by-line, classify and colorize by severity prefix
+  int errorCount = 0;
+  int nonCompliantCount = 0;
+  int warningCount = 0;
+  int infoCount = 0;
+
+  std::istringstream stream(sReport);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (line.empty()) continue;
+
+    if (line.find("Error! - ") == 0) {
+      printf("  %s[ERROR]%s %s\n", ColorCritical(), ColorReset(),
+             line.c_str() + 9);
+      errorCount++;
+    } else if (line.find("NonCompliant! - ") == 0) {
+      printf("  %s[NON-COMPLIANT]%s %s\n", ColorCritical(), ColorReset(),
+             line.c_str() + 16);
+      nonCompliantCount++;
+    } else if (line.find("Warning! - ") == 0) {
+      printf("  %s[WARNING]%s %s\n", ColorWarning(), ColorReset(),
+             line.c_str() + 11);
+      warningCount++;
+    } else if (line.find("Information - ") == 0) {
+      printf("  %s[INFO]%s %s\n", ColorInfo(), ColorReset(),
+             line.c_str() + 14);
+      infoCount++;
+    } else {
+      // Continuation or context line
+      printf("  %s%s%s\n", ColorInfo(), line.c_str(), ColorReset());
+    }
+  }
+
+  int issueCount = errorCount + nonCompliantCount;
+  printf("\n  Validation Summary: %d error(s), %d non-compliant, %d warning(s), %d info\n",
+         errorCount, nonCompliantCount, warningCount, infoCount);
+
+  if (issueCount > 0) {
+    printf("  %s[WARN] %d ICC spec conformance issue(s) detected%s\n\n",
+           ColorCritical(), issueCount, ColorReset());
+  } else {
+    printf("  %s[OK] No critical conformance issues (warnings/info only)%s\n\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issueCount;
+}
 
 // Defensive programming: detect truncated profiles before library loading.
 // Truncated profiles cause UBSAN (invalid enum loads) and ASAN (OOB reads)
