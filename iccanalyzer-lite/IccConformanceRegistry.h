@@ -527,6 +527,36 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-136", "ADGC Curve Adjacent-Point X-Equality",
    "ADGC §1.2.2 (x1 == x2 → div-by-zero in cubic coefficient C3)", "ICC.1-ADGC-2025",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  // ── ICC.2-2019 Cumulative Errata checks (CF-137 .. CF-143) ────────────────
+
+  {"CF-137", "MultiplexDefaultValues Tag Type",
+   "ICC.2-2019 §9.2.84 Errata: permitted types corrected to ui08/ui16/fl16/fl32", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-138", "Embedded Height Image Data Length",
+   "ICC.2-2019 §10.2.6 Errata: image data = tagSize - 24 (header is 24 bytes, not 12)", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-139", "Embedded Normal Image Data Length",
+   "ICC.2-2019 §10.2.7 Errata: image data = tagSize - 16 (header is 16 bytes, not 12)", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-140", "GBD Vertex Count Field",
+   "ICC.2-2019 §10.2.11 Errata: bytes 12..15 = Number of vertices (V) uInt32Number", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-141", "Sparse Matrix Array Count Field",
+   "ICC.2-2019 §10.2.20 Errata: bytes 12..15 = Number of sparse matrices (N)", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-142", "Calculator Vector-Or Signature Alignment",
+   "ICC.2-2019 §11.2.1.9 Errata: 'vor' corrected to 'vor ' (4-byte aligned)", "ICC.2-2019-Errata-2021-09",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-143", "Measurement Tag Structure Type",
+   "ICC.2-2019 §9.2.86/87 Errata: permitted type = tagStructType (not structType)", "ICC.2-2019-Errata-2021-03",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =

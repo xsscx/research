@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-102)."""
+    """Test ICC Specification conformance checks (CF-001..CF-143)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2186,6 +2186,94 @@ def test_conformance_checks(suite):
         "cf.031.bad_size",
         ["-a", f"{corpus}/cf_sf32_bad_size.icc"],
         r"CF-031.*\[FAIL\]|not divisible|remainder|extra bytes"
+    )
+
+    # --- ICC.2-2019 Errata Conformance Checks (CF-137..CF-143) ---
+    # v5 profile for "not applicable" tests (v2/v4 profiles skip V5 conformance entirely)
+    test_profiles_dir = str(Path(__file__).resolve().parent.parent.parent / "test-profiles")
+    v5_profile = f"{test_profiles_dir}/Spec400_10_700-D50_2deg-Abs.icc"
+
+    # CF-137: MultiplexDefaultValues tag type validation
+    suite.assert_output_contains(
+        "cf.137.mdv_valid_type",
+        ["-a", f"{corpus}/cf137-mdv-valid.icc"],
+        r"conforms to errata-corrected permitted types"
+    )
+    suite.assert_output_contains(
+        "cf.137.mdv_invalid_type",
+        ["-a", f"{corpus}/cf137-mdv-invalid-type.icc"],
+        r"\[WARN\].*not in errata-corrected"
+    )
+    # v5 profile without mdv tag reports not applicable
+    suite.assert_output_contains(
+        "cf.137.not_applicable",
+        ["-a", v5_profile],
+        r"multiplexDefaultValuesTag.*not applicable"
+    )
+
+    # CF-138: Embedded Height Image data length
+    suite.assert_output_contains(
+        "cf.138.ehim_valid",
+        ["-a", f"{corpus}/cf138-ehim-valid.icc"],
+        r"embeddedHeightImageType.*header=24"
+    )
+    # v5 profile without ehim tag
+    suite.assert_output_contains(
+        "cf.138.not_applicable",
+        ["-a", v5_profile],
+        r"embeddedHeightImageType.*not applicable"
+    )
+
+    # CF-139: Embedded Normal Image data length
+    suite.assert_output_contains(
+        "cf.139.enim_valid",
+        ["-a", f"{corpus}/cf139-enim-valid.icc"],
+        r"embeddedNormalImageType.*header=16"
+    )
+    suite.assert_output_contains(
+        "cf.139.not_applicable",
+        ["-a", v5_profile],
+        r"embeddedNormalImageType.*not applicable"
+    )
+
+    # CF-140: GBD Vertex Count Field
+    suite.assert_output_contains(
+        "cf.140.not_applicable",
+        ["-a", v5_profile],
+        r"gamutBoundaryDescType.*not applicable"
+    )
+
+    # CF-141: Sparse Matrix Array Count
+    suite.assert_output_contains(
+        "cf.141.not_applicable",
+        ["-a", v5_profile],
+        r"sparseMatrixArrayType.*not applicable"
+    )
+
+    # CF-142: Vector-Or signature alignment (real v5 profile with 'vor ')
+    vor_profile = f"{test_profiles_dir}/calcUnderStack_vor.icc"
+    if Path(vor_profile).exists():
+        suite.assert_output_contains(
+            "cf.142.vor_aligned",
+            ["-a", vor_profile],
+            r"errata-aligned 4-byte signature"
+        )
+    suite.assert_output_contains(
+        "cf.142.not_applicable",
+        ["-a", v5_profile],
+        r"vector-or.*not applicable"
+    )
+
+    # CF-143: Measurement tag struct type
+    suite.assert_output_contains(
+        "cf.143.meas_valid",
+        ["-a", f"{corpus}/cf143-meas-valid.icc"],
+        r"errata-conformant"
+    )
+    suite.assert_output_contains(
+        "cf.143.not_applicable",
+        ["-a", v5_profile],
+        r"measurement.*not applicable"
     )
 
     # --- Clean profile baseline ---

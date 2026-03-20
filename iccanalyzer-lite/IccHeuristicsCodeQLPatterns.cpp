@@ -803,7 +803,7 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
     if (!ctx.ReadAt(tOffset, typeSigBuf, 4)) continue;
     uint32_t type = ReadU32BE(typeSigBuf);
 
-    if (type == 0x6D706574) { // 'mpet' multiProcessElementType
+    if (type == 0x6D706574) { // 'mpet' multiProcessElementsType
       mpetCount++;
       // Check element count for deep nesting
       if (tSize >= 16 && (uint64_t)tOffset + 16 <= (uint64_t)fileSize) {
