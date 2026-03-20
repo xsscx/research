@@ -1987,6 +1987,110 @@ def synth_adgc_many_point_curve():
                          pcs=b"XYZ ", version=0x04400000)
 
 
+def synth_cf_md5_mismatch():
+    """CF-011: Profile with non-zero profile ID that won't match actual MD5."""
+    tags = [
+        (b"desc", make_mluc_tag("MD5 Mismatch Test")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    # Deliberately wrong profile ID — will not match the computed MD5
+    return build_profile(tags, profile_id=b"\xAA\xBB\xCC\xDD" * 4)
+
+
+def synth_cf_reserved_bytes_nonzero_tag():
+    """CF-021: Tag with non-zero reserved bytes at offset+4..+7."""
+    tags = [
+        (b"desc", make_mluc_tag("Reserved Bytes Test")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    profile = bytearray(build_profile(tags))
+    # Find the first tag's data offset from the tag table
+    # Tag table starts at byte 128, first 4 bytes = tag count
+    # First tag entry: bytes 132-143 (sig 4B + offset 4B + size 4B)
+    first_tag_offset = struct.unpack_from(">I", profile, 136)[0]
+    # Set reserved bytes (offset+4 through offset+7) to non-zero
+    profile[first_tag_offset + 4] = 0xFF
+    profile[first_tag_offset + 5] = 0xFF
+    profile[first_tag_offset + 6] = 0xFF
+    profile[first_tag_offset + 7] = 0xFF
+    return bytes(profile)
+
+
+def synth_cf_mluc_bad_record_size():
+    """CF-030: mluc tag with duplicate language/country pairs (§10.13).
+    Note: record_size != 12 can't be tested because iccDEV's Read() rejects it
+    before deep conformance checks run. Duplicate lang/country is the CF-030
+    failure mode that passes library Read() but triggers CF-030's raw check."""
+    # Build an mluc tag with 2 records both using 'enUS' — duplicate pair
+    text1 = "First".encode("utf-16-be")
+    text2 = "Second".encode("utf-16-be")
+    header_size = 16  # type(4) + reserved(4) + count(4) + recSize(4)
+    records_size = 2 * 12  # 2 records × 12 bytes
+    str1_offset = header_size + records_size  # relative to tag start
+    str2_offset = str1_offset + len(text1)
+
+    dup_mluc = b"mluc" + b"\x00" * 4
+    dup_mluc += struct.pack(">II", 2, 12)  # 2 records, record_size=12
+    # Record 1: enUS
+    dup_mluc += b"enUS"
+    dup_mluc += struct.pack(">II", len(text1), str1_offset)
+    # Record 2: enUS again — DUPLICATE
+    dup_mluc += b"enUS"
+    dup_mluc += struct.pack(">II", len(text2), str2_offset)
+    dup_mluc += text1
+    dup_mluc += text2
+    while len(dup_mluc) % 4:
+        dup_mluc += b"\x00"
+
+    tags = [
+        (b"desc", make_mluc_tag("mluc Duplicate Lang")),  # valid desc
+        (b"cprt", dup_mluc),  # cprt with duplicate lang/country
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags)
+
+
+def synth_cf_sf32_bad_size():
+    """CF-031: sf32 tag where (tagSize-8) is not divisible by 4.
+    Uses 'chad' tag signature (chromaticAdaptationTag) which uses sf32 type."""
+    # sf32 type: 4B sig + 4B reserved + N×4B s15Fixed16 values
+    # Make data size 14 bytes total → 14-8=6, 6%4=2 ≠ 0 (invalid)
+    bad_sf32 = b"sf32" + b"\x00" * 4 + b"\x00" * 6  # 14 bytes, 6 data bytes
+    tags = [
+        (b"desc", make_mluc_tag("sf32 Bad Size Test")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"chad", bad_sf32),  # chromaticAdaptationTag with bad sf32 size
+    ]
+    return build_profile(tags)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -2079,6 +2183,11 @@ def main():
         "cf_adgc_bt2100_hlg.icc": synth_adgc_bt2100_hlg(),
         "cf_adgc_single_point_curve.icc": synth_adgc_single_point_curve(),
         "cf_adgc_many_point_curve.icc": synth_adgc_many_point_curve(),
+        # CF-011, CF-021, CF-030, CF-031 conformance test profiles
+        "cf_md5_mismatch.icc": synth_cf_md5_mismatch(),
+        "cf_reserved_bytes_nonzero_tag.icc": synth_cf_reserved_bytes_nonzero_tag(),
+        "cf_mluc_bad_record_size.icc": synth_cf_mluc_bad_record_size(),
+        "cf_sf32_bad_size.icc": synth_cf_sf32_bad_size(),
     }
 
     for name, data in profiles.items():
