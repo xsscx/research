@@ -14,9 +14,11 @@
  *   CONFORMANCE (14 items)
  *   QUALITY (4 items)
  *
- * Each PAWG item maps to one or more iccanalyzer-lite heuristics.  The item
- * verdict is PASS when every mapped heuristic is [OK], WARN when at least one
- * is [WARN], and FAIL when at least one is [CRIT].
+ * Each PAWG item maps to one or more ICC conformance checks (CF-*).  The item
+ * verdict is PASS when every mapped check is [OK], WARN when at least one
+ * is [WARN], and FAIL when at least one is non-conformant.
+ * Items without conformance check mappings (security-only, quality metrics)
+ * receive NOT_RUN verdict.
  *
  * Reference: ICC Profile Assessment Working Group — Goals for profile assessment
  */
@@ -26,6 +28,7 @@
 #include "IccAnalyzerHash.h"
 #include "IccAnalyzerComprehensive.h"
 #include "IccHeuristicsRegistry.h"
+#include "IccConformanceRegistry.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -58,52 +61,54 @@ enum class PAWGVerdict { PASS, WARN, FAIL, NOT_RUN };
 struct PAWGItem {
   const char *id;           // e.g. "S1", "C14", "Q28"
   const char *title;        // PAWG checklist text
-  const int  *heuristics;   // NULL-terminated list of heuristic IDs
-  int         hCount;       // number of mapped heuristics
+  const int  *checks;       // NULL-terminated list of conformance check IDs (1001+)
+  int         checkCount;   // number of mapped checks
   PAWGVerdict verdict;
-  std::string detail;       // collected detail from triggered heuristics
+  std::string detail;       // collected detail from triggered checks
 };
 
-// ── Heuristic-to-PAWG mappings ───────────────────────────────────────────────
-// Each PAWG item maps to an array of heuristic IDs (terminated by 0).
+// ── Conformance check mappings (CF-* IDs = CF number + 1000) ─────────────────
+// Security items: mapped to ICC spec conformance checks where applicable.
+// Security-only items (S8, S11, S12, S13) have no ICC spec basis → NOT_RUN.
 
-static const int kS1[]  = { 3, 31, 63, 107, 164, 0 };
-static const int kS2[]  = { 1, 2, 5, 0 };
-static const int kS3[]  = { 5, 0 };
-static const int kS4[]  = { 8, 129, 0 };
-static const int kS5[]  = { 4, 7, 0 };
-static const int kS6[]  = { 19, 25, 40, 130, 0 };
-static const int kS7[]  = { 10, 20, 122, 135, 0 };
-static const int kS8[]  = { 16, 109, 126, 163, 0 };
-static const int kS9[]  = { 1, 40, 130, 0 };
-static const int kS10[] = { 37, 56, 118, 138, 151, 0 };
-static const int kS11[] = { 108, 0 };
-static const int kS12[] = { 126, 0 };
-static const int kS13[] = { 109, 126, 163, 0 };
+static const int kS1[]  = { 1060, 1061, 0 };                    // LUT channel counts
+static const int kS2[]  = { 1010, 1006, 1012, 1013, 0 };        // header encoding
+static const int kS3[]  = { 1007, 0 };                          // platform signature
+static const int kS4[]  = { 1008, 0 };                          // D50 illuminant
+static const int kS5[]  = { 1014, 0 };                          // PCS field
+static const int kS6[]  = { 1020, 0 };                          // tag alignment
+static const int kS7[]  = { 1040, 0 };                          // tag table
+static const int kS8[]  = { 0 };                                // malware (security-only)
+static const int kS9[]  = { 1010, 0 };                          // EOF/size
+static const int kS10[] = { 1088, 1062, 0 };                    // calculator elements
+static const int kS11[] = { 0 };                                // private tags (security-only)
+static const int kS12[] = { 0 };                                // malware in private (security-only)
+static const int kS13[] = { 0 };                                // NOP instructions (security-only)
 
-static const int kC14[] = { 20, 32, 74, 76, 117, 145, 0 };
-static const int kC15[] = { 116, 46, 55, 86, 0 };
-static const int kC16[] = { 117, 0 };
-static const int kC17[] = { 9, 110, 0 };
-static const int kC18[] = { 123, 108, 0 };
-static const int kC19[] = { 127, 0 };
-static const int kC20[] = { 127, 0 };
-static const int kC21[] = { 127, 0 };
-static const int kC22[] = { 7, 103, 0 };
-static const int kC23[] = { 2, 15, 111, 133, 0 };
-static const int kC24[] = { 124, 41, 128, 0 };
-static const int kC25[] = { 112, 129, 0 };
-static const int kC26[] = { 111, 133, 134, 0 };
-static const int kC27[] = { 40, 130, 0 };
+// Conformance items: mapped to ICC spec conformance checks.
+static const int kC14[] = { 1020, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1032, 1033, 1034, 0 };
+static const int kC15[] = { 1040, 0 };                          // cprt/desc in common required
+static const int kC16[] = { 1020, 0 };                          // allowed tag types
+static const int kC17[] = { 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 0 };
+static const int kC18[] = { 0 };                                // additional/private tags
+static const int kC19[] = { 0 };                                // private tag registration
+static const int kC20[] = { 0 };                                // private tag documentation
+static const int kC21[] = { 0 };                                // undocumented private tags
+static const int kC22[] = { 1012, 1013, 0 };                    // class/colour space
+static const int kC23[] = { 1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1014, 1015, 0 };
+static const int kC24[] = { 1048, 1053, 0 };                    // tags vs version
+static const int kC25[] = { 1008, 0 };                          // wtpt D50
+static const int kC26[] = { 1015, 0 };                          // reserved bytes
+static const int kC27[] = { 1020, 0 };                          // 4-byte boundaries
 
-static const int kQ28[] = { 113, 119, 0 };
-static const int kQ29[] = { 120, 114, 87, 0 };
-static const int kQ30[] = { 114, 125, 0 };
-static const int kQ31[] = { 115, 113, 119, 0 };
+// Quality items: require computational verification (CIEDE2000) → NOT_RUN.
+static const int kQ28[] = { 0 };
+static const int kQ29[] = { 0 };
+static const int kQ30[] = { 0 };
+static const int kQ31[] = { 0 };
 
 // ── Build the PAWG checklist ─────────────────────────────────────────────────
 
-// Count entries in a 0-terminated int array at compile time via sizeof
 #define PAWG_ITEM(code, text, arr) { code, text, arr, (int)(sizeof(arr)/sizeof(arr[0]) - 1), PAWGVerdict::NOT_RUN, {} }
 
 static PAWGItem BuildSecurityItems[] = {
@@ -189,9 +194,9 @@ static void ScorePAWGItem(PAWGItem &item,
   bool anyFound = false;
   PAWGVerdict worst = PAWGVerdict::PASS;
 
-  for (int i = 0; i < item.hCount; i++) {
-    int hid = item.heuristics[i];
-    auto it = results.find(hid);
+  for (int i = 0; i < item.checkCount; i++) {
+    int cid = item.checks[i];
+    auto it = results.find(cid);
     if (it == results.end()) continue;
 
     anyFound = true;
@@ -204,24 +209,29 @@ static void ScorePAWGItem(PAWGItem &item,
     if (static_cast<int>(hv) > static_cast<int>(worst))
       worst = hv;
 
-    // Collect detail from triggered heuristics only
+    // Collect detail from non-conformant checks only
     if (hv != PAWGVerdict::PASS && !r.detail.empty()) {
       if (!item.detail.empty()) item.detail += "\n";
-      const char *statusTag = (r.status == "critical") ? " [CRIT]" :
+      const char *statusTag = (r.status == "critical") ? " [FAIL]" :
                               (r.status == "warn")     ? " [WARN]" : "";
-      // Extract meaningful lines from detail
+      char cfLabel[16];
+      snprintf(cfLabel, sizeof(cfLabel), "CF-%03d", cid - 1000);
       std::istringstream ds(r.detail);
       std::string dl;
       while (std::getline(ds, dl)) {
         size_t first = dl.find_first_not_of(" \t");
         if (first == std::string::npos) continue;
         std::string trimmed = dl.substr(first);
-        if (trimmed.find("[H") == 0) continue;
+        if (trimmed.find("[H") == 0 || trimmed.find("[CF") == 0) continue;
         if (trimmed.find("[OK]") != std::string::npos) continue;
         if (trimmed.find("=====") != std::string::npos) continue;
         if (!item.detail.empty() && item.detail.back() != '\n')
           item.detail += "\n";
-        item.detail += "          H" + std::to_string(hid) + ": " + trimmed + statusTag;
+        item.detail += "          ";
+        item.detail += cfLabel;
+        item.detail += ": ";
+        item.detail += trimmed;
+        item.detail += statusTag;
       }
     }
   }
@@ -243,13 +253,17 @@ static void PrintPAWGSection(const char *sectionTitle,
     const auto &item = items[i];
     printf("  %s  %-4s  %s\n", VerdictIcon(item.verdict), item.id, item.title);
 
-    // Print mapped heuristics on next line
-    printf("          Heuristics: ");
-    for (int j = 0; j < item.hCount; j++) {
-      if (j > 0) printf(", ");
-      printf("H%d", item.heuristics[j]);
+    // Print mapped conformance checks on next line
+    if (item.checkCount > 0) {
+      printf("          Checks: ");
+      for (int j = 0; j < item.checkCount; j++) {
+        if (j > 0) printf(", ");
+        printf("CF-%03d", item.checks[j] - 1000);
+      }
+      printf("\n");
+    } else {
+      printf("          Checks: (none mapped)\n");
     }
-    printf("\n");
 
     // Print detail for non-PASS items
     if (item.verdict != PAWGVerdict::PASS &&
@@ -291,7 +305,7 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
     close(devNull);
   }
 
-  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db, true);
+  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db, false);
 
   fflush(stdout);
   if (savedStdout >= 0) {
@@ -397,31 +411,31 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
   printf("  Overall:   %s\n", overall);
   printf("\n");
 
-  // ── Heuristic coverage table ──────────────────────────────────────────────
+  // ── Conformance check coverage table ──────────────────────────────────────
   printf("\n");
-  PAWGBanner("HEURISTIC COVERAGE", W);
+  PAWGBanner("CONFORMANCE CHECK COVERAGE", W);
   printf("\n");
-  printf("  Heuristics evaluated:   %zu / %d\n", results.size(), kTotalHeuristics);
+  printf("  Checks evaluated:       %zu / %d\n", results.size(), kTotalHeuristics);
 
-  // Count unique heuristics mapped by PAWG items
-  std::set<int> mappedHeuristics;
+  // Count unique conformance checks mapped by PAWG items
+  std::set<int> mappedChecks;
   for (int i = 0; i < nSecurity;    i++)
-    for (int j = 0; j < BuildSecurityItems[i].hCount; j++)
-      mappedHeuristics.insert(BuildSecurityItems[i].heuristics[j]);
+    for (int j = 0; j < BuildSecurityItems[i].checkCount; j++)
+      mappedChecks.insert(BuildSecurityItems[i].checks[j]);
   for (int i = 0; i < nConformance; i++)
-    for (int j = 0; j < BuildConformanceItems[i].hCount; j++)
-      mappedHeuristics.insert(BuildConformanceItems[i].heuristics[j]);
+    for (int j = 0; j < BuildConformanceItems[i].checkCount; j++)
+      mappedChecks.insert(BuildConformanceItems[i].checks[j]);
   for (int i = 0; i < nQuality;     i++)
-    for (int j = 0; j < BuildQualityItems[i].hCount; j++)
-      mappedHeuristics.insert(BuildQualityItems[i].heuristics[j]);
+    for (int j = 0; j < BuildQualityItems[i].checkCount; j++)
+      mappedChecks.insert(BuildQualityItems[i].checks[j]);
 
-  printf("  Heuristics mapped:      %zu (across %d PAWG items)\n",
-         mappedHeuristics.size(), totalItems);
+  printf("  Checks mapped:          %zu (across %d PAWG items)\n",
+         mappedChecks.size(), totalItems);
 
-  RegistryStats regStats = ComputeRegistryStats();
-  printf("  Registry total:         %d heuristics\n", regStats.totalHeuristics);
-  printf("  CVE coverage:           %d heuristics with CVE refs (%d unique CVEs)\n",
-         regStats.heuristicsWithCVE, regStats.uniqueCVEs);
+  ConformanceRegistryStats cfStats = ComputeConformanceRegistryStats();
+  printf("  Registry total:         %d conformance checks\n", cfStats.totalChecks);
+  printf("  Spec coverage:          %d checks with ICC spec refs\n",
+         cfStats.checksWithSpecRef);
   printf("\n");
 
   // ── Spec references ───────────────────────────────────────────────────────

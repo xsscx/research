@@ -19,6 +19,7 @@
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdint>
@@ -757,17 +758,29 @@ static int RunCF070_ChadArrayCount9(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 int RunLUTConformance(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
-  issues += RunCF060_LUTInputChannels(pIcc);
-  issues += RunCF061_LUTOutputChannels(pIcc);
-  issues += RunCF062_CLUTGridDimensionality(pIcc);
-  issues += RunCF063_Lut8FixedTableSize(pIcc);
-  issues += RunCF064_Lut16TableSizeRange(pIcc);
-  issues += RunCF065_LutAToBElementPresent(pIcc);
-  issues += RunCF066_LutBToAElementPresent(pIcc);
-  issues += RunCF067_LutMatrixIdentityNonXYZ(pIcc);
-  issues += RunCF068_ChadMatrixInvertible(pIcc);
-  issues += RunCF069_MatrixColumnXYZCount(pIcc);
-  issues += RunCF070_ChadArrayCount9(pIcc);
+  int r;
+
+#define CF_WRAP(id, title, call) \
+  hc.begin(id, title); \
+  r = call; \
+  if (r > 0) hc.warn("%d non-conformance(s)", r); \
+  hc.end("Conformant"); \
+  issues += r
+
+  CF_WRAP(1060, "CF-060: LUT Input Channel Count", RunCF060_LUTInputChannels(pIcc));
+  CF_WRAP(1061, "CF-061: LUT Output Channel Count", RunCF061_LUTOutputChannels(pIcc));
+  CF_WRAP(1062, "CF-062: CLUT Grid Dimensionality", RunCF062_CLUTGridDimensionality(pIcc));
+  CF_WRAP(1063, "CF-063: lut8Type Fixed 256-Entry Tables", RunCF063_Lut8FixedTableSize(pIcc));
+  CF_WRAP(1064, "CF-064: lut16Type Table Size Range", RunCF064_Lut16TableSizeRange(pIcc));
+  CF_WRAP(1065, "CF-065: lutAToBType Element Presence", RunCF065_LutAToBElementPresent(pIcc));
+  CF_WRAP(1066, "CF-066: lutBToAType Element Presence", RunCF066_LutBToAElementPresent(pIcc));
+  CF_WRAP(1067, "CF-067: LUT Matrix Identity for Non-XYZ PCS", RunCF067_LutMatrixIdentityNonXYZ(pIcc));
+  CF_WRAP(1068, "CF-068: Chad Matrix Invertible", RunCF068_ChadMatrixInvertible(pIcc));
+  CF_WRAP(1069, "CF-069: Matrix Column XYZ Count", RunCF069_MatrixColumnXYZCount(pIcc));
+  CF_WRAP(1070, "CF-070: Chad Array Count = 9", RunCF070_ChadArrayCount9(pIcc));
+
+#undef CF_WRAP
   return issues;
 }

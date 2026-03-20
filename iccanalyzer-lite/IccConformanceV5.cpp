@@ -16,6 +16,7 @@
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdint>
@@ -670,16 +671,28 @@ int RunV5Conformance(CIccProfile *pIcc) {
     return 0;
   }
 
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
-  issues += RunCF080_SpectralPCSSignature(pIcc);
-  issues += RunCF081_SpectralPCSRange(pIcc);
-  issues += RunCF082_PCCTagsRequired(pIcc);
-  issues += RunCF083_MCSSignature(pIcc);
-  issues += RunCF084_ProfileSubClass(pIcc);
-  issues += RunCF085_V5VersionBCD(pIcc);
-  issues += RunCF086_ExtendedAttributes(pIcc);
-  issues += RunCF087_MPEElementSignature(pIcc);
-  issues += RunCF088_CalculatorStackStructure(pIcc);
-  issues += RunCF089_SpectralWavelengthRange(pIcc);
+  int r;
+
+#define CF_WRAP(id, title, call) \
+  hc.begin(id, title); \
+  r = call; \
+  if (r > 0) hc.warn("%d non-conformance(s)", r); \
+  hc.end("Conformant"); \
+  issues += r
+
+  CF_WRAP(1080, "CF-080: Spectral PCS Signature", RunCF080_SpectralPCSSignature(pIcc));
+  CF_WRAP(1081, "CF-081: Spectral PCS Range", RunCF081_SpectralPCSRange(pIcc));
+  CF_WRAP(1082, "CF-082: PCC Tags Required", RunCF082_PCCTagsRequired(pIcc));
+  CF_WRAP(1083, "CF-083: MCS Signature", RunCF083_MCSSignature(pIcc));
+  CF_WRAP(1084, "CF-084: Profile Sub-Class", RunCF084_ProfileSubClass(pIcc));
+  CF_WRAP(1085, "CF-085: V5 Version BCD", RunCF085_V5VersionBCD(pIcc));
+  CF_WRAP(1086, "CF-086: Extended Attributes", RunCF086_ExtendedAttributes(pIcc));
+  CF_WRAP(1087, "CF-087: MPE Element Signature", RunCF087_MPEElementSignature(pIcc));
+  CF_WRAP(1088, "CF-088: Calculator Stack Structure", RunCF088_CalculatorStackStructure(pIcc));
+  CF_WRAP(1089, "CF-089: Spectral Wavelength Range", RunCF089_SpectralWavelengthRange(pIcc));
+
+#undef CF_WRAP
   return issues;
 }

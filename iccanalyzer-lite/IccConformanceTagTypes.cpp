@@ -19,6 +19,7 @@
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdint>
@@ -742,18 +743,30 @@ int RunCF034_MeasurementGeometry(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 int RunTagTypeConformance(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
-  issues += RunCF020_TagTypeAllowed(pIcc);
-  issues += RunCF022_CurveTypeEntryCount(pIcc);
-  issues += RunCF023_ParametricCurveFunction(pIcc);
-  issues += RunCF024_ParametricCurveParamCount(pIcc);
-  issues += RunCF025_ChromaticityPhosphorCount(pIcc);
-  issues += RunCF026_ColorantTableCount(pIcc);
-  issues += RunCF027_ColorantOrderCount(pIcc);
-  issues += RunCF028_NamedColor2CoordCount(pIcc);
-  issues += RunCF029_DateTimeFieldRanges(pIcc);
-  issues += RunCF032_XYZTypeTripletCount(pIcc);
-  issues += RunCF033_MeasurementStandardObserver(pIcc);
-  issues += RunCF034_MeasurementGeometry(pIcc);
+  int r;
+
+#define CF_WRAP(id, title, call) \
+  hc.begin(id, title); \
+  r = call; \
+  if (r > 0) hc.warn("%d non-conformance(s)", r); \
+  hc.end("Conformant"); \
+  issues += r
+
+  CF_WRAP(1020, "CF-020: Tag Signature → Allowed Type", RunCF020_TagTypeAllowed(pIcc));
+  CF_WRAP(1022, "CF-022: curveType Entry Count", RunCF022_CurveTypeEntryCount(pIcc));
+  CF_WRAP(1023, "CF-023: parametricCurveType Function Type", RunCF023_ParametricCurveFunction(pIcc));
+  CF_WRAP(1024, "CF-024: parametricCurveType Parameter Count", RunCF024_ParametricCurveParamCount(pIcc));
+  CF_WRAP(1025, "CF-025: Chromaticity Phosphor Count", RunCF025_ChromaticityPhosphorCount(pIcc));
+  CF_WRAP(1026, "CF-026: Colorant Table Entry Count", RunCF026_ColorantTableCount(pIcc));
+  CF_WRAP(1027, "CF-027: Colorant Order Count", RunCF027_ColorantOrderCount(pIcc));
+  CF_WRAP(1028, "CF-028: Named Color2 Device Coordinate Count", RunCF028_NamedColor2CoordCount(pIcc));
+  CF_WRAP(1029, "CF-029: dateTimeType Field Ranges", RunCF029_DateTimeFieldRanges(pIcc));
+  CF_WRAP(1032, "CF-032: XYZType Triplet Count", RunCF032_XYZTypeTripletCount(pIcc));
+  CF_WRAP(1033, "CF-033: Measurement Standard Observer", RunCF033_MeasurementStandardObserver(pIcc));
+  CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));
+
+#undef CF_WRAP
   return issues;
 }

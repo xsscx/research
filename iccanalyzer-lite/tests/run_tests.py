@@ -1537,7 +1537,7 @@ def test_report_output(suite):
 def test_pawg_output(suite):
     """Test -pawg ICC Profile Assessment Working Group report output mode."""
     good = str(CORPUS_DIR / "valid_srgb.icc")
-    bad = str(CORPUS_DIR / "huge_tag_count.icc")
+    bad = str(CORPUS_DIR / "wrong_d50_illuminant.icc")
 
     # PAWG report should contain banner
     rc, stdout, stderr = suite.run_analyzer(["-pawg", good])
@@ -1594,11 +1594,11 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    # Should contain heuristic coverage
-    has_coverage = "HEURISTIC COVERAGE" in stdout
+    # Should contain conformance check coverage
+    has_coverage = "CONFORMANCE CHECK COVERAGE" in stdout
     suite.results.append(TestResult(
-        "pawg.has_heuristic_coverage", has_coverage,
-        "Missing HEURISTIC COVERAGE section" if not has_coverage else "",
+        "pawg.has_conformance_coverage", has_coverage,
+        "Missing CONFORMANCE CHECK COVERAGE section" if not has_coverage else "",
         0.0, "", ""
     ))
 
@@ -1630,12 +1630,12 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    # Counts should sum to 31
+    # Counts should sum to at most 31 (NOT_RUN items are excluded from PASS+WARN+FAIL)
     if has_counts:
         total = int(pass_match.group(1)) + int(warn_match.group(1)) + int(fail_match.group(1))
         suite.results.append(TestResult(
-            "pawg.counts_sum_31", total == 31,
-            f"PASS+WARN+FAIL={total}, expected 31" if total != 31 else "",
+            "pawg.counts_sum_31", total <= 31,
+            f"PASS+WARN+FAIL={total}, expected ≤31" if total > 31 else "",
             0.0, "", ""
         ))
 
@@ -1671,21 +1671,24 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    # Bad profile should trigger WARN items (more than good profile)
+    # Bad profile should trigger WARN or FAIL items
     rc2, stdout2, stderr2 = suite.run_analyzer(["-pawg", bad])
     warn_match2 = re.search(r"WARN:\s+(\d+)", stdout2)
-    has_bad_warns = warn_match2 is not None and int(warn_match2.group(1)) > 0
+    fail_match2 = re.search(r"FAIL:\s+(\d+)", stdout2)
+    warn_count2 = int(warn_match2.group(1)) if warn_match2 else 0
+    fail_count2 = int(fail_match2.group(1)) if fail_match2 else 0
+    has_bad_findings = (warn_count2 + fail_count2) > 0
     suite.results.append(TestResult(
-        "pawg.bad_profile_has_warns", has_bad_warns,
-        "Bad profile should have WARN items" if not has_bad_warns else "",
+        "pawg.bad_profile_has_findings", has_bad_findings,
+        "Bad profile should have WARN or FAIL items" if not has_bad_findings else "",
         0.0, "", ""
     ))
 
-    # Bad profile detail lines should show heuristic IDs
-    has_detail = re.search(r"H\d+:.*\[WARN\]", stdout2) is not None
+    # Bad profile detail lines should show conformance check IDs
+    has_detail = re.search(r"CF-\d+:.*\[(WARN|FAIL)\]", stdout2) is not None
     suite.results.append(TestResult(
         "pawg.bad_has_detail_lines", has_detail,
-        "Bad profile WARN items should include H## detail lines" if not has_detail else "",
+        "Bad profile WARN/FAIL items should include CF-### detail lines" if not has_detail else "",
         0.0, "", ""
     ))
 
