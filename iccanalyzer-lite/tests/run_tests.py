@@ -1860,6 +1860,245 @@ def test_lut_text_io(suite):
                 suite.assert_no_asan(f"lut_text.xt_asan_{name}", ["-xt", str(p), base])
 
 
+def test_conformance_checks(suite):
+    """Test ICC Specification conformance checks (CF-001..CF-102)."""
+    corpus = str(CORPUS_DIR)
+
+    # --- CF Header Checks (CF-001..CF-015) ---
+    # Valid profile should pass header checks cleanly
+    suite.assert_output_contains(
+        "cf.header.valid_profile",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-001|Header.*Size|Profile Size"
+    )
+
+    # --- CF LUT Checks (CF-060..CF-070) ---
+    # LUT8 profile with AToB0+BToA0 should trigger LUT checks
+    suite.assert_output_contains(
+        "cf.lut.input_channel_count",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-060.*Input Channel"
+    )
+    suite.assert_output_contains(
+        "cf.lut.output_channel_count",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-061.*Output Channel"
+    )
+    suite.assert_output_contains(
+        "cf.lut.clut_grid",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-062.*CLUT Grid"
+    )
+    suite.assert_output_contains(
+        "cf.lut.lut8_table_size",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-063.*lut8.*256"
+    )
+
+    # --- CF Security Checks (CF-091..CF-094) ---
+    # Malware signature should be detected
+    suite.assert_output_contains(
+        "cf.security.malware_scan",
+        ["-a", f"{corpus}/malware_private_tag.icc"],
+        r"CF-091.*[Mm]alware|PE header|MZ"
+    )
+
+    # Private tag presence should be reported
+    suite.assert_output_contains(
+        "cf.security.private_tag_presence",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-092.*[Pp]rivate"
+    )
+
+    # Private tag suspicious content
+    suite.assert_output_contains(
+        "cf.security.private_tag_content",
+        ["-a", f"{corpus}/malware_private_tag.icc"],
+        r"CF-093.*[Pp]rivate.*[Cc]ontent|[Ss]uspicious"
+    )
+
+    # NOP sled detection
+    suite.assert_output_contains(
+        "cf.security.nop_sled",
+        ["-a", f"{corpus}/nop_sled_tag.icc"],
+        r"CF-094.*NOP|sled"
+    )
+
+    # --- CF Required Tag Extension (CF-095..CF-098) ---
+    # Non-required tags
+    suite.assert_output_contains(
+        "cf.required.non_required_tags",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-095.*Non.*Required"
+    )
+
+    # Private tag signature range (bit 31)
+    suite.assert_output_contains(
+        "cf.required.private_sig_range",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-096.*[Pp]rivate.*[Ss]ignature"
+    )
+
+    # Private tag documentation
+    suite.assert_output_contains(
+        "cf.required.private_doc",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-097.*[Pp]rivate.*[Dd]ocumentation"
+    )
+
+    # Undocumented private tags
+    suite.assert_output_contains(
+        "cf.required.undocumented_private",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-098.*[Uu]ndocumented"
+    )
+
+    # --- CF Quality Checks (CF-099..CF-102) ---
+    # Round-trip check runs on LUT profiles
+    suite.assert_output_contains(
+        "cf.quality.roundtrip_structural",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-099.*Round.*Trip"
+    )
+
+    # Curve invertibility check
+    suite.assert_output_contains(
+        "cf.quality.curve_invertibility",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-100.*Curve.*Invertib"
+    )
+
+    # Non-monotonic curve should warn
+    suite.assert_output_contains(
+        "cf.quality.non_monotonic_curve_warn",
+        ["-a", f"{corpus}/non_monotonic_curve.icc"],
+        r"non-monotonic|Non-monotonic|not monoton"
+    )
+
+    # Transform smoothness
+    suite.assert_output_contains(
+        "cf.quality.transform_smoothness",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-101.*[Ss]moothness"
+    )
+
+    # Characterization data check
+    suite.assert_output_contains(
+        "cf.quality.characterization_data",
+        ["-a", f"{corpus}/targ_tag_profile.icc"],
+        r"CF-102.*[Cc]haracterization"
+    )
+
+    # --- Clean profile baseline ---
+    # Clean monitor profile should produce zero CF warnings
+    suite.assert_output_not_contains(
+        "cf.clean.no_security_warn",
+        ["-a", f"{corpus}/clean_mntr_profile.icc"],
+        r"\[FAIL\].*CF-09[1-4]"
+    )
+
+    # --- PAWG integration verification ---
+    # All 31 PAWG items should have CF mappings (no NOT_RUN with mapping)
+    suite.assert_output_contains(
+        "cf.pawg.all_items_mapped",
+        ["-pawg", f"{corpus}/valid_srgb.icc"],
+        r"Total checklist items:\s+31"
+    )
+
+    # --- iccDEV tool conformance (reference profiles) ---
+    # sRGB v4 preference profile should be clean
+    srgb_v4 = str(Path(__file__).resolve().parent.parent.parent / "test-profiles" / "sRGB_v4_ICC_preference.icc")
+    if Path(srgb_v4).exists():
+        suite.assert_output_not_contains(
+            "cf.reference.srgb_v4_no_fail",
+            ["-a", srgb_v4],
+            r"\[FAIL\].*CF-"
+        )
+
+
+def test_iccdev_tool_conformance(suite):
+    """Test iccDEV upstream tools against reference ICC profiles."""
+    # Only run if iccDEV tools are built
+    dump_tool = Path(__file__).resolve().parent.parent.parent / "iccDEV" / "Build" / "Tools" / "IccDumpProfile" / "iccDumpProfile"
+    toxml_tool = Path(__file__).resolve().parent.parent.parent / "iccDEV" / "Build" / "Tools" / "IccToXml" / "iccToXml"
+    lib_path = Path(__file__).resolve().parent.parent.parent / "iccDEV" / "Build" / "IccProfLib"
+    xml_lib = Path(__file__).resolve().parent.parent.parent / "iccDEV" / "Build" / "IccXML"
+    srgb_v4 = Path(__file__).resolve().parent.parent.parent / "test-profiles" / "sRGB_v4_ICC_preference.icc"
+
+    if not dump_tool.exists() or not srgb_v4.exists():
+        return
+
+    env = {
+        **os.environ,
+        "LD_LIBRARY_PATH": f"{lib_path}:{xml_lib}",
+        "ASAN_OPTIONS": "halt_on_error=0,detect_leaks=0",
+        "LLVM_PROFILE_FILE": "/dev/null",
+    }
+
+    # iccDumpProfile on sRGB v4
+    try:
+        proc = subprocess.run(
+            [str(dump_tool), str(srgb_v4), "ALL"],
+            capture_output=True, timeout=30, env=env
+        )
+        passed = proc.returncode == 0
+        msg = "" if passed else f"iccDumpProfile exit {proc.returncode}"
+        asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
+        if asan_hit:
+            passed = False
+            msg = "ASAN error in iccDumpProfile"
+        suite.results.append(TestResult(
+            "iccdev.dump_srgb_v4", passed, msg, 0.0, "", ""
+        ))
+    except Exception as e:
+        suite.results.append(TestResult(
+            "iccdev.dump_srgb_v4", False, str(e), 0.0, "", ""
+        ))
+
+    # iccToXml on sRGB v4
+    if toxml_tool.exists():
+        try:
+            proc = subprocess.run(
+                [str(toxml_tool), str(srgb_v4), "/dev/null"],
+                capture_output=True, timeout=30, env=env
+            )
+            passed = proc.returncode == 0
+            msg = "" if passed else f"iccToXml exit {proc.returncode}"
+            asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
+            if asan_hit:
+                passed = False
+                msg = "ASAN error in iccToXml"
+            suite.results.append(TestResult(
+                "iccdev.toxml_srgb_v4", passed, msg, 0.0, "", ""
+            ))
+        except Exception as e:
+            suite.results.append(TestResult(
+                "iccdev.toxml_srgb_v4", False, str(e), 0.0, "", ""
+            ))
+
+    # DumpProfile on synthesized valid profile (ASAN check)
+    valid_corpus = str(Path(__file__).resolve().parent / "corpus" / "valid_srgb.icc")
+    if Path(valid_corpus).exists():
+        try:
+            proc = subprocess.run(
+                [str(dump_tool), valid_corpus, "ALL"],
+                capture_output=True, timeout=30, env=env
+            )
+            passed = proc.returncode == 0
+            msg = "" if passed else f"iccDumpProfile exit {proc.returncode}"
+            asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
+            if asan_hit:
+                passed = False
+                msg = "ASAN error on valid_srgb.icc"
+            suite.results.append(TestResult(
+                "iccdev.dump_synth_valid", passed, msg, 0.0, "", ""
+            ))
+        except Exception as e:
+            suite.results.append(TestResult(
+                "iccdev.dump_synth_valid", False, str(e), 0.0, "", ""
+            ))
+
+
 def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
@@ -1971,6 +2210,8 @@ examples:
         ("Report Output", test_report_output),
         ("PAWG Output", test_pawg_output),
         ("LUT Text I/O", test_lut_text_io),
+        ("Conformance Checks", test_conformance_checks),
+        ("iccDEV Tool Conformance", test_iccdev_tool_conformance),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]
 

@@ -1271,6 +1271,91 @@ def synth_tag_shared_pointers():
     return bytes(profile)
 
 
+def synth_nop_sled_tag():
+    """Profile with NOP sled pattern in tag data (triggers CF-094)."""
+    # 256 bytes of x86 NOP (0x90) — classic shellcode sled
+    nop_sled = b"priv" + b"\x00" * 4 + b"\x90" * 256
+    tags = [
+        (b"desc", make_mluc_tag("NOP Sled Test")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"zzzz", nop_sled),
+    ]
+    return build_profile(tags)
+
+
+def synth_lut8_atob_btoa():
+    """Profile with lut8Type AToB0 and BToA0 tags (tests CF-060..CF-067, CF-099).
+    Minimal valid lut8Type: 3-in, 3-out, identity curves, 2x2x2 CLUT."""
+    # lut8Type structure (ICC.1 §10.9):
+    # sig(4) + reserved(4) + inputChan(1) + outputChan(1) + clutGridPt(1) + pad(1)
+    # + e00..e08 matrix (9 × s15Fixed16 = 36 bytes)
+    # + inputTable (256 * inputChan entries, 1 byte each)
+    # + clutTable (gridPt^inputChan * outputChan entries, 1 byte each)
+    # + outputTable (256 * outputChan entries, 1 byte each)
+    n_in, n_out, grid = 3, 3, 2
+    # Identity matrix (s15Fixed16: 1.0 = 0x00010000)
+    matrix = b""
+    for r in range(3):
+        for c in range(3):
+            val = 0x00010000 if r == c else 0
+            matrix += struct.pack(">i", val)
+    # Input tables: 256 entries per channel, identity ramp
+    input_table = bytes(range(256)) * n_in
+    # CLUT: grid^n_in * n_out = 2^3 * 3 = 24 entries
+    clut_size = (grid ** n_in) * n_out
+    clut = bytes([int(255 * i / max(1, clut_size - 1)) for i in range(clut_size)])
+    # Output tables: 256 entries per channel, identity ramp
+    output_table = bytes(range(256)) * n_out
+
+    lut8 = b"mft1" + b"\x00" * 4  # sig + reserved
+    lut8 += struct.pack("BBBB", n_in, n_out, grid, 0)  # channels + grid + pad
+    lut8 += matrix + input_table + clut + output_table
+
+    # Build as Output (prtr) with AToB0 and BToA0
+    tags = [
+        (b"desc", make_mluc_tag("LUT8 AToB/BToA Profile")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"A2B0", lut8),
+        (b"B2A0", lut8),
+    ]
+    return build_profile(tags, device_class=b"prtr", color_space=b"RGB ",
+                         pcs=b"Lab ")
+
+
+def synth_targ_tag_profile():
+    """Profile with charTargetTag ('targ') for CF-102 characterization data check."""
+    targ_text = b"text" + b"\x00" * 4 + b"BEGIN_DATA_FORMAT\nSAMPLE_ID\nEND_DATA_FORMAT\n\x00"
+    tags = [
+        (b"desc", make_mluc_tag("Characterization Profile")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"targ", targ_text),
+    ]
+    return build_profile(tags, device_class=b"prtr", color_space=b"RGB ",
+                         pcs=b"Lab ")
+
+
+def synth_clean_mntr_profile():
+    """Clean well-formed mntr/RGB/XYZ profile with all required tags.
+    Should produce zero conformance warnings — baseline for CF clean tests."""
+    # D50 illuminant
+    tags = [
+        (b"desc", make_mluc_tag("Clean Monitor Profile")),
+        (b"cprt", make_mluc_tag("Copyright 2025")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0000, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4361, 0.2225, 0.0139)),
+        (b"gXYZ", make_xyz_tag(0.3851, 0.7169, 0.0971)),
+        (b"bXYZ", make_xyz_tag(0.1431, 0.0606, 0.7141)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -1331,6 +1416,11 @@ def main():
         "calc_trunc_operator.icc": synth_calc_trunc_operator(),
         # H73 shared tag pointer detection (CWE-416)
         "tag_shared_pointers.icc": synth_tag_shared_pointers(),
+        # CF conformance check profiles
+        "nop_sled_tag.icc": synth_nop_sled_tag(),
+        "lut8_atob_btoa.icc": synth_lut8_atob_btoa(),
+        "targ_tag_profile.icc": synth_targ_tag_profile(),
+        "clean_mntr_profile.icc": synth_clean_mntr_profile(),
     }
 
     for name, data in profiles.items():

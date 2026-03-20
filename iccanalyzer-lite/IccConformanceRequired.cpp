@@ -1,8 +1,9 @@
 /*
  * IccConformanceRequired.cpp — ICC specification required tag conformance checks
  *
- * Implements CF-040 through CF-053 from the conformance registry.
- * Validates required tags per profile class per ICC.1-2022-05 §8.
+ * Implements CF-040 through CF-053 and CF-095 through CF-098 from the
+ * conformance registry. Validates required tags per profile class per
+ * ICC.1-2022-05 §8 and private tag conformance per §9.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -866,6 +867,321 @@ static int RunCF053_CicpTagClassRestriction(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-095: Non-Required Tags per Class
+//   PAWG C18: "Identify additional/private tags beyond required set"
+//   ICC.1-2022-05 §8.2-§8.9 defines required tags per class.
+//   Any tag not in the required set is flagged for awareness.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF095_NonRequiredTags(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-095]%s Non-Required Tag Identification (%sICC.1-2022-05 §8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Build required tag set for this profile class
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // Common required for all non-DeviceLink
+  static const icTagSignature commonReq[] = {
+    icSigProfileDescriptionTag, icSigCopyrightTag,
+    icSigMediaWhitePointTag, (icTagSignature)0
+  };
+
+  // Class-specific required tags (simplified — major ones)
+  static const icTagSignature displayReq[] = {
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag,
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag,
+    icSigAToB0Tag, icSigBToA0Tag, (icTagSignature)0
+  };
+
+  static const icTagSignature linkReq[] = {
+    icSigProfileDescriptionTag, icSigColorantTableTag,
+    icSigAToB0Tag, (icTagSignature)0
+  };
+
+  auto isInList = [](icTagSignature sig, const icTagSignature *list) -> bool {
+    for (int i = 0; list[i] != (icTagSignature)0; i++) {
+      if (list[i] == sig) return true;
+    }
+    return false;
+  };
+
+  int extra = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isRequired = isInList(sig, commonReq);
+
+    if (!isRequired) {
+      switch (cls) {
+        case icSigDisplayClass:
+        case icSigInputClass:
+        case icSigOutputClass:
+          isRequired = isInList(sig, displayReq);
+          break;
+        case icSigLinkClass:
+          isRequired = isInList(sig, linkReq);
+          break;
+        default: break;
+      }
+    }
+
+    if (!isRequired) {
+      char sigStr[5] = {};
+      SigToChars(sig, sigStr);
+      printf("           Additional tag: '%s' (0x%08X)\n", sigStr, (unsigned)sig);
+      extra++;
+    }
+  }
+
+  if (extra > 0) {
+    printf("           %s[INFO]%s %d non-required tag(s) present\n",
+           ColorInfo(), ColorReset(), extra);
+  } else {
+    printf("           %s[OK]%s Only required tags present\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues; // informational — not failures
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-096: Private Tag Signature Range
+//   PAWG C19: "Validate private tag registration"
+//   ICC.1-2022-05 §9: Private tags should use signatures that don't
+//   collide with registered ICC tag signatures.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF096_PrivateTagSignatureRange(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-096]%s Private Tag Signature Range (%sICC.1-2022-05 §9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature knownTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+    icSigCalibrationDateTimeTag, icSigCharTargetTag,
+    icSigChromaticAdaptationTag, icSigChromaticityTag,
+    icSigCopyrightTag, icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag, icSigGamutTag,
+    icSigGrayTRCTag, icSigGreenMatrixColumnTag,
+    icSigGreenTRCTag, icSigLuminanceTag,
+    icSigMeasurementTag, icSigMediaBlackPointTag,
+    icSigMediaWhitePointTag, icSigNamedColor2Tag,
+    icSigOutputResponseTag, icSigPreview0Tag,
+    icSigPreview1Tag, icSigPreview2Tag,
+    icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigRedMatrixColumnTag, icSigRedTRCTag,
+    icSigTechnologyTag, icSigViewingCondDescTag,
+    icSigViewingConditionsTag, icSigColorantOrderTag,
+    icSigColorantTableTag, icSigColorantTableOutTag,
+    icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,
+    icSigSaturationRenderingIntentGamutTag,
+    (icTagSignature)0
+  };
+
+  int privateCount = 0;
+  int lowRange = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isKnown = false;
+    for (int k = 0; knownTags[k] != (icTagSignature)0; k++) {
+      if (sig == knownTags[k]) { isKnown = true; break; }
+    }
+    if (isKnown) continue;
+
+    privateCount++;
+    char sigStr[5] = {};
+    SigToChars(sig, sigStr);
+
+    // Check if private tag uses low ASCII range (potential collision)
+    uint32_t s = (uint32_t)sig;
+    bool allPrintable = true;
+    for (int b = 0; b < 4; b++) {
+      unsigned char ch = (s >> (24 - b*8)) & 0xFF;
+      if (ch < 0x20 || ch > 0x7E) { allPrintable = false; break; }
+    }
+
+    if (!allPrintable) {
+      printf("           %s[WARN]%s Tag '%s' (0x%08X) uses non-printable signature bytes\n",
+             ColorWarning(), ColorReset(), sigStr, s);
+      lowRange++;
+    } else {
+      printf("           Private tag '%s' (0x%08X) — printable signature\n",
+             sigStr, s);
+    }
+  }
+
+  if (lowRange > 0) {
+    printf("           %s[WARN]%s %d private tag(s) with non-printable signatures\n",
+           ColorWarning(), ColorReset(), lowRange);
+    issues = lowRange;
+  } else if (privateCount > 0) {
+    printf("           %s[OK]%s %d private tag(s) — all use printable 4-char signatures\n",
+           ColorSuccess(), ColorReset(), privateCount);
+  } else {
+    printf("           %s[OK]%s No private tags\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-097: Private Tag Documentation (informational)
+//   PAWG C20: "Confirm private tags are documented"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF097_PrivateTagDocumentation(CIccProfile *pIcc) {
+  printf("  %s[CF-097]%s Private Tag Documentation (%sICC.1-2022-05 §9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Known vendor private tags (commonly documented)
+  static const struct { uint32_t sig; const char *vendor; const char *desc; } knownPrivate[] = {
+    { 0x41444245, "Adobe", "'ADBE' — Adobe private data" },
+    { 0x4D534654, "Microsoft", "'MSFT' — Microsoft WCS data" },
+    { 0x6170706C, "Apple", "'appl' — Apple private data" },
+    { 0x4150504C, "Apple", "'APPL' — Apple private data" },
+  };
+
+  int documented = 0, undocumented = 0;
+
+  static const icTagSignature knownTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+    icSigCopyrightTag, icSigProfileDescriptionTag,
+    icSigMediaWhitePointTag, icSigRedMatrixColumnTag,
+    icSigGreenMatrixColumnTag, icSigRedTRCTag,
+    icSigGreenTRCTag, icSigGrayTRCTag,
+    icSigChromaticAdaptationTag, icSigChromaticityTag,
+    icSigCalibrationDateTimeTag, icSigCharTargetTag,
+    icSigColorantOrderTag, icSigColorantTableTag,
+    icSigColorantTableOutTag, icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag, icSigGamutTag,
+    icSigLuminanceTag, icSigMeasurementTag,
+    icSigMediaBlackPointTag, icSigNamedColor2Tag,
+    icSigOutputResponseTag, icSigPreview0Tag,
+    icSigPreview1Tag, icSigPreview2Tag,
+    icSigProfileSequenceDescTag, icSigTechnologyTag,
+    icSigViewingCondDescTag, icSigViewingConditionsTag,
+    icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,
+    icSigSaturationRenderingIntentGamutTag,
+    (icTagSignature)0
+  };
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isKnown = false;
+    for (int k = 0; knownTags[k] != (icTagSignature)0; k++) {
+      if (sig == knownTags[k]) { isKnown = true; break; }
+    }
+    if (isKnown) continue;
+
+    bool isDocumented = false;
+    for (size_t v = 0; v < sizeof(knownPrivate)/sizeof(knownPrivate[0]); v++) {
+      if ((uint32_t)sig == knownPrivate[v].sig) {
+        printf("           %s — %s\n", knownPrivate[v].desc, knownPrivate[v].vendor);
+        documented++;
+        isDocumented = true;
+        break;
+      }
+    }
+    if (!isDocumented) {
+      char sigStr[5] = {};
+      SigToChars(sig, sigStr);
+      printf("           Undocumented private tag: '%s' (0x%08X)\n",
+             sigStr, (unsigned)sig);
+      undocumented++;
+    }
+  }
+
+  if (undocumented > 0) {
+    printf("           %s[INFO]%s %d undocumented private tag(s)\n",
+           ColorInfo(), ColorReset(), undocumented);
+  } else if (documented > 0) {
+    printf("           %s[OK]%s %d private tag(s) — all from known vendors\n",
+           ColorSuccess(), ColorReset(), documented);
+  } else {
+    printf("           %s[OK]%s No private tags\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return undocumented; // informational
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-098: Undocumented Private Tag Identification
+//   PAWG C21: "Flag undocumented or unrecognized private tags"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF098_UndocumentedPrivateTags(CIccProfile *pIcc) {
+  printf("  %s[CF-098]%s Undocumented Private Tag Identification (%sICC.1-2022-05 §9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // This is a stricter version of CF-097 — flags any unrecognized tag
+  static const icTagSignature knownTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+    icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+    icSigCalibrationDateTimeTag, icSigCharTargetTag,
+    icSigChromaticAdaptationTag, icSigChromaticityTag,
+    icSigCopyrightTag, icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag, icSigGamutTag,
+    icSigGrayTRCTag, icSigGreenMatrixColumnTag,
+    icSigGreenTRCTag, icSigLuminanceTag,
+    icSigMeasurementTag, icSigMediaBlackPointTag,
+    icSigMediaWhitePointTag, icSigNamedColor2Tag,
+    icSigOutputResponseTag, icSigPreview0Tag,
+    icSigPreview1Tag, icSigPreview2Tag,
+    icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigRedMatrixColumnTag, icSigRedTRCTag,
+    icSigTechnologyTag, icSigViewingCondDescTag,
+    icSigViewingConditionsTag, icSigColorantOrderTag,
+    icSigColorantTableTag, icSigColorantTableOutTag,
+    icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,
+    icSigSaturationRenderingIntentGamutTag,
+    (icTagSignature)0x44324230, // D2B0
+    (icTagSignature)0x44324231, // D2B1
+    (icTagSignature)0x44324232, // D2B2
+    (icTagSignature)0x42324430, // B2D0
+    (icTagSignature)0x42324431, // B2D1
+    (icTagSignature)0x42324432, // B2D2
+    (icTagSignature)0
+  };
+
+  int unknown = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icTagSignature sig = it->TagInfo.sig;
+    bool isKnown = false;
+    for (int k = 0; knownTags[k] != (icTagSignature)0; k++) {
+      if (sig == knownTags[k]) { isKnown = true; break; }
+    }
+    if (!isKnown) {
+      char sigStr[5] = {};
+      SigToChars(sig, sigStr);
+      printf("           Unrecognized: '%s' (0x%08X) size=%u\n",
+             sigStr, (unsigned)sig, it->TagInfo.size);
+      unknown++;
+    }
+  }
+
+  if (unknown > 0) {
+    printf("           %s[INFO]%s %d unrecognized tag(s) — may require vendor documentation\n",
+           ColorInfo(), ColorReset(), unknown);
+  } else {
+    printf("           %s[OK]%s All tags are recognized ICC signatures\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return 0; // purely informational
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -915,6 +1231,11 @@ int RunRequiredTagConformance(CIccProfile *pIcc) {
   CF_WRAP(1051, "CF-051: DeviceLink Prohibited Tags", RunCF051_DeviceLinkProhibited(pIcc));
   CF_WRAP(1052, "CF-052: Transform Tag Pair Completeness", RunCF052_TransformTagPairs(pIcc));
   CF_WRAP(1053, "CF-053: CICP Tag Class Restriction", RunCF053_CicpTagClassRestriction(pIcc));
+
+  CF_WRAP(1095, "CF-095: Non-Required Tag Identification", RunCF095_NonRequiredTags(pIcc));
+  CF_WRAP(1096, "CF-096: Private Tag Signature Range", RunCF096_PrivateTagSignatureRange(pIcc));
+  CF_WRAP(1097, "CF-097: Private Tag Documentation", RunCF097_PrivateTagDocumentation(pIcc));
+  CF_WRAP(1098, "CF-098: Undocumented Private Tags", RunCF098_UndocumentedPrivateTags(pIcc));
 
 #undef CF_WRAP
   return issues;
