@@ -16,6 +16,7 @@
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdint>
@@ -816,20 +817,32 @@ int RunCF015_ReservedBytesZero(CIccProfile *pIcc, const char *filename) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
-  issues += RunCF001_DateTimeMonthDay(pIcc);
-  issues += RunCF002_DateTimeLeapYear(pIcc);
-  issues += RunCF003_ProfileFlagsReserved(pIcc);
-  issues += RunCF004_DeviceAttributesReserved(pIcc);
-  issues += RunCF005_RenderingIntentUpperBits(pIcc);
-  issues += RunCF006_VersionBCD(pIcc);
-  issues += RunCF007_PrimaryPlatform(pIcc);
-  issues += RunCF008_PCSIlluminantD50(pIcc);
-  issues += RunCF009_ChadTagRequirement(pIcc);
-  issues += RunCF010_ProfileSizeVsFileSize(pIcc, filename);
-  issues += RunCF012_ProfileClassSignature(pIcc);
-  issues += RunCF013_DataColourSpace(pIcc);
-  issues += RunCF014_PCSForNonDeviceLink(pIcc);
-  issues += RunCF015_ReservedBytesZero(pIcc, filename);
+  int r;
+
+#define CF_WRAP(id, title, call) \
+  hc.begin(id, title); \
+  r = call; \
+  if (r > 0) hc.warn("%d non-conformance(s)", r); \
+  hc.end("Conformant"); \
+  issues += r
+
+  CF_WRAP(1001, "CF-001: Date/Time Month-Day Validity", RunCF001_DateTimeMonthDay(pIcc));
+  CF_WRAP(1002, "CF-002: Date/Time Leap Year Validation", RunCF002_DateTimeLeapYear(pIcc));
+  CF_WRAP(1003, "CF-003: Profile Flags Reserved Bits", RunCF003_ProfileFlagsReserved(pIcc));
+  CF_WRAP(1004, "CF-004: Device Attributes Reserved Bits", RunCF004_DeviceAttributesReserved(pIcc));
+  CF_WRAP(1005, "CF-005: Rendering Intent Upper Bits Zero", RunCF005_RenderingIntentUpperBits(pIcc));
+  CF_WRAP(1006, "CF-006: Version BCD Encoding", RunCF006_VersionBCD(pIcc));
+  CF_WRAP(1007, "CF-007: Primary Platform Signature", RunCF007_PrimaryPlatform(pIcc));
+  CF_WRAP(1008, "CF-008: PCS Illuminant D50 Values", RunCF008_PCSIlluminantD50(pIcc));
+  CF_WRAP(1009, "CF-009: Chromatic Adaptation Tag Requirement", RunCF009_ChadTagRequirement(pIcc));
+  CF_WRAP(1010, "CF-010: Profile Size vs File Size", RunCF010_ProfileSizeVsFileSize(pIcc, filename));
+  CF_WRAP(1012, "CF-012: Profile Class Signature", RunCF012_ProfileClassSignature(pIcc));
+  CF_WRAP(1013, "CF-013: Data Colour Space Signature", RunCF013_DataColourSpace(pIcc));
+  CF_WRAP(1014, "CF-014: PCS Field for Non-DeviceLink", RunCF014_PCSForNonDeviceLink(pIcc));
+  CF_WRAP(1015, "CF-015: Reserved Bytes 100-127 Zero", RunCF015_ReservedBytesZero(pIcc, filename));
+
+#undef CF_WRAP
   return issues;
 }
