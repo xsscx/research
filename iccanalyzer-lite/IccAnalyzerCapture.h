@@ -42,8 +42,11 @@ struct CapturedAnalysis {
 
 /// Run ComprehensiveAnalyze() in quiet mode, read HeuristicCollector results,
 /// and return structured findings enriched with registry metadata.
+/// legacy=false (default): conformance-only (no vulnerability heuristics).
+/// legacy=true: full analysis with 171 backward-looking security heuristics.
 CapturedAnalysis CaptureAndParseAnalysis(const char *profilePath,
-                                          const char *fingerprint_db);
+                                          const char *fingerprint_db,
+                                          bool legacy = false);
 
 /// Strip ANSI escape codes (ESC[...m) from a string.
 std::string StripAnsiCodes(const std::string &s);

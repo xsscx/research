@@ -52,8 +52,9 @@ static void PrintBanner(const char *title, int width) {
   printf("\n");
 }
 
-int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
-  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db);
+int RunWithReportOutput(const char *profilePath, const char *fingerprint_db,
+                        bool legacy) {
+  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db, legacy);
 
   // Collect only findings with warnings/critical (not OK)
   std::vector<const CapturedFinding*> activeFindings;
@@ -100,7 +101,11 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db) {
   // === BANNER ===
   printf("\n");
   PrintRule("=", W);
-  PrintBanner("ICC PROFILE SECURITY REPORT", W);
+  if (legacy) {
+    PrintBanner("ICC PROFILE SECURITY REPORT (LEGACY)", W);
+  } else {
+    PrintBanner("ICC PROFILE CONFORMANCE REPORT", W);
+  }
   PrintRule("=", W);
   printf("\n");
   printf("  Tool:     %s\n", ICCANALYZER_VERSION_FULL);

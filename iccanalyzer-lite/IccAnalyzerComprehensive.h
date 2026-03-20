@@ -38,7 +38,10 @@
 #ifndef ICCANALYZERCOMPREHENSIVE_H
 #define ICCANALYZERCOMPREHENSIVE_H
 
-// Comprehensive analysis with optional fingerprint database
-int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db = nullptr);
+// Comprehensive analysis with optional fingerprint database.
+// legacy=false (default): conformance-first — skips Phase 1 vulnerability heuristics.
+// legacy=true: full analysis including 171 backward-looking security heuristics.
+int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db = nullptr,
+                         bool legacy = false);
 
 #endif
