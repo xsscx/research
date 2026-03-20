@@ -78,22 +78,22 @@ static const int kS4[]  = { 1008, 0 };                          // D50 illuminan
 static const int kS5[]  = { 1014, 0 };                          // PCS field
 static const int kS6[]  = { 1020, 0 };                          // tag alignment
 static const int kS7[]  = { 1040, 0 };                          // tag table
-static const int kS8[]  = { 0 };                                // malware (security-only)
+static const int kS8[]  = { 1091, 0 };                          // malware scan
 static const int kS9[]  = { 1010, 0 };                          // EOF/size
 static const int kS10[] = { 1088, 1062, 0 };                    // calculator elements
-static const int kS11[] = { 0 };                                // private tags (security-only)
-static const int kS12[] = { 0 };                                // malware in private (security-only)
-static const int kS13[] = { 0 };                                // NOP instructions (security-only)
+static const int kS11[] = { 1092, 0 };                          // private tag presence
+static const int kS12[] = { 1093, 0 };                          // private tag content scan
+static const int kS13[] = { 1094, 0 };                          // NOP/shellcode pattern scan
 
 // Conformance items: mapped to ICC spec conformance checks.
 static const int kC14[] = { 1020, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1032, 1033, 1034, 0 };
 static const int kC15[] = { 1040, 0 };                          // cprt/desc in common required
 static const int kC16[] = { 1020, 0 };                          // allowed tag types
 static const int kC17[] = { 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 0 };
-static const int kC18[] = { 0 };                                // additional/private tags
-static const int kC19[] = { 0 };                                // private tag registration
-static const int kC20[] = { 0 };                                // private tag documentation
-static const int kC21[] = { 0 };                                // undocumented private tags
+static const int kC18[] = { 1095, 0 };                          // non-required tags
+static const int kC19[] = { 1096, 0 };                          // private tag registration
+static const int kC20[] = { 1097, 0 };                          // private tag documentation
+static const int kC21[] = { 1098, 0 };                          // undocumented private tags
 static const int kC22[] = { 1012, 1013, 0 };                    // class/colour space
 static const int kC23[] = { 1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1014, 1015, 0 };
 static const int kC24[] = { 1048, 1053, 0 };                    // tags vs version
@@ -102,10 +102,10 @@ static const int kC26[] = { 1015, 0 };                          // reserved byte
 static const int kC27[] = { 1020, 0 };                          // 4-byte boundaries
 
 // Quality items: require computational verification (CIEDE2000) → NOT_RUN.
-static const int kQ28[] = { 0 };
-static const int kQ29[] = { 0 };
-static const int kQ30[] = { 0 };
-static const int kQ31[] = { 0 };
+static const int kQ28[] = { 1099, 0 };                          // round-trip CIEDE2000
+static const int kQ29[] = { 1100, 0 };                          // curve invertibility
+static const int kQ30[] = { 1101, 0 };                          // transform smoothness
+static const int kQ31[] = { 1102, 0 };                          // characterization round-trip
 
 // ── Build the PAWG checklist ─────────────────────────────────────────────────
 
