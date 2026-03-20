@@ -14,6 +14,7 @@
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -41,17 +42,15 @@
 // ---------------------------------------------------------------------------
 int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H154] Uncontrolled Tag Allocation Size (CWE-789, §7.3 Tag Table)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(154, "Uncontrolled Tag Allocation Size (CWE-789, \xC2\xA7""7.3 Tag Table)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small for tag table\n\n");
-    return 0;
+    return hc.skip("File too small for tag table");
   }
 
   size_t fs = ctx.fileSize();
 
-  int issues = 0;
   for (const auto &_tag : ctx.tags) {
     uint32_t tSig    = _tag.sig;
     uint32_t tOffset = _tag.offset;
@@ -70,13 +69,10 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
     sig[3] = static_cast<char>(static_cast<unsigned char>( tSig        & 0xFF));
     sig[4] = '\0';
 
-    printf("      %s[CRITICAL] Tag '%s': offset=%u size=%u exceeds file (%zu bytes)%s\n",
-           ColorCritical(), sig, tOffset, tSize, fs, ColorReset());
-    printf("       %sCWE-789: Uncontrolled allocation — Read() allocates %u bytes "
-           "from file-controlled size before bounds check%s\n",
-           ColorCritical(), tSize, ColorReset());
-    issues++;
-    if (issues >= 8) break;
+    hc.critical("Tag '%s': offset=%u size=%u exceeds file (%zu bytes)",
+                sig, tOffset, tSize, fs);
+    hc.cweNote("CWE-789: Uncontrolled allocation — Read() allocates %u bytes "
+               "from file-controlled size before bounds check", tSize);
   }
 
   // Second pass: check for tags with extreme allocation amplification
@@ -108,12 +104,9 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
       if (fread(ncBuf, 1, 4, ctx.fh.fp) == 4) {
         uint32_t nDevCoords = ReadU32BE(ncBuf);
         if (nDevCoords > 15) {
-          printf("      %s[CRITICAL] NamedColor2: nDeviceCoords=%u (ICC spec max=15)%s\n",
-                 ColorCritical(), nDevCoords, ColorReset());
-          printf("       %sCWE-789: m_nColorEntrySize = 32 + nDevCoords*sizeof(icFloatNumber) "
-                 "→ unbounded allocation in Read() (IccTagBasic.cpp)%s\n",
-                 ColorCritical(), ColorReset());
-          issues++;
+          hc.critical("NamedColor2: nDeviceCoords=%u (ICC spec max=15)", nDevCoords);
+          hc.cweNote("CWE-789: m_nColorEntrySize = 32 + nDevCoords*sizeof(icFloatNumber) "
+                     "-> unbounded allocation in Read() (IccTagBasic.cpp)");
         }
       }
       fseek(ctx.fh.fp, savedPos, SEEK_SET);
@@ -137,14 +130,12 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
             tagSig[2] = static_cast<char>(static_cast<unsigned char>((tSig >>  8) & 0xFF));
             tagSig[3] = static_cast<char>(static_cast<unsigned char>( tSig        & 0xFF));
             tagSig[4] = '\0';
-            printf("      %s[CRITICAL] Tag '%s' (%s): %s offset=%u exceeds tag size (%u)%s\n",
-                   ColorCritical(), tagSig,
-                   typeSig == 0x6D414220 ? "mAB" : "mBA",
-                   subNames[s], subOff, tSize, ColorReset());
-            printf("       %sCWE-789: Out-of-bounds sub-element offset causes parser to read "
-                   "adjacent data as curve elements → OOM allocation%s\n",
-                   ColorCritical(), ColorReset());
-            issues++;
+            hc.critical("Tag '%s' (%s): %s offset=%u exceeds tag size (%u)",
+                        tagSig,
+                        typeSig == 0x6D414220 ? "mAB" : "mBA",
+                        subNames[s], subOff, tSize);
+            hc.cweNote("CWE-789: Out-of-bounds sub-element offset causes parser to read "
+                       "adjacent data as curve elements -> OOM allocation");
           }
         }
       }
@@ -152,15 +143,7 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
     }
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] All tag allocation sizes within bounds%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("All tag allocation sizes within bounds");
 }
 
 // ---------------------------------------------------------------------------
@@ -173,29 +156,25 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H155] Integer Overflow in Tag Dimensions (CWE-190, §10.6-10.14)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(155, "Integer Overflow in Tag Dimensions (CWE-190, \xC2\xA7""10.6-10.14)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small\n\n");
-    return 0;
+    return hc.skip("File too small");
   }
 
   size_t fs = ctx.fileSize();
   std::vector<uint8_t> buf(fs);
   fseek(ctx.fh.fp, 0, SEEK_SET);
   if (fread(buf.data(), 1, fs, ctx.fh.fp) != fs) {
-    printf("      [SKIP] Cannot read file\n\n");
-    return 0;
+    return hc.skip("Cannot read file");
   }
 
   uint32_t tagCount = ReadU32BE(&buf[128]);
   if (tagCount > 1000 || tagCount == 0) {
-    printf("      [SKIP] Invalid tag count\n\n");
-    return 0;
+    return hc.skip("Invalid tag count");
   }
 
-  int issues = 0;
   for (uint32_t i = 0; i < tagCount && i < 256; i++) {
     size_t entryOff = 132 + (size_t)i * 12;
     if (entryOff + 12 > fs) break;
@@ -231,11 +210,10 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
         if (clutSize > 0xFFFFFFFF) overflow = true;
 
         if (overflow || clutSize > tSize) {
-          printf("      %s[CRITICAL] Tag '%s' (Lut8): %ux%u grid^%u × %u = overflow%s\n",
-                 ColorCritical(), sig, nInput, nOutput, nInput, grid, ColorReset());
-          printf("       %sCWE-190: Integer overflow in CLUT size calculation "
-                 "(IccTagLut.cpp Read())%s\n", ColorCritical(), ColorReset());
-          issues++;
+          hc.critical("Tag '%s' (Lut8): %ux%u grid^%u x %u = overflow",
+                      sig, nInput, nOutput, nInput, grid);
+          hc.cweNote("CWE-190: Integer overflow in CLUT size calculation "
+                     "(IccTagLut.cpp Read())");
         }
       }
     }
@@ -257,11 +235,10 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
         if (clutSize > 0xFFFFFFFF) overflow = true;
 
         if (overflow || clutSize > tSize) {
-          printf("      %s[CRITICAL] Tag '%s' (Lut16): %ux%u grid^%u × %u × 2 = overflow%s\n",
-                 ColorCritical(), sig, nInput, nOutput, nInput, grid, ColorReset());
-          printf("       %sCWE-190: Integer overflow in CLUT size calculation "
-                 "(IccTagLut.cpp Read())%s\n", ColorCritical(), ColorReset());
-          issues++;
+          hc.critical("Tag '%s' (Lut16): %ux%u grid^%u x %u x 2 = overflow",
+                      sig, nInput, nOutput, nInput, grid);
+          hc.cweNote("CWE-190: Integer overflow in CLUT size calculation "
+                     "(IccTagLut.cpp Read())");
         }
       }
     }
@@ -289,11 +266,10 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
 
         if (overflow) {
           const char *lutName = (typeSig == 0x6D414220) ? "mAB" : "mBA";
-          printf("      %s[CRITICAL] Tag '%s' (%s): %u-in × %u-out CLUT grid overflows uint32%s\n",
-                 ColorCritical(), sig, lutName, nInput, nOutput, ColorReset());
-          printf("       %sCWE-190: Multiplication overflow before allocation "
-                 "(IccTagLut.cpp CIccCLUT::Init)%s\n", ColorCritical(), ColorReset());
-          issues++;
+          hc.critical("Tag '%s' (%s): %u-in x %u-out CLUT grid overflows uint32",
+                      sig, lutName, nInput, nOutput);
+          hc.cweNote("CWE-190: Multiplication overflow before allocation "
+                     "(IccTagLut.cpp CIccCLUT::Init)");
         }
       }
     }
@@ -307,41 +283,28 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
       // Each element position entry is 8 bytes (offset + size)
       uint64_t posTableSize = (uint64_t)nElem * 8;
       if (posTableSize > tSize || nElem > 10000) {
-        printf("      %s[CRITICAL] Tag '%s' (MPE): %u elements × 8 = %llu bytes "
-               "(tag size=%u)%s\n",
-               ColorCritical(), sig, nElem,
-               (unsigned long long)posTableSize, tSize, ColorReset());
-        printf("       %sCWE-190: Element count drives allocation overflow "
-               "(IccMpeBasic.cpp)%s\n", ColorCritical(), ColorReset());
-        issues++;
+        hc.critical("Tag '%s' (MPE): %u elements x 8 = %llu bytes "
+                    "(tag size=%u)",
+                    sig, nElem,
+                    (unsigned long long)posTableSize, tSize);
+        hc.cweNote("CWE-190: Element count drives allocation overflow "
+                   "(IccMpeBasic.cpp)");
       }
 
       // Channel count amplification: each sub-element allocates nInput×nOutput floats
       if (nInput > 0 && nOutput > 0) {
         uint64_t chanProduct = (uint64_t)nInput * nOutput * 4;
         if (chanProduct > 1024 * 1024) {
-          printf("      %s[WARN]  Tag '%s' (MPE): %u×%u channels → %llu bytes per element%s\n",
-                 ColorWarning(), sig, nInput, nOutput,
-                 (unsigned long long)chanProduct, ColorReset());
-          printf("       %sCWE-190: High channel count amplifies per-element allocation%s\n",
-                 ColorCritical(), ColorReset());
-          issues++;
+          hc.warn("Tag '%s' (MPE): %ux%u channels -> %llu bytes per element",
+                  sig, nInput, nOutput,
+                  (unsigned long long)chanProduct);
+          hc.cweNote("CWE-190: High channel count amplifies per-element allocation");
         }
       }
     }
-
-    if (issues >= 8) break;
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] No integer overflow in tag dimension calculations%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("No integer overflow in tag dimension calculations");
 }
 
 // ---------------------------------------------------------------------------
@@ -354,12 +317,11 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H156_AllocationFailurePathProfiles(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H156] Allocation Failure Path Profiles (CWE-252, §7.3)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(156, "Allocation Failure Path Profiles (CWE-252, \xC2\xA7""7.3)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small\n\n");
-    return 0;
+    return hc.skip("File too small");
   }
 
   uint32_t profileSize = ReadU32BE(ctx.header);
@@ -367,7 +329,6 @@ int RunHeuristic_H156_AllocationFailurePathProfiles(RawProfileContext &ctx)
   // Track aggregate allocation demands
   uint64_t totalDeclaredSize = 0;
   int largeTagCount = 0;
-  int issues = 0;
 
   for (const auto &tag : ctx.tags) {
     uint32_t tSize = tag.size;
@@ -381,48 +342,33 @@ int RunHeuristic_H156_AllocationFailurePathProfiles(RawProfileContext &ctx)
 
   // Aggregate allocation > 256MB is extreme for an ICC profile
   if (totalDeclaredSize > 256ULL * 1024 * 1024) {
-    printf("      %s[WARN]  Aggregate tag allocation: %.1f MB across %u tags%s\n",
-           ColorWarning(),
-           (double)totalDeclaredSize / (1024.0 * 1024.0),
-           ctx.tagCount, ColorReset());
-    printf("       %sCWE-252: iccDEV has 88 unchecked allocation sites — "
-           "aggregate pressure increases OOM probability%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sRisk: new/malloc returns NULL → dereference at "
-           "IccCmm.cpp, IccMpeSpectral.cpp, IccEncoding.cpp%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("Aggregate tag allocation: %.1f MB across %u tags",
+            (double)totalDeclaredSize / (1024.0 * 1024.0),
+            ctx.tagCount);
+    hc.cweNote("CWE-252: iccDEV has 88 unchecked allocation sites — "
+               "aggregate pressure increases OOM probability");
+    hc.info("Risk: new/malloc returns NULL -> dereference at "
+            "IccCmm.cpp, IccMpeSpectral.cpp, IccEncoding.cpp");
   }
 
   // Multiple large tags compound the risk
   if (largeTagCount >= 3) {
-    printf("      %s[WARN]  %d tags exceed 10MB — high concurrent allocation demand%s\n",
-           ColorWarning(), largeTagCount, ColorReset());
-    printf("       %sCWE-252: Multiple large allocations without error checking "
-           "increase NULL-deref risk%s\n", ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("%d tags exceed 10MB — high concurrent allocation demand",
+            largeTagCount);
+    hc.cweNote("CWE-252: Multiple large allocations without error checking "
+               "increase NULL-deref risk");
   }
 
   // Profile size vs tag total mismatch (tags claim more data than file contains)
   if (totalDeclaredSize > (uint64_t)profileSize * 2 && profileSize > 0) {
-    printf("      %s[WARN]  Tag sizes total %llu bytes but profile is %u bytes%s\n",
-           ColorWarning(), (unsigned long long)totalDeclaredSize,
-           profileSize, ColorReset());
-    printf("       %sCWE-252: Oversized tag declarations trigger allocation "
-           "then fail on read — unchecked paths crash%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("Tag sizes total %llu bytes but profile is %u bytes",
+            (unsigned long long)totalDeclaredSize,
+            profileSize);
+    hc.cweNote("CWE-252: Oversized tag declarations trigger allocation "
+               "then fail on read — unchecked paths crash");
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] Allocation pressure within safe bounds%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("Allocation pressure within safe bounds");
 }
 
 // ---------------------------------------------------------------------------
@@ -438,17 +384,15 @@ int RunHeuristic_H156_AllocationFailurePathProfiles(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H157] Alloc-Dealloc Mismatch Tag Patterns (CWE-762, §10.14)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(157, "Alloc-Dealloc Mismatch Tag Patterns (CWE-762, \xC2\xA7""10.14)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small\n\n");
-    return 0;
+    return hc.skip("File too small");
   }
 
   size_t fs = ctx.fileSize();
 
-  int issues = 0;
   bool hasTagArray = false;
   bool hasNamedColor2 = false;
   bool hasFormulaCurve = false;
@@ -476,47 +420,29 @@ int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(RawProfileContext &ctx)
   }
 
   if (hasTagArray) {
-    printf("      %s[CRITICAL] Profile contains TagArray ('tary') — "
-           "triggers CIccTagArray copy ctor new[]/free() mismatch%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sCWE-762: CFL-003 — CIccTagArray(const&) uses new[] but "
-           "Cleanup() calls free() (IccTagComposite.cpp:1037,1523)%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sImpact: Heap corruption when profile is copied via "
-           "CIccCmm::AddXform(CIccProfile&)%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.critical("Profile contains TagArray ('tary') — "
+                "triggers CIccTagArray copy ctor new[]/free() mismatch");
+    hc.cweNote("CWE-762: CFL-003 — CIccTagArray(const&) uses new[] but "
+               "Cleanup() calls free() (IccTagComposite.cpp:1037,1523)");
+    hc.info("Impact: Heap corruption when profile is copied via "
+            "CIccCmm::AddXform(CIccProfile&)");
   }
 
   if (hasNamedColor2) {
-    printf("      %s[WARN]  Profile contains NamedColor2 ('ncl2') — "
-           "CIccApplyNamedCmm uses new[]/delete mismatch%s\n",
-           ColorWarning(), ColorReset());
-    printf("       %sCWE-762: m_vals allocated with new icFloatNumber[] "
-           "but freed with delete (IccCmm.cpp:4785)%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("Profile contains NamedColor2 ('ncl2') — "
+            "CIccApplyNamedCmm uses new[]/delete mismatch");
+    hc.cweNote("CWE-762: m_vals allocated with new icFloatNumber[] "
+               "but freed with delete (IccCmm.cpp:4785)");
   }
 
   if (hasFormulaCurve) {
-    printf("      %s[WARN]  Profile contains CurveSet ('curf') — "
-           "formula segments use new[]/delete mismatch%s\n",
-           ColorWarning(), ColorReset());
-    printf("       %sCWE-762: m_dParam allocated with new[] but freed with "
-           "delete (IccTagLut.cpp:984)%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("Profile contains CurveSet ('curf') — "
+            "formula segments use new[]/delete mismatch");
+    hc.cweNote("CWE-762: m_dParam allocated with new[] but freed with "
+               "delete (IccTagLut.cpp:984)");
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] No alloc-dealloc mismatch trigger patterns%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("No alloc-dealloc mismatch trigger patterns");
 }
 
 // ---------------------------------------------------------------------------
@@ -529,23 +455,19 @@ int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H158] Enum Range Validation Extended (CWE-681, §7.2 Header Fields)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(158, "Enum Range Validation Extended (CWE-681, \xC2\xA7""7.2 Header Fields)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small\n\n");
-    return 0;
+    return hc.skip("File too small");
   }
 
   size_t fs = ctx.fileSize();
   std::vector<uint8_t> buf(fs);
   fseek(ctx.fh.fp, 0, SEEK_SET);
   if (fread(buf.data(), 1, fs, ctx.fh.fp) != fs) {
-    printf("      [SKIP] Cannot read file\n\n");
-    return 0;
+    return hc.skip("Cannot read file");
   }
-
-  int issues = 0;
 
   // Scan tag table for tag type signatures that are not valid FourCC
   // iccDEV casts the raw uint32 to icTagTypeSignature enum without validation
@@ -576,16 +498,12 @@ int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx)
     }
 
     if (invalidTypeSigs > 0) {
-      printf("      %s[WARN]  %d tag type signatures are not valid FourCC "
-             "(non-printable bytes)%s\n",
-             ColorWarning(), invalidTypeSigs, ColorReset());
-      printf("       %sCWE-681: iccDEV casts raw uint32 to icTagTypeSignature enum "
-             "without validation (IccProfile.cpp LoadTag)%s\n",
-             ColorCritical(), ColorReset());
-      printf("       %sRisk: 139 enum UB sites identified by CodeQL across "
-             "IccProfLib — invalid enum values cause undefined behavior%s\n",
-             ColorCritical(), ColorReset());
-      issues++;
+      hc.warn("%d tag type signatures are not valid FourCC "
+              "(non-printable bytes)", invalidTypeSigs);
+      hc.cweNote("CWE-681: iccDEV casts raw uint32 to icTagTypeSignature enum "
+                 "without validation (IccProfile.cpp LoadTag)");
+      hc.info("Risk: 139 enum UB sites identified by CodeQL across "
+              "IccProfLib — invalid enum values cause undefined behavior");
     }
   }
 
@@ -628,25 +546,14 @@ int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx)
     }
 
     if (invalidElemSigs > 0) {
-      printf("      %s[WARN]  MPE tag has %d sub-elements with invalid type "
-             "signatures (non-FourCC)%s\n",
-             ColorWarning(), invalidElemSigs, ColorReset());
-      printf("       %sCWE-681: icElemTypeSignature enum cast without validation "
-             "(IccMpeBasic.cpp, IccMpeCalc.cpp)%s\n",
-             ColorCritical(), ColorReset());
-      issues++;
+      hc.warn("MPE tag has %d sub-elements with invalid type "
+              "signatures (non-FourCC)", invalidElemSigs);
+      hc.cweNote("CWE-681: icElemTypeSignature enum cast without validation "
+                 "(IccMpeBasic.cpp, IccMpeCalc.cpp)");
     }
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] All enum values within valid ranges%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("All enum values within valid ranges");
 }
 
 // ---------------------------------------------------------------------------
@@ -659,12 +566,11 @@ int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-  printf("[H159] UAF Tag Ownership Chain Detection (CWE-416, §7.3)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(159, "UAF Tag Ownership Chain Detection (CWE-416, \xC2\xA7""7.3)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] File too small\n\n");
-    return 0;
+    return hc.skip("File too small");
   }
 
   size_t fs = ctx.fileSize();
@@ -680,7 +586,6 @@ int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx)
 
   bool hasTagArray = false;
   bool hasNamedColor2 = false;
-  int issues = 0;
 
   for (const auto &tag : ctx.tags) {
     uint32_t tOffset = tag.offset;
@@ -704,41 +609,26 @@ int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx)
     cls[3] = static_cast<char>(static_cast<unsigned char>( devClass        & 0xFF));
     cls[4] = '\0';
 
-    printf("      %s[CRITICAL] Profile class '%s' + TagArray ('tary') → "
-           "CFL-003 UAF path%s\n", ColorCritical(), cls, ColorReset());
-    printf("       %sCWE-416: EvaluateProfile() → AddXform(CIccProfile&) → "
-           "new CIccProfile(copy) → CIccTagArray copy ctor → "
-           "Cleanup() accesses freed memory%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sCall chain: iccRoundTrip → EvaluateProfile → CIccCmm::AddXform "
-           "→ CIccProfile::CIccProfile(const&) → CIccTagArray::NewCopy()%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sUpstream: IccTagComposite.cpp:1037,1074,1523 "
-           "(alloc mismatch new[]/free in copy vs cleanup)%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.critical("Profile class '%s' + TagArray ('tary') -> "
+                "CFL-003 UAF path", cls);
+    hc.cweNote("CWE-416: EvaluateProfile() -> AddXform(CIccProfile&) -> "
+               "new CIccProfile(copy) -> CIccTagArray copy ctor -> "
+               "Cleanup() accesses freed memory");
+    hc.info("Call chain: iccRoundTrip -> EvaluateProfile -> CIccCmm::AddXform "
+            "-> CIccProfile::CIccProfile(const&) -> CIccTagArray::NewCopy()");
+    hc.info("Upstream: IccTagComposite.cpp:1037,1074,1523 "
+            "(alloc mismatch new[]/free in copy vs cleanup)");
   }
 
   // NamedColor2 + any transform path → m_NamedColor UAF
   if (hasNamedColor2) {
-    printf("      %s[WARN]  Profile contains NamedColor2 ('ncl2') — "
-           "potential m_NamedColor UAF after Cleanup%s\n",
-           ColorWarning(), ColorReset());
-    printf("       %sCWE-416: IccTagBasic.cpp:2879 — m_NamedColor accessed after "
-           "CIccTagNamedColor2::Cleanup() frees it%s\n",
-           ColorCritical(), ColorReset());
-    issues++;
+    hc.warn("Profile contains NamedColor2 ('ncl2') — "
+            "potential m_NamedColor UAF after Cleanup");
+    hc.cweNote("CWE-416: IccTagBasic.cpp:2879 — m_NamedColor accessed after "
+               "CIccTagNamedColor2::Cleanup() frees it");
   }
 
-  if (issues > 0) {
-    heuristicCount += issues;
-  } else {
-    printf("      %s[OK] No UAF-triggering ownership patterns detected%s\n",
-           ColorSuccess(), ColorReset());
-  }
-  printf("\n");
-
-  return heuristicCount;
+  return hc.end("No UAF-triggering ownership patterns detected");
 }
 
 // H160: Format String Injection in Text Tags (CWE-134)
@@ -751,13 +641,11 @@ int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-
-  printf("[H160] Format String Injection in Text Tags (CWE-134, §10.24/§10.22)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(160, "Format String Injection in Text Tags (CWE-134, \xC2\xA7""10.24/\xC2\xA7""10.22)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] Cannot open file\n\n");
-    return 0;
+    return hc.skip("Cannot open file");
   }
 
   size_t fileSize = ctx.fileSize();
@@ -820,17 +708,16 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
       const char *found = strstr(buf.data(), kFmtSpecs[f]);
       if (found) {
         size_t pos = static_cast<size_t>(found - buf.data());
-        printf("      %s[WARN]  HEURISTIC: Tag '%s' contains format specifier \"%s\" at "
-               "offset +%zu — ICC.1-2022-05 §10.24%s\n",
-               ColorCritical(), tagSig, kFmtSpecs[f], pos, ColorReset());
+        hc.warn("HEURISTIC: Tag '%s' contains format specifier \"%s\" at "
+                "offset +%zu — ICC.1-2022-05 \xC2\xA7""10.24",
+                tagSig, kFmtSpecs[f], pos);
         if (strcmp(kFmtSpecs[f], "%n") == 0 || strcmp(kFmtSpecs[f], "%hn") == 0 ||
             strcmp(kFmtSpecs[f], "%ln") == 0 || strcmp(kFmtSpecs[f], "%hhn") == 0 ||
             strcmp(kFmtSpecs[f], "%lln") == 0) {
-          printf("       %sCWE-134: Write-format specifier (%s) enables arbitrary memory write%s\n",
-                 ColorCritical(), kFmtSpecs[f], ColorReset());
+          hc.cweNote("CWE-134: Write-format specifier (%s) enables arbitrary memory write",
+                     kFmtSpecs[f]);
         } else {
-          printf("       %sCWE-134: Format specifier injection — data leak via printf-family%s\n",
-                 ColorCritical(), ColorReset());
+          hc.cweNote("CWE-134: Format specifier injection — data leak via printf-family");
         }
         findings++;
         break; // one finding per tag per specifier type
@@ -838,15 +725,7 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
     }
   }
 
-  if (findings > 0) {
-    heuristicCount += findings;
-  } else {
-    printf("      %s[OK] No format string specifiers in text tags%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("No format string specifiers in text tags");
 }
 
 // H161: Stack Address Escape via Deep Apply Chains (CWE-121)
@@ -862,13 +741,11 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
 // ---------------------------------------------------------------------------
 int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
 {
-  int heuristicCount = 0;
-
-  printf("[H161] Stack Address Escape via Deep Apply Chains (CWE-121, §10.6/§10.14)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(161, "Stack Address Escape via Deep Apply Chains (CWE-121, \xC2\xA7""10.6/\xC2\xA7""10.14)");
 
   if (!ctx.valid) {
-    printf("      [SKIP] Cannot open file\n\n");
-    return 0;
+    return hc.skip("Cannot open file");
   }
 
   size_t fileSize = ctx.fileSize();
@@ -906,7 +783,6 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
 
   // Count MPE ('mpet') tags, multi-stage LUTs, and check output channel mismatches
   int mpetCount = 0;
-  int findings = 0;
 
   // LUT type signatures
   static const uint32_t kLutTypes[] = {
@@ -943,13 +819,11 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
           if (nElements > 4 && (nInputChannels > 8 || nOutputChannels > 8)) {
             char tagSig[5];
             SigToChars(_tag.sig, tagSig);
-            printf("      %s[WARN]  HEURISTIC: Tag '%s' MPE chain: %u elements × %u→%u channels "
-                   "— deep Apply() stack risk — ICC.1-2022-05 §10.14%s\n",
-                   ColorCritical(), tagSig, nElements, nInputChannels, nOutputChannels,
-                   ColorReset());
-            printf("       %sCWE-121: Local pixel buffers propagated across %u function frames%s\n",
-                   ColorCritical(), nElements, ColorReset());
-            findings++;
+            hc.warn("HEURISTIC: Tag '%s' MPE chain: %u elements x %u->%u channels "
+                    "— deep Apply() stack risk — ICC.1-2022-05 \xC2\xA7""10.14",
+                    tagSig, nElements, nInputChannels, nOutputChannels);
+            hc.cweNote("CWE-121: Local pixel buffers propagated across %u function frames",
+                       nElements);
           }
         }
       }
@@ -966,13 +840,12 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
             uint8_t nOutput = lutHdr[1];
             // Output channels exceeding colorspace → tmpPixel[16] SBO risk
             if (nOutput > 16 || (nOutput > 0 && nInput > 0 && nInput * nOutput > 256)) {
-              printf("      %s[WARN]  HEURISTIC: LUT %ux%u channels — local buffer overflow "
-                     "risk in Apply() tmpPixel — ICC.1-2022-05 §10.6%s\n",
-                     ColorCritical(), nInput, nOutput, ColorReset());
-              printf("       %sCWE-121: Stack buffer sized for declared channels (%d) may be "
-                     "overwritten by LUT output (%u)%s\n",
-                     ColorCritical(), nChannels, nOutput, ColorReset());
-              findings++;
+              hc.warn("HEURISTIC: LUT %ux%u channels — local buffer overflow "
+                      "risk in Apply() tmpPixel — ICC.1-2022-05 \xC2\xA7""10.6",
+                      nInput, nOutput);
+              hc.cweNote("CWE-121: Stack buffer sized for declared channels (%d) may be "
+                         "overwritten by LUT output (%u)",
+                         nChannels, nOutput);
             }
           }
         }
@@ -982,24 +855,15 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
   }
 
   // High channel count profile with multiple MPE = amplified stack depth
-  if (nChannels > 8 && mpetCount >= 2 && findings == 0) {
-    printf("      %s[WARN]  HEURISTIC: %d-channel profile with %d MPE tags — "
-           "deep Apply() stack chain risk — ICC.1-2022-05 §10.14%s\n",
-           ColorCritical(), nChannels, mpetCount, ColorReset());
-    printf("       %sCWE-121: High channel count amplifies local buffer size across "
-           "stack frames%s\n", ColorCritical(), ColorReset());
-    findings++;
+  if (nChannels > 8 && mpetCount >= 2) {
+    hc.warn("HEURISTIC: %d-channel profile with %d MPE tags — "
+            "deep Apply() stack chain risk — ICC.1-2022-05 \xC2\xA7""10.14",
+            nChannels, mpetCount);
+    hc.cweNote("CWE-121: High channel count amplifies local buffer size across "
+               "stack frames");
   }
 
-  if (findings > 0) {
-    heuristicCount += findings;
-  } else {
-    printf("      %s[OK] No deep Apply() chain stack-escape risk patterns%s\n",
-           ColorSuccess(), ColorReset());
-  }
-
-  printf("\n");
-  return heuristicCount;
+  return hc.end("No deep Apply() chain stack-escape risk patterns");
 }
 
 int RunCodeQLPatternHeuristics(RawProfileContext &ctx)

@@ -31,9 +31,10 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include "IccHeuristicResult.h"
 
 int RunHeuristic_H9_CriticalTextTags(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 9. Text Tag Presence
 icTagSignature textTags[] = {
@@ -50,57 +51,52 @@ const char *textTagNames[] = {
   "Device Model"
 };
 
-printf("[H9] Critical Text Tags:\n");
+hc.begin(9, "Critical Text Tags:");
 int missingCount = 0;
 for (size_t i = 0; i < sizeof(textTags)/sizeof(textTags[0]); i++) {
   CIccTag *pTag = pIcc->FindTag(textTags[i]);
   if (pTag) {
-    printf("     %s: Present [OK]\n", textTagNames[i]);
+    hc.info(" %s: Present [OK]", textTagNames[i]);
   } else {
-    printf("     %s: Missing\n", textTagNames[i]);
+    hc.info(" %s: Missing", textTagNames[i]);
     missingCount++;
   }
 }
 if (missingCount > 2) {
-  printf("      %s[WARN]  HEURISTIC: Multiple required text tags missing%s\n", ColorWarning(), ColorReset());
-  printf("       %sRisk: Incomplete/malformed profile%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Multiple required text tags missing");
+  hc.info("Risk: Incomplete/malformed profile");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All critical text tags present or acceptable");
 }
 
 int RunHeuristic_H10_TagCount(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 10. Tag Count Validation
 int tagCount = pIcc->m_Tags.size();
 
-printf("[H10] Tag Count: %d\n", tagCount);
+char title10[64];
+snprintf(title10, sizeof(title10), "Tag Count: %d", tagCount);
+hc.begin(10, title10);
 if (tagCount == 0) {
-  printf("      %s[WARN]  HEURISTIC: Zero tags (invalid profile)%s\n", ColorCritical(), ColorReset());
-  printf("       %sRisk: Parser confusion, empty profile attack%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Zero tags (invalid profile)");
+  hc.info("Risk: Parser confusion, empty profile attack");
 } else if (tagCount > 200) {
-  printf("      %s[WARN]  HEURISTIC: Excessive tag count (>200)%s\n", ColorWarning(), ColorReset());
-  printf("       %sRisk: Resource exhaustion%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
-} else {
-  printf("      %s[OK] Tag count within normal range%s\n", ColorSuccess(), ColorReset());
+  hc.warn("HEURISTIC: Excessive tag count (>200)");
+  hc.info("Risk: Resource exhaustion");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Tag count within normal range");
 }
 
 int RunHeuristic_H11_CLUTEntryLimit(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 11. CLUT Size Limit Check (Resource Exhaustion) — walk actual LUT tags
 // CVE refs: CVE-2026-21490, CVE-2026-21494 (LUT8/LUT16 OOM via extreme CLUT dimensions)
-printf("[H11] CLUT Entry Limit Check\n");
-printf("      Max safe CLUT entries per tag: %llu (16M)\n",
+hc.begin(11, "CLUT Entry Limit Check");
+hc.info("Max safe CLUT entries per tag: %llu (16M)",
        (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES);
 
 {
@@ -125,29 +121,26 @@ printf("      Max safe CLUT entries per tag: %llu (16M)\n",
     if (overflow || entries > ICCANALYZER_MAX_CLUT_ENTRIES) {
       char sig4[5];
       SignatureToFourCC(static_cast<icUInt32Number>(clutSigs[li]), sig4);
-      printf("      %s[WARN] CLUT in '%s': %llu entries (limit %llu)%s\n",
-             ColorWarning(), sig4, (unsigned long long)entries,
-             (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES, ColorReset());
-      heuristicCount++;
+      hc.warn("CLUT in '%s': %llu entries (limit %llu)",
+             sig4, (unsigned long long)entries,
+             (unsigned long long)ICCANALYZER_MAX_CLUT_ENTRIES);
     }
   }
   if (clutCount == 0) {
-    printf("      %s[OK] No CLUT tags to check%s\n", ColorSuccess(), ColorReset());
-  } else {
-    printf("      Inspected %d CLUT tag(s)\n", clutCount);
+    return hc.end("No CLUT tags to check");
   }
+  hc.info("Inspected %d CLUT tag(s)", clutCount);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All CLUT entries within limits");
 }
 
 int RunHeuristic_H12_MPEChainDepth(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 12. MPE Element Chain Depth — walk actual MPE tags
-printf("[H12] MPE Chain Depth Check\n");
-printf("      Max MPE elements per chain: %u\n", ICCANALYZER_MAX_MPE_ELEMENTS);
+hc.begin(12, "MPE Chain Depth Check");
+hc.info("Max MPE elements per chain: %u", ICCANALYZER_MAX_MPE_ELEMENTS);
 
 {
   static const icTagSignature mpeSigs[] = {
@@ -165,28 +158,25 @@ printf("      Max MPE elements per chain: %u\n", ICCANALYZER_MAX_MPE_ELEMENTS);
     if (nElem > ICCANALYZER_MAX_MPE_ELEMENTS) {
       char sig4[5];
       SignatureToFourCC(static_cast<icUInt32Number>(mpeSigs[mi]), sig4);
-      printf("      %s[WARN] MPE '%s' has %u elements (limit %u)%s\n",
-             ColorWarning(), sig4, nElem, ICCANALYZER_MAX_MPE_ELEMENTS, ColorReset());
-      heuristicCount++;
+      hc.warn("MPE '%s' has %u elements (limit %u)",
+             sig4, nElem, ICCANALYZER_MAX_MPE_ELEMENTS);
     }
   }
   if (mpeCount == 0) {
-    printf("      %s[OK] No MPE tags to check%s\n", ColorSuccess(), ColorReset());
-  } else {
-    printf("      Inspected %d MPE tag(s)\n", mpeCount);
+    return hc.end("No MPE tags to check");
   }
+  hc.info("Inspected %d MPE tag(s)", mpeCount);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All MPE chain depths within limits");
 }
 
 int RunHeuristic_H13_PerTagSizeCheck(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 13. Per-Tag Size Check — inspect actual tag sizes
-printf("[H13] Per-Tag Size Check\n");
-printf("      Max tag size: %llu MB (%llu bytes)\n",
+hc.begin(13, "Per-Tag Size Check");
+hc.info("Max tag size: %llu MB (%llu bytes)",
        (unsigned long long)(ICCANALYZER_MAX_TAG_SIZE >> 20),
        (unsigned long long)ICCANALYZER_MAX_TAG_SIZE);
 
@@ -198,35 +188,30 @@ printf("      Max tag size: %llu MB (%llu bytes)\n",
     if (e->TagInfo.size > ICCANALYZER_MAX_TAG_SIZE) {
       char sig4[5];
       SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sig4);
-      printf("      %s[WARN] Tag '%s' size=%u bytes (%.1f MB) exceeds limit%s\n",
-             ColorWarning(), sig4, e->TagInfo.size,
-             e->TagInfo.size / (1024.0 * 1024.0), ColorReset());
+      hc.warn("Tag '%s' size=%u bytes (%.1f MB) exceeds limit",
+             sig4, e->TagInfo.size,
+             e->TagInfo.size / (1024.0 * 1024.0));
       oversizedCount++;
     }
   }
   if (oversizedCount > 0) {
-    printf("      %s[WARN] %d tag(s) exceed size limit%s\n",
-           ColorCritical(), oversizedCount, ColorReset());
-    heuristicCount++;
-  } else {
-    printf("      %s[OK] All %d tags within size limits%s\n",
-           ColorSuccess(), (int)pIcc->m_Tags.size(), ColorReset());
+    hc.info("%d tag(s) exceed size limit", oversizedCount);
   }
 }
-printf("\n");
-
-  return heuristicCount;
+  char okMsg13[128];
+  snprintf(okMsg13, sizeof(okMsg13), "All %d tags within size limits", (int)pIcc->m_Tags.size());
+  return hc.end(okMsg13);
 }
 
 int RunHeuristic_H14_TagArrayDetection(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 14. TagArrayType Detection (CRITICAL - Heap-Use-After-Free)
 // CVE refs: CVE-2026-21677 (UAF in CIccTagArray::Cleanup)
 // Based on fuzzer findings 2026-01-30: TagArray can appear under ANY signature
-printf("[H14] TagArrayType Detection (UAF Risk)\n");
-printf("      Checking for TagArrayType (0x74617279 = 'tary')\n");
-printf("      Note: Tag signature ≠ tag type - must check tag DATA\n");
+hc.begin(14, "TagArrayType Detection (UAF Risk)");
+hc.info("Checking for TagArrayType (0x74617279 = 'tary')");
+hc.info("Note: Tag signature ≠ tag type - must check tag DATA");
 
 // Re-read file for raw tag type validation
 RawFileHandle fh = OpenRawFile(filename);
@@ -274,8 +259,8 @@ if (fh) {
               typeStr[0] = static_cast<char>((tagType>>24)&0xff); typeStr[1] = static_cast<char>((tagType>>16)&0xff);
               typeStr[2] = static_cast<char>((tagType>>8)&0xff); typeStr[3] = static_cast<char>(tagType&0xff); typeStr[4] = '\0';
               
-              printf("      [WARN]  CRITICAL: TagArrayType found!\n");
-              printf("       Tag %u: signature='%s' (0x%08X), type='%s' (0x%08X)\n",
+              hc.critical("TagArrayType found!");
+              hc.info(" Tag %u: signature='%s' (0x%08X), type='%s' (0x%08X)",
                      i, sigStr, tagSig, typeStr, tagType);
             }
           }
@@ -283,30 +268,26 @@ if (fh) {
       }
       
       if (foundTagArray) {
-        printf("      %s[WARN]  HEURISTIC: %u TagArrayType tag(s) detected%s\n", ColorCritical(), tagArrayCount, ColorReset());
-        printf("       %sRisk: CRITICAL - Heap-use-after-free in CIccTagArray::Cleanup()%s\n", ColorCritical(), ColorReset());
-        printf("       %sLocation: IccProfLib/IccTagComposite.cpp:1514%s\n", ColorInfo(), ColorReset());
-        printf("       %sImpact: Code execution, memory corruption%s\n", ColorCritical(), ColorReset());
-        printf("       %sRecommendation: REJECT profile, potential exploit attempt%s\n", ColorCritical(), ColorReset());
-        heuristicCount++;
-      } else {
-        printf("      %s[OK] No TagArrayType tags detected%s\n", ColorSuccess(), ColorReset());
+        hc.warn("HEURISTIC: %u TagArrayType tag(s) detected", tagArrayCount);
+        hc.cweNote("Risk: CRITICAL - Heap-use-after-free in CIccTagArray::Cleanup()");
+        hc.cweNote("Location: IccProfLib/IccTagComposite.cpp:1514");
+        hc.cweNote("Impact: Code execution, memory corruption");
+        hc.cweNote("Recommendation: REJECT profile, potential exploit attempt");
       }
     }
   }
 } else {
-  printf("      %s[WARN]  Cannot re-open file for tag type validation%s\n", ColorWarning(), ColorReset());
+  hc.warn("Cannot re-open file for tag type validation");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No TagArrayType tags detected");
 }
 
 int RunHeuristic_H18_TechnologySignature(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 18. Technology Signature Validation
-printf("[H18] Technology Signature Validation\n");
+hc.begin(18, "Technology Signature Validation");
 {
   CIccTagSignature *pSigTag = FindAndCast<CIccTagSignature>(pIcc, icSigTechnologyTag);
   if (pSigTag) {
@@ -314,33 +295,28 @@ printf("[H18] Technology Signature Validation\n");
       icTechnologySignature techSig = static_cast<icTechnologySignature>(pSigTag->GetValue());
       if (IsValidTechnologySignature(techSig)) {
         CIccInfo techInfo;
-        printf("      %s[OK] Valid technology: %s%s\n", ColorSuccess(),
-               techInfo.GetTechnologySigName(techSig), ColorReset());
+        hc.info("Valid technology: %s", techInfo.GetTechnologySigName(techSig));
       } else {
-        printf("      %s[WARN]  HEURISTIC: Unknown technology signature: 0x%08X%s\n",
-               ColorWarning(), static_cast<unsigned>(techSig), ColorReset());
-        printf("       %sRisk: Non-standard technology, possible parser issue%s\n",
-               ColorWarning(), ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: Unknown technology signature: 0x%08X",
+               static_cast<unsigned>(techSig));
+        hc.info("Risk: Non-standard technology, possible parser issue");
       }
     } else {
-      printf("      %s[WARN]  Technology tag has unexpected type%s\n", ColorWarning(), ColorReset());
-      heuristicCount++;
+      hc.warn("Technology tag has unexpected type");
     }
   } else {
-    printf("      %sINFO: No technology tag present%s\n", ColorInfo(), ColorReset());
+    hc.info("INFO: No technology tag present");
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Technology signature valid");
 }
 
 int RunHeuristic_H19_TagOffsetOverlap(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 19. Tag Overlap Detection
-printf("[H19] Tag Offset/Size Overlap Detection\n");
+hc.begin(19, "Tag Offset/Size Overlap Detection");
 {
   struct TagRange { icUInt32Number sig; icUInt32Number offset; icUInt32Number size; };
   std::vector<TagRange> ranges;
@@ -361,34 +337,28 @@ printf("[H19] Tag Offset/Size Overlap Detection\n");
         char s1[5], s2[5];
         SignatureToFourCC(ranges[a].sig, s1);
         SignatureToFourCC(ranges[b].sig, s2);
-        printf("      %s[WARN]  Tags '%s' and '%s' overlap: [%u+%u] vs [%u+%u]%s\n",
-               ColorCritical(), s1, s2,
+        hc.warn("Tags '%s' and '%s' overlap: [%u+%u] vs [%u+%u]",
+               s1, s2,
                ranges[a].offset, ranges[a].size,
-               ranges[b].offset, ranges[b].size, ColorReset());
+               ranges[b].offset, ranges[b].size);
         overlapCount++;
       }
     }
   }
   if (overlapCount > 0) {
-    printf("      %sRisk: %d tag overlap(s) — possible data corruption or exploitation%s\n",
-           ColorCritical(), overlapCount, ColorReset());
-    heuristicCount++;
-  } else {
-    printf("      %s[OK] No tag overlaps detected%s\n", ColorSuccess(), ColorReset());
+    hc.cweNote("Risk: %d tag overlap(s) — possible data corruption or exploitation", overlapCount);
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No tag overlaps detected");
 }
 
 int RunHeuristic_H20_TagTypeSignature(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 20. Tag Type Signature Validation
-printf("[H20] Tag Type Signature Validation\n");
+hc.begin(20, "Tag Type Signature Validation");
 {
-  int invalidTypeCount = 0;
   RawFileHandle fh20 = OpenRawFile(filename);
   if (fh20) {
     TagEntryList::iterator it;
@@ -412,42 +382,30 @@ printf("[H20] Tag Type Signature Validation\n");
         SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
 
         if (allZero) {
-          printf("      %s[WARN]  Tag '%s' has null type signature (0x00000000)%s\n",
-                 ColorWarning(), sigFCC, ColorReset());
-          printf("       %sRisk: Corrupted tag data — parser may misinterpret%s\n",
-                 ColorWarning(), ColorReset());
-          invalidTypeCount++;
+          hc.warn("Tag '%s' has null type signature (0x00000000)", sigFCC);
+          hc.info("Risk: Corrupted tag data — parser may misinterpret");
         } else if (!allPrintable) {
-          printf("      %s[WARN]  Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X%s\n",
-                 ColorWarning(), sigFCC,
-                 typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3], ColorReset());
-          printf("       %sRisk: Malformed type bytes — possible type confusion%s\n",
-                 ColorWarning(), ColorReset());
-          invalidTypeCount++;
+          hc.warn("Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X",
+                 sigFCC,
+                 typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]);
+          hc.info("Risk: Malformed type bytes — possible type confusion");
         }
       }
     }
   }
-  if (invalidTypeCount > 0) {
-    heuristicCount += invalidTypeCount;
-  } else {
-    printf("      %s[OK] All tag type signatures are valid ASCII%s\n", ColorSuccess(), ColorReset());
-  }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All tag type signatures are valid ASCII");
 }
 
 // H21: Inspect tagStruct members for invalid types, null sub-elements, and malformed nesting.
 // Iterates all tags, downcasts to CIccTagStruct, validates each member entry signature/type.
 int RunHeuristic_H21_TagStructMemberInspection(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // H21: Inspect tagStruct members for invalid types, null sub-elements, malformed nesting
-printf("[H21] tagStruct Member Inspection\n");
+hc.begin(21, "tagStruct Member Inspection");
 {
-  int structIssues = 0;
   bool foundStruct = false;
   TagEntryList::iterator it;
   // Iterate all tags looking for CIccTagStruct instances
@@ -469,15 +427,12 @@ printf("[H21] tagStruct Member Inspection\n");
       memberCount = (int)pElems->size();
     }
 
-    printf("      Tag '%s' is tagStruct (type='%s', %d members)\n",
+    hc.info("Tag '%s' is tagStruct (type='%s', %d members)",
            sigFCC, structFCC, memberCount);
 
     if (memberCount > 100) {
-      printf("      %s[WARN]  Excessive member count: %d (limit 100)%s\n",
-             ColorCritical(), memberCount, ColorReset());
-      printf("       %sRisk: Resource exhaustion via struct expansion%s\n",
-             ColorCritical(), ColorReset());
-      structIssues++;
+      hc.warn("Excessive member count: %d (limit 100)", memberCount);
+      hc.cweNote("Risk: Resource exhaustion via struct expansion");
     }
 
     if (pElems) {
@@ -493,16 +448,26 @@ printf("[H21] tagStruct Member Inspection\n");
           icTagTypeSignature mType = mTag->GetType();
           char mtFCC[5];
           SignatureToFourCC(static_cast<icUInt32Number>(mType), mtFCC);
-          printf("        Member '%s': type='%s' size=%u",
-                 mFCC, mtFCC, me->TagInfo.size);
-
-          if (mTag->IsNumArrayType()) {
-            CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(mTag);
-            if (pNum) {
-              printf(" values=%u", pNum->GetNumValues());
+          {
+            char memberInfo[256];
+            if (mTag->IsNumArrayType()) {
+              CIccTagNumArray *pNum = dynamic_cast<CIccTagNumArray*>(mTag);
+              if (pNum) {
+                snprintf(memberInfo, sizeof(memberInfo),
+                         "  Member '%s': type='%s' size=%u values=%u",
+                         mFCC, mtFCC, me->TagInfo.size, pNum->GetNumValues());
+              } else {
+                snprintf(memberInfo, sizeof(memberInfo),
+                         "  Member '%s': type='%s' size=%u",
+                         mFCC, mtFCC, me->TagInfo.size);
+              }
+            } else {
+              snprintf(memberInfo, sizeof(memberInfo),
+                       "  Member '%s': type='%s' size=%u",
+                       mFCC, mtFCC, me->TagInfo.size);
             }
+            hc.info("%s", memberInfo);
           }
-          printf("\n");
 
           // Check member type signature for non-printable bytes
           icUInt32Number mTypeVal = static_cast<icUInt32Number>(mType);
@@ -517,47 +482,34 @@ printf("[H21] tagStruct Member Inspection\n");
             if (tb[b] < 0x20 || tb[b] > 0x7E) mAllPrint = false;
           }
           if (mAllZero) {
-            printf("        %s[WARN]  Member '%s' has null type (0x00000000)%s\n",
-                   ColorWarning(), mFCC, ColorReset());
-            structIssues++;
+            hc.warn("Member '%s' has null type (0x00000000)", mFCC);
           } else if (!mAllPrint) {
-            printf("        %s[WARN]  Member '%s' has non-ASCII type: 0x%08X%s\n",
-                   ColorWarning(), mFCC, mTypeVal, ColorReset());
-            structIssues++;
+            hc.warn("Member '%s' has non-ASCII type: 0x%08X", mFCC, mTypeVal);
           }
         } else {
-          printf("        Member '%s': size=%u %s[UNREADABLE]%s\n",
-                 mFCC, me->TagInfo.size, ColorWarning(), ColorReset());
-          structIssues++;
+          hc.warn("Member '%s': size=%u [UNREADABLE]", mFCC, me->TagInfo.size);
         }
       }
     }
   }
   if (!foundStruct) {
-    printf("      %s[OK] No tagStruct tags present%s\n", ColorSuccess(), ColorReset());
-  } else if (structIssues > 0) {
-    heuristicCount += structIssues;
-  } else {
-    printf("      %s[OK] tagStruct members appear well-formed%s\n", ColorSuccess(), ColorReset());
+    return hc.end("No tagStruct tags present");
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("tagStruct members appear well-formed");
 }
 
 int RunHeuristic_H22_NumArrayScalarExpectation(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 22. NumArray Scalar Expectation Validation (cept-specific)
-printf("[H22] NumArray Scalar Expectation (cept struct)\n");
+hc.begin(22, "NumArray Scalar Expectation (cept struct)");
 {
-  int scalarIssues = 0;
   CIccTagStruct *pCept = FindAndCast<CIccTagStruct>(pIcc, icSigColorEncodingParamsTag);
 
   if (!pCept) {
-    printf("      %s[OK] No cept (ColorEncodingParams) tag — check not applicable%s\n",
-           ColorSuccess(), ColorReset());
+    return hc.end("No cept (ColorEncodingParams) tag — check not applicable");
   } else {
     // Members consumed as scalars by GetElemNumberValue() in IccEncoding.cpp
     struct ScalarMember {
@@ -581,34 +533,25 @@ printf("[H22] NumArray Scalar Expectation (cept struct)\n");
 
       icUInt32Number numVals = pNum->GetNumValues();
       if (numVals > 1) {
-        printf("      %s[WARN]  %s has %u values (expected 1 scalar)%s\n",
-               ColorCritical(), scalarMembers[s].name, numVals, ColorReset());
-        printf("       %sRisk: Stack buffer overflow in GetElemNumberValue → GetValues%s\n",
-               ColorCritical(), ColorReset());
-        printf("       %s(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL-030)%s\n",
-               ColorCritical(), ColorReset());
-        scalarIssues++;
+        hc.warn("%s has %u values (expected 1 scalar)", scalarMembers[s].name, numVals);
+        hc.cweNote("Risk: Stack buffer overflow in GetElemNumberValue → GetValues");
+        hc.cweNote("(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL-030)");
       } else {
-        printf("      [OK] %s: %u value (scalar)\n", scalarMembers[s].name, numVals);
+        hc.info("[OK] %s: %u value (scalar)", scalarMembers[s].name, numVals);
       }
     }
   }
-  if (scalarIssues > 0) {
-    heuristicCount += scalarIssues;
-  }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("NumArray scalar expectations met");
 }
 
 int RunHeuristic_H23_NumArrayValueRange(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 23. NumArray Value Range Validation
-printf("[H23] NumArray Value Range Validation\n");
+hc.begin(23, "NumArray Value Range Validation");
 {
-  int rangeIssues = 0;
   TagEntryList::iterator it;
   for (it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     IccTagEntry *e = &(*it);
@@ -623,13 +566,10 @@ printf("[H23] NumArray Value Range Validation\n");
       char sigFCC[5];
       SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
       if (numVals == 0) {
-        printf("      %s[WARN]  Tag '%s': empty NumArray (0 values)%s\n",
-               ColorWarning(), sigFCC, ColorReset());
+        hc.warn("Tag '%s': empty NumArray (0 values)", sigFCC);
       } else {
-        printf("      %s[WARN]  Tag '%s': excessive NumArray (%u values)%s\n",
-               ColorCritical(), sigFCC, numVals, ColorReset());
+        hc.warn("Tag '%s': excessive NumArray (%u values)", sigFCC, numVals);
       }
-      rangeIssues++;
       continue;
     }
 
@@ -647,18 +587,13 @@ printf("[H23] NumArray Value Range Validation\n");
         char sigFCC[5];
         SignatureToFourCC(static_cast<icUInt32Number>(e->TagInfo.sig), sigFCC);
         if (nanCount > 0) {
-          printf("      %s[WARN]  Tag '%s': %d NaN value(s) in NumArray%s\n",
-                 ColorCritical(), sigFCC, nanCount, ColorReset());
+          hc.warn("Tag '%s': %d NaN value(s) in NumArray", sigFCC, nanCount);
         }
         if (infCount > 0) {
-          printf("      %s[WARN]  Tag '%s': %d Inf value(s) in NumArray%s\n",
-                 ColorCritical(), sigFCC, infCount, ColorReset());
+          hc.warn("Tag '%s': %d Inf value(s) in NumArray", sigFCC, infCount);
         }
-        printf("       %sRisk: Floating-point exceptions, division-by-zero%s\n",
-               ColorWarning(), ColorReset());
-        printf("       %sCWE-681: NaN/Inf propagation → UB in IccIO Write (iccDEV #536)%s\n",
-               ColorCritical(), ColorReset());
-        rangeIssues++;
+        hc.info("Risk: Floating-point exceptions, division-by-zero");
+        hc.cweNote("CWE-681: NaN/Inf propagation → UB in IccIO Write (iccDEV #536)");
       }
     }
   }
@@ -699,34 +634,32 @@ printf("[H23] NumArray Value Range Validation\n");
         if (nanCount > 0 || infCount > 0) {
           char mFCC[5];
           SignatureToFourCC(static_cast<icUInt32Number>(me->TagInfo.sig), mFCC);
-          printf("      %s[WARN]  Struct '%s' member '%s': ", ColorCritical(), parentFCC, mFCC);
-          if (nanCount > 0) printf("%d NaN ", nanCount);
-          if (infCount > 0) printf("%d Inf ", infCount);
-          printf("value(s)%s\n", ColorReset());
-          rangeIssues++;
+          {
+            char detail[128];
+            int pos = 0;
+            pos += snprintf(detail + pos, sizeof(detail) - pos,
+                           "Struct '%s' member '%s': ", parentFCC, mFCC);
+            if (nanCount > 0) pos += snprintf(detail + pos, sizeof(detail) - pos, "%d NaN ", nanCount);
+            if (infCount > 0) pos += snprintf(detail + pos, sizeof(detail) - pos, "%d Inf ", infCount);
+            snprintf(detail + pos, sizeof(detail) - pos, "value(s)");
+            hc.warn("%s", detail);
+          }
         }
       }
     }
   }
 
-  if (rangeIssues > 0) {
-    heuristicCount += rangeIssues;
-  } else {
-    printf("      %s[OK] All NumArray values within normal ranges%s\n", ColorSuccess(), ColorReset());
-  }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All NumArray values within normal ranges");
 }
 
 int RunHeuristic_H24_TagStructNestingDepth(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 24. tagStruct/tagArray Nesting Depth Check
-printf("[H24] tagStruct/tagArray Nesting Depth\n");
+hc.begin(24, "tagStruct/tagArray Nesting Depth");
 {
-  int nestIssues = 0;
   const int MAX_SAFE_DEPTH = 4;
 
   // Lambda-like depth walk using iterative approach with stack
@@ -749,11 +682,8 @@ printf("[H24] tagStruct/tagArray Nesting Depth\n");
     if (cur.depth > maxDepth) maxDepth = cur.depth;
 
     if (cur.depth > MAX_SAFE_DEPTH) {
-      printf("      %s[WARN]  Nesting depth %d exceeds safe limit (%d)%s\n",
-             ColorCritical(), cur.depth, MAX_SAFE_DEPTH, ColorReset());
-      printf("       %sRisk: Stack overflow via recursive Read/Describe (CFL patch 061)%s\n",
-             ColorCritical(), ColorReset());
-      nestIssues++;
+      hc.warn("Nesting depth %d exceeds safe limit (%d)", cur.depth, MAX_SAFE_DEPTH);
+      hc.cweNote("Risk: Stack overflow via recursive Read/Describe (CFL patch 061)");
       continue; // Don't descend further
     }
 
@@ -785,24 +715,18 @@ printf("[H24] tagStruct/tagArray Nesting Depth\n");
     }
   }
 
-  if (nestIssues > 0) {
-    heuristicCount += nestIssues;
-  } else {
-    printf("      %s[OK] Max nesting depth: %d (safe limit: %d)%s\n",
-           ColorSuccess(), maxDepth, MAX_SAFE_DEPTH, ColorReset());
-  }
+  char okMsg24[128];
+  snprintf(okMsg24, sizeof(okMsg24), "Max nesting depth: %d (safe limit: %d)", maxDepth, MAX_SAFE_DEPTH);
+  return hc.end(okMsg24);
 }
-printf("\n");
-
-  return heuristicCount;
 }
 
 int RunHeuristic_H25_TagOffsetOOB(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 25. Tag Offset/Size OOB Detection (raw file bytes)
 // CVE refs: CVE-2026-25583 (HBO in CIccFileIO::Read8), CVE-2026-24852 (tag offset overflow)
-printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
+hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
 {
   RawFileHandle fh25 = OpenRawFile(filename);
   if (fh25) {
@@ -839,13 +763,13 @@ printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
           sig25[2] = static_cast<char>((tSig>>8)&0xff);  sig25[3] = static_cast<char>(tSig&0xff); sig25[4] = '\0';
           
           if (tOff >= bound) {
-            printf("      %s[WARN]  Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)%s\n",
-                   ColorCritical(), sig25, tOff, bound, ColorReset());
+            hc.warn("Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)",
+                   sig25, tOff, bound);
             oobCount++;
           } else if (tagEnd > bound) {
-            printf("      %s[WARN]  Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)%s\n",
-                   ColorCritical(), sig25, tOff, tSz,
-                   (unsigned long long)(tagEnd - bound), bound, ColorReset());
+            hc.warn("Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)",
+                   sig25, tOff, tSz,
+                   (unsigned long long)(tagEnd - bound), bound);
             oobCount++;
           }
         }
@@ -854,33 +778,26 @@ printf("[H25] Tag Offset/Size Out-of-Bounds Detection\n");
 
     
     if (oobCount > 0) {
-      printf("      %s%d tag(s) reference data beyond file/profile bounds%s\n",
-             ColorCritical(), oobCount, ColorReset());
-      printf("      %sRisk: Heap-buffer-overflow when loading OOB tags%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
-    } else {
-      printf("      %s[OK] All tag offsets/sizes within bounds%s\n", ColorSuccess(), ColorReset());
+      hc.cweNote("%d tag(s) reference data beyond file/profile bounds", oobCount);
+      hc.cweNote("Risk: Heap-buffer-overflow when loading OOB tags");
     }
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All tag offsets/sizes within bounds");
 }
 
 int RunHeuristic_H26_NamedColor2StringValidation(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 26. NamedColor2 String Validation (raw scan — checks tag TYPE, not signature)
 // CVE refs: CVE-2026-21488 (non-null-terminated strings), CVE-2026-24852 (text overflow)
-printf("[H26] NamedColor2 String Validation\n");
+hc.begin(26, "NamedColor2 String Validation");
 {
   RawFileHandle fh26 = OpenRawFile(filename);
   if (fh26) {
       size_t fs26 = (size_t)fh26.fileSize;
       
-      int nc2Issues = 0;
       if (fs26 >= 132) {
         icUInt8Number hdr26[132];
         if (fread(hdr26, 1, 132, fh26.fp) == 132) {
@@ -939,27 +856,21 @@ printf("[H26] NamedColor2 String Validation\n");
             int suffixExpanded = suffixLen + suffixExpand * 5;
             
             if (prefixExpanded > 255) {
-              printf("      %s[HIGH] Prefix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)%s\n",
-                     ColorCritical(), prefixLen, prefixExpand, prefixExpanded, ColorReset());
-              printf("       %sRisk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)%s\n",
-                     ColorCritical(), ColorReset());
-              nc2Issues++;
+              hc.critical("Prefix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
+                     prefixLen, prefixExpand, prefixExpanded);
+              hc.cweNote("Risk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)");
             } else if (prefixExpand > 0 && prefixLen > 20) {
-              printf("      %s[WARN]  Prefix has %d XML-expandable chars in %d-byte string (expanded: %d)%s\n",
-                     ColorWarning(), prefixExpand, prefixLen, prefixExpanded, ColorReset());
-              nc2Issues++;
+              hc.warn("Prefix has %d XML-expandable chars in %d-byte string (expanded: %d)",
+                     prefixExpand, prefixLen, prefixExpanded);
             }
             
             if (suffixExpanded > 255) {
-              printf("      %s[HIGH] Suffix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)%s\n",
-                     ColorCritical(), suffixLen, suffixExpand, suffixExpanded, ColorReset());
-              printf("       %sRisk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)%s\n",
-                     ColorCritical(), ColorReset());
-              nc2Issues++;
+              hc.critical("Suffix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
+                     suffixLen, suffixExpand, suffixExpanded);
+              hc.cweNote("Risk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)");
             } else if (suffixExpand > 0 && suffixLen > 20) {
-              printf("      %s[WARN]  Suffix has %d XML-expandable chars in %d-byte string (expanded: %d)%s\n",
-                     ColorWarning(), suffixExpand, suffixLen, suffixExpanded, ColorReset());
-              nc2Issues++;
+              hc.warn("Suffix has %d XML-expandable chars in %d-byte string (expanded: %d)",
+                     suffixExpand, suffixLen, suffixExpanded);
             }
             
             // Check for non-null-terminated strings
@@ -968,44 +879,31 @@ printf("[H26] NamedColor2 String Validation\n");
             for (int j = 0; j < 32; j++) { if (suffix[j] == 0) { suffixUnterminated = false; break; } }
             
             if (prefixUnterminated) {
-              printf("      %s[WARN]  Prefix not null-terminated (all 32 bytes non-zero)%s\n",
-                     ColorCritical(), ColorReset());
-              printf("       %sRisk: strlen overflow, icFixXml reads past buffer boundary%s\n",
-                     ColorCritical(), ColorReset());
-              nc2Issues++;
+              hc.warn("Prefix not null-terminated (all 32 bytes non-zero)");
+              hc.cweNote("Risk: strlen overflow, icFixXml reads past buffer boundary");
             }
             if (suffixUnterminated) {
-              printf("      %s[WARN]  Suffix not null-terminated (all 32 bytes non-zero)%s\n",
-                     ColorCritical(), ColorReset());
-              printf("       %sRisk: strlen overflow, icFixXml reads past buffer boundary%s\n",
-                     ColorCritical(), ColorReset());
-              nc2Issues++;
+              hc.warn("Suffix not null-terminated (all 32 bytes non-zero)");
+              hc.cweNote("Risk: strlen overflow, icFixXml reads past buffer boundary");
             }
           }
         }
       }
 
       
-      if (nc2Issues > 0) {
-        heuristicCount += nc2Issues;
-      } else {
-        printf("      %s[OK] No NamedColor2 tags with risky strings%s\n", ColorSuccess(), ColorReset());
-      }
     }
   }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No NamedColor2 tags with risky strings");
 }
 
 int RunHeuristic_H27_MPEMatrixOutputChannel(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 27. MPE Matrix Output Channel Validation
 // CVE refs: CVE-2026-25634 (memcpy-param-overlap), CVE-2026-22047 (CalcOp element bounds)
-printf("[H27] MPE Matrix Output Channel Validation\n");
+hc.begin(27, "MPE Matrix Output Channel Validation");
 {
-  int matrixIssues = 0;
   icUInt32Number mpeSigs[] = {
     icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
     icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
@@ -1033,17 +931,13 @@ printf("[H27] MPE Matrix Output Channel Validation\n");
         SignatureToFourCC(sig, sigStr27);
         
         if (numOut == 0 || numIn == 0) {
-          printf("      %s[WARN]  Tag '%s' elem %d: Matrix %ux%u — zero dimension%s\n",
-                 ColorCritical(), sigStr27, elemIdx, numIn, numOut, ColorReset());
-          printf("       %sRisk: Division by zero or null-pointer in matrix operations%s\n",
-                 ColorCritical(), ColorReset());
-          matrixIssues++;
+          hc.warn("Tag '%s' elem %d: Matrix %ux%u — zero dimension",
+                 sigStr27, elemIdx, numIn, numOut);
+          hc.cweNote("Risk: Division by zero or null-pointer in matrix operations");
         } else if (numOut < 3) {
-          printf("      %s[WARN]  Tag '%s' elem %d: Matrix has %u output channels (XYZ needs 3)%s\n",
-                 ColorWarning(), sigStr27, elemIdx, numOut, ColorReset());
-          printf("       %sRisk: HBO in pushXYZConvert accessing pOffset[0..2] on %u-channel matrix%s\n",
-                 ColorCritical(), numOut, ColorReset());
-          matrixIssues++;
+          hc.warn("Tag '%s' elem %d: Matrix has %u output channels (XYZ needs 3)",
+                 sigStr27, elemIdx, numOut);
+          hc.cweNote("Risk: HBO in pushXYZConvert accessing pOffset[0..2] on %u-channel matrix", numOut);
         }
       }
       
@@ -1057,38 +951,30 @@ printf("[H27] MPE Matrix Output Channel Validation\n");
         SignatureToFourCC(sig, sigStr27c);
         
         if (calcOut == 0 || calcIn == 0) {
-          printf("      %s[WARN]  Tag '%s' elem %d: Calculator %ux%u — zero dimension%s\n",
-                 ColorCritical(), sigStr27c, elemIdx, calcIn, calcOut, ColorReset());
-          matrixIssues++;
+          hc.warn("Tag '%s' elem %d: Calculator %ux%u — zero dimension",
+                 sigStr27c, elemIdx, calcIn, calcOut);
         }
       }
     }
   }
   
-  if (matrixIssues > 0) {
-    heuristicCount += matrixIssues;
-  } else {
-    printf("      %s[OK] All MPE matrix/calculator dimensions valid%s\n", ColorSuccess(), ColorReset());
-  }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All MPE matrix/calculator dimensions valid");
 }
 
 int RunHeuristic_H28_LUTDimensionValidation(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 28. LUT Dimension Validation (raw file bytes)
 // CVE refs: CVE-2026-21490, CVE-2026-21494, GHSA-x9hr-pxxc-h38p (OOM via extreme nInput^nGrid)
 // LUT8 type='mft1', LUT16 type='mft2': nInput/nOutput/nGrid parsed from raw bytes
-printf("[H28] LUT Dimension Validation (OOM Risk)\n");
+hc.begin(28, "LUT Dimension Validation (OOM Risk)");
 {
   RawFileHandle fh28 = OpenRawFile(filename);
   if (fh28) {
     size_t fs28 = (size_t)fh28.fileSize;
 
-    int lutIssues = 0;
     if (fs28 >= 132) {
       icUInt8Number hdr28[132];
       if (fread(hdr28, 1, 132, fh28.fp) == 132) {
@@ -1130,12 +1016,10 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
 
           // Spec max: nInput ≤ 16, nOutput ≤ 16
           if (nInput28 > 16 || nOutput28 > 16) {
-            printf("      %s[WARN]  Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)%s\n",
-                   ColorCritical(), sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
-                   nInput28, nOutput28, ColorReset());
-            printf("       %sRisk: Buffer overflow in grid point arrays (max 16 channels)%s\n",
-                   ColorCritical(), ColorReset());
-            lutIssues++;
+            hc.warn("Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)",
+                   sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
+                   nInput28, nOutput28);
+            hc.cweNote("Risk: Buffer overflow in grid point arrays (max 16 channels)");
             continue;
           }
 
@@ -1156,18 +1040,14 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
           // 16M entries × 4 bytes = 64MB — generous limit
           const uint64_t MAX_LUT_POINTS = 16ULL * 1024 * 1024;
           if (overflow28 || points > MAX_LUT_POINTS) {
-            printf("      %s[WARN]  Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u → %s CLUT points%s\n",
-                   ColorCritical(), sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
+            hc.warn("Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u -> %s CLUT points",
+                   sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
                    nInput28, nOutput28, nGrid28,
-                   overflow28 ? "OVERFLOW" : std::to_string(points).c_str(),
-                   ColorReset());
-            printf("       %sRisk: OOM — allocation of %s bytes in CIccCLUT::Init()%s\n",
-                   ColorCritical(),
-                   overflow28 ? ">2^64" : std::to_string(points * 4).c_str(),
-                   ColorReset());
-            lutIssues++;
+                   overflow28 ? "OVERFLOW" : std::to_string(points).c_str());
+            hc.cweNote("Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
+                   overflow28 ? ">2^64" : std::to_string(points * 4).c_str());
           } else if (nInput28 > 0 && nGrid28 > 0) {
-            printf("      [OK] Tag '%s' (%s): %ux%ux%u → %llu points\n",
+            hc.info("[OK] Tag '%s' (%s): %ux%ux%u -> %llu points",
                    sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
                    nInput28, nOutput28, nGrid28, (unsigned long long)points);
           }
@@ -1176,31 +1056,24 @@ printf("[H28] LUT Dimension Validation (OOM Risk)\n");
     }
 
 
-    if (lutIssues > 0) {
-      heuristicCount += lutIssues;
-    } else {
-      printf("      %s[OK] All LUT dimensions within safe limits%s\n", ColorSuccess(), ColorReset());
-    }
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All LUT dimensions within safe limits");
 }
 
 int RunHeuristic_H29_ColorantTableStringValidation(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 29. ColorantTable String Validation (raw file bytes)
 // CVE refs: GHSA-4wqv-pvm8-5h27 (OOB read via unterminated colorant name[32])
 // CVE-2026-27692 (HBO in TextDescription from unterminated strings)
-printf("[H29] ColorantTable String Validation\n");
+hc.begin(29, "ColorantTable String Validation");
 {
   RawFileHandle fh29 = OpenRawFile(filename);
   if (fh29) {
     size_t fs29 = (size_t)fh29.fileSize;
 
-    int clrtIssues = 0;
     if (fs29 >= 132) {
       icUInt8Number hdr29[132];
       if (fread(hdr29, 1, 132, fh29.fp) == 132) {
@@ -1238,9 +1111,7 @@ printf("[H29] ColorantTable String Validation\n");
                                           (static_cast<icUInt32Number>(typeCheck29[10])<<8) | typeCheck29[11];
 
           if (colorantCount > 256) {
-            printf("      %s[WARN]  ColorantTable: count=%u (>256) — excessive allocation risk%s\n",
-                   ColorCritical(), colorantCount, ColorReset());
-            clrtIssues++;
+            hc.warn("ColorantTable: count=%u (>256) — excessive allocation risk", colorantCount);
             continue;
           }
 
@@ -1259,15 +1130,10 @@ printf("[H29] ColorantTable String Validation\n");
               if (name29[j] == 0) { hasNull = true; break; }
             }
             if (!hasNull) {
-              printf("      %s[CRITICAL]  HEURISTIC: Colorant[%u] name not null-terminated (all 32 bytes non-zero)%s\n",
-                     ColorCritical(), ci, ColorReset());
-              printf("       %sCWE-125: Out-of-bounds Read — strlen() reads past allocation%s\n",
-                     ColorCritical(), ColorReset());
-              printf("       %sCWE-170: Improper Null Termination — ICC.1-2022-05 §10.4%s\n",
-                     ColorCritical(), ColorReset());
-              printf("       %sGHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name[32]%s\n",
-                     ColorCritical(), ColorReset());
-              clrtIssues++;
+              hc.critical("HEURISTIC: Colorant[%u] name not null-terminated (all 32 bytes non-zero)", ci);
+              hc.cweNote("CWE-125: Out-of-bounds Read — strlen() reads past allocation");
+              hc.cweNote("CWE-170: Improper Null Termination — ICC.1-2022-05 §10.4");
+              hc.cweNote("GHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name[32]");
               unterminatedCount++;
             }
           }
@@ -1275,42 +1141,32 @@ printf("[H29] ColorantTable String Validation\n");
           // Multi-entry allocation-spanning HBO detection
           if (unterminatedCount > 1) {
             size_t allocSize = (size_t)colorantCount * 38;
-            printf("      %s[CRITICAL]  HEURISTIC: %u/%u colorant entries lack null terminator%s\n",
-                   ColorCritical(), unterminatedCount, colorantCount, ColorReset());
-            printf("       %sAllocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer%s\n",
-                   ColorCritical(), colorantCount, allocSize, ColorReset());
-            printf("       %sPoC: iccDumpProfile triggers heap-buffer-overflow READ in Describe()%s\n",
-                   ColorCritical(), ColorReset());
+            hc.critical("HEURISTIC: %u/%u colorant entries lack null terminator", unterminatedCount, colorantCount);
+            hc.cweNote("Allocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer", colorantCount, allocSize);
+            hc.cweNote("PoC: iccDumpProfile triggers heap-buffer-overflow READ in Describe()");
           }
         }
       }
     }
 
 
-    if (clrtIssues > 0) {
-      heuristicCount += clrtIssues;
-    } else {
-      printf("      %s[OK] No ColorantTable string issues detected%s\n", ColorSuccess(), ColorReset());
-    }
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No ColorantTable string issues detected");
 }
 
 int RunHeuristic_H30_GamutBoundaryDescAllocation(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 30. GamutBoundaryDesc Allocation Validation (raw file bytes)
 // CVE refs: GHSA-rc3h-95ph-j363 (OOM via unvalidated triangle count in 'gbd ' tags)
-printf("[H30] GamutBoundaryDesc Allocation Validation\n");
+hc.begin(30, "GamutBoundaryDesc Allocation Validation");
 {
   RawFileHandle fh30 = OpenRawFile(filename);
   if (fh30) {
     size_t fs30 = (size_t)fh30.fileSize;
 
-    int gbdIssues = 0;
     if (fs30 >= 132) {
       icUInt8Number hdr30[132];
       if (fread(hdr30, 1, 132, fh30.fp) == 132) {
@@ -1360,50 +1216,38 @@ printf("[H30] GamutBoundaryDesc Allocation Validation\n");
 
           // Check: allocation exceeds tag size (OOM risk)
           if (totalAlloc > (uint64_t)tSz30 * 4) {
-            printf("      %s[WARN]  Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u%s\n",
-                   ColorCritical(), sig30, nVerts, nTris, nPCSCh, nDevCh, ColorReset());
-            printf("       %sAllocation: %llu bytes vs tag size %u bytes%s\n",
-                   ColorCritical(), (unsigned long long)totalAlloc, tSz30, ColorReset());
-            printf("       %sRisk: OOM in CIccTagGamutBoundaryDesc::Read()%s\n",
-                   ColorCritical(), ColorReset());
-            gbdIssues++;
+            hc.warn("Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
+                   sig30, nVerts, nTris, nPCSCh, nDevCh);
+            hc.cweNote("Allocation: %llu bytes vs tag size %u bytes", (unsigned long long)totalAlloc, tSz30);
+            hc.cweNote("Risk: OOM in CIccTagGamutBoundaryDesc::Read()");
           }
 
           // Check: negative channel counts (icUInt16Number interpreted as signed)
           if (nPCSCh > 3 || nDevCh > 15) {
-            printf("      %s[WARN]  Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range%s\n",
-                   ColorWarning(), sig30, nPCSCh, nDevCh, ColorReset());
-            printf("       %sRisk: Signed/unsigned confusion in allocation size%s\n",
-                   ColorCritical(), ColorReset());
-            gbdIssues++;
+            hc.warn("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+                   sig30, nPCSCh, nDevCh);
+            hc.cweNote("Risk: Signed/unsigned confusion in allocation size");
           }
         }
       }
     }
 
 
-    if (gbdIssues > 0) {
-      heuristicCount += gbdIssues;
-    } else {
-      printf("      %s[OK] No GamutBoundaryDesc allocation issues%s\n", ColorSuccess(), ColorReset());
-    }
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No GamutBoundaryDesc allocation issues");
 }
 
 int RunHeuristic_H31_MPEChannelCount(CIccProfile *pIcc) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 31. MPE Channel Count Validation
 // CVE refs: CVE-2026-25634 (memcpy-param-overlap from large m_nInputChannels)
 // CVE-2026-25584 (SBO in CIccTagFloatNum::GetValues)
 // CVE-2026-25585 (OOB in CIccXform3DLut::Apply)
-printf("[H31] MPE Channel Count Validation\n");
+hc.begin(31, "MPE Channel Count Validation");
 {
-  int channelIssues = 0;
   icUInt32Number mpeSigs31[] = {
     icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
     icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
@@ -1422,11 +1266,8 @@ printf("[H31] MPE Channel Count Validation\n");
 
     // MPE with extreme channel counts → memcpy overlap on stack buffers
     if (mpeIn > 32 || mpeOut > 32) {
-      printf("      %s[WARN]  Tag '%s': MPE channels in=%u out=%u (>32)%s\n",
-             ColorCritical(), sigStr31, mpeIn, mpeOut, ColorReset());
-      printf("       %sRisk: memcpy-param-overlap in Apply(), stack buffer overflow%s\n",
-             ColorCritical(), ColorReset());
-      channelIssues++;
+      hc.warn("Tag '%s': MPE channels in=%u out=%u (>32)", sigStr31, mpeIn, mpeOut);
+      hc.cweNote("Risk: memcpy-param-overlap in Apply(), stack buffer overflow");
     }
 
     // Check individual elements for channel mismatches
@@ -1439,40 +1280,30 @@ printf("[H31] MPE Channel Count Validation\n");
       icUInt16Number elemOut = pElem31->NumOutputChannels();
 
       if (elemIn > 64 || elemOut > 64) {
-        printf("      %s[WARN]  Tag '%s' elem %u: channels in=%u out=%u (extreme)%s\n",
-               ColorCritical(), sigStr31, ei, elemIn, elemOut, ColorReset());
-        printf("       %sRisk: Stack buffer overflow in element Apply()%s\n",
-               ColorCritical(), ColorReset());
-        channelIssues++;
+        hc.warn("Tag '%s' elem %u: channels in=%u out=%u (extreme)", sigStr31, ei, elemIn, elemOut);
+        hc.cweNote("Risk: Stack buffer overflow in element Apply()");
       }
     }
   }
 
-  if (channelIssues > 0) {
-    heuristicCount += channelIssues;
-  } else {
-    printf("      %s[OK] All MPE channel counts within safe limits%s\n", ColorSuccess(), ColorReset());
-  }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All MPE channel counts within safe limits");
 }
 
 int RunHeuristic_H32_TagDataTypeConfusion(CIccProfile *pIcc, const char *filename) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 32. Tag Data Type Confusion Detection (raw file bytes)
 // CVE refs: GHSA-2pjj-3c98-qp37 (type confusion in ToXmlCurve)
 // GHSA-xqq3-g894-w2h5 (HBO in IccTagXml from type confusion)
 // Checks that tag type signatures are valid printable ICC 4CC codes
-printf("[H32] Tag Data Type Confusion Detection\n");
+hc.begin(32, "Tag Data Type Confusion Detection");
 {
   RawFileHandle fh32 = OpenRawFile(filename);
   if (fh32) {
     size_t fs32 = (size_t)fh32.fileSize;
 
-    int typeConfusionCount = 0;
     if (fs32 >= 132) {
       icUInt8Number hdr32[132];
       if (fread(hdr32, 1, 132, fh32.fp) == 132) {
@@ -1577,26 +1408,18 @@ printf("[H32] Tag Data Type Confusion Detection\n");
             typeStr32[0] = static_cast<char>((dataType32>>24)&0xff); typeStr32[1] = static_cast<char>((dataType32>>16)&0xff);
             typeStr32[2] = static_cast<char>((dataType32>>8)&0xff); typeStr32[3] = static_cast<char>(dataType32&0xff); typeStr32[4] = '\0';
 
-            printf("      %s[WARN]  Tag '%s': unknown type signature '%s' (0x%08X)%s\n",
-                   ColorWarning(), sigStr32, typeStr32, dataType32, ColorReset());
-            printf("       %sRisk: Type confusion → wrong parser invoked → memory corruption%s\n",
-                   ColorCritical(), ColorReset());
-            typeConfusionCount++;
+            hc.warn("Tag '%s': unknown type signature '%s' (0x%08X)",
+                   sigStr32, typeStr32, dataType32);
+            hc.cweNote("Risk: Type confusion → wrong parser invoked → memory corruption");
           }
         }
       }
     }
 
 
-    if (typeConfusionCount > 0) {
-      heuristicCount += typeConfusionCount;
-    } else {
-      printf("      %s[OK] All tag type signatures are known ICC types%s\n", ColorSuccess(), ColorReset());
-    }
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All tag type signatures are known ICC types");
 }
 
