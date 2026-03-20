@@ -63,63 +63,106 @@ python3 iccanalyzer-lite/tests/run_tests.py   # 290 tests (21 functions), ~36s
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
 - When adding heuristics, update the test for `summary.171_heuristics` pattern
 
-## Architecture — 8 Heuristic Modules + 1 Image Analysis
+## Architecture — HeuristicCollector + 10 Heuristic Modules
 
-After v3.6.0 refactoring, heuristics are organized into standalone functions across
-8 category modules. Each heuristic is a `RunHeuristic_H##_Name()` function.
+All 171 heuristics use the `HeuristicCollector` API for structured output. Each
+heuristic is a `RunHeuristic_H##_Name()` function that calls `hc.begin()` /
+`hc.warn()` / `hc.critical()` / `hc.info()` / `hc.cweNote()` / `hc.end()` /
+`hc.skip()`. No raw `printf("[H##]...")` remains in the codebase.
+
+### HeuristicCollector API (`IccHeuristicResult.h`)
+
+```cpp
+HeuristicCollector &hc = HeuristicCollector::instance();
+hc.begin("H172", "My Heuristic Title");           // Start — prints [H172] header
+hc.info("Checked %u items", count);                // Informational detail
+hc.warn("HEURISTIC: Bad value — ICC.1 §7.2.5");   // Finding (increments count)
+hc.critical("Buffer overflow in tag '%s'", sig);   // Critical finding
+hc.cweNote("CWE-122: Heap-based buffer overflow"); // CWE classification
+hc.end("Tag structure valid");                     // Success summary — [OK]
+hc.skip("No relevant tag present");                // Skip — [SKIP]
+// All methods are printf-style variadic (vsnprintf internally)
+```
+
+### Heuristic Modules (10)
 
 | Module | Heuristics | API Level |
 |--------|-----------|-----------|
 | `IccHeuristicsHeader.cpp` | H1-H8, H15-H17 | Raw header bytes (11 functions) |
 | `IccHeuristicsTagValidation.cpp` | H9-H32 | Tag table structure via CIccProfile API |
-| `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69 | Raw file I/O fallback |
-| `IccHeuristicsDataValidation.cpp` | H56-H102 | Data integrity via CIccProfile API |
+| `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69, H153 | Raw file I/O fallback |
+| `IccHeuristicsDataValidation.cpp` | H56-H102, H146-H148, H151-H152 | Data integrity via CIccProfile API |
 | `IccHeuristicsProfileCompliance.cpp` | H103-H120 | ICC spec compliance |
 | `IccHeuristicsIntegrity.cpp` | H121-H138 | Profile integrity + CWE-400 |
 | `IccImageAnalyzer.cpp` | H139-H141, H149-H150 | TIFF/PNG/JPEG image security + ICC extraction |
-| `IccHeuristicsXmlSafety.cpp` | H142-H145 | XML serialization safety |
+| `IccHeuristicsXmlSafety.cpp` | H142-H145 | XML serialization safety (H142 uses fork isolation) |
+| `IccHeuristicsCodeQLPatterns.cpp` | H154-H161 | CodeQL-derived library vulnerability patterns |
+| `IccHeuristicsExploitGap.cpp` | H162-H171 | Exploit gap analysis (overlap, exec sigs, LUT) |
 
 ### Support Modules
 
 | Module | Purpose |
 |--------|---------|
+| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 171 heuristics |
+| `IccHeuristicPrinter.h` | Legacy printer compatibility layer |
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
 | `IccHeuristicsRegistry.h` | 171-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
-| `IccAnalyzerJson.cpp/.h` | `--json` structured output mode |
+| `IccAnalyzerJson.cpp/.h` | `--json` structured output mode (captures via pipe/dup2) |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
 | `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
 - Gate: if `heuristicCount >= kCriticalHeuristicThreshold`, library phase is skipped
+- **Phase 5 (future)**: Replace `CaptureAndParseAnalysis()` pipe/dup2 stdout capture
+  with `HeuristicCollector::instance().results()` for direct structured output
 
 ## Adding a New Heuristic
 
 1. Choose the next ID: **H172** (current max is H171)
-2. Add `RunHeuristic_H160_Name()` function to the appropriate category file:
+2. Add `RunHeuristic_H172_Name()` function to the appropriate category file:
    - Tag structure → `IccHeuristicsTagValidation.cpp`
    - Data integrity → `IccHeuristicsDataValidation.cpp`
    - Spec compliance → `IccHeuristicsProfileCompliance.cpp`
    - Profile integrity → `IccHeuristicsIntegrity.cpp`
    - Image analysis → `IccImageAnalyzer.cpp`
-3. Add function declaration to the corresponding `.h` file
-4. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
-5. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-6. Update heuristic count (171→172) in these files:
+   - CodeQL-derived → `IccHeuristicsCodeQLPatterns.cpp`
+   - Exploit gap → `IccHeuristicsExploitGap.cpp`
+3. **Use HeuristicCollector API** (MANDATORY — no raw printf):
+   ```cpp
+   int RunHeuristic_H172_MyCheck(CIccProfile *pIcc) {
+     HeuristicCollector &hc = HeuristicCollector::instance();
+     hc.begin("H172", "My Check Title (ICC.1-2022-05 §X.Y)");
+
+     CIccTag *pTag = pIcc->FindTag(icSigSomeTag);
+     if (!pTag) return hc.skip("No relevant tag present");
+
+     // ... validation logic ...
+     if (badCondition) {
+       hc.warn("HEURISTIC: Description — ICC.1-2022-05 §X.Y.Z");
+       hc.cweNote("CWE-NNN: Description");
+     }
+     return hc.end("Check passed");
+   }
+   ```
+4. Add function declaration to the corresponding `.h` file
+5. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
+6. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
+7. Update heuristic count (171→172) in these files:
    - `iccanalyzer-lite/tests/run_tests.py` — `summary.171_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
    - `mcp-server/icc_profile_mcp.py`
    - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
-7. Add ICC spec citation in printf: `ICC.1-2022-05 §X.Y.Z`
 
-**Note**: After v3.6.0 refactoring, adding a new heuristic requires editing only
-4 files (function + declaration + dispatcher + registry entry) instead of the
-previous 7+ file pattern.
+**Migration pitfall warning**: When writing `hc.info()`, `hc.warn()`, `hc.critical()`
+calls, ensure format string placeholders (`%s`, `%u`, `%d`) match the arguments.
+Missing `%s` causes args to be silently dropped (caught only by `-Wformat-extra-args`
+or CodeQL `cpp/too-many-format-arguments`). Always build with warnings enabled.
 
 ### Implemented TIFF Heuristics (H139-H141, H149-H150)
 
@@ -281,14 +324,14 @@ PoC: #577.
 |-------|--------|-------|
 | H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
 | H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69, H153-H171 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) + CodeQL-driven library pattern detection (alloc size, overflow, mismatch, enum, UAF, format string, stack escape) |
-| H56-H102 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves) |
+| H33-H55, H57-H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) |
+| H56-H102, H146-H148, H151-H152 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves, embedded profiles) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
 | H139-H141, H149-H150 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) |
 | H142-H145 | IccHeuristicsXmlSafety.cpp | XML serialization safety (ToXml crash, arrays, strings, curves) |
-| H146-H148 | IccHeuristicsDataValidation.cpp | Advanced data validation (SBO GetValues, NPD post-Read, memcpy bounds) |
-| H151-H152 | IccHeuristicsDataValidation.cpp | Calculator enum + SingleSampledCurve OOM (added upstream) |
+| H154-H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived library patterns (alloc, overflow, enum, UAF, format string) |
+| H162-H171 | IccHeuristicsExploitGap.cpp | Exploit gap (overlap, exec sigs, LUT, div-zero, null, curve params) |
 
 ## CVE Coverage (93 iccDEV Advisories)
 
