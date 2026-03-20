@@ -59,6 +59,21 @@ std::string JsonEscapeString(const std::string &s) {
   return out;
 }
 
+std::vector<std::string> ParseCSVRefs(const char *csv) {
+  std::vector<std::string> out;
+  if (!csv) return out;
+  std::string refs(csv);
+  size_t start = 0;
+  for (size_t pos = 0; pos <= refs.size(); pos++) {
+    if (pos == refs.size() || refs[pos] == ',') {
+      if (pos > start)
+        out.push_back(refs.substr(start, pos - start));
+      start = pos + 1;
+    }
+  }
+  return out;
+}
+
 CapturedAnalysis CaptureAndParseAnalysis(const char *profilePath,
                                           const char *fingerprint_db) {
   CapturedAnalysis result;
