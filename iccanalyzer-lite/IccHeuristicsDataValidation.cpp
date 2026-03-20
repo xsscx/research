@@ -1615,7 +1615,7 @@ int RunHeuristic_H95_SparseMatrixArrayBoundsValidation(CIccProfile *pIcc) {
       icUInt32Number nChannels = pSma->GetChannelsPerMatrix();
       icUInt32Number nBytesPerMatrix = pSma->GetBytesPerMatrix();
 
-      hc.info("Sparse matrix array '': channels=%u, bytes/matrix=%u", info.GetTagSigName(sit->TagInfo.sig), nChannels, nBytesPerMatrix);
+      hc.info("Sparse matrix array '%s': channels=%u, bytes/matrix=%u", info.GetTagSigName(sit->TagInfo.sig), nChannels, nBytesPerMatrix);
 
       if (nChannels == 0) {
         hc.critical("Zero channels per matrix — potential division-by-zero");
@@ -1671,7 +1671,7 @@ int RunHeuristic_H96_EmbeddedProfileValidation(CIccProfile *pIcc) {
         // Validate embedded profile header
         icHeader &embedHdr = pEmbeddedProfile->m_Header;
 
-        hc.info("Embedded profile: class=, colorSpace=, version=%u.%u", info.GetProfileClassSigName(embedHdr.deviceClass), info.GetColorSpaceSigName(embedHdr.colorSpace), embedHdr.version >> 24, (embedHdr.version >> 20) & 0xF);
+        hc.info("Embedded profile: class=%s, colorSpace=%s, version=%u.%u", info.GetProfileClassSigName(embedHdr.deviceClass), info.GetColorSpaceSigName(embedHdr.colorSpace), embedHdr.version >> 24, (embedHdr.version >> 20) & 0xF);
 
         // Check for recursive embedding — potential infinite recursion (CWE-674)
         CIccTag *pInnerEmbed = pEmbeddedProfile->FindTag(icSigEmbeddedV5ProfileTag);
@@ -1699,8 +1699,6 @@ int RunHeuristic_H96_EmbeddedProfileValidation(CIccProfile *pIcc) {
     }
   } else {
     return hc.skip("No embedded profile tag present");
-  }
-  if (pIcc->FindTag(icSigEmbeddedV5ProfileTag)) {
   }
 }
 
@@ -1763,8 +1761,6 @@ int RunHeuristic_H97_ProfileSequenceIdValidation(CIccProfile *pIcc) {
       }
   } else {
     return hc.skip("No profile sequence ID tag present");
-  }
-  if (pIcc->FindTag(icSigProfileSequceIdTag)) {
   }
 }
 
@@ -1917,7 +1913,7 @@ int RunHeuristic_H99_EmbeddedImageTagValidation(CIccProfile *pIcc) {
     if (tagType == icSigEmbeddedHeightImageType || tagType == icSigEmbeddedNormalImageType) {
       foundEmbedImg = true;
       const char *typeName = (tagType == icSigEmbeddedHeightImageType) ? "HeightImage" : "NormalImage";
-      hc.info("Found  tag in ''", typeName, info.GetTagSigName(sit->TagInfo.sig));
+      hc.info("Found %s tag in '%s'", typeName, info.GetTagSigName(sit->TagInfo.sig));
 
       // Validate tag size is reasonable
       if (sit->TagInfo.size > 100 * 1024 * 1024) {
@@ -1968,8 +1964,6 @@ int RunHeuristic_H100_ProfileSequenceDescValidation(CIccProfile *pIcc) {
     }
   } else {
     return hc.skip("No profile sequence description tag");
-  }
-  if (pPseqTag) {
   }
 }
 
