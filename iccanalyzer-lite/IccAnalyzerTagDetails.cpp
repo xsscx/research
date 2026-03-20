@@ -652,7 +652,7 @@ static int AnalyzeV5Summary(CIccProfile *pIcc)
     }
   }
 
-  printf("\n  MPE Tags:               %d (multiProcessElementType)\n", mpeTagCount);
+  printf("\n  MPE Tags:               %d (multiProcessElementsType)\n", mpeTagCount);
   printf("  Total MPE Elements:     %d\n", totalElements);
   printf("  Calculator Elements:    %d\n", calcCount);
   printf("  Late-Binding Elements:  %d (spectral observer/emission)\n", lateBindCount);

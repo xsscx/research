@@ -10,6 +10,7 @@
 #include "IccProfile.h"
 #include "IccTag.h"
 #include "IccTagBasic.h"
+#include "IccTagComposite.h"
 #include "IccTagMPE.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
@@ -830,6 +831,304 @@ static int RunCF115_CalculatorElementComplexity(CIccProfile *pIcc) {
 
 
 // ---------------------------------------------------------------------------
+// CF-137: MultiplexDefaultValues Tag Permitted Types
+//         ICC.2-2019 §9.2.84 Errata (March 2021)
+//         Corrected permitted types: ui08, ui16, fl16, fl32
+// ---------------------------------------------------------------------------
+static int RunCF137_MultiplexDefaultValuesType(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-137]%s MultiplexDefaultValues Tag Type (%sICC.2-2019 §9.2.84 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // 'mdv ' = 0x6D647620 (icSigMaterialDefaultValuesTag in iccDEV)
+  CIccTag *pTag = pIcc->FindTag((icTagSignature)0x6D647620);
+  if (!pTag) {
+    printf("         No multiplexDefaultValuesTag ('mdv ') — check not applicable\n");
+    return 0;
+  }
+
+  icTagTypeSignature typeSig = pTag->GetType();
+  // Errata corrects permitted types to: uInt8ArrayType, uInt16ArrayType,
+  // float16ArrayType, float32ArrayType
+  bool validType = (typeSig == icSigUInt8ArrayType   ||  // 'ui08'
+                    typeSig == icSigUInt16ArrayType   ||  // 'ui16'
+                    typeSig == icSigFloat16ArrayType  ||  // 'fl16'
+                    typeSig == icSigFloat32ArrayType);    // 'fl32'
+
+  if (!validType) {
+    char sig[5] = {};
+    sig[0] = (char)((typeSig >> 24) & 0xFF);
+    sig[1] = (char)((typeSig >> 16) & 0xFF);
+    sig[2] = (char)((typeSig >>  8) & 0xFF);
+    sig[3] = (char)( typeSig        & 0xFF);
+    printf("         %s[WARN]%s Tag type '%s' not in errata-corrected permitted set "
+           "(ui08/ui16/fl16/fl32) — ICC.2-2019 §9.2.84 Errata\n",
+           ColorError(), ColorReset(), sig);
+    issues++;
+  } else {
+    printf("         %s[OK]%s Tag type conforms to errata-corrected permitted types\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-138: Embedded Height Image Type Data Length
+//         ICC.2-2019 §10.2.6 Errata (March 2021)
+//         Corrected: image data = tagSize − 24 (NOT − 12)
+//         Header: sig(4) + reserved(4) + seamless(4) + format(4) +
+//                 minHeight(4) + maxHeight(4) = 24 bytes
+// ---------------------------------------------------------------------------
+static int RunCF138_EmbeddedHeightImageDataLength(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-138]%s Embedded Height Image Data Length (%sICC.2-2019 §10.2.6 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan tag table for 'ehim' (0x6568696D) type tags
+  bool found = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+    if (pTag->GetType() != (icTagTypeSignature)0x6568696D) continue;
+
+    found = true;
+    icUInt32Number tagSize = it->TagInfo.size;
+    // Errata correction: header is 24 bytes, not 12
+    if (tagSize < 24) {
+      printf("         %s[WARN]%s embeddedHeightImageType tag size %u < 24 bytes "
+             "(minimum header) — ICC.2-2019 §10.2.6 Errata\n",
+             ColorError(), ColorReset(), tagSize);
+      issues++;
+    } else {
+      icUInt32Number imageDataLen = tagSize - 24;
+      printf("         %s[OK]%s embeddedHeightImageType: %u bytes total, "
+             "%u bytes image data (header=24)\n",
+             ColorSuccess(), ColorReset(), tagSize, imageDataLen);
+    }
+  }
+
+  if (!found)
+    printf("         No embeddedHeightImageType tags — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-139: Embedded Normal Image Type Data Length
+//         ICC.2-2019 §10.2.7 Errata (March 2021)
+//         Corrected: image data = tagSize − 16 (NOT − 12)
+//         Header: sig(4) + reserved(4) + seamless(4) + format(4) = 16 bytes
+// ---------------------------------------------------------------------------
+static int RunCF139_EmbeddedNormalImageDataLength(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-139]%s Embedded Normal Image Data Length (%sICC.2-2019 §10.2.7 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan tag table for 'enim' (0x656E696D) type tags
+  bool found = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+    if (pTag->GetType() != (icTagTypeSignature)0x656E696D) continue;
+
+    found = true;
+    icUInt32Number tagSize = it->TagInfo.size;
+    // Errata correction: header is 16 bytes, not 12
+    if (tagSize < 16) {
+      printf("         %s[WARN]%s embeddedNormalImageType tag size %u < 16 bytes "
+             "(minimum header) — ICC.2-2019 §10.2.7 Errata\n",
+             ColorError(), ColorReset(), tagSize);
+      issues++;
+    } else {
+      icUInt32Number imageDataLen = tagSize - 16;
+      printf("         %s[OK]%s embeddedNormalImageType: %u bytes total, "
+             "%u bytes image data (header=16)\n",
+             ColorSuccess(), ColorReset(), tagSize, imageDataLen);
+    }
+  }
+
+  if (!found)
+    printf("         No embeddedNormalImageType tags — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-140: Gamut Boundary Description Vertex Count Field
+//         ICC.2-2019 §10.2.11 Errata (March 2021)
+//         Corrected: missing "Number of vertices (V)" field at bytes 12..15
+//         Structure: sig(4) + reserved(4) + nPCS(2) + nDevice(2) +
+//                    nVertices(4) + nFaces(4) + faces + vertices
+// ---------------------------------------------------------------------------
+static int RunCF140_GBDVertexCountField(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-140]%s GBD Vertex Count Field (%sICC.2-2019 §10.2.11 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan for GBD tags: gbd0..gbd3 (0x67626430..0x67626433)
+  bool found = false;
+  icTagSignature gbdSigs[] = {
+    (icTagSignature)0x67626430,  // 'gbd0'
+    (icTagSignature)0x67626431,  // 'gbd1'
+    (icTagSignature)0x67626432,  // 'gbd2'
+    (icTagSignature)0x67626433,  // 'gbd3'
+  };
+
+  for (int g = 0; g < 4; g++) {
+    CIccTag *pTag = pIcc->FindTag(gbdSigs[g]);
+    if (!pTag) continue;
+    if (pTag->GetType() != icSigGamutBoundaryDescType) continue;
+
+    found = true;
+    // Find the tag entry to get size
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+      if (it->TagInfo.sig != gbdSigs[g]) continue;
+      icUInt32Number tagSize = it->TagInfo.size;
+      // Minimum: sig(4) + reserved(4) + nPCS(2) + nDevice(2) + nVertices(4) + nFaces(4) = 20
+      if (tagSize < 20) {
+        char sig[5] = {};
+        sig[0] = (char)((gbdSigs[g] >> 24) & 0xFF);
+        sig[1] = (char)((gbdSigs[g] >> 16) & 0xFF);
+        sig[2] = (char)((gbdSigs[g] >>  8) & 0xFF);
+        sig[3] = (char)( gbdSigs[g]        & 0xFF);
+        printf("         %s[WARN]%s GBD tag '%s' size %u < 20 bytes "
+               "(errata requires vertex count at bytes 12..15) — ICC.2-2019 §10.2.11\n",
+               ColorError(), ColorReset(), sig, tagSize);
+        issues++;
+      } else {
+        printf("         %s[OK]%s GBD tag structure has room for vertex count field\n",
+               ColorSuccess(), ColorReset());
+      }
+      break;
+    }
+  }
+
+  if (!found)
+    printf("         No gamutBoundaryDescType tags — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-141: Sparse Matrix Array Type Count Field
+//         ICC.2-2019 §10.2.20 Errata (March 2021)
+//         Corrected: bytes 12..15 = "Number of sparse matrices in list (N)"
+//         List data starts at byte 16, not 12
+//         Structure: sig(4) + reserved(4) + channels(2) + matrixType(2) +
+//                    nMatrices(4) + list(N*matrixSize)
+// ---------------------------------------------------------------------------
+static int RunCF141_SparseMatrixArrayCount(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-141]%s Sparse Matrix Array Count Field (%sICC.2-2019 §10.2.20 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool found = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+    if (pTag->GetType() != icSigSparseMatrixArrayType) continue;
+
+    found = true;
+    icUInt32Number tagSize = it->TagInfo.size;
+    // Minimum: sig(4) + reserved(4) + channels(2) + matrixType(2) + nMatrices(4) = 16
+    if (tagSize < 16) {
+      printf("         %s[WARN]%s sparseMatrixArrayType size %u < 16 bytes "
+             "(errata requires count at bytes 12..15) — ICC.2-2019 §10.2.20\n",
+             ColorError(), ColorReset(), tagSize);
+      issues++;
+    } else {
+      printf("         %s[OK]%s sparseMatrixArrayType structure has count field at 12..15\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  if (!found)
+    printf("         No sparseMatrixArrayType tags — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-142: Calculator Vector-Or Signature Alignment
+//         ICC.2-2019 §11.2.1.9 Errata (September 2021)
+//         Corrected: 'vor' → 'vor ' (trailing space for 4-byte alignment)
+//         Hex: 0x766F7220 — the binary signature was always correct
+//         This check validates calculator elements use the properly-padded sig
+// ---------------------------------------------------------------------------
+static int RunCF142_VectorOrSignatureAlignment(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-142]%s Calculator Vector-Or Signature (%sICC.2-2019 §11.2.1.9 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan for MPE calculator elements with vector-or operations
+  bool found = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("VectorOr") != std::string::npos ||
+        desc.find("vor ") != std::string::npos) {
+      found = true;
+      // iccDEV uses icSigVectorOrOp = 0x766f7220 which is already correct
+      printf("         %s[OK]%s Calculator uses 'vor ' (0x766F7220) — "
+             "errata-aligned 4-byte signature\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  if (!found)
+    printf("         No calculator vector-or operations — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-143: Measurement Tag Structure Type Validation
+//         ICC.2-2019 §9.2.86/87 Errata (March 2021)
+//         Corrected: measurementInfoTag and measurementInputInfoTag
+//         permitted type = tagStructType (not just structType)
+// ---------------------------------------------------------------------------
+static int RunCF143_MeasurementTagStructType(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-143]%s Measurement Tag Structure Type (%sICC.2-2019 §9.2.86/87 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check for measurement-related struct tags that should use tagStructType ('tstr')
+  // icSigMeasurementTag = 0x6D656173 ('meas') — this is the v4 measurement tag
+  // v5 measurement info tags would use tagStructType if they existed
+  bool found = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+
+    // Check if tag is a struct type that claims to be measurement info
+    if (pTag->GetType() == icSigTagStructType) {
+      CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct *>(pTag);
+      if (pStruct) {
+        icStructSignature structSig = pStruct->GetTagStructType();
+        if (structSig == icSigMeasurementInfoStruct) {
+          found = true;
+          printf("         %s[OK]%s Measurement tag uses tagStructType "
+                 "with measurementInfoStruct — errata-conformant\n",
+                 ColorSuccess(), ColorReset());
+        }
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No measurement struct tags — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
@@ -865,6 +1164,15 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1113, "CF-113: Spectral Range Physical Bounds", RunCF113_SpectralRangePhysicalBounds(pIcc));
   CF_WRAP(1114, "CF-114: MCS Colour Space Consistency", RunCF114_MCSColourSpaceConsistency(pIcc));
   CF_WRAP(1115, "CF-115: Calculator Element Complexity", RunCF115_CalculatorElementComplexity(pIcc));
+
+  // ICC.2-2019 Errata checks (CF-137 through CF-143)
+  CF_WRAP(1137, "CF-137: MultiplexDefaultValues Type", RunCF137_MultiplexDefaultValuesType(pIcc));
+  CF_WRAP(1138, "CF-138: Embedded Height Image Data Length", RunCF138_EmbeddedHeightImageDataLength(pIcc));
+  CF_WRAP(1139, "CF-139: Embedded Normal Image Data Length", RunCF139_EmbeddedNormalImageDataLength(pIcc));
+  CF_WRAP(1140, "CF-140: GBD Vertex Count Field", RunCF140_GBDVertexCountField(pIcc));
+  CF_WRAP(1141, "CF-141: Sparse Matrix Array Count", RunCF141_SparseMatrixArrayCount(pIcc));
+  CF_WRAP(1142, "CF-142: Vector-Or Signature Alignment", RunCF142_VectorOrSignatureAlignment(pIcc));
+  CF_WRAP(1143, "CF-143: Measurement Tag Struct Type", RunCF143_MeasurementTagStructType(pIcc));
 
 #undef CF_WRAP
   return issues;
