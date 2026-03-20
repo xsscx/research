@@ -470,6 +470,47 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-122", "Profile Date/Time Plausibility",
    "§7.2.8 (date year in plausible range)", "ICC.1-2022-05",
    CFSeverity::WARNING, CFCategory::HEADER},
+
+  // ADGC (Adaptive Gain Curve) — ICC.1 Amendment April 2025
+  {"CF-123", "ADGC Class Restriction",
+   "ADGC §3 (RGB + Input|Display only)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-124", "ADGC Type Signature",
+   "ADGC Table 1 (type 'adgc' = 0x61646763)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-125", "ADGC Function Type ID",
+   "ADGC Table 1 (functionTypeID must be 1)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-126", "ADGC Reserved Bytes",
+   "ADGC Table 1 (bytes 4-7 shall be 0)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-127", "ADGC Float Field Finiteness",
+   "ADGC Table 1 (all float32 fields finite)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-128", "ADGC Weight Coefficient Sum",
+   "ADGC §5 (kR+kG+kB+kMax+kMin+kComp ≈ 1.0)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-129", "ADGC Curve Position Bounds",
+   "ADGC Table 1 (positionNumber within tag)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-130", "ADGC Image-Specific GUID Flags",
+   "ADGC §6 (GUID≠0 → flags bits 0,1 set)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-131", "ADGC Headroom Range Plausibility",
+   "ADGC Table 1 (headroom log2 in reasonable range)", "ICC.1-ADGC-2025",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-132", "ADGC Curve Data Monotonicity",
+   "ADGC Table 2 (x values monotonically increasing)", "ICC.1-ADGC-2025",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =
