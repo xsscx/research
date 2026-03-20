@@ -51,4 +51,8 @@ std::string StripAnsiCodes(const std::string &s);
 /// Escape a string for JSON output (quotes, backslashes, control chars).
 std::string JsonEscapeString(const std::string &s);
 
+/// Split a comma-separated string (e.g., "CVE-2023-1234,GHSA-xxxx-yyyy")
+/// into individual ref strings. Trims whitespace around separators.
+std::vector<std::string> ParseCSVRefs(const char *csv);
+
 #endif // ICCANALYZERCAPTURE_H
