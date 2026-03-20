@@ -1503,6 +1503,284 @@ def synth_v4_wtpt_not_d50():
                          color_space=b"RGB ", pcs=b"XYZ ")
 
 
+# ── ADGC (Adaptive Gain Curve) test profiles ────────────────────────────────
+
+def _make_adgc_tag(
+    type_sig=b"adgc",
+    func_type=1,
+    reserved=0,
+    guid=b"\x00" * 16,
+    h_baseline=3.0,
+    h_alternate=6.0,
+    r_gain_min=0.0, r_gain_max=6.0, k_red=0.2126,
+    g_gain_min=0.0, g_gain_max=6.0, k_green=0.7152,
+    b_gain_min=0.0, b_gain_max=6.0, k_blue=0.0722,
+    k_max=0.0, k_min=0.0, k_component=0.0,
+    pre_cicp=0, post_cicp=0,
+    a2b0_headroom=3.0, a2b1_headroom=0.0, a2b2_headroom=0.0,
+    curve_data=None,
+    nan_weights=False,
+):
+    """Build an adaptiveGainCurveType tag (128-byte header + curve data).
+
+    ADGC header layout (128 bytes):
+      0-3:     type sig 'adgc' (4)
+      4-7:     reserved (4)
+      8-11:    funcTypeID (uInt32)
+      12-27:   GUID (16)
+      28-31:   H_baseline (float32)
+      32-35:   H_alternate (float32)
+      36-39:   Red GainMin (float32)
+      40-43:   Red GainMax (float32)
+      44-47:   kRed (float32)
+      48-51:   Green GainMin (float32)
+      52-55:   Green GainMax (float32)
+      56-59:   kGreen (float32)
+      60-63:   Blue GainMin (float32)
+      64-67:   Blue GainMax (float32)
+      68-71:   kBlue (float32)
+      72-75:   kMax (float32)
+      76-79:   kMin (float32)
+      80-83:   kComponent (float32)
+      84-87:   PreGainCICP (uInt32)
+      88-91:   PostGainCICP (uInt32)
+      92-95:   A2B0 target headroom (float32)
+      96-99:   A2B1 target headroom (float32)
+      100-103: A2B2 target headroom (float32)
+      104-111: Red curve positionNumber (offset + size, 8 bytes)
+      112-119: Green curve positionNumber (8 bytes)
+      120-127: Blue curve positionNumber (8 bytes)
+    """
+    import math
+
+    # Default curve: 3 triplets {x, y, slope} for each channel
+    if curve_data is None:
+        curve_data = [
+            (0.0, 0.0, 1.0),
+            (0.5, 0.5, 1.0),
+            (1.0, 1.0, 1.0),
+        ]
+
+    # Build curve data: uInt32 count + triplets of float32
+    curve_count = len(curve_data)
+    curve_bytes = struct.pack(">I", curve_count)
+    for x, y, slope in curve_data:
+        curve_bytes += struct.pack(">fff", x, y, slope)
+    # Pad to 4-byte boundary
+    while len(curve_bytes) % 4:
+        curve_bytes += b"\x00"
+
+    curve_size = len(curve_bytes)
+
+    # Curve positions: all 3 channels share the same curve data
+    # Offset relative to start of tag data (after header)
+    curve_offset = 128  # curves start right after 128-byte header
+
+    # Build 128-byte header
+    hdr = bytearray(128)
+    hdr[0:4] = type_sig[:4] if len(type_sig) >= 4 else type_sig + b"\x00" * (4 - len(type_sig))
+    struct.pack_into(">I", hdr, 4, reserved)
+    struct.pack_into(">I", hdr, 8, func_type)
+    hdr[12:28] = guid[:16]
+
+    if nan_weights:
+        nan_val = float('nan')
+        struct.pack_into(">f", hdr, 28, h_baseline)
+        struct.pack_into(">f", hdr, 32, h_alternate)
+        struct.pack_into(">f", hdr, 36, r_gain_min)
+        struct.pack_into(">f", hdr, 40, r_gain_max)
+        struct.pack_into(">f", hdr, 44, nan_val)  # NaN weight
+        struct.pack_into(">f", hdr, 48, g_gain_min)
+        struct.pack_into(">f", hdr, 52, g_gain_max)
+        struct.pack_into(">f", hdr, 56, nan_val)  # NaN weight
+        struct.pack_into(">f", hdr, 60, b_gain_min)
+        struct.pack_into(">f", hdr, 64, b_gain_max)
+        struct.pack_into(">f", hdr, 68, nan_val)  # NaN weight
+    else:
+        struct.pack_into(">f", hdr, 28, h_baseline)
+        struct.pack_into(">f", hdr, 32, h_alternate)
+        struct.pack_into(">f", hdr, 36, r_gain_min)
+        struct.pack_into(">f", hdr, 40, r_gain_max)
+        struct.pack_into(">f", hdr, 44, k_red)
+        struct.pack_into(">f", hdr, 48, g_gain_min)
+        struct.pack_into(">f", hdr, 52, g_gain_max)
+        struct.pack_into(">f", hdr, 56, k_green)
+        struct.pack_into(">f", hdr, 60, b_gain_min)
+        struct.pack_into(">f", hdr, 64, b_gain_max)
+        struct.pack_into(">f", hdr, 68, k_blue)
+
+    struct.pack_into(">f", hdr, 72, k_max)
+    struct.pack_into(">f", hdr, 76, k_min)
+    struct.pack_into(">f", hdr, 80, k_component)
+    struct.pack_into(">I", hdr, 84, pre_cicp)
+    struct.pack_into(">I", hdr, 88, post_cicp)
+    struct.pack_into(">f", hdr, 92, a2b0_headroom)
+    struct.pack_into(">f", hdr, 96, a2b1_headroom)
+    struct.pack_into(">f", hdr, 100, a2b2_headroom)
+
+    # positionNumber: offset (4 bytes) + size (4 bytes)
+    struct.pack_into(">II", hdr, 104, curve_offset, curve_size)  # Red
+    struct.pack_into(">II", hdr, 112, curve_offset, curve_size)  # Green (shared)
+    struct.pack_into(">II", hdr, 120, curve_offset, curve_size)  # Blue (shared)
+
+    return bytes(hdr) + curve_bytes
+
+
+def synth_adgc_valid_rgb_input():
+    """Valid RGB/Input profile with well-formed ADGC tag (CF-123 passes)."""
+    adgc_data = _make_adgc_tag()
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Valid RGB Input")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"scnr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_cmyk_violation():
+    """CMYK profile with ADGC tag — violates CF-123 class restriction."""
+    adgc_data = _make_adgc_tag()
+    tags = [
+        (b"desc", make_mluc_tag("ADGC CMYK Violation")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"prtr", color_space=b"CMYK",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bad_functype():
+    """ADGC with funcTypeID=2 instead of required 1 (triggers CF-125)."""
+    adgc_data = _make_adgc_tag(func_type=2)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Bad FuncType")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bad_reserved():
+    """ADGC with non-zero reserved bytes (triggers CF-126)."""
+    adgc_data = _make_adgc_tag(reserved=0xDEADBEEF)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Bad Reserved")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_nan_weights():
+    """ADGC with NaN in weight coefficient fields (triggers CF-127)."""
+    adgc_data = _make_adgc_tag(nan_weights=True)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC NaN Weights")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bad_weight_sum():
+    """ADGC with weight coefficients summing to 2.0 (triggers CF-128)."""
+    adgc_data = _make_adgc_tag(
+        k_red=0.5, k_green=0.5, k_blue=0.5,
+        k_max=0.3, k_min=0.1, k_component=0.1,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Bad Weight Sum")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_non_monotonic_curve():
+    """ADGC with non-monotonic curve x-values (triggers CF-132)."""
+    bad_curve = [
+        (0.0, 0.0, 1.0),
+        (0.8, 0.8, 1.0),  # x decreases: 0.8 → 0.3
+        (0.3, 0.3, 1.0),
+        (1.0, 1.0, 1.0),
+    ]
+    adgc_data = _make_adgc_tag(curve_data=bad_curve)
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Non-Monotonic Curve")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_adgc_bad_type_sig():
+    """ADGC with wrong type signature (triggers CF-124)."""
+    adgc_data = _make_adgc_tag(type_sig=b"XXXX")
+    tags = [
+        (b"desc", make_mluc_tag("ADGC Bad Type Sig")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ADGC", adgc_data),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -1577,6 +1855,15 @@ def main():
         "cf_rig0_wrong_class.icc": synth_rig0_wrong_class(),
         "cf_implausible_date.icc": synth_implausible_date(),
         "cf_v4_wtpt_not_d50.icc": synth_v4_wtpt_not_d50(),
+        # ADGC (Adaptive Gain Curve) test profiles
+        "cf_adgc_valid_rgb_input.icc": synth_adgc_valid_rgb_input(),
+        "cf_adgc_cmyk_violation.icc": synth_adgc_cmyk_violation(),
+        "cf_adgc_bad_functype.icc": synth_adgc_bad_functype(),
+        "cf_adgc_bad_reserved.icc": synth_adgc_bad_reserved(),
+        "cf_adgc_nan_weights.icc": synth_adgc_nan_weights(),
+        "cf_adgc_bad_weight_sum.icc": synth_adgc_bad_weight_sum(),
+        "cf_adgc_non_monotonic.icc": synth_adgc_non_monotonic_curve(),
+        "cf_adgc_bad_type_sig.icc": synth_adgc_bad_type_sig(),
     }
 
     for name, data in profiles.items():

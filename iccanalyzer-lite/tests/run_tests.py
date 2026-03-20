@@ -2166,6 +2166,94 @@ def test_conformance_checks(suite):
         )
 
 
+def test_adgc_conformance(suite):
+    """Test ADGC (Adaptive Gain Curve) conformance checks CF-123..CF-132."""
+    corpus = str(Path(__file__).resolve().parent / "corpus")
+
+    # --- CF-123: ADGC Class Restriction ---
+    # CMYK profile with ADGC must trigger CF-123
+    suite.assert_output_contains(
+        "adgc.cf123.cmyk_violation",
+        ["-a", f"{corpus}/cf_adgc_cmyk_violation.icc"],
+        r"CF-123"
+    )
+    # Valid RGB/Input with ADGC should NOT trigger CF-123
+    suite.assert_output_not_contains(
+        "adgc.cf123.rgb_input_ok",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"CF-123.*\[FAIL\]"
+    )
+
+    # --- CF-124: ADGC Type Signature ---
+    # Wrong type sig must trigger CF-124
+    suite.assert_output_contains(
+        "adgc.cf124.bad_type_sig",
+        ["-a", f"{corpus}/cf_adgc_bad_type_sig.icc"],
+        r"CF-124"
+    )
+
+    # --- CF-125: Function Type ID ---
+    # funcType=2 must trigger CF-125
+    suite.assert_output_contains(
+        "adgc.cf125.bad_functype",
+        ["-a", f"{corpus}/cf_adgc_bad_functype.icc"],
+        r"CF-125"
+    )
+
+    # --- CF-126: Reserved Bytes ---
+    # Non-zero reserved must trigger CF-126
+    suite.assert_output_contains(
+        "adgc.cf126.bad_reserved",
+        ["-a", f"{corpus}/cf_adgc_bad_reserved.icc"],
+        r"CF-126"
+    )
+
+    # --- CF-127: Float Field Finiteness ---
+    # NaN weights must trigger CF-127
+    suite.assert_output_contains(
+        "adgc.cf127.nan_weights",
+        ["-a", f"{corpus}/cf_adgc_nan_weights.icc"],
+        r"CF-127"
+    )
+
+    # --- CF-128: Weight Coefficient Sum ---
+    # Weights summing to 2.0 must trigger CF-128
+    suite.assert_output_contains(
+        "adgc.cf128.bad_weight_sum",
+        ["-a", f"{corpus}/cf_adgc_bad_weight_sum.icc"],
+        r"CF-128"
+    )
+
+    # --- CF-132: Curve Data Monotonicity ---
+    # Non-monotonic x-values must trigger CF-132
+    suite.assert_output_contains(
+        "adgc.cf132.non_monotonic",
+        ["-a", f"{corpus}/cf_adgc_non_monotonic.icc"],
+        r"CF-132"
+    )
+
+    # --- Valid profile: no ADGC failures ---
+    suite.assert_output_not_contains(
+        "adgc.valid.no_cf_fail",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"CF-12[4-9].*\[FAIL\]|CF-13[0-2].*\[FAIL\]"
+    )
+
+    # --- ADGC checks produce output for valid profiles ---
+    suite.assert_output_contains(
+        "adgc.valid.has_adgc_check",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"ADGC"
+    )
+
+    # --- Profile without ADGC tag: CF-123..CF-132 should not fire false alarms ---
+    suite.assert_output_not_contains(
+        "adgc.no_tag.no_false_alarm",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-12[3-9].*\[FAIL\]|CF-13[0-2].*\[FAIL\]"
+    )
+
+
 def test_iccdev_tool_conformance(suite):
     """Test iccDEV upstream tools against reference ICC profiles."""
     # Only run if iccDEV tools are built
@@ -2361,6 +2449,7 @@ examples:
         ("PAWG Output", test_pawg_output),
         ("LUT Text I/O", test_lut_text_io),
         ("Conformance Checks", test_conformance_checks),
+        ("ADGC Conformance", test_adgc_conformance),
         ("iccDEV Tool Conformance", test_iccdev_tool_conformance),
         ("Extended Profiles", test_extended_profiles_coverage),
     ]

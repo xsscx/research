@@ -15,6 +15,6 @@
 
 class CIccProfile;
 
-int RunTagTypeConformance(CIccProfile *pIcc);
+int RunTagTypeConformance(CIccProfile *pIcc, const char *filename);
 
 #endif // ICC_CONFORMANCE_TAG_TYPES_H
