@@ -1,0 +1,330 @@
+================================================================================
+LUT VISUALIZATION - QUICK REFERENCE GUIDE
+================================================================================
+
+FILE: /home/xss/research/dumpProfile/Tools/CmdLine/IccDumpProfile/iccDumpProfile.cpp
+RELATED: DumpProfileAlloc.cpp, DumpProfileSandbox.h, build-hardened.sh
+
+================================================================================
+1. MAIN FUNCTIONS - WITH LINE NUMBERS
+================================================================================
+
+ENTRY POINT:
+  processLuts(CIccProfile*, const char*, int) [1387-1476]
+    → Main orchestrator for LUT visualization
+
+1D CURVES:
+  output1DLUT(CIccProfile*, CIccTag*, string&, SVGOut&, int) [606-667]
+    → Handles: Curve, ParametricCurve, SegmentedCurve types
+    → Dispatches to graph1DLUT() for rendering
+
+  graph1DLUT(CIccCurve*, string&, string&, SVGOut&, int) [535-569]
+    → Draws curve to SVG with sampling (1000+ points)
+    → X/Y axes: 0.5" to 7.5" (7" range)
+
+  describe1DLUT() [574-587, 590-594, 597-601]
+    → 3 overloads for: Curve, ParametricCurve, SegmentedCurve
+
+3D/ND LUTS:
+  output3DLUT(CIccProfile*, CIccTag*, string&, string&, SVGOut&, int) [1156-1373]
+    → Handles: Lut8, Lut16, LutAtoB, LutBtoA types
+    → Extracts curves A, B, M and CLUT data
+    → Calls WriteTIFF() for CLUT visualization
+
+TIFF:
+  WriteTIFF(const char*, float, int, uint8_t*, size_t, size_t, int, int) [919-1137]
+    → Writes uncompressed TIFF with 15 IFD tags
+    → Supports 8/16/32/64-bit, RGB/CMYK/CIELAB/Gray
+    → Uses SafeMul3/4 for overflow checking
+
+SVG:
+  class SVGOut [319-417]
+    → WriteHeader() [421-429] - SVG root + viewBox
+    → AddText() [433-490] - Text with font/rotation
+    → AddPolyLine() [377-385] - Polyline elements
+    → AddLine(), AddCircle(), AddRect()
+
+HELPERS:
+  TIFFColorModelFromICCModel(icColorSpaceSignature) [831-864]
+    → ICC colorspace → TIFF photometric model
+  
+  channelName(int, bool, sig, sig, int, int) [1142-1152]
+    → Generate channel name (Red, L, K, etc)
+  
+  DrawAxis(SVGOut&, point2D, point2D, point2D, string&) [493-530]
+    → Draw axes with major/minor tick marks
+  
+  remove_extension(string&) [1376-1383]
+    → Strip .icc/.icm extension
+
+OVERFLOW PROTECTION:
+  SafeMul(size_t, size_t, size_t&) [111-115]
+    → 2-arg multiplication with overflow check
+  
+  SafeMul3(size_t, size_t, size_t, size_t&) [118-122]
+    → 3-arg multiplication: (a*b)*c
+  
+  SafeMul4(size_t, size_t, size_t, size_t, size_t&) [125-129]
+    → 4-arg multiplication: ((a*b)*c)*d
+
+SECURITY (DumpProfileSandbox.h):
+  RunSandboxed(function<int()>, SandboxLimits) [158-235]
+    → Fork-based isolation with resource limits
+    → Limits: 120s CPU, 512MB file, 64 FDs
+    → Signal recovery: SIGSEGV/SIGBUS/SIGFPE/SIGILL
+  
+  ValidateOutputPath(const char*) [239-284]
+    → Prevent path traversal, symlinks, system dirs
+
+OOM GUARD (DumpProfileAlloc.cpp):
+  icRealloc(void*, size_t) [33-57]
+    → Override malloc to limit: 256MB single, 1GB total
+
+================================================================================
+2. DATA FLOW - processLuts() COMPLETE SEQUENCE
+================================================================================
+
+1. INITIALIZE
+   └─ Determine basename (remove .icc/.icm)
+   └─ Validate output paths (no "..", no system dirs, parent resolvable)
+
+2. CREATE SVG
+   └─ SVGOut svgfile(svgPath)
+   └─ WriteHeader(0,0 to 203.2mm, 203.2mm) [8"×8"]
+
+3. ITERATE TAGS
+   ├─ 1D TRC Tags: icSigRedTRCTag, icSigGreenTRCTag, etc.
+   │   └─ output1DLUT() → describe1DLUT() + graph1DLUT() → SVG
+   │
+   └─ 3D LUT Tags: icSigAToB0Tag, icSigBToA0Tag, etc.
+       └─ output3DLUT():
+           ├─ Get CIccMBB (Lut8/16/AtoB/BtoA)
+           ├─ Process curves A, B, M via output1DLUT()
+           └─ Process CLUT:
+               ├─ clut->Begin() [grid info]
+               ├─ Get dimensions: GridPoints(), GridPoint(1/2)
+               ├─ Calculate tiling (square-ish grid)
+               ├─ Allocate buffer: SafeMul4(tiles, w, h, channels)
+               ├─ Copy CLUT to image buffer
+               │   inputIndex = z*n001 + y*n010 + x*n100
+               │   outputIndex = z3*outTileStepV + z2*outTileStepH + ...
+               └─ WriteTIFF(basename + "_" + tag + ".tif")
+
+4. CLOSE SVG
+   └─ svgfile.CloseFile()
+
+================================================================================
+3. KEY CONSTANTS
+================================================================================
+
+UNITS:
+  inch2mm = 25.4
+  mm2point = 2.834645669
+
+MEMORY LIMITS (DumpProfileAlloc.cpp):
+  DP_MAX_SINGLE_ALLOC = 256 MB
+  DP_MAX_TOTAL_ALLOC = 1 GB
+
+SANDBOX LIMITS (DumpProfileSandbox.h):
+  max_cpu_sec = 120 seconds
+  max_fsize_mb = 512 MB
+  max_nofile = 64 file descriptors
+
+TIFF COLOR MODELS:
+  TIFF_MODE_GRAY_WHITEZERO = 0
+  TIFF_MODE_GRAY_BLACKZERO = 1
+  TIFF_MODE_RGB = 2
+  TIFF_MODE_CMYK = 5
+  TIFF_MODE_CIELAB = 8
+
+TIFF TAGS (examples):
+  TIFF_WIDTH = 256
+  TIFF_HEIGHT = 257
+  TIFF_BITSPERSAMPLE = 258
+  TIFF_COMPRESSION = 259
+  TIFF_INTERPRETATION = 262 (PhotometricInterpretation)
+  TIFF_STRIPOFFSETS = 273
+  TIFF_STRIPBYTECOUNTS = 279
+  TIFF_SAMPLESPERPIXEL = 277
+  TIFF_ROWSPERSTRIP = 278
+  TIFF_XRESOLUTION = 282
+  TIFF_YRESOLUTION = 283
+  TIFF_PLANARCONFIG = 284 (1=interleaved)
+  TIFF_RESOLUTIONUNIT = 296 (2=inches)
+  TIFF_PREDICTOR = 317 (1=none)
+  TIFF_SAMPLE_FORMAT = 339 (1=UINT, 3=FLOAT)
+
+================================================================================
+4. OUTPUT FILES PRODUCED
+================================================================================
+
+SVG File: <profile>_luts.svg
+  ├─ 8" × 8" (203.2mm × 203.2mm = 567.73pt × 567.73pt)
+  ├─ Groups for each curve
+  │   ├─ Title text (14pt Arial, bold)
+  │   ├─ X/Y axes with tick marks (0.1 and 0.01 increments)
+  │   └─ Curve polyline (black stroke, 0.5pt width)
+  └─ XML-escaped curve names
+
+TIFF Files: <profile>_<tag>.tif (one per LUT tag)
+  ├─ Header: II/MM + 42 + offset 8
+  ├─ IFD: 15 tags
+  ├─ Pixel data: uncompressed, interleaved
+  ├─ Bits: 8/16/32/64 per sample
+  ├─ Colors: RGB/CMYK/CIELAB/Gray based on ICC colorspace
+  ├─ Resolution: 100 DPI (default)
+  └─ Special: Lab data has a*/b* shifted to signed [-127,127]
+
+================================================================================
+5. ICCDEV LIBRARY CALLS
+================================================================================
+
+CIccProfile:
+  m_Tags - vector of profile tags
+  FindTag(tag) - load and return tag
+
+CIccTag (polymorphic):
+  GetType() - return icTagTypeSignature
+  Describe(string&, int) - fill description
+
+1D Curves:
+  CIccTagCurve::GetSize() - points in LUT
+  CIccTagCurve::operator[](int) - point value
+  CIccCurve::Apply(float) - evaluate curve
+
+nD Luts (CIccMBB base):
+  GetCurvesA/B/M() - curve pointer arrays
+  GetCLUT() - CLUT data
+  InputChannels() - input dimensions
+  OutputChannels() - output dimensions
+  GetCsInput/Output() - color space signatures
+  IsInputMatrix() - matrix placement
+  GetPrecision() - bytes per sample
+
+CLUT:
+  Begin() - initialize grid
+  GridPoints() - dim 0 size
+  GridPoint(n) - dim N size
+  NumPoints() - total points
+  GetData(0) - float array pointer
+
+Helpers:
+  icGetSigStr(buf, size, sig) - signature name
+  icColorIndexName(buf, size, colorspace, index, channels, prefix)
+
+================================================================================
+6. SECURITY FEATURES
+================================================================================
+
+PATH VALIDATION:
+  ✓ No ".." directory traversal
+  ✓ No null bytes (truncation prevention)
+  ✓ Parent resolved via realpath() (symlinks resolved)
+  ✓ Blocked dirs: /etc, /proc, /sys, /dev, /boot, /sbin, /usr, /var
+  ✓ PATH_MAX enforcement
+
+INTEGER OVERFLOW:
+  ✓ SafeMul() for all multiplications
+  ✓ Checked: row sizes, buffer allocations, CLUT indexing
+
+MEMORY LIMITS:
+  ✓ Single alloc: 256 MB max (via icRealloc override)
+  ✓ Cumulative: 1 GB max
+  ✓ Thread-local counter (reset on fork)
+
+PROCESS ISOLATION:
+  ✓ Fork-based sandboxing for each LUT operation
+  ✓ Child resource limits: CPU, file size, FDs
+  ✓ Signal recovery: siglongjmp for SEGV/BUS/FPE/ILL
+  ✓ ASAN/UBSAN in recoverable mode
+
+XML ESCAPING:
+  ✓ & → &amp;, < → &lt;, > → &gt;, " → &quot;, ' → &#39;
+
+FILE PERMISSIONS:
+  ✓ TIFF created with S_IRUSR | S_IWUSR | S_IRGRP (0640)
+
+================================================================================
+7. INVOCATION
+================================================================================
+
+Command:
+  iccDumpProfile <profile.icc> LUTS
+
+On Linux (with sandbox):
+  ├─ Parent calls RunSandboxed()
+  ├─ Child fork() with resource limits + signal handlers
+  ├─ Child: processLuts() → creates output files
+  ├─ Parent: waits, reports exit status/signals
+  └─ Output: SVG + TIFF files
+
+On Windows (no sandbox):
+  └─ Direct call: processLuts() → output files
+
+Output files:
+  <profile>_luts.svg
+  <profile>_AToB0Tag.tif (if AToB0 exists)
+  <profile>_BToA0Tag.tif (if BToA0 exists)
+  ... (one TIFF per LUT tag)
+
+================================================================================
+8. TIFF FILE STRUCTURE EXAMPLE (RGB, 256×256, 8-bit)
+================================================================================
+
+Offset 0x00: "II" (little-endian marker)
+Offset 0x02: 0x002A (magic 42)
+Offset 0x04: 0x00000008 (IFD offset)
+
+Offset 0x08: 0x000F (15 IFD entries)
+Offset 0x0A-0xD7: IFD entries (12 bytes each)
+  Tag 256 (WIDTH): LONG, 1, 256
+  Tag 257 (HEIGHT): LONG, 1, 256
+  Tag 258 (BITSPERSAMPLE): SHORT, 3, offset to [8,8,8]
+  Tag 259 (COMPRESSION): LONG, 1, 1 (none)
+  Tag 262 (INTERPRETATION): LONG, 1, 2 (RGB)
+  Tag 273 (STRIPOFFSETS): LONG, 1, [offset to pixel data]
+  Tag 277 (SAMPLESPERPIXEL): LONG, 1, 3
+  Tag 278 (ROWSPERSTRIP): LONG, 1, 256
+  Tag 279 (STRIPBYTECOUNTS): LONG, 1, [size]
+  Tag 282 (XRESOLUTION): RATIO, 1, [offset to 100000/1000]
+  Tag 283 (YRESOLUTION): RATIO, 1, [offset to 100000/1000]
+  Tag 284 (PLANARCONFIG): LONG, 1, 1
+  Tag 296 (RESOLUTIONUNIT): LONG, 1, 2 (inches)
+  Tag 317 (PREDICTOR): LONG, 1, 1 (none)
+  Tag 339 (SAMPLE_FORMAT): LONG, 1, 1 (unsigned)
+
+Offset 0xD8+: 0x00000000 (next IFD = none)
+
+Offset [bits_offset]: 08 08 08 (BitsPerSample array)
+Offset [xres_offset]: 00 01 86 A0 / 00 00 03 E8 (100000/1000)
+Offset [yres_offset]: 00 01 86 A0 / 00 00 03 E8 (100000/1000)
+
+Offset [stripOffset]: RGB pixel data (256×256×3×1 = 196608 bytes)
+  R0G0B0 R1G0B0 ... R255G0B0
+  R0G1B0 R1G1B0 ... R255G1B0
+  ...
+  R0G255B0 R1G255B0 ... R255G255B0
+
+================================================================================
+9. SAFETY CHECKS IN CLUT DATA COPY (lines 1275-1352)
+================================================================================
+
+Before buffer allocation:
+  ✓ tiles > 0, tileWidth > 0, tileHeight > 0
+  ✓ outputChannels > 0, bytes > 0
+  ✓ SafeMul4(tiles, tileWidth, tileHeight, outputChannels, clutSize)
+  ✓ SafeMul4(imageWidth, imageHeight, outputChannels, bytes, bufferSize)
+  ✓ clutSize ≤ clut->NumPoints() * outputChannels
+
+During copy loop:
+  ✓ For float samples: filter NaN/Inf to 0.0
+  ✓ For 16-bit quantization: clamp [0,1] to [0,65535]
+  ✓ For 8-bit quantization: clamp [0,1] to [0,255]
+
+After write:
+  ✓ Check WriteTIFF() return value
+  ✓ Report filename and error status
+
+================================================================================
+DOCUMENT: /home/xss/research/LUT_VISUALIZATION_ANALYSIS.txt (full details)
+================================================================================

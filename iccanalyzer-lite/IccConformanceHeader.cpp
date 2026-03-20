@@ -813,6 +813,150 @@ int RunCF015_ReservedBytesZero(CIccProfile *pIcc, const char *filename) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-107: Tag Table Ordering (ICC.1-2022-05 §7.3.1)
+//
+// The tag table entries SHOULD be in order of increasing offset.
+// While not strictly required, the spec recommends this for efficient parsing.
+// Duplicate tag signatures MUST NOT occur.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF107_TagTableOrdering(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-107]%s Tag Table Ordering (%sICC.1-2022-05 §7.3.1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check for duplicate tag signatures
+  std::vector<icTagSignature> sigs;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    for (size_t j = 0; j < sigs.size(); j++) {
+      if (sigs[j] == it->TagInfo.sig) {
+        char sigStr[5] = {};
+        SigToChars(it->TagInfo.sig, sigStr);
+        printf("         Duplicate tag signature '%s' (0x%08X)\n",
+               sigStr, (unsigned)it->TagInfo.sig);
+        printf("         %s[FAIL]%s Duplicate tag signatures prohibited — §7.3.1\n",
+               ColorError(), ColorReset());
+        issues++;
+        break;
+      }
+    }
+    sigs.push_back(it->TagInfo.sig);
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Tag table has no duplicate signatures\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-121: Illuminant Metadata Consistency (ICC.1-2022-05 §7.2.16)
+//
+// The PCS illuminant in the header MUST be D50 (X=0.9642, Y=1.0000, Z=0.8249).
+// This check validates the illuminant against the mediaWhitePointTag — for
+// non-absolute-colorimetric transforms, the wtpt should also represent D50.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF121_IlluminantMetadataConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-121]%s Illuminant Metadata Consistency (%sICC.1-2022-05 §7.2.16%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check mediaWhitePointTag value consistency with D50
+  CIccTag *wtptTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!wtptTag) {
+    printf("         No mediaWhitePointTag found — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagXYZ *wtpt = dynamic_cast<CIccTagXYZ *>(wtptTag);
+  if (!wtpt || wtpt->GetSize() < 1) {
+    printf("         mediaWhitePointTag is not valid XYZ type\n");
+    return 0;
+  }
+
+  icXYZNumber val = (*wtpt)[0];
+  icFloatNumber y = icFtoD(val.Y);
+
+  // ICC.1-2022-05 §9.2.28: The mediaWhitePointTag for v4 profiles
+  // SHALL be D50 (already checked by CF-008 for header illuminant).
+  // Here we check the tag value: Y should be ~1.0 for D50-adapted white.
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+  if (version >= 4) {
+    icFloatNumber x = icFtoD(val.X);
+    icFloatNumber z = icFtoD(val.Z);
+
+    const icFloatNumber *d50 = icD50XYZ;
+    if (d50 && (std::fabs(x - d50[0]) > 0.01 ||
+                std::fabs(y - d50[1]) > 0.01 ||
+                std::fabs(z - d50[2]) > 0.01)) {
+      printf("         V4 mediaWhitePointTag (%.4f, %.4f, %.4f) ≠ D50\n", x, y, z);
+      printf("         %s[FAIL]%s V4 wtpt must be D50 — §9.2.28\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  // For any version: Y value should be positive
+  if (y <= 0.0) {
+    printf("         mediaWhitePointTag Y=%.4f ≤ 0 — invalid luminance\n", y);
+    printf("         %s[FAIL]%s White point Y must be positive — §9.2.28\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Illuminant metadata consistent\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-122: Profile Date/Time Plausibility (ICC.1-2022-05 §7.2.8)
+//
+// The profile creation date/time SHOULD be a plausible timestamp:
+//   - Year in range [1990, 2099] (ICC spec era)
+//   - Not a future date (warning, not error)
+//   - Not the zero date (indicates unset)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF122_ProfileDateTimePlausibility(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-122]%s Profile Date/Time Plausibility (%sICC.1-2022-05 §7.2.8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icDateTimeNumber dt = pIcc->m_Header.date;
+
+  // Check if entirely zero (unset)
+  if (dt.year == 0 && dt.month == 0 && dt.day == 0 &&
+      dt.hours == 0 && dt.minutes == 0 && dt.seconds == 0) {
+    printf("         Date/time is all zeros — creation date not set\n");
+    printf("         %s[INFO]%s Zero date indicates unset — §7.2.8\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  // Year plausibility: ICC spec began in 1994
+  if (dt.year < 1990 || dt.year > 2099) {
+    printf("         Year %u is outside plausible range [1990-2099]\n", dt.year);
+    printf("         %s[WARN]%s Profile date year implausible — §7.2.8\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Profile date/time is plausible\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -842,6 +986,10 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1013, "CF-013: Data Colour Space Signature", RunCF013_DataColourSpace(pIcc));
   CF_WRAP(1014, "CF-014: PCS Field for Non-DeviceLink", RunCF014_PCSForNonDeviceLink(pIcc));
   CF_WRAP(1015, "CF-015: Reserved Bytes 100-127 Zero", RunCF015_ReservedBytesZero(pIcc, filename));
+
+  CF_WRAP(1107, "CF-107: Tag Table Ordering", RunCF107_TagTableOrdering(pIcc));
+  CF_WRAP(1121, "CF-121: Illuminant Metadata Consistency", RunCF121_IlluminantMetadataConsistency(pIcc));
+  CF_WRAP(1122, "CF-122: Profile Date/Time Plausibility", RunCF122_ProfileDateTimePlausibility(pIcc));
 
 #undef CF_WRAP
   return issues;

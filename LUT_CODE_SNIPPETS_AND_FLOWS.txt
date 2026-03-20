@@ -1,0 +1,691 @@
+================================================================================
+LUT VISUALIZATION - CODE SNIPPETS AND DETAILED FLOWS
+================================================================================
+
+================================================================================
+A. SAFEMUL FUNCTIONS - EXACT IMPLEMENTATIONS
+================================================================================
+
+// Line 111-115
+static inline bool SafeMul(size_t a, size_t b, size_t &result) {
+    if (a != 0 && b > SIZE_MAX / a) return false;
+    result = a * b;
+    return true;
+}
+
+// Line 118-122
+static inline bool SafeMul3(size_t a, size_t b, size_t c, size_t &result) {
+    size_t tmp;
+    if (!SafeMul(a, b, tmp)) return false;
+    return SafeMul(tmp, c, result);
+}
+
+// Line 125-129
+static inline bool SafeMul4(size_t a, size_t b, size_t c, size_t d, size_t &result) {
+    size_t tmp;
+    if (!SafeMul3(a, b, c, tmp)) return false;
+    return SafeMul(tmp, d, result);
+}
+
+================================================================================
+B. SVG OUTPUT CLASS - KEY METHODS
+================================================================================
+
+// Line 301-315: XML Escape function
+static std::string xmlEscape(const std::string &input) {
+    std::string result;
+    result.reserve(input.size());
+    for (char c : input) {
+        switch (c) {
+            case '&':  result += "&amp;";  break;
+            case '<':  result += "&lt;";   break;
+            case '>':  result += "&gt;";   break;
+            case '"':  result += "&quot;"; break;
+            case '\'': result += "&#39;";  break;
+            default:   result += c;        break;
+        }
+    }
+    return result;
+}
+
+// Line 319-417: SVG Class Declaration
+class SVGOut {
+public:
+    SVGOut() { m_GroupLevel = 0; }
+    SVGOut(const std::string &filename) { OpenFile(filename); }
+    ~SVGOut() { CloseFile(); }
+    
+    void OpenFile(const std::string &filename) {
+        if (out.is_open()) {
+            fprintf(stderr,"WARNING - SVG file already open!\n");
+            out.close();
+        }
+        m_GroupLevel = 0;
+        out.open(filename);
+    }
+    
+    void CloseFile() {
+        if (m_GroupLevel > 0)
+            fprintf(stderr,"WARNING - SVG group levels not closed.\n");
+        if (m_GroupLevel < 0)
+            fprintf(stderr,"WARNING - Too many SVG group levels closed.\n");
+        if (out.is_open()) {
+            WriteFooter();
+            out.close();
+        }
+    }
+    
+    void WriteHeader(const point2D &topLeft, const point2D &bottomRight);
+    void AddCircle(float radius, float xCenter, float yCenter, bool isFilled);
+    void AddLine(float xStart, float yStart, float xEnd, float yEnd);
+    void AddLine(const point2D &start, const point2D &end);
+    void AddRect(float left, float top, float right, float bottom, bool isFilled);
+    void AddRect(const point2D &topLeft, const point2D &bottomRight, bool isFilled);
+    void AddPolyLine(const pointList &points, bool isClosed, bool isFilled);
+    void AddText(const float xCoord, const float yCoord, const std::string &text,
+                const float size, const std::string &font, const std::string &style,
+                const std::string &align, const float rotation = 0.0);
+    void StartGroup(const std::string &name);
+    void EndGroup();
+
+protected:
+    void WriteFooter() {
+        out << "</svg>\n";
+    }
+    
+    std::string DefaultFillStroke(bool isFilled) {
+        if (isFilled)
+            return std::string("fill=\"black\" stroke=\"none\"");
+        else
+            return std::string("fill=\"none\" stroke=\"black\" stroke-width=\"0.5\"");
+    }
+
+private:
+    int64_t m_GroupLevel;
+    std::ofstream out;
+};
+
+// Line 421-429: WriteHeader implementation
+void SVGOut::WriteHeader(const point2D &topLeft, const point2D &bottomRight) {
+    out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+    out << "<svg version=\"1.1\" id=\"Layer_1\" xmlns=\"http://www.w3.org/2000/svg\" "
+        << "xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n";
+    out << "\tx=\"0\" y=\"0\" viewBox=\"" << (topLeft.x*mm2point) << " " 
+        << (topLeft.y*mm2point) << " " << (bottomRight.x*mm2point) << " " 
+        << (bottomRight.y*mm2point) << "\" ";
+    out << "style=\"enable-background:new " << (topLeft.x*mm2point) << " " 
+        << (topLeft.y*mm2point) << " " << (bottomRight.x*mm2point) << " " 
+        << (bottomRight.y*mm2point) << ";\" xml:space=\"preserve\">\n";
+}
+
+// Line 377-385: AddPolyLine implementation
+void SVGOut::AddPolyLine(const pointList &points, bool isClosed, bool isFilled) {
+    out << "<polyline points=\"";
+    for (auto &item : points)
+        out << mm2point*item.x << "," << mm2point*item.y << " ";
+    if (isClosed)
+        out << mm2point*points[0].x << "," << mm2point*points[0].y << " ";
+    out << "\"";
+    out << " " << DefaultFillStroke(isFilled) << " />\n";
+}
+
+// Line 433-490: AddText implementation (excerpt)
+void SVGOut::AddText(const float xCoord, const float yCoord, const std::string &text,
+                    const float size, const std::string &font,
+                    const std::string &style, const std::string &align,
+                    const float rotation) {
+    out << "<text";
+    
+    // text-anchor attribute
+    if (align != std::string()) {
+        if (align == "center" || align == "Center")
+            out << " text-anchor=\"middle\"";
+        else if (align == "left" || align == "Left")
+            out << " text-anchor=\"start\"";
+        else if (align == "right" || align == "Right")
+            out << " text-anchor=\"end\"";
+    }
+    
+    float xx = xCoord*mm2point;
+    float yy = yCoord*mm2point;
+    out << " x=\"" << xx << "\" y=\"" << yy << "\"";
+    
+    if (rotation != 0.0)
+        out << " transform=\"rotate(" << rotation <<", " << xx << ", " << yy << ")\"";
+    
+    if (font != std::string())
+        out << " font-family=\"" << font << "\"";
+    
+    if (style != std::string()) {
+        if (style == "Bold")
+            out << " font-weight=\"bold\"";
+        else if (style == "Italic")
+            out << " font-style=\"italic\"";
+        // ... more style mappings
+    }
+    
+    out << " font-size=\"" << size << "pt\"";
+    out << ">" << xmlEscape(text) << "</text>\n";
+}
+
+================================================================================
+C. GRAPH1DLUT - COMPLETE IMPLEMENTATION
+================================================================================
+
+// Line 535-569: Graph 1D LUT function
+void graph1DLUT(CIccCurve *curve, const std::string &name,
+                const std::string &description, SVGOut &svgfile, int steps) {
+    svgfile.StartGroup(name);
+
+    // draw title/description
+    std::string font = "Arial";
+    std::string style = "Bold";
+    std::string align = "Center";
+    svgfile.AddText(8*0.5*inch2mm, 0.25*inch2mm, name + "  " + description, 
+                    14, font, style, align);
+
+    // draw axes
+    point2D basepoint(0.5*inch2mm, 7.5*inch2mm);
+    point2D rangeX(7.0*inch2mm, 0.0);
+    point2D tickLengthX(0, 5);
+    DrawAxis(svgfile, basepoint, rangeX, tickLengthX, "Input");
+
+    point2D rangeY(0.0, -7.0*inch2mm);
+    point2D tickLengthY(-5, 0);
+    DrawAxis(svgfile, basepoint, rangeY, tickLengthY, "Output");
+
+    // draw the curve
+    pointList points(steps+1);
+    float scale = (7.5-0.5)*inch2mm;
+    point2D base(0.5*inch2mm, 7.5*inch2mm);
+    for (int i = 0; i <= steps; ++i) {
+        float input = i / (float)steps;
+        float output = curve->Apply(input);
+        if (std::isnan(output) || std::isinf(output)) output = 0.0f;
+        points[i] = point2D(input*scale, -output*scale) + base;
+    }
+    svgfile.AddPolyLine(points, false, false);
+
+    svgfile.EndGroup();
+}
+
+================================================================================
+D. TIFF WRITING - KEY SECTIONS
+================================================================================
+
+// Line 919-921: Function signature
+bool WriteTIFF(const char *name, float dpi, int color_model, uint8_t *buffer,
+               size_t width, size_t height, int channels, int depth)
+
+// Line 924-935: File creation with permissions
+int fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP);
+if (fd >= 0)
+    outfile = fdopen(fd, "wb");
+if (outfile == NULL) {
+    fprintf(stderr,"Could not create output file %s\n", name);
+    return false;
+}
+
+// Line 940-949: TIFF header
+if (getBigEndian()) {
+    putc('M',outfile);
+    putc('M',outfile);
+} else {
+    putc('I',outfile);
+    putc('I',outfile);
+}
+putShort((uint16_t)42, outfile);
+putLong((uint32_t)8, outfile);    // offset to first IFD
+
+// Line 954-976: IFD tag count and first tags
+uint16_t tagCount = 15;
+putShort(tagCount, outfile);
+
+uint32_t width32 = uint32_t(width);
+putIFDLong(TIFF_WIDTH, TIFF_LONG, 1, width32, outfile);
+uint32_t height32 = uint32_t(height);
+putIFDLong(TIFF_HEIGHT, TIFF_LONG, 1, height32, outfile);
+
+uint16_t bits = (uint16_t)depth;
+if (channels == 1)
+    putIFDLong(TIFF_BITSPERSAMPLE, TIFF_LONG, 1, bits, outfile);
+else
+    putIFDLong(TIFF_BITSPERSAMPLE, TIFF_SHORT, channels, bits_offset, outfile);
+
+// Line 1015-1028: Resolution and sample format
+uint32_t resDenom32 = 1000;
+uint32_t resRatio32 = (dpi > 0.0 && std::isfinite(dpi) && dpi * resDenom32 <= (double)UINT32_MAX)
+                        ? (uint32_t)(dpi * resDenom32) : 72000u;
+putIFDLong(TIFF_XRESOLUTION, TIFF_RATIO, 1, xres_offset, outfile);
+putIFDLong(TIFF_YRESOLUTION, TIFF_RATIO, 1, yres_offset, outfile);
+
+if (bits == 32 || bits == 64)
+    putIFDLong(TIFF_SAMPLE_FORMAT, TIFF_LONG, 1, TIFF_SAMPLE_FLOAT, outfile);
+else
+    putIFDLong(TIFF_SAMPLE_FORMAT, TIFF_LONG, 1, TIFF_SAMPLE_UINT, outfile);
+
+// Line 1081-1086: CIELAB data conversion
+if (color_model == TIFF_MODE_CIELAB) {
+    if (depth == 8)
+        shiftTIFFLAB(buffer + offset, width * rowCount);
+    else if (depth == 16)
+        shiftTIFFLAB((uint16_t *)(buffer + offset), width * rowCount);
+}
+
+// Line 1101-1105: Write pixel data
+if (fwrite(buffer + offset, pixelBytes, rowCount, outfile) != rowCount) {
+    fprintf(stderr, "WriteTIFF: failed to write pixel data\n");
+    fclose(outfile);
+    return false;
+}
+
+================================================================================
+E. CLUT DATA COPY - DETAILED IMPLEMENTATION
+================================================================================
+
+// Line 1302-1353: CLUT data extraction and quantization
+
+// Get CLUT data pointer
+icFloatNumber *clutData = clut->GetData(0);
+if (!clutData) {
+    fprintf(stderr, "CLUT data is null\n");
+    break;
+}
+
+// Calculate strides for 3D CLUT
+size_t n001 = (size_t)tileWidth * (size_t)tileHeight * (size_t)outputChannels;
+size_t n010 = (size_t)tileWidth * (size_t)outputChannels;
+size_t n100 = (size_t)outputChannels;
+
+size_t outTileStepV = (size_t)imageWidth * (size_t)tileHeight * (size_t)outputChannels;
+size_t outTileStepH = (size_t)tileWidth * (size_t)outputChannels;
+size_t outColStep = (size_t)outputChannels;
+size_t outRowStep = (size_t)imageWidth * (size_t)outputChannels;
+
+// Copy with proper indexing and quantization
+for (int x = 0; x < tileWidth; ++x)
+for (int y = 0; y < tileHeight; ++y)
+for (int z = 0; z < tiles; ++z) {
+    size_t inputIndex = z * n001 + y * n010 + x * n100;
+    int z2 = z % tilesWide;     // tile # horiz
+    int z3 = z / tilesWide;     // tile # vert
+    size_t outputIndex = z3 * outTileStepV + z2 * outTileStepH + 
+                        y * outRowStep + x * outColStep;
+    
+    if (bytes == 4 || bytes == 8)
+        // 32-bit or 64-bit float: direct copy
+        for (int c = 0; c < outputChannels; ++c)
+            imageBuf32[outputIndex+c] = clutData[inputIndex+c];
+    else if (bytes == 2)
+        // 16-bit: quantize [0,1] to [0,65535]
+        for (int c = 0; c < outputChannels; ++c) {
+            float v = clutData[inputIndex+c];
+            if (!std::isfinite(v)) v = 0.0f;
+            else if (v < 0.0f) v = 0.0f;
+            else if (v > 1.0f) v = 1.0f;
+            imageBuf16[outputIndex+c] = (uint16_t)(v * 65535.0f);
+        }
+    else
+        // 8-bit: quantize [0,1] to [0,255]
+        for (int c = 0; c < outputChannels; ++c) {
+            float v = clutData[inputIndex+c];
+            if (!std::isfinite(v)) v = 0.0f;
+            else if (v < 0.0f) v = 0.0f;
+            else if (v > 1.0f) v = 1.0f;
+            imageBuf[outputIndex+c] = (uint8_t)(v * 255.0f);
+        }
+}
+
+================================================================================
+F. PROCESSLETS MAIN FLOW
+================================================================================
+
+// Line 1387-1476: processLuts function
+void processLuts(CIccProfile *pIcc, const char *profilePath, int verbosity) {
+    std::string basename = remove_extension(profilePath);
+
+    // Validate output paths (Unix/Linux)
+#if !defined(_WIN32) && !defined(WIN32)
+    std::string svgPath = ValidateOutputPath((basename + "_luts.svg").c_str());
+    if (svgPath.empty()) {
+        fprintf(stderr, "ERROR: SVG output path validation failed\n");
+        return;
+    }
+    std::string tiffTestPath = ValidateOutputPath((basename + "_test.tiff").c_str());
+    if (tiffTestPath.empty()) {
+        fprintf(stderr, "ERROR: TIFF output path validation failed\n");
+        return;
+    }
+    // Use validated parent for output
+    size_t lastSlash = svgPath.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+        std::string validatedParent = svgPath.substr(0, lastSlash);
+        size_t origSlash = basename.find_last_of('/');
+        std::string origFilePart = (origSlash != std::string::npos)
+            ? basename.substr(origSlash + 1) : basename;
+        basename = validatedParent + "/" + origFilePart;
+    }
+#else
+    std::string svgPath = basename + "_luts.svg";
+#endif
+
+    // Create SVG
+    SVGOut svgfile(svgPath);
+    svgfile.WriteHeader(point2D(0,0), point2D(8*inch2mm, 8*inch2mm));
+
+    // Iterate tags
+    for (auto &tag: pIcc->m_Tags) {
+        icTagSignature sig = tag.TagInfo.sig;
+
+        switch (sig) {
+            // 1D LUTs
+            case icSigRedTRCTag:
+            case icSigGreenTRCTag:
+            case icSigBlueTRCTag:
+            case icSigGrayTRCTag: {
+                const char *sigDesc = icGetSigStr(buf1, bufSize, sig);
+                CIccTag *pTag = pIcc->FindTag(tag);
+                output1DLUT(pIcc, pTag, sigDesc, svgfile, verbosity);
+            }
+            break;
+
+            // nD LUTs
+            case icSigAToB0Tag:
+            case icSigAToB1Tag:
+            case icSigAToB2Tag:
+            case icSigAToB3Tag:
+            case icSigBToA0Tag:
+            case icSigBToA1Tag:
+            case icSigBToA2Tag:
+            case icSigBToA3Tag:
+            case icSigGamutTag:
+            case icSigPreview0Tag:
+            case icSigPreview1Tag:
+            case icSigPreview2Tag: {
+                std::string sigDesc = icGetSigStr(buf1, bufSize, sig);
+                CIccTag *pTag = pIcc->FindTag(tag);
+                if (pTag)
+                    output3DLUT(pIcc, pTag, sigDesc, basename, svgfile, verbosity);
+            }
+            break;
+
+            default:
+                break;
+        }
+    }
+
+    svgfile.CloseFile();
+}
+
+================================================================================
+G. OUTPUT1DLUT AND DESCRIBE FUNCTIONS
+================================================================================
+
+// Line 606-667: output1DLUT
+void output1DLUT(CIccProfile *pIcc, CIccTag *tag, const std::string &sigDesc,
+                SVGOut &svgfile, int verbosity) {
+    icTagTypeSignature typeSig = tag->GetType();
+    switch(typeSig) {
+        case icSigCurveType: {
+            CIccTagCurve *curve = dynamic_cast<CIccTagCurve*>(tag);
+            if (curve) {
+                std::string description;
+                describe1DLUT(curve, description);
+                int size = curve->GetSize();
+                int steps = std::max(1000, size);
+                graph1DLUT(curve, sigDesc, description, svgfile, steps);
+            }
+        }
+        break;
+
+        case icSigParametricCurveType: {
+            CIccTagParametricCurve *pCurve = dynamic_cast<CIccTagParametricCurve*>(tag);
+            if (pCurve) {
+                std::string description;
+                describe1DLUT(pCurve, description);
+                graph1DLUT(pCurve, sigDesc, description, svgfile, 1000);
+            }
+        }
+        break;
+
+        case icSigSegmentedCurveType: {
+            CIccTagSegmentedCurve *sCurve = dynamic_cast<CIccTagSegmentedCurve*>(tag);
+            if (sCurve) {
+                std::string description;
+                describe1DLUT(sCurve, description);
+                graph1DLUT(sCurve, sigDesc, description, svgfile, 1000);
+            }
+        }
+        break;
+
+        default:
+            printf("Unknown 1D LUT type %s for tag %s\n",
+                   icGetSig(buf, bufSize, typeSig), sigDesc.c_str());
+            break;
+    }
+}
+
+// Line 574-587: describe1DLUT for CIccTagCurve
+void describe1DLUT(CIccTagCurve *curve, std::string &description) {
+    auto size = curve->GetSize();
+
+    if (size == 0) {
+        description += "Y = X";
+    } else if (size == 1) {
+        icFloatNumber value0 = (*curve)[0];
+        icFloatNumber dGamma = (icFloatNumber)(value0 * 256.0);
+        description += "Y = X ^ " + std::to_string(dGamma);
+    } else {
+        description += "LookupTable[" + std::to_string(size) + "]";
+    }
+}
+
+================================================================================
+H. OUTPUT3DLUT - CRITICAL SECTIONS
+================================================================================
+
+// Line 1173-1226: Extract and process curves from CIccMBB
+CIccMBB *lut = dynamic_cast<CIccMBB*>(tag);
+if (lut) {
+    std::string description;
+    lut->Describe(description, 100);
+    
+    CIccCurve **curveA = lut->GetCurvesA();
+    CIccCurve **curveB = lut->GetCurvesB();
+    CIccCurve **curveM = lut->GetCurvesM();
+    std::string curveDesc = sigDesc + ": ";
+
+    int inputChannels = lut->InputChannels();
+    int outputChannels = lut->OutputChannels();
+    icColorSpaceSignature inputSpace = lut->GetCsInput();
+    icColorSpaceSignature outputSpace = lut->GetCsOutput();
+    bool isInputMatrix = lut->IsInputMatrix();
+
+    // Output input curves
+    if (curveA) {
+        int curveACount = isInputMatrix ? outputChannels : inputChannels;
+        for (int i = 0; i < curveACount; ++i) {
+            if (curveA[i]) {
+                std::string channel = channelName(i, !isInputMatrix,
+                                    inputSpace, outputSpace, inputChannels, outputChannels);
+                std::string channelDesc = curveDesc + "curveA[" + channel + "]";
+                output1DLUT(pIcc, curveA[i], channelDesc, svgfile, verbosity);
+            }
+        }
+    }
+    
+    // ... similar for curveB and curveM ...
+    
+    // Process CLUT
+    int bytes = lut->GetPrecision();  // 1 or 2
+    CIccCLUT *clut = lut->GetCLUT();
+
+    if (!clut) {
+        if (verbosity > 0)
+            printf("  No CLUT data in %s\n", sigDesc.c_str());
+        break;
+    }
+
+    clut->Begin();
+    int tiles = clut->GridPoints();    // dim 0
+    int tileWidth = 1;
+    int tileHeight = 1;
+    
+    if (inputChannels >= 2)
+        tileWidth = clut->GridPoint(1);
+    if (inputChannels >= 3)
+        tileHeight = clut->GridPoint(2);
+    
+    // Aggregate higher dimensions into tiles
+    if (inputChannels > 3) {
+        for (int i = 3; i < inputChannels; ++i)
+            tiles *= clut->GridPoint(i);
+    }
+
+    // Special case: 1D LUT
+    if (inputChannels == 1) {
+        tileWidth = tiles;
+        tiles = 1;
+        tileHeight = 1;
+    }
+
+    // Arrange tiles in square-ish grid
+    double sqrtTiles = sqrt((double)tiles);
+    int tilesWide = (std::isfinite(sqrtTiles) && sqrtTiles > 0.0)
+                    ? (int)ceil(sqrtTiles) : 1;
+    if (tilesWide < 1) tilesWide = 1;
+    int tilesHigh = (tiles + (tilesWide-1)) / tilesWide;
+
+    int imageWidth = tilesWide * tileWidth;
+    int imageHeight = tilesHigh * tileHeight;
+
+    // Overflow checks
+    if (tiles <= 0 || tileWidth <= 0 || tileHeight <= 0 || outputChannels <= 0 || bytes <= 0) {
+        fprintf(stderr, "Invalid LUT dimensions for TIFF export\n");
+        break;
+    }
+
+    size_t clutSize = 0;
+    if (!SafeMul4((size_t)tiles, (size_t)tileWidth, (size_t)tileHeight, 
+                  (size_t)outputChannels, clutSize)) {
+        fprintf(stderr, "CLUT size overflow for TIFF export\n");
+        break;
+    }
+    
+    size_t bufferSize = 0;
+    if (!SafeMul4((size_t)imageWidth, (size_t)imageHeight, (size_t)outputChannels, 
+                  bytes, bufferSize)) {
+        fprintf(stderr, "Buffer size overflow for TIFF export\n");
+        break;
+    }
+    
+    if (clutSize > clut->NumPoints() * (size_t)outputChannels) {
+        fprintf(stderr, "CLUT data size exceeds available data\n");
+        break;
+    }
+
+    // ... then copy CLUT data and write TIFF ...
+    
+    std::string tiffPath2 = basename + "_" + sigDesc + ".tif";
+    int tiffColor = TIFFColorModelFromICCModel(outputSpace);
+    if (!WriteTIFF(tiffPath2.c_str(), 100, tiffColor, imageBuf,
+                   imageWidth, imageHeight, outputChannels, 8*bytes)) {
+        fprintf(stderr, "Failed to write TIFF: %s\n", tiffPath2.c_str());
+    }
+}
+
+================================================================================
+I. TIFF COLOR MODEL MAPPING
+================================================================================
+
+// Line 831-864: TIFFColorModelFromICCModel
+int TIFFColorModelFromICCModel(icColorSpaceSignature colorSig) {
+    switch(colorSig) {
+        case icSigRgbData:
+        case icSigCmyData:
+        case icSigXYZData:
+        case icSigLuvData:
+        case icSigYCbCrData:
+        case icSigYxyData:
+        case icSigHsvData:
+        case icSigHlsData:
+            return TIFF_MODE_RGB;
+
+        case icSigCmykData:
+            return TIFF_MODE_CMYK;
+
+        case icSigLabData:
+            return TIFF_MODE_CIELAB;
+
+        case icSigGrayData:
+        case icSigGamutData:
+        default:
+            return TIFF_MODE_GRAY_BLACKZERO;
+    }
+
+    return TIFF_MODE_GRAY_BLACKZERO;
+}
+
+================================================================================
+J. CIELAB ENCODING/DECODING
+================================================================================
+
+// Line 869-881: 8-bit CIELAB conversion
+void shiftTIFFLAB(uint8_t *in, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        size_t index = 3*i;
+        uint8_t l = in[index+0];
+        int a = in[index+1];
+        int b = in[index+2];
+        in[index+0] = l;                    // L unchanged
+        in[index+1] = uint8_t(a - 128);     // a*: [0,256] → [-128,128]
+        in[index+2] = uint8_t(b - 128);     // b*: [0,256] → [-128,128]
+    }
+}
+
+// Line 888-900: 16-bit CIELAB conversion
+void shiftTIFFLAB(uint16_t *in, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        size_t index = 3*i;
+        uint16_t l = in[index+0];
+        int a = in[index+1];
+        int b = in[index+2];
+        in[index+0] = l;                    // L unchanged
+        in[index+1] = uint16_t(a - 0x8000);  // a*: [0,65536] → [-32768,32768]
+        in[index+2] = uint16_t(b - 0x8000);  // b*: [0,65536] → [-32768,32768]
+    }
+}
+
+================================================================================
+K. SANDBOX EXECUTION - LINUX ONLY (Lines 1809-1826)
+================================================================================
+
+#if !defined(_WIN32) && !defined(WIN32)
+    // Run LUT visualization in sandboxed child process
+    CIccProfile *pIccRef = pIcc;
+    const char *profileArg = argv[nArg];
+    int verb = verbosity;
+    
+    SandboxResult sr = RunSandboxed([pIccRef, profileArg, verb]() -> int {
+        processLuts(pIccRef, profileArg, verb);
+        return 0;
+    });
+    
+    sr.Report("LUTS visualization", argv[nArg]);
+    if (sr.crashed) {
+        fprintf(stderr, "[DumpProfile] LUT processing crashed — "
+                "output files may be incomplete\n");
+    }
+#else
+    // Windows: no sandboxing
+    processLuts(pIcc, argv[nArg], verbosity);
+#endif
+
+================================================================================
+DOCUMENT STRUCTURE
+================================================================================
+
+Main analysis: /home/xss/research/LUT_VISUALIZATION_ANALYSIS.txt (578 lines)
+Quick reference: /home/xss/research/LUT_QUICK_REFERENCE.txt (330 lines)
+Code snippets: /home/xss/research/LUT_CODE_SNIPPETS_AND_FLOWS.txt (this file)
+

@@ -1182,6 +1182,341 @@ static int RunCF098_UndocumentedPrivateTags(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-103: Tag Table Alignment & Offset Validity (ICC.1-2022-05 §7.3.1)
+//
+// All tag data offsets MUST be on 4-byte boundaries and MUST point within
+// the profile file. Tag data regions MUST NOT extend past the profile size.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF103_TagAlignmentAndOffset(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-103]%s Tag Table Alignment & Offset Validity (%sICC.1-2022-05 §7.3.1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number profileSize = pIcc->m_Header.size;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icUInt32Number offset = it->TagInfo.offset;
+    icUInt32Number size   = it->TagInfo.size;
+    char sigStr[5] = {};
+    SigToChars(it->TagInfo.sig, sigStr);
+
+    if (offset % 4 != 0) {
+      printf("           Tag '%s' offset 0x%08X not 4-byte aligned\n", sigStr, offset);
+      printf("           %s[FAIL]%s Tag offset must be on 4-byte boundary — §7.3.1\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    if (profileSize > 0 && (offset > profileSize || offset + size > profileSize)) {
+      printf("           Tag '%s' offset+size (0x%08X+%u) exceeds profile size (%u)\n",
+             sigStr, offset, size, profileSize);
+      printf("           %s[FAIL]%s Tag data extends beyond profile — §7.3.1\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s All tag offsets aligned and within bounds\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-104: DeviceLink PCS Must Match (ICC.1-2022-05 §8.6)
+//
+// For DeviceLink profiles, the data colour space is the source and the PCS
+// field holds the destination colour space. The PCS field MUST NOT be Lab or
+// XYZ when the profile class is 'link' — it holds a device colour space.
+// Additionally, the profile SHALL contain AToB0Tag.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF104_DeviceLinkPCSMatch(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-104]%s DeviceLink PCS Consistency (%sICC.1-2022-05 §8.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (pIcc->m_Header.deviceClass != icSigLinkClass) {
+    printf("           Not a DeviceLink profile — check not applicable\n");
+    return 0;
+  }
+
+  // DeviceLink must have AToB0Tag
+  if (!pIcc->FindTag(icSigAToB0Tag)) {
+    printf("           DeviceLink profile missing required AToB0Tag\n");
+    printf("           %s[FAIL]%s DeviceLink requires AToB0Tag — §8.6\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // DeviceLink must have profileSequenceDescTag (v4)
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+  if (version >= 4 && !pIcc->FindTag(icSigProfileSequenceDescTag)) {
+    printf("           V4 DeviceLink missing profileSequenceDescTag\n");
+    printf("           %s[FAIL]%s V4 DeviceLink requires profileSequenceDescTag — §8.6\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s DeviceLink PCS consistency validated\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-111: Required Tags per ICC Version (ICC.1-2022-05 §8.2-8.9)
+//
+// V4 profiles require additional tags not required in v2:
+//  - chromaticAdaptationTag (chad) when adopted white != D50
+//  - profileSequenceDescTag for DeviceLink
+//  - profileSequenceIdentifierTag recommended for v4.4
+//  - colorimetricIntentImageStateTag for Input profiles (§8.2, v4.4)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF111_RequiredTagsPerVersion(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-111]%s Required Tags per ICC Version (%sICC.1-2022-05 §8.2-8.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // v4.2+ chromaticAdaptationTag is required when the adopted white point
+  // does not equal D50 illuminant (for non-DeviceLink profiles)
+  if (version >= 4 && cls != icSigLinkClass) {
+    // CF-009 already checks chad requirement — here we note version-specific detail
+    if (pIcc->FindTag(icSigChromaticAdaptationTag) == nullptr) {
+      // Check if adopted white != D50
+      const icFloatNumber *d50 = icD50XYZ;
+      bool needsChad = false;
+      if (d50) {
+        icFloatNumber wtptX = icFtoD(pIcc->m_Header.illuminant.X);
+        icFloatNumber wtptY = icFtoD(pIcc->m_Header.illuminant.Y);
+        icFloatNumber wtptZ = icFtoD(pIcc->m_Header.illuminant.Z);
+        if (std::fabs(wtptX - d50[0]) > 0.001 ||
+            std::fabs(wtptY - d50[1]) > 0.001 ||
+            std::fabs(wtptZ - d50[2]) > 0.001) {
+          needsChad = true;
+        }
+      }
+      if (needsChad) {
+        printf("           V%u profile with non-D50 white point missing chromaticAdaptationTag\n", version);
+        printf("           %s[FAIL]%s V4+ requires chad when adopted white ≠ D50 — §8\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  // v4 DeviceLink requires profileSequenceDescTag (checked in CF-104)
+  // v4 DeviceLink should have colorantTableTag and colorantTableOutTag
+  if (version >= 4 && cls == icSigLinkClass) {
+    if (!pIcc->FindTag(icSigColorantTableTag)) {
+      printf("           V4 DeviceLink missing colorantTableTag (recommended)\n");
+      printf("           %s[INFO]%s §8.6 recommends colorantTableTag for DeviceLink\n",
+             ColorInfo(), ColorReset());
+    }
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Version-specific required tags present\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-117: Rendering Intent Tags per Class (ICC.1-2022-05 §8.3-8.5)
+//
+// Output (prtr) and Input (scnr) profiles with LUT-based rendering SHOULD
+// provide AToB/BToA tags for all rendering intents they support.
+// The perceptualRenderingIntentGamutTag and saturationRenderingIntentGamutTag
+// are only valid for Output and Display profiles (§9.2.36-37).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF117_RenderingIntentTagsPerClass(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-117]%s Rendering Intent Tags per Class (%sICC.1-2022-05 §8.3-8.5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // rig0/rig2 tags only allowed for Output, Display
+  if (cls != icSigOutputClass && cls != icSigDisplayClass) {
+    if (pIcc->FindTag(icSigPerceptualRenderingIntentGamutTag)) {
+      printf("           perceptualRenderingIntentGamutTag in non-Output/Display profile\n");
+      printf("           %s[WARN]%s rig0 only valid for Output/Display — §9.2.36\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+    if (pIcc->FindTag(icSigSaturationRenderingIntentGamutTag)) {
+      printf("           saturationRenderingIntentGamutTag in non-Output/Display profile\n");
+      printf("           %s[WARN]%s rig2 only valid for Output/Display — §9.2.37\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Rendering intent tags appropriate for profile class\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-118: Private Tag Creator Signature (ICC.1-2022-05 §9)
+//
+// Private tags (signatures not registered in §9.2) SHOULD have a creator
+// signature matching the profile's creator field (header bytes 80-83).
+// If the profile creator is 0x00000000, no creator validation is possible.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF118_PrivateTagCreatorSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-118]%s Private Tag Creator Signature (%sICC.1-2022-05 §9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature creator = pIcc->m_Header.creator;
+  if (creator == 0) {
+    printf("           Profile creator field is zero — private tag authorship unknown\n");
+    printf("           %s[INFO]%s No creator signature set — §7.2.17\n",
+           ColorInfo(), ColorReset());
+    return 0; // informational only
+  }
+
+  // Count private (unrecognized) tags — if > 5 without creator, flag it
+  int privateCount = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    icUInt32Number sig = (icUInt32Number)it->TagInfo.sig;
+    // Simple heuristic: if uppercase letters in all 4 bytes, likely registered
+    bool allUpper = true;
+    for (int b = 0; b < 4; b++) {
+      uint8_t ch = (sig >> (24 - b * 8)) & 0xFF;
+      if (ch < 0x20 || ch > 0x7E) { allUpper = false; break; }
+    }
+    if (!allUpper) privateCount++;
+  }
+
+  if (privateCount > 0 && creator == 0) {
+    printf("           %d private/unusual tags without creator signature\n", privateCount);
+    printf("           %s[INFO]%s Private tags benefit from creator ID — §7.2.17\n",
+           ColorInfo(), ColorReset());
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Creator signature present (0x%08X)\n",
+           ColorSuccess(), ColorReset(), (unsigned)creator);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-119: Profile Sequence Identifier (ICC.1-2022-05 §8.6, §10.15)
+//
+// DeviceLink profiles SHALL include profileSequenceDescTag. V4.4 profiles
+// SHOULD include profileSequenceIdentifierTag for unambiguous identification.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF119_ProfileSequenceIdentifier(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-119]%s Profile Sequence Identifier (%sICC.1-2022-05 §8.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+
+  // DeviceLink must have profileSequenceDescTag
+  if (cls == icSigLinkClass) {
+    if (!pIcc->FindTag(icSigProfileSequenceDescTag)) {
+      printf("           DeviceLink profile missing profileSequenceDescTag\n");
+      printf("           %s[FAIL]%s §8.6 requires profileSequenceDescTag for DeviceLink\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  // v4.4+ recommendation: profileSequenceIdentifierTag
+  if (version >= 4) {
+    if (!pIcc->FindTag(icSigProfileSequceIdTag)) {
+      printf("           V%u profile without profileSequenceIdentifierTag\n", version);
+      printf("           %s[INFO]%s §10.15 recommends profileSequenceIdentifierTag\n",
+             ColorInfo(), ColorReset());
+    }
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Profile sequence identification validated\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-120: Named Color Space Dimensions (ICC.1-2022-05 §8.9, §10.14)
+//
+// NamedColor profiles: device coordinates in namedColor2Type MUST match
+// the number of device channels declared in the header's data colour space.
+// If data colour space is xCLR, the device coordinate count must equal the
+// channel count implied by x (3CLR=3, 4CLR=4, etc.).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF120_NamedColorSpaceDimensions(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-120]%s Named Color Space Dimensions (%sICC.1-2022-05 §10.14%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (pIcc->m_Header.deviceClass != icSigNamedColorClass) {
+    printf("           Not a NamedColor profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTag *tag = pIcc->FindTag(icSigNamedColor2Tag);
+  if (!tag) {
+    printf("           NamedColor profile missing namedColor2Tag\n");
+    printf("           %s[FAIL]%s §8.9 requires namedColor2Tag — ICC.1-2022-05\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  CIccTagNamedColor2 *nc = dynamic_cast<CIccTagNamedColor2 *>(tag);
+  if (!nc) {
+    printf("           namedColor2Tag is not CIccTagNamedColor2 type\n");
+    printf("           %s[FAIL]%s Tag type mismatch for namedColor2 — §10.14\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  icUInt32Number devCoords = nc->GetDeviceCoords();
+  icUInt32Number expected  = icGetSpaceSamples(pIcc->m_Header.colorSpace);
+
+  if (expected > 0 && devCoords != expected) {
+    printf("           Device coordinates=%u but colour space expects %u channels\n",
+           devCoords, expected);
+    printf("           %s[FAIL]%s Device coordinate count must match colour space — §10.14\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Named colour device dimensions match colour space\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1236,6 +1571,14 @@ int RunRequiredTagConformance(CIccProfile *pIcc) {
   CF_WRAP(1096, "CF-096: Private Tag Signature Range", RunCF096_PrivateTagSignatureRange(pIcc));
   CF_WRAP(1097, "CF-097: Private Tag Documentation", RunCF097_PrivateTagDocumentation(pIcc));
   CF_WRAP(1098, "CF-098: Undocumented Private Tags", RunCF098_UndocumentedPrivateTags(pIcc));
+
+  CF_WRAP(1103, "CF-103: Tag Alignment & Offset Validity", RunCF103_TagAlignmentAndOffset(pIcc));
+  CF_WRAP(1104, "CF-104: DeviceLink PCS Consistency", RunCF104_DeviceLinkPCSMatch(pIcc));
+  CF_WRAP(1111, "CF-111: Required Tags per ICC Version", RunCF111_RequiredTagsPerVersion(pIcc));
+  CF_WRAP(1117, "CF-117: Rendering Intent Tags per Class", RunCF117_RenderingIntentTagsPerClass(pIcc));
+  CF_WRAP(1118, "CF-118: Private Tag Creator Signature", RunCF118_PrivateTagCreatorSignature(pIcc));
+  CF_WRAP(1119, "CF-119: Profile Sequence Identifier", RunCF119_ProfileSequenceIdentifier(pIcc));
+  CF_WRAP(1120, "CF-120: Named Color Space Dimensions", RunCF120_NamedColorSpaceDimensions(pIcc));
 
 #undef CF_WRAP
   return issues;

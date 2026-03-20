@@ -2,16 +2,20 @@
 
 **Profile**: `test-profiles/sRGB_D65_MAT.icc`
 **File Size**: 24712 bytes
-**Date**: 2026-03-01T17:20:39Z
+**SHA-256**: `317a85b01c29550c5289e505079a549c12aaf92cfebc80d04b6626f717675fce`
+**File Type**: color profile 5.0, RGB/XYZ-mntr device by ICC, 24712 bytes, 17-2-2026 8:38:13, embedded, relative colorimetric, PCS X=0xf34d Z=0x116c2, 0x33174f15abb4d791 MD5 'sRGB D65 MAT'
+**Date**: 2026-03-19T09:09:05Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
 
 | Command | Exit Code | Meaning |
 |---------|-----------|---------|
-| `-a` (comprehensive) | 0 | Clean |
+| `-a` (comprehensive) | 1 | Finding detected |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 0 | Clean |
+| `-xt` (LUT text export) | 0 | Exported |
+| `-cube` (cube export) | 3 | Signal/crash |
 
 **ASAN/UBSAN**: No sanitizer errors detected
 
@@ -19,16 +23,15 @@
 
 ## Command 1: Comprehensive Analysis (`-a`)
 
-**Exit Code: 0**
+**Exit Code: 1**
 
 ```
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
 
 =======================================================================
   ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
 =======================================================================
 
-File: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
+File: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
 
 =======================================================================
 PHASE 1: SECURITY HEURISTIC ANALYSIS
@@ -39,7 +42,101 @@ PHASE 1: SECURITY HEURISTIC ANALYSIS
 |              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
 =========================================================================
 
-File: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
+File: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
+
+=======================================================================
+EXTERNAL FILE METADATA
+=======================================================================
+
+  [file]
+      color profile 5.0, RGB/XYZ-mntr device by ICC, 24712 bytes, 17-2-2026 8:38:13, embedded, relative colorimetric, PCS X=0xf34d Z=0x116c2, 0x33174f15abb4d791 MD5 'sRGB D65 MAT'
+
+  [exiftool]
+      ExifTool Version Number         : 12.76
+      File Name                       : sRGB_D65_MAT.icc
+      Directory                       : /home/xss/research/test-profiles
+      File Size                       : 25 kB
+      File Modification Date/Time     : 2026:03:14 15:00:55+00:00
+      File Access Date/Time           : 2026:03:18 21:07:33+00:00
+      File Inode Change Date/Time     : 2026:03:14 15:00:55+00:00
+      File Permissions                : -rw-rw-r--
+      File Type                       : ICC
+      File Type Extension             : icc
+      MIME Type                       : application/vnd.iccprofile
+      Profile CMM Type                : 
+      Profile Version                 : 5.0.0
+      Profile Class                   : Display Device Profile
+      Color Space Data                : RGB
+      Profile Connection Space        : XYZ
+      Profile Date Time               : 2026:02:17 08:38:13
+      Profile File Signature          : acsp
+      Primary Platform                : Unknown ()
+      CMM Flags                       : Embedded, Independent
+      Device Manufacturer             : 
+      Device Model                    : 
+      Device Attributes               : Reflective, Glossy, Positive, Color
+      Rendering Intent                : Media-Relative Colorimetric
+      Connection Space Illuminant     : 0.95039 1 1.0889
+      Profile Creator                 : Unknown (ICC )
+      Profile ID                      : 33174f15abb4d791a2ace1bf694996c1
+      Profile Description             : sRGB D65 MAT
+      Profile Copyright               : Copyright 2017 International Color Consortium
+      A To B1                         : (Binary data 344 bytes, use -b option to extract)
+
+  [identify]
+      Image:
+        Filename: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
+        Permissions: rw-rw-r--
+        Format: ICC (ICC Color Profile)
+        Class: DirectClass
+        Geometry: 1x1+0+0
+        Units: Undefined
+        Colorspace: sRGB
+        Type: Bilevel
+        Base type: Undefined
+        Endianness: Undefined
+        Depth: 16/1-bit
+        Channel depth:
+          red: 1-bit
+          green: 1-bit
+          blue: 1-bit
+        Channel statistics:
+          Pixels: 1
+          Red:
+            min: 65535  (1)
+            max: 65535 (1)
+            mean: 65535 (1)
+            standard deviation: 0 (0)
+            kurtosis: -3
+            skewness: 0
+            entropy: 0
+          Green:
+            min: 65535  (1)
+            max: 65535 (1)
+            mean: 65535 (1)
+            standard deviation: 0 (0)
+            kurtosis: -3
+            skewness: 0
+            entropy: 0
+          Blue:
+            min: 65535  (1)
+            max: 65535 (1)
+            mean: 65535 (1)
+            standard deviation: 0 (0)
+            kurtosis: -3
+
+  [xxd -l 128]
+      00000000: 0000 6088 0000 0000 0500 0000 6d6e 7472  ..`.........mntr
+      00000010: 5247 4220 5859 5a20 07ea 0002 0011 0008  RGB XYZ ........
+      00000020: 0026 000d 6163 7370 0000 0000 0000 0001  .&..acsp........
+      00000030: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+      00000040: 0000 0001 0000 f34d 0001 0000 0001 16c2  .......M........
+      00000050: 4943 4320 3317 4f15 abb4 d791 a2ac e1bf  ICC 3.O.........
+      00000060: 6949 96c1 0000 0000 0000 0000 0000 0000  iI..............
+      00000070: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+
+  [sha256sum]
+      317a85b01c29550c5289e505079a549c12aaf92cfebc80d04b6626f717675fce  /home/xss/research/test-profiles/sRGB_D65_MAT.icc
 
 =======================================================================
 HEADER VALIDATION HEURISTICS
@@ -51,14 +148,21 @@ HEADER VALIDATION HEURISTICS
 [H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
      [OK] Valid ICC magic signature
 
-[H3] Data ColorSpace: 0x52474220 (RGB )
+[H3] Data ColorSpace: 0x52474220 (RGB)
      [OK] Valid colorSpace: RgbData
 
-[H4] PCS ColorSpace: 0x58595A20 (XYZ )
+[H4] PCS ColorSpace: 0x58595A20 (XYZ)
      [OK] Valid PCS: XYZData
 
-[H5] Platform: 0x00000000 (....)
-     [OK] Known platform code
+[H5] Platform / CMM / Manufacturer / Creator Validation
+      Platform: 0x00000000 (....)
+      [OK] Known platform code
+      CMM: 0x00000000 (....)
+      [OK] CMM signature registered or zero
+      Manufacturer: 0x00000000 (....)
+      [OK] Manufacturer is zero (unspecified)
+      Creator: 0x49434320 (ICC)
+      [OK] Creator signature is printable ASCII
 
 [H6] Rendering Intent: 1 (0x00000001)
      [OK] Valid intent: Relative Colorimetric
@@ -67,15 +171,16 @@ HEADER VALIDATION HEURISTICS
      [OK] Known class: DisplayClass
 
 [H8] Illuminant XYZ: (0.950394, 1.000000, 1.088898)
-     [OK] Illuminant values within physical range
+     [WARN]  HEURISTIC: PCS illuminant is NOT D50 (spec: 0.9642, 1.0000, 0.8249)
+     Risk: Non-conformant header — ICC.1-2022-05 §7.2.16 requires D50
 
-[H15] Date Validation: 2026-02-17 08:38:13
+[H15] Date Validation (§4.2 dateTimeNumber): 2026-02-17 08:38:13
       [OK] Date values within valid ranges
 
 [H16] Signature Pattern Analysis
       [OK] No suspicious signature patterns detected
 
-[H17] Spectral Range Validation
+[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)
       [OK] No spectral data (standard profile)
 
 =======================================================================
@@ -114,12 +219,557 @@ TAG-LEVEL HEURISTICS
 [H19] Tag Offset/Size Overlap Detection
       [OK] No tag overlaps detected
 
-=======================================================================
+[H20] Tag Type Signature Validation
+      [OK] All tag type signatures are valid ASCII
+
+[H21] tagStruct Member Inspection
+      [OK] No tagStruct tags present
+
+[H22] NumArray Scalar Expectation (cept struct)
+      [OK] No cept (ColorEncodingParams) tag — check not applicable
+
+[H23] NumArray Value Range Validation
+      [OK] All NumArray values within normal ranges
+
+[H24] tagStruct/tagArray Nesting Depth
+      [OK] Max nesting depth: 0 (safe limit: 4)
+
+[H25] Tag Offset/Size Out-of-Bounds Detection
+      [OK] All tag offsets/sizes within bounds
+
+[H26] NamedColor2 String Validation
+      [OK] No NamedColor2 tags with risky strings
+
+[H27] MPE Matrix Output Channel Validation
+      [OK] All MPE matrix/calculator dimensions valid
+
+[H28] LUT Dimension Validation (OOM Risk)
+      [OK] All LUT dimensions within safe limits
+
+[H29] ColorantTable String Validation
+      [OK] No ColorantTable string issues detected
+
+[H30] GamutBoundaryDesc Allocation Validation
+      [OK] No GamutBoundaryDesc allocation issues
+
+[H31] MPE Channel Count Validation
+      [OK] All MPE channel counts within safe limits
+
+[H32] Tag Data Type Confusion Detection
+      [OK] All tag type signatures are known ICC types
+
+[H56] Calculator Element Stack Depth Analysis
+      [OK] Calculator element depths within safe bounds
+
+[H58] Sparse Matrix Entry Bounds
+      [OK] No oversized array/sparse matrix entries
+
+[H60] Dictionary Tag Consistency
+      [OK] Dictionary tags consistent
+
+[H61] Viewing Conditions Validation
+      [OK] Viewing conditions plausible (or tag absent)
+
+[H62] Multi-Localized Unicode String Bombs
+      [OK] MultiLocalizedUnicode tags within bounds
+
+[H63] Curve/LUT I/O Channel Mismatch
+      [OK] LUT I/O channel counts valid
+
+[H64] NamedColor2 Device Coord Overflow
+      [OK] NamedColor2 dimensions valid (or tag absent)
+
+[H65] Chromaticity Physical Plausibility
+      [OK] Chromaticity coordinates plausible (or tag absent)
+
+[H66] Comprehensive NumArray NaN/Inf Scan
+      [OK] All numeric arrays free of NaN/Inf
+
+[H67] ResponseCurveSet Bounds
+      [OK] ResponseCurveSet bounds valid (or tag absent)
+
+[H70] Measurement Tag Validation
+      [OK] Measurement tag valid (or absent)
+
+[H71] ColorantTable Name Null-Termination
+      [OK] ColorantTable names properly terminated (or absent)
+
+[H72] SparseMatrixArray Allocation Bounds + Enum Validation
+      [OK] SparseMatrixArray allocations and types valid (or absent)
+
+[H73] TagArray/TagStruct Nesting Depth
+      [OK] No suspicious TagArray/TagStruct nesting
+
+[H74] Tag Type Signature Consistency
+      [OK] Tag type signatures consistent
+
+[H75] Tags with Very Small Size
+      [OK] All tags have sufficient minimum size
+
+[H76] CIccTagData Type Flag Validation
+      [OK] CIccTagData types valid (or absent)
+
+[H77] MPE Calculator Sub-Element Count
+      [OK] MPE calculator element counts within bounds
+
+[H78] CLUT Grid Dimension Product Overflow
+      [OK] CLUT grid dimension products within bounds
+
+[H79] LoadTag Allocation Overflow Detection
+      [OK] Tag sizes within safe allocation limits
+
+[H80] Shared Tag Pointer / Use-After-Free Pattern
+      [OK] No excessive tag pointer sharing detected
+
+[H81] MPE Calculator I/O Channel Consistency
+      [OK] MPE calculator channel counts within bounds
+
+[H82] I/O Read Size Overflow Pattern
+      [OK] Tag sizes safe for I/O bit-shift operations
+
+[H83] Float/Numeric Array Size Validation
+      [OK] Float/numeric array sizes within bounds
+
+[H84] 3D LUT Transform Channel/Grid Consistency
+      [OK] 3D LUT channel/grid dimensions consistent
+
+[H85] MPE Buffer Overlap Pattern Detection
+      [OK] No excessive MPE buffer overlap patterns
+
+[H86] Localized Unicode Text Bounds Validation
+      [OK] Localized Unicode text within bounds
+
+[H87] TRC Curve Anomaly Detection
+      [OK] TRC curves within bounds (or absent)
+
+[H88] Chromatic Adaptation Matrix Validation
+      [OK] No chromatic adaptation tag (standard D50)
+
+[H89] Profile Sequence Description Validation
+      [OK] Profile sequence descriptions within bounds (or absent)
+
+[H90] Preview Tag Channel Consistency
+      [OK] Preview tag channels consistent (or absent)
+
+[H91] Colorant Order Validation
+      [OK] Colorant order indices valid (or absent)
+
+[H92] Spectral Viewing Conditions Validation
+      [OK] Spectral viewing conditions valid
+
+[H93] Embedded Profile Flag Consistency
+      [OK] Profile flags and attributes consistent
+
+[H94] Matrix/TRC Colorant Consistency
+      [OK] Matrix/TRC colorant consistency valid (or non-RGB)
+
+[H95] Sparse Matrix Array Bounds Validation
+      [SKIP] No sparse matrix array tags present
+
+[H96] Embedded Profile Validation
+      [SKIP] No embedded profile tag present
+
+[H97] Profile Sequence Identifier Validation
+      [SKIP] No profile sequence ID tag present
+
+[H98] Spectral MPE Element Validation
+      [SKIP] No spectral MPE elements present
+
+[H99] Embedded Image Tag Validation
+      [SKIP] No embedded image tags present
+
+[H100] Profile Sequence Description Validation
+      [SKIP] No profile sequence description tag
+
+[H101] MPE Sub-Element Channel Continuity
+      [OK] MPE sub-element channel continuity valid
+
+[H102] Tag Size vs Profile Size Cross-Check
+      Profile size: 24712 bytes, tag count: 9
+      [OK] Tag size vs profile size consistent
+
+[H146] Stack Buffer Overflow — GetValues() Size Mismatch (CWE-121)
+      [OK] No stack buffer overflow patterns detected in numeric/LUT tags
+
+[H147] Null Pointer Dereference — Post-Read() Tag State (CWE-476)
+      [OK] No null pointer patterns detected in loaded tags
+
+[H148] Memory Copy Bounds and Overlap Detection (CWE-119)
+      [OK] No memory copy overlap or bounds issues detected
+
+[H103] Profile Connection Conditions (PCC)
+      [INFO] Spectral viewing conditions present
+      Standard PCC: no (custom)
+      Illuminant: 0x00000002, CCT: 6500.0
+      Observer: 0x00000001, Has SPD: yes
+      Norm illuminant XYZ: [0.9642, 1.0000, 0.8249]
+      Media white XYZ: [0.9504, 1.0000, 1.0889]
+
+[H104] PRMG Gamut Evaluation
+      [INFO] No rendering intent gamut tags
+      PRMG boundary: 12/12 test points in gamut
+
+[H105] Matrix-TRC Validation
+      [INFO] Missing rXYZ/gXYZ/bXYZ colorant tags
+
+[H106] Environment Variable Tags
+      Custom-to-standard PCC transform present
+      Input channels: 3, Output channels: 3
+      Elements: 1
+      Standard-to-custom PCC transform present
+      Input channels: 3, Output channels: 3
+      Elements: 1
+      Spectral viewing conditions:
+        Illuminant type: 0x00000002
+        Observer type: 0x00000001
+        Illuminant range: 380–780 nm, 81 steps
+
+[H107] LUT Channel vs Colorspace Cross-Check
+      Declared data colorspace channels: 3
+      Declared PCS channels: 3
+      [OK] All LUT channel counts match declared colorspace/PCS
+
+[H108] Private Tag Identification
+      [INFO] Private/unknown tag: 'c2sp' (0x63327370) offset=1116 size=84
+      [INFO] Private/unknown tag: 's2cp' (0x73326370) offset=1200 size=84
+      [INFO] Private/unknown tag: 'svcn' (0x7376636E) offset=1284 size=1356
+      [INFO] Private/unknown tag: 'gbd1' (0x67626431) offset=2660 size=22052
+      [WARN]  4 private/unregistered tag(s) detected
+       CWE-829: Private tags may contain unvalidated data
+
+[H109] NOP Sled / Shellcode Pattern Scan
+      [OK] No shellcode or executable patterns detected
+
+[H110] Profile-Class Required Tag Validation
+      Profile class: Display (mntr)
+      [WARN]  Missing AToB0 tag (required for Display (mntr) class)
+      [WARN]  wtpt ≠ D50 but 'chad' tag missing (ICC.1-2022-05 Annex G)
+       CWE-20: chromaticAdaptationTag required when adopted white ≠ D50
+
+[H111] Reserved Byte Validation
+      [WARN]  Header bytes 44-47 non-zero: 00 00 00 01
+
+[H112] Wtpt Profile-Class Validation
+      wtpt: X=0.950394 Y=1.000000 Z=1.088898
+      [WARN]  v4+ Display profile wtpt is NOT D50
+       Expected: X=0.9642 Y=1.0000 Z=0.8249 (ICC.1-2022-05 §7.2.16)
+       CWE-20: ICC v4 Display profiles must use D50 media white point
+
+[H113] Round-Trip Fidelity Assessment
+      Rel. Colorimetric intent:
+      [OK] Round-trip tag geometry is consistent
+
+[H114] TRC Curve Smoothness and Monotonicity
+      [INFO] No TRC curve tags found
+
+[H115] Characterization Data Presence
+      [INFO] No characterization data (targ) tag present
+
+[H116] cprt/desc Encoding vs Profile Version
+      Profile version: 5.0.0
+      cprt: type='mluc' (0x6D6C7563)
+      [OK] cprt uses correct type for v5
+      desc: type='mluc' (0x6D6C7563)
+      [OK] desc uses correct type for v5
+
+[H117] Tag Type Allowed Per Signature
+      [OK] 3 tags checked — all use allowed types
+
+[H118] Calculator Computation Cost Estimate
+      'A2B1': 0 calc element(s), est. cost: 786 ops
+      'B2A1': 0 calc element(s), est. cost: 786 ops
+      Total estimated cost: 1572 ops per pixel
+
+[H119] Round-Trip ΔE Measurement
+      [INFO] No AToB/BToA CLUT pairs available for ΔE measurement
+
+[H120] Curve Invertibility Assessment
+      [INFO] No TRC curves found for invertibility check
+
+[H121] Characterization Data Round-Trip Capability
+      [INFO] No characterization data (targ) tag — cannot assess
+
+[H122] Tag Type Encoding Validation
+      [OK] 1 tag types validated — encoding correct
+
+[H123] Non-Required Tag Classification
+      [INFO] 'c2sp' (0x63327370): not required/optional for class 'mntr'
+      [INFO] 's2cp' (0x73326370): not required/optional for class 'mntr'
+      [INFO] 'svcn' (0x7376636E): not required/optional for class 'mntr'
+      [INFO] 'gbd1' (0x67626431): not required/optional for class 'mntr'
+      [WARN]  4 tag(s) not in required/optional set for this profile class
+       CWE-20: Non-standard tags should be registered as private
+
+[H124] Version-Tag Correspondence
+      [OK] Tags correspond to profile version 5
+
+[H125] Overall Transform Smoothness
+      [INFO] No suitable LUT tags for smoothness measurement
+
+[H126] Private Tag Malware Content Scan
+      [OK] 4 private tag(s) scanned — no malware signatures found
+
+[H127] Private Tag Registry Check
+      [WARN]  'c2sp' (0x63327370): not found in private tag registry
+       CWE-20: Undocumented private tag
+      [WARN]  's2cp' (0x73326370): not found in private tag registry
+       CWE-20: Undocumented private tag
+      [WARN]  'svcn' (0x7376636E): not found in private tag registry
+       CWE-20: Undocumented private tag
+      [WARN]  'gbd1' (0x67626431): not found in private tag registry
+       CWE-20: Undocumented private tag
+      Summary: 4 private tag(s) — 0 registered, 4 undocumented
+
+[H128] Version BCD Encoding Validation
+      Version bytes: 05 00 00 00 → v5.0.0
+      [OK] Version BCD encoding is valid
+
+[H129] PCS Illuminant Exact D50 Check
+      Raw bytes: X=0x0000F34D Y=0x00010000 Z=0x000116C2
+      Float:     X=0.950394   Y=1.000000   Z=1.088898
+      D50 spec:  X=0x0000F6D6 Y=0x00010000 Z=0x0000D32D
+      [INFO] PCS illuminant is not D50 (valid for ICC.2/v5 spectral profiles)
+
+[H130] Tag Data 4-Byte Alignment
+      [OK] All 9 tags are 4-byte aligned
+
+[H131] Profile ID (MD5) Validation
+      Profile ID: 33174F15ABB4D791A2ACE1BF694996C1
+      Computed:   33174F15ABB4D791A2ACE1BF694996C1
+      [OK] Profile ID matches computed MD5
+
+[H132] chromaticAdaptation Matrix Validation
+      [INFO] No chromaticAdaptation (chad) tag present
+
+[H133] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11)
+      Flags: 0x00000001 (embedded=1, independent=0)
+      [OK] Reserved flag bits are zero
+
+[H134] Tag Type Reserved Bytes (ICC.1-2022-05 §10.1)
+      [OK] All 9 tag types have zeroed reserved bytes
+
+[H135] Duplicate Tag Signatures (ICC.1-2022-05 §7.3.1)
+      [OK] All 9 tag signatures are unique
+
+[H137] High-Dimensional Color Space Grid Complexity (CWE-400)
+      [OK] Color space dimensionality within safe bounds
+
+[H138] Calculator Element Branching Depth (CWE-400/CWE-674)
+      [INFO] No calculator elements found
+
+[H142] XML Serialization Safety (§10 Tag Type Definitions)
+      [OK] XML serialization completed safely (ToXml succeeded)
+
+[H143] XML Array Bounds Precheck (§10 Tag Types)
+      [OK] All array tag element counts consistent with data sizes
+
+[H144] XML String Termination Precheck (§10.4/§10.19)
+      [OK] All string fields properly null-terminated for XML serialization
+
+[H145] XML Curve Type Consistency (§10.14 MPE)
+      [OK] All curve/MPE type signatures consistent for XML serialization
+
+[H33] mBA/mAB Sub-Element Offset Validation
+      [OK] All mBA/mAB sub-element offsets within tag bounds
+
+[H34] 32-bit Integer Overflow in Sub-Element Bounds
+      [OK] No 32-bit integer overflow in sub-element offsets
+
+[H35] Suspicious Fill Pattern in mBA/mAB Data
+      [OK] No suspicious fill patterns in mBA/mAB data
+
+[H36] LUT Tag Pair Completeness
+      [OK] All LUT tags properly paired
+
+[H37] Calculator Element Complexity Validation
+      [OK] No calculator complexity issues
+
+[H38] Curve Degenerate Value Detection
+      [OK] No degenerate curve values detected
+
+[H39] Shared Tag Data Aliasing Detection
+      [OK] No risky shared tag data aliasing
+
+[H40] Tag Alignment & Padding Validation
+      [OK] All tags properly aligned with zero padding
+
+[H41] Version/Type Consistency Check
+      Profile version: 5.0.0
+      [OK] All tags/types consistent with declared version
+
+[H42] Matrix Singularity Detection
+      [INFO]  rXYZ/gXYZ/bXYZ tags not all present (0/3 found)
+      [OK] Color matrix is well-conditioned
+
+[H43] Spectral/BRDF Tag Structural Validation
+      [WARN]  svcn present but sdin (spectral data info) missing
+      [WARN]  Illuminant ≠ D50 but 'chad' (chromaticAdaptation) tag missing
+       CWE-20: ICC.1-2022-05 Annex G requires chad when adopted white ≠ D50
+
+[H44] Embedded Image Validation
+      [OK] Embedded images valid (or none present)
+
+[H45] Sparse Matrix Bounds Validation
+      [OK] Sparse matrix bounds valid (or none present)
+
+[H46] TextDescription Unicode Length Validation
+      [OK] TextDescription unicode lengths valid (or no desc tags)
+
+[H47] NamedColor2 Size Overflow Detection
+      [OK] NamedColor2 sizes valid (or no ncl2 tags)
+
+[H48] CLUT Grid Dimension Product Overflow
+      [OK] CLUT grid dimension products within bounds
+
+[H49] Float/s15Fixed16 NaN/Inf Detection
+      [OK] No NaN/Inf/extreme values in float/fixed-point tags
+
+[H50] Zero-Size Profile/Tag Detection (Infinite Loop)
+      [OK] No zero-size profile or tags detected
+
+[H51] LUT I/O Channel Count Consistency
+      [OK] LUT I/O channel counts within valid range
+
+[H52] Integer Underflow in Tag Size Subtraction
+      [OK] All tag sizes meet minimum requirements
+
+[H53] Embedded Profile Recursion Detection
+      [OK] No embedded profiles detected
+
+[H54] Division-by-Zero Trigger Detection
+      [OK] No division-by-zero triggers detected
+
+[H55] UTF-16 Encoding Validation
+      [OK] UTF-16 encoding appears valid
+
+[H57] Embedded Profile Recursion Depth
+      [OK] No embedded profiles detected
+
+[H59] Spectral Wavelength Range Consistency
+      [OK] Spectral range fields consistent
+
+[H68] GamutBoundaryDesc Triangle/Vertex Overflow
+      [OK] GamutBoundaryDesc bounds valid (or absent)
+
+[H69] Profile ID / MD5 Consistency
+      [OK] Profile ID present: 33174f15...694996c1
+
+[H153] Sampled Curve NaN-to-Unsigned Cast Detection (§10.26 MPE)
+      [OK] No sampled curve degenerate range entries
+
+[H154] Uncontrolled Tag Allocation Size (CWE-789, §7.3 Tag Table)
+      [OK] All tag allocation sizes within bounds
+
+[H155] Integer Overflow in Tag Dimensions (CWE-190, §10.6-10.14)
+      [OK] No integer overflow in tag dimension calculations
+
+[H156] Allocation Failure Path Profiles (CWE-252, §7.3)
+      [OK] Allocation pressure within safe bounds
+
+[H157] Alloc-Dealloc Mismatch Tag Patterns (CWE-762, §10.14)
+      [OK] No alloc-dealloc mismatch trigger patterns
+
+[H158] Enum Range Validation Extended (CWE-681, §7.2 Header Fields)
+      [OK] All enum values within valid ranges
+
+[H159] UAF Tag Ownership Chain Detection (CWE-416, §7.3)
+      [OK] No UAF-triggering ownership patterns detected
+
+[H160] Format String Injection in Text Tags (CWE-134, §10.24/§10.22)
+      [OK] No format string specifiers in text tags
+
+[H161] Stack Address Escape via Deep Apply Chains (CWE-121, §10.6/§10.14)
+      [OK] No deep Apply() chain stack-escape risk patterns
+
+[H162] Partial Tag Data Overlap Detection
+      [OK] No partial tag data overlaps detected
+
+[H163] Executable Signature Scan in Tag Data
+      [OK] No executable signatures detected in tag data
+
+[H164] Raw LUT Channel Count vs ColorSpace/PCS
+      [OK] All raw LUT channel counts match colorSpace/PCS
+
+[H165] LUT Data Sufficiency Validation
+      [OK] All LUT tags have sufficient data for declared contents
+
+[H166] Division-by-Zero in CAM/Array/MPE Detection
+      [OK] No division-by-zero risk patterns detected
+
+[H167] Null MPE CLUT/Curve Application Guard
+      [OK] No null MPE CLUT/Curve application risks detected
+
+[H168] Unchecked Allocation Size Overflow Detection
+      [WARN]  HEURISTIC: Tag 'gbd1' GamutBoundaryDesc 196611 vertices + 468 triangles (2364948 bytes) exceeds 22052-byte tag — ICC.2-2023 §10.5
+       CWE-190: nTriangles*3 signed overflow in CFL-002 pattern
+
+[H169] Dictionary Tag Element Bounds Validation
+      [OK] No dictionary tag bounds issues detected
+
+[H170] Copy Constructor UB via Null PCS (CWE-843, §7.2.7)
+      [OK] PCS signature valid for copy-constructor safety
+
+[H171] Curve Param Count vs FuncType Validation (CWE-125, §10.15/§10.23)
+      [OK] Curve param counts consistent with function types
+
+[H136] ResponseCurve Per-Channel Measurement Count (CWE-400)
+      [OK] ResponseCurve measurement counts within bounds (or tag absent)
+
 HEURISTIC SUMMARY
 =======================================================================
 
-[OK] NO HEURISTIC WARNINGS DETECTED
-  Profile appears well-formed with no obvious security concerns.
+[WARN]  21 HEURISTIC WARNING(S) DETECTED
+
+  This profile exhibits patterns associated with:
+  - Malformed/corrupted data
+  - Resource exhaustion attempts
+  - Enum confusion vulnerabilities
+  - Parser exploitation attempts
+  - Type confusion / buffer overflow patterns
+
+  - Sub-element offset OOB (mBA/mAB SIGBUS pattern)
+  - 32-bit integer overflow in bounds checks
+  - Suspicious fill patterns enabling OOB traversal
+
+  CVE Coverage: 171 heuristics covering patterns from 87 CVEs + 95 GHSAs across 93 iccDEV security advisories (57 heuristics with CVE/GHSA cross-references)
+  Spec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references
+  Key CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow
+  H33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)
+  H37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)
+  H46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
+  H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict
+  H61-H70: Viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity,
+           NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement
+  H71-H78: ColorantTable null-term, SparseMatrix, nesting depth, type confusion,
+           small tags, data flags, calculator sub-elements, CLUT grid overflow
+  H79-H86: LoadTag overflow, UAF shared pointers, MPE channel consistency,
+           I/O bit-shift overflow, float array SBO, 3D LUT OOB, memcpy overlap, mluc HBO
+  H87-H94: TRC curve anomalies, chromatic adaptation matrix, profile sequence,
+           preview channels, colorant order, spectral viewing, flags, matrix colorants
+  H95-H102: Sparse matrix bounds, embedded profile recursion, profile sequence ID,
+            spectral MPE elements, embedded images, sequence desc, MPE chain, tag sizes
+  H103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation,
+             environment variable tags, spectral range validation
+  H107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,
+             class-required tags, reserved bytes, wtpt validation, round-trip fidelity,
+             TRC monotonicity, characterization data
+  H116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,
+             computation cost, ΔE round-trip, curve invertibility, characterization RT,
+             deep encoding, non-required tags, version-tag, smoothness, malware scan, registry
+  H128-H132: ICC.1-2022-05 spec compliance — version BCD, PCS D50, tag alignment,
+             Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)
+  H133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved
+             bytes (§10.1), duplicate tag signatures (§7.3.1)
+  H136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional
+             grid complexity, calculator branching depth (CFL-074/075/076 findings)
+  H142-H145: XML serialization safety — fork-isolated ToXml(), array bounds precheck,
+             string termination validation, curve type consistency (25 XML advisories)
+
+  Recommendations:
+  • Validate profile with official ICC tools
+  • Use -n (ninja mode) for detailed byte-level analysis
+  • Do NOT use in production color workflows
+  • Consider as potential security test case
 
 
 =======================================================================
@@ -128,7 +778,7 @@ PHASE 2: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
+Profile: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
 
 Device Class: 0x6D6E7472
 
@@ -156,8 +806,8 @@ PHASE 3: SIGNATURE ANALYSIS
 
 Header Signatures:
   Device Class:    0x6D6E7472  ''  DisplayClass
-  Color Space:     0x52474220  'RGB '  RgbData
-  PCS:             0x58595A20  'XYZ '  XYZData
+  Color Space:     0x52474220  'RGB'  RgbData
+  PCS:             0x58595A20  'XYZ'  XYZData
   Manufacturer:    0x00000000  '....'
   Model:           0x00000000  '....'
 
@@ -193,12 +843,29 @@ PHASE 4: PROFILE STRUCTURE DUMP
 0x0070: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 
 Header Fields:
-  Size:            0x00006088 (24712 bytes)
-  CMM:             
-  Version:         0x05000000
-  Device Class:    DisplayClass
-  Color Space:     RgbData
-  PCS:             XYZData
+  Size:              0x00006088 (24712 bytes)
+  CMM Type:          '....' (0x00000000)
+  Version:           5.0.0.0 (0x05000000)
+  Device Class:      DisplayClass
+  Color Space:       RgbData (3 channels)
+  PCS:               XYZData
+  Date/Time:         2026-02-17 08:38:13
+  Magic:             0x61637370 [OK]
+  Platform:          Unknown
+  Profile Flags:     0x00000001 [Embedded]
+  Manufacturer:      '....' (0x00000000)
+  Model:             '....' (0x00000000)
+  Device Attribs:    0x0000000000000000
+  Rendering Intent:  Relative Colorimetric (1)
+  PCS Illuminant:    X=0.9504 Y=1.0000 Z=1.0889
+  Creator:           'ICC ' (0x49434320)
+  Profile ID:        33174f15abb4d791a2ace1bf694996c1
+
+  --- ICC v5/iccMAX Extended Header ---
+  Spectral PCS:      NoSpectralData
+  Spectral Range:    Not Defined
+  BiSpectral Range:  Not Defined
+  MCS Color Space:   Not Defined
 
 === Tag Table ===
 
@@ -241,15 +908,21 @@ PHASE 5: TAG CONTENT ANALYSIS
       Input channels:  3
       Output channels: 3
       Elements:        2
-        [0] type='cvst' in=3 out=3
-        [1] type='matf' in=3 out=3
+
+      === MPE Element Chain: 2 elements, 3→3 channels ===
+      [1] Curve Set Element ('cvst') 3→3
+      [2] Matrix Element ('matf') 3→3
+      ===
 
   [B2A1] MPE Tag 'B2A1'
       Input channels:  3
       Output channels: 3
       Elements:        2
-        [0] type='matf' in=3 out=3
-        [1] type='cvst' in=3 out=3
+
+      === MPE Element Chain: 2 elements, 3→3 channels ===
+      [1] Matrix Element ('matf') 3→3
+      [2] Curve Set Element ('cvst') 3→3
+      ===
 
 --- 5C: TRC Curve Analysis ---
 
@@ -269,6 +942,7 @@ PHASE 5: TAG CONTENT ANALYSIS
       Observer:    CIE 1931 (two degree) standard observer
       Illuminant:  Illuminant D65 (CCT=6500 K)
       Illuminant XYZ: (0.9504, 1.0000, 1.0889)
+  PCC Transform Tags:  c2sp=PRESENT  s2cp=PRESENT
 
 --- 5G: Profile ID Verification ---
 
@@ -281,16 +955,48 @@ PHASE 5: TAG CONTENT ANALYSIS
   Tag sizes (flagging >10MB):
       [OK] All tags within 10MB limit
 
+--- 5I: V5/iccMAX Summary ---
+
+  --- V5/iccMAX Profile Summary ---
+
+  BRDF Tags:              0 of 16 present
+  Gamut Boundary Desc:    gbd0=---  gbd1=PRESENT
+
+  MPE Tags:               4 (multiProcessElementType)
+  Total MPE Elements:     6
+  Calculator Elements:    0
+  Late-Binding Elements:  0 (spectral observer/emission)
+
+--- 5J: Version Classification & Capabilities ---
+
+  Version Classification:
+    ICC Version:       5.0.0
+    Specification:     ICC.2 (iccMAX)
+    Features:          MPE, Spectral PCS, Calculator, BRDF, MCS, Named Colors
+    Device Class:      DisplayClass
+    Color Space:       RgbData (3 channels)
+    Connection Space:  XYZData
+
+  Transform Capabilities:
+    AToB (device→PCS):   no
+    BToA (PCS→device):   no
+    DToB (device→PCS):   no
+    BToD (PCS→device):   no
+    TRC (matrix/gamma):  no
+    Gamut check:         no
+    Chromatic adapt:     no
+    Preview:             no
+
 
 =======================================================================
 COMPREHENSIVE ANALYSIS SUMMARY
 =======================================================================
 
-File: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
-Total Issues Detected: 0
+File: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
+Total Issues Detected: 21
 
-[OK] ANALYSIS COMPLETE - No critical issues detected
-  Profile appears well-formed.
+[WARN] ANALYSIS COMPLETE - 21 issue(s) detected
+  Review detailed output above for security concerns.
 ```
 
 ---
@@ -312,7 +1018,7 @@ WARNING: Analyzing malformed/corrupted ICC profile without validation.
          This mode bypasses all safety checks and may expose parser bugs.
          Use only for security research, fuzzing, or forensic analysis.
 
-File: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
+File: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
 Mode: FULL DUMP (entire file will be displayed)
 
 Raw file size: 24712 bytes (0x6088)
@@ -330,10 +1036,26 @@ Raw file size: 24712 bytes (0x6088)
 Header Fields (RAW - no validation):
   Profile Size:    0x00006088 (24712 bytes) OK
   CMM:             0x00000000  '....'
-  Version:         0x05000000
+  Version:         0x05000000  (5.0.0)
   Device Class:    0x6D6E7472  'mntr'
   Color Space:     0x52474220  'RGB '
   PCS:             0x58595A20  'XYZ '
+  Date/Time:       2026-02-17 08:38:13
+  Magic:           0x61637370  [OK 'acsp']
+  Platform:        0x00000000  '....'
+  Flags:           0x00000001 [Embedded]
+  Manufacturer:    0x00000000  '....'
+  Model:           0x00000000  '....'
+  Dev Attributes:  0x0000000000000000
+  Rendering Intent:0x00000001  Relative Colorimetric
+  PCS Illuminant:  X=0.9504 Y=1.0000 Z=1.0889
+  Creator:         0x49434320  'ICC '
+  Profile ID:      33174f15abb4d791a2ace1bf694996c1
+  Reserved 100-127: all zeros [OK]
+
+  --- V5/iccMAX Extended Header ---
+  Spectral PCS:    0x58595A20  'XYZ '
+  Spectral Range:  Not defined
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 9 (0x00000009)
@@ -1921,7 +2643,7 @@ Use this information for debugging malformed profiles.
 ```
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/runner/work/research/research/test-profiles/sRGB_D65_MAT.icc
+Profile: /home/xss/research/test-profiles/sRGB_D65_MAT.icc
 
 Device Class: 0x6D6E7472
 
@@ -1937,4 +2659,45 @@ Tag Pair Analysis:
   Matrix/TRC Tags:                 [ ]  
 
 [OK] RESULT: Profile supports round-trip validation
+```
+
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 0**
+
+```
+=== Extracting LUT data as text from: /home/xss/research/test-profiles/sRGB_D65_MAT.icc ===
+
+--- AToB1Tag (MPE: 2 elements) ---
+  Channels: in=3 out=3
+  Wrote MPE CurveSet[0]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__AToB1Tag_mpe0_curves.txt (3 ch × 4096 samples)
+  Wrote MPE Matrix[1]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__AToB1Tag_mpe1_matrix.txt (3x3)
+
+--- BToA1Tag (MPE: 2 elements) ---
+  Channels: in=3 out=3
+  Wrote MPE Matrix[0]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__BToA1Tag_mpe0_matrix.txt (3x3)
+  Wrote MPE CurveSet[1]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__BToA1Tag_mpe1_curves.txt (3 ch × 4096 samples)
+
+--- customToStandardPccTag (MPE: 1 elements) ---
+  Channels: in=3 out=3
+  Wrote MPE Matrix[0]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__customToStandardPccTag_mpe0_matrix.txt (3x3)
+
+--- standardToCustomPccTag (MPE: 1 elements) ---
+  Channels: in=3 out=3
+  Wrote MPE Matrix[0]: /tmp/tmp.QQqVTp1cjI/sRGB_D65_MAT__standardToCustomPccTag_mpe0_matrix.txt (3x3)
+
+=== Exported 6 LUT component(s) ===
+Exported 6 text file(s) to /tmp/tmp.QQqVTp1cjI/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 3**
+
+```
+Usage: iccanalyzer-lite/iccanalyzer-lite -cube <profile> <tag> <output.cube>
 ```

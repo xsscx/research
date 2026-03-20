@@ -1,0 +1,10 @@
+# ICC Profile MPE Matrix Export
+# Tag: standardToCustomPccTag
+# Element: 0
+# Dimensions: 3x3 + offsets
+# ApplyConstants: true
+#
+m[0]	m[1]	m[2]	offset
+0.878138840	0.044201769	0.072101079	0.000000000
+-0.091076948	1.063835740	0.029094862	0.000000000
+0.044652823	-0.052150998	1.331196427	0.000000000
