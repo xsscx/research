@@ -2,10 +2,10 @@
 
 Last Updated: 2026-03-16
 
-20 active patches targeting verified security vulnerabilities in iccDEV library code,
+45 active patches targeting verified security vulnerabilities in iccDEV library code,
 discovered during LibFuzzer and AFL++ fuzzing campaigns.
 
-**Architecture**: Post-retirement minimal patch set. 9 patches retired after upstream
+**Architecture**: Post-retirement minimal patch set. 13 patches retired after upstream
 acceptance (PRs #680-#695). Only verified, targeted fixes remain.
 
 **Build**: `cd cfl && ./build.sh` applies all patches from this directory automatically.

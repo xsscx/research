@@ -7,7 +7,7 @@
 > **Sources**: ICC.1-2022-05, ICC.2-2023, iccanalyzer-lite source code,
 > CFL fuzzer corpus, 93 iccDEV security advisories (85 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-14 — 150 heuristics, 20 CFL patches, 12 fuzzers.
+> **Last verified**: 2026-03-14 — 171 heuristics, 45 CFL patches, 13 fuzzers.
 
 ---
 
@@ -527,7 +527,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-23 distinct CWE categories across 150 heuristics:
+23 distinct CWE categories across 171 heuristics:
 
 | CWE | Name | Count | Key Heuristics |
 |-----|------|-------|----------------|
@@ -770,4 +770,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.6.2+ · 150 heuristics · 20 CFL patches · 12 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.6.2+ · 171 heuristics · 45 CFL patches · 13 fuzzers · 93 advisories*
