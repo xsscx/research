@@ -733,13 +733,17 @@ jobs:
               # which triggers -fsanitize=integer false positives
               asan_count=$(grep -E "ERROR: AddressSanitizer|ERROR: LeakSanitizer" "$stderr_file" 2>/dev/null | wc -l || true)
               local ubsan_count
-              # Filter out -fsanitize=integer false positives (defined C/C++ behavior):
-              #   "unsigned integer overflow" — unsigned wrapping is well-defined
+              # Filter out known false positives and upstream library noise:
+              #   "unsigned integer overflow" — defined C/C++ behavior (wrapping)
               #   "implicit conversion" — truncation/sign-change sanitizer
               #   "negation of .* cannot be represented" — unsigned negation
-              # Also exclude IccMD5.cpp (RFC 1321 intentional wrapping)
+              #   IccMD5.cpp — RFC 1321 intentional 32-bit wrapping arithmetic
+              #   iccDEV/ paths — upstream library UBSAN (float-cast-overflow,
+              #     NaN-to-int in IccMpeBasic/IccMatrixMath/IccCAM/IccTagLut,
+              #     div-by-zero in IccCAM/IccProfile). Not actionable by us.
               ubsan_count=$(grep "runtime error:" "$stderr_file" 2>/dev/null \
                 | grep -v "IccMD5.cpp" \
+                | grep -v "iccDEV/" \
                 | grep -v "unsigned integer overflow" \
                 | grep -v "implicit conversion" \
                 | grep -v "negation of .* cannot be represented" \
