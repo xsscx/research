@@ -44,8 +44,7 @@
 #include <ctime>
 #include <cstdio>
 #include <cstdlib>
-#include <regex>
-#include <unistd.h>
+#include <cstring>
 #include <sys/stat.h>
 #include <vector>
 #include <set>
@@ -480,20 +479,9 @@ static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
   xml << "  </heuristics>\n";
 }
 
-// --- Captured-output XML export (per-heuristic, same as --json/--report) ---
+// --- Captured-output XML export (per-heuristic, uses shared capture) ---
 
-#include "IccAnalyzerComprehensive.h"
-
-struct XMLFinding {
-  int id;
-  std::string name;
-  std::string status;   // PASS, WARN, CRITICAL
-  std::string detail;
-  HeuristicSeverity severity;
-  const char *cwe;
-  const char *specRef;
-  const char *cveRefs;
-};
+#include "IccAnalyzerCapture.h"
 
 int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
                                             const char *xmlFilename,
@@ -502,101 +490,7 @@ int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
   if (!profilePath || !xmlFilename) return 2;
   if (strstr(xmlFilename, "..") || strlen(xmlFilename) > 4096) return 2;
 
-  // Capture stdout via pipe (same pattern as --json/--report)
-  int pipefd[2];
-  if (pipe(pipefd) != 0) {
-    fprintf(stderr, "[ERR] pipe() failed for XML capture\n");
-    return 2;
-  }
-
-  int savedStdout = dup(STDOUT_FILENO);
-  dup2(pipefd[1], STDOUT_FILENO);
-  close(pipefd[1]);
-
-  int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
-
-  fflush(stdout);
-  dup2(savedStdout, STDOUT_FILENO);
-  close(savedStdout);
-
-  // Read captured output
-  std::string captured;
-  {
-    char buf[4096];
-    ssize_t n;
-    while ((n = read(pipefd[0], buf, sizeof(buf))) > 0)
-      captured.append(buf, n);
-    close(pipefd[0]);
-  }
-
-  // Parse [H##] markers from captured output
-  std::regex hRegex(R"(\[H(\d+)\]\s+(.+))");
-  std::regex warnRegex(R"(\[WARN\])");
-  std::regex critRegex(R"(\[CRIT)");
-  std::regex okRegex(R"(\[OK\])");
-
-  std::vector<XMLFinding> findings;
-  int okCount = 0, warnCount = 0, critCount = 0;
-  std::istringstream stream(captured);
-  std::string line;
-
-  int currentH = -1;
-  std::string currentTitle;
-  std::string currentDetail;
-  std::string currentStatus = "PASS";
-
-  auto flushFinding = [&]() {
-    if (currentH > 0) {
-      const HeuristicEntry *entry = LookupHeuristic(currentH);
-      XMLFinding f;
-      f.id = currentH;
-      f.name = entry ? entry->name : currentTitle;
-      f.status = currentStatus;
-      f.detail = currentDetail;
-      f.severity = entry ? entry->severity : HeuristicSeverity::INFO;
-      f.cwe = entry ? entry->primaryCWE : nullptr;
-      f.specRef = entry ? entry->specRef : nullptr;
-      f.cveRefs = entry ? entry->cveRefs : nullptr;
-
-      if (currentStatus == "PASS") okCount++;
-      else if (currentStatus == "WARN") warnCount++;
-      else if (currentStatus == "CRITICAL") critCount++;
-
-      findings.push_back(f);
-    }
-  };
-
-  while (std::getline(stream, line)) {
-    std::smatch m;
-    if (std::regex_search(line, m, hRegex)) {
-      flushFinding();
-      currentH = std::stoi(m[1].str());
-      currentTitle = m[2].str();
-      currentDetail.clear();
-      currentStatus = "PASS";
-    } else if (currentH > 0) {
-      if (line.find("HEURISTIC SUMMARY") != std::string::npos ||
-          line.find("PHASE 2:") != std::string::npos ||
-          line.find("PHASE 3:") != std::string::npos ||
-          line.find("========") != std::string::npos) {
-        flushFinding();
-        currentH = -1;
-        continue;
-      }
-      if (std::regex_search(line, critRegex)) currentStatus = "CRITICAL";
-      else if (std::regex_search(line, warnRegex) && currentStatus != "CRITICAL")
-        currentStatus = "WARN";
-      // Accumulate all meaningful detail lines (match JSON/Report behavior)
-      if (!line.empty()) {
-        size_t start = line.find_first_not_of(" \t");
-        if (start != std::string::npos) {
-          if (!currentDetail.empty()) currentDetail += " | ";
-          currentDetail += line.substr(start);
-        }
-      }
-    }
-  }
-  flushFinding();
+  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db);
 
   // Write XML
   std::ofstream xml(xmlFilename);
@@ -608,27 +502,46 @@ int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
   WriteXMLHeader(xml, XSLBasename(xmlFilename).c_str(), profilePath);
 
   xml << "  <heuristics>\n";
-  xml << "    <summary total=\"" << (int)findings.size()
-      << "\" passed=\"" << okCount
-      << "\" findings=\"" << (warnCount + critCount)
-      << "\" warnings=\"" << warnCount
-      << "\" critical=\"" << critCount << "\"/>\n";
+  xml << "    <summary total=\"" << (int)cap.findings.size()
+      << "\" passed=\"" << cap.okCount
+      << "\" findings=\"" << (cap.warnCount + cap.critCount)
+      << "\" warnings=\"" << cap.warnCount
+      << "\" critical=\"" << cap.critCount << "\"/>\n";
 
-  for (const auto& f : findings) {
+  for (const auto& f : cap.findings) {
+    // Map lowercase status to XML-style uppercase
+    std::string xmlStatus;
+    if (f.status == "ok") xmlStatus = "PASS";
+    else if (f.status == "warn") xmlStatus = "WARN";
+    else if (f.status == "critical") xmlStatus = "CRITICAL";
+    else xmlStatus = f.status;
+
+    // Map detail from newline-joined to " | " separated
+    std::string xmlDetail;
+    for (char c : f.detail) {
+      if (c == '\n') xmlDetail += " | ";
+      else xmlDetail += c;
+    }
+    // Trim leading/trailing " | "
+    while (xmlDetail.size() >= 3 && xmlDetail.substr(0, 3) == " | ")
+      xmlDetail = xmlDetail.substr(3);
+    while (xmlDetail.size() >= 3 && xmlDetail.substr(xmlDetail.size() - 3) == " | ")
+      xmlDetail = xmlDetail.substr(0, xmlDetail.size() - 3);
+
     xml << "    <check>\n";
     xml << "      <id>" << f.id << "</id>\n";
     xml << "      <name>" << XMLEscape(f.name) << "</name>\n";
-    xml << "      <status>" << XMLEscape(f.status) << "</status>\n";
+    xml << "      <status>" << XMLEscape(xmlStatus) << "</status>\n";
     xml << "      <severity>" << XMLEscape(SeverityToString(f.severity))
         << "</severity>\n";
-    if (f.cwe)
-      xml << "      <cwe>" << XMLEscape(f.cwe) << "</cwe>\n";
+    if (f.primaryCWE)
+      xml << "      <cwe>" << XMLEscape(f.primaryCWE) << "</cwe>\n";
     if (f.specRef)
       xml << "      <specRef>" << XMLEscape(f.specRef) << "</specRef>\n";
     if (f.cveRefs)
       xml << "      <cveRefs>" << XMLEscape(f.cveRefs) << "</cveRefs>\n";
-    if (!f.detail.empty())
-      xml << "      <message>" << XMLEscape(f.detail) << "</message>\n";
+    if (!xmlDetail.empty())
+      xml << "      <message>" << XMLEscape(xmlDetail) << "</message>\n";
     xml << "    </check>\n";
   }
 
@@ -639,11 +552,11 @@ int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
   WriteCompanionXSL(xmlFilename);
 
   fprintf(stderr, "\n[OK] XML report written to: %s (%d heuristics, %d findings)\n",
-          xmlFilename, (int)findings.size(), warnCount + critCount);
+          xmlFilename, (int)cap.findings.size(), cap.warnCount + cap.critCount);
   fprintf(stderr, "[OK] XSLT stylesheet written alongside XML\n");
   fprintf(stderr, "[OK] Open the XML file in a browser to view the styled report\n");
 
-  return exitCode;
+  return cap.exitCode;
 }
 
 bool IccAnalyzerXMLExport::ExportHeuristicsToXML(const char* filename,
