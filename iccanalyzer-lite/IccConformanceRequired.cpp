@@ -31,7 +31,7 @@ static bool CheckTagPresent(CIccProfile *pIcc, icTagSignature sig, const char *n
   char sigCC[5];
   SigToChars(static_cast<uint32_t>(sig), sigCC);
 
-  CIccTag *pTag = pIcc->FindTag(sig);
+  const CIccTag *pTag = pIcc->FindTag(sig);
   if (pTag) {
     printf("         '%s' (%s): present\n", sigCC, name);
     return true;
@@ -114,7 +114,7 @@ static int RunCF040_CommonRequiredTags(CIccProfile *pIcc) {
                        fabs(iy - 1.0000) <= kTolerance &&
                        fabs(iz - 0.8249) <= kTolerance);
 
-    CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+    const CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
 
     if (!illumIsD50 && !chadTag) {
       printf("         Illuminant X=%.4f Y=%.4f Z=%.4f — %snot D50, chad missing%s\n",
@@ -361,8 +361,8 @@ static int RunCF044_DeviceLinkProfileRequired(CIccProfile *pIcc) {
   }
 
   // profileSequenceDescTag or profileSequenceIdentifierTag (v4.4+)
-  CIccTag *pseq = pIcc->FindTag(icSigProfileSequenceDescTag);
-  CIccTag *psid = pIcc->FindTag(icSigProfileSequceIdTag);  // iccDEV typo: SequceId
+  const CIccTag *pseq = pIcc->FindTag(icSigProfileSequenceDescTag);
+  const CIccTag *psid = pIcc->FindTag(icSigProfileSequceIdTag);  // iccDEV typo: SequceId
 
   int major = VersionMajor(pIcc);
   int minor = VersionMinor(pIcc);
@@ -833,7 +833,7 @@ static int RunCF053_CicpTagClassRestriction(CIccProfile *pIcc) {
   printf("%s[CF-053]%s cicpTag Class Restriction (%sICC.1-2022-05 §9.2.11%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  CIccTag *cicpTag = pIcc->FindTag(icSigCicpTag);
+  const CIccTag *cicpTag = pIcc->FindTag(icSigCicpTag);
 
   if (!cicpTag) {
     printf("         'cicp' (cicpTag): not present — no restriction check needed\n");

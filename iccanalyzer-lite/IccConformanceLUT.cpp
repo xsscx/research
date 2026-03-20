@@ -561,7 +561,7 @@ static int RunCF067_LutMatrixIdentityNonXYZ(CIccProfile *pIcc) {
     CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
     if (!mbb) continue;
 
-    CIccMatrix *matrix = mbb->GetMatrix();
+    const CIccMatrix *matrix = mbb->GetMatrix();
     if (!matrix) continue;
 
     found = true;
