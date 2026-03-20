@@ -334,7 +334,7 @@ async def analyze_security_json(path: str) -> str:
     _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
     profile = _resolve_profile(path)
     return await _run(
-        [str(ANALYZER_BIN), "--json", str(profile)],
+        [str(ANALYZER_BIN), "--legacy", "--json", str(profile)],
         include_stderr=False,
     )
 
@@ -352,7 +352,7 @@ async def analyze_security_report(path: str) -> str:
     """
     _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "--report", str(profile)])
+    return await _run([str(ANALYZER_BIN), "--legacy", "--report", str(profile)])
 
 
 @mcp.tool()

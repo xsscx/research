@@ -402,7 +402,7 @@ async def test_full_analysis_all():
         async with _SEM:
             try:
                 r = await full_analysis(f)
-                T.ok(f"full({f[:45]})", len(r) > 100 and ("COMPREHENSIVE" in r or "IMAGE ANALYSIS SUMMARY" in r))
+                T.ok(f"full({f[:45]})", len(r) > 100 and ("COMPREHENSIVE" in r or "IMAGE ANALYSIS SUMMARY" in r or "CONFORMANCE" in r))
             except Exception as e:
                 T.ok(f"full({f[:45]})", False, str(e))
 
