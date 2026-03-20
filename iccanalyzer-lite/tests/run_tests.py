@@ -2139,6 +2139,55 @@ def test_conformance_checks(suite):
         r"CF-122.*Date|implaus|1800"
     )
 
+    # CF-011: Profile ID MD5 Verification — mismatch
+    suite.assert_output_contains(
+        "cf.011.md5_mismatch",
+        ["-a", f"{corpus}/cf_md5_mismatch.icc"],
+        r"CF-011.*\[WARN\]|MD5.*mismatch|Stored.*Computed"
+    )
+
+    # CF-011: Valid profile — MD5 check runs
+    suite.assert_output_contains(
+        "cf.011.valid_profile",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-011"
+    )
+
+    # CF-021: Non-zero reserved bytes in tag type header
+    suite.assert_output_contains(
+        "cf.021.reserved_nonzero",
+        ["-a", f"{corpus}/cf_reserved_bytes_nonzero_tag.icc"],
+        r"CF-021.*\[FAIL\]|reserved.*non-zero|must be zero"
+    )
+
+    # CF-021: Valid profile — reserved bytes OK
+    suite.assert_output_contains(
+        "cf.021.valid_profile",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\].*reserved bytes are zero"
+    )
+
+    # CF-030: mluc duplicate language/country pair
+    suite.assert_output_contains(
+        "cf.030.bad_record_size",
+        ["-a", f"{corpus}/cf_mluc_bad_record_size.icc"],
+        r"CF-030.*\[WARN\]|duplicate.*language|§10.13"
+    )
+
+    # CF-030: Valid profile — mluc structure OK
+    suite.assert_output_contains(
+        "cf.030.valid_profile",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\].*mluc.*structurally valid"
+    )
+
+    # CF-031: sf32 bad element count
+    suite.assert_output_contains(
+        "cf.031.bad_size",
+        ["-a", f"{corpus}/cf_sf32_bad_size.icc"],
+        r"CF-031.*\[FAIL\]|not divisible|remainder|extra bytes"
+    )
+
     # --- Clean profile baseline ---
     # Clean monitor profile should produce zero CF warnings
     suite.assert_output_not_contains(
