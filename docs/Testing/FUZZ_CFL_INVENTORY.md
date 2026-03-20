@@ -113,7 +113,7 @@
 | File | Size | Purpose |
 |------|------|---------|
 | README.md | 10K | CFL documentation & fuzzer table |
-| CMakeLists.txt | 8.4K | Build config for 12 fuzzers + iccDEV |
+| CMakeLists.txt | 8.4K | Build config for 13 fuzzers + iccDEV |
 | build.sh | 11K (executable) | Build orchestrator — clones iccDEV, applies patches, compiles |
 | Dockerfile | 454B | Container image definition |
 | codeql-config.yml | 620B | CodeQL analysis config |
@@ -144,9 +144,9 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 ```
 
 ### Patch Directory
-**patches/** — 20 active patches (CFL-001 through CFL-020):
-- 62 legacy patches (CFL-001 through CFL-083 with gaps) retired March 2026 to `patches-retired/`
-- Current: 20 targeted patches for verified upstream bugs
+**patches/** — 45 active patches (CFL-001 through CFL-043, with gaps for retired patches):
+- 13 legacy patches retired after upstream acceptance (PRs #680-#695)
+- Current: 45 targeted patches for verified upstream bugs
 - Format: `NNN-descriptive-name.patch` (unified diff)
 - All patches idempotent (`build.sh` applies with `patch -p1 --forward`)
 
