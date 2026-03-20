@@ -18,7 +18,7 @@
 // ── Singleton ──
 
 HeuristicCollector::HeuristicCollector()
-  : m_active(false), m_collecting(true), m_lastCount(0)
+  : m_active(false), m_collecting(true), m_quiet(false), m_lastCount(0)
 {}
 
 HeuristicCollector &HeuristicCollector::instance()
@@ -53,8 +53,9 @@ void HeuristicCollector::begin(int id, const char *title)
   m_current.status = "ok";
   m_active = true;
 
-  // Backward-compatible printf
-  printf("[H%d] %s\n", id, title ? title : "");
+  // Backward-compatible printf (suppressed in quiet mode)
+  if (!m_quiet)
+    printf("[H%d] %s\n", id, title ? title : "");
 }
 
 void HeuristicCollector::warn(const char *fmt, ...)
@@ -71,8 +72,9 @@ void HeuristicCollector::warn(const char *fmt, ...)
       m_current.status = "warn";
   }
 
-  // Backward-compatible printf: "      [WARN]  <message>"
-  printf("      %s[WARN]  %s%s\n", ColorCritical(), msg.c_str(), ColorReset());
+  // Backward-compatible printf: "      [WARN]  <message>" (suppressed in quiet mode)
+  if (!m_quiet)
+    printf("      %s[WARN]  %s%s\n", ColorCritical(), msg.c_str(), ColorReset());
 }
 
 void HeuristicCollector::cweNote(const char *fmt, ...)
@@ -86,8 +88,9 @@ void HeuristicCollector::cweNote(const char *fmt, ...)
     m_current.details.push_back(msg);
   }
 
-  // Backward-compatible printf: "       <CWE note>"
-  printf("       %s%s%s\n", ColorCritical(), msg.c_str(), ColorReset());
+  // Backward-compatible printf: "       <CWE note>" (suppressed in quiet mode)
+  if (!m_quiet)
+    printf("       %s%s%s\n", ColorCritical(), msg.c_str(), ColorReset());
 }
 
 void HeuristicCollector::critical(const char *fmt, ...)
@@ -103,7 +106,8 @@ void HeuristicCollector::critical(const char *fmt, ...)
     m_current.status = "critical";
   }
 
-  printf("      %s[WARN]  CRITICAL: %s%s\n", ColorCritical(), msg.c_str(), ColorReset());
+  if (!m_quiet)
+    printf("      %s[WARN]  CRITICAL: %s%s\n", ColorCritical(), msg.c_str(), ColorReset());
 }
 
 void HeuristicCollector::info(const char *fmt, ...)
@@ -117,7 +121,8 @@ void HeuristicCollector::info(const char *fmt, ...)
     m_current.details.push_back(msg);
   }
 
-  printf("      %s\n", msg.c_str());
+  if (!m_quiet)
+    printf("      %s\n", msg.c_str());
 }
 
 int HeuristicCollector::end(const char *okMessage)
@@ -127,10 +132,11 @@ int HeuristicCollector::end(const char *okMessage)
     count = m_current.findingCount;
     if (count == 0) {
       m_current.status = "ok";
-      printf("      %s[OK] %s%s\n",
-             ColorSuccess(),
-             okMessage ? okMessage : "No issues detected",
-             ColorReset());
+      if (!m_quiet)
+        printf("      %s[OK] %s%s\n",
+               ColorSuccess(),
+               okMessage ? okMessage : "No issues detected",
+               ColorReset());
     }
     if (m_collecting) {
       m_results.push_back(std::move(m_current));
@@ -138,7 +144,8 @@ int HeuristicCollector::end(const char *okMessage)
     m_active = false;
     m_lastCount = count;
   }
-  printf("\n");
+  if (!m_quiet)
+    printf("\n");
   return count;
 }
 
@@ -153,7 +160,8 @@ int HeuristicCollector::skip(const char *reason)
     m_active = false;
     m_lastCount = 0;
   }
-  printf("      [SKIP] %s\n\n", reason ? reason : "");
+  if (!m_quiet)
+    printf("      [SKIP] %s\n\n", reason ? reason : "");
   return 0;
 }
 

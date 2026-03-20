@@ -96,6 +96,11 @@ public:
   bool collecting() const { return m_collecting; }
   void setCollecting(bool on) { m_collecting = on; }
 
+  /// Quiet mode: when true, suppress all printf output (structured output only).
+  /// Used by JSON/Report/XML modes to avoid mixing printf with structured output.
+  bool quiet() const { return m_quiet; }
+  void setQuiet(bool on) { m_quiet = on; }
+
 private:
   HeuristicCollector();
 
@@ -103,6 +108,7 @@ private:
   HeuristicFinding m_current;
   bool m_active;      // true between begin() and end()
   bool m_collecting;  // true = accumulate results; false = printf only
+  bool m_quiet;       // true = suppress printf; structured collection only
   int m_lastCount;
 
   // Format a va_list into a std::string
