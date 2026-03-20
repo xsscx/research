@@ -48,44 +48,81 @@
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
 //
-// Runs all analysis phases sequentially on a single ICC profile:
-//   Phase 1: Security heuristic checks (fingerprint matching, structure validation)
-//   Phase 2: Round-trip validation (encode/decode fidelity for non-DeviceLink profiles)
+// legacy=false (default): ICC Specification Conformance Audit
+//   Phase 1: ICC specification conformance (CIccProfile::Validate)
+//   Phase 2: Round-trip validation (encode/decode fidelity)
+//   Phase 3: Signature and structure verification
+//   Phase 4: Profile structure dump (header, tag table)
+//   Phase 5: Deep tag content analysis (LUT, curve, MPE, named color)
+//
+// legacy=true: Full analysis including backward-looking vulnerability heuristics
+//   Phase 1: Security heuristic checks (171 CVE/GHSA pattern detectors)
+//   Phase 2: Round-trip validation
 //   Phase 3: ICC specification conformance (CIccProfile::Validate)
-//   Phase 4: Signature and structure verification (magic bytes, required tags)
-//   Phase 5: Profile structure dump (header, tag table)
-//   Phase 6: Deep tag content analysis (LUT, curve, MPE, named color)
+//   Phase 4: Signature and structure verification
+//   Phase 5: Profile structure dump
+//   Phase 6: Deep tag content analysis
 //
 // Returns: total number of issues detected across all phases (0 = clean profile).
-// The fingerprint_db parameter is optional; pass NULL to skip DB lookups.
 //==============================================================================
 
-int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
+int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
+                         bool legacy)
 {
-  // Multi-phase ICC profile analysis: heuristics, round-trip, signatures,
-  // tag content inspection, and deep LUT/MPE/curve dump.
   printf("\n");
   printf("=======================================================================\n");
-  printf("  %sICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)%s\n", ColorHeader(), ColorReset());
+  if (legacy) {
+    printf("  %sICC PROFILE COMPREHENSIVE ANALYSIS (LEGACY + CONFORMANCE)%s\n",
+           ColorHeader(), ColorReset());
+  } else {
+    printf("  %sICC PROFILE CONFORMANCE AUDIT%s\n",
+           ColorHeader(), ColorReset());
+  }
   printf("=======================================================================\n");
   printf("\n%sFile:%s %s\n\n", ColorInfo(), ColorReset(), filename);
   
   int totalIssues = 0;
+  int phaseNum = 1;
   
-  // Phase 1: Security Heuristics (with fingerprint check if DB provided)
-  printf("=======================================================================\n");
-  printf("%sPHASE 1: SECURITY HEURISTIC ANALYSIS%s\n", ColorHeader(), ColorReset());
-  printf("=======================================================================\n\n");
-  
-  int heuristicCount = HeuristicAnalyze(filename, fingerprint_db);
-  if (heuristicCount > 0) {
-    totalIssues += heuristicCount;
+  // Legacy mode Phase 1: Security Heuristics (CVE/GHSA pattern detectors)
+  if (legacy) {
+    printf("=======================================================================\n");
+    printf("%sPHASE %d: SECURITY HEURISTIC ANALYSIS (LEGACY)%s\n",
+           ColorHeader(), phaseNum, ColorReset());
+    printf("=======================================================================\n\n");
+    
+    int heuristicCount = HeuristicAnalyze(filename, fingerprint_db);
+    if (heuristicCount > 0) {
+      totalIssues += heuristicCount;
+    }
+    phaseNum++;
   }
   
-  // Phase 2: Round-trip tag validation (serialize → deserialize → compare)
+  // Conformance Phase: ICC specification validation via CIccProfile::ReadValidate()
+  if (IsProfileTruncated(filename)) {
+    printf("\n%s[SKIP] Profile TRUNCATED — conformance validation skipped (CWE-125)%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sHeader claims more bytes than file contains%s\n",
+           ColorInfo(), ColorReset());
+    return totalIssues > 0 ? totalIssues : -1;
+  }
+
+  printf("=======================================================================\n");
+  printf("%sPHASE %d: ICC SPECIFICATION CONFORMANCE%s\n",
+         ColorHeader(), phaseNum, ColorReset());
+  printf("=======================================================================\n\n");
+  
+  int validateIssues = RunIccLibraryValidation(filename);
+  if (validateIssues > 0) {
+    totalIssues += validateIssues;
+  }
+  phaseNum++;
+  
+  // Round-trip tag validation
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 2: ROUND-TRIP TAG VALIDATION%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE %d: ROUND-TRIP TAG VALIDATION%s\n",
+         ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
   
   int rtResult = RoundTripAnalyze(filename);
@@ -95,23 +132,9 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
   } else {
     printf("%sResult: Round-trip capable [OK]%s\n", ColorSuccess(), ColorReset());
   }
-  
-  // Phases 3-6 require a loaded profile. Guard against truncated profiles.
-  if (IsProfileTruncated(filename)) {
-    printf("\n%s[SKIP] Profile TRUNCATED — phases 3-6 skipped (CWE-125)%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sHeader claims more bytes than file contains%s\n",
-           ColorInfo(), ColorReset());
-    return totalIssues > 0 ? totalIssues : -1;
-  }
+  phaseNum++;
 
-  // Phase 3: ICC Library Conformance — runs ReadValidate() (own profile load)
-  int validateIssues = RunIccLibraryValidation(filename);
-  if (validateIssues > 0) {
-    totalIssues += validateIssues;
-  }
-
-  // Phases 4-6 need a loaded profile for signature/structure/tag analysis
+  // Remaining phases need a loaded profile for signature/structure/tag analysis
   CIccFileIO io;
   if (!io.Open(filename, "rb")) {
     printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
@@ -125,7 +148,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     return totalIssues > 0 ? totalIssues : -1;
   }
   if (!pIcc->Read(&io)) {
-    printf("%s[ERROR] Profile failed to load - skipping phases 4-6%s\n", ColorCritical(), ColorReset());
+    printf("%s[ERROR] Profile failed to load - skipping remaining phases%s\n", ColorCritical(), ColorReset());
     printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());
     delete pIcc;
     io.Close();
@@ -135,14 +158,15 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
 
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 4: SIGNATURE ANALYSIS%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE %d: SIGNATURE ANALYSIS%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
   
   AnalyzeSignatures(pIcc);
+  phaseNum++;
   
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 5: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE %d: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
   
   CIccFileIO io2;
@@ -153,11 +177,11 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     DumpTagTable(pIcc, &io2);
     io2.Close();
   }
+  phaseNum++;
   
-  // Phase 6: Deep tag content analysis (LUT, curve, MPE, named color)
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 6: TAG CONTENT ANALYSIS%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE %d: TAG CONTENT ANALYSIS%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
   
   int tagIssues = TagDetailAnalyze(pIcc, filename);
@@ -169,19 +193,35 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
   
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sCOMPREHENSIVE ANALYSIS SUMMARY%s\n", ColorHeader(), ColorReset());
+  if (legacy) {
+    printf("%sCOMPREHENSIVE ANALYSIS SUMMARY%s\n", ColorHeader(), ColorReset());
+  } else {
+    printf("%sCONFORMANCE AUDIT SUMMARY%s\n", ColorHeader(), ColorReset());
+  }
   printf("=======================================================================\n\n");
   
   printf("%sFile:%s %s\n", ColorInfo(), ColorReset(), filename);
+  printf("%sMode:%s %s\n", ColorInfo(), ColorReset(),
+         legacy ? "Legacy (conformance + vulnerability heuristics)"
+                : "Conformance (ICC specification audit)");
   printf("%sTotal Issues Detected:%s %s%d%s\n", ColorInfo(), ColorReset(), 
          totalIssues > 0 ? ColorWarning() : ColorSuccess(), totalIssues, ColorReset());
   
   if (totalIssues == 0) {
-    printf("\n%s[OK] ANALYSIS COMPLETE - No critical issues detected%s\n", ColorSuccess(), ColorReset());
-    printf("  Profile appears well-formed.\n");
+    printf("\n%s[OK] ANALYSIS COMPLETE - No issues detected%s\n", ColorSuccess(), ColorReset());
+    if (legacy) {
+      printf("  Profile appears well-formed and free of known vulnerability patterns.\n");
+    } else {
+      printf("  Profile conforms to ICC specification.\n");
+    }
   } else {
     printf("\n%s[WARN] ANALYSIS COMPLETE - %d issue(s) detected%s\n", ColorCritical(), totalIssues, ColorReset());
-    printf("  %sReview detailed output above for security concerns.%s\n", ColorWarning(), ColorReset());
+    if (legacy) {
+      printf("  %sReview detailed output above for security concerns.%s\n", ColorWarning(), ColorReset());
+    } else {
+      printf("  %sReview conformance findings above. Use --legacy for vulnerability analysis.%s\n",
+             ColorWarning(), ColorReset());
+    }
   }
   
   printf("\n");

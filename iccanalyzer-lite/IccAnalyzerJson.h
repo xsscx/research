@@ -13,6 +13,7 @@
 #ifndef ICC_ANALYZER_JSON_H
 #define ICC_ANALYZER_JSON_H
 
-int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db);
+int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db,
+                      bool legacy = false);
 
 #endif

@@ -17,8 +17,9 @@
 #include <set>
 #include <string>
 
-int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db) {
-  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db);
+int RunWithJsonOutput(const char *profilePath, const char *fingerprint_db,
+                      bool legacy) {
+  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db, legacy);
 
   // Count CVE coverage from triggered heuristics
   int cveHeuristicsTriggered = 0;
