@@ -19,158 +19,154 @@
 #include "IccProfile.h"
 #include "IccUtil.h"
 #include "IccUtil.h"
+#include "IccHeuristicResult.h"
 #include <cstdio>
 #include <cstring>
 #include <cmath>
 
 int RunHeuristic_H1_ProfileSize(const icHeader &header, size_t actualFileSize) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 1. Profile Size Heuristic (ICC.1-2022-05 §7.2.2)
 icUInt32Number profileSize = header.size;
-printf("[H1] Profile Size: %u bytes (0x%08X)", profileSize, profileSize);
-if (actualFileSize > 0) {
-  printf("  [actual file: %zu bytes]", actualFileSize);
+char title[256];
+int tlen = snprintf(title, sizeof(title), "Profile Size: %u bytes (0x%08X)", profileSize, profileSize);
+if (actualFileSize > 0 && tlen > 0 && tlen < (int)sizeof(title)) {
+  snprintf(title + tlen, sizeof(title) - tlen, "  [actual file: %zu bytes]", actualFileSize);
 }
-printf("\n");
+hc.begin(1, title);
 if (profileSize == 0) {
-  printf("     %s[WARN]  HEURISTIC: Profile size is ZERO — ICC.1-2022-05 §7.2.2%s\n", ColorCritical(), ColorReset());
-  printf("     %sRisk: Invalid header, possible corruption%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Profile size is ZERO — ICC.1-2022-05 §7.2.2");
+  hc.info("Risk: Invalid header, possible corruption");
 } else if (profileSize > (1u << 30)) {
-  printf("     %s[WARN]  HEURISTIC: Profile size > 1 GiB (possible memory exhaustion)%s\n", ColorWarning(), ColorReset());
-  printf("     %sRisk: Resource exhaustion attack%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
-} else {
-  printf("     %s[OK] Size within normal range%s\n", ColorSuccess(), ColorReset());
+  hc.warn("HEURISTIC: Profile size > 1 GiB (possible memory exhaustion)");
+  hc.info("Risk: Resource exhaustion attack");
 }
 // Truncation: header claims larger than actual file — tags will read OOB
 if (actualFileSize > 0 && profileSize > 0 && profileSize > actualFileSize) {
-  printf("     %s[WARN]  HEURISTIC: Profile TRUNCATED — header claims %u bytes but file is only %zu bytes%s\n",
-         ColorCritical(), profileSize, actualFileSize, ColorReset());
-  printf("     %sRisk: Tags referencing past EOF will cause heap-buffer-overflow reads%s\n",
-         ColorCritical(), ColorReset());
+  hc.warn("HEURISTIC: Profile TRUNCATED — header claims %u bytes but file is only %zu bytes",
+         profileSize, actualFileSize);
+  hc.info("Risk: Tags referencing past EOF will cause heap-buffer-overflow reads");
   double truncPct = 100.0 * (1.0 - (double)actualFileSize / (double)profileSize);
-  printf("     %sTruncation: %.1f%% of declared data missing (%zu bytes absent)%s\n",
-         ColorWarning(), truncPct, (size_t)(profileSize - actualFileSize), ColorReset());
-  heuristicCount++;
+  hc.info("Truncation: %.1f%% of declared data missing (%zu bytes absent)",
+         truncPct, (size_t)(profileSize - actualFileSize));
 }
 // Appended data: file is larger than declared profile size
 if (actualFileSize > 0 && profileSize > 0 && actualFileSize > (uint64_t)profileSize + 3) {
   size_t extraBytes = actualFileSize - (size_t)profileSize;
-  printf("     %s[WARN]  HEURISTIC: %zu EXTRA BYTES appended past declared profile end%s\n",
-         ColorCritical(), extraBytes, ColorReset());
-  printf("     %sRisk: Data hiding / smuggling — parsers may ignore appended payload%s\n",
-         ColorWarning(), ColorReset());
-  printf("     %sNote: Some parsers observed in the wild read past declared size%s\n",
-         ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: %zu EXTRA BYTES appended past declared profile end", extraBytes);
+  hc.info("Risk: Data hiding / smuggling — parsers may ignore appended payload");
+  hc.info("Note: Some parsers observed in the wild read past declared size");
 }
 // Size inflation: header claims much larger than actual file (extreme)
 if (actualFileSize > 0 && profileSize > 0 &&
     profileSize > actualFileSize * 16 && profileSize > (128u << 20)) {
-  printf("     %s[WARN]  HEURISTIC: Extreme inflation — header claims %u bytes but file is %zu bytes (%.0fx)%s\n",
-         ColorCritical(), profileSize, actualFileSize,
-         (double)profileSize / actualFileSize, ColorReset());
-  printf("     %sRisk: OOM via tag-internal allocations sized from inflated header%s\n",
-         ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Extreme inflation — header claims %u bytes but file is %zu bytes (%.0fx)",
+         profileSize, actualFileSize,
+         (double)profileSize / actualFileSize);
+  hc.info("Risk: OOM via tag-internal allocations sized from inflated header");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Size within normal range");
 }
 
 int RunHeuristic_H2_MagicBytes(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 2. Magic Bytes Validation (ICC.1-2022-05 §7.2.9)
 const icUInt8Number expectedMagic[4] = {'a', 'c', 's', 'p'};
 const icUInt8Number *actualMagic = (icUInt8Number *)&header.magic;
-printf("[H2] Magic Bytes (offset 0x24): ");
-for (int i = 0; i < 4; i++) {
-  printf("%02X ", actualMagic[i]);
+char title[128];
+int tlen = snprintf(title, sizeof(title), "Magic Bytes (offset 0x24): ");
+for (int i = 0; i < 4 && tlen < (int)sizeof(title) - 4; i++) {
+  tlen += snprintf(title + tlen, sizeof(title) - tlen, "%02X ", actualMagic[i]);
 }
-printf("(");
-for (int i = 0; i < 4; i++) {
-  printf("%c", actualMagic[i] >= 32 && actualMagic[i] <= 126 ? actualMagic[i] : '.');
+if (tlen < (int)sizeof(title) - 1)
+  tlen += snprintf(title + tlen, sizeof(title) - tlen, "(");
+for (int i = 0; i < 4 && tlen < (int)sizeof(title) - 2; i++) {
+  tlen += snprintf(title + tlen, sizeof(title) - tlen, "%c",
+                   actualMagic[i] >= 32 && actualMagic[i] <= 126 ? actualMagic[i] : '.');
 }
-printf(")\n");
+if (tlen < (int)sizeof(title) - 1)
+  snprintf(title + tlen, sizeof(title) - tlen, ")");
+hc.begin(2, title);
 
 if (memcmp(actualMagic, expectedMagic, 4) != 0) {
-  printf("     %s[WARN]  HEURISTIC: Invalid magic bytes (expected \"acsp\" — ICC.1-2022-05 §7.2.9)%s\n", ColorCritical(), ColorReset());
-  printf("     %sRisk: Not a valid ICC profile, possible format confusion attack%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
-} else {
-  printf("     %s[OK] Valid ICC magic signature%s\n", ColorSuccess(), ColorReset());
+  hc.warn("HEURISTIC: Invalid magic bytes (expected \"acsp\" — ICC.1-2022-05 §7.2.9)");
+  hc.info("Risk: Not a valid ICC profile, possible format confusion attack");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Valid ICC magic signature");
 }
 
 int RunHeuristic_H3_ColorSpaceSignature(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 3. ColorSpace Signature Validation (ICC.1-2022-05 §7.2.6, Table 22)
 icUInt32Number colorSpace = header.colorSpace;
 char csFourCC[5];
 SignatureToFourCC(colorSpace, csFourCC);
-printf("[H3] Data ColorSpace: 0x%08X (%s)\n", colorSpace, csFourCC);
+char title[128];
+snprintf(title, sizeof(title), "Data ColorSpace: 0x%08X (%s)", colorSpace, csFourCC);
+hc.begin(3, title);
 
 if (IsValidColorSpaceSignature((icColorSpaceSignature)colorSpace)) {
   CIccInfo info;
-  printf("     %s[OK] Valid colorSpace: %s%s\n", ColorSuccess(),
-         info.GetColorSpaceSigName((icColorSpaceSignature)colorSpace), ColorReset());
+  char okMsg[128];
+  snprintf(okMsg, sizeof(okMsg), "Valid colorSpace: %s",
+           info.GetColorSpaceSigName((icColorSpaceSignature)colorSpace));
+  return hc.end(okMsg);
 } else {
   // Use DescribeColorSpaceSignature for raw byte decomposition
   IccColorSpaceDescription csDesc = DescribeColorSpaceSignature(colorSpace);
   if (colorSpace == 0x00000000 || colorSpace == 0xFFFFFFFF || colorSpace == 0x20202020) {
-    printf("     %s[WARN]  HEURISTIC: Invalid/null colorSpace signature%s\n", ColorCritical(), ColorReset());
-    printf("     %sRisk: Enum confusion, undefined behavior%s\n", ColorWarning(), ColorReset());
+    hc.warn("HEURISTIC: Invalid/null colorSpace signature");
+    hc.info("Risk: Enum confusion, undefined behavior");
   } else if (HasNonPrintableSignature(colorSpace)) {
-    printf("     %s[WARN]  HEURISTIC: ColorSpace contains non-printable characters%s\n", ColorCritical(), ColorReset());
-    printf("     %sRisk: Binary signature exploitation%s\n", ColorWarning(), ColorReset());
+    hc.warn("HEURISTIC: ColorSpace contains non-printable characters");
+    hc.info("Risk: Binary signature exploitation");
   } else {
-    printf("     %s[WARN]  HEURISTIC: Unknown/invalid colorSpace signature%s\n", ColorWarning(), ColorReset());
-    printf("     %sRisk: Parser may not handle unknown values safely%s\n", ColorWarning(), ColorReset());
+    hc.warn("HEURISTIC: Unknown/invalid colorSpace signature");
+    hc.info("Risk: Parser may not handle unknown values safely");
   }
-  printf("     %sName: %s  Bytes: '%s'%s\n", ColorInfo(), csDesc.name, csDesc.bytes, ColorReset());
-  heuristicCount++;
+  hc.info("Name: %s  Bytes: '%s'", csDesc.name, csDesc.bytes);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Valid colorSpace");
 }
 
 int RunHeuristic_H4_PCSColorSpace(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 4. PCS ColorSpace Validation (ICC.1-2022-05 §7.2.7; ICC.2-2023 §7.2.2 for spectral PCS)
 icUInt32Number pcs = header.pcs;
 char pcsFourCC[5];
 SignatureToFourCC(pcs, pcsFourCC);
-printf("[H4] PCS ColorSpace: 0x%08X (%s)\n", pcs, pcsFourCC);
+char title[128];
+snprintf(title, sizeof(title), "PCS ColorSpace: 0x%08X (%s)", pcs, pcsFourCC);
+hc.begin(4, title);
 
 if (pcs == icSigLabData || pcs == icSigXYZData) {
   CIccInfo info;
-  printf("     %s[OK] Valid PCS: %s%s\n", ColorSuccess(), info.GetColorSpaceSigName((icColorSpaceSignature)pcs), ColorReset());
+  char okMsg[128];
+  snprintf(okMsg, sizeof(okMsg), "Valid PCS: %s", info.GetColorSpaceSigName((icColorSpaceSignature)pcs));
+  return hc.end(okMsg);
 } else if (IsSpaceSpectralPCS((icColorSpaceSignature)pcs)) {
-  printf("     %s[OK] Spectral PCS (ICC v5): 0x%08X%s\n", ColorSuccess(), pcs, ColorReset());
+  char okMsg[128];
+  snprintf(okMsg, sizeof(okMsg), "Spectral PCS (ICC v5): 0x%08X", pcs);
+  return hc.end(okMsg);
 } else {
   IccColorSpaceDescription pcsDesc = DescribeColorSpaceSignature(pcs);
-  printf("     %s[WARN]  HEURISTIC: Invalid PCS signature — ICC.1-2022-05 §7.2.7 requires Lab or XYZ; ICC.2-2023 allows spectral%s\n", ColorCritical(), ColorReset());
-  printf("     %sRisk: Colorimetric transform failures%s\n", ColorWarning(), ColorReset());
-  printf("     %sName: %s  Bytes: '%s'%s\n", ColorInfo(), pcsDesc.name, pcsDesc.bytes, ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Invalid PCS signature — ICC.1-2022-05 §7.2.7 requires Lab or XYZ; ICC.2-2023 allows spectral");
+  hc.info("Risk: Colorimetric transform failures");
+  hc.info("Name: %s  Bytes: '%s'", pcsDesc.name, pcsDesc.bytes);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Valid PCS");
 }
 
 int RunHeuristic_H5_PlatformSignature(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 5. Platform, CMM, Manufacturer, Creator Signature Validation
 // ICC.1-2022-05 §7.2.10 (Platform), §7.2.3 (CMM), §7.2.12 (Manufacturer), §7.2.17 (Creator)
@@ -178,8 +174,8 @@ int RunHeuristic_H5_PlatformSignature(const icHeader &header) {
 icUInt32Number platform = header.platform;
 char pfFourCC[5];
 SignatureToFourCC(platform, pfFourCC);
-printf("[H5] Platform / CMM / Manufacturer / Creator Validation\n");
-printf("      Platform: 0x%08X (%s)\n", platform, pfFourCC);
+hc.begin(5, "Platform / CMM / Manufacturer / Creator Validation");
+hc.info("Platform: 0x%08X (%s)", platform, pfFourCC);
 
 bool validPlatform = false;
 switch (platform) {
@@ -194,18 +190,17 @@ switch (platform) {
 }
 
 if (!validPlatform) {
-  printf("      %s[WARN]  HEURISTIC: Unknown platform signature — ICC.1-2022-05 §7.2.10 Table 18%s\n", ColorWarning(), ColorReset());
-  printf("      %sRisk: Platform-specific code path exploitation%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Unknown platform signature — ICC.1-2022-05 §7.2.10 Table 18");
+  hc.info("Risk: Platform-specific code path exploitation");
 } else {
-  printf("      %s[OK] Known platform code%s\n", ColorSuccess(), ColorReset());
+  hc.info("[OK] Known platform code");
 }
 
 // CMM Type Signature (ICC.1-2022-05 §7.2.3, bytes 4-7)
 icUInt32Number cmm = header.cmmId;
 char cmmFourCC[5];
 SignatureToFourCC(cmm, cmmFourCC);
-printf("      CMM: 0x%08X (%s)\n", cmm, cmmFourCC);
+hc.info("CMM: 0x%08X (%s)", cmm, cmmFourCC);
 
 bool validCmm = false;
 switch (cmm) {
@@ -247,17 +242,16 @@ switch (cmm) {
 }
 
 if (!validCmm) {
-  printf("      %s[WARN]  HEURISTIC: Unregistered CMM signature — ICC.1-2022-05 §7.2.3%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Unregistered CMM signature — ICC.1-2022-05 §7.2.3");
 } else {
-  printf("      %s[OK] CMM signature registered or zero%s\n", ColorSuccess(), ColorReset());
+  hc.info("[OK] CMM signature registered or zero");
 }
 
 // Device Manufacturer (ICC.1-2022-05 §7.2.12, bytes 48-51)
 icUInt32Number mfg = header.manufacturer;
 char mfgFourCC[5];
 SignatureToFourCC(mfg, mfgFourCC);
-printf("      Manufacturer: 0x%08X (%s)\n", mfg, mfgFourCC);
+hc.info("Manufacturer: 0x%08X (%s)", mfg, mfgFourCC);
 
 // ICC spec §7.2.12: "shall" match ICC signature registry or be zero
 // We flag unregistered non-zero values as INFO (many valid profiles use vendor sigs)
@@ -269,21 +263,19 @@ if (mfg != 0x00000000) {
     if (c < 0x20 || c > 0x7E) { printable = false; break; }
   }
   if (!printable) {
-    printf("      %s[WARN]  HEURISTIC: Manufacturer contains non-printable bytes — ICC.1-2022-05 §7.2.12%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Manufacturer contains non-printable bytes — ICC.1-2022-05 §7.2.12");
   } else {
-    printf("      %s[OK] Manufacturer signature is printable ASCII%s\n", ColorSuccess(), ColorReset());
+    hc.info("[OK] Manufacturer signature is printable ASCII");
   }
 } else {
-  printf("      %s[OK] Manufacturer is zero (unspecified)%s\n", ColorSuccess(), ColorReset());
+  hc.info("[OK] Manufacturer is zero (unspecified)");
 }
 
 // Profile Creator (ICC.1-2022-05 §7.2.17, bytes 80-83)
 icUInt32Number creator = header.creator;
 char crFourCC[5];
 SignatureToFourCC(creator, crFourCC);
-printf("      Creator: 0x%08X (%s)\n", creator, crFourCC);
+hc.info("Creator: 0x%08X (%s)", creator, crFourCC);
 
 if (creator != 0x00000000) {
   bool printable = true;
@@ -292,78 +284,77 @@ if (creator != 0x00000000) {
     if (c < 0x20 || c > 0x7E) { printable = false; break; }
   }
   if (!printable) {
-    printf("      %s[WARN]  HEURISTIC: Creator contains non-printable bytes — ICC.1-2022-05 §7.2.17%s\n",
-           ColorWarning(), ColorReset());
-    heuristicCount++;
+    hc.warn("HEURISTIC: Creator contains non-printable bytes — ICC.1-2022-05 §7.2.17");
   } else {
-    printf("      %s[OK] Creator signature is printable ASCII%s\n", ColorSuccess(), ColorReset());
+    hc.info("[OK] Creator signature is printable ASCII");
   }
 } else {
-  printf("      %s[OK] Creator is zero (unspecified)%s\n", ColorSuccess(), ColorReset());
+  hc.info("[OK] Creator is zero (unspecified)");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("All platform/CMM/manufacturer/creator signatures valid");
 }
 
 int RunHeuristic_H6_RenderingIntent(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 6. Rendering Intent Validation (ICC.1-2022-05 §7.2.15)
 // Bytes 64-67: lower 16 bits = intent (0-3), upper 16 bits must be 0
 icUInt32Number intent = header.renderingIntent;
-printf("[H6] Rendering Intent: %u (0x%08X)\n", intent, intent);
+char title[128];
+snprintf(title, sizeof(title), "Rendering Intent: %u (0x%08X)", intent, intent);
+hc.begin(6, title);
 
 icUInt32Number intentUpper16 = intent >> 16;
 icUInt32Number intentLower16 = intent & 0xFFFF;
 
 if (intentUpper16 != 0) {
-  printf("     %s[WARN]  HEURISTIC: Upper 16 bits non-zero (0x%04X) — spec requires 0%s\n",
-         ColorCritical(), intentUpper16, ColorReset());
-  printf("     %sRisk: CWE-20: non-conformant header, possible exploitation vector%s\n",
-         ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Upper 16 bits non-zero (0x%04X) — spec requires 0",
+         intentUpper16);
+  hc.info("Risk: CWE-20: non-conformant header, possible exploitation vector");
 }
 if (intentLower16 > icAbsoluteColorimetric) {
-  printf("     %s[WARN]  HEURISTIC: Invalid rendering intent value %u (> 3)%s\n",
-         ColorCritical(), intentLower16, ColorReset());
-  printf("     %sRisk: Out-of-bounds enum access%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Invalid rendering intent value %u (> 3)",
+         intentLower16);
+  hc.info("Risk: Out-of-bounds enum access");
 } else if (intentUpper16 == 0) {
   CIccInfo info;
-  printf("     %s[OK] Valid intent: %s%s\n", ColorSuccess(),
-         info.GetRenderingIntentName((icRenderingIntent)intentLower16), ColorReset());
+  char okMsg[128];
+  snprintf(okMsg, sizeof(okMsg), "Valid intent: %s",
+           info.GetRenderingIntentName((icRenderingIntent)intentLower16));
+  return hc.end(okMsg);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Valid rendering intent");
 }
 
 int RunHeuristic_H7_ProfileClass(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 7. Profile Class Validation (ICC.1-2022-05 §7.2.5, Table 17)
 icUInt32Number devClass = header.deviceClass;
 char dcFourCC[5];
 SignatureToFourCC(devClass, dcFourCC);
-printf("[H7] Profile Class: 0x%08X (%s)\n", devClass, dcFourCC);
+char title[128];
+snprintf(title, sizeof(title), "Profile Class: 0x%08X (%s)", devClass, dcFourCC);
+hc.begin(7, title);
 
 CIccInfo info;
 const char *className = info.GetProfileClassSigName((icProfileClassSignature)devClass);
 if (!className || strlen(className) == 0) {
-  printf("     %s[WARN]  HEURISTIC: Unknown profile class — ICC.1-2022-05 §7.2.5 Table 17%s\n", ColorWarning(), ColorReset());
-  printf("     %sRisk: Class-specific parsing vulnerabilities%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Unknown profile class — ICC.1-2022-05 §7.2.5 Table 17");
+  hc.info("Risk: Class-specific parsing vulnerabilities");
 } else {
-  printf("     %s[OK] Known class: %s%s\n", ColorSuccess(), className, ColorReset());
+  char okMsg[128];
+  snprintf(okMsg, sizeof(okMsg), "Known class: %s", className);
+  return hc.end(okMsg);
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Known profile class");
 }
 
 int RunHeuristic_H8_IlluminantXYZ(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 8. Illuminant XYZ Validation (ICC.1-2022-05 §7.2.16)
 // PCS illuminant shall be D50: X=0.9642, Y=1.0000, Z=0.8249
@@ -380,7 +371,9 @@ ICC_TRACE_NAN(X, "illuminant.X");
 ICC_TRACE_NAN(Y, "illuminant.Y");
 ICC_TRACE_NAN(Z, "illuminant.Z");
 
-printf("[H8] Illuminant XYZ: (%.6f, %.6f, %.6f)\n", X, Y, Z);
+char title[128];
+snprintf(title, sizeof(title), "Illuminant XYZ: (%.6f, %.6f, %.6f)", X, Y, Z);
+hc.begin(8, title);
 
 // ICC spec D50 reference values (s15Fixed16Number encoding)
 const double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;
@@ -388,82 +381,72 @@ const double d50Tol = 0.002; // s15Fixed16 rounding tolerance
 
 if (std::isnan(X) || std::isnan(Y) || std::isnan(Z) ||
      std::isinf(X) || std::isinf(Y) || std::isinf(Z)) {
-  printf("     %s[WARN]  HEURISTIC: NaN or Infinity in illuminant values%s\n", ColorCritical(), ColorReset());
-  printf("     %sRisk: NaN propagation in color transforms, potential crash%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: NaN or Infinity in illuminant values");
+  hc.info("Risk: NaN propagation in color transforms, potential crash");
 } else if (X < 0.0 || Y < 0.0 || Z < 0.0) {
-  printf("     %s[WARN]  HEURISTIC: Negative illuminant values (non-physical)%s\n", ColorCritical(), ColorReset());
-  printf("     %sRisk: Undefined behavior in color calculations%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: Negative illuminant values (non-physical)");
+  hc.info("Risk: Undefined behavior in color calculations");
 } else if (fabs(X - d50X) > d50Tol || fabs(Y - d50Y) > d50Tol || fabs(Z - d50Z) > d50Tol) {
-  printf("     %s[WARN]  HEURISTIC: PCS illuminant is NOT D50 (spec: %.4f, %.4f, %.4f)%s\n",
-         ColorWarning(), d50X, d50Y, d50Z, ColorReset());
-  printf("     %sRisk: Non-conformant header — ICC.1-2022-05 §7.2.16 requires D50%s\n",
-         ColorWarning(), ColorReset());
-  heuristicCount++;
+  hc.warn("HEURISTIC: PCS illuminant is NOT D50 (spec: %.4f, %.4f, %.4f)",
+         d50X, d50Y, d50Z);
+  hc.info("Risk: Non-conformant header — ICC.1-2022-05 §7.2.16 requires D50");
 } else if (X > 5.0 || Y > 5.0 || Z > 5.0) {
-  printf("     %s[WARN]  HEURISTIC: Illuminant values > 5.0 (suspicious)%s\n", ColorWarning(), ColorReset());
-  printf("     %sRisk: Floating-point overflow in transforms%s\n", ColorWarning(), ColorReset());
-  heuristicCount++;
-} else {
-  printf("     %s[OK] PCS illuminant matches D50 (within s15Fixed16 tolerance)%s\n", ColorSuccess(), ColorReset());
+  hc.warn("HEURISTIC: Illuminant values > 5.0 (suspicious)");
+  hc.info("Risk: Floating-point overflow in transforms");
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("PCS illuminant matches D50 (within s15Fixed16 tolerance)");
 }
 
 int RunHeuristic_H15_DateValidation(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 15. Date Field Validation (ICC.1-2022-05 §4.2 dateTimeNumber)
-printf("[H15] Date Validation (§4.2 dateTimeNumber): %u-%02u-%02u %02u:%02u:%02u\n",
-       header.date.year, header.date.month, header.date.day,
-       header.date.hours, header.date.minutes, header.date.seconds);
+char title[128];
+snprintf(title, sizeof(title), "Date Validation (§4.2 dateTimeNumber): %u-%02u-%02u %02u:%02u:%02u",
+         header.date.year, header.date.month, header.date.day,
+         header.date.hours, header.date.minutes, header.date.seconds);
+hc.begin(15, title);
 {
   bool dateValid = true;
   if (header.date.month > 12 || header.date.month == 0) {
-    printf("      %s[WARN]  HEURISTIC: Invalid month: %u%s\n", ColorCritical(), header.date.month, ColorReset());
+    hc.warn("HEURISTIC: Invalid month: %u", header.date.month);
     dateValid = false;
   }
   if (header.date.day > 31 || header.date.day == 0) {
-    printf("      %s[WARN]  HEURISTIC: Invalid day: %u%s\n", ColorCritical(), header.date.day, ColorReset());
+    hc.warn("HEURISTIC: Invalid day: %u", header.date.day);
     dateValid = false;
   }
   if (header.date.hours > 23) {
-    printf("      %s[WARN]  HEURISTIC: Invalid hours: %u%s\n", ColorCritical(), header.date.hours, ColorReset());
+    hc.warn("HEURISTIC: Invalid hours: %u", header.date.hours);
     dateValid = false;
   }
   if (header.date.minutes > 59) {
-    printf("      %s[WARN]  HEURISTIC: Invalid minutes: %u%s\n", ColorCritical(), header.date.minutes, ColorReset());
+    hc.warn("HEURISTIC: Invalid minutes: %u", header.date.minutes);
     dateValid = false;
   }
   if (header.date.seconds > 59) {
-    printf("      %s[WARN]  HEURISTIC: Invalid seconds: %u%s\n", ColorCritical(), header.date.seconds, ColorReset());
+    hc.warn("HEURISTIC: Invalid seconds: %u", header.date.seconds);
     dateValid = false;
   }
   if (header.date.year > 2100 || header.date.year < 1900) {
-    printf("      %s[WARN]  HEURISTIC: Suspicious year: %u (expected 1900-2100)%s\n",
-           ColorWarning(), header.date.year, ColorReset());
+    hc.warn("HEURISTIC: Suspicious year: %u (expected 1900-2100)",
+           header.date.year);
     dateValid = false;
   }
   if (!dateValid) {
-    printf("      %sRisk: Malformed date may indicate crafted/corrupted profile%s\n", ColorWarning(), ColorReset());
-    heuristicCount++;
-  } else {
-    printf("      %s[OK] Date values within valid ranges%s\n", ColorSuccess(), ColorReset());
+    hc.info("Risk: Malformed date may indicate crafted/corrupted profile");
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("Date values within valid ranges");
 }
 
 int RunHeuristic_H16_SignaturePatterns(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 16. Suspicious Signature Patterns (repeat-byte, null)
-printf("[H16] Signature Pattern Analysis\n");
+hc.begin(16, "Signature Pattern Analysis");
 {
   struct { const char *name; icUInt32Number sig; } sigs[] = {
     {"colorSpace",  header.colorSpace},
@@ -485,29 +468,23 @@ printf("[H16] Signature Pattern Analysis\n");
                       (b0 == ((s.sig >>  8) & 0xFF)) &&
                       (b0 == (s.sig & 0xFF));
     if (repeatByte) {
-      printf("      %s[WARN]  %s: 0x%08X repeat-byte pattern (fuzz artifact?)%s\n",
-             ColorWarning(), s.name, s.sig, ColorReset());
+      hc.info("%s: 0x%08X repeat-byte pattern (fuzz artifact?)", s.name, s.sig);
       suspiciousCount++;
     }
   }
   if (suspiciousCount > 0) {
-    printf("      %sRisk: %d repeat-byte signature(s) — likely crafted/fuzzed profile%s\n",
-           ColorWarning(), suspiciousCount, ColorReset());
-    heuristicCount++;
-  } else {
-    printf("      %s[OK] No suspicious signature patterns detected%s\n", ColorSuccess(), ColorReset());
+    hc.warn("HEURISTIC: %d repeat-byte signature(s) — likely crafted/fuzzed profile", suspiciousCount);
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No suspicious signature patterns detected");
 }
 
 int RunHeuristic_H17_SpectralRange(const icHeader &header) {
-  int heuristicCount = 0;
+  auto &hc = HeuristicCollector::instance();
 
 // 17. Spectral/BiSpectral Range Validation (ICC.2-2023 §7.2.22-23)
-printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
+hc.begin(17, "Spectral Range Validation (ICC.2-2023 §7.2.22-23)");
 {
   float specStart = icF16toF(header.spectralRange.start);
   float specEnd   = icF16toF(header.spectralRange.end);
@@ -526,52 +503,40 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
   bool hasBiSpectral = (biSteps > 0 || biStart != 0.0f || biEnd != 0.0f);
   
   if (hasSpectral) {
-    printf("      Spectral: start=%.2fnm end=%.2fnm steps=%u\n", specStart, specEnd, specSteps);
+    hc.info("Spectral: start=%.2fnm end=%.2fnm steps=%u", specStart, specEnd, specSteps);
     if (specSteps > 10000) {
-      printf("      %s[WARN]  HEURISTIC: Excessive spectral steps: %u%s\n",
-             ColorWarning(), specSteps, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Excessive spectral steps: %u", specSteps);
     }
     if (specEnd < specStart && specEnd != 0.0f) {
-      printf("      %s[WARN]  HEURISTIC: Spectral end < start (%.2f < %.2f)%s\n",
-             ColorWarning(), specEnd, specStart, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Spectral end < start (%.2f < %.2f)", specEnd, specStart);
     }
     // CFL-028 pattern: steps==1 causes division by zero in SetRange() (CWE-369/CWE-681)
     if (specSteps == 1) {
-      printf("      %s[WARN]  HEURISTIC: Spectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369%s\n",
-             ColorCritical(), ColorReset());
-      printf("       CWE-369: Divide By Zero / CWE-681: NaN-to-integer cast\n");
-      heuristicCount++;
+      hc.warn("HEURISTIC: Spectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369");
+      hc.cweNote("CWE-369: Divide By Zero / CWE-681: NaN-to-integer cast");
     }
     // Degenerate range: start==end with any steps causes 0/0=NaN scale factor
     if (specSteps > 0 && (specEnd - specStart) < 0.001f && (specStart - specEnd) < 0.001f) {
-      printf("      %s[WARN]  HEURISTIC: Spectral start==end (%.2fnm) with steps=%u — degenerate range causes NaN scale — CWE-681%s\n",
-             ColorCritical(), specStart, specSteps, ColorReset());
-      printf("       CWE-681: Incorrect Conversion between Numeric Types\n");
-      heuristicCount++;
+      hc.warn("HEURISTIC: Spectral start==end (%.2fnm) with steps=%u — degenerate range causes NaN scale — CWE-681",
+             specStart, specSteps);
+      hc.cweNote("CWE-681: Incorrect Conversion between Numeric Types");
     }
   }
   if (hasBiSpectral) {
-    printf("      BiSpectral: start=%.2fnm end=%.2fnm steps=%u\n", biStart, biEnd, biSteps);
+    hc.info("BiSpectral: start=%.2fnm end=%.2fnm steps=%u", biStart, biEnd, biSteps);
     if (biSteps > 10000) {
-      printf("      %s[WARN]  HEURISTIC: Excessive bispectral steps: %u%s\n",
-             ColorWarning(), biSteps, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: Excessive bispectral steps: %u", biSteps);
     }
     if (biSteps == 1) {
-      printf("      %s[WARN]  HEURISTIC: BiSpectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: BiSpectral steps=1 causes division by zero in rangeMap/SetRange — CWE-369");
     }
     if (biSteps > 0 && (biEnd - biStart) < 0.001f && (biStart - biEnd) < 0.001f) {
-      printf("      %s[WARN]  HEURISTIC: BiSpectral start==end (%.2fnm) — degenerate range causes NaN scale — CWE-681%s\n",
-             ColorCritical(), biStart, ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: BiSpectral start==end (%.2fnm) — degenerate range causes NaN scale — CWE-681",
+             biStart);
     }
   }
   if (!hasSpectral && !hasBiSpectral) {
-    printf("      %s[OK] No spectral data (standard profile)%s\n", ColorSuccess(), ColorReset());
+    // No spectral data — just let end() print the OK
   }
 
   // MCS (Material Connection Space) enum validation — ICC.2-2023 §7.2.24
@@ -582,18 +547,13 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
   if (mcs != 0) {
     icUInt32Number mcsPrefix = mcs & 0xFFFF0000;
     if (mcsPrefix != 0x6d630000) {
-      printf("      %s[WARN]  MCS field 0x%08X: not a valid icMaterialColorSignature%s\n",
-             ColorCritical(), mcs, ColorReset());
-      printf("       %sCWE-843: Invalid enum value → UB in AddXform() (iccDEV #323)%s\n",
-             ColorCritical(), ColorReset());
-      heuristicCount++;
+      hc.warn("HEURISTIC: MCS field 0x%08X: not a valid icMaterialColorSignature", mcs);
+      hc.cweNote("CWE-843: Invalid enum value — UB in AddXform() (iccDEV #323)");
     } else {
       icUInt32Number mcsChannels = mcs & 0x0000FFFF;
-      printf("      MCS: 0x%08X (%u channels)\n", mcs, mcsChannels);
+      hc.info("MCS: 0x%08X (%u channels)", mcs, mcsChannels);
       if (mcsChannels == 0 || mcsChannels > 32) {
-        printf("      %s[WARN]  MCS channel count %u outside reasonable range (1-32)%s\n",
-               ColorWarning(), mcsChannels, ColorReset());
-        heuristicCount++;
+        hc.warn("HEURISTIC: MCS channel count %u outside reasonable range (1-32)", mcsChannels);
       }
     }
   }
@@ -602,12 +562,11 @@ printf("[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)\n");
   // Non-zero deviceSubClass should match known device class patterns
   icUInt32Number subClass = header.deviceSubClass;
   if (subClass != 0) {
-    printf("      DeviceSubClass: 0x%08X\n", subClass);
+    hc.info("DeviceSubClass: 0x%08X", subClass);
   }
 }
-printf("\n");
 
-  return heuristicCount;
+  return hc.end("No spectral range issues detected");
 }
 
 // ================================================================

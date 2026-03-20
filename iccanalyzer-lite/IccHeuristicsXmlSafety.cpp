@@ -41,6 +41,7 @@
 
 #include "IccHeuristicsXmlSafety.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include "IccProfileXml.h"
 #include "IccTagXmlFactory.h"
@@ -80,11 +81,11 @@
 // =====================================================================
 int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char *filename)
 {
-  printf("[H142] XML Serialization Safety (§10 Tag Type Definitions)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(142, "XML Serialization Safety (§10 Tag Type Definitions)");
 
   if (!filename || !filename[0]) {
-    printf("      [OK] Skipped — no filename provided\n\n");
-    return 0;
+    return hc.skip("no filename provided");
   }
 
   // Fork to isolate: ToXml() may ASAN-crash on malformed profiles.
@@ -94,9 +95,9 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char 
   pid_t pid = fork();
 
   if (pid < 0) {
-    printf("      [WARN]  Fork() failed (errno=%d) — XML safety check skipped\n", errno);
-    printf("       CWE-271: Cannot isolate XML serialization\n\n");
-    return 1;  // Report as finding — analysis incomplete
+    hc.warn("Fork() failed (errno=%d) — XML safety check skipped", errno);
+    hc.cweNote("CWE-271: Cannot isolate XML serialization");
+    return hc.end("Fork failed");
   }
 
   if (pid == 0) {
@@ -164,11 +165,10 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char 
     // Child still running after 15s — kill it
     kill(pid, SIGKILL);
     waitpid(pid, &status, 0);
-    printf("      %s[WARN]  HEURISTIC: XML serialization timed out (>15s) — CWE-400 (Resource Exhaustion)%s\n",
-           ColorCritical(), ColorReset());
-    printf("       Possible infinite loop or exponential expansion in ToXml()\n");
-    printf("       CWE-400: Uncontrolled Resource Consumption\n\n");
-    return 1;
+    hc.warn("HEURISTIC: XML serialization timed out (>15s) — CWE-400 (Resource Exhaustion)");
+    hc.info("Possible infinite loop or exponential expansion in ToXml()");
+    hc.cweNote("CWE-400: Uncontrolled Resource Consumption");
+    return hc.end("XML serialization timed out");
   }
 
   if (WIFSIGNALED(status)) {
@@ -182,37 +182,36 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char 
       case SIGALRM: sigName = "SIGALRM (timeout)"; break;
       case SIGKILL: sigName = "SIGKILL (OOM)"; break;
     }
-    printf("      %s[WARN]  HEURISTIC: XML serialization crashed with %s (signal %d)%s\n",
-           ColorCritical(), sigName, sig, ColorReset());
-    printf("       CIccProfileXml::ToXml() triggered a memory safety violation\n");
-    printf("       This indicates the profile exercises a known XML serializer vulnerability\n");
+    hc.warn("HEURISTIC: XML serialization crashed with %s (signal %d)", sigName, sig);
+    hc.info("CIccProfileXml::ToXml() triggered a memory safety violation");
+    hc.info("This indicates the profile exercises a known XML serializer vulnerability");
 
     if (sig == SIGABRT) {
-      printf("       ASAN/UBSAN detected: heap-buffer-overflow, stack-buffer-overflow,\n");
-      printf("       use-after-free, null-pointer-deref, or type confusion in IccLibXML\n");
-      printf("       CWE-787: Out-of-bounds Write / CWE-125: Out-of-bounds Read\n");
+      hc.info("ASAN/UBSAN detected: heap-buffer-overflow, stack-buffer-overflow,");
+      hc.info("use-after-free, null-pointer-deref, or type confusion in IccLibXML");
+      hc.cweNote("CWE-787: Out-of-bounds Write / CWE-125: Out-of-bounds Read");
     } else if (sig == SIGSEGV || sig == SIGBUS) {
-      printf("       CWE-476: NULL Pointer Dereference / CWE-125: Out-of-bounds Read\n");
+      hc.cweNote("CWE-476: NULL Pointer Dereference / CWE-125: Out-of-bounds Read");
     } else if (sig == SIGALRM) {
-      printf("       CWE-400: Uncontrolled Resource Consumption (timeout in ToXml)\n");
+      hc.cweNote("CWE-400: Uncontrolled Resource Consumption (timeout in ToXml)");
     }
-    printf("\n");
-    return 1;
+    return hc.end("XML serialization crashed");
   }
 
   if (WIFEXITED(status)) {
     int exitCode = WEXITSTATUS(status);
     if (exitCode == 0) {
-      printf("      [OK] XML serialization completed safely (ToXml succeeded)\n\n");
+      return hc.end("XML serialization completed safely (ToXml succeeded)");
     } else {
-      // Exit 1 = ToXml returned false (graceful failure, not a crash)
-      printf("      [OK] XML serialization returned error (ToXml=false, exit %d) — no crash\n\n", exitCode);
+      char buf[128];
+      snprintf(buf, sizeof(buf), "XML serialization returned error (ToXml=false, exit %d) — no crash", exitCode);
+      return hc.end(buf);
     }
-    return 0;
   }
 
-  printf("      [OK] XML serialization check completed (status=0x%x)\n\n", status);
-  return 0;
+  char buf[128];
+  snprintf(buf, sizeof(buf), "XML serialization check completed (status=0x%x)", status);
+  return hc.end(buf);
 }
 
 
@@ -229,18 +228,16 @@ int RunHeuristic_H142_XmlSerializationSafety(CIccProfile * /*pIcc*/, const char 
 // =====================================================================
 int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
 {
-  printf("[H143] XML Array Bounds Precheck (§10 Tag Types)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(143, "XML Array Bounds Precheck");
 
   if (!pIcc) {
-    printf("      [OK] Skipped — no profile loaded\n\n");
-    return 0;
+    return hc.skip("no profile loaded");
   }
 
-  int warnings = 0;
   TagEntryList &tagList = pIcc->m_Tags;
   if (tagList.empty()) {
-    printf("      [OK] No tags in profile\n\n");
-    return 0;
+    return hc.end("No tags in profile");
   }
 
   icUInt32Number profileSize = pIcc->m_Header.size;
@@ -275,11 +272,9 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
     if (tagSize < 8) {
       char sigStr[5] = {};
       SigToChars(entry.TagInfo.sig, sigStr);
-      printf("      %s[WARN]  HEURISTIC: Array tag '%s' size %u < 8-byte header%s\n",
-             ColorCritical(), sigStr, tagSize, ColorReset());
-      printf("       CWE-131: Incorrect Calculation of Buffer Size\n");
-      printf("       Risk: DumpArray will read uninitialized/OOB memory during XML export\n");
-      warnings++;
+      hc.warn("Array tag '%s' size %u < 8-byte header", sigStr, tagSize);
+      hc.cweNote("CWE-131: Incorrect Calculation of Buffer Size");
+      hc.info("Risk: DumpArray will read uninitialized/OOB memory during XML export");
       continue;
     }
 
@@ -290,28 +285,21 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
     if (tagOffset + tagSize > profileSize) {
       char sigStr[5] = {};
       SigToChars(entry.TagInfo.sig, sigStr);
-      printf("      %s[WARN]  HEURISTIC: Array tag '%s' extends beyond profile (offset=%u + size=%u > profileSize=%u)%s\n",
-             ColorCritical(), sigStr, tagOffset, tagSize, profileSize, ColorReset());
-      printf("       CWE-125: Out-of-bounds Read — DumpArray will serialize OOB data to XML\n");
-      warnings++;
+      hc.warn("Array tag '%s' extends beyond profile (offset=%u + size=%u > profileSize=%u)",
+              sigStr, tagOffset, tagSize, profileSize);
+      hc.cweNote("CWE-125: Out-of-bounds Read — DumpArray will serialize OOB data to XML");
     }
 
     // Warn on suspiciously large arrays (>1M elements → DoS in XML output)
     if (maxElements > 1000000) {
       char sigStr[5] = {};
       SigToChars(entry.TagInfo.sig, sigStr);
-      printf("      %s[WARN]  HEURISTIC: Array tag '%s' has %u elements — XML expansion risk%s\n",
-             ColorWarning(), sigStr, maxElements, ColorReset());
-      printf("       CWE-400: Uncontrolled Resource Consumption in DumpArray → XML output\n");
-      warnings++;
+      hc.warn("Array tag '%s' has %u elements — XML expansion risk", sigStr, maxElements);
+      hc.cweNote("CWE-400: Uncontrolled Resource Consumption in DumpArray → XML output");
     }
   }
 
-  if (warnings == 0) {
-    printf("      [OK] All array tag element counts consistent with data sizes\n");
-  }
-  printf("\n");
-  return warnings;
+  return hc.end("All array tag element counts consistent with data sizes");
 }
 
 
@@ -328,14 +316,12 @@ int RunHeuristic_H143_XmlArrayBoundsPrecheck(CIccProfile *pIcc)
 // =====================================================================
 int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc)
 {
-  printf("[H144] XML String Termination Precheck (§10.4/§10.19)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(144, "XML String Termination Precheck");
 
   if (!pIcc) {
-    printf("      [OK] Skipped — no profile loaded\n\n");
-    return 0;
+    return hc.skip("no profile loaded");
   }
-
-  int warnings = 0;
 
   // Check ColorantTable tags (clrt, clot)
   icTagSignature colorantSigs[] = {
@@ -367,12 +353,10 @@ int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc)
 
       if (!terminated) {
         const char *tagName = (i == 0) ? "clrt" : "clot";
-        printf("      %s[WARN]  HEURISTIC: Colorant name[%u] in '%s' not null-terminated%s\n",
-               ColorCritical(), j, tagName, ColorReset());
-        printf("       CWE-170: Improper Null Termination\n");
-        printf("       Risk: strlen overflow in ToXml → heap-buffer-overflow read\n");
-        printf("       GHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name\n");
-        warnings++;
+        hc.warn("Colorant name[%u] in '%s' not null-terminated", j, tagName);
+        hc.cweNote("CWE-170: Improper Null Termination");
+        hc.info("Risk: strlen overflow in ToXml → heap-buffer-overflow read");
+        hc.info("GHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name");
         break;  // One warning per tag is sufficient
       }
     }
@@ -392,20 +376,14 @@ int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc)
           if (prefix[k] == '\0') { terminated = true; break; }
         }
         if (!terminated) {
-          printf("      %s[WARN]  HEURISTIC: NamedColor2 prefix not null-terminated%s\n",
-                 ColorCritical(), ColorReset());
-          printf("       CWE-170: Improper Null Termination — strlen overflow in ToXml\n");
-          warnings++;
+          hc.warn("NamedColor2 prefix not null-terminated");
+          hc.cweNote("CWE-170: Improper Null Termination — strlen overflow in ToXml");
         }
       }
     }
   }
 
-  if (warnings == 0) {
-    printf("      [OK] All string fields properly null-terminated for XML serialization\n");
-  }
-  printf("\n");
-  return warnings;
+  return hc.end("All string fields properly null-terminated for XML serialization");
 }
 
 
@@ -424,18 +402,16 @@ int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc)
 // =====================================================================
 int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
 {
-  printf("[H145] XML Curve Type Consistency (§10.14 MPE)\n");
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(145, "XML Curve Type Consistency");
 
   if (!pIcc) {
-    printf("      [OK] Skipped — no profile loaded\n\n");
-    return 0;
+    return hc.skip("no profile loaded");
   }
 
-  int warnings = 0;
   TagEntryList &tagList = pIcc->m_Tags;
   if (tagList.empty()) {
-    printf("      [OK] No tags in profile\n\n");
-    return 0;
+    return hc.end("No tags in profile");
   }
 
   // Check MPE CurveSet elements for type consistency
@@ -465,22 +441,17 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
         if (elemType != icSigCurveSetElemType) {
           char typeStr[5] = {};
           SigToChars(static_cast<uint32_t>(elemType), typeStr);
-          printf("      %s[WARN]  HEURISTIC: MPE element %u has type '%s' (0x%08X) but is CIccMpeCurveSet%s\n",
-                 ColorCritical(), elemIdx, typeStr, elemType, ColorReset());
-          printf("       CWE-843: Access of Resource Using Incompatible Type\n");
-          printf("       Risk: ToXmlCurve() may cast to wrong class → type confusion crash\n");
-          printf("       GHSA-2pjj-3c98-qp37: type confusion in ToXmlCurve()\n");
-          warnings++;
+          hc.warn("MPE element %u has type '%s' (0x%08X) but is CIccMpeCurveSet",
+                  elemIdx, typeStr, elemType);
+          hc.cweNote("CWE-843: Access of Resource Using Incompatible Type");
+          hc.info("Risk: ToXmlCurve() may cast to wrong class → type confusion crash");
+          hc.info("GHSA-2pjj-3c98-qp37: type confusion in ToXmlCurve()");
         }
       }
     }
   }
 
-  if (warnings == 0) {
-    printf("      [OK] All curve/MPE type signatures consistent for XML serialization\n");
-  }
-  printf("\n");
-  return warnings;
+  return hc.end("All curve/MPE type signatures consistent for XML serialization");
 }
 
 // ============================================================================
