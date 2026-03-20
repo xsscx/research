@@ -805,10 +805,413 @@ static int RunCF112_XYZTripletNormalization(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ADGC (Adaptive Gain Curve) conformance — ICC.1 Amendment April 2025
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// iccDEV has zero ADGC support — the tag is stored as CIccTagUnknown.
+// All validation uses raw byte scanning of the tag data.
+//
+// ADGC tag signature: 'ADGC' (0x41444743)
+// ADGC type signature: 'adgc' (0x61646763)
+//
+// Header layout (128 bytes):
+//   0-3:     type sig 'adgc'
+//   4-7:     reserved (0)
+//   8-11:    functionTypeID (must be 1)
+//   12-27:   GUID (16 bytes, all-zero if not image-specific)
+//   28-31:   H_baseline (float32, log2 headroom)
+//   32-35:   H_alternate (float32, log2 headroom)
+//   36-47:   Red {GainMin, GainMax, kRed} (3×float32)
+//   48-59:   Green {GainMin, GainMax, kGreen} (3×float32)
+//   60-71:   Blue {GainMin, GainMax, kBlue} (3×float32)
+//   72-75:   kMax (float32)
+//   76-79:   kMin (float32)
+//   80-83:   kComponent (float32)
+//   84-87:   PreGainCICP (uInt32)
+//   88-91:   PostGainCICP (uInt32)
+//   92-95:   A2B0 target headroom (float32)
+//   96-99:   A2B1 target headroom (float32)
+//   100-103: A2B2 target headroom (float32)
+//   104-111: Red curve positionNumber (offset+size, 8 bytes)
+//   112-119: Green curve positionNumber (8 bytes)
+//   120-127: Blue curve positionNumber (8 bytes)
+//
+// NOTE: The published PDF has typesetting errors in Table 1 where byte ranges
+// are duplicated across page breaks. The layout above is reconstructed from
+// field sizes and the 128-byte total.
+
+static const uint32_t kADGC_TagSig  = 0x41444743;  // 'ADGC'
+static const uint32_t kADGC_TypeSig = 0x61646763;  // 'adgc'
+static const size_t   kADGC_HeaderSize = 128;
+
+// Helper: read big-endian float32 from raw bytes
+static float ReadFloat32BE(const uint8_t *p) {
+  uint32_t bits = ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
+                  ((uint32_t)p[2] << 8)  | (uint32_t)p[3];
+  float f;
+  memcpy(&f, &bits, sizeof(f));
+  return f;
+}
+
+// Find ADGC tag in profile's tag list and return pointer to raw data
+// Returns: pointer to raw data bytes (owned by CIccTagUnknown), or nullptr
+// tagSize is set to the raw data size
+// CF-123: ADGC Class Restriction
+// ADGC tag is ONLY permitted when colorSpace=RGB AND class=Input|Display
+int RunCF123_ADGCClassRestriction(CIccProfile *pIcc) {
+  int issues = 0;
+  bool hasADGC = false;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    if (it->TagInfo.sig == (icTagSignature)kADGC_TagSig) {
+      hasADGC = true;
+      break;
+    }
+  }
+
+  if (!hasADGC) {
+    printf("         No ADGC tag present — check not applicable\n");
+    return 0;
+  }
+
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  icProfileClassSignature dc = pIcc->m_Header.deviceClass;
+
+  // Must be RGB
+  if (cs != icSigRgbData) {
+    char s[5] = {};
+    SigToChars((icTagSignature)cs, s);
+    printf("         %s[FAIL]%s ADGC present but colorSpace='%s' — "
+           "ADGC requires RGB — ICC.1 ADGC §3\n",
+           ColorError(), ColorReset(), s);
+    issues++;
+  }
+
+  // Must be Input or Display
+  if (dc != icSigInputClass && dc != icSigDisplayClass) {
+    char s[5] = {};
+    SigToChars((icTagSignature)dc, s);
+    printf("         %s[FAIL]%s ADGC present but class='%s' — "
+           "ADGC requires Input or Display — ICC.1 ADGC §3\n",
+           ColorError(), ColorReset(), s);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s ADGC class restriction satisfied (RGB + Input|Display)\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// CF-124 through CF-132: Raw ADGC data validation (requires filename for raw read)
+// These checks read the ADGC tag data from the file since iccDEV doesn't parse it.
+
+int RunCF124_to_CF132_ADGCDataValidation(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+
+  // Find ADGC tag entry
+  uint32_t adgcOffset = 0, adgcSize = 0;
+  bool hasADGC = false;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    if (it->TagInfo.sig == (icTagSignature)kADGC_TagSig) {
+      adgcOffset = it->TagInfo.offset;
+      adgcSize = it->TagInfo.size;
+      hasADGC = true;
+      break;
+    }
+  }
+
+  if (!hasADGC) {
+    printf("         No ADGC tag — data validation checks skipped\n");
+    return 0;
+  }
+
+  // Validate minimum size
+  if (adgcSize < kADGC_HeaderSize) {
+    printf("         %s[FAIL]%s ADGC tag size %u < minimum %zu bytes — ICC.1 ADGC Table 1\n",
+           ColorError(), ColorReset(), adgcSize, kADGC_HeaderSize);
+    return 1;
+  }
+
+  // Read raw tag data from file
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh.fp) {
+    printf("         %s[WARN]%s Cannot open file for ADGC raw validation\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  if (fseek(fh.fp, (long)adgcOffset, SEEK_SET) != 0) {
+    printf("         %s[WARN]%s Cannot seek to ADGC tag offset %u\n",
+           ColorWarning(), ColorReset(), adgcOffset);
+    return 0;
+  }
+
+  std::vector<uint8_t> buf(adgcSize);
+  size_t bytesRead = fread(buf.data(), 1, adgcSize, fh.fp);
+  if (bytesRead < kADGC_HeaderSize) {
+    printf("         %s[FAIL]%s ADGC tag truncated: read %zu of %u bytes\n",
+           ColorError(), ColorReset(), bytesRead, adgcSize);
+    return 1;
+  }
+
+  const uint8_t *d = buf.data();
+
+  // ── CF-124: Type signature must be 'adgc' ──
+  uint32_t typeSig = ReadU32BE(d + 0);
+  if (typeSig != kADGC_TypeSig) {
+    printf("         %s[FAIL]%s CF-124: ADGC type signature 0x%08X != expected 0x%08X ('adgc')"
+           " — ICC.1 ADGC §3\n", ColorError(), ColorReset(), typeSig, kADGC_TypeSig);
+    issues++;
+  } else {
+    printf("         %s[OK]%s CF-124: Type signature 'adgc' correct\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-125: Function Type ID must be 1 ──
+  uint32_t funcType = ReadU32BE(d + 8);
+  if (funcType != 1) {
+    printf("         %s[FAIL]%s CF-125: functionTypeID=%u, expected 1 — ICC.1 ADGC §3\n",
+           ColorError(), ColorReset(), funcType);
+    issues++;
+  } else {
+    printf("         %s[OK]%s CF-125: functionTypeID=1 correct\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-126: Reserved bytes must be zero ──
+  {
+    // Bytes 4-7 must be zero
+    uint32_t res1 = ReadU32BE(d + 4);
+    if (res1 != 0) {
+      printf("         %s[FAIL]%s CF-126: Reserved bytes 4-7 = 0x%08X (must be 0)"
+             " — ICC.1 ADGC Table 1\n", ColorError(), ColorReset(), res1);
+      issues++;
+    } else {
+      printf("         %s[OK]%s CF-126: Reserved bytes 4-7 are zero\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  // ── CF-127: Float field finiteness ──
+  // Validate all float32 fields in the header are finite (not NaN, not ±Inf)
+  {
+    struct FloatField {
+      size_t offset;
+      const char *name;
+    };
+    static const FloatField fields[] = {
+      {28,  "H_baseline"},     {32,  "H_alternate"},
+      {36,  "Red GainMin"},    {40,  "Red GainMax"},    {44,  "kRed"},
+      {48,  "Green GainMin"},  {52,  "Green GainMax"},  {56,  "kGreen"},
+      {60,  "Blue GainMin"},   {64,  "Blue GainMax"},   {68,  "kBlue"},
+      {72,  "kMax"},           {76,  "kMin"},            {80,  "kComponent"},
+      {92,  "A2B0 headroom"},  {96,  "A2B1 headroom"},  {100, "A2B2 headroom"},
+    };
+    int nanCount = 0;
+    for (const auto &fld : fields) {
+      float v = ReadFloat32BE(d + fld.offset);
+      if (!std::isfinite(v)) {
+        printf("         %s[FAIL]%s CF-127: %s at offset %zu is %s"
+               " — ICC.1 ADGC §3 (must be finite)\n",
+               ColorError(), ColorReset(), fld.name, fld.offset,
+               std::isnan(v) ? "NaN" : "Inf");
+        nanCount++;
+      }
+    }
+    if (nanCount > 0)
+      issues += nanCount;
+    else
+      printf("         %s[OK]%s CF-127: All 17 float fields are finite\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-128: Weight coefficient sum ──
+  // kRed + kGreen + kBlue + kMax + kMin + kComponent should approximately equal 1.0
+  {
+    float kRed  = ReadFloat32BE(d + 44);
+    float kGrn  = ReadFloat32BE(d + 56);
+    float kBlu  = ReadFloat32BE(d + 68);
+    float kMax  = ReadFloat32BE(d + 72);
+    float kMin  = ReadFloat32BE(d + 76);
+    float kComp = ReadFloat32BE(d + 80);
+
+    if (std::isfinite(kRed) && std::isfinite(kGrn) && std::isfinite(kBlu) &&
+        std::isfinite(kMax) && std::isfinite(kMin) && std::isfinite(kComp)) {
+      float sum = kRed + kGrn + kBlu + kMax + kMin + kComp;
+      if (std::fabs(sum - 1.0f) > 0.01f) {
+        printf("         %s[WARN]%s CF-128: Weight sum=%.6f (expected ≈1.0)"
+               " — ICC.1 ADGC §3 Annex 2\n",
+               ColorWarning(), ColorReset(), sum);
+        issues++;
+      } else {
+        printf("         %s[OK]%s CF-128: Weight coefficient sum=%.6f ≈ 1.0\n",
+               ColorSuccess(), ColorReset(), sum);
+      }
+    } else {
+      printf("         %s[SKIP]%s CF-128: Weight sum — skipped due to non-finite values\n",
+             ColorWarning(), ColorReset());
+    }
+  }
+
+  // ── CF-129: Curve position bounds ──
+  // positionNumber fields (offset+size pairs at bytes 104-127) must point within tag
+  {
+    struct CurvePos {
+      size_t headerOffset;
+      const char *name;
+    };
+    static const CurvePos positions[] = {
+      {104, "Red"},
+      {112, "Green"},
+      {120, "Blue"},
+    };
+    int posIssues = 0;
+    for (const auto &cp : positions) {
+      uint32_t curveOff  = ReadU32BE(d + cp.headerOffset);
+      uint32_t curveSize = ReadU32BE(d + cp.headerOffset + 4);
+      if (curveOff == 0 && curveSize == 0) {
+        // Shared or absent curve — spec allows shared positions
+        continue;
+      }
+      // Curve offset is relative to the start of the tag data
+      if (curveOff + curveSize > adgcSize) {
+        printf("         %s[FAIL]%s CF-129: %s curve position (offset=%u, size=%u)"
+               " exceeds tag size %u — ICC.1 ADGC Table 1\n",
+               ColorError(), ColorReset(), cp.name, curveOff, curveSize, adgcSize);
+        posIssues++;
+      }
+      // Curve data format: uInt32 count + count × {x, y, slope} float32 triplets
+      if (curveOff + 4 <= adgcSize && curveOff < bytesRead) {
+        uint32_t count = ReadU32BE(d + curveOff);
+        if (count == 0) {
+          printf("         %s[WARN]%s CF-129: %s curve has 0 entries"
+                 " — ICC.1 ADGC Table 2\n",
+                 ColorWarning(), ColorReset(), cp.name);
+          posIssues++;
+        }
+        uint32_t expectedSize = 4 + count * 12;  // 4 (count) + N × (x+y+slope)
+        if (curveSize > 0 && expectedSize > curveSize) {
+          printf("         %s[WARN]%s CF-129: %s curve count=%u requires %u bytes"
+                 " but size=%u — ICC.1 ADGC Table 2\n",
+                 ColorWarning(), ColorReset(), cp.name, count, expectedSize, curveSize);
+          posIssues++;
+        }
+      }
+    }
+    if (posIssues > 0)
+      issues += posIssues;
+    else
+      printf("         %s[OK]%s CF-129: All curve positions within tag bounds\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-130: Image-specific GUID → header flags ──
+  // If GUID is non-zero, the profile is image-specific and header flags bits 0,1
+  // must both be set (embedded + cannot be used independently)
+  {
+    bool guidNonZero = false;
+    for (size_t i = 12; i < 28; i++) {
+      if (d[i] != 0) { guidNonZero = true; break; }
+    }
+    if (guidNonZero) {
+      uint32_t flags = pIcc->m_Header.flags;
+      bool embedded     = (flags & 0x00000001) != 0;
+      bool noIndepUse   = (flags & 0x00000002) != 0;
+      if (!embedded || !noIndepUse) {
+        printf("         %s[FAIL]%s CF-130: ADGC GUID is non-zero (image-specific)"
+               " but header flags=0x%08X — bits 0,1 must both be set"
+               " — ICC.1 ADGC §3\n",
+               ColorError(), ColorReset(), flags);
+        issues++;
+      } else {
+        printf("         %s[OK]%s CF-130: Image-specific GUID with correct header flags\n",
+               ColorSuccess(), ColorReset());
+      }
+    } else {
+      printf("         %s[OK]%s CF-130: GUID is all-zero (non-image-specific)\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  // ── CF-131: Headroom range plausibility ──
+  // H_baseline and H_alternate are log2 headroom values — reasonable range 0..20
+  {
+    float hBase = ReadFloat32BE(d + 28);
+    float hAlt  = ReadFloat32BE(d + 32);
+    int hIssues = 0;
+    if (std::isfinite(hBase)) {
+      if (hBase < 0.0f || hBase > 20.0f) {
+        printf("         %s[WARN]%s CF-131: H_baseline=%.4f outside plausible range [0,20]"
+               " — ICC.1 ADGC §3\n", ColorWarning(), ColorReset(), hBase);
+        hIssues++;
+      }
+    }
+    if (std::isfinite(hAlt)) {
+      if (hAlt < 0.0f || hAlt > 20.0f) {
+        printf("         %s[WARN]%s CF-131: H_alternate=%.4f outside plausible range [0,20]"
+               " — ICC.1 ADGC §3\n", ColorWarning(), ColorReset(), hAlt);
+        hIssues++;
+      }
+    }
+    if (hIssues > 0)
+      issues += hIssues;
+    else
+      printf("         %s[OK]%s CF-131: Headroom values within plausible range\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-132: Curve data monotonicity ──
+  // Curve triplets {x, y, slope}: x values must be monotonically increasing
+  {
+    struct CurvePos { size_t headerOffset; const char *name; };
+    static const CurvePos positions[] = {{104, "Red"}, {112, "Green"}, {120, "Blue"}};
+    int monoIssues = 0;
+    for (const auto &cp : positions) {
+      uint32_t curveOff  = ReadU32BE(d + cp.headerOffset);
+      uint32_t curveSize = ReadU32BE(d + cp.headerOffset + 4);
+      if (curveOff == 0 && curveSize == 0) continue;
+      if (curveOff + 4 > bytesRead) continue;
+
+      uint32_t count = ReadU32BE(d + curveOff);
+      if (count < 2) continue;  // Can't check monotonicity with < 2 points
+
+      // Check x-value monotonicity (each triplet: x=offset+4+i*12, y=+4, slope=+8)
+      float prevX = -1e30f;
+      uint32_t maxCheck = count;
+      if (maxCheck > 1000) maxCheck = 1000;  // Cap to prevent excessive scanning
+      for (uint32_t i = 0; i < maxCheck; i++) {
+        size_t xOff = curveOff + 4 + i * 12;
+        if (xOff + 4 > bytesRead) break;
+        float x = ReadFloat32BE(d + xOff);
+        if (std::isfinite(x) && std::isfinite(prevX)) {
+          if (x <= prevX) {
+            printf("         %s[FAIL]%s CF-132: %s curve entry %u: x=%.6f ≤ prev=%.6f"
+                   " (not monotonically increasing) — ICC.1 ADGC Table 2\n",
+                   ColorError(), ColorReset(), cp.name, i, x, prevX);
+            monoIssues++;
+            break;  // One failure per curve is enough
+          }
+        }
+        prevX = x;
+      }
+    }
+    if (monoIssues > 0)
+      issues += monoIssues;
+    else
+      printf("         %s[OK]%s CF-132: All curve x-values monotonically increasing\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all tag type conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
-int RunTagTypeConformance(CIccProfile *pIcc) {
+int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
   int r;
@@ -834,6 +1237,11 @@ int RunTagTypeConformance(CIccProfile *pIcc) {
   CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));
 
   CF_WRAP(1112, "CF-112: XYZ Triplet Normalization", RunCF112_XYZTripletNormalization(pIcc));
+
+  // ADGC (Adaptive Gain Curve) — ICC.1 Amendment April 2025
+  CF_WRAP(1123, "CF-123: ADGC Class Restriction", RunCF123_ADGCClassRestriction(pIcc));
+  CF_WRAP(1124, "CF-124..CF-132: ADGC Data Validation",
+          RunCF124_to_CF132_ADGCDataValidation(pIcc, filename));
 
 #undef CF_WRAP
   return issues;
