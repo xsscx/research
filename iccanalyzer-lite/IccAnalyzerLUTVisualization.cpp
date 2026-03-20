@@ -343,13 +343,11 @@ static void Output1DLUT(CIccProfile *pIcc, CIccTag *tag,
 // TIFF writer (manual, self-contained — no libtiff dependency for output)
 // ============================================================================
 
-static bool IsMachineBigEndian() {
+static const bool kBigEndian = [] {
   const uint32_t test = 0x01020304;
   const uint8_t *p = reinterpret_cast<const uint8_t*>(&test);
   return (*p == 0x01);
-}
-
-static const bool kBigEndian = IsMachineBigEndian();
+}();
 
 static bool PutShort(uint16_t val, FILE *f) {
   uint8_t buf[2];
