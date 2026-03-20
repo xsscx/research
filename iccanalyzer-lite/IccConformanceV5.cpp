@@ -185,7 +185,7 @@ int RunCF082_PCCTagsRequired(CIccProfile *pIcc) {
     return 0;
   }
 
-  CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
   if (!svcnTag) {
     printf("         %s[FAIL]%s Missing spectralViewingConditionsTag ('svcn') — required for spectral PCS — ICC.2-2023 §8\n",
            ColorError(), ColorReset());
@@ -194,8 +194,8 @@ int RunCF082_PCCTagsRequired(CIccProfile *pIcc) {
     printf("         spectralViewingConditionsTag ('svcn'): present\n");
   }
 
-  CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
-  CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
+  const CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
+  const CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
 
   if (c2spTag) {
     printf("         customToStandardPccTag ('c2sp'): present\n");

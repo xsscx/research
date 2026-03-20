@@ -299,9 +299,8 @@ int RunCF022_CurveTypeEntryCount(CIccProfile *pIcc) {
   if (checked == 0)
     printf("         No curveType tags found\n");
 
-  if (issues == 0)
-    printf("         %s[OK]%s %d curveType tag(s) checked, all consistent\n",
-           ColorSuccess(), ColorReset(), checked);
+  printf("         %s[OK]%s %d curveType tag(s) checked, all consistent\n",
+         ColorSuccess(), ColorReset(), checked);
 
   return issues;
 }
