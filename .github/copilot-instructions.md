@@ -84,6 +84,17 @@ documents for profile structure, encoding constraints, and required-tag rules.
 | V4 Matrix Entries | `https://archive.color.org/files/v4_matrix_entries.pdf` | s15Fixed16Number precision, matrix column constraints |
 | V2 Profiles in V4 | `https://archive.color.org/files/v2profiles_v4.pdf` | Version interop, CIELAB encoding differences |
 | Profile Sequence Desc | `https://archive.color.org/files/PSD_TechNote.pdf` | PSD parsing pitfalls, size inference attacks |
+| Embedding ICC.2 in ICC.1 | `docs/iccDEV/specifications/Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf` | Rules for nesting v5/iccMAX profiles inside v4 profiles |
+
+### ICS (Interoperability Conformance Specifications) — Local Only
+| Document | Local Path | Relevance |
+|----------|-----------|-----------|
+| ICS Extended Output Part 1 | `docs/iccDEV/specifications/ICS-ExtendedOutput-Part1.pdf` | Extended output color space modeling, device profile validation |
+| ICS Extended Range Part 1 | `docs/iccDEV/specifications/ICS-ExtendedRange-Part1.pdf` | Extended gamut color representations |
+| ICS Extended Range Part 2 | `docs/iccDEV/specifications/ICS-ExtendedRange-Part2.pdf` | Extended gamut color representations |
+| ICS Extended Range Part 3 | `docs/iccDEV/specifications/ICS-ExtendedRange-Part3.pdf` | Extended gamut color representations |
+| ICC WP-54 Introduction to ICS | `docs/iccDEV/specifications/ICC_White_Paper_54_Introduction_to_ICS.pdf` | ICS architecture overview |
+| ICC WP-57 Core ICS Specs | `docs/iccDEV/specifications/ICC_White_Paper_57_Introduction_to_core_ICS_specifications.pdf` | Core ICS specification details |
 
 ### Registry Pages (require browser access — 403 from CLI)
 - `https://www.color.org/whitepapers.xalter` — ICC white papers index
