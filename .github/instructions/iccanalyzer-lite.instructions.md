@@ -110,15 +110,30 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
 | `IccHeuristicsRegistry.h` | 171-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
-| `IccAnalyzerJson.cpp/.h` | `--json` structured output mode (captures via pipe/dup2) |
+| `IccAnalyzerJson.cpp/.h` | `--json` structured output mode (reads HeuristicCollector directly) |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
 | `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
+| `IccAnalyzerCapture.h/.cpp` | Shared structured capture — runs analysis in quiet mode, reads HeuristicCollector results |
+| `IccAnalyzerPAWG.cpp/.h` | `--pawg` ICC PAWG assessment report (31 checklist items) |
 
 - Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
 - Gate: if `heuristicCount >= kCriticalHeuristicThreshold`, library phase is skipped
-- **Phase 5 (future)**: Replace `CaptureAndParseAnalysis()` pipe/dup2 stdout capture
-  with `HeuristicCollector::instance().results()` for direct structured output
+
+### Structured Output Architecture (Phase 5)
+
+All structured output modes (`--json`, `--report`, `-xml`, `--pawg`) use the same pattern:
+1. `HeuristicCollector::reset()` — clears stale results from prior runs
+2. `HeuristicCollector::setQuiet(true)` — suppresses heuristic printf output
+3. `dup2(devNull, stdout)` — suppresses ComprehensiveAnalyze phase banner printf
+4. `ComprehensiveAnalyze()` runs — heuristics collect structured data silently
+5. Restore stdout, `setQuiet(false)`
+6. Read `HeuristicCollector::instance().results()` → convert to output format
+
+`CaptureAndParseAnalysis()` in `IccAnalyzerCapture.cpp` implements steps 1-6 and returns
+`CapturedAnalysis` with enriched `CapturedFinding` entries (severity, CWE, specRef from
+`kHeuristicRegistry[]`). JSON, Report, and XML modes consume this shared function.
+PAWG mode has its own implementation with the same pattern but different output struct.
 
 ## Adding a New Heuristic
 
@@ -371,8 +386,8 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 ```
 
 Emits structured JSON with per-heuristic results, registry metadata (specRef, CWE,
-CVE refs, severity), and summary counts. Uses `pipe()`/`dup2()` stdout capture internally —
-no heuristic function modifications needed. Suitable for MCP server, CI pipelines,
+CVE refs, severity), and summary counts. Reads `HeuristicCollector::instance().results()`
+directly via `CaptureAndParseAnalysis()`. Suitable for MCP server, CI pipelines,
 and automated analysis.
 
 ## Report Output Mode (v3.6.0+)
@@ -383,7 +398,7 @@ and automated analysis.
 
 Emits a professional severity-sorted report with banner header, SHA-256 hash, build info,
 findings grouped by CRITICAL/HIGH/MEDIUM/LOW/INFO, CWE summary table, and CVE
-cross-reference section. Uses same pipe/dup2 capture pattern as --json and -xml.
+cross-reference section. Reads HeuristicCollector results via shared `CaptureAndParseAnalysis()`.
 
 ## XML Output Mode (v3.6.0+)
 
