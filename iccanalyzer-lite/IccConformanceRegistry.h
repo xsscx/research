@@ -557,6 +557,86 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-143", "Measurement Tag Structure Type",
    "ICC.2-2019 §9.2.86/87 Errata: permitted type = tagStructType (not structType)", "ICC.2-2019-Errata-2021-03",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  // ICS Extended Range (ICS-ExtendedRange-Part1/2/3)
+  {"CF-144", "Extended Range PCS Flag Consistency",
+   "Flag bit 3 (extended range PCS) requires v5 (iccMAX) profile", "ICC.2-2023 §7.2.13",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-145", "Extended Range PCS + Spectral Co-existence",
+   "Extended range PCS co-existence with spectral/colorimetric PCS validation", "ICS-ExtendedRange-Part1 §6.2",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-146", "Extended Range Class Restriction",
+   "Extended range PCS limited to mntr, spac, prtr profile classes", "ICS-ExtendedRange-Part1 Table 1",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-147", "Extended Range Colorimetric Intent Required",
+   "AToB1Tag and BToA1Tag required for extended range display/colorSpace profiles", "ICS-ExtendedRange-Part1 Table 4",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-148", "Extended Range LUT multiProcessElementType",
+   "AToB1/BToA1 tags shall use multiProcessElementType for extended range profiles", "ICS-ExtendedRange-Part1 Table 4",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  // ICS Extended Output (ICS-ExtendedOutput-Part1)
+  {"CF-149", "Extended Output Profile Class",
+   "Output class with spectral PCS requires swpt, svcn, c2sp, s2cp tags", "ICS-ExtendedOutput-Part1 Table 12",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-150", "Extended Output Gamut Boundary Tag",
+   "Gamut boundary description tags are optional but recommended for output profiles", "ICS-ExtendedOutput-Part1 Table 13",
+   CFSeverity::INFO, CFCategory::V5},
+
+  {"CF-151", "Extended Output mediaWhitePoint Range",
+   "mediaWhitePointTag XYZ values must be positive and plausible", "ICS-ExtendedOutput-Part1 Table 12",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-152", "Extended Output AToB/BToA/DToB Completeness",
+   "Spectral output profiles require AToB1/3, BToA1/3, DToB3 tags", "ICS-ExtendedOutput-Part1 Table 12",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  // ICC.2-in-ICC.1 Embedding
+  {"CF-153", "Embedded Profile Tag Presence",
+   "ICC5 tag with ICCp type for embedding ICC.2 profile in ICC.1 container", "ICC TN Embedding",
+   CFSeverity::INFO, CFCategory::TAG_TYPES},
+
+  {"CF-154", "Embedded Profile Version Bridging",
+   "Parent shall be ICC.1 (v2/v4), child shall be ICC.2 (v5+)", "ICC TN Embedding",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-155", "Embedded Profile Device Class Match",
+   "Embedded profile shall have same profile class and device color space as parent", "ICC TN Embedding",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-156", "Embedded Profile Header Flags",
+   "Embedded ICC.2 profile flags: bit 0 should be 1 (embedded), bit 1 should be 0", "ICC TN Embedding",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-157", "Embedded Profile Recursive Depth",
+   "Maximum nesting depth for embedded profiles (anti-bomb protection)", "Security",
+   CFSeverity::ERROR, CFCategory::SECURITY},
+
+  {"CF-158", "Embedded Profile Size Bounds",
+   "Embedded profile size validation against parent profile size", "Security",
+   CFSeverity::ERROR, CFCategory::SECURITY},
+
+  // dictType Validation (ICC.2-2023 §10.2.6)
+  {"CF-159", "Dictionary Name Uniqueness",
+   "Name strings in dictType shall be unique within the tag", "ICC.2-2023 §10.2.6",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-160", "Dictionary Name Non-Zero",
+   "Name string position size shall be > 0 for each name-value record", "ICC.2-2023 §10.2.6",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-161", "Dictionary Record Length Alignment",
+   "dictType record length N shall be 16, 24, or 32", "ICC.2-2023 §10.2.6 Table 40",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-162", "Dictionary Entry Count Bounds",
+   "Unreasonably large dictionary entry counts indicate potential OOM attack (CWE-400)", "ICC.2-2023 §10.2.6",
+   CFSeverity::ERROR, CFCategory::SECURITY},
 };
 
 static constexpr int kConformanceCheckCount =

@@ -4,7 +4,7 @@ These PDFs are the authoritative source of truth for all ICC profile conformance
 checks in iccanalyzer-lite. Every conformance check (CF-*) and PAWG checklist
 item traces back to a specific section in one of these documents.
 
-**Total: 25 documents | 143 conformance checks (CF-001..CF-143) | 171 security heuristics (H1-H171)**
+**Total: 25 documents | 162 conformance checks (CF-001..CF-162) | 171 security heuristics (H1-H171)**
 
 ## Primary Specifications
 
@@ -30,14 +30,14 @@ item traces back to a specific section in one of these documents.
 ## ICS (Interoperability Conformance Specifications)
 
 These documents define the ICC Specification (ICS) framework for extended color
-workflows. They are **new additions** — conformance checks are not yet implemented.
+workflows. Conformance checks CF-144..CF-152 validate profiles against these specs.
 
-| Document | Scope | Coverage Status |
-|----------|-------|-----------------|
-| **ICS-ExtendedOutput-Part1.pdf** | Extended output color space modeling and device profile validation | ❌ Not yet implemented |
-| **ICS-ExtendedRange-Part1.pdf** | Extended gamut color representations — Part 1 | ❌ Not yet implemented |
-| **ICS-ExtendedRange-Part2.pdf** | Extended gamut color representations — Part 2 | ❌ Not yet implemented |
-| **ICS-ExtendedRange-Part3.pdf** | Extended gamut color representations — Part 3 | ❌ Not yet implemented |
+| Document | Scope | CF Checks |
+|----------|-------|-----------|
+| **ICS-ExtendedOutput-Part1.pdf** | Extended output color space modeling and device profile validation | CF-149..CF-152 |
+| **ICS-ExtendedRange-Part1.pdf** | Extended gamut color representations — Part 1 | CF-144..CF-148 |
+| **ICS-ExtendedRange-Part2.pdf** | Extended gamut color representations — Part 2 | CF-144..CF-148 |
+| **ICS-ExtendedRange-Part3.pdf** | Extended gamut color representations — Part 3 | CF-144..CF-148 |
 
 ## Technical Notes
 
@@ -47,14 +47,14 @@ workflows. They are **new additions** — conformance checks are not yet impleme
 | **ICC-Technote-PartialAdaptation.pdf** | Chromatic adaptation tag validation, chad matrix |
 | **ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf** | Tristimulus weighting functions, observer data |
 | **PSD_TechNote.pdf** | Profile Sequence Descriptor parsing pitfalls, size inference attacks |
-| **Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf** | Rules for nesting ICC.2 (v5/iccMAX) profiles inside ICC.1 (v4) profiles — version bridging constraints |
+| **Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf** | Rules for nesting ICC.2 (v5/iccMAX) profiles inside ICC.1 (v4) profiles — version bridging constraints | CF-153..CF-158 |
 
 ## Specification Revisions
 
-| Document | Scope |
-|----------|-------|
-| **ICCSpecRevision_25-02-10_dictType.pdf** | Dictionary type metadata structure revision (§10.22) |
-| **ICCSpecRevision_25-02-10_dictType-1.pdf** | Dictionary type metadata (variant) |
+| Document | Scope | CF Checks |
+|----------|-------|-----------|
+| **ICCSpecRevision_25-02-10_dictType.pdf** | Dictionary type metadata structure revision (§10.22) | CF-159..CF-162 |
+| **ICCSpecRevision_25-02-10_dictType-1.pdf** | Dictionary type metadata (variant) | CF-159..CF-162 |
 
 ## White Papers
 
@@ -89,18 +89,20 @@ These documents are referenced by iccanalyzer-lite conformance checks:
 | `IccConformanceTagTypes.cpp` | CF-020..CF-034, CF-112, CF-123..CF-136 | ICC.1 §9-10, ADGC |
 | `IccConformanceRequired.cpp` | CF-040..CF-053, CF-095..CF-098, CF-103..CF-104, CF-111, CF-117..CF-120 | ICC.1 §8.2-8.9 |
 | `IccConformanceLUT.cpp` | CF-060..CF-070, CF-105..CF-106, CF-108..CF-110, CF-116 | ICC.1 §10.8-10.11 |
-| `IccConformanceV5.cpp` | CF-080..CF-089, CF-113..CF-115, CF-137..CF-143 | ICC.2 §7-10, Errata |
+| `IccConformanceV5.cpp` | CF-080..CF-089, CF-113..CF-115, CF-137..CF-162 | ICC.2 §7-10, Errata, ICS, Embedding, dictType |
 | `IccConformanceSecurity.cpp` | CF-091..CF-094 | Security (malware, NOP/shellcode) |
 | `IccConformanceQuality.cpp` | CF-099..CF-102 | Transform quality metrics |
 | `IccAnalyzerPAWG.cpp` | — | PAWG 31-item assessment (maps to CF-* checks) |
 
-**Total: 143 conformance checks (CF-001..CF-143)**
+**Total: 162 conformance checks (CF-001..CF-162)**
 
-## Coverage Gaps — Candidate CF Checks
+## Coverage Status — All Specs Covered
 
-| Priority | Spec Document | Estimated Checks | Target Range |
-|----------|--------------|-----------------|--------------|
-| HIGH | ICS-ExtendedOutput-Part1.pdf | 8-12 | CF-144+ |
-| HIGH | ICS-ExtendedRange-Part1/2/3.pdf | 15-25 | CF-156+ |
-| HIGH | Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf | 5-8 | CF-181+ |
-| MEDIUM | ICCSpecRevision_25-02-10_dictType.pdf | 3-5 | CF-189+ |
+All 25 specification documents now have conformance check coverage:
+- **ICC.1-2022-05**: CF-001..CF-122 (header, tags, required, LUT)
+- **ICC.2-2023**: CF-080..CF-089, CF-113..CF-115, CF-137..CF-143 (v5, errata)
+- **ADGC**: CF-123..CF-136 (adaptive gain curve)
+- **ICS Extended Range**: CF-144..CF-148 (PCS flag, class, intent, LUT)
+- **ICS Extended Output**: CF-149..CF-152 (class, gamut, MWP, AToB)
+- **Embedding ICC.2-in-ICC.1**: CF-153..CF-158 (tag, version, class, flags, depth, size)
+- **dictType Revision**: CF-159..CF-162 (uniqueness, non-zero, alignment, bounds)
