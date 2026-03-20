@@ -6,8 +6,9 @@
  *
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  *
- * Captures ComprehensiveAnalyze() stdout, parses [H##] markers, then emits a
- * structured report organized per the ICC PAWG checklist:
+ * Runs ComprehensiveAnalyze() with HeuristicCollector in quiet mode, then reads
+ * structured results directly to build a report organized per the ICC PAWG
+ * checklist:
  *
  *   SECURITY (13 items)
  *   CONFORMANCE (14 items)
@@ -31,13 +32,15 @@
 #include <ctime>
 #include <algorithm>
 #include <map>
-#include <regex>
 #include <set>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+
+#include "IccHeuristicResult.h"
 
 // ── Heuristic result from captured output ────────────────────────────────────
 
@@ -145,24 +148,6 @@ static PAWGItem BuildQualityItems[] = {
 
 #undef PAWG_ITEM
 
-// ── Strip ANSI escape codes ──────────────────────────────────────────────────
-
-static std::string StripAnsiPAWG(const std::string &s) {
-  std::string out;
-  out.reserve(s.size());
-  size_t i = 0;
-  while (i < s.size()) {
-    if (s[i] == '\033' && i + 1 < s.size() && s[i + 1] == '[') {
-      i += 2;
-      while (i < s.size() && s[i] != 'm') i++;
-      if (i < s.size()) i++;
-    } else {
-      out += s[i++];
-    }
-  }
-  return out;
-}
-
 static long PAWGGetFileSize(const char *path) {
   struct stat st;
   if (stat(path, &st) != 0) return -1;
@@ -222,6 +207,8 @@ static void ScorePAWGItem(PAWGItem &item,
     // Collect detail from triggered heuristics only
     if (hv != PAWGVerdict::PASS && !r.detail.empty()) {
       if (!item.detail.empty()) item.detail += "\n";
+      const char *statusTag = (r.status == "critical") ? " [CRIT]" :
+                              (r.status == "warn")     ? " [WARN]" : "";
       // Extract meaningful lines from detail
       std::istringstream ds(r.detail);
       std::string dl;
@@ -234,7 +221,7 @@ static void ScorePAWGItem(PAWGItem &item,
         if (trimmed.find("=====") != std::string::npos) continue;
         if (!item.detail.empty() && item.detail.back() != '\n')
           item.detail += "\n";
-        item.detail += "          H" + std::to_string(hid) + ": " + trimmed;
+        item.detail += "          H" + std::to_string(hid) + ": " + trimmed + statusTag;
       }
     }
   }
@@ -290,85 +277,44 @@ static void PrintPAWGSection(const char *sectionTitle,
 // ══════════════════════════════════════════════════════════════════════════════
 
 int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
-  // ── Step 1: Capture stdout from ComprehensiveAnalyze via pipe ─────────────
-  int pipefd[2];
-  if (pipe(pipefd) != 0) {
-    fprintf(stderr, "Failed to create pipe for PAWG capture\n");
-    return 2;
-  }
+  // ── Step 1: Run analysis with HeuristicCollector in quiet mode ────────────
+  auto &hc = HeuristicCollector::instance();
+  hc.reset();
+  hc.setCollecting(true);
+  hc.setQuiet(true);
 
+  // Redirect stdout to /dev/null for phase banner printf calls
   int savedStdout = dup(STDOUT_FILENO);
-  dup2(pipefd[1], STDOUT_FILENO);
-  close(pipefd[1]);
+  int devNull = open("/dev/null", O_WRONLY);
+  if (devNull >= 0) {
+    dup2(devNull, STDOUT_FILENO);
+    close(devNull);
+  }
 
   int exitCode = ComprehensiveAnalyze(profilePath, fingerprint_db);
 
   fflush(stdout);
-  dup2(savedStdout, STDOUT_FILENO);
-  close(savedStdout);
-
-  std::string captured;
-  char buf[4096];
-  ssize_t nr;
-  while ((nr = read(pipefd[0], buf, sizeof(buf))) > 0) {
-    captured.append(buf, nr);
+  if (savedStdout >= 0) {
+    dup2(savedStdout, STDOUT_FILENO);
+    close(savedStdout);
   }
-  close(pipefd[0]);
+  hc.setQuiet(false);
 
-  std::string clean = StripAnsiPAWG(captured);
-
-  // ── Step 2: Parse [H##] markers into results map ──────────────────────────
+  // ── Step 2: Build results map from HeuristicCollector ─────────────────────
   std::map<int, PAWGHeuristicResult> results;
 
-  std::regex hRegex(R"(\[H(\d+)\]\s+(.+))");
-  std::regex warnRegex(R"(\[WARN\])");
-  std::regex critRegex(R"(\[CRIT(?:ICAL)?\])");
-
-  std::istringstream stream(clean);
-  std::string line;
-  int currentH = -1;
-  std::string currentTitle;
-  std::string currentDetail;
-  std::string currentStatus = "ok";
-
-  auto flushResult = [&]() {
-    if (currentH > 0) {
-      PAWGHeuristicResult r;
-      r.id = currentH;
-      r.name = currentTitle;
-      r.status = currentStatus;
-      r.detail = currentDetail;
-      results[currentH] = std::move(r);
+  for (const auto &hf : hc.results()) {
+    PAWGHeuristicResult r;
+    r.id = hf.id;
+    r.name = hf.title;
+    r.status = hf.status;
+    // Join detail lines
+    for (size_t i = 0; i < hf.details.size(); ++i) {
+      if (i > 0) r.detail += "\n";
+      r.detail += hf.details[i];
     }
-  };
-
-  while (std::getline(stream, line)) {
-    std::smatch m;
-    if (std::regex_search(line, m, hRegex)) {
-      flushResult();
-      currentH = std::stoi(m[1].str());
-      currentTitle = m[2].str();
-      currentDetail.clear();
-      currentStatus = "ok";
-    } else if (currentH > 0) {
-      if (line.find("HEURISTIC SUMMARY") != std::string::npos ||
-          line.find("PHASE 2:") != std::string::npos ||
-          line.find("PHASE 3:") != std::string::npos ||
-          line.find("========") != std::string::npos) {
-        flushResult();
-        currentH = -1;
-        continue;
-      }
-      if (std::regex_search(line, critRegex)) currentStatus = "critical";
-      else if (std::regex_search(line, warnRegex) && currentStatus != "critical")
-        currentStatus = "warn";
-      if (!line.empty()) {
-        if (!currentDetail.empty()) currentDetail += "\n";
-        currentDetail += line;
-      }
-    }
+    results[hf.id] = std::move(r);
   }
-  flushResult();
 
   // ── Step 3: Score every PAWG item ─────────────────────────────────────────
   const int nSecurity    = sizeof(BuildSecurityItems)    / sizeof(BuildSecurityItems[0]);
