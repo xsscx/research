@@ -37,7 +37,8 @@
 
 // ── Forward declarations for ICC analysis functions ──
 extern int HeuristicAnalyze(const char *profilePath, const char *fingerprintDb);
-extern int ComprehensiveAnalyze(const char *profilePath, const char *fingerprintDb);
+extern int ComprehensiveAnalyze(const char *profilePath, const char *fingerprintDb,
+                                bool legacy = false);
 extern int RoundTripAnalyze(const char *profilePath);
 extern void ResetAllocGuard();
 

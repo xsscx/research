@@ -485,12 +485,13 @@ static void WriteFindings(std::ofstream& xml, const HeuristicReport* report)
 
 int IccAnalyzerXMLExport::RunWithXMLOutput(const char *profilePath,
                                             const char *xmlFilename,
-                                            const char *fingerprint_db)
+                                            const char *fingerprint_db,
+                                            bool legacy)
 {
   if (!profilePath || !xmlFilename) return 2;
   if (strstr(xmlFilename, "..") || strlen(xmlFilename) > 4096) return 2;
 
-  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db);
+  CapturedAnalysis cap = CaptureAndParseAnalysis(profilePath, fingerprint_db, legacy);
 
   // Write XML
   std::ofstream xml(xmlFilename);

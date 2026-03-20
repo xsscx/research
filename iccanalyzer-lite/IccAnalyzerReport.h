@@ -10,6 +10,7 @@
 #ifndef ICC_ANALYZER_REPORT_H
 #define ICC_ANALYZER_REPORT_H
 
-int RunWithReportOutput(const char *profilePath, const char *fingerprint_db);
+int RunWithReportOutput(const char *profilePath, const char *fingerprint_db,
+                        bool legacy = false);
 
 #endif

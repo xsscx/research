@@ -80,7 +80,8 @@ public:
    */
   static int RunWithXMLOutput(const char* profilePath,
                                const char* xmlFilename,
-                               const char* fingerprint_db);
+                               const char* fingerprint_db,
+                               bool legacy = false);
 
   /**
    * Write XSLT stylesheet to a stream (used by companion .xsl writer)
