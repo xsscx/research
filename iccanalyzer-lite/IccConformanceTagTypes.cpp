@@ -1203,6 +1203,146 @@ int RunCF124_to_CF132_ADGCDataValidation(CIccProfile *pIcc, const char *filename
              ColorSuccess(), ColorReset());
   }
 
+  // ── CF-133: H_baseline vs H_alternate division-by-zero ──
+  // Output Evaluator §1.2.3 Step 1: W_target = sign(H_alt-H_base) *
+  //   clamp((H_target-H_base)/(H_alt-H_base), 0, 1)
+  // If H_baseline == H_alternate → division by zero
+  {
+    float hBase = ReadFloat32BE(d + 28);
+    float hAlt  = ReadFloat32BE(d + 32);
+    if (std::isfinite(hBase) && std::isfinite(hAlt)) {
+      if (hBase == hAlt) {
+        printf("         %s[FAIL]%s CF-133: H_baseline=%.4f == H_alternate=%.4f"
+               " — division by zero in Output Evaluator W_target"
+               " — ICC.1 ADGC §1.2.3\n",
+               ColorError(), ColorReset(), hBase, hAlt);
+        issues++;
+      } else {
+        printf("         %s[OK]%s CF-133: H_baseline ≠ H_alternate (no div-by-zero)\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+  }
+
+  // ── CF-134: Per-channel GainMin ≤ GainMax ──
+  // Output Evaluator §1.2.3 Step 2: Gain = 2^((GainMin + F(x)*(GainMax-GainMin))*W)
+  // GainMin > GainMax inverts the gain range
+  {
+    struct GainPair {
+      size_t minOff, maxOff;
+      const char *name;
+    };
+    static const GainPair gains[] = {
+      {36, 40, "Red"}, {48, 52, "Green"}, {60, 64, "Blue"},
+    };
+    int gainIssues = 0;
+    for (const auto &gp : gains) {
+      float gMin = ReadFloat32BE(d + gp.minOff);
+      float gMax = ReadFloat32BE(d + gp.maxOff);
+      if (std::isfinite(gMin) && std::isfinite(gMax) && gMin > gMax) {
+        printf("         %s[WARN]%s CF-134: %s GainMin=%.4f > GainMax=%.4f"
+               " (inverted gain range) — ICC.1 ADGC §1.2.3\n",
+               ColorWarning(), ColorReset(), gp.name, gMin, gMax);
+        gainIssues++;
+      }
+    }
+    if (gainIssues > 0)
+      issues += gainIssues;
+    else
+      printf("         %s[OK]%s CF-134: All per-channel GainMin ≤ GainMax\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-135: Curve x-value domain range ──
+  // Gain Evaluator §1.2.2: F(x) is evaluated for input from Input Evaluator
+  // First x should be ≥ 0.0 and last x should be ≤ 1.0 for normalized input
+  {
+    struct CurvePos { size_t headerOffset; const char *name; };
+    static const CurvePos positions[] = {{104, "Red"}, {112, "Green"}, {120, "Blue"}};
+    int rangeIssues = 0;
+    for (const auto &cp : positions) {
+      uint32_t curveOff  = ReadU32BE(d + cp.headerOffset);
+      uint32_t curveSize = ReadU32BE(d + cp.headerOffset + 4);
+      if (curveOff == 0 && curveSize == 0) continue;
+      if (curveOff + 4 > bytesRead) continue;
+
+      uint32_t count = ReadU32BE(d + curveOff);
+      if (count == 0) continue;
+
+      // Check first x value
+      size_t firstXOff = curveOff + 4;
+      if (firstXOff + 4 <= bytesRead) {
+        float firstX = ReadFloat32BE(d + firstXOff);
+        if (std::isfinite(firstX) && firstX < 0.0f) {
+          printf("         %s[WARN]%s CF-135: %s curve first x=%.6f < 0.0"
+                 " — ICC.1 ADGC §1.2.2\n",
+                 ColorWarning(), ColorReset(), cp.name, firstX);
+          rangeIssues++;
+        }
+      }
+
+      // Check last x value
+      if (count >= 1) {
+        size_t lastXOff = curveOff + 4 + (count - 1) * 12;
+        if (lastXOff + 4 <= bytesRead) {
+          float lastX = ReadFloat32BE(d + lastXOff);
+          if (std::isfinite(lastX) && lastX > 1.0f) {
+            printf("         %s[WARN]%s CF-135: %s curve last x=%.6f > 1.0"
+                   " — ICC.1 ADGC §1.2.2\n",
+                   ColorWarning(), ColorReset(), cp.name, lastX);
+            rangeIssues++;
+          }
+        }
+      }
+    }
+    if (rangeIssues > 0)
+      issues += rangeIssues;
+    else
+      printf("         %s[OK]%s CF-135: Curve x-value domains within [0.0, 1.0]\n",
+             ColorSuccess(), ColorReset());
+  }
+
+  // ── CF-136: Curve adjacent-point x-equality (Gain Evaluator div-by-zero) ──
+  // §1.2.2: C3 = (slope1+slope2-2*(y2-y1)/(x2-x1)) / ((x1-x2))
+  // If x1 == x2 → division by zero in cubic coefficient calculation
+  {
+    struct CurvePos { size_t headerOffset; const char *name; };
+    static const CurvePos positions[] = {{104, "Red"}, {112, "Green"}, {120, "Blue"}};
+    int divIssues = 0;
+    for (const auto &cp : positions) {
+      uint32_t curveOff  = ReadU32BE(d + cp.headerOffset);
+      uint32_t curveSize = ReadU32BE(d + cp.headerOffset + 4);
+      if (curveOff == 0 && curveSize == 0) continue;
+      if (curveOff + 4 > bytesRead) continue;
+
+      uint32_t count = ReadU32BE(d + curveOff);
+      if (count < 2) continue;
+
+      uint32_t maxCheck = count;
+      if (maxCheck > 1000) maxCheck = 1000;
+      for (uint32_t i = 1; i < maxCheck; i++) {
+        size_t prevXOff = curveOff + 4 + (i - 1) * 12;
+        size_t curXOff  = curveOff + 4 + i * 12;
+        if (curXOff + 4 > bytesRead) break;
+        float x1 = ReadFloat32BE(d + prevXOff);
+        float x2 = ReadFloat32BE(d + curXOff);
+        if (std::isfinite(x1) && std::isfinite(x2) && x1 == x2) {
+          printf("         %s[FAIL]%s CF-136: %s curve entries %u,%u have equal x=%.6f"
+                 " — division by zero in Gain Evaluator cubic"
+                 " — ICC.1 ADGC §1.2.2\n",
+                 ColorError(), ColorReset(), cp.name, i - 1, i, x1);
+          divIssues++;
+          break;
+        }
+      }
+    }
+    if (divIssues > 0)
+      issues += divIssues;
+    else
+      printf("         %s[OK]%s CF-136: No adjacent curve points with equal x-values\n",
+             ColorSuccess(), ColorReset());
+  }
+
   return issues;
 }
 
