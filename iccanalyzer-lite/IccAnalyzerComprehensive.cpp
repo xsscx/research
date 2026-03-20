@@ -44,6 +44,11 @@
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerTagDetails.h"
+#include "IccConformanceHeader.h"
+#include "IccConformanceTagTypes.h"
+#include "IccConformanceRequired.h"
+#include "IccConformanceLUT.h"
+#include "IccConformanceV5.h"
 
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
@@ -118,6 +123,55 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   }
   phaseNum++;
   
+  // Deep Conformance Phase: specification checks beyond library validation
+  // Requires a loaded CIccProfile — load early and reuse for later phases
+  CIccFileIO ioConf;
+  CIccProfile *pIcc = nullptr;
+  if (ioConf.Open(filename, "rb")) {
+    pIcc = new (std::nothrow) CIccProfile;
+    if (pIcc && pIcc->Read(&ioConf)) {
+      ioConf.Close();
+      
+      printf("\n");
+      printf("=======================================================================\n");
+      printf("%sPHASE %d: DEEP CONFORMANCE CHECKS (ICC.1/ICC.2)%s\n",
+             ColorHeader(), phaseNum, ColorReset());
+      printf("=======================================================================\n\n");
+      
+      int cfIssues = 0;
+      
+      printf("%s--- Header Conformance (CF-001..CF-015) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunHeaderConformance(pIcc, filename);
+      
+      printf("\n%s--- Tag Type Conformance (CF-020..CF-034) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunTagTypeConformance(pIcc);
+      
+      printf("\n%s--- Required Tag Conformance (CF-040..CF-053) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunRequiredTagConformance(pIcc);
+      
+      printf("\n%s--- LUT/Matrix Conformance (CF-060..CF-070) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunLUTConformance(pIcc);
+      
+      printf("\n%s--- v5/iccMAX Conformance (CF-080..CF-089) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunV5Conformance(pIcc);
+      
+      printf("\n%sDeep Conformance Summary:%s %d issue(s)\n",
+             ColorInfo(), ColorReset(), cfIssues);
+      totalIssues += cfIssues;
+    } else {
+      if (pIcc) { delete pIcc; pIcc = nullptr; }
+      ioConf.Close();
+      printf("\n%s[SKIP] Deep conformance checks skipped — profile failed to load%s\n",
+             ColorWarning(), ColorReset());
+    }
+  }
+  phaseNum++;
+  
   // Round-trip tag validation
   printf("\n");
   printf("=======================================================================\n");
@@ -135,26 +189,29 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   phaseNum++;
 
   // Remaining phases need a loaded profile for signature/structure/tag analysis
-  CIccFileIO io;
-  if (!io.Open(filename, "rb")) {
-    printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
-    return totalIssues > 0 ? totalIssues : -1;
-  }
-  
-  CIccProfile *pIcc = new (std::nothrow) CIccProfile;
+  // Reuse pIcc from conformance phase if available; otherwise load fresh
   if (!pIcc) {
-    printf("%s[ERROR] Memory allocation failed%s\n", ColorCritical(), ColorReset());
+    CIccFileIO io;
+    if (!io.Open(filename, "rb")) {
+      printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
+      return totalIssues > 0 ? totalIssues : -1;
+    }
+    
+    pIcc = new (std::nothrow) CIccProfile;
+    if (!pIcc) {
+      printf("%s[ERROR] Memory allocation failed%s\n", ColorCritical(), ColorReset());
+      io.Close();
+      return totalIssues > 0 ? totalIssues : -1;
+    }
+    if (!pIcc->Read(&io)) {
+      printf("%s[ERROR] Profile failed to load - skipping remaining phases%s\n", ColorCritical(), ColorReset());
+      printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());
+      delete pIcc;
+      io.Close();
+      return totalIssues > 0 ? totalIssues : -1;
+    }
     io.Close();
-    return totalIssues > 0 ? totalIssues : -1;
   }
-  if (!pIcc->Read(&io)) {
-    printf("%s[ERROR] Profile failed to load - skipping remaining phases%s\n", ColorCritical(), ColorReset());
-    printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());
-    delete pIcc;
-    io.Close();
-    return totalIssues > 0 ? totalIssues : -1;
-  }
-  io.Close();
 
   printf("\n");
   printf("=======================================================================\n");
