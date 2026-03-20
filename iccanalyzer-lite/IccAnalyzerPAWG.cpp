@@ -98,16 +98,10 @@ static const int kQ29[] = { 120, 114, 87, 0 };
 static const int kQ30[] = { 114, 125, 0 };
 static const int kQ31[] = { 115, 113, 119, 0 };
 
-// Count entries in a 0-terminated int array
-static int CountArr(const int *a) {
-  int n = 0;
-  while (a[n] != 0) n++;
-  return n;
-}
-
 // ── Build the PAWG checklist ─────────────────────────────────────────────────
 
-#define PAWG_ITEM(code, text, arr) { code, text, arr, CountArr(arr), PAWGVerdict::NOT_RUN, {} }
+// Count entries in a 0-terminated int array at compile time via sizeof
+#define PAWG_ITEM(code, text, arr) { code, text, arr, (int)(sizeof(arr)/sizeof(arr[0]) - 1), PAWGVerdict::NOT_RUN, {} }
 
 static PAWGItem BuildSecurityItems[] = {
   PAWG_ITEM("S1",  "Channel counts in tags match data colour space", kS1),
