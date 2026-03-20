@@ -1,0 +1,321 @@
+================================================================================
+ICC DUMPPROFILE - LUT VISUALIZATION DOCUMENTATION INDEX
+================================================================================
+
+Location: /home/xss/research/dumpProfile/Tools/CmdLine/IccDumpProfile/
+Main Source: iccDumpProfile.cpp (1885 lines)
+Related Files: DumpProfileAlloc.cpp, DumpProfileSandbox.h, build-hardened.sh
+
+================================================================================
+FOUR COMPLETE DOCUMENTATION FILES CREATED
+================================================================================
+
+1. LUT_VISUALIZATION_ANALYSIS.txt (578 lines, 18KB)
+   ═══════════════════════════════════════════════════
+   COMPREHENSIVE TECHNICAL REFERENCE
+   
+   Contents:
+   • Overview: What LUT visualization does (6 capabilities)
+   • Section 2: ALL 19+ functions with complete signatures and line numbers
+     - Main entry point: processLuts() [1387-1476]
+     - 1D LUT functions: output1DLUT, graph1DLUT, describe1DLUT (3x)
+     - 3D/nD functions: output3DLUT [1156-1373]
+     - TIFF writer: WriteTIFF [919-1137]
+     - SVG class: SVGOut with all methods [319-417]
+     - Helper functions: 6 functions with details
+     - Sandbox functions: RunSandboxed, ValidateOutputPath
+     - OOM guard: icRealloc
+   
+   • Section 3: Data structures (8 structures defined)
+     - rect2D, point2D, SVGOut class
+     - SandboxResult, SandboxLimits
+     - TIFF IFD enums (6 enum groups)
+   
+   • Section 4: iccDEV Library APIs (15+ methods documented)
+     - CIccProfile methods
+     - CIccTag virtual methods
+     - 1D Curve types (Curve, Parametric, Segmented)
+     - nD LUT/CLUT types
+     - Tag signature helpers
+   
+   • Section 5: SafeMul functions (3 functions)
+     - SafeMul (line 111)
+     - SafeMul3 (line 118)
+     - SafeMul4 (line 125)
+     - Usage examples in TIFF and CLUT code
+   
+   • Section 6: processLuts() Work Flow (detailed 9-step flow)
+   • Section 7: Headers/Includes (organized by category)
+   • Section 8: Output Formats
+     - SVG specifications (coordinate system, elements, layout)
+     - TIFF specifications (file structure, 15 IFD tags, color models, bit depths)
+   
+   USE THIS FOR: Complete reference, understanding all components
+
+2. LUT_QUICK_REFERENCE.txt (330 lines, 12KB)
+   ═════════════════════════════════════════════
+   QUICK LOOKUP GUIDE - FUNCTIONS AND CONSTANTS
+   
+   Contents:
+   • Section 1: Main functions list (19 functions with line numbers)
+     - Organized by category: entry point, 1D, 3D, TIFF, SVG, helpers, security
+   
+   • Section 2: Data flow summary (4-step overview)
+     1. Initialize (basename, path validation)
+     2. Create SVG (header, 203.2mm viewport)
+     3. Iterate tags (1D TRC tags + 3D LUT tags)
+     4. Close SVG
+   
+   • Section 3: Key constants
+     - Unit conversion: inch2mm, mm2point
+     - Memory limits: 256MB single, 1GB total
+     - Sandbox limits: 120s CPU, 512MB file, 64 FDs
+     - TIFF color models (5 modes)
+     - TIFF compression types
+     - TIFF sample formats
+   
+   • Section 4: Output files produced (SVG + TIFF specs)
+   • Section 5: iccDEV library calls (quick lookup table)
+   • Section 6: Security features (5 categories)
+   • Section 7: Invocation syntax and examples
+   • Section 8: TIFF file structure example (with offsets)
+   • Section 9: Safety checks in CLUT data copy
+   
+   USE THIS FOR: Quick function lookup, constants, common tasks
+
+3. LUT_CODE_SNIPPETS_AND_FLOWS.txt (691 lines, 24KB)
+   ═════════════════════════════════════════════════════
+   ACTUAL CODE EXCERPTS AND DETAILED IMPLEMENTATIONS
+   
+   Contents:
+   • Section A: SafeMul functions (exact C++ code)
+   • Section B: SVG output class (OpenFile, CloseFile, WriteHeader, etc.)
+   • Section C: graph1DLUT complete function (lines 535-569)
+   • Section D: TIFF writing key sections
+     - File creation with permissions
+     - TIFF header
+     - IFD tag count and tags
+     - Resolution and sample format
+     - CIELAB data conversion
+     - Pixel data writing
+   
+   • Section E: CLUT data copy (lines 1302-1353)
+     - Stride calculations
+     - Copy loop with quantization
+     - 32-bit, 16-bit, 8-bit handling
+     - NaN/Inf filtering
+   
+   • Section F: processLuts main flow (complete function, 1387-1476)
+   • Section G: output1DLUT and describe functions
+   • Section H: output3DLUT critical sections (curve extraction, CLUT processing)
+   • Section I: TIFF color model mapping (switch statement)
+   • Section J: CIELAB encoding/decoding (8-bit and 16-bit)
+   • Section K: Sandbox execution (Linux only)
+   
+   USE THIS FOR: Understanding exact implementations, debugging, porting
+
+4. ANALYSIS_SUMMARY.txt (355 lines, 14KB)
+   ═════════════════════════════════════════
+   EXECUTIVE SUMMARY AND ARCHITECTURE OVERVIEW
+   
+   Contents:
+   • Document list with brief descriptions
+   • What the LUT visualization does (6 capabilities)
+   • Key functions table (with line numbers)
+   • Output files produced (SVG + TIFF format)
+   • Complete architecture diagram
+   • Safety mechanisms (6 categories)
+   • Invocation syntax and examples
+   • TIFF technical details (file structure, special features)
+   • SVG technical details (coordinates, layout, security)
+   • Related files documentation
+   • Integration with iccDEV library
+   
+   USE THIS FOR: High-level understanding, architecture, integration context
+
+================================================================================
+QUICK NAVIGATION BY TOPIC
+================================================================================
+
+TOPIC: Function Signatures and Line Numbers
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 2
+   → LUT_QUICK_REFERENCE.txt Section 1
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt (each section header shows line #)
+
+TOPIC: How processLuts() Works
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 6
+   → LUT_QUICK_REFERENCE.txt Section 2
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section F
+
+TOPIC: SafeMul Functions
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 5
+   → LUT_QUICK_REFERENCE.txt (built-in references)
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section A
+
+TOPIC: SVG Output Format
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 8 (SVG Output Format)
+   → LUT_QUICK_REFERENCE.txt Section 4
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section B
+
+TOPIC: TIFF Output Format
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 8 (TIFF Output Format)
+   → LUT_QUICK_REFERENCE.txt Section 4
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section D
+   → ANALYSIS_SUMMARY.txt (TIFF Technical Details)
+
+TOPIC: iccDEV Library Integration
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 4
+   → ANALYSIS_SUMMARY.txt (Integration with iccDEV Library)
+
+TOPIC: Security Features
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 9
+   → LUT_QUICK_REFERENCE.txt Section 6
+   → ANALYSIS_SUMMARY.txt (Safety Mechanisms)
+
+TOPIC: Code Examples
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt (all sections)
+
+TOPIC: Data Flow Diagrams
+   → LUT_QUICK_REFERENCE.txt Section 2
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Sections F, G, H
+
+TOPIC: Constants and Enum Values
+   → LUT_QUICK_REFERENCE.txt Section 3
+   → LUT_VISUALIZATION_ANALYSIS.txt (Constants section)
+
+TOPIC: CLUT Data Indexing
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section E
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 6
+
+TOPIC: Path Validation and Sandboxing
+   → DumpProfileSandbox.h (reference in all documents)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 9
+
+TOPIC: Memory Limits and OOM Guard
+   → DumpProfileAlloc.cpp (reference in all documents)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 9
+
+TOPIC: Invocation and Usage
+   → LUT_QUICK_REFERENCE.txt Section 7
+   → ANALYSIS_SUMMARY.txt (Invocation)
+
+================================================================================
+DOCUMENT STATISTICS
+================================================================================
+
+Total Lines: 1,954 lines
+Total Size: 68 KB
+
+Breakdown:
+  LUT_VISUALIZATION_ANALYSIS.txt:    578 lines (30%)
+  LUT_CODE_SNIPPETS_AND_FLOWS.txt:   691 lines (35%)
+  ANALYSIS_SUMMARY.txt:              355 lines (18%)
+  LUT_QUICK_REFERENCE.txt:           330 lines (17%)
+
+Coverage:
+  ✓ 19+ functions documented
+  ✓ 8+ data structures defined
+  ✓ 15+ iccDEV library APIs listed
+  ✓ 6 SafeMul implementations
+  ✓ 5 security mechanisms
+  ✓ Complete SVG and TIFF specifications
+  ✓ Real code snippets (exact lines from source)
+  ✓ Data flow diagrams and pseudocode
+  ✓ Usage examples and invocation syntax
+
+================================================================================
+HOW TO USE THIS DOCUMENTATION
+================================================================================
+
+SCENARIO 1: I need the signature of function X
+   → LUT_QUICK_REFERENCE.txt Section 1 (find line number)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 2 (detailed signature)
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt (exact code)
+
+SCENARIO 2: I need to understand the TIFF output format
+   → ANALYSIS_SUMMARY.txt (TIFF Technical Details)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 8 (TIFF Output Format)
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section D (WriteTIFF code)
+
+SCENARIO 3: I need to port this code to another language
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt (exact algorithms)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 6 (data flow)
+   → LUT_QUICK_REFERENCE.txt Section 2 (simplified flow)
+
+SCENARIO 4: I need to fix an integer overflow bug
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 5 (SafeMul docs)
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section A (exact code)
+   → LUT_QUICK_REFERENCE.txt (SafeMul usage examples)
+
+SCENARIO 5: I need to understand security mechanisms
+   → ANALYSIS_SUMMARY.txt (Safety Mechanisms section)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 9 (detailed explanation)
+   → DumpProfileSandbox.h (source reference)
+
+SCENARIO 6: I need to understand SVG coordinate system
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 8 (SVG Output Format)
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section B (SVGOut class)
+   → LUT_QUICK_REFERENCE.txt Section 4
+
+SCENARIO 7: I need to understand CLUT data layout and indexing
+   → LUT_CODE_SNIPPETS_AND_FLOWS.txt Section E (detailed implementation)
+   → LUT_VISUALIZATION_ANALYSIS.txt Section 6 (data flow explanation)
+   → LUT_QUICK_REFERENCE.txt Section 9 (quick reference)
+
+SCENARIO 8: I want a quick overview
+   → ANALYSIS_SUMMARY.txt (read entire document, 2-5 min)
+   → LUT_QUICK_REFERENCE.txt Section 1-4 (5 min)
+
+SCENARIO 9: I need complete technical details
+   → Read all 4 documents in order:
+     1. ANALYSIS_SUMMARY.txt (architecture)
+     2. LUT_VISUALIZATION_ANALYSIS.txt (complete reference)
+     3. LUT_CODE_SNIPPETS_AND_FLOWS.txt (implementations)
+     4. LUT_QUICK_REFERENCE.txt (checklists and constants)
+
+================================================================================
+SOURCE LOCATION SUMMARY
+================================================================================
+
+Main File: /home/xss/research/dumpProfile/Tools/CmdLine/IccDumpProfile/iccDumpProfile.cpp
+  ├─ processLuts() main function [1387-1476]
+  ├─ output1DLUT() 1D processing [606-667]
+  ├─ output3DLUT() 3D processing [1156-1373]
+  ├─ WriteTIFF() TIFF output [919-1137]
+  ├─ class SVGOut [319-417]
+  ├─ Helper functions [various]
+  └─ SafeMul functions [111-129]
+
+Related Files:
+  ├─ DumpProfileAlloc.cpp - OOM guard (icRealloc override)
+  ├─ DumpProfileSandbox.h - Process isolation (RunSandboxed)
+  └─ build-hardened.sh - Build script with sanitizers
+
+================================================================================
+CROSS-REFERENCE MATRIX
+================================================================================
+
+Function                Line    Analysis  Quick Ref  Code Snippets  Summary
+─────────────────────────────────────────────────────────────────────────────
+processLuts()           1387    Sec 2     Sec 1      Sec F          Arch
+output1DLUT()           606     Sec 2     Sec 1      Sec G          Arch
+output3DLUT()           1156    Sec 2     Sec 1      Sec H          Arch
+graph1DLUT()            535     Sec 2     Sec 1      Sec C          Arch
+describe1DLUT()         574+    Sec 2     Sec 1      Sec G          -
+WriteTIFF()             919     Sec 2     Sec 4      Sec D          TIFF Details
+TIFFColorModel()        831     Sec 2     Sec 3      Sec I          -
+channelName()           1142    Sec 2     Sec 1      -              -
+DrawAxis()              493     Sec 2     Sec 1      Sec B          -
+SVGOut class            319     Sec 3     -          Sec B          Arch
+SafeMul()               111     Sec 5     Sec 3      Sec A          -
+SafeMul3()              118     Sec 5     Sec 3      Sec A          -
+SafeMul4()              125     Sec 5     Sec 3      Sec A          -
+RunSandboxed()          Sandbox Sec 2     Sec 1      Sec K          Arch
+ValidateOutputPath()    Sandbox Sec 9     Sec 6      -              Safety
+icRealloc()             Alloc   Sec 9     Sec 6      -              Safety
+
+════════════════════════════════════════════════════════════════════════════════
+
+Start with: ANALYSIS_SUMMARY.txt for overview, then choose specific documents
+            based on your needs using the Quick Navigation section above.
+

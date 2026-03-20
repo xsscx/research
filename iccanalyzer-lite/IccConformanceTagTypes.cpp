@@ -18,6 +18,7 @@
 #include "IccTagMPE.h"
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
+#include <cmath>
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
@@ -739,6 +740,71 @@ int RunCF034_MeasurementGeometry(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-112: XYZ Triplet Value Normalization (ICC.1-2022-05 §10.31)
+//
+// XYZ values should be physically meaningful:
+//   - Y values (luminance) must be non-negative
+//   - All components should be finite and within reasonable range
+//   - Range: typically [−2.0, +4.0] for wide-gamut but finite
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF112_XYZTripletNormalization(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-112]%s XYZ Triplet Value Normalization (%sICC.1-2022-05 §10.31%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature xyzSigs[] = {
+    icSigMediaWhitePointTag, icSigRedColorantTag, icSigGreenColorantTag,
+    icSigBlueColorantTag, icSigLuminanceTag
+  };
+
+  int checked = 0;
+  for (auto sig : xyzSigs) {
+    CIccTag *tag = pIcc->FindTag(sig);
+    CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+    if (!xyz || xyz->GetSize() < 1) continue;
+
+    icXYZNumber val = (*xyz)[0];
+    icFloatNumber x = icFtoD(val.X);
+    icFloatNumber y = icFtoD(val.Y);
+    icFloatNumber z = icFtoD(val.Z);
+    checked++;
+
+    // NaN/Inf check
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+      char s[5] = {};
+      SigToChars(sig, s);
+      printf("         '%s' contains NaN/Inf values\n", s);
+      printf("         %s[FAIL]%s XYZ values must be finite — §10.31\n",
+             ColorError(), ColorReset());
+      issues++;
+      continue;
+    }
+
+    // Luminance non-negative for white point and luminance tag
+    if (sig == icSigMediaWhitePointTag || sig == icSigLuminanceTag) {
+      if (y < 0.0) {
+        char s[5] = {};
+        SigToChars(sig, s);
+        printf("         '%s' Y=%.6f is negative (invalid luminance)\n", s, y);
+        printf("         %s[FAIL]%s Y (luminance) must be ≥ 0 — §10.31\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (checked == 0)
+    printf("         No XYZ tags to validate\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All %d XYZ triplets have valid values\n",
+           ColorSuccess(), ColorReset(), checked);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all tag type conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -766,6 +832,8 @@ int RunTagTypeConformance(CIccProfile *pIcc) {
   CF_WRAP(1032, "CF-032: XYZType Triplet Count", RunCF032_XYZTypeTripletCount(pIcc));
   CF_WRAP(1033, "CF-033: Measurement Standard Observer", RunCF033_MeasurementStandardObserver(pIcc));
   CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));
+
+  CF_WRAP(1112, "CF-112: XYZ Triplet Normalization", RunCF112_XYZTripletNormalization(pIcc));
 
 #undef CF_WRAP
   return issues;

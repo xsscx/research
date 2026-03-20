@@ -1,0 +1,9 @@
+# ICC Profile MPE Matrix Export
+# Tag: B2A1 element 0
+# Dimensions: 3 input x 3 output
+# ApplyConstants: false
+#
+m[0]	m[1]	m[2]	offset
+3.24130249	-1.53754091	-0.49866194	0.00000000
+-0.96919745	1.87587810	0.04155308	0.00000000
+0.05563953	-0.20401160	1.05715108	0.00000000

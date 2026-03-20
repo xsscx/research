@@ -4,7 +4,7 @@
 **File Size**: 414588 bytes
 **SHA-256**: `1f41ff8274d3f3fed502aa209e3fb5e7828dbbfd6f64b0fc5de6358dbebdc2c5`
 **File Type**: ColorSync color profile 2.0, type mnco, RGB/Lab-prtr device by \3, 414588 bytes, 22-2-1999 10:56:38, PCS X=0xf6d4 Z=0xd32b, 0xba0a400000000000 MD5 "Tek 350, ES1000 Monaco2"
-**Date**: 2026-03-08T19:48:56Z
+**Date**: 2026-03-19T09:23:15Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -14,6 +14,8 @@
 | `-a` (comprehensive) | 1 | Finding detected |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 0 | Clean |
+| `-xt` (LUT text export) | 0 | Exported |
+| `-cube` (cube export) | 0 | Exported |
 
 **ASAN/UBSAN**: No sanitizer errors detected
 
@@ -29,7 +31,7 @@
   ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
 =======================================================================
 
-File: /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+File: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
 
 =======================================================================
 PHASE 1: SECURITY HEURISTIC ANALYSIS
@@ -40,7 +42,7 @@ PHASE 1: SECURITY HEURISTIC ANALYSIS
 |              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
 =========================================================================
 
-File: /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+File: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
 
 =======================================================================
 EXTERNAL FILE METADATA
@@ -52,12 +54,12 @@ EXTERNAL FILE METADATA
   [exiftool]
       ExifTool Version Number         : 12.76
       File Name                       : fuzzed-prtr-Lab-414k.icc
-      Directory                       : /home/h02332/po/research/test-profiles
+      Directory                       : /home/xss/research/test-profiles
       File Size                       : 415 kB
-      File Modification Date/Time     : 2026:03:08 15:48:55-04:00
-      File Access Date/Time           : 2026:03:08 15:48:55-04:00
-      File Inode Change Date/Time     : 2026:03:08 15:48:55-04:00
-      File Permissions                : -rw-r--r--
+      File Modification Date/Time     : 2026:03:14 15:00:55+00:00
+      File Access Date/Time           : 2026:03:18 13:16:42+00:00
+      File Inode Change Date/Time     : 2026:03:14 15:00:55+00:00
+      File Permissions                : -rw-rw-r--
       File Type                       : ICC
       File Type Extension             : icc
       MIME Type                       : application/vnd.iccprofile
@@ -83,8 +85,8 @@ EXTERNAL FILE METADATA
 
   [identify]
       Image:
-        Filename: /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
-        Permissions: rw-r--r--
+        Filename: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+        Permissions: rw-rw-r--
         Format: ICC (ICC Color Profile)
         Class: DirectClass
         Geometry: 1x1+0+0
@@ -125,8 +127,7 @@ EXTERNAL FILE METADATA
 
   [xxd -l 128]
       00000000: 0006 537c 6d6e 636f 0200 0000 7072 7472  ..S|mnco....prtr
-      00000010: 5ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
-247 4220 4c61 6220 07cf 0002 0016 000a  RGB Lab ........
+      00000010: 5247 4220 4c61 6220 07cf 0002 0016 000a  RGB Lab ........
       00000020: 0038 0026 6163 7370 4150 504c 0000 0000  .8.&acspAPPL....
       00000030: 0000 0000 0000 0000 0000 0000 0000 0000  ................
       00000040: 0000 0000 0000 f6d4 0001 0000 0000 d32b  ...............+
@@ -135,7 +136,7 @@ EXTERNAL FILE METADATA
       00000070: 0000 0000 ffeb c8e8 0000 0000 071e 5d38  ..............]8
 
   [sha256sum]
-      1f41ff8274d3f3fed502aa209e3fb5e7828dbbfd6f64b0fc5de6358dbebdc2c5  /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+      1f41ff8274d3f3fed502aa209e3fb5e7828dbbfd6f64b0fc5de6358dbebdc2c5  /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
 
 =======================================================================
 HEADER VALIDATION HEURISTICS
@@ -153,8 +154,15 @@ HEADER VALIDATION HEURISTICS
 [H4] PCS ColorSpace: 0x4C616220 (Lab)
      [OK] Valid PCS: LabData
 
-[H5] Platform: 0x4150504C (APPL)
-     [OK] Known platform code
+[H5] Platform / CMM / Manufacturer / Creator Validation
+      Platform: 0x4150504C (APPL)
+      [OK] Known platform code
+      CMM: 0x6D6E636F (mnco)
+      [OK] CMM signature registered or zero
+      Manufacturer: 0x00000000 (....)
+      [OK] Manufacturer is zero (unspecified)
+      Creator: 0xFFF80000 (....)
+      [WARN]  HEURISTIC: Creator contains non-printable bytes — ICC.1-2022-05 §7.2.17
 
 [H6] Rendering Intent: 0 (0x00000000)
      [OK] Valid intent: Perceptual
@@ -174,6 +182,8 @@ HEADER VALIDATION HEURISTICS
 [H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)
       Spectral: start=0.00nm end=0.00nm steps=65515
       [WARN]  HEURISTIC: Excessive spectral steps: 65515
+      [WARN]  HEURISTIC: Spectral start==end (0.00nm) with steps=65515 — degenerate range causes NaN scale — CWE-681
+       CWE-681: Incorrect Conversion between Numeric Types
       BiSpectral: start=2.00nm end=0.00nm steps=0
       [WARN]  MCS field 0xFFEBC8E8: not a valid icMaterialColorSignature
        CWE-843: Invalid enum value → UB in AddXform() (iccDEV #323)
@@ -349,13 +359,7 @@ TAG-LEVEL HEURISTICS
 [H88] Chromatic Adaptation Matrix Validation
       [OK] No chromatic adaptation tag (standard D50)
 
-[H89] Profile Sequence Descr
-╔══════════════════════════════════════════════════════╗
-║  [RECOVERY] Library crashed: SIGSEGV (segmentation fault)
-║  During: comprehensive analysis
-║  Partial results above may be incomplete
-╚══════════════════════════════════════════════════════╝
-iption Validation
+[H89] Profile Sequence Description Validation
       [OK] Profile sequence descriptions within bounds (or absent)
 
 [H90] Preview Tag Channel Consistency
@@ -397,6 +401,15 @@ iption Validation
 [H102] Tag Size vs Profile Size Cross-Check
       Profile size: 414588 bytes, tag count: 10
       [OK] Tag size vs profile size consistent
+
+[H146] Stack Buffer Overflow — GetValues() Size Mismatch (CWE-121)
+      [OK] No stack buffer overflow patterns detected in numeric/LUT tags
+
+[H147] Null Pointer Dereference — Post-Read() Tag State (CWE-476)
+      [OK] No null pointer patterns detected in loaded tags
+
+[H148] Memory Copy Bounds and Overlap Detection (CWE-119)
+      [OK] No memory copy overlap or bounds issues detected
 
 [H103] Profile Connection Conditions (PCC)
       [INFO] No spectral viewing conditions tag (svcn)
@@ -474,6 +487,550 @@ iption Validation
       [INFO] No MPE calculator/CLUT elements found
 
 [H119] Round-Trip ΔE Measurement
+      Perceptual intent (1229 samples):
+        AToB0→BToA0: avg ΔE=0.5377  max ΔE=0.9949
+        [OK] Good round-trip fidelity
+      Rel. Colorimetric intent (1229 samples):
+        AToB1→BToA1: avg ΔE=0.5377  max ΔE=0.9949
+        [OK] Good round-trip fidelity
+      Saturation intent (1229 samples):
+        AToB2→BToA2: avg ΔE=0.5377  max ΔE=0.9949
+        [OK] Good round-trip fidelity
+
+[H120] Curve Invertibility Assessment
+      [INFO] No TRC curves found for invertibility check
+
+[H121] Characterization Data Round-Trip Capability
+      [INFO] No characterization data (targ) tag — cannot assess
+
+[H122] Tag Type Encoding Validation
+      [INFO] No applicable tags for deep encoding validation
+
+[H123] Non-Required Tag Classification
+      [OK] All tags are required or optional for this profile class
+
+[H124] Version-Tag Correspondence
+      [OK] Tags correspond to profile version 2
+
+[H125] Overall Transform Smoothness
+      AToB0 (grid=17, 3in/3out): avg step=0.039761  max step=0.527724
+      [WARN]  AToB0: large discontinuity (max step > 0.5) — poor smoothness
+      AToB1 (grid=17, 3in/3out): avg step=0.039761  max step=0.527724
+      [WARN]  AToB1: large discontinuity (max step > 0.5) — poor smoothness
+      BToA0 (grid=33, 3in/3out): avg step=0.069578  max step=1.473164
+      [WARN]  BToA0: large discontinuity (max step > 0.5) — poor smoothness
+
+[H126] Private Tag Malware Content Scan
+      [INFO] No private tags to scan
+
+[H127] Private Tag Registry Check
+      [OK] No private tags present
+
+[H128] Version BCD Encoding Validation
+      Version bytes: 02 00 00 00 → v2.0.0
+      [OK] Version BCD encoding is valid
+
+[H129] PCS Illuminant Exact D50 Check
+      Raw bytes: X=0x0000F6D4 Y=0x00010000 Z=0x0000D32B
+      Float:     X=0.964172   Y=1.000000   Z=0.824875
+      D50 spec:  X=0x0000F6D6 Y=0x00010000 Z=0x0000D32D
+      [WARN]  PCS illuminant does not match D50 (>1 LSB deviation)
+       CWE-20: ICC.1-2022-05 §7.2.16 requires exact D50 for v2/v4
+
+[H130] Tag Data 4-Byte Alignment
+      [OK] All 10 tags are 4-byte aligned
+
+[H131] Profile ID (MD5) Validation
+      Profile ID: BA0A400000000000FFEBC8E800000000
+      Computed:   7B01D6082140E039A5790B212B075D9D
+      [WARN]  Profile ID MD5 MISMATCH — profile may be modified/corrupted
+       CWE-354: Profile ID does not match computed hash
+
+[H132] chromaticAdaptation Matrix Validation
+      [INFO] No chromaticAdaptation (chad) tag present
+
+[H133] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11)
+      Flags: 0x00000000 (embedded=0, independent=0)
+      [OK] Reserved flag bits are zero
+
+[H134] Tag Type Reserved Bytes (ICC.1-2022-05 §10.1)
+      [OK] All 10 tag types have zeroed reserved bytes
+
+[H135] Duplicate Tag Signatures (ICC.1-2022-05 §7.3.1)
+      [OK] All 10 tag signatures are unique
+
+[H137] High-Dimensional Color Space Grid Complexity (CWE-400)
+      [OK] Color space dimensionality within safe bounds
+
+[H138] Calculator Element Branching Depth (CWE-400/CWE-674)
+      [INFO] No calculator elements found
+
+[H142] XML Serialization Safety (§10 Tag Type Definitions)
+      [OK] XML serialization completed safely (ToXml succeeded)
+
+[H143] XML Array Bounds Precheck (§10 Tag Types)
+      [OK] All array tag element counts consistent with data sizes
+
+[H144] XML String Termination Precheck (§10.4/§10.19)
+      [OK] All string fields properly null-terminated for XML serialization
+
+[H145] XML Curve Type Consistency (§10.14 MPE)
+      [OK] All curve/MPE type signatures consistent for XML serialization
+
+[H33] mBA/mAB Sub-Element Offset Validation
+      [OK] All mBA/mAB sub-element offsets within tag bounds
+
+[H34] 32-bit Integer Overflow in Sub-Element Bounds
+      [OK] No 32-bit integer overflow in sub-element offsets
+
+[H35] Suspicious Fill Pattern in mBA/mAB Data
+      [OK] No suspicious fill patterns in mBA/mAB data
+
+[H36] LUT Tag Pair Completeness
+      [OK] All LUT tags properly paired
+
+[H37] Calculator Element Complexity Validation
+      [OK] No calculator complexity issues
+
+[H38] Curve Degenerate Value Detection
+      [OK] No degenerate curve values detected
+
+[H39] Shared Tag Data Aliasing Detection
+      [OK] No risky shared tag data aliasing
+
+[H40] Tag Alignment & Padding Validation
+      [OK] All tags properly aligned with zero padding
+
+[H41] Version/Type Consistency Check
+      Profile version: 2.0.0
+      [OK] All tags/types consistent with declared version
+
+[H42] Matrix Singularity Detection
+      [INFO]  rXYZ/gXYZ/bXYZ tags not all present (0/3 found)
+      [OK] Color matrix is well-conditioned
+
+[H43] Spectral/BRDF Tag Structural Validation
+      [OK] Spectral/BRDF tags structurally valid
+
+[H44] Embedded Image Validation
+      [OK] Embedded images valid (or none present)
+
+[H45] Sparse Matrix Bounds Validation
+      [OK] Sparse matrix bounds valid (or none present)
+
+[H46] TextDescription Unicode Length Validation
+      [OK] TextDescription unicode lengths valid (or no desc tags)
+
+[H47] NamedColor2 Size Overflow Detection
+      [OK] NamedColor2 sizes valid (or no ncl2 tags)
+
+[H48] CLUT Grid Dimension Product Overflow
+      [OK] CLUT grid dimension products within bounds
+
+[H49] Float/s15Fixed16 NaN/Inf Detection
+      [OK] No NaN/Inf/extreme values in float/fixed-point tags
+
+[H50] Zero-Size Profile/Tag Detection (Infinite Loop)
+      [OK] No zero-size profile or tags detected
+
+[H51] LUT I/O Channel Count Consistency
+      [OK] LUT I/O channel counts within valid range
+
+[H52] Integer Underflow in Tag Size Subtraction
+      [OK] All tag sizes meet minimum requirements
+
+[H53] Embedded Profile Recursion Detection
+      [OK] No embedded profiles detected
+
+[H54] Division-by-Zero Trigger Detection
+      [OK] No division-by-zero triggers detected
+
+[H55] UTF-16 Encoding Validation
+      [OK] UTF-16 encoding appears valid
+
+[H57] Embedded Profile Recursion Depth
+      [OK] No embedded profiles detected
+
+[H59] Spectral Wavelength Range Consistency
+      [OK] Spectral range fields consistent
+
+[H68] GamutBoundaryDesc Triangle/Vertex Overflow
+      [OK] GamutBoundaryDesc bounds valid (or absent)
+
+[H69] Profile ID / MD5 Consistency
+      [OK] Profile ID present: ba0a4000...00000000
+
+[H153] Sampled Curve NaN-to-Unsigned Cast Detection (§10.26 MPE)
+      [OK] No sampled curve degenerate range entries
+
+[H154] Uncontrolled Tag Allocation Size (CWE-789, §7.3 Tag Table)
+      [OK] All tag allocation sizes within bounds
+
+[H155] Integer Overflow in Tag Dimensions (CWE-190, §10.6-10.14)
+      [OK] No integer overflow in tag dimension calculations
+
+[H156] Allocation Failure Path Profiles (CWE-252, §7.3)
+      [OK] Allocation pressure within safe bounds
+
+[H157] Alloc-Dealloc Mismatch Tag Patterns (CWE-762, §10.14)
+      [OK] No alloc-dealloc mismatch trigger patterns
+
+[H158] Enum Range Validation Extended (CWE-681, §7.2 Header Fields)
+      [OK] All enum values within valid ranges
+
+[H159] UAF Tag Ownership Chain Detection (CWE-416, §7.3)
+      [OK] No UAF-triggering ownership patterns detected
+
+[H160] Format String Injection in Text Tags (CWE-134, §10.24/§10.22)
+      [OK] No format string specifiers in text tags
+
+[H161] Stack Address Escape via Deep Apply Chains (CWE-121, §10.6/§10.14)
+      [OK] No deep Apply() chain stack-escape risk patterns
+
+[H162] Partial Tag Data Overlap Detection
+      [OK] No partial tag data overlaps detected
+
+[H163] Executable Signature Scan in Tag Data
+      [OK] No executable signatures detected in tag data
+
+[H164] Raw LUT Channel Count vs ColorSpace/PCS
+      [OK] All raw LUT channel counts match colorSpace/PCS
+
+[H165] LUT Data Sufficiency Validation
+      [OK] All LUT tags have sufficient data for declared contents
+
+[H166] Division-by-Zero in CAM/Array/MPE Detection
+      [OK] No division-by-zero risk patterns detected
+
+[H167] Null MPE CLUT/Curve Application Guard
+      [OK] No null MPE CLUT/Curve application risks detected
+
+[H168] Unchecked Allocation Size Overflow Detection
+      [OK] No unchecked allocation overflow patterns detected
+
+[H169] Dictionary Tag Element Bounds Validation
+      [OK] No dictionary tag bounds issues detected
+
+[H170] Copy Constructor UB via Null PCS (CWE-843, §7.2.7)
+      [OK] PCS signature valid for copy-constructor safety
+
+[H171] Curve Param Count vs FuncType Validation (CWE-125, §10.15/§10.23)
+      [OK] Curve param counts consistent with function types
+
+[H136] ResponseCurve Per-Channel Measurement Count (CWE-400)
+      [OK] ResponseCurve measurement counts within bounds (or tag absent)
+
+HEURISTIC SUMMARY
+=======================================================================
+
+[WARN]  15 HEURISTIC WARNING(S) DETECTED
+
+  This profile exhibits patterns associated with:
+  - Malformed/corrupted data
+  - Resource exhaustion attempts
+  - Enum confusion vulnerabilities
+  - Parser exploitation attempts
+  - Type confusion / buffer overflow patterns
+
+  - Sub-element offset OOB (mBA/mAB SIGBUS pattern)
+  - 32-bit integer overflow in bounds checks
+  - Suspicious fill patterns enabling OOB traversal
+
+  CVE Coverage: 171 heuristics covering patterns from 87 CVEs + 95 GHSAs across 93 iccDEV security advisories (57 heuristics with CVE/GHSA cross-references)
+  Spec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references
+  Key CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow
+  H33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)
+  H37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)
+  H46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
+  H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict
+  H61-H70: Viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity,
+           NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement
+  H71-H78: ColorantTable null-term, SparseMatrix, nesting depth, type confusion,
+           small tags, data flags, calculator sub-elements, CLUT grid overflow
+  H79-H86: LoadTag overflow, UAF shared pointers, MPE channel consistency,
+           I/O bit-shift overflow, float array SBO, 3D LUT OOB, memcpy overlap, mluc HBO
+  H87-H94: TRC curve anomalies, chromatic adaptation matrix, profile sequence,
+           preview channels, colorant order, spectral viewing, flags, matrix colorants
+  H95-H102: Sparse matrix bounds, embedded profile recursion, profile sequence ID,
+            spectral MPE elements, embedded images, sequence desc, MPE chain, tag sizes
+  H103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation,
+             environment variable tags, spectral range validation
+  H107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,
+             class-required tags, reserved bytes, wtpt validation, round-trip fidelity,
+             TRC monotonicity, characterization data
+  H116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,
+             computation cost, ΔE round-trip, curve invertibility, characterization RT,
+             deep encoding, non-required tags, version-tag, smoothness, malware scan, registry
+  H128-H132: ICC.1-2022-05 spec compliance — version BCD, PCS D50, tag alignment,
+             Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)
+  H133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved
+             bytes (§10.1), duplicate tag signatures (§7.3.1)
+  H136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional
+             grid complexity, calculator branching depth (CFL-074/075/076 findings)
+  H142-H145: XML serialization safety — fork-isolated ToXml(), array bounds precheck,
+             string termination validation, curve type consistency (25 XML advisories)
+
+  Recommendations:
+  • Validate profile with official ICC tools
+  • Use -n (ninja mode) for detailed byte-level analysis
+  • Do NOT use in production color workflows
+  • Consider as potential security test case
+
+
+=======================================================================
+PHASE 2: ROUND-TRIP TAG VALIDATION
+=======================================================================
+
+
+=== Round-Trip Tag Pair Analysis ===
+Profile: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+
+Device Class: 0x70727472
+
+Tag Pair Analysis:
+  AToB0/BToA0 (Perceptual):        [[X]] [[X]]  [X] Round-trip capable
+  AToB1/BToA1 (Rel. Colorimetric): [[X]] [[X]]  [X] Round-trip capable
+  AToB2/BToA2 (Saturation):        [[X]] [[X]]  [X] Round-trip capable
+
+  DToB0/BToD0 (Perceptual):        [ ] [ ]  
+  DToB1/BToD1 (Rel. Colorimetric): [ ] [ ]  
+  DToB2/BToD2 (Saturation):        [ ] [ ]  
+
+  Matrix/TRC Tags:                 [ ]  
+
+[OK] RESULT: Profile supports round-trip validation
+
+Result: Round-trip capable [OK]
+
+=======================================================================
+PHASE 3: SIGNATURE ANALYSIS
+=======================================================================
+
+
+=== Signature Analysis ===
+
+Header Signatures:
+  Device Class:    0x70727472  ''  OutputClass
+  Color Space:     0x52474220  'RGB'  RgbData
+  PCS:             0x4C616220  'Lab'  LabData
+  Manufacturer:    0x00000000  '....'
+  Model:           0x00000000  '....'
+
+Tag Signatures:
+Idx  Tag          FourCC     Type         Issues
+---  ------------ ---------- ------------ ------
+0    copyrightTag 'cprt    '  textType    
+1    profileDescriptionTag 'desc    '  textDescriptionType
+2    mediaWhitePointTag 'wtpt    '  Unknown 'wtpt' = 77747074
+3    AToB0Tag     'A2B0    '  lut8Type    
+4    BToA0Tag     'B2A0    '  lut8Type    
+5    gamutTag     'gamt    '  lut8Type    
+6    AToB1Tag     'A2B1    '  lut8Type    
+7    BToA1Tag     'B2A1    '  lut8Type    
+8    AToB2Tag     'A2B2    '  lut8Type    
+9    BToA2Tag     'B2A2    '  lut8Type    
+
+Summary: 0 signature issue(s) detected
+
+=======================================================================
+PHASE 4: PROFILE STRUCTURE DUMP
+=======================================================================
+
+=== ICC Profile Header ===
+
+=== ICC Profile Header (0x0000-0x007F) ===
+0x0000: 00 06 53 7C 6D 6E 63 6F  02 00 00 00 70 72 74 72  |..S|mnco....prtr|
+0x0010: 52 47 42 20 4C 61 62 20  07 CF 00 02 00 16 00 0A  |RGB Lab ........|
+0x0020: 00 38 00 26 61 63 73 70  41 50 50 4C 00 00 00 00  |.8.&acspAPPL....|
+0x0030: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0x0040: 00 00 00 00 00 00 F6 D4  00 01 00 00 00 00 D3 2B  |...............+|
+0x0050: FF F8 00 00 BA 0A 40 00  00 00 00 00 FF EB C8 E8  |......@.........|
+0x0060: 00 00 00 00 FF EB 3F E4  00 00 00 00 FF EB 40 00  |......?.......@.|
+0x0070: 00 00 00 00 FF EB C8 E8  00 00 00 00 07 1E 5D 38  |..............]8|
+
+Header Fields:
+  Size:              0x0006537C (414588 bytes)
+  CMM Type:          'mnco' (0x6D6E636F)
+  Version:           2.0.0.0 (0x02000000)
+  Device Class:      OutputClass
+  Color Space:       RgbData (3 channels)
+  PCS:               LabData
+  Date/Time:         1999-02-22 10:56:38
+  Magic:             0x61637370 [OK]
+  Platform:          Macintosh
+  Profile Flags:     0x00000000
+  Manufacturer:      '....' (0x00000000)
+  Model:             '....' (0x00000000)
+  Device Attribs:    0x0000000000000000
+  Rendering Intent:  Perceptual (0)
+  PCS Illuminant:    X=0.9642 Y=1.0000 Z=0.8249
+  Creator:           '....' (0xFFF80000)
+  Profile ID:        ba0a400000000000ffebc8e800000000
+
+=== Tag Table ===
+
+=== Tag Table ===
+Tag Count: 10
+
+Tag Table Raw Data (0x0080-0x00FC):
+0x0080: 00 00 00 0A 63 70 72 74  00 00 00 FC 00 00 00 1C  |....cprt........|
+0x0090: 64 65 73 63 00 00 01 18  00 00 00 72 77 74 70 74  |desc.......rwtpt|
+0x00A0: 00 00 01 8C 00 00 00 14  41 32 42 30 00 00 01 A0  |........A2B0....|
+0x00B0: 00 00 3F C3 42 32 41 30  00 00 41 64 00 01 AB 53  |..?.B2A0..Ad...S|
+0x00C0: 67 61 6D 74 00 01 EC B8  00 00 90 91 41 32 42 31  |gamt........A2B1|
+0x00D0: 00 02 7D 4C 00 00 3F C3  42 32 41 31 00 02 BD 10  |..}L..?.B2A1....|
+0x00E0: 00 01 AB 53 41 32 42 32  00 04 68 64 00 00 3F C3  |...SA2B2..hd..?.|
+0x00F0: 42 32 41 32 00 04 A8 28  00 01 AB 53              |B2A2...(...S|
+
+Tag Entries:
+Idx  Signature    FourCC       Offset     Size
+---  ------------ ------------ ---------- ----
+0    copyrightTag 'cprt      '  0x000000FC  28
+1    profileDescriptionTag 'desc      '  0x00000118  114
+2    mediaWhitePointTag 'wtpt      '  0x0000018C  20
+3    AToB0Tag     'A2B0      '  0x000001A0  16323
+4    BToA0Tag     'B2A0      '  0x00004164  109395
+5    gamutTag     'gamt      '  0x0001ECB8  37009
+6    AToB1Tag     'A2B1      '  0x00027D4C  16323
+7    BToA1Tag     'B2A1      '  0x0002BD10  109395
+8    AToB2Tag     'A2B2      '  0x00046864  16323
+9    BToA2Tag     'B2A2      '  0x0004A828  109395
+
+=======================================================================
+PHASE 5: TAG CONTENT ANALYSIS
+=======================================================================
+
+--- 5A: LUT Tag Geometry ---
+
+  [A2B0] LUT Tag 'A2B0'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   17 x 17 x 17
+        Total entries: 14739
+
+  [A2B1] LUT Tag 'A2B1'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   17 x 17 x 17
+        Total entries: 14739
+
+  [A2B2] LUT Tag 'A2B2'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   17 x 17 x 17
+        Total entries: 14739
+
+  [B2A0] LUT Tag 'B2A0'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   33 x 33 x 33
+        Total entries: 107811
+
+  [B2A1] LUT Tag 'B2A1'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   33 x 33 x 33
+        Total entries: 107811
+
+  [B2A2] LUT Tag 'B2A2'
+      Input channels:  3
+      Output channels: 3
+      Matrix side:     input (B-side)
+      CurvesB:         present
+      CurvesM:         none
+      CurvesA:         present
+      CLUT:            present
+        Grid points:   33 x 33 x 33
+        Total entries: 107811
+
+--- 5B: MPE Element Chains ---
+
+  No MPE tags found
+
+--- 5C: TRC Curve Analysis ---
+
+  No TRC curve tags found
+
+--- 5D: NamedColor2 Validation ---
+
+  No NamedColor2 tag
+
+--- 5E: XYZ Tag Values ---
+
+  No XYZ colorant/white-point tags
+
+--- 5F: ICC v5 Spectral Data ---
+
+  No ICC v5 spectral tags
+
+--- 5G: Profile ID Verification ---
+
+  Profile ID (header):   ba0a400000000000ffebc8e800000000
+  Profile ID (computed): 7b01d6082140e039a5790b212b075d9d
+  [WARN] Profile ID MISMATCH — possible tampering or corruption
+
+--- 5H: Per-Tag Size Analysis ---
+
+  Tag sizes (flagging >10MB):
+      [OK] All tags within 10MB limit
+
+--- 5I: V5/iccMAX Summary ---
+
+  (Profile is v2/v4 — v5/iccMAX summary not applicable)
+
+--- 5J: Version Classification & Capabilities ---
+
+  Version Classification:
+    ICC Version:       2.0.0
+    Specification:     ICC.1 (v2.x legacy)
+    Features:          lut8/lut16 only, limited tag types
+    Device Class:      OutputClass
+    Color Space:       RgbData (3 channels)
+    Connection Space:  LabData
+
+  Transform Capabilities:
+    AToB (device→PCS):   YES
+    BToA (PCS→device):   YES
+    TRC (matrix/gamma):  no
+    Gamut check:         YES
+    Chromatic adapt:     no
+    Preview:             no
+
+
+=======================================================================
+COMPREHENSIVE ANALYSIS SUMMARY
+=======================================================================
+
+File: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+Total Issues Detected: 16
+
+[WARN] ANALYSIS COMPLETE - 16 issue(s) detected
+  Review detailed output above for security concerns.
 ```
 
 ---
@@ -495,7 +1052,7 @@ WARNING: Analyzing malformed/corrupted ICC profile without validation.
          This mode bypasses all safety checks and may expose parser bugs.
          Use only for security research, fuzzing, or forensic analysis.
 
-File: /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+File: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
 Mode: FULL DUMP (entire file will be displayed)
 
 Raw file size: 414588 bytes (0x6537C)
@@ -513,10 +1070,22 @@ Raw file size: 414588 bytes (0x6537C)
 Header Fields (RAW - no validation):
   Profile Size:    0x0006537C (414588 bytes) OK
   CMM:             0x6D6E636F  'mnco'
-  Version:         0x02000000
+  Version:         0x02000000  (2.0.0)
   Device Class:    0x70727472  'prtr'
   Color Space:     0x52474220  'RGB '
   PCS:             0x4C616220  'Lab '
+  Date/Time:       1999-02-22 10:56:38
+  Magic:           0x61637370  [OK 'acsp']
+  Platform:        0x4150504C  'APPL'
+  Flags:           0x00000000
+  Manufacturer:    0x00000000  '....'
+  Model:           0x00000000  '....'
+  Dev Attributes:  0x0000000000000000
+  Rendering Intent:0x00000000  Perceptual
+  PCS Illuminant:  X=0.9642 Y=1.0000 Z=0.8249
+  Creator:         0xFFF80000  '....'
+  Profile ID:      ba0a400000000000ffebc8e800000000
+  Reserved 100-127: NON-ZERO [VIOLATION]
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 10 (0x0000000A)
@@ -26473,7 +27042,7 @@ Use this information for debugging malformed profiles.
 ```
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/h02332/po/research/test-profiles/fuzzed-prtr-Lab-414k.icc
+Profile: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc
 
 Device Class: 0x70727472
 
@@ -26489,4 +27058,96 @@ Tag Pair Analysis:
   Matrix/TRC Tags:                 [ ]  
 
 [OK] RESULT: Profile supports round-trip validation
+```
+
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 0**
+
+```
+=== Extracting LUT data as text from: /home/xss/research/test-profiles/fuzzed-prtr-Lab-414k.icc ===
+
+--- AToB0Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_2.txt (256 samples)
+
+--- BToA0Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_2.txt (256 samples)
+
+--- gamutTag (type: lut8Type) ---
+  Channels: in=3 out=1
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__gamutTag_curveA_0.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__gamutTag_clut.txt (35937 entries × 1 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__gamutTag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__gamutTag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__gamutTag_curveB_2.txt (256 samples)
+
+--- AToB1Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_2.txt (256 samples)
+
+--- BToA1Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_2.txt (256 samples)
+
+--- AToB2Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_2.txt (256 samples)
+
+--- BToA2Tag (type: lut8Type) ---
+  Channels: in=3 out=3
+  Wrote curve A[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_2.txt (256 samples)
+
+=== Exported 47 LUT component(s) ===
+Exported 47 text file(s) to /tmp/tmp.n4o5WFlRK2/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 0**
+
+```
+Exported .cube: /tmp/tmp.n4o5WFlRK2/fuzzed-prtr-Lab-414k.cube (grid 17³ = 4913 entries)
+Cube file: 132804 bytes (tag: AToB0Tag)
 ```

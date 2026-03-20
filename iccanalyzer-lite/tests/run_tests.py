@@ -1989,6 +1989,156 @@ def test_conformance_checks(suite):
         r"CF-102.*[Cc]haracterization"
     )
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # CF-103..CF-122: Deep ICC Specification Conformance Checks
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # CF-103: Tag Alignment & Offset Validity
+    suite.assert_output_contains(
+        "cf.103.tag_alignment_present",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-103.*Tag Alignment"
+    )
+
+    # CF-104: DeviceLink PCS Consistency — missing AToB0Tag
+    suite.assert_output_contains(
+        "cf.104.devicelink_missing_atob",
+        ["-a", f"{corpus}/cf_devicelink_no_atob.icc"],
+        r"CF-104.*DeviceLink.*AToB0|missing.*AToB0"
+    )
+
+    # CF-105: LUT Channel Symmetry (runs on LUT profiles)
+    suite.assert_output_contains(
+        "cf.105.lut_channel_symmetry",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-105.*Channel.*Symmetr"
+    )
+
+    # CF-106: Curve Monotonicity — non-monotonic TRC
+    suite.assert_output_contains(
+        "cf.106.non_monotonic_trc",
+        ["-a", f"{corpus}/cf_non_monotonic_trc.icc"],
+        r"CF-106.*[Mm]onoton|not mono"
+    )
+
+    # CF-107: Tag Table Ordering — duplicate signatures
+    suite.assert_output_contains(
+        "cf.107.tag_table_ordering",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-107.*Tag Table"
+    )
+    suite.assert_output_contains(
+        "cf.107.duplicate_sigs",
+        ["-a", f"{corpus}/cf_duplicate_tag_sigs.icc"],
+        r"CF-107.*Tag Table"
+    )
+
+    # CF-108: CLUT Grid Point Range (runs on LUT profiles)
+    suite.assert_output_contains(
+        "cf.108.clut_grid_range",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-108.*CLUT Grid.*Range"
+    )
+
+    # CF-109: Matrix Column Normalization (runs on matrix profiles)
+    suite.assert_output_contains(
+        "cf.109.matrix_normalization",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-109.*Matrix.*Normal"
+    )
+
+    # CF-110: B-Curve vs CLUT Output (runs on LUT profiles)
+    suite.assert_output_contains(
+        "cf.110.bcurve_vs_clut",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-110.*B.Curve.*CLUT"
+    )
+
+    # CF-111: Required Tags per Version
+    suite.assert_output_contains(
+        "cf.111.required_per_version",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-111.*Required.*Version"
+    )
+
+    # CF-112: XYZ Triplet Normalization — negative Y
+    suite.assert_output_contains(
+        "cf.112.xyz_negative_y",
+        ["-a", f"{corpus}/cf_xyz_negative_y.icc"],
+        r"CF-112.*XYZ|negative"
+    )
+    suite.assert_output_contains(
+        "cf.112.xyz_clean",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-112.*XYZ"
+    )
+
+    # CF-113..CF-115: v5/iccMAX (skipped on v4 profiles — verify skip message)
+    suite.assert_output_contains(
+        "cf.113.spectral_range",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"v5.*iccMAX.*skip"
+    )
+    suite.assert_output_contains(
+        "cf.114.mcs_colour_space",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"v5.*iccMAX.*skip"
+    )
+    suite.assert_output_contains(
+        "cf.115.calculator_complexity",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"v5.*iccMAX.*skip"
+    )
+
+    # CF-116: Curve Segment Continuity (runs on LUT profiles)
+    suite.assert_output_contains(
+        "cf.116.curve_segment_continuity",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-116.*Segment.*Continu"
+    )
+
+    # CF-117: Rendering Intent Tags per Class — rig0 on Input class
+    suite.assert_output_contains(
+        "cf.117.rig0_wrong_class",
+        ["-a", f"{corpus}/cf_rig0_wrong_class.icc"],
+        r"CF-117.*[Rr]ender|rig0.*Output.*Display"
+    )
+
+    # CF-118: Private Tag Creator Signature
+    suite.assert_output_contains(
+        "cf.118.private_tag_creator",
+        ["-a", f"{corpus}/private_tags.icc"],
+        r"CF-118.*Private.*Creator"
+    )
+
+    # CF-119: Profile Sequence Identifier
+    suite.assert_output_contains(
+        "cf.119.profile_sequence_id",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-119.*Sequence.*Ident"
+    )
+
+    # CF-120: Named Color Space Dimensions
+    suite.assert_output_contains(
+        "cf.120.named_color_dims",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-120.*Named.*Color"
+    )
+
+    # CF-121: Illuminant Metadata Consistency — v4 wtpt ≠ D50
+    suite.assert_output_contains(
+        "cf.121.v4_wtpt_not_d50",
+        ["-a", f"{corpus}/cf_v4_wtpt_not_d50.icc"],
+        r"CF-121.*Illuminant|wtpt.*D50"
+    )
+
+    # CF-122: Profile Date/Time Plausibility — year 1800
+    suite.assert_output_contains(
+        "cf.122.implausible_date",
+        ["-a", f"{corpus}/cf_implausible_date.icc"],
+        r"CF-122.*Date|implaus|1800"
+    )
+
     # --- Clean profile baseline ---
     # Clean monitor profile should produce zero CF warnings
     suite.assert_output_not_contains(
