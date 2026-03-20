@@ -51,8 +51,10 @@
 // Runs all analysis phases sequentially on a single ICC profile:
 //   Phase 1: Security heuristic checks (fingerprint matching, structure validation)
 //   Phase 2: Round-trip validation (encode/decode fidelity for non-DeviceLink profiles)
-//   Phase 3: Signature and structure verification (magic bytes, required tags)
-//   Phase 4: Deep tag content dump (LUT, curve, MPE, named color inspection)
+//   Phase 3: ICC specification conformance (CIccProfile::Validate)
+//   Phase 4: Signature and structure verification (magic bytes, required tags)
+//   Phase 5: Profile structure dump (header, tag table)
+//   Phase 6: Deep tag content analysis (LUT, curve, MPE, named color)
 //
 // Returns: total number of issues detected across all phases (0 = clean profile).
 // The fingerprint_db parameter is optional; pass NULL to skip DB lookups.
@@ -94,47 +96,53 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     printf("%sResult: Round-trip capable [OK]%s\n", ColorSuccess(), ColorReset());
   }
   
-  // Phase 3: Signature analysis — validate tag/type/class signatures against spec
-  printf("\n");
-  printf("=======================================================================\n");
-  printf("%sPHASE 3: SIGNATURE ANALYSIS%s\n", ColorHeader(), ColorReset());
-  printf("=======================================================================\n\n");
-  
-  // Defensive programming: truncated profiles cause UBSAN/ASAN during Read().
+  // Phases 3-6 require a loaded profile. Guard against truncated profiles.
   if (IsProfileTruncated(filename)) {
-    printf("%s[SKIP] Profile TRUNCATED — phases 3-5 skipped (CWE-125)%s\n",
+    printf("\n%s[SKIP] Profile TRUNCATED — phases 3-6 skipped (CWE-125)%s\n",
            ColorCritical(), ColorReset());
     printf("       %sHeader claims more bytes than file contains%s\n",
            ColorInfo(), ColorReset());
     return totalIssues > 0 ? totalIssues : -1;
   }
 
+  // Phase 3: ICC Library Conformance — runs ReadValidate() (own profile load)
+  int validateIssues = RunIccLibraryValidation(filename);
+  if (validateIssues > 0) {
+    totalIssues += validateIssues;
+  }
+
+  // Phases 4-6 need a loaded profile for signature/structure/tag analysis
   CIccFileIO io;
   if (!io.Open(filename, "rb")) {
     printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
-    return -1;
+    return totalIssues > 0 ? totalIssues : -1;
   }
   
   CIccProfile *pIcc = new (std::nothrow) CIccProfile;
   if (!pIcc) {
     printf("%s[ERROR] Memory allocation failed%s\n", ColorCritical(), ColorReset());
     io.Close();
-    return -1;
+    return totalIssues > 0 ? totalIssues : -1;
   }
   if (!pIcc->Read(&io)) {
-    printf("%s[ERROR] Profile failed to load - skipping phases 3-5%s\n", ColorCritical(), ColorReset());
+    printf("%s[ERROR] Profile failed to load - skipping phases 4-6%s\n", ColorCritical(), ColorReset());
     printf("        %sUse -n (ninja mode) for raw analysis of malformed profiles%s\n", ColorInfo(), ColorReset());
     delete pIcc;
     io.Close();
     return totalIssues > 0 ? totalIssues : -1;
   }
   io.Close();
+
+  printf("\n");
+  printf("=======================================================================\n");
+  printf("%sPHASE 4: SIGNATURE ANALYSIS%s\n", ColorHeader(), ColorReset());
+  printf("=======================================================================\n\n");
   
   AnalyzeSignatures(pIcc);
   
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 4: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE 5: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
   CIccFileIO io2;
@@ -146,10 +154,10 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db)
     io2.Close();
   }
   
-  // Phase 5: Deep tag content analysis (LUT, curve, MPE, named color)
+  // Phase 6: Deep tag content analysis (LUT, curve, MPE, named color)
   printf("\n");
   printf("=======================================================================\n");
-  printf("%sPHASE 5: TAG CONTENT ANALYSIS%s\n", ColorHeader(), ColorReset());
+  printf("%sPHASE 6: TAG CONTENT ANALYSIS%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
   
   int tagIssues = TagDetailAnalyze(pIcc, filename);
