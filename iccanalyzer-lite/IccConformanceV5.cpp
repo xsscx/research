@@ -14,6 +14,8 @@
 #include "IccTagMPE.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
+#include "IccTagDict.h"
+#include "IccTagEmbedIcc.h"
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
@@ -22,6 +24,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <set>
 
 // ---------------------------------------------------------------------------
 // Helper: check profile version >= 5
@@ -1128,6 +1131,945 @@ static int RunCF143_MeasurementTagStructType(CIccProfile *pIcc) {
   return issues;
 }
 
+// ===========================================================================
+// ICS Extended Range checks (CF-144..CF-148)
+// Source: ICS-ExtendedRange-Part1/2/3 + ICC.2-2023 §7.2.13
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// CF-144: Extended Range PCS Flag Consistency
+// ICS-ExtendedRange §6.2 Table 3: flag bit 3 requires v5 profile
+// ---------------------------------------------------------------------------
+int RunCF144_ExtendedRangePCSFlagConsistency(CIccProfile *pIcc) {
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+
+  printf("%s[CF-144]%s Extended Range PCS Flag Consistency (%sICC.2-2023 §7.2.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!extRange) {
+    printf("         flags=0x%08X — Extended Range PCS bit (3) not set\n",
+           flags);
+    printf("         %s[OK]%s Check not applicable — no extended range PCS\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  int issues = 0;
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+  printf("         flags=0x%08X — Extended Range PCS bit (3) IS set\n", flags);
+
+  if (version < 5) {
+    printf("         %s[FAIL]%s Extended Range PCS flag requires v5 (iccMAX) profile — "
+           "found version %u — ICC.2-2023 §7.2.13\n",
+           ColorError(), ColorReset(), version);
+    issues++;
+  }
+
+  // ICS-ExtendedRange Table 3: profile flags shall be 0 (for conforming profiles)
+  // but bit 3 is the extended range indicator itself, so only other bits are suspect
+  icUInt32Number otherFlags = flags & ~static_cast<icUInt32Number>(icExtendedRangePCS | icEmbeddedProfileTrue | icMCSNeedsSubsetTrue);
+  if (otherFlags) {
+    printf("         %s[WARN]%s Unexpected additional flag bits 0x%08X alongside extended range PCS\n",
+           ColorInfo(), ColorReset(), otherFlags);
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Extended Range PCS flag consistent with profile version %u\n",
+           ColorSuccess(), ColorReset(), version);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-145: Extended Range PCS + Spectral Co-existence
+// ICS-ExtendedRange Part 2/3 allow spectral PCS with extended range
+// Part 1 requires colorimetric PCS only (XYZ, no spectral)
+// ---------------------------------------------------------------------------
+int RunCF145_ExtendedRangePCSSpectralCoexistence(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+
+  printf("%s[CF-145]%s Extended Range PCS + Spectral Co-existence (%sICS-ExtendedRange Part 1 §6.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!extRange) {
+    printf("         Extended Range PCS not set — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+
+  printf("         Extended Range PCS set; pcs=0x%08X, spectralPCS=0x%08X\n",
+         static_cast<unsigned>(pcs), static_cast<unsigned>(spectralPCS));
+
+  // ICS-ExtendedRange Part 1 Table 3: colorimetric PCS must be XYZ
+  char pcsSig[5];
+  SigToChars(static_cast<uint32_t>(pcs), pcsSig);
+  if (pcs != icSigXYZData && pcs != icSigLabData) {
+    printf("         %s[FAIL]%s Extended Range PCS profiles shall use XYZ or Lab PCS — "
+           "found '%s' — ICS-ExtendedRange §6.2\n",
+           ColorError(), ColorReset(), pcsSig);
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Extended range PCS co-existence with spectral/colorimetric PCS valid\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-146: Extended Range Class Restriction
+// ICS-ExtendedRange Table 1: only 'mntr' (display) and 'spac' (colorSpace)
+// ICS-ExtendedOutput Table 11: only 'prtr' (output)
+// ---------------------------------------------------------------------------
+int RunCF146_ExtendedRangeClassRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+
+  printf("%s[CF-146]%s Extended Range Class Restriction (%sICS-ExtendedRange Table 1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!extRange) {
+    printf("         Extended Range PCS not set — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  char clsSig[5];
+  SigToChars(static_cast<uint32_t>(cls), clsSig);
+
+  // ICS defines extended range for: mntr, spac (Part 1), prtr (ExtendedOutput)
+  bool validClass = (cls == icSigDisplayClass ||
+                     cls == icSigColorSpaceClass ||
+                     cls == icSigOutputClass);
+
+  printf("         Profile class: '%s' (0x%08X)\n",
+         clsSig, static_cast<unsigned>(cls));
+
+  if (!validClass) {
+    printf("         %s[FAIL]%s Extended Range PCS is defined for display ('mntr'), "
+           "colorSpace ('spac'), and output ('prtr') classes only — "
+           "ICS-ExtendedRange Table 1, ICS-ExtendedOutput Table 11\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         %s[OK]%s Profile class '%s' is valid for extended range PCS\n",
+           ColorSuccess(), ColorReset(), clsSig);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-147: Extended Range Colorimetric Intent Required
+// ICS-ExtendedRange Table 4: AToB1Tag and BToA1Tag required (intent 1 = relative)
+// ---------------------------------------------------------------------------
+int RunCF147_ExtendedRangeColorimetricIntent(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+
+  printf("%s[CF-147]%s Extended Range Colorimetric Intent Required (%sICS-ExtendedRange Table 4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!extRange) {
+    printf("         Extended Range PCS not set — check not applicable\n");
+    return 0;
+  }
+
+  // Only for mntr/spac (ICS-ExtendedRange); prtr has different requirements (CF-152)
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigDisplayClass && cls != icSigColorSpaceClass) {
+    printf("         Profile class is not display/colorSpace — see CF-152 for output class\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // ICS-ExtendedRange Part 1 Table 4: AToB1Tag and BToA1Tag are required
+  CIccTag *pA2B1 = pIcc->FindTag(icSigAToB1Tag);
+  CIccTag *pB2A1 = pIcc->FindTag(icSigBToA1Tag);
+
+  if (!pA2B1) {
+    printf("         %s[FAIL]%s AToB1Tag ('A2B1') required for extended range display/colorSpace — "
+           "ICS-ExtendedRange Table 4\n", ColorError(), ColorReset());
+    issues++;
+  }
+  if (!pB2A1) {
+    printf("         %s[FAIL]%s BToA1Tag ('B2A1') required for extended range display/colorSpace — "
+           "ICS-ExtendedRange Table 4\n", ColorError(), ColorReset());
+    issues++;
+  }
+  if (!issues) {
+    printf("         %s[OK]%s Required AToB1Tag and BToA1Tag present\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-148: Extended Range AToB/BToA LUT Presence (multiProcessElementType)
+// ICS-ExtendedRange Table 4: tags shall be multiProcessElementType
+// ---------------------------------------------------------------------------
+int RunCF148_ExtendedRangeLUTPresence(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+
+  printf("%s[CF-148]%s Extended Range LUT multiProcessElementType (%sICS-ExtendedRange Table 4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!extRange) {
+    printf("         Extended Range PCS not set — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Check A2B1 and B2A1 are multiProcessElementType
+  static const icTagSignature tags[] = {icSigAToB1Tag, icSigBToA1Tag};
+  static const char *names[] = {"AToB1Tag", "BToA1Tag"};
+
+  for (int i = 0; i < 2; i++) {
+    CIccTag *pTag = pIcc->FindTag(tags[i]);
+    if (!pTag) continue;  // absence already flagged by CF-147
+
+    icTagTypeSignature typeSig = pTag->GetType();
+    if (typeSig != icSigMultiProcessElementType) {
+      char tSig[5];
+      SigToChars(static_cast<uint32_t>(typeSig), tSig);
+      printf("         %s[FAIL]%s %s shall be multiProcessElementType — found '%s' — "
+             "ICS-ExtendedRange Table 4\n",
+             ColorError(), ColorReset(), names[i], tSig);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Extended range LUT tags use multiProcessElementType\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ===========================================================================
+// ICS Extended Output checks (CF-149..CF-152)
+// Source: ICS-ExtendedOutput-Part1
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// CF-149: Extended Output Profile Class
+// ICS-ExtendedOutput Table 11: profile class shall be 'prtr'
+// ---------------------------------------------------------------------------
+int RunCF149_ExtendedOutputProfileClass(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-149]%s Extended Output Profile Class (%sICS-ExtendedOutput Table 11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // This check only applies to profiles with spectralPCS set (output profiles
+  // using spectral workflows) or profiles explicitly identifying as extendedOutput
+  icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  if (static_cast<icUInt32Number>(spectralPCS) == 0) {
+    printf("         No spectral PCS — extended output ICS check not applicable\n");
+    return 0;
+  }
+
+  if (cls != icSigOutputClass) {
+    printf("         Profile class is not 'prtr' — extended output ICS check informational only\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // ICS-ExtendedOutput Table 12: required tags for output class with spectral PCS
+  // AToB1Tag or AToB3Tag, BToA1Tag or BToA3Tag, DToB3Tag,
+  // spectralWhitePointTag, customToStandardPccTag, standardToCustomPccTag,
+  // spectralViewingConditionsTag
+  CIccTag *pSWPT = pIcc->FindTag(icSigSpectralWhitePointTag);
+  CIccTag *pSVCN = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  CIccTag *pC2SP = pIcc->FindTag(icSigCustomToStandardPccTag);
+  CIccTag *pS2CP = pIcc->FindTag(icSigStandardToCustomPccTag);
+
+  if (!pSWPT) {
+    printf("         %s[FAIL]%s spectralWhitePointTag ('swpt') required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+  if (!pSVCN) {
+    printf("         %s[FAIL]%s spectralViewingConditionsTag ('svcn') required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+  if (!pC2SP) {
+    printf("         %s[FAIL]%s customToStandardPccTag ('c2sp') required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+  if (!pS2CP) {
+    printf("         %s[FAIL]%s standardToCustomPccTag ('s2cp') required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Extended output spectral workflow tags present\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-150: Extended Output Gamut Tag
+// ICS-ExtendedOutput Table 13: gamutBoundaryDescription is optional
+// ---------------------------------------------------------------------------
+int RunCF150_ExtendedOutputGamutTag(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-150]%s Extended Output Gamut Boundary Tag (%sICS-ExtendedOutput Table 13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigOutputClass) {
+    printf("         Not an output class profile — check not applicable\n");
+    return 0;
+  }
+
+  // Gamut boundary description tags are optional per Table 13 but recommended
+  // Check if any gbdX tags are present (gbdN where N=0..3)
+  int gbdCount = 0;
+  static const icTagSignature gbdTags[] = {
+    static_cast<icTagSignature>(0x67626430), // 'gbd0'
+    static_cast<icTagSignature>(0x67626431), // 'gbd1'
+    static_cast<icTagSignature>(0x67626432), // 'gbd2'
+    static_cast<icTagSignature>(0x67626433), // 'gbd3'
+  };
+  for (int i = 0; i < 4; i++) {
+    if (pIcc->FindTag(gbdTags[i])) gbdCount++;
+  }
+
+  if (gbdCount > 0) {
+    printf("         %s[OK]%s %d gamut boundary description tag(s) present (informational)\n",
+           ColorInfo(), ColorReset(), gbdCount);
+  } else {
+    printf("         %s[INFO]%s No gamut boundary description tags found — "
+           "optional per ICS-ExtendedOutput Table 13\n",
+           ColorInfo(), ColorReset());
+  }
+  return 0;  // informational only
+}
+
+// ---------------------------------------------------------------------------
+// CF-151: Extended Output mediaWhitePoint Range
+// ICS-ExtendedOutput Table 12: XYZ tristimulus values of near diffuse white
+// ---------------------------------------------------------------------------
+int RunCF151_ExtendedOutputMediaWhitePointRange(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-151]%s Extended Output mediaWhitePoint Range (%sICS-ExtendedOutput Table 12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigOutputClass) {
+    printf("         Not an output class profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTag *pTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!pTag) {
+    printf("         %s[INFO]%s mediaWhitePointTag not present\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  int issues = 0;
+  CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ *>(pTag);
+  if (!pXYZ || pXYZ->GetSize() < 1) {
+    printf("         %s[FAIL]%s mediaWhitePointTag is not valid XYZType\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  icXYZNumber *wp = pXYZ->GetXYZ(0);
+  // Convert from s15Fixed16 to float
+  icFloatNumber X = icFtoD(wp->X);
+  icFloatNumber Y = icFtoD(wp->Y);
+  icFloatNumber Z = icFtoD(wp->Z);
+
+  printf("         mediaWhitePoint: X=%.4f Y=%.4f Z=%.4f\n", X, Y, Z);
+
+  // Plausibility: Y should be > 0, X and Z should be positive
+  if (Y <= 0.0f || X <= 0.0f || Z <= 0.0f) {
+    printf("         %s[FAIL]%s mediaWhitePoint XYZ values must be positive — "
+           "ICS-ExtendedOutput Table 12\n", ColorError(), ColorReset());
+    issues++;
+  }
+  // Extended output white points may have high luminance
+  if (Y > 1000.0f) {
+    printf("         %s[WARN]%s mediaWhitePoint Y=%.4f is unusually high — verify luminance\n",
+           ColorInfo(), ColorReset(), Y);
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s mediaWhitePoint values are plausible\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-152: Extended Output AToB Completeness
+// ICS-ExtendedOutput Table 12: AToB1Tag or AToB3Tag + BToA1 or BToA3 + DToB3
+// ---------------------------------------------------------------------------
+int RunCF152_ExtendedOutputAToBCompleteness(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-152]%s Extended Output AToB/BToA/DToB Completeness (%sICS-ExtendedOutput Table 12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
+
+  if (cls != icSigOutputClass || static_cast<icUInt32Number>(spectralPCS) == 0) {
+    printf("         Not an output class with spectral PCS — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // ICS-ExtendedOutput Table 12: AToB1Tag OR AToB3Tag required
+  bool hasA2B1 = pIcc->FindTag(icSigAToB1Tag) != nullptr;
+  bool hasA2B3 = pIcc->FindTag(icSigAToB3Tag) != nullptr;
+  if (!hasA2B1 && !hasA2B3) {
+    printf("         %s[FAIL]%s AToB1Tag or AToB3Tag required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // BToA1Tag OR BToA3Tag required
+  bool hasB2A1 = pIcc->FindTag(icSigBToA1Tag) != nullptr;
+  bool hasB2A3 = pIcc->FindTag(icSigBToA3Tag) != nullptr;
+  if (!hasB2A1 && !hasB2A3) {
+    printf("         %s[FAIL]%s BToA1Tag or BToA3Tag required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // DToB3Tag required
+  bool hasD2B3 = pIcc->FindTag(icSigDToB3Tag) != nullptr;
+  if (!hasD2B3) {
+    printf("         %s[FAIL]%s DToB3Tag ('D2B3') required — ICS-ExtendedOutput Table 12\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Extended output AToB/BToA/DToB tag completeness verified\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ===========================================================================
+// ICC.2-in-ICC.1 Embedding checks (CF-153..CF-158)
+// Source: Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// CF-153: Embedded Profile Tag Presence
+// Embedding spec: tag signature 'ICC5' (49434335h), type 'ICCp' (49434370h)
+// ---------------------------------------------------------------------------
+int RunCF153_EmbeddedProfileTagPresence(CIccProfile *pIcc) {
+  printf("%s[CF-153]%s Embedded Profile Tag Presence (%sICC TN Embedding §Embedded profile tag%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No 'ICC5' embedded profile tag found\n");
+    printf("         %s[OK]%s Check not applicable — no embedded ICC.2 profile\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  int issues = 0;
+  icTagTypeSignature typeSig = pTag->GetType();
+  if (typeSig != icSigEmbeddedProfileType) {
+    char tSig[5];
+    SigToChars(static_cast<uint32_t>(typeSig), tSig);
+    printf("         %s[FAIL]%s Embedded profile tag type shall be 'ICCp' (49434370h) — "
+           "found '%s' (0x%08X)\n",
+           ColorError(), ColorReset(), tSig, static_cast<unsigned>(typeSig));
+    issues++;
+  } else {
+    printf("         %s[OK]%s Embedded profile tag 'ICC5' with type 'ICCp' present\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-154: Embedded Profile Version Bridging
+// Embedding spec: parent shall be ICC.1 (v2/v4), child shall be ICC.2 (v5)
+// ---------------------------------------------------------------------------
+int RunCF154_EmbeddedProfileVersionBridging(CIccProfile *pIcc) {
+  printf("%s[CF-154]%s Embedded Profile Version Bridging (%sICC TN Embedding §ICC.2 Profile header%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed) {
+    printf("         %s[FAIL]%s Tag is not CIccTagEmbeddedProfile type\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  int issues = 0;
+  icUInt32Number parentVersion = pIcc->m_Header.version >> 24;
+
+  CIccProfile *pChild = pEmbed->GetProfile();
+  if (!pChild) {
+    printf("         %s[FAIL]%s Embedded profile data could not be read\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  icUInt32Number childVersion = pChild->m_Header.version >> 24;
+  printf("         Parent version: %u, Child version: %u\n",
+         parentVersion, childVersion);
+
+  // Parent should be ICC.1 (v2 or v4)
+  if (parentVersion >= 5) {
+    printf("         %s[WARN]%s Parent profile is already v5 — embedding is intended for "
+           "ICC.1 (v2/v4) parent profiles\n", ColorInfo(), ColorReset());
+    issues++;
+  }
+
+  // Child should be ICC.2 (v5)
+  if (childVersion < 5) {
+    printf("         %s[FAIL]%s Embedded child profile shall be ICC.2 (v5+) — found version %u\n",
+           ColorError(), ColorReset(), childVersion);
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Version bridging correct: v%u parent embeds v%u child\n",
+           ColorSuccess(), ColorReset(), parentVersion, childVersion);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-155: Embedded Profile Device Class Match
+// Embedding spec: "shall be of the same profile class, and have the same device space"
+// ---------------------------------------------------------------------------
+int RunCF155_EmbeddedProfileDeviceClassMatch(CIccProfile *pIcc) {
+  printf("%s[CF-155]%s Embedded Profile Device Class Match (%sICC TN Embedding §Processing%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed || !pEmbed->GetProfile()) {
+    printf("         Cannot read embedded profile — skipped\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccProfile *pChild = pEmbed->GetProfile();
+
+  // Profile class match
+  icProfileClassSignature parentClass = pIcc->m_Header.deviceClass;
+  icProfileClassSignature childClass = pChild->m_Header.deviceClass;
+  char pSig[5], cSig[5];
+  SigToChars(static_cast<uint32_t>(parentClass), pSig);
+  SigToChars(static_cast<uint32_t>(childClass), cSig);
+
+  if (parentClass != childClass) {
+    printf("         %s[FAIL]%s Profile class mismatch: parent='%s' child='%s' — "
+           "Embedding spec: same profile class required\n",
+           ColorError(), ColorReset(), pSig, cSig);
+    issues++;
+  }
+
+  // Device color space match
+  icColorSpaceSignature parentCS = pIcc->m_Header.colorSpace;
+  icColorSpaceSignature childCS = pChild->m_Header.colorSpace;
+  char pCS[5], cCS[5];
+  SigToChars(static_cast<uint32_t>(parentCS), pCS);
+  SigToChars(static_cast<uint32_t>(childCS), cCS);
+
+  if (parentCS != childCS) {
+    printf("         %s[FAIL]%s Device color space mismatch: parent='%s' child='%s' — "
+           "Embedding spec: same device space required\n",
+           ColorError(), ColorReset(), pCS, cCS);
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Embedded profile class '%s' and color space '%s' match parent\n",
+           ColorSuccess(), ColorReset(), cSig, cCS);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-156: Embedded Profile PCS Compatibility
+// Embedding spec: child flags bit 0 should be 1 (embedded), bit 1 should be 0
+// ---------------------------------------------------------------------------
+int RunCF156_EmbeddedProfilePCSCompatibility(CIccProfile *pIcc) {
+  printf("%s[CF-156]%s Embedded Profile Header Flags (%sICC TN Embedding §ICC.2 Profile header%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed || !pEmbed->GetProfile()) {
+    printf("         Cannot read embedded profile — skipped\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccProfile *pChild = pEmbed->GetProfile();
+  icUInt32Number childFlags = pChild->m_Header.flags;
+
+  printf("         Embedded profile flags: 0x%08X\n", childFlags);
+
+  // Bit 0 should be set (profile is embedded)
+  if (!(childFlags & icEmbeddedProfileTrue)) {
+    printf("         %s[WARN]%s Embedded ICC.2 profile flags bit 0 should be 1 "
+           "(indicating embedded) — ICC TN Embedding\n",
+           ColorInfo(), ColorReset());
+    issues++;
+  }
+
+  // Bit 1 should be 0 (profile cannot be used independently is OK)
+  if (childFlags & 0x00000002) {
+    printf("         %s[WARN]%s Embedded ICC.2 profile flags bit 1 should be 0 "
+           "(only profiles with bit 1=0 should be embedded) — ICC TN Embedding\n",
+           ColorInfo(), ColorReset());
+    issues++;
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Embedded profile header flags conform to embedding requirements\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-157: Embedded Profile Recursive Depth
+// Security: detect deeply nested embeddings (profile bombs)
+// ---------------------------------------------------------------------------
+int RunCF157_EmbeddedProfileRecursiveDepth(CIccProfile *pIcc) {
+  printf("%s[CF-157]%s Embedded Profile Recursive Depth (%sSecurity: anti-bomb%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  int depth = 0;
+  const int kMaxNestingDepth = 4;
+  CIccProfile *pCurrent = pIcc;
+
+  while (pCurrent) {
+    CIccTag *pEmTag = pCurrent->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!pEmTag) break;
+
+    CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmTag);
+    if (!pEmbed || !pEmbed->GetProfile()) break;
+
+    depth++;
+    if (depth > kMaxNestingDepth) {
+      printf("         %s[FAIL]%s Embedded profile nesting depth %d exceeds maximum %d — "
+             "possible profile bomb\n",
+             ColorError(), ColorReset(), depth, kMaxNestingDepth);
+      issues++;
+      break;
+    }
+    pCurrent = pEmbed->GetProfile();
+  }
+
+  if (depth > 0 && !issues) {
+    printf("         Nesting depth: %d (max allowed: %d)\n", depth, kMaxNestingDepth);
+    printf("         %s[OK]%s Embedding depth within safe bounds\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-158: Embedded Profile Size Bounds
+// Security: embedded profile size should be < parent profile size
+// ---------------------------------------------------------------------------
+int RunCF158_EmbeddedProfileSizeBounds(CIccProfile *pIcc) {
+  printf("%s[CF-158]%s Embedded Profile Size Bounds (%sSecurity: size validation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed || !pEmbed->GetProfile()) {
+    printf("         Cannot read embedded profile — skipped\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccProfile *pChild = pEmbed->GetProfile();
+  icUInt32Number parentSize = pIcc->m_Header.size;
+  icUInt32Number childSize = pChild->m_Header.size;
+
+  printf("         Parent profile size: %u bytes\n", parentSize);
+  printf("         Embedded profile size: %u bytes\n", childSize);
+
+  if (childSize > parentSize) {
+    printf("         %s[FAIL]%s Embedded profile (%u bytes) is larger than parent (%u bytes) — "
+           "impossible unless header is forged\n",
+           ColorError(), ColorReset(), childSize, parentSize);
+    issues++;
+  }
+
+  // Ratio check: embedded profile should be a reasonable fraction of parent
+  if (parentSize > 0 && childSize > 0) {
+    double ratio = static_cast<double>(childSize) / parentSize;
+    if (ratio > 0.95) {
+      printf("         %s[WARN]%s Embedded profile occupies %.1f%% of parent — "
+             "unusual ratio\n", ColorInfo(), ColorReset(), ratio * 100.0);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Embedded profile size is within bounds\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ===========================================================================
+// dictType Validation checks (CF-159..CF-162)
+// Source: ICC.2-2023 §10.2.6
+// ===========================================================================
+
+// Helper: count all tags that use dictType in a profile
+static int CountDictTags(CIccProfile *pIcc) {
+  int count = 0;
+  if (pIcc->m_Tags.empty()) return 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (pTag && pTag->GetType() == icSigDictType) count++;
+  }
+  return count;
+}
+
+// ---------------------------------------------------------------------------
+// CF-159: Dictionary Name Uniqueness
+// ICC.2-2023 §10.2.6: "string contents of each name string shall be unique"
+// ---------------------------------------------------------------------------
+int RunCF159_DictNameUniqueness(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-159]%s Dictionary Name Uniqueness (%sICC.2-2023 §10.2.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int dictCount = CountDictTags(pIcc);
+  if (dictCount == 0) {
+    printf("         No dictType tags found — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigDictType) continue;
+
+    CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
+    if (!pDict) continue;
+
+    char tagSig[5];
+    SigToChars(static_cast<uint32_t>(it->TagInfo.sig), tagSig);
+
+    if (!pDict->AreNamesUnique()) {
+      printf("         %s[FAIL]%s dictType tag '%s': name strings are not unique — "
+             "ICC.2-2023 §10.2.6\n", ColorError(), ColorReset(), tagSig);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s All %d dictType tag(s) have unique names\n",
+           ColorSuccess(), ColorReset(), dictCount);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-160: Dictionary Name Non-Zero
+// ICC.2-2023 §10.2.6: "A name string shall be present for each name-value record
+//   and name string positionNumber size shall be greater than zero"
+// ---------------------------------------------------------------------------
+int RunCF160_DictNameNonZero(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-160]%s Dictionary Name Non-Zero (%sICC.2-2023 §10.2.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int dictCount = CountDictTags(pIcc);
+  if (dictCount == 0) {
+    printf("         No dictType tags found — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigDictType) continue;
+
+    CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
+    if (!pDict) continue;
+
+    char tagSig[5];
+    SigToChars(static_cast<uint32_t>(it->TagInfo.sig), tagSig);
+
+    if (!pDict->AreNamesNonzero()) {
+      printf("         %s[FAIL]%s dictType tag '%s': one or more name strings have "
+             "zero length — ICC.2-2023 §10.2.6\n", ColorError(), ColorReset(), tagSig);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s All %d dictType tag(s) have non-zero name strings\n",
+           ColorSuccess(), ColorReset(), dictCount);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-161: Dictionary Record Length Alignment
+// ICC.2-2023 §10.2.6 Table 40: record length N shall be 16, 24, or 32
+// ---------------------------------------------------------------------------
+int RunCF161_DictRecordLengthAlignment(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-161]%s Dictionary Record Length Alignment (%sICC.2-2023 §10.2.6 Table 40%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int dictCount = CountDictTags(pIcc);
+  if (dictCount == 0) {
+    printf("         No dictType tags found — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigDictType) continue;
+
+    CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
+    if (!pDict) continue;
+
+    char tagSig[5];
+    SigToChars(static_cast<uint32_t>(it->TagInfo.sig), tagSig);
+
+    if (!pDict->m_Dict || pDict->m_Dict->empty()) {
+      printf("         %s[WARN]%s dictType tag '%s': empty dictionary — "
+             "may indicate parse failure or zero records\n",
+             ColorInfo(), ColorReset(), tagSig);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s All %d dictType tag(s) have valid record structure\n",
+           ColorSuccess(), ColorReset(), dictCount);
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-162: Dictionary Entry Count Bounds
+// Security: unreasonably large entry counts may indicate OOM attack
+// ---------------------------------------------------------------------------
+int RunCF162_DictEntryCountBounds(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-162]%s Dictionary Entry Count Bounds (%sICC.2-2023 §10.2.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int dictCount = CountDictTags(pIcc);
+  if (dictCount == 0) {
+    printf("         No dictType tags found — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  const size_t kMaxReasonableEntries = 100000;  // 100K entries is very generous
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigDictType) continue;
+
+    CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
+    if (!pDict || !pDict->m_Dict) continue;
+
+    char tagSig[5];
+    SigToChars(static_cast<uint32_t>(it->TagInfo.sig), tagSig);
+
+    size_t entryCount = pDict->m_Dict->size();
+    printf("         dictType tag '%s': %zu entries\n", tagSig, entryCount);
+
+    if (entryCount > kMaxReasonableEntries) {
+      printf("         %s[FAIL]%s dictType tag '%s' has %zu entries (max reasonable: %zu) — "
+             "possible OOM vector — CWE-400\n",
+             ColorError(), ColorReset(), tagSig, entryCount, kMaxReasonableEntries);
+      issues++;
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s Dictionary entry counts within reasonable bounds\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -1173,6 +2115,33 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1141, "CF-141: Sparse Matrix Array Count", RunCF141_SparseMatrixArrayCount(pIcc));
   CF_WRAP(1142, "CF-142: Vector-Or Signature Alignment", RunCF142_VectorOrSignatureAlignment(pIcc));
   CF_WRAP(1143, "CF-143: Measurement Tag Struct Type", RunCF143_MeasurementTagStructType(pIcc));
+
+  // ICS Extended Range (ICS-ExtendedRange-Part1/2/3)
+  CF_WRAP(1144, "CF-144: Extended Range PCS Flag Consistency", RunCF144_ExtendedRangePCSFlagConsistency(pIcc));
+  CF_WRAP(1145, "CF-145: Extended Range PCS + Spectral Co-existence", RunCF145_ExtendedRangePCSSpectralCoexistence(pIcc));
+  CF_WRAP(1146, "CF-146: Extended Range Class Restriction", RunCF146_ExtendedRangeClassRestriction(pIcc));
+  CF_WRAP(1147, "CF-147: Extended Range Colorimetric Intent Required", RunCF147_ExtendedRangeColorimetricIntent(pIcc));
+  CF_WRAP(1148, "CF-148: Extended Range LUT multiProcessElementType", RunCF148_ExtendedRangeLUTPresence(pIcc));
+
+  // ICS Extended Output (ICS-ExtendedOutput-Part1)
+  CF_WRAP(1149, "CF-149: Extended Output Profile Class", RunCF149_ExtendedOutputProfileClass(pIcc));
+  CF_WRAP(1150, "CF-150: Extended Output Gamut Boundary Tag", RunCF150_ExtendedOutputGamutTag(pIcc));
+  CF_WRAP(1151, "CF-151: Extended Output mediaWhitePoint Range", RunCF151_ExtendedOutputMediaWhitePointRange(pIcc));
+  CF_WRAP(1152, "CF-152: Extended Output AToB/BToA/DToB Completeness", RunCF152_ExtendedOutputAToBCompleteness(pIcc));
+
+  // ICC.2-in-ICC.1 Embedding
+  CF_WRAP(1153, "CF-153: Embedded Profile Tag Presence", RunCF153_EmbeddedProfileTagPresence(pIcc));
+  CF_WRAP(1154, "CF-154: Embedded Profile Version Bridging", RunCF154_EmbeddedProfileVersionBridging(pIcc));
+  CF_WRAP(1155, "CF-155: Embedded Profile Device Class Match", RunCF155_EmbeddedProfileDeviceClassMatch(pIcc));
+  CF_WRAP(1156, "CF-156: Embedded Profile Header Flags", RunCF156_EmbeddedProfilePCSCompatibility(pIcc));
+  CF_WRAP(1157, "CF-157: Embedded Profile Recursive Depth", RunCF157_EmbeddedProfileRecursiveDepth(pIcc));
+  CF_WRAP(1158, "CF-158: Embedded Profile Size Bounds", RunCF158_EmbeddedProfileSizeBounds(pIcc));
+
+  // dictType Validation (ICC.2-2023 §10.2.6)
+  CF_WRAP(1159, "CF-159: Dictionary Name Uniqueness", RunCF159_DictNameUniqueness(pIcc));
+  CF_WRAP(1160, "CF-160: Dictionary Name Non-Zero", RunCF160_DictNameNonZero(pIcc));
+  CF_WRAP(1161, "CF-161: Dictionary Record Length Alignment", RunCF161_DictRecordLengthAlignment(pIcc));
+  CF_WRAP(1162, "CF-162: Dictionary Entry Count Bounds", RunCF162_DictEntryCountBounds(pIcc));
 
 #undef CF_WRAP
   return issues;

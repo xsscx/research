@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-143)."""
+    """Test ICC Specification conformance checks (CF-001..CF-162)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2274,6 +2274,109 @@ def test_conformance_checks(suite):
         "cf.143.not_applicable",
         ["-a", v5_profile],
         r"measurement.*not applicable"
+    )
+
+    # --- CF-144..CF-148: ICS Extended Range PCS (v5 profile) ---
+    suite.assert_output_contains(
+        "cf.144.ext_range_flag",
+        ["-a", v5_profile],
+        r"CF-144.*Extended Range PCS Flag"
+    )
+    suite.assert_output_contains(
+        "cf.145.ext_range_spectral",
+        ["-a", v5_profile],
+        r"CF-145.*Extended Range PCS.*Spectral"
+    )
+    suite.assert_output_contains(
+        "cf.146.class_restriction",
+        ["-a", v5_profile],
+        r"CF-146.*Extended Range Class"
+    )
+    suite.assert_output_contains(
+        "cf.147.colorimetric_intent",
+        ["-a", v5_profile],
+        r"CF-147.*Extended Range Colorimetric"
+    )
+    suite.assert_output_contains(
+        "cf.148.lut_mpe_type",
+        ["-a", v5_profile],
+        r"CF-148.*Extended Range LUT"
+    )
+
+    # --- CF-149..CF-152: ICS Extended Output (v5 profile) ---
+    suite.assert_output_contains(
+        "cf.149.ext_output_class",
+        ["-a", v5_profile],
+        r"CF-149.*Extended Output Profile Class"
+    )
+    suite.assert_output_contains(
+        "cf.150.gamut_boundary",
+        ["-a", v5_profile],
+        r"CF-150.*Extended Output Gamut"
+    )
+    suite.assert_output_contains(
+        "cf.151.mwp_range",
+        ["-a", v5_profile],
+        r"CF-151.*Extended Output mediaWhitePoint"
+    )
+    suite.assert_output_contains(
+        "cf.152.atob_completeness",
+        ["-a", v5_profile],
+        r"CF-152.*Extended Output AToB"
+    )
+
+    # --- CF-153..CF-158: ICC.2-in-ICC.1 Embedding (v5 profile) ---
+    suite.assert_output_contains(
+        "cf.153.embedded_tag",
+        ["-a", v5_profile],
+        r"CF-153.*Embedded Profile Tag"
+    )
+    suite.assert_output_contains(
+        "cf.154.version_bridging",
+        ["-a", v5_profile],
+        r"CF-154.*Embedded Profile Version"
+    )
+    suite.assert_output_contains(
+        "cf.155.device_class",
+        ["-a", v5_profile],
+        r"CF-155.*Embedded Profile Device"
+    )
+    suite.assert_output_contains(
+        "cf.156.header_flags",
+        ["-a", v5_profile],
+        r"CF-156.*Embedded Profile Header"
+    )
+    suite.assert_output_contains(
+        "cf.157.recursive_depth",
+        ["-a", v5_profile],
+        r"CF-157.*Embedded Profile Recursive"
+    )
+    suite.assert_output_contains(
+        "cf.158.size_bounds",
+        ["-a", v5_profile],
+        r"CF-158.*Embedded Profile Size"
+    )
+
+    # --- CF-159..CF-162: dictType Validation (v5 profile) ---
+    suite.assert_output_contains(
+        "cf.159.dict_uniqueness",
+        ["-a", v5_profile],
+        r"CF-159.*Dictionary Name Uniqueness"
+    )
+    suite.assert_output_contains(
+        "cf.160.dict_nonzero",
+        ["-a", v5_profile],
+        r"CF-160.*Dictionary Name Non-Zero"
+    )
+    suite.assert_output_contains(
+        "cf.161.dict_alignment",
+        ["-a", v5_profile],
+        r"CF-161.*Dictionary Record"
+    )
+    suite.assert_output_contains(
+        "cf.162.dict_bounds",
+        ["-a", v5_profile],
+        r"CF-162.*Dictionary Entry"
     )
 
     # --- Clean profile baseline ---
