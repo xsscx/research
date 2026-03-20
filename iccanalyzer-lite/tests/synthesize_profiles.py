@@ -1356,6 +1356,153 @@ def synth_clean_mntr_profile():
                          pcs=b"XYZ ", version=0x04400000)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CF-103..CF-122 Test Profiles
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def synth_misaligned_tag():
+    """Profile with tag at non-4-byte-aligned offset (triggers CF-103)."""
+    desc = make_mluc_tag("Misaligned Tag")
+    cprt = make_mluc_tag("Copyright Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    hdr = write_icc_header(512, device_class=b"mntr", color_space=b"RGB ", pcs=b"XYZ ")
+    tag_count = 3
+    table = struct.pack(">I", tag_count)
+    # Force cprt to offset 145 (not 4-byte aligned)
+    table += make_tag_entry(b"desc", 180, len(desc))
+    table += make_tag_entry(b"cprt", 145, len(cprt))
+    table += make_tag_entry(b"wtpt", 260, len(wtpt))
+
+    profile = bytearray(512)
+    profile[:128] = hdr[:128]
+    profile[128:128 + len(table)] = table
+    if 180 + len(desc) <= 512:
+        profile[180:180 + len(desc)] = desc
+    if 145 + len(cprt) <= 512:
+        profile[145:145 + len(cprt)] = cprt[:min(len(cprt), 512 - 145)]
+    if 260 + len(wtpt) <= 512:
+        profile[260:260 + len(wtpt)] = wtpt
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_devicelink_no_atob():
+    """DeviceLink profile without AToB0Tag (triggers CF-104)."""
+    tags = [
+        (b"desc", make_mluc_tag("DeviceLink No AToB0")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+    ]
+    return build_profile(tags, device_class=b"link", color_space=b"RGB ",
+                         pcs=b"RGB ")
+
+
+def synth_non_monotonic_trc():
+    """Profile with non-monotonic TRC curve (triggers CF-106).
+    Values go up then back down."""
+    curve_data = [0.0, 0.3, 0.6, 0.9, 0.7, 0.8, 1.0]
+    tags = [
+        (b"desc", make_mluc_tag("Non-monotonic TRC")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(values=curve_data)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ")
+
+
+def synth_duplicate_tag_sigs():
+    """Profile with duplicate tag signatures in tag table (triggers CF-107)."""
+    desc1 = make_mluc_tag("Description 1")
+    desc2 = make_mluc_tag("Description 2")
+    cprt = make_mluc_tag("Copyright Test")
+    wtpt = make_xyz_tag(0.9505, 1.0, 1.089)
+
+    hdr = write_icc_header(600, device_class=b"mntr", color_space=b"RGB ", pcs=b"XYZ ")
+    tag_count = 4
+    table = struct.pack(">I", tag_count)
+    table += make_tag_entry(b"desc", 180, len(desc1))
+    table += make_tag_entry(b"cprt", 244, len(cprt))
+    table += make_tag_entry(b"wtpt", 312, len(wtpt))
+    table += make_tag_entry(b"desc", 340, len(desc2))  # DUPLICATE sig
+
+    profile = bytearray(600)
+    profile[:128] = hdr[:128]
+    profile[128:128 + len(table)] = table
+    for off, data in [(180, desc1), (244, cprt), (312, wtpt), (340, desc2)]:
+        end = min(off + len(data), 600)
+        profile[off:end] = data[:end - off]
+    struct.pack_into(">I", profile, 0, len(profile))
+    return bytes(profile)
+
+
+def synth_xyz_negative_y():
+    """Profile with negative Y in wtpt XYZ tag (triggers CF-112)."""
+    tags = [
+        (b"desc", make_mluc_tag("Negative Y wtpt")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9505, -1.0, 1.089)),  # Y negative!
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ")
+
+
+def synth_rig0_wrong_class():
+    """Input class profile with rig0 tag (triggers CF-117).
+    rig0 only valid for Output/Display per §9.2.36."""
+    rig0_data = b"sig " + b"\x00" * 4 + b"\x00\x00\x00\x00"
+    tags = [
+        (b"desc", make_mluc_tag("Input with rig0")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0, 1.089)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"rig0", rig0_data),
+    ]
+    return build_profile(tags, device_class=b"scnr", color_space=b"RGB ",
+                         pcs=b"XYZ ")
+
+
+def synth_implausible_date():
+    """Profile with year 1800 in dateTime field (triggers CF-122)."""
+    data = bytearray(synth_valid_srgb())
+    struct.pack_into(">H", data, 24, 1800)  # year 1800
+    return bytes(data)
+
+
+def synth_v4_wtpt_not_d50():
+    """v4 profile whose wtpt differs significantly from D50 (triggers CF-121)."""
+    tags = [
+        (b"desc", make_mluc_tag("v4 non-D50 wtpt")),
+        (b"cprt", make_mluc_tag("Copyright Test")),
+        (b"wtpt", make_xyz_tag(0.7500, 0.8000, 0.6000)),  # far from D50
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags, version=0x04400000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -1421,6 +1568,15 @@ def main():
         "lut8_atob_btoa.icc": synth_lut8_atob_btoa(),
         "targ_tag_profile.icc": synth_targ_tag_profile(),
         "clean_mntr_profile.icc": synth_clean_mntr_profile(),
+        # CF-103..CF-122 conformance test profiles
+        "cf_misaligned_tag.icc": synth_misaligned_tag(),
+        "cf_devicelink_no_atob.icc": synth_devicelink_no_atob(),
+        "cf_non_monotonic_trc.icc": synth_non_monotonic_trc(),
+        "cf_duplicate_tag_sigs.icc": synth_duplicate_tag_sigs(),
+        "cf_xyz_negative_y.icc": synth_xyz_negative_y(),
+        "cf_rig0_wrong_class.icc": synth_rig0_wrong_class(),
+        "cf_implausible_date.icc": synth_implausible_date(),
+        "cf_v4_wtpt_not_d50.icc": synth_v4_wtpt_not_d50(),
     }
 
     for name, data in profiles.items():

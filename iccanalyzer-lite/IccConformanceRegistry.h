@@ -388,6 +388,88 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-102", "Characterization Round-Trip",
    "§8 (characterization data fidelity)", "ICC.1-2022-05",
    CFSeverity::WARNING, CFCategory::QUALITY},
+
+  // Deep conformance checks (CF-103 .. CF-122)
+
+  {"CF-103", "Tag Alignment and Offset",
+   "§7.3 (tag table offset/alignment)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-104", "DeviceLink PCS Match",
+   "§8.4 (DeviceLink required tags)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-105", "LUT Channel Symmetry",
+   "§10.8-10.11 (AToB/BToA channel consistency)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-106", "Curve Monotonicity",
+   "§10.5 (TRC curves monotonically non-decreasing)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-107", "Tag Table Ordering",
+   "§7.3.1 (no duplicate tag signatures)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::HEADER},
+
+  {"CF-108", "CLUT Grid Point Range",
+   "§10.8-10.11 (CLUT grid points in [2,255])", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-109", "Matrix Column Normalization",
+   "§9.2.35-37 (rXYZ+gXYZ+bXYZ Y sum ≈ 1.0)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-110", "B Curves vs CLUT Output",
+   "§10.8-10.11 (B curve count = CLUT output channels)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-111", "Required Tags Per Version",
+   "§8 (v4+ chad requirement for non-D50 adopted white)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-112", "XYZ Triplet Normalization",
+   "§10.31 (XYZ values finite, Y non-negative)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-113", "Spectral Range Physical Bounds",
+   "§7.2.23 (wavelengths within [100-2500] nm)", "ICC.2-2023",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-114", "MCS Colour Space Consistency",
+   "§7.2.19 (MCS signature valid colour space)", "ICC.2-2023",
+   CFSeverity::ERROR, CFCategory::V5},
+
+  {"CF-115", "Calculator Element Complexity",
+   "§10.2.6 (calculator sub-element limits)", "ICC.2-2023",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-116", "Curve Segment Continuity",
+   "§10.18 (parametric curve gamma positive/finite)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-117", "Rendering Intent Tags Per Class",
+   "§8.3-8.5 (rig0/rig2 only for Output/Display)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-118", "Private Tag Creator Signature",
+   "§7.2.12 (creator signature for private tags)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::REQUIRED},
+
+  {"CF-119", "Profile Sequence Identifier",
+   "§9.2.33-34 (profileSequenceDescTag/Identifier)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::REQUIRED},
+
+  {"CF-120", "Named Color Space Dimensions",
+   "§10.14 (device coords match colour space)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-121", "Illuminant Metadata Consistency",
+   "§7.2.16 (wtpt matches D50 for v4)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::HEADER},
+
+  {"CF-122", "Profile Date/Time Plausibility",
+   "§7.2.8 (date year in plausible range)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::HEADER},
 };
 
 static constexpr int kConformanceCheckCount =
