@@ -49,6 +49,8 @@
 #include "IccConformanceRequired.h"
 #include "IccConformanceLUT.h"
 #include "IccConformanceV5.h"
+#include "IccConformanceSecurity.h"
+#include "IccConformanceQuality.h"
 
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
@@ -159,6 +161,18 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
       printf("\n%s--- v5/iccMAX Conformance (CF-080..CF-089) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunV5Conformance(pIcc);
+      
+      printf("\n%s--- Security Conformance (CF-091..CF-094) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunSecurityConformance(pIcc, filename);
+      
+      printf("\n%s--- Private Tag Conformance (CF-095..CF-098) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      // CF-095..CF-098 run inside RunRequiredTagConformance() above
+      
+      printf("\n%s--- Quality Conformance (CF-099..CF-102) ---%s\n\n",
+             ColorInfo(), ColorReset());
+      cfIssues += RunQualityConformance(pIcc);
       
       printf("\n%sDeep Conformance Summary:%s %d issue(s)\n",
              ColorInfo(), ColorReset(), cfIssues);

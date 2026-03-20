@@ -52,6 +52,8 @@ set(SOURCES
     IccConformanceRequired.cpp
     IccConformanceLUT.cpp
     IccConformanceV5.cpp
+    IccConformanceSecurity.cpp
+    IccConformanceQuality.cpp
 )
 
 # Build executable

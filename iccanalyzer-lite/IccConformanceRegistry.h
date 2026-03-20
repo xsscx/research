@@ -29,7 +29,9 @@ enum class CFCategory : uint8_t {
   TAG_TYPES,    // IccConformanceTagTypes.cpp
   REQUIRED,     // IccConformanceRequired.cpp
   LUT,          // IccConformanceLUT.cpp
-  V5            // IccConformanceV5.cpp
+  V5,           // IccConformanceV5.cpp
+  SECURITY,     // IccConformanceSecurity.cpp
+  QUALITY       // IccConformanceQuality.cpp
 };
 
 // Registry entry for a conformance check
@@ -326,6 +328,66 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-089", "v5 Spectral Wavelength Range",
    "§7.2.23 (380-780nm typical)", "ICC.2-2023",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Security Conformance (CF-091 .. CF-094)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {"CF-091", "Malware Signature Scan",
+   "PAWG S8 — embedded executable content", "PAWG Checklist",
+   CFSeverity::ERROR, CFCategory::SECURITY},
+
+  {"CF-092", "Private Tag Presence",
+   "§9 (private tag identification)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::SECURITY},
+
+  {"CF-093", "Private Tag Content Scan",
+   "§9 (private tag content safety)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::SECURITY},
+
+  {"CF-094", "NOP/Shellcode Pattern Scan",
+   "PAWG S13 — NOP sled and shellcode patterns", "PAWG Checklist",
+   CFSeverity::ERROR, CFCategory::SECURITY},
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Required Tag Extension (CF-095 .. CF-098)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {"CF-095", "Non-Required Tag Identification",
+   "§8.2-§8.9 (required tags per class)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::REQUIRED},
+
+  {"CF-096", "Private Tag Signature Range",
+   "§9 (private tag signature conventions)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-097", "Private Tag Documentation",
+   "§9 (vendor documentation)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::REQUIRED},
+
+  {"CF-098", "Undocumented Private Tags",
+   "§9 (undocumented tag identification)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::REQUIRED},
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Quality Conformance (CF-099 .. CF-102)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {"CF-099", "Round-Trip CIEDE2000",
+   "§8 (AToB/BToA round-trip accuracy)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::QUALITY},
+
+  {"CF-100", "Curve Invertibility",
+   "§10.5/§10.18 (monotonicity requirement)", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::QUALITY},
+
+  {"CF-101", "Transform Smoothness",
+   "§10.8-10.11 (LUT output smoothness)", "ICC.1-2022-05",
+   CFSeverity::INFO, CFCategory::QUALITY},
+
+  {"CF-102", "Characterization Round-Trip",
+   "§8 (characterization data fidelity)", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::QUALITY},
 };
 
 static constexpr int kConformanceCheckCount =
