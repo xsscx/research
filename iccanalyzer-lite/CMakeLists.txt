@@ -47,6 +47,11 @@ set(SOURCES
     IccAnalyzerReport.cpp
     IccAnalyzerPAWG.cpp
     IccHeuristicsXmlSafety.cpp
+    IccConformanceHeader.cpp
+    IccConformanceTagTypes.cpp
+    IccConformanceRequired.cpp
+    IccConformanceLUT.cpp
+    IccConformanceV5.cpp
 )
 
 # Build executable

@@ -170,7 +170,7 @@ jobs:
                 IccAnalyzerCallGraph.cpp IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp \
                 IccAnalyzerErrors.cpp IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp \
                 IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerTagDetails.cpp \
-                IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp"
+                IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp IccConformanceHeader.cpp IccConformanceTagTypes.cpp IccConformanceRequired.cpp IccConformanceLUT.cpp IccConformanceV5.cpp"
           for src in $SRCS; do
             $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
           done
