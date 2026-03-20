@@ -475,6 +475,8 @@ int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
     icSigViewingConditionsTag, icSigColorantOrderTag,
     icSigColorantTableTag, icSigColorantTableOutTag,
     icSigProfileSequceIdTag,
+    icSigPerceptualRenderingIntentGamutTag,   // 'rig0' — ICC.1-2022-05 §9.2.37
+    icSigSaturationRenderingIntentGamutTag,   // 'rig2' — ICC.1-2022-05 §9.2.38
     (icTagSignature)0x44324230, // D2B0
     (icTagSignature)0x44324231, // D2B1
     (icTagSignature)0x44324232, // D2B2

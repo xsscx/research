@@ -1181,11 +1181,14 @@ int RunHeuristic_H49_FloatNaNInfDetection(RawProfileContext &ctx)
     if (!ctx.ReadAt(tOff, typeSig, 4)) continue;
     uint32_t typeVal = ReadU32BE(typeSig);
 
-    // Only check float-containing types: sf32 (0x73663332), fl32, para, mpet
-    bool hasFloat = (typeVal == 0x73663332 ||  // sf32
-                     typeVal == 0x666C3332 ||  // fl32
-                     typeVal == 0x70617261 ||  // para
-                     typeVal == 0x6D706574);   // mpet
+    // Only check IEEE 754 float types: fl32, para, mpet
+    // NOTE: sf32 (0x73663332) is s15Fixed16ArrayType — fixed-point integers,
+    // NOT IEEE 754 floats. Raw s15Fixed16 bytes like 0xFFFFF328 (valid negative
+    // values ≈ -0.0508) have bit patterns that look like IEEE NaN but are perfectly
+    // valid fixed-point data. Exclude sf32 to prevent false positives on chad, etc.
+    bool hasFloat = (typeVal == 0x666C3332 ||  // fl32 (IEEE float array)
+                     typeVal == 0x70617261 ||  // para (parametricCurve, has floats)
+                     typeVal == 0x6D706574);   // mpet (MPE, contains floats)
     if (!hasFloat) continue;
 
     size_t scanLen = tSz;
