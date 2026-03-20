@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 290 tests (21 functions), ~36s
+python3 iccanalyzer-lite/tests/run_tests.py   # 440 tests (25 functions), ~29s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -376,7 +376,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 290/290 tests pass
+# 8. Verify: 440/440 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
