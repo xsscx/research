@@ -266,6 +266,7 @@ class TestSuite:
                     "IccMatrixMath.cpp",  # upstream NaN→unsigned short in SetRange
                     "IccMD5.cpp",         # MD5 intentional unsigned wrapping
                     "IccMpeBasic.cpp",    # upstream NaN→unsigned int in Apply()
+                    "IccUtil.cpp",        # upstream unsigned shift in icGetSigStr()
                 ]):
                     continue
                 return line.strip()
