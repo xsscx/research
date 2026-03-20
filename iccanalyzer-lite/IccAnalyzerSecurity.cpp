@@ -59,6 +59,9 @@
 #include <set>
 #include <vector>
 #include <array>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <unistd.h>
 
 //==============================================================================
 // External File Metadata Helper
@@ -290,6 +293,45 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     std::string out = RunExternalTool("exiftool", "", filename, 30);
     if (!out.empty()) {
       printf("  [exiftool]\n%s\n", out.c_str());
+    }
+  }
+
+  // exiftool -b — binary ICC profile extraction
+  {
+    // Extract embedded ICC profile to temp file for cross-validation
+    char tmpPath[] = "/tmp/iccanalyzer-exiftool-XXXXXX.icc";
+    int fd = mkstemps(tmpPath, 4);
+    if (fd >= 0) {
+      close(fd);
+      char extractCmd[4096];
+      int n = snprintf(extractCmd, sizeof(extractCmd),
+                       "timeout 10 exiftool -b -icc_profile '%s' > '%s' 2>/dev/null",
+                       filename, tmpPath);
+      if (n > 0 && static_cast<size_t>(n) < sizeof(extractCmd) &&
+          strpbrk(filename, ";|&$`\\\"'{}()!<>") == nullptr) {
+        int rc = system(extractCmd);
+        struct stat st;
+        if (rc == 0 && stat(tmpPath, &st) == 0 && st.st_size > 0) {
+          printf("  [exiftool -b -icc_profile]\n");
+          printf("      Extracted ICC profile: %s (%ld bytes)\n", tmpPath, (long)st.st_size);
+
+          // Show extracted profile header via exiftool for cross-reference
+          std::string meta = RunExternalTool("exiftool", "", tmpPath, 30);
+          if (!meta.empty()) {
+            printf("      --- Extracted ICC metadata ---\n%s", meta.c_str());
+          }
+
+          // Hex dump of first 128 bytes (ICC header) of extracted profile
+          std::string hdr = RunExternalTool("xxd", "-l 128", tmpPath, 10);
+          if (!hdr.empty()) {
+            printf("      --- Extracted ICC header hex ---\n%s", hdr.c_str());
+          }
+        } else {
+          printf("  [exiftool -b -icc_profile]\n");
+          printf("      No embedded ICC profile found (or extraction failed)\n\n");
+        }
+      }
+      unlink(tmpPath);
     }
   }
 
