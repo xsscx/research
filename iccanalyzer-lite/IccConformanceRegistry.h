@@ -331,4 +331,29 @@ static const ConformanceCheck kConformanceRegistry[] = {
 static constexpr int kConformanceCheckCount =
     sizeof(kConformanceRegistry) / sizeof(kConformanceRegistry[0]);
 
+// ── Conformance registry statistics ─────────────────────────────────────────
+
+struct ConformanceRegistryStats {
+  int totalChecks;
+  int checksWithSpecRef;
+  int errorCount;
+  int warningCount;
+  int infoCount;
+};
+
+inline ConformanceRegistryStats ComputeConformanceRegistryStats() {
+  ConformanceRegistryStats s = {};
+  s.totalChecks = kConformanceCheckCount;
+  for (int i = 0; i < kConformanceCheckCount; i++) {
+    if (kConformanceRegistry[i].specRef && kConformanceRegistry[i].specRef[0])
+      s.checksWithSpecRef++;
+    switch (kConformanceRegistry[i].severity) {
+      case CFSeverity::ERROR:   s.errorCount++;   break;
+      case CFSeverity::WARNING: s.warningCount++; break;
+      case CFSeverity::INFO:    s.infoCount++;    break;
+    }
+  }
+  return s;
+}
+
 #endif // ICC_CONFORMANCE_REGISTRY_H

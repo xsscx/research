@@ -17,6 +17,7 @@
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
 #include <cstdio>
 #include <cstdint>
@@ -869,28 +870,52 @@ static int RunCF053_CicpTagClassRestriction(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 int RunRequiredTagConformance(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
+  int r;
 
-  issues += RunCF040_CommonRequiredTags(pIcc);
+#define CF_WRAP(id, title, call) \
+  hc.begin(id, title); \
+  r = call; \
+  if (r > 0) hc.warn("%d non-conformance(s)", r); \
+  hc.end("Conformant"); \
+  issues += r
+
+  CF_WRAP(1040, "CF-040: Common Required Tags (cprt, desc, wtpt)", RunCF040_CommonRequiredTags(pIcc));
 
   icProfileClassSignature cls = pIcc->m_Header.deviceClass;
   switch (cls) {
-    case icSigInputClass:      issues += RunCF041_InputProfileRequired(pIcc);     break;
-    case icSigDisplayClass:    issues += RunCF042_DisplayProfileRequired(pIcc);   break;
-    case icSigOutputClass:     issues += RunCF043_OutputProfileRequired(pIcc);    break;
-    case icSigLinkClass:       issues += RunCF044_DeviceLinkProfileRequired(pIcc); break;
-    case icSigColorSpaceClass: issues += RunCF045_ColorSpaceProfileRequired(pIcc); break;
-    case icSigAbstractClass:   issues += RunCF046_AbstractProfileRequired(pIcc);  break;
-    case icSigNamedColorClass: issues += RunCF047_NamedColorProfileRequired(pIcc); break;
+    case icSigInputClass:
+      CF_WRAP(1041, "CF-041: Input Profile Required Tags", RunCF041_InputProfileRequired(pIcc));
+      break;
+    case icSigDisplayClass:
+      CF_WRAP(1042, "CF-042: Display Profile Required Tags", RunCF042_DisplayProfileRequired(pIcc));
+      break;
+    case icSigOutputClass:
+      CF_WRAP(1043, "CF-043: Output Profile Required Tags", RunCF043_OutputProfileRequired(pIcc));
+      break;
+    case icSigLinkClass:
+      CF_WRAP(1044, "CF-044: DeviceLink Profile Required Tags", RunCF044_DeviceLinkProfileRequired(pIcc));
+      break;
+    case icSigColorSpaceClass:
+      CF_WRAP(1045, "CF-045: ColorSpace Profile Required Tags", RunCF045_ColorSpaceProfileRequired(pIcc));
+      break;
+    case icSigAbstractClass:
+      CF_WRAP(1046, "CF-046: Abstract Profile Required Tags", RunCF046_AbstractProfileRequired(pIcc));
+      break;
+    case icSigNamedColorClass:
+      CF_WRAP(1047, "CF-047: NamedColor Profile Required Tags", RunCF047_NamedColorProfileRequired(pIcc));
+      break;
     default: break;
   }
 
-  issues += RunCF048_RenderingIntentConsistency(pIcc);
-  issues += RunCF049_MatrixTRCPCSXYZ(pIcc);
-  issues += RunCF050_xCLRColorantTable(pIcc);
-  issues += RunCF051_DeviceLinkProhibited(pIcc);
-  issues += RunCF052_TransformTagPairs(pIcc);
-  issues += RunCF053_CicpTagClassRestriction(pIcc);
+  CF_WRAP(1048, "CF-048: Rendering Intent vs Transform Consistency", RunCF048_RenderingIntentConsistency(pIcc));
+  CF_WRAP(1049, "CF-049: Matrix/TRC Profiles Must Use PCS XYZ", RunCF049_MatrixTRCPCSXYZ(pIcc));
+  CF_WRAP(1050, "CF-050: xCLR Spaces Require Colorant Table", RunCF050_xCLRColorantTable(pIcc));
+  CF_WRAP(1051, "CF-051: DeviceLink Prohibited Tags", RunCF051_DeviceLinkProhibited(pIcc));
+  CF_WRAP(1052, "CF-052: Transform Tag Pair Completeness", RunCF052_TransformTagPairs(pIcc));
+  CF_WRAP(1053, "CF-053: CICP Tag Class Restriction", RunCF053_CicpTagClassRestriction(pIcc));
 
+#undef CF_WRAP
   return issues;
 }
