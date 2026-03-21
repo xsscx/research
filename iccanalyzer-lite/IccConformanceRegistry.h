@@ -662,6 +662,31 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-168", "LUT Matrix Input-Output Range",
    "Matrix applied to unit-cube corners should produce output within practical PCS range", "ICC v4 Matrix Entries TN",
    CFSeverity::WARNING, CFCategory::LUT},
+
+  // Negative PCSXYZ Values TN — XYZ encoding and adaptation conformance (CF-169..CF-174)
+  {"CF-169", "Negative PCSXYZ Encoding Capability",
+   "XYZ tags with negative values must use s15Fixed16 or float32 encoding (u1Fixed15 cannot represent negatives)", "ICC TN Negative PCSXYZ, ICC.1:2010 §6.3.4.2",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-170", "Chromatic Adaptation Negative XYZ Consistency",
+   "Negative matrix column values from chromatic adaptation should have a corresponding chad tag", "ICC TN Negative PCSXYZ, ICC.1-2022-05 §9.2.10",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-171", "White Point Non-Negative Luminance",
+   "Media white point and luminance tag Y values must be non-negative (physically impossible otherwise)", "ICC TN Negative PCSXYZ, ICC.1:2010 §3.1.24",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-172", "Colorant XYZ Sum White Point Consistency",
+   "Sum of rXYZ+gXYZ+bXYZ matrix columns should approximate the media white point within s15Fixed16 tolerance", "ICC TN Negative PCSXYZ, ICC.1-2022-05 §9.2.7",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-173", "PCS XYZ Absorber Encoding",
+   "White point must not be [0,0,0] — that value is reserved for the perfect absorber; luminance Y must be non-zero", "ICC TN Negative PCSXYZ, ICC.1:2010 §6.4.3",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-174", "Lab Conversion Clipping Awareness",
+   "Lab PCS profiles should use LUT model (not matrix/TRC); XYZ PCS negative values are valid per ICC TN", "ICC TN Negative PCSXYZ, ICC.1:2010 §6.4",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =
