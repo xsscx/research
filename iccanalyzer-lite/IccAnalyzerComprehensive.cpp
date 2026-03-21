@@ -41,6 +41,8 @@
 #include "IccAnalyzerValidation.h"
 #include "IccAnalyzerSignatures.h"
 #include <new>
+#include <cstdio>
+#include <cstring>
 #include "IccAnalyzerInspect.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerTagDetails.h"
@@ -51,6 +53,81 @@
 #include "IccConformanceV5.h"
 #include "IccConformanceSecurity.h"
 #include "IccConformanceQuality.h"
+#include "IccHeuristicsHelpers.h"
+
+//==============================================================================
+// Pre-loading raw scan: detect tag data patterns that cause UBSAN in the
+// upstream iccDEV library during Read(). iccanalyzer-lite links the UNPATCHED
+// upstream library, so the only defense is to detect these BEFORE calling
+// CIccProfile::Read() / ValidateIccProfile().
+//
+// Returns true if the profile contains patterns that will trigger undefined
+// behavior in the upstream library's tag Read() methods.
+//==============================================================================
+static bool HasLibraryUBPatterns(const char *filename) {
+  if (!filename) return false;
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) return false;
+
+  // Read enough of the header to get the tag table
+  uint8_t hdr[132];
+  if (fread(hdr, 1, 132, fp) < 132) { fclose(fp); return false; }
+
+  // Verify ICC magic at offset 36
+  if (hdr[36] != 'a' || hdr[37] != 'c' || hdr[38] != 's' || hdr[39] != 'p') {
+    fclose(fp);
+    return false;
+  }
+
+  uint32_t tagCount = ReadU32BE(&hdr[128]);
+  if (tagCount > 1000) { fclose(fp); return false; }
+
+  bool dangerous = false;
+
+  for (uint32_t i = 0; i < tagCount && !dangerous; i++) {
+    uint8_t tagEntry[12];
+    if (fread(tagEntry, 1, 12, fp) < 12) break;
+
+    uint32_t tOff = ReadU32BE(&tagEntry[4]);
+    uint32_t tSz  = ReadU32BE(&tagEntry[8]);
+
+    // Read the type signature from the tag data
+    long savedPos = ftell(fp);
+    if (savedPos < 0) break;
+
+    uint8_t typeHdr[20];
+    if (tOff + 20 > tOff && tSz >= 20) { // overflow-safe check
+      if (fseek(fp, static_cast<long>(tOff), SEEK_SET) == 0) {
+        if (fread(typeHdr, 1, 20, fp) == 20) {
+          uint32_t typeSig = ReadU32BE(typeHdr);
+
+          // GamutBoundaryDesc ('gbd ' = 0x67626420):
+          // Layout: [type:4][reserved:4][nPCSCh:2][nDevCh:2][nVertices:4][nTriangles:4]
+          // UBSAN: m_NumberOfTriangles*3 signed overflow at IccTagLut.cpp:5730
+          if (typeSig == 0x67626420) {
+            int32_t nTriangles;
+            memcpy(&nTriangles, &typeHdr[16], 4);
+            // Convert from big-endian
+            nTriangles = static_cast<int32_t>(ReadU32BE(&typeHdr[16]));
+            if (nTriangles > 0 &&
+                static_cast<uint32_t>(nTriangles) > static_cast<uint32_t>(0x7FFFFFFF / 3)) {
+              printf("\n%s[DEFENSE] GamutBoundaryDesc nTriangles=%d would overflow "
+                     "nTriangles*3 (signed int32) in upstream library Read() "
+                     "— skipping library phase (CWE-190)%s\n",
+                     ColorCritical(), nTriangles, ColorReset());
+              dangerous = true;
+            }
+          }
+        }
+      }
+    }
+    if (fseek(fp, savedPos, SEEK_SET) != 0) break;
+  }
+
+  fclose(fp);
+  return dangerous;
+}
 
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
@@ -112,6 +189,19 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     printf("       %sHeader claims more bytes than file contains%s\n",
            ColorInfo(), ColorReset());
     return totalIssues > 0 ? totalIssues : -1;
+  }
+
+  // Pre-loading defense: detect tag data patterns that trigger undefined behavior
+  // in the upstream iccDEV library during Read(). Must run BEFORE any library call.
+  bool skipLibrary = HasLibraryUBPatterns(filename);
+  if (skipLibrary) {
+    printf("%s[SKIP] Library-phase conformance skipped — profile triggers upstream "
+           "undefined behavior (CWE-190)%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sRaw-phase heuristics (H1-H171) still ran in legacy mode%s\n",
+           ColorInfo(), ColorReset());
+    totalIssues++;
+    return totalIssues;
   }
 
   printf("=======================================================================\n");
