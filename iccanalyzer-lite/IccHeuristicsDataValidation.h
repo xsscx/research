@@ -59,5 +59,6 @@ int RunHeuristic_H102_TagSizeProfileSizeCrossCheck(CIccProfile *pIcc);
 int RunHeuristic_H146_StackBufferOverflowGetValues(CIccProfile *pIcc);
 int RunHeuristic_H147_NullPointerAfterTagRead(CIccProfile *pIcc);
 int RunHeuristic_H148_MemcpyBoundsOverlap(CIccProfile *pIcc);
+int RunHeuristic_H172_LUTMatrixCoefficientValidation(CIccProfile *pIcc);
 
 #endif
