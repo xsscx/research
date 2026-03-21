@@ -55,7 +55,7 @@ Offset  Size  Field                    ICC.1-2022-05 §   Validation (Heuristic)
 24      12    Date/time (6 × uint16)    §7.2.8             H7 — sane date range
 36      4     Magic 'acsp' (0x61637370) §7.2.9             H2 — must be 'acsp'
 40      4     Primary platform          §7.2.10            (info only)
-44      4     Profile flags             §7.2.11            H111 — upper bits = 0
+44      4     Profile flags             §7.2.11            H111, CF-317 — bit 0: embedded, bit 1: dependent, bit 3: HDR-to-SDR (v5)
 48      4     Device manufacturer       §7.2.12            (info only)
 52      4     Device model              §7.2.13            (info only)
 56      8     Device attributes         §7.2.14            (info only)
@@ -246,6 +246,10 @@ BToD1  'B2D1'    ...                                    (ICC.1 §9.2.8)
 | MToB0–MToB3 | `'M2B0'`..`'M2B3'` | `0x4D324230`–`33` | Multiplex → PCS |
 | MToS0–MToS3 | `'M2S0'`..`'M2S3'` | `0x4D325330`–`33` | Multiplex → Spectral PCS |
 | gamutBoundaryDescription0–3Tag | `'gbd0'`..`'gbd3'` | `0x67626430`–`33` | GBD per intent |
+| hToS0Tag (Perceptual) | `'H2S0'` | `0x48325330` | HDR→SDR transform (intent 0, CF-317..320) |
+| hToS1Tag (RelColorimetric) | `'H2S1'` | `0x48325331` | HDR→SDR transform (intent 1, CF-317..320) |
+| hToS2Tag (Saturation) | `'H2S2'` | `0x48325332` | HDR→SDR transform (intent 2, CF-317..320) |
+| hToS3Tag (AbsColorimetric) | `'H2S3'` | `0x48325333` | HDR→SDR transform (intent 3, CF-317..320) |
 | BRDFAToB0–3Tag | `'bAB0'`..`'bAB3'` | `0x62414230`–`33` | BRDF colorimetric A→B |
 | BRDFDToB0–3Tag | `'bDB0'`..`'bDB3'` | `0x62444230`–`33` | BRDF device D→B |
 | BRDFMToB0–3Tag | `'bMB0'`..`'bMB3'` | `0x624D4230`–`33` | BRDF multiplex M→B |
@@ -711,11 +715,11 @@ Which ICC binary format fields each heuristic group validates:
 
 ---
 
-## 14.5. ICC Conformance Checks (CF-001..CF-316)
+## 14.5. ICC Conformance Checks (CF-001..CF-329)
 
-318 conformance checks (numbered CF-001..CF-316, with sub-checks CF-125..136 inside CF-124) across 7 dispatcher
+331 conformance checks (numbered CF-001..CF-329, with sub-checks CF-125..136 inside CF-124) across 7 dispatcher
 modules, validating ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
-and ICS Parts 1–3. These run by default in `-a` mode (conformance audit).
+ICS Parts 1–3, and ICC.2 Annex K.2 ICS workflow requirements. These run by default in `-a` mode (conformance audit).
 
 Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 
@@ -725,7 +729,7 @@ Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 | RunTagTypeConformance | CF-020..039, 112, 123–132, 169–174, 188–190, 208–213, 220–234, 247–254, 263–265, 273–281 | 73 | Tag types: s15Fixed16, XYZ, text, mluc, curves, parametric, viewing conditions, named colors, chromaticity, colorant table/order, measurement, response curves, ADGC (§9–10) |
 | RunRequiredTagConformance | CF-039..059, 095–098, 103–104, 111, 117–120, 202, 204–205, 207, 211, 258–260, 266–272, 282–283 | 50 | Required tags per class (mntr/prtr/scnr/link/spac/abst/nmcl), chad ≠D50 rule, ICC.2 additional required tags (§8.2–8.9) |
 | RunLUTConformance | CF-060..079, 105–110, 116, 163–168, 255–256, 261–262 | 38 | LUT channel consistency, CLUT grid, curve points, matrix ranges, AToB/BToA pairs, MBB structure, bit depth (§10.8–10.13) |
-| RunV5Conformance | CF-080..090, 113–115, 137–162, 175–198, 235–242, 257, 284–316 | 101 | v5/iccMAX: spectral PCS, MPE structure, multiProcessElementsType, tagStruct/tagArray, embedded images, GBD, sparse matrix, ICC.2:2019 errata items, ICS sub-classes, BRDF tags, PCC matrices (ICC.2 §7–11) |
+| RunV5Conformance | CF-080..090, 113–115, 137–162, 175–198, 235–242, 257, 284–329 | 114 | v5/iccMAX: spectral PCS, MPE structure, multiProcessElementsType, tagStruct/tagArray, embedded images, GBD, sparse matrix, ICC.2:2019 errata items, ICS sub-classes, BRDF tags, PCC matrices, K.2 ICS workflow (HDR-SDR, solv, env, PCC) (ICC.2 §7–11, Annex K) |
 | RunQualityConformance | CF-091..094 | 6† | Profile quality: curve monotonicity, white point accuracy |
 | RunSecurityConformance | CF-091..094 | 6† | Security-specific validation |
 
@@ -744,12 +748,16 @@ Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 | v5 MPE | CF-080..089 | multiProcessElementsType structure, element chain validation |
 | v5 errata | CF-137..143 | ICC.2:2019 errata: embedded image lengths, GBD vertices, sparse matrix, 'vor ' opcode |
 | v5 ICS | CF-308..316 | ICS sub-class element restrictions, required tags, spectral range, PCC matrices |
+| K.2.9 HDR→SDR | CF-317..320 | HToS tag flag/presence consistency, mpet type validation, PCS channel match, intent coverage |
+| K.2.8 solv operator | CF-321..323 | Calculator 'solv' operator presence detection, status-check pattern, op count analysis |
+| K.2.7 env operator | CF-324..326 | Calculator 'env' operator presence, status-check pattern, reserved signature detection |
+| K.2.6 Alternate PCC | CF-327..329 | PCC tag presence/consistency, c2sp/s2cp matrix pair completeness, spectral viewing conditions |
 | Extended range | CF-144..152, CF-235..242 | xrng sub-class: flag validation, radiance white, element restrictions |
 | BRDF/GBD | CF-284..290 | BRDF tag presence, GBD vertex validation, surface map |
 | Spectral | CF-291..300 | Spectral data info, wavelength consistency, spectral viewing conditions |
 | ICC.2 general | CF-301..307 | Tag struct validation, multiplex naming, calculator element, 'vor ' audit |
 
-**Spec coverage**: ICC.1-2022-05 (v4) ~95%, ICC.2-2019/2023 (v5) ~70%, ICS Parts 1–3 ~60%.
+**Spec coverage**: ICC.1-2022-05 (v4) ~95%, ICC.2-2019/2023 (v5) ~75%, ICS Parts 1–3 ~65%, Annex K.2 ~80%.
 
 ---
 
@@ -802,6 +810,66 @@ which MPE element types are permitted in transform tags.
 **ICS sub-class detection**: Read `icHeader.deviceSubClass` — 4-byte signature at header offset 12
 (within the v5 class byte range). Values: `'pcc '` (0x70636320), `'xrng'` (0x78726E67),
 `'sref'` (0x73726566), `'ext '` (0x65787420).
+
+---
+
+## 14.8. ICS Annex K.2 Workflow Conformance (CF-317..CF-329)
+
+ICC.2 Annex K.2 defines interoperability requirements for CMM processing control
+options and workflow scenarios. 13 conformance checks validate these requirements
+at the profile level.
+
+### K.2.9 — HDR to SDR Transforms (CF-317..CF-320)
+
+| CF | Check | Validates |
+|----|-------|-----------|
+| CF-317 | Flag-tag consistency | Bit 3 of header flags (offset 44, `icExtendedRangePCS = 0x00000008`) must align with HToS tag presence |
+| CF-318 | Tag type validation | HToS tags must be `multiProcessElementsType` (`'mpet'`) |
+| CF-319 | Channel consistency | HToS MPE input/output channels must match PCS channel count (3 for XYZ/Lab) |
+| CF-320 | Intent coverage | Reports which rendering intents (H2S0–H2S3) have HToS tags; flags partial coverage |
+
+**Header flags bit 3**: When set (`flags & 0x00000008`), indicates the profile provides
+HDR-to-SDR transform capability. The HToS tags contain MPE elements that map extended
+range PCS values to standard dynamic range output.
+
+**Tag signatures**: `'H2S0'` (Perceptual), `'H2S1'` (Relative Colorimetric),
+`'H2S2'` (Saturation), `'H2S3'` (Absolute Colorimetric).
+
+### K.2.8 — Calculator 'solv' Operator (CF-321..CF-323)
+
+| CF | Check | Validates |
+|----|-------|-----------|
+| CF-321 | solv operator presence | Scans calculator elements for `'solv'` (`0x736F6C76`) operator usage |
+| CF-322 | Status-check pattern | Verifies calculator scripts check `'solv'` operator status before use |
+| CF-323 | solv operator count | Reports total solv operator count across all calculator elements |
+
+The `'solv'` (matrix solve) operator is optional per ICS requirements. Profiles using it
+must check operator status and provide fallback logic for CMMs that don't support it.
+
+### K.2.7 — CMM Environment Variables (CF-324..CF-326)
+
+| CF | Check | Validates |
+|----|-------|-----------|
+| CF-324 | env operator presence | Scans calculator elements for `'env '` (`0x656E7620`) operator usage |
+| CF-325 | Status-check pattern | Verifies calculator scripts check `'env'` operator status before use |
+| CF-326 | Reserved signature detection | Flags use of reserved env signatures (`'true'`/`'ndef'`) |
+
+The `'env'` operator accesses CMM environment variables defined by ICS workflow
+scenarios. Calculator scripts must handle unavailable variables gracefully (check
+status, provide defaults). The `'env'` opcode pushes 2 values: the variable value
+and a status indicator.
+
+### K.2.6 — Alternate PCC (CF-327..CF-329)
+
+| CF | Check | Validates |
+|----|-------|-----------|
+| CF-327 | PCC tag presence | Validates `spectralViewingConditionsTag` (`'svcn'`) presence in v5 profiles with spectral/non-standard PCS |
+| CF-328 | PCC matrix completeness | Checks `customToStandardPcsTag` (`'c2sp'`) and `standardToCustomPcsTag` (`'s2cp'`) are both present or both absent |
+| CF-329 | PCC interface completeness | Validates `IIccProfileConnectionConditions` interface availability when PCC tags are present |
+
+Profile Connection Conditions (PCC) enable spectral and non-standard PCS processing.
+Alternate PCC information can override profile PCC via CMM processing control options.
+The `'c2sp'` and `'s2cp'` matrix tags must always appear as a pair.
 
 ---
 
@@ -973,4 +1041,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 171 heuristics · 318 conformance checks (CF-001..CF-316) · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 171 heuristics · 331 conformance checks (CF-001..CF-329) · 45 CFL patches · 13 fuzzers · 93 advisories*
