@@ -12,7 +12,10 @@ add_executable(icctest_unit_tests
     test_main.cpp
 )
 
-target_link_libraries(icctest_unit_tests PRIVATE IccTest)
+# Use --whole-archive to force inclusion of all static initializers
+# (REGISTER_HEURISTIC macros in check .cpp files).
+target_link_libraries(icctest_unit_tests PRIVATE
+    -Wl,--whole-archive IccTest -Wl,--no-whole-archive)
 
 target_include_directories(icctest_unit_tests PRIVATE
     ${ICCDEV_ROOT}/IccProfLib

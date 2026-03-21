@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <set>
 #include <vector>
 
 extern void test_assert(bool, const char*, const char*, int);
@@ -81,8 +82,11 @@ static void test_version_string() {
 
 static void test_check_count() {
     std::printf("  test_check_count...\n");
-    setup_registry();
-    ASSERT_EQ(2u, IccTestRunner::checkCount());
+    // Do NOT call setup_registry() here — we want the auto-registered checks
+    // from static initializers (REGISTER_HEURISTIC macros in check .cpp files).
+    auto count = CheckRegistry::instance().size();
+    std::printf("    Registered checks: %zu\n", count);
+    ASSERT_TRUE(count >= 172u);
 }
 
 static void test_analyze_minimal_profile() {
@@ -192,10 +196,38 @@ static void test_analyze_real_profile() {
     ASSERT_GT(result.metadata.fileSize, 128u);
 }
 
+static void test_heuristic_coverage() {
+    std::printf("  test_heuristic_coverage...\n");
+    // Do NOT call setup_registry() — use auto-registered checks.
+
+    auto& reg = CheckRegistry::instance();
+    const auto& all = reg.all();
+
+    // Verify every H-number from 1..172 is registered
+    std::set<int> registered;
+    for (auto& c : all) {
+        if (c.id.kind == CheckID::Kind::Heuristic)
+            registered.insert(c.id.number);
+    }
+
+    int missing = 0;
+    for (int h = 1; h <= 172; h++) {
+        if (registered.find(h) == registered.end()) {
+            std::printf("    MISSING: H%d\n", h);
+            missing++;
+        }
+    }
+    ASSERT_EQ(0, missing);
+    std::printf("    All 172 heuristic IDs present\n");
+}
+
 void test_runner() {
     std::printf("test_runner:\n");
     test_version_string();
+    // Run auto-registration tests FIRST (before setup_registry clears them)
     test_check_count();
+    test_heuristic_coverage();
+    // Analysis tests use setup_registry() which clears auto-registrations
     test_analyze_minimal_profile();
     test_analyze_bad_magic();
     test_analyze_nonexistent_file();
