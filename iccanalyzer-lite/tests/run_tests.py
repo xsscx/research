@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-183)."""
+    """Test ICC Specification conformance checks (CF-001..CF-187)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2431,6 +2431,42 @@ def test_conformance_checks(suite):
         "cf.182.pcc_observer",
         ["-a", v5_profile],
         r"CF-182.*PCC.*Observer"
+    )
+
+    # --- CF-184..CF-187: RFC 1321 / Profile ID Conformance ---
+    # CF-184: v4+ profile should have Profile ID presence check
+    suite.assert_output_contains(
+        "cf.184.profileid_v4_presence",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-184.*Profile ID.*v4"
+    )
+
+    # CF-185: Profile ID size consistency check runs
+    suite.assert_output_contains(
+        "cf.185.profileid_size_consistency",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-185.*Profile ID.*Size.*Consistency"
+    )
+
+    # CF-186: Profile ID entropy analysis runs
+    suite.assert_output_contains(
+        "cf.186.profileid_entropy",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-186.*Profile ID.*Entropy"
+    )
+
+    # CF-187: Embedded Profile ID chain (runs on any profile, reports no embed tag)
+    suite.assert_output_contains(
+        "cf.187.embedded_profileid_chain",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-187.*Embedded.*Profile.*Chain"
+    )
+
+    # CF-187: v5 profile with embedded tag should exercise chain validation
+    suite.assert_output_contains(
+        "cf.187.embedded_profileid_v5",
+        ["-a", v5_profile],
+        r"CF-187.*Embedded.*Profile"
     )
 
     # --- Clean profile baseline ---
