@@ -5972,6 +5972,200 @@ static int RunCF320_HToSIntentCoverage(CIccProfile *pIcc) {
   return issues;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-321: Calculator 'solv' Operator Presence (K.2.8, ICC.2 §11.2.1.7)
+//
+// The 'solv' operator is optional — its support depends on CMM providing an
+// IIccMatrixSolver implementation.  K.2.8 states profiles should either not
+// use 'solv' or check its status flag.  This check detects 'solv' usage and
+// reports it as an informational CMM dependency.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF321_SolvOperatorPresence(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-321]%s Calculator 'solv' Operator Presence "
+         "(%sK.2.8, ICC.2 §11.2.1.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int solvCount = 0;
+  int calcCount = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("Calculator") == std::string::npos &&
+        desc.find("calc") == std::string::npos)
+      continue;
+
+    calcCount++;
+
+    // Search for "solv(" pattern in Describe output
+    size_t pos = 0;
+    while ((pos = desc.find("solv(", pos)) != std::string::npos) {
+      solvCount++;
+      pos += 5;
+    }
+  }
+
+  if (calcCount == 0) {
+    printf("         No calculator elements — check not applicable\n");
+  } else if (solvCount == 0) {
+    printf("         %s[OK]%s %d calculator element(s), no 'solv' operators "
+           "(no CMM matrix solver dependency)\n",
+           ColorSuccess(), ColorReset(), calcCount);
+  } else {
+    printf("         %s[INFO]%s %d 'solv' operator(s) found in %d calculator "
+           "element(s)\n",
+           ColorWarning(), ColorReset(), solvCount, calcCount);
+    printf("         Profile requires CMM with IIccMatrixSolver support "
+           "(K.2.8)\n");
+  }
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-322: Calculator 'solv' Status Handling (K.2.8)
+//
+// K.2.8: "the profile calculator script either does not use the 'solv'
+// calculator element operator or it checks the status of the operator and
+// performs appropriate operations."  After 'solv', the status flag (1.0 on
+// success, 0.0 on failure) is pushed.  A subsequent conditional ('if') should
+// test that flag.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF322_SolvStatusHandling(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-322]%s Calculator 'solv' Status Handling (%sK.2.8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int solvCount = 0;
+  int solvWithIf = 0;
+  int solvWithoutIf = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("solv(") == std::string::npos)
+      continue;
+
+    // For each 'solv(' occurrence, check for subsequent 'if ' in function
+    size_t pos = 0;
+    while ((pos = desc.find("solv(", pos)) != std::string::npos) {
+      solvCount++;
+      // Look for 'if ' after the solv operator within the same function block
+      // The Describe output wraps ops in { ... }, so look within a reasonable
+      // window after the solv.  Also accept 'if\n' for wrapped lines.
+      size_t searchEnd = desc.find("END_CALC_FUNCTION", pos);
+      if (searchEnd == std::string::npos)
+        searchEnd = desc.size();
+
+      std::string afterSolv = desc.substr(pos + 5, searchEnd - pos - 5);
+      if (afterSolv.find("if ") != std::string::npos ||
+          afterSolv.find("if\n") != std::string::npos) {
+        solvWithIf++;
+      } else {
+        solvWithoutIf++;
+      }
+      pos += 5;
+    }
+  }
+
+  if (solvCount == 0) {
+    printf("         No 'solv' operators — check not applicable\n");
+  } else if (solvWithoutIf > 0) {
+    printf("         %s[WARN]%s %d of %d 'solv' operator(s) lack subsequent "
+           "status check ('if' conditional)\n",
+           ColorError(), ColorReset(), solvWithoutIf, solvCount);
+    printf("         K.2.8 requires checking the operator status flag — "
+           "§11.2.1.7\n");
+    issues += solvWithoutIf;
+  } else {
+    printf("         %s[OK]%s All %d 'solv' operator(s) have subsequent "
+           "status check\n",
+           ColorSuccess(), ColorReset(), solvCount);
+  }
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-323: Calculator 'solv' Matrix Dimensions (K.2.8, §11.2.1.7)
+//
+// The 'solv' operator solves Ax=b where A is (R×C), b is (R×1), x is (C×1).
+// Describe outputs "solv(R,C)".  R and C must be >= 2 for a meaningful solve.
+// The implementation (CIccOpDefSolve::Exec) checks r>1 && c>1.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF323_SolvDimensions(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-323]%s Calculator 'solv' Matrix Dimensions "
+         "(%sK.2.8, §11.2.1.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int solvCount = 0;
+  int degenerateCount = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("solv(") == std::string::npos)
+      continue;
+
+    // Parse "solv(R,C)" dimensions from Describe output
+    size_t pos = 0;
+    while ((pos = desc.find("solv(", pos)) != std::string::npos) {
+      solvCount++;
+      int r = 0, c = 0;
+      if (sscanf(desc.c_str() + pos, "solv(%d,%d)", &r, &c) == 2) {
+        if (r < 2 || c < 2) {
+          printf("         %s[WARN]%s solv(%d,%d) — degenerate dimensions "
+                 "(R and C must be >= 2) — §11.2.1.7\n",
+                 ColorError(), ColorReset(), r, c);
+          degenerateCount++;
+          issues++;
+        } else if ((long long)r * c > 10000) {
+          printf("         %s[WARN]%s solv(%d,%d) — excessive matrix size "
+                 "(%d elements, potential DoS) — §11.2.1.7\n",
+                 ColorError(), ColorReset(), r, c, r * c);
+          issues++;
+        }
+      }
+      pos += 5;
+    }
+  }
+
+  if (solvCount == 0) {
+    printf("         No 'solv' operators — check not applicable\n");
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d 'solv' operator(s) with valid dimensions\n",
+           ColorSuccess(), ColorReset(), solvCount);
+  }
+
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -6128,6 +6322,11 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1318, "CF-318: HDR-to-SDR Tag Type Validation", RunCF318_HToSTagTypeValidation(pIcc));
   CF_WRAP(1319, "CF-319: HDR-to-SDR Tag Channel Consistency", RunCF319_HToSChannelConsistency(pIcc));
   CF_WRAP(1320, "CF-320: HDR-to-SDR Intent Coverage", RunCF320_HToSIntentCoverage(pIcc));
+
+  // K.2.8 Calculator 'solv' Operator Conformance (CF-321..CF-323)
+  CF_WRAP(1321, "CF-321: Calculator 'solv' Operator Presence", RunCF321_SolvOperatorPresence(pIcc));
+  CF_WRAP(1322, "CF-322: Calculator 'solv' Status Handling", RunCF322_SolvStatusHandling(pIcc));
+  CF_WRAP(1323, "CF-323: Calculator 'solv' Matrix Dimensions", RunCF323_SolvDimensions(pIcc));
 
 done:
 #undef CF_WRAP
