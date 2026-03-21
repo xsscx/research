@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-213)."""
+    """Test ICC Specification conformance checks (CF-001..CF-219)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2660,6 +2660,48 @@ def test_conformance_checks(suite):
         "cf.viewing_conditions",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-213.*viewingConditionsType"
+    )
+
+    # CF-214: Embedded Profile Class Suitability
+    suite.assert_output_contains(
+        "cf.embedded_class_suitability",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-214.*Embedded.*Class"
+    )
+
+    # CF-215: JPEG APP2 Embedding Size Limit
+    suite.assert_output_contains(
+        "cf.jpeg_embed_size",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-215.*JPEG.*APP2"
+    )
+
+    # CF-216: JP2 Restricted ICC Compliance
+    suite.assert_output_contains(
+        "cf.jp2_restricted",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-216.*JP2"
+    )
+
+    # CF-217: JPX Any ICC Method Compliance
+    suite.assert_output_contains(
+        "cf.jpx_any_icc",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-217.*JPX"
+    )
+
+    # CF-218: HEIF Restricted ICC Compatibility
+    suite.assert_output_contains(
+        "cf.heif_restricted",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-218.*HEIF"
+    )
+
+    # CF-219: Container Format Version Matrix
+    suite.assert_output_contains(
+        "cf.container_version_matrix",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-219.*Container"
     )
 
     # --- Clean profile baseline ---
