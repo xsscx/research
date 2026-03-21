@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-219)."""
+    """Test ICC Specification conformance checks (CF-001..CF-226)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2702,6 +2702,55 @@ def test_conformance_checks(suite):
         "cf.container_version_matrix",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-219.*Container"
+    )
+
+    # CF-220: mluc Name Record Overlap Detection
+    suite.assert_output_contains(
+        "cf.mluc_overlap",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-220.*mluc.*Overlap"
+    )
+
+    # CF-221: profileSequenceDescTag Structure
+    suite.assert_output_contains(
+        "cf.pseq_structure",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-221.*profileSequenceDesc"
+    )
+
+    # CF-222: profileSequenceIdentifierTag Validation
+    suite.assert_output_contains(
+        "cf.psid_validation",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-222.*profileSequenceIdentifier"
+    )
+
+    # CF-223: mluc Zero-Name Placeholder Encoding
+    suite.assert_output_contains(
+        "cf.mluc_placeholder",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-223.*mluc.*Placeholder"
+    )
+
+    # CF-224: mluc Reserved Field Zero
+    suite.assert_output_contains(
+        "cf.mluc_reserved",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-224.*mluc.*Reserved"
+    )
+
+    # CF-225: mluc Name Record String Alignment
+    suite.assert_output_contains(
+        "cf.mluc_alignment",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-225.*mluc.*Alignment"
+    )
+
+    # CF-226: mluc Size Inference Safety
+    suite.assert_output_contains(
+        "cf.mluc_size_inference",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-226.*mluc.*Size.*Inference"
     )
 
     # --- Clean profile baseline ---

@@ -846,6 +846,29 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-219", "Container Format Version Matrix",
    "Cross-reference profile version and class against 18 media formats supporting ICC embedding", "ICC TN Embedding §Table 1",
    CFSeverity::INFO, CFCategory::HEADER},
+
+  // ICC TN PSD / mluc structure conformance (CF-220..CF-226)
+  {"CF-220", "mluc Name Record Overlap Detection",
+   "Detect partial overlaps between mluc name record string ranges (exact sharing OK, partial overlap = CWE-119)", "ICC TN PSD §mluc",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+  {"CF-221", "profileSequenceDescTag Structure",
+   "Validate profileSequenceDescTag description count, entry structure, and embedded mluc locale counts", "ICC.1-2022-05 §9.2.50",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-222", "profileSequenceIdentifierTag Validation",
+   "Validate psid entry count, profile IDs (non-zero), embedded descriptions, and cross-check with pseq count", "ICC.1-2022-05 §9.2.51",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-223", "mluc Zero-Name Placeholder Encoding",
+   "Zero-name mluc should encode as exactly 12 bytes per ICC TN PSD recommendation to avoid parsing ambiguity", "ICC TN PSD §placeholder",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-224", "mluc Reserved Field Zero",
+   "Bytes 4-7 of every multiLocalizedUnicodeType must be zero (reserved field)", "ICC.1-2022-05 §10.13",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-225", "mluc Name Record String Alignment",
+   "mluc string offsets and lengths should be even (UTF-16 = 2 bytes per code unit) per §7.1 alignment", "ICC.1-2022-05 §7.1, §10.13",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-226", "mluc Size Inference Safety",
+   "Validate mluc tag size is consistent with max(offset+length) across all name records per TN PSD recommendation", "ICC TN PSD §size",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =
