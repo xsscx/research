@@ -165,3 +165,4 @@ wasm/
 afl/afl-*/input/
 afl/afl-*/output*/
 afl/afl-*/cmin*/
+lutdumper/
