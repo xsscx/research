@@ -1517,8 +1517,6 @@ static int RunCF174_LabConversionClippingAwareness(CIccProfile *pIcc) {
     static const icTagSignature matSigs[] = {
       icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
     };
-    static const char *matNames[] = { "rXYZ", "gXYZ", "bXYZ" };
-
     int negCount = 0;
     for (int i = 0; i < 3; i++) {
       CIccTag *tag = pIcc->FindTag(matSigs[i]);

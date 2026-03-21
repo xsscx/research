@@ -772,7 +772,7 @@ static bool ParseCurve1DText(const char *path, std::vector<float> &outInput,
         if (!tab) continue;
         *tab = '\0';
 
-        float inp, outp;
+        float inp = 0.0f, outp = 0.0f;
         if (!SafeFloat(line, inp) || !SafeFloat(tab + 1, outp)) continue;
 
         outInput.push_back(inp);
@@ -821,7 +821,7 @@ static bool ParseCLUTText(const char *path, int &inputDim, int &outputCh,
             if (gp) {
                 gp += strlen("# Grid points:");
                 std::istringstream iss(gp);
-                int val;
+                int val = 0;
                 while (iss >> val) {
                     if (val <= 0 || val > kMaxGridDim) { error = "Invalid grid size"; fclose(f); return false; }
                     gridPoints.push_back(val);
@@ -843,7 +843,7 @@ static bool ParseCLUTText(const char *path, int &inputDim, int &outputCh,
         std::string token;
         int col = 0;
         while (std::getline(iss, token, '\t')) {
-            float val;
+            float val = 0.0f;
             if (col >= inputDim) {
                 if (SafeFloat(token.c_str(), val))
                     outputData.push_back(val);
@@ -907,7 +907,7 @@ static bool ParseMatrixText(const char *path, float e[12], bool &useConstants,
         std::string token;
         int col = 0;
         while (std::getline(iss, token, '\t') && col < 4) {
-            float val;
+            float val = 0.0f;
             if (SafeFloatUnclamped(token.c_str(), val))
                 e[row * 4 + col] = val;
             col++;
