@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 550 tests (25 functions), ~33s
+python3 iccanalyzer-lite/tests/run_tests.py   # 592 tests (25 functions), ~37s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -354,21 +354,24 @@ PoC: #577.
 | H154-H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived library patterns (alloc, overflow, enum, UAF, format string) |
 | H162-H171 | IccHeuristicsExploitGap.cpp | Exploit gap (overlap, exec sigs, LUT, div-zero, null, curve params) |
 
-## Conformance Checks (CF-001..CF-265)
+## Conformance Checks (CF-001..CF-307)
 
-265 ICC specification conformance checks across 5 dispatcher modules. These validate
-profile compliance with ICC.1-2022-05, ICC.2-2023, and ICC technical notes — separate
-from the 172 security heuristics (H1-H172) which focus on vulnerability patterns.
+307 ICC specification conformance checks across 7 dispatcher modules. These validate
+profile compliance with ICC.1-2022-05, ICC.2-2019/2023, ICC.2:2019 errata, and ICC
+technical notes — separate from the 172 security heuristics (H1-H172) which focus
+on vulnerability patterns.
 
-### Conformance Modules (5 dispatchers)
+### Conformance Modules (7 dispatchers)
 
 | Module | CF Ranges | Focus |
 |--------|-----------|-------|
 | `IccConformanceHeader.cpp` | CF-001..CF-015, CF-107, CF-121-122, CF-184-187, CF-199-201, CF-203, CF-206, CF-210, CF-214-219, CF-243-246 | Header structure, dateTime, size, intent, embedding |
-| `IccConformanceTagTypes.cpp` | CF-020..CF-034, CF-112, CF-123-132, CF-169-174, CF-188-190, CF-208-213, CF-220-234, CF-247-254, CF-263-265 | Tag types, viewing conditions, named colors, chromaticity, curves |
-| `IccConformanceRequired.cpp` | CF-039..CF-059, CF-095-098, CF-103-104, CF-111, CF-117-120, CF-202, CF-204-205, CF-207, CF-211, CF-258-260 | Required tags per class, tag presence, text content |
+| `IccConformanceTagTypes.cpp` | CF-020..CF-034, CF-112, CF-123-132, CF-169-174, CF-188-190, CF-208-213, CF-220-234, CF-247-254, CF-263-265, CF-273-281 | Tag types, viewing conditions, named colors, chromaticity, curves |
+| `IccConformanceRequired.cpp` | CF-039..CF-059, CF-095-098, CF-103-104, CF-111, CF-117-120, CF-202, CF-204-205, CF-207, CF-211, CF-258-260, CF-266-272, CF-282-283 | Required tags per class, tag presence, text content |
 | `IccConformanceLUT.cpp` | CF-060..CF-070, CF-105-110, CF-116, CF-163-168, CF-255-256, CF-261-262 | LUT/matrix structure, CLUT grid, channel consistency |
-| `IccConformanceV5.cpp` | CF-080..CF-089, CF-113-115, CF-137-162, CF-175-198, CF-235-242, CF-257 | v5/iccMAX, ICS interop, spectral, extended range, partial adaptation |
+| `IccConformanceV5.cpp` | CF-080..CF-089, CF-113-115, CF-137-162, CF-175-198, CF-235-242, CF-257, CF-284-307 | v5/iccMAX, ICS interop, spectral, extended range, partial adaptation, errata |
+| `IccConformanceQuality.cpp` | CF-091..CF-094 | Profile quality metrics |
+| `IccConformanceSecurity.cpp` | (reserved) | Security-specific conformance |
 
 ### CF Coding Convention
 
@@ -394,17 +397,17 @@ static int RunCF243_DateTimeRange(CIccProfile *pIcc) {
 
 ID numbering: CF ID = 1000 + CF number (e.g., CF-243 → id 1243).
 Registry entries: `IccConformanceRegistry.h` (id, title, description, specRef, severity, category).
-Next available: **CF-258**.
+Next available: **CF-308**.
 
 ### Adding a New Conformance Check
 
-1. Choose the next ID: **CF-266** (current max is CF-265)
-2. Add `RunCF258_Name()` function to the appropriate category file
+1. Choose the next ID: **CF-308** (current max is CF-307)
+2. Add `RunCF308_Name()` function to the appropriate category file
 3. Use `printf` pattern (NOT HeuristicCollector API)
-4. Add `CF_WRAP(1258, "CF-258: Title", RunCF258_Name(pIcc));` to the dispatcher
+4. Add `CF_WRAP(1308, "CF-308: Title", RunCF308_Name(pIcc));` to the dispatcher
 5. Add entry to `IccConformanceRegistry.h` (before closing `};`)
 6. Add test assertion in `run_tests.py` `test_conformance_checks()`
-7. Build, test (550+ tests), ASAN spot-check
+7. Build, test (592+ tests), ASAN spot-check
 
 ## CVE Coverage (93 iccDEV Advisories)
 
@@ -434,7 +437,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 550/550 tests pass
+# 8. Verify: 592/592 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
