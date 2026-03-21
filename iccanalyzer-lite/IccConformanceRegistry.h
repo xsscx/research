@@ -753,6 +753,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-190", "Profile Legibility Gate",
    "Composite readability check: non-empty tag table, all entries parse to non-NULL, file size matches header", "SampleICC §3 ReadValidate",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  // ICS Interoperability Conformance Specifications (CF-191..CF-198)
+  {"CF-191", "ICS Sub-Class Signature Registry",
+   "Validate deviceSubClass matches a registered ICS sub-class signature (pcc, xrng, sref, ext)", "ICC WP-57 ICS Registration",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-192", "Colorimetric ICS Required Tags",
+   "Colorimetric PCC sub-class requires AToB1, BToA1, svcn, c2sp, s2cp tags and colorSpace class", "ICS-Colorimetric-Part1",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-193", "Colorimetric ICS PCC Matrix Restriction",
+   "Part 1 Colorimetric ICS restricts c2sp/s2cp to a single 3x3 matrix element", "ICS-Colorimetric-Part1",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-194", "Spectral Reflectance ICS Required Tags",
+   "Spectral Reflectance sub-class requires DToB3, BToD3, svcn, c2sp, s2cp tags and reflectance PCS", "ICS-SpectralReflectance-Part1",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-195", "Extended Dynamic Range Radiance White Point",
+   "Extended range profiles may have white point Y > 1.0 representing luminance in cd/m2", "ICS-ExtendedRange",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-196", "ICS MPE Calculator Restriction",
+   "Part 1 ICS profiles restrict MPE to curve/matrix/CLUT/tint; calculatorElement requires Part 2", "ICC WP-57 Part 1 vs Part 2",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-197", "ICS PCC Transform Pair Completeness",
+   "customToStandardPcc (c2sp) and standardToCustomPcc (s2cp) must both be present as a mandatory pair", "ICC WP-57 PCC Transforms",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-198", "Extended Range Sub-Class Validation",
+   "Extended dynamic range (xrng) sub-class requires display or colorSpace class and extended range PCS flag", "ICS-ExtendedRange",
+   CFSeverity::ERROR, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
