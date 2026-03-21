@@ -4,11 +4,12 @@
 > working on ICC profile security analysis, fuzzer harness development, and
 > heuristic authoring.
 >
-> **Sources**: ICC.1-2022-05, ICC.2-2023, iccanalyzer-lite source code,
-> CFL fuzzer corpus, 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
+> **Sources**: ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
+> ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
+> 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-20 — 171 heuristics (legacy) + 98 conformance checks (CF-001..CF-122),
-> 45 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-07-24 — 171 heuristics (H1–H171) + 279 conformance checks
+> (CF-001..CF-316, with gaps), 601 tests, 45 CFL patches, 13 fuzzers.
 
 ---
 
@@ -28,7 +29,9 @@
 12. [Security Patterns — CWE Catalog](#12-security-patterns--cwe-catalog)
 13. [CFL Patch Catalog (45 Active)](#13-cfl-patch-catalog-45-active)
 14. [Heuristic → Format Mapping](#14-heuristic--format-mapping)
-14.5. [ICC Conformance Checks (CF-001..CF-122)](#145-icc-conformance-checks-cf-001cf-122)
+14.5. [ICC Conformance Checks (CF-001..CF-316)](#145-icc-conformance-checks-cf-001cf-316)
+14.6. [ICC.2:2019 Errata Coverage](#146-icc22019-errata-coverage)
+14.7. [ICS Sub-Class Conformance (CF-308..CF-316)](#147-ics-sub-class-conformance-cf-308cf-316)
 15. [Version History and BCD Encoding](#15-version-history-and-bcd-encoding)
 16. [Profile ID (MD5) Computation](#16-profile-id-md5-computation)
 17. [Useful Code Patterns](#17-useful-code-patterns)
@@ -141,6 +144,15 @@ ICC.1-2022-05 §7.2.5 defines 7 profile classes (4-byte FourCC):
 
 **ICC.2-2023 (v5) adds**: `'cenc'` (Color Encoding), `'mid '` (Material ID), `'mvis'` (Multi-Visualization)
 
+**ICS sub-classes** (ICC Interoperability Conformance Specifications):
+
+| Sub-Class | Signature | Hex | Purpose |
+|-----------|-----------|-----|---------|
+| Profile Connection Conditions | `'pcc '` | `0x70636320` | Colorimetric PCC (Part 1/2/3) |
+| Extended Range | `'xrng'` | `0x78726E67` | Extended gamut (Part 1/2/3) |
+| Spectral Reference | `'sref'` | `0x73726566` | Spectral reflectance (Part 1/2/3) |
+| Extended Output | `'ext '` | `0x65787420` | Extended output modeling (Part 1/2/3) |
+
 ---
 
 ## 4. Color Space Signatures
@@ -161,6 +173,17 @@ ICC.1-2022-05 §7.2.6 — 4-byte FourCC at header offset 16 (data color space) a
 | 3-color | `'3CLR'` | 3 | Multi-channel |
 | ... | ... | ... | ... |
 | 15-color | `'FCLR'` | 15 | Max standard channels |
+
+**ICC.2-2023 (v5) spectral PCS signatures**:
+
+| PCS | Hex Prefix | Meaning |
+|-----|------------|---------|
+| Reflectance | `0x72730000` | `'rs\0\0'` — Reflectance spectral data |
+| Transmission | `0x74730000` | `'ts\0\0'` — Transmission spectral data |
+| Emission | `0x65730000` | `'es\0\0'` — Emission spectral data |
+| Bi-Spectral Reflectance | `0x62730000` | `'bs\0\0'` — Bi-spectral reflectance |
+
+Lower 16 bits encode the number of spectral channels.
 
 **Security note**: `icGetSpaceSamples()` returns the declared channel count, but
 malformed LUTs can have `m_nOutput > declared`. Always use `tmpPixel[16]` sized buffers.
@@ -207,8 +230,26 @@ BToD1  'B2D1'    ...                                    (ICC.1 §9.2.8)
 | responseCurveSet16Tag | `'rcs2'` | H136 | Measurement count DoS |
 | metaDataTag | `'meta'` | — | Dictionary type |
 | spectralDataInfoTag | `'sdin'` | H15 | v5 spectral |
-| spectralViewingConditionsTag | `'svcn'` | — | v5 viewing conditions |
+| spectralViewingConditionsTag | `'svcn'` | CF-316 | v5 viewing conditions |
 | embeddedV5ProfileTag | `'ICCe'` | H147 | Nested profile |
+
+### v5-Only Tags (ICC.2-2023)
+
+| Tag | Signature | Hex | Purpose |
+|-----|-----------|-----|---------|
+| customToStandardPccTag | `'c2sp'` | `0x63327370` | PCC custom→standard matrix |
+| standardToCustomPccTag | `'s2cp'` | `0x73326370` | PCC standard→custom matrix |
+| surfaceMapTag | `'smap'` | `0x736D6170` | Surface reflectance map |
+| multiplexDefaultValuesTag | `'mdv '` | `0x6D647620` | Multiplex device defaults |
+| multiplexTypeArrayTag | `'mcta'` | `0x6D637461` | Multiplex type array |
+| AToM0Tag | `'A2M0'` | `0x41324D30` | Device → Multiplex transform |
+| MToB0–MToB3 | `'M2B0'`..`'M2B3'` | `0x4D324230`–`33` | Multiplex → PCS |
+| MToS0–MToS3 | `'M2S0'`..`'M2S3'` | `0x4D325330`–`33` | Multiplex → Spectral PCS |
+| gamutBoundaryDescription0–3Tag | `'gbd0'`..`'gbd3'` | `0x67626430`–`33` | GBD per intent |
+| BRDFAToB0–3Tag | `'bAB0'`..`'bAB3'` | `0x62414230`–`33` | BRDF colorimetric A→B |
+| BRDFDToB0–3Tag | `'bDB0'`..`'bDB3'` | `0x62444230`–`33` | BRDF device D→B |
+| BRDFMToB0–3Tag | `'bMB0'`..`'bMB3'` | `0x624D4230`–`33` | BRDF multiplex M→B |
+| BRDFMToS0–3Tag | `'bMS0'`..`'bMS3'` | `0x624D5330`–`33` | BRDF multiplex M→S |
 
 ---
 
@@ -240,11 +281,19 @@ The type signature at `tag_offset + 0` determines how payload data is parsed.
 | responseCurveSet16Type | `'rcs2'` | `0x72637332` | Response curves (H136: DoS) |
 | dateTimeType | `'dtim'` | `0x6474696D` | Date/time (12 bytes) |
 | viewingConditionsType | `'view'` | `0x76696577` | Viewing environment |
-| float16ArrayType | `'fl16'` | — | v5 half-float array |
-| float32ArrayType | `'fl32'` | — | v5 single-float array |
-| float64ArrayType | `'fl64'` | — | v5 double-float array |
-| gamutBoundaryDescType | `'gbd '` | — | v5 gamut boundary (H146) |
-| sparseMatrixArrayType | `'smAt'` | — | v5 sparse matrix |
+| float16ArrayType | `'fl16'` | `0x666C3136` | v5 half-float array |
+| float32ArrayType | `'fl32'` | `0x666C3332` | v5 single-float array |
+| float64ArrayType | `'fl64'` | `0x666C3634` | v5 double-float array |
+| gamutBoundaryDescType | `'gbd '` | `0x67626420` | v5 gamut boundary (CF-140, CF-286) |
+| sparseMatrixArrayType | `'smAt'` | `0x736D6174` | v5 sparse matrix (CF-141) |
+| tagStructType | `'tstr'` | `0x74737472` | v5 struct container |
+| tagArrayType | `'tary'` | `0x74617279` | v5 array container (CFL-003, CFL-007) |
+| embeddedHeightImageType | `'ehim'` | `0x6568696D` | v5 height map (CF-138) |
+| embeddedNormalImageType | `'enim'` | `0x656E696D` | v5 normal map (CF-139) |
+| uInt8ArrayType | `'ui08'` | `0x75693038` | v5 uint8 array |
+| uInt16ArrayType | `'ui16'` | `0x75693136` | v5 uint16 array |
+| utf16TextType | `'ut16'` | `0x75743136` | v5 UTF-16 text (H147: null check) |
+| dictType | `'dict'` | `0x64696374` | v5 dictionary (H169) |
 
 ---
 
@@ -277,15 +326,26 @@ Processing Element (at each offset):
 | Element | Signature | Hex | Security Notes |
 |---------|-----------|-----|----------------|
 | Curve Set | `'cvst'` | `0x63767374` | H145: type consistency |
-| Matrix | `'mAtx'` | `0x6D417478` | H84: matrix bounds |
+| Matrix | `'matf'` | `0x6D617466` | H84: matrix bounds |
 | CLUT | `'clut'` | `0x636C7574` | H11/H63: grid overflow |
+| Extended CLUT | `'xclt'` | `0x78636C74` | v5: extended precision CLUT |
 | Calculator | `'calc'` | `0x63616C63` | H56/H81/H138: Turing-complete, DoS |
 | Curve Set Factory | `'curf'` | `0x63757266` | Curve construction |
-| SingleSampledCurve | `'sngf'` | `0x736E6766` | OOM risk: large nCount |
-| Emission Matrix | `'emtx'` | — | v5 spectral |
-| Inv Emission Matrix | `'iemx'` | — | v5 spectral |
-| Emission Observer | `'eobs'` | — | v5 spectral |
-| Reflectance Observer | `'robs'` | — | v5 spectral |
+| SingleSampledCurve | `'sngf'` | `0x736E6766` | H152/H153: OOM, NaN cast |
+| SampledCalculatorCurve | `'clcf'` | `0x636C6366` | H153: NaN-to-unsigned |
+| BAcs | `'bACS'` | `0x62414353` | Begin ACS placeholder |
+| EAcs | `'eACS'` | `0x65414353` | End ACS placeholder |
+| XYZ to Jab | `'XtoJ'` | `0x58746F4A` | v5: CAM02 forward |
+| Jab to XYZ | `'JtoX'` | `0x4A746F58` | v5: CAM02 inverse |
+| Tint Array | `'tint'` | `0x74696E74` | v5: tint transform |
+| Tone Map | `'tmap'` | `0x746D6170` | v5: tone mapping (CFL-004) |
+| Sparse Matrix | `'smet'` | `0x736D6574` | v5: sparse matrix element |
+| Emission Matrix | `'emtx'` | `0x656D7478` | v5: spectral emission |
+| Inv Emission Matrix | `'iemx'` | `0x69656D78` | v5: inverse emission |
+| Emission CLUT | `'eclt'` | `0x65636C74` | v5: emission CLUT |
+| Reflectance CLUT | `'rclt'` | `0x72636C74` | v5: reflectance CLUT |
+| Emission Observer | `'eobs'` | `0x656F6273` | v5: spectral observer |
+| Reflectance Observer | `'robs'` | `0x726F6273` | v5: spectral observer |
 
 ### MPE Chain Depth Risk (CWE-674)
 
@@ -322,7 +382,7 @@ Channel Function (func) layout:
     Each: opcode_sig(4) + operand_data(4)
 ```
 
-### Calculator Operator Opcodes (89 valid)
+### Calculator Operator Opcodes (90 valid)
 
 All opcodes are **printable ASCII FourCC** (each byte 0x20–0x7E):
 
@@ -333,7 +393,7 @@ All opcodes are **printable ASCII FourCC** (each byte 0x20–0x7E):
 | Math | `'pow '`, `'sqrt'`, `'abs '`, `'flor'`, `'ceil'`, `'rond'` |
 | Trig | `'sin '`, `'cos '`, `'atan'`, `'exp '`, `'log '`, `'ln  '` |
 | Comparison | `'min '`, `'max '`, `'lt  '`, `'le  '`, `'eq  '`, `'ne  '`, `'gt  '`, `'ge  '` |
-| Logic | `'not '`, `'and '`, `'or  '` |
+| Logic | `'not '`, `'and '`, `'or  '`, `'vor '` |
 | Branching | `'if  '`, `'else'`, `'sel '`, `'case'` |
 | Temp vars | `'tget'`, `'tput'`, `'tsav'`, `'tlab'` |
 | Sub-element | `'curv'`, `'clut'`, `'mtx '`, `'calc'`, `'elem'` |
@@ -341,6 +401,9 @@ All opcodes are **printable ASCII FourCC** (each byte 0x20–0x7E):
 | Conversion | `'fJab'`, `'tJab'`, `'tXYZ'`, `'fXYZ'`, `'tLab'`, `'fLab'` |
 | Clipping | `'clip'`, `'clpv'` |
 | Spectral | `'solv'`, `'tran'` |
+
+**Note**: `'vor '` (vector-or) was corrected from `'vor\0'` by the ICC.2:2019 September 2021
+errata, Item 7 — trailing space replaces null byte. CF-142 and CF-307 audit this.
 
 **Security implications**:
 - `'if  '`/`'else'`/`'sel '`/`'case'` enable exponential path exploration (CWE-400)
@@ -530,33 +593,41 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-23 distinct CWE categories across 171 heuristics:
+44 distinct CWE categories across 171 heuristics + 279 conformance checks + 45 CFL patches:
 
-| CWE | Name | Count | Key Heuristics |
-|-----|------|-------|----------------|
-| CWE-20 | Improper Input Validation | ~37 | H2, H3, H4, H5, H6, H7, H111, H121 |
-| CWE-119 | Buffer Access | ~4 | H33, H148 |
-| CWE-121 | Stack Buffer Overflow | ~3 | H146 |
-| CWE-122 | Heap Buffer Overflow | ~8 | H139, H150 |
-| CWE-125 | Out-of-bounds Read | ~6 | H10, H141, H143 |
-| CWE-126 | Buffer Over-read | ~2 | H144 |
-| CWE-131 | Incorrect Buffer Size | ~10 | H9, H63, H78, H84, H140 |
-| CWE-170 | Improper Null Termination | ~2 | H144 |
-| CWE-190 | Integer Overflow | ~8 | H11, H33, H34, H139 |
-| CWE-191 | Integer Underflow | ~1 | H34 |
-| CWE-345 | Insufficient Verification | ~5 | H131, H112 |
-| CWE-369 | Divide By Zero | ~1 | — |
-| CWE-400 | Resource Exhaustion | ~8 | H136, H137, H138, H142, H143 |
-| CWE-416 | Use After Free | ~2 | — |
-| CWE-476 | NULL Pointer Dereference | ~10 | H147 |
-| CWE-506 | Embedded Malicious Code | ~1 | H35 |
-| CWE-674 | Uncontrolled Recursion | ~4 | H56, H138 |
-| CWE-681 | Incorrect Type Conversion | ~3 | — |
-| CWE-682 | Incorrect Calculation | ~5 | H112 |
-| CWE-694 | Use of Non-unique Identifier | ~1 | H25 |
-| CWE-787 | Out-of-bounds Write | ~5 | H142 |
-| CWE-835 | Loop w/o Exit Condition | ~2 | H149 |
-| CWE-843 | Type Confusion | ~3 | H32, H145 |
+| CWE | Name | Sources | Key References |
+|-----|------|---------|----------------|
+| CWE-20 | Improper Input Validation | H2–H7, H111, H121, CFL-032/042 | ~37 heuristics, conformance checks |
+| CWE-119 | Buffer Access | H33, H148, H162 | Tag data overlap detection |
+| CWE-121 | Stack Buffer Overflow | H146, H161 | GetValues SBO, deep Apply chains |
+| CWE-122 | Heap Buffer Overflow | H139, H150, CFL-001/004/006/035/048 | Strip geometry, ToneMap, GBD |
+| CWE-125 | Out-of-bounds Read | H10, H141, H143, H165, H171, CFL-040/041/049–051 | IFD bounds, LUT sufficiency |
+| CWE-126 | Buffer Over-read | H144 | String termination |
+| CWE-131 | Incorrect Buffer Size | H9, H63, H78, H84, H140, H164 | LUT channel cross-check |
+| CWE-134 | Format String Injection | H160, CFL-053/054 | `%n`/`%s` in text tags |
+| CWE-170 | Improper Null Termination | H144, CFL-001 | Colorant/NamedColor names |
+| CWE-190 | Integer Overflow | H11, H33, H34, H139, H155, H168, CFL-002/007/031 | Dimension multiplication |
+| CWE-191 | Integer Underflow | H34 | Tag size arithmetic |
+| CWE-252 | Unchecked Return Value | H156, CFL-031 | Allocation failure, ftell |
+| CWE-345 | Insufficient Verification | H131, H112, CFL-033/034/036–039 | JSON field integrity |
+| CWE-369 | Divide By Zero | H166 | CAM/Array/MPE zero divisors |
+| CWE-400 | Resource Exhaustion | H136–H138, H142, H143, H152 | Uncapped iteration, OOM |
+| CWE-416 | Use After Free | H159, CFL-003 | Tag ownership chains |
+| CWE-476 | NULL Pointer Dereference | H147, H167, CFL-019/025/044/045/047/056 | Null PCS/PCC/CLUT guards |
+| CWE-506 | Embedded Malicious Code | H35, H163 | ELF/PE/MachO in tag data |
+| CWE-561 | Dead Code | CFL-039 | jsonExistsField on fresh JSON |
+| CWE-674 | Uncontrolled Recursion | H56, H138, CFL-014 | Calculator/MPE chain depth |
+| CWE-681 | Incorrect Type Conversion | H151, H153, H158, CFL-005/008/009/017/022/023/028/032/055 | Enum range, NaN cast |
+| CWE-682 | Incorrect Calculation | H112 | D50 illuminant precision |
+| CWE-694 | Use of Non-unique Identifier | H25 | Duplicate tag signatures |
+| CWE-697 | Incorrect Comparison | CFL-043 | is_object vs is_array |
+| CWE-762 | Alloc-Dealloc Mismatch | H157, CFL-003/046 | new[] vs free(), delete vs delete[] |
+| CWE-787 | Out-of-bounds Write | H142, CFL-040 | XML serialization, fromIt8 |
+| CWE-789 | Uncontrolled Memory Allocation | H154, H168, H169 | File-controlled tag sizes |
+| CWE-824 | Access to Uninitialized Pointer | CFL-029 | TagArray loop variable |
+| CWE-835 | Loop w/o Exit Condition | H149 | IFD chain cycles |
+| CWE-843 | Type Confusion | H32, H145, H170, CFL-033 | Wrong tag cast, PCS null |
+| CWE-908 | Uninitialized Resource | CFL-057 | SearchApply constructor |
 
 ---
 
@@ -629,36 +700,108 @@ Which ICC binary format fields each heuristic group validates:
 |-----------------|--------|---------------|
 | H1–H8, H15–H17 | IccHeuristicsHeader.cpp | Header bytes 0–127 (raw byte access) |
 | H9–H32 | IccHeuristicsTagValidation.cpp | Tag table at offset 128+ (CIccProfile API) |
-| H33–H55, H57–H69 | IccHeuristicsRawPost.cpp | Raw file I/O: sub-element offsets, overlaps, embedded data |
-| H56–H102 | IccHeuristicsDataValidation.cpp | Tag data payloads: LUT, matrix, curves, calculator, CLUT |
+| H33–H55, H57–H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O: sub-element offsets, overlaps, embedded data, NaN |
+| H56–H102, H146–H148, H151–H152 | IccHeuristicsDataValidation.cpp | Tag data payloads: LUT, matrix, curves, calculator, SBO, NPD |
 | H103–H120 | IccHeuristicsProfileCompliance.cpp | Required tags per class, encoding rules, PCS constraints |
 | H121–H138 | IccHeuristicsIntegrity.cpp | MD5, alignment, complexity estimation, CWE-400 patterns |
 | H139–H141, H149–H150 | IccImageAnalyzer.cpp | TIFF strip/tile geometry, IFD bounds, cycle detection |
 | H142–H145 | IccHeuristicsXmlSafety.cpp | XML serialization crash isolation (fork + alarm) |
-| H146–H148 | IccHeuristicsDataValidation.cpp | Advanced: SBO GetValues, NPD post-Read, memcpy bounds |
+| H154–H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived: alloc, overflow, enum, UAF, format string |
+| H162–H171 | IccHeuristicsExploitGap.cpp | Exploit gap: overlap, exec sigs, LUT, div-zero, null, curves |
 
 ---
 
-## 14.5. ICC Conformance Checks (CF-001..CF-122)
+## 14.5. ICC Conformance Checks (CF-001..CF-316)
 
-98 conformance checks across 7 source files, validating ICC.1-2022-05 and ICC.2-2023
-specification requirements. These run by default in `-a` mode (conformance audit).
-Legacy vulnerability heuristics (H1-H171) require `--legacy` flag.
+279 conformance checks (numbered CF-001..CF-316, with gaps in unused ranges) across 7 dispatcher
+modules, validating ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
+and ICS Parts 1–3. These run by default in `-a` mode (conformance audit).
 
-Registry: `IccConformanceRegistry.h` (IDs offset by 1000 to avoid collision with H1-H171).
+Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 
-| CF Range | Module | Spec Coverage |
-|----------|--------|---------------|
-| CF-001..CF-015 | IccConformanceHeader.cpp | Header field validation: size, magic, version BCD, class, color space, PCS, rendering intent, D50 illuminant, reserved bytes (§7.2) |
-| CF-020..CF-034 | IccConformanceTagTypes.cpp | Tag type signatures, s15Fixed16 validation, XYZ values, text tag structure, LUT type consistency (§9-10) |
-| CF-040..CF-053 | IccConformanceRequired.cpp | Required tags per profile class: desc/copyright/wtpt + class-specific tags for mntr/prtr/scnr/link/spac/abst/nmcl, chad requirement when adopted white ≠ D50 (§8.2-8.9) |
-| CF-060..CF-070 | IccConformanceLUT.cpp | LUT channel consistency, CLUT grid dimensions, curve point counts, matrix element ranges, AToB/BToA pair completeness (§10.8-10.11) |
-| CF-080..CF-089 | IccConformanceV5.cpp | v5/iccMAX: spectral PCS wavelength ranges, MPE element structure, multiProcessElementsType validation (ICC.2 §7-10) |
-| CF-091..CF-094 | IccConformanceSecurity.cpp | CWE-400 complexity estimation, tag size vs profile size ratio, MPE amplification guard |
-| CF-095..CF-102 | IccConformanceQuality.cpp | Profile quality: curve monotonicity, white point accuracy, gamut coverage, round-trip fidelity |
-| CF-103..CF-122 | Deep spec (across files) | Tag data alignment (§7.3.5), date/time leap validation (§4.2), parametricCurveType function types (§10.18), named color device coords (§10.14), profile sequence desc (§10.22), media white point proximity (§8), colorimetric intent image state (§8.2.4) |
+| Dispatcher | CF Ranges | Count | Spec Coverage |
+|------------|-----------|-------|---------------|
+| RunHeaderConformance | CF-001..015, 107, 121–122, 184–187, 199–201, 203, 206, 210, 214–219, 243–246 | 40 | Header: size, magic, version BCD, class, color space, PCS, rendering intent, D50 illuminant, reserved bytes, dateTime, embedding flags (§7.2) |
+| RunTagTypeConformance | CF-020..034, 112, 123–132, 169–174, 188–190, 208–213, 220–234, 247–254, 263–265, 273–281 | 68 | Tag types: s15Fixed16, XYZ, text, mluc, curves, parametric, viewing conditions, named colors, chromaticity, colorant table/order, measurement, response curves (§9–10) |
+| RunRequiredTagConformance | CF-039..059, 095–098, 103–104, 111, 117–120, 202, 204–205, 207, 211, 258–260, 266–272, 282–283 | 44 | Required tags per class (mntr/prtr/scnr/link/spac/abst/nmcl), chad ≠D50 rule, ICC.2 additional required tags (§8.2–8.9) |
+| RunLUTConformance | CF-060..070, 105–110, 116, 163–168, 255–256, 261–262 | 29 | LUT channel consistency, CLUT grid, curve points, matrix ranges, AToB/BToA pairs, MBB structure (§10.8–10.13) |
+| RunV5Conformance | CF-080..089, 113–115, 137–162, 175–198, 235–242, 257, 284–316 | 100 | v5/iccMAX: spectral PCS, MPE structure, multiProcessElementsType, tagStruct/tagArray, embedded images, GBD, sparse matrix, ICC.2:2019 errata items, ICS sub-classes, BRDF tags, PCC matrices (ICC.2 §7–11) |
+| RunQualityConformance | CF-091..094 | 6† | Profile quality: curve monotonicity, white point accuracy |
+| RunSecurityConformance | (reserved) | 6† | Security-specific validation (reserved for future) |
 
-**Spec coverage**: v4 (ICC.1-2022-05) ~90%, v5 (ICC.2-2023) ~40%.
+† Quality and Security dispatchers include placeholder CF_WRAP entries.
+
+### Key Conformance Check Categories
+
+| Category | CF Examples | Description |
+|----------|------------|-------------|
+| Header validation | CF-001..015 | Profile size vs file size, magic `'acsp'`, BCD version, class enum, color space enum |
+| Date/time | CF-243..246 | dateTimeNumber field ranges: month 1–12, day 1–31, hour 0–23, minute/second 0–59 |
+| Tag type integrity | CF-020..034 | Type signature consistency, s15Fixed16 bounds, XYZ value ranges |
+| Required tags | CF-039..059 | Per-class required tag presence (v2/v4 vs v5 differences) |
+| LUT structure | CF-060..070 | Channel counts match color space, CLUT grid ≤ 255, curve/matrix consistency |
+| Parametric curves | CF-123..132 | Function type 0–4 parameter count validation, domain restrictions |
+| v5 MPE | CF-080..089 | multiProcessElementsType structure, element chain validation |
+| v5 errata | CF-137..143 | ICC.2:2019 errata: embedded image lengths, GBD vertices, sparse matrix, 'vor ' opcode |
+| v5 ICS | CF-308..316 | ICS sub-class element restrictions, required tags, spectral range, PCC matrices |
+| Extended range | CF-144..152, CF-235..242 | xrng sub-class: flag validation, radiance white, element restrictions |
+| BRDF/GBD | CF-284..290 | BRDF tag presence, GBD vertex validation, surface map |
+| Spectral | CF-291..300 | Spectral data info, wavelength consistency, spectral viewing conditions |
+| ICC.2 general | CF-301..307 | Tag struct validation, multiplex naming, calculator element, 'vor ' audit |
+
+**Spec coverage**: ICC.1-2022-05 (v4) ~95%, ICC.2-2019/2023 (v5) ~70%, ICS Parts 1–3 ~60%.
+
+---
+
+## 14.6. ICC.2:2019 Errata Coverage
+
+The ICC.2:2019 specification has two published errata documents (March 8, 2021 and
+September 9, 2021). The September 2021 errata is the newer version, adding Item 7
+(vector-or opcode trailing space). All 10 errata items are covered:
+
+| # | Errata Item | Section | Type | CF Check |
+|---|-------------|---------|------|----------|
+| 1 | MultiplexDefaultValues allowed types | §9.2.84 | Critical | CF-137 |
+| 2 | multiLocalizedUnicodeType encoding | §10.2.5 | Critical | Multiple CF-020+ |
+| 3 | embeddedHeightImage data length calc | §10.2.6 | Critical | CF-138 |
+| 4 | embeddedNormalImage data length calc | §10.2.7 | Critical | CF-139 |
+| 5 | GBD vertices uint32 vs uint16 | §10.2.11 | Critical | CF-140, CF-286 |
+| 6 | SparseMatrix element count | §10.2.20 | Critical | CF-141 |
+| 7 | `'vor\0'` → `'vor '` (trailing space) | §11.2.1.9 | Critical | CF-142, CF-307 |
+| 8 | measurement tagStructType (§9.2.86) | §9.2.86 | Technical | CF-143 |
+| 9 | measurement tagStructType (§9.2.87) | §9.2.87 | Technical | CF-143 |
+| 10 | multiProcessElement**s**Type naming | Multiple | Technical | CF-305 |
+
+**Note**: The iccDEV C++ API uses the singular name (`icSigMultiProcessElementType`)
+while the spec uses plural (`multiProcessElementsType`). CF-305 audits this naming
+divergence in profile output.
+
+---
+
+## 14.7. ICS Sub-Class Conformance (CF-308..CF-316)
+
+ICC Interoperability Conformance Specifications (ICS) define 4 v5 sub-classes, each
+with Part 1 (basic), Part 2 (extended), and Part 3 (full) tiers. Part 1 restricts
+which MPE element types are permitted in transform tags.
+
+| CF | Check | Sub-Class | ICS Reference |
+|----|-------|-----------|---------------|
+| CF-308 | pcc AToB1/BToA1 Part 1 element restriction | pcc | ICS-ExtendedRange Part 1 |
+| CF-309 | sref PCC matrix restriction (single 3×3) | sref | ICS-ExtendedRange Part 1 |
+| CF-310 | sref DToB3/BToD3 Part 1 element restriction | sref | ICS-ExtendedRange Part 1 |
+| CF-311 | sref spectral range mandatory | sref | ICS-ExtendedRange Part 1 |
+| CF-312 | ext required tag completeness | ext | ICS-ExtendedOutput Part 1 |
+| CF-313 | ext Part 1 element type restriction | ext | ICS-ExtendedOutput Part 1 |
+| CF-314 | xrng Part 1 AToB1/BToA1 element restriction | xrng | ICS-ExtendedRange Part 1 |
+| CF-315 | xrng Part 2 PCC tag & matrix check | xrng | ICS-ExtendedRange Part 2 |
+| CF-316 | ICS svcn observer/illuminant plausibility | all ICS | ICS-ExtendedRange Part 1 |
+
+**Part 1 element type restrictions**: curveSet, matrix, CLUT, extCLUT, tintArray only
+(no calculator, no sparse matrix — prevents Turing-complete element types in basic profiles).
+
+**ICS sub-class detection**: Read `icHeader.deviceSubClass` — 4-byte signature at header offset 12
+(within the v5 class byte range). Values: `'pcc '` (0x70636320), `'xrng'` (0x78726E67),
+`'sref'` (0x73726566), `'ext '` (0x65787420).
 
 ---
 
@@ -786,7 +929,11 @@ def extract_icc_from_tiff(data):
 | Document | URL |
 |----------|-----|
 | ICC.1-2022-05 (v4.4) | `https://www.color.org/specification/ICC.1-2022-05.pdf` |
-| ICC.2-2023 (v5.1) | ICC.2-2023 specification (iccMAX) |
+| ICC.2-2019 (v5.0) | ICC.2-2019 specification (iccMAX — base for errata) |
+| ICC.2-2023 (v5.1) | ICC.2-2023 specification (iccMAX — current) |
+| ICC.2:2019 Errata (Sep 2021) | 7 critical + 3 technical corrections (see §14.6) |
+| ICS-ExtendedRange Part 1–3 | `docs/iccDEV/specifications/ICS-ExtendedRange-Part*.pdf` |
+| ICS-ExtendedOutput Part 1 | `docs/iccDEV/specifications/ICS-ExtendedOutput-Part1.pdf` |
 | RFC 1321 (MD5) | `https://www.ietf.org/rfc/rfc1321.txt` |
 
 ### Technical Notes
@@ -826,4 +973,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 171 heuristics · 98 conformance checks (CF-001..CF-122) · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 171 heuristics · 279 conformance checks (CF-001..CF-316) · 45 CFL patches · 13 fuzzers · 93 advisories*
