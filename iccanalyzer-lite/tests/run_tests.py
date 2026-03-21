@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-190)."""
+    """Test ICC Specification conformance checks (CF-001..CF-198)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2508,6 +2508,56 @@ def test_conformance_checks(suite):
         "cf.190.profile_is_legible",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"legible.*\d+ tags parsed"
+    )
+
+    # --- CF-191..CF-198: ICS Interoperability Conformance Specifications ---
+    # CF-191: ICS Sub-Class Signature Registry — runs on any v5 profile
+    suite.assert_output_contains(
+        "cf.191.ics_subclass_registry",
+        ["-a", v5_profile],
+        r"CF-191.*ICS Sub-Class"
+    )
+
+    # CF-192: Colorimetric ICS Required Tags — non-pcc profiles report not applicable
+    suite.assert_output_contains(
+        "cf.192.colorimetric_ics_na",
+        ["-a", v5_profile],
+        r"CF-192.*Colorimetric ICS"
+    )
+
+    # CF-194: Spectral Reflectance ICS — non-sref profiles report not applicable
+    suite.assert_output_contains(
+        "cf.194.spectral_reflectance_na",
+        ["-a", v5_profile],
+        r"CF-194.*Spectral Reflectance"
+    )
+
+    # CF-195: Extended Range Radiance White Point — runs when extended range PCS set
+    suite.assert_output_contains(
+        "cf.195.extended_range_radiance",
+        ["-a", v5_profile],
+        r"CF-195.*Extended.*Radiance"
+    )
+
+    # CF-196: ICS MPE Calculator Restriction — reports Part 1/Part 2 status
+    suite.assert_output_contains(
+        "cf.196.mpe_calculator_restriction",
+        ["-a", v5_profile],
+        r"CF-196.*MPE Calculator"
+    )
+
+    # CF-197: ICS PCC Transform Pair — runs on v5 profiles
+    suite.assert_output_contains(
+        "cf.197.pcc_transform_pair",
+        ["-a", v5_profile],
+        r"CF-197.*PCC Transform Pair"
+    )
+
+    # CF-198: Extended Range Sub-Class — non-xrng profiles report not applicable
+    suite.assert_output_contains(
+        "cf.198.extended_range_subclass",
+        ["-a", v5_profile],
+        r"CF-198.*Extended Range Sub-Class"
     )
 
     # --- Clean profile baseline ---
