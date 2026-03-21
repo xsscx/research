@@ -29,6 +29,7 @@ def write_icc_header(
     rendering_intent=0,
     creator=b"test",
     profile_id=b"\x00" * 16,
+    flags=0,
 ):
     """Build a 128-byte ICC header."""
     hdr = bytearray(128)
@@ -42,7 +43,7 @@ def write_icc_header(
     struct.pack_into(">HHH HHH", hdr, 24, 2024, 1, 1, 0, 0, 0)
     hdr[36:40] = b"acsp"  # magic
     hdr[40:44] = b"APPL"  # platform
-    struct.pack_into(">I", hdr, 44, 0)  # flags
+    struct.pack_into(">I", hdr, 44, flags)
     hdr[48:52] = b"\x00" * 4  # device manufacturer
     hdr[52:56] = b"\x00" * 4  # device model
     hdr[56:64] = b"\x00" * 8  # device attributes
@@ -2091,6 +2092,126 @@ def synth_cf_sf32_bad_size():
     return build_profile(tags)
 
 
+def _make_mpet_tag(n_in=3, n_out=3):
+    """Create a minimal valid multiProcessElementsType ('mpet') tag.
+
+    Structure: type(4) + reserved(4) + nInput(2) + nOutput(2) + nElements(4)
+    With nElements=0, this is a valid identity MPE (no processing elements).
+    """
+    data = b"mpet" + b"\x00" * 4
+    data += struct.pack(">HH", n_in, n_out)
+    data += struct.pack(">I", 0)  # nElements = 0 (identity)
+    return data
+
+
+def synth_cf_htos_flag_and_tags():
+    """v5 profile with Extended Range PCS flag (bit 3) set AND H2S0 mpet tag.
+    Tests CF-317 OK path (flag + tags consistent), CF-318 OK (type is mpet),
+    CF-319 OK (3→3 channels match PCS), CF-320 partial (1 of 4 intents)."""
+    desc = make_mluc_tag("HToS Test Profile")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+    htos0 = _make_mpet_tag(3, 3)  # H2S0: 3 input → 3 output (matches XYZ PCS)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"H2S0", htos0),  # icSigHToS0Tag
+    ]
+    return build_profile(tags, version=0x05000000, flags=0x00000008)
+
+
+def synth_cf_htos_flag_only():
+    """v5 profile with Extended Range PCS flag (bit 3) set but NO HToS tags.
+    Tests CF-317 WARN path (flag set, no tags)."""
+    desc = make_mluc_tag("HToS Flag Only")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+    ]
+    return build_profile(tags, version=0x05000000, flags=0x00000008)
+
+
+def synth_cf_htos_tags_no_flag():
+    """v5 profile with HToS tags present but Extended Range PCS flag NOT set.
+    Tests CF-317 WARN path (orphan tags, flag not set)."""
+    desc = make_mluc_tag("HToS Tags No Flag")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+    htos0 = _make_mpet_tag(3, 3)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"H2S0", htos0),
+    ]
+    return build_profile(tags, version=0x05000000, flags=0)
+
+
+def synth_cf_htos_bad_type():
+    """v5 profile with HToS tag that has wrong type (not 'mpet').
+    Tests CF-318 WARN path (type mismatch)."""
+    desc = make_mluc_tag("HToS Bad Type")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+    # Use a curveType tag instead of mpet — wrong type for HToS
+    bad_htos = make_curve_tag(gamma=2.2)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"H2S0", bad_htos),
+    ]
+    return build_profile(tags, version=0x05000000, flags=0x00000008)
+
+
+def synth_cf_htos_channel_mismatch():
+    """v5 profile with HToS mpet tag that has wrong channel count (4→4 vs PCS=3).
+    Tests CF-319 WARN path (channel count mismatch)."""
+    desc = make_mluc_tag("HToS Channel Mismatch")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+    htos0 = _make_mpet_tag(4, 4)  # 4→4 but PCS is XYZ (3 channels)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"H2S0", htos0),
+    ]
+    return build_profile(tags, version=0x05000000, flags=0x00000008)
+
+
+def synth_cf_htos_all_intents():
+    """v5 profile with all 4 HToS tags (H2S0-H2S3) and Extended Range PCS flag.
+    Tests CF-320 OK path (all 4 intents covered)."""
+    desc = make_mluc_tag("HToS All Intents")
+    cprt = make_mluc_tag("Copyright test")
+    wtpt = make_xyz_tag(0.9642, 1.0000, 0.8249)
+    htos0 = _make_mpet_tag(3, 3)
+    htos1 = _make_mpet_tag(3, 3)
+    htos2 = _make_mpet_tag(3, 3)
+    htos3 = _make_mpet_tag(3, 3)
+
+    tags = [
+        (b"desc", desc),
+        (b"cprt", cprt),
+        (b"wtpt", wtpt),
+        (b"H2S0", htos0),
+        (b"H2S1", htos1),
+        (b"H2S2", htos2),
+        (b"H2S3", htos3),
+    ]
+    return build_profile(tags, version=0x05000000, flags=0x00000008)
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -2188,6 +2309,13 @@ def main():
         "cf_reserved_bytes_nonzero_tag.icc": synth_cf_reserved_bytes_nonzero_tag(),
         "cf_mluc_bad_record_size.icc": synth_cf_mluc_bad_record_size(),
         "cf_sf32_bad_size.icc": synth_cf_sf32_bad_size(),
+        # CF-317..CF-320 HDR-to-SDR (K.2.9) test profiles
+        "cf_htos_flag_and_tags.icc": synth_cf_htos_flag_and_tags(),
+        "cf_htos_flag_only.icc": synth_cf_htos_flag_only(),
+        "cf_htos_tags_no_flag.icc": synth_cf_htos_tags_no_flag(),
+        "cf_htos_bad_type.icc": synth_cf_htos_bad_type(),
+        "cf_htos_channel_mismatch.icc": synth_cf_htos_channel_mismatch(),
+        "cf_htos_all_intents.icc": synth_cf_htos_all_intents(),
     }
 
     for name, data in profiles.items():
