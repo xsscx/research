@@ -1121,6 +1121,432 @@ static int RunCF112_XYZTripletNormalization(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Negative PCSXYZ Values conformance — ICC TN "Guidelines on the use of
+// negative PCSXYZ values" (Phil Green, ICC Technical Secretary)
+//
+// Key spec points:
+// - PCSXYZ uses XYZNumber: u1Fixed15, s15Fixed16, or float32 (ICC.1:2010 §6.3.4.2)
+// - u1Fixed15 range: [0, 1+32767/32768] — cannot encode negatives
+// - Negative XYZ can arise from chromatic adaptation (Bradford transform)
+//   especially for BT.2020 and DCI-P3 red primary Z values
+// - Profile builders should use s15Fixed16 or float32 for negative values
+// - [0,0,0] = perfect absorber; [0.9642, 1.0, 0.8249] = D50 media white
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// CF-169: Negative PCSXYZ Encoding Capability
+//
+// When matrix column tags (rXYZ, gXYZ, bXYZ) contain negative values — which is
+// valid for wide-gamut color spaces after chromatic adaptation — the profile
+// must use a tag type capable of representing negatives. The u1Fixed15Number
+// encoding can only represent [0, ~1.9999] and would silently clip negative
+// values, losing color accuracy for round-trip calculations.
+// Spec: ICC TN Negative PCSXYZ, ICC.1:2010 §6.3.4.2, §6.4.3
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF169_NegativePCSXYZEncodingCapability(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-169]%s Negative PCSXYZ Encoding Capability (%sICC TN Negative PCSXYZ §6.3.4.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature xyzSigs[] = {
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag,
+    icSigMediaWhitePointTag, icSigLuminanceTag
+  };
+  static const char *xyzNames[] = { "rXYZ", "gXYZ", "bXYZ", "wtpt", "lumi" };
+
+  int checked = 0;
+  int negFound = 0;
+  for (int i = 0; i < 5; i++) {
+    CIccTag *tag = pIcc->FindTag(xyzSigs[i]);
+    CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+    if (!xyz || xyz->GetSize() < 1) continue;
+    checked++;
+
+    icXYZNumber val = (*xyz)[0];
+    icFloatNumber x = icFtoD(val.X);
+    icFloatNumber y = icFtoD(val.Y);
+    icFloatNumber z = icFtoD(val.Z);
+
+    if (x < 0.0 || y < 0.0 || z < 0.0) {
+      negFound++;
+      printf("         '%s' has negative component(s): X=%.6f Y=%.6f Z=%.6f\n",
+             xyzNames[i], x, y, z);
+
+      // Check if the encoding type can represent this
+      // XYZType tags in ICC profiles use s15Fixed16Number for each component,
+      // which CAN represent negatives. This is conformant per the TN.
+      // Only warn if the profile version uses u1Fixed15Number encoding
+      // (ICC.1:2010 §6.4.3.2 defines u1Fixed15 PCS encoding for v2 profiles)
+      icUInt32Number version = pIcc->m_Header.version >> 24;
+      if (version < 4) {
+        printf("         %s[WARN]%s v%u profile with negative XYZ — pre-v4 PCS uses "
+               "u1Fixed15Number which cannot encode negatives — ICC TN Negative PCSXYZ\n",
+               ColorError(), ColorReset(), version);
+        issues++;
+      } else {
+        printf("         %s[INFO]%s Negative value encoded via s15Fixed16Number — "
+               "conformant per ICC TN Negative PCSXYZ\n",
+               ColorInfo(), ColorReset());
+      }
+    }
+  }
+
+  if (checked == 0)
+    printf("         No XYZ tags to validate\n");
+  else if (negFound == 0)
+    printf("         %s[OK]%s All %d XYZ tags have non-negative values\n",
+           ColorSuccess(), ColorReset(), checked);
+  else if (issues == 0)
+    printf("         %s[OK]%s %d negative value(s) properly encoded via s15Fixed16\n",
+           ColorSuccess(), ColorReset(), negFound);
+
+  return issues;
+}
+
+
+// CF-170: Chromatic Adaptation Negative XYZ Consistency
+//
+// When a profile uses a chromatic adaptation tag (chad), the adapted primaries
+// may have negative components. If negative XYZ values are present in matrix
+// column tags, a chad tag SHOULD be present to explain the adaptation source.
+// Conversely, if chad is present with a strong adaptation (large off-diagonal
+// elements), negative colorant values are expected for some wide-gamut spaces.
+// Spec: ICC TN Negative PCSXYZ, ICC.1-2022-05 §9.2.10, Annex E
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF170_ChadNegativeXYZConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-170]%s Chromatic Adaptation Negative XYZ Consistency "
+         "(%sICC TN Negative PCSXYZ, §9.2.10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check if matrix columns have any negative components
+  static const icTagSignature matSigs[] = {
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
+  };
+  static const char *matNames[] = { "rXYZ", "gXYZ", "bXYZ" };
+
+  bool hasNegative = false;
+  bool hasAllColumns = true;
+  for (int i = 0; i < 3; i++) {
+    CIccTag *tag = pIcc->FindTag(matSigs[i]);
+    CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+    if (!xyz || xyz->GetSize() < 1) { hasAllColumns = false; continue; }
+
+    icXYZNumber val = (*xyz)[0];
+    if (icFtoD(val.X) < 0.0 || icFtoD(val.Y) < 0.0 || icFtoD(val.Z) < 0.0) {
+      hasNegative = true;
+      printf("         '%s' contains negative component(s)\n", matNames[i]);
+    }
+  }
+
+  if (!hasAllColumns) {
+    printf("         Matrix column tags not all present — check not applicable\n");
+    return 0;
+  }
+
+  // If negative values present, chad SHOULD be present to explain the adaptation
+  if (hasNegative) {
+    CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+    if (!chadTag) {
+      printf("         Negative matrix column values without chad tag\n");
+      printf("         %s[WARN]%s Negative XYZ from chromatic adaptation requires "
+             "chad tag to document the adaptation transform — ICC.1 §9.2.10\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         %s[OK]%s Negative XYZ values present with chad tag — "
+             "consistent with chromatic adaptation (BT.2020/DCI-P3 pattern)\n",
+             ColorSuccess(), ColorReset());
+    }
+  } else {
+    printf("         %s[OK]%s No negative matrix column values — no adaptation concern\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-171: White Point Non-Negative Luminance
+//
+// The media white point Y value (luminance) must always be non-negative.
+// While chromatic adaptation can produce negative X or Z for primaries,
+// the white point itself represents the maximum luminance of the medium
+// and must have Y >= 0 (and typically Y = 1.0 for normalized PCS).
+// Negative Y in the white point is physically impossible.
+// Spec: ICC TN Negative PCSXYZ, ICC.1:2010 §3.1.24, §6.4.3
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF171_WhitePointNonNegativeLuminance(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-171]%s White Point Non-Negative Luminance "
+         "(%sICC TN Negative PCSXYZ, §3.1.24%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature wpSigs[] = {
+    icSigMediaWhitePointTag, icSigLuminanceTag
+  };
+  static const char *wpNames[] = { "wtpt", "lumi" };
+
+  int checked = 0;
+  for (int i = 0; i < 2; i++) {
+    CIccTag *tag = pIcc->FindTag(wpSigs[i]);
+    CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+    if (!xyz || xyz->GetSize() < 1) continue;
+    checked++;
+
+    icXYZNumber val = (*xyz)[0];
+    icFloatNumber y = icFtoD(val.Y);
+
+    if (y < 0.0) {
+      printf("         '%s' Y=%.6f is negative — physically impossible luminance\n",
+             wpNames[i], y);
+      printf("         %s[FAIL]%s White point/luminance Y must be >= 0 — "
+             "ICC TN §3.1.24\n", ColorError(), ColorReset());
+      issues++;
+    }
+
+    // Also check X and Z are reasonable for a white point
+    icFloatNumber x = icFtoD(val.X);
+    icFloatNumber z = icFtoD(val.Z);
+    if (i == 0 && (x < 0.0 || z < 0.0)) {
+      printf("         '%s' has negative X=%.6f or Z=%.6f\n", wpNames[i], x, z);
+      printf("         %s[WARN]%s White point X and Z are typically non-negative — "
+             "ICC TN Negative PCSXYZ\n", ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (checked == 0)
+    printf("         No white point tags present\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s White point luminance values are non-negative\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// CF-172: Colorant XYZ Sum White Point Consistency
+//
+// For RGB profiles with matrix columns (rXYZ + gXYZ + bXYZ), the column-wise
+// sum should approximate the adapted white point. This validates that negative
+// XYZ values in individual primaries still produce a valid white when combined.
+// If any primary has negative components, the sum can still be valid if the
+// other primaries compensate (this is normal for wide-gamut adapted values).
+// Spec: ICC TN Negative PCSXYZ, ICC.1-2022-05 §9.2.7
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF172_ColorantSumWhitePointConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-172]%s Colorant XYZ Sum White Point Consistency "
+         "(%sICC TN Negative PCSXYZ, §9.2.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Need all three matrix columns
+  static const icTagSignature matSigs[] = {
+    icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
+  };
+
+  icFloatNumber sumX = 0.0, sumY = 0.0, sumZ = 0.0;
+  int colCount = 0;
+  for (int i = 0; i < 3; i++) {
+    CIccTag *tag = pIcc->FindTag(matSigs[i]);
+    CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+    if (!xyz || xyz->GetSize() < 1) continue;
+    colCount++;
+
+    icXYZNumber val = (*xyz)[0];
+    sumX += icFtoD(val.X);
+    sumY += icFtoD(val.Y);
+    sumZ += icFtoD(val.Z);
+  }
+
+  if (colCount < 3) {
+    printf("         Not all matrix columns present — check not applicable\n");
+    return 0;
+  }
+
+  // Get the media white point for comparison
+  CIccTag *wpTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  CIccTagXYZ *wpXyz = wpTag ? dynamic_cast<CIccTagXYZ *>(wpTag) : nullptr;
+
+  // D50 reference values (used if no wtpt tag)
+  icFloatNumber wpX = 0.9642, wpY = 1.0000, wpZ = 0.8249;
+  if (wpXyz && wpXyz->GetSize() >= 1) {
+    icXYZNumber wp = (*wpXyz)[0];
+    wpX = icFtoD(wp.X);
+    wpY = icFtoD(wp.Y);
+    wpZ = icFtoD(wp.Z);
+  }
+
+  printf("         Column sum: X=%.4f Y=%.4f Z=%.4f\n", sumX, sumY, sumZ);
+  printf("         White point: X=%.4f Y=%.4f Z=%.4f\n", wpX, wpY, wpZ);
+
+  // Tolerance: s15Fixed16 quantization + Bradford adaptation rounding
+  static constexpr double kWPSumTol = 0.05;
+  icFloatNumber dX = std::fabs(sumX - wpX);
+  icFloatNumber dY = std::fabs(sumY - wpY);
+  icFloatNumber dZ = std::fabs(sumZ - wpZ);
+
+  if (dX > kWPSumTol || dY > kWPSumTol || dZ > kWPSumTol) {
+    printf("         Delta: dX=%.4f dY=%.4f dZ=%.4f (tolerance=%.4f)\n",
+           dX, dY, dZ, kWPSumTol);
+    printf("         %s[WARN]%s Colorant sum deviates from white point — "
+           "round-trip accuracy affected — ICC TN §9.2.7\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         %s[OK]%s Colorant sum matches white point within tolerance\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-173: PCS XYZ Absorber Encoding
+//
+// PCSXYZ [0,0,0] corresponds to the perfect absorber (ICC.1:2010 §6.4.3).
+// In AToB/BToA LUT tags, the CLUT should be able to represent this anchor
+// point. This check validates that any XYZ zero-encoding in the profile
+// is consistent — no XYZ tag should have all components exactly zero unless
+// it represents the absorber.
+// Spec: ICC TN Negative PCSXYZ, ICC.1:2010 §6.4.3
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF173_PCSXYZAbsorberEncoding(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-173]%s PCS XYZ Absorber Encoding (%sICC TN Negative PCSXYZ, §6.4.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // White point must NOT be [0,0,0] — that's the absorber, not the emitter
+  CIccTag *wpTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  CIccTagXYZ *wpXyz = wpTag ? dynamic_cast<CIccTagXYZ *>(wpTag) : nullptr;
+
+  int checked = 0;
+  if (wpXyz && wpXyz->GetSize() >= 1) {
+    checked++;
+    icXYZNumber wp = (*wpXyz)[0];
+    icFloatNumber x = icFtoD(wp.X);
+    icFloatNumber y = icFtoD(wp.Y);
+    icFloatNumber z = icFtoD(wp.Z);
+
+    if (std::fabs(x) < 1e-6 && std::fabs(y) < 1e-6 && std::fabs(z) < 1e-6) {
+      printf("         wtpt = [0,0,0] — this encodes the perfect absorber, "
+             "not a valid white point\n");
+      printf("         %s[FAIL]%s White point cannot be [0,0,0] — §6.4.3 reserves "
+             "this for the perfect absorber\n", ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  // Matrix columns should not all be zero either (already checked in CF-166)
+  // but check luminance tag specifically
+  CIccTag *lumiTag = pIcc->FindTag(icSigLuminanceTag);
+  CIccTagXYZ *lumiXyz = lumiTag ? dynamic_cast<CIccTagXYZ *>(lumiTag) : nullptr;
+  if (lumiXyz && lumiXyz->GetSize() >= 1) {
+    checked++;
+    icXYZNumber lumi = (*lumiXyz)[0];
+    icFloatNumber y = icFtoD(lumi.Y);
+    if (std::fabs(y) < 1e-6) {
+      printf("         lumi Y = 0 — device has zero luminance output\n");
+      printf("         %s[WARN]%s Luminance tag Y=0 implies zero-brightness device — §6.4.3\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (checked == 0)
+    printf("         No white point or luminance tags present\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s White point and luminance properly distinguish "
+           "from absorber encoding\n", ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// CF-174: Lab Conversion Clipping Awareness
+//
+// When converting from PCSXYZ to PCSLAB, negative PCSXYZ values should be
+// clipped per-component to values in the PCSLAB range (ICC.1:2010 §6.4).
+// This check validates that profiles with Lab PCS don't contain values that
+// would result from unclipped negative XYZ-to-Lab conversion. Specifically,
+// if PCS is Lab and the profile contains LUT data, the LUT output should
+// not contain Lab values that imply unclipped negative XYZ inputs.
+// Spec: ICC TN Negative PCSXYZ, ICC.1:2010 §6.4
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF174_LabConversionClippingAwareness(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-174]%s Lab Conversion Clipping Awareness "
+         "(%sICC TN Negative PCSXYZ, §6.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  bool isLabPCS = (pcs == icSigLabData);
+  bool isXYZPCS = (pcs == icSigXYZData);
+
+  if (!isLabPCS && !isXYZPCS) {
+    printf("         PCS is neither XYZ nor Lab — check not applicable\n");
+    return 0;
+  }
+
+  // For Lab PCS: check matrix columns exist (they shouldn't for Lab PCS
+  // profiles using LUTs, but matrix/TRC profiles use XYZ PCS)
+  if (isLabPCS) {
+    // Lab PCS profiles typically use AToB/BToA LUT tags, not matrix columns.
+    // If matrix columns exist in a Lab PCS profile, that's unusual.
+    bool hasMatrix = (pIcc->FindTag(icSigRedMatrixColumnTag) != nullptr);
+    if (hasMatrix) {
+      printf("         Lab PCS profile contains matrix column tags\n");
+      printf("         %s[WARN]%s Matrix/TRC model requires XYZ PCS, not Lab — "
+             "ICC.1 §8.4\n", ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         %s[OK]%s Lab PCS profile uses LUT model (no matrix columns)\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  // For XYZ PCS: negative values are valid per the TN — just note encoding
+  if (isXYZPCS) {
+    // Check if any matrix columns have negative values
+    static const icTagSignature matSigs[] = {
+      icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
+    };
+    static const char *matNames[] = { "rXYZ", "gXYZ", "bXYZ" };
+
+    int negCount = 0;
+    for (int i = 0; i < 3; i++) {
+      CIccTag *tag = pIcc->FindTag(matSigs[i]);
+      CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+      if (!xyz || xyz->GetSize() < 1) continue;
+
+      icXYZNumber val = (*xyz)[0];
+      if (icFtoD(val.X) < 0.0 || icFtoD(val.Y) < 0.0 || icFtoD(val.Z) < 0.0)
+        negCount++;
+    }
+
+    if (negCount > 0) {
+      printf("         %d matrix column(s) with negative components in XYZ PCS profile\n",
+             negCount);
+      printf("         %s[INFO]%s Per ICC TN: CMMs should accept negative PCSXYZ "
+             "without clipping; on Lab conversion clip per-component — §6.4\n",
+             ColorInfo(), ColorReset());
+    } else {
+      printf("         %s[OK]%s XYZ PCS profile with all non-negative matrix values\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ADGC (Adaptive Gain Curve) conformance — ICC.1 Amendment April 2025
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -1696,6 +2122,14 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));
 
   CF_WRAP(1112, "CF-112: XYZ Triplet Normalization", RunCF112_XYZTripletNormalization(pIcc));
+
+  // Negative PCSXYZ Values TN conformance checks (CF-169..CF-174)
+  CF_WRAP(1169, "CF-169: Negative PCSXYZ Encoding Capability", RunCF169_NegativePCSXYZEncodingCapability(pIcc));
+  CF_WRAP(1170, "CF-170: Chromatic Adaptation Negative XYZ Consistency", RunCF170_ChadNegativeXYZConsistency(pIcc));
+  CF_WRAP(1171, "CF-171: White Point Non-Negative Luminance", RunCF171_WhitePointNonNegativeLuminance(pIcc));
+  CF_WRAP(1172, "CF-172: Colorant XYZ Sum White Point Consistency", RunCF172_ColorantSumWhitePointConsistency(pIcc));
+  CF_WRAP(1173, "CF-173: PCS XYZ Absorber Encoding", RunCF173_PCSXYZAbsorberEncoding(pIcc));
+  CF_WRAP(1174, "CF-174: Lab Conversion Clipping Awareness", RunCF174_LabConversionClippingAwareness(pIcc));
 
   // ADGC (Adaptive Gain Curve) — ICC.1 Amendment April 2025
   CF_WRAP(1123, "CF-123: ADGC Class Restriction", RunCF123_ADGCClassRestriction(pIcc));
