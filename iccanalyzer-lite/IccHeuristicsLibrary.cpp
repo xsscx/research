@@ -83,6 +83,7 @@ static const HeuristicFn kProfileOnlyHeuristics[] = {
   RunHeuristic_H146_StackBufferOverflowGetValues,
   RunHeuristic_H147_NullPointerAfterTagRead,
   RunHeuristic_H148_MemcpyBoundsOverlap,
+  RunHeuristic_H172_LUTMatrixCoefficientValidation,
 };
 
 static const HeuristicFnFile kFileHeuristics[] = {

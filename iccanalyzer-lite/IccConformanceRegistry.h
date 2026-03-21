@@ -637,6 +637,31 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-162", "Dictionary Entry Count Bounds",
    "Unreasonably large dictionary entry counts indicate potential OOM attack (CWE-400)", "ICC.2-2023 §10.2.6",
    CFSeverity::ERROR, CFCategory::SECURITY},
+
+  // v4 Matrix Entries TN — LUT Matrix Conformance (CF-163..CF-168)
+  {"CF-163", "LUT Matrix Coefficient Finite",
+   "All 12 matrix coefficients in lutAToBType/lutBToAType/lut8/lut16 must be finite (not NaN/Inf)", "ICC v4 Matrix Entries TN",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-164", "LUT Matrix s15Fixed16 Range",
+   "Matrix coefficients must be within s15Fixed16Number representable range [-32768, +32768)", "ICC v4 Matrix Entries TN",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-165", "LUT Matrix Determinant Non-Singular",
+   "3x3 LUT matrix determinant must be non-zero — singular matrix causes irreversible data loss", "ICC v4 Matrix Entries TN",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-166", "LUT Matrix Row Non-Zero",
+   "Each row of the 3x3 matrix must have at least one non-zero element", "ICC v4 Matrix Entries TN",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-167", "LUT Matrix Offset Bounds",
+   "Matrix offset constants e10-e12 should be within reasonable range for normalized PCS", "ICC v4 Matrix Entries TN",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-168", "LUT Matrix Input-Output Range",
+   "Matrix applied to unit-cube corners should produce output within practical PCS range", "ICC v4 Matrix Entries TN",
+   CFSeverity::WARNING, CFCategory::LUT},
 };
 
 static constexpr int kConformanceCheckCount =
