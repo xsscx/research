@@ -1,4 +1,12 @@
-# .shellcheckrc — project-wide ShellCheck configuration
+K.2.8 Calculator	element	‘solv’	operator	support	The	support	for	implementing
+the	calculator	element	‘solv’	operator	is	optional	(see	11.2.1.7)	for	some
+workflow	scenarios	based	on	ICS	requirements.	In	such	cases	the	profile
+calculator	script	either	does	not	use	the	‘solv’	calculator	element
+operator	or	it	checks	the	status	of	the	operator	and	performs
+appropriate	operations.	A	CMM	processing	control	option	is	used	to	control
+whether	the	‘solv’	operator	processing	should	be	enabled	when	a	CMM
+provides	support	for	the	‘solv’	operator.	A	CMM	that	does	not	provide	‘solv’
+operator	support	implicitly	disables	this	CMM	processing	control	option.	# .shellcheckrc — project-wide ShellCheck configuration
 # See https://www.shellcheck.net/wiki/
 
 # SC1091: Not following source — files are in separate directories

@@ -9,7 +9,7 @@
 # Configurations:
 #   release    — -O2 -DNDEBUG, no sanitizers, no coverage
 #   debug      — -g -O0, no sanitizers, no coverage
-#   sanitizer  — -g -O1 ASan+UBSan recoverable + coverage (default)
+#   sanitizer  — -g -O0 ASan+UBSan+integer+float (comprehensive) + coverage (default)
 #
 # Usage:  ./build.sh              # build all three configurations
 #         ./build.sh sanitizer    # build only sanitizer config
@@ -155,11 +155,11 @@ build_config() {
       ;;
     sanitizer)
       cmake_type="Debug"
-      local san="-fsanitize=address,undefined -fsanitize-recover=address,undefined"
+      local san="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
       local cov="-fprofile-instr-generate -fcoverage-mapping"
-      c_flags="-g -O1 -fno-omit-frame-pointer $san $cov"
+      c_flags="-g -O0 -fno-omit-frame-pointer -fno-optimize-sibling-calls $san $cov"
       cxx_flags="$c_flags -frtti"
-      tool_flags="-g -O1 -fno-omit-frame-pointer $san $cov -std=gnu++17 -Wall -frtti"
+      tool_flags="-g -O0 -fno-omit-frame-pointer -fno-optimize-sibling-calls $san $cov -std=gnu++17 -Wall -Wformat=2 -Wformat-security -frtti"
       ;;
   esac
 
