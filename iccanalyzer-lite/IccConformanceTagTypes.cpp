@@ -2388,7 +2388,8 @@ int RunCF124_to_CF132_ADGCDataValidation(CIccProfile *pIcc, const char *filename
       }
 
       // Check last x value
-      if (count >= 1) {
+      // count >= 1 guaranteed by guard at line 2376
+      {
         size_t lastXOff = curveOff + 4 + (count - 1) * 12;
         if (lastXOff + 4 <= bytesRead) {
           float lastX = ReadFloat32BE(d + lastXOff);

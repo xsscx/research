@@ -832,8 +832,8 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
     // Check LUT output channel mismatch (extends H146 to cover local-var-escape path)
     for (size_t i = 0; i < sizeof(kLutTypes) / sizeof(kLutTypes[0]); i++) {
       if (type == kLutTypes[i]) {
-        // For Lut8/Lut16, output channels are at offset 9
-        if ((type == 0x6D667431 || type == 0x6D667432) && tSize > 11u) {
+        // For Lut8/Lut16, output channels are at offset 9 (tSize >= 12 guaranteed by line 799)
+        if (type == 0x6D667431 || type == 0x6D667432) {
           icUInt8Number lutHdr[4];
           if (ctx.ReadAt(tOffset + 8, lutHdr, 4)) {
             uint8_t nInput = lutHdr[0];
