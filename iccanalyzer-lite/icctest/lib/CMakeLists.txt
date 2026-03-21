@@ -19,6 +19,14 @@ set(ICCTEST_LIB_SOURCES
     src/checks/XmlSafetyChecks.cpp
     src/checks/CodeQLPatternChecks.cpp
     src/checks/ExploitGapChecks.cpp
+    # Phase 3: Conformance checks (CF-001..CF-329)
+    src/checks/CfHeaderChecks.cpp
+    src/checks/CfTagTypeChecks.cpp
+    src/checks/CfRequiredChecks.cpp
+    src/checks/CfLutChecks.cpp
+    src/checks/CfV5Checks.cpp
+    src/checks/CfQualityChecks.cpp
+    src/checks/CfSecurityChecks.cpp
 )
 
 add_library(IccTest STATIC ${ICCTEST_LIB_SOURCES})
