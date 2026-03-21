@@ -142,7 +142,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
       
       int cfIssues = 0;
       
-      printf("%s--- Header Conformance (CF-001..CF-015) ---%s\n\n",
+      printf("%s--- Header Conformance (CF-001..CF-015, CF-184..CF-187) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunHeaderConformance(pIcc, filename);
       
