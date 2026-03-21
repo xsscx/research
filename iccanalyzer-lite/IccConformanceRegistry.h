@@ -1285,6 +1285,17 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-323", "Calculator 'solv' Matrix Dimensions",
    "Validates 'solv' operator matrix dimensions are meaningful (R,C >= 2) and not excessive", "K.2.8, ICC.2 §11.2.1.7",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // K.2.7 CMM Environment Variable Conformance (CF-324..CF-326)
+  {"CF-324", "Calculator 'env' Operator Usage",
+   "Detects 'env' operators in calculator elements — indicates CMM environment variable dependency", "K.2.7, ICC.2 §11.2.1.4",
+   CFSeverity::INFO, CFCategory::V5},
+  {"CF-325", "Calculator 'env' Status Handling",
+   "Verifies profiles check 'env' operator status flag via conditional for unavailable variable handling", "K.2.7",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-326", "Calculator 'env' Reserved Signatures",
+   "Reports usage of reserved env signatures 'true' and 'ndef' which are constants, not runtime lookups", "K.2.7, ICC.2 §11.2.1.4",
+   CFSeverity::INFO, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
