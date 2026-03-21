@@ -895,6 +895,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-234", "v4 Perceptual PCS Reference Medium",
    "Perceptual PCS reference medium: 287.9:1 dynamic range, L*=100 white, L*=3.1373 black", "ICC.1-2022-05 Annex D",
    CFSeverity::INFO, CFCategory::TAG_TYPES},
+
+  // ICS Extended Range Part 1 conformance (CF-235..CF-242)
+  {"CF-235", "xrng Data Colour Space Restriction",
+   "Part 1 requires data colour space = RGB with 3 channels for extendedRange sub-class", "ICS-ExtRange-Part1 Table 3",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-236", "xrng Colorimetric PCS Constraint",
+   "Part 1 requires colorimetric PCS = XYZ with D50 illuminant (1931 2-degree observer)", "ICS-ExtRange-Part1 Table 3",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-237", "xrng Required Tag Completeness",
+   "Table 4 requires desc(mluc), cprt(mluc), mwpt(XYZ), A2B1(MPE), B2A1(MPE) all present with correct types", "ICS-ExtRange-Part1 Table 4",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-238", "xrng Header Field Restrictions",
+   "Flags=0, attributes<=1, spectralPCS=0, biSpectralRange=0, MCS=0 for Part 1 basic encoding", "ICS-ExtRange-Part1 Table 3",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-239", "xrng Optional Tag Type Validation",
+   "Optional tags: chad(s15Fixed16Array), gbdX(gamutBoundaryDesc), AToBx/BToAx(MPE) type enforcement", "ICS-ExtRange-Part1 Table 5",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-240", "xrng Transform Channel Dimensions",
+   "AToB1/BToA1 MPE transforms must map 3 input channels (RGB) to 3 output channels (XYZ)", "ICS-ExtRange-Part1 S5.2",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-241", "xrng mediaWhitePointTag Absolute Radiance",
+   "mwpt must contain positive XYZ tristimulus values of near-diffuse white in absolute radiance", "ICS-ExtRange-Part1 Table 4",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-242", "xrng Workflow Connection Consistency",
+   "Source/destination workflow requires AToB1/BToA1 with colorimetric rendering intent", "ICS-ExtRange-Part1 S5.2.3",
+   CFSeverity::WARNING, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
