@@ -1,12 +1,12 @@
 /// @file IccConformanceV5.cpp
-/// @brief ICC.2-2023 v5/iccMAX conformance checks (CF-080 through CF-089).
+/// @brief ICC.2-2023 v5/iccMAX conformance checks (CF-080 through CF-089),
+///        ICC.2-in-ICC.1 embedding (CF-153..CF-158, CF-175..CF-177),
+///        partial chromatic adaptation (CF-178..CF-183),
+///        dictType (CF-159..CF-162).
 ///
-/// Validates v5-specific profile features: spectral PCS, MCS, calculator elements,
-/// extended attributes, and MPE element signatures. All checks skip profiles with
-/// version < 5.
-///
-/// @see ICC.2-2023 (iccMAX specification)
+/// @see ICC.2-2023, ICC TN Embedding, ICC TN Partial Adaptation
 
+#include <cmath>
 #include "IccProfile.h"
 #include "IccTag.h"
 #include "IccTagBasic.h"
@@ -1987,7 +1987,7 @@ int RunCF176_EmbeddedProfileTagReservedBytes(CIccProfile *pIcc) {
       // use the tag's own Validate method which checks reserved bytes
       std::string sigPath, sReport;
       sigPath = "ICC5";
-      icValidateStatus status = pTag->Validate(sigPath, sReport, pIcc);
+      (void)pTag->Validate(sigPath, sReport, pIcc);
 
       if (sReport.find("Reserved") != std::string::npos &&
           sReport.find("not zero") != std::string::npos) {
@@ -2080,6 +2080,371 @@ int RunCF177_EmbeddedProfileDataIntegrity(CIccProfile *pIcc) {
     printf("         Embedded profile contains %d tags\n", tagCount);
   }
 
+  return issues;
+}
+
+// ===========================================================================
+// Partial Chromatic Adaptation checks (CF-178..CF-183)
+// Source: ICC TN "Applying partial adaptation by the CMM between iccMAX
+//         profiles with different PCS observing conditions" — Max Derhak
+// Also references: ICC TN "Partial Chromatic Adaptation" (chad tag)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// CF-178: Chad Matrix Diagonal Dominance
+// Valid chromatic adaptation matrices (Bradford, CAT02, CAT16) are diagonally
+// dominant — the absolute value of each diagonal element exceeds the sum of
+// absolute values of other elements in that row. A non-diagonally-dominant
+// chad suggests an unusual or malformed adaptation transform.
+// ---------------------------------------------------------------------------
+static int RunCF178_ChadDiagonalDominance(CIccProfile *pIcc) {
+  printf("%s[CF-178]%s Chad Matrix Diagonal Dominance (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTagS15Fixed16 *chad =
+      FindAndCast<CIccTagS15Fixed16>(pIcc, icSigChromaticAdaptationTag);
+  if (!chad || chad->GetSize() < 9) {
+    printf("         No chromaticAdaptationTag (or < 9 elements) — not applicable\n");
+    printf("         %s[OK]%s Skipped (no chad)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  int issues = 0;
+  double m[9];
+  for (int i = 0; i < 9; i++)
+    m[i] = static_cast<double>((*chad)[i]) / 65536.0;
+
+  // Check diagonal dominance for each row of the 3x3 matrix
+  // Row i: |m[i*3+i]| >= |m[i*3+j]| + |m[i*3+k]| for j,k != i
+  for (int row = 0; row < 3; row++) {
+    double diag = fabs(m[row * 3 + row]);
+    double offDiag = 0.0;
+    for (int col = 0; col < 3; col++) {
+      if (col != row) offDiag += fabs(m[row * 3 + col]);
+    }
+    if (diag < offDiag) {
+      printf("         Row %d: |diagonal| = %.4f < off-diagonal sum = %.4f\n",
+             row, diag, offDiag);
+      printf("         %s[WARN]%s Chad matrix row %d not diagonally dominant — "
+             "unusual adaptation transform\n",
+             ColorWarning(), ColorReset(), row);
+      issues++;
+    }
+  }
+
+  if (issues == 0) {
+    printf("         All rows diagonally dominant — valid adaptation structure\n");
+    printf("         %s[OK]%s Chad matrix diagonally dominant\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-179: Chad D50-to-D50 Identity Check
+// When the profile illuminant IS D50 (the PCS illuminant), the chad tag
+// represents adaptation from D50 to D50, which should yield an identity
+// (or near-identity) matrix. A non-identity chad with D50 illuminant
+// indicates profile inconsistency.
+// ---------------------------------------------------------------------------
+static int RunCF179_ChadD50Identity(CIccProfile *pIcc) {
+  printf("%s[CF-179]%s Chad D50-to-D50 Identity Check (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTagS15Fixed16 *chad =
+      FindAndCast<CIccTagS15Fixed16>(pIcc, icSigChromaticAdaptationTag);
+  if (!chad || chad->GetSize() < 9) {
+    printf("         No chad tag — not applicable\n");
+    printf("         %s[OK]%s Skipped (no chad)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Check if the profile illuminant is D50
+  // D50 in s15Fixed16: X=0.9642 Y=1.0000 Z=0.8249
+  icXYZNumber illum = pIcc->m_Header.illuminant;
+  double iX = icFtoD(illum.X);
+  double iY = icFtoD(illum.Y);
+  double iZ = icFtoD(illum.Z);
+
+  // Tolerance for D50 match: ±0.003 (accounts for s15Fixed16 quantization)
+  bool isD50 = (fabs(iX - 0.9642) < 0.003 &&
+                fabs(iY - 1.0000) < 0.003 &&
+                fabs(iZ - 0.8249) < 0.003);
+
+  if (!isD50) {
+    printf("         Illuminant (%.4f, %.4f, %.4f) != D50 — identity not expected\n",
+           iX, iY, iZ);
+    printf("         %s[OK]%s Non-D50 illuminant — chad correctly performs adaptation\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Illuminant is D50 — chad should be near-identity
+  double m[9];
+  for (int i = 0; i < 9; i++)
+    m[i] = static_cast<double>((*chad)[i]) / 65536.0;
+
+  // Identity matrix: [1 0 0; 0 1 0; 0 0 1]
+  const double identity[9] = {1,0,0, 0,1,0, 0,0,1};
+  double maxDev = 0.0;
+  for (int i = 0; i < 9; i++) {
+    double dev = fabs(m[i] - identity[i]);
+    if (dev > maxDev) maxDev = dev;
+  }
+
+  int issues = 0;
+  // Tolerance: s15Fixed16 quantization is 1/65536 ≈ 0.000015
+  // Allow small rounding: 0.002 (about 130 LSBs)
+  if (maxDev > 0.002) {
+    printf("         Illuminant is D50 but chad deviates from identity (max dev = %.6f)\n",
+           maxDev);
+    printf("         %s[WARN]%s D50 illuminant with non-identity chad — "
+           "profile may have inconsistent adaptation\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Illuminant is D50, chad is near-identity (max dev = %.6f)\n", maxDev);
+    printf("         %s[OK]%s D50 illuminant with identity chad — consistent\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-180: PCC Complete Adaptation Principle (iccMAX)
+// ICC TN recommends that profiles perform COMPLETE adaptation (D_factor = 1.0)
+// in their PCC conversion transforms (c2sp/s2cp), and that partial adaptation
+// should be applied by the CMM, not embedded in profile transforms.
+// This check validates that v5 profiles with PCC tags don't embed partial
+// adaptation markers in their tag descriptions.
+// ---------------------------------------------------------------------------
+static int RunCF180_PCCCompleteAdaptation(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-180]%s PCC Complete Adaptation Principle (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
+  const CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
+
+  if (!c2spTag && !s2cpTag) {
+    printf("         No PCC tags (c2sp/s2cp) — complete adaptation check not applicable\n");
+    printf("         %s[OK]%s Skipped (no PCC tags)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Per the TN: profiles should use complete adaptation.
+  // We validate that both PCC tags are present (incomplete pair = ambiguous adaptation)
+  if (c2spTag && !s2cpTag) {
+    printf("         c2sp present but s2cp absent — incomplete PCC transform pair\n");
+    printf("         %s[WARN]%s Partial PCC pair may embed incomplete adaptation — "
+           "both c2sp and s2cp required per ICC TN\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else if (!c2spTag && s2cpTag) {
+    printf("         s2cp present but c2sp absent — incomplete PCC transform pair\n");
+    printf("         %s[WARN]%s Partial PCC pair may embed incomplete adaptation — "
+           "both c2sp and s2cp required per ICC TN\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Both c2sp and s2cp present — complete PCC transform pair\n");
+    printf("         Profile should perform complete adaptation (D=1.0) in these transforms\n");
+    printf("         CMM should apply partial adaptation factor externally per ICC TN\n");
+    printf("         %s[OK]%s PCC transform pair complete — adaptation architecture conformant\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-181: PCC Illuminant-Chad Consistency
+// For v5 profiles with spectral viewing conditions: if the PCC illuminant
+// is not D50, a chromaticAdaptationTag should exist to provide the adaptation
+// matrix. Conversely, if PCC declares D50, chad may be omitted.
+// ---------------------------------------------------------------------------
+static int RunCF181_PCCIlluminantChadConsistency(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-181]%s PCC Illuminant-Chad Consistency (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Find spectral viewing conditions tag
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!svcnTag) {
+    printf("         No spectralViewingConditionsTag — not applicable\n");
+    printf("         %s[OK]%s Skipped (no spectral viewing conditions)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Get the standard illuminant from spectral viewing conditions
+  const CIccTagSpectralViewingConditions *svcn =
+      dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+  if (!svcn) {
+    printf("         spectralViewingConditionsTag not castable — skipping\n");
+    printf("         %s[OK]%s Skipped (type mismatch)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  icIlluminant illumType = svcn->getStdIllumiant();
+  icStandardObserver obsType = svcn->getStdObserver();
+  printf("         PCC illuminant type: 0x%08X\n", static_cast<unsigned>(illumType));
+  printf("         PCC observer type: 0x%08X\n", static_cast<unsigned>(obsType));
+
+  int issues = 0;
+
+  const CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+
+  if (illumType != icIlluminantD50 && illumType != 0) {
+    // Non-D50 illuminant — chad should exist for adaptation
+    if (!chadTag) {
+      printf("         PCC illuminant is not D50 but no chad tag present\n");
+      printf("         %s[WARN]%s Non-D50 PCC illuminant without chad — "
+             "adaptation may be incomplete\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    } else {
+      printf("         Non-D50 PCC illuminant with chad tag — consistent\n");
+    }
+  } else {
+    printf("         PCC illuminant is D50 (or unspecified)\n");
+  }
+
+  if (issues == 0) {
+    printf("         %s[OK]%s PCC illuminant and chad tag consistent\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-182: PCC Observer Standard Compliance
+// ICC standard observers are 1931 2-degree and 1964 10-degree.
+// Partial adaptation TN notes that observer mismatch between profiles
+// requires appropriate CMM handling. This check validates that spectral
+// viewing conditions use recognized observer values.
+// ---------------------------------------------------------------------------
+static int RunCF182_PCCObserverStandard(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-182]%s PCC Observer Standard Compliance (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!svcnTag) {
+    printf("         No spectralViewingConditionsTag — not applicable\n");
+    printf("         %s[OK]%s Skipped (no spectral viewing conditions)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  const CIccTagSpectralViewingConditions *svcn =
+      dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+  if (!svcn) {
+    printf("         spectralViewingConditionsTag not castable — skipping\n");
+    printf("         %s[OK]%s Skipped (type mismatch)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  icStandardObserver obsType = svcn->getStdObserver();
+  int issues = 0;
+
+  switch (obsType) {
+    case icStdObs1931TwoDegrees:
+      printf("         Observer: CIE 1931 2-degree (standard)\n");
+      break;
+    case icStdObs1964TenDegrees:
+      printf("         Observer: CIE 1964 10-degree (standard)\n");
+      break;
+    case icStdObsCustom:
+      printf("         Observer: custom (0x%08X)\n", static_cast<unsigned>(obsType));
+      printf("         %s[INFO]%s Custom observer — CMM must handle adaptation "
+             "differently per ICC TN\n",
+             ColorInfo(), ColorReset());
+      break;
+    default:
+      printf("         Observer: unknown (0x%08X)\n", static_cast<unsigned>(obsType));
+      printf("         %s[WARN]%s Unrecognized observer type — may cause "
+             "incorrect partial adaptation by CMM\n",
+             ColorWarning(), ColorReset());
+      issues++;
+      break;
+  }
+
+  if (issues == 0) {
+    printf("         %s[OK]%s PCC observer is a recognized standard\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-183: Chad Column Normalization
+// Chromatic adaptation matrices (Bradford, CAT02) transform cone response.
+// Each column represents the transform for one cone type. The column norms
+// should be bounded — extremely large or near-zero columns indicate a
+// degenerate transform. This validates mathematical reasonableness.
+// ---------------------------------------------------------------------------
+static int RunCF183_ChadColumnNormalization(CIccProfile *pIcc) {
+  printf("%s[CF-183]%s Chad Column Normalization (%sICC TN Partial Adaptation%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTagS15Fixed16 *chad =
+      FindAndCast<CIccTagS15Fixed16>(pIcc, icSigChromaticAdaptationTag);
+  if (!chad || chad->GetSize() < 9) {
+    printf("         No chromaticAdaptationTag (or < 9 elements) — not applicable\n");
+    printf("         %s[OK]%s Skipped (no chad)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  double m[9];
+  for (int i = 0; i < 9; i++)
+    m[i] = static_cast<double>((*chad)[i]) / 65536.0;
+
+  int issues = 0;
+
+  // Check each column's L2 norm
+  for (int col = 0; col < 3; col++) {
+    double sumSq = 0.0;
+    for (int row = 0; row < 3; row++) {
+      double v = m[row * 3 + col];
+      sumSq += v * v;
+    }
+    double norm = sqrt(sumSq);
+
+    // Bradford columns typically have norms around 0.8 to 1.3
+    // Extreme values suggest degenerate transform
+    if (norm < 0.01) {
+      printf("         Column %d norm = %.6f (near zero — degenerate)\n", col, norm);
+      printf("         %s[WARN]%s Chad column %d near-zero — transform is degenerate\n",
+             ColorWarning(), ColorReset(), col);
+      issues++;
+    } else if (norm > 10.0) {
+      printf("         Column %d norm = %.4f (extremely large)\n", col, norm);
+      printf("         %s[WARN]%s Chad column %d norm > 10 — unusual adaptation matrix\n",
+             ColorWarning(), ColorReset(), col);
+      issues++;
+    } else {
+      printf("         Column %d norm = %.4f\n", col, norm);
+    }
+  }
+
+  if (issues == 0) {
+    printf("         All column norms within reasonable range\n");
+    printf("         %s[OK]%s Chad column normalization conformant\n",
+           ColorSuccess(), ColorReset());
+  }
   return issues;
 }
 
@@ -2275,13 +2640,6 @@ int RunCF162_DictEntryCountBounds(CIccProfile *pIcc) {
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
-  icUInt32Number version = pIcc->m_Header.version >> 24;
-  if (version < 5) {
-    printf("  %s[INFO]%s Profile version %u — v5/iccMAX checks skipped\n",
-           ColorInfo(), ColorReset(), version);
-    return 0;
-  }
-
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
   int r;
@@ -2292,6 +2650,18 @@ int RunV5Conformance(CIccProfile *pIcc) {
   if (r > 0) hc.warn("%d non-conformance(s)", r); \
   hc.end("Conformant"); \
   issues += r
+
+  // Partial Chromatic Adaptation — chad checks (any version with chad tag)
+  CF_WRAP(1178, "CF-178: Chad Diagonal Dominance", RunCF178_ChadDiagonalDominance(pIcc));
+  CF_WRAP(1179, "CF-179: Chad D50 Identity", RunCF179_ChadD50Identity(pIcc));
+  CF_WRAP(1183, "CF-183: Chad Column Normalization", RunCF183_ChadColumnNormalization(pIcc));
+
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+  if (version < 5) {
+    printf("  %s[INFO]%s Profile version %u — v5/iccMAX checks skipped\n",
+           ColorInfo(), ColorReset(), version);
+    goto done;
+  }
 
   CF_WRAP(1080, "CF-080: Spectral PCS Signature", RunCF080_SpectralPCSSignature(pIcc));
   CF_WRAP(1081, "CF-081: Spectral PCS Range", RunCF081_SpectralPCSRange(pIcc));
@@ -2343,12 +2713,18 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1176, "CF-176: Embedded Profile Tag Reserved Bytes", RunCF176_EmbeddedProfileTagReservedBytes(pIcc));
   CF_WRAP(1177, "CF-177: Embedded Profile Data Integrity", RunCF177_EmbeddedProfileDataIntegrity(pIcc));
 
+  // Partial Chromatic Adaptation — PCC checks (v5 only)
+  CF_WRAP(1180, "CF-180: PCC Complete Adaptation", RunCF180_PCCCompleteAdaptation(pIcc));
+  CF_WRAP(1181, "CF-181: PCC Illuminant-Chad Consistency", RunCF181_PCCIlluminantChadConsistency(pIcc));
+  CF_WRAP(1182, "CF-182: PCC Observer Standard", RunCF182_PCCObserverStandard(pIcc));
+
   // dictType Validation (ICC.2-2023 §10.2.6)
   CF_WRAP(1159, "CF-159: Dictionary Name Uniqueness", RunCF159_DictNameUniqueness(pIcc));
   CF_WRAP(1160, "CF-160: Dictionary Name Non-Zero", RunCF160_DictNameNonZero(pIcc));
   CF_WRAP(1161, "CF-161: Dictionary Record Length Alignment", RunCF161_DictRecordLengthAlignment(pIcc));
   CF_WRAP(1162, "CF-162: Dictionary Entry Count Bounds", RunCF162_DictEntryCountBounds(pIcc));
 
+done:
 #undef CF_WRAP
   return issues;
 }

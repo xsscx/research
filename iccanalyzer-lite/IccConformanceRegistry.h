@@ -700,6 +700,31 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-177", "Embedded Profile Data Integrity",
    "Embedded ICC.2 profile shall be included in its entirety and validate cleanly", "ICC TN Embedding §Embedding",
    CFSeverity::ERROR, CFCategory::V5},
+
+  // Partial Chromatic Adaptation (CF-178..CF-183)
+  {"CF-178", "Chad Matrix Diagonal Dominance",
+   "Valid chromatic adaptation matrices (Bradford, CAT02) are diagonally dominant", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-179", "Chad D50-to-D50 Identity Check",
+   "When illuminant is D50, chad should be near-identity (D50→D50 adaptation)", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-180", "PCC Complete Adaptation Principle",
+   "Profiles should perform complete adaptation (D=1.0) in c2sp/s2cp; CMM applies partial", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-181", "PCC Illuminant-Chad Consistency",
+   "Non-D50 PCC illuminant requires chromaticAdaptationTag for adaptation", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-182", "PCC Observer Standard Compliance",
+   "Spectral viewing conditions observer should be CIE 1931 2° or 1964 10°", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-183", "Chad Column Normalization",
+   "Adaptation matrix column norms should be bounded (not degenerate or extreme)", "ICC TN Partial Adaptation",
+   CFSeverity::WARNING, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
