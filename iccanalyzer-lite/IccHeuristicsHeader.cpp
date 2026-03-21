@@ -535,10 +535,6 @@ hc.begin(17, "Spectral Range Validation (ICC.2-2023 §7.2.22-23)");
              biStart);
     }
   }
-  if (!hasSpectral && !hasBiSpectral) {
-    // No spectral data — just let end() print the OK
-  }
-
   // MCS (Material Connection Space) enum validation — ICC.2-2023 §7.2.24
   // iccDEV #323: invalid icMaterialColorSignature values cause UBSAN
   // "load of value N, which is not a valid value for type"
