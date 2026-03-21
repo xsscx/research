@@ -142,15 +142,15 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
       
       int cfIssues = 0;
       
-      printf("%s--- Header Conformance (CF-001..CF-015, CF-184..CF-187, CF-199..CF-201, CF-203) ---%s\n\n",
+      printf("%s--- Header Conformance (CF-001..CF-015, CF-184..CF-187, CF-199..CF-201, CF-203, CF-206, CF-210) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunHeaderConformance(pIcc, filename);
       
-      printf("\n%s--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174, CF-188..CF-190) ---%s\n\n",
+      printf("\n%s--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174, CF-188..CF-190, CF-208, CF-209, CF-212, CF-213) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunTagTypeConformance(pIcc, filename);
       
-      printf("\n%s--- Required Tag Conformance (CF-040..CF-053, CF-202, CF-204..CF-205) ---%s\n\n",
+      printf("\n%s--- Required Tag Conformance (CF-040..CF-053, CF-202, CF-204..CF-205, CF-207, CF-211) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunRequiredTagConformance(pIcc, filename);
       

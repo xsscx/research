@@ -1618,6 +1618,103 @@ static int RunCF203_ProfileFlagsSemantics(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-206: Profile File Signature 'acsp' (ICC.1-2022-05 §7.2.9)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF206_ProfileFileSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number magic = pIcc->m_Header.magic;
+
+  printf("%s[CF-206]%s Profile File Signature 'acsp' (%sICC.1-2022-05 §7.2.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // ICC.1-2022-05 §7.2.9: bytes 36-39 must be 'acsp' (0x61637370)
+  if (magic != icMagicNumber) {
+    char buf[5];
+    SigToChars(magic, buf);
+    printf("         magic=0x%08X ('%s') — %sexpected 'acsp' (0x%08X)%s\n",
+           magic, buf, ColorError(), static_cast<unsigned>(icMagicNumber), ColorReset());
+    printf("         %s[FAIL]%s Profile file signature must be 'acsp' — ICC.1-2022-05 §7.2.9\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         magic=0x%08X ('acsp')\n", magic);
+    printf("         %s[OK]%s Profile file signature conformant\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-210: DeviceLink PCS Space Validation (ICC.1-2022-05 §8.6)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF210_DeviceLinkPCSSpace(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number pcs = static_cast<icUInt32Number>(pIcc->m_Header.pcs);
+  icUInt32Number cs = static_cast<icUInt32Number>(pIcc->m_Header.colorSpace);
+
+  printf("%s[CF-210]%s DeviceLink PCS Space Validation (%sICC.1-2022-05 §8.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (pIcc->m_Header.deviceClass != icSigLinkClass) {
+    printf("         Not a DeviceLink profile — skipping\n");
+    printf("         %s[OK]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // §8.6: DeviceLink PCS shall be the same as the colorSpace of the second
+  // profile in the sequence. It must be a valid device colour space.
+  // The PCS for DeviceLink is actually the output colour space.
+  char pcsCC[5], csCC[5];
+  SigToChars(pcs, pcsCC);
+  SigToChars(cs, csCC);
+
+  printf("         DeviceLink: colorSpace='%s', PCS='%s'\n", csCC, pcsCC);
+
+  // PCS should be a valid device colour space (not Lab or XYZ for v2/v4)
+  // For v5, spectral PCS is allowed
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+  bool isAbstractPCS = (pcs == static_cast<icUInt32Number>(icSigXYZData) ||
+                        pcs == static_cast<icUInt32Number>(icSigLabData));
+
+  if (isAbstractPCS && major < 5) {
+    // DeviceLink PCS being XYZ/Lab means it connects to PCS directly
+    // This is valid but unusual — ICC.1 §8.6 allows it
+    printf("         DeviceLink PCS='%s' (connects through PCS space)\n", pcsCC);
+  }
+
+  // Validate PCS is a recognized colour space signature
+  bool recognizedCS = false;
+  icUInt32Number csType = icGetColorSpaceType(static_cast<icColorSpaceSignature>(pcs));
+  if (pcs == static_cast<icUInt32Number>(icSigXYZData) ||
+      pcs == static_cast<icUInt32Number>(icSigLabData) ||
+      pcs == static_cast<icUInt32Number>(icSigRgbData) ||
+      pcs == static_cast<icUInt32Number>(icSigCmykData) ||
+      pcs == static_cast<icUInt32Number>(icSigGrayData) ||
+      csType == static_cast<icUInt32Number>(icSigNChannelData) ||
+      (pcs >= 0x32434C52u /* '2CLR' */ && pcs <= 0x46434C52u /* 'FCLR' */)) {
+    recognizedCS = true;
+  }
+
+  if (!recognizedCS) {
+    printf("         PCS='%s' (0x%08X) — %sunrecognized colour space%s\n",
+           pcsCC, pcs, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s DeviceLink PCS must be a valid colour space — ICC.1-2022-05 §8.6\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         %s[OK]%s DeviceLink PCS is a recognized colour space\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1664,6 +1761,10 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1200, "CF-200: Device Manufacturer/Model Signature", RunCF200_DeviceManufacturerModel(pIcc));
   CF_WRAP(1201, "CF-201: Profile Creator Signature", RunCF201_ProfileCreatorSignature(pIcc));
   CF_WRAP(1203, "CF-203: Profile Flags Semantic Validation", RunCF203_ProfileFlagsSemantics(pIcc));
+
+  // Spec gap coverage (CF-206, CF-210)
+  CF_WRAP(1206, "CF-206: Profile File Signature 'acsp'", RunCF206_ProfileFileSignature(pIcc));
+  CF_WRAP(1210, "CF-210: DeviceLink PCS Space Validation", RunCF210_DeviceLinkPCSSpace(pIcc));
 
 #undef CF_WRAP
   return issues;
