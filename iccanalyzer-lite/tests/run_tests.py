@@ -2637,17 +2637,9 @@ def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
         return
-    # CI runners have 2GB RAM — OOM profiles trigger allocator failures
-    # and UBSAN unsigned overflow on intentionally malformed allocation sizes
-    CI_SKIP_PREFIXES = (
-        "oom-CIccSampledCurveSegment-SetSize-IccMpeBasic_cpp-Line986",
-        "oom-CIccSingleSampledCurve-SetSize-IccMpeBasic_cpp-Line1501",
-    )
     profiles = sorted(EXTENDED_PROFILES.glob("*.icc"))
-    # Test every 5th extended profile
+    # Test every 5th extended profile (OOM files live in test-profiles/cwe-400/)
     for icc in profiles[::5][:20]:
-        if any(icc.stem.startswith(p) for p in CI_SKIP_PREFIXES):
-            continue
         suite.assert_no_asan(
             f"extended.{icc.stem[:40]}",
             ["-a", str(icc)]
