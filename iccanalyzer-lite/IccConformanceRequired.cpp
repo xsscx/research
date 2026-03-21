@@ -1,9 +1,10 @@
 /*
  * IccConformanceRequired.cpp — ICC specification required tag conformance checks
  *
- * Implements CF-040 through CF-053 and CF-095 through CF-098 from the
- * conformance registry. Validates required tags per profile class per
- * ICC.1-2022-05 §8 and private tag conformance per §9.
+ * Implements CF-040 through CF-053, CF-095 through CF-098, and CF-202/CF-204/CF-205
+ * from the conformance registry. Validates required tags per profile class per
+ * ICC.1-2022-05 §8, private tag conformance per §9, and SampleICC compliance
+ * framework structural checks.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -1517,10 +1518,268 @@ static int RunCF120_NamedColorSpaceDimensions(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-202: Tag Data Padding Zero-Fill (ICC.1-2022-05 §7.2.1c)
+//
+// Per ICC.1-2022-05 §7.2.1c, "All data MUST be aligned on a 4-byte boundary"
+// and padding bytes between tag data regions "shall be zero." This check
+// reads the raw file to verify padding bytes between consecutive tag data
+// regions are 0x00.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF202_TagDataPaddingZeroFill(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  printf("  %s[CF-202]%s Tag Data Padding Zero-Fill (%sICC.1-2022-05 §7.2.1c%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename || !filename[0]) {
+    printf("           No file path — skipping raw padding check\n");
+    printf("           %s[OK]%s Skipped (no file)\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Collect tag regions sorted by offset
+  struct TagRegion { icUInt32Number offset; icUInt32Number size; char sig[5]; };
+  std::vector<TagRegion> regions;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    TagRegion tr;
+    tr.offset = it->TagInfo.offset;
+    tr.size   = it->TagInfo.size;
+    SigToChars(it->TagInfo.sig, tr.sig);
+    // Deduplicate shared offsets (same data region for multiple tag sigs)
+    bool dup = false;
+    for (size_t j = 0; j < regions.size(); j++) {
+      if (regions[j].offset == tr.offset) { dup = true; break; }
+    }
+    if (!dup) regions.push_back(tr);
+  }
+
+  // Sort by offset
+  for (size_t i = 0; i < regions.size(); i++) {
+    for (size_t j = i + 1; j < regions.size(); j++) {
+      if (regions[j].offset < regions[i].offset) {
+        TagRegion tmp = regions[i];
+        regions[i] = regions[j];
+        regions[j] = tmp;
+      }
+    }
+  }
+
+  // Open file and check padding between consecutive regions
+  FILE *f = fopen(filename, "rb");
+  if (!f) {
+    printf("           Cannot open file for padding check\n");
+    printf("           %s[OK]%s Skipped (file access error)\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  int paddingIssues = 0;
+  for (size_t i = 0; i + 1 < regions.size(); i++) {
+    icUInt32Number endOfCurrent = regions[i].offset + regions[i].size;
+    // Round up to 4-byte boundary
+    icUInt32Number aligned = (endOfCurrent + 3) & ~3u;
+    icUInt32Number nextStart = regions[i + 1].offset;
+
+    if (aligned < nextStart) {
+      // There's a gap — check padding bytes are zero
+      icUInt32Number gapSize = nextStart - aligned;
+      if (gapSize > 64) gapSize = 64; // Limit check to 64 bytes max
+      if (fseek(f, aligned, SEEK_SET) == 0) {
+        unsigned char buf[64];
+        size_t rd = fread(buf, 1, gapSize, f);
+        for (size_t b = 0; b < rd; b++) {
+          if (buf[b] != 0x00) {
+            if (paddingIssues < 3) {
+              printf("           Non-zero padding byte 0x%02X at offset 0x%08X (between '%s' and '%s')\n",
+                     buf[b], (unsigned)(aligned + b), regions[i].sig, regions[i + 1].sig);
+              printf("           %s[FAIL]%s Padding bytes must be zero — §7.2.1c\n",
+                     ColorError(), ColorReset());
+            }
+            paddingIssues++;
+            break; // One report per gap
+          }
+        }
+      }
+    }
+  }
+  fclose(f);
+
+  if (paddingIssues > 3)
+    printf("           ... and %d more non-zero padding gaps\n", paddingIssues - 3);
+
+  issues += paddingIssues;
+  if (issues == 0)
+    printf("           %s[OK]%s All inter-tag padding bytes are zero\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-204: Device Attributes Semantic Validation (ICC.1-2022-05 §7.2.14 Table 22)
+//
+// Extends CF-004 (reserved bits) with semantic analysis of defined bits:
+//   Bit 0: 0=reflective, 1=transparency
+//   Bit 1: 0=glossy, 1=matte
+//   Bit 2: 0=positive media, 1=negative media (v4+)
+//   Bit 3: 0=colour media, 1=black & white media (v4+)
+// Cross-checks: abstract/namedColor/colorSpace classes typically don't have
+// physical media attributes.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF204_DeviceAttributesSemantics(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt64Number attrs = pIcc->m_Header.attributes;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  printf("  %s[CF-204]%s Device Attributes Semantic Validation (%sICC.1-2022-05 §7.2.14 Table 22%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool transparency = (attrs & 0x0001) != 0;
+  bool matte        = (attrs & 0x0002) != 0;
+  bool negative     = (attrs & 0x0004) != 0;
+  bool bw           = (attrs & 0x0008) != 0;
+
+  printf("           Bit 0: %s\n", transparency ? "transparency" : "reflective");
+  printf("           Bit 1: %s\n", matte ? "matte" : "glossy");
+  printf("           Bit 2: %s\n", negative ? "negative media" : "positive media");
+  printf("           Bit 3: %s\n", bw ? "black & white" : "colour");
+
+  // Cross-check: abstract/namedColor/colorSpace classes have no physical media
+  bool nonDeviceClass = (cls == icSigAbstractClass ||
+                         cls == icSigNamedColorClass ||
+                         cls == icSigColorSpaceClass);
+  if (nonDeviceClass && (transparency || matte || negative || bw)) {
+    printf("           Profile class '%c%c%c%c' is non-device — physical media attributes unexpected\n",
+           (char)((cls >> 24) & 0xFF), (char)((cls >> 16) & 0xFF),
+           (char)((cls >> 8) & 0xFF), (char)(cls & 0xFF));
+    printf("           %s[WARN]%s Non-device class with physical media attributes — §7.2.14\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Device attributes semantics conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-205: Tag Data Region Gap Analysis (ICC.1-2022-05 §7.3)
+//
+// Analyzes the layout of tag data regions within the profile. Reports:
+// - Total number of distinct data regions (after dedup of shared offsets)
+// - Total data coverage (bytes used / profile size)
+// - Largest gap between tag data regions
+// A profile with large uncovered gaps may indicate unused or malformed data.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF205_TagDataRegionGapAnalysis(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-205]%s Tag Data Region Gap Analysis (%sICC.1-2022-05 §7.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number profileSize = pIcc->m_Header.size;
+  if (profileSize == 0) {
+    printf("           Profile size is zero — cannot analyze\n");
+    printf("           %s[OK]%s Skipped\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Collect unique tag regions
+  struct Region { icUInt32Number offset; icUInt32Number size; };
+  std::vector<Region> regions;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    bool dup = false;
+    for (size_t j = 0; j < regions.size(); j++) {
+      if (regions[j].offset == it->TagInfo.offset) { dup = true; break; }
+    }
+    if (!dup) {
+      Region rg;
+      rg.offset = it->TagInfo.offset;
+      rg.size = it->TagInfo.size;
+      regions.push_back(rg);
+    }
+  }
+
+  // Sort by offset
+  for (size_t i = 0; i < regions.size(); i++) {
+    for (size_t j = i + 1; j < regions.size(); j++) {
+      if (regions[j].offset < regions[i].offset) {
+        Region tmp = regions[i];
+        regions[i] = regions[j];
+        regions[j] = tmp;
+      }
+    }
+  }
+
+  // Compute coverage and gaps
+  icUInt32Number totalCoverage = 0;
+  icUInt32Number largestGap = 0;
+  icUInt32Number gapCount = 0;
+
+  // Header + tag table = first data region start
+  icUInt32Number tagTableEnd = 128 + 4 + (icUInt32Number)pIcc->m_Tags.size() * 12;
+
+  for (size_t i = 0; i < regions.size(); i++) {
+    totalCoverage += regions[i].size;
+
+    icUInt32Number prevEnd = (i == 0) ? tagTableEnd : (regions[i - 1].offset + regions[i - 1].size);
+    prevEnd = (prevEnd + 3) & ~3u; // Align to 4 bytes
+    if (regions[i].offset > prevEnd) {
+      icUInt32Number gap = regions[i].offset - prevEnd;
+      if (gap > largestGap) largestGap = gap;
+      gapCount++;
+    }
+  }
+
+  // Check trailing gap
+  if (!regions.empty()) {
+    icUInt32Number lastEnd = regions.back().offset + regions.back().size;
+    lastEnd = (lastEnd + 3) & ~3u;
+    if (profileSize > lastEnd) {
+      icUInt32Number trailing = profileSize - lastEnd;
+      if (trailing > largestGap) largestGap = trailing;
+      if (trailing > 4) gapCount++;
+    }
+  }
+
+  double coveragePct = profileSize > 0 ? (double)totalCoverage / (double)profileSize * 100.0 : 0.0;
+
+  printf("           Distinct data regions: %zu\n", regions.size());
+  printf("           Data coverage: %u / %u bytes (%.1f%%)\n",
+         totalCoverage, profileSize, coveragePct);
+  printf("           Inter-region gaps: %u (largest: %u bytes)\n", gapCount, largestGap);
+
+  // Flag if data coverage is suspiciously low (less than 30%)
+  if (coveragePct < 30.0 && profileSize > 1024) {
+    printf("           %s[WARN]%s Data coverage below 30%% — profile may contain excessive padding or dead data\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // Flag if largest gap exceeds 10% of profile size
+  if (largestGap > profileSize / 10 && profileSize > 1024) {
+    printf("           %s[WARN]%s Largest gap (%u bytes) exceeds 10%% of profile — §7.3\n",
+           ColorWarning(), ColorReset(), largestGap);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Tag data region layout conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
-int RunRequiredTagConformance(CIccProfile *pIcc) {
+int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
   int r;
@@ -1579,6 +1838,11 @@ int RunRequiredTagConformance(CIccProfile *pIcc) {
   CF_WRAP(1118, "CF-118: Private Tag Creator Signature", RunCF118_PrivateTagCreatorSignature(pIcc));
   CF_WRAP(1119, "CF-119: Profile Sequence Identifier", RunCF119_ProfileSequenceIdentifier(pIcc));
   CF_WRAP(1120, "CF-120: Named Color Space Dimensions", RunCF120_NamedColorSpaceDimensions(pIcc));
+
+  // SampleICC compliance framework structural checks (CF-202, CF-204, CF-205)
+  CF_WRAP(1202, "CF-202: Tag Data Padding Zero-Fill", RunCF202_TagDataPaddingZeroFill(pIcc, filename));
+  CF_WRAP(1204, "CF-204: Device Attributes Semantic Validation", RunCF204_DeviceAttributesSemantics(pIcc));
+  CF_WRAP(1205, "CF-205: Tag Data Region Gap Analysis", RunCF205_TagDataRegionGapAnalysis(pIcc));
 
 #undef CF_WRAP
   return issues;

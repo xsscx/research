@@ -1,9 +1,12 @@
 /*
  * IccConformanceHeader.cpp — ICC specification header conformance checks
  *
- * Implements CF-001 through CF-015, CF-184..CF-187 from the conformance registry.
+ * Implements CF-001 through CF-015, CF-184..CF-187, CF-199..CF-201, CF-203
+ * from the conformance registry.
  * Validates ICC profile header fields against ICC.1-2022-05 §7.2.
  * CF-184..CF-187: RFC 1321 (MD5) Profile ID conformance per §7.2.18.
+ * CF-199..CF-201: CMM/Manufacturer/Creator signature registration per §7.2.3/12/17.
+ * CF-203: Profile flags semantic validation per §7.2.11 Table 21.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -1375,6 +1378,246 @@ static int RunCF187_EmbeddedProfileIDChain(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-199: CMM Type Signature Registration (ICC.1-2022-05 §7.2.3)
+//
+// Per §7.2.3 the preferredCMMType field (bytes 4-7) "shall contain the
+// signature of the preferred CMM to be used." Zero means no preference.
+// Non-zero values should be registered with the ICC. This check validates
+// the field against registered CMM signatures.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF199_CMMTypeSignatureRegistration(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number cmm = pIcc->m_Header.cmmId;
+
+  printf("  %s[CF-199]%s CMM Type Signature Registration (%sICC.1-2022-05 §7.2.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (cmm == 0) {
+    printf("           cmmId=0x00000000 — no preferred CMM (permitted)\n");
+    printf("           %s[OK]%s CMM type conformant\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // ICC registered CMM signatures (source: ICC signature registry)
+  static const icUInt32Number kRegisteredCMMs[] = {
+    0x41444245, // 'ADBE' Adobe
+    0x41434D53, // 'ACMS' Agfa
+    0x6170706C, // 'appl' Apple
+    0x43434D53, // 'CCMS' ColorGear
+    0x45464920, // 'EFI ' EFI
+    0x46462020, // 'FF  ' Fuji Film
+    0x48434D4D, // 'HCMM' Heidelberg
+    0x48444D20, // 'HDM ' Heidelberg
+    0x4C434D53, // 'LCMS' Little CMS
+    0x6C636D73, // 'lcms' Little CMS (v2)
+    0x4D534654, // 'MSFT' Microsoft ICM
+    0x52494D58, // 'RIMX' Mutoh
+    0x53494343, // 'SICC' SampleICC
+    0x53475243, // 'SGRC' SI Graphics
+    0x54434D4D, // 'TCMM' TOSHIBA
+    0x5543434D, // 'UCCM' UC CMM
+    0x57435320, // 'WCS ' Microsoft WCS
+    0x7A63306C, // 'zc0l' Zoran
+    0x44696D43, // 'DimC' DemoIccMAX
+    0x48504D32, // 'HPM2' HP
+    0x6172676C, // 'argl' ArgyllCMS
+    0x4B4F4441, // 'KODA' Kodak
+    0x52474D53, // 'RGMS' DeviceLink
+    0x6F6E7978, // 'onyx' Onyx
+  };
+  static const int kNumRegistered = sizeof(kRegisteredCMMs) / sizeof(kRegisteredCMMs[0]);
+
+  bool registered = false;
+  for (int i = 0; i < kNumRegistered; i++) {
+    if (cmm == kRegisteredCMMs[i]) { registered = true; break; }
+  }
+
+  char sigStr[5] = {};
+  SigToChars((icTagSignature)cmm, sigStr);
+
+  if (!registered) {
+    // Check if bytes are at least printable ASCII
+    bool printable = true;
+    const unsigned char *b = reinterpret_cast<const unsigned char *>(&cmm);
+    for (int i = 0; i < 4; i++) {
+      unsigned char byte = (cmm >> (24 - i * 8)) & 0xFF;
+      if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+    }
+    (void)b;
+
+    if (!printable) {
+      printf("           cmmId=0x%08X — %snon-printable bytes, not registered%s\n",
+             cmm, ColorError(), ColorReset());
+      printf("           %s[FAIL]%s CMM type must be registered or zero — §7.2.3\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("           cmmId='%s' (0x%08X) — not in ICC registry\n", sigStr, cmm);
+      printf("           %s[WARN]%s CMM signature not in ICC registered list — §7.2.3\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  } else {
+    printf("           cmmId='%s' (0x%08X) — registered ICC CMM\n", sigStr, cmm);
+    printf("           %s[OK]%s CMM type conformant\n", ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-200: Device Manufacturer/Model Signature (ICC.1-2022-05 §7.2.12-13)
+//
+// Per §7.2.12 and §7.2.13, the deviceManufacturer and deviceModel fields
+// (bytes 48-51 and 52-55) shall either be zero or contain a registered
+// signature. All bytes should be printable ASCII (0x20-0x7E).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF200_DeviceManufacturerModel(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-200]%s Device Manufacturer/Model Signature (%sICC.1-2022-05 §7.2.12-13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  struct { const char *name; icUInt32Number val; const char *section; } fields[] = {
+    {"manufacturer", pIcc->m_Header.manufacturer, "§7.2.12"},
+    {"model",        pIcc->m_Header.model,        "§7.2.13"},
+  };
+
+  for (int f = 0; f < 2; f++) {
+    icUInt32Number v = fields[f].val;
+    if (v == 0) {
+      printf("           %s=0x00000000 — not specified (permitted)\n", fields[f].name);
+      continue;
+    }
+
+    bool printable = true;
+    for (int i = 0; i < 4; i++) {
+      unsigned char byte = (v >> (24 - i * 8)) & 0xFF;
+      if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+    }
+
+    char sigStr[5] = {};
+    SigToChars((icTagSignature)v, sigStr);
+
+    if (!printable) {
+      printf("           %s=0x%08X — %snon-printable bytes%s\n",
+             fields[f].name, v, ColorError(), ColorReset());
+      printf("           %s[FAIL]%s Device %s must be printable ASCII 4CC or zero — %s\n",
+             ColorError(), ColorReset(), fields[f].name, fields[f].section);
+      issues++;
+    } else {
+      printf("           %s='%s' (0x%08X)\n", fields[f].name, sigStr, v);
+    }
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Device manufacturer/model conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-201: Profile Creator Signature (ICC.1-2022-05 §7.2.17)
+//
+// Per §7.2.17, the profileCreator field (bytes 80-83) shall either be zero
+// or contain a registered ICC member signature. All bytes should be
+// printable ASCII.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF201_ProfileCreatorSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number creator = pIcc->m_Header.creator;
+
+  printf("  %s[CF-201]%s Profile Creator Signature (%sICC.1-2022-05 §7.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (creator == 0) {
+    printf("           creator=0x00000000 — not specified (permitted)\n");
+    printf("           %s[OK]%s Profile creator conformant\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char byte = (creator >> (24 - i * 8)) & 0xFF;
+    if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+  }
+
+  char sigStr[5] = {};
+  SigToChars((icTagSignature)creator, sigStr);
+
+  if (!printable) {
+    printf("           creator=0x%08X — %snon-printable bytes%s\n",
+           creator, ColorError(), ColorReset());
+    printf("           %s[FAIL]%s Profile creator must be printable ASCII 4CC or zero — §7.2.17\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("           creator='%s' (0x%08X)\n", sigStr, creator);
+    printf("           %s[OK]%s Profile creator conformant\n", ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-203: Profile Flags Semantic Validation (ICC.1-2022-05 §7.2.11 Table 21)
+//
+// Extends CF-003 (reserved bits) with semantic validation of the defined
+// flag bits:
+//   Bit 0: 0=not embedded, 1=embedded in file (§7.2.11)
+//   Bit 1: 0=profile CAN be used independently, 1=CANNOT be used independently
+//   Bit 2: MCS subset (v5 only, 0=not MCS subset)
+// Semantic rule: if bit 0=0 (not embedded), bit 1 should be 0 (independent).
+// A non-embedded profile that cannot be used independently is contradictory.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF203_ProfileFlagsSemantics(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number flags = pIcc->m_Header.flags;
+  icUInt32Number version = pIcc->m_Header.version;
+
+  printf("  %s[CF-203]%s Profile Flags Semantic Validation (%sICC.1-2022-05 §7.2.11 Table 21%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool embedded    = (flags & 0x0001) != 0;
+  bool dependent   = (flags & 0x0002) != 0;
+  bool mcsSubset   = (flags & 0x0004) != 0;
+
+  printf("           Bit 0 (Embedded): %s\n", embedded ? "embedded in file" : "not embedded");
+  printf("           Bit 1 (Independent): %s\n", dependent ? "cannot be used independently" : "can be used independently");
+
+  // Semantic check: non-embedded + dependent is contradictory
+  if (!embedded && dependent) {
+    printf("           %s[FAIL]%s Non-embedded profile marked as cannot-be-used-independently — contradictory — §7.2.11\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // Bit 2 (MCS subset) is v5-only
+  if (mcsSubset && version < icVersionNumberV5) {
+    printf("           Bit 2 (MCS Subset): set but profile version < 5.0\n");
+    printf("           %s[FAIL]%s MCS subset flag (bit 2) is only defined for v5+ — §7.2.11\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else if (mcsSubset) {
+    printf("           Bit 2 (MCS Subset): MCS subset profile\n");
+  }
+
+  if (issues == 0)
+    printf("           %s[OK]%s Profile flags semantics conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1415,6 +1658,12 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1185, "CF-185: Profile ID Size Consistency", RunCF185_ProfileIDSizeConsistency(pIcc, filename));
   CF_WRAP(1186, "CF-186: Profile ID Entropy Analysis", RunCF186_ProfileIDEntropy(pIcc));
   CF_WRAP(1187, "CF-187: Embedded Profile ProfileID Chain", RunCF187_EmbeddedProfileIDChain(pIcc));
+
+  // SampleICC compliance framework header checks (CF-199..CF-201, CF-203)
+  CF_WRAP(1199, "CF-199: CMM Type Signature Registration", RunCF199_CMMTypeSignatureRegistration(pIcc));
+  CF_WRAP(1200, "CF-200: Device Manufacturer/Model Signature", RunCF200_DeviceManufacturerModel(pIcc));
+  CF_WRAP(1201, "CF-201: Profile Creator Signature", RunCF201_ProfileCreatorSignature(pIcc));
+  CF_WRAP(1203, "CF-203: Profile Flags Semantic Validation", RunCF203_ProfileFlagsSemantics(pIcc));
 
 #undef CF_WRAP
   return issues;

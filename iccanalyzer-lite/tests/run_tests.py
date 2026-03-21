@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-198)."""
+    """Test ICC Specification conformance checks (CF-001..CF-205)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2558,6 +2558,50 @@ def test_conformance_checks(suite):
         "cf.198.extended_range_subclass",
         ["-a", v5_profile],
         r"CF-198.*Extended Range Sub-Class"
+    )
+
+    # --- CF-199..CF-205: SampleICC Compliance Framework Extended Checks ---
+    # CF-199: CMM Type Signature Registration — runs on any profile
+    suite.assert_output_contains(
+        "cf.cmm_registration",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-199.*CMM Type Signature"
+    )
+    # CF-200: Device Manufacturer/Model Signature — runs on any profile
+    suite.assert_output_contains(
+        "cf.manufacturer_model",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-200.*Manufacturer.*Model"
+    )
+    # CF-201: Profile Creator Signature — runs on any profile
+    suite.assert_output_contains(
+        "cf.creator_signature",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-201.*Creator Signature"
+    )
+    # CF-202: Tag Data Padding Zero-Fill — runs on any profile with file access
+    suite.assert_output_contains(
+        "cf.padding_zerofill",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-202.*Padding Zero"
+    )
+    # CF-203: Profile Flags Semantic Validation — runs on any profile
+    suite.assert_output_contains(
+        "cf.flags_semantics",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-203.*Flags Semantic"
+    )
+    # CF-204: Device Attributes Semantic Validation — runs on any profile
+    suite.assert_output_contains(
+        "cf.device_attributes",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-204.*Device Attributes"
+    )
+    # CF-205: Tag Data Region Gap Analysis — runs on any profile
+    suite.assert_output_contains(
+        "cf.gap_analysis",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-205.*Gap Analysis"
     )
 
     # --- Clean profile baseline ---
