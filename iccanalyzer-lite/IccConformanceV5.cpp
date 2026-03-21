@@ -1586,6 +1586,488 @@ int RunCF152_ExtendedOutputAToBCompleteness(CIccProfile *pIcc) {
 }
 
 // ===========================================================================
+// ICS Interoperability Conformance Specification checks (CF-191..CF-198)
+// Source: ICC White Paper 57 — Introduction to core ICS specifications
+//         ICS-ExtendedRange-Part1/2/3, ICS-ExtendedOutput-Part1/2,
+//         ICS Colorimetric PCC, ICS Spectral Reflectance
+// ===========================================================================
+
+// Known ICS sub-class signatures (registered with ICC)
+static const struct {
+  icUInt32Number sig;
+  const char *name;
+  const char *description;
+} kICSSubClasses[] = {
+  {0x70636320, "pcc ", "Colorimetric PCC"},           // 'pcc '
+  {0x7872676E, "xrng", "Extended Dynamic Range"},     // 'xrng'
+  {0x73726566, "sref", "Spectral Reflectance"},       // 'sref'
+  {0x65787420, "ext ", "Extended Output"},             // 'ext '
+};
+static constexpr int kICSSubClassCount =
+    static_cast<int>(sizeof(kICSSubClasses) / sizeof(kICSSubClasses[0]));
+
+// MPE element types allowed in ICS Part 1 (restricted — no calculatorElement)
+static const icElemTypeSignature kICSPart1AllowedMPE[] = {
+  icSigCurveSetElemType,      // 'cvst'
+  icSigMatrixElemType,        // 'matf'
+  icSigCLutElemType,          // 'clut'
+  icSigExtCLutElemType,       // 'xclt'
+  icSigTintArrayElemType,     // 'tint'
+  icSigBAcsElemType,          // 'bACS'
+  icSigEAcsElemType,          // 'eACS'
+};
+static constexpr int kICSPart1AllowedCount =
+    static_cast<int>(sizeof(kICSPart1AllowedMPE) / sizeof(kICSPart1AllowedMPE[0]));
+
+static bool IsICSPart1AllowedMPE(icElemTypeSignature sig) {
+  for (int i = 0; i < kICSPart1AllowedCount; i++) {
+    if (kICSPart1AllowedMPE[i] == sig) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// CF-191: ICS Sub-Class Signature Registry
+// Validate that deviceSubClass matches a known ICS sub-class when non-zero
+// ---------------------------------------------------------------------------
+int RunCF191_ICSSubClassRegistry(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-191]%s ICS Sub-Class Signature Registry (%sICC WP-57 §ICS Registration%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal == 0) {
+    printf("         deviceSubClass not set — no ICS sub-class declared\n");
+    printf("         %s[OK]%s No sub-class (standard ICC.2 profile)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  char sigCC[5];
+  SigToChars(scVal, sigCC);
+
+  bool found = false;
+  for (int i = 0; i < kICSSubClassCount; i++) {
+    if (scVal == kICSSubClasses[i].sig) {
+      printf("         ICS sub-class: '%s' — %s\n", kICSSubClasses[i].name,
+             kICSSubClasses[i].description);
+      printf("         %s[OK]%s Known ICS sub-class signature\n",
+             ColorSuccess(), ColorReset());
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    printf("         deviceSubClass=0x%08X ('%s') — not a registered ICS sub-class\n",
+           scVal, sigCC);
+    printf("         %s[WARN]%s Unregistered ICS sub-class — may indicate private extension\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-192: Colorimetric ICS Required Tags
+// 'pcc ' sub-class: AToB1, BToA1, svcn, c2sp, s2cp required
+// ---------------------------------------------------------------------------
+int RunCF192_ColorimetricICSRequiredTags(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-192]%s Colorimetric ICS Required Tags (%sICS-Colorimetric-Part1 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x70636320) {  // 'pcc '
+    printf("         Sub-class is not 'pcc ' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Required tag table for Colorimetric ICS
+  static const struct { icTagSignature sig; const char *name; } required[] = {
+    {icSigAToB1Tag,                       "AToB1Tag"},
+    {icSigBToA1Tag,                       "BToA1Tag"},
+    {icSigSpectralViewingConditionsTag,   "spectralViewingConditionsTag"},
+    {icSigCustomToStandardPccTag,         "customToStandardPccTag (c2sp)"},
+    {icSigStandardToCustomPccTag,         "standardToCustomPccTag (s2cp)"},
+  };
+
+  for (int i = 0; i < 5; i++) {
+    CIccTag *pTag = pIcc->FindTag(required[i].sig);
+    if (!pTag) {
+      printf("         %s[FAIL]%s Missing required tag: %s — ICS-Colorimetric §6\n",
+             ColorError(), ColorReset(), required[i].name);
+      issues++;
+    } else {
+      printf("         %s[OK]%s %s present\n", ColorSuccess(), ColorReset(), required[i].name);
+    }
+  }
+
+  // Profile class must be colorSpace ('spac')
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigColorSpaceClass) {
+    char cSig[5];
+    SigToChars(static_cast<icUInt32Number>(cls), cSig);
+    printf("         %s[FAIL]%s Colorimetric ICS requires colorSpace class — found '%s'\n",
+           ColorError(), ColorReset(), cSig);
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-193: Colorimetric ICS PCC Matrix Restriction
+// Part 1: c2sp and s2cp shall be restricted to a single 3×3 matrix
+// ---------------------------------------------------------------------------
+int RunCF193_ColorimetricPCCMatrixRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-193]%s Colorimetric ICS PCC Matrix Restriction (%sICS-Colorimetric-Part1 §7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x70636320) {  // 'pcc '
+    printf("         Sub-class is not 'pcc ' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Check c2sp and s2cp tags are multiProcessElementType with restricted elements
+  static const icTagSignature pccTags[] = {
+    icSigCustomToStandardPccTag, icSigStandardToCustomPccTag
+  };
+  static const char *pccNames[] = {"c2sp", "s2cp"};
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(pccTags[t]);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) {
+      printf("         %s[FAIL]%s %s is not multiProcessElementType — Part 1 requires MPE\n",
+             ColorError(), ColorReset(), pccNames[t]);
+      issues++;
+      continue;
+    }
+
+    icUInt32Number nElem = pMPE->NumElements();
+    if (nElem != 1) {
+      printf("         %s[WARN]%s %s has %u elements — Part 1 restricts to single 3×3 matrix\n",
+             ColorWarning(), ColorReset(), pccNames[t], nElem);
+      issues++;
+    }
+
+    // Verify element is matrix type
+    if (nElem >= 1) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(0);
+      if (pElem && pElem->GetType() != icSigMatrixElemType) {
+        char eSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        printf("         %s[WARN]%s %s first element is '%s' — Part 1 restricts to matrixElement\n",
+               ColorWarning(), ColorReset(), pccNames[t], eSig);
+        issues++;
+      }
+    }
+  }
+
+  if (!issues) {
+    printf("         %s[OK]%s PCC tags conform to Part 1 matrix restriction\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-194: Spectral Reflectance ICS Required Tags
+// 'sref' sub-class: DToB3, BToD3, svcn, c2sp, s2cp required
+// ---------------------------------------------------------------------------
+int RunCF194_SpectralReflectanceRequiredTags(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-194]%s Spectral Reflectance ICS Required Tags (%sICS-SpectralReflectance-Part1 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x73726566) {  // 'sref'
+    printf("         Sub-class is not 'sref' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } required[] = {
+    {icSigDToB3Tag,                       "DToB3Tag"},
+    {icSigBToD3Tag,                       "BToD3Tag"},
+    {icSigSpectralViewingConditionsTag,   "spectralViewingConditionsTag"},
+    {icSigCustomToStandardPccTag,         "customToStandardPccTag (c2sp)"},
+    {icSigStandardToCustomPccTag,         "standardToCustomPccTag (s2cp)"},
+  };
+
+  for (int i = 0; i < 5; i++) {
+    CIccTag *pTag = pIcc->FindTag(required[i].sig);
+    if (!pTag) {
+      printf("         %s[FAIL]%s Missing required tag: %s — ICS-SpectralReflectance §6\n",
+             ColorError(), ColorReset(), required[i].name);
+      issues++;
+    } else {
+      printf("         %s[OK]%s %s present\n", ColorSuccess(), ColorReset(), required[i].name);
+    }
+  }
+
+  // Spectral PCS must be reflectance-based
+  icUInt32Number specPCS = static_cast<icUInt32Number>(pIcc->m_Header.spectralPCS);
+  if (specPCS != static_cast<icUInt32Number>(icSigReflectanceSpectralPcsData)) {
+    char sSig[5];
+    SigToChars(specPCS, sSig);
+    printf("         %s[FAIL]%s Spectral Reflectance requires reflectance PCS — found '%s'\n",
+           ColorError(), ColorReset(), sSig);
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-195: Extended Dynamic Range Radiance White Point
+// 'xrng': Y of media white point can exceed 1.0 (luminance in cd/m²)
+// ---------------------------------------------------------------------------
+int RunCF195_ExtendedRangeRadianceWhitePoint(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-195]%s Extended Dynamic Range Radiance White Point (%sICS-ExtendedRange §5.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number flags = pIcc->m_Header.flags;
+  bool extRange = (flags & icExtendedRangePCS) != 0;
+  if (!extRange) {
+    printf("         Extended Range PCS not set — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Look for spectral white point (swpt) — radiance-based XYZ
+  CIccTag *pSwpt = pIcc->FindTag(icSigSpectralWhitePointTag);
+  CIccTag *pWpt = pIcc->FindTag(icSigMediaWhitePointTag);
+
+  if (pSwpt) {
+    printf("         spectralWhitePointTag present — radiance-based XYZ expected\n");
+    // For xrng, Y value represents luminance in cd/m² — can be >> 1.0
+    CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pSwpt);
+    if (pXYZ && pXYZ->GetSize() > 0) {
+      icXYZNumber *pVal = pXYZ->GetXYZ(0);
+      double Y = icFtoD(pVal->Y);
+      printf("         White point Y = %.4f", Y);
+      if (Y > 1.0) {
+        printf(" (extended range — luminance %.1f cd/m²)\n", Y);
+        printf("         %s[OK]%s Radiance-based white point with extended Y\n",
+               ColorSuccess(), ColorReset());
+      } else if (Y > 0.0) {
+        printf(" (standard range)\n");
+        printf("         %s[OK]%s White point Y in valid range\n",
+               ColorSuccess(), ColorReset());
+      } else {
+        printf(" (invalid — Y must be > 0)\n");
+        printf("         %s[FAIL]%s White point Y ≤ 0 — ICS-ExtendedRange §5.2\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  } else if (pWpt) {
+    printf("         mediaWhitePointTag present (no spectralWhitePointTag)\n");
+    printf("         %s[OK]%s Using standard media white point\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("         %s[WARN]%s No white point tag found for extended range profile\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-196: ICS MPE Calculator Restriction (Part 1 vs Part 2)
+// Part 1: transform tags shall NOT contain calculatorElement
+// Part 2: calculatorElement IS allowed
+// ---------------------------------------------------------------------------
+int RunCF196_ICSMPECalculatorRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-196]%s ICS MPE Calculator Restriction (%sICC WP-57 Part 1 vs Part 2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Only applies to profiles with known ICS sub-classes
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  bool isICS = false;
+  for (int i = 0; i < kICSSubClassCount; i++) {
+    if (scVal == kICSSubClasses[i].sig) { isICS = true; break; }
+  }
+  if (!isICS) {
+    printf("         No ICS sub-class — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  bool hasCalculator = false;
+
+  // Check transform tags for calculatorElement
+  static const icTagSignature transformTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB3Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA3Tag,
+    icSigDToB0Tag, icSigDToB1Tag, icSigDToB3Tag,
+    icSigBToD0Tag, icSigBToD1Tag, icSigBToD3Tag,
+    icSigCustomToStandardPccTag,
+    icSigStandardToCustomPccTag,
+  };
+
+  for (int t = 0; t < 14; t++) {
+    CIccTag *pTag = pIcc->FindTag(transformTags[t]);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number e = 0; e < nElem; e++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(static_cast<int>(e));
+      if (!pElem) continue;
+
+      if (pElem->GetType() == icSigCalculatorElemType) {
+        hasCalculator = true;
+        char tSig[5];
+        SigToChars(static_cast<icUInt32Number>(transformTags[t]), tSig);
+        printf("         calculatorElement found in tag '%s' — Part 2 feature\n", tSig);
+      }
+
+      // Also flag elements not in Part 1 allowed set
+      if (!IsICSPart1AllowedMPE(pElem->GetType()) &&
+          pElem->GetType() != icSigCalculatorElemType) {
+        char eSig[5], tSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        SigToChars(static_cast<icUInt32Number>(transformTags[t]), tSig);
+        printf("         %s[INFO]%s Non-Part-1 element '%s' in tag '%s'\n",
+               ColorInfo(), ColorReset(), eSig, tSig);
+      }
+    }
+  }
+
+  if (hasCalculator) {
+    printf("         %s[OK]%s Profile uses ICS Part 2 features (calculatorElement present)\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("         %s[OK]%s Profile conforms to ICS Part 1 (no calculatorElement)\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-197: ICS PCC Transform Pair Completeness
+// customToStandardPcc (c2sp) and standardToCustomPcc (s2cp) must both be
+// present when either is present — they are a mandatory pair
+// ---------------------------------------------------------------------------
+int RunCF197_ICSPCCTransformPairCompleteness(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-197]%s ICS PCC Transform Pair Completeness (%sICC WP-57 §PCC Transforms%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+
+  CIccTag *c2sp = pIcc->FindTag(icSigCustomToStandardPccTag);
+  CIccTag *s2cp = pIcc->FindTag(icSigStandardToCustomPccTag);
+
+  if (!c2sp && !s2cp) {
+    printf("         Neither c2sp nor s2cp present — check not applicable\n");
+    return 0;
+  }
+
+  if (c2sp && !s2cp) {
+    printf("         %s[FAIL]%s customToStandardPcc (c2sp) present but standardToCustomPcc (s2cp) missing\n",
+           ColorError(), ColorReset());
+    printf("         PCC transform pairs must be complete for bidirectional conversion\n");
+    issues++;
+  } else if (!c2sp && s2cp) {
+    printf("         %s[FAIL]%s standardToCustomPcc (s2cp) present but customToStandardPcc (c2sp) missing\n",
+           ColorError(), ColorReset());
+    printf("         PCC transform pairs must be complete for bidirectional conversion\n");
+    issues++;
+  } else {
+    printf("         %s[OK]%s Both c2sp and s2cp present — transform pair complete\n",
+           ColorSuccess(), ColorReset());
+
+    // Verify both are multiProcessElementType
+    bool c2spMPE = (dynamic_cast<CIccTagMultiProcessElement*>(c2sp) != nullptr);
+    bool s2cpMPE = (dynamic_cast<CIccTagMultiProcessElement*>(s2cp) != nullptr);
+    if (!c2spMPE || !s2cpMPE) {
+      printf("         %s[WARN]%s PCC tags should be multiProcessElementType for ICS\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-198: Extended Range Sub-Class Class Restriction
+// 'xrng' profile must have display (mntr) or colorSpace (spac) class
+// ---------------------------------------------------------------------------
+int RunCF198_ExtendedRangeSubClassValidation(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-198]%s Extended Range Sub-Class Validation (%sICS-ExtendedRange §4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x7872676E) {  // 'xrng'
+    printf("         Sub-class is not 'xrng' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // xrng requires display (mntr) or colorSpace (spac) class
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigDisplayClass && cls != icSigColorSpaceClass) {
+    char cSig[5];
+    SigToChars(static_cast<icUInt32Number>(cls), cSig);
+    printf("         %s[FAIL]%s Extended Dynamic Range requires display or colorSpace class — found '%s'\n",
+           ColorError(), ColorReset(), cSig);
+    printf("         ICS-ExtendedRange §4: 'sub-class xrng shall have a profile class of display or colorSpace'\n");
+    issues++;
+  } else {
+    char cSig[5];
+    SigToChars(static_cast<icUInt32Number>(cls), cSig);
+    printf("         Profile class: '%s' — valid for extended dynamic range\n", cSig);
+    printf("         %s[OK]%s Class meets ICS-ExtendedRange requirement\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  // Also check extended range PCS flag is set
+  icUInt32Number flags = pIcc->m_Header.flags;
+  if (!(flags & icExtendedRangePCS)) {
+    printf("         %s[WARN]%s 'xrng' sub-class but extended range PCS flag not set — inconsistent\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  return issues;
+}
+
+// ===========================================================================
 // ICC.2-in-ICC.1 Embedding checks (CF-153..CF-158)
 // Source: Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf
 // ===========================================================================
@@ -2699,6 +3181,16 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1150, "CF-150: Extended Output Gamut Boundary Tag", RunCF150_ExtendedOutputGamutTag(pIcc));
   CF_WRAP(1151, "CF-151: Extended Output mediaWhitePoint Range", RunCF151_ExtendedOutputMediaWhitePointRange(pIcc));
   CF_WRAP(1152, "CF-152: Extended Output AToB/BToA/DToB Completeness", RunCF152_ExtendedOutputAToBCompleteness(pIcc));
+
+  // ICS Interoperability Conformance Specifications
+  CF_WRAP(1191, "CF-191: ICS Sub-Class Signature Registry", RunCF191_ICSSubClassRegistry(pIcc));
+  CF_WRAP(1192, "CF-192: Colorimetric ICS Required Tags", RunCF192_ColorimetricICSRequiredTags(pIcc));
+  CF_WRAP(1193, "CF-193: Colorimetric ICS PCC Matrix Restriction", RunCF193_ColorimetricPCCMatrixRestriction(pIcc));
+  CF_WRAP(1194, "CF-194: Spectral Reflectance ICS Required Tags", RunCF194_SpectralReflectanceRequiredTags(pIcc));
+  CF_WRAP(1195, "CF-195: Extended Dynamic Range Radiance White Point", RunCF195_ExtendedRangeRadianceWhitePoint(pIcc));
+  CF_WRAP(1196, "CF-196: ICS MPE Calculator Restriction", RunCF196_ICSMPECalculatorRestriction(pIcc));
+  CF_WRAP(1197, "CF-197: ICS PCC Transform Pair Completeness", RunCF197_ICSPCCTransformPairCompleteness(pIcc));
+  CF_WRAP(1198, "CF-198: Extended Range Sub-Class Validation", RunCF198_ExtendedRangeSubClassValidation(pIcc));
 
   // ICC.2-in-ICC.1 Embedding
   CF_WRAP(1153, "CF-153: Embedded Profile Tag Presence", RunCF153_EmbeddedProfileTagPresence(pIcc));
