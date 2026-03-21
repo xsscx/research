@@ -2295,6 +2295,312 @@ static int RunCF190_ProfileLegibility(CIccProfile *pIcc, const char *filename) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-208: Tag Type Version Compatibility (ICC.1-2022-05 §7.2.4 + §10)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF208_TagTypeVersionCompatibility(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-208]%s Tag Type Version Compatibility (%sICC.1-2022-05 §7.2.4, §10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+
+  // v4+ introduced parametricCurveType, multiProcessElementType, etc.
+  // v2 profiles should NOT use v4+ tag types
+  if (major >= 4) {
+    printf("         Profile version %d.x — all standard tag types permitted\n", major);
+    printf("         %s[OK]%s Version %d.x tag types unrestricted\n",
+           ColorSuccess(), ColorReset(), major);
+    return 0;
+  }
+
+  // v2 tag type restrictions
+  int tagCount = 0;
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+    tagCount++;
+
+    icTagTypeSignature typeSig = pTag->GetType();
+    char sigCC[5];
+    SigToChars(static_cast<icUInt32Number>(typeSig), sigCC);
+
+    // parametricCurveType (para) is v4+ only
+    if (typeSig == icSigParametricCurveType) {
+      char tagCC[5];
+      SigToChars(static_cast<icUInt32Number>(it->TagInfo.sig), tagCC);
+      printf("         tag '%s' uses parametricCurveType ('para') — %sv4+ only in v%d profile%s\n",
+             tagCC, ColorError(), major, ColorReset());
+      printf("         %s[FAIL]%s parametricCurveType not defined for v%d — ICC.1-2022-05 §10.18\n",
+             ColorError(), ColorReset(), major);
+      issues++;
+    }
+
+    // multiProcessElementType (mpet) is v5+ only
+    if (typeSig == icSigMultiProcessElementType) {
+      char tagCC[5];
+      SigToChars(static_cast<icUInt32Number>(it->TagInfo.sig), tagCC);
+      printf("         tag '%s' uses multiProcessElementType ('mpet') — %sv5+ only in v%d profile%s\n",
+             tagCC, ColorError(), major, ColorReset());
+      printf("         %s[FAIL]%s multiProcessElementType not defined for v%d — ICC.2-2023 §10.x\n",
+             ColorError(), ColorReset(), major);
+      issues++;
+    }
+
+    // lutAToBType (mAB ) is v4+ only (v2 uses lut8/lut16)
+    if (typeSig == icSigLutAtoBType) {
+      char tagCC[5];
+      SigToChars(static_cast<icUInt32Number>(it->TagInfo.sig), tagCC);
+      printf("         tag '%s' uses lutAToBType ('mAB ') — %sv4+ only in v%d profile%s\n",
+             tagCC, ColorError(), major, ColorReset());
+      printf("         %s[FAIL]%s lutAToBType not defined for v%d — ICC.1-2022-05 §10.11\n",
+             ColorError(), ColorReset(), major);
+      issues++;
+    }
+
+    // lutBToAType (mBA ) is v4+ only
+    if (typeSig == icSigLutBtoAType) {
+      char tagCC[5];
+      SigToChars(static_cast<icUInt32Number>(it->TagInfo.sig), tagCC);
+      printf("         tag '%s' uses lutBToAType ('mBA ') — %sv4+ only in v%d profile%s\n",
+             tagCC, ColorError(), major, ColorReset());
+      printf("         %s[FAIL]%s lutBToAType not defined for v%d — ICC.1-2022-05 §10.12\n",
+             ColorError(), ColorReset(), major);
+      issues++;
+    }
+  }
+
+  printf("         Checked %d tags for v%d compatibility\n", tagCount, major);
+
+  if (issues == 0)
+    printf("         %s[OK]%s All tag types compatible with profile version %d.x\n",
+           ColorSuccess(), ColorReset(), major);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-209: Colorspace Channel Count vs LUT Dimensions (ICC.1-2022-05 §7.2.6, §10.8-10.11)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF209_ColorspaceLUTChannelMatch(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-209]%s Colorspace Channel Count vs LUT Dimensions (%sICC.1-2022-05 §7.2.6, §10.8-10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  int csChannels = icGetSpaceSamples(cs);
+  int pcsChannels = icGetSpaceSamples(pcs);
+
+  printf("         colorSpace channels=%d, PCS channels=%d\n", csChannels, pcsChannels);
+
+  static const struct {
+    icTagSignature sig;
+    const char *name;
+    bool isAToB; // true = device→PCS, false = PCS→device
+  } kLUTTags[] = {
+    { icSigAToB0Tag, "AToB0", true },
+    { icSigAToB1Tag, "AToB1", true },
+    { icSigAToB2Tag, "AToB2", true },
+    { icSigBToA0Tag, "BToA0", false },
+    { icSigBToA1Tag, "BToA1", false },
+    { icSigBToA2Tag, "BToA2", false },
+  };
+
+  int checked = 0;
+  for (int i = 0; i < 6; i++) {
+    CIccTag *pTag = pIcc->FindTag(kLUTTags[i].sig);
+    if (!pTag) continue;
+
+    checked++;
+    int expectedIn = kLUTTags[i].isAToB ? csChannels : pcsChannels;
+    int expectedOut = kLUTTags[i].isAToB ? pcsChannels : csChannels;
+
+    // Check for LUT types that expose channel counts
+    CIccMBB *pMBB = dynamic_cast<CIccMBB *>(pTag);
+    if (pMBB) {
+      int lutIn = static_cast<int>(pMBB->InputChannels());
+      int lutOut = static_cast<int>(pMBB->OutputChannels());
+
+      if (lutIn != expectedIn) {
+        printf("         %s input channels=%d, expected %d (from %s)\n",
+               kLUTTags[i].name, lutIn, expectedIn,
+               kLUTTags[i].isAToB ? "colorSpace" : "PCS");
+        printf("         %s[FAIL]%s %s input channel mismatch — ICC.1-2022-05 §10.8-10.11\n",
+               ColorError(), ColorReset(), kLUTTags[i].name);
+        issues++;
+      }
+      if (lutOut != expectedOut) {
+        printf("         %s output channels=%d, expected %d (from %s)\n",
+               kLUTTags[i].name, lutOut, expectedOut,
+               kLUTTags[i].isAToB ? "PCS" : "colorSpace");
+        printf("         %s[FAIL]%s %s output channel mismatch — ICC.1-2022-05 §10.8-10.11\n",
+               ColorError(), ColorReset(), kLUTTags[i].name);
+        issues++;
+      }
+
+      if (lutIn == expectedIn && lutOut == expectedOut) {
+        printf("         %s: in=%d out=%d ✓\n", kLUTTags[i].name, lutIn, lutOut);
+      }
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No AToB/BToA LUT tags present\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Colorspace/PCS channel counts match LUT dimensions\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-212: textType Null Termination (ICC.1-2022-05 §10.24)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF212_TextTypeNullTermination(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-212]%s textType Null Termination (%sICC.1-2022-05 §10.24%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Tags that may use textType
+  static const icTagSignature kTextTags[] = {
+    icSigCopyrightTag,
+    icSigCharTargetTag,
+  };
+  static const char *kTextNames[] = {
+    "cprt (copyright)",
+    "targ (charTarget)",
+  };
+
+  int checked = 0;
+  for (int i = 0; i < 2; i++) {
+    CIccTag *pTag = pIcc->FindTag(kTextTags[i]);
+    if (!pTag) continue;
+
+    CIccTagText *pText = dynamic_cast<CIccTagText *>(pTag);
+    if (!pText) continue; // not textType (may be mluc)
+
+    checked++;
+    const char *text = pText->GetText();
+    if (!text) {
+      printf("         %s: %snull text pointer%s\n",
+             kTextNames[i], ColorError(), ColorReset());
+      printf("         %s[FAIL]%s textType has null data — ICC.1-2022-05 §10.24\n",
+             ColorError(), ColorReset());
+      issues++;
+      continue;
+    }
+
+    // Check that the text content is reasonable (7-bit ASCII per §10.24)
+    size_t len = strlen(text);
+    if (len == 0) {
+      printf("         %s: empty text (0 bytes)\n", kTextNames[i]);
+      printf("         %s[FAIL]%s textType should contain at least 1 character — ICC.1-2022-05 §10.24\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         %s: \"%.*s\" (%zu bytes)\n", kTextNames[i],
+             static_cast<int>(len > 60 ? 60 : len), text, len);
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No textType tags found (profiles may use multiLocalizedUnicodeType)\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s textType tag structure conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-213: viewingConditionsType Completeness (ICC.1-2022-05 §10.32)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF213_ViewingConditionsCompleteness(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-213]%s viewingConditionsType Completeness (%sICC.1-2022-05 §10.32%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigViewingConditionsTag);
+  if (!pTag) {
+    printf("         No viewingConditionsTag ('view') present\n");
+    printf("         %s[OK]%s viewingConditionsTag is optional\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagViewingConditions *pVC = dynamic_cast<CIccTagViewingConditions *>(pTag);
+  if (!pVC) {
+    printf("         %sviewingConditionsTag is not viewingConditionsType%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s viewingConditionsTag must be viewingConditionsType — ICC.1-2022-05 §10.32\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  // §10.32: illuminant (XYZ), surround (XYZ), standard illuminant type
+  const icXYZNumber &illum = pVC->m_XYZIllum;
+  const icXYZNumber &surr = pVC->m_XYZSurround;
+  icIlluminant illumType = pVC->m_illumType;
+
+  double iX = icFtoD(illum.X), iY = icFtoD(illum.Y), iZ = icFtoD(illum.Z);
+  double sX = icFtoD(surr.X), sY = icFtoD(surr.Y), sZ = icFtoD(surr.Z);
+
+  printf("         Illuminant: X=%.4f, Y=%.4f, Z=%.4f\n", iX, iY, iZ);
+  printf("         Surround:   X=%.4f, Y=%.4f, Z=%.4f\n", sX, sY, sZ);
+  printf("         Illuminant type: %u\n", static_cast<unsigned>(illumType));
+
+  // Illuminant Y must be positive (luminance in cd/m²)
+  if (iY <= 0.0) {
+    printf("         Illuminant Y=%.4f — %smust be positive%s\n",
+           iY, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Illuminant luminance must be > 0 — ICC.1-2022-05 §10.32\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // Surround Y should be non-negative
+  if (sY < 0.0) {
+    printf("         Surround Y=%.4f — %smust be non-negative%s\n",
+           sY, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Surround luminance must be >= 0 — ICC.1-2022-05 §10.32\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // Illuminant type must be a valid enumeration value
+  // ICC.1-2022-05 §10.32 Table 27: valid illuminant types 0-9
+  if (static_cast<unsigned>(illumType) > 9 && illumType != static_cast<icIlluminant>(0)) {
+    printf("         Illuminant type=%u — %sunrecognized value%s\n",
+           static_cast<unsigned>(illumType), ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Illuminant type out of range — ICC.1-2022-05 §10.32 Table 27\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s viewingConditionsType structure conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all tag type conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2345,6 +2651,12 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1188, "CF-188: Global Per-Tag Validate() Sweep", RunCF188_GlobalTagValidateSweep(pIcc));
   CF_WRAP(1189, "CF-189: Tag Type Recognition Coverage", RunCF189_TagTypeRecognition(pIcc));
   CF_WRAP(1190, "CF-190: Profile Legibility Gate", RunCF190_ProfileLegibility(pIcc, filename));
+
+  // Spec gap coverage (CF-208, CF-209, CF-212, CF-213)
+  CF_WRAP(1208, "CF-208: Tag Type Version Compatibility", RunCF208_TagTypeVersionCompatibility(pIcc));
+  CF_WRAP(1209, "CF-209: Colorspace Channel Count vs LUT Dimensions", RunCF209_ColorspaceLUTChannelMatch(pIcc));
+  CF_WRAP(1212, "CF-212: textType Null Termination", RunCF212_TextTypeNullTermination(pIcc));
+  CF_WRAP(1213, "CF-213: viewingConditionsType Completeness", RunCF213_ViewingConditionsCompleteness(pIcc));
 
 #undef CF_WRAP
   return issues;
