@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-168)."""
+    """Test ICC Specification conformance checks (CF-001..CF-174)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2456,6 +2456,65 @@ def test_conformance_checks(suite):
         "cf.163_168.clean_lut_no_fail",
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
         r"\[FAIL\].*CF-16[3-8]"
+    )
+
+    # --- CF-169..CF-174: Negative PCSXYZ Values TN Conformance ---
+    displayp3 = str(Path(__file__).resolve().parent.parent.parent / "test-profiles" / "ios-gen-DisplayP3.icc")
+
+    # CF-169: Negative PCSXYZ Encoding Capability — DisplayP3 has negative rXYZ Z
+    suite.assert_output_contains(
+        "cf.169.negative_pcsxyz_encoding",
+        ["-a", displayp3],
+        r"CF-169.*Negative.*PCSXYZ.*Encoding"
+    )
+
+    # CF-169: DisplayP3 uses s15Fixed16 for negative values → conformant
+    suite.assert_output_contains(
+        "cf.169.s15fixed16_conformant",
+        ["-a", displayp3],
+        r"s15Fixed16.*conformant"
+    )
+
+    # CF-170: Chad + negative consistency — DisplayP3 has chad tag
+    suite.assert_output_contains(
+        "cf.170.chad_negative_consistency",
+        ["-a", displayp3],
+        r"CF-170.*Chromatic.*Adaptation.*Negative"
+    )
+
+    # CF-171: White point non-negative luminance
+    suite.assert_output_contains(
+        "cf.171.whitept_nonneg",
+        ["-a", displayp3],
+        r"CF-171.*White.*Point.*Non.*Negative"
+    )
+
+    # CF-172: Colorant sum ≈ white point
+    suite.assert_output_contains(
+        "cf.172.colorant_sum_whitept",
+        ["-a", displayp3],
+        r"CF-172.*Colorant.*Sum.*White.*Point"
+    )
+
+    # CF-173: Absorber encoding check
+    suite.assert_output_contains(
+        "cf.173.absorber_encoding",
+        ["-a", displayp3],
+        r"CF-173.*Absorber.*Encoding"
+    )
+
+    # CF-174: Lab conversion clipping awareness
+    suite.assert_output_contains(
+        "cf.174.lab_clipping",
+        ["-a", displayp3],
+        r"CF-174.*Lab.*Conversion.*Clipping"
+    )
+
+    # Clean DisplayP3 should pass all negative PCSXYZ checks (no FAIL)
+    suite.assert_output_not_contains(
+        "cf.169_174.displayp3_no_fail",
+        ["-a", displayp3],
+        r"\[FAIL\].*CF-1[67][0-4]"
     )
 
 
