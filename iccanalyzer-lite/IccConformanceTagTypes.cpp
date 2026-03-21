@@ -2601,8 +2601,648 @@ static int RunCF213_ViewingConditionsCompleteness(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Dispatcher — runs all tag type conformance checks
+// CF-220: mluc Name Record Overlap Detection (ICC TN PSD §mluc)
+//
+// The tech note warns that name records "can point anywhere in the storage area
+// and can be in any order with overlaps" — shared records are allowed but
+// PARTIAL overlaps are suspicious (CWE-119). Two records that share the exact
+// same [offset, offset+length) are fine (intentional sharing). Two records
+// whose ranges partially overlap indicate encoder error or deliberate attack.
 // ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF220_MlucNameRecordOverlap(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-220]%s mluc Name Record Overlap Detection (%sICC TN PSD §mluc%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         No filename — skipping raw mluc overlap check\n");
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return 0;
+
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    bool dup = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++)
+      if (visitedOffsets[v] == tagOffset) { dup = true; break; }
+    if (dup) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    if (tagSize < 16 || (long)(tagOffset + 16) > fh.fileSize) continue;
+
+    uint8_t hdr[16];
+    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, 16)) continue;
+    if (ReadU32BE(hdr) != kMlucTypeSig) continue;
+
+    uint32_t recordCount = ReadU32BE(hdr + 8);
+    uint32_t recordSize  = ReadU32BE(hdr + 12);
+    if (recordSize != 12 || recordCount < 2) continue;
+
+    uint64_t recordsEnd = 16ULL + (uint64_t)recordCount * 12ULL;
+    if (recordsEnd > tagSize) continue;
+
+    size_t recBytes = recordCount * 12;
+    std::vector<uint8_t> recBuf(recBytes);
+    if (!fh.Seek((long)(tagOffset + 16)) || !fh.ReadBytes(recBuf.data(), recBytes))
+      continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+
+    // Collect all [offset, length) ranges
+    struct Range { uint32_t off; uint32_t len; uint32_t idx; };
+    std::vector<Range> ranges;
+    for (uint32_t r = 0; r < recordCount; r++) {
+      const uint8_t *rec = recBuf.data() + r * 12;
+      uint32_t strLen = ReadU32BE(rec + 4);
+      uint32_t strOff = ReadU32BE(rec + 8);
+      if (strLen > 0)
+        ranges.push_back({strOff, strLen, r});
+    }
+
+    // Check for partial overlaps (exact match = sharing = OK)
+    for (size_t a = 0; a < ranges.size(); a++) {
+      for (size_t b = a + 1; b < ranges.size(); b++) {
+        uint32_t aStart = ranges[a].off, aEnd = ranges[a].off + ranges[a].len;
+        uint32_t bStart = ranges[b].off, bEnd = ranges[b].off + ranges[b].len;
+        // Exact same range = intentional sharing
+        if (aStart == bStart && aEnd == bEnd) continue;
+        // Check partial overlap
+        if (aStart < bEnd && bStart < aEnd) {
+          printf("         Tag '%s': records %u and %u partially overlap "
+                 "([%u..%u) vs [%u..%u))\n",
+                 sigBuf, ranges[a].idx, ranges[b].idx,
+                 aStart, aEnd, bStart, bEnd);
+          printf("         %s[FAIL]%s Partial name record overlap — potential CWE-119\n",
+                 ColorError(), ColorReset());
+          issues++;
+        }
+      }
+    }
+  }
+
+  if (checked > 0 && issues == 0)
+    printf("         %s[OK]%s %d mluc tag(s) checked, no partial overlaps\n",
+           ColorSuccess(), ColorReset(), checked);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-221: profileSequenceDescTag Structure Validation (ICC.1-2022-05 §9.2.50)
+//
+// Required in v4+ DeviceLink profiles. Each description entry contains:
+//   - Device manufacturer (4B) + model signature (4B) = 8B
+//   - Device attributes (8B)
+//   - Technology signature (4B)
+//   - Two embedded mluc structures (manufacturer desc, model desc)
+// Validate description count, and that each entry's sub-structures are valid.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF221_ProfileSequenceDescStructure(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-221]%s profileSequenceDescTag Structure (%sICC.1-2022-05 §9.2.50%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+  if (!pTag) {
+    // Required for DeviceLink v4+
+    icUInt32Number ver = pIcc->m_Header.version;
+    if (pIcc->m_Header.deviceClass == icSigLinkClass && ver >= icVersionNumberV4) {
+      printf("         %s[FAIL]%s profileSequenceDescTag required for v4+ DeviceLink profiles\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         No profileSequenceDescTag — not required for this class\n");
+    }
+    return issues;
+  }
+
+  CIccTagProfileSeqDesc *pSeq = dynamic_cast<CIccTagProfileSeqDesc *>(pTag);
+  if (!pSeq || !pSeq->m_Descriptions) {
+    printf("         %s[FAIL]%s profileSequenceDescTag has wrong type or null descriptions\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  size_t descCount = pSeq->m_Descriptions->size();
+  printf("         Description count: %zu\n", descCount);
+
+  if (descCount == 0) {
+    printf("         %s[WARN]%s Empty profile sequence (zero descriptions)\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // For DeviceLink, description count should be ≥ 2 (source + destination)
+  if (pIcc->m_Header.deviceClass == icSigLinkClass && descCount == 1) {
+    printf("         %s[WARN]%s DeviceLink pseq has only 1 description (expected ≥ 2)\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // Excessive descriptions → DoS risk
+  if (descCount > 256) {
+    printf("         %s[FAIL]%s %zu descriptions exceeds reasonable maximum (256)\n",
+           ColorError(), ColorReset(), descCount);
+    issues++;
+  }
+
+  // Validate each description entry has valid manufacturer/model descriptions
+  int entryIdx = 0;
+  for (auto dit = pSeq->m_Descriptions->begin();
+       dit != pSeq->m_Descriptions->end(); ++dit, ++entryIdx) {
+    // Each CIccProfileDescStruct has:
+    //   m_deviceMfg, m_deviceModel (signatures)
+    //   m_attributes (icUInt64Number)
+    //   m_technology (signature)
+    //   m_deviceMfgDesc, m_deviceModelDesc (CIccProfileDescText wrapping mluc or textDescription)
+
+    // Validate manufacturer description locale counts via GetTag()
+    size_t mfgCount = 0;
+    CIccTag *pMfgTag = dit->m_deviceMfgDesc.GetTag();
+    if (pMfgTag) {
+      CIccTagMultiLocalizedUnicode *pMluc =
+        dynamic_cast<CIccTagMultiLocalizedUnicode*>(pMfgTag);
+      if (pMluc) mfgCount = pMluc->m_Strings ? pMluc->m_Strings->size() : 0;
+    }
+    size_t mdlCount = 0;
+    CIccTag *pMdlTag = dit->m_deviceModelDesc.GetTag();
+    if (pMdlTag) {
+      CIccTagMultiLocalizedUnicode *pMluc =
+        dynamic_cast<CIccTagMultiLocalizedUnicode*>(pMdlTag);
+      if (pMluc) mdlCount = pMluc->m_Strings ? pMluc->m_Strings->size() : 0;
+    }
+
+    // Check for unreasonable locale counts in embedded mluc
+    if (mfgCount > 100) {
+      printf("         Entry %d: manufacturer desc has %zu locales (>100 suspicious)\n",
+             entryIdx, mfgCount);
+      printf("         %s[WARN]%s Excessive locale count in embedded mluc\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+    if (mdlCount > 100) {
+      printf("         Entry %d: model desc has %zu locales (>100 suspicious)\n",
+             entryIdx, mdlCount);
+      printf("         %s[WARN]%s Excessive locale count in embedded mluc\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s profileSequenceDescTag structure valid (%zu descriptions)\n",
+           ColorSuccess(), ColorReset(), descCount);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-222: profileSequenceIdentifierTag Validation (ICC.1-2022-05 §9.2.51)
+//
+// Optional tag containing profile IDs (MD5) and descriptions for each profile
+// in a DeviceLink sequence. Each entry has a profileID (16-byte MD5) and an
+// mluc description. Validate entry count, profile ID format, and descriptions.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF222_ProfileSequenceIdentifierTag(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-222]%s profileSequenceIdentifierTag Validation (%sICC.1-2022-05 §9.2.51%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigProfileSequceIdTag);
+  if (!pTag) {
+    printf("         No profileSequenceIdentifierTag ('psid') present\n");
+    return 0;
+  }
+
+  CIccTagProfileSequenceId *pPsid = dynamic_cast<CIccTagProfileSequenceId *>(pTag);
+  if (!pPsid) {
+    printf("         %s[FAIL]%s profileSequenceIdentifierTag has wrong type\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  // Count entries
+  int entryCount = 0;
+  int zeroIdCount = 0;
+  for (auto it = pPsid->begin(); it != pPsid->end(); ++it) {
+    entryCount++;
+
+    // Check if profile ID is all zeros (uncomputed)
+    bool allZero = true;
+    for (int b = 0; b < 16; b++) {
+      if (it->m_profileID.ID8[b] != 0) { allZero = false; break; }
+    }
+    if (allZero) zeroIdCount++;
+
+    // Validate description mluc has reasonable locale count
+    size_t descCount = it->m_desc.m_Strings ? it->m_desc.m_Strings->size() : 0;
+    if (descCount > 100) {
+      printf("         Entry %d: description has %zu locales (>100 suspicious)\n",
+             entryCount - 1, descCount);
+      printf("         %s[WARN]%s Excessive locales in psid entry description\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  printf("         Entries: %d, zero-ID entries: %d\n", entryCount, zeroIdCount);
+
+  if (entryCount == 0) {
+    printf("         %s[WARN]%s Empty profileSequenceIdentifierTag\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (entryCount > 256) {
+    printf("         %s[FAIL]%s %d entries exceeds reasonable maximum (256)\n",
+           ColorError(), ColorReset(), entryCount);
+    issues++;
+  }
+
+  // If all entries have zero profile IDs, that's noteworthy
+  if (entryCount > 0 && zeroIdCount == entryCount) {
+    printf("         %s[WARN]%s All profile IDs are zero (uncomputed) — §9.2.51\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // Cross-check: if pseq exists, psid entry count should match
+  CIccTag *pSeqTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+  if (pSeqTag) {
+    CIccTagProfileSeqDesc *pSeq = dynamic_cast<CIccTagProfileSeqDesc *>(pSeqTag);
+    if (pSeq && pSeq->m_Descriptions) {
+      size_t seqCount = pSeq->m_Descriptions->size();
+      if ((size_t)entryCount != seqCount) {
+        printf("         %s[WARN]%s psid has %d entries but pseq has %zu — mismatch\n",
+               ColorWarning(), ColorReset(), entryCount, seqCount);
+        issues++;
+      }
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s profileSequenceIdentifierTag valid (%d entries)\n",
+           ColorSuccess(), ColorReset(), entryCount);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-223: mluc Zero-Name Placeholder Encoding (ICC TN PSD §placeholder)
+//
+// The tech note recommends that when component profiles lack deviceMfgDescTag
+// or deviceModelDescTag, a "placeholder" mluc with zero name records should
+// encode as exactly 12 bytes (type sig + reserved + count=0). Implementations
+// may encode 12, 16, or 28 bytes, causing parsing ambiguity. This check
+// validates mluc tags with zero records have minimal encoding.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF223_MlucZeroNamePlaceholder(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-223]%s mluc Zero-Name Placeholder Encoding (%sICC TN PSD §placeholder%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         No filename — skipping raw mluc placeholder check\n");
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return 0;
+
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    bool dup = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++)
+      if (visitedOffsets[v] == tagOffset) { dup = true; break; }
+    if (dup) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    if (tagSize < 12 || (long)(tagOffset + 12) > fh.fileSize) continue;
+
+    uint8_t hdr[16];
+    size_t readSz = (tagSize >= 16) ? 16 : 12;
+    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, readSz)) continue;
+    if (ReadU32BE(hdr) != kMlucTypeSig) continue;
+
+    uint32_t recordCount = ReadU32BE(hdr + 8);
+    if (recordCount != 0) continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+
+    // Zero-name mluc: recommended encoding is exactly 12 bytes
+    if (tagSize != 12) {
+      printf("         Tag '%s': zero-name mluc is %u bytes (recommended: 12)\n",
+             sigBuf, tagSize);
+      printf("         %s[WARN]%s Non-minimal zero-name placeholder encoding — TN PSD\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (checked > 0 && issues == 0)
+    printf("         %s[OK]%s %d zero-name mluc tag(s) use minimal encoding\n",
+           ColorSuccess(), ColorReset(), checked);
+  else if (checked == 0)
+    printf("         No zero-name mluc tags found\n");
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-224: mluc Reserved Field Zero (ICC.1-2022-05 §10.13)
+//
+// Bytes 4-7 of every mluc must be zero (reserved). Non-zero values indicate
+// encoder error or potential data injection.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF224_MlucReservedFieldZero(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-224]%s mluc Reserved Field Zero (%sICC.1-2022-05 §10.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         No filename — skipping raw mluc reserved check\n");
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return 0;
+
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    bool dup = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++)
+      if (visitedOffsets[v] == tagOffset) { dup = true; break; }
+    if (dup) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    if (tagSize < 12 || (long)(tagOffset + 12) > fh.fileSize) continue;
+
+    uint8_t hdr[12];
+    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, 12)) continue;
+    if (ReadU32BE(hdr) != kMlucTypeSig) continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+
+    uint32_t reserved = ReadU32BE(hdr + 4);
+    if (reserved != 0) {
+      printf("         Tag '%s': mluc reserved field = 0x%08X (must be 0)\n",
+             sigBuf, reserved);
+      printf("         %s[FAIL]%s mluc reserved bytes non-zero — §10.13\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (checked > 0 && issues == 0)
+    printf("         %s[OK]%s %d mluc tag(s) checked, all reserved fields zero\n",
+           ColorSuccess(), ColorReset(), checked);
+  else if (checked == 0)
+    printf("         No mluc tags found\n");
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-225: mluc Name Record String Alignment (ICC.1-2022-05 §7.1, §10.13)
+//
+// §7.1 requires all tagged element data to be padded to 4-byte boundaries.
+// For mluc, the string storage area should have string offsets that are even
+// (Unicode strings are 2-byte encoded). Additionally, string lengths should
+// be even (complete UTF-16 code units).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-225]%s mluc Name Record String Alignment (%sICC.1-2022-05 §7.1, §10.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         No filename — skipping raw mluc alignment check\n");
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return 0;
+
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    bool dup = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++)
+      if (visitedOffsets[v] == tagOffset) { dup = true; break; }
+    if (dup) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    if (tagSize < 16 || (long)(tagOffset + 16) > fh.fileSize) continue;
+
+    uint8_t hdr[16];
+    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, 16)) continue;
+    if (ReadU32BE(hdr) != kMlucTypeSig) continue;
+
+    uint32_t recordCount = ReadU32BE(hdr + 8);
+    uint32_t recordSize  = ReadU32BE(hdr + 12);
+    if (recordSize != 12 || recordCount == 0) continue;
+
+    uint64_t recordsEnd = 16ULL + (uint64_t)recordCount * 12ULL;
+    if (recordsEnd > tagSize) continue;
+
+    size_t recBytes = recordCount * 12;
+    std::vector<uint8_t> recBuf(recBytes);
+    if (!fh.Seek((long)(tagOffset + 16)) || !fh.ReadBytes(recBuf.data(), recBytes))
+      continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+
+    for (uint32_t r = 0; r < recordCount; r++) {
+      const uint8_t *rec = recBuf.data() + r * 12;
+      uint32_t strLen = ReadU32BE(rec + 4);
+      uint32_t strOff = ReadU32BE(rec + 8);
+
+      // String length should be even (UTF-16 = 2 bytes per code unit)
+      if (strLen & 1) {
+        printf("         Tag '%s' record %u: odd string length %u (UTF-16 must be even)\n",
+               sigBuf, r, strLen);
+        printf("         %s[WARN]%s Odd mluc string length — potential truncation\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
+
+      // String offset should be even for UTF-16 alignment
+      if ((strOff & 1) && strLen > 0) {
+        printf("         Tag '%s' record %u: odd string offset %u (UTF-16 misaligned)\n",
+               sigBuf, r, strOff);
+        printf("         %s[WARN]%s Odd mluc string offset — misaligned UTF-16\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (checked > 0 && issues == 0)
+    printf("         %s[OK]%s %d mluc tag(s) checked, all strings properly aligned\n",
+           ColorSuccess(), ColorReset(), checked);
+  else if (checked == 0)
+    printf("         No mluc tags with records found\n");
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-226: mluc Size Inference Safety (ICC TN PSD §size)
+//
+// The tech note's key warning: when mluc is embedded in profileSequenceDescType,
+// the size of the mluc is NOT stored — parsers must infer it. The recommended
+// size = max(offset + length) across all records. This check validates that
+// standalone mluc tags (in the tag table) have a tag size consistent with
+// the records' maximum (offset + length), detecting wasted space or truncation.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF226_MlucSizeInferenceSafety(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-226]%s mluc Size Inference Safety (%sICC TN PSD §size%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!filename) {
+    printf("         No filename — skipping mluc size inference check\n");
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return 0;
+
+  static const uint32_t kMlucTypeSig = 0x6D6C7563;
+  std::vector<icUInt32Number> visitedOffsets;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    icUInt32Number tagOffset = e->TagInfo.offset;
+    icUInt32Number tagSize = e->TagInfo.size;
+
+    bool dup = false;
+    for (size_t v = 0; v < visitedOffsets.size(); v++)
+      if (visitedOffsets[v] == tagOffset) { dup = true; break; }
+    if (dup) continue;
+    visitedOffsets.push_back(tagOffset);
+
+    if (tagSize < 16 || (long)(tagOffset + 16) > fh.fileSize) continue;
+
+    uint8_t hdr[16];
+    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, 16)) continue;
+    if (ReadU32BE(hdr) != kMlucTypeSig) continue;
+
+    uint32_t recordCount = ReadU32BE(hdr + 8);
+    uint32_t recordSize  = ReadU32BE(hdr + 12);
+    if (recordSize != 12 || recordCount == 0) continue;
+
+    uint64_t recordsEnd = 16ULL + (uint64_t)recordCount * 12ULL;
+    if (recordsEnd > tagSize) continue;
+
+    size_t recBytes = recordCount * 12;
+    std::vector<uint8_t> recBuf(recBytes);
+    if (!fh.Seek((long)(tagOffset + 16)) || !fh.ReadBytes(recBuf.data(), recBytes))
+      continue;
+
+    checked++;
+    char sigBuf[5];
+    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+
+    // Compute max(offset + length) across all records (TN recommendation)
+    uint64_t maxEnd = 0;
+    for (uint32_t r = 0; r < recordCount; r++) {
+      const uint8_t *rec = recBuf.data() + r * 12;
+      uint32_t strLen = ReadU32BE(rec + 4);
+      uint32_t strOff = ReadU32BE(rec + 8);
+      uint64_t end = (uint64_t)strOff + strLen;
+      if (end > maxEnd) maxEnd = end;
+    }
+
+    // Tag size should be ≥ maxEnd (otherwise strings are truncated)
+    if (maxEnd > tagSize) {
+      printf("         Tag '%s': max(offset+length) = %llu but tag size = %u — data truncated\n",
+             sigBuf, (unsigned long long)maxEnd, tagSize);
+      printf("         %s[FAIL]%s mluc string data exceeds declared tag size\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    // Warn if tag size exceeds maxEnd by more than 3 (alignment padding)
+    // This suggests dead space in the tag (wasted bytes)
+    if (tagSize > maxEnd + 3 && maxEnd > 0) {
+      uint32_t waste = tagSize - (uint32_t)maxEnd;
+      if (waste > 64) {
+        printf("         Tag '%s': %u bytes of unused space after string data\n",
+               sigBuf, waste);
+        printf("         %s[INFO]%s mluc tag has significant unused space\n",
+               ColorInfo(), ColorReset());
+        // INFO only — not a conformance failure
+      }
+    }
+  }
+
+  if (checked > 0 && issues == 0)
+    printf("         %s[OK]%s %d mluc tag(s) checked, sizes consistent with records\n",
+           ColorSuccess(), ColorReset(), checked);
+  else if (checked == 0)
+    printf("         No mluc tags with records found\n");
+
+  return issues;
+}
 
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
@@ -2657,6 +3297,15 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1209, "CF-209: Colorspace Channel Count vs LUT Dimensions", RunCF209_ColorspaceLUTChannelMatch(pIcc));
   CF_WRAP(1212, "CF-212: textType Null Termination", RunCF212_TextTypeNullTermination(pIcc));
   CF_WRAP(1213, "CF-213: viewingConditionsType Completeness", RunCF213_ViewingConditionsCompleteness(pIcc));
+
+  // ICC TN PSD / mluc structure conformance (CF-220..CF-226)
+  CF_WRAP(1220, "CF-220: mluc Name Record Overlap Detection", RunCF220_MlucNameRecordOverlap(pIcc, filename));
+  CF_WRAP(1221, "CF-221: profileSequenceDescTag Structure", RunCF221_ProfileSequenceDescStructure(pIcc));
+  CF_WRAP(1222, "CF-222: profileSequenceIdentifierTag Validation", RunCF222_ProfileSequenceIdentifierTag(pIcc));
+  CF_WRAP(1223, "CF-223: mluc Zero-Name Placeholder Encoding", RunCF223_MlucZeroNamePlaceholder(pIcc, filename));
+  CF_WRAP(1224, "CF-224: mluc Reserved Field Zero", RunCF224_MlucReservedFieldZero(pIcc, filename));
+  CF_WRAP(1225, "CF-225: mluc Name Record String Alignment", RunCF225_MlucStringAlignment(pIcc, filename));
+  CF_WRAP(1226, "CF-226: mluc Size Inference Safety", RunCF226_MlucSizeInferenceSafety(pIcc, filename));
 
 #undef CF_WRAP
   return issues;
