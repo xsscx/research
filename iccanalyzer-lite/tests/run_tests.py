@@ -3960,32 +3960,100 @@ def test_conformance_checks(suite):
     )
 
     # --- CF-317..CF-320: K.2.9 HDR-to-SDR Transform Conformance ---
-    # CF-317: HDR-to-SDR Flag-Tag Consistency
+
+    # CF-317: Flag-Tag Consistency — consistent (flag + tags both present)
     suite.assert_output_contains(
-        "cf.317.htos_flag_tag_consistency",
-        ["-a", v5_profile],
+        "cf.317.htos_flag_tags_ok",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
         r"CF-317.*HDR.*SDR.*Flag.*Tag"
     )
-
-    # CF-318: HDR-to-SDR Tag Type Validation
     suite.assert_output_contains(
-        "cf.318.htos_tag_type_validation",
-        ["-a", v5_profile],
+        "cf.317.htos_flag_tags_ok.ok_msg",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
+        r"\[OK\].*Extended Range PCS flag set with 1 HToS"
+    )
+
+    # CF-317: Flag set but no tags → WARN
+    suite.assert_output_contains(
+        "cf.317.htos_flag_only.warn",
+        ["-a", f"{corpus}/cf_htos_flag_only.icc"],
+        r"\[WARN\].*Extended Range PCS flag.*bit 3.*is set but no HToS tags"
+    )
+
+    # CF-317: Tags present but flag not set → WARN (orphan tags)
+    suite.assert_output_contains(
+        "cf.317.htos_tags_no_flag.warn",
+        ["-a", f"{corpus}/cf_htos_tags_no_flag.icc"],
+        r"\[WARN\].*HToS tag.*present but Extended Range PCS flag.*NOT set"
+    )
+    suite.assert_output_contains(
+        "cf.317.htos_tags_no_flag.orphan",
+        ["-a", f"{corpus}/cf_htos_tags_no_flag.icc"],
+        r"Orphan tag: H2S0"
+    )
+
+    # CF-318: Tag Type — valid mpet
+    suite.assert_output_contains(
+        "cf.318.htos_type_ok",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
         r"CF-318.*HDR.*SDR.*Tag Type"
     )
-
-    # CF-319: HDR-to-SDR Tag Channel Consistency
     suite.assert_output_contains(
-        "cf.319.htos_channel_consistency",
-        ["-a", v5_profile],
-        r"CF-319.*HDR.*SDR.*Channel"
+        "cf.318.htos_type_ok.mpet",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
+        r"\[OK\].*H2S0 tag type is multiProcessElementsType"
     )
 
-    # CF-320: HDR-to-SDR Intent Coverage
+    # CF-318: Wrong type → WARN
     suite.assert_output_contains(
-        "cf.320.htos_intent_coverage",
-        ["-a", v5_profile],
-        r"CF-320.*HDR.*SDR.*Intent"
+        "cf.318.htos_bad_type.warn",
+        ["-a", f"{corpus}/cf_htos_bad_type.icc"],
+        r"\[WARN\].*H2S0 tag type.*curv.*expected multiProcessElementsType"
+    )
+
+    # CF-319: Channel consistency — matching PCS
+    suite.assert_output_contains(
+        "cf.319.htos_channels_ok",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
+        r"CF-319.*HDR.*SDR.*Channel"
+    )
+    suite.assert_output_contains(
+        "cf.319.htos_channels_ok.match",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
+        r"\[OK\].*H2S0 channels 3.*3 match PCS"
+    )
+
+    # CF-319: Channel mismatch → WARN
+    suite.assert_output_contains(
+        "cf.319.htos_channel_mismatch.warn_in",
+        ["-a", f"{corpus}/cf_htos_channel_mismatch.icc"],
+        r"\[WARN\].*H2S0 input channels=4.*expected PCS channels=3"
+    )
+    suite.assert_output_contains(
+        "cf.319.htos_channel_mismatch.warn_out",
+        ["-a", f"{corpus}/cf_htos_channel_mismatch.icc"],
+        r"\[WARN\].*H2S0 output channels=4.*expected PCS channels=3"
+    )
+
+    # CF-320: Intent coverage — all 4 intents
+    suite.assert_output_contains(
+        "cf.320.htos_all_intents.ok",
+        ["-a", f"{corpus}/cf_htos_all_intents.icc"],
+        r"\[OK\].*All 4 rendering intents have HToS coverage"
+    )
+
+    # CF-320: Partial coverage — 1 of 4 intents
+    suite.assert_output_contains(
+        "cf.320.htos_partial.info",
+        ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
+        r"\[INFO\].*1 of 4 rendering intents covered"
+    )
+
+    # CF-320: No HToS tags on flag-only profile
+    suite.assert_output_contains(
+        "cf.320.htos_flag_only.no_coverage",
+        ["-a", f"{corpus}/cf_htos_flag_only.icc"],
+        r"No HToS tags.*no intent coverage"
     )
 
     # --- CF-321..CF-323: K.2.8 Calculator 'solv' Operator Conformance ---
