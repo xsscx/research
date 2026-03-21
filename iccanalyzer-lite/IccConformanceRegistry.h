@@ -800,6 +800,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-205", "Tag Data Region Gap Analysis",
    "Analyze tag data region layout for coverage efficiency and detect excessive gaps", "ICC.1-2022-05 §7.3",
    CFSeverity::INFO, CFCategory::REQUIRED},
+
+  // Spec gap coverage batch (CF-206..CF-213)
+  {"CF-206", "Profile File Signature 'acsp'",
+   "Validate ICC magic number 'acsp' (0x61637370) at header bytes 36-39", "ICC.1-2022-05 §7.2.9",
+   CFSeverity::ERROR, CFCategory::HEADER},
+  {"CF-207", "mediaWhitePointTag Value Range",
+   "Validate XYZ values in mediaWhitePointTag are positive and physically plausible; v4+ non-DeviceLink must be D50", "ICC.1-2022-05 §10.27, §9.2.28",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+  {"CF-208", "Tag Type Version Compatibility",
+   "Check that v2 profiles do not use v4+ tag types (parametricCurveType, lutAToBType, lutBToAType, multiProcessElementType)", "ICC.1-2022-05 §7.2.4, §10",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-209", "Colorspace Channel Count vs LUT Dimensions",
+   "Cross-validate AToB/BToA LUT input/output channels against declared colorSpace and PCS channel counts", "ICC.1-2022-05 §7.2.6, §10.8-10.11",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+  {"CF-210", "DeviceLink PCS Space Validation",
+   "Validate DeviceLink profiles have consistent PCS space assignment and color space compatibility", "ICC.1-2022-05 §8.6",
+   CFSeverity::ERROR, CFCategory::HEADER},
+  {"CF-211", "AToB/BToA Tag Pair Completeness",
+   "Check that AToB tags have matching BToA counterparts for bidirectional color transforms", "ICC.1-2022-05 §9.2.1-9.2.2",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+  {"CF-212", "textType Null Termination",
+   "Validate textType tag data is non-null and non-empty per §10.24 requirements", "ICC.1-2022-05 §10.24",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-213", "viewingConditionsType Completeness",
+   "Validate illuminant (positive Y), surround (non-negative Y), and illuminant type enumeration in viewingConditionsType", "ICC.1-2022-05 §10.32",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =

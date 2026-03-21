@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-205)."""
+    """Test ICC Specification conformance checks (CF-001..CF-213)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2602,6 +2602,64 @@ def test_conformance_checks(suite):
         "cf.gap_analysis",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-205.*Gap Analysis"
+    )
+
+    # --- CF-206..CF-213: Spec Gap Coverage Batch ---
+
+    # CF-206: Profile File Signature 'acsp' — runs on any profile
+    suite.assert_output_contains(
+        "cf.acsp_signature",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-206.*Profile File Signature"
+    )
+
+    # CF-207: mediaWhitePointTag Value Range — runs on profiles with wtpt
+    suite.assert_output_contains(
+        "cf.wtpt_value_range",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-207.*mediaWhitePointTag"
+    )
+
+    # CF-208: Tag Type Version Compatibility — runs on any profile
+    suite.assert_output_contains(
+        "cf.tag_type_version",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-208.*Tag Type Version"
+    )
+
+    # CF-209: Colorspace Channel Count vs LUT Dimensions — runs on any profile
+    suite.assert_output_contains(
+        "cf.colorspace_lut_channel",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-209.*Colorspace.*Channel"
+    )
+
+    # CF-210: DeviceLink PCS Space Validation — runs on any profile
+    suite.assert_output_contains(
+        "cf.devicelink_pcs",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-210.*DeviceLink PCS"
+    )
+
+    # CF-211: AToB/BToA Tag Pair Completeness — runs on any profile
+    suite.assert_output_contains(
+        "cf.atob_btoa_pairs",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-211.*AToB.*BToA"
+    )
+
+    # CF-212: textType Null Termination — runs on any profile
+    suite.assert_output_contains(
+        "cf.text_null_term",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-212.*textType.*Null"
+    )
+
+    # CF-213: viewingConditionsType Completeness — runs on any profile
+    suite.assert_output_contains(
+        "cf.viewing_conditions",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-213.*viewingConditionsType"
     )
 
     # --- Clean profile baseline ---

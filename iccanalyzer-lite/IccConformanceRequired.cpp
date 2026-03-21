@@ -1776,6 +1776,170 @@ static int RunCF205_TagDataRegionGapAnalysis(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-207: mediaWhitePointTag Value Range (ICC.1-2022-05 §10.27)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF207_MediaWhitePointTagValueRange(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-207]%s mediaWhitePointTag Value Range (%sICC.1-2022-05 §10.27%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!pTag) {
+    printf("         No mediaWhitePointTag ('wtpt') found\n");
+    printf("         %s[OK]%s Not present (checked separately by CF-040)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ *>(pTag);
+  if (!pXYZ || pXYZ->GetSize() < 1) {
+    printf("         %swtpt tag is not XYZType or has no entries%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s mediaWhitePointTag must be XYZType — ICC.1-2022-05 §10.27\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  const icXYZNumber *xyz = pXYZ->GetXYZ(0);
+  if (!xyz) {
+    printf("         %s[FAIL]%s Cannot read XYZ value\n", ColorError(), ColorReset());
+    return 1;
+  }
+
+  double X = icFtoD(xyz->X);
+  double Y = icFtoD(xyz->Y);
+  double Z = icFtoD(xyz->Z);
+
+  printf("         wtpt: X=%.4f, Y=%.4f, Z=%.4f\n", X, Y, Z);
+
+  // Y must be positive (luminance)
+  if (Y <= 0.0) {
+    printf("         Y=%.4f — %sY must be positive (luminance)%s\n",
+           Y, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s White point Y must be > 0 — ICC.1-2022-05 §10.27\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // X must be positive for a valid white point
+  if (X <= 0.0) {
+    printf("         X=%.4f — %sX must be positive%s\n",
+           X, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s White point X must be > 0 — ICC.1-2022-05 §10.27\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // Z must be positive for a valid white point
+  if (Z <= 0.0) {
+    printf("         Z=%.4f — %sZ must be positive%s\n",
+           Z, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s White point Z must be > 0 — ICC.1-2022-05 §10.27\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // §9.2.28 (v4): for non-DeviceLink, wtpt shall be D50 (0.9642, 1.0, 0.8249)
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+  bool isDeviceLink = (pIcc->m_Header.deviceClass == icSigLinkClass);
+
+  if (major >= 4 && !isDeviceLink) {
+    double dX = fabs(X - 0.9642);
+    double dY = fabs(Y - 1.0000);
+    double dZ = fabs(Z - 0.8249);
+    if (dX > 0.002 || dY > 0.002 || dZ > 0.002) {
+      printf("         v4 non-DeviceLink: wtpt should be D50 (0.9642, 1.0, 0.8249)\n");
+      printf("         deviation: ΔX=%.4f, ΔY=%.4f, ΔZ=%.4f\n", dX, dY, dZ);
+      printf("         %s[FAIL]%s v4+ non-DeviceLink wtpt must be D50 — ICC.1-2022-05 §9.2.28\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  // Sanity: XYZ values should be physically plausible (< 3.0 for normalized)
+  if (X > 3.0 || Y > 3.0 || Z > 3.0) {
+    printf("         Values exceed plausible range (max 3.0): X=%.4f, Y=%.4f, Z=%.4f\n",
+           X, Y, Z);
+    printf("         %s[FAIL]%s White point XYZ values out of physically plausible range\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s mediaWhitePointTag values conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-211: AToB/BToA Tag Pair Completeness (ICC.1-2022-05 §9.2.1, §9.2.2)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF211_AToBBToAPairCompleteness(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-211]%s AToB/BToA Tag Pair Completeness (%sICC.1-2022-05 §9.2.1-9.2.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const struct {
+    icTagSignature aToBSig;
+    icTagSignature bToASig;
+    const char *label;
+  } kPairs[] = {
+    { icSigAToB0Tag, icSigBToA0Tag, "0 (Perceptual)" },
+    { icSigAToB1Tag, icSigBToA1Tag, "1 (Relative Colorimetric)" },
+    { icSigAToB2Tag, icSigBToA2Tag, "2 (Saturation)" },
+  };
+
+  // DeviceLink profiles use AToB0 but not BToA — skip pair check
+  if (pIcc->m_Header.deviceClass == icSigLinkClass) {
+    printf("         DeviceLink profile — AToB/BToA pairing not required\n");
+    printf("         %s[OK]%s DeviceLink exempt from pair requirement\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  int pairCount = 0;
+  for (int i = 0; i < 3; i++) {
+    CIccTag *pAToB = pIcc->FindTag(kPairs[i].aToBSig);
+    CIccTag *pBToA = pIcc->FindTag(kPairs[i].bToASig);
+
+    if (pAToB && pBToA) {
+      printf("         Pair %s: AToB ✓  BToA ✓\n", kPairs[i].label);
+      pairCount++;
+    } else if (pAToB && !pBToA) {
+      printf("         Pair %s: AToB ✓  BToA ✗ — %smissing inverse transform%s\n",
+             kPairs[i].label, ColorError(), ColorReset());
+      printf("         %s[FAIL]%s AToB%s present without matching BToA%s — ICC.1-2022-05 §9.2\n",
+             ColorError(), ColorReset(), kPairs[i].label, kPairs[i].label);
+      issues++;
+    } else if (!pAToB && pBToA) {
+      printf("         Pair %s: AToB ✗  BToA ✓ — %smissing forward transform%s\n",
+             kPairs[i].label, ColorError(), ColorReset());
+      printf("         %s[FAIL]%s BToA%s present without matching AToB%s — ICC.1-2022-05 §9.2\n",
+             ColorError(), ColorReset(), kPairs[i].label, kPairs[i].label);
+      issues++;
+    }
+    // Both absent: OK — that intent pair is simply not supported
+  }
+
+  if (pairCount == 0 && issues == 0) {
+    printf("         No AToB/BToA LUT pairs present (profile may use Matrix/TRC)\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s AToB/BToA tag pair completeness conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1843,6 +2007,10 @@ int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1202, "CF-202: Tag Data Padding Zero-Fill", RunCF202_TagDataPaddingZeroFill(pIcc, filename));
   CF_WRAP(1204, "CF-204: Device Attributes Semantic Validation", RunCF204_DeviceAttributesSemantics(pIcc));
   CF_WRAP(1205, "CF-205: Tag Data Region Gap Analysis", RunCF205_TagDataRegionGapAnalysis(pIcc));
+
+  // Spec gap coverage (CF-207, CF-211)
+  CF_WRAP(1207, "CF-207: mediaWhitePointTag Value Range", RunCF207_MediaWhitePointTagValueRange(pIcc));
+  CF_WRAP(1211, "CF-211: AToB/BToA Tag Pair Completeness", RunCF211_AToBBToAPairCompleteness(pIcc));
 
 #undef CF_WRAP
   return issues;
