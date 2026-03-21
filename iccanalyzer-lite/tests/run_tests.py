@@ -1864,7 +1864,7 @@ def test_conformance_checks(suite):
     """Test ICC Specification conformance checks (CF-001..CF-316)."""
     corpus = str(CORPUS_DIR)
 
-    # --- CF Header Checks (CF-001..CF-015) ---
+    # --- CF Header Checks (CF-001..CF-019) ---
     # Valid profile should pass header checks cleanly
     suite.assert_output_contains(
         "cf.header.valid_profile",
@@ -1872,7 +1872,114 @@ def test_conformance_checks(suite):
         r"CF-001|Header.*Size|Profile Size"
     )
 
-    # --- CF LUT Checks (CF-060..CF-070) ---
+    # CF-016: Device Manufacturer Signature
+    suite.assert_output_contains(
+        "cf.016.device_manufacturer",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-016.*Device Manufacturer"
+    )
+
+    # CF-017: Device Model Signature
+    suite.assert_output_contains(
+        "cf.017.device_model",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-017.*Device Model"
+    )
+
+    # CF-018: Device Attributes Semantic Bits
+    suite.assert_output_contains(
+        "cf.018.device_attributes",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-018.*Device Attributes"
+    )
+
+    # CF-019: Creator Signature
+    suite.assert_output_contains(
+        "cf.019.creator_signature",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-019.*Creator"
+    )
+
+    # --- CF Tag Type Checks (CF-035..CF-039) ---
+    # CF-035: responseCurveSet16Type Structure
+    suite.assert_output_contains(
+        "cf.035.response_curve_set",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-035.*responseCurveSet"
+    )
+
+    # CF-036: profileSequenceDescType Elements
+    suite.assert_output_contains(
+        "cf.036.profile_seq_desc",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-036.*profileSequenceDesc"
+    )
+
+    # CF-037: profileSequenceIdentifierType Validation
+    suite.assert_output_contains(
+        "cf.037.profile_seq_id",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-037.*profileSequenceIdentifier"
+    )
+
+    # CF-038: dateTimeType Tag Range Validation
+    suite.assert_output_contains(
+        "cf.038.datetime_range",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-038.*dateTimeType"
+    )
+
+    # CF-039: signatureType Technology Validation
+    suite.assert_output_contains(
+        "cf.039.technology_sig",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-039.*signatureType"
+    )
+
+    # --- CF Required Tag Checks (CF-054..CF-059) ---
+    # CF-054: v5 Spectral Required Tags
+    suite.assert_output_contains(
+        "cf.054.v5_spectral_required",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-054.*v5 Spectral"
+    )
+
+    # CF-055: D2B/B2D Tag Pair Completeness
+    suite.assert_output_contains(
+        "cf.055.d2b_b2d_pair",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-055.*D2B.*B2D"
+    )
+
+    # CF-056: Embedded Profile Structure
+    suite.assert_output_contains(
+        "cf.056.embedded_profile",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-056.*Embedded Profile"
+    )
+
+    # CF-057: Dictionary Tag Structure v5
+    suite.assert_output_contains(
+        "cf.057.dictionary_tag",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-057.*Dictionary"
+    )
+
+    # CF-058: Profile Sequence Identifier v5
+    suite.assert_output_contains(
+        "cf.058.profile_seq_id_v5",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-058.*Profile Sequence"
+    )
+
+    # CF-059: Colorimetric Intent Image State
+    suite.assert_output_contains(
+        "cf.059.colorimetric_intent",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-059.*Colorimetric Intent"
+    )
+
+    # --- CF LUT Checks (CF-060..CF-079) ---
     # LUT8 profile with AToB0+BToA0 should trigger LUT checks
     suite.assert_output_contains(
         "cf.lut.input_channel_count",
@@ -1893,6 +2000,76 @@ def test_conformance_checks(suite):
         "cf.lut.lut8_table_size",
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
         r"CF-063.*lut8.*256"
+    )
+
+    # CF-071: Curve Count vs Channel Match
+    suite.assert_output_contains(
+        "cf.071.curve_count_channel",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-071.*Curve Count"
+    )
+
+    # CF-072: CLUT Output Value Range
+    suite.assert_output_contains(
+        "cf.072.clut_output_range",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-072.*CLUT Output"
+    )
+
+    # CF-073: MBB Matrix Determinant Non-Zero
+    suite.assert_output_contains(
+        "cf.073.mbb_matrix_det",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-073.*Matrix Determinant"
+    )
+
+    # CF-074: A2B/B2A Dimension Consistency
+    suite.assert_output_contains(
+        "cf.074.a2b_b2a_dimensions",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-074.*Dimension Consistency"
+    )
+
+    # CF-075: Tag Data Size vs Dimensions
+    suite.assert_output_contains(
+        "cf.075.tag_data_size",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-075.*Tag Data Size"
+    )
+
+    # CF-076: Curve Response Direction
+    suite.assert_output_contains(
+        "cf.076.curve_response_dir",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-076.*Curve Response"
+    )
+
+    # CF-077: CLUT Grid Size Plausibility
+    suite.assert_output_contains(
+        "cf.077.clut_grid_plausibility",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-077.*Grid Size"
+    )
+
+    # CF-078: MBB B-Curve Presence
+    suite.assert_output_contains(
+        "cf.078.mbb_bcurve_presence",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-078.*B-Curve"
+    )
+
+    # CF-079: LUT Bit Depth Consistency
+    suite.assert_output_contains(
+        "cf.079.lut_bit_depth",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-079.*Bit Depth"
+    )
+
+    # CF-090: Spectral Illuminant Consistency (v5 only)
+    suite.assert_output_contains(
+        "cf.090.spectral_illuminant",
+        ["-a", str(TEST_PROFILES / "17ChanPart1.icc")],
+        r"CF-090.*Spectral Illuminant"
     )
 
     # --- CF Security Checks (CF-091..CF-094) ---

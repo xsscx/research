@@ -754,6 +754,632 @@ static int RunCF070_ChadArrayCount9(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-071: Curve Count vs Channel Match (ICC.1-2022-05 §10.10-10.12)
+//
+// For lutAToBType/lutBToAType: A/B/M curve array lengths must match the
+// expected input/output channel counts of the MBB element.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF071_CurveCountChannelMatch(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-071]%s Curve Count vs Channel Match (%sICC.1-2022-05 §10.10-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    found = true;
+    int nIn  = mbb->InputChannels();
+    int nOut = mbb->OutputChannels();
+
+    // B curves: count should match input channels for AToB (IsInputB),
+    //           or output channels for BToA (!IsInputB)
+    LPIccCurve *curvesB = mbb->GetCurvesB();
+    if (curvesB) {
+      int expectedB = mbb->IsInputB() ? nIn : nOut;
+      int countB = 0;
+      for (int c = 0; c < expectedB && c < 16; c++) {
+        if (curvesB[c]) countB++;
+      }
+      if (countB > 0 && countB != expectedB) {
+        printf("         Tag '%s' — B curve count %d != expected %d\n",
+               kAllLUTNames[i], countB, expectedB);
+        printf("         %s[FAIL]%s B curve count mismatch — §10.10-10.12\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+
+    // A curves: count should match the other side
+    LPIccCurve *curvesA = mbb->GetCurvesA();
+    if (curvesA) {
+      int expectedA = mbb->IsInputB() ? nOut : nIn;
+      int countA = 0;
+      for (int c = 0; c < expectedA && c < 16; c++) {
+        if (curvesA[c]) countA++;
+      }
+      if (countA > 0 && countA != expectedA) {
+        printf("         Tag '%s' — A curve count %d != expected %d\n",
+               kAllLUTNames[i], countA, expectedA);
+        printf("         %s[FAIL]%s A curve count mismatch — §10.10-10.12\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+
+    // M curves: always 3 when present (XYZ PCS matrix pathway)
+    LPIccCurve *curvesM = mbb->GetCurvesM();
+    if (curvesM) {
+      int countM = 0;
+      for (int c = 0; c < 3; c++) {
+        if (curvesM[c]) countM++;
+      }
+      if (countM > 0 && countM != 3) {
+        printf("         Tag '%s' — M curve count %d != expected 3\n",
+               kAllLUTNames[i], countM);
+        printf("         %s[FAIL]%s M curve count mismatch — §10.10-10.12\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s Curve counts match channel expectations\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-072: CLUT Output Value Range (ICC.1-2022-05 §10.8-10.12)
+//
+// CLUT grid point output values must be finite (no NaN or Inf).
+// Samples up to 1000 points to avoid timeout on large CLUTs.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF072_CLUTOutputValueRange(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-072]%s CLUT Output Value Range (%sICC.1-2022-05 §10.8-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (!clut) continue;
+
+    found = true;
+    icUInt32Number nPoints = clut->NumPoints();
+    int nOut = clut->GetOutputChannels();
+    if (nOut < 1 || nOut > 16) continue;
+
+    // Sample up to 1000 grid points
+    icUInt32Number limit = (nPoints < 1000) ? nPoints : 1000;
+    int badCount = 0;
+
+    for (icUInt32Number p = 0; p < limit && badCount < 5; p++) {
+      icFloatNumber *data = clut->GetData(p * nOut);
+      if (!data) break;
+      for (int ch = 0; ch < nOut; ch++) {
+        if (std::isnan(data[ch]) || std::isinf(data[ch])) {
+          if (badCount == 0) {
+            printf("         Tag '%s' — CLUT[%u][%d] = %f (non-finite)\n",
+                   kAllLUTNames[i], p, ch, static_cast<double>(data[ch]));
+            printf("         %s[FAIL]%s CLUT contains NaN/Inf values — §10.8\n",
+                   ColorError(), ColorReset());
+          }
+          badCount++;
+          issues++;
+          break;
+        }
+      }
+    }
+    if (badCount > 1)
+      printf("         ... %d additional non-finite CLUT values found\n", badCount - 1);
+  }
+
+  if (!found)
+    printf("         No CLUT elements found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s CLUT output values are finite\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-073: MBB Matrix Determinant Non-Zero (ICC.1-2022-05 §10.10-10.12)
+//
+// For MBB tags (lutAToBType/lutBToAType) containing a matrix element:
+// the 3×3 determinant must be non-zero to ensure invertibility.
+// Complements CF-165 which checks all LUT matrices — this focuses on
+// MBB-specific context with per-tag reporting.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF073_MBBMatrixDeterminant(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-073]%s MBB Matrix Determinant Non-Zero (%sICC.1-2022-05 §10.10-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    // Only MBB types (lutAToBType / lutBToAType), not lut8/lut16
+    if (tag->GetType() != icSigLutAtoBType && tag->GetType() != icSigLutBtoAType)
+      continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+
+    double a = matrix->m_e[0], b = matrix->m_e[1], c = matrix->m_e[2];
+    double d = matrix->m_e[3], e = matrix->m_e[4], f = matrix->m_e[5];
+    double g = matrix->m_e[6], h = matrix->m_e[7], k = matrix->m_e[8];
+
+    double det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g);
+
+    if (std::fabs(det) < 1e-10) {
+      printf("         Tag '%s' — matrix determinant = %.10f (near-singular)\n",
+             kAllLUTNames[i], det);
+      printf("         %s[WARN]%s Singular MBB matrix is non-invertible — §10.10\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No MBB tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s MBB matrix determinants are non-zero\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-074: A2B/B2A Dimension Consistency (ICC.1-2022-05 §10.8-10.12)
+//
+// For matching A2B/B2A tag pairs (intent 0,1,2):
+//   AToB InputChannels  must equal BToA OutputChannels
+//   AToB OutputChannels must equal BToA InputChannels
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF074_A2BB2ADimensionConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-074]%s A2B/B2A Dimension Consistency (%sICC.1-2022-05 §10.8-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *aTag = pIcc->FindTag(kAToBSigs[i]);
+    CIccTag *bTag = pIcc->FindTag(kBToASigs[i]);
+    if (!aTag || !bTag) continue;
+
+    CIccMBB *aMBB = dynamic_cast<CIccMBB *>(aTag);
+    CIccMBB *bMBB = dynamic_cast<CIccMBB *>(bTag);
+    if (!aMBB || !bMBB) continue;
+
+    found = true;
+
+    if (aMBB->InputChannels() != bMBB->OutputChannels()) {
+      printf("         Intent %d — AToB input (%u) != BToA output (%u)\n",
+             i, static_cast<unsigned>(aMBB->InputChannels()),
+             static_cast<unsigned>(bMBB->OutputChannels()));
+      printf("         %s[FAIL]%s Forward/reverse dimension mismatch — §10.8\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    if (aMBB->OutputChannels() != bMBB->InputChannels()) {
+      printf("         Intent %d — AToB output (%u) != BToA input (%u)\n",
+             i, static_cast<unsigned>(aMBB->OutputChannels()),
+             static_cast<unsigned>(bMBB->InputChannels()));
+      printf("         %s[FAIL]%s Forward/reverse dimension mismatch — §10.8\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No matching A2B/B2A pairs found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s A2B/B2A dimensions are consistent\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-075: Tag Data Size vs Dimensions (ICC.1-2022-05 §10.8-10.12)
+//
+// Validates that declared LUT dimensions don't imply an unreasonable number
+// of data entries. Checks input/output channels (1-15) and CLUT total
+// grid points (grid^nInput * nOutput capped at 100M).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF075_TagDataSizeVsDimensions(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-075]%s Tag Data Size vs Dimensions (%sICC.1-2022-05 §10.8-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    found = true;
+    int nIn  = mbb->InputChannels();
+    int nOut = mbb->OutputChannels();
+
+    if (nIn < 1 || nIn > 15) {
+      printf("         Tag '%s' — input channels = %d (expected 1-15)\n",
+             kAllLUTNames[i], nIn);
+      printf("         %s[FAIL]%s Unreasonable input channel count — §10.8\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    if (nOut < 1 || nOut > 15) {
+      printf("         Tag '%s' — output channels = %d (expected 1-15)\n",
+             kAllLUTNames[i], nOut);
+      printf("         %s[FAIL]%s Unreasonable output channel count — §10.8\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (clut) {
+      int nDims = clut->GetInputDim();
+      uint64_t totalEntries = 1;
+      bool overflow = false;
+      for (int d = 0; d < nDims; d++) {
+        uint64_t gp = clut->GridPoint(d);
+        if (gp == 0 || (totalEntries > 0 && totalEntries > 100000000ULL / gp)) {
+          overflow = true;
+          break;
+        }
+        totalEntries *= gp;
+      }
+      totalEntries *= static_cast<uint64_t>(clut->GetOutputChannels());
+
+      if (overflow || totalEntries > 100000000ULL) {
+        printf("         Tag '%s' — CLUT total entries > 100M (suspicious)\n",
+               kAllLUTNames[i]);
+        printf("         %s[WARN]%s Possibly malformed CLUT dimensions — §10.8\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s LUT dimensions are plausible\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-076: Curve Response Direction (ICC.1-2022-05 §10.5)
+//
+// B curves in AToB tags (output-side curves) should be non-decreasing.
+// Detects curves that decrease significantly between sample points, which
+// indicates a malformed or corrupted curve. Complements CF-106 (TRC-specific).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF076_CurveResponseDirection(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-076]%s Curve Response Direction (%sICC.1-2022-05 §10.5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icFloatNumber kSamplePoints[] = { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f };
+  static constexpr int kNumSamples = 5;
+  static constexpr icFloatNumber kDecreaseTol = 0.01f;
+
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAToBSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    // B curves are the output-side curves for AToB
+    LPIccCurve *curvesB = mbb->GetCurvesB();
+    if (!curvesB) continue;
+
+    int nCurves = mbb->IsInputB() ? mbb->InputChannels() : mbb->OutputChannels();
+    if (nCurves < 1 || nCurves > 16) continue;
+
+    found = true;
+
+    for (int c = 0; c < nCurves; c++) {
+      if (!curvesB[c]) continue;
+
+      icFloatNumber prev = curvesB[c]->Apply(kSamplePoints[0]);
+      for (int s = 1; s < kNumSamples; s++) {
+        icFloatNumber val = curvesB[c]->Apply(kSamplePoints[s]);
+        if (val < prev - kDecreaseTol) {
+          printf("         AToB%d B-curve[%d] — decreases from %.4f to %.4f at input %.2f\n",
+                 i, c, static_cast<double>(prev), static_cast<double>(val),
+                 static_cast<double>(kSamplePoints[s]));
+          printf("         %s[WARN]%s B-curve is not non-decreasing — §10.5\n",
+                 ColorWarning(), ColorReset());
+          issues++;
+          break;
+        }
+        prev = val;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No AToB tags with B curves found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s B curves are non-decreasing\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-077: CLUT Grid Size Plausibility (ICC.1-2022-05 §10.8-10.12)
+//
+// Grid dimensions should be reasonable: minimum 2 per axis for interpolation,
+// and total grid points should not exceed 10M (likely malformed).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF077_CLUTGridSizePlausibility(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-077]%s CLUT Grid Size Plausibility (%sICC.1-2022-05 §10.8-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    CIccCLUT *clut = mbb->GetCLUT();
+    if (!clut) continue;
+
+    found = true;
+    int nDims = clut->GetInputDim();
+
+    for (int d = 0; d < nDims; d++) {
+      int gp = static_cast<int>(clut->GridPoint(d));
+      if (gp < 2) {
+        printf("         Tag '%s' dim %d — grid points = %d (< 2, cannot interpolate)\n",
+               kAllLUTNames[i], d, gp);
+        printf("         %s[FAIL]%s CLUT grid too small for interpolation — §10.8\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+
+    icUInt32Number nPoints = clut->NumPoints();
+    if (nPoints > 10000000U) {
+      printf("         Tag '%s' — total grid points = %u (> 10M, likely malformed)\n",
+             kAllLUTNames[i], nPoints);
+      printf("         %s[WARN]%s Excessive CLUT grid size — §10.8\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No CLUT elements found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s CLUT grid sizes are plausible\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-078: MBB B-Curve Presence (ICC.1-2022-05 §10.10-10.12)
+//
+// Both lutAToBType (§10.11) and lutBToAType (§10.12) require B curves.
+// If an MBB tag exists but GetCurvesB() returns NULL, the tag is malformed.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF078_MBBBCurvePresence(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-078]%s MBB B-Curve Presence (%sICC.1-2022-05 §10.10-10.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    // Only check MBB types (lutAToBType / lutBToAType)
+    if (tag->GetType() != icSigLutAtoBType && tag->GetType() != icSigLutBtoAType)
+      continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    found = true;
+
+    if (!mbb->GetCurvesB()) {
+      printf("         Tag '%s' — B curves missing (required for %s)\n",
+             kAllLUTNames[i],
+             tag->GetType() == icSigLutAtoBType ? "lutAToBType" : "lutBToAType");
+      printf("         %s[FAIL]%s B curves are mandatory — §10.10-10.12\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No lutAToBType/lutBToAType tags found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s B curves present in all MBB tags\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-079: LUT Bit Depth Consistency (ICC.1-2022-05 §10.9-10.10)
+//
+// For legacy lut8Type: each curve table must have exactly 256 entries.
+// For legacy lut16Type: each curve table must have >= 2 entries.
+// Validates both input and output curve tables.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF079_LUTBitDepthConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-079]%s LUT Bit Depth Consistency (%sICC.1-2022-05 §10.9-10.10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    // Check lut8Type
+    CIccTagLut8 *lut8 = dynamic_cast<CIccTagLut8 *>(tag);
+    if (lut8) {
+      found = true;
+      int nIn  = lut8->InputChannels();
+      int nOut = lut8->OutputChannels();
+
+      LPIccCurve *curvesB = lut8->GetCurvesB();
+      if (curvesB) {
+        for (int c = 0; c < nIn && c < 16; c++) {
+          if (!curvesB[c]) continue;
+          CIccTagCurve *curve = dynamic_cast<CIccTagCurve *>(curvesB[c]);
+          if (curve && curve->GetSize() != 256) {
+            printf("         Tag '%s' lut8 — input curve[%d] has %u entries (must be 256)\n",
+                   kAllLUTNames[i], c, curve->GetSize());
+            printf("         %s[FAIL]%s lut8 curve size mismatch — §10.9\n",
+                   ColorError(), ColorReset());
+            issues++;
+          }
+        }
+      }
+
+      LPIccCurve *curvesA = lut8->GetCurvesA();
+      if (curvesA) {
+        for (int c = 0; c < nOut && c < 16; c++) {
+          if (!curvesA[c]) continue;
+          CIccTagCurve *curve = dynamic_cast<CIccTagCurve *>(curvesA[c]);
+          if (curve && curve->GetSize() != 256) {
+            printf("         Tag '%s' lut8 — output curve[%d] has %u entries (must be 256)\n",
+                   kAllLUTNames[i], c, curve->GetSize());
+            printf("         %s[FAIL]%s lut8 curve size mismatch — §10.9\n",
+                   ColorError(), ColorReset());
+            issues++;
+          }
+        }
+      }
+      continue;
+    }
+
+    // Check lut16Type
+    CIccTagLut16 *lut16 = dynamic_cast<CIccTagLut16 *>(tag);
+    if (lut16) {
+      found = true;
+      int nIn  = lut16->InputChannels();
+      int nOut = lut16->OutputChannels();
+
+      LPIccCurve *curvesB = lut16->GetCurvesB();
+      if (curvesB) {
+        for (int c = 0; c < nIn && c < 16; c++) {
+          if (!curvesB[c]) continue;
+          CIccTagCurve *curve = dynamic_cast<CIccTagCurve *>(curvesB[c]);
+          if (curve && curve->GetSize() < 2) {
+            printf("         Tag '%s' lut16 — input curve[%d] has %u entries (must be >= 2)\n",
+                   kAllLUTNames[i], c, curve->GetSize());
+            printf("         %s[FAIL]%s lut16 curve too small — §10.10\n",
+                   ColorError(), ColorReset());
+            issues++;
+          }
+        }
+      }
+
+      LPIccCurve *curvesA = lut16->GetCurvesA();
+      if (curvesA) {
+        for (int c = 0; c < nOut && c < 16; c++) {
+          if (!curvesA[c]) continue;
+          CIccTagCurve *curve = dynamic_cast<CIccTagCurve *>(curvesA[c]);
+          if (curve && curve->GetSize() < 2) {
+            printf("         Tag '%s' lut16 — output curve[%d] has %u entries (must be >= 2)\n",
+                   kAllLUTNames[i], c, curve->GetSize());
+            printf("         %s[FAIL]%s lut16 curve too small — §10.10\n",
+                   ColorError(), ColorReset());
+            issues++;
+          }
+        }
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No lut8/lut16 type tags found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s Legacy LUT curve sizes are consistent\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CF-105: LUT Channel Symmetry (ICC.1-2022-05 §10.8-10.11)
 //
 // For corresponding AToB/BToA tag pairs (intent 0,1,2):
@@ -1662,6 +2288,15 @@ int RunLUTConformance(CIccProfile *pIcc) {
   CF_WRAP(1068, "CF-068: Chad Matrix Invertible", RunCF068_ChadMatrixInvertible(pIcc));
   CF_WRAP(1069, "CF-069: Matrix Column XYZ Count", RunCF069_MatrixColumnXYZCount(pIcc));
   CF_WRAP(1070, "CF-070: Chad Array Count = 9", RunCF070_ChadArrayCount9(pIcc));
+  CF_WRAP(1071, "CF-071: Curve Count vs Channel Match", RunCF071_CurveCountChannelMatch(pIcc));
+  CF_WRAP(1072, "CF-072: CLUT Output Value Range", RunCF072_CLUTOutputValueRange(pIcc));
+  CF_WRAP(1073, "CF-073: MBB Matrix Determinant Non-Zero", RunCF073_MBBMatrixDeterminant(pIcc));
+  CF_WRAP(1074, "CF-074: A2B/B2A Dimension Consistency", RunCF074_A2BB2ADimensionConsistency(pIcc));
+  CF_WRAP(1075, "CF-075: Tag Data Size vs Dimensions", RunCF075_TagDataSizeVsDimensions(pIcc));
+  CF_WRAP(1076, "CF-076: Curve Response Direction", RunCF076_CurveResponseDirection(pIcc));
+  CF_WRAP(1077, "CF-077: CLUT Grid Size Plausibility", RunCF077_CLUTGridSizePlausibility(pIcc));
+  CF_WRAP(1078, "CF-078: MBB B-Curve Presence", RunCF078_MBBBCurvePresence(pIcc));
+  CF_WRAP(1079, "CF-079: LUT Bit Depth Consistency", RunCF079_LUTBitDepthConsistency(pIcc));
 
   CF_WRAP(1105, "CF-105: LUT Channel Symmetry", RunCF105_LUTChannelSymmetry(pIcc));
   CF_WRAP(1106, "CF-106: Curve Monotonicity", RunCF106_CurveMonotonicity(pIcc));

@@ -1,7 +1,7 @@
 /*
  * IccConformanceHeader.cpp — ICC specification header conformance checks
  *
- * Implements CF-001 through CF-015, CF-184..CF-187, CF-199..CF-201, CF-203
+ * Implements CF-001 through CF-019, CF-184..CF-187, CF-199..CF-201, CF-203
  * CF-214..CF-219 from the conformance registry.
  * Validates ICC profile header fields against ICC.1-2022-05 §7.2.
  * CF-184..CF-187: RFC 1321 (MD5) Profile ID conformance per §7.2.18.
@@ -930,6 +930,187 @@ int RunCF015_ReservedBytesZero(CIccProfile *pIcc, const char *filename) {
   } else {
     printf("         Bytes 100-127: all zero\n");
     printf("         %s[OK]%s Reserved bytes conformant\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-016: Device Manufacturer Signature (ICC.1-2022-05 §7.2.12)
+//
+// Bytes 48-51 identify the device manufacturer. Zero is permitted (unspecified).
+// If non-zero, all 4 bytes should be printable ASCII (0x20-0x7E).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF016_DeviceManufacturerSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number mfr = pIcc->m_Header.manufacturer;
+
+  printf("%s[CF-016]%s Device Manufacturer Signature (%sICC.1-2022-05 §7.2.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (mfr == 0) {
+    printf("         manufacturer=0x00000000 — not specified (permitted)\n");
+    printf("         %s[OK]%s Device manufacturer field conformant\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char byte = (mfr >> (24 - i * 8)) & 0xFF;
+    if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+  }
+
+  char sigStr[5] = {};
+  SigToChars((icTagSignature)mfr, sigStr);
+
+  if (!printable) {
+    printf("         manufacturer=0x%08X — %snon-printable bytes%s\n",
+           mfr, ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Device manufacturer contains non-printable ASCII — ICC.1-2022-05 §7.2.12\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         manufacturer='%s' (0x%08X)\n", sigStr, mfr);
+    printf("         %s[OK]%s Device manufacturer field conformant\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-017: Device Model Signature (ICC.1-2022-05 §7.2.13)
+//
+// Bytes 52-55 identify the device model. Zero is permitted (unspecified).
+// If non-zero, all 4 bytes should be printable ASCII (0x20-0x7E).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF017_DeviceModelSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number mdl = pIcc->m_Header.model;
+
+  printf("%s[CF-017]%s Device Model Signature (%sICC.1-2022-05 §7.2.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (mdl == 0) {
+    printf("         model=0x00000000 — not specified (permitted)\n");
+    printf("         %s[OK]%s Device model field conformant\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char byte = (mdl >> (24 - i * 8)) & 0xFF;
+    if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+  }
+
+  char sigStr[5] = {};
+  SigToChars((icTagSignature)mdl, sigStr);
+
+  if (!printable) {
+    printf("         model=0x%08X — %snon-printable bytes%s\n",
+           mdl, ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Device model contains non-printable ASCII — ICC.1-2022-05 §7.2.13\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         model='%s' (0x%08X)\n", sigStr, mdl);
+    printf("         %s[OK]%s Device model field conformant\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-018: Device Attributes Semantic Bits (ICC.1-2022-05 §7.2.14 Table 23)
+//
+// Bits 0-3 have defined semantics (reflective/transparency, glossy/matte,
+// positive/negative, colour/b&w). Bits 4-31 are reserved for ICC and must
+// be zero. Bits 32-63 are device-specific (no validation).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF018_DeviceAttributesBits(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt64Number attrs = pIcc->m_Header.attributes;
+
+  printf("%s[CF-018]%s Device Attributes Semantic Bits (%sICC.1-2022-05 §7.2.14 Table 23%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Display defined bits 0-3
+  printf("         Bit 0 (Media): %s\n",
+         (attrs & 0x0001) ? "transparency" : "reflective");
+  printf("         Bit 1 (Finish): %s\n",
+         (attrs & 0x0002) ? "matte" : "glossy");
+  printf("         Bit 2 (Polarity): %s\n",
+         (attrs & 0x0004) ? "negative" : "positive");
+  printf("         Bit 3 (Colour): %s\n",
+         (attrs & 0x0008) ? "black & white" : "colour");
+
+  // Bits 4-31 are reserved for ICC — must be zero
+  icUInt32Number reservedBits = static_cast<icUInt32Number>(attrs) & 0xFFFFFFF0u;
+  if (reservedBits != 0) {
+    printf("         Reserved bits 4-31: 0x%08X — %snon-zero%s\n",
+           reservedBits, ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Reserved attribute bits 4-31 must be zero — ICC.1-2022-05 §7.2.14\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Device attributes conformant\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-019: Creator Signature (ICC.1-2022-05 §7.2.17)
+//
+// Bytes 80-83 identify the profile creator. Zero is permitted (unspecified).
+// If non-zero, all 4 bytes should be printable ASCII (0x20-0x7E).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF019_CreatorSignature(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number creator = pIcc->m_Header.creator;
+
+  printf("%s[CF-019]%s Creator Signature (%sICC.1-2022-05 §7.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (creator == 0) {
+    printf("         creator=0x00000000 — not specified (permitted)\n");
+    printf("         %s[OK]%s Creator signature field conformant\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  bool printable = true;
+  for (int i = 0; i < 4; i++) {
+    unsigned char byte = (creator >> (24 - i * 8)) & 0xFF;
+    if (byte < 0x20 || byte > 0x7E) { printable = false; break; }
+  }
+
+  char sigStr[5] = {};
+  SigToChars((icTagSignature)creator, sigStr);
+
+  if (!printable) {
+    printf("         creator=0x%08X — %snon-printable bytes%s\n",
+           creator, ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Creator contains non-printable ASCII — ICC.1-2022-05 §7.2.17\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         creator='%s' (0x%08X)\n", sigStr, creator);
+    printf("         %s[OK]%s Creator signature field conformant\n",
            ColorSuccess(), ColorReset());
   }
 
@@ -2123,6 +2304,10 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1013, "CF-013: Data Colour Space Signature", RunCF013_DataColourSpace(pIcc));
   CF_WRAP(1014, "CF-014: PCS Field for Non-DeviceLink", RunCF014_PCSForNonDeviceLink(pIcc));
   CF_WRAP(1015, "CF-015: Reserved Bytes 100-127 Zero", RunCF015_ReservedBytesZero(pIcc, filename));
+  CF_WRAP(1016, "CF-016: Device Manufacturer Signature", RunCF016_DeviceManufacturerSignature(pIcc));
+  CF_WRAP(1017, "CF-017: Device Model Signature", RunCF017_DeviceModelSignature(pIcc));
+  CF_WRAP(1018, "CF-018: Device Attributes Semantic Bits", RunCF018_DeviceAttributesBits(pIcc));
+  CF_WRAP(1019, "CF-019: Creator Signature", RunCF019_CreatorSignature(pIcc));
 
   CF_WRAP(1107, "CF-107: Tag Table Ordering", RunCF107_TagTableOrdering(pIcc));
   CF_WRAP(1121, "CF-121: Illuminant Metadata Consistency", RunCF121_IlluminantMetadataConsistency(pIcc));
