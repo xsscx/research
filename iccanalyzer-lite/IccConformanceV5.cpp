@@ -1510,6 +1510,11 @@ int RunCF151_ExtendedOutputMediaWhitePointRange(CIccProfile *pIcc) {
   }
 
   icXYZNumber *wp = pXYZ->GetXYZ(0);
+  if (!wp) {
+    printf("         %s[FAIL]%s mediaWhitePointTag XYZ data is null\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
   // Convert from s15Fixed16 to float
   icFloatNumber X = icFtoD(wp->X);
   icFloatNumber Y = icFtoD(wp->Y);
@@ -1870,21 +1875,27 @@ int RunCF195_ExtendedRangeRadianceWhitePoint(CIccProfile *pIcc) {
     CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pSwpt);
     if (pXYZ && pXYZ->GetSize() > 0) {
       icXYZNumber *pVal = pXYZ->GetXYZ(0);
-      double Y = icFtoD(pVal->Y);
-      printf("         White point Y = %.4f", Y);
-      if (Y > 1.0) {
-        printf(" (extended range — luminance %.1f cd/m²)\n", Y);
-        printf("         %s[OK]%s Radiance-based white point with extended Y\n",
-               ColorSuccess(), ColorReset());
-      } else if (Y > 0.0) {
-        printf(" (standard range)\n");
-        printf("         %s[OK]%s White point Y in valid range\n",
-               ColorSuccess(), ColorReset());
-      } else {
-        printf(" (invalid — Y must be > 0)\n");
-        printf("         %s[FAIL]%s White point Y ≤ 0 — ICS-ExtendedRange §5.2\n",
+      if (!pVal) {
+        printf("         %s[FAIL]%s spectralWhitePointTag XYZ data is null\n",
                ColorError(), ColorReset());
         issues++;
+      } else {
+        double Y = icFtoD(pVal->Y);
+        printf("         White point Y = %.4f", Y);
+        if (Y > 1.0) {
+          printf(" (extended range — luminance %.1f cd/m²)\n", Y);
+          printf("         %s[OK]%s Radiance-based white point with extended Y\n",
+                 ColorSuccess(), ColorReset());
+        } else if (Y > 0.0) {
+          printf(" (standard range)\n");
+          printf("         %s[OK]%s White point Y in valid range\n",
+                 ColorSuccess(), ColorReset());
+        } else {
+          printf(" (invalid — Y must be > 0)\n");
+          printf("         %s[FAIL]%s White point Y ≤ 0 — ICS-ExtendedRange §5.2\n",
+                 ColorError(), ColorReset());
+          issues++;
+        }
       }
     }
   } else if (pWpt) {
