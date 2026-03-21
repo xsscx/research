@@ -869,6 +869,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-226", "mluc Size Inference Safety",
    "Validate mluc tag size is consistent with max(offset+length) across all name records per TN PSD recommendation", "ICC TN PSD §size",
    CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  // v2→v4 Features Changes conformance (CF-227..CF-234)
+  {"CF-227", "v4 Text Tag Unicode Migration",
+   "v4+ profiles must use multiLocalizedUnicodeType for text tags — textDescriptionType deprecated", "ICC.1-2022-05 §9",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-228", "grayTRCTag Semantic Validation",
+   "Grayscale TRC must be monotonic 0=black to 1.0=white; no RGB TRC tags in Gray profiles", "v2→v4 TN",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-229", "Rendering Intent Dominance Per Class",
+   "AToB dominant for Input, BToA dominant for Output/Display; Perceptual (0) intent required first", "v2→v4 TN",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-230", "CIELAB Encoding Version Consistency",
+   "v4 Lab encoding: L*=100→0xFFFF (not v2 0xFF00), a*/b*=0→0x8080 (not v2 0x8000); lut16Type retains v2", "ICC.1-2022-05 §6.5.9",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-231", "LUT Processing Element Sequence",
+   "lutAtoBType/lutBtoAType: B curves required, matrix+M curves paired, A curves need CLUT", "ICC.1-2022-05 §10.10-10.11",
+   CFSeverity::WARNING, CFCategory::LUT},
+  {"CF-232", "Date/Time UTC and Temporal Consistency",
+   "All dates UTC, seconds ≤59, calibrationDateTimeTag should precede profile creation", "ICC.1-2022-05 §7.2.8",
+   CFSeverity::INFO, CFCategory::HEADER},
+  {"CF-233", "colorantOrderTag Index Validation",
+   "Indices must form permutation of [0..count-1] — no gaps, no duplicates", "ICC.1-2022-05 §9.2.11, §10.3",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-234", "v4 Perceptual PCS Reference Medium",
+   "Perceptual PCS reference medium: 287.9:1 dynamic range, L*=100 white, L*=3.1373 black", "ICC.1-2022-05 Annex D",
+   CFSeverity::INFO, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =
