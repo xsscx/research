@@ -33,12 +33,13 @@ add_library(IccTest STATIC ${ICCTEST_LIB_SOURCES})
 
 target_include_directories(IccTest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_include_directories(IccTest PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    # iccDEV headers needed by ProfileView.h (public API)
     ${ICCDEV_ROOT}/IccProfLib
     ${ICCDEV_ROOT}/IccXML/IccLibXML
     /usr/include/libxml2
+)
+target_include_directories(IccTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_compile_features(IccTest PUBLIC cxx_std_17)
