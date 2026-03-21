@@ -814,13 +814,23 @@ static int RunCF071_CurveCountChannelMatch(CIccProfile *pIcc) {
     }
 
     // M curves: always 3 when present (XYZ PCS matrix pathway)
+    // Guard: allocation size is min(nIn,nOut) via IsInputMatrix, may be < 3
     LPIccCurve *curvesM = mbb->GetCurvesM();
     if (curvesM) {
+      int nCurvesM = mbb->IsInputMatrix() ? nIn : nOut;
+      if (nCurvesM < 1) nCurvesM = 0;
+      if (nCurvesM > 16) nCurvesM = 16;
       int countM = 0;
-      for (int c = 0; c < 3; c++) {
+      for (int c = 0; c < nCurvesM && c < 3; c++) {
         if (curvesM[c]) countM++;
       }
-      if (countM > 0 && countM != 3) {
+      if (nCurvesM < 3) {
+        printf("         Tag '%s' — M curve array size %d < expected 3\n",
+               kAllLUTNames[i], nCurvesM);
+        printf("         %s[FAIL]%s M curve array undersized — §10.10-10.12\n",
+               ColorError(), ColorReset());
+        issues++;
+      } else if (countM > 0 && countM != 3) {
         printf("         Tag '%s' — M curve count %d != expected 3\n",
                kAllLUTNames[i], countM);
         printf("         %s[FAIL]%s M curve count mismatch — §10.10-10.12\n",
