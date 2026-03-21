@@ -202,7 +202,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
       if (nInput > 0 && grid > 0) {
         uint64_t clutSize = 1;
         bool overflow = false;
-        for (int d = 0; d < static_cast<int>(nInput); d++) {
+        for (uint8_t d = 0; d < nInput; d++) {
           clutSize *= grid;
           if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
         }
@@ -227,7 +227,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
       if (nInput > 0 && grid > 0) {
         uint64_t clutSize = 2;  // 2 bytes per entry
         bool overflow = false;
-        for (int d = 0; d < static_cast<int>(nInput); d++) {
+        for (uint8_t d = 0; d < nInput; d++) {
           clutSize *= grid;
           if (clutSize > 0xFFFFFFFF) { overflow = true; break; }
         }
@@ -255,7 +255,7 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
         size_t clutAddr = tOffset + clutOff;
         uint64_t clutSize = (buf[clutAddr + 16] == 2) ? 2 : 1;  // precision
         bool overflow = false;
-        for (int d = 0; d < static_cast<int>(nInput) && d < 16; d++) {
+        for (uint8_t d = 0; d < nInput && d < 16; d++) {
           uint8_t gp = buf[clutAddr + d];
           if (gp == 0) gp = 1;
           clutSize *= gp;

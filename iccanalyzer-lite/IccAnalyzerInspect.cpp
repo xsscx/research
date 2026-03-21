@@ -261,7 +261,7 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
   printf("%-4s %-12s %-12s %-10s %s\n", "Idx", "Signature", "FourCC", "Offset", "Size");
   printf("%-4s %-12s %-12s %-10s %s\n", "---", "------------", "------------", "----------", "----");
   
-  int idx = 0;
+  unsigned int idx = 0;
   CIccInfo info;
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++, idx++) {
@@ -269,7 +269,7 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
     char fourcc[5];
     SignatureToFourCC(entry->TagInfo.sig, fourcc);
     
-    printf("%-4d %-12s '%-10s'  0x%08X  %u",
+    printf("%-4u %-12s '%-10s'  0x%08X  %u",
            idx,
            info.GetTagSigName(entry->TagInfo.sig),
            fourcc,
