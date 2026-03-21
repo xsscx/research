@@ -2130,6 +2130,227 @@ static int RunCF260_OutputGamutTagIntent(CIccProfile *pIcc) {
 }
 
 
+// ── CF-266: Input Profile Device Color Space ─────────────────────────────────
+// ICC.1-2022-05 §6.1 — scnr must use data color spaces that correspond to
+// the device for which the profile is defined (RGB, CMYK, Gray, or nCLR)
+
+static int RunCF266_InputProfileColorSpace(CIccProfile *pIcc) {
+  printf("%s[CF-266]%s Input Profile Device Color Space (%sICC.1-2022-05 §6.1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigInputClass) return 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  bool valid = (cs == icSigRgbData || cs == icSigCmykData || cs == icSigGrayData ||
+                icGetColorSpaceType(cs) == icSigNChannelData);
+  if (!valid) {
+    char sig[5]; sig[4] = '\0';
+    for (int i = 0; i < 4; i++) sig[i] = (char)((((icUInt32Number)cs) >> (24-8*i)) & 0xFF);
+    printf("         %s[WARN]%s Input profile has device color space '%s' — "
+           "expected RGB, CMYK, Gray, or nCLR — ICC.1-2022-05 §6.1\n",
+           ColorWarning(), ColorReset(), sig);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s Input profile device color space valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-267: Display Profile Color Space ──────────────────────────────────────
+// ICC.1-2022-05 §6.2 — mntr must use RGB, Gray, or nCLR data color spaces
+
+static int RunCF267_DisplayProfileColorSpace(CIccProfile *pIcc) {
+  printf("%s[CF-267]%s Display Profile Color Space (%sICC.1-2022-05 §6.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigDisplayClass) return 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  bool valid = (cs == icSigRgbData || cs == icSigGrayData ||
+                icGetColorSpaceType(cs) == icSigNChannelData);
+  if (!valid) {
+    char sig[5]; sig[4] = '\0';
+    for (int i = 0; i < 4; i++) sig[i] = (char)((((icUInt32Number)cs) >> (24-8*i)) & 0xFF);
+    printf("         %s[WARN]%s Display profile has device color space '%s' — "
+           "expected RGB, Gray, or nCLR — ICC.1-2022-05 §6.2\n",
+           ColorWarning(), ColorReset(), sig);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s Display profile device color space valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-268: Output Profile Color Space ───────────────────────────────────────
+// ICC.1-2022-05 §6.3 — prtr must use RGB, CMYK, CMY, Gray, or nCLR
+
+static int RunCF268_OutputProfileColorSpace(CIccProfile *pIcc) {
+  printf("%s[CF-268]%s Output Profile Color Space (%sICC.1-2022-05 §6.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigOutputClass) return 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  bool valid = (cs == icSigRgbData || cs == icSigCmykData || cs == icSigCmyData ||
+                cs == icSigGrayData || icGetColorSpaceType(cs) == icSigNChannelData);
+  if (!valid) {
+    char sig[5]; sig[4] = '\0';
+    for (int i = 0; i < 4; i++) sig[i] = (char)((((icUInt32Number)cs) >> (24-8*i)) & 0xFF);
+    printf("         %s[WARN]%s Output profile has device color space '%s' — "
+           "expected RGB, CMYK, CMY, Gray, or nCLR — ICC.1-2022-05 §6.3\n",
+           ColorWarning(), ColorReset(), sig);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s Output profile device color space valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-269: DeviceLink Data Color Space Matching ─────────────────────────────
+// ICC.1-2022-05 §6.4 — link profile data color space = device side,
+// PCS = output side, must both be valid device color spaces
+
+static int RunCF269_DeviceLinkColorSpaces(CIccProfile *pIcc) {
+  printf("%s[CF-269]%s DeviceLink Data Color Space Matching (%sICC.1-2022-05 §6.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigLinkClass) return 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  // DeviceLink PCS field holds the output device color space, not Lab/XYZ
+  // Both source (colorSpace) and destination (pcs) should be device spaces
+  auto isDeviceSpace = [](icColorSpaceSignature s) -> bool {
+    return (s == icSigRgbData || s == icSigCmykData || s == icSigCmyData ||
+            s == icSigGrayData || s == icSigLabData || s == icSigXYZData ||
+            s == icSigYCbCrData || s == icSigHsvData || s == icSigHlsData ||
+            s == icSigLuvData || icGetColorSpaceType(s) == icSigNChannelData);
+  };
+  if (!isDeviceSpace(cs)) {
+    printf("         %s[WARN]%s DeviceLink source color space unrecognized\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (!isDeviceSpace(pcs)) {
+    printf("         %s[WARN]%s DeviceLink destination color space unrecognized\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s DeviceLink color spaces valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-270: Abstract Profile PCS ─────────────────────────────────────────────
+// ICC.1-2022-05 §6.6 — abst must use Lab or XYZ for both colorSpace and PCS
+
+static int RunCF270_AbstractProfilePCS(CIccProfile *pIcc) {
+  printf("%s[CF-270]%s Abstract Profile PCS (%sICC.1-2022-05 §6.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigAbstractClass) return 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  if (cs != icSigLabData && cs != icSigXYZData) {
+    printf("         %s[WARN]%s Abstract profile colorSpace must be Lab or XYZ — ICC.1-2022-05 §6.6\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (pcs != icSigLabData && pcs != icSigXYZData) {
+    printf("         %s[WARN]%s Abstract profile PCS must be Lab or XYZ — ICC.1-2022-05 §6.6\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s Abstract profile PCS valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-271: NamedColor Profile PCS ───────────────────────────────────────────
+// ICC.1-2022-05 §6.7 — nmcl PCS must be Lab or XYZ
+
+static int RunCF271_NamedColorProfilePCS(CIccProfile *pIcc) {
+  printf("%s[CF-271]%s NamedColor Profile PCS (%sICC.1-2022-05 §6.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigNamedColorClass) return 0;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  if (pcs != icSigLabData && pcs != icSigXYZData) {
+    printf("         %s[WARN]%s NamedColor profile PCS must be Lab or XYZ — ICC.1-2022-05 §6.7\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s NamedColor profile PCS valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-272: Matrix/TRC RGB Required Colorant Tags ────────────────────────────
+// ICC.1-2022-05 §9.2.47 — RGB profiles with matrix/TRC model must have
+// rXYZ, gXYZ, bXYZ, rTRC, gTRC, bTRC tags
+
+static int RunCF272_MatrixTRCColorantTags(CIccProfile *pIcc) {
+  printf("%s[CF-272]%s Matrix/TRC RGB Required Colorant Tags (%sICC.1-2022-05 §9.2.47%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.colorSpace != icSigRgbData) return 0;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigInputClass && cls != icSigDisplayClass) return 0;
+  // Check if this is a matrix/TRC profile (has rTRC but no AToB0)
+  CIccTag *pRTRC = pIcc->FindTag(icSigRedTRCTag);
+  CIccTag *pAToB0 = pIcc->FindTag(icSigAToB0Tag);
+  if (!pRTRC && pAToB0) return 0; // LUT-based, skip
+  if (!pRTRC && !pAToB0) return 0; // No transform model
+  // Matrix/TRC profile — check all 6 tags
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigRedMatrixColumnTag, "rXYZ"}, {icSigGreenMatrixColumnTag, "gXYZ"},
+    {icSigBlueMatrixColumnTag, "bXYZ"}, {icSigRedTRCTag, "rTRC"},
+    {icSigGreenTRCTag, "gTRC"}, {icSigBlueTRCTag, "bTRC"},
+  };
+  for (int i = 0; i < 6; i++) {
+    if (!pIcc->FindTag(tags[i].sig)) {
+      printf("         %s[WARN]%s Missing required tag '%s' for matrix/TRC RGB profile\n",
+             ColorWarning(), ColorReset(), tags[i].name);
+      issues++;
+    }
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s All matrix/TRC colorant tags present\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-282: DeviceLink AToB0Tag Required ─────────────────────────────────────
+// ICC.1-2022-05 §6.4 — DeviceLink profiles must contain AToB0Tag
+
+static int RunCF282_DeviceLinkAToB0Required(CIccProfile *pIcc) {
+  printf("%s[CF-282]%s DeviceLink AToB0Tag Required (%sICC.1-2022-05 §6.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigLinkClass) return 0;
+  if (!pIcc->FindTag(icSigAToB0Tag)) {
+    printf("         %s[WARN]%s DeviceLink profile must contain AToB0Tag — ICC.1-2022-05 §6.4\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s DeviceLink AToB0Tag present\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-283: DeviceLink profileSequenceDescTag ────────────────────────────────
+// ICC.1-2022-05 §6.4 — DeviceLink profiles should have profileSequenceDescTag
+
+static int RunCF283_DeviceLinkProfileSequenceDesc(CIccProfile *pIcc) {
+  printf("%s[CF-283]%s DeviceLink profileSequenceDescTag (%sICC.1-2022-05 §6.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.deviceClass != icSigLinkClass) return 0;
+  if (!pIcc->FindTag(icSigProfileSequenceDescTag)) {
+    printf("         %s[WARN]%s DeviceLink profile should contain profileSequenceDescTag "
+           "— ICC.1-2022-05 §6.4\n", ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s DeviceLink profileSequenceDescTag present\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2207,6 +2428,17 @@ int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1258, "CF-258: Display v4+ mediaWhitePointTag D50", RunCF258_DisplayMediaWhiteD50(pIcc));
   CF_WRAP(1259, "CF-259: colorantOrderTag vs colorantTableTag Cross-Validation", RunCF259_ColorantOrderVsTable(pIcc));
   CF_WRAP(1260, "CF-260: Output Profile gamutTag Rendering Intent", RunCF260_OutputGamutTagIntent(pIcc));
+
+  // Profile class constraints (CF-266..CF-272, CF-282..CF-283)
+  CF_WRAP(1266, "CF-266: Input Profile Device Color Space", RunCF266_InputProfileColorSpace(pIcc));
+  CF_WRAP(1267, "CF-267: Display Profile Color Space", RunCF267_DisplayProfileColorSpace(pIcc));
+  CF_WRAP(1268, "CF-268: Output Profile Color Space", RunCF268_OutputProfileColorSpace(pIcc));
+  CF_WRAP(1269, "CF-269: DeviceLink Data Color Space Matching", RunCF269_DeviceLinkColorSpaces(pIcc));
+  CF_WRAP(1270, "CF-270: Abstract Profile PCS", RunCF270_AbstractProfilePCS(pIcc));
+  CF_WRAP(1271, "CF-271: NamedColor Profile PCS", RunCF271_NamedColorProfilePCS(pIcc));
+  CF_WRAP(1272, "CF-272: Matrix/TRC RGB Required Colorant Tags", RunCF272_MatrixTRCColorantTags(pIcc));
+  CF_WRAP(1282, "CF-282: DeviceLink AToB0Tag Required", RunCF282_DeviceLinkAToB0Required(pIcc));
+  CF_WRAP(1283, "CF-283: DeviceLink profileSequenceDescTag", RunCF283_DeviceLinkProfileSequenceDesc(pIcc));
 
 #undef CF_WRAP
   return issues;

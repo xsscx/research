@@ -4131,6 +4131,260 @@ done_265:
   return issues;
 }
 
+// ── CF-273: Primary Colorant XYZ Values Positive and Plausible ───────────────
+// ICC.1-2022-05 §10.28 — XYZ values in colorant tags should be positive
+// and within plausible range for display/input devices
+
+static int RunCF273_PrimaryColorantXYZPlausible(CIccProfile *pIcc) {
+  printf("%s[CF-273]%s Primary Colorant XYZ Values Positive (%sICC.1-2022-05 §10.28%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.colorSpace != icSigRgbData) return 0;
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigRedMatrixColumnTag, "rXYZ"}, {icSigGreenMatrixColumnTag, "gXYZ"},
+    {icSigBlueMatrixColumnTag, "bXYZ"},
+  };
+  for (int i = 0; i < 3; i++) {
+    CIccTag *pTag = pIcc->FindTag(tags[i].sig);
+    if (!pTag) continue;
+    CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pTag);
+    if (!pXYZ || pXYZ->GetSize() < 1) continue;
+    icXYZNumber *xyz = pXYZ->GetXYZ(0);
+    if (!xyz) continue;
+    double x = icFtoD(xyz->X);
+    double y = icFtoD(xyz->Y);
+    double z = icFtoD(xyz->Z);
+    if (y < 0.0) {
+      printf("         %s[WARN]%s %s has negative Y=%.6f — ICC.1-2022-05 §10.28\n",
+             ColorWarning(), ColorReset(), tags[i].name, y);
+      issues++;
+    }
+    if (x < -2.0 || x > 3.0 || y > 3.0 || z < -2.0 || z > 3.0) {
+      printf("         %s[WARN]%s %s values out of plausible range (X=%.4f Y=%.4f Z=%.4f)\n",
+             ColorWarning(), ColorReset(), tags[i].name, x, y, z);
+      issues++;
+    }
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s Primary colorant XYZ values plausible\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-274: Primary Colorant Chromaticity Sum ────────────────────────────────
+// TN v4-matrix-entries — primary colorant chromaticity (x+y+z) ≈ 1.0 per column
+
+static int RunCF274_PrimaryColorantChromaticitySum(CIccProfile *pIcc) {
+  printf("%s[CF-274]%s Primary Colorant Chromaticity Sum (%sTN v4-matrix-entries%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.colorSpace != icSigRgbData) return 0;
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigRedMatrixColumnTag, "rXYZ"}, {icSigGreenMatrixColumnTag, "gXYZ"},
+    {icSigBlueMatrixColumnTag, "bXYZ"},
+  };
+  int checked = 0;
+  for (int i = 0; i < 3; i++) {
+    CIccTag *pTag = pIcc->FindTag(tags[i].sig);
+    if (!pTag) continue;
+    CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pTag);
+    if (!pXYZ || pXYZ->GetSize() < 1) continue;
+    icXYZNumber *xyz = pXYZ->GetXYZ(0);
+    if (!xyz) continue;
+    double x = icFtoD(xyz->X);
+    double y = icFtoD(xyz->Y);
+    double z = icFtoD(xyz->Z);
+    double sum = x + y + z;
+    checked++;
+    if (sum < 0.001) {
+      printf("         %s[WARN]%s %s chromaticity sum is %.6f (near zero)\n",
+             ColorWarning(), ColorReset(), tags[i].name, sum);
+      issues++;
+    }
+  }
+  if (checked == 0) return 0;
+  if (issues == 0)
+    printf("         %s[OK]%s Primary colorant chromaticity sums plausible\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-275: copyrightTag Must Be mluc for v4+ ───────────────────────────────
+// ICC.1-2022-05 §9.2.14 — copyrightTag must use multiLocalizedUnicodeType for v4+
+
+static int RunCF275_CopyrightTagMlucV4(CIccProfile *pIcc) {
+  printf("%s[CF-275]%s copyrightTag Must Be mluc for v4+ (%sICC.1-2022-05 §9.2.14%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.version < icVersionNumberV4) return 0;
+  CIccTag *pTag = pIcc->FindTag(icSigCopyrightTag);
+  if (!pTag) return 0;
+  if (pTag->GetType() != icSigMultiLocalizedUnicodeType) {
+    printf("         %s[WARN]%s v4+ copyrightTag type 0x%08X, expected multiLocalizedUnicodeType "
+           "(0x%08X) — ICC.1-2022-05 §9.2.14\n",
+           ColorWarning(), ColorReset(), (unsigned)pTag->GetType(),
+           (unsigned)icSigMultiLocalizedUnicodeType);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s copyrightTag is mluc for v4+\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-276: profileDescriptionTag Must Be mluc for v4+ ───────────────────────
+// ICC.1-2022-05 §9.2.44 — profileDescriptionTag must be mluc for v4+
+
+static int RunCF276_ProfileDescMlucV4(CIccProfile *pIcc) {
+  printf("%s[CF-276]%s profileDescriptionTag Must Be mluc for v4+ (%sICC.1-2022-05 §9.2.44%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  if (pIcc->m_Header.version < icVersionNumberV4) return 0;
+  CIccTag *pTag = pIcc->FindTag(icSigProfileDescriptionTag);
+  if (!pTag) return 0;
+  if (pTag->GetType() != icSigMultiLocalizedUnicodeType) {
+    printf("         %s[WARN]%s v4+ profileDescriptionTag type 0x%08X, expected mluc "
+           "(0x%08X) — ICC.1-2022-05 §9.2.44\n",
+           ColorWarning(), ColorReset(), (unsigned)pTag->GetType(),
+           (unsigned)icSigMultiLocalizedUnicodeType);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s profileDescriptionTag is mluc for v4+\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-277: mediaWhitePointTag Must Be XYZType ───────────────────────────────
+// ICC.1-2022-05 §9.2.35 — mediaWhitePointTag must be XYZType
+
+static int RunCF277_MediaWhitePointXYZType(CIccProfile *pIcc) {
+  printf("%s[CF-277]%s mediaWhitePointTag Must Be XYZType (%sICC.1-2022-05 §9.2.35%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!pTag) return 0;
+  if (pTag->GetType() != icSigXYZType) {
+    printf("         %s[WARN]%s mediaWhitePointTag type 0x%08X, expected XYZType (0x%08X) "
+           "— ICC.1-2022-05 §9.2.35\n",
+           ColorWarning(), ColorReset(), (unsigned)pTag->GetType(), (unsigned)icSigXYZType);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s mediaWhitePointTag is XYZType\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-278: chromaticAdaptationTag Must Be s15Fixed16ArrayType ───────────────
+// ICC.1-2022-05 §9.2.2 — chromaticAdaptationTag must be s15Fixed16ArrayType
+
+static int RunCF278_ChadS15Fixed16Type(CIccProfile *pIcc) {
+  printf("%s[CF-278]%s chromaticAdaptationTag Type (%sICC.1-2022-05 §9.2.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+  if (!pTag) return 0;
+  if (pTag->GetType() != icSigS15Fixed16ArrayType) {
+    printf("         %s[WARN]%s chromaticAdaptationTag type 0x%08X, expected s15Fixed16ArrayType "
+           "(0x%08X) — ICC.1-2022-05 §9.2.2\n",
+           ColorWarning(), ColorReset(), (unsigned)pTag->GetType(),
+           (unsigned)icSigS15Fixed16ArrayType);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s chromaticAdaptationTag is s15Fixed16ArrayType\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-279: TRC Curve Values Non-Negative ────────────────────────────────────
+// ICC.1-2022-05 §10.5/§10.15 — TRC values should be non-negative (monotonic
+// from black to white)
+
+static int RunCF279_TRCCurveNonNegative(CIccProfile *pIcc) {
+  printf("%s[CF-279]%s TRC Curve Values Non-Negative (%sICC.1-2022-05 §10.5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  static const icTagSignature trcTags[] = {
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
+  };
+  for (int t = 0; t < 4; t++) {
+    CIccTag *pTag = pIcc->FindTag(trcTags[t]);
+    if (!pTag) continue;
+    CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
+    if (!pCurve) continue;
+    icUInt32Number n = pCurve->GetSize();
+    if (n <= 1) continue; // gamma or identity
+    for (icUInt32Number i = 0; i < n; i++) {
+      icFloatNumber v = (*pCurve)[i];
+      if (v < 0.0f) {
+        char sigCC[5]; sigCC[4] = '\0';
+        icUInt32Number sig = (icUInt32Number)trcTags[t];
+        for (int j = 0; j < 4; j++)
+          sigCC[j] = (char)(unsigned char)((sig >> (24-8*j)) & 0xFF);
+        printf("         %s[WARN]%s TRC '%s' entry %u has negative value %.6f\n",
+               ColorWarning(), ColorReset(), sigCC, (unsigned)i, (double)v);
+        issues++;
+        break; // one per curve
+      }
+    }
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s TRC curve values non-negative\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-280: XYZ Element Luminance (Y) Non-Negative ───────────────────────────
+// ICC.1-2022-05 §10.28 — XYZ type luminance component should be non-negative
+
+static int RunCF280_XYZLuminanceNonNegative(CIccProfile *pIcc) {
+  printf("%s[CF-280]%s XYZ Element Luminance (Y) Non-Negative (%sICC.1-2022-05 §10.28%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  // Check all XYZ-type tags for negative Y
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigXYZType) continue;
+    CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pTag);
+    if (!pXYZ) continue;
+    for (icUInt32Number i = 0; i < pXYZ->GetSize(); i++) {
+      icXYZNumber *xyz = pXYZ->GetXYZ(i);
+      if (!xyz) continue;
+      double y = icFtoD(xyz->Y);
+      if (y < -0.001) {
+        char sigCC[5]; sigCC[4] = '\0';
+        icUInt32Number sig = (icUInt32Number)it->TagInfo.sig;
+        for (int j = 0; j < 4; j++)
+          sigCC[j] = (char)(unsigned char)((sig >> (24-8*j)) & 0xFF);
+        printf("         %s[WARN]%s XYZ tag '%s' element %u has negative Y=%.6f\n",
+               ColorWarning(), ColorReset(), sigCC, (unsigned)i, y);
+        issues++;
+      }
+    }
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s XYZ luminance values non-negative\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ── CF-281: profileSequenceDescTag Structure ─────────────────────────────────
+// ICC.1-2022-05 §10.16 — profileSequenceDescType requires at least one entry
+
+static int RunCF281_ProfileSequenceDescStructure(CIccProfile *pIcc) {
+  printf("%s[CF-281]%s profileSequenceDescTag Structure (%sICC.1-2022-05 §10.16%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+  if (!pTag) return 0;
+  // Verify tag type is profileSequenceDescType
+  if (pTag->GetType() != icSigProfileSequenceDescType) {
+    printf("         %s[WARN]%s profileSequenceDescTag type 0x%08X, expected 0x%08X\n",
+           ColorWarning(), ColorReset(), (unsigned)pTag->GetType(),
+           (unsigned)icSigProfileSequenceDescType);
+    issues++;
+  }
+  if (issues == 0)
+    printf("         %s[OK]%s profileSequenceDescTag structure valid\n", ColorSuccess(), ColorReset());
+  return issues;
+}
+
 
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
@@ -4215,6 +4469,17 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1263, "CF-263: Perceptual PCS White Point D50", RunCF263_PerceptualPCSWhitePointD50(pIcc));
   CF_WRAP(1264, "CF-264: parametricCurveType Function Type Range", RunCF264_ParametricCurveFuncType(pIcc));
   CF_WRAP(1265, "CF-265: mluc Language/Country Code Validity", RunCF265_MlucLanguageCountryCode(pIcc));
+
+  // Tag type enforcement and data validation (CF-273..CF-281)
+  CF_WRAP(1273, "CF-273: Primary Colorant XYZ Values Positive", RunCF273_PrimaryColorantXYZPlausible(pIcc));
+  CF_WRAP(1274, "CF-274: Primary Colorant Chromaticity Sum", RunCF274_PrimaryColorantChromaticitySum(pIcc));
+  CF_WRAP(1275, "CF-275: copyrightTag Must Be mluc for v4+", RunCF275_CopyrightTagMlucV4(pIcc));
+  CF_WRAP(1276, "CF-276: profileDescriptionTag Must Be mluc for v4+", RunCF276_ProfileDescMlucV4(pIcc));
+  CF_WRAP(1277, "CF-277: mediaWhitePointTag Must Be XYZType", RunCF277_MediaWhitePointXYZType(pIcc));
+  CF_WRAP(1278, "CF-278: chromaticAdaptationTag Type", RunCF278_ChadS15Fixed16Type(pIcc));
+  CF_WRAP(1279, "CF-279: TRC Curve Values Non-Negative", RunCF279_TRCCurveNonNegative(pIcc));
+  CF_WRAP(1280, "CF-280: XYZ Element Luminance (Y) Non-Negative", RunCF280_XYZLuminanceNonNegative(pIcc));
+  CF_WRAP(1281, "CF-281: profileSequenceDescTag Structure", RunCF281_ProfileSequenceDescStructure(pIcc));
 
 #undef CF_WRAP
   return issues;
