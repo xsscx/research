@@ -1,8 +1,9 @@
 /*
  * IccConformanceHeader.cpp — ICC specification header conformance checks
  *
- * Implements CF-001 through CF-015 from the conformance registry.
+ * Implements CF-001 through CF-015, CF-184..CF-187 from the conformance registry.
  * Validates ICC profile header fields against ICC.1-2022-05 §7.2.
+ * CF-184..CF-187: RFC 1321 (MD5) Profile ID conformance per §7.2.18.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -13,6 +14,7 @@
 #include "IccProfile.h"
 #include "IccTag.h"
 #include "IccTagBasic.h"
+#include "IccTagEmbedIcc.h"
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
@@ -1076,6 +1078,303 @@ static int RunCF122_ProfileDateTimePlausibility(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-184: Profile ID v4+ Presence (ICC.1-2022-05 §7.2.18, RFC 1321)
+//
+// §7.2.18: "This field, if not zero, shall hold the Profile ID."
+// For v4+ profiles the spec recommends computing the Profile ID.
+// A zero Profile ID is technically allowed but indicates the ID was not set,
+// reducing data integrity assurance.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF184_ProfileIDV4Presence(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-184]%s Profile ID v4+ Presence (%sICC.1-2022-05 §7.2.18, RFC 1321%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt8Number majorVer = static_cast<icUInt8Number>(pIcc->m_Header.version >> 24);
+  printf("         Profile version: %u.x\n", majorVer);
+
+  // v2 profiles: Profile ID was introduced in v4; skip for v2
+  if (majorVer < 4) {
+    printf("         v2 profile — Profile ID field not defined before v4\n");
+    printf("         %s[OK]%s v2 profiles exempt from Profile ID requirement\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Check if Profile ID is all zeros
+  const icUInt8Number *pid = pIcc->m_Header.profileID.ID8;
+  bool allZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (pid[i] != 0) { allZero = false; break; }
+  }
+
+  if (allZero) {
+    printf("         Profile ID is all zeros (not computed)\n");
+    printf("         %s[WARN]%s v4+ profile SHOULD have computed Profile ID — §7.2.18\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    char hex[33] = {};
+    for (int i = 0; i < 16; i++)
+      snprintf(hex + i * 2, 3, "%02x", pid[i]);
+    printf("         Profile ID: %s\n", hex);
+    printf("         %s[OK]%s v4+ profile has computed Profile ID\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-185: Profile ID Size Consistency (ICC.1-2022-05 §7.2.18, RFC 1321)
+//
+// The Profile ID is the MD5 hash computed over the entire profile.
+// RFC 1321 §3.1 specifies the message length as part of MD5 padding.
+// If the header-declared profile size differs from the actual file size,
+// the MD5 hash was computed over different data than what the file contains.
+// This cross-validates CF-010 (size) and CF-011 (MD5) together.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF185_ProfileIDSizeConsistency(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+
+  printf("%s[CF-185]%s Profile ID Size Consistency (%sICC.1-2022-05 §7.2.18, RFC 1321 §3.1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Skip if Profile ID is all zeros
+  const icUInt8Number *pid = pIcc->m_Header.profileID.ID8;
+  bool allZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (pid[i] != 0) { allZero = false; break; }
+  }
+  if (allZero) {
+    printf("         Profile ID is zero — size consistency check not applicable\n");
+    printf("         %s[OK]%s No Profile ID to validate\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  if (!filename) {
+    printf("         %sNo filename — cannot check file size%s\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) {
+    printf("         %sCannot open file%s\n", ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  icUInt32Number headerSize = pIcc->m_Header.size;
+  long fileSize = fh.fileSize;
+
+  printf("         Header-declared size: %u bytes\n", headerSize);
+  printf("         Actual file size: %ld bytes\n", fileSize);
+
+  // If sizes don't match, the MD5 was computed over different data
+  if (headerSize > 0 && static_cast<long>(headerSize) != fileSize) {
+    // Allow 4-byte padding tolerance
+    long paddedHeader = static_cast<long>((headerSize + 3u) & ~3u);
+    if (paddedHeader != fileSize) {
+      printf("         Size mismatch: MD5 computed over %u bytes, file is %ld bytes\n",
+             headerSize, fileSize);
+      printf("         %s[WARN]%s Profile ID MD5 input length inconsistent — §7.2.18 + RFC 1321 §3.1\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    } else {
+      printf("         %s[OK]%s Size matches within 4-byte alignment padding\n",
+             ColorSuccess(), ColorReset());
+    }
+  } else {
+    printf("         %s[OK]%s Header size matches file size — MD5 input length consistent\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-186: Profile ID Entropy Analysis (RFC 1321, ICC.1-2022-05 §7.2.18)
+//
+// A valid MD5 hash should have near-uniform byte distribution.
+// Detects Profile IDs that are unlikely to be genuine MD5 outputs:
+//   - All same byte (e.g., 0xFF repeated) — clearly not MD5
+//   - Repeating short pattern (e.g., 0xABCD repeated) — not MD5
+//   - Very low unique byte count — statistically implausible for MD5
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF186_ProfileIDEntropy(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-186]%s Profile ID Entropy Analysis (%sRFC 1321, ICC.1-2022-05 §7.2.18%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const icUInt8Number *pid = pIcc->m_Header.profileID.ID8;
+
+  // Skip if all zeros (not computed)
+  bool allZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (pid[i] != 0) { allZero = false; break; }
+  }
+  if (allZero) {
+    printf("         Profile ID is zero — entropy analysis not applicable\n");
+    printf("         %s[OK]%s No Profile ID to analyze\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Print the Profile ID
+  char hex[33] = {};
+  for (int i = 0; i < 16; i++)
+    snprintf(hex + i * 2, 3, "%02x", pid[i]);
+  printf("         Profile ID: %s\n", hex);
+
+  // Check 1: All same byte (e.g., 0xFFFFFF... or 0x414141...)
+  bool allSame = true;
+  for (int i = 1; i < 16; i++) {
+    if (pid[i] != pid[0]) { allSame = false; break; }
+  }
+  if (allSame) {
+    printf("         All 16 bytes are 0x%02x — not a valid MD5 output\n", pid[0]);
+    printf("         %s[WARN]%s Profile ID has constant byte pattern — §7.2.18\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  // Check 2: Short repeating pattern (2-byte or 4-byte repeat)
+  bool repeat2 = true;
+  for (int i = 2; i < 16; i++) {
+    if (pid[i] != pid[i % 2]) { repeat2 = false; break; }
+  }
+  bool repeat4 = true;
+  for (int i = 4; i < 16; i++) {
+    if (pid[i] != pid[i % 4]) { repeat4 = false; break; }
+  }
+  if (repeat2 || repeat4) {
+    printf("         Profile ID has short repeating pattern (%d-byte cycle)\n",
+           repeat2 ? 2 : 4);
+    printf("         %s[WARN]%s Profile ID unlikely to be genuine MD5 — RFC 1321\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // Check 3: Unique byte count — MD5 of any reasonable input should have
+  // high entropy. With 16 bytes, seeing <= 2 unique values is suspicious.
+  bool seen[256] = {};
+  int uniqueCount = 0;
+  for (int i = 0; i < 16; i++) {
+    if (!seen[pid[i]]) {
+      seen[pid[i]] = true;
+      uniqueCount++;
+    }
+  }
+  printf("         Unique byte values: %d/16\n", uniqueCount);
+  if (uniqueCount <= 2) {
+    printf("         Very low entropy — Profile ID may not be genuine MD5\n");
+    printf("         %s[WARN]%s Profile ID entropy implausible — RFC 1321\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Profile ID entropy consistent with MD5 output\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-187: Embedded Profile ProfileID Chain (ICC TN Embedding, §7.2.18, RFC 1321)
+//
+// When a v4/v5 ICC.1 profile embeds an ICC.2 profile via
+// icSigEmbeddedV5ProfileTag, both the outer and inner profiles should
+// have valid Profile IDs. An inner profile with a zero ID reduces the
+// integrity assurance of the embedding chain.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF187_EmbeddedProfileIDChain(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-187]%s Embedded Profile ProfileID Chain (%sICC TN Embedding + §7.2.18 + RFC 1321%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Find the embedded profile tag
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile tag (ICC5) present\n");
+    printf("         %s[OK]%s No embedding chain to validate\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile*>(pTag);
+  if (!pEmbed || !pEmbed->m_pProfile) {
+    printf("         Embedded profile tag present but profile not loaded\n");
+    printf("         %s[WARN]%s Cannot validate embedded Profile ID\n",
+           ColorWarning(), ColorReset());
+    return 0;
+  }
+
+  CIccProfile *pInner = pEmbed->m_pProfile;
+  icUInt8Number innerMajor = static_cast<icUInt8Number>(pInner->m_Header.version >> 24);
+  printf("         Embedded profile version: %u.x\n", innerMajor);
+
+  // Check inner profile's Profile ID
+  const icUInt8Number *innerPid = pInner->m_Header.profileID.ID8;
+  bool innerAllZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (innerPid[i] != 0) { innerAllZero = false; break; }
+  }
+
+  if (innerAllZero && innerMajor >= 4) {
+    printf("         Embedded v%u profile has zero Profile ID\n", innerMajor);
+    printf("         %s[WARN]%s Embedded v4+ profile SHOULD have computed Profile ID — §7.2.18\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else if (!innerAllZero) {
+    char hex[33] = {};
+    for (int i = 0; i < 16; i++)
+      snprintf(hex + i * 2, 3, "%02x", innerPid[i]);
+    printf("         Embedded Profile ID: %s\n", hex);
+    printf("         %s[OK]%s Embedded profile has computed Profile ID\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("         Embedded v%u profile — Profile ID not required\n", innerMajor);
+    printf("         %s[OK]%s Pre-v4 embedded profile exempt\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  // Also check outer profile's ID for completeness
+  const icUInt8Number *outerPid = pIcc->m_Header.profileID.ID8;
+  bool outerAllZero = true;
+  for (int i = 0; i < 16; i++) {
+    if (outerPid[i] != 0) { outerAllZero = false; break; }
+  }
+  icUInt8Number outerMajor = static_cast<icUInt8Number>(pIcc->m_Header.version >> 24);
+
+  if (outerAllZero && outerMajor >= 4) {
+    printf("         Outer v%u profile has zero Profile ID while embedding v%u profile\n",
+           outerMajor, innerMajor);
+    printf("         %s[WARN]%s Outer profile SHOULD have Profile ID for chain integrity — §7.2.18\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Embedding chain Profile IDs are consistent\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1110,6 +1409,12 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1107, "CF-107: Tag Table Ordering", RunCF107_TagTableOrdering(pIcc));
   CF_WRAP(1121, "CF-121: Illuminant Metadata Consistency", RunCF121_IlluminantMetadataConsistency(pIcc));
   CF_WRAP(1122, "CF-122: Profile Date/Time Plausibility", RunCF122_ProfileDateTimePlausibility(pIcc));
+
+  // RFC 1321 / Profile ID conformance (CF-184..CF-187)
+  CF_WRAP(1184, "CF-184: Profile ID v4+ Presence", RunCF184_ProfileIDV4Presence(pIcc));
+  CF_WRAP(1185, "CF-185: Profile ID Size Consistency", RunCF185_ProfileIDSizeConsistency(pIcc, filename));
+  CF_WRAP(1186, "CF-186: Profile ID Entropy Analysis", RunCF186_ProfileIDEntropy(pIcc));
+  CF_WRAP(1187, "CF-187: Embedded Profile ProfileID Chain", RunCF187_EmbeddedProfileIDChain(pIcc));
 
 #undef CF_WRAP
   return issues;

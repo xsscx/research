@@ -725,6 +725,23 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-183", "Chad Column Normalization",
    "Adaptation matrix column norms should be bounded (not degenerate or extreme)", "ICC TN Partial Adaptation",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // RFC 1321 / Profile ID Conformance (CF-184..CF-187)
+  {"CF-184", "Profile ID v4+ Presence",
+   "v4+ profiles SHOULD have a computed Profile ID (MD5 hash per RFC 1321)", "ICC.1-2022-05 §7.2.18",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-185", "Profile ID Size Consistency",
+   "MD5 input length (header-declared profile size) must match actual file size per RFC 1321 §3.1", "ICC.1-2022-05 §7.2.18",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-186", "Profile ID Entropy Analysis",
+   "Profile ID (MD5 hash) should have near-uniform byte distribution per RFC 1321", "ICC.1-2022-05 §7.2.18",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-187", "Embedded Profile ProfileID Chain",
+   "Both outer and inner profiles in embedding chain should have valid Profile IDs", "ICC TN Embedding + §7.2.18",
+   CFSeverity::WARNING, CFCategory::HEADER},
 };
 
 static constexpr int kConformanceCheckCount =
