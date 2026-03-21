@@ -3118,6 +3118,443 @@ int RunCF162_DictEntryCountBounds(CIccProfile *pIcc) {
   return issues;
 }
 
+// ========================================================================
+// ICS Extended Range Part 1 conformance checks (CF-235..CF-242)
+// Source: ICS "extendedRange display and colorSpace - Part 1: basic encoding"
+// ========================================================================
+
+/// CF-235: xrng Data Colour Space and Channel Restriction
+/// Part 1 requires data colour space = RGB (3 channels) for extendedRange
+static int RunCF235_XrngDataColourSpace(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-235]%s xrng Data Colour Space Restriction (%sICS-ExtRange-Part1 Table 3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) { // 'xrng'
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  icUInt32Number nChan = icGetSpaceSamples(cs);
+
+  if (cs != icSigRgbData) {
+    char csStr[5];
+    csStr[0] = (char)((cs >> 24) & 0xFF);
+    csStr[1] = (char)((cs >> 16) & 0xFF);
+    csStr[2] = (char)((cs >> 8) & 0xFF);
+    csStr[3] = (char)(cs & 0xFF);
+    csStr[4] = '\0';
+    printf("         %s[WARN]%s Data colour space='%s' -- Part 1 requires 'RGB '\n",
+           ColorWarning(), ColorReset(), csStr);
+    issues++;
+  } else {
+    printf("         Data colour space: RGB (%u channels)\n", nChan);
+  }
+
+  if (nChan != 3) {
+    printf("         %s[WARN]%s Channel count=%u -- Part 1 limits to 3 (RGB displays)\n",
+           ColorWarning(), ColorReset(), nChan);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Data colour space is RGB with 3 channels\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-236: xrng Colorimetric PCS Constraint
+/// Part 1 requires colorimetric PCS = XYZ with D50 illuminant (1931 2-degree observer)
+static int RunCF236_XrngColorimetricPCS(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-236]%s xrng Colorimetric PCS Constraint (%sICS-ExtRange-Part1 Table 3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  if (pcs != icSigXYZData) {
+    printf("         %s[WARN]%s PCS is not XYZ -- Part 1 requires colorimetric XYZ PCS\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Colorimetric PCS: XYZ (D50 illuminant, 1931 standard observer)\n");
+  }
+
+  // D50 illuminant check (0.9642, 1.0, 0.8249)
+  const icXYZNumber &illum = pIcc->m_Header.illuminant;
+  double X = icFtoD(illum.X);
+  double Y = icFtoD(illum.Y);
+  double Z = icFtoD(illum.Z);
+
+  if (fabs(X - 0.9642) > 0.005 || fabs(Y - 1.0) > 0.005 || fabs(Z - 0.8249) > 0.005) {
+    printf("         %s[WARN]%s Illuminant (%.4f, %.4f, %.4f) -- should be D50 (0.9642, 1.0, 0.8249)\n",
+           ColorWarning(), ColorReset(), X, Y, Z);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Colorimetric PCS is XYZ with D50 illuminant\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-237: xrng Required Tag Completeness
+/// Table 4: desc (mluc), cprt (mluc), mwpt (XYZ), A2B1 (MPE), B2A1 (MPE)
+static int RunCF237_XrngRequiredTagCompleteness(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-237]%s xrng Required Tag Completeness (%sICS-ExtRange-Part1 Table 4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  struct TagReq {
+    icTagSignature sig;
+    const char *name;
+    icTagTypeSignature requiredType;
+    const char *typeName;
+  };
+  static const TagReq kRequired[] = {
+    {icSigProfileDescriptionTag, "profileDescriptionTag", icSigMultiLocalizedUnicodeType, "multiLocalizedUnicodeType"},
+    {icSigCopyrightTag,          "copyrightTag",          icSigMultiLocalizedUnicodeType, "multiLocalizedUnicodeType"},
+    {icSigMediaWhitePointTag,    "mediaWhitePointTag",    icSigXYZType,                   "XYZType"},
+    {icSigAToB1Tag,              "AToB1Tag",              icSigMultiProcessElementType,    "multiProcessElementType"},
+    {icSigBToA1Tag,              "BToA1Tag",              icSigMultiProcessElementType,    "multiProcessElementType"},
+  };
+
+  for (const auto &req : kRequired) {
+    CIccTag *pTag = pIcc->FindTag(req.sig);
+    if (!pTag) {
+      printf("         %s[WARN]%s Required tag '%s' missing\n",
+             ColorWarning(), ColorReset(), req.name);
+      issues++;
+      continue;
+    }
+
+    icTagTypeSignature ttype = pTag->GetType();
+    if (ttype != req.requiredType) {
+      printf("         %s[WARN]%s '%s' type 0x%08X -- expected %s (0x%08X)\n",
+             ColorWarning(), ColorReset(), req.name,
+             (unsigned)ttype, req.typeName, (unsigned)req.requiredType);
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All 5 required tags present with correct types\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-238: xrng Header Field Restrictions
+/// Table 3: flags=0, device attributes <=1, no spectral/bispectral PCS, MCS=0
+static int RunCF238_XrngHeaderFieldRestrictions(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-238]%s xrng Header Field Restrictions (%sICS-ExtRange-Part1 Table 3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  // Profile flags must be 0
+  icUInt32Number flags = (icUInt32Number)pIcc->m_Header.flags;
+  if (flags != 0) {
+    printf("         %s[WARN]%s Profile flags=0x%08X -- Part 1 requires 0\n",
+           ColorWarning(), ColorReset(), flags);
+    issues++;
+  }
+
+  // Device attributes must be 0 or 1
+  icUInt64Number attrs = pIcc->m_Header.attributes;
+  if (attrs > 1) {
+    printf("         %s[WARN]%s Device attributes=0x%llX -- Part 1 allows only 0 or 1\n",
+           ColorWarning(), ColorReset(), (unsigned long long)attrs);
+    issues++;
+  }
+
+  // Spectral PCS must be 0
+  icColorSpaceSignature specPCS = pIcc->m_Header.spectralPCS;
+  if (specPCS != (icColorSpaceSignature)0) {
+    printf("         %s[WARN]%s Spectral PCS=0x%08X -- Part 1 requires 0\n",
+           ColorWarning(), ColorReset(), (unsigned)specPCS);
+    issues++;
+  }
+
+  // Spectral range steps must be 0
+  if (pIcc->m_Header.spectralRange.steps != 0) {
+    printf("         %s[WARN]%s Spectral range steps=%u -- Part 1 requires 0\n",
+           ColorWarning(), ColorReset(), pIcc->m_Header.spectralRange.steps);
+    issues++;
+  }
+
+  // Bispectral range steps must be 0
+  if (pIcc->m_Header.biSpectralRange.steps != 0) {
+    printf("         %s[WARN]%s Bispectral range steps=%u -- Part 1 requires 0\n",
+           ColorWarning(), ColorReset(), pIcc->m_Header.biSpectralRange.steps);
+    issues++;
+  }
+
+  // MCS must be 0
+  icMaterialColorSignature mcs = pIcc->m_Header.mcs;
+  if (mcs != (icMaterialColorSignature)0) {
+    printf("         %s[WARN]%s MCS=0x%08X -- Part 1 requires 0\n",
+           ColorWarning(), ColorReset(), (unsigned)mcs);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All xrng header field restrictions satisfied\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-239: xrng Optional Tag Type Validation
+/// Table 5: chad=s15Fixed16ArrayType, gbdX=gamutBoundaryDescriptionType,
+/// AToBx/BToAx (x!=1) = multiProcessElementType
+static int RunCF239_XrngOptionalTagTypes(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-239]%s xrng Optional Tag Type Validation (%sICS-ExtRange-Part1 Table 5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  // chad must be s15Fixed16ArrayType when present
+  CIccTag *pChad = pIcc->FindTag(icSigChromaticAdaptationTag);
+  if (pChad) {
+    if (pChad->GetType() != icSigS15Fixed16ArrayType) {
+      printf("         %s[WARN]%s 'chad' type 0x%08X -- expected s15Fixed16ArrayType\n",
+             ColorWarning(), ColorReset(), (unsigned)pChad->GetType());
+      issues++;
+    } else {
+      printf("         chad: s15Fixed16ArrayType (OK)\n");
+    }
+  }
+
+  // AToBx / BToAx where x!=1 must be multiProcessElementType
+  static const struct { icTagSignature sig; const char *name; } kOptionalMPE[] = {
+    {icSigAToB0Tag, "AToB0Tag"},
+    {icSigAToB2Tag, "AToB2Tag"},
+    {icSigBToA0Tag, "BToA0Tag"},
+    {icSigBToA2Tag, "BToA2Tag"},
+  };
+
+  for (const auto &t : kOptionalMPE) {
+    CIccTag *pTag = pIcc->FindTag(t.sig);
+    if (!pTag) continue;
+
+    if (pTag->GetType() != icSigMultiProcessElementType) {
+      printf("         %s[WARN]%s '%s' type 0x%08X -- expected multiProcessElementType\n",
+             ColorWarning(), ColorReset(), t.name, (unsigned)pTag->GetType());
+      issues++;
+    } else {
+      printf("         %s: multiProcessElementType (OK)\n", t.name);
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All optional tags have correct types per Table 5\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-240: xrng Transform Channel Dimensions
+/// AToB1/BToA1 must map 3 input channels (RGB) to 3 output channels (XYZ)
+static int RunCF240_XrngTransformChannels(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-240]%s xrng Transform Channel Dimensions (%sICS-ExtRange-Part1 S5.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  static const struct { icTagSignature sig; const char *name; } kTransforms[] = {
+    {icSigAToB1Tag, "AToB1Tag"},
+    {icSigBToA1Tag, "BToA1Tag"},
+  };
+
+  int checked = 0;
+  for (const auto &t : kTransforms) {
+    CIccTag *pTag = pIcc->FindTag(t.sig);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+    checked++;
+
+    icUInt16Number nIn = pMPE->NumInputChannels();
+    icUInt16Number nOut = pMPE->NumOutputChannels();
+
+    printf("         %s: %u input -> %u output channels\n", t.name, nIn, nOut);
+
+    if (nIn != 3) {
+      printf("         %s[WARN]%s %s has %u input channels -- expected 3 (RGB)\n",
+             ColorWarning(), ColorReset(), t.name, nIn);
+      issues++;
+    }
+    if (nOut != 3) {
+      printf("         %s[WARN]%s %s has %u output channels -- expected 3 (XYZ)\n",
+             ColorWarning(), ColorReset(), t.name, nOut);
+      issues++;
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No AToB1/BToA1 MPE tags to check channels\n");
+    return 0;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Transform channels: 3 (RGB) -> 3 (XYZ) confirmed\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-241: xrng mediaWhitePointTag Absolute Radiance
+/// mwpt must contain XYZ tristimulus values of near-diffuse white in absolute radiance
+static int RunCF241_XrngMediaWhitePointRadiance(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-241]%s xrng mediaWhitePointTag Absolute Radiance (%sICS-ExtRange-Part1 Table 4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  CIccTag *pTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!pTag) {
+    printf("         %s[WARN]%s mediaWhitePointTag missing\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ*>(pTag);
+  if (!pXYZ) {
+    printf("         %s[WARN]%s mediaWhitePointTag is not XYZType\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  icXYZNumber *wp = pXYZ->GetXYZ(0);
+  if (!wp) {
+    printf("         %s[WARN]%s mediaWhitePointTag has no XYZ data\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  double X = icFtoD(wp->X);
+  double Y = icFtoD(wp->Y);
+  double Z = icFtoD(wp->Z);
+
+  printf("         White point: X=%.6f Y=%.6f Z=%.6f\n", X, Y, Z);
+
+  if (Y <= 0.0) {
+    printf("         %s[WARN]%s Y=%.6f -- luminance must be positive\n",
+           ColorWarning(), ColorReset(), Y);
+    issues++;
+  }
+
+  if (X <= 0.0 || Z <= 0.0) {
+    printf("         %s[WARN]%s Non-positive tristimulus (X=%.6f, Z=%.6f)\n",
+           ColorWarning(), ColorReset(), X, Z);
+    issues++;
+  }
+
+  // For extended range, Y > 1.0 is valid (absolute radiance cd/m^2)
+  if (Y > 1.0) {
+    printf("         Extended range white point Y=%.4f (absolute radiance)\n", Y);
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s mediaWhitePointTag has valid absolute radiance values\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-242: xrng Workflow Connection Consistency
+/// Validates source/destination transform type requirements per S5.2.3
+static int RunCF242_XrngWorkflowConnection(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-242]%s xrng Workflow Connection Consistency (%sICS-ExtRange-Part1 S5.2.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icSignature subClass = pIcc->m_Header.deviceSubClass;
+  if (subClass != 0x78726E67) {
+    printf("         Profile sub-class is not 'xrng' -- check N/A\n");
+    return 0;
+  }
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  printf("         Profile class: %s\n",
+         cls == icSigDisplayClass ? "display (mntr)" :
+         cls == icSigColorSpaceClass ? "colorSpace (spac)" : "other");
+
+  // Source scenario: E -> PCS -> C (transform type = colorimetric, PCC override = none)
+  // A2B1 is the colorimetric rendering intent transform
+  CIccTag *pA2B1 = pIcc->FindTag(icSigAToB1Tag);
+  CIccTag *pB2A1 = pIcc->FindTag(icSigBToA1Tag);
+
+  if (pA2B1 && pB2A1) {
+    printf("         Source+Destination capable: AToB1 + BToA1 present\n");
+  } else if (pA2B1) {
+    printf("         Source-only: AToB1 present (device -> PCS)\n");
+  } else if (pB2A1) {
+    printf("         Destination-only: BToA1 present (PCS -> device)\n");
+  } else {
+    printf("         %s[WARN]%s Neither AToB1 nor BToA1 present -- no xrng workflow possible\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  // Rendering intent should be relative colorimetric (1) for xrng workflows
+  icUInt32Number intent = pIcc->m_Header.renderingIntent;
+  if (intent != 1 && intent != 0) {
+    printf("         %s[WARN]%s Rendering intent=%u -- xrng workflows use colorimetric (0 or 1)\n",
+           ColorWarning(), ColorReset(), intent);
+    issues++;
+  }
+
+  // Check that no DToB/BToD tags are present (Part 1 doesn't define spectral connections)
+  if (pIcc->FindTag(icSigDToB0Tag) || pIcc->FindTag(icSigDToB1Tag) ||
+      pIcc->FindTag(icSigDToB3Tag)) {
+    printf("         DToB tags present -- not defined by Part 1 (informational)\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Workflow connection structure consistent with ICS Part 1\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -3191,6 +3628,16 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1196, "CF-196: ICS MPE Calculator Restriction", RunCF196_ICSMPECalculatorRestriction(pIcc));
   CF_WRAP(1197, "CF-197: ICS PCC Transform Pair Completeness", RunCF197_ICSPCCTransformPairCompleteness(pIcc));
   CF_WRAP(1198, "CF-198: Extended Range Sub-Class Validation", RunCF198_ExtendedRangeSubClassValidation(pIcc));
+
+  // ICS Extended Range Part 1 conformance (CF-235..CF-242)
+  CF_WRAP(1235, "CF-235: xrng Data Colour Space Restriction", RunCF235_XrngDataColourSpace(pIcc));
+  CF_WRAP(1236, "CF-236: xrng Colorimetric PCS Constraint", RunCF236_XrngColorimetricPCS(pIcc));
+  CF_WRAP(1237, "CF-237: xrng Required Tag Completeness", RunCF237_XrngRequiredTagCompleteness(pIcc));
+  CF_WRAP(1238, "CF-238: xrng Header Field Restrictions", RunCF238_XrngHeaderFieldRestrictions(pIcc));
+  CF_WRAP(1239, "CF-239: xrng Optional Tag Type Validation", RunCF239_XrngOptionalTagTypes(pIcc));
+  CF_WRAP(1240, "CF-240: xrng Transform Channel Dimensions", RunCF240_XrngTransformChannels(pIcc));
+  CF_WRAP(1241, "CF-241: xrng mediaWhitePointTag Absolute Radiance", RunCF241_XrngMediaWhitePointRadiance(pIcc));
+  CF_WRAP(1242, "CF-242: xrng Workflow Connection Consistency", RunCF242_XrngWorkflowConnection(pIcc));
 
   // ICC.2-in-ICC.1 Embedding
   CF_WRAP(1153, "CF-153: Embedded Profile Tag Presence", RunCF153_EmbeddedProfileTagPresence(pIcc));

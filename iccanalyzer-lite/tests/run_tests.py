@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-234)."""
+    """Test ICC Specification conformance checks (CF-001..CF-242)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2807,6 +2807,57 @@ def test_conformance_checks(suite):
         "cf.234.perceptual_pcs",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-234.*Perceptual PCS"
+    )
+
+    # --- CF-235..CF-242: ICS Extended Range Part 1 conformance ---
+    # These checks target 'xrng' sub-class profiles. On non-xrng profiles they report N/A.
+    # CF-235: xrng Data Colour Space Restriction
+    suite.assert_output_contains(
+        "cf.235.xrng_colour_space",
+        ["-a", v5_profile],
+        r"CF-235.*xrng Data Colour Space"
+    )
+    # CF-236: xrng Colorimetric PCS Constraint
+    suite.assert_output_contains(
+        "cf.236.xrng_pcs",
+        ["-a", v5_profile],
+        r"CF-236.*xrng Colorimetric PCS"
+    )
+    # CF-237: xrng Required Tag Completeness
+    suite.assert_output_contains(
+        "cf.237.xrng_required_tags",
+        ["-a", v5_profile],
+        r"CF-237.*xrng Required Tag"
+    )
+    # CF-238: xrng Header Field Restrictions
+    suite.assert_output_contains(
+        "cf.238.xrng_header_fields",
+        ["-a", v5_profile],
+        r"CF-238.*xrng Header Field"
+    )
+    # CF-239: xrng Optional Tag Type Validation
+    suite.assert_output_contains(
+        "cf.239.xrng_optional_tags",
+        ["-a", v5_profile],
+        r"CF-239.*xrng Optional Tag"
+    )
+    # CF-240: xrng Transform Channel Dimensions
+    suite.assert_output_contains(
+        "cf.240.xrng_channels",
+        ["-a", v5_profile],
+        r"CF-240.*xrng Transform Channel"
+    )
+    # CF-241: xrng mediaWhitePointTag Absolute Radiance
+    suite.assert_output_contains(
+        "cf.241.xrng_mwpt_radiance",
+        ["-a", v5_profile],
+        r"CF-241.*xrng mediaWhitePointTag"
+    )
+    # CF-242: xrng Workflow Connection Consistency
+    suite.assert_output_contains(
+        "cf.242.xrng_workflow",
+        ["-a", v5_profile],
+        r"CF-242.*xrng Workflow Connection"
     )
 
     # --- Clean profile baseline ---
