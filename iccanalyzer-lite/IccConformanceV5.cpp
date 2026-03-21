@@ -6166,6 +6166,210 @@ static int RunCF323_SolvDimensions(CIccProfile *pIcc) {
   return issues;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-324: Calculator 'env' Operator Usage (K.2.7, ICC.2 §11.2.1.4)
+//
+// CMM environment variables are accessed by the calculator element 'env'
+// operator.  K.2.7 states that environment variable values are provided via
+// CMM processing control options and may not be available.  This check
+// detects 'env' operator usage to flag the CMM dependency.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF324_EnvOperatorUsage(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-324]%s Calculator 'env' Operator Usage "
+         "(%sK.2.7, ICC.2 §11.2.1.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int envCount = 0;
+  int calcCount = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("Calculator") == std::string::npos &&
+        desc.find("calc") == std::string::npos)
+      continue;
+
+    calcCount++;
+
+    // Count "env(" occurrences
+    size_t pos = 0;
+    while ((pos = desc.find("env(", pos)) != std::string::npos) {
+      envCount++;
+      pos += 4;
+    }
+  }
+
+  if (calcCount == 0) {
+    printf("         No calculator elements — check not applicable\n");
+  } else if (envCount == 0) {
+    printf("         %s[OK]%s %d calculator element(s), no 'env' operators "
+           "(no CMM environment variable dependency)\n",
+           ColorSuccess(), ColorReset(), calcCount);
+  } else {
+    printf("         %s[INFO]%s %d 'env' operator(s) found in %d calculator "
+           "element(s)\n",
+           ColorWarning(), ColorReset(), envCount, calcCount);
+    printf("         Profile requires CMM environment variable support "
+           "(K.2.7)\n");
+  }
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-325: Calculator 'env' Status Handling (K.2.7)
+//
+// K.2.7: "Calculator element scripts in profiles check the status of applying
+// the 'env' operator to determine whether the environment value has been
+// provided and perform appropriate operations when a variable is not
+// available."  The 'env' operator pushes value + status (1.0 = available,
+// 0.0 = unavailable).  A subsequent 'if' should test the status flag.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF325_EnvStatusHandling(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-325]%s Calculator 'env' Status Handling (%sK.2.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int envCount = 0;
+  int envWithIf = 0;
+  int envWithoutIf = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("env(") == std::string::npos)
+      continue;
+
+    // For each 'env(' occurrence, check for subsequent 'if' conditional
+    size_t pos = 0;
+    while ((pos = desc.find("env(", pos)) != std::string::npos) {
+      // Skip constant pseudo-variables 'true' and 'ndef' — they don't need
+      // status checking since their status is deterministic
+      if (desc.compare(pos, 9, "env(true)") == 0 ||
+          desc.compare(pos, 9, "env(ndef)") == 0) {
+        pos += 4;
+        continue;
+      }
+
+      envCount++;
+      size_t searchEnd = desc.find("END_CALC_FUNCTION", pos);
+      if (searchEnd == std::string::npos)
+        searchEnd = desc.size();
+
+      std::string afterEnv = desc.substr(pos + 4, searchEnd - pos - 4);
+      if (afterEnv.find("if ") != std::string::npos ||
+          afterEnv.find("if\n") != std::string::npos) {
+        envWithIf++;
+      } else {
+        envWithoutIf++;
+      }
+      pos += 4;
+    }
+  }
+
+  if (envCount == 0) {
+    printf("         No variable 'env' operators (excluding constants) — "
+           "check not applicable\n");
+  } else if (envWithoutIf > 0) {
+    printf("         %s[WARN]%s %d of %d 'env' operator(s) lack subsequent "
+           "status check ('if' conditional)\n",
+           ColorError(), ColorReset(), envWithoutIf, envCount);
+    printf("         K.2.7 requires checking env status — §11.2.1.4\n");
+    issues += envWithoutIf;
+  } else {
+    printf("         %s[OK]%s All %d 'env' operator(s) have subsequent "
+           "status check\n",
+           ColorSuccess(), ColorReset(), envCount);
+  }
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-326: Calculator 'env' Reserved Signatures (K.2.7, §11.2.1.4)
+//
+// Two reserved environment variable signatures have deterministic behaviour:
+//   'true' (0x74727565) — always pushes (1.0, 1.0)
+//   'ndef' (0x6e646566) — always pushes (0.0, 0.0)
+// These are constants, not runtime environment lookups.  Their presence is
+// informational — they don't create CMM dependencies but may indicate profile
+// design patterns worth noting.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF326_EnvReservedSignatures(CIccProfile *pIcc) {
+  int issues = 0;
+  printf("  %s[CF-326]%s Calculator 'env' Reserved Signatures "
+         "(%sK.2.7, §11.2.1.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int trueCount = 0;
+  int ndefCount = 0;
+  int calcCount = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
+    if (!tag) continue;
+
+    CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+    if (!mpe) continue;
+
+    std::string desc;
+    mpe->Describe(desc, 0);
+    if (desc.find("Calculator") == std::string::npos &&
+        desc.find("calc") == std::string::npos)
+      continue;
+
+    calcCount++;
+
+    size_t pos = 0;
+    while ((pos = desc.find("env(true)", pos)) != std::string::npos) {
+      trueCount++;
+      pos += 9;
+    }
+    pos = 0;
+    while ((pos = desc.find("env(ndef)", pos)) != std::string::npos) {
+      ndefCount++;
+      pos += 9;
+    }
+  }
+
+  if (calcCount == 0) {
+    printf("         No calculator elements — check not applicable\n");
+  } else if (trueCount == 0 && ndefCount == 0) {
+    printf("         %s[OK]%s No reserved env signatures ('true'/'ndef') "
+           "used\n", ColorSuccess(), ColorReset());
+  } else {
+    if (trueCount > 0)
+      printf("         %s[INFO]%s %d 'env(true)' constant(s) — always "
+             "returns (1.0, 1.0)\n",
+             ColorWarning(), ColorReset(), trueCount);
+    if (ndefCount > 0)
+      printf("         %s[INFO]%s %d 'env(ndef)' constant(s) — always "
+             "returns (0.0, 0.0)\n",
+             ColorWarning(), ColorReset(), ndefCount);
+  }
+
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -6327,6 +6531,11 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1321, "CF-321: Calculator 'solv' Operator Presence", RunCF321_SolvOperatorPresence(pIcc));
   CF_WRAP(1322, "CF-322: Calculator 'solv' Status Handling", RunCF322_SolvStatusHandling(pIcc));
   CF_WRAP(1323, "CF-323: Calculator 'solv' Matrix Dimensions", RunCF323_SolvDimensions(pIcc));
+
+  // K.2.7 CMM Environment Variable Conformance (CF-324..CF-326)
+  CF_WRAP(1324, "CF-324: Calculator 'env' Operator Usage", RunCF324_EnvOperatorUsage(pIcc));
+  CF_WRAP(1325, "CF-325: Calculator 'env' Status Handling", RunCF325_EnvStatusHandling(pIcc));
+  CF_WRAP(1326, "CF-326: Calculator 'env' Reserved Signatures", RunCF326_EnvReservedSignatures(pIcc));
 
 done:
 #undef CF_WRAP
