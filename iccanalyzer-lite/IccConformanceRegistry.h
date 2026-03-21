@@ -687,6 +687,19 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-174", "Lab Conversion Clipping Awareness",
    "Lab PCS profiles should use LUT model (not matrix/TRC); XYZ PCS negative values are valid per ICC TN", "ICC TN Negative PCSXYZ, ICC.1:2010 §6.4",
    CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  // ICC.2-in-ICC.1 Embedding — additional conformance (CF-175..CF-177)
+  {"CF-175", "Embedded Profile PCS Compatibility",
+   "Child PCS should be compatible with parent PCS for 'logical replacement' semantics", "ICC TN Embedding §Processing",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-176", "Embedded Profile Tag Reserved Bytes",
+   "Bytes 4-7 of embeddedProfileType encoding shall be 0 per Table 1", "ICC TN Embedding Table 1",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-177", "Embedded Profile Data Integrity",
+   "Embedded ICC.2 profile shall be included in its entirety and validate cleanly", "ICC TN Embedding §Embedding",
+   CFSeverity::ERROR, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
