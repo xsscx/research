@@ -900,17 +900,6 @@ int RunHeuristic_H45_SparseMatrixBounds(RawProfileContext &ctx)
     if (!ctx.ReadAt(tOff, typeSig, 4)) continue;
     uint32_t typeVal = ReadU32BE(typeSig);
 
-    // Check for sparse matrix element types (tint, bACS, etc.)
-    // Also check any tag with amplification potential
-    if (tSz > 0 && (uint64_t)tOff + tSz <= fs) {
-      // CWE-789 amplification: small tag data that references huge logical structure
-      uint64_t amplification = (uint64_t)tSz * 1024;
-      if (amplification > kMaxSparseMatrixEntries && tSz < 1024) {
-        // Only flag tiny tags that claim huge logical size
-        // This is heuristic — actual sparse matrix would be in MPE sub-elements
-      }
-    }
-
     // mpet sub-elements: scan for 'smtx' (sparse matrix) type (0x736D7478)
     if (typeVal == 0x6D706574 && tSz >= 16) {
       size_t scanLen = (tSz < kMaxTagDataScan) ? tSz : kMaxTagDataScan;
@@ -1102,7 +1091,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(RawProfileContext &ctx)
       if (nInput > 0 && gridPts > 0 && nOutput > 0) {
         uint64_t product = 1;
         bool overflow = false;
-        for (int d = 0; d < static_cast<int>(nInput); d++) {
+        for (uint8_t d = 0; d < nInput; d++) {
           product *= gridPts;
           if (product > kMaxCLUTGridProduct) { overflow = true; break; }
         }
@@ -1136,7 +1125,7 @@ int RunHeuristic_H48_CLUTGridDimensionOverflow(RawProfileContext &ctx)
         uint64_t product = 1;
         bool overflow = false;
         bool hasZeroDim = false;
-        for (int d = 0; d < static_cast<int>(nInput); d++) {
+        for (uint8_t d = 0; d < nInput; d++) {
           if (gridDims[d] == 0) { hasZeroDim = true; break; }
           product *= gridDims[d];
           if (product > kMaxCLUTGridProduct) { overflow = true; break; }
@@ -1429,11 +1418,11 @@ int RunHeuristic_H54_DivisionByZeroTrigger(RawProfileContext &ctx)
       if (clutOff > 0 && clutOff < tSz && (uint64_t)tOff + clutOff + 16 <= fs && nInput <= 16) {
         icUInt8Number gridDims[16];
         if (ctx.ReadAt(tOff + clutOff, gridDims, 16)) {
-          for (int d = 0; d < static_cast<int>(nInput); d++) {
+          for (uint8_t d = 0; d < nInput; d++) {
             if (gridDims[d] == 0) {
               char sig[5]; SigToChars(tag.sig, sig);
-              hc.warn("Tag '%s' (%s): CLUT grid dimension[%d] = 0",
-                      sig, (typeVal == 0x6D414220) ? "mAB" : "mBA", d);
+              hc.warn("Tag '%s' (%s): CLUT grid dimension[%u] = 0",
+                      sig, (typeVal == 0x6D414220) ? "mAB" : "mBA", (unsigned)d);
               hc.cweNote("CWE-369: Zero grid dimension — div-by-zero in interpolation");
 
               break;
@@ -1997,7 +1986,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             }
             if (nGrid > 0 && nInput > 0) {
               uint64_t clutSize = 1;
-              for (int d = 0; d < static_cast<int>(nInput); d++) {
+              for (uint8_t d = 0; d < nInput; d++) {
                 clutSize *= nGrid;
                 if (clutSize > 1073741824ULL) {
                   hc.warn("Tag '%s': CLUT %u^%u x %u entries -> >1GB allocation",
