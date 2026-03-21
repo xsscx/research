@@ -868,6 +868,339 @@ static int RunCF053_CicpTagClassRestriction(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-054: v5 Spectral Required Tags (ICC.2-2023 §8)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF054_V5SpectralRequiredTags(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-054]%s v5 Spectral Required Tags (%sICC.2-2023 §8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int major = VersionMajor(pIcc);
+  if (major < 5) {
+    printf("         Profile version %d — not v5, skipped\n", major);
+    printf("         %s[OK]%s Not a v5 profile\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Detect spectral PCS: first byte 'r' (0x72) for reflectance or 't' (0x74) for transmittance
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  icUInt32Number pcsRaw = static_cast<icUInt32Number>(pcs);
+  bool isSpectralPCS = ((pcsRaw & 0xFF000000) == 0x72000000) ||
+                       ((pcsRaw & 0xFF000000) == 0x74000000);
+
+  if (!isSpectralPCS) {
+    printf("         v5 profile with non-spectral PCS — skipped\n");
+    printf("         %s[OK]%s PCS is not spectral\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  char pcsCC[5];
+  SigToChars(pcsRaw, pcsCC);
+  printf("         Spectral PCS detected: '%s'\n", pcsCC);
+
+  // Spectral PCS requires spectralViewingConditionsTag ('svcn')
+  if (!pIcc->FindTag(icSigSpectralViewingConditionsTag)) {
+    printf("         'svcn' (spectralViewingConditionsTag): %smissing%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s spectralViewingConditionsTag required for spectral PCS — ICC.2-2023 §8\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         'svcn' (spectralViewingConditionsTag): present\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s v5 spectral required tags present\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-055: D2B/B2D Tag Pair Completeness (ICC.1-2022-05 §8)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF055_D2BB2DPairCompleteness(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-055]%s D2B/B2D Tag Pair Completeness (%sICC.1-2022-05 §8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const struct {
+    icTagSignature dSig;
+    icTagSignature bSig;
+    const char *dName;
+    const char *bName;
+    int intent;
+  } pairs[] = {
+    {icSigDToB0Tag, icSigBToD0Tag, "DToB0Tag", "BToD0Tag", 0},
+    {icSigDToB1Tag, icSigBToD1Tag, "DToB1Tag", "BToD1Tag", 1},
+    {icSigDToB2Tag, icSigBToD2Tag, "DToB2Tag", "BToD2Tag", 2},
+    {icSigDToB3Tag, icSigBToD3Tag, "DToB3Tag", "BToD3Tag", 3},
+  };
+
+  bool anyFound = false;
+
+  for (const auto &pr : pairs) {
+    bool hasD = pIcc->FindTag(pr.dSig) != nullptr;
+    bool hasB = pIcc->FindTag(pr.bSig) != nullptr;
+
+    if (!hasD && !hasB)
+      continue;
+
+    anyFound = true;
+
+    if (hasD && !hasB) {
+      printf("         %s present but %s missing (intent %d)\n",
+             pr.dName, pr.bName, pr.intent);
+      printf("         %s[WARN]%s %s should be paired with %s — ICC.1-2022-05 §8\n",
+             ColorWarning(), ColorReset(), pr.dName, pr.bName);
+      issues++;
+    } else if (!hasD && hasB) {
+      printf("         %s present but %s missing (intent %d)\n",
+             pr.bName, pr.dName, pr.intent);
+      printf("         %s[WARN]%s %s should be paired with %s — ICC.1-2022-05 §8\n",
+             ColorWarning(), ColorReset(), pr.bName, pr.dName);
+      issues++;
+    } else {
+      printf("         %s + %s: paired (intent %d)\n",
+             pr.dName, pr.bName, pr.intent);
+    }
+  }
+
+  if (!anyFound) {
+    printf("         No D2B/B2D tags found — skipped\n");
+    printf("         %s[OK]%s No D2B/B2D tags to validate\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All D2B/B2D tag pairs complete\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-056: Embedded Profile Structure (ICC.2-2023 §9.2)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF056_EmbeddedProfileStructure(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-056]%s Embedded Profile Structure (%sICC.2-2023 §9.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check for v5 embedded profile tag ('ICC5' = 0x49434335)
+  const CIccTag *pEmbed = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+
+  if (!pEmbed) {
+    printf("         No embedded profile tag ('ICC5') found — skipped\n");
+    printf("         %s[OK]%s No embedded profile to validate\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  printf("         'ICC5' (embeddedV5ProfileTag): present\n");
+
+  // Validate embedded profile tag size via tag table entry
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
+    if (it->TagInfo.sig == icSigEmbeddedV5ProfileTag) {
+      icUInt32Number embedSize = it->TagInfo.size;
+      if (embedSize < 128) {
+        printf("         Embedded profile data too small: %u bytes (need >= 128 for header)\n",
+               embedSize);
+        printf("         %s[FAIL]%s Embedded profile must contain a complete ICC header — ICC.2-2023 §9.2\n",
+               ColorError(), ColorReset());
+        issues++;
+      } else {
+        printf("         Embedded profile tag size: %u bytes\n", embedSize);
+      }
+      break;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Embedded profile structure valid\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-057: Dictionary Tag Structure for v5 (ICC.2-2023 §9.2.25)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF057_DictionaryTagStructure(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-057]%s Dictionary Tag Structure v5 (%sICC.2-2023 §9.2.25%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int major = VersionMajor(pIcc);
+  if (major < 5) {
+    printf("         Profile version %d — not v5, skipped\n", major);
+    printf("         %s[OK]%s Not a v5 profile\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Check for metaDataTag ('meta')
+  const CIccTag *pMeta = pIcc->FindTag(icSigMetaDataTag);
+
+  if (!pMeta) {
+    printf("         'meta' (metaDataTag): not present — no dictionary to validate\n");
+    printf("         %s[OK]%s No metaDataTag found\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  printf("         'meta' (metaDataTag): present\n");
+
+  // Validate the tag type — should be a dict type for v5
+  icTagTypeSignature tagType = pMeta->GetType();
+  char typeCC[5];
+  SigToChars(static_cast<uint32_t>(tagType), typeCC);
+  printf("         Tag type signature: '%s'\n", typeCC);
+
+  // For v5, metaDataTag should use dict type (0x64696374 = 'dict')
+  if (tagType != 0x64696374 /* 'dict' */) {
+    printf("         %s[WARN]%s v5 metaDataTag expected type 'dict', got '%s' — ICC.2-2023 §9.2.25\n",
+           ColorWarning(), ColorReset(), typeCC);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Dictionary tag structure valid for v5\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-058: Profile Sequence Identifier Presence for v5 (ICC.2-2023 §8)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF058_ProfileSequenceIdV5(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-058]%s Profile Sequence Identifier v5 (%sICC.2-2023 §8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int major = VersionMajor(pIcc);
+  if (major < 5) {
+    printf("         Profile version %d — not v5, skipped\n", major);
+    printf("         %s[OK]%s Not a v5 profile\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // DeviceLink profiles used in chains should have profileSequenceIdentifier
+  if (cls != icSigLinkClass) {
+    printf("         Profile class is not DeviceLink — skipped\n");
+    printf("         %s[OK]%s Not a DeviceLink profile\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  char clsCC[5];
+  SigToChars(static_cast<uint32_t>(cls), clsCC);
+  printf("         v5 DeviceLink profile (class '%s')\n", clsCC);
+
+  // NOTE: icSigProfileSequceIdTag has a typo in iccDEV (missing 'en')
+  const CIccTag *pPsid = pIcc->FindTag(icSigProfileSequceIdTag);
+
+  if (!pPsid) {
+    printf("         'psid' (profileSequenceIdentifier): %smissing%s\n",
+           ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s v5 DeviceLink should include profileSequenceIdentifier — ICC.2-2023 §8\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         'psid' (profileSequenceIdentifier): present\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Profile sequence identifier present for v5 DeviceLink\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-059: Colorimetric Intent Image State (ICC.1-2022-05 §9.2.12)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF059_ColorimetricIntentImageState(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-059]%s Colorimetric Intent Image State (%sICC.1-2022-05 §9.2.12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const CIccTag *pCiis = pIcc->FindTag(icSigColorimetricIntentImageStateTag);
+
+  if (!pCiis) {
+    printf("         'ciis' (colorimetricIntentImageStateTag): not present — skipped\n");
+    printf("         %s[OK]%s No colorimetricIntentImageState tag\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  printf("         'ciis' (colorimetricIntentImageStateTag): present\n");
+
+  // Validate tag type — must be signatureType
+  icTagTypeSignature tagType = pCiis->GetType();
+  char typeCC[5];
+  SigToChars(static_cast<uint32_t>(tagType), typeCC);
+
+  if (tagType != icSigSignatureType) {
+    printf("         Tag type: '%s' — expected 'sig '\n", typeCC);
+    printf("         %s[FAIL]%s colorimetricIntentImageStateTag must be signatureType — ICC.1-2022-05 §9.2.12\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         Tag type: '%s' — correct (signatureType)\n", typeCC);
+  }
+
+  // Cross-validate against profile class
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  char clsCC[5];
+  SigToChars(static_cast<uint32_t>(cls), clsCC);
+
+  if (cls == icSigInputClass) {
+    printf("         Profile class '%s' (Input/Scanner) — image state indicates scene/focal-plane capture\n", clsCC);
+  } else if (cls == icSigDisplayClass) {
+    printf("         Profile class '%s' (Display) — image state may indicate output-referred\n", clsCC);
+  } else if (cls == icSigOutputClass) {
+    printf("         Profile class '%s' (Output) — image state may indicate output-referred\n", clsCC);
+  } else {
+    printf("         Profile class '%s' — unusual class for colorimetricIntentImageState\n", clsCC);
+    printf("         %s[WARN]%s colorimetricIntentImageStateTag is typically used with Input/Display/Output profiles\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Colorimetric intent image state valid\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CF-095: Non-Required Tags per Class
 //   PAWG C18: "Identify additional/private tags beyond required set"
 //   ICC.1-2022-05 §8.2-§8.9 defines required tags per class.
@@ -2401,6 +2734,12 @@ int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1051, "CF-051: DeviceLink Prohibited Tags", RunCF051_DeviceLinkProhibited(pIcc));
   CF_WRAP(1052, "CF-052: Transform Tag Pair Completeness", RunCF052_TransformTagPairs(pIcc));
   CF_WRAP(1053, "CF-053: CICP Tag Class Restriction", RunCF053_CicpTagClassRestriction(pIcc));
+  CF_WRAP(1054, "CF-054: v5 Spectral Required Tags", RunCF054_V5SpectralRequiredTags(pIcc));
+  CF_WRAP(1055, "CF-055: D2B/B2D Tag Pair Completeness", RunCF055_D2BB2DPairCompleteness(pIcc));
+  CF_WRAP(1056, "CF-056: Embedded Profile Structure", RunCF056_EmbeddedProfileStructure(pIcc));
+  CF_WRAP(1057, "CF-057: Dictionary Tag Structure v5", RunCF057_DictionaryTagStructure(pIcc));
+  CF_WRAP(1058, "CF-058: Profile Sequence Identifier v5", RunCF058_ProfileSequenceIdV5(pIcc));
+  CF_WRAP(1059, "CF-059: Colorimetric Intent Image State", RunCF059_ColorimetricIntentImageState(pIcc));
 
   CF_WRAP(1095, "CF-095: Non-Required Tag Identification", RunCF095_NonRequiredTags(pIcc));
   CF_WRAP(1096, "CF-096: Private Tag Signature Range", RunCF096_PrivateTagSignatureRange(pIcc));
