@@ -756,14 +756,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", "--legacy", f"{corpus}/xyz_large_array.icc"],
-        r"171 heuristics"
+        r"172 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", "--legacy", f"{corpus}/calculator_deep_nesting.icc"],
-        r"171 heuristics"
+        r"172 heuristics"
     )
 
     # --- H86 Unicode content detection tests (CWE-116) ---
@@ -869,9 +869,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.171_heuristics",
+        "summary.172_heuristics",
         ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
-        r"171 heuristics"
+        r"172 heuristics"
     )
 
     suite.assert_output_contains(
@@ -1095,9 +1095,9 @@ def test_json_output(suite):
     # Summary should have counts
     if "summary" in data:
         s = data["summary"]
-        has_total = s.get("totalHeuristics", 0) == 171
+        has_total = s.get("totalHeuristics", 0) == 172
         suite.results.append(TestResult(
-            "json.total_heuristics_171", has_total,
+            "json.total_heuristics_172", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -1150,7 +1150,7 @@ def test_json_output(suite):
     # Registry block in JSON should have dynamic stats
     if "summary" in data and "registry" in data["summary"]:
         reg = data["summary"]["registry"]
-        has_reg_total = reg.get("totalHeuristics", 0) == 171
+        has_reg_total = reg.get("totalHeuristics", 0) == 172
         suite.results.append(TestResult(
             "json.registry_total_heuristics", has_reg_total,
             f"registry.totalHeuristics={reg.get('totalHeuristics')}" if not has_reg_total else "",
@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-162)."""
+    """Test ICC Specification conformance checks (CF-001..CF-168)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2404,6 +2404,59 @@ def test_conformance_checks(suite):
             ["-a", srgb_v4],
             r"\[FAIL\].*CF-"
         )
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CF-163..CF-168: v4 Matrix Entries TN Conformance
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # CF-163: LUT Matrix Coefficient Finite — banner runs on LUT profiles
+    suite.assert_output_contains(
+        "cf.163.matrix_coeff_finite_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-163.*Matrix.*Coefficient.*Finite"
+    )
+
+    # CF-164: LUT Matrix s15Fixed16 Range
+    suite.assert_output_contains(
+        "cf.164.matrix_s15f16_range_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-164.*s15Fixed16.*Range"
+    )
+
+    # CF-165: LUT Matrix Determinant Non-Singular
+    suite.assert_output_contains(
+        "cf.165.matrix_determinant_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-165.*Determinant"
+    )
+
+    # CF-166: LUT Matrix Row Non-Zero
+    suite.assert_output_contains(
+        "cf.166.matrix_row_nonzero_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-166.*Row.*Non.*Zero"
+    )
+
+    # CF-167: LUT Matrix Offset Bounds
+    suite.assert_output_contains(
+        "cf.167.matrix_offset_bounds_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-167.*Offset.*Bounds"
+    )
+
+    # CF-168: LUT Matrix Input-Output Range
+    suite.assert_output_contains(
+        "cf.168.matrix_output_range_banner",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-168.*Input.*Output.*Range"
+    )
+
+    # Clean LUT profile should pass all matrix checks
+    suite.assert_output_not_contains(
+        "cf.163_168.clean_lut_no_fail",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"\[FAIL\].*CF-16[3-8]"
+    )
 
 
 def test_adgc_conformance(suite):
