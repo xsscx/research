@@ -1,0 +1,184 @@
+/*
+ * IccTest Library — IccTestRunner.cpp
+ * Main analysis orchestrator.
+ *
+ * Copyright (c) 1994 - 2026 David H Hoyt LLC
+ * All Rights Reserved.
+ * [BSD 3-Clause License]
+ */
+
+#include "icctest/IccTest.h"
+#include "icctest/Logger.h"
+
+#include <chrono>
+
+namespace icctest {
+
+static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
+
+const char* IccTestRunner::version() {
+    return ICCTEST_VERSION;
+}
+
+size_t IccTestRunner::checkCount() {
+    return CheckRegistry::instance().size();
+}
+
+bool IccTestRunner::shouldRun(const RegisteredCheck& check,
+                               const AnalysisOptions& opts) const {
+    // Phase filter
+    if (!opts.phases.empty()) {
+        bool phaseMatch = false;
+        for (auto p : opts.phases) {
+            if (p == check.meta.phase) { phaseMatch = true; break; }
+        }
+        if (!phaseMatch) return false;
+    }
+
+    // Specific check filter
+    if (!opts.specificChecks.empty()) {
+        bool idMatch = false;
+        for (const auto& id : opts.specificChecks) {
+            if (id == check.id) { idMatch = true; break; }
+        }
+        if (!idMatch) return false;
+    }
+
+    // Isolation filter
+    if (opts.skipIsolation && check.meta.phase == CheckPhase::IMAGE) {
+        // IMAGE phase may require fork isolation
+        return false;
+    }
+
+    return true;
+}
+
+AnalysisResult IccTestRunner::analyze(const std::filesystem::path& path,
+                                       const AnalysisOptions& opts) const {
+    ICCTEST_INFO("Analyzing file: %s", path.c_str());
+
+    auto pv = ProfileView::open(path);
+    if (!pv) {
+        AnalysisResult result{};
+        result.findings.push_back(Finding{
+            {CheckID::Kind::Heuristic, 0},
+            Severity::CRITICAL,
+            "Failed to open profile: " + path.string(),
+            "", ""
+        });
+        result.stats.findingsTotal = 1;
+        result.stats.findingsBySeverity[static_cast<size_t>(Severity::CRITICAL)] = 1;
+        return result;
+    }
+
+    return analyze(*pv, opts);
+}
+
+AnalysisResult IccTestRunner::analyze(const uint8_t* data, size_t len,
+                                       const AnalysisOptions& opts) const {
+    ICCTEST_INFO("Analyzing buffer (%zu bytes)", len);
+
+    auto pv = ProfileView::open(data, len);
+    if (!pv) {
+        AnalysisResult result{};
+        result.findings.push_back(Finding{
+            {CheckID::Kind::Heuristic, 0},
+            Severity::CRITICAL,
+            "Failed to parse profile from buffer",
+            "", ""
+        });
+        result.stats.findingsTotal = 1;
+        result.stats.findingsBySeverity[static_cast<size_t>(Severity::CRITICAL)] = 1;
+        return result;
+    }
+
+    return analyze(*pv, opts);
+}
+
+AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
+                                       const AnalysisOptions& opts) const {
+    auto startTime = std::chrono::steady_clock::now();
+
+    AnalysisResult result{};
+    result.metadata = pv.metadata();
+
+    auto& registry = CheckRegistry::instance();
+    registry.sort();
+
+    bool skipLibrary = opts.skipLibraryOnUB && pv.hasKnownUBPatterns();
+    if (skipLibrary) {
+        ICCTEST_WARN("UB patterns detected — skipping library-phase checks");
+        // Add info finding about skipped library checks
+        result.findings.push_back(Finding{
+            {CheckID::Kind::Heuristic, 0},
+            Severity::INFO,
+            "Library-phase checks skipped due to UB pre-scan findings",
+            pv.ubPatternDescriptions().empty() ? ""
+                : pv.ubPatternDescriptions()[0],
+            ""
+        });
+    }
+
+    for (const auto& check : registry.all()) {
+        // Skip checks that don't match options
+        if (!shouldRun(check, opts)) {
+            result.stats.checksSkipped++;
+            continue;
+        }
+
+        // Skip library-phase checks if UB detected
+        if (skipLibrary &&
+            (check.meta.phase == CheckPhase::LIBRARY ||
+             check.meta.phase == CheckPhase::CONFORMANCE)) {
+            result.stats.checksSkipped++;
+            continue;
+        }
+
+        // Run the check
+        ICCTEST_TRACE("Running %s", check.id.str().c_str());
+        CheckResult cr;
+        try {
+            cr = check.fn(pv);
+        } catch (const std::exception& e) {
+            cr = CheckResult::error(
+                check.id.str() + " threw: " + e.what());
+        } catch (...) {
+            cr = CheckResult::error(
+                check.id.str() + " threw unknown exception");
+        }
+
+        result.stats.checksRun++;
+
+        // Collect findings
+        for (auto& f : cr.findings) {
+            // Enrich finding with check ID if not already set
+            if (f.id.number == 0) f.id = check.id;
+            // Apply minimum severity filter
+            if (f.level >= opts.minSeverity) {
+                result.stats.countFinding(f.level);
+                result.findings.push_back(std::move(f));
+            }
+        }
+
+        result.perCheck.push_back(std::move(cr));
+
+        // Check max findings limit
+        if (opts.maxFindings > 0 &&
+            result.stats.findingsTotal >= opts.maxFindings) {
+            ICCTEST_INFO("Max findings limit reached (%d)", opts.maxFindings);
+            break;
+        }
+    }
+
+    auto endTime = std::chrono::steady_clock::now();
+    result.stats.totalTime = std::chrono::duration_cast<std::chrono::microseconds>(
+        endTime - startTime);
+
+    ICCTEST_INFO("Analysis complete: %d checks, %d findings, %lld µs",
+        result.stats.checksRun, result.stats.findingsTotal,
+        (long long)result.stats.totalTime.count());
+
+    return result;
+}
+
+} // namespace icctest
