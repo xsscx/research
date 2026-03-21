@@ -1938,6 +1938,197 @@ static int RunCF211_AToBBToAPairCompleteness(CIccProfile *pIcc) {
   return issues;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-258: Display v4+ mediaWhitePointTag Must Equal D50
+// ICC.1-2022-05 §8.4 Table 25: "For Display profiles (v4+), the
+// mediaWhitePointTag shall contain the D50 illuminant value."
+// D50 = (0.9642, 1.0000, 0.8249) in s15Fixed16
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF258_DisplayMediaWhiteD50(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-258]%s Display v4+ mediaWhitePointTag D50 (%sICC.1-2022-05 §8.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number ver = pIcc->m_Header.version;
+  if (ver < icVersionNumberV4) {
+    printf("         Profile version < 4.0 — D50 mediaWhitePoint not mandated\n");
+    printf("         %s[OK]%s v2 profiles exempt from D50 requirement\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  if (pIcc->m_Header.deviceClass != icSigDisplayClass) {
+    printf("         Not a Display profile — D50 mediaWhitePoint applies only to mntr\n");
+    printf("         %s[OK]%s Non-display class exempt\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTag *pTag = pIcc->FindTag(icSigMediaWhitePointTag);
+  if (!pTag) {
+    printf("         %s[FAIL]%s Display v4+ must have mediaWhitePointTag\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ *>(pTag);
+  if (!pXYZ || pXYZ->GetSize() < 1) {
+    printf("         %s[FAIL]%s mediaWhitePointTag not XYZType\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  const icXYZNumber *xyz = pXYZ->GetXYZ(0);
+  if (!xyz) {
+    printf("         %s[FAIL]%s Cannot read XYZ value\n", ColorError(), ColorReset());
+    return 1;
+  }
+
+  double X = icFtoD(xyz->X);
+  double Y = icFtoD(xyz->Y);
+  double Z = icFtoD(xyz->Z);
+
+  // D50 per ICC spec: X=0.9642, Y=1.0000, Z=0.8249
+  const double D50_X = 0.9642, D50_Y = 1.0000, D50_Z = 0.8249;
+  const double tol = 0.005;
+
+  if (fabs(X - D50_X) > tol || fabs(Y - D50_Y) > tol || fabs(Z - D50_Z) > tol) {
+    printf("         mediaWhitePoint = (%.4f, %.4f, %.4f)\n", X, Y, Z);
+    printf("         Expected D50    = (%.4f, %.4f, %.4f)\n", D50_X, D50_Y, D50_Z);
+    printf("         %s[FAIL]%s Display v4+ mediaWhitePointTag must equal D50 — ICC.1-2022-05 §8.4\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s mediaWhitePointTag equals D50 (tolerance +/-0.005)\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-259: colorantOrderTag vs colorantTableTag Cross-Validation
+// ICC.1-2022-05 §10.3: Each index in colorantOrderTag must be a valid
+// index into colorantTableTag entries.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF259_ColorantOrderVsTable(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-259]%s colorantOrderTag vs colorantTableTag Cross-Validation (%sICC.1-2022-05 §10.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pOrderTag = pIcc->FindTag(icSigColorantOrderTag);
+  CIccTag *pTableTag = pIcc->FindTag(icSigColorantTableTag);
+
+  if (!pOrderTag && !pTableTag) {
+    printf("         Neither colorantOrderTag nor colorantTableTag present\n");
+    return 0;
+  }
+
+  if (pOrderTag && !pTableTag) {
+    printf("         %s[WARN]%s colorantOrderTag present without colorantTableTag\n",
+           ColorWarning(), ColorReset());
+    printf("         colorantOrderTag references colorantTableTag — both should be present\n");
+    return 1;
+  }
+
+  if (!pOrderTag) {
+    printf("         colorantTableTag present without colorantOrderTag — OK\n");
+    return 0;
+  }
+
+  CIccTagColorantOrder *pOrder = dynamic_cast<CIccTagColorantOrder *>(pOrderTag);
+  CIccTagColorantTable *pTable = dynamic_cast<CIccTagColorantTable *>(pTableTag);
+
+  if (!pOrder || !pTable) {
+    printf("         %s[FAIL]%s Unexpected tag types for colorant tags\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  icUInt32Number orderCount = pOrder->GetSize();
+  icUInt32Number tableCount = pTable->GetSize();
+
+  printf("         colorantOrderTag: %u entries, colorantTableTag: %u entries\n",
+         orderCount, tableCount);
+
+  if (orderCount != tableCount) {
+    printf("         %s[FAIL]%s colorantOrderTag count (%u) != colorantTableTag count (%u)\n",
+           ColorError(), ColorReset(), orderCount, tableCount);
+    issues++;
+  }
+
+  for (icUInt32Number i = 0; i < orderCount && i < 64; i++) {
+    icUInt8Number idx = (*pOrder)[i];
+    if (idx >= tableCount) {
+      printf("         %s[FAIL]%s colorantOrder[%u]=%u exceeds colorantTable count (%u)\n",
+             ColorError(), ColorReset(), i, idx, tableCount);
+      issues++;
+      if (issues >= 5) {
+        printf("         (stopping after 5 cross-validation failures)\n");
+        break;
+      }
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s colorantOrderTag indices valid within colorantTableTag\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-260: Output Profile gamutTag Rendering Intent Consistency
+// ICC.1-2022-05 §9.2.22: Output profiles should have a gamutTag when
+// they support perceptual or saturation rendering intents.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF260_OutputGamutTagIntent(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-260]%s Output Profile gamutTag Rendering Intent (%sICC.1-2022-05 §9.2.22%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (pIcc->m_Header.deviceClass != icSigOutputClass) {
+    printf("         Not an Output profile — gamutTag check not applicable\n");
+    return 0;
+  }
+
+  CIccTag *pGamut = pIcc->FindTag(icSigGamutTag);
+  CIccTag *pAToB0 = pIcc->FindTag(icSigAToB0Tag);
+  CIccTag *pAToB2 = pIcc->FindTag(icSigAToB2Tag);
+
+  bool hasPerceptual  = (pAToB0 != nullptr);
+  bool hasSaturation  = (pAToB2 != nullptr);
+
+  if (!hasPerceptual && !hasSaturation) {
+    printf("         No perceptual (AToB0) or saturation (AToB2) intents present\n");
+    return 0;
+  }
+
+  if (!pGamut && (hasPerceptual || hasSaturation)) {
+    printf("         Output profile has %s%s%s intent(s) but no gamutTag\n",
+           hasPerceptual ? "perceptual" : "",
+           (hasPerceptual && hasSaturation) ? " + " : "",
+           hasSaturation ? "saturation" : "");
+    printf("         %s[WARN]%s Output profiles with perceptual/saturation intents "
+           "should include gamutTag — ICC.1-2022-05 §9.2.22\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Output profile gamutTag consistent with rendering intents\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all required tag conformance checks
@@ -2011,6 +2202,11 @@ int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename) {
   // Spec gap coverage (CF-207, CF-211)
   CF_WRAP(1207, "CF-207: mediaWhitePointTag Value Range", RunCF207_MediaWhitePointTagValueRange(pIcc));
   CF_WRAP(1211, "CF-211: AToB/BToA Tag Pair Completeness", RunCF211_AToBBToAPairCompleteness(pIcc));
+
+  // Deep conformance gap coverage (CF-258..CF-260)
+  CF_WRAP(1258, "CF-258: Display v4+ mediaWhitePointTag D50", RunCF258_DisplayMediaWhiteD50(pIcc));
+  CF_WRAP(1259, "CF-259: colorantOrderTag vs colorantTableTag Cross-Validation", RunCF259_ColorantOrderVsTable(pIcc));
+  CF_WRAP(1260, "CF-260: Output Profile gamutTag Rendering Intent", RunCF260_OutputGamutTagIntent(pIcc));
 
 #undef CF_WRAP
   return issues;
