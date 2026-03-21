@@ -239,7 +239,7 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   int totalNodes = 1;
   for (int d = 0; d < nIn; d++) {
     int gs = pCLUT->GridPoint(d);
-    if (gs < 1 || gs > 256) { totalNodes = 0; break; }
+    if (gs < 1) { totalNodes = 0; break; }
     totalNodes *= gs;
   }
   if (totalNodes < 2 || totalNodes > 1000000) {

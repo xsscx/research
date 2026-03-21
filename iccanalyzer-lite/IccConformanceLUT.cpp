@@ -889,8 +889,8 @@ static int RunCF108_CLUTGridPointRange(CIccProfile *pIcc) {
     found = true;
     int nDims = clut->GetInputDim();
     for (int d = 0; d < nDims; d++) {
-      icUInt8Number gp = clut->GridPoint(d);
-      if (gp < 2 || gp > 255) {
+      int gp = static_cast<int>(clut->GridPoint(d));
+      if (gp < 2) {
         printf("         Tag '%s' dim %d: grid points=%u (must be 2-255)\n",
                kAllLUTNames[i], d, (unsigned)gp);
         printf("         %s[FAIL]%s CLUT grid points out of range — §10.8\n",
