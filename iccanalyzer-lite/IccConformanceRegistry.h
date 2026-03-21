@@ -826,6 +826,26 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-213", "viewingConditionsType Completeness",
    "Validate illuminant (positive Y), surround (non-negative Y), and illuminant type enumeration in viewingConditionsType", "ICC.1-2022-05 §10.32",
    CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  // ICC TN "Embedding ICC Profiles" conformance (CF-214..CF-219)
+  {"CF-214", "Embedded Profile Class Suitability",
+   "When embedded flag (§7.2.11 bit 0) is set, validate profile class is appropriate for embedding (DeviceLink atypical)", "ICC TN Embedding §Table 1",
+   CFSeverity::WARNING, CFCategory::HEADER},
+  {"CF-215", "JPEG APP2 Embedding Size Limit",
+   "Profile must not exceed 16,707,345 bytes (255 × 65,519) for JPEG APP2 multi-segment embedding", "ICC TN Embedding §JFIF",
+   CFSeverity::WARNING, CFCategory::HEADER},
+  {"CF-216", "JP2 Restricted ICC Compliance",
+   "JP2 (ISO 15444-1) restricts embedded profiles to Input class, v2 only, monochrome/RGB", "ISO 15444-1 Annex I",
+   CFSeverity::INFO, CFCategory::HEADER},
+  {"CF-217", "JPX Any ICC Method Compliance",
+   "JPX (ISO 15444-2 Annex M) allows Input/Display class only with Matrix/TRC structure (no LUT-based)", "ISO 15444-2 Annex M",
+   CFSeverity::INFO, CFCategory::HEADER},
+  {"CF-218", "HEIF Restricted ICC Compatibility",
+   "HEIF ricc type code requires monochrome or 3-component Matrix/TRC profile; colr requires v4 or lower", "ISO/IEC 14496-12",
+   CFSeverity::INFO, CFCategory::HEADER},
+  {"CF-219", "Container Format Version Matrix",
+   "Cross-reference profile version and class against 18 media formats supporting ICC embedding", "ICC TN Embedding §Table 1",
+   CFSeverity::INFO, CFCategory::HEADER},
 };
 
 static constexpr int kConformanceCheckCount =

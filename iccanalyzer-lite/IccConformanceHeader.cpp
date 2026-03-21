@@ -2,11 +2,12 @@
  * IccConformanceHeader.cpp — ICC specification header conformance checks
  *
  * Implements CF-001 through CF-015, CF-184..CF-187, CF-199..CF-201, CF-203
- * from the conformance registry.
+ * CF-214..CF-219 from the conformance registry.
  * Validates ICC profile header fields against ICC.1-2022-05 §7.2.
  * CF-184..CF-187: RFC 1321 (MD5) Profile ID conformance per §7.2.18.
  * CF-199..CF-201: CMM/Manufacturer/Creator signature registration per §7.2.3/12/17.
  * CF-203: Profile flags semantic validation per §7.2.11 Table 21.
+ * CF-214..CF-219: Profile embedding conformance per ICC TN Embedding ICC Profiles.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -1715,6 +1716,315 @@ static int RunCF210_DeviceLinkPCSSpace(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ICC TN "Embedding ICC Profiles" — Conformance Checks CF-214..CF-219
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// CF-214: Embedded Profile Class Suitability
+// ICC TN Embedding: Profiles are embedded to indicate the colour space of the
+// media object. DeviceLink profiles describe device-to-device transforms, not
+// colour space definitions. If the embedded flag (§7.2.11 bit 0) is set,
+// a DeviceLink class is atypical (only valid in specific contexts like PDF
+// OutputIntent). Abstract and NamedColor classes are valid but unusual.
+static int RunCF214_EmbeddedProfileClassSuitability(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt64Number flags64 = pIcc->m_Header.flags;
+  icUInt32Number flags = static_cast<icUInt32Number>(flags64 & 0xFFFFFFFF);
+  bool embedded = (flags & 0x00000001) != 0;
+
+  printf("  %s[CF-214]%s Embedded Profile Class Suitability (%sICC TN Embedding §Table 1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (!embedded) {
+    printf("         Embedded flag not set — profile not marked for embedding\n");
+    printf("         %s[OK]%s Not applicable (not an embedded profile)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  icProfileClassSignature devClass = pIcc->m_Header.deviceClass;
+
+  if (devClass == icSigLinkClass) {
+    printf("         Embedded flag set on DeviceLink class profile\n");
+    printf("         DeviceLink profiles describe device-to-device transforms, not colour spaces\n");
+    printf("         Embedding a DeviceLink is atypical — only valid in PDF OutputIntent context\n");
+    printf("         %s[WARN]%s DeviceLink with embedded flag is unusual — ICC TN Embedding\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else if (devClass == icSigAbstractClass) {
+    printf("         Embedded flag set on Abstract class profile — unusual but valid\n");
+    printf("         %s[OK]%s Abstract profile embedding is uncommon but permitted\n",
+           ColorSuccess(), ColorReset());
+  } else if (devClass == icSigNamedColorClass) {
+    printf("         Embedded flag set on NamedColor class profile — unusual but valid\n");
+    printf("         %s[OK]%s NamedColor profile embedding is uncommon but permitted\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    char cc[5];
+    SigToChars(static_cast<icTagSignature>(devClass), cc);
+    printf("         Embedded flag set on '%s' class profile — standard embedding use case\n", cc);
+    printf("         %s[OK]%s Profile class '%s' is appropriate for embedding\n",
+           ColorSuccess(), ColorReset(), cc);
+  }
+
+  return issues;
+}
+
+
+// CF-215: JPEG APP2 Embedding Size Limit
+// ICC TN Embedding §JFIF: JPEG APP2 markers use 1-byte sequence numbering
+// (max 255 chunks). Each APP2 segment has max data length 65,533 bytes, minus
+// 14 bytes overhead ("ICC_PROFILE\0" + seq_no + total). Max embeddable size:
+// 255 × (65,533 - 14) = 255 × 65,519 = 16,707,345 bytes.
+static int RunCF215_JPEGEmbeddingSizeLimit(CIccProfile *pIcc) {
+  int issues = 0;
+  static const icUInt32Number kJPEGMaxEmbedSize = 16707345u;
+  icUInt32Number profileSize = pIcc->m_Header.size;
+
+  printf("  %s[CF-215]%s JPEG APP2 Embedding Size Limit (%sICC TN Embedding §JFIF%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  printf("         Profile size: %u bytes (JPEG limit: %u bytes)\n",
+         profileSize, kJPEGMaxEmbedSize);
+
+  if (profileSize > kJPEGMaxEmbedSize) {
+    printf("         Profile exceeds JPEG APP2 embedding limit (255 × 65,519 bytes)\n");
+    printf("         This profile cannot be embedded in JPEG/JFIF images\n");
+    printf("         %s[WARN]%s Profile too large for JPEG embedding — ICC TN Embedding §JFIF\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    unsigned chunks = (profileSize + 65518) / 65519;
+    printf("         Would require %u APP2 segment(s) for JPEG embedding\n", chunks);
+    printf("         %s[OK]%s Profile fits within JPEG APP2 embedding limit\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-216: JP2 Restricted ICC Compliance
+// ICC TN Embedding §JPEG2000: JP2 (ISO 15444-1) restricts embedded profiles to
+// Input class conforming to ICC.1:1998-09 (v2 only, Restricted ICC method).
+// Monochrome and RGB data only.
+static int RunCF216_JP2RestrictedICCCompliance(CIccProfile *pIcc) {
+  int issues = 0;
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+  icProfileClassSignature devClass = pIcc->m_Header.deviceClass;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+
+  printf("  %s[CF-216]%s JP2 Restricted ICC Compliance (%sISO 15444-1 Annex I%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool jp2Compatible = true;
+
+  // JP2 restricts to Input class
+  if (devClass != icSigInputClass) {
+    char cc[5];
+    SigToChars(static_cast<icTagSignature>(devClass), cc);
+    printf("         Class '%s' — JP2 requires Input ('scnr') class\n", cc);
+    jp2Compatible = false;
+  }
+
+  // JP2 restricts to v2 (ICC.1:1998-09)
+  if (major > 2) {
+    printf("         Version %d.x — JP2 requires ICC v2 (ICC.1:1998-09)\n", major);
+    jp2Compatible = false;
+  }
+
+  // JP2 restricts to monochrome and RGB
+  if (cs != icSigGrayData && cs != icSigRgbData) {
+    char cc[5];
+    SigToChars(static_cast<icTagSignature>(cs), cc);
+    printf("         Color space '%s' — JP2 supports only Gray/RGB\n", cc);
+    jp2Compatible = false;
+  }
+
+  if (!jp2Compatible) {
+    printf("         %s[INFO]%s Profile not compatible with JP2 Restricted ICC method\n",
+           ColorInfo(), ColorReset());
+    // Info-level — not a hard failure, just container incompatibility
+  } else {
+    printf("         %s[OK]%s Profile compatible with JP2 Restricted ICC method\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-217: JPX Any ICC Method Compliance
+// ICC TN Embedding §JPEG2000: JPX (ISO 15444-2 Annex M) allows Input and Display
+// class profiles only. Furthermore, profiles must be Matrix/TRC based — LUT-based
+// profiles are excluded from the Any ICC method.
+static int RunCF217_JPXAnyICCMethodCompliance(CIccProfile *pIcc) {
+  int issues = 0;
+  icProfileClassSignature devClass = pIcc->m_Header.deviceClass;
+
+  printf("  %s[CF-217]%s JPX Any ICC Method Compliance (%sISO 15444-2 Annex M%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool jpxCompatible = true;
+
+  // JPX allows only Input and Display class
+  if (devClass != icSigInputClass && devClass != icSigDisplayClass) {
+    char cc[5];
+    SigToChars(static_cast<icTagSignature>(devClass), cc);
+    printf("         Class '%s' — JPX Any ICC requires Input ('scnr') or Display ('mntr')\n", cc);
+    jpxCompatible = false;
+  }
+
+  // JPX requires Matrix/TRC — no LUT-based profiles
+  bool hasMatrixTRC = (pIcc->FindTag(icSigRedMatrixColumnTag) != nullptr &&
+                       pIcc->FindTag(icSigGreenMatrixColumnTag) != nullptr &&
+                       pIcc->FindTag(icSigBlueMatrixColumnTag) != nullptr &&
+                       pIcc->FindTag(icSigRedTRCTag) != nullptr &&
+                       pIcc->FindTag(icSigGreenTRCTag) != nullptr &&
+                       pIcc->FindTag(icSigBlueTRCTag) != nullptr);
+  bool hasLUT = (pIcc->FindTag(icSigAToB0Tag) != nullptr);
+
+  if (hasLUT && !hasMatrixTRC) {
+    printf("         LUT-based profile (AToB0Tag present, no Matrix/TRC tags)\n");
+    printf("         JPX Any ICC method requires Matrix/TRC profiles only\n");
+    jpxCompatible = false;
+  } else if (!hasMatrixTRC && pIcc->m_Header.colorSpace != icSigGrayData) {
+    printf("         No Matrix/TRC tags found — JPX requires Matrix/TRC structure\n");
+    jpxCompatible = false;
+  }
+
+  if (!jpxCompatible) {
+    printf("         %s[INFO]%s Profile not compatible with JPX Any ICC method\n",
+           ColorInfo(), ColorReset());
+  } else {
+    printf("         %s[OK]%s Profile compatible with JPX Any ICC method\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-218: HEIF Restricted ICC Compatibility
+// ICC TN Embedding §HEIF: HEIF uses ColourInformationBox (ISO/IEC 14496-12).
+// Type code 'colr' stores a v4 profile. Type code 'ricc' defines a restricted
+// profile: monochrome or 3-component matrix/TRC only. LUT-based profiles are
+// not permitted under 'ricc'.
+static int RunCF218_HEIFRestrictedICCCompatibility(CIccProfile *pIcc) {
+  int issues = 0;
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+
+  printf("  %s[CF-218]%s HEIF Restricted ICC Compatibility (%sISO/IEC 14496-12%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // HEIF 'colr' supports v4 profiles
+  bool heifColrOK = (major <= 4);
+
+  // HEIF 'ricc' restricted: monochrome or 3-component matrix/TRC
+  bool isMono = (cs == icSigGrayData);
+  bool is3Channel = (cs == icSigRgbData);
+
+  bool hasMatrixTRC = false;
+  if (is3Channel) {
+    hasMatrixTRC = (pIcc->FindTag(icSigRedMatrixColumnTag) != nullptr &&
+                    pIcc->FindTag(icSigGreenMatrixColumnTag) != nullptr &&
+                    pIcc->FindTag(icSigBlueMatrixColumnTag) != nullptr &&
+                    pIcc->FindTag(icSigRedTRCTag) != nullptr &&
+                    pIcc->FindTag(icSigGreenTRCTag) != nullptr &&
+                    pIcc->FindTag(icSigBlueTRCTag) != nullptr);
+  }
+
+  bool heifRiccOK = (isMono || (is3Channel && hasMatrixTRC));
+
+  if (heifColrOK) {
+    printf("         HEIF 'colr' compatible (v%d profile, ≤ v4)\n", major);
+  } else {
+    printf("         HEIF 'colr' incompatible (v%d profile, requires ≤ v4)\n", major);
+  }
+
+  if (heifRiccOK) {
+    printf("         HEIF 'ricc' compatible (%s)\n",
+           isMono ? "monochrome" : "3-component Matrix/TRC");
+  } else {
+    char cc[5];
+    SigToChars(static_cast<icTagSignature>(cs), cc);
+    printf("         HEIF 'ricc' incompatible (color space '%s'%s)\n",
+           cc, (is3Channel && !hasMatrixTRC) ? ", no Matrix/TRC" : "");
+  }
+
+  if (!heifColrOK && !heifRiccOK) {
+    printf("         %s[INFO]%s Profile not compatible with any HEIF embedding method\n",
+           ColorInfo(), ColorReset());
+  } else {
+    printf("         %s[OK]%s Profile compatible with HEIF embedding\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// CF-219: Container Format Version Matrix
+// ICC TN Embedding §Table 1: Cross-reference profile version against known
+// container format embedding support. Reports which formats can embed this profile.
+static int RunCF219_ContainerFormatVersionMatrix(CIccProfile *pIcc) {
+  int issues = 0;
+  int major = (pIcc->m_Header.version >> 24) & 0xFF;
+  icProfileClassSignature devClass = pIcc->m_Header.deviceClass;
+
+  printf("  %s[CF-219]%s Container Format Version Matrix (%sICC TN Embedding §Table 1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  printf("         Profile version: %d.x, class: %c%c%c%c\n",
+         major,
+         (char)((devClass >> 24) & 0xFF), (char)((devClass >> 16) & 0xFF),
+         (char)((devClass >> 8) & 0xFF), (char)(devClass & 0xFF));
+
+  // Count compatible formats from Table 1
+  int compatCount = 0;
+
+  // Formats supporting v2 and v4: AVIF, DNG, EPS, HEIF, HEVC, JPEG, JPEG-XL,
+  //   OpenXPS, PDF, PDF/X, TIFF, TIFF-EP, WebP, CSS, MIME
+  if (major <= 4) {
+    compatCount += 15;
+  }
+
+  // JP2: v2 only, Input class only
+  if (major <= 2 && devClass == icSigInputClass) {
+    compatCount++;
+    printf("         JP2 (ISO 15444-1): compatible (v2 Input)\n");
+  }
+
+  // JPX: v2 and v4, Input/Display only, Matrix/TRC only
+  if (major <= 4 && (devClass == icSigInputClass || devClass == icSigDisplayClass)) {
+    compatCount++;
+    printf("         JPX (ISO 15444-2): compatible (v%d %s)\n",
+           major, devClass == icSigInputClass ? "Input" : "Display");
+  }
+
+  // PNG: officially v2, current practice v4
+  if (major <= 2) {
+    compatCount++;
+    printf("         PNG (ISO 15948): compatible (v2, per specification)\n");
+  } else if (major <= 4) {
+    printf("         PNG: v4 widely supported in practice (spec says v2)\n");
+  }
+
+  // No formats support v5
+  if (major >= 5) {
+    printf("         No media formats currently support ICC v5 embedding\n");
+    printf("         Consider embedding v5 inside a v4 wrapper (ICC TN 04-2018)\n");
+    printf("         %s[INFO]%s v5 profile — no standard container format support\n",
+           ColorInfo(), ColorReset());
+  } else {
+    printf("         Compatible with %d+ media formats (of 18 surveyed)\n", compatCount);
+    printf("         %s[OK]%s Profile version has broad container format support\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1765,6 +2075,14 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   // Spec gap coverage (CF-206, CF-210)
   CF_WRAP(1206, "CF-206: Profile File Signature 'acsp'", RunCF206_ProfileFileSignature(pIcc));
   CF_WRAP(1210, "CF-210: DeviceLink PCS Space Validation", RunCF210_DeviceLinkPCSSpace(pIcc));
+
+  // ICC TN Embedding conformance (CF-214..CF-219)
+  CF_WRAP(1214, "CF-214: Embedded Profile Class Suitability", RunCF214_EmbeddedProfileClassSuitability(pIcc));
+  CF_WRAP(1215, "CF-215: JPEG APP2 Embedding Size Limit", RunCF215_JPEGEmbeddingSizeLimit(pIcc));
+  CF_WRAP(1216, "CF-216: JP2 Restricted ICC Compliance", RunCF216_JP2RestrictedICCCompliance(pIcc));
+  CF_WRAP(1217, "CF-217: JPX Any ICC Method Compliance", RunCF217_JPXAnyICCMethodCompliance(pIcc));
+  CF_WRAP(1218, "CF-218: HEIF Restricted ICC Compatibility", RunCF218_HEIFRestrictedICCCompatibility(pIcc));
+  CF_WRAP(1219, "CF-219: Container Format Version Matrix", RunCF219_ContainerFormatVersionMatrix(pIcc));
 
 #undef CF_WRAP
   return issues;
