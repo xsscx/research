@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-265)."""
+    """Test ICC Specification conformance checks (CF-001..CF-283)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -3010,6 +3010,137 @@ def test_conformance_checks(suite):
         "cf.265.mluc_lang_country",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-265.*mluc.*Language.*Country"
+    )
+
+    # --- CF-266..CF-271: Profile class constraints ---
+    # CF-266: Input Profile Device Color Space
+    suite.assert_output_contains(
+        "cf.266.input_colorspace",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-266.*Input Profile Device Color Space"
+    )
+
+    # CF-267: Display Profile Color Space
+    suite.assert_output_contains(
+        "cf.267.display_colorspace",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-267.*Display Profile Color Space"
+    )
+
+    # CF-268: Output Profile Color Space
+    suite.assert_output_contains(
+        "cf.268.output_colorspace",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-268.*Output Profile Color Space"
+    )
+
+    # CF-269: DeviceLink Data Color Space Matching
+    suite.assert_output_contains(
+        "cf.269.devicelink_colorspace",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-269.*DeviceLink Data Color Space"
+    )
+
+    # CF-270: Abstract Profile PCS
+    suite.assert_output_contains(
+        "cf.270.abstract_pcs",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-270.*Abstract Profile PCS"
+    )
+
+    # CF-271: NamedColor Profile PCS
+    suite.assert_output_contains(
+        "cf.271.namedcolor_pcs",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-271.*NamedColor Profile PCS"
+    )
+
+    # --- CF-272..CF-274: Primary colorant validation ---
+    # CF-272: Matrix/TRC RGB Required Colorant Tags
+    suite.assert_output_contains(
+        "cf.272.matrixtrc_colorant_tags",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-272.*Matrix.*TRC.*RGB.*Required"
+    )
+
+    # CF-273: Primary Colorant XYZ Values Positive
+    suite.assert_output_contains(
+        "cf.273.colorant_xyz_positive",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-273.*Primary Colorant XYZ.*Positive"
+    )
+
+    # CF-274: Primary Colorant Chromaticity Sum
+    suite.assert_output_contains(
+        "cf.274.colorant_chromaticity_sum",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-274.*Primary Colorant Chromaticity"
+    )
+
+    # --- CF-275..CF-278: Tag type enforcement ---
+    # CF-275: copyrightTag Must Be mluc for v4+
+    suite.assert_output_contains(
+        "cf.275.copyright_mluc_v4",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-275.*copyrightTag.*mluc"
+    )
+
+    # CF-276: profileDescriptionTag Must Be mluc for v4+
+    suite.assert_output_contains(
+        "cf.276.profiledesc_mluc_v4",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-276.*profileDescriptionTag.*mluc"
+    )
+
+    # CF-277: mediaWhitePointTag Must Be XYZType
+    suite.assert_output_contains(
+        "cf.277.whitept_xyztype",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-277.*mediaWhitePointTag.*XYZType"
+    )
+
+    # CF-278: chromaticAdaptationTag Type
+    suite.assert_output_contains(
+        "cf.278.chad_s15fixed16",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-278.*chromaticAdaptationTag"
+    )
+
+    # --- CF-279..CF-281: Data encoding validation ---
+    # CF-279: TRC Curve Values Non-Negative
+    suite.assert_output_contains(
+        "cf.279.trc_nonneg",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-279.*TRC Curve.*Non-Negative"
+    )
+
+    # CF-280: XYZ Element Luminance (Y) Non-Negative
+    suite.assert_output_contains(
+        "cf.280.xyz_luminance_nonneg",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-280.*XYZ.*Luminance.*Non-Negative"
+    )
+
+    # CF-281: profileSequenceDescTag Structure
+    suite.assert_output_contains(
+        "cf.281.pseqdesc_structure",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-281.*profileSequenceDescTag"
+    )
+
+    # --- CF-282..CF-283: DeviceLink requirements ---
+    # CF-282: DeviceLink AToB0Tag Required
+    suite.assert_output_contains(
+        "cf.282.devicelink_atob0",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-282.*DeviceLink AToB0Tag"
+    )
+
+    # CF-283: DeviceLink profileSequenceDescTag
+    suite.assert_output_contains(
+        "cf.283.devicelink_pseqdesc",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-283.*DeviceLink profileSequenceDescTag"
     )
 
     # --- Clean profile baseline ---
