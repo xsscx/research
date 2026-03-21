@@ -670,6 +670,128 @@ int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-090: Spectral Illuminant/Observer Consistency (ICC.2-2023 §7.2.17)
+//
+// For v5 profiles with spectral PCS, validates that the illuminant and observer
+// spectral ranges in the spectralViewingConditionsTag (svcn) are consistent with
+// the profile's declared spectral range.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) {
+    printf("         %s[SKIP]%s Not a v5 profile\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  printf("%s[CF-090]%s Spectral Illuminant/Observer Consistency (%sICC.2-2023 §7.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+
+  icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
+  if (static_cast<icUInt32Number>(spectralPCS) == 0) {
+    printf("         %s[SKIP]%s No spectral PCS — not applicable\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!svcnTag) {
+    printf("         %s[SKIP]%s Spectral PCS present but no svcn tag (covered by CF-054)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  const CIccTagSpectralViewingConditions *svcn =
+      dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+  if (!svcn) {
+    printf("         %s[WARN]%s svcn tag present but wrong type — cannot validate\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  // Profile spectral range
+  const icSpectralRange &profRange = pIcc->m_Header.spectralRange;
+  icFloat32Number profStartNm = icF16toF(profRange.start);
+  icFloat32Number profEndNm   = icF16toF(profRange.end);
+  printf("         Profile spectral range: %.1f–%.1f nm, %u steps\n",
+         static_cast<double>(profStartNm), static_cast<double>(profEndNm),
+         profRange.steps);
+
+  // Illuminant spectral range from svcn
+  icSpectralRange illumRange;
+  svcn->getIlluminant(illumRange);
+
+  if (illumRange.steps == 0) {
+    icIlluminant illumType = svcn->getStdIllumiant();
+    if (static_cast<icUInt32Number>(illumType) != 0) {
+      printf("         Illuminant: standard type 0x%08X (no custom spectral data)\n",
+             static_cast<unsigned>(illumType));
+    } else {
+      printf("         %s[WARN]%s Illuminant has zero steps and no standard type — "
+             "missing illuminant data\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  } else {
+    icFloat32Number illumStartNm = icF16toF(illumRange.start);
+    icFloat32Number illumEndNm   = icF16toF(illumRange.end);
+    printf("         Illuminant spectral range: %.1f–%.1f nm, %u steps\n",
+           static_cast<double>(illumStartNm), static_cast<double>(illumEndNm),
+           illumRange.steps);
+
+    // Check for non-overlapping ranges
+    if (illumEndNm < profStartNm || illumStartNm > profEndNm) {
+      printf("         %s[WARN]%s Illuminant range [%.1f–%.1f] does not overlap "
+             "profile spectral range [%.1f–%.1f] — §7.2.17\n",
+             ColorWarning(), ColorReset(),
+             static_cast<double>(illumStartNm), static_cast<double>(illumEndNm),
+             static_cast<double>(profStartNm), static_cast<double>(profEndNm));
+      issues++;
+    }
+  }
+
+  // Observer spectral range from svcn
+  icSpectralRange obsRange;
+  svcn->getObserver(obsRange);
+
+  if (obsRange.steps > 0) {
+    icFloat32Number obsStartNm = icF16toF(obsRange.start);
+    icFloat32Number obsEndNm   = icF16toF(obsRange.end);
+    printf("         Observer spectral range: %.1f–%.1f nm, %u steps\n",
+           static_cast<double>(obsStartNm), static_cast<double>(obsEndNm),
+           obsRange.steps);
+
+    // Check for non-overlapping ranges
+    if (obsEndNm < profStartNm || obsStartNm > profEndNm) {
+      printf("         %s[WARN]%s Observer range [%.1f–%.1f] does not overlap "
+             "profile spectral range [%.1f–%.1f] — §7.2.17\n",
+             ColorWarning(), ColorReset(),
+             static_cast<double>(obsStartNm), static_cast<double>(obsEndNm),
+             static_cast<double>(profStartNm), static_cast<double>(profEndNm));
+      issues++;
+    }
+  } else {
+    icStandardObserver obsType = svcn->getStdObserver();
+    if (static_cast<icUInt32Number>(obsType) != 0) {
+      printf("         Observer: standard type 0x%08X (no custom spectral data)\n",
+             static_cast<unsigned>(obsType));
+    } else {
+      printf("         %s[WARN]%s Observer has zero steps and no standard type — "
+             "missing observer data\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral illuminant/observer consistent with profile range\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CF-113: Spectral Range Physical Bounds (ICC.2-2023 §7.2.23)
 //
 // Spectral start/end wavelengths must be within the visible spectrum:
@@ -5647,6 +5769,7 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1087, "CF-087: MPE Element Signature", RunCF087_MPEElementSignature(pIcc));
   CF_WRAP(1088, "CF-088: Calculator Stack Structure", RunCF088_CalculatorStackStructure(pIcc));
   CF_WRAP(1089, "CF-089: Spectral Wavelength Range", RunCF089_SpectralWavelengthRange(pIcc));
+  CF_WRAP(1090, "CF-090: Spectral Illuminant Consistency", RunCF090_SpectralIlluminantConsistency(pIcc));
 
   CF_WRAP(1113, "CF-113: Spectral Range Physical Bounds", RunCF113_SpectralRangePhysicalBounds(pIcc));
   CF_WRAP(1114, "CF-114: MCS Colour Space Consistency", RunCF114_MCSColourSpaceConsistency(pIcc));

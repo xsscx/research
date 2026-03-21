@@ -16,6 +16,7 @@
 #include "IccTagBasic.h"
 #include "IccTagLut.h"
 #include "IccTagMPE.h"
+#include "IccTagProfSeqId.h"
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include <cmath>
@@ -1048,6 +1049,371 @@ int RunCF034_MeasurementGeometry(CIccProfile *pIcc) {
     const char *names[] = {"Unknown", "0/45 or 45/0", "0/d or d/0"};
     printf("         Geometry=%u (%s)\n", geometry, names[geometry]);
     printf("         %s[OK]%s Valid measurement geometry\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-035: responseCurveSet16Type Structure (ICC.1-2022-05 §10.19)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF035_ResponseCurveSet16Structure(CIccProfile *pIcc) {
+  printf("%s[CF-035]%s responseCurveSet16Type Structure (%sICC.1-2022-05 §10.19%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+
+  CIccTag *pTag = pIcc->FindTag(icSigOutputResponseTag);
+  if (!pTag) {
+    printf("         No outputResponseTag ('resp') found\n");
+    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagResponseCurveSet16 *pRCS =
+      dynamic_cast<CIccTagResponseCurveSet16 *>(pTag);
+  if (!pRCS) {
+    printf("         %sTag type mismatch — expected responseCurveSet16Type%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Invalid tag type — ICC.1-2022-05 §10.19\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  icUInt16Number nChannels = pRCS->GetNumChannels();
+  icUInt16Number nTypes = pRCS->GetNumResponseCurveTypes();
+
+  if (nChannels == 0) {
+    printf("         %sChannel count is 0 — must be >= 1%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Zero channels — ICC.1-2022-05 §10.19\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (nTypes == 0) {
+    printf("         %sResponse curve type count is 0 — must be >= 1%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Zero response curve types — ICC.1-2022-05 §10.19\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s responseCurveSet16 valid (channels=%u, types=%u)\n",
+           ColorSuccess(), ColorReset(), nChannels, nTypes);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-036: profileSequenceDescType Elements (ICC.1-2022-05 §10.22)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF036_ProfileSequenceDescElements(CIccProfile *pIcc) {
+  printf("%s[CF-036]%s profileSequenceDescType Elements (%sICC.1-2022-05 §10.22%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+
+  CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
+  if (!pTag) {
+    printf("         No profileSequenceDescTag found\n");
+    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagProfileSeqDesc *pSeq =
+      dynamic_cast<CIccTagProfileSeqDesc *>(pTag);
+  if (!pSeq) {
+    printf("         %sTag type mismatch — expected profileSequenceDescType%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Invalid tag type — ICC.1-2022-05 §10.22\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  if (!pSeq->m_Descriptions || pSeq->m_Descriptions->empty()) {
+    printf("         %sProfile sequence has 0 entries — must have >= 1%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Empty profile sequence — ICC.1-2022-05 §10.22\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  int idx = 0;
+  for (const auto &desc : *pSeq->m_Descriptions) {
+    char mfgSig[5] = {};
+    char mdlSig[5] = {};
+    icUInt32Number mfg = desc.m_deviceMfg;
+    icUInt32Number mdl = desc.m_deviceModel;
+
+    mfgSig[0] = static_cast<char>(static_cast<unsigned char>((mfg >> 24) & 0xFF));
+    mfgSig[1] = static_cast<char>(static_cast<unsigned char>((mfg >> 16) & 0xFF));
+    mfgSig[2] = static_cast<char>(static_cast<unsigned char>((mfg >> 8) & 0xFF));
+    mfgSig[3] = static_cast<char>(static_cast<unsigned char>(mfg & 0xFF));
+
+    mdlSig[0] = static_cast<char>(static_cast<unsigned char>((mdl >> 24) & 0xFF));
+    mdlSig[1] = static_cast<char>(static_cast<unsigned char>((mdl >> 16) & 0xFF));
+    mdlSig[2] = static_cast<char>(static_cast<unsigned char>((mdl >> 8) & 0xFF));
+    mdlSig[3] = static_cast<char>(static_cast<unsigned char>(mdl & 0xFF));
+
+    printf("         Entry %d: mfg='%s' model='%s' tech=0x%08X\n",
+           idx, mfgSig, mdlSig,
+           static_cast<icUInt32Number>(desc.m_technology));
+    idx++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s profileSequenceDesc valid (%d entries)\n",
+           ColorSuccess(), ColorReset(), idx);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-037: profileSequenceIdentifierType Validation (ICC.1-2022-05 §10.23)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF037_ProfileSequenceIdValidation(CIccProfile *pIcc) {
+  printf("%s[CF-037]%s profileSequenceIdentifierType Validation (%sICC.1-2022-05 §10.23%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+
+  // NOTE: iccDEV API has a typo — icSigProfileSequceIdTag (missing 'en')
+  CIccTag *pTag = pIcc->FindTag(icSigProfileSequceIdTag);
+  if (!pTag) {
+    printf("         No profileSequenceIdentifierTag ('psid') found\n");
+    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagProfileSequenceId *pSeqId =
+      dynamic_cast<CIccTagProfileSequenceId *>(pTag);
+  if (!pSeqId) {
+    printf("         %sTag type mismatch — expected profileSequenceIdentifierType%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Invalid tag type — ICC.1-2022-05 §10.23\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  int entryCount = 0;
+  int allZeroCount = 0;
+  static const icUInt8Number zeroID[16] = {0};
+
+  for (auto it = pSeqId->begin(); it != pSeqId->end(); ++it) {
+    entryCount++;
+    if (memcmp(it->m_profileID.ID8, zeroID, 16) == 0)
+      allZeroCount++;
+  }
+
+  if (entryCount == 0) {
+    printf("         %sSequence has 0 entries — must have >= 1%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Empty profile sequence identifier — ICC.1-2022-05 §10.23\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (allZeroCount > 0 && entryCount > 0) {
+    printf("         %s%d of %d profile IDs are all-zero (unidentified)%s\n",
+           ColorWarning(), allZeroCount, entryCount, ColorReset());
+    printf("         %s[WARN]%s All-zero Profile IDs — each should identify a unique profile\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s profileSequenceIdentifier valid (%d entries, all IDs non-zero)\n",
+           ColorSuccess(), ColorReset(), entryCount);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-038: dateTimeType Tag Range Validation (ICC.1-2022-05 §10.7)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF038_DateTimeTypeTagRange(CIccProfile *pIcc) {
+  printf("%s[CF-038]%s dateTimeType Tag Range Validation (%sICC.1-2022-05 §10.7%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+
+  CIccTag *pTag = pIcc->FindTag(icSigCalibrationDateTimeTag);
+  if (!pTag) {
+    printf("         No calibrationDateTimeTag ('calt') found\n");
+    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagDateTime *pDT = dynamic_cast<CIccTagDateTime *>(pTag);
+  if (!pDT) {
+    printf("         %sTag type mismatch — expected dateTimeType%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Invalid tag type — ICC.1-2022-05 §10.7\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  // Access the protected m_DateTime through SetDateTime/GetDateTime round-trip
+  // is not available, so read from the profile header's calibration tag directly.
+  // CIccTagDateTime stores m_DateTime as protected icDateTimeNumber.
+  // We use the Describe() output to validate, but for direct field access we
+  // re-read the tag from the raw profile data.
+  //
+  // Alternative: the profile header has its own creation date (already validated
+  // by CF-001/CF-029). Here we validate the calibration date tag independently.
+  //
+  // Since m_DateTime is protected, we get it via Describe() string parsing or
+  // trust the library's own Validate(). Use Validate() for conformance.
+  std::string report;
+  icValidateStatus vs = pDT->Validate("calt", report, pIcc);
+
+  if (vs >= icValidateWarning) {
+    printf("         %sLibrary validation flagged issues:%s\n",
+           ColorWarning(), ColorReset());
+    // Print first few lines of the report
+    size_t pos = 0;
+    int lines = 0;
+    while (pos < report.size() && lines < 4) {
+      size_t end = report.find('\n', pos);
+      if (end == std::string::npos) end = report.size();
+      std::string line = report.substr(pos, end - pos);
+      if (!line.empty())
+        printf("           %s\n", line.c_str());
+      pos = end + 1;
+      lines++;
+    }
+    if (vs >= icValidateNonCompliant) {
+      printf("         %s[FAIL]%s dateTimeType validation failed — ICC.1-2022-05 §10.7\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         %s[WARN]%s dateTimeType has warnings — ICC.1-2022-05 §10.7\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  }
+
+  // Additional: describe the tag to show the date values
+  if (issues == 0) {
+    std::string desc;
+    pDT->Describe(desc, 0);
+    if (!desc.empty()) {
+      // Trim trailing whitespace
+      while (!desc.empty() && (desc.back() == '\n' || desc.back() == ' '))
+        desc.pop_back();
+      printf("         Calibration date: %s\n", desc.c_str());
+    }
+    printf("         %s[OK]%s calibrationDateTime fields valid\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-039: signatureType Technology Validation (ICC.1-2022-05 §10.24)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF039_SignatureTypeTechnology(CIccProfile *pIcc) {
+  printf("%s[CF-039]%s signatureType Technology Validation (%sICC.1-2022-05 §10.24%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  int issues = 0;
+
+  CIccTag *pTag = pIcc->FindTag(icSigTechnologyTag);
+  if (!pTag) {
+    printf("         No technologyTag ('tech') found\n");
+    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  CIccTagSignature *pSig = dynamic_cast<CIccTagSignature *>(pTag);
+  if (!pSig) {
+    printf("         %sTag type mismatch — expected signatureType%s\n",
+           ColorError(), ColorReset());
+    printf("         %s[FAIL]%s Invalid tag type — ICC.1-2022-05 §10.24\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  icUInt32Number tech = pSig->GetValue();
+
+  // ICC.1-2022-05 Table 29 — Technology Signatures
+  static const icUInt32Number knownTechs[] = {
+    0x6673636E, // 'fscn' Film Scanner
+    0x6463616D, // 'dcam' Digital Camera
+    0x6473636E, // 'dscn' Desktop Scanner (Reflective)
+    0x696A7072, // 'ijpr' Ink Jet Printer
+    0x74776178, // 'twax' Thermal Wax Printer
+    0x6570686F, // 'epho' Electrophotographic Printer
+    0x65737461, // 'esta' Electrostatic Printer
+    0x64737562, // 'dsub' Dye Sublimation Printer
+    0x7270686F, // 'rpho' Photographic Paper Printer
+    0x6670726E, // 'fprn' Film Writer
+    0x7669646D, // 'vidm' Video Monitor
+    0x76696463, // 'vidc' Video Camera
+    0x706A7476, // 'pjtv' Projection Television
+    0x43525420, // 'CRT ' Cathode Ray Tube Display
+    0x504D4420, // 'PMD ' Passive Matrix Display
+    0x414D4420, // 'AMD ' Active Matrix Display
+    0x4B504344, // 'KPCD' Photo CD
+    0x696D6773, // 'imgs' PhotoImageSetter
+    0x67726176, // 'grav' Gravure
+    0x6F667374, // 'ofst' Offset Lithography
+    0x73696C6B, // 'silk' Silkscreen
+    0x666C6578, // 'flex' Flexography
+    0x6D706672, // 'mpfr' Motion Picture Film Recorder
+    0x6D706673, // 'mpfs' Motion Picture Film Scanner
+    0x6D706665, // 'mpfe' Digital Motion Picture Camera (Electronic)
+    0x64637069, // 'dcpj' Digital Cinema Projector
+    0x64637664, // 'dcvd' Digital Cinema Viewer Display (non-projector)
+    0x646D7066, // 'dmpf' Digital Motion Picture Film
+    0x646D7063, // 'dmpc' Digital Motion Picture Camera
+    0x70706564, // 'pped' Projection/Pen/Electrostatic Display
+  };
+  static const int nKnown =
+      static_cast<int>(sizeof(knownTechs) / sizeof(knownTechs[0]));
+
+  bool found = false;
+  for (int i = 0; i < nKnown; i++) {
+    if (tech == knownTechs[i]) {
+      found = true;
+      break;
+    }
+  }
+
+  char techStr[5] = {};
+  techStr[0] = static_cast<char>(static_cast<unsigned char>((tech >> 24) & 0xFF));
+  techStr[1] = static_cast<char>(static_cast<unsigned char>((tech >> 16) & 0xFF));
+  techStr[2] = static_cast<char>(static_cast<unsigned char>((tech >> 8) & 0xFF));
+  techStr[3] = static_cast<char>(static_cast<unsigned char>(tech & 0xFF));
+
+  if (tech == 0) {
+    printf("         Technology signature is 0x00000000 (unspecified)\n");
+    printf("         %s[OK]%s Zero is acceptable (unspecified)\n",
+           ColorSuccess(), ColorReset());
+  } else if (!found) {
+    printf("         Technology='%s' (0x%08X) — %sunrecognized%s\n",
+           techStr, tech, ColorWarning(), ColorReset());
+    printf("         %s[WARN]%s Unrecognized technology signature — ICC.1-2022-05 Table 29\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Technology='%s' (0x%08X)\n", techStr, tech);
+    printf("         %s[OK]%s Valid technology signature\n",
            ColorSuccess(), ColorReset());
   }
 
@@ -4413,6 +4779,11 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1032, "CF-032: XYZType Triplet Count", RunCF032_XYZTypeTripletCount(pIcc));
   CF_WRAP(1033, "CF-033: Measurement Standard Observer", RunCF033_MeasurementStandardObserver(pIcc));
   CF_WRAP(1034, "CF-034: Measurement Geometry", RunCF034_MeasurementGeometry(pIcc));
+  CF_WRAP(1035, "CF-035: responseCurveSet16Type Structure", RunCF035_ResponseCurveSet16Structure(pIcc));
+  CF_WRAP(1036, "CF-036: profileSequenceDescType Elements", RunCF036_ProfileSequenceDescElements(pIcc));
+  CF_WRAP(1037, "CF-037: profileSequenceIdentifierType Validation", RunCF037_ProfileSequenceIdValidation(pIcc));
+  CF_WRAP(1038, "CF-038: dateTimeType Tag Range Validation", RunCF038_DateTimeTypeTagRange(pIcc));
+  CF_WRAP(1039, "CF-039: signatureType Technology Validation", RunCF039_SignatureTypeTechnology(pIcc));
 
   CF_WRAP(1112, "CF-112: XYZ Triplet Normalization", RunCF112_XYZTripletNormalization(pIcc));
 
