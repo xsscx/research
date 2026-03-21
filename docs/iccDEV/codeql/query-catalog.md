@@ -182,6 +182,30 @@ These 6 queries target patterns identified through CodeQL static analysis of Icc
 
 ---
 
+## Built-in Query Patterns (cpp-queries)
+
+### cpp/narrow-loop-bound (narrow type loop counters)
+- **CWE**: CWE-190 (Integer Overflow/Wrap-around)
+- **Pattern**: Loop counter is a narrow type (e.g., `icUInt8Number` max 255,
+  `icUInt16Number` max 65535) compared against a wider type. If the bound
+  exceeds the counter's range, the loop wraps and runs indefinitely.
+- **Fix**: Use `unsigned int` for loop counters when iterating ICC field values.
+  Remove `(int)` casts from bounds.
+- **Files affected (fixed March 2026)**: IccConformanceLUT.cpp (4 instances at
+  lines 2093, 2164, 2190, 2240)
+
+### icc/wrong-variable-index (known false positive pattern)
+- **CWE**: CWE-129 (Improper Validation of Array Index)
+- **Expected count**: ~58 instances (ALL false positives)
+- **Pattern**: Outer loop iterates ICC tag signatures (e.g., `kAllLUTNames[i]`),
+  inner loop iterates within each tag (channels, dimensions). Outer variable
+  correctly used in printf to identify tag. CodeQL cannot distinguish this from
+  wrong indexing.
+- **Files most affected**: IccConformanceLUT.cpp (18), IccConformanceTagTypes.cpp (4),
+  IccConformanceV5.cpp (1), IccAnalyzerPAWG.cpp (3)
+
+---
+
 ## Tool-Specific Queries
 
 ### iccdumpprofile-enum-reachability.ql
