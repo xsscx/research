@@ -1260,6 +1260,20 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-316", "ICS svcn Observer/Illuminant Plausibility",
    "Validates svcn illuminant XYZ non-negative with Y>0, spectral range physically reasonable", "ICC WP-57 §svcn",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // K.2.9 HDR-to-SDR Transform Conformance (CF-317..CF-320)
+  {"CF-317", "HDR-to-SDR Flag-Tag Consistency",
+   "Cross-validates Extended Range PCS flag (bit 3) against presence of HToS tags (H2S0-H2S3)", "K.2.9, ICC.2 §7.2.13",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-318", "HDR-to-SDR Tag Type Validation",
+   "Validates HToS tags are multiProcessElementsType for v5 profiles", "K.2.9, ICC.2 §9.2",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-319", "HDR-to-SDR Tag Channel Consistency",
+   "Validates HToS tag input/output channels match PCS channel count (PCS-to-PCS transform)", "K.2.9",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-320", "HDR-to-SDR Intent Coverage",
+   "Checks rendering intent coverage of HToS tags and CMM fallback chain completeness", "K.2.9",
+   CFSeverity::WARNING, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
