@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-323)."""
+    """Test ICC Specification conformance checks (CF-001..CF-326)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-019) ---
@@ -4006,6 +4006,26 @@ def test_conformance_checks(suite):
         "cf.323.solv_dimensions",
         ["-a", v5_profile],
         r"CF-323.*solv.*Dimensions"
+    )
+
+    # --- CF-324..CF-326: K.2.7 CMM Environment Variable Conformance ---
+    # CF-324: Calculator 'env' Operator Usage
+    suite.assert_output_contains(
+        "cf.324.env_operator_usage",
+        ["-a", v5_profile],
+        r"CF-324.*env.*Operator.*Usage"
+    )
+    # CF-325: Calculator 'env' Status Handling
+    suite.assert_output_contains(
+        "cf.325.env_status_handling",
+        ["-a", v5_profile],
+        r"CF-325.*env.*Status"
+    )
+    # CF-326: Calculator 'env' Reserved Signatures
+    suite.assert_output_contains(
+        "cf.326.env_reserved_signatures",
+        ["-a", v5_profile],
+        r"CF-326.*env.*Reserved"
     )
 
     # --- Clean profile baseline ---
