@@ -8,8 +8,8 @@
 > ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
 > 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-07-24 — 171 heuristics (H1–H171) + 279 conformance checks
-> (CF-001..CF-316, with gaps), 601 tests, 45 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-03-21 19:40:00 UTC — 171 heuristics (H1–H171) + 318 conformance checks
+> (CF-001..CF-316), 686 tests, 45 CFL patches, 13 fuzzers.
 
 ---
 
@@ -593,7 +593,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-44 distinct CWE categories across 171 heuristics + 279 conformance checks + 45 CFL patches:
+44 distinct CWE categories across 171 heuristics + 318 conformance checks + 45 CFL patches:
 
 | CWE | Name | Sources | Key References |
 |-----|------|---------|----------------|
@@ -713,7 +713,7 @@ Which ICC binary format fields each heuristic group validates:
 
 ## 14.5. ICC Conformance Checks (CF-001..CF-316)
 
-279 conformance checks (numbered CF-001..CF-316, with gaps in unused ranges) across 7 dispatcher
+318 conformance checks (numbered CF-001..CF-316, with sub-checks CF-125..136 inside CF-124) across 7 dispatcher
 modules, validating ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
 and ICS Parts 1–3. These run by default in `-a` mode (conformance audit).
 
@@ -721,13 +721,13 @@ Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 
 | Dispatcher | CF Ranges | Count | Spec Coverage |
 |------------|-----------|-------|---------------|
-| RunHeaderConformance | CF-001..015, 107, 121–122, 184–187, 199–201, 203, 206, 210, 214–219, 243–246 | 40 | Header: size, magic, version BCD, class, color space, PCS, rendering intent, D50 illuminant, reserved bytes, dateTime, embedding flags (§7.2) |
-| RunTagTypeConformance | CF-020..034, 112, 123–132, 169–174, 188–190, 208–213, 220–234, 247–254, 263–265, 273–281 | 68 | Tag types: s15Fixed16, XYZ, text, mluc, curves, parametric, viewing conditions, named colors, chromaticity, colorant table/order, measurement, response curves (§9–10) |
-| RunRequiredTagConformance | CF-039..059, 095–098, 103–104, 111, 117–120, 202, 204–205, 207, 211, 258–260, 266–272, 282–283 | 44 | Required tags per class (mntr/prtr/scnr/link/spac/abst/nmcl), chad ≠D50 rule, ICC.2 additional required tags (§8.2–8.9) |
-| RunLUTConformance | CF-060..070, 105–110, 116, 163–168, 255–256, 261–262 | 29 | LUT channel consistency, CLUT grid, curve points, matrix ranges, AToB/BToA pairs, MBB structure (§10.8–10.13) |
-| RunV5Conformance | CF-080..089, 113–115, 137–162, 175–198, 235–242, 257, 284–316 | 100 | v5/iccMAX: spectral PCS, MPE structure, multiProcessElementsType, tagStruct/tagArray, embedded images, GBD, sparse matrix, ICC.2:2019 errata items, ICS sub-classes, BRDF tags, PCC matrices (ICC.2 §7–11) |
+| RunHeaderConformance | CF-001..019, 107, 121–122, 184–187, 199–201, 203, 206, 210, 214–219, 243–246 | 44 | Header: size, magic, version BCD, class, color space, PCS, rendering intent, D50 illuminant, reserved bytes, dateTime, embedding flags (§7.2) |
+| RunTagTypeConformance | CF-020..039, 112, 123–132, 169–174, 188–190, 208–213, 220–234, 247–254, 263–265, 273–281 | 73 | Tag types: s15Fixed16, XYZ, text, mluc, curves, parametric, viewing conditions, named colors, chromaticity, colorant table/order, measurement, response curves, ADGC (§9–10) |
+| RunRequiredTagConformance | CF-039..059, 095–098, 103–104, 111, 117–120, 202, 204–205, 207, 211, 258–260, 266–272, 282–283 | 50 | Required tags per class (mntr/prtr/scnr/link/spac/abst/nmcl), chad ≠D50 rule, ICC.2 additional required tags (§8.2–8.9) |
+| RunLUTConformance | CF-060..079, 105–110, 116, 163–168, 255–256, 261–262 | 38 | LUT channel consistency, CLUT grid, curve points, matrix ranges, AToB/BToA pairs, MBB structure, bit depth (§10.8–10.13) |
+| RunV5Conformance | CF-080..090, 113–115, 137–162, 175–198, 235–242, 257, 284–316 | 101 | v5/iccMAX: spectral PCS, MPE structure, multiProcessElementsType, tagStruct/tagArray, embedded images, GBD, sparse matrix, ICC.2:2019 errata items, ICS sub-classes, BRDF tags, PCC matrices (ICC.2 §7–11) |
 | RunQualityConformance | CF-091..094 | 6† | Profile quality: curve monotonicity, white point accuracy |
-| RunSecurityConformance | (reserved) | 6† | Security-specific validation (reserved for future) |
+| RunSecurityConformance | CF-091..094 | 6† | Security-specific validation |
 
 † Quality and Security dispatchers include placeholder CF_WRAP entries.
 
@@ -973,4 +973,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 171 heuristics · 279 conformance checks (CF-001..CF-316) · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 171 heuristics · 318 conformance checks (CF-001..CF-316) · 45 CFL patches · 13 fuzzers · 93 advisories*
