@@ -1609,7 +1609,7 @@ static const struct {
   const char *description;
 } kICSSubClasses[] = {
   {0x70636320, "pcc ", "Colorimetric PCC"},           // 'pcc '
-  {0x7872676E, "xrng", "Extended Dynamic Range"},     // 'xrng'
+  {0x78726E67, "xrng", "Extended Dynamic Range"},     // 'xrng'
   {0x73726566, "sref", "Spectral Reflectance"},       // 'sref'
   {0x65787420, "ext ", "Extended Output"},             // 'ext '
 };
@@ -2048,7 +2048,7 @@ int RunCF198_ExtendedRangeSubClassValidation(CIccProfile *pIcc) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
-  if (scVal != 0x7872676E) {  // 'xrng'
+  if (scVal != 0x78726E67) {  // 'xrng'
     printf("         Sub-class is not 'xrng' — check not applicable\n");
     return 0;
   }
@@ -5073,6 +5073,542 @@ static int RunCF307_CalcVectorOrSignature(CIccProfile *pIcc) {
   return issues;
 }
 
+// ---------------------------------------------------------------------------
+// CF-308: pcc AToB1/BToA1 Part 1 Element Type Restriction
+// Colorimetric PCC Part 1: transform tags restricted to matrix, curveSet,
+// CLUT, extCLUT, tintArray — no calculatorElement
+// ---------------------------------------------------------------------------
+static int RunCF308_PccTransformElementRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-308]%s pcc AToB1/BToA1 Part 1 Element Restriction (%sICS-ColorimetricPCC-Part1 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x70636320) {  // 'pcc '
+    printf("         Sub-class is not 'pcc ' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigAToB1Tag, "AToB1Tag"},
+    {icSigBToA1Tag, "BToA1Tag"},
+  };
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(tags[t].sig);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number e = 0; e < nElem; e++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(static_cast<int>(e));
+      if (!pElem) continue;
+
+      if (!IsICSPart1AllowedMPE(pElem->GetType())) {
+        char eSig[5], tSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        SigToChars(static_cast<icUInt32Number>(tags[t].sig), tSig);
+        printf("         %s[WARN]%s Tag '%s' element[%u] '%s' — not allowed in Part 1\n",
+               ColorWarning(), ColorReset(), tSig, e, eSig);
+        printf("         ICS-ColorimetricPCC-Part1 §6: restricted to curveSet, matrix, CLUT, extCLUT, tintArray\n");
+        issues++;
+      }
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s pcc AToB1/BToA1 elements conform to Part 1 restriction\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-309: sref PCC Matrix Restriction (Part 1)
+// Spectral Reflectance Part 1: c2sp/s2cp restricted to single 3×3 matrix
+// ---------------------------------------------------------------------------
+static int RunCF309_SrefPccMatrixRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-309]%s sref PCC Matrix Restriction (%sICS-SpectralReflectance-Part1 §6.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x73726566) {  // 'sref'
+    printf("         Sub-class is not 'sref' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } pccTags[] = {
+    {icSigCustomToStandardPccTag, "c2sp"},
+    {icSigStandardToCustomPccTag, "s2cp"},
+  };
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(pccTags[t].sig);
+    if (!pTag) {
+      printf("         %s tag not present — skipping element check\n", pccTags[t].name);
+      continue;
+    }
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    if (nElem != 1) {
+      printf("         %s[WARN]%s %s has %u elements — Part 1 restricts to single 3×3 matrix\n",
+             ColorWarning(), ColorReset(), pccTags[t].name, nElem);
+      issues++;
+    }
+
+    if (nElem >= 1) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(0);
+      if (pElem && pElem->GetType() != icSigMatrixElemType) {
+        char eSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        printf("         %s[WARN]%s %s first element is '%s' — Part 1 restricts to matrixElement\n",
+               ColorWarning(), ColorReset(), pccTags[t].name, eSig);
+        issues++;
+      }
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s sref PCC tags conform to Part 1 matrix restriction\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-310: sref DToB3/BToD3 Part 1 Element Type Restriction
+// Spectral Reflectance Part 1: DToB3/BToD3 restricted to curveSet, matrix,
+// CLUT, extCLUT, tintArray — no calculatorElement
+// ---------------------------------------------------------------------------
+static int RunCF310_SrefTransformElementRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-310]%s sref DToB3/BToD3 Part 1 Element Restriction (%sICS-SpectralReflectance-Part1 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x73726566) {  // 'sref'
+    printf("         Sub-class is not 'sref' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigDToB3Tag, "DToB3Tag"},
+    {icSigBToD3Tag, "BToD3Tag"},
+  };
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(tags[t].sig);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number e = 0; e < nElem; e++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(static_cast<int>(e));
+      if (!pElem) continue;
+
+      if (!IsICSPart1AllowedMPE(pElem->GetType())) {
+        char eSig[5], tSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        SigToChars(static_cast<icUInt32Number>(tags[t].sig), tSig);
+        printf("         %s[WARN]%s Tag '%s' element[%u] '%s' — not allowed in Part 1\n",
+               ColorWarning(), ColorReset(), tSig, e, eSig);
+        printf("         ICS-SpectralReflectance-Part1 §6: restricted to curveSet, matrix, CLUT, extCLUT, tintArray\n");
+        issues++;
+      }
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s sref DToB3/BToD3 elements conform to Part 1 restriction\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-311: sref Spectral Range Mandatory
+// Spectral Reflectance requires spectral range steps > 0 and reflectance PCS
+// ---------------------------------------------------------------------------
+static int RunCF311_SrefSpectralRangeMandatory(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-311]%s sref Spectral Range Mandatory (%sICS-SpectralReflectance-Part1 §5.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x73726566) {  // 'sref'
+    printf("         Sub-class is not 'sref' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // Check spectral PCS range steps
+  icSpectralRange &specRange = pIcc->m_Header.spectralRange;
+  if (specRange.steps == 0) {
+    printf("         %s[FAIL]%s Spectral range steps=0 — spectral reflectance requires steps > 0\n",
+           ColorError(), ColorReset());
+    printf("         ICS-SpectralReflectance-Part1 §5.2: spectral PCS must have non-zero step count\n");
+    issues++;
+  } else {
+    printf("         Spectral range: start=%.1f end=%.1f steps=%u\n",
+           icF16toF(specRange.start), icF16toF(specRange.end),
+           static_cast<unsigned>(specRange.steps));
+  }
+
+  // Check spectral PCS signature is reflectance
+  icColorSpaceSignature specPCS = pIcc->m_Header.spectralPCS;
+  // Reflectance signatures: 'rfln' or containing reflectance indicators
+  // ICC.2-2023 §7.2.13: spectralPCS for sref must indicate reflectance
+  if (static_cast<icUInt32Number>(specPCS) == 0) {
+    printf("         %s[FAIL]%s Spectral PCS signature=0 — sref requires reflectance PCS\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    char spSig[5];
+    SigToChars(static_cast<icUInt32Number>(specPCS), spSig);
+    printf("         Spectral PCS: '%s'\n", spSig);
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s sref spectral range and PCS are valid\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-312: ext Required Tag Completeness
+// Extended Output sub-class: svcn, c2sp, s2cp, desc, cprt required
+// ---------------------------------------------------------------------------
+static int RunCF312_ExtRequiredTags(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-312]%s ext Required Tag Completeness (%sICS-ExtendedOutput-Part1 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x65787420) {  // 'ext '
+    printf("         Sub-class is not 'ext ' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } required[] = {
+    {icSigSpectralViewingConditionsTag,   "spectralViewingConditionsTag (svcn)"},
+    {icSigCustomToStandardPccTag,         "customToStandardPccTag (c2sp)"},
+    {icSigStandardToCustomPccTag,         "standardToCustomPccTag (s2cp)"},
+    {icSigProfileDescriptionTag,          "profileDescriptionTag (desc)"},
+    {icSigCopyrightTag,                   "copyrightTag (cprt)"},
+  };
+
+  for (int i = 0; i < 5; i++) {
+    CIccTag *pTag = pIcc->FindTag(required[i].sig);
+    if (!pTag) {
+      printf("         %s[FAIL]%s Missing required tag: %s\n",
+             ColorError(), ColorReset(), required[i].name);
+      printf("         ICS-ExtendedOutput-Part1 §6: required for 'ext ' sub-class\n");
+      issues++;
+    } else {
+      printf("         Found: %s\n", required[i].name);
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s All required tags present for ext sub-class\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-313: ext Part 1 Element Type Restriction
+// Extended Output Part 1: transform elements restricted to curveSet, matrix,
+// CLUT, extCLUT — no calculatorElement or tintArray
+// ---------------------------------------------------------------------------
+static int RunCF313_ExtTransformElementRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-313]%s ext Part 1 Element Type Restriction (%sICS-ExtendedOutput-Part1 §6.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x65787420) {  // 'ext '
+    printf("         Sub-class is not 'ext ' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  // ext Part 1 allowed: curveSet, matrix, CLUT, extCLUT (NOT tintArray)
+  static const icElemTypeSignature extAllowed[] = {
+    icSigCurveSetElemType,
+    icSigMatrixElemType,
+    icSigCLutElemType,
+    icSigExtCLutElemType,
+    icSigBAcsElemType,
+    icSigEAcsElemType,
+  };
+  static constexpr int extAllowedCount = 6;
+
+  static const icTagSignature transformTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB3Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA3Tag,
+    icSigDToB0Tag, icSigDToB1Tag, icSigDToB3Tag,
+    icSigBToD0Tag, icSigBToD1Tag, icSigBToD3Tag,
+    icSigCustomToStandardPccTag,
+    icSigStandardToCustomPccTag,
+  };
+
+  for (int t = 0; t < 14; t++) {
+    CIccTag *pTag = pIcc->FindTag(transformTags[t]);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number e = 0; e < nElem; e++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(static_cast<int>(e));
+      if (!pElem) continue;
+
+      icElemTypeSignature eSigVal = pElem->GetType();
+      bool allowed = false;
+      for (int a = 0; a < extAllowedCount; a++) {
+        if (extAllowed[a] == eSigVal) { allowed = true; break; }
+      }
+      if (!allowed) {
+        char eSig[5], tSig[5];
+        SigToChars(static_cast<icUInt32Number>(eSigVal), eSig);
+        SigToChars(static_cast<icUInt32Number>(transformTags[t]), tSig);
+        printf("         %s[WARN]%s Tag '%s' element[%u] '%s' — not allowed in ext Part 1\n",
+               ColorWarning(), ColorReset(), tSig, e, eSig);
+        printf("         ICS-ExtendedOutput-Part1 §6.3: restricted to curveSet, matrix, CLUT, extCLUT\n");
+        issues++;
+      }
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s ext transform elements conform to Part 1 restriction\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-314: xrng AToB1/BToA1 Part 1 Element Type Restriction
+// Extended Dynamic Range Part 1: AToB1/BToA1 restricted to curveSet, matrix,
+// CLUT, extCLUT — no calculatorElement or tintArray
+// ---------------------------------------------------------------------------
+static int RunCF314_XrngTransformElementRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-314]%s xrng AToB1/BToA1 Part 1 Element Restriction (%sICS-ExtRange-Part1 §6.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x78726E67) {  // 'xrng'
+    printf("         Sub-class is not 'xrng' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  static const struct { icTagSignature sig; const char *name; } tags[] = {
+    {icSigAToB1Tag, "AToB1Tag"},
+    {icSigBToA1Tag, "BToA1Tag"},
+  };
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(tags[t].sig);
+    if (!pTag) continue;
+
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number e = 0; e < nElem; e++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(static_cast<int>(e));
+      if (!pElem) continue;
+
+      if (!IsICSPart1AllowedMPE(pElem->GetType())) {
+        char eSig[5], tSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        SigToChars(static_cast<icUInt32Number>(tags[t].sig), tSig);
+        printf("         %s[WARN]%s Tag '%s' element[%u] '%s' — not allowed in xrng Part 1\n",
+               ColorWarning(), ColorReset(), tSig, e, eSig);
+        printf("         ICS-ExtRange-Part1 §6.2: restricted to curveSet, matrix, CLUT, extCLUT, tintArray\n");
+        issues++;
+      }
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s xrng AToB1/BToA1 elements conform to Part 1 restriction\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-315: xrng Part 2 PCC Tag Presence and Matrix Restriction
+// When xrng has c2sp/s2cp, validate single 3×3 matrix per Part 2
+// ---------------------------------------------------------------------------
+static int RunCF315_XrngPccTagMatrixRestriction(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-315]%s xrng Part 2 PCC Matrix Restriction (%sICS-ExtRange-Part2 §6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x78726E67) {  // 'xrng'
+    printf("         Sub-class is not 'xrng' — check not applicable\n");
+    return 0;
+  }
+
+  int issues = 0;
+  bool hasPcc = false;
+
+  static const struct { icTagSignature sig; const char *name; } pccTags[] = {
+    {icSigCustomToStandardPccTag, "c2sp"},
+    {icSigStandardToCustomPccTag, "s2cp"},
+  };
+
+  for (int t = 0; t < 2; t++) {
+    CIccTag *pTag = pIcc->FindTag(pccTags[t].sig);
+    if (!pTag) continue;
+
+    hasPcc = true;
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (!pMPE) continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    if (nElem != 1) {
+      printf("         %s[WARN]%s %s has %u elements — Part 2 restricts PCC to single 3×3 matrix\n",
+             ColorWarning(), ColorReset(), pccTags[t].name, nElem);
+      issues++;
+    }
+
+    if (nElem >= 1) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement(0);
+      if (pElem && pElem->GetType() != icSigMatrixElemType) {
+        char eSig[5];
+        SigToChars(static_cast<icUInt32Number>(pElem->GetType()), eSig);
+        printf("         %s[WARN]%s %s first element is '%s' — Part 2 restricts to matrixElement\n",
+               ColorWarning(), ColorReset(), pccTags[t].name, eSig);
+        issues++;
+      }
+    }
+  }
+
+  if (!hasPcc) {
+    printf("         No PCC tags present — Part 2 PCC restriction not applicable\n");
+  } else if (!issues) {
+    printf("         %s[OK]%s xrng PCC tags conform to Part 2 matrix restriction\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-316: ICS svcn Observer/Illuminant Plausibility
+// All ICS with svcn: observer data + illuminant spectral range validation
+// ---------------------------------------------------------------------------
+static int RunCF316_IcsSvcnPlausibility(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-316]%s ICS svcn Observer/Illuminant Plausibility (%sICC WP-57 §svcn%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check if any ICS sub-class
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  bool isICS = false;
+  for (int i = 0; i < kICSSubClassCount; i++) {
+    if (scVal == kICSSubClasses[i].sig) { isICS = true; break; }
+  }
+  if (!isICS) {
+    printf("         Not an ICS sub-class — check not applicable\n");
+    return 0;
+  }
+
+  CIccTag *pTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!pTag) {
+    printf("         No svcn tag present — cannot validate observer/illuminant\n");
+    return 0;
+  }
+
+  int issues = 0;
+
+  CIccTagSpectralViewingConditions *pSVC =
+      dynamic_cast<CIccTagSpectralViewingConditions*>(pTag);
+  if (!pSVC) {
+    printf("         %s[WARN]%s svcn tag present but wrong type — cannot validate\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  // Validate illuminant XYZ are physically plausible (non-negative, Y>0)
+  icFloatNumber illumY = pSVC->m_illuminantXYZ.Y;
+  icFloatNumber illumX = pSVC->m_illuminantXYZ.X;
+  icFloatNumber illumZ = pSVC->m_illuminantXYZ.Z;
+
+  if (illumX < 0.0f || illumY < 0.0f || illumZ < 0.0f) {
+    printf("         %s[WARN]%s Illuminant XYZ has negative component: X=%.4f Y=%.4f Z=%.4f\n",
+           ColorWarning(), ColorReset(), illumX, illumY, illumZ);
+    issues++;
+  }
+
+  if (illumY <= 0.0f) {
+    printf("         %s[WARN]%s Illuminant Y=%.4f — must be > 0 for valid illuminant\n",
+           ColorWarning(), ColorReset(), illumY);
+    issues++;
+  }
+
+  // Validate spectral range of illuminant is reasonable (300-830nm, steps > 0)
+  icSpectralRange illumRange;
+  pSVC->getIlluminant(illumRange);
+  if (illumRange.steps == 0) {
+    printf("         %s[INFO]%s Illuminant spectral steps=0 — no spectral data\n",
+           ColorInfo(), ColorReset());
+  } else {
+    icFloatNumber startNm = icF16toF(illumRange.start);
+    icFloatNumber endNm = icF16toF(illumRange.end);
+    if (startNm < 200.0f || endNm > 1000.0f) {
+      printf("         %s[WARN]%s Illuminant spectral range %.1f-%.1f nm — outside typical 300-830nm\n",
+             ColorWarning(), ColorReset(), startNm, endNm);
+      issues++;
+    }
+    if (startNm >= endNm) {
+      printf("         %s[WARN]%s Illuminant spectral start=%.1f >= end=%.1f — invalid range\n",
+             ColorWarning(), ColorReset(), startNm, endNm);
+      issues++;
+    }
+  }
+
+  if (!issues)
+    printf("         %s[OK]%s svcn observer/illuminant plausibility validated\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
 
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
@@ -5212,6 +5748,17 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1305, "CF-305: multiProcessElementsType Nomenclature Audit", RunCF305_MPENomenclatureAudit(pIcc));
   CF_WRAP(1306, "CF-306: Embedded Image Data Length Cross-Validation", RunCF306_EmbeddedImageDataLength(pIcc));
   CF_WRAP(1307, "CF-307: Calculator Vector-Or Signature Validation", RunCF307_CalcVectorOrSignature(pIcc));
+
+  // ICS Conformance — Part 1/2/3 element restrictions (CF-308 through CF-316)
+  CF_WRAP(1308, "CF-308: pcc AToB1/BToA1 Part 1 Element Restriction", RunCF308_PccTransformElementRestriction(pIcc));
+  CF_WRAP(1309, "CF-309: sref PCC Matrix Restriction", RunCF309_SrefPccMatrixRestriction(pIcc));
+  CF_WRAP(1310, "CF-310: sref DToB3/BToD3 Part 1 Element Restriction", RunCF310_SrefTransformElementRestriction(pIcc));
+  CF_WRAP(1311, "CF-311: sref Spectral Range Mandatory", RunCF311_SrefSpectralRangeMandatory(pIcc));
+  CF_WRAP(1312, "CF-312: ext Required Tag Completeness", RunCF312_ExtRequiredTags(pIcc));
+  CF_WRAP(1313, "CF-313: ext Part 1 Element Type Restriction", RunCF313_ExtTransformElementRestriction(pIcc));
+  CF_WRAP(1314, "CF-314: xrng AToB1/BToA1 Part 1 Element Restriction", RunCF314_XrngTransformElementRestriction(pIcc));
+  CF_WRAP(1315, "CF-315: xrng Part 2 PCC Matrix Restriction", RunCF315_XrngPccTagMatrixRestriction(pIcc));
+  CF_WRAP(1316, "CF-316: ICS svcn Observer/Illuminant Plausibility", RunCF316_IcsSvcnPlausibility(pIcc));
 
 done:
 #undef CF_WRAP

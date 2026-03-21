@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-307)."""
+    """Test ICC Specification conformance checks (CF-001..CF-316)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -3301,6 +3301,62 @@ def test_conformance_checks(suite):
         "cf.307.vor_signature",
         ["-a", v5_profile],
         r"CF-307.*Vector-Or.*Signature"
+    )
+
+    # --- CF-308..CF-316: ICS Conformance Checks ---
+    # CF-308: pcc AToB1/BToA1 Part 1 Element Restriction
+    suite.assert_output_contains(
+        "cf.308.pcc_element_restriction",
+        ["-a", v5_profile],
+        r"CF-308.*pcc.*AToB1.*Element"
+    )
+    # CF-309: sref PCC Matrix Restriction
+    suite.assert_output_contains(
+        "cf.309.sref_pcc_matrix",
+        ["-a", v5_profile],
+        r"CF-309.*sref.*PCC.*Matrix"
+    )
+    # CF-310: sref DToB3/BToD3 Part 1 Element Restriction
+    suite.assert_output_contains(
+        "cf.310.sref_dtob3_element",
+        ["-a", v5_profile],
+        r"CF-310.*sref.*DToB3.*Element"
+    )
+    # CF-311: sref Spectral Range Mandatory
+    suite.assert_output_contains(
+        "cf.311.sref_spectral_range",
+        ["-a", v5_profile],
+        r"CF-311.*sref.*Spectral.*Range"
+    )
+    # CF-312: ext Required Tag Completeness
+    suite.assert_output_contains(
+        "cf.312.ext_required_tags",
+        ["-a", v5_profile],
+        r"CF-312.*ext.*Required.*Tag"
+    )
+    # CF-313: ext Part 1 Element Type Restriction
+    suite.assert_output_contains(
+        "cf.313.ext_element_restriction",
+        ["-a", v5_profile],
+        r"CF-313.*ext.*Part 1.*Element"
+    )
+    # CF-314: xrng AToB1/BToA1 Part 1 Element Restriction
+    suite.assert_output_contains(
+        "cf.314.xrng_element_restriction",
+        ["-a", v5_profile],
+        r"CF-314.*xrng.*AToB1.*Element"
+    )
+    # CF-315: xrng Part 2 PCC Matrix Restriction
+    suite.assert_output_contains(
+        "cf.315.xrng_pcc_matrix",
+        ["-a", v5_profile],
+        r"CF-315.*xrng.*PCC.*Matrix"
+    )
+    # CF-316: ICS svcn Observer/Illuminant Plausibility
+    suite.assert_output_contains(
+        "cf.316.ics_svcn_plausibility",
+        ["-a", v5_profile],
+        r"CF-316.*svcn.*Observer.*Illuminant"
     )
 
     # --- Clean profile baseline ---
