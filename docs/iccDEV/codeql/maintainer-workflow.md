@@ -56,6 +56,11 @@ These alerts are expected and can be suppressed:
 | `cpp/iccanalyzer-security` | Analyzer code | Informational, not a bug |
 | `cpp/icc-buffer-overflow` @ `IccTagParsers.h:172` | Tag parser | False positive — guarded by `idx < size` |
 | `icc/injection-attacks` @ `IccAnalyzerLUT.cpp:110` | LUT analyzer | `SafeSnprintf` is internal with `__attribute__((format))` |
+| `icc/wrong-variable-index` (58 instances) | Conformance and heuristic modules | ALL false positives — outer loop iterates tag signatures, inner loop indexes within. Outer var correctly used in printf to identify tag. See "Wrong-Variable-Index Pattern" below. |
+| `cpp/path-injection` (6 instances) | main() argv handling | CLI tool inherently takes user-provided paths |
+| `cpp/toctou-race-condition` (3 instances) | LUT I/O file operations | Inherent to file existence + read pattern |
+| `cpp/equality-on-floats` (4 instances) | Conformance checks | Intentional exact-match of ICC s15Fixed16 fixed-point values |
+| `cpp/poorly-documented-function` (3-4 instances) | Large dispatcher functions | Style alert for functions > 100 lines |
 
 ### Suppressing False Positives
 
@@ -75,6 +80,45 @@ paths-ignore:
 ```
 
 ## Pattern Recognition Guide
+
+### Wrong-Variable-Index False Positive Pattern
+
+The `icc/wrong-variable-index` query generates ~58 false positives across the codebase.
+The pattern is a nested loop where the outer variable selects which ICC tag/structure
+to examine, and the inner variable iterates within that structure:
+
+```cpp
+// CORRECT — outer `i` selects tag, inner `c` indexes channels within it
+for (int i = 0; i < kLUTDirCount; i++) {
+  CIccTag *tag = pIcc->FindTag(kAToASigs[i]);
+  if (!tag) continue;
+  CIccMBB *mbb = dynamic_cast<CIccMBB*>(tag);
+  if (!mbb) continue;
+  for (int c = 0; c < mbb->InputChannels(); c++) {
+    // CodeQL flags kAllLUTNames[i] below as "wrong variable"
+    // but `i` correctly identifies the tag name for the printf
+    printf("  %s channel %d: ...\n", kAllLUTNames[i], c);
+  }
+}
+```
+
+CodeQL cannot distinguish "outer var selects structure" from "outer var wrongly indexes
+inner data." All 58 instances follow this pattern and are intentional.
+
+### Narrow-Loop-Bound Fix Pattern
+
+When ICC field values (icUInt8Number, icUInt16Number) control loop bounds, use
+`unsigned int` for loop counters to handle the full range:
+
+```cpp
+// BAD — narrow loop counter may not match bound type
+icUInt16Number nChannels = pMBB->OutputChannels();
+for (int c = 0; c < (int)nChannels; c++) { ... }
+
+// GOOD — unsigned int handles full range without cast
+unsigned int nChannels = pMBB->OutputChannels();
+for (unsigned int c = 0; c < nChannels; c++) { ... }
+```
 
 ### What Each Maintainer Query Finds
 
@@ -175,3 +219,27 @@ print(f'\nTotal: {sum(counts.values())} findings across {len(counts)} rules')
 
 Databases persist at `/tmp/codeql-db-iccdev` and can be reused until the
 source changes. A typical build takes ~60 seconds on 24 cores.
+
+## Alert Triage Baseline (March 2026)
+
+After CodeQL analysis and targeted fixes, the analyzer code has 107 alerts:
+
+| Category | Count | Status |
+|----------|-------|--------|
+| `icc/wrong-variable-index` | 58 | False positive (outer-var-selects-tag pattern) |
+| `cpp/iccanalyzer-security` | 17 | Informational (custom query) |
+| `cpp/path-injection` | 6 | Expected (CLI tool takes user paths) |
+| `cpp/equality-on-floats` | 4 | Expected (s15Fixed16 exact match) |
+| `cpp/poorly-documented-function` | 3 | Style alert |
+| `icc/xml-all-attacks` | 3 | Intentional XML safety testing |
+| `icc/injection-attacks` | 3 | SafeSnprintf with format validation |
+| `cpp/toctou-race-condition` | 3 | File I/O inherent pattern |
+| `cpp/icc-buffer-overflow` | 2 | False positive (bounds-guarded) |
+| `cpp/constant-comparison` | 7 | Defensive guards — intentional |
+| `cpp/long-switch` | 1 | Long switch case |
+| **Total** | **107** | **All triaged — 0 genuine issues** |
+
+### Fixes Applied (117 → 107)
+- **4 `icc/narrow-loop-bound`**: Widened loop counters from `int` with `(int)` casts to `unsigned int` in IccConformanceLUT.cpp
+- **5 `cpp/constant-comparison`**: Removed redundant guards in IccConformanceSecurity.cpp, IccConformanceTagTypes.cpp, IccHeuristicsCodeQLPatterns.cpp
+- **1 dead code**: Removed unreachable `creator == 0` check in IccConformanceRequired.cpp

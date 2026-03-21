@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 592 tests (25 functions), ~37s
+python3 iccanalyzer-lite/tests/run_tests.py   # 686 tests (25 functions), ~46s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -115,7 +115,7 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 | `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
 | `IccAnalyzerCapture.h/.cpp` | Shared structured capture — runs analysis in quiet mode, reads HeuristicCollector results |
 | `IccAnalyzerPAWG.cpp/.h` | `--pawg` ICC PAWG assessment report (31 checklist items) |
-| `IccConformanceRegistry.h` | 265-entry conformance check metadata registry |
+| `IccConformanceRegistry.h` | 318-entry conformance check metadata registry |
 | `IccConformanceHeader.cpp` | Header conformance dispatcher (dateTime, size, intent, embedding) |
 | `IccConformanceTagTypes.cpp` | Tag type conformance dispatcher (viewing, named colors, curves) |
 | `IccConformanceRequired.cpp` | Required tag conformance dispatcher (per-class tag presence) |
@@ -437,7 +437,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 592/592 tests pass
+# 8. Verify: 686/686 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
@@ -699,6 +699,18 @@ for r in sarif['runs'][0]['results']:
 - `icc/injection-attacks` @ `IccAnalyzerLUT.cpp:110` — `SafeSnprintf` is internal-only
   with `__attribute__((format))` validation; format strings are always literals
 - `cpp/poorly-documented-function` — style alert for large functions
+- `icc/wrong-variable-index` (58 instances) — ALL false positives. The codebase uses
+  a consistent pattern where outer loops iterate over ICC tag signatures (e.g.,
+  `kAllLUTNames[i]`, `trcTags[t]`) and inner loops iterate within those tags (channels,
+  dimensions). The outer variable is correctly used in printf to identify which tag
+  is being examined. CodeQL cannot distinguish "outer var selects structure" from
+  "outer var wrongly indexes inner data."
+- `cpp/path-injection` (6 instances) — CLI tool inherently takes user-provided paths
+  via argv; not fixable without breaking functionality
+- `cpp/toctou-race-condition` (3 instances) — file existence checks in LUT I/O are
+  inherent to file operations
+- `cpp/equality-on-floats` (4 instances) — intentional exact-match comparisons of
+  ICC s15Fixed16 fixed-point values (not arbitrary floating point)
 
 ## Coverage Instrumentation
 
