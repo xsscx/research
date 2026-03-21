@@ -575,8 +575,8 @@ static const ConformanceCheck kConformanceRegistry[] = {
    "AToB1Tag and BToA1Tag required for extended range display/colorSpace profiles", "ICS-ExtendedRange-Part1 Table 4",
    CFSeverity::ERROR, CFCategory::REQUIRED},
 
-  {"CF-148", "Extended Range LUT multiProcessElementType",
-   "AToB1/BToA1 tags shall use multiProcessElementType for extended range profiles", "ICS-ExtendedRange-Part1 Table 4",
+  {"CF-148", "Extended Range LUT multiProcessElementsType",
+   "AToB1/BToA1 tags shall use multiProcessElementsType for extended range profiles (errata: plural)", "ICS-ExtendedRange-Part1 Table 4",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
 
   // ICS Extended Output (ICS-ExtendedOutput-Part1)
@@ -1107,6 +1107,29 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-300", "MPE Tag vs Color Space Channels",
    "AToB/BToA MPE tag channels must match profile data color space and PCS", "ICC.2-2023 §10.2.17",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // ICC.2:2019 Errata — §9.2.86/87 + §9.2.84 + §10.2.5 + §11.2.1.9 (CF-301..CF-307)
+  {"CF-301", "Measurement Struct tagStructType Enforcement",
+   "v5 measurement tags MUST use tagStructType wrapper with measurementInfoStruct per errata §9.2.86/87", "ICC.2-2019 Errata §9.2.86/87",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-302", "Measurement Struct Member Completeness",
+   "measurementInfoStruct must contain required members: backing, flare, geometry, illuminant, mode", "ICC.2-2019 Errata §9.2.86/87",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-303", "Spectral Data Array Type Restriction",
+   "Spectral data tags must use only uInt8/uInt16/float16/float32 array types", "ICC.2-2019 Errata §9.2.84",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-304", "v5 Text Tag multiLocalizedUnicodeType",
+   "v5 text tags must use multiLocalizedUnicodeType per errata Tables 40/41 correction", "ICC.2-2019 Errata §10.2.5",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-305", "multiProcessElementsType Nomenclature Audit",
+   "Validates mpet signature and documents singular/plural naming divergence per errata Tech.Err.#3", "ICC.2-2019 Errata Tech.Err.#3",
+   CFSeverity::INFO, CFCategory::V5},
+  {"CF-306", "Embedded Image Data Length Cross-Validation",
+   "ehim header=24 bytes, enim header=16 bytes per errata §10.2.6/10.2.7 correction", "ICC.2-2019 Errata §10.2.6/10.2.7",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-307", "Calculator Vector-Or Signature Validation",
+   "vor signature must be 766f7220h with trailing space per Sept 2021 errata §11.2.1.9", "ICC.2-2019 Errata §11.2.1.9",
+   CFSeverity::INFO, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =

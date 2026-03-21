@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-300)."""
+    """Test ICC Specification conformance checks (CF-001..CF-307)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -3257,6 +3257,50 @@ def test_conformance_checks(suite):
         "cf.300.mpe_tag_colorspace",
         ["-a", v5_profile],
         r"CF-300.*Color Space.*Channel"
+    )
+
+    # --- CF-301..CF-307: ICC.2:2019 Errata Enforcement ---
+    # CF-301: §9.2.86/87 measurementInfo tagStructType Enforcement
+    suite.assert_output_contains(
+        "cf.301.measurement_tagstruct",
+        ["-a", v5_profile],
+        r"CF-301.*Measurement.*tagStructType"
+    )
+    # CF-302: measurementInfoStruct Member Validation
+    suite.assert_output_contains(
+        "cf.302.measurement_members",
+        ["-a", v5_profile],
+        r"CF-302.*Measurement.*Member"
+    )
+    # CF-303: Spectral Data Array Type Restriction
+    suite.assert_output_contains(
+        "cf.303.spectral_array_types",
+        ["-a", v5_profile],
+        r"CF-303.*Spectral.*Array"
+    )
+    # CF-304: v5 Text Tags multiLocalizedUnicodeType
+    suite.assert_output_contains(
+        "cf.304.mluc_text_tags",
+        ["-a", v5_profile],
+        r"CF-304.*multiLocalizedUnicode"
+    )
+    # CF-305: multiProcessElementsType Naming Audit
+    suite.assert_output_contains(
+        "cf.305.mpet_naming",
+        ["-a", v5_profile],
+        r"CF-305.*multiProcessElements.*Nomenclature"
+    )
+    # CF-306: Embedded Image Data Length
+    suite.assert_output_contains(
+        "cf.306.embedded_image_length",
+        ["-a", v5_profile],
+        r"CF-306.*Embedded.*Image.*Length"
+    )
+    # CF-307: Calculator 'vor ' Element Signature
+    suite.assert_output_contains(
+        "cf.307.vor_signature",
+        ["-a", v5_profile],
+        r"CF-307.*Vector-Or.*Signature"
     )
 
     # --- Clean profile baseline ---
