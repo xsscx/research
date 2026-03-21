@@ -245,14 +245,16 @@ int RunCF093_PrivateTagContentScan(CIccProfile *pIcc, const char *filename) {
     const unsigned char *data = &buf[off];
 
     // Scan private tag for executable magic
-    if (sz >= 4 && data[0] == 0x7F && data[1] == 'E' && data[2] == 'L' && data[3] == 'F') {
+    // sz >= 4 guaranteed by guard at line 242
+    if (data[0] == 0x7F && data[1] == 'E' && data[2] == 'L' && data[3] == 'F') {
       char sigStr[5] = {};
       SigToChars(sig, sigStr);
       printf("           %s[FAIL]%s ELF executable in private tag '%s'\n",
              ColorError(), ColorReset(), sigStr);
       issues++;
     }
-    if (sz >= 3 && data[0] == '#' && data[1] == '!' && data[2] == '/') {
+    // sz >= 4 guaranteed by guard above
+    if (data[0] == '#' && data[1] == '!' && data[2] == '/') {
       char sigStr[5] = {};
       SigToChars(sig, sigStr);
       printf("           %s[FAIL]%s Script shebang in private tag '%s'\n",
