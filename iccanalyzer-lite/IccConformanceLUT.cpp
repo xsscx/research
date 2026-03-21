@@ -1448,6 +1448,63 @@ static int RunCF168_LUTMatrixOutputRange(CIccProfile *pIcc) {
 }
 
 
+// ─── CF-255: CLUT Grid Points Valid Range ───────────────────────────────────
+// ICC.1-2022-05 §10.12 — CLUT grid points must be in range 2..255
+int RunCF255_CLUTGridPointValues(CIccProfile *pIcc) {
+  int issues = 0;
+  const icTagSignature lutSigs[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag
+  };
+  for (int i = 0; i < 6; i++) {
+    CIccTag *pTag = pIcc->FindTag(lutSigs[i]);
+    if (!pTag) continue;
+    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
+    if (!pMBB) continue;
+    CIccCLUT *pCLUT = pMBB->GetCLUT();
+    if (!pCLUT) continue;
+    icUInt8Number nInput = pMBB->InputChannels();
+    for (int d = 0; d < nInput && d < 16; d++) {
+      icUInt8Number gp = pCLUT->GridPoint(d);
+      if (gp < 2) {
+        printf("    Non-conformance: CLUT grid point[%d]=%u is below minimum of 2\n", d, gp);
+        issues++;
+      }
+    }
+  }
+  return issues;
+}
+
+// ─── CF-256: LUT I/O Channels vs Profile Spaces ────────────────────────────
+// ICC.1-2022-05 §10.12 — AToB input channels must match data colour space
+int RunCF256_LUTChannelMatchSpaces(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number nDataChannels = icGetSpaceSamples(pIcc->m_Header.colorSpace);
+  icUInt32Number nPCSChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
+  // AToB: input=colorSpace, output=PCS
+  const icTagSignature atobSigs[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag};
+  for (int i = 0; i < 3; i++) {
+    CIccTag *pTag = pIcc->FindTag(atobSigs[i]);
+    if (!pTag) continue;
+    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
+    if (!pMBB) continue;
+    if (pIcc->m_Header.deviceClass != icSigLinkClass) {
+      if (pMBB->InputChannels() != nDataChannels) {
+        printf("    Non-conformance: AToB%d input channels (%u) != colorSpace channels (%u)\n",
+               i, (unsigned)pMBB->InputChannels(), nDataChannels);
+        issues++;
+      }
+      if (pMBB->OutputChannels() != nPCSChannels) {
+        printf("    Non-conformance: AToB%d output channels (%u) != PCS channels (%u)\n",
+               i, (unsigned)pMBB->OutputChannels(), nPCSChannels);
+        issues++;
+      }
+    }
+  }
+  return issues;
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all LUT/curve/matrix conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1490,6 +1547,8 @@ int RunLUTConformance(CIccProfile *pIcc) {
   CF_WRAP(1166, "CF-166: LUT Matrix Row Non-Zero", RunCF166_LUTMatrixRowNonZero(pIcc));
   CF_WRAP(1167, "CF-167: LUT Matrix Offset Bounds", RunCF167_LUTMatrixOffsetBounds(pIcc));
   CF_WRAP(1168, "CF-168: LUT Matrix Input-Output Range", RunCF168_LUTMatrixOutputRange(pIcc));
+  CF_WRAP(1255, "CF-255: CLUT Grid Point Values", RunCF255_CLUTGridPointValues(pIcc));
+  CF_WRAP(1256, "CF-256: LUT I/O Channels vs Profile Spaces", RunCF256_LUTChannelMatchSpaces(pIcc));
 
 #undef CF_WRAP
   return issues;

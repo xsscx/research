@@ -2024,6 +2024,74 @@ static int RunCF219_ContainerFormatVersionMatrix(CIccProfile *pIcc) {
 }
 
 
+// ─── CF-243: dateTimeNumber Field Range Validation ──────────────────────────
+// ICC.1-2022-05 §4.2 — month 1-12, day 1-31, hours 0-23, minutes 0-59, seconds 0-59
+int RunCF243_DateTimeFieldRange(CIccProfile *pIcc) {
+  int issues = 0;
+  const icDateTimeNumber &dt = pIcc->m_Header.date;
+  if (dt.month < 1 || dt.month > 12) {
+    printf("    Non-conformance: month=%u out of range 1-12\n", dt.month);
+    issues++;
+  }
+  if (dt.day < 1 || dt.day > 31) {
+    printf("    Non-conformance: day=%u out of range 1-31\n", dt.day);
+    issues++;
+  }
+  if (dt.hours > 23) {
+    printf("    Non-conformance: hours=%u exceeds 23\n", dt.hours);
+    issues++;
+  }
+  if (dt.minutes > 59) {
+    printf("    Non-conformance: minutes=%u exceeds 59\n", dt.minutes);
+    issues++;
+  }
+  if (dt.seconds > 59) {
+    printf("    Non-conformance: seconds=%u exceeds 59\n", dt.seconds);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-244: Profile Creation Date Plausibility ─────────────────────────────
+// ICC profiles didn't exist before 1990; dates far in the future are suspicious
+int RunCF244_DatePlausibility(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt16Number year = pIcc->m_Header.date.year;
+  if (year != 0 && year < 1990) {
+    printf("    Non-conformance: creation year %u predates ICC specification (1990)\n", year);
+    issues++;
+  }
+  if (year > 2100) {
+    printf("    Non-conformance: creation year %u implausibly far in the future\n", year);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-245: Profile Size Multiple of 4 ────────────────────────────────────
+// ICC.1-2022-05 §7.2.2 — profile data shall be padded to 4-byte boundary
+int RunCF245_ProfileSizeAlignment(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number sz = pIcc->m_Header.size;
+  if (sz % 4 != 0) {
+    printf("    Non-conformance: profile size %u is not a multiple of 4 bytes\n", sz);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-246: Rendering Intent Range ─────────────────────────────────────────
+// ICC.1-2022-05 §7.2.15 — rendering intent must be 0-3
+int RunCF246_RenderingIntentRange(CIccProfile *pIcc) {
+  int issues = 0;
+  icUInt32Number intent = pIcc->m_Header.renderingIntent;
+  if (intent > 3) {
+    printf("    Non-conformance: rendering intent %u exceeds valid range 0-3\n", intent);
+    issues++;
+  }
+  return issues;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all header conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2083,6 +2151,10 @@ int RunHeaderConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1217, "CF-217: JPX Any ICC Method Compliance", RunCF217_JPXAnyICCMethodCompliance(pIcc));
   CF_WRAP(1218, "CF-218: HEIF Restricted ICC Compatibility", RunCF218_HEIFRestrictedICCCompatibility(pIcc));
   CF_WRAP(1219, "CF-219: Container Format Version Matrix", RunCF219_ContainerFormatVersionMatrix(pIcc));
+  CF_WRAP(1243, "CF-243: dateTimeNumber Field Range", RunCF243_DateTimeFieldRange(pIcc));
+  CF_WRAP(1244, "CF-244: Profile Creation Date Plausibility", RunCF244_DatePlausibility(pIcc));
+  CF_WRAP(1245, "CF-245: Profile Size Multiple of 4", RunCF245_ProfileSizeAlignment(pIcc));
+  CF_WRAP(1246, "CF-246: Rendering Intent Range", RunCF246_RenderingIntentRange(pIcc));
 
 #undef CF_WRAP
   return issues;
