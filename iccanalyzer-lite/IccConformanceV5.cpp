@@ -15,6 +15,8 @@
 #include "IccTagMPE.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
+#include "IccMpeACS.h"
+#include "IccMpeSpectral.h"
 #include "IccTagDict.h"
 #include "IccTagEmbedIcc.h"
 #include "IccTagLut.h"
@@ -4015,6 +4017,572 @@ static int RunCF291_SpectralWhitePointRange(CIccProfile *pIcc) {
 
 
 // ---------------------------------------------------------------------------
+// multiProcessElementsType Container Validation (CF-292..CF-300)
+// ICC.2-2023 §10.2.17 multiProcessElementsType
+// The container type 'mpet' wraps a sequence of individual processing elements.
+// These checks validate the structural integrity of the MPE container itself.
+// ---------------------------------------------------------------------------
+
+/// CF-292: MPE Element Chain I/O Channel Consistency
+/// ICC.2-2023 §10.2.17: For a sequence of N elements, element[i].outputChannels
+/// must equal element[i+1].inputChannels for all adjacent pairs.
+static int RunCF292_MPEChainIOConsistency(CIccProfile *pIcc) {
+  printf("  %s[CF-292]%s MPE Element Chain I/O Channel Consistency (%sICC.2-2023 §10.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int tagsChecked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE || pMPE->NumElements() < 2)
+      continue;
+
+    tagsChecked++;
+    char sigCC[5];
+    icUInt32Number sig32 = (icUInt32Number)it->TagInfo.sig;
+    sigCC[0] = (char)((sig32 >> 24) & 0xFF);
+    sigCC[1] = (char)((sig32 >> 16) & 0xFF);
+    sigCC[2] = (char)((sig32 >>  8) & 0xFF);
+    sigCC[3] = (char)((sig32      ) & 0xFF);
+    sigCC[4] = '\0';
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number i = 0; i + 1 < nElem; i++) {
+      CIccMultiProcessElement *cur  = pMPE->GetElement((int)i);
+      CIccMultiProcessElement *next = pMPE->GetElement((int)(i + 1));
+      if (!cur || !next)
+        continue;
+
+      icUInt16Number outCur  = cur->NumOutputChannels();
+      icUInt16Number inNext  = next->NumInputChannels();
+      if (outCur != inNext) {
+        printf("         %s[FAIL]%s tag '%s' element[%u] output=%u != element[%u] input=%u\n",
+               ColorError(), ColorReset(), sigCC,
+               (unsigned)i, (unsigned)outCur,
+               (unsigned)(i + 1), (unsigned)inNext);
+        issues++;
+      }
+    }
+  }
+
+  if (tagsChecked == 0)
+    printf("         No multi-element MPE tags — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All MPE element chains have consistent I/O channels (%d tags)\n",
+           ColorSuccess(), ColorReset(), tagsChecked);
+  return issues;
+}
+
+/// CF-293: MPE Container I/O vs First/Last Element
+/// ICC.2-2023 §10.2.17: Container inputChannels == first element inputChannels,
+/// container outputChannels == last element outputChannels.
+static int RunCF293_MPEContainerChannelMatch(CIccProfile *pIcc) {
+  printf("  %s[CF-293]%s MPE Container I/O vs First/Last Element (%sICC.2-2023 §10.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int tagsChecked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE || pMPE->NumElements() == 0)
+      continue;
+
+    tagsChecked++;
+    char sigCC[5];
+    icUInt32Number sig32 = (icUInt32Number)it->TagInfo.sig;
+    sigCC[0] = (char)((sig32 >> 24) & 0xFF);
+    sigCC[1] = (char)((sig32 >> 16) & 0xFF);
+    sigCC[2] = (char)((sig32 >>  8) & 0xFF);
+    sigCC[3] = (char)((sig32      ) & 0xFF);
+    sigCC[4] = '\0';
+
+    CIccMultiProcessElement *first = pMPE->GetElement(0);
+    CIccMultiProcessElement *last  = pMPE->GetElement((int)(pMPE->NumElements() - 1));
+
+    if (first && first->NumInputChannels() != pMPE->NumInputChannels()) {
+      printf("         %s[FAIL]%s tag '%s' container input=%u != first element input=%u\n",
+             ColorError(), ColorReset(), sigCC,
+             (unsigned)pMPE->NumInputChannels(),
+             (unsigned)first->NumInputChannels());
+      issues++;
+    }
+    if (last && last->NumOutputChannels() != pMPE->NumOutputChannels()) {
+      printf("         %s[FAIL]%s tag '%s' container output=%u != last element output=%u\n",
+             ColorError(), ColorReset(), sigCC,
+             (unsigned)pMPE->NumOutputChannels(),
+             (unsigned)last->NumOutputChannels());
+      issues++;
+    }
+  }
+
+  if (tagsChecked == 0)
+    printf("         No MPE tags with elements — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s MPE container channels match first/last elements (%d tags)\n",
+           ColorSuccess(), ColorReset(), tagsChecked);
+  return issues;
+}
+
+/// CF-294: MPE ACS Boundary Element Pairing
+/// ICC.2-2023 §10.2.1, §10.2.2: If bACS appears in a chain, a corresponding
+/// eACS with matching signature should appear. bACS begins a sub-chain,
+/// eACS ends it — they must have matching ACS signatures.
+static int RunCF294_MPEACSBoundaryPairing(CIccProfile *pIcc) {
+  printf("  %s[CF-294]%s MPE ACS Boundary Element Pairing (%sICC.2-2023 §10.2.1-2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int tagsChecked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    bool hasBacs = false, hasEacs = false;
+    icAcsSignature bacsSig = 0, eacsSig = 0;
+
+    for (icUInt32Number i = 0; i < nElem; i++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement((int)i);
+      if (!pElem)
+        continue;
+
+      if (pElem->GetType() == icSigBAcsElemType) {
+        hasBacs = true;
+        CIccMpeBAcs *bacs = dynamic_cast<CIccMpeBAcs *>(pElem);
+        if (bacs) bacsSig = bacs->GetBAcsSig();
+      }
+      if (pElem->GetType() == icSigEAcsElemType) {
+        hasEacs = true;
+        CIccMpeEAcs *eacs = dynamic_cast<CIccMpeEAcs *>(pElem);
+        if (eacs) eacsSig = eacs->GetEAcsSig();
+      }
+    }
+
+    if (!hasBacs && !hasEacs)
+      continue;
+
+    tagsChecked++;
+    char sigCC[5];
+    icUInt32Number sig32 = (icUInt32Number)it->TagInfo.sig;
+    sigCC[0] = (char)((sig32 >> 24) & 0xFF);
+    sigCC[1] = (char)((sig32 >> 16) & 0xFF);
+    sigCC[2] = (char)((sig32 >>  8) & 0xFF);
+    sigCC[3] = (char)((sig32      ) & 0xFF);
+    sigCC[4] = '\0';
+
+    if (hasBacs && !hasEacs) {
+      printf("         %s[FAIL]%s tag '%s' has bACS without matching eACS\n",
+             ColorError(), ColorReset(), sigCC);
+      issues++;
+    } else if (!hasBacs && hasEacs) {
+      printf("         %s[FAIL]%s tag '%s' has eACS without matching bACS\n",
+             ColorError(), ColorReset(), sigCC);
+      issues++;
+    } else if (hasBacs && hasEacs && bacsSig != eacsSig) {
+      printf("         %s[WARN]%s tag '%s' bACS sig 0x%08X != eACS sig 0x%08X\n",
+             ColorWarning(), ColorReset(), sigCC,
+             (unsigned)bacsSig, (unsigned)eacsSig);
+      issues++;
+    }
+  }
+
+  if (tagsChecked == 0)
+    printf("         No MPE tags with ACS elements — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s ACS boundary elements properly paired (%d tags)\n",
+           ColorSuccess(), ColorReset(), tagsChecked);
+  return issues;
+}
+
+/// CF-295: MPE Element Type Version Compatibility
+/// ICC.2-2023 §10.2.17: Spectral element types (emtx, iemx, eclt, rclt, eobs,
+/// robs), calculator (calc), extended CLUT (xclt), XYZToJab/JabToXYZ,
+/// sparse matrix (smet), tint array are v5+ only. ToneMap (tmap) is v5.1+.
+static int RunCF295_MPEElementVersionCompat(CIccProfile *pIcc) {
+  printf("  %s[CF-295]%s MPE Element Type Version Compatibility (%sICC.2-2023 §10.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  icUInt32Number version = pIcc->m_Header.version >> 24;
+
+  // v5+ elements
+  static const icElemTypeSignature kV5OnlyElems[] = {
+    icSigCalculatorElemType,
+    icSigExtCLutElemType,
+    icSigXYZToJabElemType,
+    icSigJabToXYZElemType,
+    icSigSparseMatrixElemType,
+    icSigTintArrayElemType,
+    icSigEmissionMatrixElemType,
+    icSigInvEmissionMatrixElemType,
+    icSigEmissionCLUTElemType,
+    icSigReflectanceCLUTElemType,
+    icSigEmissionObserverElemType,
+    icSigReflectanceObserverElemType,
+  };
+
+  int tagsChecked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number i = 0; i < nElem; i++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement((int)i);
+      if (!pElem)
+        continue;
+
+      tagsChecked++;
+      icElemTypeSignature eSig = pElem->GetType();
+
+      // Check v5-only elements in v4 profiles
+      if (version < 5) {
+        for (size_t j = 0; j < sizeof(kV5OnlyElems) / sizeof(kV5OnlyElems[0]); j++) {
+          if (eSig == kV5OnlyElems[j]) {
+            printf("         %s[FAIL]%s v5 element type 0x%08X in v%u profile\n",
+                   ColorError(), ColorReset(), (unsigned)eSig, version);
+            issues++;
+            break;
+          }
+        }
+      }
+
+      // ToneMap is v5.1+
+      if (eSig == icSigToneMapElemType && version < 5) {
+        printf("         %s[FAIL]%s ToneMap element ('tmap') in v%u profile — requires v5.1+\n",
+               ColorError(), ColorReset(), version);
+        issues++;
+      }
+    }
+  }
+
+  if (tagsChecked == 0)
+    printf("         No MPE elements found — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All %d MPE elements version-compatible with v%u\n",
+           ColorSuccess(), ColorReset(), tagsChecked, version);
+  return issues;
+}
+
+/// CF-296: MPE Empty Container Validation
+/// ICC.2-2023 §10.2.17: A multiProcessElementsType with 0 elements is valid
+/// only if inputChannels == outputChannels (identity transform).
+static int RunCF296_MPEEmptyContainer(CIccProfile *pIcc) {
+  printf("  %s[CF-296]%s MPE Empty Container Validation (%sICC.2-2023 §10.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int emptyFound = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE || pMPE->NumElements() > 0)
+      continue;
+
+    emptyFound++;
+    char sigCC[5];
+    icUInt32Number sig32 = (icUInt32Number)it->TagInfo.sig;
+    sigCC[0] = (char)((sig32 >> 24) & 0xFF);
+    sigCC[1] = (char)((sig32 >> 16) & 0xFF);
+    sigCC[2] = (char)((sig32 >>  8) & 0xFF);
+    sigCC[3] = (char)((sig32      ) & 0xFF);
+    sigCC[4] = '\0';
+
+    icUInt16Number nIn  = pMPE->NumInputChannels();
+    icUInt16Number nOut = pMPE->NumOutputChannels();
+
+    if (nIn != nOut) {
+      printf("         %s[FAIL]%s tag '%s' has 0 elements but input=%u != output=%u\n",
+             ColorError(), ColorReset(), sigCC, (unsigned)nIn, (unsigned)nOut);
+      issues++;
+    } else {
+      printf("         tag '%s' empty MPE with input=output=%u (identity)\n",
+             sigCC, (unsigned)nIn);
+    }
+  }
+
+  if (emptyFound == 0)
+    printf("         No empty MPE containers — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s Empty MPE containers have matching I/O channels\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+/// CF-297: MPE CurveSet Element Channel Count
+/// ICC.2-2023 §10.2.5: CurveSet ('cvst') must have inputChannels == outputChannels
+/// and each curve processes one channel.
+static int RunCF297_MPECurveSetChannels(CIccProfile *pIcc) {
+  printf("  %s[CF-297]%s MPE CurveSet Element Channel Count (%sICC.2-2023 §10.2.5%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number i = 0; i < nElem; i++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement((int)i);
+      if (!pElem || pElem->GetType() != icSigCurveSetElemType)
+        continue;
+
+      checked++;
+      icUInt16Number nIn  = pElem->NumInputChannels();
+      icUInt16Number nOut = pElem->NumOutputChannels();
+      if (nIn != nOut) {
+        printf("         %s[FAIL]%s CurveSet element input=%u != output=%u — must be equal\n",
+               ColorError(), ColorReset(), (unsigned)nIn, (unsigned)nOut);
+        issues++;
+      }
+    }
+  }
+
+  if (checked == 0)
+    printf("         No CurveSet elements — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All %d CurveSet elements have input==output channels\n",
+           ColorSuccess(), ColorReset(), checked);
+  return issues;
+}
+
+/// CF-298: MPE Matrix Element Dimension Validation
+/// ICC.2-2023 §10.2.9: Matrix element has inputChannels × outputChannels matrix
+/// plus optional outputChannels-length offset vector.
+static int RunCF298_MPEMatrixDimension(CIccProfile *pIcc) {
+  printf("  %s[CF-298]%s MPE Matrix Element Dimension Validation (%sICC.2-2023 §10.2.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number i = 0; i < nElem; i++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement((int)i);
+      if (!pElem || pElem->GetType() != icSigMatrixElemType)
+        continue;
+
+      checked++;
+      CIccMpeMatrix *pMatrix = dynamic_cast<CIccMpeMatrix *>(pElem);
+      if (!pMatrix)
+        continue;
+
+      icUInt16Number nIn  = pMatrix->NumInputChannels();
+      icUInt16Number nOut = pMatrix->NumOutputChannels();
+
+      if (nIn == 0 || nOut == 0) {
+        printf("         %s[FAIL]%s Matrix element with zero channels (in=%u, out=%u)\n",
+               ColorError(), ColorReset(), (unsigned)nIn, (unsigned)nOut);
+        issues++;
+      }
+
+      // Matrix should have nIn*nOut entries; GetMatrix returns null if not allocated
+      const icFloatNumber *pMat = pMatrix->GetMatrix();
+      if (!pMat && nIn > 0 && nOut > 0) {
+        printf("         %s[WARN]%s Matrix element (%ux%u) has null matrix data\n",
+               ColorWarning(), ColorReset(), (unsigned)nOut, (unsigned)nIn);
+        issues++;
+      }
+    }
+  }
+
+  if (checked == 0)
+    printf("         No Matrix elements — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All %d Matrix elements have valid dimensions\n",
+           ColorSuccess(), ColorReset(), checked);
+  return issues;
+}
+
+/// CF-299: MPE CLUT Element Grid Dimension Validation
+/// ICC.2-2023 §10.2.3: CLUT element grid points must be ≥ 2 per input channel
+/// and total grid entries must be reasonable.
+static int RunCF299_MPECLUTGridDimension(CIccProfile *pIcc) {
+  printf("  %s[CF-299]%s MPE CLUT Element Grid Dimension (%sICC.2-2023 §10.2.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    icUInt32Number nElem = pMPE->NumElements();
+    for (icUInt32Number i = 0; i < nElem; i++) {
+      CIccMultiProcessElement *pElem = pMPE->GetElement((int)i);
+      if (!pElem)
+        continue;
+
+      icElemTypeSignature eSig = pElem->GetType();
+      if (eSig != icSigCLutElemType && eSig != icSigExtCLutElemType)
+        continue;
+
+      checked++;
+      CIccMpeCLUT *pCLUT = dynamic_cast<CIccMpeCLUT *>(pElem);
+      if (!pCLUT)
+        continue;
+
+      icUInt16Number nIn  = pCLUT->NumInputChannels();
+      icUInt16Number nOut = pCLUT->NumOutputChannels();
+
+      if (nIn == 0) {
+        printf("         %s[FAIL]%s CLUT element with 0 input channels\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+      if (nOut == 0) {
+        printf("         %s[FAIL]%s CLUT element with 0 output channels\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+      if (nIn > 16) {
+        printf("         %s[WARN]%s CLUT element with %u input channels (>16 dims)\n",
+               ColorWarning(), ColorReset(), (unsigned)nIn);
+        issues++;
+      }
+    }
+  }
+
+  if (checked == 0)
+    printf("         No CLUT/ExtCLUT elements — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s All %d CLUT elements have valid grid dimensions\n",
+           ColorSuccess(), ColorReset(), checked);
+  return issues;
+}
+
+/// CF-300: MPE Tag vs Profile Color Space Channel Consistency
+/// ICC.2-2023 §10.2.17: AToB tags inputChannels must match profile data
+/// color space channels; BToA tags inputChannels must match PCS channels (3).
+static int RunCF300_MPETagColorSpaceChannels(CIccProfile *pIcc) {
+  printf("  %s[CF-300]%s MPE Tag vs Color Space Channel Consistency (%sICC.2-2023 §10.2.17%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+
+  icColorSpaceSignature dataSig = pIcc->m_Header.colorSpace;
+  icColorSpaceSignature pcsSig  = pIcc->m_Header.pcs;
+  icUInt16Number dataChannels = icGetSpaceSamples(dataSig);
+  icUInt16Number pcsChannels  = icGetSpaceSamples(pcsSig);
+
+  // AToB tags: input = data color space, output = PCS
+  static const icTagSignature kAToBTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+  };
+  // BToA tags: input = PCS, output = data color space
+  static const icTagSignature kBToATags[] = {
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+  };
+
+  // Check AToB tags
+  for (size_t t = 0; t < sizeof(kAToBTags) / sizeof(kAToBTags[0]); t++) {
+    CIccTag *pTag = pIcc->FindTag(kAToBTags[t]);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    checked++;
+    if (dataChannels > 0 && pMPE->NumInputChannels() != dataChannels) {
+      printf("         %s[WARN]%s AToB%zu input=%u != data color space channels=%u\n",
+             ColorWarning(), ColorReset(), t,
+             (unsigned)pMPE->NumInputChannels(), (unsigned)dataChannels);
+      issues++;
+    }
+    if (pcsChannels > 0 && pMPE->NumOutputChannels() != pcsChannels) {
+      printf("         %s[WARN]%s AToB%zu output=%u != PCS channels=%u\n",
+             ColorWarning(), ColorReset(), t,
+             (unsigned)pMPE->NumOutputChannels(), (unsigned)pcsChannels);
+      issues++;
+    }
+  }
+
+  // Check BToA tags
+  for (size_t t = 0; t < sizeof(kBToATags) / sizeof(kBToATags[0]); t++) {
+    CIccTag *pTag = pIcc->FindTag(kBToATags[t]);
+    if (!pTag || pTag->GetType() != icSigMultiProcessElementType)
+      continue;
+
+    CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+    if (!pMPE)
+      continue;
+
+    checked++;
+    if (pcsChannels > 0 && pMPE->NumInputChannels() != pcsChannels) {
+      printf("         %s[WARN]%s BToA%zu input=%u != PCS channels=%u\n",
+             ColorWarning(), ColorReset(), t,
+             (unsigned)pMPE->NumInputChannels(), (unsigned)pcsChannels);
+      issues++;
+    }
+    if (dataChannels > 0 && pMPE->NumOutputChannels() != dataChannels) {
+      printf("         %s[WARN]%s BToA%zu output=%u != data color space channels=%u\n",
+             ColorWarning(), ColorReset(), t,
+             (unsigned)pMPE->NumOutputChannels(), (unsigned)dataChannels);
+      issues++;
+    }
+  }
+
+  if (checked == 0)
+    printf("         No MPE-based AToB/BToA tags — not applicable\n");
+  else if (issues == 0)
+    printf("         %s[OK]%s %d MPE AToB/BToA tags have correct channel counts\n",
+           ColorSuccess(), ColorReset(), checked);
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
@@ -4132,6 +4700,17 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1289, "CF-289: Spectral Viewing Conditions Illuminant Bounds", RunCF289_SpectralViewingIlluminantBounds(pIcc));
   CF_WRAP(1290, "CF-290: Material Default Values Tag Presence", RunCF290_MaterialDefaultValuesPresence(pIcc));
   CF_WRAP(1291, "CF-291: Spectral White Point XYZ Range", RunCF291_SpectralWhitePointRange(pIcc));
+
+  // multiProcessElementsType Container Validation (CF-292..CF-300)
+  CF_WRAP(1292, "CF-292: MPE Chain I/O Channel Consistency", RunCF292_MPEChainIOConsistency(pIcc));
+  CF_WRAP(1293, "CF-293: MPE Container I/O vs First/Last Element", RunCF293_MPEContainerChannelMatch(pIcc));
+  CF_WRAP(1294, "CF-294: MPE ACS Boundary Element Pairing", RunCF294_MPEACSBoundaryPairing(pIcc));
+  CF_WRAP(1295, "CF-295: MPE Element Type Version Compatibility", RunCF295_MPEElementVersionCompat(pIcc));
+  CF_WRAP(1296, "CF-296: MPE Empty Container Validation", RunCF296_MPEEmptyContainer(pIcc));
+  CF_WRAP(1297, "CF-297: MPE CurveSet Element Channel Count", RunCF297_MPECurveSetChannels(pIcc));
+  CF_WRAP(1298, "CF-298: MPE Matrix Element Dimension", RunCF298_MPEMatrixDimension(pIcc));
+  CF_WRAP(1299, "CF-299: MPE CLUT Element Grid Dimension", RunCF299_MPECLUTGridDimension(pIcc));
+  CF_WRAP(1300, "CF-300: MPE Tag vs Color Space Channels", RunCF300_MPETagColorSpaceChannels(pIcc));
 
 done:
 #undef CF_WRAP
