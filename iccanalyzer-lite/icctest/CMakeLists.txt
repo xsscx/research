@@ -10,6 +10,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ── Require Clang — reject GCC ──
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR
+        "IccTest requires Clang (got ${CMAKE_CXX_COMPILER_ID}).\n"
+        "Use: cmake -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 ..")
+endif()
+
 # ── iccDEV paths ──
 # Search order: ../iccDEV/Build, ../../iccDEV/Build, env ICCDEV_BUILD
 if(NOT DEFINED ICCDEV_ROOT)
@@ -62,5 +69,4 @@ set(ICCTEST_STANDARD_FLAGS
 )
 
 add_subdirectory(lib)
-# CLI tool will be added in Phase 4
-# add_subdirectory(cli)
+add_subdirectory(cli)
