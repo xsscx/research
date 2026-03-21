@@ -1740,10 +1740,10 @@ static int RunCF118_PrivateTagCreatorSignature(CIccProfile *pIcc) {
     if (!allUpper) privateCount++;
   }
 
-  if (privateCount > 0 && creator == 0) {
-    printf("           %d private/unusual tags without creator signature\n", privateCount);
-    printf("           %s[INFO]%s Private tags benefit from creator ID — §7.2.17\n",
-           ColorInfo(), ColorReset());
+  if (privateCount > 0) {
+    // creator is guaranteed != 0 here (early return at line 1723)
+    printf("           %d private/unusual tags with creator signature 0x%08X\n",
+           privateCount, (unsigned)creator);
   }
 
   if (issues == 0)

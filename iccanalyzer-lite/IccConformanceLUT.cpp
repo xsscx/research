@@ -2089,8 +2089,8 @@ int RunCF255_CLUTGridPointValues(CIccProfile *pIcc) {
     if (!pMBB) continue;
     CIccCLUT *pCLUT = pMBB->GetCLUT();
     if (!pCLUT) continue;
-    icUInt8Number nInput = pMBB->InputChannels();
-    for (int d = 0; d < nInput && d < 16; d++) {
+    unsigned int nInput = pMBB->InputChannels();
+    for (unsigned int d = 0; d < nInput && d < 16; d++) {
       icUInt8Number gp = pCLUT->GridPoint(d);
       if (gp < 2) {
         printf("    Non-conformance: CLUT grid point[%d]=%u is below minimum of 2\n", d, gp);
@@ -2159,9 +2159,9 @@ static int RunCF261_MCurveCount3WithMatrix(CIccProfile *pIcc) {
       // The M-curve count should match the matrix input (3)
       CIccCurve *const *pMCurves = atob->GetCurvesM();
       // M-curves in AtoB: allocated with OutputChannels() count
-      icUInt16Number nM = atob->OutputChannels();
+      unsigned int nM = atob->OutputChannels();
       int mCount = 0;
-      for (int c = 0; c < (int)nM; c++) { if (pMCurves[c]) mCount++; }
+      for (unsigned int c = 0; c < nM; c++) { if (pMCurves[c]) mCount++; }
 
       if (mCount != 3) {
         printf("         AToB%d: matrix present with %d M-curves (expected 3)\n",
@@ -2185,9 +2185,9 @@ static int RunCF261_MCurveCount3WithMatrix(CIccProfile *pIcc) {
       found = true;
       CIccCurve *const *pMCurves = btoa->GetCurvesM();
       // M-curves in BtoA: allocated with InputChannels() count
-      icUInt16Number nM = btoa->InputChannels();
+      unsigned int nM = btoa->InputChannels();
       int mCount = 0;
-      for (int c = 0; c < (int)nM; c++) { if (pMCurves[c]) mCount++; }
+      for (unsigned int c = 0; c < nM; c++) { if (pMCurves[c]) mCount++; }
 
       if (mCount != 3) {
         printf("         BToA%d: matrix present with %d M-curves (expected 3)\n",
@@ -2235,9 +2235,9 @@ static int RunCF262_BCurveCountMatchCLUT(CIccProfile *pIcc) {
     if (!pBCurves) continue;
 
     // B-curves in AtoB: OutputChannels() count
-    icUInt16Number outChan = atob->OutputChannels();
+    unsigned int outChan = atob->OutputChannels();
     int bCount = 0;
-    for (int c = 0; c < (int)outChan; c++) {
+    for (unsigned int c = 0; c < outChan; c++) {
       if (pBCurves[c]) bCount++;
     }
 
