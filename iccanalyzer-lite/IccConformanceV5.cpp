@@ -5733,6 +5733,246 @@ static int RunCF316_IcsSvcnPlausibility(CIccProfile *pIcc) {
 
 
 // ---------------------------------------------------------------------------
+// CF-317: HDR-to-SDR Flag-Tag Consistency  (K.2.9, ICC.2 §7.2.13)
+// ---------------------------------------------------------------------------
+static int RunCF317_HToSFlagTagConsistency(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-317]%s HDR-to-SDR Flag-Tag Consistency (%sK.2.9, ICC.2 §7.2.13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  bool bit3Set = (pIcc->m_Header.flags & icExtendedRangePCS) != 0;
+
+  static const icTagSignature htosTagSigs[4] = {
+    icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag
+  };
+  static const char *htosNames[4] = {"H2S0", "H2S1", "H2S2", "H2S3"};
+
+  int htosCount = 0;
+  for (int i = 0; i < 4; i++) {
+    if (pIcc->FindTag(htosTagSigs[i]))
+      htosCount++;
+  }
+
+  if (bit3Set && htosCount == 0) {
+    printf("         %s[WARN]%s Extended Range PCS flag (bit 3) is set but no HToS tags"
+           " (H2S0-H2S3) found — K.2.9 recommends HToS tags for HDR-to-SDR conversion\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (!bit3Set && htosCount > 0) {
+    printf("         %s[WARN]%s %d HToS tag(s) present but Extended Range PCS flag (bit 3)"
+           " is NOT set — tags will not be applied by CMM per K.2.9\n",
+           ColorWarning(), ColorReset(), htosCount);
+    issues++;
+    for (int i = 0; i < 4; i++) {
+      if (pIcc->FindTag(htosTagSigs[i]))
+        printf("           Orphan tag: %s\n", htosNames[i]);
+    }
+  }
+
+  if (bit3Set && htosCount > 0)
+    printf("         %s[OK]%s Extended Range PCS flag set with %d HToS tag(s) present\n",
+           ColorSuccess(), ColorReset(), htosCount);
+
+  if (!bit3Set && htosCount == 0)
+    printf("         %s[OK]%s No Extended Range PCS flag, no HToS tags — consistent\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-318: HDR-to-SDR Tag Type Validation  (K.2.9, ICC.2 §9.2)
+// ---------------------------------------------------------------------------
+static int RunCF318_HToSTagTypeValidation(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-318]%s HDR-to-SDR Tag Type Validation (%sK.2.9, ICC.2 §9.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature htosTagSigs[4] = {
+    icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag
+  };
+  static const char *htosNames[4] = {"H2S0", "H2S1", "H2S2", "H2S3"};
+
+  int found = 0;
+  int issues = 0;
+
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(htosTagSigs[i]);
+    if (!pTag) continue;
+    found++;
+
+    icTagTypeSignature tagType = pTag->GetType();
+    if (tagType != icSigMultiProcessElementType) {
+      char typeSig[5] = {};
+      icUInt32Number ts = static_cast<icUInt32Number>(tagType);
+      typeSig[0] = static_cast<char>(static_cast<unsigned char>((ts >> 24) & 0xFF));
+      typeSig[1] = static_cast<char>(static_cast<unsigned char>((ts >> 16) & 0xFF));
+      typeSig[2] = static_cast<char>(static_cast<unsigned char>((ts >>  8) & 0xFF));
+      typeSig[3] = static_cast<char>(static_cast<unsigned char>((ts      ) & 0xFF));
+      printf("         %s[WARN]%s %s tag type '%s' — expected multiProcessElementsType"
+             " ('mpet') for v5 profiles\n",
+             ColorWarning(), ColorReset(), htosNames[i], typeSig);
+      issues++;
+    } else {
+      printf("         %s[OK]%s %s tag type is multiProcessElementsType\n",
+             ColorSuccess(), ColorReset(), htosNames[i]);
+    }
+  }
+
+  if (found == 0)
+    printf("         No HToS tags present — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-319: HDR-to-SDR Tag Channel Consistency  (K.2.9)
+// ---------------------------------------------------------------------------
+static int RunCF319_HToSChannelConsistency(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-319]%s HDR-to-SDR Tag Channel Consistency (%sK.2.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature htosTagSigs[4] = {
+    icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag
+  };
+  static const char *htosNames[4] = {"H2S0", "H2S1", "H2S2", "H2S3"};
+
+  icUInt16Number pcsChannels = icGetSpaceSamples(pIcc->m_Header.pcs);
+  int found = 0;
+  int issues = 0;
+
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(htosTagSigs[i]);
+    if (!pTag) continue;
+    found++;
+
+    // Try MPE type first (v5 expected)
+    CIccTagMultiProcessElement *pMPE =
+        dynamic_cast<CIccTagMultiProcessElement*>(pTag);
+    if (pMPE) {
+      icUInt16Number nIn = pMPE->NumInputChannels();
+      icUInt16Number nOut = pMPE->NumOutputChannels();
+      if (nIn != pcsChannels) {
+        printf("         %s[WARN]%s %s input channels=%u, expected PCS channels=%u"
+               " — HToS must be PCS-to-PCS\n",
+               ColorWarning(), ColorReset(), htosNames[i], nIn, pcsChannels);
+        issues++;
+      }
+      if (nOut != pcsChannels) {
+        printf("         %s[WARN]%s %s output channels=%u, expected PCS channels=%u"
+               " — HToS must be PCS-to-PCS\n",
+               ColorWarning(), ColorReset(), htosNames[i], nOut, pcsChannels);
+        issues++;
+      }
+      if (nIn == pcsChannels && nOut == pcsChannels)
+        printf("         %s[OK]%s %s channels %u→%u match PCS\n",
+               ColorSuccess(), ColorReset(), htosNames[i], nIn, nOut);
+      continue;
+    }
+
+    // Fallback: try MBB (LUT) type
+    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
+    if (pMBB) {
+      icUInt8Number nIn = pMBB->InputChannels();
+      icUInt8Number nOut = pMBB->OutputChannels();
+      if (nIn != pcsChannels) {
+        printf("         %s[WARN]%s %s input channels=%u, expected PCS channels=%u\n",
+               ColorWarning(), ColorReset(), htosNames[i], nIn, pcsChannels);
+        issues++;
+      }
+      if (nOut != pcsChannels) {
+        printf("         %s[WARN]%s %s output channels=%u, expected PCS channels=%u\n",
+               ColorWarning(), ColorReset(), htosNames[i], nOut, pcsChannels);
+        issues++;
+      }
+      if (nIn == pcsChannels && nOut == pcsChannels)
+        printf("         %s[OK]%s %s channels %u→%u match PCS\n",
+               ColorSuccess(), ColorReset(), htosNames[i], nIn, nOut);
+      continue;
+    }
+
+    printf("         %s[WARN]%s %s tag present but not MPE or LUT type — cannot validate channels\n",
+           ColorWarning(), ColorReset(), htosNames[i]);
+    issues++;
+  }
+
+  if (found == 0)
+    printf("         No HToS tags present — check not applicable\n");
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-320: HDR-to-SDR Intent Coverage  (K.2.9)
+// ---------------------------------------------------------------------------
+static int RunCF320_HToSIntentCoverage(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  printf("%s[CF-320]%s HDR-to-SDR Intent Coverage (%sK.2.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  bool bit3Set = (pIcc->m_Header.flags & icExtendedRangePCS) != 0;
+  if (!bit3Set) {
+    printf("         Extended Range PCS flag not set — check not applicable\n");
+    return 0;
+  }
+
+  static const icTagSignature htosTagSigs[4] = {
+    icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag
+  };
+  static const char *intentNames[4] = {
+    "Perceptual", "Relative Colorimetric", "Saturation", "Absolute Colorimetric"
+  };
+  static const char *htosNames[4] = {"H2S0", "H2S1", "H2S2", "H2S3"};
+
+  int issues = 0;
+  bool present[4] = {};
+  int totalPresent = 0;
+
+  for (int i = 0; i < 4; i++) {
+    present[i] = (pIcc->FindTag(htosTagSigs[i]) != nullptr);
+    if (present[i]) {
+      totalPresent++;
+      printf("         %s present — %s intent covered\n", htosNames[i], intentNames[i]);
+    }
+  }
+
+  if (totalPresent == 0) {
+    // Already warned by CF-317 — just note here
+    printf("         No HToS tags — no intent coverage\n");
+    return 0;
+  }
+
+  // CMM fallback chain: try HToS0+intent → HToS0 → HToS1
+  // At minimum, H2S0 (perceptual) or H2S1 (relative colorimetric) should exist
+  if (!present[0] && !present[1]) {
+    printf("         %s[WARN]%s Neither H2S0 (Perceptual) nor H2S1 (Relative Colorimetric)"
+           " present — CMM fallback chain requires at least one of these\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (totalPresent < 4 && totalPresent > 0) {
+    printf("         %s[INFO]%s %d of 4 rendering intents covered —"
+           " CMM will use fallback chain for uncovered intents\n",
+           ColorInfo(), ColorReset(), totalPresent);
+  }
+
+  if (totalPresent == 4)
+    printf("         %s[OK]%s All 4 rendering intents have HToS coverage\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
@@ -5882,6 +6122,12 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1314, "CF-314: xrng AToB1/BToA1 Part 1 Element Restriction", RunCF314_XrngTransformElementRestriction(pIcc));
   CF_WRAP(1315, "CF-315: xrng Part 2 PCC Matrix Restriction", RunCF315_XrngPccTagMatrixRestriction(pIcc));
   CF_WRAP(1316, "CF-316: ICS svcn Observer/Illuminant Plausibility", RunCF316_IcsSvcnPlausibility(pIcc));
+
+  // K.2.9 HDR-to-SDR Transform Conformance (CF-317..CF-320)
+  CF_WRAP(1317, "CF-317: HDR-to-SDR Flag-Tag Consistency", RunCF317_HToSFlagTagConsistency(pIcc));
+  CF_WRAP(1318, "CF-318: HDR-to-SDR Tag Type Validation", RunCF318_HToSTagTypeValidation(pIcc));
+  CF_WRAP(1319, "CF-319: HDR-to-SDR Tag Channel Consistency", RunCF319_HToSChannelConsistency(pIcc));
+  CF_WRAP(1320, "CF-320: HDR-to-SDR Intent Coverage", RunCF320_HToSIntentCoverage(pIcc));
 
 done:
 #undef CF_WRAP
