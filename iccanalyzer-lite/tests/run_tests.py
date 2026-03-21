@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-283)."""
+    """Test ICC Specification conformance checks (CF-001..CF-291)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -3141,6 +3141,66 @@ def test_conformance_checks(suite):
         "cf.283.devicelink_pseqdesc",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-283.*DeviceLink profileSequenceDescTag"
+    )
+
+    # --- CF-284..CF-291: ICC.2:2019 errata-derived v5 checks ---
+    # These checks require a v5/iccMAX profile (gated behind version >= 5)
+    v5_profile = str(TEST_PROFILES / "17ChanPart1.icc")
+
+    # CF-284: BRDF Spectral Parameter Tag Type
+    suite.assert_output_contains(
+        "cf.284.brdf_tag_type",
+        ["-a", v5_profile],
+        r"CF-284.*BRDF Spectral Parameter Tag Type"
+    )
+
+    # CF-285: BRDF Tag Presence Consistency
+    suite.assert_output_contains(
+        "cf.285.brdf_consistency",
+        ["-a", v5_profile],
+        r"CF-285.*BRDF Tag Presence Consistency"
+    )
+
+    # CF-286: GBD Triangle-Vertex Consistency
+    suite.assert_output_contains(
+        "cf.286.gbd_triangle_vertex",
+        ["-a", v5_profile],
+        r"CF-286.*GBD Triangle-Vertex Consistency"
+    )
+
+    # CF-287: GBD Channel Count Plausibility
+    suite.assert_output_contains(
+        "cf.287.gbd_channel_plausibility",
+        ["-a", v5_profile],
+        r"CF-287.*GBD Channel Count Plausibility"
+    )
+
+    # CF-288: Spectral Data Info Bi-Spectral Consistency
+    suite.assert_output_contains(
+        "cf.288.spectral_data_info",
+        ["-a", v5_profile],
+        r"CF-288.*Spectral Data Info"
+    )
+
+    # CF-289: Spectral Viewing Conditions Illuminant Bounds
+    suite.assert_output_contains(
+        "cf.289.spectral_viewing_illuminant",
+        ["-a", v5_profile],
+        r"CF-289.*Spectral Viewing Conditions Illuminant"
+    )
+
+    # CF-290: Material Default Values Tag Presence
+    suite.assert_output_contains(
+        "cf.290.material_default_values",
+        ["-a", v5_profile],
+        r"CF-290.*Material Default Values"
+    )
+
+    # CF-291: Spectral White Point XYZ Range
+    suite.assert_output_contains(
+        "cf.291.spectral_white_point",
+        ["-a", v5_profile],
+        r"CF-291.*Spectral White Point"
     )
 
     # --- Clean profile baseline ---
