@@ -3931,6 +3931,207 @@ int RunCF254_TechnologySignature(CIccProfile *pIcc) {
   return issues;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-263: Perceptual PCS White Point D50 in Rendering Intent
+// ICC.1-2022-05 Annex D: The perceptual rendering intent uses a
+// specific reference medium. The PCS white point for perceptual is
+// D50 (X=0.9642, Y=1.0000, Z=0.8249). This check validates that
+// profiles with rendering intent=0 have consistent luminance data.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF263_PerceptualPCSWhitePointD50(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-263]%s Perceptual PCS White Point D50 (%sICC.1-2022-05 Annex D%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number intent = (icUInt32Number)(pIcc->m_Header.renderingIntent);
+  if (intent != icPerceptual) {
+    printf("         Rendering intent = %u (not perceptual) — check not applicable\n", intent);
+    return 0;
+  }
+
+  // Validate the header illuminant matches D50
+  double hdrX = icFtoD(pIcc->m_Header.illuminant.X);
+  double hdrY = icFtoD(pIcc->m_Header.illuminant.Y);
+  double hdrZ = icFtoD(pIcc->m_Header.illuminant.Z);
+
+  const double D50_X = 0.9642, D50_Y = 1.0000, D50_Z = 0.8249;
+  const double tol = 0.002;
+
+  if (fabs(hdrX - D50_X) > tol || fabs(hdrY - D50_Y) > tol || fabs(hdrZ - D50_Z) > tol) {
+    printf("         Header illuminant (%.4f, %.4f, %.4f) deviates from D50\n",
+           hdrX, hdrY, hdrZ);
+    printf("         %s[FAIL]%s Perceptual intent requires D50 PCS illuminant — Annex D\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Perceptual rendering intent PCS illuminant matches D50\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-264: CIELAB L* Range in curveType/parametricCurveType
+// ICC.1-2022-05 §8.1.2: L* values in v4 CIELAB PCS are encoded as
+// L*=0..100 in the range 0x0000..0xFFFF (v4) vs 0x0000..0xFF00 (v2).
+// This check validates that profiles with Lab PCS do not contain
+// parametricCurveType function types > 4 (only 0..4 are defined).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF264_ParametricCurveFuncType(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-264]%s parametricCurveType Function Type Range (%sICC.1-2022-05 §10.18%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Scan all tags for parametricCurveType
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+    if (!pTag) continue;
+
+    // Check MBB tags that contain curve sets
+    CIccMBB *pMBB = dynamic_cast<CIccMBB *>(pTag);
+    if (!pMBB) continue;
+    found = true;
+
+    // Check A, M, B curve sets for parametric curves
+    // Curve array sizes depend on MBB direction (AtoB vs BtoA)
+    bool inputB = pMBB->IsInputB();
+    icUInt16Number nA = inputB ? pMBB->OutputChannels() : pMBB->InputChannels();
+    icUInt16Number nM = inputB ? pMBB->InputChannels()  : pMBB->OutputChannels();
+    icUInt16Number nB = inputB ? pMBB->InputChannels()  : pMBB->OutputChannels();
+
+    const char *curveSetNames[] = {"A", "M", "B"};
+    CIccCurve *const *curveSets[] = {pMBB->GetCurvesA(), pMBB->GetCurvesM(), pMBB->GetCurvesB()};
+    icUInt16Number curveCounts[] = {nA, nM, nB};
+
+    for (int s = 0; s < 3; s++) {
+      if (!curveSets[s] || curveCounts[s] == 0) continue;
+      for (int c = 0; c < curveCounts[s]; c++) {
+        if (!curveSets[s][c]) continue;
+        CIccTagParametricCurve *pPara = dynamic_cast<CIccTagParametricCurve *>(curveSets[s][c]);
+        if (!pPara) continue;
+
+        icUInt16Number funcType = pPara->GetFunctionType();
+        if (funcType > 4) {
+          char sigCC[5];
+          icUInt32Number sig = it->TagInfo.sig;
+          sigCC[0] = (char)((sig >> 24) & 0xFF);
+          sigCC[1] = (char)((sig >> 16) & 0xFF);
+          sigCC[2] = (char)((sig >>  8) & 0xFF);
+          sigCC[3] = (char)((sig      ) & 0xFF);
+          sigCC[4] = '\0';
+          printf("         Tag '%s' %s-curves[%d]: funcType=%u (valid 0..4)\n",
+                 sigCC, curveSetNames[s], c, funcType);
+          printf("         %s[FAIL]%s parametricCurveType funcType must be 0..4 — ICC.1-2022-05 §10.18\n",
+                 ColorError(), ColorReset());
+          issues++;
+        }
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No MBB tags with parametric curves found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All parametricCurveType function types in range [0..4]\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-265: mluc Record Language/Country Code Validity
+// ICC.1-2022-05 §10.15: multiLocalizedUnicodeType records contain
+// ISO 639-1 language codes and ISO 3166-1 country codes. Both must
+// be lowercase ASCII letters (2 chars) or zero-padded null.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF265_MlucLanguageCountryCode(CIccProfile *pIcc) {
+  int issues = 0;
+  int checked = 0;
+
+  printf("%s[CF-265]%s mluc Record Language/Country Code (%sICC.1-2022-05 §10.15%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check common tags that use mluc
+  icSignature mlucTags[] = {
+    icSigProfileDescriptionTag,
+    icSigCopyrightTag,
+    icSigDeviceMfgDescTag,
+    icSigDeviceModelDescTag,
+  };
+
+  for (int t = 0; t < 4; t++) {
+    CIccTag *pTag = pIcc->FindTag(mlucTags[t]);
+    if (!pTag) continue;
+
+    CIccTagMultiLocalizedUnicode *pMluc =
+        dynamic_cast<CIccTagMultiLocalizedUnicode *>(pTag);
+    if (!pMluc || !pMluc->m_Strings) continue;
+
+    checked++;
+    int recIdx = 0;
+    for (auto it = pMluc->m_Strings->begin();
+         it != pMluc->m_Strings->end() && recIdx < 32; ++it, ++recIdx) {
+      icLanguageCode lang = it->m_nLanguageCode;
+      icCountryCode country = it->m_nCountryCode;
+
+      // Language code: 2 lowercase ASCII letters or 0x0000
+      char lc1 = (char)((lang >> 8) & 0xFF);
+      char lc2 = (char)(lang & 0xFF);
+
+      if (lang != 0) {
+        if (!(lc1 >= 'a' && lc1 <= 'z') || !(lc2 >= 'a' && lc2 <= 'z')) {
+          printf("         mluc record %d: language=0x%04X ('%c%c') — not ISO 639-1\n",
+                 recIdx, lang, (lc1 >= 0x20 && lc1 < 0x7F) ? lc1 : '?',
+                          (lc2 >= 0x20 && lc2 < 0x7F) ? lc2 : '?');
+          printf("         %s[WARN]%s mluc language code should be ISO 639-1 lowercase\n",
+                 ColorWarning(), ColorReset());
+          issues++;
+        }
+      }
+
+      // Country code: 2 uppercase ASCII letters or 0x0000
+      char cc1 = (char)((country >> 8) & 0xFF);
+      char cc2 = (char)(country & 0xFF);
+
+      if (country != 0) {
+        if (!(cc1 >= 'A' && cc1 <= 'Z') || !(cc2 >= 'A' && cc2 <= 'Z')) {
+          printf("         mluc record %d: country=0x%04X ('%c%c') — not ISO 3166-1\n",
+                 recIdx, country, (cc1 >= 0x20 && cc1 < 0x7F) ? cc1 : '?',
+                              (cc2 >= 0x20 && cc2 < 0x7F) ? cc2 : '?');
+          printf("         %s[WARN]%s mluc country code should be ISO 3166-1 uppercase\n",
+                 ColorWarning(), ColorReset());
+          issues++;
+        }
+      }
+
+      if (issues >= 5) {
+        printf("         (stopping after 5 mluc code issues)\n");
+        goto done_265;
+      }
+    }
+  }
+
+done_265:
+  if (checked == 0)
+    printf("         No multiLocalizedUnicodeType tags found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s mluc language/country codes valid\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
@@ -4011,6 +4212,9 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1252, "CF-252: curveType Gamma Positive/Finite", RunCF252_CurveGammaValid(pIcc));
   CF_WRAP(1253, "CF-253: chromaticityType Channel Count", RunCF253_ChromaticityChannelCount(pIcc));
   CF_WRAP(1254, "CF-254: Technology Signature Registered", RunCF254_TechnologySignature(pIcc));
+  CF_WRAP(1263, "CF-263: Perceptual PCS White Point D50", RunCF263_PerceptualPCSWhitePointD50(pIcc));
+  CF_WRAP(1264, "CF-264: parametricCurveType Function Type Range", RunCF264_ParametricCurveFuncType(pIcc));
+  CF_WRAP(1265, "CF-265: mluc Language/Country Code Validity", RunCF265_MlucLanguageCountryCode(pIcc));
 
 #undef CF_WRAP
   return issues;

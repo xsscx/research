@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-257)."""
+    """Test ICC Specification conformance checks (CF-001..CF-265)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2952,6 +2952,64 @@ def test_conformance_checks(suite):
         "cf.257.spectral_steps",
         ["-a", v5_profile],
         r"CF-257.*Spectral Range Step Count"
+    )
+
+    # --- CF-258..CF-265: Deep conformance gap coverage ---
+
+    # CF-258: Display v4+ mediaWhitePointTag D50
+    suite.assert_output_contains(
+        "cf.258.display_mwpt_d50",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-258.*Display v4\+ mediaWhitePointTag D50"
+    )
+
+    # CF-259: colorantOrderTag vs colorantTableTag
+    suite.assert_output_contains(
+        "cf.259.colorant_order_table",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-259.*colorantOrder.*colorantTable"
+    )
+
+    # CF-260: Output gamutTag rendering intent
+    suite.assert_output_contains(
+        "cf.260.output_gamuttag",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-260.*Output.*gamutTag"
+    )
+
+    # CF-261: M-Curve Count = 3 When Matrix Present
+    suite.assert_output_contains(
+        "cf.261.mcurve_count_matrix",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-261.*M-Curve Count.*3.*Matrix"
+    )
+
+    # CF-262: B-Curve Count vs Output Channels
+    suite.assert_output_contains(
+        "cf.262.bcurve_output_channels",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-262.*B-Curve Count.*Output"
+    )
+
+    # CF-263: Perceptual PCS White Point D50
+    suite.assert_output_contains(
+        "cf.263.perceptual_pcs_d50",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-263.*Perceptual PCS White Point D50"
+    )
+
+    # CF-264: parametricCurveType Function Type Range
+    suite.assert_output_contains(
+        "cf.264.parametric_functype",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-264.*parametricCurveType Function Type"
+    )
+
+    # CF-265: mluc Language/Country Code Validity
+    suite.assert_output_contains(
+        "cf.265.mluc_lang_country",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-265.*mluc.*Language.*Country"
     )
 
     # --- Clean profile baseline ---
