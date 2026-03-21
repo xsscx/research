@@ -2450,7 +2450,6 @@ int RunCF176_EmbeddedProfileTagReservedBytes(CIccProfile *pIcc) {
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
     if (it->TagInfo.sig == icSigEmbeddedV5ProfileTag) {
-      icUInt32Number tagOffset = it->TagInfo.offset;
       icUInt32Number tagSize = it->TagInfo.size;
 
       // Tag data layout: bytes 0-3 = type sig 'ICCp', bytes 4-7 = reserved (shall be 0)
