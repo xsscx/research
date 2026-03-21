@@ -1296,6 +1296,17 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-326", "Calculator 'env' Reserved Signatures",
    "Reports usage of reserved env signatures 'true' and 'ndef' which are constants, not runtime lookups", "K.2.7, ICC.2 §11.2.1.4",
    CFSeverity::INFO, CFCategory::V5},
+
+  // K.2.6 Alternate PCC Conformance (CF-327..CF-329)
+  {"CF-327", "PCC Alternate Override Readiness",
+   "Identifies profiles with PCC tags eligible for alternate PCC override per K.2.6", "K.2.6, ICC.2 §6.3.2",
+   CFSeverity::INFO, CFCategory::V5},
+  {"CF-328", "PCC Non-Standard Colorimetry Indication",
+   "Validates spectral data completeness in svcn when custom colorimetry transforms present for alternate PCC", "K.2.6, ICC.2 §6.3.2",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-329", "PCC Override Source Profile Validation",
+   "Validates profiles with deviceSubClass pcc have proper svcn content for use as alternate PCC source", "K.2.6, ICS-Colorimetric",
+   CFSeverity::WARNING, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =

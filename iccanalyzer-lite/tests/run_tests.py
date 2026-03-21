@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-326)."""
+    """Test ICC Specification conformance checks (CF-001..CF-329)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-019) ---
@@ -4026,6 +4026,25 @@ def test_conformance_checks(suite):
         "cf.326.env_reserved_signatures",
         ["-a", v5_profile],
         r"CF-326.*env.*Reserved"
+    )
+
+    # CF-327: PCC Alternate Override Readiness
+    suite.assert_output_contains(
+        "cf.327.pcc_alternate_override",
+        ["-a", v5_profile],
+        r"CF-327.*PCC.*Alternate.*Override"
+    )
+    # CF-328: PCC Non-Standard Colorimetry Indication
+    suite.assert_output_contains(
+        "cf.328.pcc_nonstandard_colorimetry",
+        ["-a", v5_profile],
+        r"CF-328.*PCC.*Non-Standard.*Colorimetry"
+    )
+    # CF-329: PCC Override Source Profile Validation
+    suite.assert_output_contains(
+        "cf.329.pcc_override_source",
+        ["-a", v5_profile],
+        r"CF-329.*PCC.*Override.*Source"
     )
 
     # --- Clean profile baseline ---
