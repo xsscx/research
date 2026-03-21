@@ -50,11 +50,13 @@ int main(int argc, char** argv) {
     std::printf("IccTest Library — Unit Tests v2.0.0\n");
     std::printf("====================================\n\n");
 
+    // test_runner must run FIRST — it tests auto-registered checks from
+    // REGISTER_HEURISTIC macros. Other tests call clear() which destroys them.
+    test_runner();
     test_check_result();
     test_profile_view();
     test_check_registry();
     test_logger();
-    test_runner();
 
     std::printf("\n====================================\n");
     std::printf("Results: %d/%d passed", g_stats.passed, g_stats.total);

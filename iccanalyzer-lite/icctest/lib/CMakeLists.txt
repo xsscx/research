@@ -8,6 +8,17 @@ set(ICCTEST_LIB_SOURCES
     src/CheckRegistry.cpp
     src/Logger.cpp
     src/IccTestRunner.cpp
+    # Phase 2: Heuristic checks (H1-H171)
+    src/checks/HeaderChecks.cpp
+    src/checks/TagValidationChecks.cpp
+    src/checks/RawScanChecks.cpp
+    src/checks/DataValidationChecks.cpp
+    src/checks/ComplianceChecks.cpp
+    src/checks/IntegrityChecks.cpp
+    src/checks/ImageChecks.cpp
+    src/checks/XmlSafetyChecks.cpp
+    src/checks/CodeQLPatternChecks.cpp
+    src/checks/ExploitGapChecks.cpp
 )
 
 add_library(IccTest STATIC ${ICCTEST_LIB_SOURCES})
@@ -16,6 +27,7 @@ target_include_directories(IccTest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_include_directories(IccTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${ICCDEV_ROOT}/IccProfLib
     ${ICCDEV_ROOT}/IccXML/IccLibXML
     /usr/include/libxml2
