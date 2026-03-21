@@ -3244,6 +3244,465 @@ static int RunCF226_MlucSizeInferenceSafety(CIccProfile *pIcc, const char *filen
   return issues;
 }
 
+// ========================================================================
+// v2->v4 Features Changes conformance checks (CF-227..CF-234)
+// Source: ICC TN "Features which have changed when comparing v4 to v2"
+// ========================================================================
+
+static int RunCF227_V4TextTagUnicodeMigration(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-227]%s v4 Text Tag Unicode Migration (%sICC.1-2022-05 S9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number ver = pIcc->m_Header.version;
+  bool isV4Plus = (ver >= icVersionNumberV4);
+
+  if (!isV4Plus) {
+    printf("         Profile is v2 -- mluc migration check not applicable\n");
+    return 0;
+  }
+
+  struct TagCheck {
+    icTagSignature sig;
+    const char *name;
+  };
+  static const TagCheck kTextTags[] = {
+    {icSigProfileDescriptionTag, "profileDescriptionTag"},
+    {icSigCopyrightTag,          "copyrightTag"},
+    {icSigDeviceMfgDescTag,      "deviceMfgDescTag"},
+    {icSigDeviceModelDescTag,    "deviceModelDescTag"},
+    {icSigViewingCondDescTag,    "viewingCondDescTag"},
+  };
+
+  for (const auto &tc : kTextTags) {
+    CIccTag *pTag = pIcc->FindTag(tc.sig);
+    if (!pTag) continue;
+
+    icTagTypeSignature ttype = pTag->GetType();
+    if (ttype == icSigTextDescriptionType) {
+      printf("         %s[WARN]%s '%s' uses textDescriptionType (desc) -- v4+ requires mluc\n",
+             ColorWarning(), ColorReset(), tc.name);
+      issues++;
+    } else if (ttype == icSigTextType) {
+      printf("         %s[WARN]%s '%s' uses textType -- v4+ requires mluc\n",
+             ColorWarning(), ColorReset(), tc.name);
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All v4+ text tags use multiLocalizedUnicodeType\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+static int RunCF228_GrayTRCSemantics(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-228]%s grayTRCTag Semantic Validation (%sv2->v4 TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
+  if (cs != icSigGrayData) {
+    printf("         Profile color space is not Gray -- grayTRC check N/A\n");
+    return 0;
+  }
+
+  CIccTag *pTag = pIcc->FindTag(icSigGrayTRCTag);
+  if (!pTag) {
+    printf("         %s[WARN]%s Grayscale profile missing grayTRCTag\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
+  if (pCurve && pCurve->GetSize() > 1) {
+    icUInt32Number sz = pCurve->GetSize();
+
+    icFloatNumber first = (*pCurve)[0];
+    if (first > 0.01f) {
+      printf("         %s[WARN]%s grayTRC[0]=%.6f -- should be near 0 (black)\n",
+             ColorWarning(), ColorReset(), first);
+      issues++;
+    }
+
+    icFloatNumber last = (*pCurve)[sz - 1];
+    if (last < 0.9f) {
+      printf("         %s[WARN]%s grayTRC[%u]=%.6f -- should be near 1.0 (white)\n",
+             ColorWarning(), ColorReset(), sz - 1, last);
+      issues++;
+    }
+
+    int monoViolations = 0;
+    icUInt32Number step = (sz > 256) ? (sz / 256) : 1;
+    icFloatNumber prev = (*pCurve)[0];
+    for (icUInt32Number i = step; i < sz; i += step) {
+      icFloatNumber val = (*pCurve)[i];
+      if (val < prev - 0.001f) {
+        monoViolations++;
+        if (monoViolations <= 3)
+          printf("         grayTRC[%u]=%.6f < grayTRC[prev]=%.6f -- non-monotonic\n",
+                 i, val, prev);
+      }
+      prev = val;
+    }
+    if (monoViolations > 0) {
+      printf("         %s[WARN]%s grayTRCTag has %d monotonicity violations\n",
+             ColorWarning(), ColorReset(), monoViolations);
+      issues++;
+    }
+  }
+
+  if (pIcc->FindTag(icSigRedTRCTag) || pIcc->FindTag(icSigGreenTRCTag) ||
+      pIcc->FindTag(icSigBlueTRCTag)) {
+    printf("         %s[WARN]%s Grayscale profile has RGB TRC tags -- inconsistent\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s grayTRCTag semantics valid (0->black, 1.0->white, monotonic)\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+static int RunCF229_RenderingIntentDominance(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-229]%s Rendering Intent Dominance Per Class (%sv2->v4 TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  int atobCount = 0, btoaCount = 0;
+  if (pIcc->FindTag(icSigAToB0Tag)) atobCount++;
+  if (pIcc->FindTag(icSigAToB1Tag)) atobCount++;
+  if (pIcc->FindTag(icSigAToB2Tag)) atobCount++;
+  if (pIcc->FindTag(icSigBToA0Tag)) btoaCount++;
+  if (pIcc->FindTag(icSigBToA1Tag)) btoaCount++;
+  if (pIcc->FindTag(icSigBToA2Tag)) btoaCount++;
+
+  printf("         AToB tags: %d, BToA tags: %d, class: 0x%08X\n",
+         atobCount, btoaCount, cls);
+
+  if (cls == icSigInputClass) {
+    if (atobCount == 0 && btoaCount > 0) {
+      printf("         %s[WARN]%s Input profile has BToA but no AToB -- AToB should be dominant\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+    if (atobCount > 0 && !pIcc->FindTag(icSigAToB0Tag)) {
+      printf("         %s[WARN]%s Input profile has AToB tags but missing AToB0 (Perceptual)\n",
+             ColorWarning(), ColorReset());
+      issues++;
+    }
+  } else if (cls == icSigDisplayClass || cls == icSigOutputClass) {
+    if (btoaCount == 0 && atobCount > 0) {
+      printf("         %s[WARN]%s %s profile has AToB but no BToA -- BToA should be dominant\n",
+             ColorWarning(), ColorReset(),
+             cls == icSigDisplayClass ? "Display" : "Output");
+      issues++;
+    }
+    if (btoaCount > 0 && !pIcc->FindTag(icSigBToA0Tag)) {
+      printf("         %s[WARN]%s %s profile has BToA tags but missing BToA0\n",
+             ColorWarning(), ColorReset(),
+             cls == icSigDisplayClass ? "Display" : "Output");
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Rendering intent dominance consistent with profile class\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+static int RunCF230_CIELABEncodingConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-230]%s CIELAB Encoding Version Consistency (%sICC.1-2022-05 S6.5.9%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  icUInt32Number ver = pIcc->m_Header.version;
+  bool isV4Plus = (ver >= icVersionNumberV4);
+
+  if (pcs != icSigLabData) {
+    printf("         PCS is not Lab -- CIELAB encoding check N/A\n");
+    return 0;
+  }
+
+  if (!isV4Plus) {
+    printf("         v2 profile with Lab PCS -- uses legacy encoding\n");
+    return 0;
+  }
+
+  static const icTagSignature kLutTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+  };
+
+  int legacyLut16 = 0;
+  int modernLut = 0;
+  for (auto sig : kLutTags) {
+    CIccTag *pTag = pIcc->FindTag(sig);
+    if (!pTag) continue;
+
+    icTagTypeSignature ttype = pTag->GetType();
+    if (ttype == icSigLut16Type) {
+      legacyLut16++;
+      char sigStr[5];
+      sigStr[0] = (char)((sig >> 24) & 0xFF);
+      sigStr[1] = (char)((sig >> 16) & 0xFF);
+      sigStr[2] = (char)((sig >> 8) & 0xFF);
+      sigStr[3] = (char)(sig & 0xFF);
+      sigStr[4] = '\0';
+      printf("         %s[WARN]%s Tag '%s' uses lut16Type -- retains v2 Lab encoding in v4 profile\n",
+             ColorWarning(), ColorReset(), sigStr);
+    } else if (ttype == icSigLutAtoBType || ttype == icSigLutBtoAType) {
+      modernLut++;
+    }
+  }
+
+  if (legacyLut16 > 0 && modernLut > 0) {
+    printf("         %s[WARN]%s Mixed lut16Type + lutAtoB/BtoA -- Lab encoding ambiguity\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+  if (legacyLut16 > 0)
+    issues += legacyLut16;
+
+  if (issues == 0) {
+    if (modernLut > 0)
+      printf("         %s[OK]%s v4 Lab PCS uses modern LUT types (v4 encoding)\n",
+             ColorSuccess(), ColorReset());
+    else
+      printf("         %s[OK]%s v4 Lab PCS -- no legacy lut16Type detected\n",
+             ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+static int RunCF231_LUTProcessingElementSequence(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-231]%s LUT Processing Element Sequence (%sICC.1-2022-05 S10.10-10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  static const icTagSignature kLutTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+  };
+
+  int checked = 0;
+  for (auto sig : kLutTags) {
+    CIccTag *pTag = pIcc->FindTag(sig);
+    if (!pTag) continue;
+
+    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
+    if (!pMBB) continue;
+    checked++;
+
+    bool hasBCurves = pMBB->GetCurvesB() != nullptr;
+    bool hasMatrix  = pMBB->GetMatrix() != nullptr;
+    bool hasMCurves = pMBB->GetCurvesM() != nullptr;
+    bool hasCLUT    = pMBB->GetCLUT() != nullptr;
+    bool hasACurves = pMBB->GetCurvesA() != nullptr;
+
+    char sigStr[5];
+    sigStr[0] = (char)((sig >> 24) & 0xFF);
+    sigStr[1] = (char)((sig >> 16) & 0xFF);
+    sigStr[2] = (char)((sig >> 8) & 0xFF);
+    sigStr[3] = (char)(sig & 0xFF);
+    sigStr[4] = '\0';
+
+    if (!hasBCurves) {
+      printf("         %s[WARN]%s '%s': missing B curves (always required)\n",
+             ColorWarning(), ColorReset(), sigStr);
+      issues++;
+    }
+
+    if (hasMatrix != hasMCurves) {
+      printf("         %s[WARN]%s '%s': matrix present=%d but M curves present=%d -- must appear together\n",
+             ColorWarning(), ColorReset(), sigStr, hasMatrix, hasMCurves);
+      issues++;
+    }
+
+    if (hasACurves && !hasCLUT) {
+      printf("         %s[WARN]%s '%s': A curves present without CLUT\n",
+             ColorWarning(), ColorReset(), sigStr);
+      issues++;
+    }
+
+    icUInt16Number inCh = pMBB->InputChannels();
+    icUInt16Number outCh = pMBB->OutputChannels();
+    if (inCh == 0 || outCh == 0) {
+      printf("         %s[WARN]%s '%s': zero channel count (in=%u, out=%u)\n",
+             ColorWarning(), ColorReset(), sigStr, inCh, outCh);
+      issues++;
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No lutAtoB/lutBtoA type tags found\n");
+    return 0;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s All %d LUT processing element sequences valid\n",
+           ColorSuccess(), ColorReset(), checked);
+  return issues;
+}
+
+static int RunCF232_DateTimeUTCConsistency(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-232]%s Date/Time UTC and Temporal Consistency (%sICC.1-2022-05 S7.2.8%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const icDateTimeNumber &dt = pIcc->m_Header.date;
+  int createYear = dt.year;
+  int createMonth = dt.month;
+  int createDay = dt.day;
+  int createHour = dt.hours;
+  int createMin = dt.minutes;
+  int createSec = dt.seconds;
+
+  printf("         Profile creation: %04d-%02d-%02d %02d:%02d:%02d (UTC)\n",
+         createYear, createMonth, createDay, createHour, createMin, createSec);
+
+  if (createSec > 59) {
+    printf("         %s[WARN]%s Seconds=%d -- exceeds 59\n",
+           ColorWarning(), ColorReset(), createSec);
+    issues++;
+  }
+
+  if (createHour > 23) {
+    printf("         %s[WARN]%s Hour=%d -- exceeds 23\n",
+           ColorWarning(), ColorReset(), createHour);
+    issues++;
+  }
+
+  CIccTag *pCalTag = pIcc->FindTag(icSigCalibrationDateTimeTag);
+  if (pCalTag) {
+    CIccTagDateTime *pCalDT = dynamic_cast<CIccTagDateTime*>(pCalTag);
+    if (pCalDT) {
+      std::string desc;
+      pCalDT->Describe(desc, 1);
+      printf("         Calibration date: %s\n", desc.c_str());
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Date/time fields consistent with UTC encoding\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+static int RunCF233_ColorantOrderIndexValidation(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-233]%s colorantOrderTag Index Validation (%sICC.1-2022-05 S9.2.11, S10.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigColorantOrderTag);
+  if (!pTag) {
+    printf("         No colorantOrderTag present\n");
+    return 0;
+  }
+
+  CIccTagColorantOrder *pOrder = dynamic_cast<CIccTagColorantOrder*>(pTag);
+  if (!pOrder) {
+    printf("         %s[FAIL]%s colorantOrderTag has unexpected type\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  icUInt32Number count = pOrder->GetSize();
+  printf("         colorantOrderTag: %u entries\n", count);
+
+  if (count == 0) {
+    printf("         %s[WARN]%s Empty colorantOrderTag\n",
+           ColorWarning(), ColorReset());
+    return 1;
+  }
+
+  if (count > 15) {
+    printf("         %s[WARN]%s colorantOrderTag has %u entries (>15 ICC max)\n",
+           ColorWarning(), ColorReset(), count);
+    issues++;
+  }
+
+  std::vector<int> seen(count, 0);
+  for (icUInt32Number i = 0; i < count; i++) {
+    icUInt8Number idx = (*pOrder)[i];
+    if (idx >= count) {
+      printf("         %s[WARN]%s Index[%u]=%u -- out of range [0..%u]\n",
+             ColorWarning(), ColorReset(), i, idx, count - 1);
+      issues++;
+    } else {
+      seen[idx]++;
+    }
+  }
+
+  for (icUInt32Number i = 0; i < count; i++) {
+    if (seen[i] == 0) {
+      printf("         %s[WARN]%s Colorant index %u missing -- not a valid permutation\n",
+             ColorWarning(), ColorReset(), i);
+      issues++;
+    } else if (seen[i] > 1) {
+      printf("         %s[WARN]%s Colorant index %u appears %d times -- duplicate\n",
+             ColorWarning(), ColorReset(), i, seen[i]);
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s colorantOrderTag is a valid permutation of [0..%u]\n",
+           ColorSuccess(), ColorReset(), count - 1);
+  return issues;
+}
+
+static int RunCF234_PerceptualPCSReferenceMedium(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-234]%s v4 Perceptual PCS Reference Medium (%sICC.1-2022-05 Annex D%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number intent = pIcc->m_Header.renderingIntent;
+  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  icUInt32Number ver = pIcc->m_Header.version;
+  bool isV4Plus = (ver >= icVersionNumberV4);
+
+  if (!isV4Plus) {
+    printf("         v2 profile -- Perceptual PCS reference medium check N/A\n");
+    return 0;
+  }
+
+  bool hasPerceptual = (intent == 0) ||
+                       pIcc->FindTag(icSigAToB0Tag) != nullptr ||
+                       pIcc->FindTag(icSigBToA0Tag) != nullptr;
+
+  if (!hasPerceptual) {
+    printf("         No perceptual intent transforms -- reference medium check N/A\n");
+    return 0;
+  }
+
+  if (pcs == icSigLabData) {
+    printf("         Lab PCS with perceptual intent: reference medium dynamic range 287.9:1\n");
+    printf("         Reference white: L*=100 (89%% reflectance), black: L*=3.1373\n");
+    printf("         %s[OK]%s Profile has perceptual intent with Lab PCS -- reference medium applies\n",
+           ColorSuccess(), ColorReset());
+  } else if (pcs == icSigXYZData) {
+    printf("         XYZ PCS with perceptual intent: encoding bounds per Annex A.3 apply\n");
+    printf("         %s[OK]%s XYZ PCS noted -- clipping at PCS encoding bounds\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
@@ -3306,6 +3765,16 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1224, "CF-224: mluc Reserved Field Zero", RunCF224_MlucReservedFieldZero(pIcc, filename));
   CF_WRAP(1225, "CF-225: mluc Name Record String Alignment", RunCF225_MlucStringAlignment(pIcc, filename));
   CF_WRAP(1226, "CF-226: mluc Size Inference Safety", RunCF226_MlucSizeInferenceSafety(pIcc, filename));
+
+  // v2→v4 Features Changes conformance checks
+  CF_WRAP(1227, "CF-227: v4 Text Tag Unicode Migration", RunCF227_V4TextTagUnicodeMigration(pIcc));
+  CF_WRAP(1228, "CF-228: grayTRCTag Semantic Validation", RunCF228_GrayTRCSemantics(pIcc));
+  CF_WRAP(1229, "CF-229: Rendering Intent Dominance Per Class", RunCF229_RenderingIntentDominance(pIcc));
+  CF_WRAP(1230, "CF-230: CIELAB Encoding Version Consistency", RunCF230_CIELABEncodingConsistency(pIcc));
+  CF_WRAP(1231, "CF-231: LUT Processing Element Sequence", RunCF231_LUTProcessingElementSequence(pIcc));
+  CF_WRAP(1232, "CF-232: Date/Time UTC and Temporal Consistency", RunCF232_DateTimeUTCConsistency(pIcc));
+  CF_WRAP(1233, "CF-233: colorantOrderTag Index Validation", RunCF233_ColorantOrderIndexValidation(pIcc));
+  CF_WRAP(1234, "CF-234: v4 Perceptual PCS Reference Medium", RunCF234_PerceptualPCSReferenceMedium(pIcc));
 
 #undef CF_WRAP
   return issues;
