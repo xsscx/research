@@ -4,7 +4,7 @@ These PDFs are the authoritative source of truth for all ICC profile conformance
 checks in iccanalyzer-lite. Every conformance check (CF-*) and PAWG checklist
 item traces back to a specific section in one of these documents.
 
-**Total: 25 documents | 162 conformance checks (CF-001..CF-162) | 171 security heuristics (H1-H171)**
+**Total: 25 documents | 318 conformance checks (CF-001..CF-316) | 171 security heuristics (H1-H171)**
 
 ## Primary Specifications
 
@@ -87,14 +87,14 @@ These documents are referenced by iccanalyzer-lite conformance checks:
 |--------|----------|---------------|
 | `IccConformanceHeader.cpp` | CF-001..CF-015, CF-107, CF-121..CF-122 | ICC.1 §7.2 |
 | `IccConformanceTagTypes.cpp` | CF-020..CF-034, CF-112, CF-123..CF-136 | ICC.1 §9-10, ADGC |
-| `IccConformanceRequired.cpp` | CF-040..CF-053, CF-095..CF-098, CF-103..CF-104, CF-111, CF-117..CF-120 | ICC.1 §8.2-8.9 |
-| `IccConformanceLUT.cpp` | CF-060..CF-070, CF-105..CF-106, CF-108..CF-110, CF-116 | ICC.1 §10.8-10.11 |
-| `IccConformanceV5.cpp` | CF-080..CF-089, CF-113..CF-115, CF-137..CF-162 | ICC.2 §7-10, Errata, ICS, Embedding, dictType |
+| `IccConformanceRequired.cpp` | CF-039..CF-059, CF-095..CF-098, CF-103..CF-104, CF-111, CF-117..CF-120, CF-202..CF-211, CF-258..CF-260, CF-266..CF-272, CF-282..CF-283 | ICC.1 §8.2-8.9 |
+| `IccConformanceLUT.cpp` | CF-060..CF-079, CF-105..CF-110, CF-116, CF-163..CF-168, CF-255..CF-256, CF-261..CF-262 | ICC.1 §10.8-10.13 |
+| `IccConformanceV5.cpp` | CF-080..CF-090, CF-113..CF-115, CF-137..CF-162, CF-175..CF-198, CF-235..CF-242, CF-257, CF-284..CF-316 | ICC.2 §7-10, Errata, ICS, Embedding, dictType |
 | `IccConformanceSecurity.cpp` | CF-091..CF-094 | Security (malware, NOP/shellcode) |
-| `IccConformanceQuality.cpp` | CF-099..CF-102 | Transform quality metrics |
+| `IccConformanceQuality.cpp` | CF-091..CF-094 | Transform quality metrics |
 | `IccAnalyzerPAWG.cpp` | — | PAWG 31-item assessment (maps to CF-* checks) |
 
-**Total: 162 conformance checks (CF-001..CF-162)**
+**Total: 318 conformance checks (CF-001..CF-316)**
 
 ## Coverage Status — All Specs Covered
 
