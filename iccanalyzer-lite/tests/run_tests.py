@@ -1872,6 +1872,97 @@ def test_conformance_checks(suite):
         r"CF-001|Header.*Size|Profile Size"
     )
 
+    # CF-002: Date/Time Leap Year Validation
+    suite.assert_output_contains(
+        "cf.002.datetime_leap_year",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-002.*Date.*Time.*Leap Year"
+    )
+
+    # CF-003: Profile Flags Reserved Bits
+    suite.assert_output_contains(
+        "cf.003.flags_reserved_bits",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-003.*Profile Flags.*Reserved"
+    )
+
+    # CF-004: Device Attributes Reserved Bits
+    suite.assert_output_contains(
+        "cf.004.device_attr_reserved",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-004.*Device Attributes.*Reserved"
+    )
+
+    # CF-005: Rendering Intent Upper Bits Zero
+    suite.assert_output_contains(
+        "cf.005.rendering_intent_upper",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-005.*Rendering Intent.*Upper"
+    )
+
+    # CF-006: Profile Version BCD Encoding
+    suite.assert_output_contains(
+        "cf.006.version_bcd",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-006.*Version.*BCD"
+    )
+
+    # CF-007: Primary Platform Signature
+    suite.assert_output_contains(
+        "cf.007.platform_signature",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-007.*Platform.*Signature"
+    )
+
+    # CF-008: PCS Illuminant D50 Precision
+    suite.assert_output_contains(
+        "cf.008.pcs_illuminant_d50",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-008.*PCS Illuminant.*D50"
+    )
+
+    # CF-009: Chromatic Adaptation Tag Requirement
+    suite.assert_output_contains(
+        "cf.009.chad_tag_requirement",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-009.*Chromatic Adaptation.*Tag"
+    )
+
+    # CF-010: Profile Size vs File Size
+    suite.assert_output_contains(
+        "cf.010.profile_size_vs_file",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-010.*Profile Size.*File"
+    )
+
+    # CF-012: Profile Class Signature
+    suite.assert_output_contains(
+        "cf.012.profile_class_sig",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-012.*Profile Class"
+    )
+
+    # CF-013: Data Colour Space Signature
+    suite.assert_output_contains(
+        "cf.013.data_colour_space",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-013.*Data Colour Space"
+    )
+
+    # CF-014: PCS Field for Non-DeviceLink
+    suite.assert_output_contains(
+        "cf.014.pcs_non_devicelink",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-014.*PCS.*Non.*DeviceLink"
+    )
+
+    # CF-015: Reserved Bytes 100-127 Zero
+    suite.assert_output_contains(
+        "cf.015.reserved_bytes_zero",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-015.*Reserved Bytes.*Zero"
+    )
+
     # CF-016: Device Manufacturer Signature
     suite.assert_output_contains(
         "cf.016.device_manufacturer",
@@ -1900,7 +1991,91 @@ def test_conformance_checks(suite):
         r"CF-019.*Creator"
     )
 
-    # --- CF Tag Type Checks (CF-035..CF-039) ---
+    # --- CF Tag Type Checks (CF-020..CF-039) ---
+    # CF-020: Tag Type Allowed for Signature
+    suite.assert_output_contains(
+        "cf.020.tag_type_allowed",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-020.*Tag Type.*Allowed"
+    )
+
+    # CF-022: curveType Entry Count Mode
+    suite.assert_output_contains(
+        "cf.022.curve_entry_count",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-022.*curveType.*Entry Count"
+    )
+
+    # CF-023: parametricCurveType Function Type
+    suite.assert_output_contains(
+        "cf.023.parametric_func_type",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-023.*parametricCurveType.*Function"
+    )
+
+    # CF-024: parametricCurveType Parameter Count
+    suite.assert_output_contains(
+        "cf.024.parametric_param_count",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-024.*parametricCurveType.*Parameter"
+    )
+
+    # CF-025: chromaticityType Phosphor Count
+    suite.assert_output_contains(
+        "cf.025.chromaticity_phosphor",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-025.*chromaticityType.*Phosphor"
+    )
+
+    # CF-026: colorantTableType Colorant Count
+    suite.assert_output_contains(
+        "cf.026.colorant_table_count",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-026.*colorantTableType.*Colorant"
+    )
+
+    # CF-027: colorantOrderType Count Match
+    suite.assert_output_contains(
+        "cf.027.colorant_order_match",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-027.*colorantOrderType.*Count"
+    )
+
+    # CF-028: namedColor2Type Coordinate Count
+    suite.assert_output_contains(
+        "cf.028.named_color2_coords",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-028.*namedColor2Type.*Coordinate"
+    )
+
+    # CF-029: dateTimeType Field Ranges
+    suite.assert_output_contains(
+        "cf.029.datetime_field_ranges",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-029.*dateTimeType.*Field"
+    )
+
+    # CF-032: XYZType Triplet Count
+    suite.assert_output_contains(
+        "cf.032.xyz_triplet_count",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-032.*XYZType.*Triplet"
+    )
+
+    # CF-033: measurementType Standard Observer
+    suite.assert_output_contains(
+        "cf.033.measurement_observer",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-033.*measurementType.*Observer"
+    )
+
+    # CF-034: measurementType Measurement Geometry
+    suite.assert_output_contains(
+        "cf.034.measurement_geometry",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-034.*measurementType.*Geometry"
+    )
+
     # CF-035: responseCurveSet16Type Structure
     suite.assert_output_contains(
         "cf.035.response_curve_set",
@@ -1936,7 +2111,119 @@ def test_conformance_checks(suite):
         r"CF-039.*signatureType"
     )
 
-    # --- CF Required Tag Checks (CF-054..CF-059) ---
+    # CF-123: ADGC Class Restriction (tested in test_adgc_conformance)
+    suite.assert_output_contains(
+        "cf.123.adgc_class_restriction",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"CF-123.*ADGC"
+    )
+
+    # CF-124: ADGC Data Validation (tested in test_adgc_conformance)
+    suite.assert_output_contains(
+        "cf.124.adgc_data_validation",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"CF-124.*ADGC"
+    )
+
+    # --- CF Required Tag Checks (CF-040..CF-059) ---
+    # CF-040: Common Required Tags (Non-DeviceLink)
+    suite.assert_output_contains(
+        "cf.040.common_required_tags",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-040.*Common Required Tags"
+    )
+
+    # CF-041: Input Profile Required Tags
+    suite.assert_output_contains(
+        "cf.041.input_profile_required",
+        ["-a", f"{corpus}/cf_adgc_valid_rgb_input.icc"],
+        r"CF-041.*Input Profile Required"
+    )
+
+    # CF-042: Display Profile Required Tags
+    suite.assert_output_contains(
+        "cf.042.display_profile_required",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-042.*Display Profile Required"
+    )
+
+    # CF-043: Output Profile Required Tags
+    suite.assert_output_contains(
+        "cf.043.output_profile_required",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-043.*Output Profile Required"
+    )
+
+    # CF-044: DeviceLink Profile Required Tags
+    suite.assert_output_contains(
+        "cf.044.devicelink_required",
+        ["-a", f"{corpus}/cf_devicelink_no_atob.icc"],
+        r"CF-044.*DeviceLink.*Required"
+    )
+
+    # CF-045: ColorSpace Profile Required Tags
+    suite.assert_output_contains(
+        "cf.045.colorspace_required",
+        ["-a", str(TEST_PROFILES / "Lab_float-D50_2deg.icc")],
+        r"CF-045.*ColorSpace.*Required"
+    )
+
+    # CF-046: Abstract Profile Required Tags
+    suite.assert_output_contains(
+        "cf.046.abstract_required",
+        ["-a", str(TEST_PROFILES / "RefDecC.icc")],
+        r"CF-046.*Abstract.*Required"
+    )
+
+    # CF-047: NamedColor Profile Required Tags
+    suite.assert_output_contains(
+        "cf.047.namedcolor_required",
+        ["-a", f"{corpus}/named_color2_excessive_coords.icc"],
+        r"CF-047.*NamedColor.*Required"
+    )
+
+    # CF-048: Rendering Intent Transform Consistency
+    suite.assert_output_contains(
+        "cf.048.rendering_intent_consistency",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-048.*Rendering Intent.*Transform"
+    )
+
+    # CF-049: Matrix/TRC Profile PCS Must Be XYZ
+    suite.assert_output_contains(
+        "cf.049.matrix_trc_pcs_xyz",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-049.*Matrix.*TRC.*PCS.*XYZ"
+    )
+
+    # CF-050: xCLR Colorant Table Required
+    suite.assert_output_contains(
+        "cf.050.xclr_colorant_table",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-050.*xCLR.*Colorant"
+    )
+
+    # CF-051: DeviceLink Prohibited Tags
+    suite.assert_output_contains(
+        "cf.051.devicelink_prohibited",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-051.*DeviceLink.*Prohibited"
+    )
+
+    # CF-052: Transform Tag Pair Consistency
+    suite.assert_output_contains(
+        "cf.052.transform_pair_consistency",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-052.*Transform.*Pair"
+    )
+
+    # CF-053: cicpTag Class Restriction
+    suite.assert_output_contains(
+        "cf.053.cicp_class_restriction",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-053.*cicpTag.*Class"
+    )
+
     # CF-054: v5 Spectral Required Tags
     suite.assert_output_contains(
         "cf.054.v5_spectral_required",
@@ -2002,6 +2289,55 @@ def test_conformance_checks(suite):
         r"CF-063.*lut8.*256"
     )
 
+    # CF-064: lut16Type Table Size Range 2-4096
+    suite.assert_output_contains(
+        "cf.064.lut16_table_size",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-064.*lut16Type.*Table Size"
+    )
+
+    # CF-065: lutAToBType Processing Element Present
+    suite.assert_output_contains(
+        "cf.065.lut_atob_element",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-065.*lutAToBType.*Processing"
+    )
+
+    # CF-066: lutBToAType Processing Element Present
+    suite.assert_output_contains(
+        "cf.066.lut_btoa_element",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-066.*lutBToAType.*Processing"
+    )
+
+    # CF-067: lut8/16 Matrix Identity When Not PCSXYZ
+    suite.assert_output_contains(
+        "cf.067.lut_matrix_identity",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-067.*Matrix Identity"
+    )
+
+    # CF-068: Chromatic Adaptation Matrix Invertible
+    suite.assert_output_contains(
+        "cf.068.chad_matrix_invertible",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-068.*Chromatic Adaptation.*Invertible"
+    )
+
+    # CF-069: Matrix Column Tag XYZ Count
+    suite.assert_output_contains(
+        "cf.069.matrix_column_xyz",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-069.*Matrix Column.*XYZ"
+    )
+
+    # CF-070: Chad s15Fixed16 Array Count 9
+    suite.assert_output_contains(
+        "cf.070.chad_array_count_9",
+        ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-070.*Chad.*s15Fixed16.*Count"
+    )
+
     # CF-071: Curve Count vs Channel Match
     suite.assert_output_contains(
         "cf.071.curve_count_channel",
@@ -2065,11 +2401,98 @@ def test_conformance_checks(suite):
         r"CF-079.*Bit Depth"
     )
 
+    # --- CF V5/iccMAX Checks (CF-080..CF-090) ---
+    v5_profile = str(TEST_PROFILES / "Spec400_10_700-D50_2deg-Abs.icc")
+
+    # CF-080: Spectral PCS Signature
+    suite.assert_output_contains(
+        "cf.080.spectral_pcs_sig",
+        ["-a", v5_profile],
+        r"CF-080.*Spectral PCS Signature"
+    )
+
+    # CF-081: Spectral PCS Range Validity
+    suite.assert_output_contains(
+        "cf.081.spectral_pcs_range",
+        ["-a", v5_profile],
+        r"CF-081.*Spectral PCS Range"
+    )
+
+    # CF-082: PCC Tags Required When Spectral
+    suite.assert_output_contains(
+        "cf.082.pcc_tags_spectral",
+        ["-a", v5_profile],
+        r"CF-082.*PCC Tags.*Spectral"
+    )
+
+    # CF-083: MCS Signature Encoding
+    suite.assert_output_contains(
+        "cf.083.mcs_signature",
+        ["-a", v5_profile],
+        r"CF-083.*MCS Signature"
+    )
+
+    # CF-084: Profile Sub-Class Signature
+    suite.assert_output_contains(
+        "cf.084.subclass_sig",
+        ["-a", v5_profile],
+        r"CF-084.*Sub.*Class"
+    )
+
+    # CF-085: Version Field 5.x BCD
+    suite.assert_output_contains(
+        "cf.085.version_5x_bcd",
+        ["-a", v5_profile],
+        r"CF-085.*Version.*5.*BCD"
+    )
+
+    # CF-086: Extended Attribute Bits
+    suite.assert_output_contains(
+        "cf.086.extended_attr_bits",
+        ["-a", v5_profile],
+        r"CF-086.*Extended Attribute"
+    )
+
+    # CF-087: MPE Element Signature Valid
+    suite.assert_output_contains(
+        "cf.087.mpe_element_sig",
+        ["-a", v5_profile],
+        r"CF-087.*MPE Element.*Signature"
+    )
+
+    # CF-088: Calculator Element Stack Structure
+    suite.assert_output_contains(
+        "cf.088.calculator_stack",
+        ["-a", v5_profile],
+        r"CF-088.*Calculator.*Stack"
+    )
+
+    # CF-089: Spectral Wavelength Range
+    suite.assert_output_contains(
+        "cf.089.spectral_wavelength",
+        ["-a", v5_profile],
+        r"CF-089.*Spectral Wavelength"
+    )
+
     # CF-090: Spectral Illuminant Consistency (v5 only)
     suite.assert_output_contains(
         "cf.090.spectral_illuminant",
         ["-a", str(TEST_PROFILES / "17ChanPart1.icc")],
         r"CF-090.*Spectral Illuminant"
+    )
+
+    # CF-114: MCS Colour Space Consistency
+    suite.assert_output_contains(
+        "cf.114.mcs_colour_space",
+        ["-a", v5_profile],
+        r"CF-114.*MCS.*Colour Space"
+    )
+
+    # CF-193: Colorimetric ICS PCC Matrix Restriction
+    suite.assert_output_contains(
+        "cf.193.ics_pcc_matrix",
+        ["-a", v5_profile],
+        r"CF-193.*Colorimetric.*ICS.*PCC"
     )
 
     # --- CF Security Checks (CF-091..CF-094) ---
