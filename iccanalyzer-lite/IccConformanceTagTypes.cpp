@@ -2090,6 +2090,211 @@ int RunCF124_to_CF132_ADGCDataValidation(CIccProfile *pIcc, const char *filename
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-188: Global Per-Tag Validate() Sweep (SampleICC §3 — Compliance Testing)
+//
+// The SampleICC Profile Compliance Testing framework defines per-tag validation
+// as the final step: call CIccTag::Validate() on EVERY tag in the profile and
+// aggregate the compliance status. This catches tag-internal issues that
+// per-type CF checks (CF-020..CF-034) do not cover — e.g., invalid curve
+// parameters, broken LUT structures, or internally inconsistent data.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF188_GlobalTagValidateSweep(CIccProfile *pIcc) {
+  int issues = 0;
+  int totalTags = 0;
+  int validatedOk = 0;
+  int validatedWarn = 0;
+  int validatedErr = 0;
+
+  printf("  %s[CF-188]%s Global Per-Tag Validate() Sweep (%sSampleICC §3 Compliance%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+    if (!pTag) continue;
+
+    totalTags++;
+    char sigBuf[5];
+    SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+
+    std::string sigPath = "tag(";
+    sigPath += sigBuf;
+    sigPath += ")";
+    std::string report;
+    icValidateStatus status = pTag->Validate(sigPath, report, pIcc);
+
+    if (status >= icValidateCriticalError) {
+      printf("         Tag '%s': %sCRITICAL ERROR%s in Validate()\n",
+             sigBuf, ColorError(), ColorReset());
+      if (!report.empty()) {
+        std::string firstLine = report.substr(0, report.find('\n'));
+        if (!firstLine.empty())
+          printf("           %s\n", firstLine.c_str());
+      }
+      validatedErr++;
+      issues++;
+    } else if (status >= icValidateNonCompliant) {
+      printf("         Tag '%s': %snon-compliant%s per Validate()\n",
+             sigBuf, ColorError(), ColorReset());
+      if (!report.empty()) {
+        std::string firstLine = report.substr(0, report.find('\n'));
+        if (!firstLine.empty())
+          printf("           %s\n", firstLine.c_str());
+      }
+      validatedErr++;
+      issues++;
+    } else if (status >= icValidateWarning) {
+      validatedWarn++;
+    } else {
+      validatedOk++;
+    }
+  }
+
+  printf("         Swept %d tags: %d OK, %d warnings, %d errors\n",
+         totalTags, validatedOk, validatedWarn, validatedErr);
+
+  if (issues == 0)
+    printf("         %s[OK]%s All %d tags pass library Validate()\n",
+           ColorSuccess(), ColorReset(), totalTags);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-189: Tag Type Recognition Coverage (SampleICC §3 — CheckTagTypes)
+//
+// The tag factory creates CIccTagUnknown objects for tag type signatures it
+// does not recognize. While the profile may be technically valid (private tags
+// are allowed), an unrecognized type signature indicates either:
+//   (a) A private/vendor-specific tag type — informational
+//   (b) A corrupted or malformed type signature — potential issue
+//
+// This check counts how many tags resolved to CIccTagUnknown and reports them.
+// Any tag with an unrecognized type signature cannot be semantically validated.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF189_TagTypeRecognition(CIccProfile *pIcc) {
+  int issues = 0;
+  int totalTags = 0;
+  int unknownCount = 0;
+
+  printf("  %s[CF-189]%s Tag Type Recognition Coverage (%sSampleICC §3 CheckTagTypes%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+    if (!pTag) continue;
+
+    totalTags++;
+
+    const char *className = pTag->GetClassName();
+    if (className && strcmp(className, "CIccTagUnknown") == 0) {
+      char sigBuf[5], typeBuf[5];
+      SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+      SigToChars(static_cast<uint32_t>(pTag->GetType()), typeBuf);
+
+      printf("         Tag '%s': unrecognized type '%s' → CIccTagUnknown\n",
+             sigBuf, typeBuf);
+      unknownCount++;
+      issues++;
+    }
+  }
+
+  printf("         %d/%d tags have recognized type signatures\n",
+         totalTags - unknownCount, totalTags);
+
+  if (issues == 0)
+    printf("         %s[OK]%s All %d tag types are recognized by the factory\n",
+           ColorSuccess(), ColorReset(), totalTags);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-190: Profile Legibility Gate (SampleICC §3 — "Is it legible?")
+//
+// The SampleICC compliance testing framework asks three questions:
+//   1. Is it legible? (Can we read it at all?)
+//   2. Does it conform? (Are spec requirements met?)
+//   3. Is it usable? (Can the CMM process it?)
+//
+// This check validates the first question: profile legibility. It verifies:
+//   (a) The tag table is non-empty (at least 1 tag parsed)
+//   (b) All tag directory entries point to loadable tag data
+//   (c) No NULL tag pointers after Read() (broken parse)
+//   (d) Profile file size matches header declaration (ReadValidate)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF190_ProfileLegibility(CIccProfile *pIcc, const char *filename) {
+  int issues = 0;
+  int totalEntries = 0;
+
+  printf("  %s[CF-190]%s Profile Legibility Gate (%sSampleICC §3 ReadValidate%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check 1: Tag table is non-empty
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    totalEntries++;
+  }
+
+  if (totalEntries == 0) {
+    printf("         %s[FAIL]%s Profile has 0 tag entries — not legible\n",
+           ColorError(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  // Check 2: All tag directory entries resolve to non-NULL tag objects
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    IccTagEntry *e = &(*it);
+    CIccTag *pTag = pIcc->FindTag(e->TagInfo.sig);
+    if (!pTag) {
+      char sigBuf[5];
+      SigToChars(static_cast<uint32_t>(e->TagInfo.sig), sigBuf);
+      printf("         Tag '%s' (offset %u, size %u): NULL after Read()\n",
+             sigBuf, (unsigned)e->TagInfo.offset, (unsigned)e->TagInfo.size);
+      issues++;
+    }
+  }
+
+  // Check 3: File size vs header declared size
+  if (filename && filename[0]) {
+    FILE *fp = fopen(filename, "rb");
+    if (fp) {
+      fseek(fp, 0, SEEK_END);
+      long fileSize = ftell(fp);
+      fclose(fp);
+
+      uint32_t headerSize = pIcc->m_Header.size;
+      if (fileSize > 0 && headerSize > 0) {
+        if ((uint32_t)fileSize < headerSize) {
+          printf("         File truncated: actual %ld bytes < header declares %u bytes\n",
+                 fileSize, headerSize);
+          printf("         %s[FAIL]%s File size mismatch — profile truncated\n",
+                 ColorError(), ColorReset());
+          issues++;
+        } else if ((uint32_t)fileSize > headerSize + 3) {
+          // Allow 0-3 byte padding for alignment
+          printf("         File has %ld bytes trailing data beyond header size %u\n",
+                 fileSize - (long)headerSize, headerSize);
+        }
+      }
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Profile is legible: %d tags parsed, all non-NULL\n",
+           ColorSuccess(), ColorReset(), totalEntries);
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all tag type conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2135,6 +2340,11 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1123, "CF-123: ADGC Class Restriction", RunCF123_ADGCClassRestriction(pIcc));
   CF_WRAP(1124, "CF-124..CF-132: ADGC Data Validation",
           RunCF124_to_CF132_ADGCDataValidation(pIcc, filename));
+
+  // SampleICC Compliance Testing Framework (CF-188..CF-190)
+  CF_WRAP(1188, "CF-188: Global Per-Tag Validate() Sweep", RunCF188_GlobalTagValidateSweep(pIcc));
+  CF_WRAP(1189, "CF-189: Tag Type Recognition Coverage", RunCF189_TagTypeRecognition(pIcc));
+  CF_WRAP(1190, "CF-190: Profile Legibility Gate", RunCF190_ProfileLegibility(pIcc, filename));
 
 #undef CF_WRAP
   return issues;

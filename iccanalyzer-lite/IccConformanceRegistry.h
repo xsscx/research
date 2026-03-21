@@ -742,6 +742,17 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-187", "Embedded Profile ProfileID Chain",
    "Both outer and inner profiles in embedding chain should have valid Profile IDs", "ICC TN Embedding + §7.2.18",
    CFSeverity::WARNING, CFCategory::HEADER},
+
+  // SampleICC Profile Compliance Testing Framework (CF-188..CF-190)
+  {"CF-188", "Global Per-Tag Validate() Sweep",
+   "Call CIccTag::Validate() on every tag and report aggregate compliance status", "SampleICC §3 Compliance Testing",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+  {"CF-189", "Tag Type Recognition Coverage",
+   "Flag tags parsed as CIccTagUnknown — unrecognized type signatures cannot be semantically validated", "SampleICC §3 CheckTagTypes",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+  {"CF-190", "Profile Legibility Gate",
+   "Composite readability check: non-empty tag table, all entries parse to non-NULL, file size matches header", "SampleICC §3 ReadValidate",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =
