@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-177)."""
+    """Test ICC Specification conformance checks (CF-001..CF-183)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2394,6 +2394,43 @@ def test_conformance_checks(suite):
         "cf.177.data_integrity",
         ["-a", v5_profile],
         r"CF-177.*Embedded Profile Data"
+    )
+
+    # --- CF-178..CF-183: Partial Chromatic Adaptation (ICC TN) ---
+    # Chad-related checks (CF-178/179/183) apply to any profile with chad tag
+    chad_profile = str(Path(__file__).resolve().parent.parent.parent / "test-profiles" / "ios-gen-DisplayP3.icc")
+    if Path(chad_profile).exists():
+        suite.assert_output_contains(
+            "cf.178.chad_diagonal",
+            ["-a", chad_profile],
+            r"CF-178.*Chad.*Diagonal"
+        )
+        suite.assert_output_contains(
+            "cf.179.chad_d50_identity",
+            ["-a", chad_profile],
+            r"CF-179.*Chad.*D50"
+        )
+        suite.assert_output_contains(
+            "cf.183.chad_column_norm",
+            ["-a", chad_profile],
+            r"CF-183.*Chad.*Column"
+        )
+
+    # PCC checks (CF-180/181/182) require v5 profile
+    suite.assert_output_contains(
+        "cf.180.pcc_complete",
+        ["-a", v5_profile],
+        r"CF-180.*PCC.*Complete"
+    )
+    suite.assert_output_contains(
+        "cf.181.pcc_illuminant_chad",
+        ["-a", v5_profile],
+        r"CF-181.*PCC.*Illuminant"
+    )
+    suite.assert_output_contains(
+        "cf.182.pcc_observer",
+        ["-a", v5_profile],
+        r"CF-182.*PCC.*Observer"
     )
 
     # --- Clean profile baseline ---
