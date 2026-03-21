@@ -2,9 +2,10 @@
 /// @brief ICC.2-2023 v5/iccMAX conformance checks (CF-080 through CF-089),
 ///        ICC.2-in-ICC.1 embedding (CF-153..CF-158, CF-175..CF-177),
 ///        partial chromatic adaptation (CF-178..CF-183),
-///        dictType (CF-159..CF-162).
+///        dictType (CF-159..CF-162),
+///        ICC.2:2019 errata-derived (CF-284..CF-291).
 ///
-/// @see ICC.2-2023, ICC TN Embedding, ICC TN Partial Adaptation
+/// @see ICC.2-2023, ICC.2:2019 Errata (Sept 2021), ICC TN Embedding, ICC TN Partial Adaptation
 
 #include <cmath>
 #include "IccProfile.h"
@@ -16,6 +17,7 @@
 #include "IccMpeCalc.h"
 #include "IccTagDict.h"
 #include "IccTagEmbedIcc.h"
+#include "IccTagLut.h"
 #include "IccUtil.h"
 #include "IccConformanceRegistry.h"
 #include "IccHeuristicsHelpers.h"
@@ -3585,6 +3587,434 @@ static int RunCF257_SpectralRangeStepCount(CIccProfile *pIcc) {
 
 
 // ---------------------------------------------------------------------------
+// CF-284: BRDF Spectral Parameter Tag Type (ICC.2-2023 §9.2.10-13)
+// ---------------------------------------------------------------------------
+static int RunCF284_BRDFSpectralParameterTagType(CIccProfile *pIcc) {
+  printf("  %s[CF-284]%s BRDF Spectral Parameter Tag Type (%sICC.2-2023 §9.2.10-13%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  const icTagSignature brdfTags[] = {
+    icSigBrdfSpectralParameter0Tag,
+    icSigBrdfSpectralParameter1Tag,
+    icSigBrdfSpectralParameter2Tag,
+    icSigBrdfSpectralParameter3Tag
+  };
+  const char *brdfNames[] = {"bsp0", "bsp1", "bsp2", "bsp3"};
+
+  int found = 0;
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(brdfTags[i]);
+    if (!pTag) continue;
+    found++;
+
+    icTagTypeSignature ts = pTag->GetType();
+    if (ts != icSigMultiProcessElementType) {
+      printf("         %s[FAIL]%s '%s' tag type is 0x%08X — expected multiProcessElementType (0x%08X)\n",
+             ColorError(), ColorReset(), brdfNames[i],
+             (unsigned)ts, (unsigned)icSigMultiProcessElementType);
+      issues++;
+    } else {
+      printf("         '%s': multiProcessElementType — correct\n", brdfNames[i]);
+    }
+  }
+
+  if (found == 0) {
+    printf("         No BRDF spectral parameter tags — not applicable\n");
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d BRDF tag(s) have correct type\n",
+           ColorSuccess(), ColorReset(), found);
+  }
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-285: BRDF Tag Presence Consistency (ICC.2-2023 §9.2.10)
+// ---------------------------------------------------------------------------
+static int RunCF285_BRDFTagConsistency(CIccProfile *pIcc) {
+  printf("  %s[CF-285]%s BRDF Tag Presence Consistency (%sICC.2-2023 §9.2.10%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  const icTagSignature brdfTags[] = {
+    icSigBrdfSpectralParameter0Tag,
+    icSigBrdfSpectralParameter1Tag,
+    icSigBrdfSpectralParameter2Tag,
+    icSigBrdfSpectralParameter3Tag
+  };
+
+  int present = 0;
+  int absent = 0;
+  for (int i = 0; i < 4; i++) {
+    if (pIcc->FindTag(brdfTags[i]))
+      present++;
+    else
+      absent++;
+  }
+
+  if (present == 0) {
+    printf("         No BRDF tags — not applicable\n");
+  } else if (absent == 0) {
+    printf("         %s[OK]%s All 4 BRDF spectral parameter tags present\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("         %s[FAIL]%s Partial BRDF tag set: %d/4 present — incomplete parametric model\n",
+           ColorWarning(), ColorReset(), present);
+    issues++;
+  }
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-286: GBD Triangle-Vertex Consistency (ICC.2-2023 §10.2.11, Errata §10.2.11)
+// ---------------------------------------------------------------------------
+static int RunCF286_GBDTriangleVertexConsistency(CIccProfile *pIcc) {
+  printf("  %s[CF-286]%s GBD Triangle-Vertex Consistency (%sICC.2-2023 §10.2.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  const icTagSignature gbdTags[] = {
+    icSigGamutBoundaryDescription0Tag,
+    icSigGamutBoundaryDescription1Tag,
+    icSigGamutBoundaryDescription2Tag,
+    icSigGamutBoundaryDescription3Tag
+  };
+  const char *gbdNames[] = {"gbd0", "gbd1", "gbd2", "gbd3"};
+
+  int checked = 0;
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(gbdTags[i]);
+    if (!pTag) continue;
+
+    CIccTagGamutBoundaryDesc *gbd =
+        dynamic_cast<CIccTagGamutBoundaryDesc *>(pTag);
+    if (!gbd) {
+      printf("         %s[FAIL]%s '%s' wrong tag type — expected gamutBoundaryDescType\n",
+             ColorError(), ColorReset(), gbdNames[i]);
+      issues++;
+      continue;
+    }
+    checked++;
+
+    icInt32Number nVerts = gbd->getNumberOfVertices();
+    icInt32Number nTris  = gbd->getNumberOfTriangles();
+
+    if (nTris > 0 && nVerts < 3) {
+      printf("         %s[FAIL]%s '%s' has %d triangles but only %d vertices (need >= 3)\n",
+             ColorError(), ColorReset(), gbdNames[i], nTris, nVerts);
+      issues++;
+    }
+    if (nVerts < 0 || nTris < 0) {
+      printf("         %s[FAIL]%s '%s' negative count: vertices=%d triangles=%d\n",
+             ColorError(), ColorReset(), gbdNames[i], nVerts, nTris);
+      issues++;
+    }
+    if (nVerts > 0 && nTris == 0) {
+      printf("         %s[WARN]%s '%s' has %d vertices but 0 triangles — degenerate boundary\n",
+             ColorWarning(), ColorReset(), gbdNames[i], nVerts);
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No GBD tags — not applicable\n");
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d GBD tag(s) have consistent vertex/triangle counts\n",
+           ColorSuccess(), ColorReset(), checked);
+  }
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-287: GBD Channel Count Plausibility (ICC.2-2023 §10.2.11)
+// ---------------------------------------------------------------------------
+static int RunCF287_GBDChannelPlausibility(CIccProfile *pIcc) {
+  printf("  %s[CF-287]%s GBD Channel Count Plausibility (%sICC.2-2023 §10.2.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  const icTagSignature gbdTags[] = {
+    icSigGamutBoundaryDescription0Tag,
+    icSigGamutBoundaryDescription1Tag,
+    icSigGamutBoundaryDescription2Tag,
+    icSigGamutBoundaryDescription3Tag
+  };
+  const char *gbdNames[] = {"gbd0", "gbd1", "gbd2", "gbd3"};
+
+  int checked = 0;
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(gbdTags[i]);
+    if (!pTag) continue;
+
+    CIccTagGamutBoundaryDesc *gbd =
+        dynamic_cast<CIccTagGamutBoundaryDesc *>(pTag);
+    if (!gbd) continue;
+    checked++;
+
+    icInt16Number nPCS = gbd->getNumPCSChannels();
+    icInt16Number nDev = gbd->getNumDeviceChannels();
+
+    // PCS channels should be 3 (Lab or XYZ)
+    if (nPCS != 3) {
+      printf("         %s[FAIL]%s '%s' PCS channels = %d — expected 3 (Lab/XYZ)\n",
+             ColorError(), ColorReset(), gbdNames[i], nPCS);
+      issues++;
+    }
+    // Device channels 0 means no device data (allowed), but > 16 is suspicious
+    if (nDev > 16) {
+      printf("         %s[FAIL]%s '%s' device channels = %d — exceeds plausible maximum (16)\n",
+             ColorError(), ColorReset(), gbdNames[i], nDev);
+      issues++;
+    }
+    if (nDev < 0) {
+      printf("         %s[FAIL]%s '%s' device channels = %d — negative\n",
+             ColorError(), ColorReset(), gbdNames[i], nDev);
+      issues++;
+    }
+  }
+
+  if (checked == 0) {
+    printf("         No GBD tags — not applicable\n");
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d GBD tag(s) have plausible channel counts\n",
+           ColorSuccess(), ColorReset(), checked);
+  }
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-288: Spectral Data Info Bi-Spectral Consistency (ICC.2-2023 §9.2.84)
+// ---------------------------------------------------------------------------
+static int RunCF288_SpectralDataInfoConsistency(CIccProfile *pIcc) {
+  printf("  %s[CF-288]%s Spectral Data Info Bi-Spectral Consistency (%sICC.2-2023 §9.2.84%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigSpectralDataInfoTag);
+  if (!pTag) {
+    printf("         No spectralDataInfoTag — not applicable\n");
+    return 0;
+  }
+
+  CIccTagSpectralDataInfo *sdi =
+      dynamic_cast<CIccTagSpectralDataInfo *>(pTag);
+  if (!sdi) {
+    printf("         %s[FAIL]%s spectralDataInfoTag wrong type — expected spectralDataInfoType\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  // Check spectralRange consistency
+  if (sdi->m_spectralRange.start == 0 && sdi->m_spectralRange.end == 0 &&
+      sdi->m_spectralRange.steps == 0) {
+    printf("         %s[FAIL]%s spectralRange is all-zero — must specify wavelength range\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    printf("         spectralRange: start=%.1f end=%.1f steps=%u\n",
+           icF16toF(sdi->m_spectralRange.start),
+           icF16toF(sdi->m_spectralRange.end),
+           sdi->m_spectralRange.steps);
+  }
+
+  // If biSpectralRange is set, base spectralRange must also be valid
+  bool hasBiSpectral = (sdi->m_biSpectralRange.start != 0 ||
+                        sdi->m_biSpectralRange.end != 0 ||
+                        sdi->m_biSpectralRange.steps != 0);
+  if (hasBiSpectral) {
+    printf("         biSpectralRange: start=%.1f end=%.1f steps=%u\n",
+           icF16toF(sdi->m_biSpectralRange.start),
+           icF16toF(sdi->m_biSpectralRange.end),
+           sdi->m_biSpectralRange.steps);
+
+    if (sdi->m_spectralRange.steps == 0) {
+      printf("         %s[FAIL]%s biSpectralRange set but base spectralRange has 0 steps\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral data info ranges consistent\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-289: Spectral Viewing Conditions Illuminant Bounds (ICC.2-2023 §10.2.30)
+// ---------------------------------------------------------------------------
+static int RunCF289_SpectralViewingIlluminantBounds(CIccProfile *pIcc) {
+  printf("  %s[CF-289]%s Spectral Viewing Conditions Illuminant Bounds (%sICC.2-2023 §10.2.30%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!pTag) {
+    printf("         No spectralViewingConditionsTag — not applicable\n");
+    return 0;
+  }
+
+  CIccTagSpectralViewingConditions *svc =
+      dynamic_cast<CIccTagSpectralViewingConditions *>(pTag);
+  if (!svc) {
+    printf("         %s[FAIL]%s spectralViewingConditionsTag wrong type\n",
+           ColorError(), ColorReset());
+    return 1;
+  }
+
+  // Illuminant XYZ should be physically reasonable
+  icFloatNumber illumX = svc->m_illuminantXYZ.X;
+  icFloatNumber illumY = svc->m_illuminantXYZ.Y;
+  icFloatNumber illumZ = svc->m_illuminantXYZ.Z;
+
+  printf("         Illuminant XYZ: (%.4f, %.4f, %.4f)\n",
+         (double)illumX, (double)illumY, (double)illumZ);
+
+  if (illumY <= 0.0f) {
+    printf("         %s[FAIL]%s Illuminant Y <= 0 — physically impossible\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+  if (illumX < 0.0f || illumZ < 0.0f) {
+    printf("         %s[FAIL]%s Illuminant X or Z negative — physically implausible\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+  // All-zero means uninitialized
+  if (illumX == 0.0f && illumY == 0.0f && illumZ == 0.0f) {
+    printf("         %s[FAIL]%s Illuminant XYZ all zero — uninitialized\n",
+           ColorError(), ColorReset());
+    issues++;
+  }
+
+  // Surround XYZ should also be non-negative
+  icFloatNumber surX = svc->m_surroundXYZ.X;
+  icFloatNumber surY = svc->m_surroundXYZ.Y;
+  icFloatNumber surZ = svc->m_surroundXYZ.Z;
+  if (surX < 0.0f || surY < 0.0f || surZ < 0.0f) {
+    printf("         %s[FAIL]%s Surround XYZ has negative value(s)\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral viewing conditions illuminant values plausible\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-290: Material Default Values Tag Presence (ICC.2-2023 §9.2.47)
+// ---------------------------------------------------------------------------
+static int RunCF290_MaterialDefaultValuesPresence(CIccProfile *pIcc) {
+  printf("  %s[CF-290]%s Material Default Values Tag Presence (%sICC.2-2023 §9.2.47%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+
+  // Material identification and visualization classes should have materialDefaultValuesTag
+  if (cls != icSigMaterialIdentificationClass &&
+      cls != icSigMaterialVisualizationClass) {
+    printf("         Profile class is not material — not applicable\n");
+    return 0;
+  }
+
+  const char *clsName = (cls == icSigMaterialIdentificationClass) ?
+                         "Material Identification" : "Material Visualization";
+
+  CIccTag *mdv = pIcc->FindTag(icSigMultiplexDefaultValuesTag);
+  if (!mdv) {
+    printf("         %s[WARN]%s %s profile missing multiplexDefaultValuesTag ('mdv ')\n",
+           ColorWarning(), ColorReset(), clsName);
+    issues++;
+  } else {
+    printf("         multiplexDefaultValuesTag present for %s profile\n", clsName);
+  }
+
+  // Material type array tag should also be present
+  CIccTag *mcta = pIcc->FindTag(icSigMultiplexTypeArrayTag);
+  if (!mcta) {
+    printf("         %s[WARN]%s %s profile missing multiplexTypeArrayTag ('mcta')\n",
+           ColorWarning(), ColorReset(), clsName);
+    issues++;
+  } else {
+    printf("         multiplexTypeArrayTag present\n");
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Material profile tags present\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
+// CF-291: Spectral White Point XYZ Range (ICC.2-2023 §9.2.85)
+// ---------------------------------------------------------------------------
+static int RunCF291_SpectralWhitePointRange(CIccProfile *pIcc) {
+  printf("  %s[CF-291]%s Spectral White Point XYZ Range (%sICC.2-2023 §9.2.85%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigSpectralWhitePointTag);
+  if (!pTag) {
+    printf("         No spectralWhitePointTag — not applicable\n");
+    return 0;
+  }
+
+  // spectralWhitePointTag should be XYZType
+  icTagTypeSignature ts = pTag->GetType();
+  if (ts != icSigXYZArrayType) {
+    printf("         %s[FAIL]%s spectralWhitePointTag type 0x%08X — expected XYZType (0x%08X)\n",
+           ColorError(), ColorReset(), (unsigned)ts, (unsigned)icSigXYZArrayType);
+    issues++;
+  }
+
+  // Try to cast and validate XYZ values
+  CIccTagXYZ *xyz = dynamic_cast<CIccTagXYZ *>(pTag);
+  if (xyz && xyz->GetSize() >= 1) {
+    icXYZNumber *wp = xyz->GetXYZ(0);
+    if (wp) {
+      double X = icFtoD(wp->X);
+      double Y = icFtoD(wp->Y);
+      double Z = icFtoD(wp->Z);
+
+      printf("         Spectral white point: (%.4f, %.4f, %.4f)\n", X, Y, Z);
+
+      // Y should be near 1.0 (normalized luminance) or at least positive
+      if (Y <= 0.0) {
+        printf("         %s[FAIL]%s Spectral white point Y <= 0 — physically impossible\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+      if (X < 0.0 || Z < 0.0) {
+        printf("         %s[FAIL]%s Spectral white point has negative X or Z\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+      // Very large values suggest corruption
+      if (X > 5.0 || Y > 5.0 || Z > 5.0) {
+        printf("         %s[WARN]%s Spectral white point exceeds 5.0 — unusually large\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral white point values plausible\n",
+           ColorSuccess(), ColorReset());
+  return issues;
+}
+
+
+// ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
@@ -3692,6 +4122,16 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1161, "CF-161: Dictionary Record Length Alignment", RunCF161_DictRecordLengthAlignment(pIcc));
   CF_WRAP(1162, "CF-162: Dictionary Entry Count Bounds", RunCF162_DictEntryCountBounds(pIcc));
   CF_WRAP(1257, "CF-257: Spectral Range Step Count", RunCF257_SpectralRangeStepCount(pIcc));
+
+  // ICC.2:2019 Errata-derived checks (CF-284..CF-291)
+  CF_WRAP(1284, "CF-284: BRDF Spectral Parameter Tag Type", RunCF284_BRDFSpectralParameterTagType(pIcc));
+  CF_WRAP(1285, "CF-285: BRDF Tag Presence Consistency", RunCF285_BRDFTagConsistency(pIcc));
+  CF_WRAP(1286, "CF-286: GBD Triangle-Vertex Consistency", RunCF286_GBDTriangleVertexConsistency(pIcc));
+  CF_WRAP(1287, "CF-287: GBD Channel Count Plausibility", RunCF287_GBDChannelPlausibility(pIcc));
+  CF_WRAP(1288, "CF-288: Spectral Data Info Bi-Spectral Consistency", RunCF288_SpectralDataInfoConsistency(pIcc));
+  CF_WRAP(1289, "CF-289: Spectral Viewing Conditions Illuminant Bounds", RunCF289_SpectralViewingIlluminantBounds(pIcc));
+  CF_WRAP(1290, "CF-290: Material Default Values Tag Presence", RunCF290_MaterialDefaultValuesPresence(pIcc));
+  CF_WRAP(1291, "CF-291: Spectral White Point XYZ Range", RunCF291_SpectralWhitePointRange(pIcc));
 
 done:
 #undef CF_WRAP
