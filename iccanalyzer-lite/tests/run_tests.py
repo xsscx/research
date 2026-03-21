@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-226)."""
+    """Test ICC Specification conformance checks (CF-001..CF-234)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2751,6 +2751,62 @@ def test_conformance_checks(suite):
         "cf.mluc_size_inference",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-226.*mluc.*Size.*Inference"
+    )
+
+    # CF-227: v4 Text Tag Unicode Migration
+    suite.assert_output_contains(
+        "cf.227.v4_text_unicode",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-227.*Text Tag Unicode"
+    )
+
+    # CF-228: grayTRCTag Semantic Validation
+    suite.assert_output_contains(
+        "cf.228.gray_trc",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-228.*grayTRC"
+    )
+
+    # CF-229: Rendering Intent Dominance Per Class
+    suite.assert_output_contains(
+        "cf.229.intent_dominance",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-229.*Rendering Intent"
+    )
+
+    # CF-230: CIELAB Encoding Version Consistency
+    suite.assert_output_contains(
+        "cf.230.cielab_encoding",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-230.*CIELAB Encoding"
+    )
+
+    # CF-231: LUT Processing Element Sequence
+    suite.assert_output_contains(
+        "cf.231.lut_sequence",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-231.*LUT Processing"
+    )
+
+    # CF-232: Date/Time UTC Consistency
+    suite.assert_output_contains(
+        "cf.232.datetime_utc",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-232.*Date.*Time"
+    )
+
+    # CF-233: colorantOrderTag Index Validation
+    suite.assert_output_contains(
+        "cf.233.colorant_order",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-233.*colorantOrder"
+    )
+
+    # CF-234: v4 Perceptual PCS Reference Medium
+    suite.assert_output_contains(
+        "cf.234.perceptual_pcs",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-234.*Perceptual PCS"
     )
 
     # --- Clean profile baseline ---
