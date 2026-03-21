@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-320)."""
+    """Test ICC Specification conformance checks (CF-001..CF-323)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-019) ---
@@ -3986,6 +3986,26 @@ def test_conformance_checks(suite):
         "cf.320.htos_intent_coverage",
         ["-a", v5_profile],
         r"CF-320.*HDR.*SDR.*Intent"
+    )
+
+    # --- CF-321..CF-323: K.2.8 Calculator 'solv' Operator Conformance ---
+    # CF-321: Calculator 'solv' Operator Presence
+    suite.assert_output_contains(
+        "cf.321.solv_operator_presence",
+        ["-a", v5_profile],
+        r"CF-321.*solv.*Operator.*Presence"
+    )
+    # CF-322: Calculator 'solv' Status Handling
+    suite.assert_output_contains(
+        "cf.322.solv_status_handling",
+        ["-a", v5_profile],
+        r"CF-322.*solv.*Status"
+    )
+    # CF-323: Calculator 'solv' Matrix Dimensions
+    suite.assert_output_contains(
+        "cf.323.solv_dimensions",
+        ["-a", v5_profile],
+        r"CF-323.*solv.*Dimensions"
     )
 
     # --- Clean profile baseline ---

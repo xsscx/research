@@ -1274,6 +1274,17 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-320", "HDR-to-SDR Intent Coverage",
    "Checks rendering intent coverage of HToS tags and CMM fallback chain completeness", "K.2.9",
    CFSeverity::WARNING, CFCategory::V5},
+
+  // K.2.8 Calculator 'solv' Operator Conformance (CF-321..CF-323)
+  {"CF-321", "Calculator 'solv' Operator Presence",
+   "Detects 'solv' matrix solve operators in calculator elements — indicates CMM IIccMatrixSolver dependency", "K.2.8, ICC.2 §11.2.1.7",
+   CFSeverity::INFO, CFCategory::V5},
+  {"CF-322", "Calculator 'solv' Status Handling",
+   "Verifies profiles check the 'solv' status flag via conditional to handle solver unavailability", "K.2.8",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-323", "Calculator 'solv' Matrix Dimensions",
+   "Validates 'solv' operator matrix dimensions are meaningful (R,C >= 2) and not excessive", "K.2.8, ICC.2 §11.2.1.7",
+   CFSeverity::WARNING, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
