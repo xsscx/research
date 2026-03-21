@@ -113,8 +113,25 @@ static const ConformanceCheck kConformanceRegistry[] = {
    "§7.2.24", "ICC.1-2022-05",
    CFSeverity::ERROR, CFCategory::HEADER},
 
+  {"CF-016", "Device Manufacturer Signature",
+   "§7.2.12", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-017", "Device Model Signature",
+   "§7.2.13", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-018", "Device Attributes Semantic Bits",
+   "§7.2.14", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
+  {"CF-019", "Creator Signature",
+   "§7.2.17", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::HEADER},
+
   // ═══════════════════════════════════════════════════════════════════════════
   // TAG TYPE CONFORMANCE (CF-020 to CF-039) — IccConformanceTagTypes.cpp
+  // ═══════════════════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════════════════
 
   {"CF-020", "Tag Type Allowed for Signature",
@@ -177,6 +194,26 @@ static const ConformanceCheck kConformanceRegistry[] = {
    "§10.12 Table 57", "ICC.1-2022-05",
    CFSeverity::ERROR, CFCategory::TAG_TYPES},
 
+  {"CF-035", "responseCurveSet16Type Structure",
+   "§10.18", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
+
+  {"CF-036", "profileSequenceDescType Elements",
+   "§10.17", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-037", "profileSequenceIdentifierType Validation",
+   "§10.18", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-038", "dateTimeType Tag Range Validation",
+   "§10.7", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
+  {"CF-039", "signatureType Technology Validation",
+   "§9.2.30 Table 29", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::TAG_TYPES},
+
   // ═══════════════════════════════════════════════════════════════════════════
   // REQUIRED TAGS CONFORMANCE (CF-040 to CF-059) — IccConformanceRequired.cpp
   // ═══════════════════════════════════════════════════════════════════════════
@@ -237,8 +274,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
    "§9.2.11", "ICC.1-2022-05",
    CFSeverity::ERROR, CFCategory::REQUIRED},
 
+  {"CF-054", "v5 Spectral Required Tags",
+   "§8", "ICC.2-2023",
+   CFSeverity::ERROR, CFCategory::REQUIRED},
+
+  {"CF-055", "D2B/B2D Tag Pair Completeness",
+   "§8", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-056", "Embedded Profile Structure",
+   "§9.2", "ICC.2-2023",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-057", "Dictionary Tag Structure v5",
+   "§9.2.25", "ICC.2-2023",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-058", "Profile Sequence Identifier v5",
+   "§8", "ICC.2-2023",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  {"CF-059", "Colorimetric Intent Image State",
+   "§9.2.12", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::REQUIRED},
+
   // ═══════════════════════════════════════════════════════════════════════════
-  // LUT/CURVE CONFORMANCE (CF-060 to CF-074) — IccConformanceLUT.cpp
+  // LUT/CURVE CONFORMANCE (CF-060 to CF-079) — IccConformanceLUT.cpp
   // ═══════════════════════════════════════════════════════════════════════════
 
   {"CF-060", "LUT Input Channel Count",
@@ -285,6 +346,42 @@ static const ConformanceCheck kConformanceRegistry[] = {
    "§9.2.10", "ICC.1-2022-05",
    CFSeverity::ERROR, CFCategory::LUT},
 
+  {"CF-071", "Curve Count vs Channel Match",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-072", "CLUT Output Value Range",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-073", "MBB Matrix Determinant Non-Zero",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-074", "A2B/B2A Dimension Consistency",
+   "§8", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-075", "Tag Data Size vs Dimensions",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-076", "Curve Response Direction",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-077", "CLUT Grid Size Plausibility",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
+  {"CF-078", "MBB B-Curve Presence",
+   "§10.8/10.9", "ICC.1-2022-05",
+   CFSeverity::ERROR, CFCategory::LUT},
+
+  {"CF-079", "LUT Bit Depth Consistency",
+   "§10.10/10.11", "ICC.1-2022-05",
+   CFSeverity::WARNING, CFCategory::LUT},
+
   // ═══════════════════════════════════════════════════════════════════════════
   // V5/iccMAX CONFORMANCE (CF-080 to CF-094) — IccConformanceV5.cpp
   // ═══════════════════════════════════════════════════════════════════════════
@@ -327,6 +424,10 @@ static const ConformanceCheck kConformanceRegistry[] = {
 
   {"CF-089", "v5 Spectral Wavelength Range",
    "§7.2.23 (380-780nm typical)", "ICC.2-2023",
+   CFSeverity::WARNING, CFCategory::V5},
+
+  {"CF-090", "Spectral Illuminant Consistency",
+   "§7.2.17", "ICC.2-2023",
    CFSeverity::WARNING, CFCategory::V5},
 
   // ═══════════════════════════════════════════════════════════════════════════
