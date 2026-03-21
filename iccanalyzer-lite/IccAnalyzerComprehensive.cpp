@@ -154,7 +154,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
              ColorInfo(), ColorReset());
       cfIssues += RunRequiredTagConformance(pIcc);
       
-      printf("\n%s--- LUT/Matrix Conformance (CF-060..CF-070) ---%s\n\n",
+      printf("\n%s--- LUT/Matrix Conformance (CF-060..CF-070, CF-163..CF-168) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunLUTConformance(pIcc);
       

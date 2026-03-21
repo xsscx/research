@@ -1098,6 +1098,357 @@ static int RunCF116_CurveSegmentContinuity(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-163: LUT Matrix Coefficient Finite (v4 Matrix Entries TN)
+//
+// All 12 matrix coefficients in lutAToBType/lutBToAType and lut8/lut16 must
+// be finite (not NaN or Inf). Non-finite values indicate data corruption
+// or malicious crafting. Spec: s15Fixed16Number encoding cannot represent
+// NaN/Inf, so their presence indicates post-decode corruption.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF163_LUTMatrixCoeffFinite(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-163]%s LUT Matrix Coefficient Finite "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+    int nCoeff = matrix->m_bUseConstants ? 12 : 9;
+
+    for (int k = 0; k < nCoeff; k++) {
+      double v = static_cast<double>(matrix->m_e[k]);
+      if (std::isnan(v) || std::isinf(v)) {
+        printf("         Tag '%s' — m_e[%d] = %f (non-finite)\n",
+               kAllLUTNames[i], k, v);
+        printf("         %s[FAIL]%s Matrix coefficient must be finite "
+               "— s15Fixed16Number encoding\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All LUT matrix coefficients are finite\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-164: LUT Matrix s15Fixed16 Range (v4 Matrix Entries TN)
+//
+// Matrix coefficients stored as s15Fixed16Number must be within the
+// representable range of approximately [-32768.0, +32767.99998].
+// Values outside this range indicate encoding errors.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static constexpr double kS15F16Min = -32768.0;
+static constexpr double kS15F16Max =  32767.99998474;
+
+static int RunCF164_LUTMatrixS15F16Range(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-164]%s LUT Matrix s15Fixed16 Range "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+    int nCoeff = matrix->m_bUseConstants ? 12 : 9;
+
+    for (int k = 0; k < nCoeff; k++) {
+      double v = static_cast<double>(matrix->m_e[k]);
+      if (v < kS15F16Min || v > kS15F16Max) {
+        printf("         Tag '%s' — m_e[%d] = %.4f outside s15Fixed16 range "
+               "[%.1f, %.5f]\n",
+               kAllLUTNames[i], k, v, kS15F16Min, kS15F16Max);
+        printf("         %s[FAIL]%s Coefficient outside s15Fixed16 representable range\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All LUT matrix coefficients within s15Fixed16 range\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-165: LUT Matrix Determinant Non-Singular (v4 Matrix Entries TN)
+//
+// The 3×3 portion of the LUT matrix must be invertible (non-zero determinant).
+// A singular matrix collapses 3D color information to 2D or less, causing
+// irreversible data loss. Equation from TN:
+//   y1 = x1*e1 + x2*e2 + x3*e3 + e10
+//   y2 = x1*e4 + x2*e5 + x3*e6 + e11
+//   y3 = x1*e7 + x2*e8 + x3*e9 + e12
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF165_LUTMatrixDeterminant(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-165]%s LUT Matrix Determinant Non-Singular "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+
+    // m_e[0..8] is row-major 3×3: [[e[0],e[1],e[2]], [e[3],e[4],e[5]], [e[6],e[7],e[8]]]
+    double a = static_cast<double>(matrix->m_e[0]);
+    double b = static_cast<double>(matrix->m_e[1]);
+    double c = static_cast<double>(matrix->m_e[2]);
+    double d = static_cast<double>(matrix->m_e[3]);
+    double e = static_cast<double>(matrix->m_e[4]);
+    double f = static_cast<double>(matrix->m_e[5]);
+    double g = static_cast<double>(matrix->m_e[6]);
+    double h = static_cast<double>(matrix->m_e[7]);
+    double k = static_cast<double>(matrix->m_e[8]);
+
+    double det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g);
+
+    if (std::fabs(det) < kDetEpsilon) {
+      printf("         Tag '%s' — determinant = %.8f (singular or near-singular)\n",
+             kAllLUTNames[i], det);
+      printf("         Matrix: [%.4f %.4f %.4f] [%.4f %.4f %.4f] [%.4f %.4f %.4f]\n",
+             a, b, c, d, e, f, g, h, k);
+      printf("         %s[FAIL]%s Singular matrix causes irreversible data loss\n",
+             ColorError(), ColorReset());
+      issues++;
+    } else {
+      printf("         Tag '%s' — determinant = %.6f (invertible)\n",
+             kAllLUTNames[i], det);
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All LUT matrices are non-singular\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-166: LUT Matrix Row Non-Zero (v4 Matrix Entries TN)
+//
+// Each row of the 3×3 matrix must have at least one non-zero element.
+// An all-zero row maps one output channel to constant zero regardless of input,
+// indicating profile corruption or authoring error.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF166_LUTMatrixRowNonZero(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-166]%s LUT Matrix Row Non-Zero "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+
+    for (int row = 0; row < 3; row++) {
+      double r0 = std::fabs(static_cast<double>(matrix->m_e[row * 3 + 0]));
+      double r1 = std::fabs(static_cast<double>(matrix->m_e[row * 3 + 1]));
+      double r2 = std::fabs(static_cast<double>(matrix->m_e[row * 3 + 2]));
+      if (r0 < 1e-10 && r1 < 1e-10 && r2 < 1e-10) {
+        printf("         Tag '%s' — row %d is all-zero [%.6f, %.6f, %.6f]\n",
+               kAllLUTNames[i], row, r0, r1, r2);
+        printf("         %s[WARN]%s All-zero matrix row → output channel %d is constant\n",
+               ColorWarning(), ColorReset(), row);
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All LUT matrix rows have non-zero elements\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-167: LUT Matrix Offset Bounds (v4 Matrix Entries TN)
+//
+// The offset constants e10, e11, e12 (m_e[9..11]) should be within a
+// reasonable range for color math. Extremely large offsets (|e| > 10.0)
+// indicate potential authoring errors or malicious values, since normalized
+// PCS values range [0, 1] and typical offsets are small fractions.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static constexpr double kOffsetReasonableMax = 10.0;
+
+static int RunCF167_LUTMatrixOffsetBounds(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-167]%s LUT Matrix Offset Bounds "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    if (!matrix->m_bUseConstants) continue;  // no offset constants to check
+
+    found = true;
+
+    for (int k = 9; k < 12; k++) {
+      double v = static_cast<double>(matrix->m_e[k]);
+      if (std::fabs(v) > kOffsetReasonableMax) {
+        printf("         Tag '%s' — m_e[%d] = %.4f (|value| > %.1f)\n",
+               kAllLUTNames[i], k, v, kOffsetReasonableMax);
+        printf("         %s[WARN]%s Matrix offset constant unusually large "
+               "for normalized PCS\n",
+               ColorWarning(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix offset constants found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s All LUT matrix offsets within reasonable bounds\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-168: LUT Matrix Input-Output Range (v4 Matrix Entries TN)
+//
+// Per the v4 Matrix Entries TN, inputs to the matrix stage range [0.0, 1.0].
+// The matrix should map unit-cube corners to reasonable output values.
+// We test the 3 axis vectors (1,0,0), (0,1,0), (0,0,1) through the matrix
+// and verify each output component is within a practical range.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static constexpr double kOutputReasonableMin = -2.0;
+static constexpr double kOutputReasonableMax =  3.0;
+
+static int RunCF168_LUTMatrixOutputRange(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-168]%s LUT Matrix Input-Output Range "
+         "(%sICC v4 Matrix Entries TN%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kAllLUTCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
+    if (!tag) continue;
+
+    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+    if (!mbb) continue;
+
+    const CIccMatrix *matrix = mbb->GetMatrix();
+    if (!matrix) continue;
+
+    found = true;
+
+    // Test 3 axis unit vectors through the 3×3 matrix:
+    //   y[row] = x[0]*m_e[row*3+0] + x[1]*m_e[row*3+1] + x[2]*m_e[row*3+2] [+ m_e[9+row]]
+    for (int axis = 0; axis < 3; axis++) {
+      for (int row = 0; row < 3; row++) {
+        double y = static_cast<double>(matrix->m_e[row * 3 + axis]);
+        if (matrix->m_bUseConstants)
+          y += static_cast<double>(matrix->m_e[9 + row]);
+        if (y < kOutputReasonableMin || y > kOutputReasonableMax) {
+          printf("         Tag '%s' — axis(%d,0,0)[%d]→%.4f outside [%.1f, %.1f]\n",
+                 kAllLUTNames[i], axis, row, y,
+                 kOutputReasonableMin, kOutputReasonableMax);
+          printf("         %s[WARN]%s Matrix output outside expected PCS range\n",
+                 ColorWarning(), ColorReset());
+          issues++;
+        }
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No LUT tags with matrix found — check not applicable\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s LUT matrix outputs within expected range\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all LUT/curve/matrix conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1131,6 +1482,14 @@ int RunLUTConformance(CIccProfile *pIcc) {
   CF_WRAP(1109, "CF-109: Matrix Column Normalization", RunCF109_MatrixColumnNormalization(pIcc));
   CF_WRAP(1110, "CF-110: B Curves vs CLUT Output", RunCF110_BCurveVsCLUTOutput(pIcc));
   CF_WRAP(1116, "CF-116: Curve Segment Continuity", RunCF116_CurveSegmentContinuity(pIcc));
+
+  // v4 Matrix Entries TN conformance checks (CF-163..CF-168)
+  CF_WRAP(1163, "CF-163: LUT Matrix Coefficient Finite", RunCF163_LUTMatrixCoeffFinite(pIcc));
+  CF_WRAP(1164, "CF-164: LUT Matrix s15Fixed16 Range", RunCF164_LUTMatrixS15F16Range(pIcc));
+  CF_WRAP(1165, "CF-165: LUT Matrix Determinant Non-Singular", RunCF165_LUTMatrixDeterminant(pIcc));
+  CF_WRAP(1166, "CF-166: LUT Matrix Row Non-Zero", RunCF166_LUTMatrixRowNonZero(pIcc));
+  CF_WRAP(1167, "CF-167: LUT Matrix Offset Bounds", RunCF167_LUTMatrixOffsetBounds(pIcc));
+  CF_WRAP(1168, "CF-168: LUT Matrix Input-Output Range", RunCF168_LUTMatrixOutputRange(pIcc));
 
 #undef CF_WRAP
   return issues;

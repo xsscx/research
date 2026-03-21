@@ -211,6 +211,7 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {169, "Dictionary Tag Element Bounds", "§10.22","CWE-789", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {170, "Copy Constructor UB via Null PCS", "§7.2.7","CWE-843", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {171, "Curve Param Count vs FuncType Validation", "§10.15/§10.23","CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
+  {172, "LUT Matrix Coefficient Validation", "ICC TN v4 Matrix Entries","CWE-682", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::MEDIUM},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);

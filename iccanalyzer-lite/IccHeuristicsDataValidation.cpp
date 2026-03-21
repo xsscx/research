@@ -2420,6 +2420,154 @@ int RunHeuristic_H148_MemcpyBoundsOverlap(CIccProfile *pIcc) {
   return hc.end("No memory copy overlap or bounds issues detected");
 }
 
+int RunHeuristic_H172_LUTMatrixCoefficientValidation(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
+
+// =====================================================================
+// H172 — LUT Matrix Coefficient Validation (CWE-682/CWE-369)
+// ICC v4 lutAtoBType/lutBtoAType may contain an optional 3×3+3 matrix.
+// Per ICC TN "v4 Matrix Entries" (George Pawle, Kodak):
+//   y1 = x1*e1 + x2*e2 + x3*e3 + e10
+//   y2 = x1*e4 + x2*e5 + x3*e6 + e11
+//   y3 = x1*e7 + x2*e8 + x3*e9 + e12
+// Coefficients are s15Fixed16Number (range ±32768, precision 1/65536).
+// A singular 3×3 sub-matrix (det≈0) causes undefined PCS transforms.
+// NaN/Inf or extreme values indicate crafted profiles.
+// =====================================================================
+hc.begin(172, "LUT Matrix Coefficient Validation (v4 Matrix Entries TN)");
+{
+  const icTagSignature lutTags[] = {
+    icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+    icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag
+  };
+  const char *lutNames[] = {
+    "AToB0", "AToB1", "AToB2",
+    "BToA0", "BToA1", "BToA2"
+  };
+  const int kNumLutTags = 6;
+  int matricesChecked = 0;
+  int findingsCount = 0;
+
+  for (int t = 0; t < kNumLutTags; t++) {
+    CIccMBB *pMBB = FindAndCast<CIccMBB>(pIcc, lutTags[t]);
+    if (!pMBB) continue;
+
+    CIccMatrix *pMatrix = pMBB->GetMatrix();
+    if (!pMatrix) continue;
+
+    matricesChecked++;
+
+    // --- Check 1: NaN/Inf in any of the 12 coefficients ---
+    bool hasNanInf = false;
+    for (int i = 0; i < 12; i++) {
+      if (std::isnan(pMatrix->m_e[i]) || std::isinf(pMatrix->m_e[i])) {
+        hasNanInf = true;
+        hc.critical("HEURISTIC: %s matrix e[%d] = NaN/Inf — ICC TN v4 Matrix Entries",
+                     lutNames[t], i + 1);
+        hc.cweNote("CWE-682: NaN/Inf in LUT matrix → undefined color transform");
+        findingsCount++;
+        break;
+      }
+    }
+    if (hasNanInf) continue;
+
+    // --- Check 2: s15Fixed16Number range (±32768) ---
+    // Each coefficient must be representable as s15Fixed16Number.
+    // Valid range: -32768.0 to +32767.99998474 (0x80000000 to 0x7FFFFFFF).
+    for (int i = 0; i < 12; i++) {
+      if (pMatrix->m_e[i] < -32768.0f || pMatrix->m_e[i] > 32767.99998f) {
+        hc.warn("HEURISTIC: %s matrix e[%d] = %.6f exceeds s15Fixed16 range (±32768) — ICC TN v4 Matrix Entries",
+                lutNames[t], i + 1, (double)pMatrix->m_e[i]);
+        hc.cweNote("CWE-682: Coefficient outside s15Fixed16Number representable range");
+        findingsCount++;
+        break;
+      }
+    }
+
+    // --- Check 3: 3×3 sub-matrix determinant (non-singular) ---
+    // e1..e9 form the 3×3 transformation matrix. Singular matrix means
+    // the transform collapses dimensions — likely crafted or corrupted.
+    const icFloatNumber *e = pMatrix->m_e;
+    double det = (double)e[0] * ((double)e[4]*e[8] - (double)e[5]*e[7])
+               - (double)e[1] * ((double)e[3]*e[8] - (double)e[5]*e[6])
+               + (double)e[2] * ((double)e[3]*e[7] - (double)e[4]*e[6]);
+
+    // Skip identity matrices — IsIdentity() handles this
+    if (!pMatrix->IsIdentity()) {
+      if (std::fabs(det) < 1e-10) {
+        hc.warn("HEURISTIC: %s matrix is singular (det=%.2e) — ICC TN v4 Matrix Entries",
+                lutNames[t], det);
+        hc.cweNote("CWE-369: Singular LUT matrix → division-by-zero in PCS transform inversion");
+        findingsCount++;
+      } else if (det < 0.0) {
+        // Negative determinant means the matrix flips handedness — unusual
+        // for color transforms, may indicate sign errors in coefficients.
+        hc.info("%s matrix has negative determinant (%.4f) — handedness flip",
+                lutNames[t], det);
+      }
+    }
+
+    // --- Check 4: Extreme coefficient values ---
+    // For color transforms, coefficients typically in [-10, +10] range.
+    // Values beyond 100 suggest crafted or corrupted data.
+    for (int i = 0; i < 9; i++) {
+      if (std::fabs(pMatrix->m_e[i]) > 100.0f) {
+        hc.warn("HEURISTIC: %s matrix e[%d] = %.4f (extreme magnitude >100)",
+                lutNames[t], i + 1, (double)pMatrix->m_e[i]);
+        hc.cweNote("CWE-682: Extreme matrix coefficient — likely crafted profile");
+        findingsCount++;
+        break;
+      }
+    }
+
+    // --- Check 5: Offset constants (e10-e12) range ---
+    // Per the TN, offsets handle encoding range mapping (e.g., Lab 0-100 → 0-1).
+    // Expected range for standard PCS offsets: [-2.0, +2.0].
+    // Values beyond 10.0 are suspicious for color transforms.
+    if (pMatrix->m_bUseConstants) {
+      for (int i = 9; i < 12; i++) {
+        if (std::fabs(pMatrix->m_e[i]) > 10.0f) {
+          hc.warn("HEURISTIC: %s matrix offset e[%d] = %.4f (extreme, >10.0)",
+                  lutNames[t], i + 1, (double)pMatrix->m_e[i]);
+          hc.cweNote("CWE-682: Extreme offset constant — unusual for PCS mapping");
+          findingsCount++;
+          break;
+        }
+      }
+    }
+
+    // --- Check 6: Row sum validation for color-space transform plausibility ---
+    // For transforms mapping between bounded PCS values, row sums of
+    // the 3×3 portion should be non-zero (each output depends on inputs).
+    // All-zero rows mean an output channel is constant (data loss).
+    for (int row = 0; row < 3; row++) {
+      double rowSum = std::fabs((double)e[row*3]) +
+                      std::fabs((double)e[row*3+1]) +
+                      std::fabs((double)e[row*3+2]);
+      if (rowSum < 1e-10 && !pMatrix->IsIdentity()) {
+        hc.warn("HEURISTIC: %s matrix row %d has all-zero coefficients — output channel %d is constant",
+                lutNames[t], row + 1, row + 1);
+        hc.cweNote("CWE-682: Zero matrix row → color channel data loss");
+        findingsCount++;
+      }
+    }
+  }
+
+  if (matricesChecked == 0)
+    return hc.skip("No LUT matrix present in AToB/BToA tags");
+
+  if (findingsCount > 0) {
+    hc.info("Checked %d LUT matrices, %d finding(s)", matricesChecked, findingsCount);
+    return findingsCount;
+  }
+
+  hc.info("Validated %d LUT matrix/matrices (e1-e12 coefficients, determinant, s15Fixed16 range, offsets)",
+          matricesChecked);
+}
+
+  return hc.end("LUT matrix coefficients valid per ICC TN v4 Matrix Entries");
+}
+
 // ================================================================
 // RunLibraryAPIHeuristics — dispatcher (was 3,780-line mega-function)
 // ================================================================
