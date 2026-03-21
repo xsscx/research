@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-187)."""
+    """Test ICC Specification conformance checks (CF-001..CF-190)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2467,6 +2467,47 @@ def test_conformance_checks(suite):
         "cf.187.embedded_profileid_v5",
         ["-a", v5_profile],
         r"CF-187.*Embedded.*Profile"
+    )
+
+    # --- CF-188..CF-190: SampleICC Compliance Testing Framework ---
+
+    # CF-188: Global Per-Tag Validate() sweep runs on any profile
+    suite.assert_output_contains(
+        "cf.188.global_tag_validate_sweep",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-188.*Global.*Tag.*Validate"
+    )
+    # CF-188: Should report sweep results (N tags)
+    suite.assert_output_contains(
+        "cf.188.tag_sweep_reports_count",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"Swept \d+ tags"
+    )
+
+    # CF-189: Tag type recognition coverage runs
+    suite.assert_output_contains(
+        "cf.189.tag_type_recognition",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-189.*Tag Type Recognition"
+    )
+    # CF-189: For well-formed profiles, all tags should be recognized
+    suite.assert_output_contains(
+        "cf.189.all_recognized",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"tags have recognized type"
+    )
+
+    # CF-190: Profile legibility gate runs
+    suite.assert_output_contains(
+        "cf.190.profile_legibility_gate",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-190.*Profile Legibility"
+    )
+    # CF-190: Well-formed profile should be legible
+    suite.assert_output_contains(
+        "cf.190.profile_is_legible",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"legible.*\d+ tags parsed"
     )
 
     # --- Clean profile baseline ---

@@ -146,7 +146,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
              ColorInfo(), ColorReset());
       cfIssues += RunHeaderConformance(pIcc, filename);
       
-      printf("\n%s--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174) ---%s\n\n",
+      printf("\n%s--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174, CF-188..CF-190) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunTagTypeConformance(pIcc, filename);
       
