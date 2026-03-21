@@ -160,7 +160,7 @@ Binaries:
 **afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
 **Build cores**: use `-j24` (not `-j32`)
 **colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
-**Tests verified**: iccanalyzer-lite 542/542 · MCP 1816/1816 · web_ui 256/256
+**Tests verified**: iccanalyzer-lite 550/550 · MCP 1816/1816 · web_ui 256/256
 
 ### Local / Copilot CLI (WSL-2 or other Linux)
 Binaries must be built before use. See **Local Build** section below.
@@ -647,7 +647,7 @@ Every success claim MUST include verification evidence in this format:
 
 **Examples:**
 - `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
-- `[OK] Verified: 542 tests pass (python3 tests/run_tests.py → 542/542 passed)`
+- `[OK] Verified: 550 tests pass (python3 tests/run_tests.py → 550/550 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
 - `[OK] Verified: CFL patches ground-truth (cfl/verify-patches.sh → 45 PASS, 0 FAIL)`
