@@ -1506,6 +1506,136 @@ int RunCF256_LUTChannelMatchSpaces(CIccProfile *pIcc) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CF-261: lutAToBType M-Curve Count Must Be 3 When Matrix Present
+// ICC.1-2022-05 §10.11: "If the matrix is present, the M curves shall
+// have exactly 3 input and output channels." The matrix is always 3x3+offset
+// for XYZ PCS, so M-curves must have 3 channels to match.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF261_MCurveCount3WithMatrix(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-261]%s lutAToBType M-Curve Count = 3 When Matrix Present (%sICC.1-2022-05 §10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check AToB tags
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAToBSigs[i]);
+    if (!tag || tag->GetType() != icSigLutAtoBType) continue;
+
+    CIccTagLutAtoB *atob = dynamic_cast<CIccTagLutAtoB *>(tag);
+    if (!atob) continue;
+
+    if (atob->GetMatrix() && atob->GetCurvesM()) {
+      found = true;
+      // M-curves feed the matrix, matrix is always 3x3 for XYZ PCS
+      // The M-curve count should match the matrix input (3)
+      CIccCurve *const *pMCurves = atob->GetCurvesM();
+      // M-curves in AtoB: allocated with OutputChannels() count
+      icUInt16Number nM = atob->OutputChannels();
+      int mCount = 0;
+      for (int c = 0; c < (int)nM; c++) { if (pMCurves[c]) mCount++; }
+
+      if (mCount != 3) {
+        printf("         AToB%d: matrix present with %d M-curves (expected 3)\n",
+               i, mCount);
+        printf("         %s[FAIL]%s M-curve count must be 3 when matrix present — ICC.1-2022-05 §10.11\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  // Check BToA tags
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kBToASigs[i]);
+    if (!tag || tag->GetType() != icSigLutBtoAType) continue;
+
+    CIccTagLutBtoA *btoa = dynamic_cast<CIccTagLutBtoA *>(tag);
+    if (!btoa) continue;
+
+    if (btoa->GetMatrix() && btoa->GetCurvesM()) {
+      found = true;
+      CIccCurve *const *pMCurves = btoa->GetCurvesM();
+      // M-curves in BtoA: allocated with InputChannels() count
+      icUInt16Number nM = btoa->InputChannels();
+      int mCount = 0;
+      for (int c = 0; c < (int)nM; c++) { if (pMCurves[c]) mCount++; }
+
+      if (mCount != 3) {
+        printf("         BToA%d: matrix present with %d M-curves (expected 3)\n",
+               i, mCount);
+        printf("         %s[FAIL]%s M-curve count must be 3 when matrix present — ICC.1-2022-05 §10.12\n",
+               ColorError(), ColorReset());
+        issues++;
+      }
+    }
+  }
+
+  if (!found)
+    printf("         No lutAToB/BToA tags with matrix+M-curves found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s M-curve count consistent with matrix presence\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-262: LUT B-Curve Count Must Match CLUT Output Channels
+// ICC.1-2022-05 §10.11-10.12: For lutAToBType, the number of B curves
+// must equal the number of output channels. For lutBToAType, B curves
+// must equal the number of input channels.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static int RunCF262_BCurveCountMatchCLUT(CIccProfile *pIcc) {
+  int issues = 0;
+  bool found = false;
+
+  printf("%s[CF-262]%s LUT B-Curve Count vs Output Channels (%sICC.1-2022-05 §10.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  for (int i = 0; i < kLUTDirCount; i++) {
+    CIccTag *tag = pIcc->FindTag(kAToBSigs[i]);
+    if (!tag || tag->GetType() != icSigLutAtoBType) continue;
+
+    CIccTagLutAtoB *atob = dynamic_cast<CIccTagLutAtoB *>(tag);
+    if (!atob) continue;
+    found = true;
+
+    CIccCurve *const *pBCurves = atob->GetCurvesB();
+    if (!pBCurves) continue;
+
+    // B-curves in AtoB: OutputChannels() count
+    icUInt16Number outChan = atob->OutputChannels();
+    int bCount = 0;
+    for (int c = 0; c < (int)outChan; c++) {
+      if (pBCurves[c]) bCount++;
+    }
+
+    if (bCount > 0 && outChan > 0 && bCount != (int)outChan) {
+      printf("         AToB%d: %d B-curves vs %u output channels\n",
+             i, bCount, outChan);
+      printf("         %s[FAIL]%s B-curve count must match output channels — ICC.1-2022-05 §10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found)
+    printf("         No lutAToBType tags found\n");
+
+  if (issues == 0)
+    printf("         %s[OK]%s B-curve count matches output channel count\n",
+           ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Dispatcher — runs all LUT/curve/matrix conformance checks
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1549,6 +1679,8 @@ int RunLUTConformance(CIccProfile *pIcc) {
   CF_WRAP(1168, "CF-168: LUT Matrix Input-Output Range", RunCF168_LUTMatrixOutputRange(pIcc));
   CF_WRAP(1255, "CF-255: CLUT Grid Point Values", RunCF255_CLUTGridPointValues(pIcc));
   CF_WRAP(1256, "CF-256: LUT I/O Channels vs Profile Spaces", RunCF256_LUTChannelMatchSpaces(pIcc));
+  CF_WRAP(1261, "CF-261: M-Curve Count = 3 When Matrix Present", RunCF261_MCurveCount3WithMatrix(pIcc));
+  CF_WRAP(1262, "CF-262: B-Curve Count vs Output Channels", RunCF262_BCurveCountMatchCLUT(pIcc));
 
 #undef CF_WRAP
   return issues;
