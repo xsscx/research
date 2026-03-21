@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-174)."""
+    """Test ICC Specification conformance checks (CF-001..CF-177)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2377,6 +2377,23 @@ def test_conformance_checks(suite):
         "cf.162.dict_bounds",
         ["-a", v5_profile],
         r"CF-162.*Dictionary Entry"
+    )
+
+    # --- CF-175..CF-177: ICC.2-in-ICC.1 Embedding — additional (v5 profile) ---
+    suite.assert_output_contains(
+        "cf.175.pcs_compat",
+        ["-a", v5_profile],
+        r"CF-175.*Embedded Profile PCS"
+    )
+    suite.assert_output_contains(
+        "cf.176.reserved_bytes",
+        ["-a", v5_profile],
+        r"CF-176.*Embedded Profile Tag Reserved"
+    )
+    suite.assert_output_contains(
+        "cf.177.data_integrity",
+        ["-a", v5_profile],
+        r"CF-177.*Embedded Profile Data"
     )
 
     # --- Clean profile baseline ---
