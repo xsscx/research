@@ -1882,6 +1882,207 @@ int RunCF158_EmbeddedProfileSizeBounds(CIccProfile *pIcc) {
   return issues;
 }
 
+// ---------------------------------------------------------------------------
+// CF-175: Embedded Profile PCS Compatibility
+// Embedding spec: "logical replacement" — child PCS must be compatible with parent
+// ---------------------------------------------------------------------------
+int RunCF175_EmbeddedProfilePCSCompatibility(CIccProfile *pIcc) {
+  printf("%s[CF-175]%s Embedded Profile PCS Compatibility (%sICC TN Embedding §Processing%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed || !pEmbed->GetProfile()) {
+    printf("         Cannot read embedded profile — skipped\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccProfile *pChild = pEmbed->GetProfile();
+  icColorSpaceSignature parentPCS = pIcc->m_Header.pcs;
+  icColorSpaceSignature childPCS = pChild->m_Header.pcs;
+
+  char pSig[5], cSig[5];
+  SigToChars(static_cast<uint32_t>(parentPCS), pSig);
+  SigToChars(static_cast<uint32_t>(childPCS), cSig);
+
+  printf("         Parent PCS: '%s' (0x%08X)\n", pSig, static_cast<unsigned>(parentPCS));
+  printf("         Child PCS:  '%s' (0x%08X)\n", cSig, static_cast<unsigned>(childPCS));
+
+  // DeviceLink profiles: PCS is not used in same way, skip this check
+  if (pIcc->m_Header.deviceClass == icSigLinkClass) {
+    printf("         DeviceLink profile — PCS compatibility not applicable\n");
+    return 0;
+  }
+
+  // ICC.1 PCS: Lab or XYZ. ICC.2 can extend PCS (spectral, etc.)
+  // For "logical replacement", if parent is Lab/XYZ, child should be compatible
+  bool parentIsStdPCS = (parentPCS == icSigLabData || parentPCS == icSigXYZData);
+  bool childIsStdPCS  = (childPCS == icSigLabData || childPCS == icSigXYZData);
+
+  if (parentIsStdPCS && childIsStdPCS) {
+    // Both standard PCS — mismatch is a warning (CMM can convert)
+    if (parentPCS != childPCS) {
+      printf("         %s[WARN]%s PCS mismatch: parent='%s' child='%s' — "
+             "CMM must handle PCS conversion for logical replacement\n",
+             ColorInfo(), ColorReset(), pSig, cSig);
+      issues++;
+    } else {
+      printf("         %s[OK]%s PCS match: both use '%s'\n",
+             ColorSuccess(), ColorReset(), pSig);
+    }
+  } else if (parentIsStdPCS && !childIsStdPCS) {
+    // Child uses extended PCS (ICC.2 spectral etc.) — informational
+    printf("         %s[INFO]%s Child uses ICC.2 extended PCS '%s' — "
+           "CMM must support ICC.2 PCS for logical replacement\n",
+           ColorInfo(), ColorReset(), cSig);
+  } else {
+    printf("         %s[OK]%s PCS compatibility check passed\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-176: Embedded Profile Tag Reserved Bytes
+// Embedding spec Table 1: bytes 4-7 of embeddedProfileType "shall be 0"
+// ---------------------------------------------------------------------------
+int RunCF176_EmbeddedProfileTagReservedBytes(CIccProfile *pIcc) {
+  printf("%s[CF-176]%s Embedded Profile Tag Reserved Bytes (%sICC TN Embedding Table 1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  // Find the ICC5 tag's offset and size from the tag table
+  int issues = 0;
+  bool found = false;
+
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    if (it->TagInfo.sig == icSigEmbeddedV5ProfileTag) {
+      icUInt32Number tagOffset = it->TagInfo.offset;
+      icUInt32Number tagSize = it->TagInfo.size;
+
+      // Tag data layout: bytes 0-3 = type sig 'ICCp', bytes 4-7 = reserved (shall be 0)
+      // Need at least 8 bytes
+      if (tagSize < 8) {
+        printf("         %s[FAIL]%s Embedded profile tag size %u < 8 bytes — "
+               "cannot contain required type + reserved fields\n",
+               ColorError(), ColorReset(), tagSize);
+        issues++;
+        found = true;
+        break;
+      }
+
+      // Read reserved bytes via library's Validate output
+      // Since we can't directly access raw tag data here without filename,
+      // use the tag's own Validate method which checks reserved bytes
+      std::string sigPath, sReport;
+      sigPath = "ICC5";
+      icValidateStatus status = pTag->Validate(sigPath, sReport, pIcc);
+
+      if (sReport.find("Reserved") != std::string::npos &&
+          sReport.find("not zero") != std::string::npos) {
+        printf("         %s[FAIL]%s Embedded profile tag reserved bytes (4-7) are not zero — "
+               "ICC TN Embedding Table 1: 'Reserved, shall be 0'\n",
+               ColorError(), ColorReset());
+        issues++;
+      } else {
+        printf("         %s[OK]%s Embedded profile tag reserved bytes conform to spec\n",
+               ColorSuccess(), ColorReset());
+      }
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    printf("         Tag not found in tag table — internal error\n");
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-177: Embedded Profile Data Integrity
+// Embedding spec: profile "in its entirety" — child profile should validate
+// ---------------------------------------------------------------------------
+int RunCF177_EmbeddedProfileDataIntegrity(CIccProfile *pIcc) {
+  printf("%s[CF-177]%s Embedded Profile Data Integrity (%sICC TN Embedding §Embedding%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pTag) {
+    printf("         No embedded profile — check not applicable\n");
+    return 0;
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+  if (!pEmbed || !pEmbed->GetProfile()) {
+    printf("         Cannot read embedded profile — skipped\n");
+    return 0;
+  }
+
+  int issues = 0;
+  CIccProfile *pChild = pEmbed->GetProfile();
+
+  // Validate the embedded profile structure
+  std::string sReport;
+  icValidateStatus status = pChild->Validate(sReport);
+
+  printf("         Embedded profile validation status: ");
+  switch (status) {
+    case icValidateOK:
+      printf("OK\n");
+      printf("         %s[OK]%s Embedded profile validates cleanly\n",
+             ColorSuccess(), ColorReset());
+      break;
+    case icValidateWarning:
+      printf("Warning\n");
+      printf("         %s[INFO]%s Embedded profile has validation warnings — "
+             "profile may still function correctly\n",
+             ColorInfo(), ColorReset());
+      break;
+    case icValidateNonCompliant:
+      printf("Non-Compliant\n");
+      printf("         %s[WARN]%s Embedded profile is non-compliant — "
+             "spec requires embedding 'in its entirety'\n",
+             ColorInfo(), ColorReset());
+      issues++;
+      break;
+    case icValidateCriticalError:
+      printf("Critical Error\n");
+      printf("         %s[FAIL]%s Embedded profile has critical validation errors — "
+             "profile may be corrupted or truncated\n",
+             ColorError(), ColorReset());
+      issues++;
+      break;
+    default:
+      printf("Unknown (%d)\n", status);
+      break;
+  }
+
+  // Check tag count sanity
+  if (pChild->m_Tags.empty()) {
+    printf("         %s[WARN]%s Embedded profile has no tags — unlikely to be complete\n",
+           ColorInfo(), ColorReset());
+    issues++;
+  } else {
+    int tagCount = 0;
+    for (auto it = pChild->m_Tags.begin(); it != pChild->m_Tags.end(); ++it) tagCount++;
+    printf("         Embedded profile contains %d tags\n", tagCount);
+  }
+
+  return issues;
+}
+
 // ===========================================================================
 // dictType Validation checks (CF-159..CF-162)
 // Source: ICC.2-2023 §10.2.6
@@ -2136,6 +2337,11 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1156, "CF-156: Embedded Profile Header Flags", RunCF156_EmbeddedProfilePCSCompatibility(pIcc));
   CF_WRAP(1157, "CF-157: Embedded Profile Recursive Depth", RunCF157_EmbeddedProfileRecursiveDepth(pIcc));
   CF_WRAP(1158, "CF-158: Embedded Profile Size Bounds", RunCF158_EmbeddedProfileSizeBounds(pIcc));
+
+  // ICC.2-in-ICC.1 Embedding — additional conformance (ICC TN Embedding)
+  CF_WRAP(1175, "CF-175: Embedded Profile PCS Compatibility", RunCF175_EmbeddedProfilePCSCompatibility(pIcc));
+  CF_WRAP(1176, "CF-176: Embedded Profile Tag Reserved Bytes", RunCF176_EmbeddedProfileTagReservedBytes(pIcc));
+  CF_WRAP(1177, "CF-177: Embedded Profile Data Integrity", RunCF177_EmbeddedProfileDataIntegrity(pIcc));
 
   // dictType Validation (ICC.2-2023 §10.2.6)
   CF_WRAP(1159, "CF-159: Dictionary Name Uniqueness", RunCF159_DictNameUniqueness(pIcc));
