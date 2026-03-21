@@ -1052,6 +1052,32 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-283", "DeviceLink profileSequenceDescTag",
    "DeviceLink profiles should contain profileSequenceDescTag", "ICC.1-2022-05 §6.4",
    CFSeverity::WARNING, CFCategory::REQUIRED},
+
+  // ICC.2:2019 Errata-derived v5 checks (CF-284..CF-291)
+  {"CF-284", "BRDF Spectral Parameter Tag Type",
+   "BRDF spectral parameter tags (bsp0..bsp3) must be multiProcessElementType", "ICC.2-2023 §9.2.10-13",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-285", "BRDF Tag Presence Consistency",
+   "If any BRDF spectral parameter tag is present, all 4 should be present", "ICC.2-2023 §9.2.10",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-286", "GBD Triangle-Vertex Consistency",
+   "Gamut boundary description triangle count requires >= 3 vertices", "ICC.2-2023 §10.2.11",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-287", "GBD Channel Count Plausibility",
+   "GBD PCS channels should be 3 (Lab/XYZ), device channels reasonable", "ICC.2-2023 §10.2.11",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-288", "Spectral Data Info Bi-Spectral Consistency",
+   "BiSpectralRange requires valid base spectralRange", "ICC.2-2023 §9.2.84",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-289", "Spectral Viewing Conditions Illuminant Bounds",
+   "Spectral viewing conditions illuminant XYZ must be physically plausible", "ICC.2-2023 §10.2.30",
+   CFSeverity::ERROR, CFCategory::V5},
+  {"CF-290", "Material Default Values Tag Presence",
+   "Material identification/visualization profiles should have multiplexDefaultValuesTag", "ICC.2-2023 §9.2.47",
+   CFSeverity::WARNING, CFCategory::V5},
+  {"CF-291", "Spectral White Point XYZ Range",
+   "Spectral white point XYZ values must be physically plausible", "ICC.2-2023 §9.2.85",
+   CFSeverity::ERROR, CFCategory::V5},
 };
 
 static constexpr int kConformanceCheckCount =
