@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-291)."""
+    """Test ICC Specification conformance checks (CF-001..CF-300)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -3201,6 +3201,62 @@ def test_conformance_checks(suite):
         "cf.291.spectral_white_point",
         ["-a", v5_profile],
         r"CF-291.*Spectral White Point"
+    )
+
+    # --- CF-292..CF-300: multiProcessElementsType Container Validation ---
+    # CF-292: MPE Chain I/O Channel Consistency
+    suite.assert_output_contains(
+        "cf.292.mpe_chain_io",
+        ["-a", v5_profile],
+        r"CF-292.*MPE.*Chain.*I/O"
+    )
+    # CF-293: MPE Container I/O vs First/Last Element
+    suite.assert_output_contains(
+        "cf.293.mpe_container_channel",
+        ["-a", v5_profile],
+        r"CF-293.*MPE.*Container.*I/O"
+    )
+    # CF-294: MPE ACS Boundary Element Pairing
+    suite.assert_output_contains(
+        "cf.294.mpe_acs_pairing",
+        ["-a", v5_profile],
+        r"CF-294.*ACS.*Boundary"
+    )
+    # CF-295: MPE Element Type Version Compatibility
+    suite.assert_output_contains(
+        "cf.295.mpe_version_compat",
+        ["-a", v5_profile],
+        r"CF-295.*Version.*Compat"
+    )
+    # CF-296: MPE Empty Container Validation
+    suite.assert_output_contains(
+        "cf.296.mpe_empty_container",
+        ["-a", v5_profile],
+        r"CF-296.*Empty.*Container"
+    )
+    # CF-297: MPE CurveSet Element Channel Count
+    suite.assert_output_contains(
+        "cf.297.mpe_curveset_channels",
+        ["-a", v5_profile],
+        r"CF-297.*CurveSet.*Channel"
+    )
+    # CF-298: MPE Matrix Element Dimension
+    suite.assert_output_contains(
+        "cf.298.mpe_matrix_dimension",
+        ["-a", v5_profile],
+        r"CF-298.*Matrix.*Dimension"
+    )
+    # CF-299: MPE CLUT Element Grid Dimension
+    suite.assert_output_contains(
+        "cf.299.mpe_clut_grid",
+        ["-a", v5_profile],
+        r"CF-299.*CLUT.*Grid"
+    )
+    # CF-300: MPE Tag vs Color Space Channels
+    suite.assert_output_contains(
+        "cf.300.mpe_tag_colorspace",
+        ["-a", v5_profile],
+        r"CF-300.*Color Space.*Channel"
     )
 
     # --- Clean profile baseline ---
