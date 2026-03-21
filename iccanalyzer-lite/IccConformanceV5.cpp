@@ -30,6 +30,23 @@
 #include <cstring>
 #include <set>
 
+// Compatibility: iccDEV renamed Material* → Multiplex* in commit 53dca81 (2026-02-27).
+// CI cache may have older headers with Material names. Support both.
+#ifndef icSigMultiplexDefaultValuesTag
+  #ifdef icSigMaterialDefaultValuesTag
+    #define icSigMultiplexDefaultValuesTag icSigMaterialDefaultValuesTag
+  #else
+    #define icSigMultiplexDefaultValuesTag static_cast<icTagSignature>(0x6D647620)
+  #endif
+#endif
+#ifndef icSigMultiplexTypeArrayTag
+  #ifdef icSigMaterialTypeArrayTag
+    #define icSigMultiplexTypeArrayTag icSigMaterialTypeArrayTag
+  #else
+    #define icSigMultiplexTypeArrayTag static_cast<icTagSignature>(0x6d637461)
+  #endif
+#endif
+
 // ---------------------------------------------------------------------------
 // Helper: check profile version >= 5
 // ---------------------------------------------------------------------------
