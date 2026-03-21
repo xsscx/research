@@ -15,6 +15,6 @@
 
 class CIccProfile;
 
-int RunRequiredTagConformance(CIccProfile *pIcc);
+int RunRequiredTagConformance(CIccProfile *pIcc, const char *filename = nullptr);
 
 #endif // ICC_CONFORMANCE_REQUIRED_H
