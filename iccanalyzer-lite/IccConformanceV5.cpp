@@ -3554,6 +3554,36 @@ static int RunCF242_XrngWorkflowConnection(CIccProfile *pIcc) {
   return issues;
 }
 
+// ─── CF-257: Spectral Range Step Count ──────────────────────────────────────
+// ICC.2-2023 — spectral range must have steps ≥ 2 when spectral PCS is declared
+static int RunCF257_SpectralRangeStepCount(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+  if (pIcc->m_Header.spectralPCS == 0) return 0;
+
+  printf("%s[CF-257]%s Spectral Range Step Count (%sICC.2-2023 §7.2.20%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  icSpectralRange sr = pIcc->m_Header.spectralRange;
+  if (sr.steps < 2) {
+    printf("         Non-conformance: spectralRange steps=%u (minimum 2 required)\n", sr.steps);
+    issues++;
+  }
+  // Validate start < end
+  float fStart = icF16toF(sr.start);
+  float fEnd = icF16toF(sr.end);
+  if (fStart >= fEnd) {
+    printf("         Non-conformance: spectralRange start=%.1fnm >= end=%.1fnm\n", fStart, fEnd);
+    issues++;
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s Spectral range valid: %.1f-%.1fnm in %u steps\n",
+           ColorSuccess(), ColorReset(), fStart, fEnd, sr.steps);
+  return issues;
+}
+
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -3661,6 +3691,7 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1160, "CF-160: Dictionary Name Non-Zero", RunCF160_DictNameNonZero(pIcc));
   CF_WRAP(1161, "CF-161: Dictionary Record Length Alignment", RunCF161_DictRecordLengthAlignment(pIcc));
   CF_WRAP(1162, "CF-162: Dictionary Entry Count Bounds", RunCF162_DictEntryCountBounds(pIcc));
+  CF_WRAP(1257, "CF-257: Spectral Range Step Count", RunCF257_SpectralRangeStepCount(pIcc));
 
 done:
 #undef CF_WRAP

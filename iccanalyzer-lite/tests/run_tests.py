@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-242)."""
+    """Test ICC Specification conformance checks (CF-001..CF-257)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-015) ---
@@ -2858,6 +2858,100 @@ def test_conformance_checks(suite):
         "cf.242.xrng_workflow",
         ["-a", v5_profile],
         r"CF-242.*xrng Workflow Connection"
+    )
+
+    # --- CF-243..CF-257: Conformance gap coverage ---
+    srgb = f"{corpus}/valid_srgb.icc"
+
+    # CF-243: dateTimeNumber Field Range
+    suite.assert_output_contains(
+        "cf.243.datetime_range",
+        ["-a", srgb],
+        r"CF-243.*dateTimeNumber Field Range"
+    )
+    # CF-244: Profile Creation Date Plausibility
+    suite.assert_output_contains(
+        "cf.244.date_plausibility",
+        ["-a", srgb],
+        r"CF-244.*Creation Date Plausibility"
+    )
+    # CF-245: Profile Size Multiple of 4
+    suite.assert_output_contains(
+        "cf.245.size_mod4",
+        ["-a", srgb],
+        r"CF-245.*Size Multiple of 4"
+    )
+    # CF-246: Rendering Intent Range
+    suite.assert_output_contains(
+        "cf.246.intent_range",
+        ["-a", srgb],
+        r"CF-246.*Rendering Intent Range"
+    )
+    # CF-247: viewingConditionsType Illuminant Type Range
+    suite.assert_output_contains(
+        "cf.247.viewing_illum_type",
+        ["-a", srgb],
+        r"CF-247.*Illuminant Type Range"
+    )
+    # CF-248: namedColor2Type Device Coords Limit
+    suite.assert_output_contains(
+        "cf.248.namedcolor_devcoords",
+        ["-a", srgb],
+        r"CF-248.*Device Coords Limit"
+    )
+    # CF-249: profileDescriptionTag Non-Empty
+    suite.assert_output_contains(
+        "cf.249.desc_nonempty",
+        ["-a", srgb],
+        r"CF-249.*profileDescriptionTag Non-Empty"
+    )
+    # CF-250: copyrightTag Non-Empty
+    suite.assert_output_contains(
+        "cf.250.copyright_nonempty",
+        ["-a", srgb],
+        r"CF-250.*copyrightTag Non-Empty"
+    )
+    # CF-251: chromaticityType Phosphor Type Range
+    suite.assert_output_contains(
+        "cf.251.phosphor_type",
+        ["-a", srgb],
+        r"CF-251.*Phosphor Type Range"
+    )
+    # CF-252: curveType Gamma Positive/Finite
+    suite.assert_output_contains(
+        "cf.252.curve_gamma",
+        ["-a", srgb],
+        r"CF-252.*Gamma Positive"
+    )
+    # CF-253: chromaticityType Channel Count
+    suite.assert_output_contains(
+        "cf.253.chroma_channels",
+        ["-a", srgb],
+        r"CF-253.*Channel Count"
+    )
+    # CF-254: Technology Signature Registered
+    suite.assert_output_contains(
+        "cf.254.tech_sig",
+        ["-a", srgb],
+        r"CF-254.*Technology Signature"
+    )
+    # CF-255: CLUT Grid Point Values
+    suite.assert_output_contains(
+        "cf.255.clut_grid_points",
+        ["-a", srgb],
+        r"CF-255.*CLUT Grid Point"
+    )
+    # CF-256: LUT I/O Channels vs Profile Spaces
+    suite.assert_output_contains(
+        "cf.256.lut_io_channels",
+        ["-a", srgb],
+        r"CF-256.*I/O Channels"
+    )
+    # CF-257: Spectral Range Step Count (v5 only)
+    suite.assert_output_contains(
+        "cf.257.spectral_steps",
+        ["-a", v5_profile],
+        r"CF-257.*Spectral Range Step Count"
     )
 
     # --- Clean profile baseline ---

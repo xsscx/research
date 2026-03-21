@@ -3701,6 +3701,236 @@ static int RunCF234_PerceptualPCSReferenceMedium(CIccProfile *pIcc) {
   return issues;
 }
 
+// ─── CF-247: viewingConditionsType Illuminant Type Range ─────────────────────
+// ICC.1-2022-05 Table 27 — illuminant type enumeration
+int RunCF247_ViewingCondIllumType(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigViewingConditionsTag);
+  if (!pTag) return 0;
+  CIccTagViewingConditions *pVC = dynamic_cast<CIccTagViewingConditions*>(pTag);
+  if (!pVC) return 0;
+  // ICC.1 Table 27: 0=unknown, 1=D50, 2=D65, 3=D93, 4=F2, 5=D55, 6=A, 7=E, 8=F8
+  icUInt32Number illum = (icUInt32Number)pVC->m_illumType;
+  if (illum > 8) {
+    printf("    Non-conformance: viewingConditions illuminant type %u exceeds ICC.1 Table 27 range 0-8\n", illum);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-248: namedColor2Type deviceCoords Limit ─────────────────────────────
+// ICC.1-2022-05 §10.14 — device coordinates shall not exceed 15
+int RunCF248_NamedColor2DeviceCoords(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigNamedColor2Tag);
+  if (!pTag) return 0;
+  CIccTagNamedColor2 *pNC = dynamic_cast<CIccTagNamedColor2*>(pTag);
+  if (!pNC) return 0;
+  icUInt32Number nDev = pNC->GetDeviceCoords();
+  if (nDev > 15) {
+    printf("    Non-conformance: namedColor2 deviceCoords=%u exceeds ICC maximum of 15\n", nDev);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-249: profileDescriptionTag Non-Empty Text ───────────────────────────
+// ICC.1-2022-05 §9.2.41 — profileDescriptionTag must contain meaningful text
+int RunCF249_ProfileDescNonEmpty(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigProfileDescriptionTag);
+  if (!pTag) return 0;
+  // Try v4 mluc
+  CIccTagMultiLocalizedUnicode *pMLUC = dynamic_cast<CIccTagMultiLocalizedUnicode*>(pTag);
+  if (pMLUC) {
+    if (pMLUC->m_Strings == NULL || pMLUC->m_Strings->size() == 0) {
+      printf("    Non-conformance: profileDescriptionTag (mluc) contains no text entries\n");
+      issues++;
+    }
+    return issues;
+  }
+  // Try v2 text description
+  CIccTagTextDescription *pTD = dynamic_cast<CIccTagTextDescription*>(pTag);
+  if (pTD) {
+    const icChar *txt = pTD->GetText();
+    if (!txt || txt[0] == '\0') {
+      printf("    Non-conformance: profileDescriptionTag (textDescription) is empty\n");
+      issues++;
+    }
+    return issues;
+  }
+  // Try plain text
+  CIccTagText *pTxt = dynamic_cast<CIccTagText*>(pTag);
+  if (pTxt) {
+    const icChar *txt = pTxt->GetText();
+    if (!txt || txt[0] == '\0') {
+      printf("    Non-conformance: profileDescriptionTag (text) is empty\n");
+      issues++;
+    }
+  }
+  return issues;
+}
+
+// ─── CF-250: copyrightTag Non-Empty Text ────────────────────────────────────
+// ICC.1-2022-05 §9.2.21 — copyrightTag shall contain non-empty text
+int RunCF250_CopyrightNonEmpty(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigCopyrightTag);
+  if (!pTag) return 0;
+  CIccTagMultiLocalizedUnicode *pMLUC = dynamic_cast<CIccTagMultiLocalizedUnicode*>(pTag);
+  if (pMLUC) {
+    if (pMLUC->m_Strings == NULL || pMLUC->m_Strings->size() == 0) {
+      printf("    Non-conformance: copyrightTag (mluc) contains no text entries\n");
+      issues++;
+    }
+    return issues;
+  }
+  CIccTagText *pTxt = dynamic_cast<CIccTagText*>(pTag);
+  if (pTxt) {
+    const icChar *txt = pTxt->GetText();
+    if (!txt || txt[0] == '\0') {
+      printf("    Non-conformance: copyrightTag (text) is empty\n");
+      issues++;
+    }
+  }
+  return issues;
+}
+
+// ─── CF-251: chromaticityType Phosphor Type Range ───────────────────────────
+// ICC.1-2022-05 §10.2 — phosphor/colorant type 0=unknown, 1=ITU-R BT.709,
+// 2=SMPTE RP145, 3=EBU 3213-E, 4=P22
+int RunCF251_ChromaticityPhosphorType(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigChromaticityTag);
+  if (!pTag) return 0;
+  CIccTagChromaticity *pChr = dynamic_cast<CIccTagChromaticity*>(pTag);
+  if (!pChr) return 0;
+  if (pChr->m_nColorantType > 4) {
+    printf("    Non-conformance: chromaticity phosphor/colorant type %u exceeds ICC range 0-4\n",
+           pChr->m_nColorantType);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-252: curveType Gamma Positive and Finite ────────────────────────────
+// ICC.1-2022-05 §10.6 — when curveType has count=1, the value is u8Fixed8Number gamma
+// Gamma must be > 0 and finite
+int RunCF252_CurveGammaValid(CIccProfile *pIcc) {
+  int issues = 0;
+  // Check TRC tags
+  const icTagSignature trcSigs[] = {
+    icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag
+  };
+  for (int i = 0; i < 4; i++) {
+    CIccTag *pTag = pIcc->FindTag(trcSigs[i]);
+    if (!pTag) continue;
+    CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
+    if (!pCurve) continue;
+    if (pCurve->GetSize() == 1) {
+      icFloatNumber gamma = (*pCurve)[0];
+      if (gamma <= 0.0f) {
+        char sigCC[5];
+        icUInt32Number sig = trcSigs[i];
+        sigCC[0] = (char)((sig >> 24) & 0xFF);
+        sigCC[1] = (char)((sig >> 16) & 0xFF);
+        sigCC[2] = (char)((sig >> 8) & 0xFF);
+        sigCC[3] = (char)(sig & 0xFF);
+        sigCC[4] = '\0';
+        printf("    Non-conformance: '%s' curveType gamma=%.4f is not positive\n", sigCC, gamma);
+        issues++;
+      }
+      if (!std::isfinite(gamma)) {
+        char sigCC[5];
+        icUInt32Number sig = trcSigs[i];
+        sigCC[0] = (char)((sig >> 24) & 0xFF);
+        sigCC[1] = (char)((sig >> 16) & 0xFF);
+        sigCC[2] = (char)((sig >> 8) & 0xFF);
+        sigCC[3] = (char)(sig & 0xFF);
+        sigCC[4] = '\0';
+        printf("    Non-conformance: '%s' curveType gamma is not finite\n", sigCC);
+        issues++;
+      }
+    }
+  }
+  return issues;
+}
+
+// ─── CF-253: chromaticityType Channel Count Consistency ─────────────────────
+// ICC.1-2022-05 §10.2 — number of channels in chromaticityType must match
+// the number of channels in the profile's data colour space
+int RunCF253_ChromaticityChannelCount(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigChromaticityTag);
+  if (!pTag) return 0;
+  CIccTagChromaticity *pChr = dynamic_cast<CIccTagChromaticity*>(pTag);
+  if (!pChr) return 0;
+  icUInt32Number nChrChannels = pChr->GetSize();
+  icUInt32Number nColorChannels = icGetSpaceSamples(pIcc->m_Header.colorSpace);
+  if (nChrChannels != nColorChannels && nChrChannels != 0) {
+    printf("    Non-conformance: chromaticityType has %u channels but profile colorSpace has %u\n",
+           nChrChannels, nColorChannels);
+    issues++;
+  }
+  return issues;
+}
+
+// ─── CF-254: Technology Signature Registered Values ─────────────────────────
+// ICC.1-2022-05 §9.2.47 — technology signature must be a registered value
+int RunCF254_TechnologySignature(CIccProfile *pIcc) {
+  int issues = 0;
+  CIccTag *pTag = pIcc->FindTag(icSigTechnologyTag);
+  if (!pTag) return 0;
+  CIccTagSignature *pSig = dynamic_cast<CIccTagSignature*>(pTag);
+  if (!pSig) return 0;
+  icUInt32Number tech = pSig->GetValue();
+  // ICC.1 Table 25 — registered technology signatures
+  static const icUInt32Number validTech[] = {
+    0x6673636E, // 'fscn' Film scanner
+    0x6463616D, // 'dcam' Digital camera
+    0x7273636E, // 'rscn' Reflective scanner
+    0x696A6574, // 'ijet' Ink jet printer
+    0x74776178, // 'twax' Thermal wax printer
+    0x6570686F, // 'epho' Electrophotographic printer
+    0x65737461, // 'esta' Electrostatic printer
+    0x64737562, // 'dsub' Dye sublimation printer
+    0x7270686F, // 'rpho' Photographic paper printer
+    0x6670726E, // 'fprn' Film writer
+    0x7669646D, // 'vidm' Video monitor
+    0x76696463, // 'vidc' Video camera
+    0x706A7476, // 'pjtv' Projection television
+    0x43525420, // 'CRT ' Cathode ray tube display
+    0x504D4420, // 'PMD ' Passive matrix display
+    0x414D4420, // 'AMD ' Active matrix display
+    0x4B504344, // 'KPCD' Photo CD
+    0x696D6773, // 'imgs' PhotoImageSetter
+    0x67726176, // 'grav' Gravure
+    0x6F666673, // 'offs' Offset lithography
+    0x73696C6B, // 'silk' Silkscreen
+    0x666C6578, // 'flex' Flexography
+    0x6D706673, // 'mpfs' Motion picture film scanner
+    0x6D706672, // 'mpfr' Motion picture film recorder
+    0x646D7063, // 'dmpc' Digital motion picture camera
+    0x64636A70, // 'dcpj' Digital cinema projector
+  };
+  bool found = false;
+  for (size_t i = 0; i < sizeof(validTech)/sizeof(validTech[0]); i++) {
+    if (tech == validTech[i]) { found = true; break; }
+  }
+  if (!found && tech != 0) {
+    char sigCC[5];
+    sigCC[0] = (char)((tech >> 24) & 0xFF);
+    sigCC[1] = (char)((tech >> 16) & 0xFF);
+    sigCC[2] = (char)((tech >> 8) & 0xFF);
+    sigCC[3] = (char)(tech & 0xFF);
+    sigCC[4] = '\0';
+    printf("    Non-conformance: technology signature '%s' (0x%08X) is not in ICC.1 Table 25\n",
+           sigCC, tech);
+    issues++;
+  }
+  return issues;
+}
+
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
   int issues = 0;
@@ -3773,6 +4003,14 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1232, "CF-232: Date/Time UTC and Temporal Consistency", RunCF232_DateTimeUTCConsistency(pIcc));
   CF_WRAP(1233, "CF-233: colorantOrderTag Index Validation", RunCF233_ColorantOrderIndexValidation(pIcc));
   CF_WRAP(1234, "CF-234: v4 Perceptual PCS Reference Medium", RunCF234_PerceptualPCSReferenceMedium(pIcc));
+  CF_WRAP(1247, "CF-247: viewingConditionsType Illuminant Type Range", RunCF247_ViewingCondIllumType(pIcc));
+  CF_WRAP(1248, "CF-248: namedColor2Type Device Coords Limit", RunCF248_NamedColor2DeviceCoords(pIcc));
+  CF_WRAP(1249, "CF-249: profileDescriptionTag Non-Empty", RunCF249_ProfileDescNonEmpty(pIcc));
+  CF_WRAP(1250, "CF-250: copyrightTag Non-Empty", RunCF250_CopyrightNonEmpty(pIcc));
+  CF_WRAP(1251, "CF-251: chromaticityType Phosphor Type Range", RunCF251_ChromaticityPhosphorType(pIcc));
+  CF_WRAP(1252, "CF-252: curveType Gamma Positive/Finite", RunCF252_CurveGammaValid(pIcc));
+  CF_WRAP(1253, "CF-253: chromaticityType Channel Count", RunCF253_ChromaticityChannelCount(pIcc));
+  CF_WRAP(1254, "CF-254: Technology Signature Registered", RunCF254_TechnologySignature(pIcc));
 
 #undef CF_WRAP
   return issues;
