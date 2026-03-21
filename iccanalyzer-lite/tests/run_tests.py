@@ -1861,7 +1861,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-316)."""
+    """Test ICC Specification conformance checks (CF-001..CF-320)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-019) ---
@@ -3957,6 +3957,35 @@ def test_conformance_checks(suite):
         "cf.316.ics_svcn_plausibility",
         ["-a", v5_profile],
         r"CF-316.*svcn.*Observer.*Illuminant"
+    )
+
+    # --- CF-317..CF-320: K.2.9 HDR-to-SDR Transform Conformance ---
+    # CF-317: HDR-to-SDR Flag-Tag Consistency
+    suite.assert_output_contains(
+        "cf.317.htos_flag_tag_consistency",
+        ["-a", v5_profile],
+        r"CF-317.*HDR.*SDR.*Flag.*Tag"
+    )
+
+    # CF-318: HDR-to-SDR Tag Type Validation
+    suite.assert_output_contains(
+        "cf.318.htos_tag_type_validation",
+        ["-a", v5_profile],
+        r"CF-318.*HDR.*SDR.*Tag Type"
+    )
+
+    # CF-319: HDR-to-SDR Tag Channel Consistency
+    suite.assert_output_contains(
+        "cf.319.htos_channel_consistency",
+        ["-a", v5_profile],
+        r"CF-319.*HDR.*SDR.*Channel"
+    )
+
+    # CF-320: HDR-to-SDR Intent Coverage
+    suite.assert_output_contains(
+        "cf.320.htos_intent_coverage",
+        ["-a", v5_profile],
+        r"CF-320.*HDR.*SDR.*Intent"
     )
 
     # --- Clean profile baseline ---
