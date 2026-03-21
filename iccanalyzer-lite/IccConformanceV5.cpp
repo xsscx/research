@@ -6371,6 +6371,245 @@ static int RunCF326_EnvReservedSignatures(CIccProfile *pIcc) {
 }
 
 // ---------------------------------------------------------------------------
+// CF-327: PCC Alternate Override Readiness (K.2.6)
+// Identifies profiles that participate in the alternate PCC workflow.
+// PCC present when non-standard PCS or spectral PCS is used (ICC.2 §6.3.2).
+// Reports PCC mode (standard D50/2° vs non-standard) and override readiness.
+// ---------------------------------------------------------------------------
+static int RunCF327_PCCAlternateOverrideReadiness(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-327]%s PCC Alternate Override Readiness "
+         "(%sK.2.6, §6.3.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  const CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
+  const CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
+  icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
+  bool hasSpectral = (static_cast<icUInt32Number>(spectralPCS) != 0);
+
+  if (!svcnTag && !c2spTag && !s2cpTag && !hasSpectral) {
+    printf("         No PCC tags and no spectral PCS — standard D50/2° PCS\n");
+    printf("         Alternate PCC override not applicable (standard processing)\n");
+    printf("         %s[OK]%s Standard PCC (no override needed)\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Profile has PCC — report inventory
+  printf("         PCC tag inventory:\n");
+  printf("           svcn (spectralViewingConditions): %s\n",
+         svcnTag ? "present" : "absent");
+  printf("           c2sp (customToStandard):          %s\n",
+         c2spTag ? "present" : "absent");
+  printf("           s2cp (standardToCustom):          %s\n",
+         s2cpTag ? "present" : "absent");
+  printf("           spectralPCS:                      %s\n",
+         hasSpectral ? "active" : "not set");
+
+  // Check if PCC is standard (D50 + 2° observer) — even with PCC tags
+  bool isStandard = false;
+  if (svcnTag) {
+    const CIccTagSpectralViewingConditions *pView =
+      dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+    if (pView) {
+      icIlluminant illum = pView->getStdIllumiant();
+      icStandardObserver obs = pView->getStdObserver();
+      isStandard = (illum == icIlluminantD50 &&
+                    obs == icStdObs1931TwoDegrees);
+    }
+  }
+
+  if (isStandard) {
+    printf("         PCC mode: standard (D50 illuminant, 1931 2° observer)\n");
+    printf("         %s[INFO]%s Profile uses standard PCC — alternate PCC "
+           "override would change viewing conditions\n",
+           ColorWarning(), ColorReset());
+  } else {
+    printf("         PCC mode: non-standard (custom illuminant/observer)\n");
+    printf("         %s[INFO]%s Profile uses non-standard PCC — eligible "
+           "for alternate PCC override per K.2.6\n",
+           ColorWarning(), ColorReset());
+  }
+
+  // Check override readiness: svcn required, c2sp/s2cp needed for custom colorimetry
+  if (!svcnTag && (c2spTag || s2cpTag)) {
+    printf("         %s[WARN]%s PCC transform tags present without svcn — "
+           "incomplete PCC for override\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  if (c2spTag && s2cpTag) {
+    printf("         Custom colorimetry transforms: complete (bidirectional)\n");
+  } else if (c2spTag || s2cpTag) {
+    printf("         Custom colorimetry transforms: incomplete (one-directional)\n");
+  } else if (hasSpectral && svcnTag) {
+    printf("         Spectral-only PCC (no custom colorimetry transforms)\n");
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-328: PCC Non-Standard Colorimetry Indication (K.2.6)
+// When c2sp/s2cp present, the profile uses non-standard colorimetry that
+// may be overridden by alternate PCC. Validates that the svcn tag has
+// sufficient spectral data for the alternate PCC mechanism to function.
+// ---------------------------------------------------------------------------
+static int RunCF328_PCCNonStandardColorimetry(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-328]%s PCC Non-Standard Colorimetry Indication "
+         "(%sK.2.6, §6.3.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  const CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
+  const CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
+
+  if (!c2spTag && !s2cpTag) {
+    printf("         No custom colorimetry transforms (c2sp/s2cp) — "
+           "check not applicable\n");
+    return 0;
+  }
+
+  // c2sp/s2cp present → non-standard colorimetry; validate svcn completeness
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!svcnTag) {
+    printf("         %s[WARN]%s Custom colorimetry transforms present but "
+           "svcn absent — alternate PCC cannot determine viewing conditions\n",
+           ColorWarning(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  const CIccTagSpectralViewingConditions *pView =
+    dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+  if (!pView) {
+    printf("         %s[WARN]%s svcn tag has unexpected type — "
+           "cannot validate PCC viewing conditions\n",
+           ColorWarning(), ColorReset());
+    issues++;
+    return issues;
+  }
+
+  // Check illuminant SPD presence (needed for spectral PCC operations)
+  icSpectralRange illumRange;
+  const icFloatNumber *illumSPD = pView->getIlluminant(illumRange);
+  if (!illumSPD || illumRange.steps == 0) {
+    printf("         %s[WARN]%s svcn has no illuminant SPD — "
+           "alternate PCC spectral processing limited\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Illuminant SPD: %d steps (%.1f–%.1f nm)\n",
+           illumRange.steps,
+           icF16toF(illumRange.start),
+           icF16toF(illumRange.end));
+  }
+
+  // Check observer presence
+  icSpectralRange obsRange;
+  const icFloatNumber *obsCMF = pView->getObserver(obsRange);
+  if (!obsCMF || obsRange.steps == 0) {
+    printf("         %s[WARN]%s svcn has no observer CMF data — "
+           "alternate PCC colorimetric conversion limited\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  } else {
+    printf("         Observer CMF: %d steps (%.1f–%.1f nm)\n",
+           obsRange.steps,
+           icF16toF(obsRange.start),
+           icF16toF(obsRange.end));
+  }
+
+  if (issues == 0)
+    printf("         %s[OK]%s PCC spectral data complete for alternate "
+           "override support\n", ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-329: PCC Override Source Profile Validation (K.2.6)
+// Profiles with deviceSubClass='pcc ' (0x70636320) serve as alternate PCC
+// override sources. They are loaded AS the alternate PCC via CMM processing
+// control options. Validates they have proper svcn content for this role.
+// ---------------------------------------------------------------------------
+static int RunCF329_PCCOverrideSourceValidation(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-329]%s PCC Override Source Profile Validation "
+         "(%sK.2.6, ICS-Colorimetric%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number scVal = static_cast<icUInt32Number>(pIcc->m_Header.deviceSubClass);
+  if (scVal != 0x70636320) {  // 'pcc '
+    printf("         deviceSubClass is not 'pcc ' — profile is not a "
+           "PCC override source\n");
+    return 0;
+  }
+
+  printf("         deviceSubClass='pcc ' — this profile serves as a PCC "
+         "override source\n");
+
+  // svcn is essential for a PCC override source (K.2.6: provides alternate
+  // viewing conditions)
+  const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+  if (!svcnTag) {
+    printf("         %s[FAIL]%s PCC override source missing svcn — "
+           "cannot provide alternate viewing conditions\n",
+           ColorError(), ColorReset());
+    issues++;
+  } else {
+    const CIccTagSpectralViewingConditions *pView =
+      dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+    if (pView) {
+      icIlluminant illum = pView->getStdIllumiant();
+      icStandardObserver obs = pView->getStdObserver();
+      printf("         svcn illuminant type: 0x%08X\n",
+             static_cast<unsigned>(illum));
+      printf("         svcn observer type: 0x%08X\n",
+             static_cast<unsigned>(obs));
+
+      // PCC override source should define non-D50 conditions (otherwise
+      // why override?) — informational only
+      if (illum == icIlluminantD50 && obs == icStdObs1931TwoDegrees) {
+        printf("         %s[INFO]%s PCC source uses standard D50/2° — "
+               "override would be equivalent to standard PCS\n",
+               ColorWarning(), ColorReset());
+      } else {
+        printf("         %s[OK]%s PCC source defines non-standard viewing "
+               "conditions for override\n",
+               ColorSuccess(), ColorReset());
+      }
+    }
+  }
+
+  // c2sp/s2cp should be present for custom colorimetry override (CF-192
+  // already checks this for 'pcc ' subclass, but we note K.2.6 context)
+  const CIccTag *c2spTag = pIcc->FindTag(icSigCustomToStandardPccTag);
+  const CIccTag *s2cpTag = pIcc->FindTag(icSigStandardToCustomPccTag);
+
+  if (c2spTag && s2cpTag) {
+    printf("         Custom colorimetry transforms: c2sp + s2cp present\n");
+    printf("         %s[OK]%s PCC override source supports bidirectional "
+           "custom colorimetry\n", ColorSuccess(), ColorReset());
+  } else if (!c2spTag && !s2cpTag) {
+    printf("         %s[WARN]%s PCC override source lacks c2sp/s2cp — "
+           "cannot provide custom colorimetry override\n",
+           ColorWarning(), ColorReset());
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
 int RunV5Conformance(CIccProfile *pIcc) {
@@ -6536,6 +6775,11 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1324, "CF-324: Calculator 'env' Operator Usage", RunCF324_EnvOperatorUsage(pIcc));
   CF_WRAP(1325, "CF-325: Calculator 'env' Status Handling", RunCF325_EnvStatusHandling(pIcc));
   CF_WRAP(1326, "CF-326: Calculator 'env' Reserved Signatures", RunCF326_EnvReservedSignatures(pIcc));
+
+  // K.2.6 Alternate PCC (CF-327..CF-329)
+  CF_WRAP(1327, "CF-327: PCC Alternate Override Readiness", RunCF327_PCCAlternateOverrideReadiness(pIcc));
+  CF_WRAP(1328, "CF-328: PCC Non-Standard Colorimetry Indication", RunCF328_PCCNonStandardColorimetry(pIcc));
+  CF_WRAP(1329, "CF-329: PCC Override Source Profile Validation", RunCF329_PCCOverrideSourceValidation(pIcc));
 
 done:
 #undef CF_WRAP
