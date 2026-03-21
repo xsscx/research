@@ -56,7 +56,7 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 686 tests (25 functions), ~46s
+python3 iccanalyzer-lite/tests/run_tests.py   # 716 tests (25 functions), ~46s
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
@@ -354,9 +354,9 @@ PoC: #577.
 | H154-H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived library patterns (alloc, overflow, enum, UAF, format string) |
 | H162-H171 | IccHeuristicsExploitGap.cpp | Exploit gap (overlap, exec sigs, LUT, div-zero, null, curve params) |
 
-## Conformance Checks (CF-001..CF-316)
+## Conformance Checks (CF-001..CF-329)
 
-318 ICC specification conformance checks across 7 dispatcher modules. These validate
+331 ICC specification conformance checks across 7 dispatcher modules. These validate
 profile compliance with ICC.1-2022-05, ICC.2-2019/2023, ICC.2:2019 errata, ICS
 interoperability conformance specifications, and ICC technical notes — separate from
 the 171 security heuristics (H1-H171) which focus on vulnerability patterns.
@@ -369,7 +369,7 @@ the 171 security heuristics (H1-H171) which focus on vulnerability patterns.
 | `IccConformanceTagTypes.cpp` | 73 | CF-020..CF-039, CF-112, CF-123-132, CF-169-174, CF-188-190, CF-208-213, CF-220-234, CF-247-254, CF-263-265, CF-273-281 | Tag types, viewing conditions, named colors, chromaticity, curves, ADGC |
 | `IccConformanceRequired.cpp` | 50 | CF-039..CF-059, CF-095-098, CF-103-104, CF-111, CF-117-120, CF-202, CF-204-205, CF-207, CF-211, CF-258-260, CF-266-272, CF-282-283 | Required tags per class, tag presence, text content |
 | `IccConformanceLUT.cpp` | 38 | CF-060..CF-079, CF-105-110, CF-116, CF-163-168, CF-255-256, CF-261-262 | LUT/matrix structure, CLUT grid, channel consistency |
-| `IccConformanceV5.cpp` | 101 | CF-080..CF-090, CF-113-115, CF-137-162, CF-175-198, CF-235-242, CF-257, CF-284-316 | v5/iccMAX, ICS interop, spectral, extended range, partial adaptation, errata, ICS sub-classes |
+| `IccConformanceV5.cpp` | 114 | CF-080..CF-090, CF-113-115, CF-137-162, CF-175-198, CF-235-242, CF-257, CF-284-329 | v5/iccMAX, ICS interop, spectral, extended range, partial adaptation, errata, ICS sub-classes, K.2 ICS workflow (HDR-SDR, solv, env, PCC) |
 | `IccConformanceQuality.cpp` | 6 | CF-091..CF-094 | Profile quality metrics |
 | `IccConformanceSecurity.cpp` | 6 | CF-091..CF-094 | Security-specific conformance |
 
@@ -397,17 +397,17 @@ static int RunCF243_DateTimeRange(CIccProfile *pIcc) {
 
 ID numbering: CF ID = 1000 + CF number (e.g., CF-243 → id 1243).
 Registry entries: `IccConformanceRegistry.h` (id, title, description, specRef, severity, category).
-Next available: **CF-317**.
+Next available: **CF-330**.
 
 ### Adding a New Conformance Check
 
-1. Choose the next ID: **CF-317** (current max is CF-316)
+1. Choose the next ID: **CF-330** (current max is CF-329)
 2. Add `RunCF317_Name()` function to the appropriate category file
 3. Use `printf` pattern (NOT HeuristicCollector API)
-4. Add `CF_WRAP(1317, "CF-317: Title", RunCF317_Name(pIcc));` to the dispatcher
+4. Add `CF_WRAP(1330, "CF-330: Title", RunCF330_Name(pIcc));` to the dispatcher
 5. Add entry to `IccConformanceRegistry.h` (before closing `};`)
 6. Add test assertion in `run_tests.py` `test_conformance_checks()`
-7. Build, test (686+ tests), ASAN spot-check
+7. Build, test (716+ tests), ASAN spot-check
 
 ## CVE Coverage (93 iccDEV Advisories)
 
@@ -437,7 +437,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 686/686 tests pass
+# 8. Verify: 716/716 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
