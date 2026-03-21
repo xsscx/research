@@ -158,7 +158,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
              ColorInfo(), ColorReset());
       cfIssues += RunLUTConformance(pIcc);
       
-      printf("\n%s--- v5/iccMAX Conformance (CF-080..CF-089, CF-153..CF-162, CF-175..CF-183, CF-191..CF-198, CF-235..CF-242, CF-257, CF-284..CF-300) ---%s\n\n",
+      printf("\n%s--- v5/iccMAX Conformance (CF-080..CF-089, CF-153..CF-162, CF-175..CF-183, CF-191..CF-198, CF-235..CF-242, CF-257, CF-284..CF-307) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunV5Conformance(pIcc);
       
