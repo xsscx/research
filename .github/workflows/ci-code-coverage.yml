@@ -279,7 +279,7 @@ jobs:
               else
                 APPLY_FAIL=$((APPLY_FAIL + 1))
               fi
-            done < <(find . -name "*.icc" -path "*/CMYK*" | head -5)
+            done < <(find . -name "*.icc" -path "*/CMYK*" 2>/dev/null | sed -n '1,5p')
           done
 
           echo "iccApplyNamedCmm exercises: $APPLY_PASS pass, $APPLY_FAIL fail"
