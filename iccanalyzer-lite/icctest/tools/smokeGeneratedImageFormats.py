@@ -4,13 +4,30 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import subprocess
+import struct
 import sys
 import tempfile
+import zlib
 from pathlib import Path
 
-from PIL import Image
+
+JPEG_1X1_TEMPLATE_B64 = (
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUG"
+    "BgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYH"
+    "CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAAR"
+    "CAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAA"
+    "AgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkK"
+    "FhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWG"
+    "h4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl"
+    "5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREA"
+    "AgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYk"
+    "NOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOE"
+    "hYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk"
+    "5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD2iiiiv1Q/Mz//2Q=="
+)
 
 
 def repo_root() -> Path:
@@ -37,15 +54,63 @@ def default_remap_tsv() -> Path:
     return Path(__file__).resolve().with_name("heuristic-remap.tsv")
 
 
+def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    header = struct.pack(">I", len(data)) + chunk_type + data
+    crc = struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
+    return header + crc
+
+
+def build_png_with_icc(icc_bytes: bytes) -> bytes:
+    png_sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    iccp = b"ICC Profile\x00\x00" + zlib.compress(icc_bytes)
+    idat = zlib.compress(b"\x00" + bytes((128, 160, 192)))
+    return b"".join(
+        [
+            png_sig,
+            png_chunk(b"IHDR", ihdr),
+            png_chunk(b"iCCP", iccp),
+            png_chunk(b"IDAT", idat),
+            png_chunk(b"IEND", b""),
+        ]
+    )
+
+
+def jpeg_segment(marker: int, payload: bytes) -> bytes:
+    return b"\xFF" + bytes([marker]) + struct.pack(">H", len(payload) + 2) + payload
+
+
+def build_jpeg_with_icc(icc_bytes: bytes) -> bytes:
+    jpeg_bytes = base64.b64decode(JPEG_1X1_TEMPLATE_B64)
+    if not jpeg_bytes.startswith(b"\xFF\xD8"):
+        raise ValueError("Invalid JPEG template")
+
+    app2_payload = b"ICC_PROFILE\x00" + bytes((1, 1)) + icc_bytes
+    app2 = jpeg_segment(0xE2, app2_payload)
+
+    offset = 2
+    limit = len(jpeg_bytes)
+    while offset + 4 <= limit and jpeg_bytes[offset] == 0xFF:
+        marker = jpeg_bytes[offset + 1]
+        if 0xE0 <= marker <= 0xEF or marker == 0xFE:
+            seg_len = int.from_bytes(jpeg_bytes[offset + 2: offset + 4], "big")
+            if seg_len < 2:
+                raise ValueError("Invalid JPEG segment length")
+            offset += 2 + seg_len
+            continue
+        break
+
+    return jpeg_bytes[:offset] + app2 + jpeg_bytes[offset:]
+
+
 def generate_images(out_dir: Path, icc_path: Path) -> list[Path]:
     icc_bytes = icc_path.read_bytes()
-    image = Image.new("RGB", (1, 1), (128, 160, 192))
 
     png_path = out_dir / "generated_with_icc.png"
     jpg_path = out_dir / "generated_with_icc.jpg"
 
-    image.save(png_path, format="PNG", icc_profile=icc_bytes)
-    image.save(jpg_path, format="JPEG", quality=95, icc_profile=icc_bytes)
+    png_path.write_bytes(build_png_with_icc(icc_bytes))
+    jpg_path.write_bytes(build_jpeg_with_icc(icc_bytes))
     return [jpg_path, png_path]
 
 
