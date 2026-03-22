@@ -754,3 +754,15 @@ for output directory and generates PNG, JPEG, GIF, BMP, TIFF, HEIF formats.
 - actions/upload-artifact: b7c566a772e6b6bfb58ed0dc250532a479d7789f (v6.0.0, node24)
 - actions/cache: a7833574556fa59680c1b7cb190c1735db73ebf0 (v5.0.0, node24)
 - actions/download-artifact: 37930b1c2abaa49bbe596cd826c3c89aef350131 (v7.0.0, node24)
+
+**Node.js 20 deprecation**: Actions running on Node.js 20 emit warnings. Node.js 24
+will be forced starting June 2, 2026 — update all pinned SHAs before then.
+
+### CodeQL on macOS (xnuimagefuzzer)
+- **STATUS**: xnuimagefuzzer `codeql-analysis.yml` is **DISABLED** — macOS 15 + Xcode 16
+  SIP strips `DYLD_INSERT_LIBRARIES` from sandboxed child processes, breaking CodeQL's
+  C/C++ extractor tracing of xcodebuild. Upstream: github/codeql-action#2506.
+- **Workaround**: Rewrite build step to use direct `clang` invocation instead of xcodebuild.
+- **CodeQL Action v3**: `packs` input must be on `codeql-action/init@v3`, NOT
+  `codeql-action/analyze@v3`. Placing it on analyze produces `Unexpected input(s)`
+  warning and `JOB_STATUS_CONFIGURATION_ERROR`.
