@@ -25,6 +25,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <memory>
 #include <cstdio>
 
@@ -117,15 +118,26 @@ int main(int argc, char** argv) {
         outStream = &fileOut;
     }
 
+    // Canonicalize input path (resolve relative paths)
+    std::filesystem::path inputPath(args->inputPath);
+    std::error_code ec;
+    auto canonical = std::filesystem::canonical(inputPath, ec);
+    if (ec) {
+        std::fprintf(stderr, "Error: cannot resolve path '%s': %s\n",
+                     args->inputPath.c_str(), ec.message().c_str());
+        return 2;
+    }
+    std::string resolvedPath = canonical.string();
+
     // Run analysis
     IccTestRunner runner;
     FormatOptions fmtOpts;
     fmtOpts.useColor  = !args->noColor && args->outputPath.empty();
     fmtOpts.verbose   = args->verbose;
-    fmtOpts.inputFile = args->inputPath;
+    fmtOpts.inputFile = resolvedPath;
 
     auto runAnalysis = [&]() -> AnalysisResult {
-        return runner.analyze(args->inputPath, opts);
+        return runner.analyze(resolvedPath, opts);
     };
 
     AnalysisResult result;
