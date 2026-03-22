@@ -35,11 +35,64 @@ def _init_repo_root() -> Path:
 
 REPO_ROOT = _init_repo_root()
 ANALYZER_BIN = REPO_ROOT / "iccanalyzer-lite" / "iccanalyzer-lite"
+ANALYZER_V2_BIN = REPO_ROOT / "iccanalyzer-lite" / "icctest" / "build" / "cli" / "icctest"
 TO_XML_SAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
+
+
+def _get_analyzer(engine: str = "v1") -> Path:
+    """Return the analyzer binary path for the requested engine.
+
+    Args:
+        engine: "v1" (default, iccanalyzer-lite), "v2" (icctest), or "auto"
+                (prefer V2 if available, fall back to V1).
+    """
+    if engine == "v2":
+        _require_binary(ANALYZER_V2_BIN, "icctest (V2)")
+        return ANALYZER_V2_BIN
+    if engine == "auto":
+        if ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK):
+            return ANALYZER_V2_BIN
+        _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+        return ANALYZER_BIN
+    # Default: v1
+    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    return ANALYZER_BIN
+
+
+def _map_flags(flags: list[str], engine: str) -> list[str]:
+    """Map V1 CLI flags to V2 equivalents.
+
+    V2 differences:
+    - No -h flag (use -a for comprehensive analysis)
+    - No --legacy prefix needed (V2 always includes heuristics)
+    - No -r flag (roundtrip is part of -a)
+    - Adds --no-sandbox to disable seccomp-bpf (needed for Docker/CI)
+    """
+    if engine == "v1":
+        return flags
+    # V2 flag mapping
+    mapped: list[str] = []
+    skip_next = False
+    for i, f in enumerate(flags):
+        if skip_next:
+            skip_next = False
+            continue
+        if f == "-h":
+            mapped.append("-a")
+        elif f == "-r":
+            mapped.append("-a")
+        elif f == "--legacy":
+            continue  # V2 doesn't need --legacy
+        else:
+            mapped.append(f)
+    # V2 needs --no-sandbox when run from MCP server (no seccomp in Docker)
+    if "--no-sandbox" not in mapped:
+        mapped.insert(0, "--no-sandbox")
+    return mapped
 
 # Allowed base directories for profile resolution (resolved at import time)
 _ALLOWED_BASES = [REPO_ROOT, TEST_PROFILES, EXTENDED_PROFILES]
@@ -243,11 +296,13 @@ async def health_check() -> str:
 
     # Binary status
     analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
+    analyzer_v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
     xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
     xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
 
     lines.append("Binaries:")
     lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
+    lines.append(f"  icctest (V2)     : {'[OK]' if analyzer_v2_ok else '[MISSING]'}")
     lines.append(f"  iccToXml_unsafe  : {'[OK]' if xml_unsafe_ok else '[MISSING]'}")
     lines.append(f"  iccToXml (safe)  : {'[OK]' if xml_safe_ok else '[MISSING]'}")
     lines.append("")
@@ -273,22 +328,24 @@ async def health_check() -> str:
 
 
 @mcp.tool()
-async def inspect_profile(path: str) -> str:
+async def inspect_profile(path: str, engine: str = "v1") -> str:
     """Inspect an ICC profile's header, tag table, and structure.
 
     Uses ninja-full mode for complete structural dump without truncation.
 
     Args:
         path: Path to .icc file (absolute, or filename to search in test-profiles/)
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "-nf", str(profile)])
+    flags = _map_flags(["-nf"], engine)
+    return await _run([str(analyzer)] + flags + [str(profile)])
 
 
 @mcp.tool()
-async def analyze_security(path: str) -> str:
-    """Run 171-heuristic security analysis on an ICC profile.
+async def analyze_security(path: str, engine: str = "v1") -> str:
+    """Run 173-heuristic security analysis on an ICC profile.
 
     Validates against ICC.1-2022-05 specification constraints and detects:
     fingerprint matches, tag anomalies, overflow indicators, malformed
@@ -302,27 +359,31 @@ async def analyze_security(path: str) -> str:
 
     Args:
         path: Path to .icc file
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "-h", str(profile)])
+    flags = _map_flags(["-h"], engine)
+    return await _run([str(analyzer)] + flags + [str(profile)])
 
 
 @mcp.tool()
-async def validate_roundtrip(path: str) -> str:
+async def validate_roundtrip(path: str, engine: str = "v1") -> str:
     """Validate bidirectional transform support (AToB/BToA, DToB/BToD, Matrix/TRC).
 
     Args:
         path: Path to .icc file
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "-r", str(profile)])
+    flags = _map_flags(["-r"], engine)
+    return await _run([str(analyzer)] + flags + [str(profile)])
 
 
 @mcp.tool()
-async def analyze_security_json(path: str) -> str:
-    """Run 171-heuristic security analysis with structured JSON output.
+async def analyze_security_json(path: str, engine: str = "v1") -> str:
+    """Run 173-heuristic security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
     severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), CWE categories, CVE
@@ -330,18 +391,20 @@ async def analyze_security_json(path: str) -> str:
 
     Args:
         path: Path to .icc file
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
+    flags = _map_flags(["--legacy", "--json"], engine)
     return await _run(
-        [str(ANALYZER_BIN), "--legacy", "--json", str(profile)],
+        [str(analyzer)] + flags + [str(profile)],
         include_stderr=False,
     )
 
 
 @mcp.tool()
-async def analyze_security_report(path: str) -> str:
-    """Run 171-heuristic security analysis with professional report output.
+async def analyze_security_report(path: str, engine: str = "v1") -> str:
+    """Run 173-heuristic security analysis with professional report output.
 
     Returns a severity-sorted security report with executive summary,
     findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
@@ -349,24 +412,28 @@ async def analyze_security_report(path: str) -> str:
 
     Args:
         path: Path to .icc file
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "--legacy", "--report", str(profile)])
+    flags = _map_flags(["--legacy", "--report"], engine)
+    return await _run([str(analyzer)] + flags + [str(profile)])
 
 
 @mcp.tool()
-async def full_analysis(path: str) -> str:
+async def full_analysis(path: str, engine: str = "v1") -> str:
     """Run comprehensive analysis combining security, validation, and metadata.
 
     This is the most thorough mode — combines heuristics, round-trip, and inspection.
 
     Args:
         path: Path to .icc file
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
-    _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+    analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    return await _run([str(ANALYZER_BIN), "-a", str(profile)], timeout=120)
+    flags = _map_flags(["-a"], engine)
+    return await _run([str(analyzer)] + flags + [str(profile)], timeout=120)
 
 
 @mcp.tool()
@@ -535,6 +602,7 @@ async def upload_and_analyze(
     data_base64: str,
     filename: str = "uploaded.icc",
     mode: str = "security",
+    engine: str = "v1",
 ) -> str:
     """Upload an ICC profile or image (base64-encoded) and run analysis.
 
@@ -548,6 +616,7 @@ async def upload_and_analyze(
         filename: Original filename (used for display, sanitized before use)
         mode: Analysis mode — "security" (default), "inspect", "roundtrip",
               "full", "xml", or "all" (runs security + inspect + roundtrip)
+        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
     """
     # Decode and validate
     try:
@@ -585,7 +654,7 @@ async def upload_and_analyze(
     dest.write_bytes(raw)
 
     try:
-        _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
+        analyzer = _get_analyzer(engine)
         profile_path = str(dest)
 
         modes = {
@@ -602,7 +671,8 @@ async def upload_and_analyze(
         if mode == "all":
             parts = [f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)"]
             for m_name, m_flags in [("security", ["-h"]), ("inspect", ["-nf"]), ("roundtrip", ["-r"])]:
-                out = await _run([str(ANALYZER_BIN)] + m_flags + [profile_path])
+                mapped = _map_flags(m_flags, engine)
+                out = await _run([str(analyzer)] + mapped + [profile_path])
                 parts.append(f"\n{'='*70}\n  {m_name.upper()} MODE ({' '.join(m_flags)})\n{'='*70}\n{out}")
             return "\n".join(parts)
 
@@ -610,7 +680,8 @@ async def upload_and_analyze(
         if not flags:
             return f"[FAIL] Unknown mode '{mode}'. Choose: security, inspect, roundtrip, full, xml, all"
 
-        result = await _run([str(ANALYZER_BIN)] + flags + [profile_path], timeout=120)
+        mapped = _map_flags(flags, engine)
+        result = await _run([str(analyzer)] + mapped + [profile_path], timeout=120)
         return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
     finally:
         dest.unlink(missing_ok=True)
