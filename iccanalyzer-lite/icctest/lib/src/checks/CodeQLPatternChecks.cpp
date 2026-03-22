@@ -202,5 +202,69 @@ REGISTER_HEURISTIC(161, "Stack Address Escape Deep Apply Chains",
     Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h161_stack_address_escape_deep_apply_chains);
 
+// ── H173: Signature Conversion Shift Overflow ──
+// Detects the UBSAN pattern in iccDEV IccUtil.cpp icGetSigStr()/icGetColorSig()
+// where sig<<=8 on a uint32 with first byte >= 0x01 overflows.
+// Every valid FourCC signature (printable ASCII) has first byte >= 0x20 and
+// therefore triggers this overflow.
+static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& pv) {
+    CheckBuilder cb;
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!d || len < 132) return cb.done("File too small");
+
+    int overflowCount = 0;
+    int totalSigs = 0;
+
+    // Header signature fields passed through icGetSigStr/icGetColorSig:
+    // offset  4: preferred CMM type
+    // offset 12: device class
+    // offset 16: color data space
+    // offset 20: PCS
+    // offset 36: magic ('acsp')
+    // offset 40: primary platform
+    // offset 48: device manufacturer
+    // offset 52: device model
+    static const int kHeaderSigOffsets[] = { 4, 12, 16, 20, 36, 40, 48, 52 };
+
+    for (int off : kHeaderSigOffsets) {
+        uint32_t sig = readU32BE(d + off);
+        if (sig == 0) continue;
+        totalSigs++;
+        if (sig > 0x00FFFFFFU) overflowCount++;
+    }
+
+    // Tag table: tag signatures
+    for (const auto& t : pv.rawTagTable()) {
+        totalSigs++;
+        if (t.signature > 0x00FFFFFFU) overflowCount++;
+    }
+
+    // Tag type signatures (first 4 bytes of each tag's data)
+    for (const auto& t : pv.rawTagTable()) {
+        if (t.size < 4 || t.offset + 4 > len) continue;
+        uint32_t typeSig = readU32BE(d + t.offset);
+        if (typeSig == 0) continue;
+        totalSigs++;
+        if (typeSig > 0x00FFFFFFU) overflowCount++;
+    }
+
+    if (overflowCount > 0) {
+        cb.warn(sfmt("%d/%d FourCC signatures trigger UBSAN shift overflow "
+                     "in icGetSigStr()/icGetColorSig() — IccUtil.cpp:1088,1130",
+                     overflowCount, totalSigs),
+                "CWE-190: sig<<=8 on uint32 with first byte non-zero "
+                "produces value > UINT32_MAX");
+    }
+
+    return cb.done(sfmt("Signature shift overflow scan (%d/%d checked)",
+                        overflowCount, totalSigs));
+}
+
+REGISTER_HEURISTIC(173, "Signature Conversion Shift Overflow",
+    "IccUtil.cpp:1088/1130", "CWE Pattern",
+    "CWE-190", "",
+    Severity::MEDIUM, CheckPhase::RAW_SCAN,
+    check_h173_sig_conversion_shift_overflow);
 
 } // namespace icctest
