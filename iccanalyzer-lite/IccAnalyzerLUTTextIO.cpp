@@ -270,7 +270,7 @@ static int ExportMBBCLUT(CIccCLUT *pCLUT, const char *tagName,
     uint64_t totalEntries = 1;
     for (int d = 0; d < inputDim; d++) {
         int gp = static_cast<int>(pCLUT->GridPoint(d));
-        if (gp == 0 || gp > kMaxGridDim) return 0;
+        if (gp == 0) return 0;  // GridPoint() returns uint8, max 255
         if (totalEntries > UINT32_MAX / (unsigned)gp) return 0;
         totalEntries *= gp;
     }
@@ -541,7 +541,7 @@ static int ExportMPECLUTText(CIccMpeCLUT *pMpeCLUT, const char *tagName,
     uint64_t totalEntries = 1;
     for (int d = 0; d < inputDim; d++) {
         int gp = static_cast<int>(pCLUT->GridPoint(d));
-        if (gp == 0 || gp > kMaxGridDim) return 0;
+        if (gp == 0) return 0;  // GridPoint() returns uint8, max 255
         if (totalEntries > UINT32_MAX / (unsigned)gp) return 0;
         totalEntries *= gp;
     }

@@ -2079,7 +2079,7 @@ static int RunCF205_TagDataRegionGapAnalysis(CIccProfile *pIcc) {
     }
   }
 
-  double coveragePct = profileSize > 0 ? (double)totalCoverage / (double)profileSize * 100.0 : 0.0;
+  double coveragePct = (double)totalCoverage / (double)profileSize * 100.0;
 
   printf("           Distinct data regions: %zu\n", regions.size());
   printf("           Data coverage: %u / %u bytes (%.1f%%)\n",
