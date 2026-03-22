@@ -13,7 +13,7 @@ docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
-Open <http://127.0.0.1:8080> — that's it. 126 test profiles are pre-loaded, no dependencies needed.
+Open <http://127.0.0.1:8080> — that's it. The bundled test corpus is pre-loaded, no dependencies needed.
 
 ### Verify
 
@@ -31,7 +31,11 @@ ICC color profiles control how colors are translated between devices (cameras, m
 **You say:**
 > "Analyze the security of the CVE-2022-26730 proof-of-concept profile"
 
-**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 171-heuristic report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
+**Your AI assistant calls** `analyze_security("cve-2022-26730-poc-sample-004.icc")` and returns a 173-check report covering header validation, tag anomalies, overflow indicators, malicious patterns, date validation, signature analysis, spectral range checks, technology signatures, tag overlap detection, deep content analysis, NaN/float safety, AddXform UAF patterns, TIFF image security, XML serialization safety, and raw file boundary checks.
+
+In the published container, security-oriented endpoints default to the V2 engine (`icctest`). Structural inspection and round-trip validation remain on the legacy engine until V2 grows dedicated equivalents. Override any request with `engine=v1`, `engine=v2`, or `engine=auto`.
+
+The published container also bundles the source trees and Linux build toolchain required by the maintainer/operations endpoints exposed in the WebUI, so checks like `check_dependencies` reflect the container itself rather than your host OS. The XML path includes both the safe `iccDEV` tools (`iccToXml`, `iccFromXml`) and the unsafe `colorbleed_tools` fallbacks (`iccToXml_unsafe`, `iccFromXml_unsafe`).
 
 ---
 
@@ -60,8 +64,11 @@ curl -s http://127.0.0.1:8080/api/health
 # List available profiles
 curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
-# 171-heuristic security scan
+# 173-check V2 security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+
+# Structured V2 security JSON object
+curl -s 'http://127.0.0.1:8080/api/security-json?path=sRGB_D65_MAT.icc'
 
 # Structural inspection
 curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
@@ -114,7 +121,7 @@ Ten pre-built prompt templates in [`.github/prompts/`](../.github/prompts/):
 
 | Prompt | Purpose | Variables |
 |---|---|---|
-| `analyze-icc-profile` | Full 171-heuristic security scan | `{{profile_path}}` |
+| `analyze-icc-profile` | Full 173-check security scan | `{{profile_path}}` |
 | `compare-icc-profiles` | Side-by-side structural diff | `{{profile_a}}`, `{{profile_b}}` |
 | `triage-cve-poc` | CVE PoC analysis with CVE mapping | `{{profile_path}}` |
 | `triage-fuzzer-crash` | ASAN/UBSAN crash triage workflow | (none) |
@@ -159,7 +166,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
-All 171 heuristics should show `[OK]`. **WebUI:** <http://127.0.0.1:8080/#security>
+The clean profile should come back without findings in the V2 report. **WebUI:** <http://127.0.0.1:8080/#security>
 
 ### 4. Security Scan — CVE PoC
 
@@ -222,7 +229,7 @@ curl -s 'http://127.0.0.1:8080/api/security?path=myprofile.icc'
 
 ## Developer Demo Container
 
-A self-contained demo with an interactive HTML report, live REST API, and 218 pre-loaded test profiles:
+A self-contained demo with the interactive WebUI and live REST API over the bundled test corpus:
 
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
@@ -231,9 +238,7 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
 | Route | Description |
 |-------|-------------|
-| `/` | Demo report — static showcase with sample outputs |
-| `/ui` | Interactive WebUI — select profiles, run tools |
-| `/api` | REST API index (JSON) |
+| `/` | Interactive WebUI — select profiles, run tools |
 | `/api/*` | All analysis endpoints |
 
 Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --port 8083`
@@ -246,7 +251,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 |---|------|------|-------------|
 | 1 | `health_check` | Analysis | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Analysis | Header, tag table, field values |
-| 3 | `analyze_security` | Analysis | 171-heuristic security scan (H1–H171) |
+| 3 | `analyze_security` | Analysis | 173-check security scan (H1–H173) |
 | 4 | `validate_roundtrip` | Analysis | AToB/BToA tag pair completeness |
 | 5 | `full_analysis` | Analysis | All modes combined in one pass |
 | 6 | `profile_to_xml` | Analysis | Binary ICC → XML conversion |
@@ -276,13 +281,16 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
 | `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 24}` |
-| `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles`, `xif` |
+| `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
-| `GET` | `/api/security` | `path` | 171-heuristic security scan |
+| `GET` | `/api/security` | `path` | 173-check security scan |
+| `GET` | `/api/security-json` | `path` | Structured JSON security object |
+| `GET` | `/api/security-report` | `path` | Severity-sorted security report |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
 | `GET` | `/api/compare` | `path_a`, `path_b` | Unified diff of two profiles |
+| `GET` | `/api/registry` | `engine` (optional) | Analyzer registry JSON |
 | `POST` | `/api/upload` | `file` (multipart) | Upload `.icc` file (20 MB max) |
 | `POST` | `/api/output/download` | `text`, `filename` (JSON) | Download tool output as file |
 
@@ -319,7 +327,7 @@ Paths attempting to escape the repository are blocked.
 ## Troubleshooting
 
 ### "Profile not found"
-The server searches `test-profiles/`, `extended-test-profiles/`, `xif/`, and the repo root. Mount your own directory:
+The server searches `test-profiles/`, `extended-test-profiles/`, and the repo root. Mount your own directory:
 ```bash
 docker run --rm -p 8080:8080 -v /path/to/profiles:/app/my-profiles:ro \
   ghcr.io/xsscx/icc-profile-mcp:latest web
