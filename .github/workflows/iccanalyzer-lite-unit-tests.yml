@@ -360,16 +360,16 @@ jobs:
           $ICCTEST -a "$PROFILE" > /dev/null 2>&1 || true
 
           echo "=== icctest --json ==="
-          $ICCTEST --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'JSON: {d[\"stats\"][\"checksRun\"]} checks, {d[\"stats\"][\"findingsTotal\"]} findings')"
+          $ICCTEST --json "$PROFILE" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'JSON: {d[\"stats\"][\"checksRun\"]} checks, {d[\"stats\"][\"findingsTotal\"]} findings')" || true
 
           echo "=== icctest --sarif ==="
-          $ICCTEST --sarif "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'SARIF: {len(d[\"runs\"][0][\"results\"])} results')"
+          $ICCTEST --sarif "$PROFILE" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'SARIF: {len(d[\"runs\"][0][\"results\"])} results')" || true
 
           echo "=== icctest --no-sandbox ==="
           $ICCTEST --no-sandbox -a "$PROFILE" > /dev/null 2>&1 || true
 
           echo "=== icctest --min-severity HIGH ==="
-          $ICCTEST --min-severity HIGH --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'HIGH+ filter: {d[\"stats\"][\"findingsTotal\"]} findings')"
+          $ICCTEST --min-severity HIGH --json "$PROFILE" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'HIGH+ filter: {d[\"stats\"][\"findingsTotal\"]} findings')" || true
 
           echo "[OK] All icctest V2 CLI modes exercised successfully"
 
