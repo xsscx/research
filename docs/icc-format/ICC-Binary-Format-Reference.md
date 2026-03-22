@@ -8,8 +8,8 @@
 > ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
 > 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-21 19:40:00 UTC — 171 heuristics (H1–H171) + 318 conformance checks
-> (CF-001..CF-316), 686 tests, 45 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-03-22 23:30:00 UTC — 173 heuristics (H1–H173) +
+> 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
 
 ---
 
@@ -266,7 +266,7 @@ The type signature at `tag_offset + 0` determines how payload data is parsed.
 | signatureType | `'sig '` | `0x73696720` | 4-byte enum value |
 | textType | `'text'` | `0x74657874` | Null-terminated string |
 | textDescriptionType | `'desc'` | `0x64657363` | v2 description (H147: NPD) |
-| multiLocalizedUnicodeType | `'mluc'` | `0x6D6C7563` | v4 unicode strings |
+| multiLocalizedUnicodeType | `'mluc'` | `0x6D6C7563` | v4 unicode strings; zero-record placeholders need special handling |
 | XYZType | `'XYZ '` | `0x58595A20` | 3 × s15Fixed16 per element (H146: SBO) |
 | curveType | `'curv'` | `0x63757276` | 0/1/N entries (gamma or table) |
 | parametricCurveType | `'para'` | `0x70617261` | Parametric function (7 types) |
@@ -298,6 +298,38 @@ The type signature at `tag_offset + 0` determines how payload data is parsed.
 | uInt16ArrayType | `'ui16'` | `0x75693136` | v5 uint16 array |
 | utf16TextType | `'ut16'` | `0x75743136` | v5 UTF-16 text (H147: null check) |
 | dictType | `'dict'` | `0x64696374` | v5 dictionary (H169) |
+
+---
+
+### `mluc` Binary Layout and Placeholder Rules
+
+Normal `multiLocalizedUnicodeType` layout:
+
+```text
++0   4  type signature 'mluc'
++4   4  reserved (must be 0)
++8   4  record count
++12  4  record size (normally 12)
++16  N  name records (12 bytes each)
++..     UTF-16BE string storage
+```
+
+Key conformance notes used by both V1 and V2:
+
+- `CF-223`: a **zero-name placeholder** is treated as a **12-byte recommended
+  encoding** from the ICC TN PSD: type + reserved + `recordCount = 0`, with no
+  trailing record-size field.
+- `CF-224`: bytes `+4..+7` must stay zero.
+- `CF-225`: UTF-16BE string lengths and offsets should be even.
+- `CF-226`: the effective `mluc` extent should be consistent with
+  `max(stringOffset + stringLength)` across all records.
+
+`profileSequenceDescType` (`pseq`) is the tricky case. The technical note
+focuses on **embedded** `mluc` inside `pseq`, where parsers infer the end of the
+embedded structure from the largest `offset + length` and then advance to the
+next 4-byte boundary. SampleICC still reads standalone `mluc` with the legacy
+16-byte header shape, so embedded-placeholder auditing remains shallower than
+standalone tag-table auditing.
 
 ---
 
@@ -597,7 +629,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-44 distinct CWE categories across 171 heuristics + 318 conformance checks + 45 CFL patches:
+44 distinct CWE categories across 173 heuristics + 329 canonical conformance checks + 45 CFL patches:
 
 | CWE | Name | Sources | Key References |
 |-----|------|---------|----------------|
@@ -717,9 +749,15 @@ Which ICC binary format fields each heuristic group validates:
 
 ## 14.5. ICC Conformance Checks (CF-001..CF-329)
 
-331 conformance checks (numbered CF-001..CF-329, with sub-checks CF-125..136 inside CF-124) across 7 dispatcher
-modules, validating ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
-ICS Parts 1–3, and ICC.2 Annex K.2 ICS workflow requirements. These run by default in `-a` mode (conformance audit).
+329 canonical conformance checks (numbered CF-001..CF-329, with sub-checks
+CF-125..136 inside CF-124) across 7 dispatcher modules, validating
+ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023, ICS Parts
+1–3, and ICC.2 Annex K.2 ICS workflow requirements. These run by default in
+`-a` mode (conformance audit).
+
+The codebase currently has **331 wrapper entries** because `CF-091..094` are
+emitted through both Quality and Security dispatchers, but the canonical
+registry count is 329.
 
 Registry: `IccConformanceRegistry.h` (IDs offset by 1000: CF-001 = ID 1001).
 
@@ -1041,4 +1079,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 171 heuristics · 331 conformance checks (CF-001..CF-329) · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 173 heuristics · 329 canonical conformance checks (331 wrapper entries) · 45 CFL patches · 13 fuzzers · 93 advisories*
