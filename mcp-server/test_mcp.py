@@ -21,6 +21,7 @@ _MAX_CONCURRENT = int(os.environ.get("MCP_TEST_WORKERS", os.cpu_count() or 8))
 _SEM = asyncio.Semaphore(_MAX_CONCURRENT)
 
 sys.path.insert(0, os.path.dirname(__file__))
+import icc_profile_mcp as mcp_mod
 from icc_profile_mcp import (
     _resolve_profile,
     _ALLOWED_BASES_RESOLVED,
@@ -44,6 +45,7 @@ from icc_profile_mcp import (
     inspect_profile,
     analyze_security,
     analyze_security_json,
+    analyze_pawg_report,
     analyze_security_report,
     validate_roundtrip,
     full_analysis,
@@ -368,13 +370,18 @@ async def test_analyze_security_report():
     T.ok("report: contains severity keyword",
          any(kw in r for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "Security")),
          r[:120])
-    T.ok("report: contains conformance reference URL",
-         "https://www.color.org/profiles/assessment/index.xalter" in r, r[:220])
-    T.ok("report: contains CWE reference",
-         "CWE" in r, r[:120])
-    T.ok("report: contains heuristic count",
-         any(f"{n}" in r for n in range(160, 180)),
-         "no heuristic count found")
+    T.ok("report: contains PAWG checklist reference URL",
+         "https://www.color.org/profiles/assessment/index.xalter" in r, r[:260])
+    T.ok("report: contains PAWG checklist label",
+         "Profile Assessment Working Group Checklist Reference" in r, r[:260])
+    T.ok("report: omits CWE references",
+         "CWE-" not in r, r[:220])
+    T.ok("report: omits security taxonomy note",
+         "Improper Input Validation" not in r, r[:220])
+    T.ok("report: contains ICC specification PDF reference",
+         "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
+    T.ok("report: is conformance-only",
+         "[CF-" in r and "[H" not in r, r[:320])
 
     # Test error handling — bad path
     try:
@@ -383,6 +390,35 @@ async def test_analyze_security_report():
              or len(r2) < 10, r2[:80])
     except Exception:
         T.ok("report: bad path returns error", True)
+
+    T.section_summary()
+
+
+async def test_analyze_pawg_report():
+    """Test analyze_pawg_report returns a PAWG-oriented report."""
+    T.section("Functional: analyze_pawg_report")
+
+    r = await analyze_pawg_report("sRGB_D65_MAT.icc")
+    T.ok("pawg: returns non-empty", len(r) > 100, f"len={len(r)}")
+    T.ok("pawg: contains checklist reference URL",
+         "https://www.color.org/profiles/assessment/index.xalter" in r, r[:260])
+    T.ok("pawg: contains ICC.1 PDF path",
+         "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
+    T.ok("pawg: contains ICC.2 PDF path",
+         "docs/iccDEV/specifications/ICC.2-2023.pdf" in r, r[:320])
+    T.ok("pawg: omits CWE references",
+         "CWE-" not in r, r[:220])
+    T.ok("pawg: omits security taxonomy note",
+         "Improper Input Validation" not in r, r[:220])
+    T.ok("pawg: is conformance-only",
+         "[CF-" in r and "[H" not in r, r[:320])
+
+    try:
+        r2 = await analyze_pawg_report("nonexistent-profile-xyz.icc")
+        T.ok("pawg: bad path returns error", "not found" in r2.lower() or "error" in r2.lower()
+             or len(r2) < 10, r2[:80])
+    except Exception:
+        T.ok("pawg: bad path returns error", True)
 
     T.section_summary()
 
@@ -847,13 +883,39 @@ async def test_create_all_profiles_validation():
     """Test create_all_profiles parameter validation."""
     T.section("Functional: create_all_profiles Validation")
 
-    # Missing build_dir
-    result = await create_all_profiles()
-    T.ok("require build_dir", "[FAIL]" in result, result[:80])
-
     # Non-existent build dir
     result = await create_all_profiles(build_dir="nonexistent-12345")
     T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    from pathlib import Path
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        testing_dir = td_path / "Testing"
+        testing_dir.mkdir(parents=True)
+        script = testing_dir / "CreateAllProfiles.sh"
+        script.write_text("#!/bin/sh\nset -eu\ntouch auto-generated.icc\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccFromXml" / "iccFromXml"
+        tool.parent.mkdir(parents=True)
+        tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        tool.chmod(0o755)
+
+        orig_resolve = mcp_mod._resolve_iccdev_dir
+        try:
+            mcp_mod._resolve_iccdev_dir = lambda: td_path
+            result = await create_all_profiles()
+        finally:
+            mcp_mod._resolve_iccdev_dir = orig_resolve
+
+    T.ok(
+        "auto-detect tool build_dir",
+        "[OK] Profile generation complete" in result
+        and "Auto-detected build dir: build-debug-tools" in result,
+        result[:200],
+    )
 
     T.section_summary()
 
@@ -862,13 +924,39 @@ async def test_run_iccdev_tests_validation():
     """Test run_iccdev_tests parameter validation."""
     T.section("Functional: run_iccdev_tests Validation")
 
-    # Missing build_dir
-    result = await run_iccdev_tests()
-    T.ok("require build_dir", "[FAIL]" in result, result[:80])
-
     # Non-existent build dir
     result = await run_iccdev_tests(build_dir="nonexistent-12345")
     T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    from pathlib import Path
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        testing_dir = td_path / "Testing"
+        testing_dir.mkdir(parents=True)
+        script = testing_dir / "RunTests.sh"
+        script.write_text("#!/bin/sh\nset -eu\necho 'PASS auto-detected run'\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccFromXml" / "iccFromXml"
+        tool.parent.mkdir(parents=True)
+        tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        tool.chmod(0o755)
+
+        orig_resolve = mcp_mod._resolve_iccdev_dir
+        try:
+            mcp_mod._resolve_iccdev_dir = lambda: td_path
+            result = await run_iccdev_tests()
+        finally:
+            mcp_mod._resolve_iccdev_dir = orig_resolve
+
+    T.ok(
+        "auto-detect tool build_dir",
+        "[OK] Tests passed" in result
+        and "Auto-detected build dir: build-debug-tools" in result,
+        result[:200],
+    )
 
     T.section_summary()
 
@@ -1118,6 +1206,8 @@ async def test_upload_and_analyze():
                 real_data = base64.b64encode(f.read()).decode()
             result = await upload_and_analyze(real_data, filename=os.path.basename(icc_files[0]), mode="security")
             T.ok("real profile upload+analyze", "[OK]" in result, result[:80])
+            result = await upload_and_analyze(real_data, filename=os.path.basename(icc_files[0]), mode="pawg")
+            T.ok("real profile upload+pawg", "[OK]" in result and "Profile Assessment Working Group Checklist Reference" in result, result[:120])
 
     T.section_summary()
 
@@ -1167,6 +1257,7 @@ async def main():
     await test_analyze_security_all()
     await test_analyze_security_json()
     await test_analyze_security_report()
+    await test_analyze_pawg_report()
     await test_validate_roundtrip_all()
     await test_full_analysis_all()
     await test_profile_to_xml_all()

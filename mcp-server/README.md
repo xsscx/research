@@ -53,7 +53,7 @@ Open `http://127.0.0.1:8080`:
 3. Click **Run**
 4. Read the report — click **Copy** or **Save As** to keep it
 
-Deep link to any tool: `http://127.0.0.1:8080/#security`, `#inspect`, `#compare`, `#xml`, etc.
+Deep link to any tool: `http://127.0.0.1:8080/#security`, `#security_report`, `#pawg`, `#inspect`, `#compare`, `#xml`, etc.
 
 ### Option B: REST API
 
@@ -66,6 +66,9 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 
 # 173-check V2 security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
+
+# PAWG-oriented assessment report with checklist/spec references
+curl -s 'http://127.0.0.1:8080/api/pawg?path=sRGB_D65_MAT.icc'
 
 # Structured V2 security JSON object
 curl -s 'http://127.0.0.1:8080/api/security-json?path=sRGB_D65_MAT.icc'
@@ -285,7 +288,8 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
 | `GET` | `/api/security` | `path` | 173-check security scan |
 | `GET` | `/api/security-json` | `path` | Structured JSON security object |
-| `GET` | `/api/security-report` | `path` | Severity-sorted security report |
+| `GET` | `/api/security-report` | `path` | Severity-sorted PAWG-style security report |
+| `GET` | `/api/pawg` | `path` | PAWG checklist view with bundled ICC spec PDF references |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |

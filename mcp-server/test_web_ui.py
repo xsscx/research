@@ -16,11 +16,16 @@ import os
 import sys
 import time
 import asyncio
+import base64
+from pathlib import Path
 
 import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import web_ui as web_ui_mod
 from web_ui import app
+
+REPO = Path(__file__).resolve().parent.parent
 
 
 class SyncASGIClient:
@@ -324,13 +329,43 @@ def test_security_report():
     d = r.json()
     check("SecurityReport ok", d["ok"] is True)
     check("SecurityReport has result", "result" in d and len(d["result"]) > 100)
-    check("SecurityReport has conformance reference URL",
+    check("SecurityReport has PAWG checklist reference URL",
           "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
+    check("SecurityReport has PAWG checklist label",
+          "Profile Assessment Working Group Checklist Reference" in d.get("result", ""))
+    check("SecurityReport omits CWE references",
+          "CWE-" not in d.get("result", ""))
+    check("SecurityReport omits security taxonomy note",
+          "Improper Input Validation" not in d.get("result", ""))
+    check("SecurityReport has ICC.1 spec PDF reference",
+          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in d.get("result", ""))
     check("SecurityReport has severity keyword",
           any(kw in d.get("result", "") for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")))
+    check("SecurityReport is conformance-only",
+          "[CF-" in d.get("result", "") and "[H" not in d.get("result", ""))
     # Bad path returns 400
     r2 = c.get("/api/security-report?path=nonexistent-xyz.icc")
     check("SecurityReport bad path 400", r2.status_code == 400)
+
+
+def test_pawg():
+    r = c.get("/api/pawg?path=BlacklightPoster_411039.icc")
+    check("PAWG 200", r.status_code == 200)
+    d = r.json()
+    check("PAWG ok", d["ok"] is True)
+    check("PAWG has result", "result" in d and len(d["result"]) > 100)
+    check("PAWG has checklist reference URL",
+          "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
+    check("PAWG has ICC.2 spec PDF reference",
+          "docs/iccDEV/specifications/ICC.2-2023.pdf" in d.get("result", ""))
+    check("PAWG omits CWE references",
+          "CWE-" not in d.get("result", ""))
+    check("PAWG omits security taxonomy note",
+          "Improper Input Validation" not in d.get("result", ""))
+    check("PAWG is conformance-only",
+          "[CF-" in d.get("result", "") and "[H" not in d.get("result", ""))
+    r2 = c.get("/api/pawg?path=nonexistent-xyz.icc")
+    check("PAWG bad path 400", r2.status_code == 400)
 
 
 def test_registry():
@@ -632,13 +667,20 @@ def test_cmake_build_validation():
 
 def test_create_profiles_validation():
     """Test create_all_profiles input validation."""
-    # Empty build_dir
-    r = c.post(
-        "/api/create-profiles",
-        content=json.dumps({}),
-        headers={"Content-Type": "application/json"},
-    )
-    check("Create profiles no build_dir", r.status_code == 200 and "[FAIL]" in r.json().get("result", ""))
+    async def fake_create_all_profiles(build_dir: str = "") -> str:
+        return f"[OK] auto create build_dir={build_dir or '(auto)'}"
+
+    orig = web_ui_mod.create_all_profiles
+    try:
+        web_ui_mod.create_all_profiles = fake_create_all_profiles
+        r = c.post(
+            "/api/create-profiles",
+            content=json.dumps({}),
+            headers={"Content-Type": "application/json"},
+        )
+    finally:
+        web_ui_mod.create_all_profiles = orig
+    check("Create profiles blank build_dir allowed", r.status_code == 200 and "[OK]" in r.json().get("result", ""))
 
     # Build dir traversal
     r = c.post(
@@ -651,13 +693,20 @@ def test_create_profiles_validation():
 
 def test_run_tests_validation():
     """Test run_iccdev_tests input validation."""
-    # Empty build_dir
-    r = c.post(
-        "/api/run-tests",
-        content=json.dumps({}),
-        headers={"Content-Type": "application/json"},
-    )
-    check("Run tests no build_dir", r.status_code == 200 and "[FAIL]" in r.json().get("result", ""))
+    async def fake_run_tests(build_dir: str = "") -> str:
+        return f"[OK] auto test build_dir={build_dir or '(auto)'}"
+
+    orig = web_ui_mod.run_iccdev_tests
+    try:
+        web_ui_mod.run_iccdev_tests = fake_run_tests
+        r = c.post(
+            "/api/run-tests",
+            content=json.dumps({}),
+            headers={"Content-Type": "application/json"},
+        )
+    finally:
+        web_ui_mod.run_iccdev_tests = orig
+    check("Run tests blank build_dir allowed", r.status_code == 200 and "[OK]" in r.json().get("result", ""))
 
     # Build dir traversal
     r = c.post(
@@ -864,6 +913,20 @@ def test_upload_and_analyze_endpoint():
     r = c.post("/api/upload-and-analyze", json={"data_base64": ""})
     check("upload-and-analyze rejects empty data", r.status_code == 400)
 
+    # Valid PAWG mode
+    real_path = REPO / "test-profiles" / "sRGB_D65_MAT.icc"
+    with open(real_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("ascii")
+    r = c.post("/api/upload-and-analyze", json={
+        "data_base64": encoded,
+        "filename": "sRGB_D65_MAT.icc",
+        "mode": "pawg",
+    })
+    check("upload-and-analyze accepts pawg mode", r.status_code == 200)
+    data = r.json()
+    check("upload-and-analyze pawg has checklist URL",
+          "https://www.color.org/profiles/assessment/index.xalter" in data.get("result", ""))
+
 
 def test_operations_method_enforcement():
     """Verify GET-only and POST-only enforcement on new endpoints."""
@@ -896,6 +959,7 @@ def test_operations_html_buttons():
     check("HTML has scan_logs button", "scan_logs" in r.text)
     check("HTML has upload_and_analyze button", "upload_and_analyze" in r.text)
     check("HTML has build_tools button", "build_tools" in r.text)
+    check("HTML has pawg button", 'data-tool="pawg"' in r.text)
 
 
 # ── Run all tests ──────────────────────────────────────────
@@ -926,6 +990,7 @@ def main():
         ("Security Scan", test_security_scan),
         ("Security JSON", test_security_json),
         ("Security Report", test_security_report),
+        ("PAWG", test_pawg),
         ("Registry", test_registry),
         ("Round-Trip", test_roundtrip),
         ("Full Analysis", test_full_analysis),

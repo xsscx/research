@@ -59,6 +59,7 @@ from icc_profile_mcp import (  # noqa: E402
     _VALID_VCPKG_SOURCES,
     analyze_security,
     analyze_security_json,
+    analyze_pawg_report,
     analyze_security_report,
     batch_test_profiles,
     build_tools,
@@ -393,6 +394,18 @@ async def api_security_report(request: Request) -> Response:
         engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
             result = await analyze_security_report(path, engine=engine)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_pawg(request: Request) -> Response:
+    """GET /api/pawg?path=<profile>&engine=v1|v2|auto"""
+    try:
+        path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
+        async with (await _get_semaphore()):
+            result = await analyze_pawg_report(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -1043,6 +1056,7 @@ routes = [
     Route("/api/security", api_security, methods=["GET"]),
     Route("/api/security-json", api_security_json, methods=["GET"]),
     Route("/api/security-report", api_security_report, methods=["GET"]),
+    Route("/api/pawg", api_pawg, methods=["GET"]),
     Route("/api/roundtrip", api_roundtrip, methods=["GET"]),
     Route("/api/full", api_full, methods=["GET"]),
     Route("/api/xml", api_xml, methods=["GET"]),

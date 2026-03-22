@@ -54,7 +54,35 @@ def _init_engine_default(env_name: str, fallback: str) -> str:
 
 DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto")
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
-V2_CONFORMANCE_REFERENCE_URL = "https://www.color.org/profiles/assessment/index.xalter"
+ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
+_V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
+_CWE_INLINE_PAREN_RE = re.compile(r"\(\s*CWE-[^)]+\)")
+_CWE_TOKEN_RE = re.compile(r"\bCWE-[A-Za-z0-9/-]+:?\s*")
+_FINDING_HEADER_RE = re.compile(
+    r"^\s*\[(?P<check_id>H\d+|CF-\d{3})\]\s+"
+    r"(?P<severity>CRITICAL|HIGH|MEDIUM|LOW|INFO)\s*$"
+)
+_PAWG_SECURITY_NOTE_LINES = frozenset({
+    "command injection",
+    "double free",
+    "improper input validation",
+    "incorrect calculation of buffer size",
+    "integer overflow or wraparound",
+    "null pointer dereference",
+    "out-of-bounds read",
+    "out-of-bounds write",
+    "path traversal",
+    "stack-based buffer overflow",
+    "uncontrolled resource consumption",
+    "use after free",
+})
+_PAWG_REFERENCE_BLOCK_LINES = (
+    f"  ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
+    "  ICC Specification PDFs:",
+    "    docs/iccDEV/specifications/ICC.1-2022-05.pdf",
+    "    docs/iccDEV/specifications/ICC.2-2023.pdf",
+    "    docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf",
+)
 
 
 def _resolve_engine(engine: str | None, *, default: str) -> str:
@@ -97,19 +125,156 @@ def _get_analyzer(engine: str | None = None) -> Path:
     return ANALYZER_BIN
 
 
-def _decorate_v2_banner(text: str) -> str:
-    """Insert the ICC conformance reference into V2 text banners."""
-    if not text or V2_CONFORMANCE_REFERENCE_URL in text:
+def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") -> str:
+    """Insert a reference line into V2 text banners."""
+    if not text:
         return text
-    title = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
-    marker = f"{title}\n"
+    marker = f"{_V2_TITLE_LINE}\n"
     if marker not in text:
         return text
+    text = "\n".join(
+        line for line in text.splitlines()
+        if ICC_PROFILE_ASSESSMENT_URL not in line
+    )
+    ref_line = f"  {label}: {ICC_PROFILE_ASSESSMENT_URL}"
     insert = (
-        f"{title}\n"
-        f"  ICC Conformance Reference: {V2_CONFORMANCE_REFERENCE_URL}\n"
+        f"{_V2_TITLE_LINE}\n"
+        f"{ref_line}\n"
     )
     return text.replace(marker, insert, 1)
+
+
+def _strip_cwe_references(line: str) -> str:
+    """Remove CWE identifiers while preserving any useful trailing detail."""
+    if not line:
+        return line
+    indent_len = len(line) - len(line.lstrip(" "))
+    indent = line[:indent_len]
+    body = line[indent_len:]
+    body = _CWE_INLINE_PAREN_RE.sub("", body)
+    body = _CWE_TOKEN_RE.sub("", body)
+    body = re.sub(r"\(\s*\)", "", body)
+    body = re.sub(r"\s{2,}", " ", body).strip()
+    body = re.sub(r"\s+([,.;)])", r"\1", body)
+    if not body:
+        return ""
+    return indent + body
+
+
+def _decorate_pawg_security_report(text: str) -> str:
+    """Rewrite V2 report text into a PAWG-oriented, conformance-only view."""
+    if not text:
+        return text
+    marker = f"{_V2_TITLE_LINE}\n"
+    if marker in text:
+        text = "\n".join(
+            line for line in text.splitlines()
+            if ICC_PROFILE_ASSESSMENT_URL not in line
+            and "docs/iccDEV/specifications/" not in line
+        )
+        insert = _V2_TITLE_LINE + "\n" + "\n".join(_PAWG_REFERENCE_BLOCK_LINES) + "\n"
+        text = text.replace(marker, insert, 1)
+
+    lines = text.splitlines()
+    summary_header = "─── Summary ───────────────────────────────────────────────────────────"
+    findings_header = "─── Findings ──────────────────────────────────────────────────────────"
+    checks_run_line = ""
+    preamble: list[str] = []
+    footer_lines: list[str] = []
+
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        if line.startswith("─── Summary"):
+            summary_header = line
+            idx += 1
+            break
+        preamble.append(line)
+        idx += 1
+
+    while idx < len(lines):
+        line = lines[idx]
+        if line.startswith("─── Findings"):
+            findings_header = line
+            idx += 1
+            break
+        if "Checks run:" in line:
+            checks_run_line = line
+        idx += 1
+
+    cf_blocks: list[tuple[str, list[str]]] = []
+    current_block: list[str] = []
+    current_severity = ""
+
+    def flush_block() -> None:
+        nonlocal current_block, current_severity
+        if not current_block:
+            return
+        match = _FINDING_HEADER_RE.match(current_block[0])
+        if match and match.group("check_id").startswith("CF-"):
+            cleaned = [current_block[0]]
+            for detail in current_block[1:]:
+                if "CWE-" in detail:
+                    continue
+                rewritten = _strip_cwe_references(detail)
+                normalized = rewritten.strip().lower()
+                if not normalized or normalized in _PAWG_SECURITY_NOTE_LINES:
+                    continue
+                cleaned.append(rewritten)
+            cf_blocks.append((current_severity, cleaned))
+        current_block = []
+        current_severity = ""
+
+    while idx < len(lines):
+        line = lines[idx]
+        header = _FINDING_HEADER_RE.match(line)
+        if header:
+            flush_block()
+            current_block = [line]
+            current_severity = header.group("severity")
+            idx += 1
+            continue
+        if line.startswith("════════"):
+            flush_block()
+            footer_lines.append(line)
+            idx += 1
+            continue
+        if current_block:
+            current_block.append(line)
+        elif line.strip():
+            footer_lines.append(line)
+        idx += 1
+    flush_block()
+
+    severity_order = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+    severity_counts = {level: 0 for level in severity_order}
+    for severity, _block in cf_blocks:
+        severity_counts[severity] += 1
+
+    rendered: list[str] = []
+    rendered.extend(preamble)
+    if rendered and rendered[-1].strip():
+        rendered.append("")
+    rendered.append(summary_header)
+    rendered.append("  View: PAWG / conformance findings only")
+    if checks_run_line:
+        rendered.append(checks_run_line)
+    for level in severity_order:
+        if severity_counts[level]:
+            rendered.append(f"  {level}: {severity_counts[level]}")
+    rendered.append("")
+    rendered.append(findings_header)
+    if cf_blocks:
+        for _severity, block in cf_blocks:
+            rendered.extend(block)
+            rendered.append("")
+    else:
+        rendered.append("  No conformance findings.")
+        rendered.append("")
+    if footer_lines:
+        rendered.extend(footer_lines)
+
+    return _sanitize_output("\n".join(rendered).strip())
 
 
 def _map_flags(flags: list[str], engine: str | None) -> list[str]:
@@ -427,7 +592,8 @@ async def analyze_security(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> 
     signatures, fuzzing vectors, memory safety issues, NaN/float-to-integer
     casts, AddXform ownership UAF patterns, TIFF image security, XML
     serialization safety, and more.
-    Covers 44+ CWE categories mapped from 61 CVEs + 27 GHSAs across 93 iccDEV advisories.
+    Covers 44+ security-pattern categories mapped from 61 CVEs + 27 GHSAs
+    across 93 iccDEV advisories.
     Use the --registry CLI mode for authoritative counts.
 
     Reference: https://www.color.org/specification/ICC.1-2022-05.pdf
@@ -464,7 +630,7 @@ async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE
     """Run 173-heuristic security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
-    severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), CWE categories, CVE
+    severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), security classifications, CVE
     cross-references, and spec citations. Best for programmatic consumption.
 
     Args:
@@ -487,7 +653,7 @@ async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGI
 
     Returns a severity-sorted security report with executive summary,
     findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
-    CWE category summary, CVE cross-references, and coverage statistics.
+    the ICC PAWG checklist reference, and coverage statistics.
 
     Args:
         path: Path to .icc file
@@ -497,7 +663,22 @@ async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGI
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
     flags = _map_flags(["--legacy", "--report"], engine)
-    return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)]))
+    return _decorate_pawg_security_report(
+        await _run([str(analyzer)] + flags + [str(profile)])
+    )
+
+
+async def analyze_pawg_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
+    """Run PAWG-oriented profile assessment output with checklist/spec references."""
+    analyzer = _get_analyzer(engine)
+    profile = _resolve_profile(path)
+    if analyzer == ANALYZER_V2_BIN:
+        flags = _map_flags(["--pawg"], "v2")
+    else:
+        flags = _map_flags(["--legacy", "--report"], "v1")
+    return _decorate_pawg_security_report(
+        await _run([str(analyzer)] + flags + [str(profile)])
+    )
 
 
 @mcp.tool()
@@ -695,8 +876,9 @@ async def upload_and_analyze(
     Args:
         data_base64: Base64-encoded file data
         filename: Original filename (used for display, sanitized before use)
-        mode: Analysis mode — "security" (default), "inspect", "roundtrip",
-              "full", "xml", or "all" (runs security + inspect + roundtrip)
+        mode: Analysis mode — "security" (default), "pawg", "inspect",
+              "roundtrip", "full", "xml", or "all" (runs security +
+              inspect + roundtrip)
         engine: Analysis engine — "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE for security/full modes and
                 ICC_MCP_STRUCTURAL_ENGINE for inspect/roundtrip.
@@ -762,6 +944,10 @@ async def upload_and_analyze(
             result = await profile_to_xml(profile_path)
             return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
 
+        if mode == "pawg":
+            result = await analyze_pawg_report(profile_path, engine=selected_engine("pawg"))
+            return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
+
         if mode == "all":
             parts = [f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)"]
             for m_name, m_flags in [("security", ["-h"]), ("inspect", ["-nf"]), ("roundtrip", ["-r"])]:
@@ -774,7 +960,7 @@ async def upload_and_analyze(
 
         flags = modes.get(mode)
         if not flags:
-            return f"[FAIL] Unknown mode '{mode}'. Choose: security, inspect, roundtrip, full, xml, all"
+            return f"[FAIL] Unknown mode '{mode}'. Choose: security, pawg, inspect, roundtrip, full, xml, all"
 
         mode_engine = selected_engine(mode)
         analyzer = _get_analyzer(mode_engine)
@@ -1000,6 +1186,65 @@ def _build_tool_path(build_dir: Path) -> str:
     if tool_dirs:
         return os.pathsep.join(tool_dirs) + os.pathsep + base_path
     return base_path
+
+
+def _discover_iccdev_build_dirs(iccdev: Path) -> list[Path]:
+    """Discover candidate iccDEV build directories ordered by usefulness."""
+    base = iccdev / "Build"
+    if not base.is_dir():
+        return []
+
+    markers = ("CMakeCache.txt", "Makefile", "build.ninja")
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+
+    def add(path: Path) -> None:
+        resolved = path.resolve()
+        if resolved in seen or not path.is_dir():
+            return
+        seen.add(resolved)
+        candidates.append(path)
+
+    for child in base.iterdir():
+        if not child.is_dir():
+            continue
+        if child.name.startswith("build") or any((child / marker).exists() for marker in markers) or (child / "Tools").is_dir():
+            add(child)
+
+    if any((base / marker).exists() for marker in markers) or (base / "Tools").is_dir():
+        add(base)
+
+    def sort_key(path: Path) -> tuple[int, int, int, int, float, str]:
+        has_tools = 1 if _find_iccdev_tools(path) else 0
+        has_direct_tools = 1 if (path / "Tools").is_dir() else 0
+        has_tools_hint = 1 if "tools" in path.name.lower() else 0
+        is_concrete_build = 0 if path.resolve() == base.resolve() else 1
+        latest_mtime = max(
+            [path.stat().st_mtime] +
+            [
+                (path / marker).stat().st_mtime
+                for marker in markers
+                if (path / marker).exists()
+            ]
+        )
+        return (
+            has_tools,
+            has_direct_tools,
+            has_tools_hint,
+            is_concrete_build,
+            latest_mtime,
+            path.name,
+        )
+
+    return sorted(candidates, key=sort_key, reverse=True)
+
+
+def _auto_select_tool_build_dir(iccdev: Path) -> Path | None:
+    """Return the best available iccDEV build directory with executable tools."""
+    for candidate in _discover_iccdev_build_dirs(iccdev):
+        if _find_iccdev_tools(candidate):
+            return candidate
+    return None
 
 
 def _patch_iccdev_source(iccdev: Path) -> list[str]:
@@ -1267,21 +1512,35 @@ async def create_all_profiles(build_dir: str = "") -> str:
 
     Args:
         build_dir: Build directory name under iccDEV/Build/ that was configured
-                   with enable_tools=True
+                   with enable_tools=True. If omitted, auto-detect the best
+                   available tool-enabled build.
     """
-    if not build_dir:
-        return (
-            "[FAIL] build_dir is required. First run:\n"
-            "  1. cmake_configure(enable_tools=True)\n"
-            "  2. cmake_build(build_dir='...')\n"
-            "  3. create_all_profiles(build_dir='...')"
-        )
-
     try:
         iccdev = _resolve_iccdev_dir()
-        target_dir = _resolve_build_dir(build_dir)
     except (FileNotFoundError, ValueError) as e:
         return f"[FAIL] {e}"
+
+    auto_selected = False
+    if build_dir:
+        try:
+            target_dir = _resolve_build_dir(build_dir)
+        except (FileNotFoundError, ValueError) as e:
+            return f"[FAIL] {e}"
+    else:
+        target_dir = _auto_select_tool_build_dir(iccdev)
+        if target_dir is None:
+            discovered = _discover_iccdev_build_dirs(iccdev)
+            discovered_names = ", ".join(p.name for p in discovered[:8]) if discovered else "(none)"
+            return (
+                "[FAIL] No tool-enabled build directory found under iccDEV/Build.\n"
+                f"Detected build dirs: {discovered_names}\n"
+                "First run:\n"
+                "  1. cmake_configure(enable_tools=True)\n"
+                "  2. cmake_build(build_dir='...')\n"
+                "  3. create_all_profiles(build_dir='...')"
+            )
+        auto_selected = True
+
     testing_dir = iccdev / "Testing"
     script = testing_dir / "CreateAllProfiles.sh"
 
@@ -1333,11 +1592,17 @@ async def create_all_profiles(build_dir: str = "") -> str:
 
     summary = (
         f"[INFO] CreateAllProfiles.sh completed (exit code {proc.returncode})\n"
+        f"  Build dir:       {target_dir}\n"
         f"  Profiles before: {before_count}\n"
         f"  Profiles after:  {after_count}\n"
         f"  New profiles:    {new_count}\n"
         f"  Testing dir:     {testing_dir}\n"
     )
+    if auto_selected:
+        summary = (
+            f"[INFO] Auto-detected build dir: {target_dir.name}\n"
+            f"{summary}"
+        )
 
     # List generated profiles (last 20 lines for brevity)
     if after_profiles:
@@ -1364,22 +1629,36 @@ async def run_iccdev_tests(build_dir: str = "") -> str:
 
     Args:
         build_dir: Build directory name under iccDEV/Build/ that was configured
-                   with enable_tools=True
+                   with enable_tools=True. If omitted, auto-detect the best
+                   available tool-enabled build.
     """
-    if not build_dir:
-        return (
-            "[FAIL] build_dir is required. First run:\n"
-            "  1. cmake_configure(enable_tools=True)\n"
-            "  2. cmake_build(build_dir='...')\n"
-            "  3. create_all_profiles(build_dir='...')\n"
-            "  4. run_iccdev_tests(build_dir='...')"
-        )
-
     try:
         iccdev = _resolve_iccdev_dir()
-        target_dir = _resolve_build_dir(build_dir)
     except (FileNotFoundError, ValueError) as e:
         return f"[FAIL] {e}"
+
+    auto_selected = False
+    if build_dir:
+        try:
+            target_dir = _resolve_build_dir(build_dir)
+        except (FileNotFoundError, ValueError) as e:
+            return f"[FAIL] {e}"
+    else:
+        target_dir = _auto_select_tool_build_dir(iccdev)
+        if target_dir is None:
+            discovered = _discover_iccdev_build_dirs(iccdev)
+            discovered_names = ", ".join(p.name for p in discovered[:8]) if discovered else "(none)"
+            return (
+                "[FAIL] No tool-enabled build directory found under iccDEV/Build.\n"
+                f"Detected build dirs: {discovered_names}\n"
+                "First run:\n"
+                "  1. cmake_configure(enable_tools=True)\n"
+                "  2. cmake_build(build_dir='...')\n"
+                "  3. create_all_profiles(build_dir='...')\n"
+                "  4. run_iccdev_tests(build_dir='...')"
+            )
+        auto_selected = True
+
     testing_dir = iccdev / "Testing"
     script = testing_dir / "RunTests.sh"
 
@@ -1426,6 +1705,11 @@ async def run_iccdev_tests(build_dir: str = "") -> str:
         f"[INFO] RunTests.sh completed (exit code {proc.returncode})\n"
         f"  Build dir:  {target_dir}\n"
     )
+    if auto_selected:
+        summary = (
+            f"[INFO] Auto-detected build dir: {target_dir.name}\n"
+            f"{summary}"
+        )
     if pass_count or fail_count:
         summary += f"  Matches:    ~{pass_count} pass, ~{fail_count} fail (approximate from output)\n"
 
