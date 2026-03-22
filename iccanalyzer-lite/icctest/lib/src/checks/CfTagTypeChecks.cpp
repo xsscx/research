@@ -1782,13 +1782,14 @@ static CheckResult check_cf189_tag_type_recognition_coverage(const ProfileView& 
 }
 
 static CheckResult check_cf190_profile_legibility_gate(const ProfileView& pv) {
+    CheckID cfId{CheckID::Kind::Conformance, 190};
     std::vector<Finding> findings;
 
     // Check tag count
     size_t tagCount = pv.tagCount();
     if (tagCount == 0) {
         findings.push_back(Finding{
-            {CheckID::Kind::Conformance, 190}, Severity::HIGH,
+            cfId, Severity::HIGH,
             "Profile has 0 tags", "ICC.1-2022-05 §7.3", "CWE-20"});
     }
 
@@ -1797,7 +1798,7 @@ static CheckResult check_cf190_profile_legibility_gate(const ProfileView& pv) {
     size_t fileSize = pv.rawSize();
     if (headerSize > fileSize) {
         findings.push_back(Finding{
-            {CheckID::Kind::Conformance, 190}, Severity::HIGH,
+            cfId, Severity::HIGH,
             "Header size (" + std::to_string(headerSize) + ") exceeds file size (" +
             std::to_string(fileSize) + ")",
             "ICC.1-2022-05 §7.2.2", "CWE-131"});
@@ -1806,8 +1807,36 @@ static CheckResult check_cf190_profile_legibility_gate(const ProfileView& pv) {
     // Verify library successfully parsed
     if (!pv.libraryLoaded()) {
         findings.push_back(Finding{
-            {CheckID::Kind::Conformance, 190}, Severity::HIGH,
+            cfId, Severity::HIGH,
             "Library failed to load profile", "", ""});
+    } else {
+        CIccProfile *pIcc = pv.unsafeLibraryHandle();
+        if (!pIcc) {
+            findings.push_back(Finding{
+                cfId, Severity::HIGH,
+                "Library handle missing after successful load",
+                "SampleICC §3 ReadValidate", ""});
+        } else {
+            for (const auto& entry : pv.rawTagTable()) {
+                CIccTag *pTag = nullptr;
+                try {
+                    pTag = pIcc->FindTag(static_cast<icTagSignature>(entry.signature));
+                } catch (...) {
+                    pTag = nullptr;
+                }
+
+                if (!pTag) {
+                    char sigBuf[5];
+                    SigToChars(entry.signature, sigBuf);
+                    findings.push_back(Finding{
+                        cfId, Severity::HIGH,
+                        std::string("Tag '") + sigBuf + "' (offset " +
+                        std::to_string(entry.offset) + ", size " +
+                        std::to_string(entry.size) + ") unresolved after Read()",
+                        "SampleICC §3 ReadValidate", ""});
+                }
+            }
+        }
     }
 
     if (findings.empty())
