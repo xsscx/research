@@ -41,6 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from icc_profile_mcp import (  # noqa: E402
     ANALYZER_BIN,
     ANALYZER_V2_BIN,
+    DEFAULT_ANALYSIS_ENGINE,
+    DEFAULT_STRUCTURAL_ENGINE,
     TO_XML_SAFE_BIN,
     TO_XML_UNSAFE_BIN,
     _get_analyzer,
@@ -126,16 +128,21 @@ def _get_heuristic_count() -> int:
     try:
         import json as _json
         import subprocess
+        analyzer = _get_analyzer(DEFAULT_ANALYSIS_ENGINE)
         r = subprocess.run(
-            [str(ANALYZER_BIN), "--registry"],
+            [str(analyzer), "--registry"],
             capture_output=True, text=True, timeout=10
         )
         if r.returncode == 0 and r.stdout.strip():
             data = _json.loads(r.stdout)
-            _HEURISTIC_COUNT = data.get("totalHeuristics", 148)
+            _HEURISTIC_COUNT = (
+                data.get("totalHeuristics") or
+                data.get("heuristics") or
+                173
+            )
             return _HEURISTIC_COUNT
     except Exception:  # noqa: E722 — intentional broad catch for graceful fallback
-        _HEURISTIC_COUNT = 148  # default when binary unavailable
+        _HEURISTIC_COUNT = 173  # registry count fallback
     return _HEURISTIC_COUNT
 
 
@@ -304,7 +311,7 @@ async def api_inspect(request: Request) -> Response:
     """GET /api/inspect?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_STRUCTURAL_ENGINE)
         async with (await _get_semaphore()):
             result = await inspect_profile(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
@@ -316,7 +323,7 @@ async def api_security(request: Request) -> Response:
     """GET /api/security?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
             result = await analyze_security(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
@@ -327,8 +334,9 @@ async def api_security(request: Request) -> Response:
 async def api_security_json(request: Request) -> Response:
     """GET /api/security-json?path=<profile>&engine=v1|v2|auto"""
     try:
+        import json as _json
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
             result = await analyze_security_json(path, engine=engine)
         # Defense-in-depth: strip any residual stderr if present
@@ -341,16 +349,39 @@ async def api_security_json(request: Request) -> Response:
         result = result.strip()
         if not result or not result.startswith("{"):
             _h_count = _get_heuristic_count()
+            crash_payload = {
+                "engine": engine,
+                "crashRecovery": True,
+                "results": [],
+            }
+            if engine == "v1":
+                crash_payload["summary"] = {
+                    "totalHeuristics": _h_count,
+                    "heuristicsRun": 0,
+                    "ok": 0,
+                    "warnings": 0,
+                    "critical": 1,
+                    "crashRecovery": True,
+                    "note": (
+                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) — "
+                        "no JSON output available. Use /api/security for text analysis."
+                    ),
+                }
+            else:
+                crash_payload["stats"] = {
+                    "checksRun": 0,
+                    "findings": 0,
+                    "crashRecovery": True,
+                    "note": (
+                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) — "
+                        "no JSON output available. Use /api/security for text analysis."
+                    ),
+                }
             return JSONResponse({
                 "ok": True,
-                "result": f'{{"summary":{{"totalHeuristics":{_h_count},"heuristicsRun":0,'
-                          '"ok":0,"warnings":0,"critical":1,'
-                          '"crashRecovery":true,'
-                          '"note":"Profile triggered crash recovery (SIGSEGV/SIGABRT) — '
-                          'no JSON output available. Use /api/security for text analysis."}},'
-                          '"results":[]}}'
+                "result": crash_payload,
             })
-        return JSONResponse({"ok": True, "result": result})
+        return JSONResponse({"ok": True, "result": _json.loads(result)})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
@@ -359,7 +390,7 @@ async def api_security_report(request: Request) -> Response:
     """GET /api/security-report?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
             result = await analyze_security_report(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
@@ -371,7 +402,7 @@ async def api_roundtrip(request: Request) -> Response:
     """GET /api/roundtrip?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_STRUCTURAL_ENGINE)
         async with (await _get_semaphore()):
             result = await validate_roundtrip(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
@@ -383,7 +414,7 @@ async def api_full(request: Request) -> Response:
     """GET /api/full?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
-        engine = request.query_params.get("engine", "v1")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
             result = await full_analysis(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
@@ -472,21 +503,29 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
+    v1_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
     v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
-    resp = {"ok": True, "tools": 24, "engines": {"v1": True, "v2": v2_ok}}
+    resp = {
+        "ok": True,
+        "tools": 24,
+        "engines": {"v1": v1_ok, "v2": v2_ok},
+        "defaultAnalysisEngine": DEFAULT_ANALYSIS_ENGINE,
+        "defaultStructuralEngine": DEFAULT_STRUCTURAL_ENGINE,
+    }
     return JSONResponse(resp)
 
 
 async def api_registry(request: Request) -> Response:
     """GET /api/registry — heuristic database (source of truth for all counts)."""
     try:
-        _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
-        result = await _run([str(ANALYZER_BIN), "--registry"], include_stderr=False)
+        engine = request.query_params.get("engine", "v1")
+        analyzer = _get_analyzer(engine)
+        result = await _run([str(analyzer), "--registry"], include_stderr=False)
         result = result.strip()
         if result.startswith("{"):
             import json as _json
             data = _json.loads(result)
-            return JSONResponse({"ok": True, "registry": data})
+            return JSONResponse({"ok": True, "engine": engine, "registry": data})
         return JSONResponse({"ok": False, "error": "Invalid registry output"}, status_code=500)
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -694,7 +733,7 @@ async def api_build_tools(request: Request) -> Response:
         target = body.get("target", "all")
         if not isinstance(target, str):
             target = "all"
-        valid_targets = {"all", "iccanalyzer-lite", "colorbleed_tools"}
+        valid_targets = {"all", "iccanalyzer-lite", "icctest", "colorbleed_tools"}
         if target not in valid_targets:
             raise ValueError(f"target must be one of: {', '.join(sorted(valid_targets))}")
         async with (await _get_semaphore()):
@@ -820,9 +859,9 @@ async def api_upload_and_analyze(request: Request) -> Response:
         mode = body.get("mode", "security")
         if not isinstance(mode, str):
             mode = "security"
-        engine = body.get("engine", "v1")
-        if not isinstance(engine, str):
-            engine = "v1"
+        engine = body.get("engine")
+        if engine is not None and not isinstance(engine, str):
+            engine = None
         async with (await _get_semaphore()):
             result = await upload_and_analyze(
                 data_base64=data_base64, filename=filename, mode=mode, engine=engine
@@ -846,7 +885,7 @@ def _get_upload_dir() -> Path:
 async def api_upload(request: Request) -> Response:
     """POST /api/upload — accept a local ICC file for analysis.
 
-    Returns a server-side relative path that can be used in all tool inputs.
+    Returns a server-side path that can be used in all tool inputs.
     File is stored in a secure temp directory with a random name.
     """
     try:

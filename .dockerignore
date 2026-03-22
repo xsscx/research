@@ -1,6 +1,5 @@
-# Exclude local iccDEV builds — Dockerfile clones fresh copies
+# Exclude local iccDEV build for iccanalyzer-lite — Dockerfile clones a patched copy
 iccanalyzer-lite/iccDEV
-colorbleed_tools/iccDEV
 
 # Exclude fuzzer corpora and artifacts (huge)
 cfl/corpus*
@@ -23,4 +22,10 @@ cfl/findings/
 
 # Build artifacts
 build/
+iccanalyzer-lite/icctest/build/
 *.o
+
+# Python/test caches
+**/__pycache__/
+**/.pytest_cache/
+*.pyc

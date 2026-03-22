@@ -36,20 +36,54 @@ def _init_repo_root() -> Path:
 REPO_ROOT = _init_repo_root()
 ANALYZER_BIN = REPO_ROOT / "iccanalyzer-lite" / "iccanalyzer-lite"
 ANALYZER_V2_BIN = REPO_ROOT / "iccanalyzer-lite" / "icctest" / "build" / "cli" / "icctest"
-TO_XML_SAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml"
+ICCDEV_TOOLS_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV" / "Build" / "Tools"
+TO_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccToXml" / "iccToXml"
+FROM_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccFromXml" / "iccFromXml"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
+FROM_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccFromXml_unsafe"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
+_VALID_ENGINES = frozenset({"v1", "v2", "auto"})
 
 
-def _get_analyzer(engine: str = "v1") -> Path:
+def _init_engine_default(env_name: str, fallback: str) -> str:
+    raw = os.environ.get(env_name, fallback).strip().lower()
+    return raw if raw in _VALID_ENGINES else fallback
+
+
+DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto")
+DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
+V2_CONFORMANCE_REFERENCE_URL = "https://www.color.org/profiles/assessment/index.xalter"
+
+
+def _resolve_engine(engine: str | None, *, default: str) -> str:
+    if engine is None:
+        return default
+    raw = str(engine).strip().lower()
+    if not raw:
+        return default
+    if raw not in _VALID_ENGINES:
+        raise ValueError(f"engine must be one of: {', '.join(sorted(_VALID_ENGINES))}")
+    return raw
+
+
+def _engine_available(engine: str | None, *, default: str = DEFAULT_ANALYSIS_ENGINE) -> bool:
+    try:
+        _get_analyzer(engine if engine is not None else default)
+        return True
+    except (FileNotFoundError, ValueError):
+        return False
+
+
+def _get_analyzer(engine: str | None = None) -> Path:
     """Return the analyzer binary path for the requested engine.
 
     Args:
-        engine: "v1" (default, iccanalyzer-lite), "v2" (icctest), or "auto"
+        engine: "v1" (iccanalyzer-lite), "v2" (icctest), or "auto"
                 (prefer V2 if available, fall back to V1).
     """
+    engine = _resolve_engine(engine, default=DEFAULT_ANALYSIS_ENGINE)
     if engine == "v2":
         _require_binary(ANALYZER_V2_BIN, "icctest (V2)")
         return ANALYZER_V2_BIN
@@ -63,7 +97,22 @@ def _get_analyzer(engine: str = "v1") -> Path:
     return ANALYZER_BIN
 
 
-def _map_flags(flags: list[str], engine: str) -> list[str]:
+def _decorate_v2_banner(text: str) -> str:
+    """Insert the ICC conformance reference into V2 text banners."""
+    if not text or V2_CONFORMANCE_REFERENCE_URL in text:
+        return text
+    title = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
+    marker = f"{title}\n"
+    if marker not in text:
+        return text
+    insert = (
+        f"{title}\n"
+        f"  ICC Conformance Reference: {V2_CONFORMANCE_REFERENCE_URL}\n"
+    )
+    return text.replace(marker, insert, 1)
+
+
+def _map_flags(flags: list[str], engine: str | None) -> list[str]:
     """Map V1 CLI flags to V2 equivalents.
 
     V2 differences:
@@ -72,6 +121,7 @@ def _map_flags(flags: list[str], engine: str) -> list[str]:
     - No -r flag (roundtrip is part of -a)
     - Adds --no-sandbox to disable seccomp-bpf (needed for Docker/CI)
     """
+    engine = _resolve_engine(engine, default=DEFAULT_ANALYSIS_ENGINE)
     if engine == "v1":
         return flags
     # V2 flag mapping
@@ -197,9 +247,13 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
     env = {
         "PATH": os.environ.get("PATH", _default_path),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
-        "ASAN_OPTIONS": "detect_leaks=0",
-        "MallocNanoZone": "0",
-        "GCOV_PREFIX": "/dev/null",
+        "ASAN_OPTIONS": os.environ.get("ASAN_OPTIONS", "detect_leaks=0"),
+        "UBSAN_OPTIONS": os.environ.get("UBSAN_OPTIONS", "halt_on_error=0,print_stacktrace=1"),
+        "MallocNanoZone": os.environ.get("MallocNanoZone", "0"),
+        "GCOV_PREFIX": os.environ.get("GCOV_PREFIX", "/dev/null"),
+        # Instrumented Clang coverage builds try to emit default.profraw unless
+        # we forward this explicitly into the reduced subprocess environment.
+        "LLVM_PROFILE_FILE": os.environ.get("LLVM_PROFILE_FILE", "/dev/null"),
     }
     if sys.platform != "win32":
         env["HOME"] = "/nonexistent"
@@ -297,14 +351,22 @@ async def health_check() -> str:
     # Binary status
     analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
     analyzer_v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
-    xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
-    xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
+    to_xml_unsafe_ok = TO_XML_UNSAFE_BIN.is_file() and os.access(TO_XML_UNSAFE_BIN, os.X_OK)
+    to_xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
+    from_xml_unsafe_ok = FROM_XML_UNSAFE_BIN.is_file() and os.access(FROM_XML_UNSAFE_BIN, os.X_OK)
+    from_xml_safe_ok = FROM_XML_SAFE_BIN.is_file() and os.access(FROM_XML_SAFE_BIN, os.X_OK)
 
     lines.append("Binaries:")
     lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
     lines.append(f"  icctest (V2)     : {'[OK]' if analyzer_v2_ok else '[MISSING]'}")
-    lines.append(f"  iccToXml_unsafe  : {'[OK]' if xml_unsafe_ok else '[MISSING]'}")
-    lines.append(f"  iccToXml (safe)  : {'[OK]' if xml_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml (safe)  : {'[OK]' if to_xml_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccFromXml (safe): {'[OK]' if from_xml_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccToXml_unsafe  : {'[OK]' if to_xml_unsafe_ok else '[MISSING]'}")
+    lines.append(f"  iccFromXml_unsafe: {'[OK]' if from_xml_unsafe_ok else '[MISSING]'}")
+    lines.append("")
+    lines.append("Defaults:")
+    lines.append(f"  analysis engine  : {DEFAULT_ANALYSIS_ENGINE}")
+    lines.append(f"  structural engine: {DEFAULT_STRUCTURAL_ENGINE}")
     lines.append("")
 
     # Profile directory status
@@ -321,21 +383,34 @@ async def health_check() -> str:
     lines.append("Tools: 24 registered (11 analysis + 7 maintainer + 6 operations)")
     lines.append("")
 
-    overall = "ok" if (analyzer_ok and xml_unsafe_ok) else "degraded"
+    xml_toolchain_ok = (
+        to_xml_safe_ok and
+        from_xml_safe_ok and
+        to_xml_unsafe_ok and
+        from_xml_unsafe_ok
+    )
+    overall = "ok" if (
+        analyzer_ok and
+        xml_toolchain_ok and
+        _engine_available(DEFAULT_ANALYSIS_ENGINE, default=DEFAULT_ANALYSIS_ENGINE) and
+        _engine_available(DEFAULT_STRUCTURAL_ENGINE, default=DEFAULT_STRUCTURAL_ENGINE)
+    ) else "degraded"
     lines.append(f"Status: {overall}")
 
     return "\n".join(lines)
 
 
 @mcp.tool()
-async def inspect_profile(path: str, engine: str = "v1") -> str:
+async def inspect_profile(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE) -> str:
     """Inspect an ICC profile's header, tag table, and structure.
 
     Uses ninja-full mode for complete structural dump without truncation.
 
     Args:
         path: Path to .icc file (absolute, or filename to search in test-profiles/)
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to the structural-engine path, which is "v1" unless
+                overridden via ICC_MCP_STRUCTURAL_ENGINE.
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
@@ -344,7 +419,7 @@ async def inspect_profile(path: str, engine: str = "v1") -> str:
 
 
 @mcp.tool()
-async def analyze_security(path: str, engine: str = "v1") -> str:
+async def analyze_security(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
     """Run 173-heuristic security analysis on an ICC profile.
 
     Validates against ICC.1-2022-05 specification constraints and detects:
@@ -359,21 +434,24 @@ async def analyze_security(path: str, engine: str = "v1") -> str:
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
     flags = _map_flags(["-h"], engine)
-    return await _run([str(analyzer)] + flags + [str(profile)])
+    return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 @mcp.tool()
-async def validate_roundtrip(path: str, engine: str = "v1") -> str:
+async def validate_roundtrip(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE) -> str:
     """Validate bidirectional transform support (AToB/BToA, DToB/BToD, Matrix/TRC).
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to the structural-engine path, which is "v1" unless
+                overridden via ICC_MCP_STRUCTURAL_ENGINE.
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
@@ -382,7 +460,7 @@ async def validate_roundtrip(path: str, engine: str = "v1") -> str:
 
 
 @mcp.tool()
-async def analyze_security_json(path: str, engine: str = "v1") -> str:
+async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
     """Run 173-heuristic security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
@@ -391,7 +469,8 @@ async def analyze_security_json(path: str, engine: str = "v1") -> str:
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
@@ -403,7 +482,7 @@ async def analyze_security_json(path: str, engine: str = "v1") -> str:
 
 
 @mcp.tool()
-async def analyze_security_report(path: str, engine: str = "v1") -> str:
+async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
     """Run 173-heuristic security analysis with professional report output.
 
     Returns a severity-sorted security report with executive summary,
@@ -412,28 +491,30 @@ async def analyze_security_report(path: str, engine: str = "v1") -> str:
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
     flags = _map_flags(["--legacy", "--report"], engine)
-    return await _run([str(analyzer)] + flags + [str(profile)])
+    return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 @mcp.tool()
-async def full_analysis(path: str, engine: str = "v1") -> str:
+async def full_analysis(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
     """Run comprehensive analysis combining security, validation, and metadata.
 
     This is the most thorough mode — combines heuristics, round-trip, and inspection.
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
     flags = _map_flags(["-a"], engine)
-    return await _run([str(analyzer)] + flags + [str(profile)], timeout=120)
+    return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)], timeout=120))
 
 
 @mcp.tool()
@@ -602,7 +683,7 @@ async def upload_and_analyze(
     data_base64: str,
     filename: str = "uploaded.icc",
     mode: str = "security",
-    engine: str = "v1",
+    engine: str | None = None,
 ) -> str:
     """Upload an ICC profile or image (base64-encoded) and run analysis.
 
@@ -616,7 +697,9 @@ async def upload_and_analyze(
         filename: Original filename (used for display, sanitized before use)
         mode: Analysis mode — "security" (default), "inspect", "roundtrip",
               "full", "xml", or "all" (runs security + inspect + roundtrip)
-        engine: Analysis engine — "v1" (default), "v2" (icctest), or "auto"
+        engine: Analysis engine — "v1", "v2", or "auto".
+                Defaults to ICC_MCP_ANALYSIS_ENGINE for security/full modes and
+                ICC_MCP_STRUCTURAL_ENGINE for inspect/roundtrip.
     """
     # Decode and validate
     try:
@@ -654,8 +737,12 @@ async def upload_and_analyze(
     dest.write_bytes(raw)
 
     try:
-        analyzer = _get_analyzer(engine)
         profile_path = str(dest)
+        explicit_engine = (
+            _resolve_engine(engine, default=DEFAULT_ANALYSIS_ENGINE)
+            if engine is not None and str(engine).strip()
+            else None
+        )
 
         modes = {
             "security": ["-h"],
@@ -664,6 +751,13 @@ async def upload_and_analyze(
             "full": ["-a"],
         }
 
+        def selected_engine(mode_name: str) -> str:
+            if explicit_engine is not None:
+                return explicit_engine
+            if mode_name in ("inspect", "roundtrip"):
+                return DEFAULT_STRUCTURAL_ENGINE
+            return DEFAULT_ANALYSIS_ENGINE
+
         if mode == "xml":
             result = await profile_to_xml(profile_path)
             return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
@@ -671,7 +765,9 @@ async def upload_and_analyze(
         if mode == "all":
             parts = [f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)"]
             for m_name, m_flags in [("security", ["-h"]), ("inspect", ["-nf"]), ("roundtrip", ["-r"])]:
-                mapped = _map_flags(m_flags, engine)
+                mode_engine = selected_engine(m_name)
+                analyzer = _get_analyzer(mode_engine)
+                mapped = _map_flags(m_flags, mode_engine)
                 out = await _run([str(analyzer)] + mapped + [profile_path])
                 parts.append(f"\n{'='*70}\n  {m_name.upper()} MODE ({' '.join(m_flags)})\n{'='*70}\n{out}")
             return "\n".join(parts)
@@ -680,7 +776,9 @@ async def upload_and_analyze(
         if not flags:
             return f"[FAIL] Unknown mode '{mode}'. Choose: security, inspect, roundtrip, full, xml, all"
 
-        mapped = _map_flags(flags, engine)
+        mode_engine = selected_engine(mode)
+        analyzer = _get_analyzer(mode_engine)
+        mapped = _map_flags(flags, mode_engine)
         result = await _run([str(analyzer)] + mapped + [profile_path], timeout=120)
         return f"[OK] Uploaded: {safe_name} ({len(raw):,} bytes)\n\n{result}"
     finally:
@@ -701,10 +799,12 @@ async def build_tools(target: str = "all") -> str:
     suite, use run_iccdev_tests.
 
     Args:
-        target: What to build — "all", "iccanalyzer-lite", or "colorbleed_tools"
+        target: What to build — "all", "iccanalyzer-lite", "icctest",
+                or "colorbleed_tools"
     """
     targets = {
         "iccanalyzer-lite": ("iccanalyzer-lite", "./build.sh"),
+        "icctest": ("iccanalyzer-lite/icctest", "./build.sh"),
         "colorbleed_tools": ("colorbleed_tools", "make setup && make"),
     }
 
@@ -713,7 +813,7 @@ async def build_tools(target: str = "all") -> str:
     elif target in targets:
         build_list = [(target, targets[target])]
     else:
-        return f"Unknown target '{target}'. Choose: all, iccanalyzer-lite, colorbleed_tools"
+        return f"Unknown target '{target}'. Choose: all, iccanalyzer-lite, icctest, colorbleed_tools"
 
     results = []
     for name, (subdir, _) in build_list:
@@ -739,6 +839,12 @@ async def build_tools(target: str = "all") -> str:
         # Check for build artifacts
         if name == "iccanalyzer-lite":
             binary = build_dir / "iccanalyzer-lite"
+            if binary.is_file():
+                results.append(f"[OK] {name}: built successfully ({binary})")
+            else:
+                results.append(f"[FAIL] {name}: binary not found after build\n{output}")
+        elif name == "icctest":
+            binary = build_dir / "build" / "cli" / "icctest"
             if binary.is_file():
                 results.append(f"[OK] {name}: built successfully ({binary})")
             else:
@@ -1705,10 +1811,14 @@ async def check_dependencies() -> str:
 
         if missing:
             lines.append("")
-            missing_pkgs = " ".join(
-                name.split("(")[-1].rstrip(")") if "(" in name else name
-                for name in missing
-            )
+            deduped: list[str] = []
+            seen_pkgs: set[str] = set()
+            for name in missing:
+                pkg = name.split("(")[-1].rstrip(")") if "(" in name else name
+                if pkg not in seen_pkgs:
+                    seen_pkgs.add(pkg)
+                    deduped.append(pkg)
+            missing_pkgs = " ".join(deduped)
             lines.append(f"Install missing: sudo apt install -y {missing_pkgs}")
 
     elif is_mac:
@@ -1822,6 +1932,8 @@ async def find_build_artifacts(build_dir: str = "") -> str:
                 d for d in base.iterdir()
                 if d.is_dir() and d.name.startswith("build")
             )
+            if not search_dirs and any((base / marker).exists() for marker in ("CMakeCache.txt", "Makefile", "build.ninja")):
+                search_dirs = [base]
         if not search_dirs:
             return "[FAIL] No build directories found under iccDEV/Build/"
 
