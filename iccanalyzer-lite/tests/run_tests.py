@@ -3341,12 +3341,22 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-223.*mluc.*Placeholder"
     )
+    suite.assert_output_contains(
+        "cf.223.zero_name_placeholder_nonminimal",
+        ["-a", f"{corpus}/cf_mluc_zero_name_placeholder.icc"],
+        r"zero-name mluc.*recommended: 12|\[WARN\].*placeholder"
+    )
 
     # CF-224: mluc Reserved Field Zero
     suite.assert_output_contains(
         "cf.mluc_reserved",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-224.*mluc.*Reserved"
+    )
+    suite.assert_output_contains(
+        "cf.224.reserved_field_nonzero",
+        ["-a", f"{corpus}/cf_reserved_bytes_nonzero_tag.icc"],
+        r"CF-224.*\[FAIL\]|mluc reserved field = 0x[0-9A-F]+"
     )
 
     # CF-225: mluc Name Record String Alignment
@@ -3355,12 +3365,22 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-225.*mluc.*Alignment"
     )
+    suite.assert_output_contains(
+        "cf.225.odd_utf16_alignment",
+        ["-a", f"{corpus}/odd_utf16_mluc.icc"],
+        r"CF-225.*\[WARN\]|odd string length"
+    )
 
     # CF-226: mluc Size Inference Safety
     suite.assert_output_contains(
         "cf.mluc_size_inference",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-226.*mluc.*Size.*Inference"
+    )
+    suite.assert_output_contains(
+        "cf.226.valid_profile_sizes_ok",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\].*sizes consistent with records"
     )
 
     # CF-227: v4 Text Tag Unicode Migration

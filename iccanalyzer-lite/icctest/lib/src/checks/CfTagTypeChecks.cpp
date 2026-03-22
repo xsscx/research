@@ -2120,22 +2120,23 @@ static CheckResult check_cf223_mluc_zero_name_placeholder(const ProfileView& pv)
     size_t rawSize = pv.rawSize();
     if (!raw) return CheckResult::error("No raw data");
 
-    // mluc with 0 records should have recordSize=12 and total size=16
+    // ICC TN PSD recommends a minimal 12-byte placeholder for a zero-name mluc:
+    // type signature + reserved + record count (0), with no record-size field.
     std::vector<Finding> findings;
 
     for (const auto& te : pv.rawTagTable()) {
         uint32_t off = te.offset;
-        if (off + 16 > rawSize) continue;
+        if (off + 12 > rawSize) continue;
         if (ReadU32BE(raw + off) != 0x6D6C7563) continue;
 
         uint32_t nRecs = ReadU32BE(raw + off + 8);
-        if (nRecs == 0 && te.size != 16) {
+        if (nRecs == 0 && te.size != 12) {
             char sig[5]; SigToChars(te.signature, sig);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 223}, Severity::LOW,
                 std::string("mluc tag '") + sig + "' has 0 records but size=" +
-                std::to_string(te.size) + " (expected 16 for empty placeholder)",
-                "ICC.1-2022-05 §10.15", ""});
+                std::to_string(te.size) + " (recommended: 12-byte zero-name placeholder)",
+                "ICC TN PSD §placeholder", ""});
         }
     }
 
