@@ -1,7 +1,7 @@
 name: Analyze ICC Profile
 description: >
   Full security analysis of an ICC color profile using the MCP server's
-  analysis tools.  Runs inspect, security scan (171 heuristics), round-trip
+  analysis tools.  Runs inspect, security scan (173 heuristics), round-trip
   validation, and XML conversion, then summarises findings.
   Supports TIFF image files — auto-detects and extracts embedded ICC profiles.
   JSON output available via --json mode for programmatic consumption.
@@ -16,7 +16,7 @@ messages:
 
         health_check        — verify server and binary availability
         inspect_profile     — examine header, tag table, data values
-        analyze_security    — run 171 security heuristics (H1-H171)
+        analyze_security    — run 173 security heuristics (H1-H173)
         validate_roundtrip  — check AToB/BToA and DToB/BToD tag pairs
         profile_to_xml      — convert to XML for human-readable inspection
         full_analysis       — all of the above in one call
@@ -53,8 +53,15 @@ messages:
       - IccImageAnalyzer.cpp: H139-H141 (TIFF security)
       - IccHeuristicsXmlSafety.cpp: H142-H145 (XML serialization safety)
 
-      IccHeuristicsRegistry.h provides 171-entry metadata table with:
+      IccHeuristicsRegistry.h provides 173-entry metadata table with:
       - id, name, specRef, primaryCWE, cveRefs, phase, severity
+
+      mluc note for future parity work:
+      - A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated
+        as a 12-byte recommended encoding per the ICC TN PSD guidance.
+      - Legacy 16-byte zero-record encodings are readable in some SampleICC
+        paths but should still be reported as non-minimal rather than silently
+        normalized away.
 
       CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
       93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for
@@ -119,7 +126,7 @@ messages:
 
       Provide a structured security report covering:
       - Profile metadata (class, colour space, PCS, version, creator)
-      - Security heuristic results (H1-H171)
+      - Security heuristic results (H1-H173)
       - Round-trip validation status
       - Any anomalies or findings
 

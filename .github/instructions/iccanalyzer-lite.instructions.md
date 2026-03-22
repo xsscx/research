@@ -6,16 +6,17 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 171-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
+A 173-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
-44+ CWE categories and detect patterns from 48 CVEs across 93 iccDEV security advisories.
+44+ CWE categories and pair with 329 canonical conformance checks across the V1/V2
+parity harness.
 
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-171-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H171 CodeQL-driven) on extracted ICC profiles. New explicit `-img` mode available.
+173-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H153 data validation/advanced + H154-H173 CodeQL/exploit-gap) on extracted ICC profiles. New explicit `-img` mode available.
 
 ## Build
 
@@ -56,16 +57,16 @@ new flags. A local `build.sh` success does NOT guarantee CI success.
 ## Test
 
 ```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 716 tests (25 functions), ~46s
+python3 iccanalyzer-lite/tests/run_tests.py
 ```
 
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.171_heuristics` pattern
+- When adding heuristics, update the test for `summary.173_heuristics` pattern
 
 ## Architecture — HeuristicCollector + 10 Heuristic Modules
 
-All 171 heuristics use the `HeuristicCollector` API for structured output. Each
+All 173 heuristics use the `HeuristicCollector` API for structured output. Each
 heuristic is a `RunHeuristic_H##_Name()` function that calls `hc.begin()` /
 `hc.warn()` / `hc.critical()` / `hc.info()` / `hc.cweNote()` / `hc.end()` /
 `hc.skip()`. No raw `printf("[H##]...")` remains in the codebase.
@@ -74,7 +75,7 @@ heuristic is a `RunHeuristic_H##_Name()` function that calls `hc.begin()` /
 
 ```cpp
 HeuristicCollector &hc = HeuristicCollector::instance();
-hc.begin("H172", "My Heuristic Title");           // Start — prints [H172] header
+hc.begin("H174", "My Heuristic Title");           // Start — prints [H174] header
 hc.info("Checked %u items", count);                // Informational detail
 hc.warn("HEURISTIC: Bad value — ICC.1 §7.2.5");   // Finding (increments count)
 hc.critical("Buffer overflow in tag '%s'", sig);   // Critical finding
@@ -103,19 +104,19 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 
 | Module | Purpose |
 |--------|---------|
-| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 172 heuristics |
+| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 173 heuristics |
 | `IccHeuristicPrinter.h` | Legacy printer compatibility layer |
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
 | `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 172-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
+| `IccHeuristicsRegistry.h` | 173-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
 | `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
 | `IccAnalyzerJson.cpp/.h` | `--json` structured output mode (reads HeuristicCollector directly) |
 | `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
 | `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
 | `IccAnalyzerCapture.h/.cpp` | Shared structured capture — runs analysis in quiet mode, reads HeuristicCollector results |
 | `IccAnalyzerPAWG.cpp/.h` | `--pawg` ICC PAWG assessment report (31 checklist items) |
-| `IccConformanceRegistry.h` | 318-entry conformance check metadata registry |
+| `IccConformanceRegistry.h` | 329-entry canonical conformance metadata registry |
 | `IccConformanceHeader.cpp` | Header conformance dispatcher (dateTime, size, intent, embedding) |
 | `IccConformanceTagTypes.cpp` | Tag type conformance dispatcher (viewing, named colors, curves) |
 | `IccConformanceRequired.cpp` | Required tag conformance dispatcher (per-class tag presence) |
@@ -143,8 +144,8 @@ PAWG mode has its own implementation with the same pattern but different output 
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H172** (current max is H171)
-2. Add `RunHeuristic_H172_Name()` function to the appropriate category file:
+1. Choose the next ID: **H174** (current max is H173)
+2. Add `RunHeuristic_H174_Name()` function to the appropriate category file:
    - Tag structure → `IccHeuristicsTagValidation.cpp`
    - Data integrity → `IccHeuristicsDataValidation.cpp`
    - Spec compliance → `IccHeuristicsProfileCompliance.cpp`
@@ -154,9 +155,9 @@ PAWG mode has its own implementation with the same pattern but different output 
    - Exploit gap → `IccHeuristicsExploitGap.cpp`
 3. **Use HeuristicCollector API** (MANDATORY — no raw printf):
    ```cpp
-   int RunHeuristic_H172_MyCheck(CIccProfile *pIcc) {
+   int RunHeuristic_H174_MyCheck(CIccProfile *pIcc) {
      HeuristicCollector &hc = HeuristicCollector::instance();
-     hc.begin("H172", "My Check Title (ICC.1-2022-05 §X.Y)");
+     hc.begin("H174", "My Check Title (ICC.1-2022-05 §X.Y)");
 
      CIccTag *pTag = pIcc->FindTag(icSigSomeTag);
      if (!pTag) return hc.skip("No relevant tag present");
@@ -172,13 +173,24 @@ PAWG mode has its own implementation with the same pattern but different output 
 4. Add function declaration to the corresponding `.h` file
 5. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
 6. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-7. Update heuristic count (171→172) in these files:
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.171_heuristics`
+7. Update heuristic count (173→174) in these files:
+   - `iccanalyzer-lite/tests/run_tests.py` — `summary.173_heuristics`
    - `.github/copilot-instructions.md` — multiple locations
    - `README.md` — two locations
    - `.github/prompts/analyze-icc-profile.prompt.yml`
    - `mcp-server/icc_profile_mcp.py`
    - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
+
+### `mluc` / `pseq` parity note
+
+- `CF-223` follows the ICC TN PSD recommendation that a zero-record `mluc`
+  placeholder is **12 bytes**.
+- A readable 16-byte zero-record `mluc` may still appear in corpus files for
+  SampleICC compatibility; treat it as a non-minimal encoding, not as the
+  preferred form.
+- `CF-221` coverage for embedded `mluc` inside `profileSequenceDescTag` remains
+  shallower than standalone tag-table `mluc` validation because SampleICC still
+  reads standalone `mluc` with the legacy 16-byte header shape.
 
 **Migration pitfall warning**: When writing `hc.info()`, `hc.warn()`, `hc.critical()`
 calls, ensure format string placeholders (`%s`, `%u`, `%d`) match the arguments.
@@ -356,10 +368,12 @@ PoC: #577.
 
 ## Conformance Checks (CF-001..CF-329)
 
-331 ICC specification conformance checks across 7 dispatcher modules. These validate
+329 canonical ICC specification conformance checks across 7 dispatcher modules.
+The implementation currently carries 331 wrapper entries because `CF-091..094`
+are emitted by both Quality and Security dispatchers. These validate
 profile compliance with ICC.1-2022-05, ICC.2-2019/2023, ICC.2:2019 errata, ICS
 interoperability conformance specifications, and ICC technical notes — separate from
-the 171 security heuristics (H1-H171) which focus on vulnerability patterns.
+the 173 security heuristics (H1-H173) which focus on vulnerability patterns.
 
 ### Conformance Modules (7 dispatchers)
 
@@ -487,7 +501,7 @@ severity). This is the **source of truth** for all counts — adding a new entry
 
 ## Severity Classification (v3.6.0+)
 
-All 171 heuristics are classified by CWE impact:
+All 173 heuristics are classified by CWE impact:
 - **CRITICAL** (62): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
 - **HIGH** (41): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681, CWE-369
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
@@ -544,7 +558,7 @@ only a handler function + 1 table entry.
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 171 heuristics
+   ComprehensiveAnalyze() with all 173 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
@@ -558,7 +572,7 @@ only a handler function + 1 table entry.
 ### PNG Analysis Pipeline
 1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
 2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
-   full ComprehensiveAnalyze() with all 171 heuristics
+   full ComprehensiveAnalyze() with all 173 heuristics
 3. **Security checks**: dimensions, color type validation
 
 ### JPEG Analysis Pipeline

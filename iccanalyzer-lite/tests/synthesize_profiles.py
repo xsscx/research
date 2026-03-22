@@ -2071,6 +2071,29 @@ def synth_cf_mluc_bad_record_size():
     return build_profile(tags)
 
 
+def synth_cf_mluc_zero_name_placeholder():
+    """CF-223: zero-record mluc encoded as a non-minimal 16-byte placeholder.
+
+    ICC TN PSD recommends a 12-byte encoding for zero-name placeholders, but
+    SampleICC's mluc reader still expects the legacy 16-byte form. This keeps
+    the profile readable while exercising the conformance warning path.
+    """
+    zero_record_mluc = b"mluc" + b"\x00" * 4 + struct.pack(">II", 0, 12)
+
+    tags = [
+        (b"desc", make_mluc_tag("mluc Zero-Name Placeholder")),
+        (b"cprt", zero_record_mluc),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(tags)
+
+
 def synth_cf_sf32_bad_size():
     """CF-031: sf32 tag where (tagSize-8) is not divisible by 4.
     Uses 'chad' tag signature (chromaticAdaptationTag) which uses sf32 type."""
@@ -2308,6 +2331,7 @@ def main():
         "cf_md5_mismatch.icc": synth_cf_md5_mismatch(),
         "cf_reserved_bytes_nonzero_tag.icc": synth_cf_reserved_bytes_nonzero_tag(),
         "cf_mluc_bad_record_size.icc": synth_cf_mluc_bad_record_size(),
+        "cf_mluc_zero_name_placeholder.icc": synth_cf_mluc_zero_name_placeholder(),
         "cf_sf32_bad_size.icc": synth_cf_sf32_bad_size(),
         # CF-317..CF-320 HDR-to-SDR (K.2.9) test profiles
         "cf_htos_flag_and_tags.icc": synth_cf_htos_flag_and_tags(),
