@@ -93,6 +93,7 @@ struct CheckRegistrar {
 
 #define ICCTEST_REGISTER_CHECK_(kind_val, num, name, specRef, specDoc,       \
                                 cwe, cve, sev, phase, func)                   \
+    __attribute__((used))                                                      \
     static ::icctest::CheckRegistrar g_reg_##kind_val##_##num{                \
         ::icctest::RegisteredCheck{                                           \
             {::icctest::CheckID::Kind::kind_val, num},                        \

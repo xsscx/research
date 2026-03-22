@@ -132,8 +132,6 @@ static CheckResult check_h137_gbd_overflow(const ProfileView& pv) {
 // ── H138: Total Allocation Budget ──
 static CheckResult check_h138_alloc_budget(const ProfileView& pv) {
     CheckBuilder cb;
-    const uint8_t* d = pv.rawData();
-    size_t len = pv.rawSize();
 
     // Estimate total allocation from tag sizes
     uint64_t totalAlloc = 0;

@@ -93,7 +93,6 @@ static CheckResult check_h12_alignment(const ProfileView& pv) {
 // ── H13: Required Tags Per Class ──
 static CheckResult check_h13_required_tags(const ProfileView& pv) {
     CheckBuilder cb;
-    const auto& hdr = pv.header();
 
     // All classes require: desc, wtpt, cprt
     if (!pv.hasTag(static_cast<icTagSignature>(kSigDesc))) {
