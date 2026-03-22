@@ -979,7 +979,7 @@ int RunHeuristic_H46_TextDescUnicodeLength(RawProfileContext &ctx)
     }
 
     // mluc (0x6D6C7563) — record count validation
-    if (typeVal == 0x6D6C7563 && tSz >= 12) {
+    if (typeVal == 0x6D6C7563) {
       icUInt8Number mlucHdr[4];
       if (ctx.ReadAt(tOff + 8, mlucHdr, 4)) {
         uint32_t numRec = ReadU32BE(mlucHdr);
@@ -1433,7 +1433,7 @@ int RunHeuristic_H54_DivisionByZeroTrigger(RawProfileContext &ctx)
     }
 
     // curv with count=1: gamma. Check for gamma=0
-    if (typeVal == 0x63757276 && tSz >= 14 && (uint64_t)tOff + 14 <= fs) {
+    if (typeVal == 0x63757276 && (uint64_t)tOff + 14 <= fs) {
       uint32_t count = ReadU32BE(&tagData[8]);
       if (count == 1) {
         icUInt8Number gammaBytes[2];
