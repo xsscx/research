@@ -324,7 +324,7 @@ jobs:
 
           # Test with multiple profiles
           echo "=== icctest batch exercise ==="
-          PROFILES=$(find test-profiles/ -name "*.icc" -type f | head -5)
+          PROFILES=$(find test-profiles/ -name "*.icc" -type f 2>/dev/null | sed -n '1,5p')
           for p in $PROFILES; do
             $ICCTEST -a "$p" > /dev/null 2>&1 || true
             echo "  [OK] $(basename "$p")"
@@ -723,7 +723,7 @@ jobs:
           # Use the same selected profiles from the test run
           PROFILES="results/selected-profiles.txt"
           if [ ! -f "$PROFILES" ]; then
-            find test-profiles/ -name '*.icc' -type f 2>/dev/null | head -50 > /tmp/svg-profiles.txt
+            find test-profiles/ -name '*.icc' -type f 2>/dev/null | sed -n '1,50p' > /tmp/svg-profiles.txt
             PROFILES="/tmp/svg-profiles.txt"
           fi
 
