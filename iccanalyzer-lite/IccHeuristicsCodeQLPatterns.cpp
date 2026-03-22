@@ -866,6 +866,88 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
   return hc.end("No deep Apply() chain stack-escape risk patterns");
 }
 
+// ---------------------------------------------------------------------------
+// H173: Signature Conversion Shift Overflow (CWE-190)
+// iccDEV IccUtil.cpp icGetSigStr() (line 1130) and icGetColorSig() (line 1088)
+// iterate FourCC signatures with:
+//   for(i=0;i<4;i++) { c=(icUInt8Number)(sig>>24); pBuf[i]=c; sig<<=8; }
+// When sig > 0x00FFFFFF, the first sig<<=8 produces a value exceeding
+// UINT32_MAX, triggering UBSAN "left shift of N by 8 places cannot be
+// represented in type 'icUInt32Number'".
+// Every valid ICC signature with a non-zero first byte triggers this.
+// Detection: count header fields + tag sigs + tag type sigs where sig > 0x00FFFFFF.
+// ---------------------------------------------------------------------------
+int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(173, "Signature Conversion Shift Overflow "
+               "(IccUtil.cpp icGetSigStr/icGetColorSig)");
+
+  if (!ctx.valid) return hc.skip("Cannot read profile");
+
+  int overflowCount = 0;
+  int totalSigs = 0;
+
+  // Header signature fields that pass through icGetSigStr/icGetColorSig:
+  // offset  4: preferred CMM type
+  // offset 12: device class
+  // offset 16: color data space
+  // offset 20: PCS
+  // offset 36: magic ('acsp')
+  // offset 40: primary platform
+  // offset 48: device manufacturer
+  // offset 52: device model
+  static const struct { int offset; const char *name; } kHeaderSigs[] = {
+    { 4, "preferredCMM"}, {12, "deviceClass"}, {16, "colorSpace"},
+    {20, "PCS"},          {36, "magic"},        {40, "platform"},
+    {48, "manufacturer"}, {52, "model"},
+  };
+
+  for (const auto &hs : kHeaderSigs) {
+    uint32_t sig = ReadU32BE(&ctx.header[hs.offset]);
+    if (sig == 0) continue;
+    totalSigs++;
+    if (sig > 0x00FFFFFFU) {
+      overflowCount++;
+    }
+  }
+
+  // Tag table: tag signatures
+  for (const auto &t : ctx.tags) {
+    totalSigs++;
+    if (t.sig > 0x00FFFFFFU) {
+      overflowCount++;
+    }
+  }
+
+  // Tag type signatures (first 4 bytes of each tag's data)
+  for (const auto &t : ctx.tags) {
+    if (t.size < 4 || t.offset + 4 > ctx.fileSize()) continue;
+    uint8_t buf[4];
+    if (!ctx.ReadAt(t.offset, buf, 4)) continue;
+    uint32_t typeSig = ReadU32BE(buf);
+    if (typeSig == 0) continue;
+    totalSigs++;
+    if (typeSig > 0x00FFFFFFU) {
+      overflowCount++;
+    }
+  }
+
+  if (overflowCount > 0) {
+    hc.warn("HEURISTIC: %d/%d FourCC signatures trigger UBSAN shift overflow "
+            "in icGetSigStr()/icGetColorSig() — IccUtil.cpp:1088,1130",
+            overflowCount, totalSigs);
+    hc.cweNote("CWE-190: sig<<=8 on uint32 with first byte non-zero "
+               "produces value > UINT32_MAX (upstream iccDEV library pattern)");
+  }
+
+  char endMsg[128];
+  snprintf(endMsg, sizeof(endMsg),
+           "Signature shift overflow scan complete (%d/%d sigs checked)",
+           overflowCount, totalSigs);
+  return hc.end(endMsg);
+}
+
 int RunCodeQLPatternHeuristics(RawProfileContext &ctx)
 {
   int heuristicCount = 0;
@@ -877,5 +959,6 @@ int RunCodeQLPatternHeuristics(RawProfileContext &ctx)
   heuristicCount += RunHeuristic_H159_UAFTagOwnershipChains(ctx);
   heuristicCount += RunHeuristic_H160_FormatStringInjectionTextTags(ctx);
   heuristicCount += RunHeuristic_H161_StackAddressEscapeDeepApply(ctx);
+  heuristicCount += RunHeuristic_H173_SigConversionShiftOverflow(ctx);
   return heuristicCount;
 }
