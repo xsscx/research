@@ -279,6 +279,36 @@ jobs:
           set -euo pipefail
           iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
 
+      - name: Run icctest V2 parity verification
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          cmake --build build --target icctest-verify-parity
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/parity-artifacts/verify-parity-summary.json").read_text())
+          summary = payload["summary"]
+          raw_counts = summary["rawParity"]["counts"]
+          outer_counts = summary["imageParity"]["outerImage"]["counts"]
+          embedded_counts = summary["imageParity"]["embeddedRaw"]["counts"]
+
+          print("")
+          print("### icctest V2 Parity Verification")
+          print("")
+          print(f"- Status: `{summary['status']}`")
+          print(f"- Raw parity delta: `{raw_counts.get('delta', 0)}`")
+          print(f"- Image outer delta: `{outer_counts.get('delta', 0)}`")
+          print(f"- Embedded raw delta: `{embedded_counts.get('delta', 0)}`")
+          print(f"- Unit tests: `{summary['unitTests'].get('summaryLine', '')}`")
+          print(f"- Generated image smoke: `{summary['generatedImageSmoke'].get('status', 'unknown')}`")
+          print("- Artifact: `iccanalyzer-lite/icctest/build/parity-artifacts`")
+          PY
+
       - name: Exercise icctest V2 CLI (all modes)
         env:
           BASH_ENV: /dev/null
@@ -693,7 +723,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: iccanalyzer-debug-sanitizer-coverage
-          path: results/
+          path: |
+            results/
+            iccanalyzer-lite/icctest/build/parity-artifacts/
           retention-days: 90
 
       # -----------------------------------------------------------------------

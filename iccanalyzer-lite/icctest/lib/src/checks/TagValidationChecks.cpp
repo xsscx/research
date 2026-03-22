@@ -135,6 +135,14 @@ static CheckResult check_h14_tag_type(const ProfileView& pv) {
 // ── H19: Tag Overlap Detection ──
 static CheckResult check_h19_overlap(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.rawSize() < 132) return CheckResult::skip("File too small for tag table");
+    const uint8_t* d = pv.rawData();
+    if (readU32BE(d + 36) != kIccMagic) return CheckResult::skip("Invalid ICC magic");
+    uint32_t declaredTagCount = readU32BE(d + 128);
+    size_t maxTags = (pv.rawSize() - 132) / 12;
+    if (declaredTagCount > maxTags || declaredTagCount > 10000) {
+        return CheckResult::skip("Tag count out of range");
+    }
     const auto& tags = pv.rawTagTable();
 
     for (size_t i = 0; i < tags.size(); i++) {
@@ -184,7 +192,7 @@ REGISTER_HEURISTIC(14, "Tag Type Signature Validation",
     "ICC.1-2022-05 §10", "ICC.1-2022-05",
     "CWE-20", "", Severity::MEDIUM, CheckPhase::TAG_TABLE, check_h14_tag_type);
 
-REGISTER_HEURISTIC(19, "Tag Overlap Detection",
+REGISTER_HEURISTIC(19, "Tag Offset Overlap",
     "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
     "CWE-119", "", Severity::CRITICAL, CheckPhase::TAG_TABLE, check_h19_overlap);
 

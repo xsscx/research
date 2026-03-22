@@ -134,6 +134,16 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
             continue;
         }
 
+        if (check.meta.phase == CheckPhase::CONFORMANCE && !pv.libraryLoaded()) {
+            result.stats.checksRun++;
+            result.perCheck.push_back(PerCheckResult{
+                check.id,
+                check.meta,
+                CheckResult::skip("Profile failed to load")
+            });
+            continue;
+        }
+
         // Run the check
         ICCTEST_TRACE("Running %s", check.id.str().c_str());
         CheckResult cr;
@@ -156,11 +166,15 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
             // Apply minimum severity filter
             if (f.level >= opts.minSeverity) {
                 result.stats.countFinding(f.level);
-                result.findings.push_back(std::move(f));
+                result.findings.push_back(f);
             }
         }
 
-        result.perCheck.push_back(std::move(cr));
+        result.perCheck.push_back(PerCheckResult{
+            check.id,
+            check.meta,
+            std::move(cr)
+        });
 
         // Check max findings limit
         if (opts.maxFindings > 0 &&

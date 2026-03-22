@@ -10,6 +10,7 @@
 #include "util/CheckHelpers.h"
 
 #include <cstring>
+#include <cmath>
 
 namespace icctest {
 
@@ -127,17 +128,18 @@ static CheckResult check_h153_curve_nan(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
-    if (len < 256) return CheckResult::skip("Profile too small");
+    if (len < 132) return CheckResult::skip("File too small for tag table");
+    if (len <= 20) return CheckResult::ok("File too small for curve elements");
 
     // Curve type signatures
     static const uint32_t kCurveSigs[] = {
         0x736E6766, // sngf (SingleSampledCurve)
         0x636C6366, // clcf (SampledCalculatorCurve)
-        0x73616D66, // samf (SampledCurve)
+        0x73616D66, // samf (SampledCurveSegment)
     };
 
     int findings = 0;
-    for (size_t i = 128; i + 20 < len && findings < 8; i++) {
+    for (size_t i = 0; i + 19 < len && findings < 8; i++) {
         uint32_t sig = readU32BE(d + i);
         bool match = false;
         for (auto cs : kCurveSigs) {
@@ -145,22 +147,36 @@ static CheckResult check_h153_curve_nan(const ProfileView& pv) {
         }
         if (!match) continue;
 
-        // Read firstEntry and lastEntry as float32
-        if (i + 20 > len) break;
         float firstEntry, lastEntry;
-        std::memcpy(&firstEntry, d + i + 12, 4);
-        std::memcpy(&lastEntry, d + i + 16, 4);
+        uint32_t feBE = readU32BE(d + i + 12);
+        uint32_t leBE = readU32BE(d + i + 16);
+        std::memcpy(&firstEntry, &feBE, sizeof(firstEntry));
+        std::memcpy(&lastEntry, &leBE, sizeof(lastEntry));
 
-        // Check for NaN (IEEE 754: NaN != NaN)
-        if (firstEntry != firstEntry || lastEntry != lastEntry) {
-            cb.critical(sfmt("Curve at offset %zu has NaN entry — UBSAN cast UB", i),
-                        "CWE-681: Incorrect Conversion between Numeric Types");
+        bool feNaN = std::isnan(firstEntry);
+        bool feInf = std::isinf(firstEntry);
+        bool leNaN = std::isnan(lastEntry);
+        bool leInf = std::isinf(lastEntry);
+        bool rangeZero = (!feNaN && !leNaN && !feInf && !leInf &&
+                          !(firstEntry < lastEntry) && !(lastEntry < firstEntry));
+
+        if (feNaN || leNaN) {
+            cb.critical(
+                sfmt("Curve at offset 0x%zX has NaN range entries (first=%g, last=%g)",
+                     i, static_cast<double>(firstEntry), static_cast<double>(lastEntry)),
+                "CWE-681: NaN to unsigned int cast is undefined behavior");
             findings++;
-        }
-        // Check for Inf
-        if (firstEntry == firstEntry && (firstEntry > 1e30f || firstEntry < -1e30f)) {
-            cb.high(sfmt("Curve at offset %zu has extreme firstEntry (%.2e)", i,
-                          static_cast<double>(firstEntry)));
+        } else if (feInf || leInf) {
+            cb.critical(
+                sfmt("Curve at offset 0x%zX has Inf range entries (first=%g, last=%g)",
+                     i, static_cast<double>(firstEntry), static_cast<double>(lastEntry)),
+                "CWE-681: Inf to unsigned int cast is undefined behavior");
+            findings++;
+        } else if (rangeZero) {
+            cb.critical(
+                sfmt("Curve at offset 0x%zX has degenerate range (first=last=%g -> div-by-zero)",
+                     i, static_cast<double>(firstEntry)),
+                "CWE-681: Degenerate range triggers undefined conversion");
             findings++;
         }
     }
@@ -194,7 +210,7 @@ REGISTER_HEURISTIC(40, "Reserved Bytes Validation",
     "ICC.1-2022-05 §7.2.19", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::RAW_SCAN, check_h40_reserved);
 
-REGISTER_HEURISTIC(153, "Sampled Curve NaN Cast Detection",
+REGISTER_HEURISTIC(153, "Sampled Curve NaN-to-Unsigned Cast",
     "IccMpeBasic.cpp:2446", "CWE Pattern",
     "CWE-681", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h153_curve_nan);
 

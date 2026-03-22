@@ -334,6 +334,42 @@ jobs:
           echo "Running icctest V2 unit tests..."
           iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
 
+      - name: Run icctest V2 parity verification
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/icctest
+          cmake --build build --target icctest-verify-parity
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/parity-artifacts/verify-parity-summary.json").read_text())
+          summary = payload["summary"]
+          raw_counts = summary["rawParity"]["counts"]
+          outer_counts = summary["imageParity"]["outerImage"]["counts"]
+          embedded_counts = summary["imageParity"]["embeddedRaw"]["counts"]
+
+          print("")
+          print("### icctest V2 Parity Verification")
+          print("")
+          print(f"- Status: `{summary['status']}`")
+          print(f"- Raw parity delta: `{raw_counts.get('delta', 0)}`")
+          print(f"- Image outer delta: `{outer_counts.get('delta', 0)}`")
+          print(f"- Embedded raw delta: `{embedded_counts.get('delta', 0)}`")
+          print(f"- Unit tests: `{summary['unitTests'].get('summaryLine', '')}`")
+          print(f"- Generated image smoke: `{summary['generatedImageSmoke'].get('status', 'unknown')}`")
+          print("- Artifact: `iccanalyzer-lite/icctest/build/parity-artifacts`")
+          PY
+
       - name: Exercise icctest V2 CLI
         env:
           BASH_ENV: /dev/null
@@ -420,6 +456,14 @@ jobs:
         with:
           name: unit-test-results
           path: iccanalyzer-lite/tests/test-results.xml
+          if-no-files-found: warn
+
+      - name: Upload icctest parity artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: icctest-parity-artifacts-unit-tests
+          path: iccanalyzer-lite/icctest/build/parity-artifacts/
           if-no-files-found: warn
 
       - name: Generate summary

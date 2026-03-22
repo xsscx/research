@@ -47,6 +47,15 @@ extern void test_logger();
 extern void test_runner();
 
 int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+#if defined(__GNUC__)
+    if (!std::getenv("GCOV_PREFIX")) {
+        setenv("GCOV_PREFIX", "/tmp/icctest-gcov-unit", 0);
+        setenv("GCOV_PREFIX_STRIP", "0", 0);
+    }
+#endif
+
     std::printf("IccTest Library — Unit Tests v2.0.0\n");
     std::printf("====================================\n\n");
 

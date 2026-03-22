@@ -11,6 +11,8 @@
 
 #include "IccProfile.h"
 #include "IccTag.h"
+#include "IccTagDict.h"
+#include "IccTagEmbedIcc.h"
 #include "IccUtil.h"
 
 #include <cstring>
@@ -26,6 +28,10 @@ static inline uint32_t readU32BE(const uint8_t *p) {
 }
 static inline uint32_t readU32LE(const uint8_t *p) {
     return p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);
+}
+
+static inline bool IsV5(const ProfileView& pv) {
+    return (pv.header().version >> 24) >= 5;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,8 +157,8 @@ static CheckResult check_cf092_private_tag_presence(const ProfileView& pv) {
 static CheckResult check_cf093_private_tag_content_scan(const ProfileView& pv) {
     const uint8_t *fileData = pv.rawData();
     size_t fileSize = pv.rawSize();
-    if (!fileData || fileSize <= 132) return CheckResult::skip("Profile too small");
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library failed to load");
+    if (!fileData || fileSize <= 132) return CheckResult::ok("File not suitable for private tag scan");
+    if (!pv.libraryLoaded()) return CheckResult::ok("File not suitable for private tag scan");
     auto* pIcc = pv.unsafeLibraryHandle();
 
     std::vector<Finding> findings;
@@ -290,44 +296,47 @@ static CheckResult check_cf094_nop_shellcode_pattern_scan(const ProfileView& pv)
 // CF-157: Embedded Profile Recursive Depth
 // ---------------------------------------------------------------------------
 static CheckResult check_cf157_embedded_profile_recursive_depth(const ProfileView& pv) {
-    const uint8_t *data = pv.rawData();
-    size_t size = pv.rawSize();
-    if (!data || size < 132) return CheckResult::skip("Profile too small");
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    auto* pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!pTag) return CheckResult::skip("No embedded profile - check not applicable");
+
+    auto *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+    if (!pEmbed || !pEmbed->GetProfile())
+        return CheckResult::skip("Cannot read embedded profile");
 
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 157};
 
-    // Scan for 'acsp' magic at offset+36 within tag data (embedded profiles)
-    int nestCount = 0;
-    static const uint8_t acsp[] = {'a','c','s','p'};
-    for (size_t i = 128; i + 40 <= size && nestCount < 20; i += 4) {
-        if (memcmp(&data[i + 36 - (i > 36 ? 0 : 36)], acsp, 4) == 0) {
-            // Verify it looks like a profile header (size field at offset i)
-            if (i + 128 <= size) {
-                uint32_t embSize = readU32BE(&data[i]);
-                if (embSize >= 128 && embSize <= size - i) {
-                    nestCount++;
-                }
-            }
+    int depth = 0;
+    const int kMaxNestingDepth = 4;
+    CIccProfile *pCurrent = pIcc;
+    while (pCurrent) {
+        CIccTag *pCurrentTag = pCurrent->FindTag(icSigEmbeddedV5ProfileTag);
+        if (!pCurrentTag) break;
+
+        auto *pCurrentEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pCurrentTag);
+        if (!pCurrentEmbed || !pCurrentEmbed->GetProfile()) break;
+
+        depth++;
+        if (depth > kMaxNestingDepth) {
+            break;
         }
+        pCurrent = pCurrentEmbed->GetProfile();
     }
 
-    // Also check raw tag table for embedded profile tags
-    if (pv.libraryLoaded()) {
-        auto* pIcc = pv.unsafeLibraryHandle();
-        CIccTag *pEmb = pIcc->FindTag((icTagSignature)0x656D6270); // 'embp'
-        if (pEmb) nestCount++;
-    }
-
-    if (nestCount > 5) {
+    if (depth > kMaxNestingDepth) {
         findings.push_back({id, Severity::HIGH,
-            "Deep embedded profile nesting: " + std::to_string(nestCount) + " levels",
-            "Max recommended: 5", "CWE-674: Uncontrolled Recursion"});
+            "Embedded profile nesting depth " + std::to_string(depth) +
+            " exceeds maximum " + std::to_string(kMaxNestingDepth),
+            "Possible profile bomb", "CWE-674: Uncontrolled Recursion"});
     }
 
-    if (findings.empty())
-        return CheckResult::ok("Embedded profile depth acceptable (" +
-            std::to_string(nestCount) + " levels)");
+    if (findings.empty()) {
+        return CheckResult::ok("Embedding depth within safe bounds");
+    }
     return {CheckResult::Status::FINDINGS, "Excessive nesting", std::move(findings)};
 }
 
@@ -335,42 +344,43 @@ static CheckResult check_cf157_embedded_profile_recursive_depth(const ProfileVie
 // CF-158: Embedded Profile Size Bounds
 // ---------------------------------------------------------------------------
 static CheckResult check_cf158_embedded_profile_size_bounds(const ProfileView& pv) {
-    const uint8_t *data = pv.rawData();
-    size_t size = pv.rawSize();
-    if (!data || size < 132) return CheckResult::skip("Profile too small");
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    auto* pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!pTag) return CheckResult::skip("No embedded profile - check not applicable");
+
+    auto *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+    if (!pEmbed || !pEmbed->GetProfile())
+        return CheckResult::skip("Cannot read embedded profile");
 
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 158};
 
-    // Check tag table for any tag that contains an embedded profile
-    auto tags = pv.rawTagTable();
-    for (const auto& t : tags) {
-        if (t.offset + t.size > size) continue;
-        if (t.size < 132) continue;
-        // Check if tag data starts with a valid profile header
-        if (t.offset + 40 > size) continue;
-        uint32_t embSize = readU32BE(&data[t.offset]);
-        if (embSize >= 128 && t.offset + 36 + 4 <= size) {
-            if (memcmp(&data[t.offset + 36], "acsp", 4) == 0) {
-                // Embedded profile found — validate size
-                if (embSize > t.size) {
-                    findings.push_back({id, Severity::HIGH,
-                        "Embedded profile claims " + std::to_string(embSize) +
-                        " bytes but tag only has " + std::to_string(t.size),
-                        "", "CWE-131: Incorrect Calculation of Buffer Size"});
-                }
-                if (embSize > size) {
-                    findings.push_back({id, Severity::CRITICAL,
-                        "Embedded profile size " + std::to_string(embSize) +
-                        " exceeds parent profile " + std::to_string(size),
-                        "", "CWE-131: Incorrect Calculation of Buffer Size"});
-                }
-            }
+    CIccProfile *pChild = pEmbed->GetProfile();
+    icUInt32Number parentSize = pIcc->m_Header.size;
+    icUInt32Number childSize = pChild->m_Header.size;
+
+    if (childSize > parentSize) {
+        findings.push_back({id, Severity::HIGH,
+            "Embedded profile is larger than parent profile",
+            "child=" + std::to_string(childSize) +
+            " parent=" + std::to_string(parentSize),
+            "CWE-131: Incorrect Calculation of Buffer Size"});
+    }
+
+    if (parentSize > 0 && childSize > 0) {
+        double ratio = static_cast<double>(childSize) / static_cast<double>(parentSize);
+        if (ratio > 0.95) {
+            findings.push_back({id, Severity::LOW,
+                "Embedded profile occupies unusual fraction of parent profile",
+                "ratio=" + std::to_string(ratio),
+                ""});
         }
     }
 
-    if (findings.empty())
-        return CheckResult::ok("Embedded profile sizes valid");
+    if (findings.empty()) return CheckResult::ok("Embedded profile size is within bounds");
     return {CheckResult::Status::FINDINGS, "Embedded size issues", std::move(findings)};
 }
 
@@ -378,38 +388,43 @@ static CheckResult check_cf158_embedded_profile_size_bounds(const ProfileView& p
 // CF-162: Dictionary Entry Count Bounds
 // ---------------------------------------------------------------------------
 static CheckResult check_cf162_dictionary_entry_count_bounds(const ProfileView& pv) {
-    const uint8_t *data = pv.rawData();
-    size_t size = pv.rawSize();
-    if (!data || size < 132) return CheckResult::skip("Profile too small");
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    auto* pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 162};
 
-    // Scan tags for dictionary type ('dict' = 0x64696374)
-    auto tags = pv.rawTagTable();
-    for (const auto& t : tags) {
-        if (t.offset + 12 > size || t.size < 12) continue;
-        uint32_t typeSig = readU32BE(&data[t.offset]);
-        if (typeSig != 0x64696374) continue; // not a dict tag
+    int dictCount = 0;
+    const size_t kMaxReasonableEntries = 100000;
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigDictType) continue;
+        dictCount++;
 
-        // Dictionary type layout: [typeSig:4][reserved:4][count:4]...
-        uint32_t count = readU32BE(&data[t.offset + 8]);
-        if (count > 10000) {
+        auto *pDict = dynamic_cast<CIccTagDict *>(pTag);
+        if (!pDict || !pDict->m_Dict) continue;
+
+        size_t entryCount = pDict->m_Dict->size();
+        if (entryCount > kMaxReasonableEntries) {
+            char sigStr[5] = {};
+            sigStr[0] = static_cast<char>(static_cast<unsigned char>((it->TagInfo.sig >> 24) & 0xFF));
+            sigStr[1] = static_cast<char>(static_cast<unsigned char>((it->TagInfo.sig >> 16) & 0xFF));
+            sigStr[2] = static_cast<char>(static_cast<unsigned char>((it->TagInfo.sig >> 8) & 0xFF));
+            sigStr[3] = static_cast<char>(static_cast<unsigned char>(it->TagInfo.sig & 0xFF));
             findings.push_back({id, Severity::HIGH,
-                "Dictionary tag with " + std::to_string(count) + " entries",
-                "Threshold: 10000 (potential OOM)", "CWE-400: Uncontrolled Resource Consumption"});
-        }
-        // Each entry needs at least some bytes — sanity check
-        if (count > 0 && t.size / count < 4) {
-            findings.push_back({id, Severity::HIGH,
-                "Dictionary entries exceed available data",
-                std::to_string(count) + " entries in " + std::to_string(t.size) + " bytes",
-                "CWE-789: Memory Allocation with Excessive Size"});
+                std::string("dictType tag '") + sigStr + "' has " +
+                std::to_string(entryCount) + " entries",
+                "max reasonable=" + std::to_string(kMaxReasonableEntries),
+                "CWE-400: Uncontrolled Resource Consumption"});
         }
     }
 
-    if (findings.empty())
-        return CheckResult::ok("Dictionary entry counts valid");
+    if (dictCount == 0) {
+        return CheckResult::skip("No dictType tags found - check not applicable");
+    }
+
+    if (findings.empty()) return CheckResult::ok("Dictionary entry counts within bounds");
     return {CheckResult::Status::FINDINGS, "Dictionary bounds issues", std::move(findings)};
 }
 
