@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [iccanalyzer-lite, colorbleed_tools, cfl]
+        target: [iccanalyzer-lite, icctest, colorbleed_tools, cfl]
 
     env:
       BASH_ENV: /dev/null
@@ -180,6 +180,20 @@ jobs:
             -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
             -Wl,--allow-multiple-definition \
             -o iccanalyzer-lite
+
+      - name: Build for CodeQL - icctest
+        if: matrix.target == 'icctest'
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          # Use cmake for icctest — CodeQL traces the build automatically
+          cmake -B build-codeql \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_SANITIZERS=OFF \
+            -DENABLE_COVERAGE=OFF \
+            -DICCDEV_ROOT=$GITHUB_WORKSPACE/iccDEV
+          cmake --build build-codeql -j$(nproc) 2>&1 | tail -20
 
       - name: Build for CodeQL - colorbleed_tools
         if: matrix.target == 'colorbleed_tools'

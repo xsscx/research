@@ -198,6 +198,24 @@ jobs:
             ls -la iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe
           fi
 
+      - name: Build icctest V2
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          chmod +x build.sh
+          # icctest cmake auto-detects iccDEV at ../../iccDEV (workflow root layout)
+          bash build.sh
+          echo "[OK] icctest V2 build complete"
+          ls -lh build/cli/icctest build/lib/libIccTest.a
+
+      - name: Run icctest V2 unit tests
+        env:
+          ASAN_OPTIONS: "detect_leaks=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
+
       - name: Run MCP Server Tests
         env:
           PYTHONUNBUFFERED: "1"
