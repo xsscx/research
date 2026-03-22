@@ -495,6 +495,7 @@ static CheckResult check_cf090_spectral_illuminant_consistency(const ProfileView
 // CF-113: Spectral Range Physical Bounds (ICC.2-2023 §7.2.23)
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf113_spectral_range_physical_bounds(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
@@ -523,6 +524,7 @@ static CheckResult check_cf113_spectral_range_physical_bounds(const ProfileView&
 // CF-114: MCS Colour Space Consistency (ICC.2-2023 §7.2.19)
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
@@ -543,6 +545,7 @@ static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& p
 // CF-115: Calculator Element Complexity (ICC.2-2023 §10.2.6)
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf115_calculator_element_complexity(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
@@ -907,21 +910,22 @@ static CheckResult check_cf179_chad_d50_to_d50_identity_check(const ProfileView&
 // CF-180: PCC Complete Adaptation Principle
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf180_pcc_complete_adaptation_principle(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
-    bool hasCHAD = pv.hasTag(icSigChromaticAdaptationTag);
     bool hasC2sp = pv.hasTag(icSigCustomToStandardPccTag);
     bool hasS2cp = pv.hasTag(icSigStandardToCustomPccTag);
 
-    if (!hasCHAD) return CheckResult::ok("No chad tag — PCC adaptation check not applicable");
+    if (!hasC2sp && !hasS2cp)
+        return CheckResult::skip("No PCC tags (c2sp/s2cp) - not applicable");
 
     std::vector<Finding> findings;
     if (!hasC2sp || !hasS2cp)
         findings.push_back({CheckID{CheckID::Kind::Conformance, 180}, Severity::MEDIUM,
-            "chad present but c2sp/s2cp pair incomplete — PCC complete adaptation requires both", "", ""});
+            "c2sp/s2cp pair incomplete — PCC complete adaptation requires both", "", ""});
 
-    if (findings.empty()) return CheckResult::ok("PCC complete adaptation principle met");
+    if (findings.empty()) return CheckResult::ok("PCC transform pair complete");
     return {CheckResult::Status::FINDINGS, "PCC adaptation issues", std::move(findings)};
 }
 
@@ -929,23 +933,28 @@ static CheckResult check_cf180_pcc_complete_adaptation_principle(const ProfileVi
 // CF-181: PCC Illuminant-Chad Consistency
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf181_pcc_illuminant_chad_consistency(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
-    double X = S15Fixed16ToDouble(pv.header().illuminantX);
-    double Y = S15Fixed16ToDouble(pv.header().illuminantY);
-    double Z = S15Fixed16ToDouble(pv.header().illuminantZ);
+    const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
+    if (!svcnTag)
+        return CheckResult::skip("No spectralViewingConditionsTag - not applicable");
 
-    bool isD50 = std::fabs(X - 0.9642) < 0.01 && std::fabs(Y - 1.0) < 0.01 && std::fabs(Z - 0.8249) < 0.01;
-    bool hasCHAD = pv.hasTag(icSigChromaticAdaptationTag);
+    const CIccTagSpectralViewingConditions *svcn =
+        dynamic_cast<const CIccTagSpectralViewingConditions *>(svcnTag);
+    if (!svcn)
+        return CheckResult::skip("spectralViewingConditionsTag not castable - skipping");
 
-    if (!isD50 && !hasCHAD) {
+    icIlluminant illumType = svcn->getStdIllumiant();
+    const CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
+    if (illumType != icIlluminantD50 && illumType != 0 && !chadTag) {
         std::vector<Finding> findings;
         findings.push_back({CheckID{CheckID::Kind::Conformance, 181}, Severity::MEDIUM,
             "Non-D50 illuminant but no chad tag — chromatic adaptation required", "", ""});
         return {CheckResult::Status::FINDINGS, "Missing chad for non-D50", std::move(findings)};
     }
-    return CheckResult::ok("Illuminant-chad consistency OK");
+    return CheckResult::ok("PCC illuminant and chad tag consistent");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1401,11 +1410,14 @@ static CheckResult check_cf242_xrng_workflow_connection_consistency(const Profil
 // CF-257: Spectral Range Step Count
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf257_spectral_range_step_count(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
+    if (pIcc->m_Header.spectralPCS == 0)
+        return CheckResult::skip("No spectral PCS - not applicable");
+
     icSpectralRange spec = pIcc->m_Header.spectralRange;
-    if (spec.steps == 0) return CheckResult::ok("No spectral range — not applicable");
 
     std::vector<Finding> findings;
     if (spec.steps < 2)
@@ -1694,12 +1706,12 @@ static CheckResult check_cf294_mpe_acs_boundary_element_pairing(const ProfileVie
 }
 
 static CheckResult check_cf295_mpe_element_type_version_compatibility(const ProfileView& pv) {
-    if (IsV5(pv)) return CheckResult::ok("v5 profile — all element types permitted");
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
-    // v4 profiles should only have basic MPE types
+    icUInt32Number version = pIcc->m_Header.version >> 24;
     icElemTypeSignature v5OnlyTypes[] = {
         icSigCalculatorElemType, icSigExtCLutElemType, icSigXYZToJabElemType,
         icSigJabToXYZElemType, icSigSparseMatrixElemType, icSigTintArrayElemType,
@@ -1708,6 +1720,7 @@ static CheckResult check_cf295_mpe_element_type_version_compatibility(const Prof
         icSigEmissionObserverElemType, icSigReflectanceObserverElemType
     };
 
+    int tagsChecked = 0;
     for (const auto& entry : pv.rawTagTable()) {
         CIccTagMultiProcessElement *mpe = FindAndCast<CIccTagMultiProcessElement>(
             pIcc, static_cast<icTagSignature>(entry.signature));
@@ -1715,8 +1728,9 @@ static CheckResult check_cf295_mpe_element_type_version_compatibility(const Prof
         for (icUInt32Number i = 0; i < mpe->NumElements(); i++) {
             CIccMultiProcessElement *elem = mpe->GetElement(static_cast<int>(i));
             if (!elem) continue;
+            tagsChecked++;
             for (const auto& v5type : v5OnlyTypes) {
-                if (elem->GetType() == v5type) {
+                if (version < 5 && elem->GetType() == v5type) {
                     char s[5]; SigToChars(static_cast<uint32_t>(v5type), s);
                     findings.push_back({CheckID{CheckID::Kind::Conformance, 295}, Severity::HIGH,
                         std::string("V5-only MPE type '") + s + "' in non-v5 profile", "", ""});
@@ -1726,7 +1740,10 @@ static CheckResult check_cf295_mpe_element_type_version_compatibility(const Prof
         }
     }
 
-    if (findings.empty()) return CheckResult::ok("MPE element types compatible with profile version");
+    if (tagsChecked == 0)
+        return CheckResult::skip("No MPE elements found - not applicable");
+    if (findings.empty())
+        return CheckResult::ok("All MPE elements version-compatible");
     return {CheckResult::Status::FINDINGS, "Version compatibility issues", std::move(findings)};
 }
 
@@ -1892,16 +1909,101 @@ static CheckResult check_cf301_measurement_struct_tagstructtype_enforce(const Pr
 }
 
 static CheckResult check_cf302_measurement_struct_member_completeness(const ProfileView& pv) {
-    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-    // If measurement tag exists as struct, check member completeness
-    // This is primarily library-validated — informational check
-    return CheckResult::ok("Measurement struct member completeness — library validated");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    static const struct {
+        icSignature sig;
+        const char *name;
+    } kMembers[] = {
+        {0x6d62616b, "mbak (backing)"},
+        {0x6d666c72, "mflr (flare)"},
+        {0x6d67656f, "mgeo (geometry)"},
+        {0x6d696c6c, "mill (illuminant)"},
+        {0x6d6d6f64, "mmod (mode)"},
+    };
+
+    std::vector<Finding> findings;
+    int structCount = 0;
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigTagStructType) continue;
+
+        CIccTagStruct *pStruct = dynamic_cast<CIccTagStruct *>(pTag);
+        if (!pStruct || pStruct->GetTagStructType() != icSigMeasurementInfoStruct)
+            continue;
+
+        structCount++;
+        char sig[5];
+        SigToChars(static_cast<uint32_t>(it->TagInfo.sig), sig);
+        for (const auto& member : kMembers) {
+            CIccTag *pMember = pStruct->FindElem(member.sig);
+            if (!pMember) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 302}, Severity::MEDIUM,
+                    std::string("measurementInfoStruct in tag '") + sig +
+                    "' missing member " + member.name,
+                    "ICC.2-2019 Errata §9.2.86/87", "CWE-20"});
+            }
+        }
+    }
+
+    if (structCount == 0)
+        return CheckResult::ok("No measurementInfoStruct tags — not applicable");
+    if (findings.empty())
+        return CheckResult::ok("measurementInfoStruct tags have required members");
+    return {CheckResult::Status::FINDINGS, "Measurement struct members missing", std::move(findings)};
 }
 
 static CheckResult check_cf303_spectral_data_array_type_restriction(const ProfileView& pv) {
-    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-    // Spectral data arrays must be float32 type — library enforces this
-    return CheckResult::ok("Spectral data array type restriction — library validated");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    static const icTagSignature kSpectralDataTags[] = {
+        icSigMultiplexDefaultValuesTag,
+        icSigSpectralWhitePointTag,
+        icSigMultiplexTypeArrayTag,
+    };
+    static const icTagTypeSignature kPermittedTypes[] = {
+        icSigUInt8ArrayType,
+        icSigUInt16ArrayType,
+        icSigFloat16ArrayType,
+        icSigFloat32ArrayType,
+    };
+
+    std::vector<Finding> findings;
+    int checked = 0;
+    for (auto sig : kSpectralDataTags) {
+        CIccTag *pTag = pIcc->FindTag(sig);
+        if (!pTag) continue;
+
+        checked++;
+        icTagTypeSignature tt = pTag->GetType();
+        bool permitted = false;
+        for (auto allowed : kPermittedTypes) {
+            if (tt == allowed) {
+                permitted = true;
+                break;
+            }
+        }
+        if (!permitted) {
+            char tagSig[5];
+            SigToChars(static_cast<uint32_t>(sig), tagSig);
+            char typeSig[5];
+            SigToChars(static_cast<uint32_t>(tt), typeSig);
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 303}, Severity::MEDIUM,
+                std::string("'") + tagSig + "' type '" + typeSig +
+                "' — errata permits only uInt8/uInt16/float16/float32 array types",
+                "ICC.2-2019 Errata §9.2.84", "CWE-20"});
+        }
+    }
+
+    if (checked == 0)
+        return CheckResult::ok("No spectral data array tags — not applicable");
+    if (findings.empty())
+        return CheckResult::ok("Spectral data array types permitted");
+    return {CheckResult::Status::FINDINGS, "Spectral data array type restriction", std::move(findings)};
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2245,15 +2347,47 @@ static CheckResult check_cf319_hdr_to_sdr_tag_channel_consistency(const ProfileV
     std::vector<Finding> findings;
     int found = 0;
     for (int i = 0; i < 4; i++) {
-        CIccTagMultiProcessElement *mpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, htosTagSigs[i]);
-        if (!mpe) continue;
+        CIccTag *pTag = pIcc->FindTag(htosTagSigs[i]);
+        if (!pTag) continue;
         found++;
-        if (mpe->NumInputChannels() != pcsChan)
-            findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
-                std::string(htosNames[i]) + " input channels != PCS channels", "", ""});
-        if (mpe->NumOutputChannels() != pcsChan)
-            findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
-                std::string(htosNames[i]) + " output channels != PCS channels", "", ""});
+
+        CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement *>(pTag);
+        if (mpe) {
+            if (mpe->NumInputChannels() != pcsChan) {
+                findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
+                    std::string(htosNames[i]) + " input channels=" +
+                    std::to_string(mpe->NumInputChannels()) +
+                    ", expected PCS channels=" + std::to_string(pcsChan), "", ""});
+            }
+            if (mpe->NumOutputChannels() != pcsChan) {
+                findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
+                    std::string(htosNames[i]) + " output channels=" +
+                    std::to_string(mpe->NumOutputChannels()) +
+                    ", expected PCS channels=" + std::to_string(pcsChan), "", ""});
+            }
+            continue;
+        }
+
+        CIccMBB *mbb = dynamic_cast<CIccMBB *>(pTag);
+        if (mbb) {
+            if (mbb->InputChannels() != pcsChan) {
+                findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
+                    std::string(htosNames[i]) + " input channels=" +
+                    std::to_string(mbb->InputChannels()) +
+                    ", expected PCS channels=" + std::to_string(pcsChan), "", ""});
+            }
+            if (mbb->OutputChannels() != pcsChan) {
+                findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
+                    std::string(htosNames[i]) + " output channels=" +
+                    std::to_string(mbb->OutputChannels()) +
+                    ", expected PCS channels=" + std::to_string(pcsChan), "", ""});
+            }
+            continue;
+        }
+
+        findings.push_back({CheckID{CheckID::Kind::Conformance, 319}, Severity::MEDIUM,
+            std::string(htosNames[i]) + " tag present but not MPE or LUT type — cannot validate channels",
+            "ICC.2-2023 K.2.9", "CWE-20"});
     }
 
     if (found == 0) return CheckResult::ok("No HToS tags — not applicable");

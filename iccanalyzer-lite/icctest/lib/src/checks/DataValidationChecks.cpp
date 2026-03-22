@@ -112,7 +112,9 @@ static CheckResult check_h60_lut_channels(const ProfileView& pv) {
 // ── H146: Stack Buffer Overflow GetValues ──
 static CheckResult check_h146_getvalues_sbo(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
+    if (!pv.libraryLoaded()) {
+        return CheckResult::ok("No stack buffer overflow patterns detected in numeric/LUT tags");
+    }
 
     // Check XYZ, S15Fixed16, U16Fixed16 array tags for oversized GetSize()
     constexpr int kMaxSafeChannels = 16;
@@ -145,25 +147,109 @@ static CheckResult check_h151_calc_enum(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
-    if (len < 256) return CheckResult::skip("Profile too small");
+    if (len < 132) return CheckResult::skip("File too small");
 
-    // Scan for 'calc' tag type signature (0x63616C63)
-    constexpr uint32_t kCalcSig = 0x63616C63;
-    int findings = 0;
+    constexpr uint32_t kMpeTag = 0x6D706574;   // 'mpet'
+    constexpr uint32_t kCalcSig = 0x63616C63;  // 'calc'
+    constexpr uint32_t kFuncSig = 0x66756E63;  // 'func'
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 12 || t.offset + t.size > len) continue;
-        uint32_t typeSig = readU32BE(d + t.offset);
-        if (typeSig != kCalcSig) continue;
+        if (t.size < 16 || t.offset + 4 > len) continue;
+        if (readU32BE(d + t.offset) != kMpeTag) continue;
 
-        // Calculator element found — check operator enum values
-        // Operators start after the element header
-        if (t.size < 24) continue;
-        uint32_t nOps = readU32BE(d + t.offset + 16);
-        if (nOps > 100000) {
-            cb.high(sfmt("Calculator element has %u operations — potential DoS", nOps),
-                    "CWE-400: Uncontrolled Resource Consumption");
-            findings++;
+        size_t scanLen = std::min<size_t>(t.size, 65536);
+        if (t.offset + scanLen > len) {
+            scanLen = len - t.offset;
+        }
+        if (scanLen < 16) continue;
+
+        const uint8_t* scan = d + t.offset;
+        std::string tagName = sigStr(t.signature);
+
+        for (size_t b = 0; b + 15 < scanLen; ) {
+            if (readU32BE(scan + b) != kCalcSig) {
+                b++;
+                continue;
+            }
+
+            size_t calcOff = b;
+            uint32_t nSubElem = readU32BE(scan + calcOff + 12);
+            if (nSubElem > 10000) {
+                b = calcOff + 4;
+                continue;
+            }
+
+            uint32_t nPos = nSubElem + 1;
+            size_t posTableStart = calcOff + 16;
+            if (posTableStart + static_cast<size_t>(nPos) * 8 > scanLen) {
+                b = calcOff + 4;
+                continue;
+            }
+
+            uint32_t funcOff = readU32BE(scan + posTableStart);
+            uint32_t funcSz = readU32BE(scan + posTableStart + 4);
+            size_t absFuncOff = calcOff + funcOff;
+            if (absFuncOff + 12 > scanLen || funcSz < 12) {
+                b = calcOff + 15;
+                continue;
+            }
+
+            uint32_t chanFuncSig = readU32BE(scan + absFuncOff);
+            if (chanFuncSig != kFuncSig) {
+                cb.critical(
+                    sfmt("Tag '%s': Calculator channel function signature 0x%08X is not 'func' (0x66756E63)",
+                         tagName.c_str(), chanFuncSig),
+                    "CWE-681: Invalid icChannelFuncSignature enum load");
+            }
+
+            uint32_t nOps = readU32BE(scan + absFuncOff + 8);
+            if (nOps > 0 && nOps < 100000) {
+                size_t opsStart = absFuncOff + 12;
+                uint32_t invalidOps = 0;
+                int dangerousOps = 0;
+                uint32_t checkedOps = std::min<uint32_t>(nOps, 1000);
+                for (uint32_t op = 0; op < checkedOps; op++) {
+                    size_t opOff = opsStart + static_cast<size_t>(op) * 8;
+                    if (opOff + 4 > scanLen) break;
+
+                    uint32_t opSig = readU32BE(scan + opOff);
+                    if (opSig == 0) continue;
+
+                    bool valid = true;
+                    for (int byte = 0; byte < 4; byte++) {
+                        uint8_t ch = static_cast<uint8_t>((opSig >> (24 - byte * 8)) & 0xFF);
+                        if (ch < 0x20 || ch > 0x7E) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (!valid) invalidOps++;
+
+                    if (opSig == 0x74726E63 ||  // trnc
+                        opSig == 0x666C6F72 ||  // flor
+                        opSig == 0x6365696C ||  // ceil
+                        opSig == 0x726F6E64 ||  // rond
+                        opSig == 0x6D6F6420) {  // mod
+                        dangerousOps++;
+                    }
+                }
+
+                if (invalidOps > 0) {
+                    cb.critical(
+                        sfmt("Tag '%s': %u/%u calculator operator signatures are invalid enum values (non-FourCC)",
+                             tagName.c_str(), invalidOps, checkedOps),
+                        "CWE-681: Invalid operator enum");
+                }
+
+                if (dangerousOps > 0) {
+                    cb.warn(
+                        sfmt("Tag '%s': Calculator has %d float-to-int cast operators (trnc/flor/ceil/rond/mod)",
+                             tagName.c_str(), dangerousOps),
+                        "CWE-681: Unguarded float-to-int cast overflow");
+                }
+            }
+
+            b = calcOff + 15;
         }
     }
 
@@ -189,9 +275,9 @@ REGISTER_HEURISTIC(146, "Stack Buffer Overflow GetValues",
     "CWE-121", "GHSA-551,GHSA-618", Severity::CRITICAL, CheckPhase::LIBRARY,
     check_h146_getvalues_sbo);
 
-REGISTER_HEURISTIC(151, "Calculator Element Enum Validation",
+REGISTER_HEURISTIC(151, "Calculator Operator Enum Validation",
     "ICC.2-2023 §11.2.1", "ICC.2-2023",
-    "CWE-681", "", Severity::HIGH, CheckPhase::RAW_SCAN, check_h151_calc_enum);
+    "CWE-681", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h151_calc_enum);
 
 
 // ── Additional registrations for DataValidationChecks ──

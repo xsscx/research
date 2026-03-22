@@ -144,6 +144,13 @@ struct CheckResult {
     int issueCount() const { return static_cast<int>(findings.size()); }
 };
 
+/// One executed check with its registry identity and result payload.
+struct PerCheckResult {
+    CheckID     id;
+    CheckMeta   meta;
+    CheckResult result;
+};
+
 /// Summary metadata extracted from a profile header (always safe — parsed from raw bytes).
 struct ProfileMetadata {
     uint32_t version;
@@ -181,7 +188,7 @@ struct AnalysisResult {
     ProfileMetadata          metadata;
     std::vector<Finding>     findings;
     RunStats                 stats;
-    std::vector<CheckResult> perCheck;  // Individual check results, in run order
+    std::vector<PerCheckResult> perCheck;  // Executed checks, in run order
 
     // Query helpers
     std::vector<Finding> bySeverity(Severity minLevel) const {
@@ -232,6 +239,25 @@ inline const char* phaseName(CheckPhase p) {
         case CheckPhase::LIBRARY:     return "LIBRARY";
         case CheckPhase::CONFORMANCE: return "CONFORMANCE";
         case CheckPhase::IMAGE:       return "IMAGE";
+    }
+    return "UNKNOWN";
+}
+
+inline const char* kindName(CheckID::Kind kind) {
+    switch (kind) {
+        case CheckID::Kind::Heuristic:   return "HEURISTIC";
+        case CheckID::Kind::Conformance: return "CONFORMANCE";
+    }
+    return "UNKNOWN";
+}
+
+inline const char* checkStatusName(CheckResult::Status s) {
+    switch (s) {
+        case CheckResult::Status::OK:              return "OK";
+        case CheckResult::Status::SKIP:            return "SKIP";
+        case CheckResult::Status::FINDINGS:        return "FINDINGS";
+        case CheckResult::Status::NEEDS_ISOLATION: return "NEEDS_ISOLATION";
+        case CheckResult::Status::ERROR:           return "ERROR";
     }
     return "UNKNOWN";
 }

@@ -285,13 +285,13 @@ static CheckResult check_h17_spectral(const ProfileView& pv) {
 
 // ── Registration ──
 
-REGISTER_HEURISTIC(1, "Profile Size Validation",
+REGISTER_HEURISTIC(1, "Profile Size",
     "ICC.1-2022-05 §7.2.2", "ICC.1-2022-05",
-    "CWE-131", "", Severity::HIGH, CheckPhase::HEADER, check_h1_size);
+    "CWE-131", "", Severity::MEDIUM, CheckPhase::HEADER, check_h1_size);
 
-REGISTER_HEURISTIC(2, "Magic Number Validation",
+REGISTER_HEURISTIC(2, "Magic Bytes",
     "ICC.1-2022-05 §7.2.9", "ICC.1-2022-05",
-    "CWE-345", "", Severity::CRITICAL, CheckPhase::HEADER, check_h2_magic);
+    "CWE-345", "", Severity::LOW, CheckPhase::HEADER, check_h2_magic);
 
 REGISTER_HEURISTIC(3, "Version Validation",
     "ICC.1-2022-05 §7.2.4", "ICC.1-2022-05",
@@ -317,7 +317,7 @@ REGISTER_HEURISTIC(8, "PCS Illuminant D50 Validation",
     "ICC.1-2022-05 §7.2.16", "ICC.1-2022-05",
     "CWE-682", "", Severity::MEDIUM, CheckPhase::HEADER, check_h8_illuminant);
 
-REGISTER_HEURISTIC(15, "Creation Date/Time Validation",
+REGISTER_HEURISTIC(15, "Date Validation",
     "ICC.1-2022-05 §7.2.8", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::HEADER, check_h15_datetime);
 

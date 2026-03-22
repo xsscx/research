@@ -10,6 +10,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(CTest)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 # ── Require Clang — reject GCC ──
 if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR
@@ -28,6 +31,9 @@ if(NOT DEFINED ICCDEV_ROOT)
         message(FATAL_ERROR "Cannot find iccDEV. Set -DICCDEV_ROOT=<path>")
     endif()
 endif()
+
+set(ICCTEST_V1_BINARY "${PROJECT_SOURCE_DIR}/../iccanalyzer-lite" CACHE FILEPATH
+    "Path to the V1 iccAnalyzer-lite binary used for parity verification")
 
 # Detect build dir
 if(EXISTS "${ICCDEV_ROOT}/Build/IccProfLib/libIccProfLib2-static.a")
@@ -70,3 +76,4 @@ set(ICCTEST_STANDARD_FLAGS
 
 add_subdirectory(lib)
 add_subdirectory(cli)
+add_subdirectory(tools)
