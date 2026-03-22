@@ -30,5 +30,6 @@ int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx);
 int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx);
 int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx);
 int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx);
+int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx);
 
 #endif // ICC_HEURISTICS_CODEQL_PATTERNS_H
