@@ -40,8 +40,11 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from icc_profile_mcp import (  # noqa: E402
     ANALYZER_BIN,
+    ANALYZER_V2_BIN,
     TO_XML_SAFE_BIN,
     TO_XML_UNSAFE_BIN,
+    _get_analyzer,
+    _map_flags,
     _require_binary,
     _resolve_profile,
     _run,
@@ -298,33 +301,36 @@ async def api_list_xml(request: Request) -> Response:
 
 
 async def api_inspect(request: Request) -> Response:
-    """GET /api/inspect?path=<profile>"""
+    """GET /api/inspect?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await inspect_profile(path)
+            result = await inspect_profile(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
 async def api_security(request: Request) -> Response:
-    """GET /api/security?path=<profile>"""
+    """GET /api/security?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await analyze_security(path)
+            result = await analyze_security(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
 async def api_security_json(request: Request) -> Response:
-    """GET /api/security-json?path=<profile>"""
+    """GET /api/security-json?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await analyze_security_json(path)
+            result = await analyze_security_json(path, engine=engine)
         # Defense-in-depth: strip any residual stderr if present
         sep = "\n--- stderr ---\n"
         if sep in result:
@@ -350,33 +356,36 @@ async def api_security_json(request: Request) -> Response:
 
 
 async def api_security_report(request: Request) -> Response:
-    """GET /api/security-report?path=<profile>"""
+    """GET /api/security-report?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await analyze_security_report(path)
+            result = await analyze_security_report(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
 async def api_roundtrip(request: Request) -> Response:
-    """GET /api/roundtrip?path=<profile>"""
+    """GET /api/roundtrip?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await validate_roundtrip(path)
+            result = await validate_roundtrip(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
 async def api_full(request: Request) -> Response:
-    """GET /api/full?path=<profile>"""
+    """GET /api/full?path=<profile>&engine=v1|v2|auto"""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", "v1")
         async with (await _get_semaphore()):
-            result = await full_analysis(path)
+            result = await full_analysis(path, engine=engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -463,7 +472,9 @@ async def api_compare(request: Request) -> Response:
 
 async def api_health(request: Request) -> Response:
     """GET /api/health — liveness check."""
-    return JSONResponse({"ok": True, "tools": 24})
+    v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
+    resp = {"ok": True, "tools": 24, "engines": {"v1": True, "v2": v2_ok}}
+    return JSONResponse(resp)
 
 
 async def api_registry(request: Request) -> Response:
@@ -809,9 +820,12 @@ async def api_upload_and_analyze(request: Request) -> Response:
         mode = body.get("mode", "security")
         if not isinstance(mode, str):
             mode = "security"
+        engine = body.get("engine", "v1")
+        if not isinstance(engine, str):
+            engine = "v1"
         async with (await _get_semaphore()):
             result = await upload_and_analyze(
-                data_base64=data_base64, filename=filename, mode=mode
+                data_base64=data_base64, filename=filename, mode=mode, engine=engine
             )
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
