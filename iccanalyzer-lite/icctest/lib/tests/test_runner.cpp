@@ -449,6 +449,33 @@ static void test_conformance_parity_regressions() {
         expect_conformance_result(result, 30, CheckResult::Status::FINDINGS, 1);
     }
     {
+        auto result = analyze_corpus_checks(corpusDir / "cf_mluc_zero_name_placeholder.icc", {223});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 223, CheckResult::Status::FINDINGS, 1);
+
+        const auto* cf223 = find_per_check(result, CheckID::Kind::Conformance, 223);
+        ASSERT_TRUE(cf223 != nullptr);
+        ASSERT_TRUE(cf223->result.findings[0].message.find("12-byte") != std::string::npos);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_reserved_bytes_nonzero_tag.icc", {224});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 224, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "odd_utf16_mluc.icc", {225});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 225, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "valid_srgb.icc", {223, 224, 225, 226});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_conformance_result(result, 223, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 224, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 225, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 226, CheckResult::Status::OK, 0);
+    }
+    {
         auto result = analyze_corpus_checks(corpusDir / "cf_adgc_nan_weights.icc", {123, 128});
         ASSERT_EQ(2, result.stats.checksRun);
         expect_conformance_result(result, 123, CheckResult::Status::OK, 0);
