@@ -336,6 +336,7 @@ footer {
     <button data-tool="security" >Security Scan</button>
     <button data-tool="security_json" >Security (JSON)</button>
     <button data-tool="security_report" >Security (Report)</button>
+    <button data-tool="pawg" >PAWG</button>
     <button data-tool="roundtrip">Round-Trip</button>
     <button data-tool="full"     >Full Analysis</button>
     <button data-tool="xml"      >To XML</button>
@@ -394,6 +395,7 @@ const TOOLS = {
   security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"],      method: "GET" },
   security_json:   { label: "Security (JSON)",   endpoint: "/api/security-json",   fields: ["path"], method: "GET" },
   security_report: { label: "Security (Report)", endpoint: "/api/security-report", fields: ["path"], method: "GET" },
+  pawg:            { label: "PAWG",              endpoint: "/api/pawg",            fields: ["path"], method: "GET" },
   roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"],      method: "GET" },
   full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"],      method: "GET" },
   xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"],      method: "GET" },
@@ -561,8 +563,8 @@ function renderInputs() {
     html = `
       <div class="input-row">
         <div class="field">
-          <label for="inp-build_dir">Build Dir</label>
-          <input id="inp-build_dir" value="" placeholder="e.g. build-debug-asan-ubsan-tools" autocomplete="off">
+          <label for="inp-build_dir">Build Dir (optional)</label>
+          <input id="inp-build_dir" value="" placeholder="auto-detect latest tool-enabled build" autocomplete="off">
         </div>
         <button class="btn-run" id="btnRun">${esc(btnLabel)}</button>
         ${saveBtn}
@@ -758,6 +760,7 @@ function renderInputs() {
           <label for="inp-mode">Analysis Mode</label>
           <select id="inp-mode">
             <option value="security" selected>security</option>
+            <option value="pawg">pawg</option>
             <option value="inspect">inspect</option>
             <option value="roundtrip">roundtrip</option>
             <option value="full">full</option>
