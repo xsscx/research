@@ -405,6 +405,35 @@ static void test_conformance_adgc_regression() {
     ASSERT_EQ(6, result.stats.findingsTotal);
 }
 
+static void test_sampleicc_legibility_regression() {
+    std::printf("  test_sampleicc_legibility_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "valid_srgb.icc", {188, 189, 190});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_conformance_result(result, 188, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 189, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 190, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "zero_tags.icc", {190});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 190, CheckResult::Status::FINDINGS, 1);
+
+        const auto* cf190 = find_per_check(result, CheckID::Kind::Conformance, 190);
+        ASSERT_TRUE(cf190 != nullptr);
+        ASSERT_TRUE(cf190->result.summary.find("Legibility") != std::string::npos);
+        ASSERT_TRUE(cf190->result.findings[0].message.find("0 tags") != std::string::npos);
+    }
+}
+
 static void test_conformance_parity_regressions() {
     std::printf("  test_conformance_parity_regressions...\n");
 
@@ -662,6 +691,7 @@ void test_runner() {
     test_conformance_coverage();
     test_conformance_private_tag_documentation_regression();
     test_conformance_adgc_regression();
+    test_sampleicc_legibility_regression();
     test_conformance_parity_regressions();
     test_conformance_v5_only_skip_regression();
     test_conformance_v5_gate_regression();

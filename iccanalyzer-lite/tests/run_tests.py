@@ -3109,6 +3109,16 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"legible.*\d+ tags parsed"
     )
+    suite.assert_output_contains(
+        "cf.190.zero_tags_gate_runs",
+        ["-a", f"{corpus}/zero_tags.icc"],
+        r"CF-190.*Profile Legibility"
+    )
+    suite.assert_output_contains(
+        "cf.190.zero_tags_not_legible",
+        ["-a", f"{corpus}/zero_tags.icc"],
+        r"Profile has 0 tag entries.*not legible"
+    )
 
     # --- CF-191..CF-198: ICS Interoperability Conformance Specifications ---
     # CF-191: ICS Sub-Class Signature Registry — runs on any v5 profile
