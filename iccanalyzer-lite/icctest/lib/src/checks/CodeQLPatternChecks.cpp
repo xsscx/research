@@ -14,8 +14,6 @@ namespace icctest {
 // ── H154: Uncontrolled Tag Allocation Size ──
 static CheckResult check_h154_uncontrolled_alloc(const ProfileView& pv) {
     CheckBuilder cb;
-    const uint8_t* d = pv.rawData();
-    size_t len = pv.rawSize();
 
     for (const auto& t : pv.rawTagTable()) {
         // Tag sizes that would cause new[]/malloc() without bounds checking
@@ -108,8 +106,6 @@ static CheckResult check_h160_format_string(const ProfileView& pv) {
     constexpr uint32_t kDescType = 0x64657363; // 'desc'
     constexpr uint32_t kTextType = 0x74657874; // 'text'
     constexpr uint32_t kMlucType = 0x6D6C7563; // 'mluc'
-
-    const char* fmtPatterns[] = { "%n", "%s", "%x", "%p" };
 
     for (const auto& t : pv.rawTagTable()) {
         if (t.size < 8 || t.offset + 8 > len) continue;
