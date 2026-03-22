@@ -310,14 +310,27 @@ static CheckResult check_cf008_pcs_illuminant_d50_precision(const ProfileView& p
     const double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;
     const double tol = 0.0001;
 
-    if (std::fabs(x - d50X) > tol || std::fabs(y - d50Y) > tol || std::fabs(z - d50Z) > tol) {
+    std::vector<Finding> findings;
+    if (std::fabs(x - d50X) > tol) {
         char detail[128];
         snprintf(detail, sizeof(detail),
-                 "PCS illuminant (%.4f, %.4f, %.4f) != D50 (%.4f, %.4f, %.4f)",
-                 x, y, z, d50X, d50Y, d50Z);
-        return {CheckResult::Status::FINDINGS, "PCS illuminant not D50", {
-            {cfId, Severity::HIGH, detail, "ICC.1-2022-05 §7.2.16", ""}}};
+                 "PCS illuminant X=%.4f != D50 X=%.4f", x, d50X);
+        findings.push_back({cfId, Severity::HIGH, detail, "ICC.1-2022-05 §7.2.16", ""});
     }
+    if (std::fabs(y - d50Y) > tol) {
+        char detail[128];
+        snprintf(detail, sizeof(detail),
+                 "PCS illuminant Y=%.4f != D50 Y=%.4f", y, d50Y);
+        findings.push_back({cfId, Severity::HIGH, detail, "ICC.1-2022-05 §7.2.16", ""});
+    }
+    if (std::fabs(z - d50Z) > tol) {
+        char detail[128];
+        snprintf(detail, sizeof(detail),
+                 "PCS illuminant Z=%.4f != D50 Z=%.4f", z, d50Z);
+        findings.push_back({cfId, Severity::HIGH, detail, "ICC.1-2022-05 §7.2.16", ""});
+    }
+    if (!findings.empty())
+        return {CheckResult::Status::FINDINGS, "PCS illuminant not D50", std::move(findings)};
     return CheckResult::ok("PCS illuminant matches D50");
 }
 

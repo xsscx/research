@@ -1,8 +1,8 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-17 16:00:00 UTC
+Last Updated: 2026-03-22 17:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer — 171 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H171 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
+tl;dr ICC Profile Security Analyzer — 173 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H173 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,7 +14,7 @@ tl;dr ICC Profile Security Analyzer — 171 heuristics (H1-H138 ICC + H139-H141,
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (171 checks)
+  -h  <file.icc>              Security heuristics (173 checks)
   -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
@@ -27,6 +27,16 @@ iccAnalyzer-lite [MODE] <file>
 ```
 
 ## Architecture (30 modules, 22,400+ LOC)
+
+## V2 Rewrite
+
+The V2 rewrite lives under `icctest/`.
+
+- Build and registry/unit validation are documented in `icctest/README.md`.
+- The parity harness for V1 vs V2 alignment is also documented there.
+- Current parity state on the in-repo corpus is closed:
+  - raw ICC parity: `delta = 0`
+  - image/container parity: `delta = 0`
 
 ### Heuristic Modules (8 files)
 
@@ -46,7 +56,7 @@ iccAnalyzer-lite [MODE] <file>
 
 | Module | Purpose |
 |--------|---------|
-| IccHeuristicsRegistry.h | 171-entry metadata table (name, CWE, CVE, phase, severity) |
+| IccHeuristicsRegistry.h | 173-entry metadata table (name, CWE, CVE, phase, severity) |
 | IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
 | IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
 | IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
@@ -69,7 +79,7 @@ iccAnalyzer-lite [MODE] <file>
 
 57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique across 93 iccDEV security advisories).
 
-## Security Heuristics (H1–H171)
+## Security Heuristics (H1–H173)
 
 ### Header-Level (H1–H8, H15–H17)
 | ID | Check | Risk |
@@ -265,7 +275,7 @@ iccAnalyzer-lite [MODE] <file>
 | H152 | SingleSampledCurve OOM size | Oversized m_nCount allocation detection — CWE-400 |
 | H153 | Sampled curve NaN-to-unsigned cast | NaN/Inf in curve firstEntry/lastEntry — CWE-681 |
 
-### CodeQL-Driven Heuristics (H154–H171)
+### CodeQL-Driven Heuristics (H154–H173)
 | ID | Check | Risk |
 |----|-------|------|
 | H154 | Uncontrolled tag allocation size | Allocation size from file-controlled values — CWE-789 |

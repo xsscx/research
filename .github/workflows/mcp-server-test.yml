@@ -10,15 +10,23 @@ on:
   push:
     paths:
       - 'mcp-server/**'
+      - 'iccanalyzer-lite/**'
+      - 'cfl/patches/**'
+      - '.github/workflows/mcp-server-test.yml'
       - '!mcp-server/**/*.md'
       - '!mcp-server/codeql-queries/**'
       - '!mcp-server/codeql-config.yml'
+      - '!iccanalyzer-lite/**/*.md'
   pull_request:
     paths:
       - 'mcp-server/**'
+      - 'iccanalyzer-lite/**'
+      - 'cfl/patches/**'
+      - '.github/workflows/mcp-server-test.yml'
       - '!mcp-server/**/*.md'
       - '!mcp-server/codeql-queries/**'
       - '!mcp-server/codeql-config.yml'
+      - '!iccanalyzer-lite/**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -216,6 +224,34 @@ jobs:
           set -euo pipefail
           iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
 
+      - name: Run icctest V2 parity verification
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          cmake --build build --target icctest-verify-parity
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/parity-artifacts/verify-parity-summary.json").read_text())
+          summary = payload["summary"]
+          raw_counts = summary["rawParity"]["counts"]
+          outer_counts = summary["imageParity"]["outerImage"]["counts"]
+          embedded_counts = summary["imageParity"]["embeddedRaw"]["counts"]
+
+          print("")
+          print("### icctest V2 Parity Verification")
+          print("")
+          print(f"- Status: `{summary['status']}`")
+          print(f"- Raw parity delta: `{raw_counts.get('delta', 0)}`")
+          print(f"- Image outer delta: `{outer_counts.get('delta', 0)}`")
+          print(f"- Embedded raw delta: `{embedded_counts.get('delta', 0)}`")
+          print(f"- Unit tests: `{summary['unitTests'].get('summaryLine', '')}`")
+          print(f"- Generated image smoke: `{summary['generatedImageSmoke'].get('status', 'unknown')}`")
+          print("- Artifact: `iccanalyzer-lite/icctest/build/parity-artifacts`")
+          PY
+
       - name: Run MCP Server Tests
         env:
           PYTHONUNBUFFERED: "1"
@@ -235,6 +271,14 @@ jobs:
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
           export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
           python test_web_ui.py
+
+      - name: Upload icctest parity artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: icctest-parity-artifacts-mcp-server
+          path: iccanalyzer-lite/icctest/build/parity-artifacts/
+          if-no-files-found: warn
 
       - name: Test Summary
         if: always()

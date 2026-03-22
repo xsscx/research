@@ -39,3 +39,11 @@ target_compile_options(icctest_unit_tests PRIVATE
     ${ICCTEST_DEBUG_FLAGS}
     ${ICCTEST_STANDARD_FLAGS}
 )
+
+if(BUILD_TESTING)
+    add_test(NAME icctest_unit_tests COMMAND $<TARGET_FILE:icctest_unit_tests>)
+    set_tests_properties(icctest_unit_tests PROPERTIES
+        TIMEOUT 120
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
+    )
+endif()

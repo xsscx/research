@@ -16,11 +16,41 @@
 #include "IccUtil.h"
 #include "IccTagBasic.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <limits>
 
 namespace icctest {
+
+static ImageFormat detectContainerFormat(const uint8_t* b, size_t len) {
+    if (!b || len < 4) return ImageFormat::UNKNOWN;
+
+    // TIFF LE: 'II\x2a\x00'
+    if (b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2a && b[3] == 0x00)
+        return ImageFormat::TIFF_LE;
+    // TIFF BE: 'MM\x00\x2a'
+    if (b[0] == 0x4d && b[1] == 0x4d && b[2] == 0x00 && b[3] == 0x2a)
+        return ImageFormat::TIFF_BE;
+    // BigTIFF LE: 'II\x2b\x00'
+    if (b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2b && b[3] == 0x00)
+        return ImageFormat::BIGTIFF_LE;
+    // BigTIFF BE: 'MM\x00\x2b'
+    if (b[0] == 0x4d && b[1] == 0x4d && b[2] == 0x00 && b[3] == 0x2b)
+        return ImageFormat::BIGTIFF_BE;
+    // PNG: '\x89PNG'
+    if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4e && b[3] == 0x47)
+        return ImageFormat::PNG;
+    // JPEG: '\xff\xd8\xff'
+    if (len >= 3 && b[0] == 0xff && b[1] == 0xd8 && b[2] == 0xff)
+        return ImageFormat::JPEG;
+    // ICC: 'acsp' at offset 36
+    if (len >= 40 &&
+        b[36] == 'a' && b[37] == 'c' && b[38] == 's' && b[39] == 'p')
+        return ImageFormat::ICC;
+
+    return ImageFormat::UNKNOWN;
+}
 
 // ── ProfileDeleter ──
 
@@ -102,8 +132,20 @@ std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path) 
 
     auto fileSize = file.tellg();
     if (fileSize < 128) {
-        ICCTEST_WARN("File too small for ICC header: %lld bytes", (long long)fileSize);
-        return std::nullopt;
+        std::array<uint8_t, 40> prefix{};
+        file.seekg(0);
+        auto prefixLen = std::min<std::streamsize>(
+            static_cast<std::streamsize>(prefix.size()), fileSize);
+        file.read(reinterpret_cast<char*>(prefix.data()), prefixLen);
+        auto bytesRead = file.gcount();
+        file.clear();
+        file.seekg(0);
+
+        auto fmt = detectContainerFormat(prefix.data(), static_cast<size_t>(bytesRead));
+        if (fmt == ImageFormat::UNKNOWN || fmt == ImageFormat::ICC) {
+            ICCTEST_WARN("File too small for ICC header: %lld bytes", (long long)fileSize);
+            return std::nullopt;
+        }
     }
     if (fileSize > 256 * 1024 * 1024) {
         ICCTEST_WARN("File exceeds 256MB safety limit: %lld bytes", (long long)fileSize);
@@ -138,8 +180,11 @@ std::optional<ProfileView> ProfileView::open(const uint8_t* data, size_t len) {
     ICCTEST_DEBUG("ProfileView::open(buffer, %zu bytes)", len);
 
     if (len < 128) {
-        ICCTEST_WARN("Buffer too small for ICC header: %zu bytes", len);
-        return std::nullopt;
+        auto fmt = detectContainerFormat(data, len);
+        if (fmt == ImageFormat::UNKNOWN || fmt == ImageFormat::ICC) {
+            ICCTEST_WARN("Buffer too small for ICC header: %zu bytes", len);
+            return std::nullopt;
+        }
     }
     if (len > 256 * 1024 * 1024) {
         ICCTEST_WARN("Buffer exceeds 256MB safety limit: %zu bytes", len);
@@ -414,35 +459,7 @@ bool ProfileView::isImage() const {
 }
 
 ImageFormat ProfileView::imageFormat() const {
-    if (m_rawData.size() < 4) return ImageFormat::UNKNOWN;
-    const uint8_t* b = m_rawData.data();
-
-    // TIFF LE: 'II\x2a\x00'
-    if (b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2a && b[3] == 0x00)
-        return ImageFormat::TIFF_LE;
-    // TIFF BE: 'MM\x00\x2a'
-    if (b[0] == 0x4d && b[1] == 0x4d && b[2] == 0x00 && b[3] == 0x2a)
-        return ImageFormat::TIFF_BE;
-    // BigTIFF LE: 'II\x2b\x00'
-    if (b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2b && b[3] == 0x00)
-        return ImageFormat::BIGTIFF_LE;
-    // BigTIFF BE: 'MM\x00\x2b'
-    if (b[0] == 0x4d && b[1] == 0x4d && b[2] == 0x00 && b[3] == 0x2b)
-        return ImageFormat::BIGTIFF_BE;
-    // PNG: '\x89PNG'
-    if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4e && b[3] == 0x47)
-        return ImageFormat::PNG;
-    // JPEG: '\xff\xd8\xff'
-    if (m_rawData.size() >= 3 && b[0] == 0xff && b[1] == 0xd8 && b[2] == 0xff)
-        return ImageFormat::JPEG;
-    // ICC: 'acsp' at offset 36
-    if (m_rawData.size() >= 40) {
-        uint32_t magic = readU32BE(b + 36);
-        if (magic == 0x61637370)
-            return ImageFormat::ICC;
-    }
-
-    return ImageFormat::UNKNOWN;
+    return detectContainerFormat(m_rawData.data(), m_rawData.size());
 }
 
 // ── Metadata ──

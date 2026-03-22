@@ -92,14 +92,18 @@ static CheckResult check_h111_reserved_zeros(const ProfileView& pv) {
     if (pv.rawSize() < 128) return CheckResult::skip("File too small");
     const uint8_t* d = pv.rawData();
 
-    // ICC.1-2022-05 §7.2.19: bytes 100-127 must be 0x00
+    if (d[44] != 0 || d[45] != 0 || d[46] != 0 || d[47] != 0) {
+        cb.warn(sfmt("Header bytes 44-47 non-zero: %02X %02X %02X %02X",
+                     d[44], d[45], d[46], d[47]));
+    }
+
     int nonZero = 0;
     for (int i = 100; i < 128; i++) {
         if (d[i] != 0) nonZero++;
     }
 
     if (nonZero > 0) {
-        cb.warn(sfmt("%d non-zero reserved bytes in header (offsets 100-127)", nonZero));
+        cb.warn("Header bytes 100-127 contain non-zero reserved data");
     }
 
     return cb.done("Reserved bytes validated");
@@ -144,7 +148,7 @@ REGISTER_HEURISTIC(108, "Encoding Validation",
     "ICC.1-2022-05 §7.2.15", "ICC.1-2022-05",
     "", "", Severity::INFO, CheckPhase::HEADER, check_h108_encoding);
 
-REGISTER_HEURISTIC(111, "Reserved Bytes Validation",
+REGISTER_HEURISTIC(111, "Reserved Bytes",
     "ICC.1-2022-05 §7.2.19", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::HEADER, check_h111_reserved_zeros);
 

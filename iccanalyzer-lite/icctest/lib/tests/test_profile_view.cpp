@@ -97,6 +97,22 @@ static void test_open_too_small() {
     ASSERT_FALSE(pv.has_value());
 }
 
+static void test_open_small_image_buffer() {
+    std::printf("  test_open_small_image_buffer...\n");
+    std::vector<uint8_t> tinyTiff(13, 0);
+    tinyTiff[0] = 0x49; tinyTiff[1] = 0x49; tinyTiff[2] = 0x2a; tinyTiff[3] = 0x00;
+    tinyTiff[4] = 0x08; tinyTiff[5] = 0x00; tinyTiff[6] = 0x00; tinyTiff[7] = 0x00;
+
+    auto pv = ProfileView::open(tinyTiff.data(), tinyTiff.size());
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_EQ(ImageFormat::TIFF_LE, pv->imageFormat());
+        ASSERT_TRUE(pv->isImage());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_EQ(13u, pv->rawSize());
+    }
+}
+
 static void test_image_format_detection() {
     std::printf("  test_image_format_detection...\n");
 
@@ -205,6 +221,7 @@ void test_profile_view() {
     test_open_memory_buffer();
     test_open_nonexistent_file();
     test_open_too_small();
+    test_open_small_image_buffer();
     test_image_format_detection();
     test_ub_prescan_gbd();
     test_ub_prescan_clean();

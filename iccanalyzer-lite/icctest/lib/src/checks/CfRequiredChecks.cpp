@@ -673,6 +673,8 @@ static CheckResult check_cf096_private_tag_signature_range(const ProfileView& pv
 // ── CF-097: Private Tag Documentation ───────────────────────────────────────
 
 static CheckResult check_cf097_private_tag_documentation(const ProfileView& pv) {
+    CheckID cfId{CheckID::Kind::Conformance, 97};
+
     // Known vendor prefixes
     static const uint32_t knownVendors[] = {
         0x41444245u, // 'ADBE' (Adobe)
@@ -681,24 +683,74 @@ static CheckResult check_cf097_private_tag_documentation(const ProfileView& pv) 
         0x4150504Cu, // 'APPL' (Apple)
     };
 
-    int privateCount = 0;
-    int knownCount = 0;
+    static const icTagSignature knownTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        icSigBlueMatrixColumnTag, icSigBlueTRCTag,
+        icSigCopyrightTag, icSigProfileDescriptionTag,
+        icSigMediaWhitePointTag, icSigRedMatrixColumnTag,
+        icSigGreenMatrixColumnTag, icSigRedTRCTag,
+        icSigGreenTRCTag, icSigGrayTRCTag,
+        icSigChromaticAdaptationTag, icSigChromaticityTag,
+        icSigCalibrationDateTimeTag, icSigCharTargetTag,
+        icSigColorantOrderTag, icSigColorantTableTag,
+        icSigColorantTableOutTag, icSigDeviceMfgDescTag,
+        icSigDeviceModelDescTag, icSigGamutTag,
+        icSigLuminanceTag, icSigMeasurementTag,
+        icSigMediaBlackPointTag, icSigNamedColor2Tag,
+        icSigOutputResponseTag, icSigPreview0Tag,
+        icSigPreview1Tag, icSigPreview2Tag,
+        icSigProfileSequenceDescTag, icSigTechnologyTag,
+        icSigViewingCondDescTag, icSigViewingConditionsTag,
+        icSigProfileSequceIdTag,
+        icSigPerceptualRenderingIntentGamutTag,
+        icSigSaturationRenderingIntentGamutTag,
+        static_cast<icTagSignature>(0),
+    };
+
+    int documentedCount = 0;
+    std::vector<Finding> findings;
+
     for (const auto& entry : pv.rawTagTable()) {
-        uint32_t sig = entry.signature;
-        // Rough private tag detection: lowercase first byte or known vendor
-        uint8_t firstByte = (sig >> 24) & 0xFF;
-        if (firstByte >= 'a' && firstByte <= 'z') {
-            privateCount++;
-        } else {
-            for (int v = 0; v < 4; v++) {
-                if (sig == knownVendors[v]) { knownCount++; break; }
+        icTagSignature sig = static_cast<icTagSignature>(entry.signature);
+        bool isKnown = false;
+        for (int i = 0; knownTags[i] != static_cast<icTagSignature>(0); ++i) {
+            if (sig == knownTags[i]) {
+                isKnown = true;
+                break;
             }
+        }
+        if (isKnown) {
+            continue;
+        }
+
+        bool isDocumented = false;
+        for (uint32_t vendorSig : knownVendors) {
+            if (entry.signature == vendorSig) {
+                documentedCount++;
+                isDocumented = true;
+                break;
+            }
+        }
+        if (!isDocumented) {
+            char sigStr[5];
+            SigToChars(entry.signature, sigStr);
+            findings.push_back({cfId, Severity::INFO,
+                std::string("Undocumented private tag: '") + sigStr + "'",
+                "ICC.1-2022-05 §9", ""});
         }
     }
 
-    char summary[128];
-    std::snprintf(summary, sizeof(summary), "%d private tags, %d from known vendors", privateCount, knownCount);
-    return CheckResult::ok(summary);
+    if (!findings.empty()) {
+        return {CheckResult::Status::FINDINGS,
+            std::to_string(findings.size()) + " undocumented private tags",
+            std::move(findings)};
+    }
+    if (documentedCount > 0) {
+        return CheckResult::ok(
+            std::to_string(documentedCount) + " private tags documented by known vendors");
+    }
+    return CheckResult::ok("No private tags");
 }
 
 // ── CF-098: Undocumented Private Tags ───────────────────────────────────────
@@ -927,6 +979,8 @@ static CheckResult check_cf120_named_color_space_dimensions(const ProfileView& p
 // ── CF-147: Extended Range Colorimetric Intent Required (ICS) ───────────────
 
 static CheckResult check_cf147_extended_range_colorimetric_intent_requi(const ProfileView& pv) {
+    if (VersionMajor(pv) < 5)
+        return CheckResult::skip("Not a v5 profile");
     // ICS-specific check: extended range display/colorSpace profiles need AToB1+BToA1
     auto cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
     if (cls != icSigDisplayClass && cls != icSigColorSpaceClass)
@@ -951,6 +1005,8 @@ static CheckResult check_cf147_extended_range_colorimetric_intent_requi(const Pr
 // ── CF-149: Extended Output Profile Class (ICS) ─────────────────────────────
 
 static CheckResult check_cf149_extended_output_profile_class(const ProfileView& pv) {
+    if (VersionMajor(pv) < 5)
+        return CheckResult::skip("Not a v5 profile");
     auto cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
     if (cls != icSigOutputClass)
         return CheckResult::skip("Not Output — ICS extended output N/A");
@@ -981,6 +1037,8 @@ static CheckResult check_cf149_extended_output_profile_class(const ProfileView& 
 // ── CF-152: Extended Output AToB/BToA/DToB Completeness (ICS) ───────────────
 
 static CheckResult check_cf152_extended_output_atob_btoa_dtob_completen(const ProfileView& pv) {
+    if (VersionMajor(pv) < 5)
+        return CheckResult::skip("Not a v5 profile");
     auto cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
     if (cls != icSigOutputClass)
         return CheckResult::skip("Not Output — ICS extended output N/A");
