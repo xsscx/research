@@ -59,6 +59,12 @@ void applySandboxLimits(const SandboxLimits& limits) {
     asanActive = true;
 #  endif
 #endif
+    // Runtime fallback: if compile-time detection missed (e.g., sanitizer
+    // flags applied only at link time), check ASAN_OPTIONS env var or
+    // probe for ASAN's interceptor symbol via weak reference.
+    if (!asanActive && std::getenv("ASAN_OPTIONS")) {
+        asanActive = true;
+    }
     if (!asanActive) {
         rl.rlim_cur = limits.maxRSS;
         rl.rlim_max = limits.maxRSS;
@@ -145,14 +151,35 @@ runSandboxed(std::function<AnalysisResult()> fn,
             result.stats.findingsBySeverity[4] = 1;
         }
 
-        // Write a simple success marker + stats to parent
-        // Full result transfer uses a minimal binary protocol:
-        // [4 bytes: magic 'ICT\0'] [4 bytes: findingsTotal] [4 bytes: checksRun]
-        // [4 bytes: checksSkipped] [8 bytes: totalTime_us]
-        // [N * Finding: severity(1) + msgLen(4) + msg]
+        // Binary protocol for result transfer:
+        // [4B: magic 'ICT\0']
+        // [ProfileMetadata: 7*4B fixed + 8B fileSize + 16B profileId + 4B magic + 12B illuminant + 4B creatorLen + creator]
+        // [4B: findingsTotal] [4B: checksRun] [4B: checksSkipped] [8B: totalTime_us]
+        // [5*4B: findingsBySeverity]
+        // [4B: nFindings] [N * Finding: sev(1) + kind(1) + num(4) + 3 strings]
         uint8_t magic[4] = {'I', 'C', 'T', '\0'};
         (void)write(pipefd[1], magic, 4);
 
+        // ProfileMetadata (fixed-size fields)
+        auto& md = result.metadata;
+        (void)write(pipefd[1], &md.version, 4);
+        (void)write(pipefd[1], &md.profileClass, 4);
+        (void)write(pipefd[1], &md.colorSpace, 4);
+        (void)write(pipefd[1], &md.pcs, 4);
+        (void)write(pipefd[1], &md.flags, 4);
+        (void)write(pipefd[1], &md.headerSize, 4);
+        (void)write(pipefd[1], &md.fileSize, 8);
+        (void)write(pipefd[1], &md.renderingIntent, 4);
+        (void)write(pipefd[1], &md.manufacturer, 4);
+        (void)write(pipefd[1], &md.model, 4);
+        (void)write(pipefd[1], md.profileId.data(), 16);
+        (void)write(pipefd[1], md.magic.data(), 4);
+        (void)write(pipefd[1], md.illuminant.data(), 12);
+        int32_t creatorLen = static_cast<int32_t>(md.creator.size());
+        (void)write(pipefd[1], &creatorLen, 4);
+        if (creatorLen > 0) (void)write(pipefd[1], md.creator.data(), creatorLen);
+
+        // RunStats
         int32_t findingsTotal = result.stats.findingsTotal;
         int32_t checksRun = result.stats.checksRun;
         int32_t checksSkipped = result.stats.checksSkipped;
@@ -162,22 +189,23 @@ runSandboxed(std::function<AnalysisResult()> fn,
         (void)write(pipefd[1], &checksRun, 4);
         (void)write(pipefd[1], &checksSkipped, 4);
         (void)write(pipefd[1], &totalTime, 8);
+        (void)write(pipefd[1], result.stats.findingsBySeverity.data(),
+                    5 * sizeof(int32_t));
 
-        // Write findings count + each finding
+        // Findings
         int32_t nFindings = static_cast<int32_t>(result.findings.size());
         (void)write(pipefd[1], &nFindings, 4);
+
+        auto writeStr = [&](const std::string& s) {
+            int32_t len = static_cast<int32_t>(s.size());
+            (void)write(pipefd[1], &len, 4);
+            if (len > 0) (void)write(pipefd[1], s.data(), len);
+        };
 
         for (const auto& f : result.findings) {
             uint8_t sev = static_cast<uint8_t>(f.level);
             (void)write(pipefd[1], &sev, 1);
 
-            auto writeStr = [&](const std::string& s) {
-                int32_t len = static_cast<int32_t>(s.size());
-                (void)write(pipefd[1], &len, 4);
-                if (len > 0) (void)write(pipefd[1], s.data(), len);
-            };
-
-            // Write check ID
             uint8_t kind = static_cast<uint8_t>(f.id.kind);
             int32_t num = f.id.number;
             (void)write(pipefd[1], &kind, 1);
@@ -268,18 +296,44 @@ runSandboxed(std::function<AnalysisResult()> fn,
                             "Failed to read result from child (bad magic)"};
     }
 
+    // ProfileMetadata (fixed-size fields)
+    auto& md = result.metadata;
+    (void)read(pipefd[0], &md.version, 4);
+    (void)read(pipefd[0], &md.profileClass, 4);
+    (void)read(pipefd[0], &md.colorSpace, 4);
+    (void)read(pipefd[0], &md.pcs, 4);
+    (void)read(pipefd[0], &md.flags, 4);
+    (void)read(pipefd[0], &md.headerSize, 4);
+    (void)read(pipefd[0], &md.fileSize, 8);
+    (void)read(pipefd[0], &md.renderingIntent, 4);
+    (void)read(pipefd[0], &md.manufacturer, 4);
+    (void)read(pipefd[0], &md.model, 4);
+    (void)read(pipefd[0], md.profileId.data(), 16);
+    (void)read(pipefd[0], md.magic.data(), 4);
+    (void)read(pipefd[0], md.illuminant.data(), 12);
+    int32_t creatorLen = 0;
+    (void)read(pipefd[0], &creatorLen, 4);
+    if (creatorLen > 0 && creatorLen < 256) {
+        md.creator.resize(creatorLen);
+        (void)read(pipefd[0], md.creator.data(), creatorLen);
+    }
+
+    // RunStats
     int32_t findingsTotal = 0, checksRun = 0, checksSkipped = 0;
     int64_t totalTime = 0;
     (void)read(pipefd[0], &findingsTotal, 4);
     (void)read(pipefd[0], &checksRun, 4);
     (void)read(pipefd[0], &checksSkipped, 4);
     (void)read(pipefd[0], &totalTime, 8);
+    (void)read(pipefd[0], result.stats.findingsBySeverity.data(),
+               5 * sizeof(int32_t));
 
     result.stats.findingsTotal = findingsTotal;
     result.stats.checksRun = checksRun;
     result.stats.checksSkipped = checksSkipped;
     result.stats.totalTime = std::chrono::microseconds(totalTime);
 
+    // Findings
     int32_t nFindings = 0;
     (void)read(pipefd[0], &nFindings, 4);
 
