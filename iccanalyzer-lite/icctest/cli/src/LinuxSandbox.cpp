@@ -43,9 +43,13 @@ void applySandboxLimits(const SandboxLimits& limits) {
     // 2. Not dumpable — no ptrace attachment, no core dumps in /proc
     prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
 
-    // 3. Address space limit — skip when ASAN is active.
+    // 3. Memory limits — strategy depends on ASAN presence.
     // ASAN maps ~20TB of virtual address space for shadow memory.
     // RLIMIT_AS would prevent mmap and kill the child immediately.
+    // RLIMIT_DATA also breaks ASAN (its allocator uses mmap, not brk).
+    // When ASAN is active, memory limiting is handled by the PARENT
+    // process via RSS polling in runSandboxed() — see below.
+    // Without ASAN, RLIMIT_AS is the tightest constraint.
     struct rlimit rl;
     bool asanActive = false;
 #if defined(__SANITIZE_ADDRESS__)
@@ -191,9 +195,40 @@ runSandboxed(std::function<AnalysisResult()> fn,
     // ─── Parent process ───
     close(pipefd[1]);  // Close write end
 
-    // Wait for child with timeout
+    // Wait for child with RSS monitoring.
+    // Under ASAN, RLIMIT_AS/DATA can't limit memory, so we poll
+    // /proc/<pid>/statm and kill the child if RSS exceeds the limit.
+    // RSS limit: 4 GB physical (enough for any legitimate ICC profile).
+    constexpr uint64_t kMaxRSSPages = (4ULL * 1024 * 1024 * 1024) / 4096;
     int status = 0;
-    pid_t waited = waitpid(pid, &status, 0);
+    pid_t waited = 0;
+
+    while (true) {
+        waited = waitpid(pid, &status, WNOHANG);
+        if (waited != 0) break;  // Child exited or error
+
+        // Check child RSS via /proc/pid/statm (field 2 = RSS in pages)
+        char statmPath[64];
+        std::snprintf(statmPath, sizeof(statmPath), "/proc/%d/statm", pid);
+        FILE* statm = std::fopen(statmPath, "r");
+        if (statm) {
+            unsigned long vmSize = 0, rss = 0;
+            if (std::fscanf(statm, "%lu %lu", &vmSize, &rss) == 2) {
+                if (rss > kMaxRSSPages) {
+                    kill(pid, SIGKILL);
+                    waitpid(pid, &status, 0);
+                    std::fclose(statm);
+                    close(pipefd[0]);
+                    return SandboxError{SandboxError::Kind::OOM, SIGKILL,
+                        "Child exceeded 4 GB RSS limit (killed by sandbox)"};
+                }
+            }
+            std::fclose(statm);
+        }
+
+        // Poll every 50ms
+        usleep(50000);
+    }
 
     if (waited < 0) {
         close(pipefd[0]);
