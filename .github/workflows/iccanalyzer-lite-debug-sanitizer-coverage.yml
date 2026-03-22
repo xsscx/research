@@ -248,6 +248,90 @@ jobs:
 
           echo "binary_path=$BINARY" >> $GITHUB_ENV
 
+      - name: Build icctest V2 (Debug + ASan + UBSan + Coverage)
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          chmod +x build.sh
+          bash build.sh
+
+          echo "[OK] icctest V2 build complete"
+          ls -lh build/cli/icctest
+          ls -lh build/lib/libIccTest.a
+          ls -lh build/lib/tests/icctest_unit_tests
+
+          # Verify ASAN + coverage instrumentation
+          if nm build/cli/icctest 2>/dev/null | grep -q "__asan_init"; then
+            echo "[OK] icctest ASan instrumentation detected"
+          fi
+          if nm build/cli/icctest 2>/dev/null | grep -q "__llvm_profile"; then
+            echo "[OK] icctest coverage instrumentation detected"
+          fi
+
+      - name: Run icctest V2 unit tests
+        env:
+          BASH_ENV: /dev/null
+          ASAN_OPTIONS: "detect_leaks=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
+
+      - name: Exercise icctest V2 CLI (all modes)
+        env:
+          BASH_ENV: /dev/null
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/profraw/icctest-%p-%m.profraw"
+        run: |
+          set -euo pipefail
+          ICCTEST="iccanalyzer-lite/icctest/build/cli/icctest"
+          PROFILE="test-profiles/sRGB_D65_MAT.icc"
+
+          echo "=== icctest --version ==="
+          $ICCTEST --version
+
+          echo "=== icctest --registry ==="
+          $ICCTEST --registry | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Registry: {d[\"totalChecks\"]} checks')"
+
+          echo "=== icctest -a (comprehensive) ==="
+          $ICCTEST -a "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --json ==="
+          $ICCTEST --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'JSON: {d[\"stats\"][\"checksRun\"]} checks, {d[\"stats\"][\"findingsTotal\"]} findings')"
+
+          echo "=== icctest --sarif ==="
+          $ICCTEST --sarif "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'SARIF: {len(d[\"runs\"][0][\"results\"])} results')"
+
+          echo "=== icctest --report ==="
+          $ICCTEST --report "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --pawg ==="
+          $ICCTEST --pawg "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --csv ==="
+          $ICCTEST --csv "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --no-sandbox ==="
+          $ICCTEST --no-sandbox -a "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --min-severity HIGH ==="
+          $ICCTEST --min-severity HIGH --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'HIGH+ filter: {d[\"stats\"][\"findingsTotal\"]} findings')"
+
+          echo "=== icctest --max-findings 5 ==="
+          $ICCTEST --max-findings 5 --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Max 5: {d[\"stats\"][\"findingsTotal\"]} findings')"
+
+          # Test with multiple profiles
+          echo "=== icctest batch exercise ==="
+          PROFILES=$(find test-profiles/ -name "*.icc" -type f | head -5)
+          for p in $PROFILES; do
+            $ICCTEST -a "$p" > /dev/null 2>&1 || true
+            echo "  [OK] $(basename "$p")"
+          done
+
+          echo "[OK] All icctest V2 CLI modes exercised"
+
       - name: Setup test profiles
         env:
           BASH_ENV: /dev/null
