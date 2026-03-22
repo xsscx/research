@@ -445,7 +445,7 @@ static CheckResult check_cf028_namedcolor2type_coordinate_count(const ProfileVie
 
     icColorSpaceSignature cs = pIcc->m_Header.colorSpace;
     int expected = icGetSpaceSamples(cs);
-    if (nDevCoords != 0 && static_cast<int>(nDevCoords) != expected) {
+    if (nDevCoords > 0 && nDevCoords <= 15 && static_cast<int>(nDevCoords) != expected) {
         findings.push_back(Finding{
             {CheckID::Kind::Conformance, 28}, Severity::MEDIUM,
             "namedColor2Type deviceCoords=" + std::to_string(nDevCoords) +
@@ -494,6 +494,15 @@ static CheckResult check_cf030_multilocalizedunicodetype_structure(const Profile
         uint32_t typeSig = ReadU32BE(raw + off);
         if (typeSig != 0x6D6C7563) continue;
 
+        if (off + sz > rawSize) {
+            char sig[5]; SigToChars(te.signature, sig);
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 30}, Severity::HIGH,
+                std::string("mluc tag '") + sig + "' extends beyond file bounds",
+                "ICC.1-2022-05 §10.13", "CWE-125"});
+            continue;
+        }
+
         uint32_t recordCount = ReadU32BE(raw + off + 8);
         uint32_t recordSize  = ReadU32BE(raw + off + 12);
 
@@ -503,13 +512,26 @@ static CheckResult check_cf030_multilocalizedunicodetype_structure(const Profile
                 {CheckID::Kind::Conformance, 30}, Severity::MEDIUM,
                 std::string("mluc tag '") + sig + "' recordSize=" + std::to_string(recordSize) +
                 " (expected 12)", "ICC.1-2022-05 §10.15", "CWE-20"});
+            continue;
         }
 
-        // Validate offsets within each record
+        uint64_t recordsEnd = 16ull + static_cast<uint64_t>(recordCount) * 12ull;
+        if (recordsEnd > sz) {
+            char sig[5]; SigToChars(te.signature, sig);
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 30}, Severity::HIGH,
+                std::string("mluc tag '") + sig + "' record table exceeds tag size",
+                "ICC.1-2022-05 §10.13", "CWE-131"});
+            continue;
+        }
+
+        std::set<uint32_t> seenPairs;
         for (uint32_t r = 0; r < recordCount && r < 256; r++) {
             uint32_t recOff = off + 16 + r * 12;
             if (recOff + 12 > rawSize) break;
 
+            uint16_t lang  = ReadU16BE(raw + recOff);
+            uint16_t ctry  = ReadU16BE(raw + recOff + 2);
             uint32_t strLen = ReadU32BE(raw + recOff + 4);
             uint32_t strOff = ReadU32BE(raw + recOff + 8);
 
@@ -521,7 +543,18 @@ static CheckResult check_cf030_multilocalizedunicodetype_structure(const Profile
                     " string extends beyond tag (offset=" + std::to_string(strOff) +
                     " len=" + std::to_string(strLen) + " tagSize=" + std::to_string(sz) + ")",
                     "ICC.1-2022-05 §10.15", "CWE-125"});
-                break;
+            }
+
+            uint32_t pairKey = (static_cast<uint32_t>(lang) << 16) | ctry;
+            if (!seenPairs.insert(pairKey).second) {
+                char sig[5]; SigToChars(te.signature, sig);
+                char pairBuf[64];
+                std::snprintf(pairBuf, sizeof(pairBuf),
+                              "mluc tag '%s' duplicate language/country pair (0x%04X/0x%04X) at record %u",
+                              sig, lang, ctry, r);
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 30}, Severity::MEDIUM,
+                    pairBuf, "ICC.1-2022-05 §10.13", "CWE-20"});
             }
         }
     }
@@ -598,7 +631,11 @@ static CheckResult check_cf033_measurementtype_standard_observer(const ProfileVi
     if (!pTag) return CheckResult::skip("No measurementTag");
 
     CIccTagMeasurement *pMeas = dynamic_cast<CIccTagMeasurement *>(pTag);
-    if (!pMeas) return CheckResult::skip("Not CIccTagMeasurement");
+    if (!pMeas) {
+        if (VersionMajor(pv) >= 5 && pTag->GetType() == icSigTagStructType)
+            return CheckResult::ok("measurementTag uses tagStructType — CF-033 not applicable");
+        return CheckResult::skip("Not CIccTagMeasurement");
+    }
 
     icUInt32Number obs = pMeas->m_Data.stdObserver;
     if (obs != 0 && obs != 1 && obs != 2) {
@@ -618,7 +655,11 @@ static CheckResult check_cf034_measurementtype_measurement_geometry(const Profil
     if (!pTag) return CheckResult::skip("No measurementTag");
 
     CIccTagMeasurement *pMeas = dynamic_cast<CIccTagMeasurement *>(pTag);
-    if (!pMeas) return CheckResult::skip("Not CIccTagMeasurement");
+    if (!pMeas) {
+        if (VersionMajor(pv) >= 5 && pTag->GetType() == icSigTagStructType)
+            return CheckResult::ok("measurementTag uses tagStructType — CF-034 not applicable");
+        return CheckResult::skip("Not CIccTagMeasurement");
+    }
 
     icUInt32Number geom = pMeas->m_Data.geometry;
     if (geom != 0 && geom != 1 && geom != 2) {
@@ -778,8 +819,8 @@ static CheckResult check_cf112_xyz_triplet_normalization(const ProfileView& pv) 
 
     std::vector<Finding> findings;
     static const icTagSignature xyzTags[] = {
-        icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag,
-        icSigMediaWhitePointTag, icSigLuminanceTag
+        icSigMediaWhitePointTag, icSigRedColorantTag, icSigGreenColorantTag,
+        icSigBlueColorantTag, icSigLuminanceTag
     };
 
     for (auto sig : xyzTags) {
@@ -798,7 +839,7 @@ static CheckResult check_cf112_xyz_triplet_normalization(const ProfileView& pv) 
                 std::string("XYZ tag '") + s + "' has non-finite value(s)",
                 "ICC.1-2022-05 §10.23", "CWE-682"});
         }
-        if (sig != icSigLuminanceTag && Y < 0.0) {
+        if ((sig == icSigMediaWhitePointTag || sig == icSigLuminanceTag) && Y < 0.0) {
             char s[5]; SigToChars(static_cast<uint32_t>(sig), s);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 112}, Severity::MEDIUM,
@@ -829,23 +870,60 @@ static CheckResult check_cf123_adgc_class_restriction(const ProfileView& pv) {
     bool isRGB = (cs == icSigRgbData);
     bool isInputOrDisplay = (cls == icSigInputClass || cls == icSigDisplayClass);
 
-    if (!isRGB || !isInputOrDisplay) {
-        return {CheckResult::Status::FINDINGS, "ADGC class restriction", {Finding{
+    std::vector<Finding> findings;
+    if (!isRGB) {
+        char csSig[5];
+        SigToChars(static_cast<uint32_t>(cs), csSig);
+        findings.push_back(Finding{
             {CheckID::Kind::Conformance, 123}, Severity::MEDIUM,
-            "ADGC tag present in non-RGB or non-Input/Display profile",
-            "ADGC spec §4.1 — RGB + Input|Display only", "CWE-20"}}};
+            std::string("ADGC present but colorSpace='") + csSig +
+            "' — ADGC requires RGB — ICC.1 ADGC §3",
+            "ADGC spec §4.1 — RGB only", "CWE-20"});
     }
+    if (!isInputOrDisplay) {
+        char clsSig[5];
+        SigToChars(static_cast<uint32_t>(cls), clsSig);
+        findings.push_back(Finding{
+            {CheckID::Kind::Conformance, 123}, Severity::MEDIUM,
+            std::string("ADGC present but class='") + clsSig +
+            "' — ADGC requires Input or Display — ICC.1 ADGC §3",
+            "ADGC spec §4.1 — Input or Display only", "CWE-20"});
+    }
+    if (!findings.empty())
+        return {CheckResult::Status::FINDINGS, "ADGC class restriction", std::move(findings)};
     return CheckResult::ok("ADGC tag in permitted class (RGB + Input|Display)");
 }
 
-// Shared ADGC data validation helper (CF-124..CF-132)
-static CheckResult adgc_data_validation(const ProfileView& pv, int cfId) {
+struct ADGCCurvePos {
+    size_t headerOffset;
+    const char* name;
+};
+
+struct ADGCGainPair {
+    size_t minOffset;
+    size_t maxOffset;
+    const char* name;
+};
+
+static constexpr ADGCCurvePos kADGCCurvePositions[] = {
+    {104, "Red"},
+    {112, "Green"},
+    {120, "Blue"},
+};
+
+static constexpr ADGCGainPair kADGCGainPairs[] = {
+    {36, 40, "Red"},
+    {48, 52, "Green"},
+    {60, 64, "Blue"},
+};
+
+static bool GetADGCRawView(const ProfileView& pv, const uint8_t **data, uint32_t *size) {
     const uint8_t *raw = pv.rawData();
     size_t rawSize = pv.rawSize();
-    if (!raw) return CheckResult::error("No raw data");
+    if (!raw) return false;
 
-    // Find ADGC tag
-    uint32_t adgcOff = 0, adgcSz = 0;
+    uint32_t adgcOff = 0;
+    uint32_t adgcSz = 0;
     for (const auto& te : pv.rawTagTable()) {
         if (te.signature == kADGC_TagSig) {
             adgcOff = te.offset;
@@ -853,14 +931,23 @@ static CheckResult adgc_data_validation(const ProfileView& pv, int cfId) {
             break;
         }
     }
-    if (adgcOff == 0) return CheckResult::skip("No ADGC tag");
-    if (adgcOff + adgcSz > rawSize || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize))
-        return {CheckResult::Status::FINDINGS, "ADGC too small", {Finding{
-            {CheckID::Kind::Conformance, cfId}, Severity::HIGH,
-            "ADGC tag size " + std::to_string(adgcSz) + " < header minimum " + std::to_string(kADGC_HeaderSize),
-            "ADGC spec", "CWE-125"}}};
 
-    const uint8_t *d = raw + adgcOff;
+    if (adgcOff == 0 || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize))
+        return false;
+    if (static_cast<size_t>(adgcOff) + static_cast<size_t>(adgcSz) > rawSize)
+        return false;
+
+    *data = raw + adgcOff;
+    *size = adgcSz;
+    return true;
+}
+
+// Shared ADGC data validation helper (CF-124..CF-132)
+static CheckResult adgc_data_validation(const ProfileView& pv, int cfId) {
+    const uint8_t *d = nullptr;
+    uint32_t adgcSz = 0;
+    if (!GetADGCRawView(pv, &d, &adgcSz))
+        return CheckResult::skip("No ADGC tag or read failed");
     std::vector<Finding> findings;
 
     // CF-124: type sig 'adgc'
@@ -896,15 +983,22 @@ static CheckResult adgc_data_validation(const ProfileView& pv, int cfId) {
 
     // CF-127: float field finiteness
     if (cfId == 127 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
-        // Check several float fields in ADGC header
-        static const int floatOffsets[] = {12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64};
-        for (int fo : floatOffsets) {
-            if (fo + 4 > static_cast<int>(adgcSz)) break;
-            float fv = ReadFloat32BE(d + fo);
+        struct FloatField { size_t offset; const char* name; };
+        static const FloatField fields[] = {
+            {28, "H_baseline"},    {32, "H_alternate"},
+            {36, "Red GainMin"},   {40, "Red GainMax"},   {44, "kRed"},
+            {48, "Green GainMin"}, {52, "Green GainMax"}, {56, "kGreen"},
+            {60, "Blue GainMin"},  {64, "Blue GainMax"},  {68, "kBlue"},
+            {72, "kMax"},          {76, "kMin"},          {80, "kComponent"},
+            {92, "A2B0 headroom"}, {96, "A2B1 headroom"}, {100, "A2B2 headroom"},
+        };
+        for (const auto& field : fields) {
+            if (field.offset + 4 > adgcSz) break;
+            float fv = ReadFloat32BE(d + field.offset);
             if (!std::isfinite(fv)) {
                 findings.push_back(Finding{
                     {CheckID::Kind::Conformance, 127}, Severity::HIGH,
-                    "ADGC float at offset " + std::to_string(fo) + " is non-finite (" +
+                    std::string("ADGC float field '") + field.name + "' is non-finite (" +
                     (std::isnan(fv) ? "NaN" : "Inf") + ")",
                     "ADGC spec §5.3", "CWE-682"});
             }
@@ -913,46 +1007,123 @@ static CheckResult adgc_data_validation(const ProfileView& pv, int cfId) {
 
     // CF-128: weight coefficient sum ≈ 1.0
     if (cfId == 128 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
-        float w1 = ReadFloat32BE(d + 44);
-        float w2 = ReadFloat32BE(d + 48);
-        float w3 = ReadFloat32BE(d + 52);
-        if (std::isfinite(w1) && std::isfinite(w2) && std::isfinite(w3)) {
-            float sum = w1 + w2 + w3;
-            if (std::fabs(sum - 1.0f) > 0.01f) {
-                findings.push_back(Finding{
-                    {CheckID::Kind::Conformance, 128}, Severity::MEDIUM,
-                    "ADGC weight sum=" + std::to_string(sum) + " (expected ~1.0)",
-                    "ADGC spec §5.4", "CWE-682"});
-            }
+        float kRed  = ReadFloat32BE(d + 44);
+        float kGrn  = ReadFloat32BE(d + 56);
+        float kBlu  = ReadFloat32BE(d + 68);
+        float kMax  = ReadFloat32BE(d + 72);
+        float kMin  = ReadFloat32BE(d + 76);
+        float kComp = ReadFloat32BE(d + 80);
+        if (!std::isfinite(kRed) || !std::isfinite(kGrn) || !std::isfinite(kBlu) ||
+            !std::isfinite(kMax) || !std::isfinite(kMin) || !std::isfinite(kComp)) {
+            return CheckResult::skip("ADGC weight sum skipped due to non-finite values");
+        }
+        float sum = kRed + kGrn + kBlu + kMax + kMin + kComp;
+        if (std::fabs(sum - 1.0f) > 0.01f) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 128}, Severity::MEDIUM,
+                "ADGC weight sum=" + std::to_string(sum) + " (expected ~1.0)",
+                "ADGC spec §5.4", "CWE-682"});
         }
     }
 
     // CF-129: curve position bounds
     if (cfId == 129 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
-        uint32_t pos0 = ReadU32BE(d + 96);
-        uint32_t pos1 = ReadU32BE(d + 100);
-        uint32_t pos2 = ReadU32BE(d + 104);
-        if (pos0 >= adgcSz || pos1 >= adgcSz || pos2 >= adgcSz) {
-            findings.push_back(Finding{
-                {CheckID::Kind::Conformance, 129}, Severity::HIGH,
-                "ADGC curve position(s) exceed tag size",
-                "ADGC spec §5.5", "CWE-125"});
+        for (const auto& curve : kADGCCurvePositions) {
+            uint32_t curveOff = ReadU32BE(d + curve.headerOffset);
+            uint32_t curveSize = ReadU32BE(d + curve.headerOffset + 4);
+            if (curveOff == 0 && curveSize == 0) continue;
+            if (curveOff + curveSize > adgcSz) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 129}, Severity::HIGH,
+                    std::string(curve.name) + " curve position exceeds tag size",
+                    "ADGC spec §5.5", "CWE-125"});
+                continue;
+            }
+            if (curveOff + 4 <= adgcSz) {
+                uint32_t count = ReadU32BE(d + curveOff);
+                if (count == 0) {
+                    findings.push_back(Finding{
+                        {CheckID::Kind::Conformance, 129}, Severity::MEDIUM,
+                        std::string(curve.name) + " curve has zero entries",
+                        "ADGC spec Table 2", "CWE-20"});
+                    continue;
+                }
+                uint32_t expectedSize = 4 + count * 12;
+                if (curveSize > 0 && expectedSize > curveSize) {
+                    findings.push_back(Finding{
+                        {CheckID::Kind::Conformance, 129}, Severity::MEDIUM,
+                        std::string(curve.name) + " curve count requires " +
+                        std::to_string(expectedSize) + " bytes but size is " +
+                        std::to_string(curveSize),
+                        "ADGC spec Table 2", "CWE-20"});
+                }
+            }
         }
     }
 
-    // CF-130..132: additional ADGC validations (simplified)
-    if (cfId >= 130 && cfId <= 132 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
-        // CF-130: Image-specific GUID flags check
-        // CF-131: Headroom range plausibility
-        // CF-132: Curve data monotonicity
-        // These checks are detailed in the ADGC spec but implementation depends
-        // on the specific curve data format which varies. We validate basic bounds.
-        float headroom = ReadFloat32BE(d + 24);
-        if (cfId == 131 && std::isfinite(headroom) && (headroom < 0.0f || headroom > 100.0f)) {
+    if (cfId == 130 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
+        bool guidNonZero = false;
+        for (size_t i = 12; i < 28; i++) {
+            if (d[i] != 0) {
+                guidNonZero = true;
+                break;
+            }
+        }
+        if (guidNonZero) {
+            uint32_t flags = pv.header().flags;
+            bool embedded = (flags & 0x00000001u) != 0;
+            bool noIndependentUse = (flags & 0x00000002u) != 0;
+            if (!embedded || !noIndependentUse) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 130}, Severity::HIGH,
+                    "ADGC GUID is non-zero but header flags bits 0 and 1 are not both set",
+                    "ADGC spec §5.6", "CWE-20"});
+            }
+        }
+    }
+
+    if (cfId == 131 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
+        float hBase = ReadFloat32BE(d + 28);
+        float hAlt = ReadFloat32BE(d + 32);
+        if (std::isfinite(hBase) && (hBase < 0.0f || hBase > 20.0f)) {
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 131}, Severity::MEDIUM,
-                "ADGC headroom=" + std::to_string(headroom) + " outside plausible range [0,100]",
+                "ADGC H_baseline=" + std::to_string(hBase) + " outside plausible range [0,20]",
                 "ADGC spec §5.6", "CWE-682"});
+        }
+        if (std::isfinite(hAlt) && (hAlt < 0.0f || hAlt > 20.0f)) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 131}, Severity::MEDIUM,
+                "ADGC H_alternate=" + std::to_string(hAlt) + " outside plausible range [0,20]",
+                "ADGC spec §5.6", "CWE-682"});
+        }
+    }
+
+    if (cfId == 132 && adgcSz >= static_cast<uint32_t>(kADGC_HeaderSize)) {
+        for (const auto& curve : kADGCCurvePositions) {
+            uint32_t curveOff = ReadU32BE(d + curve.headerOffset);
+            uint32_t curveSize = ReadU32BE(d + curve.headerOffset + 4);
+            if (curveOff == 0 && curveSize == 0) continue;
+            if (curveOff + 4 > adgcSz) continue;
+            uint32_t count = ReadU32BE(d + curveOff);
+            if (count < 2) continue;
+
+            float prevX = -1e30f;
+            uint32_t maxCheck = count > 1000 ? 1000 : count;
+            for (uint32_t i = 0; i < maxCheck; i++) {
+                size_t xOff = curveOff + 4 + i * 12;
+                if (xOff + 4 > adgcSz) break;
+                float x = ReadFloat32BE(d + xOff);
+                if (std::isfinite(x) && std::isfinite(prevX) && x <= prevX) {
+                    findings.push_back(Finding{
+                        {CheckID::Kind::Conformance, 132}, Severity::HIGH,
+                        std::string(curve.name) + " curve entry " + std::to_string(i) +
+                        " is not monotonically increasing",
+                        "ADGC spec Table 2", "CWE-682"});
+                    break;
+                }
+                prevX = x;
+            }
         }
     }
 
@@ -972,50 +1143,36 @@ static CheckResult check_cf131_adgc_headroom_range(const ProfileView& pv) { retu
 static CheckResult check_cf132_adgc_curve_monotonicity(const ProfileView& pv) { return adgc_data_validation(pv, 132); }
 
 static CheckResult check_cf133_adgc_division_by_zero_guard(const ProfileView& pv) {
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
-    uint32_t adgcOff = 0, adgcSz = 0;
-    for (const auto& te : pv.rawTagTable()) {
-        if (te.signature == kADGC_TagSig) { adgcOff = te.offset; adgcSz = te.size; break; }
-    }
-    if (adgcOff == 0 || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize))
-        return CheckResult::skip("No ADGC tag or too small");
-    if (adgcOff + adgcSz > rawSize) return CheckResult::skip("ADGC out of bounds");
-
-    const uint8_t *d = raw + adgcOff;
+    const uint8_t *d = nullptr;
+    uint32_t adgcSz = 0;
+    if (!GetADGCRawView(pv, &d, &adgcSz))
+        return CheckResult::skip("No ADGC tag or read failed");
     float hBase = ReadFloat32BE(d + 28);
     float hAlt  = ReadFloat32BE(d + 32);
 
-    if (std::isfinite(hBase) && std::isfinite(hAlt) && std::fabs(hBase - hAlt) < 1e-9f) {
+    if (std::isfinite(hBase) && std::isfinite(hAlt) && hBase == hAlt) {
         return {CheckResult::Status::FINDINGS, "ADGC division by zero risk", {Finding{
             {CheckID::Kind::Conformance, 133}, Severity::HIGH,
             "H_baseline ≈ H_alternate → division by zero in gain computation",
             "ADGC spec §5.7", "CWE-369"}}};
     }
-    return CheckResult::ok("ADGC H_baseline != H_alternate");
+    return CheckResult::ok("ADGC H_baseline != H_alternate (no div-by-zero)");
 }
 
 static CheckResult check_cf134_adgc_per_channel_gain_range(const ProfileView& pv) {
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
-    uint32_t adgcOff = 0, adgcSz = 0;
-    for (const auto& te : pv.rawTagTable()) {
-        if (te.signature == kADGC_TagSig) { adgcOff = te.offset; adgcSz = te.size; break; }
-    }
-    if (adgcOff == 0 || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize))
-        return CheckResult::skip("No ADGC tag or too small");
-    if (adgcOff + adgcSz > rawSize) return CheckResult::skip("ADGC out of bounds");
-
-    const uint8_t *d = raw + adgcOff;
+    const uint8_t *d = nullptr;
+    uint32_t adgcSz = 0;
+    if (!GetADGCRawView(pv, &d, &adgcSz))
+        return CheckResult::skip("No ADGC tag or read failed");
     std::vector<Finding> findings;
 
-    for (int ch = 0; ch < 3; ch++) {
-        float gainMin = ReadFloat32BE(d + 36 + ch*8);
-        float gainMax = ReadFloat32BE(d + 40 + ch*8);
+    for (const auto& gain : kADGCGainPairs) {
+        float gainMin = ReadFloat32BE(d + gain.minOffset);
+        float gainMax = ReadFloat32BE(d + gain.maxOffset);
         if (std::isfinite(gainMin) && std::isfinite(gainMax) && gainMin > gainMax) {
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 134}, Severity::MEDIUM,
-                "ADGC channel " + std::to_string(ch) + " GainMin=" +
+                std::string(gain.name) + " GainMin=" +
                 std::to_string(gainMin) + " > GainMax=" + std::to_string(gainMax),
                 "ADGC spec §5.8", "CWE-682"});
         }
@@ -1027,32 +1184,83 @@ static CheckResult check_cf134_adgc_per_channel_gain_range(const ProfileView& pv
 }
 
 static CheckResult check_cf135_adgc_curve_x_domain(const ProfileView& pv) {
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
-    uint32_t adgcOff = 0, adgcSz = 0;
-    for (const auto& te : pv.rawTagTable()) {
-        if (te.signature == kADGC_TagSig) { adgcOff = te.offset; adgcSz = te.size; break; }
-    }
-    if (adgcOff == 0 || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize + 8))
-        return CheckResult::skip("No ADGC tag or too small for curve data");
-    if (adgcOff + adgcSz > rawSize) return CheckResult::skip("ADGC out of bounds");
+    const uint8_t *d = nullptr;
+    uint32_t adgcSz = 0;
+    if (!GetADGCRawView(pv, &d, &adgcSz))
+        return CheckResult::skip("No ADGC tag or read failed");
+    std::vector<Finding> findings;
 
-    // Curve data starts after header; check first curve x values in [0,1]
-    return CheckResult::ok("ADGC curve x-domain validated");
+    for (const auto& curve : kADGCCurvePositions) {
+        uint32_t curveOff = ReadU32BE(d + curve.headerOffset);
+        uint32_t curveSize = ReadU32BE(d + curve.headerOffset + 4);
+        if (curveOff == 0 && curveSize == 0) continue;
+        if (curveOff + 4 > adgcSz) continue;
+        uint32_t count = ReadU32BE(d + curveOff);
+        if (count == 0) continue;
+
+        size_t firstXOff = curveOff + 4;
+        if (firstXOff + 4 <= adgcSz) {
+            float firstX = ReadFloat32BE(d + firstXOff);
+            if (std::isfinite(firstX) && firstX < 0.0f) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 135}, Severity::MEDIUM,
+                    std::string(curve.name) + " curve first x=" + std::to_string(firstX) + " < 0.0",
+                    "ADGC spec §5.9", "CWE-682"});
+            }
+        }
+
+        size_t lastXOff = curveOff + 4 + (count - 1) * 12;
+        if (lastXOff + 4 <= adgcSz) {
+            float lastX = ReadFloat32BE(d + lastXOff);
+            if (std::isfinite(lastX) && lastX > 1.0f) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 135}, Severity::MEDIUM,
+                    std::string(curve.name) + " curve last x=" + std::to_string(lastX) + " > 1.0",
+                    "ADGC spec §5.9", "CWE-682"});
+            }
+        }
+    }
+
+    if (findings.empty())
+        return CheckResult::ok("ADGC curve x-domain validated");
+    return {CheckResult::Status::FINDINGS, "ADGC curve x-domain issues", std::move(findings)};
 }
 
 static CheckResult check_cf136_adgc_curve_adjacent_x_equality(const ProfileView& pv) {
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
-    uint32_t adgcOff = 0, adgcSz = 0;
-    for (const auto& te : pv.rawTagTable()) {
-        if (te.signature == kADGC_TagSig) { adgcOff = te.offset; adgcSz = te.size; break; }
-    }
-    if (adgcOff == 0 || adgcSz < static_cast<uint32_t>(kADGC_HeaderSize + 8))
-        return CheckResult::skip("No ADGC tag or too small");
-    if (adgcOff + adgcSz > rawSize) return CheckResult::skip("ADGC out of bounds");
+    const uint8_t *d = nullptr;
+    uint32_t adgcSz = 0;
+    if (!GetADGCRawView(pv, &d, &adgcSz))
+        return CheckResult::skip("No ADGC tag or read failed");
+    std::vector<Finding> findings;
 
-    return CheckResult::ok("ADGC adjacent x-value check passed");
+    for (const auto& curve : kADGCCurvePositions) {
+        uint32_t curveOff = ReadU32BE(d + curve.headerOffset);
+        uint32_t curveSize = ReadU32BE(d + curve.headerOffset + 4);
+        if (curveOff == 0 && curveSize == 0) continue;
+        if (curveOff + 4 > adgcSz) continue;
+        uint32_t count = ReadU32BE(d + curveOff);
+        if (count < 2) continue;
+
+        uint32_t maxCheck = count > 1000 ? 1000 : count;
+        for (uint32_t i = 1; i < maxCheck; i++) {
+            size_t prevXOff = curveOff + 4 + (i - 1) * 12;
+            size_t curXOff = curveOff + 4 + i * 12;
+            if (curXOff + 4 > adgcSz) break;
+            float prevX = ReadFloat32BE(d + prevXOff);
+            float curX = ReadFloat32BE(d + curXOff);
+            if (std::isfinite(prevX) && std::isfinite(curX) && prevX == curX) {
+                findings.push_back(Finding{
+                    {CheckID::Kind::Conformance, 136}, Severity::HIGH,
+                    std::string(curve.name) + " curve adjacent points share x=" + std::to_string(curX),
+                    "ADGC spec §5.10", "CWE-369"});
+                break;
+            }
+        }
+    }
+
+    if (findings.empty())
+        return CheckResult::ok("ADGC adjacent x-value check passed");
+    return {CheckResult::Status::FINDINGS, "ADGC adjacent x-value issues", std::move(findings)};
 }
 
 
@@ -1232,20 +1440,22 @@ static CheckResult check_cf153_embedded_profile_tag_presence(const ProfileView& 
 }
 
 static CheckResult check_cf159_dictionary_name_uniqueness(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
-    auto tags = pv.rawTagTable();
+    int dictCount = 0;
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigDictType) continue;
+        dictCount++;
 
-    for (const auto& te : tags) {
-        CIccTag *pTag = pIcc->FindTag(static_cast<icTagSignature>(te.signature));
-        if (!pTag) continue;
         CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
         if (!pDict) continue;
 
         if (!pDict->AreNamesUnique()) {
-            char sig[5]; SigToChars(te.signature, sig);
+            char sig[5]; SigToChars(static_cast<uint32_t>(it->TagInfo.sig), sig);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 159}, Severity::MEDIUM,
                 std::string("Dictionary tag '") + sig + "' has duplicate names",
@@ -1253,26 +1463,30 @@ static CheckResult check_cf159_dictionary_name_uniqueness(const ProfileView& pv)
         }
     }
 
+    if (dictCount == 0)
+        return CheckResult::skip("No dictType tags found - check not applicable");
     if (findings.empty())
-        return CheckResult::ok("Dictionary names are unique");
+        return CheckResult::ok("All dictType tags have unique names");
     return {CheckResult::Status::FINDINGS, "Duplicate dictionary names", std::move(findings)};
 }
 
 static CheckResult check_cf160_dictionary_name_non_zero(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
-    auto tags = pv.rawTagTable();
+    int dictCount = 0;
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigDictType) continue;
+        dictCount++;
 
-    for (const auto& te : tags) {
-        CIccTag *pTag = pIcc->FindTag(static_cast<icTagSignature>(te.signature));
-        if (!pTag) continue;
         CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
         if (!pDict) continue;
 
         if (!pDict->AreNamesNonzero()) {
-            char sig[5]; SigToChars(te.signature, sig);
+            char sig[5]; SigToChars(static_cast<uint32_t>(it->TagInfo.sig), sig);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 160}, Severity::MEDIUM,
                 std::string("Dictionary tag '") + sig + "' has zero-length names",
@@ -1280,39 +1494,41 @@ static CheckResult check_cf160_dictionary_name_non_zero(const ProfileView& pv) {
         }
     }
 
+    if (dictCount == 0)
+        return CheckResult::skip("No dictType tags found - check not applicable");
     if (findings.empty())
-        return CheckResult::ok("Dictionary names are non-zero");
+        return CheckResult::ok("All dictType tags have non-zero names");
     return {CheckResult::Status::FINDINGS, "Zero-length dictionary names", std::move(findings)};
 }
 
 static CheckResult check_cf161_dictionary_record_length_alignment(const ProfileView& pv) {
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
-    if (!raw) return CheckResult::error("No raw data");
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
+    int dictCount = 0;
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        CIccTag *pTag = pIcc->FindTag(it->TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigDictType) continue;
+        dictCount++;
 
-    for (const auto& te : pv.rawTagTable()) {
-        uint32_t off = te.offset;
-        uint32_t sz  = te.size;
-        if (off + 24 > rawSize || sz < 24) continue;
+        CIccTagDict *pDict = dynamic_cast<CIccTagDict *>(pTag);
+        if (!pDict) continue;
 
-        uint32_t typeSig = ReadU32BE(raw + off);
-        if (typeSig != static_cast<uint32_t>(icSigDictType)) continue;
-
-        uint32_t recLen = ReadU32BE(raw + off + 12);
-        if (recLen != 16 && recLen != 24 && recLen != 32) {
-            char sig[5]; SigToChars(te.signature, sig);
+        if (!pDict->m_Dict || pDict->m_Dict->empty()) {
+            char sig[5]; SigToChars(static_cast<uint32_t>(it->TagInfo.sig), sig);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 161}, Severity::MEDIUM,
-                std::string("Dictionary tag '") + sig + "' recordLength=" +
-                std::to_string(recLen) + " (expected 16, 24, or 32)",
-                "ICC.2-2023 §10.1", "CWE-20"});
+                std::string("Dictionary tag '") + sig + "' has empty record structure",
+                "May indicate parse failure or zero records", ""});
         }
     }
 
+    if (dictCount == 0)
+        return CheckResult::skip("No dictType tags found - check not applicable");
     if (findings.empty())
-        return CheckResult::ok("Dictionary record lengths valid");
+        return CheckResult::ok("All dictType tags have valid record structure");
     return {CheckResult::Status::FINDINGS, "Dict record length issues", std::move(findings)};
 }
 
@@ -1370,11 +1586,41 @@ static CheckResult check_cf170_chad_negative_xyz_consistency(const ProfileView& 
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
-    if (!pv.hasTag(icSigChromaticAdaptationTag))
-        return CheckResult::skip("No chad tag");
+    static const struct {
+        icTagSignature sig;
+        const char* name;
+    } matTags[] = {
+        {icSigRedMatrixColumnTag, "rXYZ"},
+        {icSigGreenMatrixColumnTag, "gXYZ"},
+        {icSigBlueMatrixColumnTag, "bXYZ"},
+    };
 
-    // With chad, the adopted white may differ from D50, allowing wider XYZ gamut
-    return CheckResult::ok("chad + negative XYZ consistency acknowledged");
+    bool hasAllColumns = true;
+    bool hasNegative = false;
+    for (const auto& tagInfo : matTags) {
+        CIccTag *tag = pIcc->FindTag(tagInfo.sig);
+        CIccTagXYZ *xyz = tag ? dynamic_cast<CIccTagXYZ *>(tag) : nullptr;
+        if (!xyz || xyz->GetSize() < 1) {
+            hasAllColumns = false;
+            continue;
+        }
+
+        icXYZNumber val = (*xyz)[0];
+        if (icFtoD(val.X) < 0.0 || icFtoD(val.Y) < 0.0 || icFtoD(val.Z) < 0.0)
+            hasNegative = true;
+    }
+
+    if (!hasAllColumns)
+        return CheckResult::ok("Matrix column tags not all present — check not applicable");
+    if (!hasNegative)
+        return CheckResult::ok("No negative matrix column values");
+    if (!pv.hasTag(icSigChromaticAdaptationTag)) {
+        return {CheckResult::Status::FINDINGS, "Negative XYZ values without chad", {Finding{
+            {CheckID::Kind::Conformance, 170}, Severity::MEDIUM,
+            "Negative XYZ from chromatic adaptation requires chad tag to document the adaptation transform",
+            "ICC TN Negative PCSXYZ §9.2.10", ""}}};
+    }
+    return CheckResult::ok("Negative XYZ values documented by chad");
 }
 
 static CheckResult check_cf171_white_point_non_negative_luminance(const ProfileView& pv) {
@@ -1426,24 +1672,18 @@ static CheckResult check_cf172_colorant_sum_white_point_consistency(const Profil
 
     double wX = icFtoD((*w)[0].X), wY = icFtoD((*w)[0].Y), wZ = icFtoD((*w)[0].Z);
 
-    std::vector<Finding> findings;
     double tol = 0.05;
-    if (std::fabs(sumX - wX) > tol)
-        findings.push_back(Finding{{CheckID::Kind::Conformance, 172}, Severity::MEDIUM,
-            "Sum of matrix columns X=" + std::to_string(sumX) + " vs wtpt X=" + std::to_string(wX),
-            "ICC.1-2022-05 §9.2.49", ""});
-    if (std::fabs(sumY - wY) > tol)
-        findings.push_back(Finding{{CheckID::Kind::Conformance, 172}, Severity::MEDIUM,
-            "Sum of matrix columns Y=" + std::to_string(sumY) + " vs wtpt Y=" + std::to_string(wY),
-            "ICC.1-2022-05 §9.2.49", ""});
-    if (std::fabs(sumZ - wZ) > tol)
-        findings.push_back(Finding{{CheckID::Kind::Conformance, 172}, Severity::MEDIUM,
-            "Sum of matrix columns Z=" + std::to_string(sumZ) + " vs wtpt Z=" + std::to_string(wZ),
-            "ICC.1-2022-05 §9.2.49", ""});
-
-    if (findings.empty())
+    double dX = std::fabs(sumX - wX);
+    double dY = std::fabs(sumY - wY);
+    double dZ = std::fabs(sumZ - wZ);
+    if (dX <= tol && dY <= tol && dZ <= tol)
         return CheckResult::ok("Colorant sum ≈ white point (within 0.05)");
-    return {CheckResult::Status::FINDINGS, "Colorant sum != white point", std::move(findings)};
+    return {CheckResult::Status::FINDINGS, "Colorant sum != white point", {Finding{
+        {CheckID::Kind::Conformance, 172}, Severity::MEDIUM,
+        "Colorant sum deviates from white point (dX=" + std::to_string(dX) +
+        ", dY=" + std::to_string(dY) + ", dZ=" + std::to_string(dZ) +
+        ", tolerance=" + std::to_string(tol) + ")",
+        "ICC TN Negative PCSXYZ §9.2.7", ""}}};
 }
 
 static CheckResult check_cf173_pcs_xyz_absorber_encoding(const ProfileView& pv) {
@@ -1769,16 +2009,50 @@ static CheckResult check_cf221_profile_sequence_desc_structure(const ProfileView
     if (!pIcc) return CheckResult::error("No library handle");
 
     CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
-    if (!pTag) return CheckResult::skip("No profileSequenceDescTag");
+    if (!pTag) {
+        uint32_t version = pv.header().version;
+        bool required = (pv.header().deviceClass == static_cast<uint32_t>(icSigLinkClass) &&
+                         version >= icVersionNumberV4);
+        if (required) {
+            return {CheckResult::Status::FINDINGS, "Missing profileSequenceDescTag", {Finding{
+                {CheckID::Kind::Conformance, 221}, Severity::MEDIUM,
+                "profileSequenceDescTag required for v4+ DeviceLink profiles",
+                "ICC.1-2022-05 §9.2.50", "CWE-20"}}};
+        }
+        return CheckResult::ok("No profileSequenceDescTag — not required for this class");
+    }
 
     CIccTagProfileSeqDesc *pPSD = dynamic_cast<CIccTagProfileSeqDesc *>(pTag);
-    if (!pPSD) return CheckResult::skip("Not CIccTagProfileSeqDesc");
-
-    if (!pPSD->m_Descriptions || pPSD->m_Descriptions->size() == 0) {
-        return {CheckResult::Status::FINDINGS, "Empty pseq", {Finding{
+    if (!pPSD || !pPSD->m_Descriptions) {
+        return {CheckResult::Status::FINDINGS, "Invalid pseq type", {Finding{
             {CheckID::Kind::Conformance, 221}, Severity::MEDIUM,
-            "profileSequenceDescTag has 0 entries", "ICC.1-2022-05 §10.18", "CWE-20"}}};
+            "profileSequenceDescTag has wrong type or null descriptions",
+            "ICC.1-2022-05 §9.2.50", "CWE-20"}}};
     }
+
+    std::vector<Finding> findings;
+    size_t descCount = pPSD->m_Descriptions->size();
+    if (descCount == 0) {
+        findings.push_back(Finding{
+            {CheckID::Kind::Conformance, 221}, Severity::MEDIUM,
+            "profileSequenceDescTag has 0 entries", "ICC.1-2022-05 §9.2.50", "CWE-20"});
+    }
+    if (pv.header().deviceClass == static_cast<uint32_t>(icSigLinkClass) && descCount == 1) {
+        findings.push_back(Finding{
+            {CheckID::Kind::Conformance, 221}, Severity::MEDIUM,
+            "DeviceLink profileSequenceDescTag has only 1 description (expected at least 2)",
+            "ICC.1-2022-05 §9.2.50", "CWE-20"});
+    }
+    if (descCount > 256) {
+        findings.push_back(Finding{
+            {CheckID::Kind::Conformance, 221}, Severity::HIGH,
+            "profileSequenceDescTag has " + std::to_string(descCount) +
+            " descriptions (reasonable maximum is 256)",
+            "ICC.1-2022-05 §9.2.50", "CWE-20"});
+    }
+
+    if (!findings.empty())
+        return {CheckResult::Status::FINDINGS, "profileSequenceDescTag structure issues", std::move(findings)};
     return CheckResult::ok("profileSequenceDescTag structure valid");
 }
 
@@ -2009,18 +2283,54 @@ static CheckResult check_cf228_gray_trc_semantics(const ProfileView& pv) {
 }
 
 static CheckResult check_cf229_rendering_intent_dominance(const ProfileView& pv) {
-    uint32_t intent = pv.header().renderingIntent;
-    icProfileClassSignature devClass = static_cast<icProfileClassSignature>(pv.header().deviceClass);
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
 
-    // Perceptual intent is default (0) — expected for most profiles
-    // Relative colorimetric (1) is preferred for proofing workflows
-    if (devClass == icSigLinkClass && intent != 0 && intent != 1 && intent != 2 && intent != 3) {
-        return {CheckResult::Status::FINDINGS, "Invalid intent for DeviceLink", {Finding{
-            {CheckID::Kind::Conformance, 229}, Severity::MEDIUM,
-            "DeviceLink profile has non-standard rendering intent " + std::to_string(intent),
-            "ICC.1-2022-05 §7.2.15", "CWE-20"}}};
+    icProfileClassSignature cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
+
+    int atobCount = 0;
+    int btoaCount = 0;
+    if (pIcc->FindTag(icSigAToB0Tag)) atobCount++;
+    if (pIcc->FindTag(icSigAToB1Tag)) atobCount++;
+    if (pIcc->FindTag(icSigAToB2Tag)) atobCount++;
+    if (pIcc->FindTag(icSigBToA0Tag)) btoaCount++;
+    if (pIcc->FindTag(icSigBToA1Tag)) btoaCount++;
+    if (pIcc->FindTag(icSigBToA2Tag)) btoaCount++;
+
+    std::vector<Finding> findings;
+    if (cls == icSigInputClass) {
+        if (atobCount == 0 && btoaCount > 0) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 229}, Severity::MEDIUM,
+                "Input profile has BToA but no AToB — AToB should be dominant",
+                "ICC v2->v4 TN", "CWE-20"});
+        }
+        if (atobCount > 0 && !pIcc->FindTag(icSigAToB0Tag)) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 229}, Severity::MEDIUM,
+                "Input profile has AToB tags but missing AToB0 (Perceptual)",
+                "ICC v2->v4 TN", "CWE-20"});
+        }
+    } else if (cls == icSigDisplayClass || cls == icSigOutputClass) {
+        if (btoaCount == 0 && atobCount > 0) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 229}, Severity::MEDIUM,
+                std::string(cls == icSigDisplayClass ? "Display" : "Output") +
+                " profile has AToB but no BToA — BToA should be dominant",
+                "ICC v2->v4 TN", "CWE-20"});
+        }
+        if (btoaCount > 0 && !pIcc->FindTag(icSigBToA0Tag)) {
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 229}, Severity::MEDIUM,
+                std::string(cls == icSigDisplayClass ? "Display" : "Output") +
+                " profile has BToA tags but missing BToA0",
+                "ICC v2->v4 TN", "CWE-20"});
+        }
     }
-    return CheckResult::ok("Rendering intent per class acceptable");
+
+    if (findings.empty())
+        return CheckResult::ok("Rendering intent dominance consistent with profile class");
+    return {CheckResult::Status::FINDINGS, "Rendering intent dominance issue", std::move(findings)};
 }
 
 static CheckResult check_cf230_cielab_encoding_consistency(const ProfileView& pv) {
@@ -2385,6 +2695,9 @@ static CheckResult check_cf273_primary_colorant_xyz_positive(const ProfileView& 
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
+    if (pv.header().colorSpace != static_cast<uint32_t>(icSigRgbData))
+        return CheckResult::ok("Not RGB — primary colorant XYZ plausibility not applicable");
+
     std::vector<Finding> findings;
     static const icTagSignature matTags[] = {
         icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
@@ -2400,20 +2713,26 @@ static CheckResult check_cf273_primary_colorant_xyz_positive(const ProfileView& 
         icXYZNumber val = (*pXYZ)[0];
         double X = icFtoD(val.X), Y = icFtoD(val.Y), Z = icFtoD(val.Z);
 
-        // Wide-gamut profiles (e.g., BT.2020) can have negative primaries — warn only
-        if (X < -0.5 || Y < -0.5 || Z < -0.5) {
+        if (Y < 0.0) {
             char s[5]; SigToChars(static_cast<uint32_t>(sig), s);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 273}, Severity::LOW,
-                std::string("Colorant '") + s + "' has large negative XYZ (" +
-                std::to_string(X) + ", " + std::to_string(Y) + ", " + std::to_string(Z) + ")",
+                std::string("Colorant '") + s + "' has negative Y=" + std::to_string(Y),
                 "ICC.1-2022-05 §9.2.49", ""});
+        }
+        if (X < -2.0 || X > 3.0 || Y > 3.0 || Z < -2.0 || Z > 3.0) {
+            char s[5]; SigToChars(static_cast<uint32_t>(sig), s);
+            findings.push_back(Finding{
+                {CheckID::Kind::Conformance, 273}, Severity::LOW,
+                std::string("Colorant '") + s + "' values out of plausible range (" +
+                std::to_string(X) + ", " + std::to_string(Y) + ", " + std::to_string(Z) + ")",
+                "ICC.1-2022-05 §10.28", ""});
         }
     }
 
     if (findings.empty())
         return CheckResult::ok("Colorant XYZ values acceptable");
-    return {CheckResult::Status::FINDINGS, "Large negative colorants", std::move(findings)};
+    return {CheckResult::Status::FINDINGS, "Primary colorant XYZ issues", std::move(findings)};
 }
 
 static CheckResult check_cf274_primary_colorant_chromaticity_sum_nonzero(const ProfileView& pv) {
@@ -2515,16 +2834,7 @@ static CheckResult check_cf278_chad_must_be_s15fixed16array(const ProfileView& p
             std::string("chromaticAdaptationTag type='") + ts + "' (must be s15Fixed16ArrayType)",
             "ICC.1-2022-05 §9.2.17", "CWE-843"}}};
     }
-
-    CIccTagS15Fixed16 *pFixed = dynamic_cast<CIccTagS15Fixed16 *>(pTag);
-    if (pFixed && pFixed->GetSize() != 9) {
-        return {CheckResult::Status::FINDINGS, "Wrong chad size", {Finding{
-            {CheckID::Kind::Conformance, 278}, Severity::MEDIUM,
-            "chromaticAdaptation array has " + std::to_string(pFixed->GetSize()) + " elements (expected 9)",
-            "ICC.1-2022-05 §9.2.17", "CWE-131"}}};
-    }
-
-    return CheckResult::ok("chad is s15Fixed16ArrayType with 9 elements");
+    return CheckResult::ok("chromaticAdaptationTag is s15Fixed16ArrayType");
 }
 
 static CheckResult check_cf279_trc_curve_values_non_negative(const ProfileView& pv) {
@@ -2568,29 +2878,25 @@ static CheckResult check_cf280_xyz_element_luminance_non_negative(const ProfileV
     if (!pIcc) return CheckResult::error("No library handle");
 
     std::vector<Finding> findings;
-    static const icTagSignature xyzTags[] = {
-        icSigMediaWhitePointTag, icSigLuminanceTag,
-        icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
-    };
-
-    for (auto sig : xyzTags) {
-        CIccTag *pTag = pIcc->FindTag(sig);
-        if (!pTag) continue;
+    for (const auto& entry : pIcc->m_Tags) {
+        CIccTag *pTag = pIcc->FindTag(entry.TagInfo.sig);
+        if (!pTag || pTag->GetType() != icSigXYZType) continue;
 
         CIccTagXYZ *pXYZ = dynamic_cast<CIccTagXYZ *>(pTag);
-        if (!pXYZ || pXYZ->GetSize() < 1) continue;
+        if (!pXYZ) continue;
 
-        double Y = icFtoD((*pXYZ)[0].Y);
-        // Luminance (Y) should be non-negative for physical quantities
-        // Exception: matrix columns for wide-gamut can have slightly negative Y
-        if (sig == icSigMediaWhitePointTag || sig == icSigLuminanceTag) {
-            if (Y < 0.0) {
-                char s[5]; SigToChars(static_cast<uint32_t>(sig), s);
+        char sig[5];
+        SigToChars(static_cast<uint32_t>(entry.TagInfo.sig), sig);
+        for (icUInt32Number i = 0; i < pXYZ->GetSize(); i++) {
+            icXYZNumber *xyz = pXYZ->GetXYZ(i);
+            if (!xyz) continue;
+            double Y = icFtoD(xyz->Y);
+            if (Y < -0.001) {
                 findings.push_back(Finding{
                     {CheckID::Kind::Conformance, 280}, Severity::HIGH,
-                    std::string("XYZ tag '") + s + "' Y=" + std::to_string(Y) +
-                    " (negative luminance non-physical)",
-                    "ICC.1-2022-05 §9.2", "CWE-682"});
+                    std::string("XYZ tag '") + sig + "' element " + std::to_string(i) +
+                    " has negative Y=" + std::to_string(Y),
+                    "ICC.1-2022-05 §10.28", "CWE-682"});
             }
         }
     }

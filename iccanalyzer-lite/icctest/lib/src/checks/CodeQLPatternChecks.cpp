@@ -14,13 +14,49 @@ namespace icctest {
 // ── H154: Uncontrolled Tag Allocation Size ──
 static CheckResult check_h154_uncontrolled_alloc(const ProfileView& pv) {
     CheckBuilder cb;
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (len < 132) return CheckResult::skip("File too small for tag table");
 
     for (const auto& t : pv.rawTagTable()) {
-        // Tag sizes that would cause new[]/malloc() without bounds checking
-        if (t.size > 64 * 1024 * 1024) { // 64 MB
-            cb.critical(sfmt("Tag '%s' size %u (%.1f MB) — uncontrolled allocation",
-                              sigStr(t.signature).c_str(), t.size, t.size / (1024.0*1024.0)),
-                        "CWE-789: Memory Allocation with Excessive Size");
+        if (static_cast<uint64_t>(t.offset) <= len &&
+            static_cast<uint64_t>(t.size) <= len &&
+            static_cast<uint64_t>(t.offset) + t.size <= len) {
+            continue;
+        }
+
+        cb.critical(
+            sfmt("Tag '%s': offset=%u size=%u exceeds file (%zu bytes)",
+                 sigStr(t.signature).c_str(), t.offset, t.size, len),
+            "CWE-789: Uncontrolled allocation");
+    }
+
+    for (const auto& t : pv.rawTagTable()) {
+        if (t.size < 12 || t.offset + 12 > len) continue;
+
+        uint32_t typeSig = readU32BE(d + t.offset);
+        if (typeSig == 0x6E636C32 && t.size >= 16) {
+            uint32_t nDevCoords = readU32BE(d + t.offset + 12);
+            if (nDevCoords > 15) {
+                cb.critical(
+                    sfmt("NamedColor2: nDeviceCoords=%u (ICC spec max=15)", nDevCoords),
+                    "CWE-789: Unbounded allocation in NamedColor2 Read()");
+            }
+        }
+
+        if ((typeSig == 0x6D414220 || typeSig == 0x6D424120) && t.size >= 28) {
+            const char* subNames[] = {"Bcurves", "Matrix", "Acurves", "CLUT"};
+            for (int i = 0; i < 4; i++) {
+                uint32_t subOff = readU32BE(d + t.offset + 12 + i * 4);
+                if (subOff > 0 && subOff >= t.size) {
+                    cb.critical(
+                        sfmt("Tag '%s' (%s): %s offset=%u exceeds tag size (%u)",
+                             sigStr(t.signature).c_str(),
+                             typeSig == 0x6D414220 ? "mAB" : "mBA",
+                             subNames[i], subOff, t.size),
+                        "CWE-789: Out-of-bounds sub-element offset causes uncontrolled allocation");
+                }
+            }
         }
     }
 
@@ -32,32 +68,128 @@ static CheckResult check_h155_dimension_overflow(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
+    if (len < 132) return CheckResult::skip("File too small");
 
-    // Check GBD nTriangles*3 overflow (CWE-190)
-    constexpr uint32_t kGbdType = 0x67626420;
-    for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 20 || t.offset + 20 > len) continue;
-        uint32_t typeSig = readU32BE(d + t.offset);
-        if (typeSig != kGbdType) continue;
-
-        uint32_t nTriangles = readU32BE(d + t.offset + 16);
-        if (nTriangles > 715827882U) {
-            cb.critical(sfmt("GBD nTriangles=%u — overflow in nTriangles*3", nTriangles),
-                        "CWE-190: Integer Overflow or Wraparound");
-        }
+    uint32_t tagCount = readU32BE(d + 128);
+    if (tagCount == 0 || tagCount > 1000) {
+        return CheckResult::skip("Invalid tag count");
     }
 
-    // Check NamedColor2 nDeviceCoords
-    constexpr uint32_t kNcl2Type = 0x6E636C32; // 'ncl2'
-    for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 16 || t.offset + 16 > len) continue;
-        uint32_t typeSig = readU32BE(d + t.offset);
-        if (typeSig != kNcl2Type) continue;
+    for (uint32_t i = 0; i < tagCount && i < 256; i++) {
+        size_t entryOff = 132 + static_cast<size_t>(i) * 12;
+        if (entryOff + 12 > len) break;
 
-        uint32_t nDevCoords = readU32BE(d + t.offset + 12);
-        if (nDevCoords > 15) {
-            cb.high(sfmt("NamedColor2 nDeviceCoords=%u exceeds ICC max 15", nDevCoords),
-                    "CWE-190: Integer Overflow or Wraparound");
+        uint32_t tSig = readU32BE(d + entryOff);
+        uint32_t tOffset = readU32BE(d + entryOff + 4);
+        uint32_t tSize = readU32BE(d + entryOff + 8);
+        if (static_cast<uint64_t>(tOffset) + 8 > len || tSize < 8) continue;
+
+        uint32_t typeSig = readU32BE(d + tOffset);
+        std::string tagName = sigStr(tSig);
+
+        if (typeSig == 0x6D667431 && static_cast<uint64_t>(tOffset) + 48 <= len) {
+            uint8_t nInput = d[tOffset + 8];
+            uint8_t nOutput = d[tOffset + 9];
+            uint8_t grid = d[tOffset + 10];
+            if (nInput > 0 && grid > 0) {
+                uint64_t clutSize = 1;
+                bool overflow = false;
+                for (uint8_t dim = 0; dim < nInput; dim++) {
+                    clutSize *= grid;
+                    if (clutSize > 0xFFFFFFFFULL) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                clutSize *= nOutput;
+                if (clutSize > 0xFFFFFFFFULL) overflow = true;
+                if (overflow || clutSize > tSize) {
+                    cb.critical(
+                        sfmt("Tag '%s' (Lut8): %ux%u grid^%u x %u = overflow",
+                             tagName.c_str(), nInput, nOutput, nInput, grid),
+                        "CWE-190: Integer overflow in CLUT size calculation");
+                }
+            }
+        }
+
+        if (typeSig == 0x6D667432 && static_cast<uint64_t>(tOffset) + 48 <= len) {
+            uint8_t nInput = d[tOffset + 8];
+            uint8_t nOutput = d[tOffset + 9];
+            uint8_t grid = d[tOffset + 10];
+            if (nInput > 0 && grid > 0) {
+                uint64_t clutSize = 2;
+                bool overflow = false;
+                for (uint8_t dim = 0; dim < nInput; dim++) {
+                    clutSize *= grid;
+                    if (clutSize > 0xFFFFFFFFULL) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                clutSize *= nOutput;
+                if (clutSize > 0xFFFFFFFFULL) overflow = true;
+                if (overflow || clutSize > tSize) {
+                    cb.critical(
+                        sfmt("Tag '%s' (Lut16): %ux%u grid^%u x %u x 2 = overflow",
+                             tagName.c_str(), nInput, nOutput, nInput, grid),
+                        "CWE-190: Integer overflow in CLUT size calculation");
+                }
+            }
+        }
+
+        if ((typeSig == 0x6D414220 || typeSig == 0x6D424120) &&
+            static_cast<uint64_t>(tOffset) + 32 <= len) {
+            uint8_t nInput = d[tOffset + 8];
+            uint8_t nOutput = d[tOffset + 9];
+            uint32_t clutOff = readU32BE(d + tOffset + 24);
+            if (clutOff != 0 && static_cast<uint64_t>(tOffset) + clutOff + 20 <= len) {
+                size_t clutAddr = tOffset + clutOff;
+                uint64_t clutSize = (d[clutAddr + 16] == 2) ? 2 : 1;
+                bool overflow = false;
+                for (uint8_t dim = 0; dim < nInput && dim < 16; dim++) {
+                    uint8_t gp = d[clutAddr + dim];
+                    if (gp == 0) gp = 1;
+                    clutSize *= gp;
+                    if (clutSize > 0xFFFFFFFFULL) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                clutSize *= nOutput;
+                if (clutSize > 0xFFFFFFFFULL) overflow = true;
+                if (overflow) {
+                    cb.critical(
+                        sfmt("Tag '%s' (%s): %u-in x %u-out CLUT grid overflows uint32",
+                             tagName.c_str(),
+                             typeSig == 0x6D414220 ? "mAB" : "mBA",
+                             nInput, nOutput),
+                        "CWE-190: Multiplication overflow before allocation");
+                }
+            }
+        }
+
+        if (typeSig == 0x6D706574 && static_cast<uint64_t>(tOffset) + 16 <= len) {
+            uint16_t nInput = readU16BE(d + tOffset + 8);
+            uint16_t nOutput = readU16BE(d + tOffset + 10);
+            uint32_t nElem = readU32BE(d + tOffset + 12);
+            uint64_t posTableSize = static_cast<uint64_t>(nElem) * 8;
+            if (posTableSize > tSize || nElem > 10000) {
+                cb.critical(
+                    sfmt("Tag '%s' (MPE): %u elements x 8 = %llu bytes (tag size=%u)",
+                         tagName.c_str(), nElem,
+                         static_cast<unsigned long long>(posTableSize), tSize),
+                    "CWE-190: Element count drives allocation overflow");
+            }
+            if (nInput > 0 && nOutput > 0) {
+                uint64_t chanProduct = static_cast<uint64_t>(nInput) * nOutput * 4;
+                if (chanProduct > 1024 * 1024ULL) {
+                    cb.warn(
+                        sfmt("Tag '%s' (MPE): %ux%u channels -> %llu bytes per element",
+                             tagName.c_str(), nInput, nOutput,
+                             static_cast<unsigned long long>(chanProduct)),
+                        "CWE-190: High channel count amplifies per-element allocation");
+                }
+            }
         }
     }
 
@@ -67,16 +199,40 @@ static CheckResult check_h155_dimension_overflow(const ProfileView& pv) {
 // ── H156: Allocation Failure Path Profiles ──
 static CheckResult check_h156_alloc_failure(const ProfileView& pv) {
     CheckBuilder cb;
-    // This is a static analysis pattern — detect profiles that would trigger
-    // allocation failure (null return) not checked before use
-    // In V2 library, we detect the pattern via tag size heuristics
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (len < 132) return CheckResult::skip("File too small");
+
+    uint32_t profileSize = readU32BE(d);
+    uint64_t totalDeclaredSize = 0;
+    int largeTagCount = 0;
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size > 256 * 1024 * 1024) { // 256 MB
-            cb.high(sfmt("Tag '%s' size %u would likely fail allocation",
-                          sigStr(t.signature).c_str(), t.size),
-                    "CWE-252: Unchecked Return Value");
+        totalDeclaredSize += t.size;
+        if (t.size > 10 * 1024 * 1024) {
+            largeTagCount++;
         }
+    }
+
+    if (totalDeclaredSize > 256ULL * 1024 * 1024) {
+        cb.warn(
+            sfmt("Aggregate tag allocation: %.1f MB across %zu tags",
+                 static_cast<double>(totalDeclaredSize) / (1024.0 * 1024.0),
+                 pv.rawTagTable().size()),
+            "CWE-252: Aggregate pressure increases OOM probability");
+    }
+
+    if (largeTagCount >= 3) {
+        cb.warn(
+            sfmt("%d tags exceed 10MB — high concurrent allocation demand", largeTagCount),
+            "CWE-252: Multiple large allocations increase NULL-deref risk");
+    }
+
+    if (profileSize > 0 && totalDeclaredSize > static_cast<uint64_t>(profileSize) * 2) {
+        cb.warn(
+            sfmt("Tag sizes total %llu bytes but profile is %u bytes",
+                 static_cast<unsigned long long>(totalDeclaredSize), profileSize),
+            "CWE-252: Oversized tag declarations trigger allocation then fail on read");
     }
 
     return cb.done("Allocation failure paths checked");
@@ -85,12 +241,86 @@ static CheckResult check_h156_alloc_failure(const ProfileView& pv) {
 // ── H158: Enum Range Violation Detection ──
 static CheckResult check_h158_enum_range(const ProfileView& pv) {
     CheckBuilder cb;
-    const auto& hdr = pv.header();
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (len < 132) return CheckResult::skip("File too small");
 
-    // Check rendering intent
-    if (hdr.renderingIntent > 3) {
-        cb.high(sfmt("Rendering intent %u out of range 0-3", hdr.renderingIntent),
-                "CWE-681: Incorrect Conversion between Numeric Types");
+    uint32_t tagCount = readU32BE(d + 128);
+    if (tagCount > 0 && tagCount <= 1000) {
+        int invalidTypeSigs = 0;
+        for (uint32_t i = 0; i < tagCount && i < 256; i++) {
+            size_t entryOff = 132 + static_cast<size_t>(i) * 12;
+            if (entryOff + 12 > len) break;
+
+            uint32_t tOffset = readU32BE(d + entryOff + 4);
+            uint32_t tSize = readU32BE(d + entryOff + 8);
+            if (static_cast<uint64_t>(tOffset) + 4 > len || tSize < 4) continue;
+
+            uint32_t typeSig = readU32BE(d + tOffset);
+            bool validFourCC = true;
+            for (int byte = 0; byte < 4; byte++) {
+                uint8_t ch = static_cast<uint8_t>((typeSig >> (24 - byte * 8)) & 0xFF);
+                if (ch < 0x20 || ch > 0x7E) {
+                    validFourCC = false;
+                    break;
+                }
+            }
+            if (!validFourCC && typeSig != 0) {
+                invalidTypeSigs++;
+            }
+        }
+
+        if (invalidTypeSigs > 0) {
+            cb.warn(
+                sfmt("%d tag type signatures are not valid FourCC (non-printable bytes)",
+                     invalidTypeSigs),
+                "CWE-681: Tag type enum cast without validation");
+        }
+    }
+
+    for (uint32_t i = 0; i < tagCount && i < 256; i++) {
+        size_t entryOff = 132 + static_cast<size_t>(i) * 12;
+        if (entryOff + 12 > len) break;
+
+        uint32_t tOffset = readU32BE(d + entryOff + 4);
+        uint32_t tSize = readU32BE(d + entryOff + 8);
+        if (static_cast<uint64_t>(tOffset) + 16 > len || tSize < 16) continue;
+
+        uint32_t typeSig = readU32BE(d + tOffset);
+        if (typeSig != 0x6D706574) continue;
+
+        uint32_t nElem = readU32BE(d + tOffset + 12);
+        if (nElem > 10000) continue;
+
+        int invalidElemSigs = 0;
+        for (uint32_t e = 0; e < nElem && e < 100; e++) {
+            size_t posOff = tOffset + 16 + static_cast<size_t>(e) * 8;
+            if (posOff + 8 > len) break;
+
+            uint32_t elemOff = readU32BE(d + posOff);
+            size_t absElemOff = tOffset + elemOff;
+            if (absElemOff + 4 > len) continue;
+
+            uint32_t elemSig = readU32BE(d + absElemOff);
+            bool validFourCC = true;
+            for (int byte = 0; byte < 4; byte++) {
+                uint8_t ch = static_cast<uint8_t>((elemSig >> (24 - byte * 8)) & 0xFF);
+                if (ch < 0x20 || ch > 0x7E) {
+                    validFourCC = false;
+                    break;
+                }
+            }
+            if (!validFourCC && elemSig != 0) {
+                invalidElemSigs++;
+            }
+        }
+
+        if (invalidElemSigs > 0) {
+            cb.warn(
+                sfmt("MPE tag has %d sub-elements with invalid type signatures (non-FourCC)",
+                     invalidElemSigs),
+                "CWE-681: Element type enum cast without validation");
+        }
     }
 
     return cb.done("Enum ranges validated");
@@ -101,6 +331,7 @@ static CheckResult check_h160_format_string(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
+    if (len < 132) return CheckResult::skip("Cannot open file");
 
     // Scan text tag types for format specifiers
     constexpr uint32_t kDescType = 0x64657363; // 'desc'
@@ -148,7 +379,7 @@ REGISTER_HEURISTIC(156, "Allocation Failure Path Profiles",
 
 REGISTER_HEURISTIC(158, "Enum Range Violation Detection",
     "CodeQL cpp/enum-out-of-range", "CWE-681",
-    "CWE-681", "", Severity::HIGH, CheckPhase::HEADER, check_h158_enum_range);
+    "CWE-681", "", Severity::HIGH, CheckPhase::RAW_SCAN, check_h158_enum_range);
 
 REGISTER_HEURISTIC(160, "Format String Injection in Text Tags",
     "CodeQL cpp/format-string-injection", "CWE-134",
@@ -211,7 +442,7 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
-    if (!d || len < 132) return cb.done("File too small");
+    if (!d || len < 132) return CheckResult::skip("Cannot read profile");
 
     int overflowCount = 0;
     int totalSigs = 0;

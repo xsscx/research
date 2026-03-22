@@ -23,6 +23,90 @@ extern void test_assert(bool, const char*, const char*, int);
 
 using namespace icctest;
 
+static std::filesystem::path resolve_repo_file(const char* relativePath) {
+    std::filesystem::path base = std::filesystem::path(__FILE__).parent_path();
+    auto candidate = (base / "../../../" / relativePath).lexically_normal();
+    if (std::filesystem::exists(candidate)) return candidate;
+
+    candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
+    if (std::filesystem::exists(candidate)) return candidate;
+
+    return {};
+}
+
+static const PerCheckResult* find_per_check(const AnalysisResult& result,
+                                            CheckID::Kind kind,
+                                            int number) {
+    for (const auto& entry : result.perCheck) {
+        if (entry.id.kind == kind && entry.id.number == number) {
+            return &entry;
+        }
+    }
+    return nullptr;
+}
+
+static AnalysisResult analyze_corpus_checks(const std::filesystem::path& profilePath,
+                                            const std::vector<int>& checks) {
+    AnalysisOptions opts;
+    opts.phases = {CheckPhase::CONFORMANCE};
+    for (int check : checks) {
+        opts.specificChecks.push_back({CheckID::Kind::Conformance, check});
+    }
+
+    IccTestRunner runner;
+    return runner.analyze(profilePath, opts);
+}
+
+static AnalysisResult analyze_corpus_heuristics(const std::filesystem::path& profilePath,
+                                                const std::vector<int>& checks) {
+    AnalysisOptions opts;
+    opts.phases = {
+        CheckPhase::HEADER,
+        CheckPhase::TAG_TABLE,
+        CheckPhase::RAW_SCAN,
+        CheckPhase::LIBRARY,
+    };
+    opts.skipLibraryOnUB = false;
+    for (int check : checks) {
+        opts.specificChecks.push_back({CheckID::Kind::Heuristic, check});
+    }
+
+    IccTestRunner runner;
+    return runner.analyze(profilePath, opts);
+}
+
+static AnalysisResult analyze_image_checks(const std::filesystem::path& imagePath,
+                                           const std::vector<int>& checks) {
+    AnalysisOptions opts;
+    opts.phases = {CheckPhase::IMAGE};
+    for (int check : checks) {
+        opts.specificChecks.push_back({CheckID::Kind::Heuristic, check});
+    }
+
+    IccTestRunner runner;
+    return runner.analyze(imagePath, opts);
+}
+
+static void expect_conformance_result(const AnalysisResult& result,
+                                      int number,
+                                      CheckResult::Status status,
+                                      int issueCount) {
+    const auto* check = find_per_check(result, CheckID::Kind::Conformance, number);
+    ASSERT_TRUE(check != nullptr);
+    ASSERT_EQ(status, check->result.status);
+    ASSERT_EQ(issueCount, check->result.issueCount());
+}
+
+static void expect_heuristic_result(const AnalysisResult& result,
+                                    int number,
+                                    CheckResult::Status status,
+                                    int issueCount) {
+    const auto* check = find_per_check(result, CheckID::Kind::Heuristic, number);
+    ASSERT_TRUE(check != nullptr);
+    ASSERT_EQ(status, check->result.status);
+    ASSERT_EQ(issueCount, check->result.issueCount());
+}
+
 // Example check: validates magic is 'acsp'
 static CheckResult check_magic(const ProfileView& pv) {
     if (pv.header().magic != 0x61637370) {
@@ -86,7 +170,7 @@ static void test_check_count() {
     // from static initializers (REGISTER_HEURISTIC macros in check .cpp files).
     auto count = CheckRegistry::instance().size();
     std::printf("    Registered checks: %zu\n", count);
-    ASSERT_TRUE(count >= 501u);  // 172 heuristics + 329 conformance
+    ASSERT_TRUE(count >= 502u);  // 173 heuristics + 329 conformance
 }
 
 static void test_analyze_minimal_profile() {
@@ -133,6 +217,15 @@ static void test_analyze_bad_magic() {
     // H1 should find the bad magic
     ASSERT_TRUE(result.hasCritical());
     ASSERT_GT(result.stats.findingsTotal, 0);
+    ASSERT_EQ(2u, result.perCheck.size());
+    ASSERT_EQ(CheckID::Kind::Heuristic, result.perCheck[0].id.kind);
+    ASSERT_EQ(1, result.perCheck[0].id.number);
+    ASSERT_EQ(std::string("Magic Validation"),
+              std::string(result.perCheck[0].meta.name));
+    ASSERT_EQ(CheckResult::Status::FINDINGS, result.perCheck[0].result.status);
+    ASSERT_EQ(1, result.perCheck[0].result.issueCount());
+    ASSERT_EQ(std::string("Magic is not 'acsp'"),
+              result.perCheck[0].result.findings[0].message);
 }
 
 static void test_analyze_nonexistent_file() {
@@ -203,7 +296,7 @@ static void test_heuristic_coverage() {
     auto& reg = CheckRegistry::instance();
     const auto& all = reg.all();
 
-    // Verify every H-number from 1..172 is registered
+    // Verify every H-number from 1..173 is registered
     std::set<int> registered;
     for (auto& c : all) {
         if (c.id.kind == CheckID::Kind::Heuristic)
@@ -211,14 +304,14 @@ static void test_heuristic_coverage() {
     }
 
     int missing = 0;
-    for (int h = 1; h <= 172; h++) {
+    for (int h = 1; h <= 173; h++) {
         if (registered.find(h) == registered.end()) {
             std::printf("    MISSING: H%d\n", h);
             missing++;
         }
     }
     ASSERT_EQ(0, missing);
-    std::printf("    All 172 heuristic IDs present\n");
+    std::printf("    All 173 heuristic IDs present\n");
 }
 
 static void test_conformance_coverage() {
@@ -249,6 +342,317 @@ static void test_conformance_coverage() {
     std::printf("    All 329 conformance IDs present\n");
 }
 
+static void test_conformance_private_tag_documentation_regression() {
+    std::printf("  test_conformance_private_tag_documentation_regression...\n");
+
+    auto corpusPath = resolve_repo_file("tests/corpus/private_tags.icc");
+    if (corpusPath.empty()) {
+        std::printf("    (skipped — private_tags.icc not found)\n");
+        return;
+    }
+
+    AnalysisOptions opts;
+    opts.phases = {CheckPhase::CONFORMANCE};
+    opts.specificChecks = {{CheckID::Kind::Conformance, 97}};
+
+    IccTestRunner runner;
+    auto result = runner.analyze(corpusPath, opts);
+
+    ASSERT_EQ(1, result.stats.checksRun);
+    const auto* cf97 = find_per_check(result, CheckID::Kind::Conformance, 97);
+    ASSERT_TRUE(cf97 != nullptr);
+    ASSERT_EQ(CheckResult::Status::FINDINGS, cf97->result.status);
+    ASSERT_EQ(2, cf97->result.issueCount());
+    ASSERT_TRUE(cf97->result.findings[0].message.find("Undocumented private tag") != std::string::npos);
+}
+
+static void test_conformance_adgc_regression() {
+    std::printf("  test_conformance_adgc_regression...\n");
+
+    auto corpusPath = resolve_repo_file("tests/corpus/cf_adgc_bad_curve_range.icc");
+    if (corpusPath.empty()) {
+        std::printf("    (skipped — cf_adgc_bad_curve_range.icc not found)\n");
+        return;
+    }
+
+    AnalysisOptions opts;
+    opts.phases = {CheckPhase::CONFORMANCE};
+    opts.specificChecks = {
+        {CheckID::Kind::Conformance, 128},
+        {CheckID::Kind::Conformance, 134},
+        {CheckID::Kind::Conformance, 135},
+    };
+
+    IccTestRunner runner;
+    auto result = runner.analyze(corpusPath, opts);
+
+    ASSERT_EQ(3, result.stats.checksRun);
+
+    const auto* cf128 = find_per_check(result, CheckID::Kind::Conformance, 128);
+    const auto* cf134 = find_per_check(result, CheckID::Kind::Conformance, 134);
+    const auto* cf135 = find_per_check(result, CheckID::Kind::Conformance, 135);
+
+    ASSERT_TRUE(cf128 != nullptr);
+    ASSERT_TRUE(cf134 != nullptr);
+    ASSERT_TRUE(cf135 != nullptr);
+
+    ASSERT_EQ(CheckResult::Status::OK, cf128->result.status);
+    ASSERT_EQ(CheckResult::Status::OK, cf134->result.status);
+    ASSERT_EQ(CheckResult::Status::FINDINGS, cf135->result.status);
+    ASSERT_EQ(0, cf128->result.issueCount());
+    ASSERT_EQ(0, cf134->result.issueCount());
+    ASSERT_EQ(6, cf135->result.issueCount());
+    ASSERT_EQ(6, result.stats.findingsTotal);
+}
+
+static void test_conformance_parity_regressions() {
+    std::printf("  test_conformance_parity_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_mluc_bad_record_size.icc", {30});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 30, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_adgc_nan_weights.icc", {123, 128});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_conformance_result(result, 123, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 128, CheckResult::Status::SKIP, 0);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_devicelink_no_atob.icc", {221});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 221, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "calc_trunc_operator.icc", {229});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 229, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf143-meas-valid.icc", {33, 34, 302});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_conformance_result(result, 33, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 34, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 302, CheckResult::Status::FINDINGS, 5);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf137-mdv-invalid-type.icc", {303});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 303, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_htos_bad_type.icc", {319});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 319, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "xyz_out_of_range.icc", {112, 170, 172, 273, 280});
+        ASSERT_EQ(5, result.stats.checksRun);
+        expect_conformance_result(result, 112, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 170, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 172, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 273, CheckResult::Status::FINDINGS, 2);
+        expect_conformance_result(result, 280, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_sf32_bad_size.icc", {278});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 278, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_adgc_cmyk_violation.icc", {123});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 123, CheckResult::Status::FINDINGS, 2);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "named_color2_excessive_coords.icc", {28});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 28, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "wrong_d50_illuminant.icc", {8});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 8, CheckResult::Status::FINDINGS, 3);
+    }
+    {
+        auto result = analyze_corpus_checks(corpusDir / "zero_tags.icc", {93});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 93, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_heuristic_parity_regressions() {
+    std::printf("  test_heuristic_parity_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "calc_trunc_operator.icc", {151});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 151, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "reserved_bytes_nonzero.icc", {111, 142});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_heuristic_result(result, 111, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 142, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "bad_magic.icc", {111, 142, 164});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_heuristic_result(result, 111, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 142, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 164, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf137-mdv-invalid-type.icc", {15, 153});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_heuristic_result(result, 15, CheckResult::Status::FINDINGS, 3);
+        expect_heuristic_result(result, 153, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "named_color2_large_nsize.icc", {154, 155});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_heuristic_result(result, 154, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 155, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "just_header.icc", {154, 155, 156, 158, 162, 163});
+        ASSERT_EQ(6, result.stats.checksRun);
+        expect_heuristic_result(result, 154, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 155, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 156, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 158, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 162, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 163, CheckResult::Status::SKIP, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "invalid_rendering_intent.icc", {158});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 158, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_conformance_v5_only_skip_regression() {
+    std::printf("  test_conformance_v5_only_skip_regression...\n");
+
+    auto corpusPath = resolve_repo_file("tests/corpus/bad_wtpt.icc");
+    if (corpusPath.empty()) {
+        std::printf("    (skipped — bad_wtpt.icc not found)\n");
+        return;
+    }
+
+    auto result = analyze_corpus_checks(corpusPath, {157, 158, 159, 160, 161, 162, 180, 181, 295});
+    ASSERT_EQ(9, result.stats.checksRun);
+    expect_conformance_result(result, 157, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 158, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 159, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 160, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 161, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 162, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 180, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 181, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 295, CheckResult::Status::SKIP, 0);
+}
+
+static void test_conformance_v5_gate_regression() {
+    std::printf("  test_conformance_v5_gate_regression...\n");
+
+    auto reservedBytesPath = resolve_repo_file("tests/corpus/reserved_bytes_nonzero.icc");
+    if (reservedBytesPath.empty()) {
+        std::printf("    (skipped — reserved_bytes_nonzero.icc not found)\n");
+        return;
+    }
+
+    auto spectralResult = analyze_corpus_checks(reservedBytesPath, {113, 114, 257});
+    ASSERT_EQ(3, spectralResult.stats.checksRun);
+    expect_conformance_result(spectralResult, 113, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(spectralResult, 114, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(spectralResult, 257, CheckResult::Status::SKIP, 0);
+
+    auto flagsPath = resolve_repo_file("tests/corpus/flags_reserved_bits.icc");
+    if (flagsPath.empty()) {
+        std::printf("    (skipped — flags_reserved_bits.icc not found)\n");
+        return;
+    }
+
+    auto extendedRangeResult = analyze_corpus_checks(flagsPath, {147});
+    ASSERT_EQ(1, extendedRangeResult.stats.checksRun);
+    expect_conformance_result(extendedRangeResult, 147, CheckResult::Status::SKIP, 0);
+}
+
+static void test_conformance_adgc_skip_regression() {
+    std::printf("  test_conformance_adgc_skip_regression...\n");
+
+    auto corpusPath = resolve_repo_file("tests/corpus/bad_wtpt.icc");
+    if (corpusPath.empty()) {
+        std::printf("    (skipped — bad_wtpt.icc not found)\n");
+        return;
+    }
+
+    auto result = analyze_corpus_checks(corpusPath, {133, 134, 135, 136});
+    ASSERT_EQ(4, result.stats.checksRun);
+    expect_conformance_result(result, 133, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 134, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 135, CheckResult::Status::SKIP, 0);
+    expect_conformance_result(result, 136, CheckResult::Status::SKIP, 0);
+
+    const auto* cf133 = find_per_check(result, CheckID::Kind::Conformance, 133);
+    ASSERT_TRUE(cf133 != nullptr);
+    ASSERT_EQ(std::string("No ADGC tag or read failed"), cf133->result.summary);
+}
+
+static void test_image_tiff_with_embedded_icc_regression() {
+    std::printf("  test_image_tiff_with_embedded_icc_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/test_tiff_with_icc.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped — test_tiff_with_icc.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    expect_heuristic_result(result, 139, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 141, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 150, CheckResult::Status::OK, 0);
+
+    const auto* h150 = find_per_check(result, CheckID::Kind::Heuristic, 150);
+    ASSERT_TRUE(h150 != nullptr);
+    ASSERT_EQ(std::string("Strip-based image - tile geometry N/A"), h150->result.summary);
+}
+
+static void test_image_truncated_tiff_regression() {
+    std::printf("  test_image_truncated_tiff_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/corrupt_truncated.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped — corrupt_truncated.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    expect_heuristic_result(result, 139, CheckResult::Status::SKIP, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::SKIP, 0);
+    expect_heuristic_result(result, 141, CheckResult::Status::SKIP, 0);
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 150, CheckResult::Status::SKIP, 0);
+}
+
 void test_runner() {
     std::printf("test_runner:\n");
     test_version_string();
@@ -256,6 +660,15 @@ void test_runner() {
     test_check_count();
     test_heuristic_coverage();
     test_conformance_coverage();
+    test_conformance_private_tag_documentation_regression();
+    test_conformance_adgc_regression();
+    test_conformance_parity_regressions();
+    test_conformance_v5_only_skip_regression();
+    test_conformance_v5_gate_regression();
+    test_conformance_adgc_skip_regression();
+    test_heuristic_parity_regressions();
+    test_image_tiff_with_embedded_icc_regression();
+    test_image_truncated_tiff_regression();
     // Analysis tests use setup_registry() which clears auto-registrations
     test_analyze_minimal_profile();
     test_analyze_bad_magic();

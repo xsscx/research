@@ -2,8 +2,7 @@
  * IccTest Library — XmlSafetyChecks.cpp
  * Heuristic checks H142-H145: XML serialization safety.
  *
- * H142 returns NEEDS_ISOLATION — the CLI sandbox handles fork-based execution.
- * The library only marks the check as needing isolation, not performing it.
+ * H142 performs fork-isolated XML serialization directly, matching V1.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
  * [BSD 3-Clause License]
@@ -12,19 +11,134 @@
 #include "icctest/CheckRegistry.h"
 #include "util/CheckHelpers.h"
 
+#include "IccProfileXml.h"
+#include "IccTagXmlFactory.h"
+#include "IccMpeXmlFactory.h"
+#include "IccIO.h"
+
+#include <new>
+#include <csignal>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 namespace icctest {
 
 // ── H142: XML Serialization Safety ──
-// This check CANNOT be run in-process — ToXml() can crash/hang.
-// Library returns NEEDS_ISOLATION; CLI handles fork-based execution.
+// Exercise the XML serializer under fork isolation, matching V1 semantics.
 static CheckResult check_h142_xml_safety(const ProfileView& pv) {
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
+    CheckBuilder cb;
+    if (pv.filePath().empty()) {
+        return CheckResult::needsIsolation(
+            "CIccProfileXml::ToXml() requires fork isolation with a file-backed profile");
+    }
 
-    // Signal that this check requires fork isolation
-    return CheckResult::needsIsolation(
-        "CIccProfileXml::ToXml() requires fork isolation — "
-        "XML serialization can crash/hang on malformed profiles "
-        "(covers 25 XML-related iccDEV advisories)");
+    std::fflush(stdout);
+    std::fflush(stderr);
+    pid_t pid = fork();
+    if (pid < 0) {
+        cb.high(sfmt("fork() failed (errno=%d) — XML safety check skipped", errno),
+                "CWE-271: Cannot isolate XML serialization");
+        return cb.done("Fork failed");
+    }
+
+    if (pid == 0) {
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+
+        alarm(10);
+
+        auto* tagFactory = new (std::nothrow) CIccTagXmlFactory();
+        auto* mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+        if (!tagFactory || !mpeFactory) {
+            delete tagFactory;
+            delete mpeFactory;
+            _exit(0);
+        }
+        CIccTagCreator::PushFactory(tagFactory);
+        CIccMpeCreator::PushFactory(mpeFactory);
+
+        CIccProfileXml xmlProfile;
+        CIccFileIO srcIo;
+        if (!srcIo.Open(pv.filePath().c_str(), "rb")) {
+            _exit(0);
+        }
+        if (!xmlProfile.Read(&srcIo)) {
+            srcIo.Close();
+            _exit(0);
+        }
+        srcIo.Close();
+
+        std::string xmlOutput;
+        try {
+            xmlOutput.reserve(4 * 1024 * 1024);
+        } catch (...) {
+            _exit(0);
+        }
+
+        bool ok = xmlProfile.ToXml(xmlOutput);
+        _exit(ok ? 0 : 1);
+    }
+
+    int status = 0;
+    int waited = 0;
+    for (int i = 0; i < 150; i++) {
+        pid_t ret = waitpid(pid, &status, WNOHANG);
+        if (ret == pid) {
+            waited = 1;
+            break;
+        }
+        if (ret < 0) {
+            waited = -1;
+            break;
+        }
+        usleep(100000);
+    }
+
+    if (!waited) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        cb.high("XML serialization timed out (>15s) — potential resource exhaustion",
+                "CWE-400: Uncontrolled Resource Consumption");
+        return cb.done("XML serialization timed out");
+    }
+
+    if (waited < 0) {
+        return CheckResult::error("waitpid() failed during XML serialization safety check");
+    }
+
+    if (WIFSIGNALED(status)) {
+        int sig = WTERMSIG(status);
+        const char* sigName = "UNKNOWN";
+        switch (sig) {
+            case SIGSEGV: sigName = "SIGSEGV"; break;
+            case SIGABRT: sigName = "SIGABRT (ASAN/UBSAN)"; break;
+            case SIGBUS:  sigName = "SIGBUS"; break;
+            case SIGFPE:  sigName = "SIGFPE"; break;
+            case SIGALRM: sigName = "SIGALRM (timeout)"; break;
+            case SIGKILL: sigName = "SIGKILL (killed)"; break;
+        }
+        cb.critical(sfmt("XML serialization crashed with %s (signal %d)", sigName, sig),
+                    "CWE-787/CWE-125/CWE-476: XML serialization memory safety violation");
+        return cb.done("XML serialization crashed");
+    }
+
+    if (WIFEXITED(status)) {
+        int exitCode = WEXITSTATUS(status);
+        if (exitCode == 0) {
+            return CheckResult::ok("XML serialization completed safely (ToXml succeeded)");
+        }
+        return CheckResult::ok(
+            sfmt("XML serialization returned error (ToXml=false, exit %d) — no crash",
+                 exitCode));
+    }
+
+    return CheckResult::ok(sfmt("XML serialization check completed (status=0x%x)", status));
 }
 
 // ── H143: XML Array Bounds Precheck ──
@@ -138,6 +252,6 @@ REGISTER_HEURISTIC(144, "XML String Termination Precheck",
 
 REGISTER_HEURISTIC(145, "XML Curve Type Consistency",
     "CIccXmlMpeCurveSet::ToXml", "CWE-843",
-    "CWE-843", "", Severity::HIGH, CheckPhase::RAW_SCAN, check_h145_xml_curve_type);
+    "CWE-843", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h145_xml_curve_type);
 
 } // namespace icctest
