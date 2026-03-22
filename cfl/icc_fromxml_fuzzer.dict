@@ -1631,3 +1631,11 @@ multi_sig="mwpmcl1l"
 "iso88591"
 "e0"
 "U-TF8"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\xff\xff~\xf5\x05|\x00$"
+"\xff\xff~\xf5\x05u\x00$"
+"\x14\x03\x00\x00\x00\x00\x00\x00"
+"(\x00\x00\x00\x00\x00\x00\x00"
+"iso2022cncns"
+"IccP"
