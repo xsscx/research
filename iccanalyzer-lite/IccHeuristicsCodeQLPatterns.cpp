@@ -704,7 +704,6 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
 
     // Scan for format specifiers
     for (size_t f = 0; f < kNumFmtSpecs; f++) {
-      if (findings >= kMaxFindings) break;
       const char *found = strstr(buf.data(), kFmtSpecs[f]);
       if (found) {
         size_t pos = static_cast<size_t>(found - buf.data());
