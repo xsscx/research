@@ -8,7 +8,14 @@ from pathlib import Path
 
 
 def _existing_dirs(paths: list[Path]) -> list[str]:
-    return [str(path) for path in paths if path.is_dir()]
+    seen: set[str] = set()
+    out: list[str] = []
+    for path in paths:
+        text = str(path)
+        if path.is_dir() and text not in seen:
+            seen.add(text)
+            out.append(text)
+    return out
 
 
 def v1_runtime_env(binary: Path) -> dict[str, str]:
@@ -25,12 +32,20 @@ def v1_runtime_env(binary: Path) -> dict[str, str]:
     env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
 
     binary_dir = binary.resolve().parent
-    lib_dirs = _existing_dirs(
-        [
-            binary_dir / "iccDEV" / "Build" / "IccProfLib",
-            binary_dir / "iccDEV" / "Build" / "IccXML",
-        ]
-    )
+    candidate_roots = [
+        binary_dir,
+        binary_dir.parent,
+    ]
+    candidate_paths: list[Path] = []
+    for root in candidate_roots:
+        candidate_paths.extend(
+            [
+                root / "iccDEV" / "Build" / "IccProfLib",
+                root / "iccDEV" / "Build" / "IccXML",
+            ]
+        )
+
+    lib_dirs = _existing_dirs(candidate_paths)
     if lib_dirs:
         existing = env.get("LD_LIBRARY_PATH", "")
         env["LD_LIBRARY_PATH"] = ":".join(lib_dirs + ([existing] if existing else []))
