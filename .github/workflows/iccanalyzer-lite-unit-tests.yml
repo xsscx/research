@@ -281,6 +281,105 @@ jobs:
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
 
+      - name: Build icctest V2
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/icctest
+          chmod +x build.sh
+          bash build.sh
+
+          echo "icctest build complete."
+          ls -lh build/cli/icctest
+          ls -lh build/lib/libIccTest.a
+          ls -lh build/lib/tests/icctest_unit_tests
+
+          # Verify ASAN instrumentation
+          if nm build/cli/icctest 2>/dev/null | grep -q "__asan_init"; then
+            echo "[OK] icctest ASan instrumentation detected"
+          else
+            echo "[WARN] icctest ASan symbols not found"
+          fi
+
+          {
+            echo ""
+            echo "### icctest V2 Binary"
+            echo ""
+            echo '```'
+            ls -lh build/cli/icctest
+            ls -lh build/lib/libIccTest.a
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Run icctest V2 unit tests
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          ASAN_OPTIONS: "detect_leaks=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          echo "Running icctest V2 unit tests..."
+          iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
+
+      - name: Exercise icctest V2 CLI
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          ICCTEST="iccanalyzer-lite/icctest/build/cli/icctest"
+          PROFILE="test-profiles/sRGB_D65_MAT.icc"
+
+          echo "=== icctest --version ==="
+          $ICCTEST --version
+
+          echo "=== icctest --registry ==="
+          $ICCTEST --registry | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Registry: {d[\"totalChecks\"]} checks')"
+
+          echo "=== icctest -a (comprehensive) ==="
+          $ICCTEST -a "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --json ==="
+          $ICCTEST --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'JSON: {d[\"stats\"][\"checksRun\"]} checks, {d[\"stats\"][\"findingsTotal\"]} findings')"
+
+          echo "=== icctest --sarif ==="
+          $ICCTEST --sarif "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'SARIF: {len(d[\"runs\"][0][\"results\"])} results')"
+
+          echo "=== icctest --no-sandbox ==="
+          $ICCTEST --no-sandbox -a "$PROFILE" > /dev/null 2>&1 || true
+
+          echo "=== icctest --min-severity HIGH ==="
+          $ICCTEST --min-severity HIGH --json "$PROFILE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'HIGH+ filter: {d[\"stats\"][\"findingsTotal\"]} findings')"
+
+          echo "[OK] All icctest V2 CLI modes exercised successfully"
+
+          {
+            echo ""
+            echo "### icctest V2 CLI Exercise"
+            echo ""
+            echo "✅ All CLI modes exercised: -a, --json, --sarif, --registry, --version, --no-sandbox, --min-severity"
+          } >> $GITHUB_STEP_SUMMARY
+
       - name: Synthesize test corpus
         env:
           BASH_ENV: /dev/null
