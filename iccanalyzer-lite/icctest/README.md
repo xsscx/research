@@ -72,6 +72,27 @@ On the current corpus and generated image smoke:
 - generated PNG/JPEG embedded-ICC smoke: pass
 - unit tests: `362/362 passed`
 
+## CI Notes
+
+- The V1 parity adapters auto-resolve shared libraries from both supported
+  layouts: `iccanalyzer-lite/iccDEV/Build/...` and repo-root `iccDEV/Build/...`.
+  Current GitHub workflows use both.
+- `icctest/tools/smokeGeneratedImageFormats.py` is intentionally standard-library
+  only. If CI reports `ModuleNotFoundError: No module named 'PIL'`, the runner
+  is executing an older checkout.
+- The fastest environment-level parity repro commands are:
+
+```bash
+env -u LD_LIBRARY_PATH \
+  cmake --build icctest/build --target icctest-verify-parity
+
+env -u LD_LIBRARY_PATH \
+  python3 -S icctest/tools/smokeGeneratedImageFormats.py \
+    --v1-binary ../iccanalyzer-lite \
+    --v2-binary build/tools/icctest-parity \
+    --heuristic-remap tools/heuristic-remap.tsv
+```
+
 ## Notes
 
 - The heuristic remap used for collision and TODO quarantine lives in `icctest/tools/heuristic-remap.tsv`.
