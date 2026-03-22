@@ -25,8 +25,19 @@ target_link_libraries(icctest PRIVATE
     -Wl,--no-whole-archive
 )
 
-# Sanitizer flags propagate from IccTest's PUBLIC link options.
-# Debug/hardening flags for CLI itself:
+# Sanitizer compile flags must also be applied to CLI sources so that
+# compile-time ASAN detection (__SANITIZE_ADDRESS__) works correctly.
+# Link-time propagation from IccTest PUBLIC is not sufficient — the
+# CLI binary would be ASAN-linked but LinuxSandbox.cpp wouldn't know,
+# causing it to set RLIMIT_AS which kills ASAN's shadow mmap.
+if(ENABLE_SANITIZERS)
+    target_compile_options(icctest PRIVATE ${ICCTEST_SANITIZER_FLAGS})
+endif()
+if(ENABLE_COVERAGE)
+    target_compile_options(icctest PRIVATE
+        -fprofile-instr-generate -fcoverage-mapping)
+endif()
+
 target_compile_options(icctest PRIVATE
     ${ICCTEST_DEBUG_FLAGS}
     ${ICCTEST_HARDENING_FLAGS}
