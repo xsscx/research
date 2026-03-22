@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="ICC Profile Analyzer — 171-heuristic security scanner with ASAN/UBSAN for ICC color profile research">
+<meta name="description" content="ICC Profile Analyzer — 173-check ICC security and conformance scanner with V2 Web UI reports">
 <title>ICC Profile Analyzer — MCP Web UI</title>
 <style>
 /* ── Reset & Variables ─────────────────────────────────── */
@@ -724,8 +724,8 @@ function renderInputs() {
           <select id="inp-target">
             <option value="all" selected>all</option>
             <option value="iccanalyzer-lite">iccanalyzer-lite</option>
+            <option value="icctest">icctest</option>
             <option value="colorbleed_tools">colorbleed_tools</option>
-            <option value="iccDEV">iccDEV</option>
           </select>
         </div>
         <button class="btn-run" id="btnRun">Run</button>
@@ -1054,9 +1054,10 @@ async function run() {
       const data = await resp.json();
       const ms = (performance.now() - t0).toFixed(0);
       if (data.ok) {
+        const rendered = normalizeOutput(data.result);
         setStatus("ok", `${tool.label} completed in ${ms} ms`);
-        showOutput(data.result);
-        lastOutput = data.result;
+        showOutput(rendered);
+        lastOutput = rendered;
         enableSave(true);
       } else {
         const safeErr = sanitize(data.error || "Unknown error");
@@ -1110,9 +1111,10 @@ async function run() {
     const ms = (performance.now() - t0).toFixed(0);
 
     if (data.ok) {
+      const rendered = normalizeOutput(data.result);
       setStatus("ok", `${tool.label} completed in ${ms} ms`);
-      showOutput(data.result);
-      lastOutput = data.result;
+      showOutput(rendered);
+      lastOutput = rendered;
       enableSave(true);
     } else {
       const safeErr = sanitize(data.error || "Unknown error");
@@ -1139,7 +1141,18 @@ function setStatus(cls, msg) {
   $status.textContent = msg;
 }
 
+function normalizeOutput(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (err) {
+    return String(value);
+  }
+}
+
 function showOutput(text) {
+  text = normalizeOutput(text);
   if (!text) {
     $pre.classList.add("hidden-input");
     $copyBtn.classList.add("copy-hidden");

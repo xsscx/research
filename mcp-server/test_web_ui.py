@@ -15,13 +15,34 @@ import json
 import os
 import sys
 import time
+import asyncio
+
+import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from starlette.testclient import TestClient
 from web_ui import app
 
-c = TestClient(app)
+
+class SyncASGIClient:
+    def __init__(self, asgi_app):
+        self._app = asgi_app
+
+    async def _request(self, method: str, url: str, **kwargs):
+        transport = httpx.ASGITransport(app=self._app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            return await client.request(method, url, **kwargs)
+
+    def request(self, method: str, url: str, **kwargs):
+        return asyncio.run(self._request(method, url, **kwargs))
+
+    def get(self, url: str, **kwargs):
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url: str, **kwargs):
+        return self.request("POST", url, **kwargs)
+
+
+c = SyncASGIClient(app)
 passed = 0
 failed = 0
 errors: list[str] = []
@@ -145,6 +166,10 @@ def test_health():
     d = r.json()
     check("Health ok", d["ok"] is True)
     check("Health tools=24", d["tools"] == 24)
+    check("Health has defaultAnalysisEngine",
+          d.get("defaultAnalysisEngine") in {"auto", "v1", "v2"})
+    check("Health has defaultStructuralEngine",
+          d.get("defaultStructuralEngine") in {"auto", "v1", "v2"})
 
 
 # ── List Profiles ──────────────────────────────────────────
@@ -270,6 +295,8 @@ def test_security_scan():
     d = r.json()
     check("Security ok", d["ok"] is True)
     check("Security has output", len(d["result"]) > 50)
+    check("Security has conformance reference URL",
+          "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
 
 
 def test_security_json():
@@ -277,20 +304,15 @@ def test_security_json():
     check("SecurityJSON 200", r.status_code == 200)
     d = r.json()
     check("SecurityJSON ok", d["ok"] is True)
-    check("SecurityJSON has result", "result" in d and len(d["result"]) > 50)
-    # Result should be parseable JSON string
-    import json
-    try:
-        parsed = json.loads(d["result"])
-        check("SecurityJSON valid nested JSON", True)
-        check("SecurityJSON has summary", "summary" in parsed)
-        if "summary" in parsed:
-            check("SecurityJSON totalHeuristics >= 170",
-                  parsed["summary"].get("totalHeuristics", 0) >= 170)
-    except (json.JSONDecodeError, TypeError):
-        check("SecurityJSON valid nested JSON", False)
-        check("SecurityJSON has summary", False)
-        check("SecurityJSON totalHeuristics >= 170", False)
+    check("SecurityJSON has result object", "result" in d and isinstance(d["result"], dict))
+    parsed = d.get("result", {})
+    check("SecurityJSON has summary or stats", "summary" in parsed or "stats" in parsed)
+    if "summary" in parsed:
+        check("SecurityJSON totalHeuristics >= 170",
+              parsed["summary"].get("totalHeuristics", 0) >= 170)
+    else:
+        check("SecurityJSON V2 checks >= 170",
+              parsed.get("stats", {}).get("checksRun", 0) >= 170)
     # Bad path returns 400
     r2 = c.get("/api/security-json?path=nonexistent-xyz.icc")
     check("SecurityJSON bad path 400", r2.status_code == 400)
@@ -302,6 +324,8 @@ def test_security_report():
     d = r.json()
     check("SecurityReport ok", d["ok"] is True)
     check("SecurityReport has result", "result" in d and len(d["result"]) > 100)
+    check("SecurityReport has conformance reference URL",
+          "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
     check("SecurityReport has severity keyword",
           any(kw in d.get("result", "") for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")))
     # Bad path returns 400
@@ -323,6 +347,14 @@ def test_registry():
         check("Registry has severity", "severity" in reg and isinstance(reg["severity"], dict))
         check("Registry has heuristics array",
               "heuristics" in reg and isinstance(reg["heuristics"], list) and len(reg["heuristics"]) >= 170)
+
+    rv2 = c.get("/api/registry?engine=v2")
+    check("Registry V2 200", rv2.status_code == 200)
+    dv2 = rv2.json()
+    check("Registry V2 ok", dv2["ok"] is True)
+    reg2 = dv2.get("registry", {})
+    check("Registry V2 has checks array",
+          "checks" in reg2 and isinstance(reg2["checks"], list) and len(reg2["checks"]) >= 170)
 
 
 def test_roundtrip():
@@ -814,6 +846,8 @@ def test_build_tools_endpoint():
     # Invalid target
     r = c.post("/api/build-tools", json={"target": "invalid"})
     check("build-tools rejects invalid target", r.status_code == 400)
+    html = c.get("/").text
+    check("build-tools exposes icctest target", 'option value="icctest"' in html)
 
     # GET should be rejected (POST only)
     r = c.get("/api/build-tools")
