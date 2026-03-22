@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+from runtimeEnv import v1_runtime_env
 
 
 HEADER_RE = re.compile(
@@ -71,15 +72,11 @@ def strip_ansi(text: str) -> str:
 def run_v1_text(binary: Path, input_file: Path) -> dict:
     cmd = [str(binary), "-a", str(input_file)]
 
-    env = os.environ.copy()
-    env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
-    env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
-
     proc = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
-        env=env,
+        env=v1_runtime_env(binary),
         check=False,
         errors="replace",
     )

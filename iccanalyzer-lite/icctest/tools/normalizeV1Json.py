@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+from runtimeEnv import v1_runtime_env
 
 
 def repo_root() -> Path:
@@ -56,15 +57,11 @@ def run_v1_json(binary: Path, input_file: Path, legacy: bool) -> dict:
         cmd.append("--legacy")
     cmd.append(str(input_file))
 
-    env = os.environ.copy()
-    env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
-    env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
-
     proc = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
-        env=env,
+        env=v1_runtime_env(binary),
         check=False,
     )
 

@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+from runtimeEnv import v1_runtime_env
 
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -155,15 +156,13 @@ def main() -> int:
     parser.add_argument("--pretty", action="store_true")
     args = parser.parse_args()
 
-    env = os.environ.copy()
-    env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
     cmd = [str(args.binary), "-img", str(args.input)]
     proc = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        env=env,
+        env=v1_runtime_env(args.binary),
         check=False,
     )
 
