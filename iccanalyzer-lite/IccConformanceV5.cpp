@@ -703,7 +703,7 @@ int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc) {
 
 static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
   if (!IsV5(pIcc)) {
-    printf("         %s[SKIP]%s Not a v5 profile\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not a v5 profile\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -714,14 +714,14 @@ static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
 
   icColorSpaceSignature spectralPCS = pIcc->m_Header.spectralPCS;
   if (static_cast<icUInt32Number>(spectralPCS) == 0) {
-    printf("         %s[SKIP]%s No spectral PCS — not applicable\n",
+    printf("         %s[N/A]%s No spectral PCS — not applicable\n",
            ColorSuccess(), ColorReset());
     return 0;
   }
 
   const CIccTag *svcnTag = pIcc->FindTag(icSigSpectralViewingConditionsTag);
   if (!svcnTag) {
-    printf("         %s[SKIP]%s Spectral PCS present but no svcn tag (covered by CF-054)\n",
+    printf("         %s[N/A]%s Spectral PCS present but no svcn tag (covered by CF-054)\n",
            ColorSuccess(), ColorReset());
     return 0;
   }

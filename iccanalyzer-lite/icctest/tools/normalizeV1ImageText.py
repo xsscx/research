@@ -16,7 +16,7 @@ from runtimeEnv import v1_runtime_env
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 FORMAT_RE = re.compile(r"IMAGE FILE ANALYSIS\s+[—-]\s+([A-Z0-9_]+)")
 HEURISTIC_RE = re.compile(r"^\[H(\d+)\]\s+(.*)$")
-STATUS_RE = re.compile(r"^\[(OK|SKIP|WARN|CRIT|FAIL|INJECT|INFO)\]\s*(.*)$")
+STATUS_RE = re.compile(r"^\[(OK|SKIP|WARN|CRIT|FAIL|INJECT|INFO|N/A|GAP|NOT RUN)\]\s*(.*)$")
 IMAGE_CHECK_IDS = {139, 140, 141, 149, 150}
 
 
@@ -36,6 +36,18 @@ def normalize_name(name: str) -> str:
     return re.sub(r"\s+\(CWE-[^)]+\)$", "", name).strip()
 
 
+def gap_is_skip(message: str) -> bool:
+    text = " ".join(message.strip().lower().split())
+    skip_fragments = (
+        "not run",
+        "not evaluated",
+        "skipped",
+        "skip ",
+        "requires parseable",
+    )
+    return any(fragment in text for fragment in skip_fragments)
+
+
 def finalize_record(record: dict | None) -> dict | None:
     if not record:
         return None
@@ -43,6 +55,7 @@ def finalize_record(record: dict | None) -> dict | None:
     finding_count = 0
     saw_ok = False
     saw_skip = False
+    saw_na = False
     summary = ""
 
     for line in record.pop("_block", []):
@@ -54,8 +67,15 @@ def finalize_record(record: dict | None) -> dict | None:
         summary = message
         if status in {"WARN", "CRIT", "FAIL", "INJECT"}:
             finding_count += 1
-        elif status == "SKIP":
+        elif status in {"SKIP", "NOT RUN"}:
             saw_skip = True
+        elif status == "GAP":
+            if gap_is_skip(message):
+                saw_skip = True
+            else:
+                saw_na = True
+        elif status == "N/A":
+            saw_na = True
         elif status == "OK":
             saw_ok = True
 
@@ -65,7 +85,7 @@ def finalize_record(record: dict | None) -> dict | None:
             summary = f"{finding_count} issue(s)"
     elif saw_skip:
         normalized_status = "skip"
-    elif saw_ok:
+    elif saw_ok or saw_na:
         normalized_status = "ok"
     else:
         normalized_status = "ok"

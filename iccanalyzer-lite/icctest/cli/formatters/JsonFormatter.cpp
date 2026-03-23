@@ -78,8 +78,9 @@ public:
 
         // Stats
         out << "  \"stats\": {\n";
+        const int coverageOnlyChecks = countCoverageOnlyChecks(result);
         out << "    \"checksRun\": " << result.stats.checksRun << ",\n";
-        out << "    \"checksSkipped\": " << result.stats.checksSkipped << ",\n";
+        out << "    \"coverageOnlyChecks\": " << coverageOnlyChecks << ",\n";
         out << "    \"findingsTotal\": " << result.stats.findingsTotal << ",\n";
         out << "    \"totalTimeUs\": " << result.stats.totalTime.count() << ",\n";
         out << "    \"severity\": {\n";

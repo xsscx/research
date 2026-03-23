@@ -446,16 +446,16 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   
   if (skipLibraryPhase) {
     printf("=======================================================================\n");
-    printf("[SKIP] Profile structurally unsafe for library loading (%u tags, %zu bytes)\n",
+    printf("[NOT RUN] Profile structurally unsafe for library loading (%u tags, %zu bytes)\n",
            rawTagCount, actualFileSize);
-    printf("       Library-API heuristics skipped — raw analysis continues below\n");
+    printf("       Library-API heuristics not run — raw analysis continues below\n");
     printf("=======================================================================\n\n");
   } else {
   // Now open profile with IccProfLib for tag-level analysis
   CIccProfile *pIcc = OpenIccProfile(filename);
   if (!pIcc) {
     printf("=======================================================================\n");
-    printf("[WARN]  Profile failed to load - skipping tag-level heuristics\n");
+    printf("[NOT RUN] Profile failed to load - tag-level heuristics not run\n");
     printf("   Use -n (ninja mode) for raw analysis of malformed profiles\n");
     printf("=======================================================================\n\n");
   } else {

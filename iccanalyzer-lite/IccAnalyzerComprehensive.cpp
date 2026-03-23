@@ -221,7 +221,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   
   // Conformance Phase: ICC specification validation via CIccProfile::ReadValidate()
   if (IsProfileTruncated(filename)) {
-    printf("\n%s[SKIP] Profile TRUNCATED — conformance validation skipped (CWE-125)%s\n",
+    printf("\n%s[NOT RUN] Profile TRUNCATED — conformance validation not run (CWE-125)%s\n",
            ColorCritical(), ColorReset());
     printf("       %sHeader claims more bytes than file contains%s\n",
            ColorInfo(), ColorReset());
@@ -246,7 +246,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
            ColorCritical(), ColorReset());
   }
   if (skipLibrary) {
-    printf("%s[SKIP] Library-phase conformance skipped — profile triggers upstream "
+    printf("%s[NOT RUN] Library-phase conformance not run — profile triggers upstream "
            "undefined behavior (CWE-190)%s\n",
            ColorCritical(), ColorReset());
     printf("       %sRaw-phase heuristics (H1-H174) still ran in legacy mode%s\n",
@@ -261,7 +261,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   printf("=======================================================================\n\n");
   
   if (skipLibraryValidation) {
-    printf("%s[SKIP] Library validation skipped — half-float fields would hit "
+    printf("%s[NOT RUN] Library validation not run — half-float fields would hit "
            "upstream icF16toF UB during Validate()%s\n",
            ColorCritical(), ColorReset());
     printf("       %sDeep conformance checks will continue using analyzer-owned "
@@ -331,7 +331,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     } else {
       if (pIcc) { delete pIcc; pIcc = nullptr; }
       ioConf.Close();
-      printf("\n%s[SKIP] Deep conformance checks skipped — profile failed to load%s\n",
+      printf("\n%s[NOT RUN] Deep conformance checks not run — profile failed to load%s\n",
              ColorWarning(), ColorReset());
     }
   }

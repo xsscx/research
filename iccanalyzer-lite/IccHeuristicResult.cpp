@@ -14,6 +14,48 @@
 #include <cstdarg>
 #include <cstring>
 #include <string>
+#include <string_view>
+
+namespace {
+
+static std::string LowerCopy(std::string_view text) {
+  std::string out(text);
+  for (char &c : out) {
+    if (c >= 'A' && c <= 'Z')
+      c = static_cast<char>(c - 'A' + 'a');
+  }
+  return out;
+}
+
+static const char *SkipLabelForReason(const char *reason) {
+  if (!reason || !*reason)
+    return "N/A";
+
+  std::string lower = LowerCopy(reason);
+  if (lower.find("not applicable") != std::string::npos ||
+      lower.rfind("no ", 0) == 0 ||
+      lower.rfind("not a ", 0) == 0 ||
+      lower.rfind("not an ", 0) == 0 ||
+      lower.find(" exempt") != std::string::npos) {
+    return "N/A";
+  }
+
+  if (lower.find("cannot") != std::string::npos ||
+      lower.find("failed") != std::string::npos ||
+      lower.find("unsafe") != std::string::npos ||
+      lower.find("truncated") != std::string::npos ||
+      lower.find("too small") != std::string::npos ||
+      lower.find("too large") != std::string::npos ||
+      lower.find("not loaded") != std::string::npos ||
+      lower.find("invalid") != std::string::npos ||
+      lower.find("tag count out of range") != std::string::npos) {
+    return "NOT RUN";
+  }
+
+  return "N/A";
+}
+
+} // namespace
 
 // ── Singleton ──
 
@@ -164,7 +206,7 @@ int HeuristicCollector::skip(const char *reason)
     m_lastCount = 0;
   }
   if (!m_quiet)
-    printf("      [SKIP] %s\n\n", reason ? reason : "");
+    printf("      [%s] %s\n\n", SkipLabelForReason(reason), reason ? reason : "");
   return 0;
 }
 
