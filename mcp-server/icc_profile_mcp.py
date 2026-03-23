@@ -72,7 +72,7 @@ DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto"
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
 _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
-_PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL| -- )\]\s+[SCQ]\d+\s+")
+_PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL|N/A|GAP| -- )\]\s+[SCQ]\d+\s+")
 
 
 def _resolve_engine(engine: str | None, *, default: str) -> str:

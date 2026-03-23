@@ -378,9 +378,13 @@ int RunSecurityConformance(CIccProfile *pIcc, const char *filename) {
 #define CF_WRAP(id, title, call) \
   hc.begin(id, title); \
   r = call; \
-  if (r > 0) hc.warn("%d non-conformance(s)", r); \
-  hc.end("Conformant"); \
-  issues += r
+  if (r < 0) { \
+    hc.skip(nullptr); \
+  } else { \
+    if (r > 0) hc.warn("%d non-conformance(s)", r); \
+    hc.end("Conformant"); \
+    issues += r; \
+  }
 
   CF_WRAP(1091, "CF-091: Malware Signature Scan", RunCF091_MalwareSignatureScan(pIcc, filename));
   CF_WRAP(1092, "CF-092: Private Tag Identification", RunCF092_PrivateTagPresence(pIcc));

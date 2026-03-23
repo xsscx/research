@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 
 
+ITEM_LINE_RE = re.compile(r"^\s+\[(OK|WARN|FAIL|N/A|GAP| -- )\]\s+([SCQ]\d+)\s+(.*)$", re.MULTILINE)
+COUNT_LINE_RE = re.compile(r"^\s+(PASS|WARN|FAIL|N/A|GAP|NOT RUN):\s+(\d+)$", re.MULTILINE)
+
+
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -89,6 +93,43 @@ def require_regex(text: str, pattern: str, failures: list[str], label: str) -> N
         failures.append(f"{label}: missing /{pattern}/")
 
 
+def parse_item_lines(text: str, failures: list[str], label: str) -> dict[str, tuple[str, str]]:
+    items: dict[str, tuple[str, str]] = {}
+    for verdict, item_id, title in ITEM_LINE_RE.findall(text):
+        items[item_id] = (verdict.strip(), title.strip())
+    if len(items) != 31:
+        failures.append(f"{label}: expected 31 PAWG item lines, found {len(items)}")
+    return items
+
+
+def parse_summary_counts(text: str) -> dict[str, int]:
+    return {name: int(value) for name, value in COUNT_LINE_RE.findall(text)}
+
+
+def compare_items(label_a: str,
+                  items_a: dict[str, tuple[str, str]],
+                  label_b: str,
+                  items_b: dict[str, tuple[str, str]],
+                  failures: list[str]) -> None:
+    if set(items_a) != set(items_b):
+        failures.append(
+            f"{label_a}/{label_b}: PAWG item ID drift: "
+            f"{sorted(set(items_a).symmetric_difference(items_b))}"
+        )
+        return
+    for item_id in sorted(items_a):
+        verdict_a, title_a = items_a[item_id]
+        verdict_b, title_b = items_b[item_id]
+        if title_a != title_b:
+            failures.append(
+                f"{label_a}/{label_b}: title mismatch for {item_id}: {title_a!r} != {title_b!r}"
+            )
+        if verdict_a != verdict_b:
+            failures.append(
+                f"{label_a}/{label_b}: verdict mismatch for {item_id}: {verdict_a!r} != {verdict_b!r}"
+            )
+
+
 def check_report(label: str, text: str, failures: list[str]) -> None:
     require(text, "ICC PROFILE ASSESSMENT REPORT (PAWG)", failures, label)
     require(
@@ -119,6 +160,11 @@ def check_report(label: str, text: str, failures: list[str]) -> None:
     for i in range(1, 5):
         require_regex(text, rf"\bQ{i}\b", failures, label)
 
+    counts = parse_summary_counts(text)
+    total = sum(counts.values())
+    if total != 31:
+        failures.append(f"{label}: PAWG summary count total {total}, expected 31")
+
 
 def main() -> int:
     args = parse_args()
@@ -138,6 +184,23 @@ def main() -> int:
     check_report("v2 good", v2_good, failures)
     check_report("v1 bad", v1_bad, failures)
     check_report("v2 bad", v2_bad, failures)
+
+    v1_good_items = parse_item_lines(v1_good, failures, "v1 good")
+    v2_good_items = parse_item_lines(v2_good, failures, "v2 good")
+    v1_bad_items = parse_item_lines(v1_bad, failures, "v1 bad")
+    v2_bad_items = parse_item_lines(v2_bad, failures, "v2 bad")
+
+    compare_items("v1 good", v1_good_items, "v2 good", v2_good_items, failures)
+    compare_items("v1 bad", v1_bad_items, "v2 bad", v2_bad_items, failures)
+
+    if v1_good_items.get("S1", ("", ""))[0] != "OK":
+        failures.append("v1 good: expected S1 to render as OK")
+    if v2_good_items.get("S1", ("", ""))[0] != "OK":
+        failures.append("v2 good: expected S1 to render as OK")
+    if v1_good_items.get("Q4", ("", ""))[0] != "N/A":
+        failures.append("v1 good: expected Q4 to render as N/A")
+    if v2_good_items.get("Q4", ("", ""))[0] != "N/A":
+        failures.append("v2 good: expected Q4 to render as N/A")
 
     require_regex(v1_bad, r"WARN:\s+[1-9]\d*", failures, "v1 bad")
     require_regex(v2_bad, r"WARN:\s+[1-9]\d*", failures, "v2 bad")
