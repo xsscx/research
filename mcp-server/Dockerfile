@@ -35,7 +35,17 @@ COPY mcp-server/ mcp-server/
 COPY test-profiles/ test-profiles/
 COPY extended-test-profiles/ extended-test-profiles/
 
-# Build upstream iccDEV static libraries from the repo checkout
+# Clone fresh upstream iccDEV into the analyzer tree. The top-level repo does
+# not track that nested checkout, and the MCP image must build against the
+# unpatched upstream sources instead of any local working tree residue.
+RUN rm -rf /build/iccanalyzer-lite/iccDEV \
+ && git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /build/iccanalyzer-lite/iccDEV \
+ && SIGUTILS=/build/iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h \
+ && if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then \
+      sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"; \
+    fi
+
+# Build upstream iccDEV static libraries from a fresh unpatched checkout
 RUN find /build/iccanalyzer-lite/iccDEV/Build -mindepth 1 -maxdepth 1 \
         ! -name Cmake ! -name XCode -exec rm -rf {} + \
  && cd /build/iccanalyzer-lite/iccDEV/Build \
@@ -92,11 +102,13 @@ RUN cd /build/iccanalyzer-lite/iccDEV/Build \
       iccToXml \
       iccV5DspObsToV4Dsp
 
-# Build colorbleed_tools against the same unpatched iccDEV tree (release: intentionally unsafe)
+# Build colorbleed_tools against the same unpatched iccDEV tree using the
+# sanitizer-instrumented configuration. The tools remain intentionally unsafe
+# in behavior, but the binaries themselves stay on the Debug+ASAN+UBSAN path.
 RUN cd colorbleed_tools \
  && rm -rf iccDEV \
  && ln -s /build/iccanalyzer-lite/iccDEV iccDEV \
- && make CONFIG=release
+ && make CONFIG=sanitizer setup
 
 # Python venv with MCP server
 RUN python3 -m venv --clear /build/mcp-venv \
