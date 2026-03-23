@@ -275,6 +275,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("            CWE-125: Tags will read out-of-bounds on lazy load\n");
     printf("=======================================================================\n\n");
   }
+
+  if (DetectH96EmbeddedProfileConstructorUB(filename)) {
+    heuristicCount += RunHeuristic_H96_EmbeddedProfileValidationRaw(filename);
+    if (IsLibraryUBDefenseEnabled()) {
+      skipLibraryPhase = true;
+      printf("=======================================================================\n");
+      printf("[PREFLIGHT] Embedded ICC5/ICCp tag will trigger upstream CIccEmbedIO UB\n");
+      printf("            Library-API heuristics skipped to prevent unsafe parse of user input\n");
+      printf("=======================================================================\n\n");
+    }
+  }
   
   // PHASE 0.5: External File Metadata (when tools available)
   printf("=======================================================================\n");

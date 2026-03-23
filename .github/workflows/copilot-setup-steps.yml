@@ -2,7 +2,7 @@
 # Copilot Coding Agent — Environment Setup
 #
 # Pulls pre-built Docker image with iccanalyzer-lite,
-# colorbleed_tools, and MCP server. Extracts binaries to the
+# icctest, colorbleed_tools, and MCP server. Extracts binaries to the
 # workspace so the coding agent can run them directly.
 #
 # Image built by: mcp-server-docker.yml
@@ -44,10 +44,12 @@ jobs:
           docker pull --quiet ghcr.io/xsscx/icc-profile-mcp:latest
           CID=$(docker create ghcr.io/xsscx/icc-profile-mcp:latest)
           docker cp "$CID":/app/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
+          mkdir -p iccanalyzer-lite/icctest/build/cli
+          docker cp "$CID":/app/iccanalyzer-lite/icctest/build/cli/icctest iccanalyzer-lite/icctest/build/cli/icctest
           docker cp "$CID":/app/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
           docker cp "$CID":/app/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
           docker rm "$CID" > /dev/null
-          chmod +x iccanalyzer-lite/iccanalyzer-lite colorbleed_tools/icc*_unsafe
+          chmod +x iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/icctest/build/cli/icctest colorbleed_tools/icc*_unsafe
 
       - name: Install MCP server and verify
         run: |
@@ -55,6 +57,8 @@ jobs:
           pip install --quiet --no-cache-dir ./mcp-server[dev]
           echo "--- iccanalyzer-lite ---"
           iccanalyzer-lite/iccanalyzer-lite --version 2>&1 | head -3
+          echo "--- icctest ---"
+          iccanalyzer-lite/icctest/build/cli/icctest --version 2>&1 | head -3
           echo "--- colorbleed_tools ---"
           ls -la colorbleed_tools/icc*_unsafe
           echo "--- MCP server ---"

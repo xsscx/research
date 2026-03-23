@@ -39,12 +39,29 @@ ANALYZER_V2_BIN = REPO_ROOT / "iccanalyzer-lite" / "icctest" / "build" / "cli" /
 ICCDEV_TOOLS_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV" / "Build" / "Tools"
 TO_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccToXml" / "iccToXml"
 FROM_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccFromXml" / "iccFromXml"
+DUMP_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccDumpProfile" / "iccDumpProfile"
+ROUNDTRIP_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccRoundTrip" / "iccRoundTrip"
+APPLY_NAMED_CMM_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccApplyNamedCmm" / "iccApplyNamedCmm"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
 FROM_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccFromXml_unsafe"
+SPECIFICATIONS_DIR = REPO_ROOT / "docs" / "iccDEV" / "specifications"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
 _VALID_ENGINES = frozenset({"v1", "v2", "auto"})
+_BATCH_TOOL_ALIASES = {
+    "iccDumpProfile": "dump",
+    "iccToXml": "toxml",
+    "iccFromXml": "fromxml",
+    "iccRoundTrip": "roundtrip",
+}
+_BATCH_TOOL_BINARIES = {
+    "dump": ("iccDumpProfile",),
+    "toxml": ("iccToXml",),
+    "fromxml": ("iccFromXml",),
+    "roundtrip": ("iccRoundTrip",),
+    "all": ("iccDumpProfile", "iccToXml", "iccRoundTrip"),
+}
 
 
 def _init_engine_default(env_name: str, fallback: str) -> str:
@@ -55,14 +72,11 @@ def _init_engine_default(env_name: str, fallback: str) -> str:
 DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto")
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
+_PAWG_EXCLUDED_REFERENCE_NAMES = frozenset({
+    "ICC.1_Adaptive_Gain_Curve.pdf",
+})
 _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
-_PAWG_REFERENCE_BLOCK_LINES = (
-    f"  ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
-    "  ICC Specification PDFs:",
-    "    docs/iccDEV/specifications/ICC.1-2022-05.pdf",
-    "    docs/iccDEV/specifications/ICC.2-2023.pdf",
-    "    docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf",
-)
+_PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL)\]\s+C\d+\s+")
 
 
 def _resolve_engine(engine: str | None, *, default: str) -> str:
@@ -125,17 +139,22 @@ def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") 
 
 
 def _insert_pawg_reference_block(lines: list[str]) -> list[str]:
+    reference_block = _pawg_reference_block_lines()
     rendered: list[str] = []
     inserted = False
     for line in lines:
-        if ICC_PROFILE_ASSESSMENT_URL in line or "docs/iccDEV/specifications/" in line:
+        if (
+            ICC_PROFILE_ASSESSMENT_URL in line
+            or "docs/iccDEV/specifications/" in line
+            or line.strip() == "ICC Specification References:"
+        ):
             continue
         rendered.append(line)
         if "Goals for profile assessment" in line and not inserted:
-            rendered.extend(_PAWG_REFERENCE_BLOCK_LINES)
+            rendered.extend(reference_block)
             inserted = True
     if not inserted:
-        rendered.extend(_PAWG_REFERENCE_BLOCK_LINES)
+        rendered.extend(reference_block)
     return rendered
 
 
@@ -151,6 +170,20 @@ def _slice_between(lines: list[str], start_marker: str, end_markers: tuple[str, 
     return lines[start_idx:end_idx]
 
 
+def _collapse_pawg_item_lines(lines: list[str], heading: str) -> list[str]:
+    collapsed: list[str] = []
+    for line in lines:
+        if heading in line:
+            collapsed.append(line)
+            collapsed.append("")
+            continue
+        if _PAWG_ITEM_LINE_RE.match(line):
+            collapsed.append(line.rstrip())
+    while collapsed and not collapsed[-1].strip():
+        collapsed.pop()
+    return collapsed if collapsed else lines
+
+
 def _render_pawg_conformance_view(text: str) -> str:
     """Render the native PAWG output as a conformance-only web view."""
     if not text:
@@ -158,8 +191,8 @@ def _render_pawg_conformance_view(text: str) -> str:
 
     lines = [line.rstrip() for line in _sanitize_output(text).splitlines()]
     conformance = _slice_between(lines, "[ CONFORMANCE ]", ("[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))
+    conformance = _collapse_pawg_item_lines(conformance, "[ CONFORMANCE ]")
     coverage = _slice_between(lines, "[ CONFORMANCE CHECK COVERAGE ]", ("[ SPECIFICATION REFERENCES ]",))
-    references = _slice_between(lines, "[ SPECIFICATION REFERENCES ]", ())
 
     if not conformance:
         return _sanitize_output(text)
@@ -178,11 +211,64 @@ def _render_pawg_conformance_view(text: str) -> str:
         if rendered and rendered[-1].strip():
             rendered.append("")
         rendered.extend(coverage)
-    if references:
-        if rendered and rendered[-1].strip():
-            rendered.append("")
-        rendered.extend(references)
     return _sanitize_output("\n".join(rendered).strip())
+
+
+def _include_pawg_spec_reference(name: str) -> bool:
+    return name not in _PAWG_EXCLUDED_REFERENCE_NAMES
+
+
+def _pawg_spec_reference_paths() -> list[str]:
+    fallback_names = sorted([
+        "Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf",
+        "Guidelines_on_the_use_of_negative_PCSXYZ_values.pdf",
+        "ICC-Technote-PartialAdaptation.pdf",
+        "ICC-Technote-ProfileEmbedding.pdf",
+        "ICC.1-2022-05.pdf",
+        "ICC.2-2019.pdf",
+        "ICC.2-2019_Cumulative_Errata_List_2021-03-08.pdf",
+        "ICC.2-2019_Cumulative_Errata_List_2021-09-09.pdf",
+        "ICC.2-2023.pdf",
+        "ICCSpecRevision_25-02-10_dictType-1.pdf",
+        "ICCSpecRevision_25-02-10_dictType.pdf",
+        "ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf",
+        "ICC_White_Paper_54_Introduction_to_ICS.pdf",
+        "ICC_White_Paper_57_Introduction_to_core_ICS_specifications.pdf",
+        "ICC_white_paper_21-SampleICCProfileCompliance.pdf",
+        "ICS-ExtendedOutput-Part1.pdf",
+        "ICS-ExtendedRange-Part1.pdf",
+        "ICS-ExtendedRange-Part2.pdf",
+        "ICS-ExtendedRange-Part3.pdf",
+        "PSD_TechNote.pdf",
+        "README.md",
+        "icc-individual-cla.pdf",
+        "rfc1321.txt",
+        "v2profiles_v4.pdf",
+        "v4_matrix_entries.pdf",
+    ])
+    try:
+        names = sorted(
+            entry.name
+            for entry in SPECIFICATIONS_DIR.iterdir()
+            if entry.is_file()
+            and _include_pawg_spec_reference(entry.name)
+        )
+    except OSError:
+        names = fallback_names
+    return [
+        f"docs/iccDEV/specifications/{name}"
+        for name in names
+        if _include_pawg_spec_reference(name)
+    ]
+
+
+def _pawg_reference_block_lines() -> tuple[str, ...]:
+    lines = [
+        f"  ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
+        "  ICC Specification References:",
+    ]
+    lines.extend(f"    {path}" for path in _pawg_spec_reference_paths())
+    return tuple(lines)
 
 
 def _map_flags(flags: list[str], engine: str | None) -> list[str]:
@@ -430,12 +516,20 @@ async def health_check() -> str:
     to_xml_safe_ok = TO_XML_SAFE_BIN.is_file() and os.access(TO_XML_SAFE_BIN, os.X_OK)
     from_xml_unsafe_ok = FROM_XML_UNSAFE_BIN.is_file() and os.access(FROM_XML_UNSAFE_BIN, os.X_OK)
     from_xml_safe_ok = FROM_XML_SAFE_BIN.is_file() and os.access(FROM_XML_SAFE_BIN, os.X_OK)
+    dump_safe_ok = DUMP_SAFE_BIN.is_file() and os.access(DUMP_SAFE_BIN, os.X_OK)
+    roundtrip_safe_ok = ROUNDTRIP_SAFE_BIN.is_file() and os.access(ROUNDTRIP_SAFE_BIN, os.X_OK)
+    apply_named_cmm_safe_ok = (
+        APPLY_NAMED_CMM_SAFE_BIN.is_file() and os.access(APPLY_NAMED_CMM_SAFE_BIN, os.X_OK)
+    )
 
     lines.append("Binaries:")
     lines.append(f"  iccanalyzer-lite : {'[OK]' if analyzer_ok else '[MISSING]'}")
     lines.append(f"  icctest (V2)     : {'[OK]' if analyzer_v2_ok else '[MISSING]'}")
     lines.append(f"  iccToXml (safe)  : {'[OK]' if to_xml_safe_ok else '[MISSING]'}")
     lines.append(f"  iccFromXml (safe): {'[OK]' if from_xml_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccDumpProfile   : {'[OK]' if dump_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccRoundTrip     : {'[OK]' if roundtrip_safe_ok else '[MISSING]'}")
+    lines.append(f"  iccApplyNamedCmm : {'[OK]' if apply_named_cmm_safe_ok else '[MISSING]'}")
     lines.append(f"  iccToXml_unsafe  : {'[OK]' if to_xml_unsafe_ok else '[MISSING]'}")
     lines.append(f"  iccFromXml_unsafe: {'[OK]' if from_xml_unsafe_ok else '[MISSING]'}")
     lines.append("")
@@ -1096,6 +1190,17 @@ def _build_tool_path(build_dir: Path) -> str:
     return base_path
 
 
+def _has_required_tools(build_dir: Path, required_tools: tuple[str, ...] = ()) -> bool:
+    """Return True when the build dir exposes all required tool binaries."""
+    tool_dirs = _find_iccdev_tools(build_dir)
+    if not tool_dirs:
+        return False
+    if not required_tools:
+        return True
+    path = _build_tool_path(build_dir)
+    return all(shutil.which(binary, path=path) for binary in required_tools)
+
+
 def _discover_iccdev_build_dirs(iccdev: Path) -> list[Path]:
     """Discover candidate iccDEV build directories ordered by usefulness."""
     base = iccdev / "Build"
@@ -1147,10 +1252,10 @@ def _discover_iccdev_build_dirs(iccdev: Path) -> list[Path]:
     return sorted(candidates, key=sort_key, reverse=True)
 
 
-def _auto_select_tool_build_dir(iccdev: Path) -> Path | None:
+def _auto_select_tool_build_dir(iccdev: Path, required_tools: tuple[str, ...] = ()) -> Path | None:
     """Return the best available iccDEV build directory with executable tools."""
     for candidate in _discover_iccdev_build_dirs(iccdev):
-        if _find_iccdev_tools(candidate):
+        if _has_required_tools(candidate, required_tools):
             return candidate
     return None
 
@@ -1435,12 +1540,12 @@ async def create_all_profiles(build_dir: str = "") -> str:
         except (FileNotFoundError, ValueError) as e:
             return f"[FAIL] {e}"
     else:
-        target_dir = _auto_select_tool_build_dir(iccdev)
+        target_dir = _auto_select_tool_build_dir(iccdev, ("iccFromXml",))
         if target_dir is None:
             discovered = _discover_iccdev_build_dirs(iccdev)
             discovered_names = ", ".join(p.name for p in discovered[:8]) if discovered else "(none)"
             return (
-                "[FAIL] No tool-enabled build directory found under iccDEV/Build.\n"
+                "[FAIL] No build directory with iccFromXml found under iccDEV/Build.\n"
                 f"Detected build dirs: {discovered_names}\n"
                 "First run:\n"
                 "  1. cmake_configure(enable_tools=True)\n"
@@ -1552,12 +1657,12 @@ async def run_iccdev_tests(build_dir: str = "") -> str:
         except (FileNotFoundError, ValueError) as e:
             return f"[FAIL] {e}"
     else:
-        target_dir = _auto_select_tool_build_dir(iccdev)
+        target_dir = _auto_select_tool_build_dir(iccdev, ("iccApplyNamedCmm",))
         if target_dir is None:
             discovered = _discover_iccdev_build_dirs(iccdev)
             discovered_names = ", ".join(p.name for p in discovered[:8]) if discovered else "(none)"
             return (
-                "[FAIL] No tool-enabled build directory found under iccDEV/Build.\n"
+                "[FAIL] No build directory with iccApplyNamedCmm found under iccDEV/Build.\n"
                 f"Detected build dirs: {discovered_names}\n"
                 "First run:\n"
                 "  1. cmake_configure(enable_tools=True)\n"
@@ -2216,20 +2321,35 @@ async def batch_test_profiles(
         tool: Which tool to run — "dump" (iccDumpProfile), "toxml" (iccToXml),
               "fromxml" (iccFromXml), "roundtrip" (iccRoundTrip), or "all".
         build_dir: Build directory with tool executables (from cmake_build).
+                   If omitted, auto-detect the best available tool-enabled build.
     """
-    if not build_dir:
-        return (
-            "[FAIL] build_dir is required. First build with enable_tools=True:\n"
-            "  1. cmake_configure(enable_tools=True)\n"
-            "  2. cmake_build(build_dir='...')\n"
-            "  3. batch_test_profiles(build_dir='...')"
-        )
-
     try:
         iccdev = _resolve_iccdev_dir()
-        target_dir = _resolve_build_dir(build_dir)
     except (FileNotFoundError, ValueError) as e:
         return f"[FAIL] {e}"
+
+    auto_selected = False
+    tool = _BATCH_TOOL_ALIASES.get(tool, tool)
+    required_tools = _BATCH_TOOL_BINARIES.get(tool, ())
+    if build_dir:
+        try:
+            target_dir = _resolve_build_dir(build_dir)
+        except (FileNotFoundError, ValueError) as e:
+            return f"[FAIL] {e}"
+    else:
+        target_dir = _auto_select_tool_build_dir(iccdev, required_tools)
+        if target_dir is None:
+            discovered = _discover_iccdev_build_dirs(iccdev)
+            discovered_names = ", ".join(p.name for p in discovered[:8]) if discovered else "(none)"
+            return (
+                f"[FAIL] No build directory with required batch-test tool(s) for '{tool}' found under iccDEV/Build.\n"
+                f"Detected build dirs: {discovered_names}\n"
+                "First run:\n"
+                "  1. cmake_configure(enable_tools=True)\n"
+                "  2. cmake_build(build_dir='...')\n"
+                "  3. batch_test_profiles(build_dir='...')"
+            )
+        auto_selected = True
 
     tool_dirs = _find_iccdev_tools(target_dir)
     if not tool_dirs:
@@ -2273,7 +2393,14 @@ async def batch_test_profiles(
     else:
         run_tools = [tool]
 
-    lines = [f"[Batch Profile Testing — {len(profiles)} profiles]", ""]
+    lines: list[str] = []
+    if auto_selected:
+        lines.extend([
+            f"[INFO] Auto-detected build dir: {target_dir.name}",
+            f"  Build dir: {target_dir}",
+            "",
+        ])
+    lines.extend([f"[Batch Profile Testing — {len(profiles)} profiles]", ""])
     summary: dict[str, dict[str, int]] = {}
 
     for t in run_tools:

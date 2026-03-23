@@ -31,34 +31,40 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 ```
 
 - Compiler: clang++ 18+ with `-fsanitize=address,undefined`
+- Developer-facing V1/V2 binaries and GitHub Release assets should come from
+  this same instrumented Debug path. Do not create a separate Release-only
+  packaging path for CLI validation.
 - Requires: libxml2-dev, libtiff-dev, libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 - The build links against the **unpatched** upstream iccDEV library at `iccDEV/Build/`
 - iccanalyzer-lite does NOT use CFL patches — it handles all user-controllable
   inputs through its own defensive programming (bounds checks, size validation,
   ASAN+UBSAN instrumentation, signal recovery, heuristic guards)
 - Output: `iccanalyzer-lite/iccanalyzer-lite` (32MB with debug info)
+- When shipping V2 command-line artifacts, include:
+  `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`, and
+  `verify-parity-summary.json`
 
-## Build System Sync — 7 Locations
+## Build System Sync — Manual Source Lists + Packaging Workflows
 
-When adding new `.cpp` modules, ALL 7 build locations must be updated:
+When adding new `.cpp` modules, keep the manual source-list locations in sync.
+The GitHub Release workflow now packages the existing instrumented V1/V2
+outputs; it no longer owns a separate Release/LTO compile path.
 
 | # | File | Variable | Notes |
 |---|------|----------|-------|
 | 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` | Primary local build |
 | 2 | `iccanalyzer-lite/CMakeLists.txt` | `add_executable()` | CI/IDE builds |
 | 3 | `.github/workflows/codeql-security-analysis.yml` | `SRCS=` | + linker flags |
-| 4 | `.github/workflows/iccanalyzer-cli-release.yml` | `SOURCES=` | + linker flags |
-| 5 | `.github/workflows/iccanalyzer-lite-coverage-report.yml` | `SOURCES=` | + linker flags |
-| 6 | `.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` | + linker flags |
-| 7 | `.github/workflows/mcp-server-test.yml` | `SRCS=` | + linker flags |
+| 4 | `.github/workflows/iccanalyzer-lite-coverage-report.yml` | `SOURCES=` | + linker flags |
+| 5 | `.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` | + linker flags |
+| 6 | `.github/workflows/mcp-server-test.yml` | `SRCS=` | + linker flags |
 
 For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
 
-**CRITICAL — Linker flag sync**: When adding new library dependencies (e.g., `-lssl -lcrypto`
-for OpenSSL), ALL 7 locations must be updated. Pay special attention to
-`iccanalyzer-cli-release.yml` which has its own **manual static LTO link command**
-(line ~488) that is independent of `build.sh` — it will NOT automatically inherit
-new flags. A local `build.sh` success does NOT guarantee CI success.
+**CRITICAL — Linker flag sync**: When adding new library dependencies (e.g.,
+`-lssl -lcrypto` for OpenSSL), update every manual compile/link location.
+The release workflow now packages the instrumented binaries produced by the
+normal build/test path, so parity and developer-facing artifacts stay aligned.
 
 ## Test
 
@@ -69,6 +75,9 @@ python3 iccanalyzer-lite/tests/run_tests.py
 - Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
 - When adding heuristics, update the test for `summary.173_heuristics` pattern
+- Under harnessed V2 unit/parity execution, prefer:
+  `ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null`
+  because LSAN can abort under the runner environment even when the suite passes
 
 ## Architecture — HeuristicCollector + 10 Heuristic Modules
 

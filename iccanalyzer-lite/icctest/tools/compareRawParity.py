@@ -154,6 +154,7 @@ def run_v1_normalized(
             str(v1_conformance_normalizer),
             "--binary",
             str(v1_binary),
+            "--disable-library-ub-defense",
             str(input_path),
         ]
     else:
@@ -164,6 +165,7 @@ def run_v1_normalized(
             str(v1_binary),
             "--lane",
             lane,
+            "--disable-library-ub-defense",
         ]
         if lane == "heuristic":
             cmd.append("--legacy")

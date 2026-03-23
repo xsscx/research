@@ -49,6 +49,7 @@ static AnalysisResult analyze_corpus_checks(const std::filesystem::path& profile
                                             const std::vector<int>& checks) {
     AnalysisOptions opts;
     opts.phases = {CheckPhase::CONFORMANCE};
+    opts.skipLibraryOnUB = false;
     for (int check : checks) {
         opts.specificChecks.push_back({CheckID::Kind::Conformance, check});
     }
@@ -587,6 +588,51 @@ static void test_embedding_tech_note_regressions() {
         auto result = analyze_corpus_checks(corpusDir / "cf_embedded_child_class_mismatch.icc", {155});
         ASSERT_EQ(1, result.stats.checksRun);
         expect_conformance_result(result, 155, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf_embedded_child_class_mismatch.icc", {96});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 96, CheckResult::Status::FINDINGS, 1);
+        const auto* h96 = find_per_check(result, CheckID::Kind::Heuristic, 96);
+        ASSERT_TRUE(h96 != nullptr);
+        ASSERT_TRUE(h96->result.findings[0].message.find("CIccEmbedIO constructor sentinel UB") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf_embedded_wrong_type.icc", {96});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 96, CheckResult::Status::FINDINGS, 1);
+        const auto* h96 = find_per_check(result, CheckID::Kind::Heuristic, 96);
+        ASSERT_TRUE(h96 != nullptr);
+        ASSERT_TRUE(h96->result.findings[0].message.find("wrong runtime type") != std::string::npos);
+    }
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::RAW_SCAN, CheckPhase::LIBRARY, CheckPhase::CONFORMANCE};
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 96},
+            {CheckID::Kind::Conformance, 155},
+        };
+
+        IccTestRunner runner;
+        auto result = runner.analyze(corpusDir / "cf_embedded_child_class_mismatch.icc", opts);
+
+        const auto* h96 = find_per_check(result, CheckID::Kind::Heuristic, 96);
+        ASSERT_TRUE(h96 != nullptr);
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h96->result.status);
+        ASSERT_TRUE(h96->result.findings[0].message.find("CIccEmbedIO constructor sentinel UB") != std::string::npos);
+        ASSERT_TRUE(find_per_check(result, CheckID::Kind::Conformance, 155) == nullptr);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {173});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 173, CheckResult::Status::FINDINGS, 1);
+        const auto* h173 = find_per_check(result, CheckID::Kind::Heuristic, 173);
+        ASSERT_TRUE(h173 != nullptr);
+        ASSERT_TRUE(h173->result.findings[0].message.find("IccUtil.cpp:1088,1130") != std::string::npos);
     }
 
     {

@@ -48,7 +48,7 @@ jobs:
   build-test-release:
     name: "Build, Test & Release"
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash --noprofile --norc {0}
@@ -105,7 +105,7 @@ jobs:
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: iccanalyzer-lite/iccDEV
-          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-lite-upstream-v1
 
       - name: Clone iccDEV dependency
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
@@ -136,20 +136,12 @@ jobs:
             iccanalyzer-lite/iccDEV/Build/IccXML
             iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
             iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-lite-reldbg-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-lite-reldbg-upstream-${{ hashFiles('.github/workflows/iccanalyzer-cli-release.yml') }}
 
-      - name: Apply CFL patches to iccDEV
+      - name: Normalize upstream iccDEV source
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
-            fi
-          done
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
           if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
@@ -203,6 +195,58 @@ jobs:
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
           ./iccanalyzer-lite --version
+
+      - name: Build icctest V2
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/icctest
+          chmod +x build.sh
+          bash build.sh
+
+          echo "[OK] icctest V2 build complete"
+          ls -lh build/cli/icctest build/tools/icctest-parity build/lib/libIccTest.a
+
+      - name: Run icctest V2 unit tests
+        env:
+          ASAN_OPTIONS: "detect_leaks=0"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests
+
+      - name: Run icctest V2 parity verification
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/icctest
+          cmake --build build --target icctest-verify-parity
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/parity-artifacts/verify-parity-summary.json").read_text())
+          summary = payload["summary"]
+          raw_counts = summary["rawParity"]["counts"]
+          outer_counts = summary["imageParity"]["outerImage"]["counts"]
+          embedded_counts = summary["imageParity"]["embeddedRaw"]["counts"]
+
+          print("")
+          print("### icctest V2 Parity Verification")
+          print("")
+          print(f"- Status: `{summary['status']}`")
+          print(f"- Raw parity delta: `{raw_counts.get('delta', 0)}`")
+          print(f"- Image outer delta: `{outer_counts.get('delta', 0)}`")
+          print(f"- Embedded raw delta: `{embedded_counts.get('delta', 0)}`")
+          print(f"- Unit tests: `{summary['unitTests'].get('summaryLine', '')}`")
+          print("- Artifact: `iccanalyzer-lite/icctest/build/parity-artifacts`")
+          PY
 
       - name: Setup test profiles
         id: setup
@@ -444,61 +488,6 @@ jobs:
           echo "</div></body></html>" >> $INDEX_FILE
           echo "Results index created: $INDEX_FILE"
 
-      - name: Build static release binary
-        working-directory: iccanalyzer-lite
-        env:
-          CXX: clang++
-        run: |
-          set -euo pipefail
-
-          if [ -d "iccDEV" ]; then
-            ICCDEV_ROOT="iccDEV"
-          else
-            echo "ERROR: iccDEV not found"; exit 1
-          fi
-
-          # Fresh build dir for clean release libs (no ASAN/coverage artifacts)
-          RELEASE_BUILD="${ICCDEV_ROOT}/Build-release"
-          mkdir -p "$RELEASE_BUILD"
-          cd "$RELEASE_BUILD"
-          cmake ../Build/Cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -fno-lto" \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -fno-lto" \
-            -DENABLE_STATIC_LIBS=ON \
-            -DENABLE_TOOLS=OFF \
-            -DICC_LOG_SAFE=ON \
-            -DICC_TRACE_NAN_ENABLED=ON \
-            -Wno-dev
-          make -j$(nproc) IccProfLib2-static IccXML2-static
-          cd -
-
-          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
-          SOURCES="iccAnalyzer-lite.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp IccConformanceHeader.cpp IccConformanceTagTypes.cpp IccConformanceRequired.cpp IccConformanceLUT.cpp IccConformanceV5.cpp IccConformanceSecurity.cpp IccConformanceQuality.cpp"
-
-          echo "Compiling static release binary..."
-          for src in $SOURCES; do
-            obj="${src%.cpp}.o"
-            clang++ -O2 -DNDEBUG -std=c++17 -flto=thin -DICCANALYZER_LITE ${INCLUDES} -c $src -o $obj &
-          done
-          wait
-
-          echo "Linking static binary..."
-          clang++ -flto=thin -fuse-ld=lld *.o \
-            ${RELEASE_BUILD}/IccProfLib/libIccProfLib2-static.a \
-            ${RELEASE_BUILD}/IccXML/libIccXML2-static.a \
-            -Wl,--allow-multiple-definition \
-            -Wl,-Bstatic -lz -llzma \
-            -Wl,-Bdynamic -lxml2 -lssl -lcrypto -lm -lpthread -ldl -ltiff -lpng -ljpeg \
-            -o iccanalyzer-lite-static
-
-          echo "=== Static Release Binary ==="
-          ls -lh iccanalyzer-lite-static
-          file iccanalyzer-lite-static
-          ./iccanalyzer-lite-static --version
-
       - name: Package release assets
         id: package
         env:
@@ -519,15 +508,48 @@ jobs:
           cp cli-test-results/test-summary.txt "test-summary-${DATESTAMP}.txt"
           echo "summary_file=test-summary-${DATESTAMP}.txt" >> $GITHUB_OUTPUT
 
-          # Copy static binary and generate checksums for release upload
-          cp iccanalyzer-lite/iccanalyzer-lite-static iccanalyzer-lite-linux-amd64
-          chmod +x iccanalyzer-lite-linux-amd64
-          sha256sum iccanalyzer-lite-linux-amd64 > SHA256SUMS.txt
+          # Copy instrumented binaries and generate checksums for release upload
+          cp iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite-linux-amd64-instrumented
+          chmod +x iccanalyzer-lite-linux-amd64-instrumented
+          mkdir -p icctest-linux-amd64-instrumented
+          cp iccanalyzer-lite/icctest/build/cli/icctest icctest-linux-amd64-instrumented/icctest
+          cp iccanalyzer-lite/icctest/build/tools/icctest-parity icctest-linux-amd64-instrumented/icctest-parity
+          cp iccanalyzer-lite/icctest/build/parity-artifacts/verify-parity-summary.json icctest-linux-amd64-instrumented/verify-parity-summary.json
+          cp iccanalyzer-lite/icctest/README.md icctest-linux-amd64-instrumented/README.md
+          cp iccanalyzer-lite/icctest/tools/heuristic-remap.tsv icctest-linux-amd64-instrumented/heuristic-remap.tsv
+          cat > icctest-linux-amd64-instrumented/RUNTIME.txt <<'EOF'
+          IccTest Linux amd64 instrumented bundle
 
-          # Wrap binary in tar.gz to preserve execute permissions
-          tar -czf iccanalyzer-lite-linux-amd64.tar.gz iccanalyzer-lite-linux-amd64
+          Files:
+          - icctest: V2 command-line analyzer
+          - icctest-parity: parity helper binary
+          - verify-parity-summary.json: latest parity verification summary
+          - README.md: usage notes
+          - heuristic-remap.tsv: V1/V2 heuristic ID remap for parity tooling
 
-          ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64.tar.gz SHA256SUMS.txt
+          Runtime notes:
+          - Built in Debug mode with ASAN + UBSAN + Clang coverage instrumentation
+          - Requires common Linux runtime libraries from Ubuntu 24.04 class systems
+          - Recommended environment:
+              ASAN_OPTIONS=detect_leaks=0
+              LLVM_PROFILE_FILE=/dev/null
+          - Primary CLI usage:
+              ./icctest --version
+              ./icctest --registry
+              ./icctest -a profile.icc
+              ./icctest --pawg profile.icc
+          EOF
+          chmod +x icctest-linux-amd64-instrumented/icctest icctest-linux-amd64-instrumented/icctest-parity
+
+          sha256sum iccanalyzer-lite-linux-amd64-instrumented > SHA256SUMS.txt
+          sha256sum icctest-linux-amd64-instrumented/icctest >> SHA256SUMS.txt
+          sha256sum icctest-linux-amd64-instrumented/icctest-parity >> SHA256SUMS.txt
+
+          # Wrap binaries in tar.gz to preserve execute permissions
+          tar -czf iccanalyzer-lite-linux-amd64-instrumented.tar.gz iccanalyzer-lite-linux-amd64-instrumented
+          tar -czf icctest-linux-amd64-instrumented.tar.gz icctest-linux-amd64-instrumented
+
+          ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64-instrumented.tar.gz icctest-linux-amd64-instrumented.tar.gz SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
@@ -554,9 +576,12 @@ jobs:
             | Ninja-full | `-nf` | ${{ env.ninja-full_success }} | ${{ env.ninja-full_failed }} | ${{ env.ninja-full_total }} |
 
             ### Build Configuration
-            - **Compiler:** clang++ (RelWithDebInfo)
+            - **Compiler:** clang++
+            - **Build Type:** Debug
             - **Sanitizers:** ASAN + UBSAN
             - **Coverage:** Enabled
+            - **Release assets:** `iccanalyzer-lite-linux-amd64-instrumented.tar.gz`, `icctest-linux-amd64-instrumented.tar.gz`
+            - **IccTest V2:** unit tests + parity verification passed
             - **Triggered by:** @${{ github.actor }}
             - **Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           draft: false
@@ -564,7 +589,8 @@ jobs:
           files: |
             ${{ steps.package.outputs.tarball }}
             ${{ steps.package.outputs.summary_file }}
-            iccanalyzer-lite-linux-amd64.tar.gz
+            iccanalyzer-lite-linux-amd64-instrumented.tar.gz
+            icctest-linux-amd64-instrumented.tar.gz
             SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -576,8 +602,11 @@ jobs:
           name: iccanalyzer-cli-release-results
           path: |
             cli-test-results/
-            iccanalyzer-lite-linux-amd64
-            iccanalyzer-lite-linux-amd64.tar.gz
+            iccanalyzer-lite-linux-amd64-instrumented
+            iccanalyzer-lite-linux-amd64-instrumented.tar.gz
+            icctest-linux-amd64-instrumented/
+            icctest-linux-amd64-instrumented.tar.gz
+            iccanalyzer-lite/icctest/build/parity-artifacts/
             SHA256SUMS.txt
           retention-days: 90
 

@@ -530,6 +530,7 @@ void printUsage(const char* progName) {
         "  --min-severity <INFO|LOW|MEDIUM|HIGH|CRITICAL>\n"
         "  --max-findings <N>\n"
         "  --skip-isolation\n"
+        "  --skip-library-on-ub\n"
         "  --no-skip-library-on-ub\n"
         "  --emit-embedded-profile-base64\n"
         "  --pretty\n"
@@ -543,6 +544,7 @@ void printUsage(const char* progName) {
 
 std::optional<ParsedArgs> parseArgs(int argc, char** argv) {
     ParsedArgs args;
+    args.opts.skipLibraryOnUB = false;
     bool explicitPhases = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -558,6 +560,10 @@ std::optional<ParsedArgs> parseArgs(int argc, char** argv) {
         }
         if (arg == "--skip-isolation") {
             args.opts.skipIsolation = true;
+            continue;
+        }
+        if (arg == "--skip-library-on-ub") {
+            args.opts.skipLibraryOnUB = true;
             continue;
         }
         if (arg == "--no-skip-library-on-ub") {

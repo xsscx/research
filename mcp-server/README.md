@@ -40,7 +40,7 @@ conformance-only PAWG views in the WebUI/API for now: they use the native V1/V2
 PAWG checklist output as the source, then present only the `[ CONFORMANCE ]`
 section plus coverage/spec references.
 
-The published container also bundles the source trees and Linux build toolchain required by the maintainer/operations endpoints exposed in the WebUI, so checks like `check_dependencies` reflect the container itself rather than your host OS. The XML path includes both the safe `iccDEV` tools (`iccToXml`, `iccFromXml`) and the unsafe `colorbleed_tools` fallbacks (`iccToXml_unsafe`, `iccFromXml_unsafe`).
+The published container also bundles the source trees and Linux build toolchain required by the maintainer/operations endpoints exposed in the WebUI, so checks like `check_dependencies` reflect the container itself rather than your host OS. The safe `iccDEV` non-GUI CLI set includes `iccToXml`, `iccFromXml`, `iccDumpProfile`, `iccRoundTrip`, and `iccApplyNamedCmm`, while the XML fallback path still exposes the unsafe `colorbleed_tools` binaries (`iccToXml_unsafe`, `iccFromXml_unsafe`).
 
 ---
 
