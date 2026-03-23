@@ -346,7 +346,10 @@ jobs:
 
           # Test with multiple profiles
           echo "=== icctest batch exercise ==="
-          PROFILES=$(find test-profiles/ -name "*.icc" -type f 2>/dev/null | sed -n '1,5p')
+          source .github/scripts/icc-profile-quarantine.sh
+          find test-profiles/ -name "*.icc" -type f 2>/dev/null | sort > /tmp/icctest-batch-all.txt
+          icc_profile_filter_quarantine /tmp/icctest-batch-all.txt /tmp/icctest-batch-routine.txt
+          PROFILES=$(sed -n '1,5p' /tmp/icctest-batch-routine.txt)
           for p in $PROFILES; do
             $ICCTEST -a "$p" > /dev/null 2>&1 || true
             echo "  [OK] $(basename "$p")"
@@ -360,6 +363,7 @@ jobs:
           INPUT_PROFILE_COUNT: ${{ inputs.profile_count || '50' }}
         run: |
           set -euo pipefail
+          source .github/scripts/icc-profile-quarantine.sh
           mkdir -p profraw results/outputs
 
           # Collect all available profiles
@@ -369,9 +373,11 @@ jobs:
           find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
 
           sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt
+          icc_profile_filter_quarantine /tmp/all-profiles-dedup.txt /tmp/all-profiles-routine.txt
 
           PROFILE_COUNT=${INPUT_PROFILE_COUNT:-50}
-          AVAILABLE=$(wc -l < /tmp/all-profiles-dedup.txt)
+          AVAILABLE=$(wc -l < /tmp/all-profiles-routine.txt)
+          QUARANTINED=$(( $(wc -l < /tmp/all-profiles-dedup.txt) - AVAILABLE ))
 
           if [ "$PROFILE_COUNT" = "all" ] || [ "$PROFILE_COUNT" = "0" ]; then
             USE_COUNT=$AVAILABLE
@@ -379,15 +385,16 @@ jobs:
             USE_COUNT=$((AVAILABLE < PROFILE_COUNT ? AVAILABLE : PROFILE_COUNT))
           fi
 
-          shuf -n $USE_COUNT /tmp/all-profiles-dedup.txt > results/selected-profiles.txt
-          echo "Selected $USE_COUNT profiles from $AVAILABLE available"
+          shuf -n $USE_COUNT /tmp/all-profiles-routine.txt > results/selected-profiles.txt
+          echo "Selected $USE_COUNT profiles from $AVAILABLE routine candidates"
+          echo "Quarantined profiles excluded from routine sampling: $QUARANTINED"
           echo "profile_count=$USE_COUNT" >> $GITHUB_ENV
 
       - name: Run CLI test suite with profiling
         env:
           BASH_ENV: /dev/null
-          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=0:print_scariness=1:print_stats=1:symbolize=1:print_stacktrace=1:log_path=${{ github.workspace }}/results/asan.log"
-          UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=0:log_path=${{ github.workspace }}/results/ubsan.log"
+          ASAN_OPTIONS: "detect_leaks=0:halt_on_error=0:print_scariness=1:print_stats=1:symbolize=1:print_stacktrace=1"
+          UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=0"
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -398,6 +405,12 @@ jobs:
 
           strip_ansi() {
             sed -i 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$1"
+          }
+
+          has_profile_sanitizer_logs() {
+            local prefix="$1"
+            compgen -G "${prefix}.asan.log*" > /dev/null || \
+            compgen -G "${prefix}.ubsan.log*" > /dev/null
           }
 
           echo "==================================================================" > $SUMMARY
@@ -419,6 +432,7 @@ jobs:
 
             echo "=== $MODE_NAME ($MODE_FLAG) ===" | tee -a $SUMMARY
             mkdir -p "results/outputs/${MODE_NAME}"
+            mkdir -p "results/sanitizer-logs"
 
             TOTAL=0
             CLEAN=0
@@ -428,20 +442,37 @@ jobs:
               TOTAL=$((TOTAL + 1))
               PROFILE_NAME=$(basename "$profile")
               OUTPUT_FILE="results/outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+              PROFILE_SAFE=$(sanitize_filename "${MODE_NAME}_${PROFILE_NAME}")
+              LOG_PREFIX="${{ github.workspace }}/results/sanitizer-logs/${PROFILE_SAFE}"
+              printf '%s\n' "$MODE_NAME $profile" > results/current-profile.txt
 
               # Each profile run writes its own profraw
               export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/${MODE_NAME}-%p-%m.profraw"
+              RUN_ASAN_OPTIONS="${ASAN_OPTIONS}:log_path=${LOG_PREFIX}.asan.log"
+              RUN_UBSAN_OPTIONS="${UBSAN_OPTIONS}:log_path=${LOG_PREFIX}.ubsan.log"
+              rm -f "${LOG_PREFIX}.asan.log"* "${LOG_PREFIX}.ubsan.log"* 2>/dev/null || true
 
               echo "[$MODE_NAME] Testing: $PROFILE_NAME"
 
               # Exit codes: 0=clean, 1=finding, 2=error, 3=usage, 128+=crash
               EXIT_CODE=0
-              timeout 30s $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1 || EXIT_CODE=$?
+              timeout 30s env \
+                ASAN_OPTIONS="$RUN_ASAN_OPTIONS" \
+                UBSAN_OPTIONS="$RUN_UBSAN_OPTIONS" \
+                $BINARY $MODE_FLAG "$profile" > "$OUTPUT_FILE" 2>&1 || EXIT_CODE=$?
               strip_ansi "$OUTPUT_FILE"
+              CONTENT_FINDING=0
+              if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                CONTENT_FINDING=1
+              fi
+              PROFILE_SANITIZER_HIT=0
+              if has_profile_sanitizer_logs "$LOG_PREFIX"; then
+                PROFILE_SANITIZER_HIT=1
+                SANITIZER_HITS=$((SANITIZER_HITS + 1))
+              fi
 
               if [ $EXIT_CODE -ge 128 ]; then
                 # Signal-based exit (SIGILL=132, SIGABRT=134, SIGSEGV=139)
-                SANITIZER_HITS=$((SANITIZER_HITS + 1))
                 FINDINGS=$((FINDINGS + 1))
                 echo "  Result: CRASH (signal $((EXIT_CODE - 128)))" >> $SUMMARY
                 echo "  [CRASH] $MODE_NAME/$PROFILE_NAME exit=$EXIT_CODE" | tee -a $SUMMARY
@@ -454,29 +485,31 @@ jobs:
                 # Finding detected by the analyzer
                 FINDINGS=$((FINDINGS + 1))
                 echo "  Result: FINDING (exit $EXIT_CODE)" >> $SUMMARY
-                if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
-                  SANITIZER_HITS=$((SANITIZER_HITS + 1))
-                  echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
-                  tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
-                fi
               elif [ $EXIT_CODE -eq 124 ]; then
                 # timeout killed the process
                 FINDINGS=$((FINDINGS + 1))
                 echo "  Result: TIMEOUT" >> $SUMMARY
+              elif [ $PROFILE_SANITIZER_HIT -eq 1 ]; then
+                FINDINGS=$((FINDINGS + 1))
+                echo "  Result: SANITIZER" >> $SUMMARY
               else
                 # Exit 0 = clean per analyzer, but check content for ninja modes
-                if grep -qai "MISMATCH\|overlap\|extends beyond\|truncat\|\[WARN\].*HEURISTIC\|Suspicious\|UAF RISK\|INVALID\|CORRUPT\|AddressSanitizer\|UndefinedBehaviorSanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                if [ $CONTENT_FINDING -eq 1 ]; then
                   FINDINGS=$((FINDINGS + 1))
                   echo "  Result: FINDING (content)" >> $SUMMARY
-                  if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
-                    SANITIZER_HITS=$((SANITIZER_HITS + 1))
-                    echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
-                    tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
-                  fi
                 else
                   CLEAN=$((CLEAN + 1))
                   echo "  Result: CLEAN" >> $SUMMARY
                 fi
+              fi
+
+              if [ $PROFILE_SANITIZER_HIT -eq 1 ]; then
+                echo "  [SANITIZER] Detection in $MODE_NAME/$PROFILE_NAME" | tee -a $SUMMARY
+                for log in "${LOG_PREFIX}.asan.log"* "${LOG_PREFIX}.ubsan.log"*; do
+                  [ -f "$log" ] || continue
+                  echo "  Log: $(basename "$log")" >> $SUMMARY
+                  head -5 "$log" >> $SUMMARY 2>/dev/null || true
+                done
               fi
 
               echo "  Profile: $PROFILE_NAME" >> $SUMMARY
@@ -516,10 +549,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p results/sanitizer-logs
-
-          # Collect ASan/UBSan log files (written to workspace by ASAN_OPTIONS/UBSAN_OPTIONS)
-          find "${{ github.workspace }}/results" -name "asan.log*" -exec cp {} results/sanitizer-logs/ \; 2>/dev/null || true
-          find "${{ github.workspace }}/results" -name "ubsan.log*" -exec cp {} results/sanitizer-logs/ \; 2>/dev/null || true
 
           LOG_COUNT=$(find results/sanitizer-logs -type f 2>/dev/null | wc -l)
           echo "Collected $LOG_COUNT sanitizer log files"
@@ -602,6 +631,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cd results
 
           cat > index.html << 'HTMLEOF'
@@ -686,11 +716,13 @@ jobs:
               while IFS= read -r profile; do
                 PROFILE_NAME=$(basename "$profile")
                 OUTPUT_FILE="outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+                PROFILE_SAFE=$(sanitize_filename "${MODE_NAME}_${PROFILE_NAME}")
+                LOG_PREFIX="sanitizer-logs/${PROFILE_SAFE}"
 
                 if [ -f "$OUTPUT_FILE" ]; then
                   FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
 
-                  if grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
+                  if compgen -G "${LOG_PREFIX}.asan.log*" > /dev/null || compgen -G "${LOG_PREFIX}.ubsan.log*" > /dev/null; then
                     STATUS="<span class='sanitizer'>SANITIZER</span>"
                   elif grep -qi "\[ERR\]\|\[WARN\].*HEURISTIC\|Error reading ICC profile\|failed validation\|MISMATCH\|overlap\|Suspicious\|UAF RISK\|INVALID\|CORRUPT" "$OUTPUT_FILE" 2>/dev/null; then
                     STATUS="<span class='finding'>FINDING</span>"
@@ -759,7 +791,10 @@ jobs:
           # Use the same selected profiles from the test run
           PROFILES="results/selected-profiles.txt"
           if [ ! -f "$PROFILES" ]; then
-            find test-profiles/ -name '*.icc' -type f 2>/dev/null | sed -n '1,50p' > /tmp/svg-profiles.txt
+            source .github/scripts/icc-profile-quarantine.sh
+            find test-profiles/ -name '*.icc' -type f 2>/dev/null | sort > /tmp/svg-profiles-all.txt
+            icc_profile_filter_quarantine /tmp/svg-profiles-all.txt /tmp/svg-profiles-routine.txt
+            sed -n '1,50p' /tmp/svg-profiles-routine.txt > /tmp/svg-profiles.txt
             PROFILES="/tmp/svg-profiles.txt"
           fi
 

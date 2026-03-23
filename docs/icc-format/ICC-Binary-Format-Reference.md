@@ -24,7 +24,13 @@
 > **Harness note**: under unit/parity runners, use
 > `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless the run
 > is intentionally collecting profiling output. LeakSanitizer can abort under
-> harnessed execution even when the suite itself passes.
+> harnessed execution even when the suite itself passes. Force that setting
+> even when a parent environment already exported `ASAN_OPTIONS`.
+
+> **Routine sampling note**: broad local/CI analyzer sampling should exclude the
+> known resource-bomb families listed in
+> `iccanalyzer-lite/tests/profile-resource-quarantine.txt`. Those files belong
+> in dedicated timeout/OOM verification, not random smoke/parity sampling.
 
 > **Analyzer-side UB hardening note**:
 > - V1/V2 intentionally validate against the **unpatched** upstream `iccDEV`

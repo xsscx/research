@@ -1,6 +1,6 @@
 # Documentation Index
 
-Research documentation organized by topic. 64 documents across 12 subdirectories.
+Research documentation organized by topic. 65 documents across 12 subdirectories.
 
 ## iccDEV Library
 
@@ -17,7 +17,7 @@ Research documentation organized by topic. 64 documents across 12 subdirectories
 |-----------|----------|-------|
 | [cve/](cve/) | iccDEV CVE report — 87 CVEs + 95 GHSAs across 93 advisories | 1 |
 | [pocs/](pocs/) | 64 PoC reproductions, 12 technique categories, upstream reporting standard ([iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)) | 2 |
-| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy, PAWG quality coverage, upstream-UB hardening policy | 7 |
+| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy, PAWG quality coverage, upstream-UB hardening policy, resource-bomb quarantine policy | 8 |
 
 ## Testing / Fuzzing
 
@@ -61,6 +61,7 @@ Research documentation organized by topic. 64 documents across 12 subdirectories
 - **Instrumented build / artifact policy**: [analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md](analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md)
 - **Upstream UB hardening policy**: [analysis/ICCANALYZER_UPSTREAM_UB_HARDENING.md](analysis/ICCANALYZER_UPSTREAM_UB_HARDENING.md)
 - **PAWG quality coverage**: [analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md](analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md)
+- **Resource-bomb quarantine policy**: [analysis/ICCANALYZER_RESOURCE_BOMB_QUARANTINE.md](analysis/ICCANALYZER_RESOURCE_BOMB_QUARANTINE.md)
 
 ### Fuzzing
 - **CFL corpus inventory**: [Testing/FUZZ_CFL_INVENTORY.md](Testing/FUZZ_CFL_INVENTORY.md)

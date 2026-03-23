@@ -32,11 +32,73 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <cstdint>
 #include "IccPrmg.h"
 #include "IccMatrixMath.h"
 #include "IccPcc.h"
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
+
+namespace {
+
+static bool IsFixedNearTenThousand(icS15Fixed16Number value, int targetTimes10000) {
+  const int64_t scaled = static_cast<int64_t>(value) * 10000ll;
+  const int64_t target = static_cast<int64_t>(targetTimes10000) * 65536ll;
+  int64_t diff = scaled - target;
+  if (diff < 0) {
+    diff = -diff;
+  }
+
+  return diff <= 32768ll;
+}
+
+static bool IsHeaderIlluminantNearD50(const icXYZNumber &xyz) {
+  return IsFixedNearTenThousand(xyz.X, 9642) &&
+         IsFixedNearTenThousand(xyz.Y, 10000) &&
+         IsFixedNearTenThousand(xyz.Z, 8249);
+}
+
+static void GetSafePccSummary(CIccProfile *pIcc,
+                              const CIccTagSpectralViewingConditions *pSvc,
+                              bool &isStd,
+                              icIlluminant &illum,
+                              icFloatNumber &cct,
+                              icStandardObserver &obs) {
+  isStd = false;
+  illum = icIlluminantUnknown;
+  cct = 0.0f;
+  obs = icStdObsUnknown;
+
+  if (!pIcc) {
+    return;
+  }
+
+  if (pIcc->m_Header.version < icVersionNumberV5) {
+    isStd = true;
+    illum = icIlluminantD50;
+    cct = 5000.0f;
+    obs = icStdObs1931TwoDegrees;
+    return;
+  }
+
+  if (!pSvc) {
+    const bool isD50 = IsHeaderIlluminantNearD50(pIcc->m_Header.illuminant);
+    if (isD50) {
+      isStd = true;
+      illum = icIlluminantD50;
+      cct = 5000.0f;
+      obs = icStdObs1931TwoDegrees;
+    }
+    return;
+  }
+
+  illum = pSvc->getStdIllumiant();
+  cct = pSvc->getIlluminantCCT();
+  obs = pSvc->getStdObserver();
+  isStd = (illum == icIlluminantD50 && obs == icStdObs1931TwoDegrees);
+}
+
+}  // namespace
 
 int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
@@ -44,14 +106,14 @@ int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
 
   // CIccProfile implements IIccProfileConnectionConditions
   const CIccTagSpectralViewingConditions *pSvc = pIcc->getPccViewingConditions();
+  bool isStd = false;
+  icIlluminant illum = icIlluminantUnknown;
+  icFloatNumber cct = 0.0f;
+  icStandardObserver obs = icStdObsUnknown;
+  GetSafePccSummary(pIcc, pSvc, isStd, illum, cct, obs);
 
   if (!pSvc) {
     hc.info("      No spectral viewing conditions tag (svcn)");
-    // Still check standard PCC fields
-    bool isStd = pIcc->isStandardPcc();
-    icIlluminant illum = pIcc->getPccIlluminant();
-    icFloatNumber cct = pIcc->getPccCCT();
-    icStandardObserver obs = pIcc->getPccObserver();
 
     hc.info("      Standard PCC: %s", isStd ? "yes (D50/2deg)" : "no (custom)");
     hc.info("      Illuminant: 0x%08X, CCT: %.1f, Observer: 0x%08X",
@@ -62,11 +124,6 @@ int RunHeuristic_H103_PCC(CIccProfile *pIcc) {
     }
   } else {
     hc.info("      Spectral viewing conditions present");
-
-    bool isStd = pIcc->isStandardPcc();
-    icIlluminant illum = pIcc->getPccIlluminant();
-    icFloatNumber cct = pIcc->getPccCCT();
-    icStandardObserver obs = pIcc->getPccObserver();
     bool hasSPD = pIcc->hasIlluminantSPD();
 
     hc.info("      Standard PCC: %s", isStd ? "yes" : "no (custom)");

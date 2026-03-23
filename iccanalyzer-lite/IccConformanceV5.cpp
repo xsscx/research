@@ -927,6 +927,7 @@ static int RunCF115_CalculatorElementComplexity(CIccProfile *pIcc) {
   // Scan all tags for MPE elements containing calculators
   int calcCount = 0;
   int totalSubElements = 0;
+  int toneMapIssues = 0;
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
@@ -936,42 +937,56 @@ static int RunCF115_CalculatorElementComplexity(CIccProfile *pIcc) {
       dynamic_cast<CIccTagMultiProcessElement *>(tag);
     if (!mpe) continue;
 
-    // Count via Describe output length as complexity proxy
-    // (protected iterators prevent direct element access from outside)
-    int elemCount = 0;
-    std::string desc;
-    mpe->Describe(desc, 0);
-    // Count "Element" occurrences in description as proxy
-    size_t pos = 0;
-    while ((pos = desc.find("Element", pos)) != std::string::npos) {
-      elemCount++;
-      pos += 7;
-    }
-    if (elemCount > 0) {
-      // Check for calculator elements
-      if (desc.find("Calculator") != std::string::npos ||
-          desc.find("calc") != std::string::npos) {
-        calcCount++;
-        // Count sub-element references
-        size_t subPos = 0;
-        int subCount = 0;
-        while ((subPos = desc.find("SubElement", subPos)) != std::string::npos) {
-          subCount++;
-          subPos += 10;
-        }
-        totalSubElements += subCount > 0 ? subCount : elemCount;
+    int elemCount = static_cast<int>(mpe->NumElements());
+    bool hasCalculator = false;
 
-        if (elemCount > 256) {
-          printf("         MPE tag with %d elements (excessive)\n", elemCount);
-          printf("         %s[WARN]%s Excessive calculator complexity — §10.2.6\n",
+    for (int e = 0; e < elemCount; ++e) {
+      CIccMultiProcessElement *elem = mpe->GetElement(e);
+      if (!elem) {
+        continue;
+      }
+      if (elem->GetType() == icSigCalculatorElemType) {
+        hasCalculator = true;
+      }
+
+      CIccMpeToneMap *toneMap = dynamic_cast<CIccMpeToneMap *>(elem);
+      if (toneMap) {
+        std::string report;
+        icValidateStatus toneStatus = toneMap->Validate("", report, mpe, pIcc);
+        if (toneStatus >= icValidateCriticalError &&
+            (report.find("Tone mapping function has invalid parameters") != std::string::npos ||
+             report.find("unknown function type") != std::string::npos)) {
+          char tagSig[5] = {};
+          SigToChars(static_cast<icUInt32Number>(it->TagInfo.sig), tagSig);
+          std::string brief = report;
+          size_t nl = brief.find('\n');
+          if (nl != std::string::npos) {
+            brief = brief.substr(0, nl);
+          }
+          printf("         ToneMap element in '%s' failed validation: %s\n",
+                 tagSig, brief.c_str());
+          printf("         %s[FAIL]%s ToneMap function structure invalid — §10.2.6\n",
                  ColorError(), ColorReset());
           issues++;
+          toneMapIssues++;
         }
+      }
+    }
+
+    if (hasCalculator) {
+      calcCount++;
+      totalSubElements += elemCount;
+
+      if (elemCount > 256) {
+        printf("         MPE tag with %d elements (excessive)\n", elemCount);
+        printf("         %s[WARN]%s Excessive calculator complexity — §10.2.6\n",
+               ColorError(), ColorReset());
+        issues++;
       }
     }
   }
 
-  if (calcCount == 0)
+  if (calcCount == 0 && toneMapIssues == 0)
     printf("         No calculator elements found — check not applicable\n");
   else if (issues == 0)
     printf("         %s[OK]%s %d calculator(s), %d total sub-elements\n",

@@ -188,10 +188,13 @@ jobs:
         run: |
           # Create test directory
           set -euo pipefail
+          source .github/scripts/icc-profile-quarantine.sh
           mkdir -p profile-test-results
           
           # Count available profiles in extended-test-profiles directory
-          PROFILE_COUNT=$(find extended-test-profiles -type f \( -name "*.icc" -o -name "*.icm" \) | wc -l)
+          find extended-test-profiles -type f \( -name "*.icc" -o -name "*.icm" \) | sort > /tmp/input-sample-all.txt
+          icc_profile_filter_quarantine /tmp/input-sample-all.txt /tmp/input-sample-routine.txt
+          PROFILE_COUNT=$(wc -l < /tmp/input-sample-routine.txt)
           echo "Total profiles available: $PROFILE_COUNT"
           
           # Determine how many to test
@@ -203,8 +206,7 @@ jobs:
           echo "test_count=$TEST_COUNT" >> $GITHUB_OUTPUT
           
           # Select profiles from extended-test-profiles
-          find extended-test-profiles -type f \( -name "*.icc" -o -name "*.icm" \) | \
-            shuf -n $TEST_COUNT > profile-test-results/selected-profiles.txt
+          shuf -n $TEST_COUNT /tmp/input-sample-routine.txt > profile-test-results/selected-profiles.txt
           
           echo "Selected profiles:"
           cat profile-test-results/selected-profiles.txt
@@ -240,6 +242,7 @@ jobs:
             TOTAL=$((TOTAL + 1))
             PROFILE_NAME=$(basename "$profile")
             OUTPUT_FILE="../profile-test-results/outputs/${PROFILE_NAME}.txt"
+            printf '%s\n' "$profile" > ../profile-test-results/current-profile.txt
             
             echo "[$TOTAL] Testing: $PROFILE_NAME"
             echo "-------------------------------------------------------------------" >> $SUMMARY

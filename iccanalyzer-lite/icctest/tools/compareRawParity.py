@@ -17,6 +17,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Iterable
 
+from runtimeEnv import force_sanitizer_env
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -103,10 +105,9 @@ def load_heuristic_remap(path: Path) -> dict[str, dict[str, str]]:
 
 def run_json_command(cmd: list[str], env: dict[str, str] | None = None) -> tuple[dict, int]:
     merged_env = os.environ.copy()
-    merged_env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
-    merged_env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
     if env:
         merged_env.update(env)
+    merged_env = force_sanitizer_env(merged_env)
 
     proc = subprocess.run(
         cmd,

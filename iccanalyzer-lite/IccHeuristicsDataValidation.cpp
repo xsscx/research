@@ -2127,6 +2127,7 @@ int RunHeuristic_H100_ProfileSequenceDescValidation(CIccProfile *pIcc) {
 
 int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
+  CIccInfo info;
 
 // H101 — MPE Sub-Element Channel Continuity (CWE-125/CWE-787)
 // CVE-2026-21492 (Medium 5.5) — NPD in CIccMpeToneMap Write (invalid sub-element state)
@@ -2139,10 +2140,13 @@ int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
     icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
     icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
     icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
-    icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+    icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+    icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag,
+    icSigCustomToStandardPccTag, icSigStandardToCustomPccTag
   };
 
-  for (int i = 0; i < 16; i++) {
+  const int kMpeTagCount = static_cast<int>(sizeof(mpeTags) / sizeof(mpeTags[0]));
+  for (int i = 0; i < kMpeTagCount; i++) {
     CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, mpeTags[i]);
     if (!pMpe) continue;
 
@@ -2164,6 +2168,23 @@ int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
         icUInt32Number sig = (icUInt32Number)mpeTags[i];
         SigToChars(sig, tagSig);
         hc.critical("Channel discontinuity in '%s' at element %u: " "prev_out=%u, cur_in=%u — buffer overflow risk (CWE-787)", tagSig, e, prevOut, curIn);
+      }
+
+      CIccMpeToneMap *pToneMap = dynamic_cast<CIccMpeToneMap *>(pElem);
+      if (pToneMap) {
+        std::string report;
+        icValidateStatus toneStatus = pToneMap->Validate("", report, pMpe, pIcc);
+        if (toneStatus >= icValidateCriticalError &&
+            report.find("Tone mapping function has invalid parameters") != std::string::npos) {
+          hc.critical("Tag '%s' tone map element %u has invalid function parameters — Describe()/Apply() overflow risk",
+                      info.GetTagSigName(mpeTags[i]), e);
+          hc.cweNote("CWE-122: Heap-based buffer overflow via malformed tone mapping function");
+        } else if (toneStatus >= icValidateCriticalError &&
+                   report.find("unknown function type") != std::string::npos) {
+          hc.warn("Tag '%s' tone map element %u uses unknown function type — unsafe downstream behavior",
+                  info.GetTagSigName(mpeTags[i]), e);
+          hc.cweNote("CWE-20: Invalid tone mapping function type");
+        }
       }
 
       prevOut = curOut;

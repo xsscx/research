@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from runtimeEnv import force_sanitizer_env
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -96,9 +98,7 @@ def selected_inputs(values: list[Path]) -> list[Path]:
 
 
 def run_process(cmd: list[str], *, label: str) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
-    env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
+    env = force_sanitizer_env(os.environ.copy())
     proc = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
