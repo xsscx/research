@@ -106,15 +106,6 @@ class TestRunner:
 T = TestRunner()
 
 
-def pawg_spec_reference_paths() -> list[str]:
-    spec_dir = REPO_ROOT / "docs" / "iccDEV" / "specifications"
-    return [
-        f"docs/iccDEV/specifications/{entry.name}"
-        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
-        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
-    ]
-
-
 # ---------------------------------------------------------------------------
 # Security Tests
 # ---------------------------------------------------------------------------
@@ -379,10 +370,10 @@ async def test_analyze_security_report():
          "https://www.color.org/profiles/assessment/index.xalter" in r, r[:260])
     T.ok("report: contains PAWG checklist label",
          "Profile Assessment Working Group Checklist Reference" in r, r[:260])
-    T.ok("report: contains conformance section",
-         "[ CONFORMANCE ]" in r, r[:320])
-    T.ok("report: contains conformance coverage section",
-         "CONFORMANCE CHECK COVERAGE" in r, r[:400])
+    T.ok("report: contains compact metadata fields",
+         "Date:" in r and "File:" in r and "SHA-256:" in r and "Size:" in r, r[:400])
+    T.ok("report: contains view line",
+         "View: PAWG / conformance section only" in r, r[:400])
     T.ok("report: contains conformance checklist items",
          "C1" in r and "C14" in r, r[:400])
     T.ok("report: omits CWE references",
@@ -391,14 +382,23 @@ async def test_analyze_security_report():
          "Improper Input Validation" not in r, r[:220])
     T.ok("report: uses one line per PAWG checklist item",
          "Checks:" not in r and "\n          CF-" not in r, r[:600])
-    T.ok("report: contains ICC specification PDF reference",
-         "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
-    T.ok("report: contains ICC specification reference heading",
-         "ICC Specification References:" in r, r[:320])
-    T.ok("report: contains full specification reference set",
-         all(path in r for path in pawg_spec_reference_paths()), r[:600])
-    T.ok("report: omits adaptive gain curve reference",
-         "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in r, r[:600])
+    T.ok("report: omits PAWG banner clutter",
+         "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in r
+         and "[ CONFORMANCE ]" not in r
+         and "Goals for profile assessment" not in r
+         and "Tool:" not in r
+         and "Build:" not in r, r[:500])
+    T.ok("report: omits ICC specification reference heading",
+         "ICC Specification References:" not in r, r[:320])
+    T.ok("report: omits specification and PDF references",
+         "docs/iccDEV/specifications/" not in r, r[:600])
+    T.ok("report: omits conformance coverage heading",
+         "CONFORMANCE CHECK COVERAGE" not in r, r[:400])
+    T.ok("report: contains compact coverage summary",
+         "Checks evaluated:" in r
+         and "Checks mapped:" in r
+         and "Registry total:" in r
+         and "Spec coverage:" in r, r[:500])
     T.ok("report: is conformance-only",
          "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:400])
 
@@ -421,28 +421,35 @@ async def test_analyze_pawg_report():
     T.ok("pawg: returns non-empty", len(r) > 100, f"len={len(r)}")
     T.ok("pawg: contains checklist reference URL",
          "https://www.color.org/profiles/assessment/index.xalter" in r, r[:260])
-    T.ok("pawg: contains ICC.1 PDF path",
-         "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
-    T.ok("pawg: contains ICC.2 PDF path",
-         "docs/iccDEV/specifications/ICC.2-2023.pdf" in r, r[:320])
-    T.ok("pawg: contains ICC specification reference heading",
-         "ICC Specification References:" in r, r[:320])
-    T.ok("pawg: contains full specification reference set",
-         all(path in r for path in pawg_spec_reference_paths()), r[:600])
-    T.ok("pawg: omits adaptive gain curve reference",
-         "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in r, r[:600])
-    T.ok("pawg: contains conformance section",
-         "[ CONFORMANCE ]" in r, r[:320])
+    T.ok("pawg: omits ICC specification reference heading",
+         "ICC Specification References:" not in r, r[:320])
+    T.ok("pawg: omits specification and PDF references",
+         "docs/iccDEV/specifications/" not in r, r[:600])
+    T.ok("pawg: contains compact metadata fields",
+         "Date:" in r and "File:" in r and "SHA-256:" in r and "Size:" in r, r[:400])
+    T.ok("pawg: contains view line",
+         "View: PAWG / conformance section only" in r, r[:400])
     T.ok("pawg: contains C1 and C14",
          "C1" in r and "C14" in r, r[:420])
-    T.ok("pawg: contains conformance coverage section",
-         "CONFORMANCE CHECK COVERAGE" in r, r[:420])
+    T.ok("pawg: omits conformance coverage heading",
+         "CONFORMANCE CHECK COVERAGE" not in r, r[:420])
     T.ok("pawg: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("pawg: omits security taxonomy note",
          "Improper Input Validation" not in r, r[:220])
     T.ok("pawg: uses one line per PAWG checklist item",
          "Checks:" not in r and "\n          CF-" not in r, r[:600])
+    T.ok("pawg: omits PAWG banner clutter",
+         "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in r
+         and "[ CONFORMANCE ]" not in r
+         and "Goals for profile assessment" not in r
+         and "Tool:" not in r
+         and "Build:" not in r, r[:500])
+    T.ok("pawg: contains compact coverage summary",
+         "Checks evaluated:" in r
+         and "Checks mapped:" in r
+         and "Registry total:" in r
+         and "Spec coverage:" in r, r[:500])
     T.ok("pawg: is conformance-only",
          "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:420])
 
