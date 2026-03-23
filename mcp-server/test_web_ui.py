@@ -350,9 +350,11 @@ def test_security_report():
           "S1" in d.get("result", "") and "S13" in d.get("result", "")
           and "C1" in d.get("result", "") and "C14" in d.get("result", "")
           and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
-    check("SecurityReport preserves split PAWG states",
-          "[OK]    S1" in d.get("result", "")
-          and "[GAP]" in d.get("result", "")
+    check("SecurityReport reflects profile-specific PAWG quality states",
+          "[WARN]  S1" in d.get("result", "")
+          and "[GAP]   Q1" in d.get("result", "")
+          and "[WARN]  Q2" in d.get("result", "")
+          and "[WARN]  Q3" in d.get("result", "")
           and "[N/A]   Q4" in d.get("result", ""))
     check("SecurityReport omits CWE references",
           "CWE-" not in d.get("result", ""))
@@ -416,9 +418,11 @@ def test_pawg():
           "S1" in d.get("result", "") and "S13" in d.get("result", "")
           and "C1" in d.get("result", "") and "C14" in d.get("result", "")
           and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
-    check("PAWG preserves split PAWG states",
-          "[OK]    S1" in d.get("result", "")
-          and "[GAP]" in d.get("result", "")
+    check("PAWG reflects profile-specific PAWG quality states",
+          "[WARN]  S1" in d.get("result", "")
+          and "[GAP]   Q1" in d.get("result", "")
+          and "[WARN]  Q2" in d.get("result", "")
+          and "[WARN]  Q3" in d.get("result", "")
           and "[N/A]   Q4" in d.get("result", ""))
     check("PAWG omits CWE references",
           "CWE-" not in d.get("result", ""))
@@ -446,6 +450,23 @@ def test_pawg():
           and "\n          CF-" not in d.get("result", ""))
     r2 = c.get("/api/pawg?path=nonexistent-xyz.icc")
     check("PAWG bad path 400", r2.status_code == 400)
+
+
+def test_pawg_characterization_profile():
+    r = c.get("/api/pawg?path=iccanalyzer-lite/tests/corpus/targ_quality_profile.icc")
+    check("PAWG char 200", r.status_code == 200)
+    d = r.json()
+    check("PAWG char ok", d["ok"] is True)
+    check("PAWG char resolves corpus path",
+          "targ_quality_profile.icc" in d.get("result", ""))
+    check("PAWG char has quality items all OK",
+          "[OK]    Q1" in d.get("result", "")
+          and "[OK]    Q2" in d.get("result", "")
+          and "[OK]    Q3" in d.get("result", "")
+          and "[OK]    Q4" in d.get("result", ""))
+    check("PAWG char omits heuristic detail blocks",
+          "[H" not in d.get("result", "")
+          and "\n          CF-" not in d.get("result", ""))
 
 
 def test_registry():

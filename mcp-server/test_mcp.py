@@ -382,8 +382,12 @@ async def test_analyze_security_report():
          "C1" in r and "C14" in r, r[:500])
     T.ok("report: contains quality checklist items",
          "Q1" in r and "Q4" in r, r[:500])
-    T.ok("report: preserves split PAWG states",
-         "[OK]    S1" in r and "[GAP]" in r and "[N/A]   Q4" in r, r[:700])
+    T.ok("report: reflects profile-specific PAWG quality states",
+         "[OK]    S1" in r
+         and "[GAP]   Q1" in r
+         and "[GAP]   Q2" in r
+         and "[GAP]   Q3" in r
+         and "[N/A]   Q4" in r, r[:700])
     T.ok("report: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("report: omits security taxonomy note",
@@ -447,8 +451,12 @@ async def test_analyze_pawg_report():
          "C1" in r and "C14" in r, r[:500])
     T.ok("pawg: contains quality items",
          "Q1" in r and "Q4" in r, r[:500])
-    T.ok("pawg: preserves split PAWG states",
-         "[OK]    S1" in r and "[GAP]" in r and "[N/A]   Q4" in r, r[:700])
+    T.ok("pawg: reflects profile-specific PAWG quality states",
+         "[OK]    S1" in r
+         and "[GAP]   Q1" in r
+         and "[GAP]   Q2" in r
+         and "[GAP]   Q3" in r
+         and "[N/A]   Q4" in r, r[:700])
     T.ok("pawg: omits conformance coverage heading",
          "CONFORMANCE CHECK COVERAGE" not in r, r[:420])
     T.ok("pawg: omits CWE references",
@@ -479,6 +487,26 @@ async def test_analyze_pawg_report():
              or len(r2) < 10, r2[:80])
     except Exception:
         T.ok("pawg: bad path returns error", True)
+
+    T.section_summary()
+
+
+async def test_analyze_pawg_report_characterization_profile():
+    """Test PAWG quality output on the characterization-driven corpus profile."""
+    T.section("Functional: analyze_pawg_report × characterization profile")
+
+    profile = "iccanalyzer-lite/tests/corpus/targ_quality_profile.icc"
+    r = await analyze_pawg_report(profile)
+    T.ok("pawg char: returns non-empty", len(r) > 100, f"len={len(r)}")
+    T.ok("pawg char: resolves corpus path",
+         "File:       " in r and "targ_quality_profile.icc" in r, r[:260])
+    T.ok("pawg char: quality items all OK",
+         "[OK]    Q1" in r
+         and "[OK]    Q2" in r
+         and "[OK]    Q3" in r
+         and "[OK]    Q4" in r, r[:700])
+    T.ok("pawg char: omits heuristic detail blocks",
+         "[H" not in r and "\n          CF-" not in r, r[:500])
 
     T.section_summary()
 

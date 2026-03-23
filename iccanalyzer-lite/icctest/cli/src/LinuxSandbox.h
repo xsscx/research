@@ -51,6 +51,7 @@ struct SandboxLimits {
     uint64_t maxFileSize  = 0;                       // no file writes
     uint64_t maxOpenFiles = 64;
     bool     enableSeccomp = false;  // Off by default (requires kernel support)
+    bool     includeConformancePerCheckSummary = false;  // For PAWG formatter
 };
 
 /// Apply resource limits and security restrictions to the current process.
