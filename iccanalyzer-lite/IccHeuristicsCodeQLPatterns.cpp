@@ -868,7 +868,7 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
 
 // ---------------------------------------------------------------------------
 // H173: Signature Conversion Shift Overflow (CWE-190)
-// iccDEV IccUtil.cpp icGetSigStr() (line 1130) and icGetColorSig() (line 1088)
+// iccDEV IccUtil.cpp icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr()
 // iterate FourCC signatures with:
 //   for(i=0;i<4;i++) { c=(icUInt8Number)(sig>>24); pBuf[i]=c; sig<<=8; }
 // When sig > 0x00FFFFFF, the first sig<<=8 produces a value exceeding
@@ -881,7 +881,7 @@ int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx)
 {
   auto &hc = HeuristicCollector::instance();
   hc.begin(173, "Signature Conversion Shift Overflow "
-               "(IccUtil.cpp icGetSigStr/icGetColorSig)");
+               "(IccUtil.cpp signature formatting helpers)");
 
   if (!ctx.valid) return hc.skip("Cannot read profile");
 
@@ -935,7 +935,8 @@ int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx)
 
   if (overflowCount > 0) {
     hc.warn("HEURISTIC: %d/%d FourCC signatures trigger UBSAN shift overflow "
-            "in icGetSigStr()/icGetColorSig() — IccUtil.cpp:1088,1130",
+            "in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() "
+            "— IccUtil.cpp:1088,1130,1167,1187,1228,1253",
             overflowCount, totalSigs);
     hc.cweNote("CWE-190: sig<<=8 on uint32 with first byte non-zero "
                "produces value > UINT32_MAX (upstream iccDEV library pattern)");

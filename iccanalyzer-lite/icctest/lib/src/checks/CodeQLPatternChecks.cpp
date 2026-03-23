@@ -434,7 +434,7 @@ REGISTER_HEURISTIC(161, "Stack Address Escape Deep Apply Chains",
     check_h161_stack_address_escape_deep_apply_chains);
 
 // ── H173: Signature Conversion Shift Overflow ──
-// Detects the UBSAN pattern in iccDEV IccUtil.cpp icGetSigStr()/icGetColorSig()
+// Detects the UBSAN pattern in iccDEV IccUtil.cpp signature-formatting helpers
 // where sig<<=8 on a uint32 with first byte >= 0x01 overflows.
 // Every valid FourCC signature (printable ASCII) has first byte >= 0x20 and
 // therefore triggers this overflow.
@@ -482,7 +482,8 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
 
     if (overflowCount > 0) {
         cb.warn(sfmt("%d/%d FourCC signatures trigger UBSAN shift overflow "
-                     "in icGetSigStr()/icGetColorSig() — IccUtil.cpp:1088,1130",
+                     "in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() "
+                     "— IccUtil.cpp:1088,1130,1167,1187,1228,1253",
                      overflowCount, totalSigs),
                 "CWE-190: sig<<=8 on uint32 with first byte non-zero "
                 "produces value > UINT32_MAX");
@@ -493,7 +494,7 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
 }
 
 REGISTER_HEURISTIC(173, "Signature Conversion Shift Overflow",
-    "IccUtil.cpp:1088/1130", "CWE Pattern",
+    "IccUtil.cpp:1088/1130/1167/1187/1228/1253", "CWE Pattern",
     "CWE-190", "",
     Severity::MEDIUM, CheckPhase::RAW_SCAN,
     check_h173_sig_conversion_shift_overflow);
