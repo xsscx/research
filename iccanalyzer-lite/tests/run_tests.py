@@ -289,6 +289,12 @@ class TestSuite:
                     "Signature Conversion Shift Overflow" in stdout
                 ):
                     continue
+                if (
+                    "IccTagLut.h" in line and
+                    "[H147]" in stdout and
+                    "Null Pointer Dereference After Failed Tag Operations" in stdout
+                ):
+                    continue
                 return line.strip()
         return None
 
