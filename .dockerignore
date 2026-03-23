@@ -1,5 +1,11 @@
-# Exclude local iccDEV build for iccanalyzer-lite — Dockerfile clones a patched copy
-iccanalyzer-lite/iccDEV
+# Keep iccanalyzer-lite/iccDEV in the build context.
+# The MCP image builds analyzers and safe XML tools against the repo's
+# unpatched upstream checkout.
+iccanalyzer-lite/iccDEV/Build/*
+!iccanalyzer-lite/iccDEV/Build/Cmake/
+!iccanalyzer-lite/iccDEV/Build/Cmake/**
+!iccanalyzer-lite/iccDEV/Build/XCode/
+!iccanalyzer-lite/iccDEV/Build/XCode/**
 
 # Exclude fuzzer corpora and artifacts (huge)
 cfl/corpus*

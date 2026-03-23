@@ -101,12 +101,13 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 Routes: `/` (demo report), `/ui` (interactive WebUI), `/api` (endpoint index), `/api/*` (analysis).
 
 ```bash
+docker pull ghcr.io/xsscx/icc-profile-mcp:latest
+docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
+curl -fsS "http://127.0.0.1:8080/api/pawg?path=sRGB_D65_MAT.icc" | jq -r '.result'
 curl http://localhost:8080/api/health
-curl 'http://localhost:8080/api/security?path=sRGB_D65_MAT.icc'
 ```
 
 Two modes: `mcp` (default, stdio server for AI agents), `web` (REST API + HTML UI).
-See [dev-demo/README.md](dev-demo/README.md) for full usage.
 
 ## Reusable Prompts
 

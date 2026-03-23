@@ -27,6 +27,7 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerHash.h"
 #include "IccAnalyzerComprehensive.h"
+#include "PawgSpecReferences.h"
 #include "IccHeuristicsRegistry.h"
 #include "IccConformanceRegistry.h"
 #include <cstdio>
@@ -343,6 +344,8 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
   const int W = 78;
   std::string sha256 = ComputeFileSHA256(profilePath);
   long fileSize = PAWGGetFileSize(profilePath);
+  const std::vector<std::string> specReferences =
+      iccanalyzer::pawg::listSpecReferencePaths(profilePath);
   time_t now = time(nullptr);
   char timeBuf[64];
   struct tm utc_buf;
@@ -359,6 +362,12 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
 
   printf("  Reference:  ICC Profile Assessment Working Group\n");
   printf("              Goals for profile assessment\n");
+  printf("  ICC Profile Assessment Working Group Checklist Reference: %s\n",
+         iccanalyzer::pawg::kChecklistUrl);
+  printf("  ICC Specification References:\n");
+  for (const auto &ref : specReferences) {
+    printf("    %s\n", ref.c_str());
+  }
   printf("  Tool:       %s\n", ICCANALYZER_VERSION_FULL);
   printf("  Date:       %s\n", timeBuf);
   printf("  Build:      ASAN+UBSAN+Coverage | Clang 18\n");
@@ -442,10 +451,9 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
   printf("\n");
   PAWGBanner("SPECIFICATION REFERENCES", W);
   printf("\n");
-  printf("  ICC.1-2022-05   Profile specification v4.4\n");
-  printf("  ICC.2-2023      iccMAX profile specification v5\n");
-  printf("  RFC 1321        MD5 Message-Digest Algorithm (Profile ID)\n");
-  printf("  CIEDE2000       CIE Technical Report 142-2001\n");
+  for (const auto &ref : specReferences) {
+    printf("  %s\n", ref.c_str());
+  }
   printf("\n");
 
   // ── Footer ────────────────────────────────────────────────────────────────

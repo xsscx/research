@@ -11,7 +11,6 @@ on:
     paths:
       - 'mcp-server/**'
       - 'iccanalyzer-lite/**'
-      - 'cfl/patches/**'
       - '.github/workflows/mcp-server-test.yml'
       - '!mcp-server/**/*.md'
       - '!mcp-server/codeql-queries/**'
@@ -21,7 +20,6 @@ on:
     paths:
       - 'mcp-server/**'
       - 'iccanalyzer-lite/**'
-      - 'cfl/patches/**'
       - '.github/workflows/mcp-server-test.yml'
       - '!mcp-server/**/*.md'
       - '!mcp-server/codeql-queries/**'
@@ -88,7 +86,7 @@ jobs:
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: iccDEV
-          key: ${{ runner.os }}-iccdev-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-mcp-upstream-v1
 
       - name: Cache iccDEV build
         id: cache-iccdev-build
@@ -99,7 +97,7 @@ jobs:
             iccDEV/Build/IccXML
             iccDEV/Build/CMakeCache.txt
             iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-mcp-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-mcp-upstream-${{ hashFiles('.github/workflows/mcp-server-test.yml') }}
 
       - name: Cache native tools
         id: cache-native-tools
@@ -110,7 +108,7 @@ jobs:
             colorbleed_tools/iccToXml_unsafe
             colorbleed_tools/iccFromXml_unsafe
             colorbleed_tools/bin/
-          key: ${{ runner.os }}-native-tools-mcp-v2-${{ hashFiles('cfl/patches/*.patch', 'iccanalyzer-lite/*.cpp', 'iccanalyzer-lite/*.h', 'colorbleed_tools/*.cpp') }}
+          key: ${{ runner.os }}-native-tools-mcp-v3-${{ hashFiles('.github/workflows/mcp-server-test.yml', 'iccanalyzer-lite/*.cpp', 'iccanalyzer-lite/*.h', 'colorbleed_tools/*.cpp') }}
 
       - name: Install iccDEV + iccanalyzer-lite
         env:
@@ -140,14 +138,6 @@ jobs:
           fi
 
           if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
-            echo "Applying CFL library patches..."
-            for p in cfl/patches/*.patch; do
-              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
-                echo "  [OK] $(basename "$p")"
-              else
-                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-              fi
-            done
             # Strip stray U+FE0F (emoji variation selector) from upstream source
             SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
             if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
@@ -278,6 +268,18 @@ jobs:
         with:
           name: icctest-parity-artifacts-mcp-server
           path: iccanalyzer-lite/icctest/build/parity-artifacts/
+          if-no-files-found: warn
+
+      - name: Upload icctest CLI bundle
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: icctest-cli-mcp-server
+          path: |
+            iccanalyzer-lite/icctest/build/cli/icctest
+            iccanalyzer-lite/icctest/build/tools/icctest-parity
+            iccanalyzer-lite/icctest/README.md
+            iccanalyzer-lite/icctest/tools/heuristic-remap.tsv
           if-no-files-found: warn
 
       - name: Test Summary

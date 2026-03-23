@@ -88,6 +88,11 @@ On the current corpus and generated image smoke:
 
 ## CI Notes
 
+- GitHub workflow artifacts and GitHub Release bundles should ship the
+  instrumented Debug binaries, not a separate Release-only rebuild.
+- The expected V2 developer bundle is:
+  `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`,
+  and `verify-parity-summary.json`.
 - The V1 parity adapters auto-resolve shared libraries from both supported
   layouts: `iccanalyzer-lite/iccDEV/Build/...` and repo-root `iccDEV/Build/...`.
   Current GitHub workflows use both.

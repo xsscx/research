@@ -31,6 +31,15 @@ def default_bad_profile() -> Path:
     return repo_root() / "tests" / "corpus" / "wrong_d50_illuminant.icc"
 
 
+def expected_spec_reference_paths() -> list[str]:
+    spec_dir = repo_root().parent / "docs" / "iccDEV" / "specifications"
+    return [
+        f"docs/iccDEV/specifications/{entry.name}"
+        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
+        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
+    ]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v1-binary", type=Path, default=default_v1_binary())
@@ -82,6 +91,13 @@ def require_regex(text: str, pattern: str, failures: list[str], label: str) -> N
 
 def check_report(label: str, text: str, failures: list[str]) -> None:
     require(text, "ICC PROFILE ASSESSMENT REPORT (PAWG)", failures, label)
+    require(
+        text,
+        "ICC Profile Assessment Working Group Checklist Reference: https://www.color.org/profiles/assessment/index.xalter",
+        failures,
+        label,
+    )
+    require(text, "ICC Specification References:", failures, label)
     require(text, "[ SECURITY ]", failures, label)
     require(text, "[ CONFORMANCE ]", failures, label)
     require(text, "[ QUALITY ]", failures, label)
@@ -91,6 +107,10 @@ def check_report(label: str, text: str, failures: list[str]) -> None:
     require(text, "Total checklist items:  31", failures, label)
     require(text, "Excessive calculator elements not present (ideally provide an estimate of computation cost)", failures, label)
     require(text, "Private tags do not contain exploitable non-operation (NOP) instructions", failures, label)
+    for path in expected_spec_reference_paths():
+        require(text, path, failures, label)
+    if "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" in text:
+        failures.append(f"{label}: unexpected adaptive gain curve reference")
 
     for i in range(1, 14):
         require_regex(text, rf"\bS{i}\b", failures, label)
