@@ -4,6 +4,7 @@
 # Copyright (c) 1994 - 2026 David H Hoyt LLC
 
 set(ICCTEST_LIB_SOURCES
+    ../../IccDevSafeOverrides.cpp
     src/ProfileView.cpp
     src/CheckRegistry.cpp
     src/Logger.cpp
@@ -55,6 +56,9 @@ if(ENABLE_COVERAGE)
     target_link_options(IccTest PUBLIC
         -fprofile-instr-generate -fcoverage-mapping)
 endif()
+target_link_options(IccTest PUBLIC
+    "LINKER:--allow-multiple-definition"
+)
 
 target_compile_options(IccTest PRIVATE
     ${ICCTEST_DEBUG_FLAGS}

@@ -23,6 +23,8 @@
 #include <fstream>
 #include <limits>
 
+extern void ForceIccDevSafeOverrides();
+
 namespace icctest {
 
 static ImageFormat detectContainerFormat(const uint8_t* b, size_t len) {
@@ -125,6 +127,7 @@ ProfileView& ProfileView::operator=(ProfileView&& other) noexcept {
 
 std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path,
                                              bool skipLibraryOnUB) {
+    ::ForceIccDevSafeOverrides();
     ICCTEST_DEBUG("ProfileView::open(%s)", path.c_str());
 
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -181,6 +184,7 @@ std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path,
 
 std::optional<ProfileView> ProfileView::open(const uint8_t* data, size_t len,
                                              bool skipLibraryOnUB) {
+    ::ForceIccDevSafeOverrides();
     ICCTEST_DEBUG("ProfileView::open(buffer, %zu bytes)", len);
 
     if (len < 128) {

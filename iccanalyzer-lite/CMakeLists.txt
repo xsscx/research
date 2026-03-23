@@ -15,6 +15,7 @@ find_package(LibXml2 REQUIRED)
 # Source files (must match build.sh SOURCES — 23 files)
 set(SOURCES
     iccAnalyzer-lite.cpp
+    IccDevSafeOverrides.cpp
     IccAnalyzerConfig.cpp
     IccAnalyzerErrors.cpp
     IccAnalyzerSecurity.cpp

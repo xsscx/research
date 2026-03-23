@@ -777,7 +777,7 @@ static void test_embedding_tech_note_regressions() {
         expect_heuristic_result(result, 173, CheckResult::Status::FINDINGS, 1);
         const auto* h173 = find_per_check(result, CheckID::Kind::Heuristic, 173);
         ASSERT_TRUE(h173 != nullptr);
-        ASSERT_TRUE(h173->result.findings[0].message.find("IccUtil.cpp:1088,1130") != std::string::npos);
+        ASSERT_TRUE(h173->result.findings[0].message.find("IccUtil.cpp:1088,1130,1167,1187,1228,1253") != std::string::npos);
     }
 
     {
