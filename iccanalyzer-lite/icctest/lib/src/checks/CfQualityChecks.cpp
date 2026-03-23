@@ -14,6 +14,7 @@
 #include "IccTagBasic.h"
 #include "IccTagLut.h"
 #include "IccUtil.h"
+#include "../../../../IccQualityMetrics.h"
 
 #include <cmath>
 #include <cstring>
@@ -30,35 +31,27 @@ static CheckResult check_cf099_round_trip_ciede2000(const ProfileView& pv) {
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 99};
 
-    CIccTag *pAToB = pIcc->FindTag(icSigAToB0Tag);
-    CIccTag *pBToA = pIcc->FindTag(icSigBToA0Tag);
-    if (!pAToB || !pBToA)
-        return CheckResult::skip("AToB0/BToA0 tag pair not present");
+    iccquality::RoundTripMetrics metrics;
+    std::string reason;
+    if (!iccquality::measure_round_trip(pIcc, metrics, reason))
+        return CheckResult::skip(reason);
 
-    CIccMBB *pMBB_AToB = dynamic_cast<CIccMBB*>(pAToB);
-    CIccMBB *pMBB_BToA = dynamic_cast<CIccMBB*>(pBToA);
-    if (!pMBB_AToB || !pMBB_BToA)
-        return CheckResult::skip("AToB0/BToA0 not LUT-based");
+    char detail[256];
+    std::snprintf(detail, sizeof(detail),
+                  "model=%s samples=%d first(avg=%.4f max=%.4f) second(avg=%.4f max=%.4f)",
+                  metrics.model.c_str(), metrics.samples,
+                  metrics.avgFirstDe00, metrics.maxFirstDe00,
+                  metrics.avgSecondDe00, metrics.maxSecondDe00);
 
-    int nIn_AToB = pMBB_AToB->InputChannels();
-    int nOut_AToB = pMBB_AToB->OutputChannels();
-    int nIn_BToA = pMBB_BToA->InputChannels();
-    int nOut_BToA = pMBB_BToA->OutputChannels();
-
-    if (nIn_AToB < 1 || nOut_AToB < 1 || nIn_BToA < 1 || nOut_BToA < 1)
-        return CheckResult::skip("Invalid channel counts");
-
-    bool channelMatch = (nOut_AToB == nIn_BToA) && (nIn_AToB == nOut_BToA);
-    if (!channelMatch) {
-        std::string msg = "Channel mismatch: AToB0(" + std::to_string(nIn_AToB) + "→" +
-            std::to_string(nOut_AToB) + ") vs BToA0(" + std::to_string(nIn_BToA) + "→" +
-            std::to_string(nOut_BToA) + ") — round-trip impossible";
-        findings.push_back({id, Severity::MEDIUM, msg, "", ""});
+    if (metrics.maxFirstDe00 > 5.0 || metrics.avgFirstDe00 > 2.0 ||
+        metrics.maxSecondDe00 > 5.0 || metrics.avgSecondDe00 > 2.0) {
+        findings.push_back({id, Severity::MEDIUM,
+            "Bounded round-trip DeltaE00 exceeds expected limits",
+            detail, ""});
+        return {CheckResult::Status::FINDINGS, "Round-trip DeltaE00 out of bounds", std::move(findings)};
     }
 
-    if (findings.empty())
-        return CheckResult::ok("AToB0/BToA0 channel dimensions consistent for round-trip");
-    return {CheckResult::Status::FINDINGS, "Round-trip channel issues", std::move(findings)};
+    return CheckResult::ok(detail);
 }
 
 // ---------------------------------------------------------------------------
@@ -70,43 +63,31 @@ static CheckResult check_cf100_curve_invertibility(const ProfileView& pv) {
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 100};
 
-    struct CurveInfo { icTagSignature sig; const char *name; };
-    static const CurveInfo curves[] = {
-        { icSigRedTRCTag,   "rTRC" },
-        { icSigGreenTRCTag, "gTRC" },
-        { icSigBlueTRCTag,  "bTRC" },
-        { icSigGrayTRCTag,  "kTRC" },
-    };
+    const auto metrics = iccquality::measure_curve_invertibility(pIcc);
+    if (metrics.curves.empty()) return CheckResult::skip("No supported curves found");
 
-    int curvesChecked = 0;
-    for (const auto& ci : curves) {
-        CIccTag *pTag = pIcc->FindTag(ci.sig);
-        if (!pTag) continue;
-        CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
-        if (!pCurve) continue;
-
-        icUInt32Number nEntries = pCurve->GetSize();
-        if (nEntries < 2) { curvesChecked++; continue; }
-
-        bool monotonic = true;
-        icFloatNumber prev = (*pCurve)[0];
-        for (icUInt32Number i = 1; i < nEntries; i++) {
-            icFloatNumber val = (*pCurve)[i];
-            if (val < prev) { monotonic = false; break; }
-            prev = val;
-        }
-
-        if (!monotonic) {
+    for (const auto& curve : metrics.curves) {
+        char detail[160];
+        std::snprintf(detail, sizeof(detail), "avgErr=%.6f maxErr=%.6f",
+                      curve.avgError, curve.maxError);
+        if (!curve.monotonic) {
             findings.push_back({id, Severity::HIGH,
-                std::string(ci.name) + ": non-monotonic curve — not invertible",
-                std::to_string(nEntries) + " entries", ""});
+                curve.name + ": non-monotonic curve — not reliably invertible",
+                detail, ""});
+        } else if (curve.flat) {
+            findings.push_back({id, Severity::HIGH,
+                curve.name + ": flat curve — not invertible",
+                detail, ""});
+        } else if (curve.maxError > 0.01) {
+            findings.push_back({id, Severity::HIGH,
+                curve.name + ": bounded invertibility error exceeds threshold",
+                detail, ""});
         }
-        curvesChecked++;
     }
 
-    if (curvesChecked == 0) return CheckResult::skip("No TRC curves found");
     if (findings.empty())
-        return CheckResult::ok(std::to_string(curvesChecked) + " curve(s) checked — all invertible");
+        return CheckResult::ok(std::to_string(metrics.curves.size()) +
+                               " curve(s) checked — bounded invertibility acceptable");
     return {CheckResult::Status::FINDINGS, "Non-invertible curves", std::move(findings)};
 }
 
@@ -119,75 +100,27 @@ static CheckResult check_cf101_transform_smoothness(const ProfileView& pv) {
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 101};
 
-    CIccTag *pTag = pIcc->FindTag(icSigAToB0Tag);
-    if (!pTag) return CheckResult::skip("No AToB0 tag");
+    iccquality::SmoothnessMetrics metrics;
+    std::string reason;
+    if (!iccquality::measure_transform_smoothness(pIcc, metrics, reason))
+        return CheckResult::skip(reason);
 
-    CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
-    if (!pMBB) return CheckResult::skip("AToB0 is not LUT-based");
+    char detail[192];
+    std::snprintf(detail, sizeof(detail),
+                  "model=%s samples=%d avgStep=%.4f maxStep=%.4f maxCurvature=%.4f discontinuities=%d",
+                  metrics.model.c_str(), metrics.samples,
+                  metrics.avgStepDe00, metrics.maxStepDe00,
+                  metrics.maxCurvatureDe00, metrics.discontinuities);
 
-    CIccCLUT *pCLUT = pMBB->GetCLUT();
-    if (!pCLUT) return CheckResult::skip("AToB0 has no CLUT");
-
-    int nIn = pCLUT->GetInputDim();
-    int nOut = pCLUT->GetOutputChannels();
-    if (nIn < 1 || nOut < 1 || nIn > 15)
-        return CheckResult::skip("Invalid CLUT dimensions");
-
-    int gridSize = pCLUT->GridPoint(0);
-    if (gridSize < 2) return CheckResult::skip("Grid size too small");
-
-    int totalNodes = 1;
-    for (int d = 0; d < nIn; d++) {
-        int gs = pCLUT->GridPoint(d);
-        if (gs < 1) { totalNodes = 0; break; }
-        totalNodes *= gs;
-    }
-    if (totalNodes < 2 || totalNodes > 1000000)
-        return CheckResult::skip("CLUT grid too large or invalid");
-
-    int stride0 = nOut;
-    for (int d = 1; d < nIn; d++)
-        stride0 *= pCLUT->GridPoint(d);
-
-    int midOffset = 0;
-    int subStride = nOut;
-    for (int d = nIn - 1; d >= 1; d--) {
-        int gs = pCLUT->GridPoint(d);
-        midOffset += (gs / 2) * subStride;
-        subStride *= gs;
-    }
-
-    const icFloatNumber *clutData = pCLUT->GetData(0);
-    if (!clutData) return CheckResult::skip("CLUT data not accessible");
-
-    double maxJump = 0.0;
-    int jumpCount = 0;
-    for (int i = 1; i < gridSize; i++) {
-        int prevIdx = (i - 1) * stride0 + midOffset;
-        int currIdx = i * stride0 + midOffset;
-        if (currIdx + nOut > totalNodes * nOut) break;
-
-        double jump = 0.0;
-        for (int ch = 0; ch < nOut; ch++) {
-            double d = (double)clutData[currIdx + ch] - (double)clutData[prevIdx + ch];
-            jump += d * d;
-        }
-        jump = sqrt(jump);
-        if (jump > maxJump) maxJump = jump;
-        if (jump > 0.5) jumpCount++;
-    }
-
-    if (jumpCount > gridSize / 4) {
+    if (metrics.maxStepDe00 > 8.0 || metrics.maxCurvatureDe00 > 4.0 ||
+        metrics.discontinuities > 4) {
         findings.push_back({id, Severity::MEDIUM,
-            "Transform appears discontinuous",
-            std::to_string(jumpCount) + "/" + std::to_string(gridSize - 1) + " jumps exceed threshold",
-            ""});
+            "Transform smoothness exceeds bounded continuity expectations",
+            detail, ""});
+        return {CheckResult::Status::FINDINGS, "Smoothness issues", std::move(findings)};
     }
 
-    if (findings.empty())
-        return CheckResult::ok("Transform smoothness acceptable (max jump=" +
-            std::to_string(maxJump).substr(0, 6) + ")");
-    return {CheckResult::Status::FINDINGS, "Smoothness issues", std::move(findings)};
+    return CheckResult::ok(detail);
 }
 
 // ---------------------------------------------------------------------------
@@ -196,25 +129,28 @@ static CheckResult check_cf101_transform_smoothness(const ProfileView& pv) {
 static CheckResult check_cf102_characterization_round_trip(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return CheckResult::skip("Library failed to load profile");
     auto* pIcc = pv.unsafeLibraryHandle();
-    CIccTag *pTag = pIcc->FindTag(icSigCharTargetTag);
-    if (!pTag) return CheckResult::skip("No charTargetTag present");
+    std::vector<Finding> findings;
+    CheckID id{CheckID::Kind::Conformance, 102};
 
-    CIccTagText *pText = dynamic_cast<CIccTagText*>(pTag);
-    if (!pText) return CheckResult::skip("charTargetTag is not textType");
+    iccquality::CharacterizationMetrics metrics;
+    std::string reason;
+    if (!iccquality::evaluate_characterization(pIcc, metrics, reason))
+        return CheckResult::skip(reason);
 
-    const char *text = pText->GetText();
-    if (!text || !text[0]) return CheckResult::skip("charTargetTag is empty");
+    char detail[192];
+    std::snprintf(detail, sizeof(detail),
+                  "fields=%d rows=%d usableRows=%d avgDeltaE00=%.4f maxDeltaE00=%.4f",
+                  metrics.fieldCount, metrics.rowCount, metrics.rowsUsed,
+                  metrics.avgDe00, metrics.maxDe00);
 
-    CIccTag *pAToB = pIcc->FindTag(icSigAToB0Tag);
-    CIccTag *pBToA = pIcc->FindTag(icSigBToA0Tag);
+    if (metrics.maxDe00 > 5.0 || metrics.avgDe00 > 2.0) {
+        findings.push_back({id, Severity::MEDIUM,
+            "Characterization-driven DeltaE00 exceeds bounded expectations",
+            detail, ""});
+        return {CheckResult::Status::FINDINGS, "Characterization fidelity issues", std::move(findings)};
+    }
 
-    std::string summary = "charTargetTag: " + std::to_string(strlen(text)) + " bytes";
-    if (pAToB && pBToA)
-        summary += ", AToB0+BToA0 present — characterization data verifiable";
-    else
-        summary += ", missing AToB0/BToA0 — round-trip not verifiable";
-
-    return CheckResult::ok(summary);
+    return CheckResult::ok(detail);
 }
 
 // ── Registrations (4 checks) ──
