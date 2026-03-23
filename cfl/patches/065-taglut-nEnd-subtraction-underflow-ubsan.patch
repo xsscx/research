@@ -1,0 +1,101 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index e9e9aad..4c68064 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -4110,7 +4132,7 @@ bool CIccTagLutAtoB::Read(icUInt32Number size, CIccIO *pIO)
+ 
+       pCurves[i] = (CIccCurve*)CIccTag::Create(sig);
+ 
+-      if (!pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
++      if (pIO->Tell() > (size_t)nEnd || !pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
+         return false;
+ 
+       if (!pIO->Sync32(Offset[0]))
+@@ -4161,7 +4183,7 @@ bool CIccTagLutAtoB::Read(icUInt32Number size, CIccIO *pIO)
+ 
+       pCurves[i] = (CIccCurve*)CIccTag::Create(sig);
+ 
+-      if (!pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
++      if (pIO->Tell() > (size_t)nEnd || !pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
+         return false;
+ 
+       if (!pIO->Sync32(Offset[2]))
+@@ -4176,7 +4198,7 @@ bool CIccTagLutAtoB::Read(icUInt32Number size, CIccIO *pIO)
+ 
+     m_CLUT = new CIccCLUT(m_nInput, m_nOutput);
+ 
+-    if (!m_CLUT->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
++    if (pIO->Tell() > (size_t)nEnd || !m_CLUT->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
+       return false;
+   }
+ 
+@@ -4203,7 +4225,7 @@ bool CIccTagLutAtoB::Read(icUInt32Number size, CIccIO *pIO)
+ 
+       pCurves[i] = (CIccCurve*)CIccTag::Create(sig);
+ 
+-      if (!pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
++      if (pIO->Tell() > (size_t)nEnd || !pCurves[i]->Read( (icUInt32Number)(nEnd - pIO->Tell()), pIO))
+         return false;
+ 
+       if (!pIO->Sync32(Offset[4]))
+@@ -4722,7 +4744,7 @@ bool CIccTagLut8::Read(icUInt32Number size, CIccIO *pIO)
+   pCurves = NewCurvesB();
+ 
+   for (i=0; i<m_nInput; i++) {
+-    if (256 > nEnd - pIO->Tell())
++    if (pIO->Tell() > (size_t)nEnd || 256 > (size_t)(nEnd - pIO->Tell()))
+       return false;
+ 
+     pCurves[i] = pCurve = (CIccTagCurve*)CIccTag::Create(icSigCurveType);
+@@ -4739,10 +4761,10 @@ bool CIccTagLut8::Read(icUInt32Number size, CIccIO *pIO)
+   if (m_CLUT == NULL)
+     return false;
+ 
+-  if (!m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 1))
++  if (pIO->Tell() > (size_t)nEnd || !m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 1))
+     return false;
+ 
+-  if (!m_CLUT->ReadData( (icUInt32Number)(nEnd - pIO->Tell()), pIO, 1))
++  if (pIO->Tell() > (size_t)nEnd || !m_CLUT->ReadData( (icUInt32Number)(nEnd - pIO->Tell()), pIO, 1))
+     return false;
+ 
+   //A Curves
+@@ -4751,7 +4773,7 @@ bool CIccTagLut8::Read(icUInt32Number size, CIccIO *pIO)
+     return false;
+ 
+   for (i=0; i<m_nOutput; i++) {
+-    if (256 > nEnd - pIO->Tell())
++    if (pIO->Tell() > (size_t)nEnd || 256 > (size_t)(nEnd - pIO->Tell()))
+       return false;
+ 
+     pCurves[i] = pCurve = (CIccTagCurve*)CIccTag::Create(icSigCurveType);
+@@ -5176,7 +5198,7 @@ bool CIccTagLut16::Read(icUInt32Number size, CIccIO *pIO)
+   pCurves = NewCurvesB();
+ 
+   for (i=0; i<m_nInput; i++) {
+-    if (nInputEntries*sizeof(icUInt16Number) > nEnd - pIO->Tell())
++    if (pIO->Tell() > (size_t)nEnd || nInputEntries*sizeof(icUInt16Number) > (size_t)(nEnd - pIO->Tell()))
+       return false;
+ 
+     pCurves[i] = pCurve = (CIccTagCurve*)CIccTag::Create(icSigCurveType);
+@@ -5191,17 +5213,17 @@ bool CIccTagLut16::Read(icUInt32Number size, CIccIO *pIO)
+   //CLUT
+   m_CLUT = new CIccCLUT(m_nInput, m_nOutput);
+ 
+-  if (!m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 2))
++  if (pIO->Tell() > (size_t)nEnd || !m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 2))
+     return false;
+ 
+-  if (!m_CLUT->ReadData( (icUInt32Number)(nEnd - pIO->Tell()), pIO, 2))
++  if (pIO->Tell() > (size_t)nEnd || !m_CLUT->ReadData( (icUInt32Number)(nEnd - pIO->Tell()), pIO, 2))
+     return false;
+ 
+   //A Curves
+   pCurves = NewCurvesA();
+ 
+   for (i=0; i<m_nOutput; i++) {
+-    if (nOutputEntries*sizeof(icUInt16Number) > nEnd - pIO->Tell())
++    if (pIO->Tell() > (size_t)nEnd || nOutputEntries*sizeof(icUInt16Number) > (size_t)(nEnd - pIO->Tell()))
+       return false;
+ 
+     pCurves[i] = pCurve = (CIccTagCurve*)CIccTag::Create(icSigCurveType);

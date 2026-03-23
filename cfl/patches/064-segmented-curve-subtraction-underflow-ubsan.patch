@@ -1,0 +1,22 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7d2a7a1..8c7191e 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -2702,7 +2702,7 @@ bool CIccSegmentedCurve::Read(icUInt32Number size, CIccIO *pIO)
+ 
+     pIO->Seek(pos, icSeekSet);
+ 
+-    if (!pSeg->Read(size-(pos-startPos), pIO)) {
++    if (pos < startPos || (icUInt32Number)(pos-startPos) > size || !pSeg->Read(size-(icUInt32Number)(pos-startPos), pIO)) {
+       delete pSeg;
+       return false;
+     }
+@@ -2746,7 +2746,7 @@ bool CIccSegmentedCurve::Read(icUInt32Number size, CIccIO *pIO)
+         return false;
+       }
+ 
+-      if (!pSeg->Read(size-(pos-startPos), pIO)) {
++      if (pos < startPos || (icUInt32Number)(pos-startPos) > size || !pSeg->Read(size-(icUInt32Number)(pos-startPos), pIO)) {
+         delete pSeg;
+         free(breakpoints);
+         return false;
