@@ -1662,3 +1662,13 @@ multi_sig="mwpmcl1l"
 # --- added by convert-libfuzzer-dict.py ---
 "\x00\x00\x00\x00\x00\x00\x00&"
 "\x00\x00\x00\x00\x00\x00\x00<"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x04"
+"\x01\x00\x00\x00\x00\x00\x0e\xf5"
+"f224e"
+"ces"
+"cyrilli"
+"UTF-"
+"EUTF-8F-"
+"US-A"
