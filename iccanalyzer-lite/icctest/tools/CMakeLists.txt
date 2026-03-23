@@ -44,6 +44,17 @@ add_custom_target(icctest-verify-parity
 
 if(BUILD_TESTING)
     add_test(
+        NAME icctest_verify_pawg
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verifyPawg.py
+            --v1-binary ${ICCTEST_V1_BINARY}
+            --v2-binary $<TARGET_FILE:icctest>
+    )
+    set_tests_properties(icctest_verify_pawg PROPERTIES
+        TIMEOUT 120
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
+    )
+
+    add_test(
         NAME icctest_verify_parity
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verifyParity.py
             --skip-unit

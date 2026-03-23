@@ -8,6 +8,7 @@ set(ICCTEST_CLI_SOURCES
     src/ArgParser.cpp
     src/LinuxSandbox.cpp
     formatters/TextFormatter.cpp
+    formatters/PawgFormatter.cpp
     formatters/JsonFormatter.cpp
     formatters/SarifFormatter.cpp
 )
