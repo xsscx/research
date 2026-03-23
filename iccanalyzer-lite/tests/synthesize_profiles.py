@@ -159,6 +159,47 @@ def build_profile(tags_data, **header_kwargs):
     return bytes(profile)
 
 
+def build_rgb_matrix_profile(
+    description,
+    *,
+    version=0x04400000,
+    device_class=b"mntr",
+    pcs=b"XYZ ",
+    flags=0,
+):
+    """Build a small RGB matrix/TRC profile with predictable validation behavior."""
+    tags = [
+        (b"desc", make_mluc_tag(description)),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+    ]
+    return build_profile(
+        tags,
+        version=version,
+        device_class=device_class,
+        color_space=b"RGB ",
+        pcs=pcs,
+        flags=flags,
+    )
+
+
+def make_embedded_profile_tag(child_profile, *, reserved=0, type_sig=b"ICCp"):
+    """Create an embeddedProfileType payload for the ICC5 tag."""
+    data = bytearray()
+    data += type_sig
+    data += struct.pack(">I", reserved)
+    data += child_profile
+    while len(data) % 4:
+        data += b"\x00"
+    return bytes(data)
+
+
 def synth_valid_srgb():
     """Minimal valid v4 mntr/RGB profile with required tags."""
     tags = [
@@ -265,6 +306,161 @@ def synth_v5_tags_on_v4():
         (b"D2B0", d2b_data),  # v5-only tag on v4 profile
     ]
     return build_profile(tags, version=0x04400000)
+
+
+def synth_cf_embedded_clean():
+    """v5 parent with readable embedded v5 child and compliant ICC5 header."""
+    child = build_rgb_matrix_profile(
+        "Embedded Child Clean",
+        version=0x05000000,
+        device_class=b"mntr",
+        pcs=b"XYZ ",
+        flags=0x00000001,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("Embedded Parent Clean")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ICC5", make_embedded_profile_tag(child)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_wrong_type():
+    """ICC5 tag present with wrong type signature instead of ICCp."""
+    wrong_tag = bytearray()
+    wrong_tag += b"text"
+    wrong_tag += b"\x00" * 4
+    wrong_tag += b"Not an embedded profile\x00"
+    while len(wrong_tag) % 4:
+        wrong_tag += b"\x00"
+
+    tags = [
+        (b"desc", make_mluc_tag("Embedded Wrong Type")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"ICC5", bytes(wrong_tag)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_child_flags_bad():
+    """Embedded child violates bit-0/bit-1 header flag expectations."""
+    child = build_rgb_matrix_profile(
+        "Embedded Child Flags Bad",
+        version=0x05000000,
+        device_class=b"mntr",
+        pcs=b"XYZ ",
+        flags=0x00000002,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("Embedded Flags Bad")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ICC5", make_embedded_profile_tag(child)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_child_class_mismatch():
+    """Embedded child uses a different profile class than the parent."""
+    child = build_rgb_matrix_profile(
+        "Embedded Child Class Mismatch",
+        version=0x05000000,
+        device_class=b"scnr",
+        pcs=b"XYZ ",
+        flags=0x00000001,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("Embedded Class Mismatch")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ICC5", make_embedded_profile_tag(child)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_child_pcs_mismatch():
+    """Embedded child uses a different PCS than the parent."""
+    child = build_rgb_matrix_profile(
+        "Embedded Child PCS Mismatch",
+        version=0x05000000,
+        device_class=b"mntr",
+        pcs=b"Lab ",
+        flags=0x00000001,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("Embedded PCS Mismatch")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ICC5", make_embedded_profile_tag(child)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_reserved_nonzero():
+    """Embedded profile tag with non-zero reserved bytes at bytes 4-7."""
+    child = build_rgb_matrix_profile(
+        "Embedded Reserved Nonzero",
+        version=0x05000000,
+        device_class=b"mntr",
+        pcs=b"XYZ ",
+        flags=0x00000001,
+    )
+    tags = [
+        (b"desc", make_mluc_tag("Embedded Reserved Nonzero")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"ICC5", make_embedded_profile_tag(child, reserved=1)),
+    ]
+    return build_profile(tags, version=0x05000000, device_class=b"mntr",
+                         color_space=b"RGB ", pcs=b"XYZ ")
+
+
+def synth_cf_embedded_devicelink_flagged():
+    """DeviceLink profile marked embedded to exercise CF-214 atypical case."""
+    tags = [
+        (b"desc", make_mluc_tag("Embedded DeviceLink Flag")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+    ]
+    return build_profile(tags, version=0x04400000, device_class=b"link",
+                         color_space=b"RGB ", pcs=b"XYZ ", flags=0x00000001)
 
 
 def synth_non_monotonic_curve():
@@ -2333,6 +2529,13 @@ def main():
         "cf_mluc_bad_record_size.icc": synth_cf_mluc_bad_record_size(),
         "cf_mluc_zero_name_placeholder.icc": synth_cf_mluc_zero_name_placeholder(),
         "cf_sf32_bad_size.icc": synth_cf_sf32_bad_size(),
+        "cf_embedded_clean.icc": synth_cf_embedded_clean(),
+        "cf_embedded_wrong_type.icc": synth_cf_embedded_wrong_type(),
+        "cf_embedded_child_flags_bad.icc": synth_cf_embedded_child_flags_bad(),
+        "cf_embedded_child_class_mismatch.icc": synth_cf_embedded_child_class_mismatch(),
+        "cf_embedded_child_pcs_mismatch.icc": synth_cf_embedded_child_pcs_mismatch(),
+        "cf_embedded_reserved_nonzero.icc": synth_cf_embedded_reserved_nonzero(),
+        "cf_embedded_devicelink_flagged.icc": synth_cf_embedded_devicelink_flagged(),
         # CF-317..CF-320 HDR-to-SDR (K.2.9) test profiles
         "cf_htos_flag_and_tags.icc": synth_cf_htos_flag_and_tags(),
         "cf_htos_flag_only.icc": synth_cf_htos_flag_only(),

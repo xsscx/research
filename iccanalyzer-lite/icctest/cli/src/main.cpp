@@ -21,6 +21,7 @@
 
 #include <icctest/IccTest.h>
 #include <icctest/CheckRegistry.h>
+#include <icctest/CoverageEnv.h>
 #include <icctest/Logger.h>
 
 #include <iostream>
@@ -51,12 +52,7 @@ static constexpr const char* kVersion = "2.0.0";
 int main(int argc, char** argv) {
     using namespace icctest;
 
-#if defined(__GNUC__)
-    if (!std::getenv("GCOV_PREFIX")) {
-        setenv("GCOV_PREFIX", "/tmp/icctest-gcov-cli", 0);
-        setenv("GCOV_PREFIX_STRIP", "0", 0);
-    }
-#endif
+    configureUniqueCoverageOutput("icctest-gcov-cli");
 
     auto args = parseArgs(argc, argv);
     if (!args) return 3;
