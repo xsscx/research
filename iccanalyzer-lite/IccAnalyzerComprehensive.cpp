@@ -53,7 +53,9 @@
 #include "IccConformanceV5.h"
 #include "IccConformanceSecurity.h"
 #include "IccConformanceQuality.h"
+#include "IccHeuristicResult.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicsCodeQLPatterns.h"
 #include "IccHeuristicsDataValidation.h"
 
 //==============================================================================
@@ -138,6 +140,22 @@ static bool HasLibraryUBPatterns(const char *filename) {
   return dangerous;
 }
 
+// Emit raw preflight fingerprints that explain known upstream integer-sanitizer
+// sites before the library phase runs. This keeps conformance-mode output
+// aligned with the actual byte pattern that reaches the library code path.
+static void EmitConformancePreflightFingerprints(const char *filename) {
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) {
+    return;
+  }
+
+  auto &hc = HeuristicCollector::instance();
+  bool prevCollecting = hc.collecting();
+  hc.setCollecting(false);
+  RunHeuristic_H173_SigConversionShiftOverflow(ctx);
+  hc.setCollecting(prevCollecting);
+}
+
 //==============================================================================
 // Comprehensive Analysis - All Modes Combined
 //
@@ -198,6 +216,10 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     printf("       %sHeader claims more bytes than file contains%s\n",
            ColorInfo(), ColorReset());
     return totalIssues > 0 ? totalIssues : -1;
+  }
+
+  if (!legacy) {
+    EmitConformancePreflightFingerprints(filename);
   }
 
   // Pre-loading defense: detect tag data patterns that trigger undefined behavior
