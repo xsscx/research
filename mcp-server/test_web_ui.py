@@ -53,15 +53,6 @@ failed = 0
 errors: list[str] = []
 
 
-def pawg_spec_reference_paths() -> list[str]:
-    spec_dir = REPO / "docs" / "iccDEV" / "specifications"
-    return [
-        f"docs/iccDEV/specifications/{entry.name}"
-        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
-        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
-    ]
-
-
 def check(name: str, ok: bool) -> None:
     global passed, failed
     if ok:
@@ -342,10 +333,15 @@ def test_security_report():
           "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
     check("SecurityReport has PAWG checklist label",
           "Profile Assessment Working Group Checklist Reference" in d.get("result", ""))
-    check("SecurityReport has CONFORMANCE section",
-          "[ CONFORMANCE ]" in d.get("result", ""))
-    check("SecurityReport has conformance coverage",
-          "CONFORMANCE CHECK COVERAGE" in d.get("result", ""))
+    check("SecurityReport has compact metadata fields",
+          "Date:" in d.get("result", "")
+          and "File:" in d.get("result", "")
+          and "SHA-256:" in d.get("result", "")
+          and "Size:" in d.get("result", ""))
+    check("SecurityReport has view line",
+          "View: PAWG / conformance section only" in d.get("result", ""))
+    check("SecurityReport omits conformance coverage heading",
+          "CONFORMANCE CHECK COVERAGE" not in d.get("result", ""))
     check("SecurityReport has C1 and C14",
           "C1" in d.get("result", "") and "C14" in d.get("result", ""))
     check("SecurityReport omits CWE references",
@@ -355,14 +351,21 @@ def test_security_report():
     check("SecurityReport uses one line per PAWG checklist item",
           "Checks:" not in d.get("result", "")
           and "\n          CF-" not in d.get("result", ""))
-    check("SecurityReport has ICC.1 spec PDF reference",
-          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in d.get("result", ""))
-    check("SecurityReport has ICC specification reference heading",
-          "ICC Specification References:" in d.get("result", ""))
-    check("SecurityReport has full specification reference set",
-          all(path in d.get("result", "") for path in pawg_spec_reference_paths()))
-    check("SecurityReport omits adaptive gain curve reference",
-          "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in d.get("result", ""))
+    check("SecurityReport omits PAWG banner clutter",
+          "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in d.get("result", "")
+          and "[ CONFORMANCE ]" not in d.get("result", "")
+          and "Goals for profile assessment" not in d.get("result", "")
+          and "Tool:" not in d.get("result", "")
+          and "Build:" not in d.get("result", ""))
+    check("SecurityReport omits ICC specification reference heading",
+          "ICC Specification References:" not in d.get("result", ""))
+    check("SecurityReport omits specification and PDF references",
+          "docs/iccDEV/specifications/" not in d.get("result", ""))
+    check("SecurityReport has compact coverage summary",
+          "Checks evaluated:" in d.get("result", "")
+          and "Checks mapped:" in d.get("result", "")
+          and "Registry total:" in d.get("result", "")
+          and "Spec coverage:" in d.get("result", ""))
     check("SecurityReport is conformance-only",
           "[ SECURITY ]" not in d.get("result", "")
           and "[ QUALITY ]" not in d.get("result", "")
@@ -380,18 +383,19 @@ def test_pawg():
     check("PAWG has result", "result" in d and len(d["result"]) > 100)
     check("PAWG has checklist reference URL",
           "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
-    check("PAWG has ICC.2 spec PDF reference",
-          "docs/iccDEV/specifications/ICC.2-2023.pdf" in d.get("result", ""))
-    check("PAWG has ICC specification reference heading",
-          "ICC Specification References:" in d.get("result", ""))
-    check("PAWG has full specification reference set",
-          all(path in d.get("result", "") for path in pawg_spec_reference_paths()))
-    check("PAWG omits adaptive gain curve reference",
-          "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in d.get("result", ""))
-    check("PAWG has CONFORMANCE section",
-          "[ CONFORMANCE ]" in d.get("result", ""))
-    check("PAWG has conformance coverage",
-          "CONFORMANCE CHECK COVERAGE" in d.get("result", ""))
+    check("PAWG omits ICC specification reference heading",
+          "ICC Specification References:" not in d.get("result", ""))
+    check("PAWG omits specification and PDF references",
+          "docs/iccDEV/specifications/" not in d.get("result", ""))
+    check("PAWG has compact metadata fields",
+          "Date:" in d.get("result", "")
+          and "File:" in d.get("result", "")
+          and "SHA-256:" in d.get("result", "")
+          and "Size:" in d.get("result", ""))
+    check("PAWG has view line",
+          "View: PAWG / conformance section only" in d.get("result", ""))
+    check("PAWG omits conformance coverage heading",
+          "CONFORMANCE CHECK COVERAGE" not in d.get("result", ""))
     check("PAWG has C1 and C14",
           "C1" in d.get("result", "") and "C14" in d.get("result", ""))
     check("PAWG omits CWE references",
@@ -401,6 +405,17 @@ def test_pawg():
     check("PAWG uses one line per PAWG checklist item",
           "Checks:" not in d.get("result", "")
           and "\n          CF-" not in d.get("result", ""))
+    check("PAWG omits PAWG banner clutter",
+          "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in d.get("result", "")
+          and "[ CONFORMANCE ]" not in d.get("result", "")
+          and "Goals for profile assessment" not in d.get("result", "")
+          and "Tool:" not in d.get("result", "")
+          and "Build:" not in d.get("result", ""))
+    check("PAWG has compact coverage summary",
+          "Checks evaluated:" in d.get("result", "")
+          and "Checks mapped:" in d.get("result", "")
+          and "Registry total:" in d.get("result", "")
+          and "Spec coverage:" in d.get("result", ""))
     check("PAWG is conformance-only",
           "[ SECURITY ]" not in d.get("result", "")
           and "[ QUALITY ]" not in d.get("result", "")
