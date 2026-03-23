@@ -263,19 +263,17 @@ jobs:
           make -j"$(nproc)" 2>&1 | tee /tmp/iccdev-build.log
           echo "::endgroup::"
 
-          # Verify tools built
-          TOOL_COUNT=0
-          for tool_dir in Tools/*/; do
-            tool_name="$(basename "$tool_dir")"
-            tool_bin="$tool_dir/$tool_name"
-            if [ -x "$tool_bin" ]; then
-              TOOL_COUNT=$((TOOL_COUNT + 1))
-            fi
-          done
+          # Verify tools built. Tool binary names are lower-case CLI names and
+          # do not always match the containing directory name exactly.
+          mapfile -t TOOL_BINS < <(find Tools -mindepth 2 -maxdepth 2 -type f -executable | sort)
+          TOOL_COUNT="${#TOOL_BINS[@]}"
           echo "Built $TOOL_COUNT tool binaries"
           if [ "$TOOL_COUNT" -lt 14 ]; then
             echo "WARNING: Expected 14+ tools, got $TOOL_COUNT"
           fi
+          for tool_bin in "${TOOL_BINS[@]}"; do
+            echo "  - $tool_bin"
+          done
 
           # Verify shared libraries
           ls -lh IccProfLib/libIccProfLib2.so* || echo "WARN: shared lib missing"
@@ -291,6 +289,13 @@ jobs:
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Tools built | $TOOL_COUNT |"
             echo "| Commit | $(cd .. && git log --oneline -1) |"
+            if [ "$TOOL_COUNT" -gt 0 ]; then
+              echo ""
+              echo "Built tool paths:"
+              for tool_bin in "${TOOL_BINS[@]}"; do
+                echo "- \`$tool_bin\`"
+              done
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
