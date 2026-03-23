@@ -591,7 +591,7 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "heuristic.signature_conversion_shift_overflow",
         ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
-        r"H173|Signature Conversion Shift Overflow|IccUtil\.cpp:1088,1130"
+        r"H173|Signature Conversion Shift Overflow|IccUtil\.cpp:1088,1130,1167,1187,1228,1253"
     )
 
     suite.assert_output_contains(
