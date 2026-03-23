@@ -498,4 +498,148 @@ REGISTER_HEURISTIC(173, "Signature Conversion Shift Overflow",
     Severity::MEDIUM, CheckPhase::RAW_SCAN,
     check_h173_sig_conversion_shift_overflow);
 
+struct H174ScanResult {
+    int hitCount = 0;
+    std::vector<std::string> examples;
+};
+
+static void record_h174_hit(H174ScanResult& result, std::string example) {
+    result.hitCount++;
+    if (result.examples.size() < 4) {
+        result.examples.push_back(std::move(example));
+    }
+}
+
+static void scan_h174_header_half_floats(const ProfileView& pv,
+                                         H174ScanResult& result) {
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!d || len < 128) return;
+    if ((pv.header().version >> 24) < 5) return;
+
+    uint32_t spectralPCS = readU32BE(d + 100);
+    if (!spectralPCS) return;
+
+    struct HeaderField {
+        size_t offset;
+        const char* name;
+    };
+    static const HeaderField kFields[] = {
+        {104, "header spectralRange.start"},
+        {106, "header spectralRange.end"},
+        {110, "header biSpectralRange.start"},
+        {112, "header biSpectralRange.end"},
+    };
+
+    for (const auto& field : kFields) {
+        if (field.offset + 2 > len) continue;
+        uint16_t raw = readU16BE(d + field.offset);
+        if (!halfFloatTriggersIccUtilUB(raw)) continue;
+        record_h174_hit(result,
+                        sfmt("%s raw=0x%04X at file+0x%02zX",
+                             field.name, raw, field.offset));
+    }
+}
+
+static void scan_h174_tag_half_floats(const ProfileView& pv,
+                                      H174ScanResult& result) {
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!d || len < 132) return;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 8 || static_cast<uint64_t>(tag.offset) + tag.size > len) continue;
+
+        size_t scanSize = tag.size;
+        if (scanSize > 4096) scanSize = 4096;
+        if (static_cast<uint64_t>(tag.offset) + scanSize > len) {
+            scanSize = len - tag.offset;
+        }
+        if (scanSize < 8) continue;
+
+        uint32_t typeSig = readU32BE(d + tag.offset);
+        std::string tagName = sigStr(tag.signature);
+
+        if (typeSig == 0x666C3136 && scanSize >= 10) { // 'fl16'
+            for (size_t off = 8; off + 1 < scanSize; off += 2) {
+                uint16_t raw = readU16BE(d + tag.offset + off);
+                if (!halfFloatTriggersIccUtilUB(raw)) continue;
+                record_h174_hit(result,
+                                sfmt("tag '%s' float16ArrayType value raw=0x%04X at tag+0x%zX",
+                                     tagName.c_str(), raw, off));
+            }
+        } else if (typeSig == 0x7364696E && scanSize >= 24) { // 'sdin'
+            struct Field {
+                size_t offset;
+                const char* name;
+            };
+            static const Field kFields[] = {
+                {12, "sdin spectralRange.start"},
+                {14, "sdin spectralRange.end"},
+                {18, "sdin biSpectralRange.start"},
+                {20, "sdin biSpectralRange.end"},
+            };
+
+            for (const auto& field : kFields) {
+                uint16_t raw = readU16BE(d + tag.offset + field.offset);
+                if (!halfFloatTriggersIccUtilUB(raw)) continue;
+                record_h174_hit(result,
+                                sfmt("tag '%s' %s raw=0x%04X",
+                                     tagName.c_str(), field.name, raw));
+            }
+        } else if (typeSig == 0x7376636E && scanSize >= 34) { // 'svcn'
+            struct Field {
+                size_t offset;
+                const char* name;
+            };
+            static const Field kFields[] = {
+                {12, "svcn observerRange.start"},
+                {14, "svcn observerRange.end"},
+                {28, "svcn illuminantRange.start"},
+                {30, "svcn illuminantRange.end"},
+            };
+
+            for (const auto& field : kFields) {
+                uint16_t raw = readU16BE(d + tag.offset + field.offset);
+                if (!halfFloatTriggersIccUtilUB(raw)) continue;
+                record_h174_hit(result,
+                                sfmt("tag '%s' %s raw=0x%04X",
+                                     tagName.c_str(), field.name, raw));
+            }
+        }
+    }
+}
+
+static CheckResult check_h174_half_float_conversion_unsigned_underflow(const ProfileView& pv) {
+    const uint8_t* d = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!d || len < 128) return CheckResult::skip("Cannot read profile");
+
+    H174ScanResult result;
+    scan_h174_header_half_floats(pv, result);
+    scan_h174_tag_half_floats(pv, result);
+
+    if (result.hitCount == 0) {
+        return CheckResult::skip("No vulnerable half-float values detected");
+    }
+
+    CheckBuilder cb;
+    cb.warn(sfmt("HEURISTIC: %d half-float value(s) would trigger UBSAN unsigned-wrap "
+                 "in icF16toF() — IccUtil.cpp:665,677 / IccIO.cpp:328",
+                 result.hitCount),
+            "CWE-190: exponent rebias uses unsigned subtraction for non-zero "
+            "half-floats with exponent < 15 (values below 1.0)");
+    for (const auto& example : result.examples) {
+        cb.info(example);
+    }
+    return cb.done(sfmt("Half-float UB scan complete (%d hit%s)",
+                        result.hitCount, result.hitCount == 1 ? "" : "s"));
+}
+
+REGISTER_HEURISTIC(174, "Half-Float Conversion Unsigned Underflow",
+    "IccUtil.cpp:665/677, IccIO.cpp:328", "CWE Pattern",
+    "CWE-190", "",
+    Severity::MEDIUM, CheckPhase::RAW_SCAN,
+    check_h174_half_float_conversion_unsigned_underflow);
+
 } // namespace icctest

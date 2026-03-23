@@ -79,6 +79,44 @@ inline uint16_t readU16BE(const uint8_t* p) {
     return (uint16_t(p[0]) << 8) | uint16_t(p[1]);
 }
 
+inline bool halfFloatTriggersIccUtilUB(icFloat16Number raw) {
+    icUInt16Number mag = static_cast<icUInt16Number>(raw & 0x7FFFu);
+    icUInt16Number exp = static_cast<icUInt16Number>((mag >> 10) & 0x1Fu);
+    return mag != 0 && exp < 15;
+}
+
+inline float safeF16ToF(icFloat16Number num) {
+    icUInt16Number signBits = static_cast<icUInt16Number>(num & 0x8000u);
+    icUInt16Number expBits = static_cast<icUInt16Number>((num >> 10) & 0x1Fu);
+    icUInt16Number mantBits = static_cast<icUInt16Number>(num & 0x03FFu);
+    icUInt32Number bits = static_cast<icUInt32Number>(signBits) << 16;
+
+    if ((num & 0x7FFFu) == 0) {
+        bits = static_cast<icUInt32Number>(num) << 16;
+    } else if (expBits == 0) {
+        int exp = -14;
+        icUInt16Number mant = mantBits;
+        while ((mant & 0x0400u) == 0) {
+            mant <<= 1;
+            --exp;
+        }
+        mant = static_cast<icUInt16Number>(mant & 0x03FFu);
+        bits |= (static_cast<icUInt32Number>(exp + 127) << 23) |
+                (static_cast<icUInt32Number>(mant) << 13);
+    } else if (expBits == 0x1Fu) {
+        bits |= 0x7F800000u | (static_cast<icUInt32Number>(mantBits) << 13);
+        if (mantBits) bits |= 0x00400000u;
+    } else {
+        int exp = static_cast<int>(expBits) - 15 + 127;
+        bits |= (static_cast<icUInt32Number>(exp) << 23) |
+                (static_cast<icUInt32Number>(mantBits) << 13);
+    }
+
+    float out = 0.0f;
+    std::memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
 inline int32_t readS32BE(const uint8_t* p) {
     return static_cast<int32_t>(readU32BE(p));
 }
