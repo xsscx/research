@@ -110,6 +110,36 @@ def make_curve_tag(values=None, gamma=None):
     return data
 
 
+def make_lut8_tag(n_in, n_out, grid=2, clut_values=None, matrix_values=None):
+    """Create a simple lut8Type tag with identity input/output tables."""
+    if matrix_values is None:
+        matrix_values = (
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+        )
+
+    matrix = b""
+    for r in range(3):
+        for c in range(3):
+            matrix += struct.pack(">i", int(matrix_values[r][c] * 65536))
+
+    input_table = bytes(range(256)) * n_in
+    clut_size = (grid ** n_in) * n_out
+    if clut_values is None:
+        clut = bytes([int(255 * i / max(1, clut_size - 1)) for i in range(clut_size)])
+    else:
+        if len(clut_values) != clut_size:
+            raise ValueError(f"Expected {clut_size} CLUT entries, got {len(clut_values)}")
+        clut = bytes(max(0, min(255, int(round(v)))) for v in clut_values)
+    output_table = bytes(range(256)) * n_out
+
+    lut8 = b"mft1" + b"\x00" * 4
+    lut8 += struct.pack("BBBB", n_in, n_out, grid, 0)
+    lut8 += matrix + input_table + clut + output_table
+    return lut8
+
+
 def build_profile(tags_data, **header_kwargs):
     """Assemble a complete ICC profile from tag data list.
     
@@ -1484,30 +1514,7 @@ def synth_nop_sled_tag():
 def synth_lut8_atob_btoa():
     """Profile with lut8Type AToB0 and BToA0 tags (tests CF-060..CF-067, CF-099).
     Minimal valid lut8Type: 3-in, 3-out, identity curves, 2x2x2 CLUT."""
-    # lut8Type structure (ICC.1 §10.9):
-    # sig(4) + reserved(4) + inputChan(1) + outputChan(1) + clutGridPt(1) + pad(1)
-    # + e00..e08 matrix (9 × s15Fixed16 = 36 bytes)
-    # + inputTable (256 * inputChan entries, 1 byte each)
-    # + clutTable (gridPt^inputChan * outputChan entries, 1 byte each)
-    # + outputTable (256 * outputChan entries, 1 byte each)
-    n_in, n_out, grid = 3, 3, 2
-    # Identity matrix (s15Fixed16: 1.0 = 0x00010000)
-    matrix = b""
-    for r in range(3):
-        for c in range(3):
-            val = 0x00010000 if r == c else 0
-            matrix += struct.pack(">i", val)
-    # Input tables: 256 entries per channel, identity ramp
-    input_table = bytes(range(256)) * n_in
-    # CLUT: grid^n_in * n_out = 2^3 * 3 = 24 entries
-    clut_size = (grid ** n_in) * n_out
-    clut = bytes([int(255 * i / max(1, clut_size - 1)) for i in range(clut_size)])
-    # Output tables: 256 entries per channel, identity ramp
-    output_table = bytes(range(256)) * n_out
-
-    lut8 = b"mft1" + b"\x00" * 4  # sig + reserved
-    lut8 += struct.pack("BBBB", n_in, n_out, grid, 0)  # channels + grid + pad
-    lut8 += matrix + input_table + clut + output_table
+    lut8 = make_lut8_tag(3, 3, grid=2)
 
     # Build as Output (prtr) with AToB0 and BToA0
     tags = [
@@ -1516,6 +1523,20 @@ def synth_lut8_atob_btoa():
         (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
         (b"A2B0", lut8),
         (b"B2A0", lut8),
+    ]
+    return build_profile(tags, device_class=b"prtr", color_space=b"RGB ",
+                         pcs=b"Lab ")
+
+
+def synth_lut8_atob2_btoa2():
+    """Profile with lut8Type AToB2 and BToA2 tags for quality fallback coverage."""
+    lut8 = make_lut8_tag(3, 3, grid=2)
+    tags = [
+        (b"desc", make_mluc_tag("LUT8 AToB2/BToA2 Profile")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"A2B2", lut8),
+        (b"B2A2", lut8),
     ]
     return build_profile(tags, device_class=b"prtr", color_space=b"RGB ",
                          pcs=b"Lab ")
@@ -1580,6 +1601,60 @@ def synth_targ_quality_profile():
         (b"targ", targ_text),
     ]
     return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
+def synth_targ_cmyk_quality_profile():
+    """CMYK/XYZ profile with reversible AToB0/BToA0 LUTs and usable targ rows for broader Q1/Q4 coverage."""
+    clut_values_a2b = []
+    for c in (0.0, 1.0):
+        for m in (0.0, 1.0):
+            for y in (0.0, 1.0):
+                for k in (0.0, 1.0):
+                    gray = max(0.0, min(1.0, 0.75 - 0.125 * (c + m + y + k)))
+                    byte = int(round(gray * 255.0))
+                    clut_values_a2b.extend((byte, byte, byte))
+
+    clut_values_b2a = []
+    for x in (0.0, 0.25, 0.5, 0.75, 1.0):
+        for y in (0.0, 0.25, 0.5, 0.75, 1.0):
+            for z in (0.0, 0.25, 0.5, 0.75, 1.0):
+                device = max(0.0, min(1.0, 1.5 - 2.0 * x))
+                byte = int(round(device * 255.0))
+                clut_values_b2a.extend((byte, byte, byte, byte))
+
+    a2b_lut8 = make_lut8_tag(4, 3, grid=2, clut_values=clut_values_a2b)
+    b2a_lut8 = make_lut8_tag(3, 4, grid=5, clut_values=clut_values_b2a)
+
+    samples = (
+        (0.0, 0.0, 0.0, 0.0),
+        (0.2, 0.3, 0.1, 0.0),
+        (0.4, 0.1, 0.6, 0.2),
+        (0.7, 0.4, 0.2, 0.3),
+        (1.0, 1.0, 1.0, 1.0),
+    )
+
+    lines = [
+        "BEGIN_DATA_FORMAT",
+        "CMYK_C CMYK_M CMYK_Y CMYK_K XYZ_X XYZ_Y XYZ_Z",
+        "END_DATA_FORMAT",
+        "BEGIN_DATA",
+    ]
+    for c, m, y, k in samples:
+        gray = max(0.0, min(1.0, 0.75 - 0.125 * (c + m + y + k)))
+        lines.append(f"{c:.6f} {m:.6f} {y:.6f} {k:.6f} {gray:.6f} {gray:.6f} {gray:.6f}")
+    lines.append("END_DATA")
+
+    targ_text = b"text" + b"\x00" * 4 + ("\n".join(lines) + "\n").encode("ascii")
+    tags = [
+        (b"desc", make_mluc_tag("CMYK Characterization Quality Profile")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"A2B0", a2b_lut8),
+        (b"B2A0", b2a_lut8),
+        (b"targ", targ_text),
+    ]
+    return build_profile(tags, device_class=b"prtr", color_space=b"CMYK",
                          pcs=b"XYZ ", version=0x04400000)
 
 
@@ -2543,8 +2618,10 @@ def main():
         # CF conformance check profiles
         "nop_sled_tag.icc": synth_nop_sled_tag(),
         "lut8_atob_btoa.icc": synth_lut8_atob_btoa(),
+        "lut8_atob2_btoa2.icc": synth_lut8_atob2_btoa2(),
         "targ_tag_profile.icc": synth_targ_tag_profile(),
         "targ_quality_profile.icc": synth_targ_quality_profile(),
+        "targ_cmyk_quality_profile.icc": synth_targ_cmyk_quality_profile(),
         "clean_mntr_profile.icc": synth_clean_mntr_profile(),
         # CF-103..CF-122 conformance test profiles
         "cf_misaligned_tag.icc": synth_misaligned_tag(),

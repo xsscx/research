@@ -26,6 +26,19 @@
 > is intentionally collecting profiling output. LeakSanitizer can abort under
 > harnessed execution even when the suite itself passes.
 
+> **PAWG quality note**:
+> - `Q1` bounded round-trip coverage includes matrix/TRC plus classic LUT pairs
+>   `A2B0/B2A0`, `A2B1/B2A1`, and `A2B2/B2A2`, including 4-channel classic LUTs.
+> - `Q2` curve invertibility includes classic/MBB `A`/`B` curves from alternate
+>   intents and `D2B/B2D` transforms when present.
+> - `Q3` smoothness uses diagonal plus per-axis sampling for matrix/TRC and
+>   classic LUT paths instead of diagonal-only sampling.
+> - `Q4` characterization-data evaluation currently parses RGB, Gray, and CMYK
+>   `charTargetTag` rows.
+> - Canonical regression fixtures are
+>   `lut8_atob2_btoa2.icc`, `targ_quality_profile.icc`, and
+>   `targ_cmyk_quality_profile.icc`.
+
 ---
 
 ## Table of Contents
