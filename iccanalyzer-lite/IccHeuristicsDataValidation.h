@@ -58,6 +58,8 @@ int RunHeuristic_H98_SpectralMPEElementValidation(CIccProfile *pIcc);
 int RunHeuristic_H99_EmbeddedImageTagValidation(CIccProfile *pIcc);
 int RunHeuristic_H100_ProfileSequenceDescValidation(CIccProfile *pIcc);
 int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc);
+int RunHeuristic_H101_MPESubElementChannelContinuityRaw(const char *filename);
+bool DetectH101MPEElementOffsetSizeOverflow(const char *filename);
 int RunHeuristic_H102_TagSizeProfileSizeCrossCheck(CIccProfile *pIcc);
 int RunHeuristic_H146_StackBufferOverflowGetValues(CIccProfile *pIcc);
 int RunHeuristic_H147_NullPointerAfterTagRead(CIccProfile *pIcc);

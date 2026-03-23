@@ -803,7 +803,18 @@ REGISTER_HEURISTIC(100, "Profile Sequence Desc Validation",
 
 static CheckResult check_h101_mpe_sub_element_channel_continuity(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library not loaded");
+    if (!pv.libraryLoaded()) {
+        auto issues = scanRawMpePositionIssues(pv);
+        if (issues.empty()) {
+            return CheckResult::ok("NOT RUN: Library quarantined and no raw H101 fingerprint available");
+        }
+        for (const auto& issue : issues) {
+            cb.critical(formatRawMpePositionIssue(issue),
+                        "CWE-190: Unsigned integer overflow in CIccTagMultiProcessElement::Read() "
+                        "(IccTagMPE.cpp:1042)");
+        }
+        return cb.done("Raw MPE element-table validation flagged unsafe structure");
+    }
     auto* p = pv.unsafeLibraryHandle();
     if (!p) return CheckResult::error("No profile");
 

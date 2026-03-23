@@ -43,6 +43,7 @@
 #include "IccHeuristicsRawPost.h"
 #include "IccHeuristicsLibrary.h"
 #include "IccHeuristicsHeader.h"
+#include "IccHeuristicsDataValidation.h"
 #include "IccHeuristicsRegistry.h"
 
 #include "IccAnalyzerSafeArithmetic.h"
@@ -292,6 +293,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("[PREFLIGHT] Half-float values below 1.0 will trigger upstream icF16toF UB\n");
     printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
     printf("=======================================================================\n\n");
+  }
+  if (DetectH101MPEElementOffsetSizeOverflow(filename)) {
+    heuristicCount += RunHeuristic_H101_MPESubElementChannelContinuityRaw(filename);
+    if (IsLibraryUBDefenseEnabled()) {
+      skipLibraryPhase = true;
+      printf("=======================================================================\n");
+      printf("[PREFLIGHT] Malformed mpet element offset/size pair will wrap upstream "
+             "CIccTagMultiProcessElement::Read()\n");
+      printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
+      printf("=======================================================================\n\n");
+    }
   }
   
   // PHASE 0.5: External File Metadata (when tools available)

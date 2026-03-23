@@ -261,6 +261,25 @@ static void test_ub_prescan_namedcolor_keeps_library_loaded() {
     }
 }
 
+static void test_ub_prescan_mpe_offset_wrap_skip_load() {
+    std::printf("  test_ub_prescan_mpe_offset_wrap_skip_load...\n");
+    auto corpusProfile = resolve_repo_file("test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc");
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — tone-map MPE regression profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("IccTagMPE.cpp:1042") != std::string::npos);
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
     // Try a known-good profile if it exists
@@ -317,6 +336,7 @@ void test_profile_view() {
     test_ub_prescan_half_float_header_allows_load();
     test_ub_prescan_half_float_mdv_skip_load();
     test_ub_prescan_namedcolor_keeps_library_loaded();
+    test_ub_prescan_mpe_offset_wrap_skip_load();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");
