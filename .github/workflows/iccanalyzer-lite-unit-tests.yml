@@ -462,6 +462,7 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(Path("/tmp/pawg-endpoint-sample.json").read_text())
+          reference = payload.get("reference") or {}
           print("")
           print("### PAWG Endpoint Random Sample")
           print("")
@@ -470,9 +471,18 @@ jobs:
           print(f"- Candidate profiles: `{payload['candidateCount']}`")
           print(f"- Sample size: `{payload['selectedCount']}`")
           print(f"- Failures: `{payload['failureCount']}`")
+          if reference.get("path"):
+              print(f"- Reference profile: `{reference['path']}`")
           print("- Selected profiles:")
           for path in payload["selectedProfiles"]:
               print(f"  - `{path}`")
+          if reference.get("result"):
+              print("")
+              print("#### Reference PAWG Output")
+              print("")
+              print("```text")
+              print(reference["result"].rstrip())
+              print("```")
           PY
 
       - name: Upload test results
