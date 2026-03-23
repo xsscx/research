@@ -39,6 +39,11 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 - iccanalyzer-lite does NOT use CFL patches — it handles all user-controllable
   inputs through its own defensive programming (bounds checks, size validation,
   ASAN+UBSAN instrumentation, signal recovery, heuristic guards)
+- If a new upstream UB path is reachable from user-controlled input, harden V1
+  and V2 with analyzer-owned guards, safe helpers, or symbol overrides before
+  considering upstream/library edits. Keep `cfl/patches` CFL-only.
+- Do not “fix” analyzer/runtime UB by silently removing the finding. Preserve
+  the triggering `H-*` / `CF-*` reporting while making the runtime path safe.
 - Output: `iccanalyzer-lite/iccanalyzer-lite` (32MB with debug info)
 - When shipping V2 command-line artifacts, include:
   `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`, and
@@ -60,6 +65,26 @@ outputs; it no longer owns a separate Release/LTO compile path.
 | 6 | `.github/workflows/mcp-server-test.yml` | `SRCS=` | + linker flags |
 
 For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
+
+## Upstream UB Hardening Rule
+
+When the vendored upstream `iccDEV` library exposes a user-controlled UB path
+that affects analyzer runtime:
+
+1. fingerprint the trigger pattern into the appropriate heuristic/conformance
+   lane first
+2. prefer analyzer-owned safe wrappers or symbol overrides for widely shared
+   upstream helpers
+3. keep V1 and V2 aligned on the same hardening model
+4. do not move these runtime fixes into `cfl/patches`
+
+Current reference implementation:
+
+- `iccanalyzer-lite/IccDevSafeOverrides.cpp`
+
+This file hardens known shared-helper UB sites from upstream `IccUtil.cpp`
+without patching the vendored library and is the preferred extension point for
+future analyzer-owned overrides.
 
 **CRITICAL — Linker flag sync**: When adding new library dependencies (e.g.,
 `-lssl -lcrypto` for OpenSSL), update every manual compile/link location.
