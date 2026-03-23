@@ -905,7 +905,7 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    auto pv = ProfileView::open(resolved);
+    auto pv = ProfileView::open(resolved, parsed->opts.skipLibraryOnUB);
     if (!pv) {
         printOpenError(std::cout, resolved, "Failed to open profile");
         return 2;
