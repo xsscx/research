@@ -1639,3 +1639,9 @@ multi_sig="mwpmcl1l"
 "(\x00\x00\x00\x00\x00\x00\x00"
 "iso2022cncns"
 "IccP"
+
+# --- added by convert-libfuzzer-dict.py ---
+"ut"
+"EUC-"
+"vr8"
+"EUC"
