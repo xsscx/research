@@ -78,6 +78,42 @@ inline bool finite3(const icFloatNumber *v) {
   return std::isfinite(v[0]) && std::isfinite(v[1]) && std::isfinite(v[2]);
 }
 
+inline bool is_zero_entry_identity_curve(const CIccCurve *curve) {
+  auto *tagCurve = dynamic_cast<const CIccTagCurve*>(curve);
+  return tagCurve && tagCurve->GetSize() == 0;
+}
+
+inline void begin_curve_safe(CIccCurve *curve) {
+  if (!curve || is_zero_entry_identity_curve(curve)) {
+    return;
+  }
+  curve->Begin();
+}
+
+inline icFloatNumber apply_curve_safe(CIccCurve *curve, icFloatNumber v) {
+  if (!curve) {
+    return v;
+  }
+  if (is_zero_entry_identity_curve(curve)) {
+    if (v < 0.0f) return 0.0f;
+    if (v > 1.0f) return 1.0f;
+    return v;
+  }
+  return curve->Apply(v);
+}
+
+inline icFloatNumber find_curve_safe(CIccCurve *curve, icFloatNumber v) {
+  if (!curve) {
+    return v;
+  }
+  if (is_zero_entry_identity_curve(curve)) {
+    if (v < 0.0f) return 0.0f;
+    if (v > 1.0f) return 1.0f;
+    return v;
+  }
+  return curve->Find(v);
+}
+
 inline std::string trim_copy(const std::string &in) {
   size_t begin = 0;
   while (begin < in.size() && std::isspace(static_cast<unsigned char>(in[begin]))) {
@@ -288,7 +324,7 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
     xform.curves[1] = gTrc;
     xform.curves[2] = bTrc;
     for (int i = 0; i < 3; ++i) {
-      xform.curves[i]->Begin();
+      begin_curve_safe(xform.curves[i]);
     }
 
     const icXYZNumber &r = (*rXYZ)[0];
@@ -318,7 +354,7 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
       reason = "Gray matrix/TRC profile is missing grayTRC";
       return false;
     }
-    kTrc->Begin();
+    begin_curve_safe(kTrc);
     xform.channels = 1;
     xform.curves[0] = kTrc;
 
@@ -340,9 +376,9 @@ inline bool evaluate_matrix_trc_forward(const MatrixTrcTransform &xform,
                                         const icFloatNumber *device,
                                         icFloatNumber *pcsXYZ) {
   if (xform.channels == 3) {
-    const double r = clamp01(xform.curves[0]->Apply(device[0]));
-    const double g = clamp01(xform.curves[1]->Apply(device[1]));
-    const double b = clamp01(xform.curves[2]->Apply(device[2]));
+    const double r = clamp01(apply_curve_safe(xform.curves[0], device[0]));
+    const double g = clamp01(apply_curve_safe(xform.curves[1], device[1]));
+    const double b = clamp01(apply_curve_safe(xform.curves[2], device[2]));
 
     pcsXYZ[0] = static_cast<icFloatNumber>(xform.matrix[0] * r + xform.matrix[1] * g + xform.matrix[2] * b);
     pcsXYZ[1] = static_cast<icFloatNumber>(xform.matrix[3] * r + xform.matrix[4] * g + xform.matrix[5] * b);
@@ -351,7 +387,7 @@ inline bool evaluate_matrix_trc_forward(const MatrixTrcTransform &xform,
   }
 
   if (xform.channels == 1) {
-    const double y = clamp01(xform.curves[0]->Apply(device[0]));
+    const double y = clamp01(apply_curve_safe(xform.curves[0], device[0]));
     pcsXYZ[0] = static_cast<icFloatNumber>(y * xform.whiteXYZ[0]);
     pcsXYZ[1] = static_cast<icFloatNumber>(y * xform.whiteXYZ[1]);
     pcsXYZ[2] = static_cast<icFloatNumber>(y * xform.whiteXYZ[2]);
@@ -375,7 +411,7 @@ inline bool evaluate_matrix_trc_reverse(const MatrixTrcTransform &xform,
           xform.invMatrix[c * 3 + 1] * y +
           xform.invMatrix[c * 3 + 2] * z;
       const double clamped = clamp01(linear);
-      device[c] = static_cast<icFloatNumber>(clamp01(xform.curves[c]->Find(static_cast<icFloatNumber>(clamped))));
+      device[c] = static_cast<icFloatNumber>(clamp01(find_curve_safe(xform.curves[c], static_cast<icFloatNumber>(clamped))));
     }
     return std::isfinite(device[0]) && std::isfinite(device[1]) && std::isfinite(device[2]);
   }
@@ -383,7 +419,7 @@ inline bool evaluate_matrix_trc_reverse(const MatrixTrcTransform &xform,
   if (xform.channels == 1) {
     const double denom = (std::fabs(xform.whiteXYZ[1]) > 1e-12) ? xform.whiteXYZ[1] : 1.0;
     const double y = clamp01(pcsXYZ[1] / denom);
-    device[0] = static_cast<icFloatNumber>(clamp01(xform.curves[0]->Find(static_cast<icFloatNumber>(y))));
+    device[0] = static_cast<icFloatNumber>(clamp01(find_curve_safe(xform.curves[0], static_cast<icFloatNumber>(y))));
     return std::isfinite(device[0]);
   }
 
@@ -536,14 +572,14 @@ inline bool build_classic_lut_transform(CIccTag *tag,
       reason = "Classic LUT has null input curve";
       return false;
     }
-    xform.inputCurves[i]->Begin();
+    begin_curve_safe(xform.inputCurves[i]);
   }
   for (int i = 0; i < xform.outputChannels; ++i) {
     if (!xform.outputCurves[i]) {
       reason = "Classic LUT has null output curve";
       return false;
     }
-    xform.outputCurves[i]->Begin();
+    begin_curve_safe(xform.outputCurves[i]);
   }
   xform.clut->Begin();
   return true;
@@ -569,7 +605,7 @@ inline bool evaluate_classic_lut_forward(const ClassicLutTransform &xform,
   std::array<icFloatNumber, 16> stage2{};
 
   for (int i = 0; i < xform.inputChannels; ++i) {
-    stage1[i] = static_cast<icFloatNumber>(clamp01(xform.inputCurves[i]->Apply(device[i])));
+    stage1[i] = static_cast<icFloatNumber>(clamp01(apply_curve_safe(xform.inputCurves[i], device[i])));
   }
 
   if (xform.matrix && xform.inputChannels == 3) {
@@ -581,7 +617,7 @@ inline bool evaluate_classic_lut_forward(const ClassicLutTransform &xform,
   }
 
   for (int i = 0; i < xform.outputChannels; ++i) {
-    pcsOut[i] = static_cast<icFloatNumber>(clamp01(xform.outputCurves[i]->Apply(stage2[i])));
+    pcsOut[i] = static_cast<icFloatNumber>(clamp01(apply_curve_safe(xform.outputCurves[i], stage2[i])));
   }
 
   return xform.outputChannels < 3 || finite3(pcsOut);
@@ -1056,7 +1092,7 @@ inline CurveInvertibilityMetrics measure_curve_invertibility(CIccProfile *pIcc) 
       continue;
     }
 
-    curve->Begin();
+    begin_curve_safe(curve);
     CurveInvertibilityMetrics::CurveResult result;
     result.name = entry.first;
     result.monotonic = true;
@@ -1069,7 +1105,7 @@ inline CurveInvertibilityMetrics measure_curve_invertibility(CIccProfile *pIcc) 
     double maxValue = 0.0;
     for (int i = 0; i < kSamples; ++i) {
       const double x = i / static_cast<double>(kSamples - 1);
-      const double y = curve->Apply(static_cast<icFloatNumber>(x));
+      const double y = apply_curve_safe(curve, static_cast<icFloatNumber>(x));
       forward[static_cast<size_t>(i)] = y;
       if (i == 0) {
         minValue = maxValue = y;
@@ -1094,7 +1130,7 @@ inline CurveInvertibilityMetrics measure_curve_invertibility(CIccProfile *pIcc) 
     for (int i = 0; i < kSamples; ++i) {
       const double x = i / static_cast<double>(kSamples - 1);
       const double y = forward[static_cast<size_t>(i)];
-      const double inv = clamp01(curve->Find(static_cast<icFloatNumber>(y)));
+      const double inv = clamp01(find_curve_safe(curve, static_cast<icFloatNumber>(y)));
       const double err = std::fabs(inv - x);
       sumError += err;
       result.maxError = std::max(result.maxError, err);

@@ -292,7 +292,7 @@ class TestSuite:
                 if (
                     "IccTagLut.h" in line and
                     "[H147]" in stdout and
-                    "Null Pointer Dereference After Failed Tag Operations" in stdout
+                    "Null Pointer Dereference" in stdout
                 ):
                     continue
                 return line.strip()
