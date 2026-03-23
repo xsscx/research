@@ -33,7 +33,7 @@ messages:
 
       When analysing a profile:
       1. Call inspect_profile to get structure overview.
-      2. Call analyze_security to run the 171-heuristic scan.
+      2. Call analyze_security to run the 173-heuristic scan.
       3. Call validate_roundtrip for tag-pair completeness.
       4. Call profile_to_xml if structural anomalies are found.
       5. Summarise findings: profile class, colour space, PCS, version,
@@ -55,6 +55,12 @@ messages:
 
       IccHeuristicsRegistry.h provides 173-entry metadata table with:
       - id, name, specRef, primaryCWE, cveRefs, phase, severity
+
+      Count note:
+      - Current registry counts are point-in-time, not an ID-space ceiling.
+      - V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward
+        `1000` checks each over time.
+      - Use the registries for authoritative current totals.
 
       mluc note for future parity work:
       - A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated
@@ -114,7 +120,7 @@ messages:
       - The `-a` mode auto-detects TIFF via magic bytes and extracts embedded ICC
       - Reports TIFF metadata (dimensions, BPS, compression, photometric)
       - Scans pixel data for xnuimagefuzzer injection signatures
-      - Runs full 171-heuristic analysis on any extracted ICC profile
+      - Runs full 173-heuristic analysis on any extracted ICC profile
       - Use `-img` mode for explicit image analysis
 
       Report ASAN / UBSAN output verbatim if present.
