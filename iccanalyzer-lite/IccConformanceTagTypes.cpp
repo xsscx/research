@@ -1068,7 +1068,7 @@ static int RunCF035_ResponseCurveSet16Structure(CIccProfile *pIcc) {
   CIccTag *pTag = pIcc->FindTag(icSigOutputResponseTag);
   if (!pTag) {
     printf("         No outputResponseTag ('resp') found\n");
-    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not applicable\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -1122,7 +1122,7 @@ static int RunCF036_ProfileSequenceDescElements(CIccProfile *pIcc) {
   CIccTag *pTag = pIcc->FindTag(icSigProfileSequenceDescTag);
   if (!pTag) {
     printf("         No profileSequenceDescTag found\n");
-    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not applicable\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -1190,7 +1190,7 @@ static int RunCF037_ProfileSequenceIdValidation(CIccProfile *pIcc) {
   CIccTag *pTag = pIcc->FindTag(icSigProfileSequceIdTag);
   if (!pTag) {
     printf("         No profileSequenceIdentifierTag ('psid') found\n");
-    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not applicable\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -1251,7 +1251,7 @@ static int RunCF038_DateTimeTypeTagRange(CIccProfile *pIcc) {
   CIccTag *pTag = pIcc->FindTag(icSigCalibrationDateTimeTag);
   if (!pTag) {
     printf("         No calibrationDateTimeTag ('calt') found\n");
-    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not applicable\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -1335,7 +1335,7 @@ static int RunCF039_SignatureTypeTechnology(CIccProfile *pIcc) {
   CIccTag *pTag = pIcc->FindTag(icSigTechnologyTag);
   if (!pTag) {
     printf("         No technologyTag ('tech') found\n");
-    printf("         %s[SKIP]%s Not applicable\n", ColorSuccess(), ColorReset());
+    printf("         %s[N/A]%s Not applicable\n", ColorSuccess(), ColorReset());
     return 0;
   }
 
@@ -2172,7 +2172,7 @@ static int RunCF128_ADGCWeightCoefficientSum(CIccProfile *pIcc, const char *file
     printf("         %s[OK]%s CF-128: Weight coefficient sum=%.6f ≈ 1.0\n",
            ColorSuccess(), ColorReset(), sum);
   } else {
-    printf("         %s[SKIP]%s CF-128: Weight sum — skipped due to non-finite values\n",
+    printf("         %s[GAP]%s CF-128: Weight sum not evaluated due to non-finite values\n",
            ColorWarning(), ColorReset());
   }
   return 0;

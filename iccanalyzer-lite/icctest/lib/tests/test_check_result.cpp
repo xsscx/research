@@ -164,6 +164,34 @@ static void test_profile_metadata() {
     ASSERT_EQ(std::string("test"), md.creator);
 }
 
+static void test_coverage_only_count() {
+    std::printf("  test_coverage_only_count...\n");
+
+    AnalysisResult ar;
+    ar.perCheck.push_back(PerCheckResult{
+        {CheckID::Kind::Conformance, 1},
+        CheckMeta{"CF-001", "", "", "", "", Severity::LOW, CheckPhase::CONFORMANCE},
+        CheckResult::ok("N/A: Not applicable")
+    });
+    ar.perCheck.push_back(PerCheckResult{
+        {CheckID::Kind::Conformance, 2},
+        CheckMeta{"CF-002", "", "", "", "", Severity::LOW, CheckPhase::CONFORMANCE},
+        CheckResult::ok("GAP: Coverage pending")
+    });
+    ar.perCheck.push_back(PerCheckResult{
+        {CheckID::Kind::Conformance, 3},
+        CheckMeta{"CF-003", "", "", "", "", Severity::LOW, CheckPhase::CONFORMANCE},
+        CheckResult::ok("NOT RUN: Profile failed to load")
+    });
+    ar.perCheck.push_back(PerCheckResult{
+        {CheckID::Kind::Conformance, 4},
+        CheckMeta{"CF-004", "", "", "", "", Severity::LOW, CheckPhase::CONFORMANCE},
+        CheckResult::ok("Conformant")
+    });
+
+    ASSERT_EQ(3, countCoverageOnlyChecks(ar));
+}
+
 void test_check_result() {
     std::printf("test_check_result:\n");
     test_severity_names();
@@ -174,5 +202,6 @@ void test_check_result() {
     test_run_stats();
     test_analysis_result_queries();
     test_profile_metadata();
+    test_coverage_only_count();
     std::printf("  [OK]\n\n");
 }

@@ -26,6 +26,9 @@
 
 #include <cstdio>
 #include <cstdarg>
+#include <cstring>
+#include <string>
+#include <string_view>
 #include "IccAnalyzerColors.h"
 
 // ─── Title Line ──────────────────────────────────────────────────────
@@ -101,9 +104,42 @@ inline void H_Info(const char *fmt, ...) {
   printf("\n");
 }
 
-// Prints: "      [SKIP] {msg}\n"
+inline const char *H_SkipLabel(const char *msg) {
+  if (!msg || !*msg)
+    return "N/A";
+
+  std::string lower(msg);
+  for (char &c : lower) {
+    if (c >= 'A' && c <= 'Z')
+      c = static_cast<char>(c - 'A' + 'a');
+  }
+
+  if (lower.find("not applicable") != std::string::npos ||
+      lower.rfind("no ", 0) == 0 ||
+      lower.rfind("not a ", 0) == 0 ||
+      lower.rfind("not an ", 0) == 0 ||
+      lower.find(" exempt") != std::string::npos) {
+    return "N/A";
+  }
+
+  if (lower.find("cannot") != std::string::npos ||
+      lower.find("failed") != std::string::npos ||
+      lower.find("unsafe") != std::string::npos ||
+      lower.find("truncated") != std::string::npos ||
+      lower.find("too small") != std::string::npos ||
+      lower.find("too large") != std::string::npos ||
+      lower.find("not loaded") != std::string::npos ||
+      lower.find("invalid") != std::string::npos ||
+      lower.find("tag count out of range") != std::string::npos) {
+    return "NOT RUN";
+  }
+
+  return "N/A";
+}
+
+// Prints: "      [N/A|NOT RUN] {msg}\n"
 inline void H_Skip(const char *msg) {
-  printf("      [SKIP] %s\n", msg);
+  printf("      [%s] %s\n", H_SkipLabel(msg), msg);
 }
 
 // ─── Trailing Newline ────────────────────────────────────────────────

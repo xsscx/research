@@ -76,7 +76,7 @@ public:
   /// Returns the finding count for this heuristic.
   int end(const char *okMessage = nullptr);
 
-  /// Skip a heuristic (e.g., file too small). Emits "[SKIP] reason\n\n".
+  /// Skip a heuristic internally while printing an explicit coverage label.
   int skip(const char *reason);
 
   /// Access all collected results (since last reset).

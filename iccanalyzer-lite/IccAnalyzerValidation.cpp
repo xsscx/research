@@ -205,7 +205,7 @@ int RoundTripAnalyze(const char *filename)
   printf("Profile: %s\n\n", filename);
   
   if (IsProfileTruncated(filename)) {
-    printf("[SKIP] Profile TRUNCATED — round-trip validation skipped\n");
+    printf("[NOT RUN] Profile TRUNCATED — round-trip validation not run\n");
     printf("       Header claims more bytes than file contains (CWE-125)\n\n");
     return -1;
   }

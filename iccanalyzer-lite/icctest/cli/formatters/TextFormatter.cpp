@@ -86,8 +86,9 @@ public:
         // Summary
         out << colorHeader(c) << "─── Summary ─────────────────────────────────"
             << "──────────────────────────" << colorReset(c) << "\n";
+        const int coverageOnlyChecks = countCoverageOnlyChecks(result);
         out << "  Checks run: " << result.stats.checksRun
-            << "  Skipped: " << result.stats.checksSkipped
+            << "  Coverage-only: " << coverageOnlyChecks
             << "  Time: " << (result.stats.totalTime.count() / 1000) << " ms\n";
 
         // Findings by severity
