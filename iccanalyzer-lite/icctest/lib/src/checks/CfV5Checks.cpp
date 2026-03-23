@@ -73,6 +73,11 @@ static inline double S15Fixed16ToDouble(int32_t val) {
     return static_cast<double>(val) / 65536.0;
 }
 
+static inline uint32_t ReadU32BE(const uint8_t* p) {
+    return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) |
+           (uint32_t(p[2]) << 8) | uint32_t(p[3]);
+}
+
 // Table of recognized MPE element type signatures
 static const icElemTypeSignature kKnownMPETypes[] = {
     icSigCurveSetElemType, icSigMatrixElemType, icSigCLutElemType,
@@ -691,26 +696,46 @@ static CheckResult check_cf154_embedded_profile_version_bridging(const ProfileVi
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
-    CIccTagEmbeddedProfile *pEmbed = FindAndCast<CIccTagEmbeddedProfile>(pIcc, icSigEmbeddedV5ProfileTag);
-    if (!pEmbed) return CheckResult::ok("No embedded profile tag — not applicable");
+    CIccTag *pTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!pTag) return CheckResult::ok("No embedded profile tag — not applicable");
+
+    CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
+    if (!pEmbed) {
+        std::vector<Finding> findings;
+        findings.push_back({CheckID{CheckID::Kind::Conformance, 154}, Severity::HIGH,
+            "Tag is not CIccTagEmbeddedProfile type",
+            "ICC TN Embedding §ICC.2 Profile header", ""});
+        return {CheckResult::Status::FINDINGS, "Version bridging issues", std::move(findings)};
+    }
 
     CIccProfile *pChild = pEmbed->GetProfile();
-    if (!pChild) return CheckResult::ok("Embedded profile tag exists but no child profile");
+    if (!pChild) {
+        std::vector<Finding> findings;
+        findings.push_back({CheckID{CheckID::Kind::Conformance, 154}, Severity::HIGH,
+            "Embedded profile data could not be read",
+            "ICC TN Embedding §ICC.2 Profile header", ""});
+        return {CheckResult::Status::FINDINGS, "Version bridging issues", std::move(findings)};
+    }
 
     std::vector<Finding> findings;
     int parentMajor = VersionMajor(pv);
     int childMajor = static_cast<int>((pChild->m_Header.version >> 24) & 0xFF);
 
     if (parentMajor >= 5) {
-        // Parent is v5 — child must also be v5+
-        if (childMajor < 5)
+        findings.push_back({CheckID{CheckID::Kind::Conformance, 154}, Severity::LOW,
+            "Parent profile is already v5 — embedding is intended for ICC.1 (v2/v4) parent profiles",
+            "ICC TN Embedding §ICC.2 Profile header", ""});
+        if (childMajor < 5) {
             findings.push_back({CheckID{CheckID::Kind::Conformance, 154}, Severity::HIGH,
-                "v5 parent embeds non-v5 child (v" + std::to_string(childMajor) + ")", "", ""});
+                "Embedded child profile shall be ICC.2 (v5+) — child is v" + std::to_string(childMajor),
+                "ICC TN Embedding §ICC.2 Profile header", ""});
+        }
     } else {
         // Parent is v2/v4 — child should be v5 (ICC.2 in ICC.1 embedding)
         if (childMajor < 5)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 154}, Severity::HIGH,
-                "Embedded profile should be v5 (ICC.2 in ICC.1) — child is v" + std::to_string(childMajor), "", ""});
+                "Embedded profile should be v5 (ICC.2 in ICC.1) — child is v" + std::to_string(childMajor),
+                "ICC TN Embedding §ICC.2 Profile header", ""});
     }
 
     if (findings.empty()) return CheckResult::ok("Embedded profile version bridging valid");
@@ -806,15 +831,38 @@ static CheckResult check_cf175_embedded_profile_pcs_compatibility(const ProfileV
 // CF-176: Embedded Profile Tag Reserved Bytes
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf176_embedded_profile_tag_reserved_bytes(const ProfileView& pv) {
-    CIccProfile *pIcc = pv.unsafeLibraryHandle();
-    if (!pIcc) return CheckResult::error("No library handle");
+    auto rawTag = pv.rawTag(static_cast<uint32_t>(icSigEmbeddedV5ProfileTag));
+    if (!rawTag) return CheckResult::ok("No embedded profile — not applicable");
 
-    CIccTagEmbeddedProfile *pEmbed = FindAndCast<CIccTagEmbeddedProfile>(pIcc, icSigEmbeddedV5ProfileTag);
-    if (!pEmbed) return CheckResult::ok("No embedded profile — not applicable");
+    CheckID id{CheckID::Kind::Conformance, 176};
+    std::vector<Finding> findings;
 
-    // The embedding tag type has 4 reserved bytes (bytes 4-7) after type sig that must be 0
-    // This is validated by the library during Read() — informational check
-    return CheckResult::ok("Embedded tag reserved bytes — validated by library");
+    if (rawTag->size < 8 ||
+        rawTag->offset > pv.rawSize() ||
+        rawTag->size > pv.rawSize() - rawTag->offset) {
+        findings.push_back({id, Severity::HIGH,
+            "Embedded profile tag is too small to contain type and reserved fields",
+            "size=" + std::to_string(rawTag->size), "CWE-130"});
+        return {CheckResult::Status::FINDINGS, "Embedded profile tag too small", std::move(findings)};
+    }
+
+    const uint8_t* tagData = pv.rawData() + rawTag->offset;
+    uint32_t typeSig = ReadU32BE(tagData);
+    if (typeSig != static_cast<uint32_t>(icSigEmbeddedProfileType)) {
+        return CheckResult::ok("Embedded tag is not ICCp — covered by CF-153");
+    }
+
+    uint32_t reserved = ReadU32BE(tagData + 4);
+    if (reserved != 0) {
+        char hex[11];
+        std::snprintf(hex, sizeof(hex), "0x%08X", reserved);
+        findings.push_back({id, Severity::MEDIUM,
+            std::string("Embedded profile tag reserved bytes (4-7) shall be 0; found ") + hex,
+            "ICC TN Embedding Table 1", ""});
+    }
+
+    if (findings.empty()) return CheckResult::ok("Embedded profile tag reserved bytes conform to spec");
+    return {CheckResult::Status::FINDINGS, "Embedded profile tag reserved bytes not zero", std::move(findings)};
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -763,8 +763,14 @@ static CheckResult check_cf187_embedded_profile_profileid_chain(const ProfileVie
     if (!pTag) return CheckResult::ok("No embedded profile tag — no chain to validate");
 
     CIccTagEmbeddedProfile* pEmbed = dynamic_cast<CIccTagEmbeddedProfile*>(pTag);
-    if (!pEmbed || !pEmbed->m_pProfile)
-        return CheckResult::ok("Embedded profile tag present but profile not loaded");
+    if (!pEmbed || !pEmbed->m_pProfile) {
+        std::vector<Finding> findings;
+        findings.push_back({cfId, Severity::MEDIUM,
+            "Cannot validate embedded Profile ID",
+            "Embedded profile tag present but profile not loaded", ""});
+        return {CheckResult::Status::FINDINGS, "Embedded profile tag present but profile not loaded",
+            std::move(findings)};
+    }
 
     std::vector<Finding> findings;
     CIccProfile* pInner = pEmbed->m_pProfile;

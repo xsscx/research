@@ -2956,6 +2956,46 @@ def test_conformance_checks(suite):
         ["-a", v5_profile],
         r"CF-158.*Embedded Profile Size"
     )
+    suite.assert_output_contains(
+        "cf.153.embedded_type_ok",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"Embedded profile tag 'ICC5' with type 'ICCp' present"
+    )
+    suite.assert_output_contains(
+        "cf.153.embedded_wrong_type",
+        ["-a", f"{corpus}/cf_embedded_wrong_type.icc"],
+        r"Embedded profile tag type shall be 'ICCp'"
+    )
+    suite.assert_output_contains(
+        "cf.154.embedded_wrong_type",
+        ["-a", f"{corpus}/cf_embedded_wrong_type.icc"],
+        r"Tag is not CIccTagEmbeddedProfile type"
+    )
+    suite.assert_output_contains(
+        "cf.154.v5_parent_warning",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"Parent profile is already v5"
+    )
+    suite.assert_output_contains(
+        "cf.155.class_mismatch",
+        ["-a", f"{corpus}/cf_embedded_child_class_mismatch.icc"],
+        r"Profile class mismatch: parent='mntr' child='scnr'"
+    )
+    suite.assert_output_contains(
+        "cf.156.flags_invalid",
+        ["-a", f"{corpus}/cf_embedded_child_flags_bad.icc"],
+        r"flags bit 0 should be 1|flags bit 1 should be 0"
+    )
+    suite.assert_output_contains(
+        "cf.157.depth_ok",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"Embedding depth within safe bounds"
+    )
+    suite.assert_output_contains(
+        "cf.158.size_ok",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"Embedded profile size is within bounds"
+    )
 
     # --- CF-159..CF-162: dictType Validation (v5 profile) ---
     suite.assert_output_contains(
@@ -2994,6 +3034,21 @@ def test_conformance_checks(suite):
         "cf.177.data_integrity",
         ["-a", v5_profile],
         r"CF-177.*Embedded Profile Data"
+    )
+    suite.assert_output_contains(
+        "cf.175.pcs_mismatch",
+        ["-a", f"{corpus}/cf_embedded_child_pcs_mismatch.icc"],
+        r"PCS mismatch: parent='XYZ ' child='Lab '"
+    )
+    suite.assert_output_contains(
+        "cf.176.reserved_nonzero",
+        ["-a", f"{corpus}/cf_embedded_reserved_nonzero.icc"],
+        r"Reserved Value must be zero"
+    )
+    suite.assert_output_contains(
+        "cf.177.embedded_clean_validation",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"Embedded profile validates cleanly"
     )
 
     # --- CF-178..CF-183: Partial Chromatic Adaptation (ICC TN) ---
@@ -3067,6 +3122,11 @@ def test_conformance_checks(suite):
         "cf.187.embedded_profileid_v5",
         ["-a", v5_profile],
         r"CF-187.*Embedded.*Profile"
+    )
+    suite.assert_output_contains(
+        "cf.187.embedded_profileid_wrong_type",
+        ["-a", f"{corpus}/cf_embedded_wrong_type.icc"],
+        r"Cannot validate embedded Profile ID"
     )
 
     # --- CF-188..CF-190: SampleICC Compliance Testing Framework ---
@@ -3278,12 +3338,22 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-214.*Embedded.*Class"
     )
+    suite.assert_output_contains(
+        "cf.214.devicelink_flagged",
+        ["-a", f"{corpus}/cf_embedded_devicelink_flagged.icc"],
+        r"DeviceLink with embedded flag is unusual|Embedding a DeviceLink is atypical"
+    )
 
     # CF-215: JPEG APP2 Embedding Size Limit
     suite.assert_output_contains(
         "cf.jpeg_embed_size",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-215.*JPEG.*APP2"
+    )
+    suite.assert_output_contains(
+        "cf.215.jpeg_size_ok",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"Profile fits within JPEG APP2 embedding limit"
     )
 
     # CF-216: JP2 Restricted ICC Compliance
@@ -3292,12 +3362,22 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-216.*JP2"
     )
+    suite.assert_output_contains(
+        "cf.216.valid_srgb_incompatible",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"Profile not compatible with JP2 Restricted ICC method"
+    )
 
     # CF-217: JPX Any ICC Method Compliance
     suite.assert_output_contains(
         "cf.jpx_any_icc",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-217.*JPX"
+    )
+    suite.assert_output_contains(
+        "cf.217.valid_srgb_compatible",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"Profile compatible with JPX Any ICC method"
     )
 
     # CF-218: HEIF Restricted ICC Compatibility
@@ -3306,12 +3386,22 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-218.*HEIF"
     )
+    suite.assert_output_contains(
+        "cf.218.valid_srgb_compatible",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"Profile compatible with HEIF embedding"
+    )
 
     # CF-219: Container Format Version Matrix
     suite.assert_output_contains(
         "cf.container_version_matrix",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-219.*Container"
+    )
+    suite.assert_output_contains(
+        "cf.219.v5_no_standard_support",
+        ["-a", v5_profile],
+        r"No media formats currently support ICC v5 embedding"
     )
 
     # CF-220: mluc Name Record Overlap Detection

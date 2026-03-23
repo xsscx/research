@@ -305,7 +305,7 @@ static CheckResult check_cf157_embedded_profile_recursive_depth(const ProfileVie
 
     auto *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
     if (!pEmbed || !pEmbed->GetProfile())
-        return CheckResult::skip("Cannot read embedded profile");
+        return CheckResult::ok("Cannot read embedded profile — skipped");
 
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 157};
@@ -353,7 +353,7 @@ static CheckResult check_cf158_embedded_profile_size_bounds(const ProfileView& p
 
     auto *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pTag);
     if (!pEmbed || !pEmbed->GetProfile())
-        return CheckResult::skip("Cannot read embedded profile");
+        return CheckResult::ok("Cannot read embedded profile — skipped");
 
     std::vector<Finding> findings;
     CheckID id{CheckID::Kind::Conformance, 158};

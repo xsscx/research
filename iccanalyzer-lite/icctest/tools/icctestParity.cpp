@@ -8,6 +8,7 @@
  */
 
 #include <icctest/IccTest.h>
+#include <icctest/CoverageEnv.h>
 
 #include <jpeglib.h>
 #include <png.h>
@@ -234,16 +235,7 @@ const char* laneName(Lane lane) {
 }
 
 void configureCoverageOutput(const char* prefix) {
-#if defined(__GNUC__)
-    if (!std::getenv("GCOV_PREFIX")) {
-        std::error_code ec;
-        std::filesystem::create_directories(prefix, ec);
-        setenv("GCOV_PREFIX", prefix, 0);
-        setenv("GCOV_PREFIX_STRIP", "0", 0);
-    }
-#else
-    (void)prefix;
-#endif
+    icctest::configureUniqueCoverageOutput(prefix);
 }
 
 std::optional<Severity> maxFindingSeverity(const CheckResult& result) {
@@ -891,7 +883,7 @@ void printOpenError(std::ostream& out,
 int main(int argc, char** argv) {
     using namespace icctest;
 
-    configureCoverageOutput("/tmp/icctest-gcov-parity");
+    configureCoverageOutput("icctest-gcov-parity");
 
     auto parsed = parseArgs(argc, argv);
     if (!parsed) {

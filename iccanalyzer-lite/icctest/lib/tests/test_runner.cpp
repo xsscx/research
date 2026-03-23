@@ -544,6 +544,96 @@ static void test_conformance_parity_regressions() {
     }
 }
 
+static void test_embedding_tech_note_regressions() {
+    std::printf("  test_embedding_tech_note_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(
+            corpusDir / "cf_embedded_clean.icc",
+            {153, 154, 155, 156, 157, 158, 175, 176, 177});
+        ASSERT_EQ(9, result.stats.checksRun);
+        expect_conformance_result(result, 153, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 154, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 155, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 156, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 157, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 158, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 175, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 176, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 177, CheckResult::Status::OK, 0);
+
+        const auto* cf154 = find_per_check(result, CheckID::Kind::Conformance, 154);
+        ASSERT_TRUE(cf154 != nullptr);
+        ASSERT_TRUE(cf154->result.findings[0].message.find("already v5") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_wrong_type.icc", {153, 154, 157, 158, 187});
+        ASSERT_EQ(5, result.stats.checksRun);
+        expect_conformance_result(result, 153, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 154, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 157, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 158, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 187, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_child_class_mismatch.icc", {155});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 155, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_child_flags_bad.icc", {156});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 156, CheckResult::Status::FINDINGS, 2);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_child_pcs_mismatch.icc", {175});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 175, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_reserved_nonzero.icc", {176});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 176, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "cf_embedded_devicelink_flagged.icc", {214});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 214, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "valid_srgb.icc", {214, 215, 216, 217, 218, 219});
+        ASSERT_EQ(6, result.stats.checksRun);
+        expect_conformance_result(result, 214, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 215, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 216, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 217, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 218, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 219, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "v5_spac_basic.icc", {216, 217, 218, 219});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_conformance_result(result, 216, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 217, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 218, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 219, CheckResult::Status::SKIP, 0);
+    }
+}
+
 static void test_heuristic_parity_regressions() {
     std::printf("  test_heuristic_parity_regressions...\n");
 
@@ -720,6 +810,7 @@ void test_runner() {
     test_conformance_adgc_regression();
     test_sampleicc_legibility_regression();
     test_conformance_parity_regressions();
+    test_embedding_tech_note_regressions();
     test_conformance_v5_only_skip_regression();
     test_conformance_v5_gate_regression();
     test_conformance_adgc_skip_regression();
