@@ -361,19 +361,21 @@ async def test_analyze_security_json():
 
 
 async def test_analyze_security_report():
-    """Test analyze_security_report returns a formatted report."""
+    """Test analyze_security_report returns a PAWG conformance-only report."""
     T.section("Functional: analyze_security_report")
 
     r = await analyze_security_report("sRGB_D65_MAT.icc")
     T.ok("report: returns non-empty", len(r) > 100, f"len={len(r)}")
-    # Report mode includes severity-sorted output with banner
-    T.ok("report: contains severity keyword",
-         any(kw in r for kw in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "Security")),
-         r[:120])
     T.ok("report: contains PAWG checklist reference URL",
          "https://www.color.org/profiles/assessment/index.xalter" in r, r[:260])
     T.ok("report: contains PAWG checklist label",
          "Profile Assessment Working Group Checklist Reference" in r, r[:260])
+    T.ok("report: contains conformance section",
+         "[ CONFORMANCE ]" in r, r[:320])
+    T.ok("report: contains conformance coverage section",
+         "CONFORMANCE CHECK COVERAGE" in r, r[:400])
+    T.ok("report: contains conformance checklist items",
+         "C1" in r and "C14" in r, r[:400])
     T.ok("report: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("report: omits security taxonomy note",
@@ -381,7 +383,7 @@ async def test_analyze_security_report():
     T.ok("report: contains ICC specification PDF reference",
          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
     T.ok("report: is conformance-only",
-         "[CF-" in r and "[H" not in r, r[:320])
+         "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:400])
 
     # Test error handling — bad path
     try:
@@ -406,12 +408,18 @@ async def test_analyze_pawg_report():
          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
     T.ok("pawg: contains ICC.2 PDF path",
          "docs/iccDEV/specifications/ICC.2-2023.pdf" in r, r[:320])
+    T.ok("pawg: contains conformance section",
+         "[ CONFORMANCE ]" in r, r[:320])
+    T.ok("pawg: contains C1 and C14",
+         "C1" in r and "C14" in r, r[:420])
+    T.ok("pawg: contains conformance coverage section",
+         "CONFORMANCE CHECK COVERAGE" in r, r[:420])
     T.ok("pawg: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("pawg: omits security taxonomy note",
          "Improper Input Validation" not in r, r[:220])
     T.ok("pawg: is conformance-only",
-         "[CF-" in r and "[H" not in r, r[:320])
+         "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:420])
 
     try:
         r2 = await analyze_pawg_report("nonexistent-profile-xyz.icc")

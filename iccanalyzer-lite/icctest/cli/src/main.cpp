@@ -34,6 +34,7 @@
 namespace icctest {
 // Factory functions defined in formatters/*.cpp
 std::unique_ptr<OutputFormatter> createTextFormatter();
+std::unique_ptr<OutputFormatter> createPawgFormatter();
 std::unique_ptr<OutputFormatter> createJsonFormatter();
 std::unique_ptr<OutputFormatter> createSarifFormatter();
 } // namespace icctest
@@ -83,13 +84,13 @@ int main(int argc, char** argv) {
     switch (args->format) {
         case OutputFormat::Json:  formatter = createJsonFormatter(); break;
         case OutputFormat::Sarif: formatter = createSarifFormatter(); break;
+        case OutputFormat::Pawg:  formatter = createPawgFormatter(); break;
         case OutputFormat::Text:
         default:
             formatter = createTextFormatter();
             break;
-        // Xml, Pawg, Csv: not yet implemented — fall back to text
+        // Xml, Csv: not yet implemented — fall back to text
         case OutputFormat::Xml:
-        case OutputFormat::Pawg:
         case OutputFormat::Csv:
             ICCTEST_WARN("Output format not yet implemented, falling back to text");
             formatter = createTextFormatter();
@@ -108,6 +109,9 @@ int main(int argc, char** argv) {
     opts.minSeverity  = args->minSeverity;
     opts.maxFindings  = args->maxFindings;
     opts.ubPreScan = true;
+    if (args->format == OutputFormat::Pawg) {
+        opts.phases = {CheckPhase::CONFORMANCE};
+    }
 
     // Set up output stream (file or stdout)
     std::ofstream fileOut;
