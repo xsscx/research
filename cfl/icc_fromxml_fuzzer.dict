@@ -1658,3 +1658,7 @@ multi_sig="mwpmcl1l"
 "ibm720p1001"
 "\x00\x00\x00\x00\x00\x00\x00\x0b"
 "isciiversion"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x00\x00\x00\x00\x00\x00\x00&"
+"\x00\x00\x00\x00\x00\x00\x00<"
