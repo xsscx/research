@@ -17,7 +17,7 @@ Research documentation organized by topic. 63 documents across 12 subdirectories
 |-----------|----------|-------|
 | [cve/](cve/) | iccDEV CVE report — 87 CVEs + 95 GHSAs across 93 advisories | 1 |
 | [pocs/](pocs/) | 64 PoC reproductions, 12 technique categories, upstream reporting standard ([iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)) | 2 |
-| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy | 5 |
+| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy, PAWG quality coverage | 6 |
 
 ## Testing / Fuzzing
 
@@ -59,6 +59,7 @@ Research documentation organized by topic. 63 documents across 12 subdirectories
 - **iccanalyzer-lite findings**: [analysis/ICCANALYZER_LITE_CONCRETE_REVIEW.txt](analysis/ICCANALYZER_LITE_CONCRETE_REVIEW.txt)
 - **`mluc` placeholder parity note**: [analysis/ICCANALYZER_MLUC_PLACEHOLDER_PARITY.md](analysis/ICCANALYZER_MLUC_PLACEHOLDER_PARITY.md)
 - **Instrumented build / artifact policy**: [analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md](analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md)
+- **PAWG quality coverage**: [analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md](analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md)
 
 ### Fuzzing
 - **CFL corpus inventory**: [Testing/FUZZ_CFL_INVENTORY.md](Testing/FUZZ_CFL_INVENTORY.md)

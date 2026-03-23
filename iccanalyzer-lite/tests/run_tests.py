@@ -1739,6 +1739,21 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
+    cmyk_profile = str(CORPUS_DIR / "targ_cmyk_quality_profile.icc")
+    rc_cmyk, stdout_cmyk, stderr_cmyk = suite.run_analyzer(["-pawg", cmyk_profile])
+    has_cmyk_q1234 = (
+        re.search(r"\[OK\]\s+Q1\b", stdout_cmyk) is not None and
+        re.search(r"\[OK\]\s+Q2\b", stdout_cmyk) is not None and
+        re.search(r"\[OK\]\s+Q3\b", stdout_cmyk) is not None and
+        re.search(r"\[OK\]\s+Q4\b", stdout_cmyk) is not None
+    )
+    suite.results.append(TestResult(
+        "pawg.cmyk_quality_profile_q1234_ok", has_cmyk_q1234,
+        "Expected Q1/Q2/Q3/Q4 to report [OK] on the CMYK characterization quality profile"
+        if not has_cmyk_q1234 else "",
+        0.0, "", ""
+    ))
+
     # Counts should sum to exactly 31 including N/A/GAP/NOT RUN categories
     if has_counts:
         na_match = re.search(r"N/A:\s+(\d+)", stdout)
@@ -2700,10 +2715,21 @@ def test_conformance_checks(suite):
         r"CF-099.*Round.*Trip"
     )
 
+    suite.assert_output_contains(
+        "cf.quality.roundtrip_alt_intent_pair",
+        ["-a", f"{corpus}/lut8_atob2_btoa2.icc"],
+        r"(?s)CF-099.*A2B2/B2A2"
+    )
+
     # Curve invertibility check
     suite.assert_output_contains(
         "cf.quality.curve_invertibility",
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
+        r"CF-100.*Curve.*Invertib"
+    )
+    suite.assert_output_contains(
+        "cf.quality.curve_invertibility_alt_intent",
+        ["-a", f"{corpus}/lut8_atob2_btoa2.icc"],
         r"CF-100.*Curve.*Invertib"
     )
 
@@ -2720,6 +2746,21 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
         r"CF-101.*[Ss]moothness"
     )
+    suite.assert_output_contains(
+        "cf.quality.transform_smoothness_cmyk",
+        ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
+        r"CF-101.*[Ss]moothness.*acceptable|Transform smoothness acceptable"
+    )
+    suite.assert_output_contains(
+        "cf.quality.roundtrip_cmyk",
+        ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
+        r"CF-099.*Round.*Trip"
+    )
+    suite.assert_output_contains(
+        "cf.quality.curve_invertibility_cmyk",
+        ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
+        r"CF-100.*Curve.*Invertib"
+    )
 
     # Characterization data check
     suite.assert_output_contains(
@@ -2730,6 +2771,11 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.quality.characterization_data_eval",
         ["-a", f"{corpus}/targ_quality_profile.icc"],
+        r"CF-102.*Characterization.*avg DeltaE00|Characterization data agrees"
+    )
+    suite.assert_output_contains(
+        "cf.quality.characterization_data_eval_cmyk",
+        ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
         r"CF-102.*Characterization.*avg DeltaE00|Characterization data agrees"
     )
 
@@ -4424,6 +4470,16 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.pawg.characterization_profile_q4_ok",
         ["-pawg", f"{corpus}/targ_quality_profile.icc"],
+        r"\[OK\]\s+Q4"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.cmyk_quality_profile_q1_ok",
+        ["-pawg", f"{corpus}/targ_cmyk_quality_profile.icc"],
+        r"\[OK\]\s+Q1"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.cmyk_quality_profile_q4_ok",
+        ["-pawg", f"{corpus}/targ_cmyk_quality_profile.icc"],
         r"\[OK\]\s+Q4"
     )
 

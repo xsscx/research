@@ -39,6 +39,10 @@ def default_characterization_profile() -> Path:
     return repo_root() / "tests" / "corpus" / "targ_quality_profile.icc"
 
 
+def default_cmyk_quality_profile() -> Path:
+    return repo_root() / "tests" / "corpus" / "targ_cmyk_quality_profile.icc"
+
+
 def expected_spec_reference_paths() -> list[str]:
     spec_dir = repo_root().parent / "docs" / "iccDEV" / "specifications"
     return [
@@ -55,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--good-profile", type=Path, default=default_good_profile())
     parser.add_argument("--bad-profile", type=Path, default=default_bad_profile())
     parser.add_argument("--characterization-profile", type=Path, default=default_characterization_profile())
+    parser.add_argument("--cmyk-quality-profile", type=Path, default=default_cmyk_quality_profile())
     return parser.parse_args()
 
 
@@ -178,6 +183,7 @@ def main() -> int:
     ensure_file(args.good_profile, "good profile")
     ensure_file(args.bad_profile, "bad profile")
     ensure_file(args.characterization_profile, "characterization profile")
+    ensure_file(args.cmyk_quality_profile, "CMYK quality profile")
 
     failures: list[str] = []
 
@@ -187,6 +193,8 @@ def main() -> int:
     v2_bad = run([str(args.v2_binary), "--no-color", "--pawg", str(args.bad_profile)], label="v2 bad PAWG")
     v1_char = run([str(args.v1_binary), "-pawg", str(args.characterization_profile)], label="v1 characterization PAWG")
     v2_char = run([str(args.v2_binary), "--no-color", "--pawg", str(args.characterization_profile)], label="v2 characterization PAWG")
+    v1_cmyk = run([str(args.v1_binary), "-pawg", str(args.cmyk_quality_profile)], label="v1 CMYK PAWG")
+    v2_cmyk = run([str(args.v2_binary), "--no-color", "--pawg", str(args.cmyk_quality_profile)], label="v2 CMYK PAWG")
 
     check_report("v1 good", v1_good, failures)
     check_report("v2 good", v2_good, failures)
@@ -194,6 +202,8 @@ def main() -> int:
     check_report("v2 bad", v2_bad, failures)
     check_report("v1 characterization", v1_char, failures)
     check_report("v2 characterization", v2_char, failures)
+    check_report("v1 CMYK", v1_cmyk, failures)
+    check_report("v2 CMYK", v2_cmyk, failures)
 
     v1_good_items = parse_item_lines(v1_good, failures, "v1 good")
     v2_good_items = parse_item_lines(v2_good, failures, "v2 good")
@@ -201,10 +211,13 @@ def main() -> int:
     v2_bad_items = parse_item_lines(v2_bad, failures, "v2 bad")
     v1_char_items = parse_item_lines(v1_char, failures, "v1 characterization")
     v2_char_items = parse_item_lines(v2_char, failures, "v2 characterization")
+    v1_cmyk_items = parse_item_lines(v1_cmyk, failures, "v1 CMYK")
+    v2_cmyk_items = parse_item_lines(v2_cmyk, failures, "v2 CMYK")
 
     compare_items("v1 good", v1_good_items, "v2 good", v2_good_items, failures)
     compare_items("v1 bad", v1_bad_items, "v2 bad", v2_bad_items, failures)
     compare_items("v1 characterization", v1_char_items, "v2 characterization", v2_char_items, failures)
+    compare_items("v1 CMYK", v1_cmyk_items, "v2 CMYK", v2_cmyk_items, failures)
 
     if v1_good_items.get("S1", ("", ""))[0] != "OK":
         failures.append("v1 good: expected S1 to render as OK")
@@ -223,6 +236,11 @@ def main() -> int:
         failures.append("v1 characterization: expected Q4 to render as OK")
     if v2_char_items.get("Q4", ("", ""))[0] != "OK":
         failures.append("v2 characterization: expected Q4 to render as OK")
+    for item_id in ("Q1", "Q2", "Q3", "Q4"):
+        if v1_cmyk_items.get(item_id, ("", ""))[0] != "OK":
+            failures.append(f"v1 CMYK: expected {item_id} to render as OK")
+        if v2_cmyk_items.get(item_id, ("", ""))[0] != "OK":
+            failures.append(f"v2 CMYK: expected {item_id} to render as OK")
 
     require_regex(v1_bad, r"WARN:\s+[1-9]\d*", failures, "v1 bad")
     require_regex(v2_bad, r"WARN:\s+[1-9]\d*", failures, "v2 bad")
