@@ -69,14 +69,19 @@ def strip_ansi(text: str) -> str:
     return ANSI_RE.sub("", text)
 
 
-def run_v1_text(binary: Path, input_file: Path) -> dict:
+def run_v1_text(
+    binary: Path,
+    input_file: Path,
+    *,
+    disable_library_ub_defense: bool = False,
+) -> dict:
     cmd = [str(binary), "-a", str(input_file)]
 
     proc = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
-        env=v1_runtime_env(binary),
+        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
         check=False,
         errors="replace",
     )
@@ -326,6 +331,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Pretty-print JSON output",
     )
+    parser.add_argument(
+        "--disable-library-ub-defense",
+        action="store_true",
+        help="Disable the V1 library UB defense for parity measurement only",
+    )
     return parser.parse_args()
 
 
@@ -345,7 +355,11 @@ def main() -> int:
         return 2
 
     registry = load_cf_registry(conformance_registry_path())
-    subprocess_result = run_v1_text(args.binary, args.input_file)
+    subprocess_result = run_v1_text(
+        args.binary,
+        args.input_file,
+        disable_library_ub_defense=args.disable_library_ub_defense,
+    )
     records = parse_conformance_records(subprocess_result["stdoutStripped"], registry)
     out = build_output(
         input_file=args.input_file,

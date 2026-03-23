@@ -53,6 +53,15 @@ failed = 0
 errors: list[str] = []
 
 
+def pawg_spec_reference_paths() -> list[str]:
+    spec_dir = REPO / "docs" / "iccDEV" / "specifications"
+    return [
+        f"docs/iccDEV/specifications/{entry.name}"
+        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
+        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
+    ]
+
+
 def check(name: str, ok: bool) -> None:
     global passed, failed
     if ok:
@@ -343,8 +352,17 @@ def test_security_report():
           "CWE-" not in d.get("result", ""))
     check("SecurityReport omits security taxonomy note",
           "Improper Input Validation" not in d.get("result", ""))
+    check("SecurityReport uses one line per PAWG checklist item",
+          "Checks:" not in d.get("result", "")
+          and "\n          CF-" not in d.get("result", ""))
     check("SecurityReport has ICC.1 spec PDF reference",
           "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in d.get("result", ""))
+    check("SecurityReport has ICC specification reference heading",
+          "ICC Specification References:" in d.get("result", ""))
+    check("SecurityReport has full specification reference set",
+          all(path in d.get("result", "") for path in pawg_spec_reference_paths()))
+    check("SecurityReport omits adaptive gain curve reference",
+          "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in d.get("result", ""))
     check("SecurityReport is conformance-only",
           "[ SECURITY ]" not in d.get("result", "")
           and "[ QUALITY ]" not in d.get("result", "")
@@ -364,6 +382,12 @@ def test_pawg():
           "https://www.color.org/profiles/assessment/index.xalter" in d.get("result", ""))
     check("PAWG has ICC.2 spec PDF reference",
           "docs/iccDEV/specifications/ICC.2-2023.pdf" in d.get("result", ""))
+    check("PAWG has ICC specification reference heading",
+          "ICC Specification References:" in d.get("result", ""))
+    check("PAWG has full specification reference set",
+          all(path in d.get("result", "") for path in pawg_spec_reference_paths()))
+    check("PAWG omits adaptive gain curve reference",
+          "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in d.get("result", ""))
     check("PAWG has CONFORMANCE section",
           "[ CONFORMANCE ]" in d.get("result", ""))
     check("PAWG has conformance coverage",
@@ -374,6 +398,9 @@ def test_pawg():
           "CWE-" not in d.get("result", ""))
     check("PAWG omits security taxonomy note",
           "Improper Input Validation" not in d.get("result", ""))
+    check("PAWG uses one line per PAWG checklist item",
+          "Checks:" not in d.get("result", "")
+          and "\n          CF-" not in d.get("result", ""))
     check("PAWG is conformance-only",
           "[ SECURITY ]" not in d.get("result", "")
           and "[ QUALITY ]" not in d.get("result", "")
@@ -851,6 +878,9 @@ def test_operations_endpoints():
     data = r.json()
     check("health-check has result", "result" in data)
     check("health-check mentions tools", "24" in data.get("result", ""))
+    check("health-check mentions iccDumpProfile", "iccDumpProfile" in data.get("result", ""))
+    check("health-check mentions iccRoundTrip", "iccRoundTrip" in data.get("result", ""))
+    check("health-check mentions iccApplyNamedCmm", "iccApplyNamedCmm" in data.get("result", ""))
 
     # Check dependencies (GET, no params)
     r = c.get("/api/check-dependencies")
@@ -871,11 +901,23 @@ def test_operations_endpoints():
 
 def test_operations_post_endpoints():
     """Test POST operations endpoints with validation."""
-    # Batch test (requires build_dir)
-    r = c.post("/api/batch-test", json={"build_dir": ""})
-    check("batch-test requires build_dir", r.status_code == 200)
-    data = r.json()
-    check("batch-test empty build_dir fails", "[FAIL]" in data.get("result", ""))
+    async def fake_batch_test_profiles(directory: str = "", tool: str = "all", build_dir: str = "") -> str:
+        return f"[OK] auto batch directory={directory or '(default)'} tool={tool} build_dir={build_dir or '(auto)'}"
+
+    orig_batch = web_ui_mod.batch_test_profiles
+    try:
+        web_ui_mod.batch_test_profiles = fake_batch_test_profiles
+        r = c.post("/api/batch-test", json={"build_dir": ""})
+        data = r.json()
+        check("batch-test blank build_dir allowed", r.status_code == 200)
+        check("batch-test blank build_dir auto-detects", "[OK] auto batch" in data.get("result", "") and "build_dir=(auto)" in data.get("result", ""))
+
+        r = c.post("/api/batch-test", json={"build_dir": "", "tool": "iccDumpProfile"})
+        data = r.json()
+        check("batch-test accepts legacy iccDumpProfile alias", r.status_code == 200)
+        check("batch-test legacy alias normalizes to dump", "tool=dump" in data.get("result", ""))
+    finally:
+        web_ui_mod.batch_test_profiles = orig_batch
 
     # Batch test invalid tool
     r = c.post("/api/batch-test", json={"build_dir": "test", "tool": "invalid"})
@@ -911,6 +953,8 @@ def test_build_tools_endpoint():
     check("build-tools rejects invalid target", r.status_code == 400)
     html = c.get("/").text
     check("build-tools exposes icctest target", 'option value="icctest"' in html)
+    check("batch-test exposes normalized all option", 'option value="all" selected>all</option>' in html)
+    check("batch-test exposes normalized dump option", 'option value="dump">iccDumpProfile</option>' in html)
 
     # GET should be rejected (POST only)
     r = c.get("/api/build-tools")

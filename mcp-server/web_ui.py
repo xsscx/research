@@ -45,6 +45,7 @@ from icc_profile_mcp import (  # noqa: E402
     DEFAULT_STRUCTURAL_ENGINE,
     TO_XML_SAFE_BIN,
     TO_XML_UNSAFE_BIN,
+    _BATCH_TOOL_ALIASES,
     _get_analyzer,
     _map_flags,
     _require_binary,
@@ -791,10 +792,12 @@ async def api_batch_test_profiles(request: Request) -> Response:
         tool = body.get("tool", "all")
         if not isinstance(tool, str):
             tool = "all"
+        tool = _BATCH_TOOL_ALIASES.get(tool, tool)
         valid_tools = {"dump", "toxml", "fromxml", "roundtrip", "all"}
         if tool not in valid_tools:
             raise ValueError(f"tool must be one of: {', '.join(sorted(valid_tools))}")
-        build_dir = _validate_build_dir(body.get("build_dir", ""))
+        raw_build_dir = body.get("build_dir", "")
+        build_dir = _validate_build_dir(raw_build_dir) if raw_build_dir else ""
         async with (await _get_semaphore()):
             result = await batch_test_profiles(
                 directory=directory, tool=tool, build_dir=build_dir

@@ -8,6 +8,7 @@
  */
 
 #include "../src/OutputFormatter.h"
+#include "../../../PawgSpecReferences.h"
 
 #include <icctest/IccTest.h>
 
@@ -370,6 +371,7 @@ public:
         auto securityItems = makeItems(kSecurityItems);
         auto conformanceItems = makeItems(kConformanceItems);
         auto qualityItems = makeItems(kQualityItems);
+        const auto specReferences = iccanalyzer::pawg::listSpecReferencePaths(opts.inputFile);
 
         scorePawgItems(securityItems, result);
         scorePawgItems(conformanceItems, result);
@@ -387,6 +389,12 @@ public:
 
         out << "  Reference:  ICC Profile Assessment Working Group\n";
         out << "              Goals for profile assessment\n";
+        out << "  ICC Profile Assessment Working Group Checklist Reference: "
+            << iccanalyzer::pawg::kChecklistUrl << '\n';
+        out << "  ICC Specification References:\n";
+        for (const auto& ref : specReferences) {
+            out << "    " << ref << '\n';
+        }
         out << "  Tool:       IccTest v" << IccTestRunner::version() << '\n';
         out << "  Date:       " << utcNowString() << '\n';
         out << "  Build:      ASAN+UBSAN+Coverage | " << compilerString() << '\n';
@@ -447,10 +455,9 @@ public:
         out << '\n';
         pawgBanner(out, "SPECIFICATION REFERENCES", kWidth);
         out << '\n';
-        out << "  ICC.1-2022-05   Profile specification v4.4\n";
-        out << "  ICC.2-2023      iccMAX profile specification v5\n";
-        out << "  RFC 1321        MD5 Message-Digest Algorithm (Profile ID)\n";
-        out << "  CIEDE2000       CIE Technical Report 142-2001\n";
+        for (const auto& ref : specReferences) {
+            out << "  " << ref << '\n';
+        }
         out << '\n';
 
         for (int i = 0; i < kWidth; ++i) out << '=';

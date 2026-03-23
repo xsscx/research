@@ -45,6 +45,15 @@ TIMEOUT_SEC = 30
 
 # --- Test infrastructure ---
 
+
+def pawg_spec_reference_paths():
+    spec_dir = REPO_ROOT / "docs" / "iccDEV" / "specifications"
+    return [
+        f"docs/iccDEV/specifications/{entry.name}"
+        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
+        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
+    ]
+
 # ANSI color codes
 class _Colors:
     """Terminal color codes with auto-detection."""
@@ -184,7 +193,7 @@ class TestSuite:
 
         # Check for ASAN errors in analyzer code (not upstream iccDEV)
         if check_stderr and passed:
-            asan_hit = self._check_asan_analyzer(stderr)
+            asan_hit = self._check_asan_analyzer(stderr, stdout)
             if asan_hit:
                 passed = False
                 msg = f"ASAN error in analyzer code: {asan_hit}"
@@ -209,7 +218,7 @@ class TestSuite:
             passed = False
             msg += f"; exit code {rc} != expected {expected_code}"
 
-        asan_hit = self._check_asan_analyzer(stderr)
+        asan_hit = self._check_asan_analyzer(stderr, stdout)
         if asan_hit:
             passed = False
             msg += f"; ASAN: {asan_hit}"
@@ -245,14 +254,14 @@ class TestSuite:
         rc, stdout, stderr = self.run_analyzer(args)
         dur = time.monotonic() - t0
 
-        asan_hit = self._check_asan_analyzer(stderr)
+        asan_hit = self._check_asan_analyzer(stderr, stdout)
         passed = (asan_hit is None)
         msg = asan_hit or ""
 
         self._record(TestResult(name, passed, msg, dur, stdout, stderr))
         return passed
 
-    def _check_asan_analyzer(self, stderr):
+    def _check_asan_analyzer(self, stderr, stdout=""):
         """Check for ASAN/UBSAN errors in analyzer code (not upstream iccDEV)."""
         for line in stderr.splitlines():
             if "ERROR: AddressSanitizer" in line:
@@ -266,8 +275,19 @@ class TestSuite:
                     "IccMatrixMath.cpp",  # upstream NaN→unsigned short in SetRange
                     "IccMD5.cpp",         # MD5 intentional unsigned wrapping
                     "IccMpeBasic.cpp",    # upstream NaN→unsigned int in Apply()
-                    "IccUtil.cpp",        # upstream unsigned shift in icGetSigStr()
                 ]):
+                    continue
+                if (
+                    "IccIO.cpp:569" in line and
+                    "[H96]" in stdout and
+                    "CIccEmbedIO constructor sentinel UB" in stdout
+                ):
+                    continue
+                if (
+                    "IccUtil.cpp" in line and
+                    "[H173]" in stdout and
+                    "Signature Conversion Shift Overflow" in stdout
+                ):
                     continue
                 return line.strip()
         return None
@@ -546,6 +566,26 @@ def test_heuristic_detection(suite):
         "heuristic.non_monotonic_trc",
         ["-a", "--legacy", f"{corpus}/non_monotonic_curve.icc"],
         r"H114|[Mm]onoton|TRC|WARN"
+    )
+
+    # H96: embedded ICC5 path fingerprints the upstream CIccEmbedIO UB on
+    # unpatched iccDEV, and wrong-type ICC5 tags report the type confusion path.
+    suite.assert_output_contains(
+        "heuristic.embedded_profile_ub_fingerprint",
+        ["-a", "--legacy", f"{corpus}/cf_embedded_child_class_mismatch.icc"],
+        r"H96|CIccEmbedIO constructor sentinel UB|IccIO\.cpp:569"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.embedded_profile_wrong_type",
+        ["-a", "--legacy", f"{corpus}/cf_embedded_wrong_type.icc"],
+        r"H96|wrong type \(dynamic_cast failed\)|CIccTagEmbeddedProfile"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.signature_conversion_shift_overflow",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"H173|Signature Conversion Shift Overflow|IccUtil\.cpp:1088,1130"
     )
 
     # --- New heuristic-targeted tests ---
@@ -1607,6 +1647,33 @@ def test_pawg_output(suite):
     suite.results.append(TestResult(
         "pawg.has_spec_references", has_specs,
         "Missing SPECIFICATION REFERENCES section" if not has_specs else "",
+        0.0, "", ""
+    ))
+
+    has_checklist_ref = (
+        "ICC Profile Assessment Working Group Checklist Reference: "
+        "https://www.color.org/profiles/assessment/index.xalter"
+    ) in stdout
+    suite.results.append(TestResult(
+        "pawg.has_checklist_reference_url", has_checklist_ref,
+        "Missing PAWG checklist reference URL" if not has_checklist_ref else "",
+        0.0, "", ""
+    ))
+
+    spec_refs = pawg_spec_reference_paths()
+    has_all_spec_refs = all(ref in stdout for ref in spec_refs)
+    suite.results.append(TestResult(
+        "pawg.has_all_spec_reference_paths", has_all_spec_refs,
+        "Missing one or more docs/iccDEV/specifications references"
+        if not has_all_spec_refs else "",
+        0.0, "", ""
+    ))
+
+    has_no_adgc_ref = "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in stdout
+    suite.results.append(TestResult(
+        "pawg.omits_adaptive_gain_curve_reference", has_no_adgc_ref,
+        "PAWG report should omit ICC.1_Adaptive_Gain_Curve.pdf from the reference list"
+        if not has_no_adgc_ref else "",
         0.0, "", ""
     ))
 

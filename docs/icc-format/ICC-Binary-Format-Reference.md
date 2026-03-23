@@ -15,6 +15,17 @@
 > V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
 > checks each over time.
 
+> **Tooling policy**: for V1/V2 command-line validation and parity work, prefer
+> the shared Debug + ASAN + UBSAN + Clang coverage build path. Do not treat a
+> separate Release-only rebuild as the source of truth for developer-facing CLI
+> testing. If shipping V2 binaries, include `icctest`, `icctest-parity`,
+> `heuristic-remap.tsv`, and `verify-parity-summary.json`.
+
+> **Harness note**: under unit/parity runners, use
+> `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless the run
+> is intentionally collecting profiling output. LeakSanitizer can abort under
+> harnessed execution even when the suite itself passes.
+
 ---
 
 ## Table of Contents

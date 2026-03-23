@@ -106,6 +106,15 @@ class TestRunner:
 T = TestRunner()
 
 
+def pawg_spec_reference_paths() -> list[str]:
+    spec_dir = REPO_ROOT / "docs" / "iccDEV" / "specifications"
+    return [
+        f"docs/iccDEV/specifications/{entry.name}"
+        for entry in sorted(spec_dir.iterdir(), key=lambda path: path.name)
+        if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Security Tests
 # ---------------------------------------------------------------------------
@@ -380,8 +389,16 @@ async def test_analyze_security_report():
          "CWE-" not in r, r[:220])
     T.ok("report: omits security taxonomy note",
          "Improper Input Validation" not in r, r[:220])
+    T.ok("report: uses one line per PAWG checklist item",
+         "Checks:" not in r and "\n          CF-" not in r, r[:600])
     T.ok("report: contains ICC specification PDF reference",
          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
+    T.ok("report: contains ICC specification reference heading",
+         "ICC Specification References:" in r, r[:320])
+    T.ok("report: contains full specification reference set",
+         all(path in r for path in pawg_spec_reference_paths()), r[:600])
+    T.ok("report: omits adaptive gain curve reference",
+         "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in r, r[:600])
     T.ok("report: is conformance-only",
          "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:400])
 
@@ -408,6 +425,12 @@ async def test_analyze_pawg_report():
          "docs/iccDEV/specifications/ICC.1-2022-05.pdf" in r, r[:320])
     T.ok("pawg: contains ICC.2 PDF path",
          "docs/iccDEV/specifications/ICC.2-2023.pdf" in r, r[:320])
+    T.ok("pawg: contains ICC specification reference heading",
+         "ICC Specification References:" in r, r[:320])
+    T.ok("pawg: contains full specification reference set",
+         all(path in r for path in pawg_spec_reference_paths()), r[:600])
+    T.ok("pawg: omits adaptive gain curve reference",
+         "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" not in r, r[:600])
     T.ok("pawg: contains conformance section",
          "[ CONFORMANCE ]" in r, r[:320])
     T.ok("pawg: contains C1 and C14",
@@ -418,6 +441,8 @@ async def test_analyze_pawg_report():
          "CWE-" not in r, r[:220])
     T.ok("pawg: omits security taxonomy note",
          "Improper Input Validation" not in r, r[:220])
+    T.ok("pawg: uses one line per PAWG checklist item",
+         "Checks:" not in r and "\n          CF-" not in r, r[:600])
     T.ok("pawg: is conformance-only",
          "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:420])
 
@@ -906,6 +931,11 @@ async def test_create_all_profiles_validation():
         script.write_text("#!/bin/sh\nset -eu\ntouch auto-generated.icc\n", encoding="utf-8")
         script.chmod(0o755)
 
+        partial_tool = td_path / "Build" / "build-xml-only" / "Tools" / "IccDumpProfile" / "iccDumpProfile"
+        partial_tool.parent.mkdir(parents=True)
+        partial_tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        partial_tool.chmod(0o755)
+
         tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccFromXml" / "iccFromXml"
         tool.parent.mkdir(parents=True)
         tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -947,7 +977,12 @@ async def test_run_iccdev_tests_validation():
         script.write_text("#!/bin/sh\nset -eu\necho 'PASS auto-detected run'\n", encoding="utf-8")
         script.chmod(0o755)
 
-        tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccFromXml" / "iccFromXml"
+        partial_tool = td_path / "Build" / "build-xml-only" / "Tools" / "IccFromXml" / "iccFromXml"
+        partial_tool.parent.mkdir(parents=True)
+        partial_tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        partial_tool.chmod(0o755)
+
+        tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccApplyNamedCmm" / "iccApplyNamedCmm"
         tool.parent.mkdir(parents=True)
         tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         tool.chmod(0o755)
@@ -964,6 +999,50 @@ async def test_run_iccdev_tests_validation():
         "[OK] Tests passed" in result
         and "Auto-detected build dir: build-debug-tools" in result,
         result[:200],
+    )
+
+    T.section_summary()
+
+
+async def test_batch_test_profiles_validation():
+    """Test batch_test_profiles parameter validation and auto-detect path."""
+    T.section("Functional: batch_test_profiles Validation")
+
+    result = await batch_test_profiles(build_dir="nonexistent-12345")
+    T.ok("nonexistent build_dir", "[FAIL]" in result, result[:80])
+
+    from pathlib import Path
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        testing_dir = td_path / "Testing"
+        testing_dir.mkdir(parents=True)
+        (testing_dir / "sample.icc").write_bytes(b"fake")
+
+        partial_tool = td_path / "Build" / "build-xml-only" / "Tools" / "IccFromXml" / "iccFromXml"
+        partial_tool.parent.mkdir(parents=True)
+        partial_tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        partial_tool.chmod(0o755)
+
+        tool = td_path / "Build" / "build-debug-tools" / "Tools" / "IccDumpProfile" / "iccDumpProfile"
+        tool.parent.mkdir(parents=True)
+        tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        tool.chmod(0o755)
+
+        orig_resolve = mcp_mod._resolve_iccdev_dir
+        try:
+            mcp_mod._resolve_iccdev_dir = lambda: td_path
+            result = await batch_test_profiles(tool="dump")
+        finally:
+            mcp_mod._resolve_iccdev_dir = orig_resolve
+
+    T.ok(
+        "auto-detect tool build_dir",
+        "Auto-detected build dir: build-debug-tools" in result
+        and "[Batch Profile Testing — 1 profiles]" in result
+        and "Passed: 1/1" in result,
+        result[:240],
     )
 
     T.section_summary()
@@ -1231,6 +1310,9 @@ async def test_health_check():
     T.ok("reports iccanalyzer-lite binary status", "iccanalyzer-lite" in result, result[:80])
     T.ok("reports safe iccToXml binary status", "iccToXml (safe)" in result, result[:120])
     T.ok("reports safe iccFromXml binary status", "iccFromXml (safe)" in result, result[:120])
+    T.ok("reports safe iccDumpProfile binary status", "iccDumpProfile" in result, result[:120])
+    T.ok("reports safe iccRoundTrip binary status", "iccRoundTrip" in result, result[:120])
+    T.ok("reports safe iccApplyNamedCmm binary status", "iccApplyNamedCmm" in result, result[:120])
     T.ok("reports iccToXml_unsafe binary status", "iccToXml_unsafe" in result, result[:80])
     T.ok("reports iccFromXml_unsafe binary status", "iccFromXml_unsafe" in result, result[:120])
     T.ok("reports profile directory counts", "test-profiles" in result, result[:80])
@@ -1297,6 +1379,7 @@ async def main():
     await test_cmake_build_validation()
     await test_create_all_profiles_validation()
     await test_run_iccdev_tests_validation()
+    await test_batch_test_profiles_validation()
     await test_cmake_option_matrix_validation()
     test_valid_cmake_options_constant()
     await test_find_iccdev_tools()

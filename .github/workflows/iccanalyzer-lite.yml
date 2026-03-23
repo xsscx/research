@@ -122,7 +122,7 @@ jobs:
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
-          key: ${{ runner.os }}-iccdev-lite-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-lite-upstream-v1
           restore-keys: |
             ${{ runner.os }}-iccdev-lite-
 
@@ -164,22 +164,14 @@ jobs:
             iccanalyzer-lite/iccDEV/Build/IccXML
             iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
             iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-lite-debug-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-lite-debug-upstream-${{ hashFiles('.github/workflows/iccanalyzer-lite.yml') }}
           restore-keys: |
             ${{ runner.os }}-iccdev-build-lite-debug-
 
-      - name: Apply CFL patches to iccDEV
+      - name: Normalize upstream iccDEV source
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          echo "Applying CFL patches to iccanalyzer-lite/iccDEV..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-            fi
-          done
           # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
           if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
