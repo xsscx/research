@@ -189,6 +189,9 @@ public:
     /// Whether raw pre-scan found patterns unsafe for upstream library load.
     bool requiresLibraryQuarantine() const { return m_libraryLoadUnsafe; }
 
+    /// Whether library load was actually skipped because quarantine was enabled.
+    bool librarySkippedDueToUB() const { return m_librarySkippedDueToUB; }
+
     /// Descriptions of detected UB patterns.
     const std::vector<std::string>& ubPatternDescriptions() const {
         return m_ubDescriptions;
@@ -220,6 +223,7 @@ private:
     ProfileHeader              m_header{};
     bool                       m_ubPatternsDetected = false;
     bool                       m_libraryLoadUnsafe = false;
+    bool                       m_librarySkippedDueToUB = false;
     std::vector<std::string>   m_ubDescriptions;
     std::filesystem::path      m_path;
 };

@@ -3,8 +3,8 @@
 
 This adapter exists because the V1 `--json` path omits a material subset of
 raw ICC conformance checks that are still present in the legacy text audit.
-The parser is intentionally scoped to conformance blocks whose headers start
-with `[H####] CF-...`.
+The parser accepts both the historical `[H####] CF-...` header form and the
+current bare `[CF-###] ...` raw-conformance header form.
 """
 
 from __future__ import annotations
@@ -20,8 +20,11 @@ from pathlib import Path
 from runtimeEnv import v1_runtime_env
 
 
-HEADER_RE = re.compile(
+LEGACY_HEADER_RE = re.compile(
     r"^\[H(?P<hid>\d+)\]\s+CF-(?P<start>\d{3})(?:\.\.CF-(?P<end>\d{3}))?:\s*(?P<title>.+?)\s*$"
+)
+RAW_HEADER_RE = re.compile(
+    r"^\[CF-(?P<start>\d{3})(?:\.\.CF-(?P<end>\d{3}))?\]\s*(?P<title>.+?)\s*$"
 )
 STATUS_RE = re.compile(
     r"^\[(?P<status>OK|WARN|FAIL|INFO|SKIP|ERROR|N/A|GAP|NOT RUN)\]\s*(?P<message>.*)$"
@@ -288,11 +291,20 @@ def parse_conformance_records(text: str, registry: dict[str, dict[str, str]]) ->
 
     for raw_line in text.splitlines():
         stripped = raw_line.strip()
-        header_match = HEADER_RE.match(stripped)
+        header_match = LEGACY_HEADER_RE.match(stripped)
         if header_match:
             if current_header is not None:
                 records.extend(parse_block(current_header, current_lines, registry))
             current_header = header_match.groupdict()
+            current_lines = []
+            continue
+
+        raw_header_match = RAW_HEADER_RE.match(stripped)
+        if raw_header_match:
+            if current_header is not None:
+                records.extend(parse_block(current_header, current_lines, registry))
+            current_header = raw_header_match.groupdict()
+            current_header["hid"] = current_header["start"]
             current_lines = []
             continue
 
