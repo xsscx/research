@@ -40,6 +40,7 @@
 #include "IccAnalyzerSafeArithmetic.h"
 #include "IccAnalyzerSignatures.h"
 #include "IccAnalyzerColors.h"
+#include "IccHeuristicsHelpers.h"
 #include <new>
 #include <ctime>
 
@@ -204,8 +205,8 @@ void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO)
 
     if (pHdr->spectralRange.start || pHdr->spectralRange.end || pHdr->spectralRange.steps) {
       printf("  Spectral Range:    %.1f - %.1f nm, %u steps\n",
-             icF16toF(pHdr->spectralRange.start),
-             icF16toF(pHdr->spectralRange.end),
+             SafeF16ToF(pHdr->spectralRange.start),
+             SafeF16ToF(pHdr->spectralRange.end),
              pHdr->spectralRange.steps);
     } else {
       printf("  Spectral Range:    Not Defined\n");
@@ -213,8 +214,8 @@ void DumpProfileHeader(CIccProfile *pIcc, CIccIO *pIO)
 
     if (pHdr->biSpectralRange.start || pHdr->biSpectralRange.end || pHdr->biSpectralRange.steps) {
       printf("  BiSpectral Range:  %.1f - %.1f nm, %u steps\n",
-             icF16toF(pHdr->biSpectralRange.start),
-             icF16toF(pHdr->biSpectralRange.end),
+             SafeF16ToF(pHdr->biSpectralRange.start),
+             SafeF16ToF(pHdr->biSpectralRange.end),
              pHdr->biSpectralRange.steps);
     } else {
       printf("  BiSpectral Range:  Not Defined\n");

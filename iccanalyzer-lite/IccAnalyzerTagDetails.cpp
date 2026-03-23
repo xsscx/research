@@ -39,6 +39,7 @@
 #include "IccAnalyzerCommon.h"
 #include "IccAnalyzerColors.h"
 #include "IccAnalyzerSafeArithmetic.h"
+#include "IccHeuristicsHelpers.h"
 #include "IccTagBasic.h"
 #include "IccTagComposite.h"
 #include "IccProfile.h"
@@ -445,13 +446,13 @@ static int AnalyzeSpectralTags(CIccProfile *pIcc)
       found++;
       printf("  SpectralDataInfo:\n");
       printf("      Spectral range:  %.1f - %.1f nm, %u steps\n",
-             icF16toF(pSDI->m_spectralRange.start),
-             icF16toF(pSDI->m_spectralRange.end),
+             SafeF16ToF(pSDI->m_spectralRange.start),
+             SafeF16ToF(pSDI->m_spectralRange.end),
              pSDI->m_spectralRange.steps);
       if (pSDI->m_biSpectralRange.steps > 0) {
         printf("      BiSpectral range: %.1f - %.1f nm, %u steps\n",
-               icF16toF(pSDI->m_biSpectralRange.start),
-               icF16toF(pSDI->m_biSpectralRange.end),
+               SafeF16ToF(pSDI->m_biSpectralRange.start),
+               SafeF16ToF(pSDI->m_biSpectralRange.end),
                pSDI->m_biSpectralRange.steps);
       }
     }

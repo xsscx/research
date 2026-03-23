@@ -486,11 +486,11 @@ int RunHeuristic_H17_SpectralRange(const icHeader &header) {
 // 17. Spectral/BiSpectral Range Validation (ICC.2-2023 §7.2.22-23)
 hc.begin(17, "Spectral Range Validation (ICC.2-2023 §7.2.22-23)");
 {
-  float specStart = icF16toF(header.spectralRange.start);
-  float specEnd   = icF16toF(header.spectralRange.end);
+  float specStart = SafeF16ToF(header.spectralRange.start);
+  float specEnd   = SafeF16ToF(header.spectralRange.end);
   uint16_t specSteps = header.spectralRange.steps;
-  float biStart = icF16toF(header.biSpectralRange.start);
-  float biEnd   = icF16toF(header.biSpectralRange.end);
+  float biStart = SafeF16ToF(header.biSpectralRange.start);
+  float biEnd   = SafeF16ToF(header.biSpectralRange.end);
   uint16_t biSteps = header.biSpectralRange.steps;
   
   // Diagnostic: trace NaN in spectral range conversions

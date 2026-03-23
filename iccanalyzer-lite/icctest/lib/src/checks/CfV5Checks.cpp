@@ -8,6 +8,7 @@
 #include <icctest/CheckRegistry.h>
 #include <icctest/ProfileView.h>
 #include <icctest/CheckResult.h>
+#include "util/CheckHelpers.h"
 
 #include "IccProfile.h"
 #include "IccTag.h"
@@ -185,8 +186,8 @@ static CheckResult check_cf081_v5_spectral_pcs_range_validity(const ProfileView&
 
     std::vector<Finding> findings;
     const icSpectralRange &sr = pIcc->m_Header.spectralRange;
-    float startNm = icF16toF(sr.start);
-    float endNm = icF16toF(sr.end);
+    float startNm = safeF16ToF(sr.start);
+    float endNm = safeF16ToF(sr.end);
 
     if (sr.steps < 1)
         findings.push_back({CheckID{CheckID::Kind::Conformance, 81}, Severity::HIGH,
@@ -205,8 +206,8 @@ static CheckResult check_cf081_v5_spectral_pcs_range_validity(const ProfileView&
     const icSpectralRange &bsr = pIcc->m_Header.biSpectralRange;
     bool biSet = (bsr.start != 0 || bsr.end != 0 || bsr.steps != 0);
     if (biSet) {
-        float bStart = icF16toF(bsr.start);
-        float bEnd = icF16toF(bsr.end);
+        float bStart = safeF16ToF(bsr.start);
+        float bEnd = safeF16ToF(bsr.end);
         if (bsr.steps < 1)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 81}, Severity::HIGH,
                 "biSpectralRange.steps = 0", "", ""});
@@ -420,8 +421,8 @@ static CheckResult check_cf089_v5_spectral_wavelength_range(const ProfileView& p
 
     std::vector<Finding> findings;
     const icSpectralRange &sr = pIcc->m_Header.spectralRange;
-    float startNm = icF16toF(sr.start);
-    float endNm = icF16toF(sr.end);
+    float startNm = safeF16ToF(sr.start);
+    float endNm = safeF16ToF(sr.end);
 
     if (startNm < 300.0f)
         findings.push_back({CheckID{CheckID::Kind::Conformance, 89}, Severity::LOW,
@@ -459,8 +460,8 @@ static CheckResult check_cf090_spectral_illuminant_consistency(const ProfileView
     if (!svcn) return CheckResult::skip("No svcn tag — covered by CF-082");
 
     std::vector<Finding> findings;
-    float profStart = icF16toF(pIcc->m_Header.spectralRange.start);
-    float profEnd = icF16toF(pIcc->m_Header.spectralRange.end);
+    float profStart = safeF16ToF(pIcc->m_Header.spectralRange.start);
+    float profEnd = safeF16ToF(pIcc->m_Header.spectralRange.end);
 
     icSpectralRange illumRange;
     svcn->getIlluminant(illumRange);
@@ -470,8 +471,8 @@ static CheckResult check_cf090_spectral_illuminant_consistency(const ProfileView
             findings.push_back({CheckID{CheckID::Kind::Conformance, 90}, Severity::MEDIUM,
                 "Illuminant has zero steps and no standard type", "", ""});
     } else {
-        float iStart = icF16toF(illumRange.start);
-        float iEnd = icF16toF(illumRange.end);
+        float iStart = safeF16ToF(illumRange.start);
+        float iEnd = safeF16ToF(illumRange.end);
         if (iEnd < profStart || iStart > profEnd)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 90}, Severity::MEDIUM,
                 "Illuminant range does not overlap profile spectral range", "§7.2.17", ""});
@@ -480,8 +481,8 @@ static CheckResult check_cf090_spectral_illuminant_consistency(const ProfileView
     icSpectralRange obsRange;
     svcn->getObserver(obsRange);
     if (obsRange.steps > 0) {
-        float oStart = icF16toF(obsRange.start);
-        float oEnd = icF16toF(obsRange.end);
+        float oStart = safeF16ToF(obsRange.start);
+        float oEnd = safeF16ToF(obsRange.end);
         if (oEnd < profStart || oStart > profEnd)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 90}, Severity::MEDIUM,
                 "Observer range does not overlap profile spectral range", "§7.2.17", ""});
@@ -508,8 +509,8 @@ static CheckResult check_cf113_spectral_range_physical_bounds(const ProfileView&
     if (spec.steps == 0) return CheckResult::ok("No spectral range defined — not applicable");
 
     std::vector<Finding> findings;
-    float startNm = icF16toF(spec.start);
-    float endNm = icF16toF(spec.end);
+    float startNm = safeF16ToF(spec.start);
+    float endNm = safeF16ToF(spec.end);
 
     if (startNm < 100.0f || startNm > 2500.0f)
         findings.push_back({CheckID{CheckID::Kind::Conformance, 113}, Severity::HIGH,
@@ -1472,8 +1473,8 @@ static CheckResult check_cf257_spectral_range_step_count(const ProfileView& pv) 
         findings.push_back({CheckID{CheckID::Kind::Conformance, 257}, Severity::HIGH,
             "Spectral range steps < 2 — must be >= 2 for meaningful spectrum", "", ""});
 
-    float startNm = icF16toF(spec.start);
-    float endNm = icF16toF(spec.end);
+    float startNm = safeF16ToF(spec.start);
+    float endNm = safeF16ToF(spec.end);
     if (startNm >= endNm)
         findings.push_back({CheckID{CheckID::Kind::Conformance, 257}, Severity::HIGH,
             "Spectral start >= end", "", ""});
@@ -1588,8 +1589,8 @@ static CheckResult check_cf288_spectral_data_info_bi_spectral_consisten(const Pr
 
     std::vector<Finding> findings;
     if (sdi->m_biSpectralRange.steps > 0) {
-        float bStart = icF16toF(sdi->m_biSpectralRange.start);
-        float bEnd = icF16toF(sdi->m_biSpectralRange.end);
+        float bStart = safeF16ToF(sdi->m_biSpectralRange.start);
+        float bEnd = safeF16ToF(sdi->m_biSpectralRange.end);
         if (bStart >= bEnd)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 288}, Severity::HIGH,
                 "Bi-spectral range start >= end", "", ""});

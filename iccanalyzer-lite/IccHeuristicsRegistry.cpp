@@ -213,6 +213,7 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {171, "Curve Param Count vs FuncType Validation", "§10.15/§10.23","CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {172, "LUT Matrix Coefficient Validation", "ICC TN v4 Matrix Entries","CWE-682", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::MEDIUM},
   {173, "Signature Conversion Shift Overflow", "IccUtil.cpp:1088/1130","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
+  {174, "Half-Float Conversion Unsigned Underflow", "IccUtil.cpp:665/677, IccIO.cpp:328","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);

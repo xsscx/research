@@ -339,12 +339,12 @@ int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
     
     if (illumRange.steps > 0 && pIllumData) {
       hc.info("        Illuminant range: %.0f–%.0f nm, %u steps",
-             (double)icF16toF(illumRange.start), (double)icF16toF(illumRange.end),
+             (double)SafeF16ToF(illumRange.start), (double)SafeF16ToF(illumRange.end),
              illumRange.steps);
 
       // Validate spectral range
-      icFloatNumber startNm = icF16toF(illumRange.start);
-      icFloatNumber endNm = icF16toF(illumRange.end);
+      icFloatNumber startNm = SafeF16ToF(illumRange.start);
+      icFloatNumber endNm = SafeF16ToF(illumRange.end);
       if (startNm >= endNm) {
         hc.warn("HEURISTIC: Illuminant range inverted: start %.0f >= end %.0f",
                (double)startNm, (double)endNm);

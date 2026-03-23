@@ -8,7 +8,7 @@ set(ICCTEST_LIB_SOURCES
     src/CheckRegistry.cpp
     src/Logger.cpp
     src/IccTestRunner.cpp
-    # Phase 2: Heuristic checks (H1-H171)
+    # Phase 2: Heuristic checks (H1-H174)
     src/checks/HeaderChecks.cpp
     src/checks/TagValidationChecks.cpp
     src/checks/RawScanChecks.cpp
