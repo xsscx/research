@@ -350,6 +350,10 @@ def test_security_report():
           "S1" in d.get("result", "") and "S13" in d.get("result", "")
           and "C1" in d.get("result", "") and "C14" in d.get("result", "")
           and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
+    check("SecurityReport preserves split PAWG states",
+          "[OK]    S1" in d.get("result", "")
+          and "[GAP]" in d.get("result", "")
+          and "[N/A]   Q4" in d.get("result", ""))
     check("SecurityReport omits CWE references",
           "CWE-" not in d.get("result", ""))
     check("SecurityReport omits security taxonomy note",
@@ -412,6 +416,10 @@ def test_pawg():
           "S1" in d.get("result", "") and "S13" in d.get("result", "")
           and "C1" in d.get("result", "") and "C14" in d.get("result", "")
           and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
+    check("PAWG preserves split PAWG states",
+          "[OK]    S1" in d.get("result", "")
+          and "[GAP]" in d.get("result", "")
+          and "[N/A]   Q4" in d.get("result", ""))
     check("PAWG omits CWE references",
           "CWE-" not in d.get("result", ""))
     check("PAWG omits security taxonomy note",

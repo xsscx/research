@@ -1685,7 +1685,7 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    # Should have PASS/WARN/FAIL counts in summary
+    # Should have verdict counts in summary
     import re
     pass_match = re.search(r"PASS:\s+(\d+)", stdout)
     warn_match = re.search(r"WARN:\s+(\d+)", stdout)
@@ -1697,12 +1697,33 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    # Counts should sum to at most 31 (NOT_RUN items are excluded from PASS+WARN+FAIL)
+    has_split_states = (
+        re.search(r"\[OK\]\s+S1\b", stdout) is not None and
+        re.search(r"\[N/A\]\s+Q4\b", stdout) is not None
+    )
+    suite.results.append(TestResult(
+        "pawg.good_profile_splits_gap_and_na_states", has_split_states,
+        "Expected S1 to report [OK] and Q4 to report [N/A] on the good profile"
+        if not has_split_states else "",
+        0.0, "", ""
+    ))
+
+    # Counts should sum to exactly 31 including N/A/GAP/NOT RUN categories
     if has_counts:
-        total = int(pass_match.group(1)) + int(warn_match.group(1)) + int(fail_match.group(1))
+        na_match = re.search(r"N/A:\s+(\d+)", stdout)
+        gap_match = re.search(r"GAP:\s+(\d+)", stdout)
+        not_run_match = re.search(r"NOT RUN:\s+(\d+)", stdout)
+        total = (
+            int(pass_match.group(1)) +
+            int(warn_match.group(1)) +
+            int(fail_match.group(1)) +
+            (int(na_match.group(1)) if na_match else 0) +
+            (int(gap_match.group(1)) if gap_match else 0) +
+            (int(not_run_match.group(1)) if not_run_match else 0)
+        )
         suite.results.append(TestResult(
-            "pawg.counts_sum_31", total <= 31,
-            f"PASS+WARN+FAIL={total}, expected ≤31" if total > 31 else "",
+            "pawg.counts_sum_31", total == 31,
+            f"PAWG summary categories sum to {total}, expected 31" if total != 31 else "",
             0.0, "", ""
         ))
 
@@ -2344,6 +2365,26 @@ def test_conformance_checks(suite):
         "cf.lut.output_channel_count",
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
         r"CF-061.*Output Channel"
+    )
+    suite.assert_output_contains(
+        "cf.060.valid_srgb_matrix_trc_ok",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-060[\s\S]*\[OK\].*Matrix/TRC device-side channel tags valid"
+    )
+    suite.assert_output_contains(
+        "cf.061.valid_srgb_matrix_trc_ok",
+        ["-a", f"{corpus}/valid_srgb.icc"],
+        r"CF-061[\s\S]*\[OK\].*Matrix/TRC PCS-side channel tags valid"
+    )
+    suite.assert_output_contains(
+        "cf.060.namedcolor_not_applicable",
+        ["-a", str(TEST_PROFILES / "NamedColor.icc")],
+        r"CF-060[\s\S]*NamedColor profiles do not encode transform input channel counts.*not applicable"
+    )
+    suite.assert_output_contains(
+        "cf.061.namedcolor_not_applicable",
+        ["-a", str(TEST_PROFILES / "NamedColor.icc")],
+        r"CF-061[\s\S]*NamedColor profiles do not encode transform output channel counts.*not applicable"
     )
     suite.assert_output_contains(
         "cf.lut.clut_grid",
@@ -4311,11 +4352,16 @@ def test_conformance_checks(suite):
     )
 
     # --- PAWG integration verification ---
-    # All 31 PAWG items should have CF mappings (no NOT_RUN with mapping)
+    # The compact PAWG state model should expose GAP/N/A instead of overloading [ -- ].
     suite.assert_output_contains(
-        "cf.pawg.all_items_mapped",
+        "cf.pawg.good_profile_gap_state",
         ["-pawg", f"{corpus}/valid_srgb.icc"],
-        r"Total checklist items:\s+31"
+        r"\[OK\]\s+S1"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.good_profile_na_state",
+        ["-pawg", f"{corpus}/valid_srgb.icc"],
+        r"\[N/A\]\s+Q4"
     )
 
     # --- iccDEV tool conformance (reference profiles) ---

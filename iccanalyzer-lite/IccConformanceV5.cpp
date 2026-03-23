@@ -537,7 +537,11 @@ int RunCF087_MPEElementSignature(CIccProfile *pIcc) {
 // CF-088: Calculator Element Stack Structure  (ICC.2-2023 §10.x)
 // ---------------------------------------------------------------------------
 int RunCF088_CalculatorStackStructure(CIccProfile *pIcc) {
-  if (!IsV5(pIcc)) return 0;
+  auto &hc = HeuristicCollector::instance();
+  if (!IsV5(pIcc)) {
+    hc.info("Not a v5 profile");
+    return -1;
+  }
 
   int issues = 0;
   int calcCount = 0;
@@ -549,7 +553,8 @@ int RunCF088_CalculatorStackStructure(CIccProfile *pIcc) {
     printf("         No tags in profile\n");
     printf("         %s[OK]%s No calculator elements to check\n",
            ColorSuccess(), ColorReset());
-    return 0;
+    hc.info("No calculator elements to check");
+    return -1;
   }
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
@@ -6629,9 +6634,13 @@ int RunV5Conformance(CIccProfile *pIcc) {
 #define CF_WRAP(id, title, call) \
   hc.begin(id, title); \
   r = call; \
-  if (r > 0) hc.warn("%d non-conformance(s)", r); \
-  hc.end("Conformant"); \
-  issues += r
+  if (r < 0) { \
+    hc.skip(nullptr); \
+  } else { \
+    if (r > 0) hc.warn("%d non-conformance(s)", r); \
+    hc.end("Conformant"); \
+    issues += r; \
+  }
 
   // Partial Chromatic Adaptation — chad checks (any version with chad tag)
   CF_WRAP(1178, "CF-178: Chad Diagonal Dominance", RunCF178_ChadDiagonalDominance(pIcc));

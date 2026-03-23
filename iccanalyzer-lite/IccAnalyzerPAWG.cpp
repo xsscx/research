@@ -14,11 +14,13 @@
  *   CONFORMANCE (14 items)
  *   QUALITY (4 items)
  *
- * Each PAWG item maps to one or more ICC conformance checks (CF-*).  The item
+ * Each PAWG item maps to one or more ICC conformance checks (CF-*). The item
  * verdict is PASS when every mapped check is [OK], WARN when at least one
- * is [WARN], and FAIL when at least one is non-conformant.
- * Items without conformance check mappings (security-only, quality metrics)
- * receive NOT_RUN verdict.
+ * is [WARN], and FAIL when at least one is non-conformant. When every mapped
+ * check skips, PAWG distinguishes:
+ *   N/A     - genuinely not applicable to this profile shape/class
+ *   GAP     - current coverage/applicability gap
+ *   NOT RUN - runtime/execution failure prevented evaluation
  *
  * Reference: ICC Profile Assessment Working Group — Goals for profile assessment
  */
@@ -39,6 +41,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 #include <unistd.h>
 #include <fcntl.h>
@@ -57,20 +60,28 @@ struct PAWGHeuristicResult {
 
 // ── PAWG checklist item ──────────────────────────────────────────────────────
 
-enum class PAWGVerdict { PASS, WARN, FAIL, NOT_RUN };
+enum class PAWGVerdict {
+  PASS = 0,
+  WARN = 1,
+  FAIL = 2,
+  NOT_APPLICABLE = 3,
+  GAP = 4,
+  NOT_RUN = 5
+};
 
 struct PAWGItem {
   const char *id;           // e.g. "S1", "C14", "Q28"
   const char *title;        // PAWG checklist text
   const int  *checks;       // NULL-terminated list of conformance check IDs (1001+)
   int         checkCount;   // number of mapped checks
+  PAWGVerdict allSkippedVerdict;
   PAWGVerdict verdict;
-  std::string detail;       // collected detail from triggered checks
+  std::vector<std::string> detailLines;
 };
 
 // ── Conformance check mappings (CF-* IDs = CF number + 1000) ─────────────────
 // Security items: mapped to ICC spec conformance checks where applicable.
-// Security-only items (S8, S11, S12, S13) have no ICC spec basis → NOT_RUN.
+// When every mapped check skips, items default to either N/A or GAP.
 
 static const int kS1[]  = { 1060, 1061, 0 };                    // LUT channel counts
 static const int kS2[]  = { 1010, 1006, 1012, 1013, 0 };        // header encoding
@@ -102,7 +113,8 @@ static const int kC25[] = { 1008, 0 };                          // wtpt D50
 static const int kC26[] = { 1015, 0 };                          // reserved bytes
 static const int kC27[] = { 1020, 1103, 0 };                     // 4-byte boundaries
 
-// Quality items: require computational verification (CIEDE2000) → NOT_RUN.
+// Quality items default to GAP when every mapped check skips, unless a skip
+// reason clearly indicates true not-applicable semantics for the profile.
 static const int kQ28[] = { 1099, 0 };                          // round-trip CIEDE2000
 static const int kQ29[] = { 1100, 1106, 0 };                     // curve invertibility + monotonicity
 static const int kQ30[] = { 1101, 0 };                          // transform smoothness
@@ -110,46 +122,47 @@ static const int kQ31[] = { 1102, 0 };                          // characterizat
 
 // ── Build the PAWG checklist ─────────────────────────────────────────────────
 
-#define PAWG_ITEM(code, text, arr) { code, text, arr, (int)(sizeof(arr)/sizeof(arr[0]) - 1), PAWGVerdict::NOT_RUN, {} }
+#define PAWG_ITEM(code, text, arr, skipVerdict) \
+  { code, text, arr, (int)(sizeof(arr)/sizeof(arr[0]) - 1), skipVerdict, PAWGVerdict::NOT_RUN, {} }
 
 static PAWGItem BuildSecurityItems[] = {
-  PAWG_ITEM("S1",  "Channel counts in tags match data colour space", kS1),
-  PAWG_ITEM("S2",  "Header is 128 bytes and correctly encoded", kS2),
-  PAWG_ITEM("S3",  "Platform, Creator, Manufacturer and CMM fields correspond to registered signatures or are zero", kS3),
-  PAWG_ITEM("S4",  "Illuminant corresponds to D50", kS4),
-  PAWG_ITEM("S5",  "Unless a DeviceLink profile, PCS is Lab or XYZ", kS5),
-  PAWG_ITEM("S6",  "Tags correctly aligned - offset and length correspond to tag table, no overlapping tags or gaps between tags - and correctly encoded", kS6),
-  PAWG_ITEM("S7",  "Tag table correctly encoded", kS7),
-  PAWG_ITEM("S8",  "No known malware signatures present", kS8),
-  PAWG_ITEM("S9",  "EOF follows last tag (including four-byte boundary), no additional bytes before or after", kS9),
-  PAWG_ITEM("S10", "Excessive calculator elements not present (ideally provide an estimate of computation cost)", kS10),
-  PAWG_ITEM("S11", "Private tags ideally not present", kS11),
-  PAWG_ITEM("S12", "Private tags do not contain malware", kS12),
-  PAWG_ITEM("S13", "Private tags do not contain exploitable non-operation (NOP) instructions", kS13),
+  PAWG_ITEM("S1",  "Channel counts in tags match data colour space", kS1, PAWGVerdict::GAP),
+  PAWG_ITEM("S2",  "Header is 128 bytes and correctly encoded", kS2, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S3",  "Platform, Creator, Manufacturer and CMM fields correspond to registered signatures or are zero", kS3, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S4",  "Illuminant corresponds to D50", kS4, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S5",  "Unless a DeviceLink profile, PCS is Lab or XYZ", kS5, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S6",  "Tags correctly aligned - offset and length correspond to tag table, no overlapping tags or gaps between tags - and correctly encoded", kS6, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S7",  "Tag table correctly encoded", kS7, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S8",  "No known malware signatures present", kS8, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S9",  "EOF follows last tag (including four-byte boundary), no additional bytes before or after", kS9, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S10", "Excessive calculator elements not present (ideally provide an estimate of computation cost)", kS10, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S11", "Private tags ideally not present", kS11, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S12", "Private tags do not contain malware", kS12, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("S13", "Private tags do not contain exploitable non-operation (NOP) instructions", kS13, PAWGVerdict::NOT_APPLICABLE),
 };
 
 static PAWGItem BuildConformanceItems[] = {
-  PAWG_ITEM("C1",  "Tag types are correctly encoded (signature, structure, data types, ranges, encoded values)", kC14),
-  PAWG_ITEM("C2",  "cprt, desc tags encoded as Unicode or text according to specification version", kC15),
-  PAWG_ITEM("C3",  "Tags only use tag types allowed for the tag", kC16),
-  PAWG_ITEM("C4",  "All required tags for profile class are present", kC17),
-  PAWG_ITEM("C5",  "Additional tags not required for profile class (other than allowed optional tags) are not present; or are flagged as private tags", kC18),
-  PAWG_ITEM("C6",  "Private tags have a registered signature", kC19),
-  PAWG_ITEM("C7",  "Private tag documentation is available through the tag registry", kC20),
-  PAWG_ITEM("C8",  "Undocumented private tags are identified", kC21),
-  PAWG_ITEM("C9",  "Profile class is consistent with data colour space", kC22),
-  PAWG_ITEM("C10", "Header content conforms with specification", kC23),
-  PAWG_ITEM("C11", "Tags present correspond to profile version", kC24),
-  PAWG_ITEM("C12", "Wtpt correctly encoded - D50 for v4 display; or valid value for other profile classes", kC25),
-  PAWG_ITEM("C13", "Reserved bytes are zero", kC26),
-  PAWG_ITEM("C14", "Tags start and end on four-byte boundaries", kC27),
+  PAWG_ITEM("C1",  "Tag types are correctly encoded (signature, structure, data types, ranges, encoded values)", kC14, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C2",  "cprt, desc tags encoded as Unicode or text according to specification version", kC15, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C3",  "Tags only use tag types allowed for the tag", kC16, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C4",  "All required tags for profile class are present", kC17, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C5",  "Additional tags not required for profile class (other than allowed optional tags) are not present; or are flagged as private tags", kC18, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C6",  "Private tags have a registered signature", kC19, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C7",  "Private tag documentation is available through the tag registry", kC20, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C8",  "Undocumented private tags are identified", kC21, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C9",  "Profile class is consistent with data colour space", kC22, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C10", "Header content conforms with specification", kC23, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C11", "Tags present correspond to profile version", kC24, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C12", "Wtpt correctly encoded - D50 for v4 display; or valid value for other profile classes", kC25, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C13", "Reserved bytes are zero", kC26, PAWGVerdict::NOT_APPLICABLE),
+  PAWG_ITEM("C14", "Tags start and end on four-byte boundaries", kC27, PAWGVerdict::NOT_APPLICABLE),
 };
 
 static PAWGItem BuildQualityItems[] = {
-  PAWG_ITEM("Q1",  "First and second round trip average and maximum differences in CIEDE2000", kQ28),
-  PAWG_ITEM("Q2",  "Curve round trip differences in CIEDE2000 (i.e. can be inverted)", kQ29),
-  PAWG_ITEM("Q3",  "Smoothness metric values of overall transform", kQ30),
-  PAWG_ITEM("Q4",  "If characterization data is present, round trip average and maximum differences of profile output in CIEDE2000", kQ31),
+  PAWG_ITEM("Q1",  "First and second round trip average and maximum differences in CIEDE2000", kQ28, PAWGVerdict::GAP),
+  PAWG_ITEM("Q2",  "Curve round trip differences in CIEDE2000 (i.e. can be inverted)", kQ29, PAWGVerdict::GAP),
+  PAWG_ITEM("Q3",  "Smoothness metric values of overall transform", kQ30, PAWGVerdict::GAP),
+  PAWG_ITEM("Q4",  "If characterization data is present, round trip average and maximum differences of profile output in CIEDE2000", kQ31, PAWGVerdict::GAP),
 };
 
 #undef PAWG_ITEM
@@ -183,17 +196,111 @@ static const char *VerdictIcon(PAWGVerdict v) {
     case PAWGVerdict::PASS:    return "[OK]  ";
     case PAWGVerdict::WARN:    return "[WARN]";
     case PAWGVerdict::FAIL:    return "[FAIL]";
+    case PAWGVerdict::NOT_APPLICABLE: return "[N/A] ";
+    case PAWGVerdict::GAP:     return "[GAP] ";
     case PAWGVerdict::NOT_RUN: return "[ -- ]";
   }
   return "[??]  ";
+}
+
+static PAWGVerdict UpgradeVerdict(PAWGVerdict current, PAWGVerdict candidate) {
+  if (candidate == PAWGVerdict::NOT_RUN) return current;
+  if (current == PAWGVerdict::NOT_RUN) return candidate;
+  return (int)candidate > (int)current ? candidate : current;
+}
+
+static bool IsRuntimeSkipDetail(const std::string &detail) {
+  return detail.find("Library failed to load") != std::string::npos ||
+         detail.find("not loaded") != std::string::npos ||
+         detail.find("read failed") != std::string::npos ||
+         detail.find("failed to load") != std::string::npos ||
+         detail.find("unsafe") != std::string::npos;
+}
+
+static bool IsExplicitNotApplicableDetail(const std::string &detail) {
+  return detail.find("not applicable") != std::string::npos ||
+         detail.find("N/A") != std::string::npos ||
+         detail.find("exempt") != std::string::npos ||
+         detail.find("No charTargetTag present") != std::string::npos ||
+         detail.find("No characterization data") != std::string::npos;
+}
+
+static PAWGVerdict ClassifySkippedDetail(const std::string &detail,
+                                         PAWGVerdict defaultVerdict) {
+  if (IsRuntimeSkipDetail(detail)) return PAWGVerdict::NOT_RUN;
+  if (IsExplicitNotApplicableDetail(detail)) return PAWGVerdict::NOT_APPLICABLE;
+  return defaultVerdict;
+}
+
+static PAWGVerdict MergeSkippedVerdict(PAWGVerdict current,
+                                       PAWGVerdict candidate) {
+  if (current == PAWGVerdict::NOT_RUN || candidate == PAWGVerdict::NOT_RUN)
+    return PAWGVerdict::NOT_RUN;
+  if (current == PAWGVerdict::GAP || candidate == PAWGVerdict::GAP)
+    return PAWGVerdict::GAP;
+  if (current == PAWGVerdict::NOT_APPLICABLE ||
+      candidate == PAWGVerdict::NOT_APPLICABLE)
+    return PAWGVerdict::NOT_APPLICABLE;
+  return candidate;
+}
+
+static void AppendSkippedCheckDetail(PAWGItem &item,
+                                     int cid,
+                                     const std::string &detail,
+                                     PAWGVerdict verdict) {
+  char cfLabel[16];
+  snprintf(cfLabel, sizeof(cfLabel), "CF-%03d", cid - 1000);
+
+  std::string line = cfLabel;
+  line += ": ";
+  line += detail.empty() ? "check skipped" : detail;
+  switch (verdict) {
+    case PAWGVerdict::NOT_APPLICABLE:
+      line += " [N/A]";
+      break;
+    case PAWGVerdict::GAP:
+      line += " [GAP]";
+      break;
+    case PAWGVerdict::NOT_RUN:
+      line += " [ -- ]";
+      break;
+    default:
+      break;
+  }
+  item.detailLines.push_back(line);
+}
+
+struct PAWGTotals {
+  int pass = 0;
+  int warn = 0;
+  int fail = 0;
+  int notApplicable = 0;
+  int gap = 0;
+  int notRun = 0;
+};
+
+static void CountVerdict(PAWGTotals &totals, PAWGVerdict verdict) {
+  switch (verdict) {
+    case PAWGVerdict::PASS: ++totals.pass; break;
+    case PAWGVerdict::WARN: ++totals.warn; break;
+    case PAWGVerdict::FAIL: ++totals.fail; break;
+    case PAWGVerdict::NOT_APPLICABLE: ++totals.notApplicable; break;
+    case PAWGVerdict::GAP: ++totals.gap; break;
+    case PAWGVerdict::NOT_RUN: ++totals.notRun; break;
+  }
 }
 
 // ── Score a PAWG item against collected heuristic results ────────────────────
 
 static void ScorePAWGItem(PAWGItem &item,
                           const std::map<int, PAWGHeuristicResult> &results) {
+  item.verdict = PAWGVerdict::NOT_RUN;
+  item.detailLines.clear();
+
   bool anyFound = false;
+  bool anyEvaluated = false;
   PAWGVerdict worst = PAWGVerdict::PASS;
+  std::vector<std::pair<int, std::string>> skippedChecks;
 
   for (int i = 0; i < item.checkCount; i++) {
     int cid = item.checks[i];
@@ -203,16 +310,20 @@ static void ScorePAWGItem(PAWGItem &item,
     anyFound = true;
     const auto &r = it->second;
 
+    if (r.status == "skip") {
+      skippedChecks.push_back(std::make_pair(cid, r.detail));
+      continue;
+    }
+    anyEvaluated = true;
+
     PAWGVerdict hv = PAWGVerdict::PASS;
     if (r.status == "critical") hv = PAWGVerdict::FAIL;
     else if (r.status == "warn")  hv = PAWGVerdict::WARN;
 
-    if (static_cast<int>(hv) > static_cast<int>(worst))
-      worst = hv;
+    worst = UpgradeVerdict(worst, hv);
 
     // Collect detail from non-conformant checks only
     if (hv != PAWGVerdict::PASS && !r.detail.empty()) {
-      if (!item.detail.empty()) item.detail += "\n";
       const char *statusTag = (r.status == "critical") ? " [FAIL]" :
                               (r.status == "warn")     ? " [WARN]" : "";
       char cfLabel[16];
@@ -226,25 +337,39 @@ static void ScorePAWGItem(PAWGItem &item,
         if (trimmed.find("[H") == 0 || trimmed.find("[CF") == 0) continue;
         if (trimmed.find("[OK]") != std::string::npos) continue;
         if (trimmed.find("=====") != std::string::npos) continue;
-        if (!item.detail.empty() && item.detail.back() != '\n')
-          item.detail += "\n";
-        item.detail += "          ";
-        item.detail += cfLabel;
-        item.detail += ": ";
-        item.detail += trimmed;
-        item.detail += statusTag;
+        item.detailLines.push_back(std::string(cfLabel) + ": " + trimmed + statusTag);
       }
     }
   }
 
-  item.verdict = anyFound ? worst : PAWGVerdict::NOT_RUN;
+  if (!anyFound) {
+    item.verdict = PAWGVerdict::NOT_RUN;
+    item.detailLines.push_back("No mapped conformance checks were executed [ -- ]");
+    return;
+  }
+
+  if (!anyEvaluated) {
+    PAWGVerdict skippedVerdict = PAWGVerdict::NOT_APPLICABLE;
+    for (const auto &entry : skippedChecks) {
+      skippedVerdict = MergeSkippedVerdict(
+          skippedVerdict,
+          ClassifySkippedDetail(entry.second, item.allSkippedVerdict));
+    }
+    item.verdict = skippedVerdict;
+    for (const auto &entry : skippedChecks) {
+      AppendSkippedCheckDetail(item, entry.first, entry.second, skippedVerdict);
+    }
+    return;
+  }
+
+  item.verdict = worst;
 }
 
 // ── Print one section of PAWG items ──────────────────────────────────────────
 
 static void PrintPAWGSection(const char *sectionTitle,
                              PAWGItem *items, int count,
-                             int &passCount, int &warnCount, int &failCount) {
+                             PAWGTotals &totals) {
   const int W = 78;
   printf("\n");
   PAWGBanner(sectionTitle, W);
@@ -266,24 +391,14 @@ static void PrintPAWGSection(const char *sectionTitle,
       printf("          Checks: (none mapped)\n");
     }
 
-    // Print detail for non-PASS items
-    if (item.verdict != PAWGVerdict::PASS &&
-        item.verdict != PAWGVerdict::NOT_RUN &&
-        !item.detail.empty()) {
-      std::istringstream ds(item.detail);
-      std::string dl;
-      while (std::getline(ds, dl)) {
+    if (!item.detailLines.empty()) {
+      for (const auto &dl : item.detailLines) {
         if (!dl.empty()) printf("          %s\n", dl.c_str());
       }
     }
     printf("\n");
 
-    switch (item.verdict) {
-      case PAWGVerdict::PASS: passCount++; break;
-      case PAWGVerdict::WARN: warnCount++; break;
-      case PAWGVerdict::FAIL: failCount++; break;
-      case PAWGVerdict::NOT_RUN: break;
-    }
+    CountVerdict(totals, item.verdict);
   }
 }
 
@@ -380,42 +495,48 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
   printf("\n");
 
   // ── Sections ──────────────────────────────────────────────────────────────
-  int passCount = 0, warnCount = 0, failCount = 0;
+  PAWGTotals totals;
 
   PrintPAWGSection("SECURITY", BuildSecurityItems, nSecurity,
-                   passCount, warnCount, failCount);
+                   totals);
 
   PrintPAWGSection("CONFORMANCE", BuildConformanceItems, nConformance,
-                   passCount, warnCount, failCount);
+                   totals);
 
   PrintPAWGSection("QUALITY", BuildQualityItems, nQuality,
-                   passCount, warnCount, failCount);
+                   totals);
 
   // ── Summary ───────────────────────────────────────────────────────────────
   int totalItems = nSecurity + nConformance + nQuality;
-  int notRun = totalItems - passCount - warnCount - failCount;
 
   printf("\n");
   PAWGBanner("ASSESSMENT SUMMARY", W);
   printf("\n");
   printf("  Total checklist items:  %d\n", totalItems);
-  printf("  PASS:                   %d\n", passCount);
-  printf("  WARN:                   %d\n", warnCount);
-  printf("  FAIL:                   %d\n", failCount);
-  if (notRun > 0)
-    printf("  NOT RUN:                %d\n", notRun);
+  printf("  PASS:                   %d\n", totals.pass);
+  printf("  WARN:                   %d\n", totals.warn);
+  printf("  FAIL:                   %d\n", totals.fail);
+  if (totals.notApplicable > 0)
+    printf("  N/A:                    %d\n", totals.notApplicable);
+  if (totals.gap > 0)
+    printf("  GAP:                    %d\n", totals.gap);
+  if (totals.notRun > 0)
+    printf("  NOT RUN:                %d\n", totals.notRun);
   printf("\n");
 
   // Overall verdict
   const char *overall;
-  if (failCount > 0)
+  if (totals.fail > 0)
     overall = "FAIL - Profile does not meet ICC PAWG assessment criteria";
-  else if (warnCount > 0)
+  else if (totals.warn > 0)
     overall = "CONDITIONAL PASS - Warnings detected, review recommended";
-  else if (passCount == totalItems)
+  else if ((totals.pass + totals.notApplicable) == totalItems &&
+           totals.gap == 0 && totals.notRun == 0)
     overall = "PASS - Profile meets all ICC PAWG assessment criteria";
+  else if (totals.gap > 0 || totals.notRun > 0)
+    overall = "INCOMPLETE - Some checklist items are not yet covered or could not be evaluated";
   else
-    overall = "INCOMPLETE - Some checks could not be evaluated";
+    overall = "PASS - Profile meets all ICC PAWG assessment criteria";
 
   printf("  Overall:   %s\n", overall);
   printf("\n");

@@ -382,6 +382,8 @@ async def test_analyze_security_report():
          "C1" in r and "C14" in r, r[:500])
     T.ok("report: contains quality checklist items",
          "Q1" in r and "Q4" in r, r[:500])
+    T.ok("report: preserves split PAWG states",
+         "[OK]    S1" in r and "[GAP]" in r and "[N/A]   Q4" in r, r[:700])
     T.ok("report: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("report: omits security taxonomy note",
@@ -445,6 +447,8 @@ async def test_analyze_pawg_report():
          "C1" in r and "C14" in r, r[:500])
     T.ok("pawg: contains quality items",
          "Q1" in r and "Q4" in r, r[:500])
+    T.ok("pawg: preserves split PAWG states",
+         "[OK]    S1" in r and "[GAP]" in r and "[N/A]   Q4" in r, r[:700])
     T.ok("pawg: omits conformance coverage heading",
          "CONFORMANCE CHECK COVERAGE" not in r, r[:420])
     T.ok("pawg: omits CWE references",
