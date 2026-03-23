@@ -35,6 +35,11 @@ ICC color profiles control how colors are translated between devices (cameras, m
 
 In the published container, security-oriented endpoints default to the V2 engine (`icctest`). Structural inspection and round-trip validation remain on the legacy engine until V2 grows dedicated equivalents. Override any request with `engine=v1`, `engine=v2`, or `engine=auto`.
 
+`/api/pawg` and `/api/security-report` are intentionally rendered as
+conformance-only PAWG views in the WebUI/API for now: they use the native V1/V2
+PAWG checklist output as the source, then present only the `[ CONFORMANCE ]`
+section plus coverage/spec references.
+
 The published container also bundles the source trees and Linux build toolchain required by the maintainer/operations endpoints exposed in the WebUI, so checks like `check_dependencies` reflect the container itself rather than your host OS. The XML path includes both the safe `iccDEV` tools (`iccToXml`, `iccFromXml`) and the unsafe `colorbleed_tools` fallbacks (`iccToXml_unsafe`, `iccFromXml_unsafe`).
 
 ---
@@ -67,7 +72,7 @@ curl -s 'http://127.0.0.1:8080/api/list?directory=test-profiles'
 # 173-check V2 security scan
 curl -s 'http://127.0.0.1:8080/api/security?path=sRGB_D65_MAT.icc'
 
-# PAWG-oriented assessment report with checklist/spec references
+# PAWG-oriented conformance report with checklist/spec references
 curl -s 'http://127.0.0.1:8080/api/pawg?path=sRGB_D65_MAT.icc'
 
 # Structured V2 security JSON object
@@ -288,8 +293,8 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
 | `GET` | `/api/security` | `path` | 173-check security scan |
 | `GET` | `/api/security-json` | `path` | Structured JSON security object |
-| `GET` | `/api/security-report` | `path` | Severity-sorted PAWG-style security report |
-| `GET` | `/api/pawg` | `path` | PAWG checklist view with bundled ICC spec PDF references |
+| `GET` | `/api/security-report` | `path` | PAWG-aligned conformance-only report with checklist/spec references |
+| `GET` | `/api/pawg` | `path` | PAWG conformance-section view with bundled ICC spec PDF references |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |

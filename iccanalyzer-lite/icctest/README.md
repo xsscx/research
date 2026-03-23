@@ -30,8 +30,21 @@ ctest --test-dir icctest/build --output-on-failure
 Registered tests:
 
 - `icctest_unit_tests`
+- `icctest_verify_pawg`
 - `icctest_verify_parity`
 - `icctest_generated_image_smoke`
+
+Native PAWG report parity smoke:
+
+```bash
+python3 icctest/tools/verifyPawg.py \
+  --v1-binary ./iccanalyzer-lite \
+  --v2-binary icctest/build/cli/icctest
+```
+
+V2 now has a native `--pawg` formatter aligned to the ICC PAWG 31-item
+checklist. The MCP/WebUI layer intentionally exposes the conformance-only
+slice of that PAWG report for `/api/security-report` and `/api/pawg`.
 
 ## Parity Verification
 
@@ -70,7 +83,8 @@ On the current corpus and generated image smoke:
 - image outer parity: `delta = 0`
 - embedded raw parity: `delta = 0`
 - generated PNG/JPEG embedded-ICC smoke: pass
-- unit tests: `406/406 passed`
+- PAWG verifier: pass
+- unit tests: `504/504 passed`
 
 ## CI Notes
 
