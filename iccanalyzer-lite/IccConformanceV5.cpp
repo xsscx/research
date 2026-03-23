@@ -2599,16 +2599,12 @@ int RunCF176_EmbeddedProfileTagReservedBytes(CIccProfile *pIcc) {
     return 0;
   }
 
-  // Find the ICC5 tag's offset and size from the tag table
   int issues = 0;
   bool found = false;
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
     if (it->TagInfo.sig == icSigEmbeddedV5ProfileTag) {
       icUInt32Number tagSize = it->TagInfo.size;
-
-      // Tag data layout: bytes 0-3 = type sig 'ICCp', bytes 4-7 = reserved (shall be 0)
-      // Need at least 8 bytes
       if (tagSize < 8) {
         printf("         %s[FAIL]%s Embedded profile tag size %u < 8 bytes — "
                "cannot contain required type + reserved fields\n",
@@ -2618,15 +2614,11 @@ int RunCF176_EmbeddedProfileTagReservedBytes(CIccProfile *pIcc) {
         break;
       }
 
-      // Read reserved bytes via library's Validate output
-      // Since we can't directly access raw tag data here without filename,
-      // use the tag's own Validate method which checks reserved bytes
-      std::string sigPath, sReport;
-      sigPath = "ICC5";
-      (void)pTag->Validate(sigPath, sReport, pIcc);
-
-      if (sReport.find("Reserved") != std::string::npos &&
-          sReport.find("not zero") != std::string::npos) {
+      std::string sigPath = "ICC5";
+      std::string sReport;
+      icValidateStatus status = pTag->Validate(sigPath, sReport, pIcc);
+      if (status > icValidateOK &&
+          sReport.find("Reserved Value must be zero") != std::string::npos) {
         printf("         %s[FAIL]%s Embedded profile tag reserved bytes (4-7) are not zero — "
                "ICC TN Embedding Table 1: 'Reserved, shall be 0'\n",
                ColorError(), ColorReset());
