@@ -1,0 +1,38 @@
+--- a/IccProfLib/IccUtil.cpp	2026-03-23 16:02:45.025184536 +0000
++++ b/IccProfLib/IccUtil.cpp	2026-03-23 16:02:45.026184526 +0000
+@@ -1084,7 +1084,7 @@
+       c='?';
+       bGetHexVal = true;
+     }
+-    pBuf[i]=c;
++    pBuf[i]=(icChar)c;
+     if (i < 4) sig <<=8;
+   }
+ 
+@@ -1126,7 +1126,7 @@
+       c='?';
+       bGetHexVal = true;
+     }
+-    pBuf[i]=c;
++    pBuf[i]=(icChar)c;
+     if (i < 3) sig <<=8;
+   }
+ 
+@@ -1183,7 +1183,7 @@
+           c = '?';
+           bNeedHexVal = true;
+         }
+-        pBuf[i]=c;
++        pBuf[i]=(icChar)c;
+         if (i < 4) sig <<=8;
+       }
+ 
+@@ -1249,7 +1249,7 @@
+             c='?';
+             bGetHexVal = true;
+           }
+-          pBuf[i]=c;
++          pBuf[i]=(icChar)c;
+           if (i < 3) sig <<=8;
+         }
+ 
