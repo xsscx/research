@@ -56,26 +56,6 @@ DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto"
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
 _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
-_CWE_INLINE_PAREN_RE = re.compile(r"\(\s*CWE-[^)]+\)")
-_CWE_TOKEN_RE = re.compile(r"\bCWE-[A-Za-z0-9/-]+:?\s*")
-_FINDING_HEADER_RE = re.compile(
-    r"^\s*\[(?P<check_id>H\d+|CF-\d{3})\]\s+"
-    r"(?P<severity>CRITICAL|HIGH|MEDIUM|LOW|INFO)\s*$"
-)
-_PAWG_SECURITY_NOTE_LINES = frozenset({
-    "command injection",
-    "double free",
-    "improper input validation",
-    "incorrect calculation of buffer size",
-    "integer overflow or wraparound",
-    "null pointer dereference",
-    "out-of-bounds read",
-    "out-of-bounds write",
-    "path traversal",
-    "stack-based buffer overflow",
-    "uncontrolled resource consumption",
-    "use after free",
-})
 _PAWG_REFERENCE_BLOCK_LINES = (
     f"  ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
     "  ICC Specification PDFs:",
@@ -144,136 +124,64 @@ def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") 
     return text.replace(marker, insert, 1)
 
 
-def _strip_cwe_references(line: str) -> str:
-    """Remove CWE identifiers while preserving any useful trailing detail."""
-    if not line:
-        return line
-    indent_len = len(line) - len(line.lstrip(" "))
-    indent = line[:indent_len]
-    body = line[indent_len:]
-    body = _CWE_INLINE_PAREN_RE.sub("", body)
-    body = _CWE_TOKEN_RE.sub("", body)
-    body = re.sub(r"\(\s*\)", "", body)
-    body = re.sub(r"\s{2,}", " ", body).strip()
-    body = re.sub(r"\s+([,.;)])", r"\1", body)
-    if not body:
-        return ""
-    return indent + body
+def _insert_pawg_reference_block(lines: list[str]) -> list[str]:
+    rendered: list[str] = []
+    inserted = False
+    for line in lines:
+        if ICC_PROFILE_ASSESSMENT_URL in line or "docs/iccDEV/specifications/" in line:
+            continue
+        rendered.append(line)
+        if "Goals for profile assessment" in line and not inserted:
+            rendered.extend(_PAWG_REFERENCE_BLOCK_LINES)
+            inserted = True
+    if not inserted:
+        rendered.extend(_PAWG_REFERENCE_BLOCK_LINES)
+    return rendered
 
 
-def _decorate_pawg_security_report(text: str) -> str:
-    """Rewrite V2 report text into a PAWG-oriented, conformance-only view."""
+def _slice_between(lines: list[str], start_marker: str, end_markers: tuple[str, ...]) -> list[str]:
+    start_idx = next((i for i, line in enumerate(lines) if start_marker in line), -1)
+    if start_idx < 0:
+        return []
+    end_idx = len(lines)
+    for marker in end_markers:
+        idx = next((i for i, line in enumerate(lines[start_idx + 1:], start_idx + 1) if marker in line), -1)
+        if idx >= 0:
+            end_idx = min(end_idx, idx)
+    return lines[start_idx:end_idx]
+
+
+def _render_pawg_conformance_view(text: str) -> str:
+    """Render the native PAWG output as a conformance-only web view."""
     if not text:
         return text
-    marker = f"{_V2_TITLE_LINE}\n"
-    if marker in text:
-        text = "\n".join(
-            line for line in text.splitlines()
-            if ICC_PROFILE_ASSESSMENT_URL not in line
-            and "docs/iccDEV/specifications/" not in line
-        )
-        insert = _V2_TITLE_LINE + "\n" + "\n".join(_PAWG_REFERENCE_BLOCK_LINES) + "\n"
-        text = text.replace(marker, insert, 1)
 
-    lines = text.splitlines()
-    summary_header = "─── Summary ───────────────────────────────────────────────────────────"
-    findings_header = "─── Findings ──────────────────────────────────────────────────────────"
-    checks_run_line = ""
-    preamble: list[str] = []
-    footer_lines: list[str] = []
+    lines = [line.rstrip() for line in _sanitize_output(text).splitlines()]
+    conformance = _slice_between(lines, "[ CONFORMANCE ]", ("[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))
+    coverage = _slice_between(lines, "[ CONFORMANCE CHECK COVERAGE ]", ("[ SPECIFICATION REFERENCES ]",))
+    references = _slice_between(lines, "[ SPECIFICATION REFERENCES ]", ())
 
-    idx = 0
-    while idx < len(lines):
-        line = lines[idx]
-        if line.startswith("─── Summary"):
-            summary_header = line
-            idx += 1
-            break
-        preamble.append(line)
-        idx += 1
+    if not conformance:
+        return _sanitize_output(text)
 
-    while idx < len(lines):
-        line = lines[idx]
-        if line.startswith("─── Findings"):
-            findings_header = line
-            idx += 1
-            break
-        if "Checks run:" in line:
-            checks_run_line = line
-        idx += 1
-
-    cf_blocks: list[tuple[str, list[str]]] = []
-    current_block: list[str] = []
-    current_severity = ""
-
-    def flush_block() -> None:
-        nonlocal current_block, current_severity
-        if not current_block:
-            return
-        match = _FINDING_HEADER_RE.match(current_block[0])
-        if match and match.group("check_id").startswith("CF-"):
-            cleaned = [current_block[0]]
-            for detail in current_block[1:]:
-                if "CWE-" in detail:
-                    continue
-                rewritten = _strip_cwe_references(detail)
-                normalized = rewritten.strip().lower()
-                if not normalized or normalized in _PAWG_SECURITY_NOTE_LINES:
-                    continue
-                cleaned.append(rewritten)
-            cf_blocks.append((current_severity, cleaned))
-        current_block = []
-        current_severity = ""
-
-    while idx < len(lines):
-        line = lines[idx]
-        header = _FINDING_HEADER_RE.match(line)
-        if header:
-            flush_block()
-            current_block = [line]
-            current_severity = header.group("severity")
-            idx += 1
-            continue
-        if line.startswith("════════"):
-            flush_block()
-            footer_lines.append(line)
-            idx += 1
-            continue
-        if current_block:
-            current_block.append(line)
-        elif line.strip():
-            footer_lines.append(line)
-        idx += 1
-    flush_block()
-
-    severity_order = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
-    severity_counts = {level: 0 for level in severity_order}
-    for severity, _block in cf_blocks:
-        severity_counts[severity] += 1
+    header_end = next((i for i, line in enumerate(lines) if "[ SECURITY ]" in line), len(lines))
+    header = _insert_pawg_reference_block(lines[:header_end])
 
     rendered: list[str] = []
-    rendered.extend(preamble)
+    rendered.extend(header)
     if rendered and rendered[-1].strip():
         rendered.append("")
-    rendered.append(summary_header)
-    rendered.append("  View: PAWG / conformance findings only")
-    if checks_run_line:
-        rendered.append(checks_run_line)
-    for level in severity_order:
-        if severity_counts[level]:
-            rendered.append(f"  {level}: {severity_counts[level]}")
+    rendered.append("  View: PAWG / conformance section only")
     rendered.append("")
-    rendered.append(findings_header)
-    if cf_blocks:
-        for _severity, block in cf_blocks:
-            rendered.extend(block)
+    rendered.extend(conformance)
+    if coverage:
+        if rendered and rendered[-1].strip():
             rendered.append("")
-    else:
-        rendered.append("  No conformance findings.")
-        rendered.append("")
-    if footer_lines:
-        rendered.extend(footer_lines)
-
+        rendered.extend(coverage)
+    if references:
+        if rendered and rendered[-1].strip():
+            rendered.append("")
+        rendered.extend(references)
     return _sanitize_output("\n".join(rendered).strip())
 
 
@@ -307,6 +215,8 @@ def _map_flags(flags: list[str], engine: str | None) -> list[str]:
     # V2 needs --no-sandbox when run from MCP server (no seccomp in Docker)
     if "--no-sandbox" not in mapped:
         mapped.insert(0, "--no-sandbox")
+    if "--no-color" not in mapped:
+        mapped.insert(1, "--no-color")
     return mapped
 
 # Allowed base directories for profile resolution (resolved at import time)
@@ -649,11 +559,10 @@ async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE
 
 @mcp.tool()
 async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
-    """Run 173-heuristic security analysis with professional report output.
+    """Run PAWG-aligned conformance report output.
 
-    Returns a severity-sorted security report with executive summary,
-    findings grouped by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO),
-    the ICC PAWG checklist reference, and coverage statistics.
+    Returns a conformance-only PAWG view aligned to the ICC assessment
+    checklist, with the official checklist URL and bundled spec references.
 
     Args:
         path: Path to .icc file
@@ -662,10 +571,11 @@ async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGI
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    flags = _map_flags(["--legacy", "--report"], engine)
-    return _decorate_pawg_security_report(
-        await _run([str(analyzer)] + flags + [str(profile)])
-    )
+    if analyzer == ANALYZER_V2_BIN:
+        flags = _map_flags(["--pawg"], "v2")
+    else:
+        flags = _map_flags(["-pawg"], "v1")
+    return _render_pawg_conformance_view(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 async def analyze_pawg_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
@@ -675,10 +585,8 @@ async def analyze_pawg_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) 
     if analyzer == ANALYZER_V2_BIN:
         flags = _map_flags(["--pawg"], "v2")
     else:
-        flags = _map_flags(["--legacy", "--report"], "v1")
-    return _decorate_pawg_security_report(
-        await _run([str(analyzer)] + flags + [str(profile)])
-    )
+        flags = _map_flags(["-pawg"], "v1")
+    return _render_pawg_conformance_view(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 @mcp.tool()

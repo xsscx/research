@@ -117,14 +117,14 @@ static PAWGItem BuildSecurityItems[] = {
   PAWG_ITEM("S3",  "Platform, Creator, Manufacturer and CMM fields correspond to registered signatures or are zero", kS3),
   PAWG_ITEM("S4",  "Illuminant corresponds to D50", kS4),
   PAWG_ITEM("S5",  "Unless a DeviceLink profile, PCS is Lab or XYZ", kS5),
-  PAWG_ITEM("S6",  "Tags correctly aligned - offset and length correspond to tag table, no overlapping tags or gaps", kS6),
+  PAWG_ITEM("S6",  "Tags correctly aligned - offset and length correspond to tag table, no overlapping tags or gaps between tags - and correctly encoded", kS6),
   PAWG_ITEM("S7",  "Tag table correctly encoded", kS7),
   PAWG_ITEM("S8",  "No known malware signatures present", kS8),
   PAWG_ITEM("S9",  "EOF follows last tag (including four-byte boundary), no additional bytes before or after", kS9),
-  PAWG_ITEM("S10", "Excessive calculator elements not present (computation cost estimate provided)", kS10),
+  PAWG_ITEM("S10", "Excessive calculator elements not present (ideally provide an estimate of computation cost)", kS10),
   PAWG_ITEM("S11", "Private tags ideally not present", kS11),
   PAWG_ITEM("S12", "Private tags do not contain malware", kS12),
-  PAWG_ITEM("S13", "Private tags do not contain exploitable NOP instructions", kS13),
+  PAWG_ITEM("S13", "Private tags do not contain exploitable non-operation (NOP) instructions", kS13),
 };
 
 static PAWGItem BuildConformanceItems[] = {
