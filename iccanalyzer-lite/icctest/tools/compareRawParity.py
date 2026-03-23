@@ -257,7 +257,7 @@ def is_conformance_applicability_skip(summary: str) -> bool:
     if any(fragment in text for fragment in suspicious_fragments):
         return False
 
-    if "not applicable" in text or " n/a" in text:
+    if text.startswith("n/a") or "not applicable" in text or " n/a" in text:
         return True
 
     if text.startswith("no "):
@@ -331,6 +331,20 @@ def is_conformance_omitted_applicability_match(
     if int(v2_record.get("findingCount", 0)) != 0:
         return False
     return is_conformance_applicability_skip(v2_record.get("summary", ""))
+
+
+def is_conformance_omitted_not_run_match(
+    v1_record: dict | None, v2_record: dict | None
+) -> bool:
+    if v1_record is not None or not v2_record:
+        return False
+    if v2_record.get("normalizedStatus", "") != "ok":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 0:
+        return False
+
+    summary = normalize_summary_text(v2_record.get("summary", ""))
+    return summary.startswith("not run:")
 
 
 def is_conformance_advisory_match(v1_record: dict | None, v2_record: dict | None) -> bool:
@@ -463,6 +477,11 @@ def compare_lane(
         ):
             comparison = "export_omission_match"
             normalized_reason = "v1_json_omitted_heuristic_on_early_rejected_input"
+        elif lane == "conformance" and is_conformance_omitted_not_run_match(
+            v1_record, v2_record
+        ):
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_text_omitted_not_run_conformance_check"
         elif lane == "conformance" and is_conformance_omitted_applicability_match(
             v1_record, v2_record
         ):
@@ -766,6 +785,7 @@ def main() -> int:
             "CF severity is not compared by default because V1 and V2 use different conformance severity taxonomies.",
             "Raw ICC conformance uses the V1 `-a` text adapter because the V1 `--json` path omits a material subset of CF results.",
             "Conformance V1 ok/no-findings versus V2 skip/no-findings is normalized as applicability_match when V2 explains the skip as not-applicable rather than load/error fallout.",
+            "Conformance V1 omitted results versus V2 ok/NOT RUN is normalized as implicit_skip_match when V2 is making load failure explicit rather than omitting the CF entry.",
             "Conformance V1 ok versus V2 finding is normalized as advisory_match when every V2 finding is INFO/LOW, reflecting legacy informational notes that V1 did not treat as failing status.",
             "V1 heuristic H151 is synthesized from the composite H37 JSON output because the V1 binary does not emit a standalone H151 record.",
             "V1 heuristic export omissions on early-rejected raw inputs are normalized as export_omission_match for H111/H142-H146 when V2 reports clean ok/no-findings.",

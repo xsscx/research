@@ -45,6 +45,10 @@ def default_cmyk_quality_profile() -> Path:
     return repo_root() / "tests" / "corpus" / "targ_cmyk_quality_profile.icc"
 
 
+def default_named_color_profile() -> Path:
+    return repo_root().parent / "test-profiles" / "NamedColor.icc"
+
+
 def expected_spec_reference_paths() -> list[str]:
     spec_dir = repo_root().parent / "docs" / "iccDEV" / "specifications"
     return [
@@ -62,6 +66,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bad-profile", type=Path, default=default_bad_profile())
     parser.add_argument("--characterization-profile", type=Path, default=default_characterization_profile())
     parser.add_argument("--cmyk-quality-profile", type=Path, default=default_cmyk_quality_profile())
+    parser.add_argument("--named-color-profile", type=Path, default=default_named_color_profile())
     return parser.parse_args()
 
 
@@ -184,6 +189,7 @@ def main() -> int:
     ensure_file(args.bad_profile, "bad profile")
     ensure_file(args.characterization_profile, "characterization profile")
     ensure_file(args.cmyk_quality_profile, "CMYK quality profile")
+    ensure_file(args.named_color_profile, "NamedColor profile")
 
     failures: list[str] = []
 
@@ -195,6 +201,8 @@ def main() -> int:
     v2_char = run([str(args.v2_binary), "--no-color", "--pawg", str(args.characterization_profile)], label="v2 characterization PAWG")
     v1_cmyk = run([str(args.v1_binary), "-pawg", str(args.cmyk_quality_profile)], label="v1 CMYK PAWG")
     v2_cmyk = run([str(args.v2_binary), "--no-color", "--pawg", str(args.cmyk_quality_profile)], label="v2 CMYK PAWG")
+    v1_named = run([str(args.v1_binary), "-pawg", str(args.named_color_profile)], label="v1 NamedColor PAWG")
+    v2_named = run([str(args.v2_binary), "--no-color", "--pawg", str(args.named_color_profile)], label="v2 NamedColor PAWG")
 
     check_report("v1 good", v1_good, failures)
     check_report("v2 good", v2_good, failures)
@@ -204,6 +212,8 @@ def main() -> int:
     check_report("v2 characterization", v2_char, failures)
     check_report("v1 CMYK", v1_cmyk, failures)
     check_report("v2 CMYK", v2_cmyk, failures)
+    check_report("v1 NamedColor", v1_named, failures)
+    check_report("v2 NamedColor", v2_named, failures)
 
     v1_good_items = parse_item_lines(v1_good, failures, "v1 good")
     v2_good_items = parse_item_lines(v2_good, failures, "v2 good")
@@ -213,11 +223,14 @@ def main() -> int:
     v2_char_items = parse_item_lines(v2_char, failures, "v2 characterization")
     v1_cmyk_items = parse_item_lines(v1_cmyk, failures, "v1 CMYK")
     v2_cmyk_items = parse_item_lines(v2_cmyk, failures, "v2 CMYK")
+    v1_named_items = parse_item_lines(v1_named, failures, "v1 NamedColor")
+    v2_named_items = parse_item_lines(v2_named, failures, "v2 NamedColor")
 
     compare_items("v1 good", v1_good_items, "v2 good", v2_good_items, failures)
     compare_items("v1 bad", v1_bad_items, "v2 bad", v2_bad_items, failures)
     compare_items("v1 characterization", v1_char_items, "v2 characterization", v2_char_items, failures)
     compare_items("v1 CMYK", v1_cmyk_items, "v2 CMYK", v2_cmyk_items, failures)
+    compare_items("v1 NamedColor", v1_named_items, "v2 NamedColor", v2_named_items, failures)
 
     if v1_good_items.get("S1", ("", ""))[0] != "OK":
         failures.append("v1 good: expected S1 to render as OK")
@@ -241,6 +254,26 @@ def main() -> int:
             failures.append(f"v1 CMYK: expected {item_id} to render as OK")
         if v2_cmyk_items.get(item_id, ("", ""))[0] != "OK":
             failures.append(f"v2 CMYK: expected {item_id} to render as OK")
+    if v1_named_items.get("S1", ("", ""))[0] != "N/A":
+        failures.append("v1 NamedColor: expected S1 to render as N/A")
+    if v2_named_items.get("S1", ("", ""))[0] != "N/A":
+        failures.append("v2 NamedColor: expected S1 to render as N/A")
+    if v1_named_items.get("Q1", ("", ""))[0] != "GAP":
+        failures.append("v1 NamedColor: expected Q1 to render as GAP")
+    if v2_named_items.get("Q1", ("", ""))[0] != "GAP":
+        failures.append("v2 NamedColor: expected Q1 to render as GAP")
+    if v1_named_items.get("Q2", ("", ""))[0] != "N/A":
+        failures.append("v1 NamedColor: expected Q2 to render as N/A")
+    if v2_named_items.get("Q2", ("", ""))[0] != "N/A":
+        failures.append("v2 NamedColor: expected Q2 to render as N/A")
+    if v1_named_items.get("Q3", ("", ""))[0] != "GAP":
+        failures.append("v1 NamedColor: expected Q3 to render as GAP")
+    if v2_named_items.get("Q3", ("", ""))[0] != "GAP":
+        failures.append("v2 NamedColor: expected Q3 to render as GAP")
+    if v1_named_items.get("Q4", ("", ""))[0] != "N/A":
+        failures.append("v1 NamedColor: expected Q4 to render as N/A")
+    if v2_named_items.get("Q4", ("", ""))[0] != "N/A":
+        failures.append("v2 NamedColor: expected Q4 to render as N/A")
 
     require_regex(v1_bad, r"WARN:\s+[1-9]\d*", failures, "v1 bad")
     require_regex(v2_bad, r"WARN:\s+[1-9]\d*", failures, "v2 bad")

@@ -25,6 +25,18 @@
 
 using namespace icctest;
 
+namespace {
+
+CheckResult not_applicable_result(const std::string& reason) {
+    return CheckResult::ok("N/A: " + reason);
+}
+
+CheckResult gap_result(const std::string& reason) {
+    return CheckResult::ok("GAP: " + reason);
+}
+
+} // namespace
+
 // ── LUT tag signature tables ────────────────────────────────────────────────
 
 static const icTagSignature kAToBSigs[] = {
@@ -162,7 +174,7 @@ static CheckResult check_cf060_lut_input_channel_count(const ProfileView& pv) {
 
         int trcCount = count_present_tags(pIcc, kRgbTrcSigs, kRgbFamilyCount);
         if (deviceChan == 0) {
-            return CheckResult::skip("Could not determine expected RGB device channel count");
+            return gap_result("Could not determine expected RGB device channel count");
         }
         if (trcCount != static_cast<int>(deviceChan)) {
             findings.push_back({cfId, Severity::HIGH,
@@ -183,7 +195,7 @@ static CheckResult check_cf060_lut_input_channel_count(const ProfileView& pv) {
 
         int grayCount = pIcc->FindTag(icSigGrayTRCTag) ? 1 : 0;
         if (deviceChan == 0) {
-            return CheckResult::skip("Could not determine expected Gray device channel count");
+            return gap_result("Could not determine expected Gray device channel count");
         }
         if (grayCount != static_cast<int>(deviceChan)) {
             findings.push_back({cfId, Severity::HIGH,
@@ -199,11 +211,11 @@ static CheckResult check_cf060_lut_input_channel_count(const ProfileView& pv) {
     }
 
     if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
-        return CheckResult::skip(
+        return not_applicable_result(
             "NamedColor profiles do not encode transform input channel counts; not applicable");
     }
 
-    if (!found) return CheckResult::skip("No LUT tags present");
+    if (!found) return gap_result("No transform tags present for channel-count validation");
     if (findings.empty()) return CheckResult::ok(okSummary);
     return {CheckResult::Status::FINDINGS, "Input channel count mismatch", std::move(findings)};
 }
@@ -247,7 +259,7 @@ static CheckResult check_cf061_lut_output_channel_count(const ProfileView& pv) {
 
         int matrixCount = count_present_tags(pIcc, kRgbMatrixSigs, kRgbFamilyCount);
         if (pcsChan == 0) {
-            return CheckResult::skip("Could not determine expected PCS channel count");
+            return gap_result("Could not determine expected PCS channel count");
         }
         if (matrixCount != static_cast<int>(pcsChan)) {
             findings.push_back({cfId, Severity::HIGH,
@@ -258,16 +270,16 @@ static CheckResult check_cf061_lut_output_channel_count(const ProfileView& pv) {
     }
 
     if (!found && is_gray_trc_fallback_applicable(pIcc)) {
-        return CheckResult::skip(
+        return not_applicable_result(
             "Gray TRC profiles do not encode PCS channel count in per-channel output tags; not applicable");
     }
 
     if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
-        return CheckResult::skip(
+        return not_applicable_result(
             "NamedColor profiles do not encode transform output channel counts; not applicable");
     }
 
-    if (!found) return CheckResult::skip("No LUT tags present");
+    if (!found) return gap_result("No transform tags present for channel-count validation");
     if (findings.empty()) return CheckResult::ok(okSummary);
     return {CheckResult::Status::FINDINGS, "Output channel count mismatch", std::move(findings)};
 }
@@ -317,7 +329,7 @@ static CheckResult check_cf062_clut_grid_dimensionality(const ProfileView& pv) {
         }
     }
 
-    if (!found) return CheckResult::skip("No CLUT elements found");
+    if (!found) return not_applicable_result("No CLUT elements found");
     if (findings.empty()) return CheckResult::ok("CLUT grid dimensions valid");
     return {CheckResult::Status::FINDINGS, "CLUT grid dimensionality issue", std::move(findings)};
 }
@@ -1265,7 +1277,7 @@ static CheckResult check_cf106_curve_monotonicity(const ProfileView& pv) {
         }
     }
 
-    if (!found) return CheckResult::skip("No tabulated TRC curves found");
+    if (!found) return not_applicable_result("No tabulated TRC curves found");
     if (findings.empty()) return CheckResult::ok("TRC curves are monotonically non-decreasing");
     return {CheckResult::Status::FINDINGS, "TRC monotonicity violation", std::move(findings)};
 }

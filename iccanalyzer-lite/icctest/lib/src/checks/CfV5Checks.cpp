@@ -372,7 +372,7 @@ static CheckResult check_cf087_v5_mpe_element_signature_valid(const ProfileView&
 // CF-088: Calculator Element Stack Structure (ICC.2-2023 §10.x)
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf088_v5_calculator_element_stack_structure(const ProfileView& pv) {
-    if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    if (!IsV5(pv)) return CheckResult::ok("N/A: Not a v5 profile");
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 

@@ -172,6 +172,7 @@ static void test_ub_prescan_gbd() {
     auto pv = ProfileView::open(data.data(), data.size());
     if (pv) {
         ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
         ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
     }
 }
@@ -182,6 +183,7 @@ static void test_ub_prescan_clean() {
     auto pv = ProfileView::open(data.data(), data.size());
     if (pv) {
         ASSERT_FALSE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->requiresLibraryQuarantine());
         ASSERT_EQ(0u, pv->ubPatternDescriptions().size());
     }
 }
@@ -198,6 +200,7 @@ static void test_ub_prescan_embedded_icc5_skip_load() {
     ASSERT_TRUE(pv.has_value());
     if (pv) {
         ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
         ASSERT_FALSE(pv->libraryLoaded());
         ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
     }
@@ -215,6 +218,7 @@ static void test_ub_prescan_half_float_header_allows_load() {
     ASSERT_TRUE(pv.has_value());
     if (pv) {
         ASSERT_FALSE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->requiresLibraryQuarantine());
         ASSERT_TRUE(pv->libraryLoaded());
     }
 }
@@ -231,9 +235,29 @@ static void test_ub_prescan_half_float_mdv_skip_load() {
     ASSERT_TRUE(pv.has_value());
     if (pv) {
         ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
         ASSERT_FALSE(pv->libraryLoaded());
         ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
         ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("float16ArrayType") != std::string::npos);
+    }
+}
+
+static void test_ub_prescan_namedcolor_keeps_library_loaded() {
+    std::printf("  test_ub_prescan_namedcolor_keeps_library_loaded...\n");
+    auto namedColor = resolve_repo_file("test-profiles/NamedColor.icc");
+    if (namedColor.empty()) {
+        std::printf("    (skipped — NamedColor.icc not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(namedColor, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->requiresLibraryQuarantine());
+        ASSERT_TRUE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("NamedColor2") != std::string::npos);
     }
 }
 
@@ -292,6 +316,7 @@ void test_profile_view() {
     test_ub_prescan_embedded_icc5_skip_load();
     test_ub_prescan_half_float_header_allows_load();
     test_ub_prescan_half_float_mdv_skip_load();
+    test_ub_prescan_namedcolor_keeps_library_loaded();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");
