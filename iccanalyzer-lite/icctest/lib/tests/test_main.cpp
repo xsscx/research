@@ -7,6 +7,8 @@
  * [BSD 3-Clause License]
  */
 
+#include "icctest/CoverageEnv.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -49,12 +51,7 @@ extern void test_runner();
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
-#if defined(__GNUC__)
-    if (!std::getenv("GCOV_PREFIX")) {
-        setenv("GCOV_PREFIX", "/tmp/icctest-gcov-unit", 0);
-        setenv("GCOV_PREFIX_STRIP", "0", 0);
-    }
-#endif
+    icctest::configureUniqueCoverageOutput("icctest-gcov-unit");
 
     std::printf("IccTest Library — Unit Tests v2.0.0\n");
     std::printf("====================================\n\n");
