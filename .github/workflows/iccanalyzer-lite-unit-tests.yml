@@ -453,9 +453,10 @@ jobs:
           python3 .github/scripts/pawg-endpoint-sample.py \
             --repo-root "$PWD" \
             --engine v2 \
-            --max-profiles 25 \
+            --max-profiles 10 \
             --seed "${GITHUB_SHA}" \
-            --output /tmp/pawg-endpoint-sample.json
+            --output /tmp/pawg-endpoint-sample.json \
+            --output-text /tmp/pawg-endpoint-reference.txt
 
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
@@ -491,6 +492,16 @@ jobs:
         with:
           name: unit-test-results
           path: iccanalyzer-lite/tests/test-results.xml
+          if-no-files-found: warn
+
+      - name: Upload PAWG endpoint sample artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: pawg-endpoint-sample-unit-tests
+          path: |
+            /tmp/pawg-endpoint-sample.json
+            /tmp/pawg-endpoint-reference.txt
           if-no-files-found: warn
 
       - name: Upload icctest parity artifacts

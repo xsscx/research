@@ -217,6 +217,9 @@ async def main_async(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(summary, indent=2))
 
+    if args.output_text and reference and reference.get("result"):
+        args.output_text.write_text(reference["result"], encoding="utf-8")
+
     if failures or reference_failure:
         for failure in failures:
             print(
@@ -285,6 +288,11 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         help="Optional JSON summary output path",
+    )
+    parser.add_argument(
+        "--output-text",
+        type=Path,
+        help="Optional plain-text reference PAWG output path",
     )
     return parser.parse_args()
 
