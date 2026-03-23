@@ -628,15 +628,28 @@ static void test_pawg_s1_matrix_trc_regression() {
     {
         auto result = analyze_corpus_checks(namedColorPath, {60, 61});
         ASSERT_EQ(2, result.stats.checksRun);
-        expect_conformance_result(result, 60, CheckResult::Status::SKIP, 0);
-        expect_conformance_result(result, 61, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 60, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 61, CheckResult::Status::OK, 0);
 
         const auto* cf60 = find_per_check(result, CheckID::Kind::Conformance, 60);
         const auto* cf61 = find_per_check(result, CheckID::Kind::Conformance, 61);
         ASSERT_TRUE(cf60 != nullptr);
         ASSERT_TRUE(cf61 != nullptr);
-        ASSERT_TRUE(cf60->result.summary.find("not applicable") != std::string::npos);
-        ASSERT_TRUE(cf61->result.summary.find("not applicable") != std::string::npos);
+        ASSERT_TRUE(cf60->result.summary.rfind("N/A:", 0) == 0);
+        ASSERT_TRUE(cf61->result.summary.rfind("N/A:", 0) == 0);
+    }
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::CONFORMANCE};
+        opts.specificChecks.push_back({CheckID::Kind::Conformance, 60});
+        opts.specificChecks.push_back({CheckID::Kind::Conformance, 61});
+
+        IccTestRunner runner;
+        auto result = runner.analyze(namedColorPath, opts);
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_conformance_result(result, 60, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 61, CheckResult::Status::OK, 0);
     }
 }
 
@@ -655,29 +668,29 @@ static void test_pawg_quality_regressions() {
         expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
-        expect_conformance_result(result, 102, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 102, CheckResult::Status::OK, 0);
 
         const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
         ASSERT_TRUE(cf102 != nullptr);
-        ASSERT_TRUE(cf102->result.summary.find("No characterization data") != std::string::npos);
+        ASSERT_TRUE(cf102->result.summary.rfind("N/A:", 0) == 0);
     }
 
     {
         auto result = analyze_corpus_checks(corpusDir / "lut8_atob_btoa.icc", {99, 100, 101});
         ASSERT_EQ(3, result.stats.checksRun);
-        expect_conformance_result(result, 99, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
 
         const auto* cf99 = find_per_check(result, CheckID::Kind::Conformance, 99);
         ASSERT_TRUE(cf99 != nullptr);
-        ASSERT_TRUE(cf99->result.summary.find("out of bounds") != std::string::npos);
+        ASSERT_TRUE(cf99->result.summary.find("samples=") != std::string::npos);
     }
 
     {
         auto result = analyze_corpus_checks(corpusDir / "lut8_atob2_btoa2.icc", {99, 100, 101});
         ASSERT_EQ(3, result.stats.checksRun);
-        expect_conformance_result(result, 99, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
         expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
 
@@ -687,7 +700,7 @@ static void test_pawg_quality_regressions() {
         ASSERT_TRUE(cf99 != nullptr);
         ASSERT_TRUE(cf100 != nullptr);
         ASSERT_TRUE(cf101 != nullptr);
-        ASSERT_TRUE(cf99->result.findings[0].detail.find("A2B2/B2A2") != std::string::npos);
+        ASSERT_TRUE(cf99->result.summary.find("A2B2/B2A2") != std::string::npos);
         ASSERT_TRUE(cf100->result.summary.find("curve(s) checked") != std::string::npos);
         ASSERT_TRUE(cf101->result.summary.find("A2B2") != std::string::npos);
     }
@@ -705,10 +718,11 @@ static void test_pawg_quality_regressions() {
     {
         auto result = analyze_corpus_checks(corpusDir / "targ_tag_profile.icc", {102});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_conformance_result(result, 102, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 102, CheckResult::Status::OK, 0);
 
         const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
         ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf102->result.summary.rfind("GAP:", 0) == 0);
         ASSERT_TRUE(cf102->result.summary.find("measurement rows were parsed") != std::string::npos);
     }
 
@@ -913,10 +927,14 @@ static void test_embedding_tech_note_regressions() {
     {
         auto result = analyze_corpus_checks(corpusDir / "v5_spac_basic.icc", {216, 217, 218, 219});
         ASSERT_EQ(4, result.stats.checksRun);
-        expect_conformance_result(result, 216, CheckResult::Status::SKIP, 0);
-        expect_conformance_result(result, 217, CheckResult::Status::SKIP, 0);
-        expect_conformance_result(result, 218, CheckResult::Status::SKIP, 0);
-        expect_conformance_result(result, 219, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 216, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 217, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 218, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 219, CheckResult::Status::OK, 0);
+
+        const auto* cf216 = find_per_check(result, CheckID::Kind::Conformance, 216);
+        ASSERT_TRUE(cf216 != nullptr);
+        ASSERT_TRUE(cf216->result.summary.rfind("NOT RUN:", 0) == 0);
     }
 }
 

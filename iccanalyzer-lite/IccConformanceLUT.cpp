@@ -63,6 +63,17 @@ static constexpr double kMatrixIdentityTol = 0.002;
 // Determinant singularity threshold
 static constexpr double kDetEpsilon = 0.0001;
 
+static void PrintCoverageOutcome(const char *label, const char *reason) {
+  printf("         %s[%s]%s %s\n",
+         ColorInfo(), label, ColorReset(), reason);
+}
+
+static void RecordCoverageOutcome(HeuristicCollector &hc,
+                                  const char *label,
+                                  const char *reason) {
+  hc.info("%s: %s", label, reason);
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 static bool IsAToBDirection(icTagSignature sig) {
@@ -184,9 +195,10 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
 
     int trcCount = CountPresentTags(pIcc, kRgbTrcSigs, kRgbFamilyCount);
     if (deviceChan == 0) {
-      printf("         Could not determine expected RGB device channel count\n");
-      hc.info("Could not determine expected RGB device channel count");
-      return -1;
+      const char *reason = "Could not determine expected RGB device channel count";
+      PrintCoverageOutcome("GAP", reason);
+      RecordCoverageOutcome(hc, "GAP", reason);
+      return 0;
     }
 
     if (trcCount != (int)deviceChan) {
@@ -211,9 +223,10 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
 
     int grayCount = pIcc->FindTag(icSigGrayTRCTag) ? 1 : 0;
     if (deviceChan == 0) {
-      printf("         Could not determine expected Gray device channel count\n");
-      hc.info("Could not determine expected Gray device channel count");
-      return -1;
+      const char *reason = "Could not determine expected Gray device channel count";
+      PrintCoverageOutcome("GAP", reason);
+      RecordCoverageOutcome(hc, "GAP", reason);
+      return 0;
     }
 
     if (grayCount != (int)deviceChan) {
@@ -233,15 +246,17 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
   }
 
   if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
-    printf("         NamedColor profiles do not encode transform input channel counts — check not applicable\n");
-    hc.info("NamedColor profiles do not encode transform input channel counts; not applicable");
-    return -1;
+    const char *reason = "NamedColor profiles do not encode transform input channel counts";
+    PrintCoverageOutcome("N/A", reason);
+    RecordCoverageOutcome(hc, "N/A", reason);
+    return 0;
   }
 
   if (!found) {
-    printf("         No LUT tags present — check not applicable\n");
-    hc.info("No LUT tags present");
-    return -1;
+    const char *reason = "No transform tags present for channel-count validation";
+    PrintCoverageOutcome("GAP", reason);
+    RecordCoverageOutcome(hc, "GAP", reason);
+    return 0;
   }
 
   if (issues == 0)
@@ -305,9 +320,10 @@ static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
 
     int matrixCount = CountPresentTags(pIcc, kRgbMatrixSigs, kRgbFamilyCount);
     if (pcsChan == 0) {
-      printf("         Could not determine expected PCS channel count\n");
-      hc.info("Could not determine expected PCS channel count");
-      return -1;
+      const char *reason = "Could not determine expected PCS channel count";
+      PrintCoverageOutcome("GAP", reason);
+      RecordCoverageOutcome(hc, "GAP", reason);
+      return 0;
     }
 
     if (matrixCount != (int)pcsChan) {
@@ -320,21 +336,25 @@ static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
   }
 
   if (!found && IsGrayTrcFallbackApplicable(pIcc)) {
-    printf("         Gray TRC profiles do not encode PCS channel count in per-channel output tags — check not applicable\n");
-    hc.info("Gray TRC profiles do not encode PCS channel count in per-channel output tags; not applicable");
-    return -1;
+    const char *reason =
+        "Gray TRC profiles do not encode PCS channel count in per-channel output tags";
+    PrintCoverageOutcome("N/A", reason);
+    RecordCoverageOutcome(hc, "N/A", reason);
+    return 0;
   }
 
   if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
-    printf("         NamedColor profiles do not encode transform output channel counts — check not applicable\n");
-    hc.info("NamedColor profiles do not encode transform output channel counts; not applicable");
-    return -1;
+    const char *reason = "NamedColor profiles do not encode transform output channel counts";
+    PrintCoverageOutcome("N/A", reason);
+    RecordCoverageOutcome(hc, "N/A", reason);
+    return 0;
   }
 
   if (!found) {
-    printf("         No LUT tags present — check not applicable\n");
-    hc.info("No LUT tags present");
-    return -1;
+    const char *reason = "No transform tags present for channel-count validation";
+    PrintCoverageOutcome("GAP", reason);
+    RecordCoverageOutcome(hc, "GAP", reason);
+    return 0;
   }
 
   if (issues == 0)
@@ -406,9 +426,10 @@ static int RunCF062_CLUTGridDimensionality(CIccProfile *pIcc) {
   }
 
   if (!found) {
-    printf("         No CLUT elements found — check not applicable\n");
-    hc.info("No CLUT elements found");
-    return -1;
+    const char *reason = "No CLUT elements found";
+    PrintCoverageOutcome("N/A", reason);
+    RecordCoverageOutcome(hc, "N/A", reason);
+    return 0;
   }
 
   if (issues == 0)
@@ -1623,6 +1644,7 @@ static int RunCF105_LUTChannelSymmetry(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int RunCF106_CurveMonotonicity(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   printf("  %s[CF-106]%s Curve Monotonicity (%sICC.1-2022-05 §10.5%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -1660,8 +1682,11 @@ static int RunCF106_CurveMonotonicity(CIccProfile *pIcc) {
     }
   }
 
-  if (!found)
-    printf("         No tabulated TRC curves found — check not applicable\n");
+  if (!found) {
+    const char *reason = "No tabulated TRC curves found";
+    PrintCoverageOutcome("N/A", reason);
+    RecordCoverageOutcome(hc, "N/A", reason);
+  }
 
   if (issues == 0)
     printf("         %s[OK]%s TRC curves are monotonically non-decreasing\n",

@@ -1902,6 +1902,23 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
+    namedcolor_profile = str(TEST_PROFILES / "NamedColor.icc")
+    rc_named, stdout_named, stderr_named = suite.run_analyzer(["-pawg", namedcolor_profile])
+    has_namedcolor_states = (
+        re.search(r"\[N/A\]\s+S1\b", stdout_named) is not None and
+        re.search(r"\[GAP\]\s+Q1\b", stdout_named) is not None and
+        re.search(r"\[N/A\]\s+Q2\b", stdout_named) is not None and
+        re.search(r"\[GAP\]\s+Q3\b", stdout_named) is not None and
+        re.search(r"\[N/A\]\s+Q4\b", stdout_named) is not None and
+        "[ -- ]" not in stdout_named
+    )
+    suite.results.append(TestResult(
+        "pawg.namedcolor_coverage_states", has_namedcolor_states,
+        "Expected NamedColor PAWG output to classify S1/Q1/Q2/Q3/Q4 without any [ -- ] items"
+        if not has_namedcolor_states else "",
+        0.0, "", ""
+    ))
+
     # Counts should sum to exactly 31 including N/A/GAP/NOT RUN categories
     if has_counts:
         na_match = re.search(r"N/A:\s+(\d+)", stdout)
@@ -2897,7 +2914,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.quality.transform_smoothness_cmyk",
         ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
-        r"CF-101.*[Ss]moothness.*acceptable|Transform smoothness acceptable"
+        r"CF-101.*[Ss]moothness|Transform smoothness metrics recorded"
     )
     suite.assert_output_contains(
         "cf.quality.roundtrip_cmyk",
@@ -2919,12 +2936,12 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.quality.characterization_data_eval",
         ["-a", f"{corpus}/targ_quality_profile.icc"],
-        r"CF-102.*Characterization.*avg DeltaE00|Characterization data agrees"
+        r"CF-102.*Characterization.*avg DeltaE00|Characterization DeltaE00 metrics recorded"
     )
     suite.assert_output_contains(
         "cf.quality.characterization_data_eval_cmyk",
         ["-a", f"{corpus}/targ_cmyk_quality_profile.icc"],
-        r"CF-102.*Characterization.*avg DeltaE00|Characterization data agrees"
+        r"CF-102.*Characterization.*avg DeltaE00|Characterization DeltaE00 metrics recorded"
     )
 
     # ═══════════════════════════════════════════════════════════════════════

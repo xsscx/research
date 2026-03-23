@@ -107,6 +107,7 @@ ProfileView::ProfileView(ProfileView&& other) noexcept
       m_rawTags(std::move(other.m_rawTags)),
       m_header(other.m_header),
       m_ubPatternsDetected(other.m_ubPatternsDetected),
+      m_libraryLoadUnsafe(other.m_libraryLoadUnsafe),
       m_ubDescriptions(std::move(other.m_ubDescriptions)),
       m_path(std::move(other.m_path)) {}
 
@@ -117,6 +118,7 @@ ProfileView& ProfileView::operator=(ProfileView&& other) noexcept {
         m_rawTags = std::move(other.m_rawTags);
         m_header = other.m_header;
         m_ubPatternsDetected = other.m_ubPatternsDetected;
+        m_libraryLoadUnsafe = other.m_libraryLoadUnsafe;
         m_ubDescriptions = std::move(other.m_ubDescriptions);
         m_path = std::move(other.m_path);
     }
@@ -375,6 +377,7 @@ void ProfileView::runUBPreScan() {
         uint32_t typeSig = readU32BE(m_rawData.data() + tag.offset);
         if (typeSig == static_cast<uint32_t>(icSigEmbeddedProfileType)) {
             m_ubPatternsDetected = true;
+            m_libraryLoadUnsafe = true;
             char desc[192];
             std::snprintf(desc, sizeof(desc),
                 "Embedded ICC5 tag at 0x%X with ICCp type will hit CIccEmbedIO constructor UB (IccIO.cpp:569)",
@@ -396,6 +399,7 @@ void ProfileView::runUBPreScan() {
                 uint32_t nTriangles = readU32BE(m_rawData.data() + tag.offset + 16);
                 if (nTriangles > 715827882u) {  // INT_MAX/3
                     m_ubPatternsDetected = true;
+                    m_libraryLoadUnsafe = true;
                     char desc[128];
                     std::snprintf(desc, sizeof(desc),
                         "GBD nTriangles=%u would overflow int (nTriangles*3)",
@@ -456,6 +460,7 @@ void ProfileView::runUBPreScan() {
         scanHalfFloatIccUtilUB(m_rawData.data(), m_rawData.size(), m_rawTags);
     if (halfFloatResult.hitCount > 0) {
         m_ubPatternsDetected = true;
+        m_libraryLoadUnsafe = true;
         for (const auto& example : halfFloatResult.examples) {
             std::string desc =
                 "Half-float value triggers icF16toF unsigned-wrap UB (IccUtil.cpp:665/677): " +
@@ -469,7 +474,7 @@ void ProfileView::runUBPreScan() {
 // ── Library loading ──
 
 bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
-    if (skipLibraryOnUB && m_ubPatternsDetected) {
+    if (skipLibraryOnUB && m_libraryLoadUnsafe) {
         ICCTEST_WARN("Skipping CIccProfile::Read due to known UB trigger patterns");
         return false;
     }

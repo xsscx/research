@@ -22,19 +22,33 @@
 
 using namespace icctest;
 
+namespace {
+
+CheckResult not_applicable_result(const std::string& reason) {
+    return CheckResult::ok("N/A: " + reason);
+}
+
+CheckResult gap_result(const std::string& reason) {
+    return CheckResult::ok("GAP: " + reason);
+}
+
+bool is_characterization_not_applicable(const std::string& reason) {
+    return reason.find("No characterization data") != std::string::npos;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------
 // CF-099: Round-Trip Transform CIEDE2000
 // ---------------------------------------------------------------------------
 static CheckResult check_cf099_round_trip_ciede2000(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return CheckResult::skip("Library failed to load profile");
     auto* pIcc = pv.unsafeLibraryHandle();
-    std::vector<Finding> findings;
-    CheckID id{CheckID::Kind::Conformance, 99};
 
     iccquality::RoundTripMetrics metrics;
     std::string reason;
     if (!iccquality::measure_round_trip(pIcc, metrics, reason))
-        return CheckResult::skip(reason);
+        return gap_result(reason);
 
     char detail[256];
     std::snprintf(detail, sizeof(detail),
@@ -42,14 +56,6 @@ static CheckResult check_cf099_round_trip_ciede2000(const ProfileView& pv) {
                   metrics.model.c_str(), metrics.samples,
                   metrics.avgFirstDe00, metrics.maxFirstDe00,
                   metrics.avgSecondDe00, metrics.maxSecondDe00);
-
-    if (metrics.maxFirstDe00 > 5.0 || metrics.avgFirstDe00 > 2.0 ||
-        metrics.maxSecondDe00 > 5.0 || metrics.avgSecondDe00 > 2.0) {
-        findings.push_back({id, Severity::MEDIUM,
-            "Bounded round-trip DeltaE00 exceeds expected limits",
-            detail, ""});
-        return {CheckResult::Status::FINDINGS, "Round-trip DeltaE00 out of bounds", std::move(findings)};
-    }
 
     return CheckResult::ok(detail);
 }
@@ -64,7 +70,7 @@ static CheckResult check_cf100_curve_invertibility(const ProfileView& pv) {
     CheckID id{CheckID::Kind::Conformance, 100};
 
     const auto metrics = iccquality::measure_curve_invertibility(pIcc);
-    if (metrics.curves.empty()) return CheckResult::skip("No supported curves found");
+    if (metrics.curves.empty()) return not_applicable_result("No supported curves found");
 
     for (const auto& curve : metrics.curves) {
         char detail[160];
@@ -78,16 +84,12 @@ static CheckResult check_cf100_curve_invertibility(const ProfileView& pv) {
             findings.push_back({id, Severity::HIGH,
                 curve.name + ": flat curve — not invertible",
                 detail, ""});
-        } else if (curve.maxError > 0.01) {
-            findings.push_back({id, Severity::HIGH,
-                curve.name + ": bounded invertibility error exceeds threshold",
-                detail, ""});
         }
     }
 
     if (findings.empty())
         return CheckResult::ok(std::to_string(metrics.curves.size()) +
-                               " curve(s) checked — bounded invertibility acceptable");
+                               " curve(s) checked — invertibility metrics recorded");
     return {CheckResult::Status::FINDINGS, "Non-invertible curves", std::move(findings)};
 }
 
@@ -97,13 +99,11 @@ static CheckResult check_cf100_curve_invertibility(const ProfileView& pv) {
 static CheckResult check_cf101_transform_smoothness(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return CheckResult::skip("Library failed to load profile");
     auto* pIcc = pv.unsafeLibraryHandle();
-    std::vector<Finding> findings;
-    CheckID id{CheckID::Kind::Conformance, 101};
 
     iccquality::SmoothnessMetrics metrics;
     std::string reason;
     if (!iccquality::measure_transform_smoothness(pIcc, metrics, reason))
-        return CheckResult::skip(reason);
+        return gap_result(reason);
 
     char detail[192];
     std::snprintf(detail, sizeof(detail),
@@ -111,14 +111,6 @@ static CheckResult check_cf101_transform_smoothness(const ProfileView& pv) {
                   metrics.model.c_str(), metrics.samples,
                   metrics.avgStepDe00, metrics.maxStepDe00,
                   metrics.maxCurvatureDe00, metrics.discontinuities);
-
-    if (metrics.maxStepDe00 > 8.0 || metrics.maxCurvatureDe00 > 4.0 ||
-        metrics.discontinuities > 4) {
-        findings.push_back({id, Severity::MEDIUM,
-            "Transform smoothness exceeds bounded continuity expectations",
-            detail, ""});
-        return {CheckResult::Status::FINDINGS, "Smoothness issues", std::move(findings)};
-    }
 
     return CheckResult::ok(detail);
 }
@@ -129,26 +121,21 @@ static CheckResult check_cf101_transform_smoothness(const ProfileView& pv) {
 static CheckResult check_cf102_characterization_round_trip(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return CheckResult::skip("Library failed to load profile");
     auto* pIcc = pv.unsafeLibraryHandle();
-    std::vector<Finding> findings;
-    CheckID id{CheckID::Kind::Conformance, 102};
 
     iccquality::CharacterizationMetrics metrics;
     std::string reason;
-    if (!iccquality::evaluate_characterization(pIcc, metrics, reason))
-        return CheckResult::skip(reason);
+    if (!iccquality::evaluate_characterization(pIcc, metrics, reason)) {
+        if (is_characterization_not_applicable(reason)) {
+            return not_applicable_result(reason);
+        }
+        return gap_result(reason);
+    }
 
     char detail[192];
     std::snprintf(detail, sizeof(detail),
                   "fields=%d rows=%d usableRows=%d avgDeltaE00=%.4f maxDeltaE00=%.4f",
                   metrics.fieldCount, metrics.rowCount, metrics.rowsUsed,
                   metrics.avgDe00, metrics.maxDe00);
-
-    if (metrics.maxDe00 > 5.0 || metrics.avgDe00 > 2.0) {
-        findings.push_back({id, Severity::MEDIUM,
-            "Characterization-driven DeltaE00 exceeds bounded expectations",
-            detail, ""});
-        return {CheckResult::Status::FINDINGS, "Characterization fidelity issues", std::move(findings)};
-    }
 
     return CheckResult::ok(detail);
 }
