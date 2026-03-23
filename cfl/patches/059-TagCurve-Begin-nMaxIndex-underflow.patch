@@ -1,0 +1,13 @@
+diff --git a/IccProfLib/IccTagLut.h b/IccProfLib/IccTagLut.h
+index 0e2b5f6..471e1a4 100644
+--- a/IccProfLib/IccTagLut.h
++++ b/IccProfLib/IccTagLut.h
+@@ -145,7 +145,7 @@ public:
+   bool SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt=icInitZero);
+   bool SetGamma(icFloatNumber gamma);
+ 
+-  virtual void Begin() {m_nMaxIndex = (icUInt16Number)m_nSize - 1;}
++  virtual void Begin() {m_nMaxIndex = m_nSize > 0 ? (icUInt16Number)(m_nSize - 1) : 0;}
+   virtual icFloatNumber Apply(icFloatNumber v) const;
+   virtual icValidateStatus Validate(std::string sigPath, std::string &sReport, const CIccProfile* pProfile=NULL) const;
+   virtual bool IsIdentity();
