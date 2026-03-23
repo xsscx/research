@@ -74,6 +74,17 @@ messages:
         `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless
         profiling output is intentionally being collected.
 
+      Analyzer-side UB hardening policy:
+      - `iccanalyzer-lite` and `icctest` validate against the unpatched
+        upstream `iccDEV` runtime for parity.
+      - If user-controlled input reaches recurring UB in shared upstream
+        helpers, prefer analyzer-owned guards, safe wrappers, or symbol
+        overrides instead of patching vendored `iccDEV`.
+      - Keep the matching `H-*` / `CF-*` reporting active even after the
+        runtime path is hardened.
+      - `cfl/patches` remain CFL-only and are not the runtime hardening
+        mechanism for V1/V2 analyzer execution.
+
       mluc note for future parity work:
       - A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated
         as a 12-byte recommended encoding per the ICC TN PSD guidance.
@@ -94,6 +105,11 @@ messages:
         `tests/corpus/lut8_atob2_btoa2.icc`,
         `tests/corpus/targ_quality_profile.icc`, and
         `tests/corpus/targ_cmyk_quality_profile.icc`.
+
+      Workflow note:
+      - When reasoning about built iccDEV CLI tools, do not infer success from
+        `Tools/<dir>/<dir>` naming assumptions alone. Count actual executable
+        files under `Tools/*/*`.
 
       CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
       93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for
