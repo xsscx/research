@@ -165,7 +165,7 @@ jobs:
           cd iccanalyzer-lite
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
           export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
-          SRCS="iccAnalyzer-lite.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp \
+          SRCS="iccAnalyzer-lite.cpp IccDevSafeOverrides.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp \
                 IccAnalyzerNinja.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp \
                 IccAnalyzerCallGraph.cpp IccAnalyzerComprehensive.cpp IccAnalyzerConfig.cpp \
                 IccAnalyzerErrors.cpp IccAnalyzerInspect.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp \
