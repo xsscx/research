@@ -87,6 +87,15 @@ static bool HasLibraryUBPatterns(const char *filename) {
     return true;
   }
 
+  if (IsLibraryUBDefenseEnabled() &&
+      DetectH101MPEElementOffsetSizeOverflow(filename)) {
+    printf("\n%s[DEFENSE] Malformed mpet element offset/size pair will wrap "
+           "CIccTagMultiProcessElement::Read() (IccTagMPE.cpp:1042) — "
+           "skipping library phase%s\n",
+           ColorCritical(), ColorReset());
+    return true;
+  }
+
   FILE *fp = fopen(filename, "rb");
   if (!fp) return false;
 
@@ -152,18 +161,23 @@ static bool HasLibraryUBPatterns(const char *filename) {
 // Emit raw preflight fingerprints that explain known upstream integer-sanitizer
 // sites before the library phase runs. This keeps conformance-mode output
 // aligned with the actual byte pattern that reaches the library code path.
-static void EmitConformancePreflightFingerprints(const char *filename) {
+static int EmitConformancePreflightFingerprints(const char *filename) {
   RawProfileContext ctx = OpenRawProfileContext(filename);
   if (!ctx.valid) {
-    return;
+    return 0;
   }
 
   auto &hc = HeuristicCollector::instance();
   bool prevCollecting = hc.collecting();
   hc.setCollecting(false);
-  RunHeuristic_H173_SigConversionShiftOverflow(ctx);
-  RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(ctx);
+  int preflightIssues = 0;
+  preflightIssues += RunHeuristic_H173_SigConversionShiftOverflow(ctx);
+  preflightIssues += RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(ctx);
   hc.setCollecting(prevCollecting);
+  if (DetectH101MPEElementOffsetSizeOverflow(filename)) {
+    preflightIssues += RunHeuristic_H101_MPESubElementChannelContinuityRaw(filename);
+  }
+  return preflightIssues;
 }
 
 //==============================================================================
@@ -229,7 +243,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   }
 
   if (!legacy) {
-    EmitConformancePreflightFingerprints(filename);
+    totalIssues += EmitConformancePreflightFingerprints(filename);
   }
 
   // Pre-loading defense: detect tag data patterns that trigger undefined behavior
@@ -246,6 +260,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
            ColorCritical(), ColorReset());
   }
   if (skipLibrary) {
+    totalIssues += RunCF115_CalculatorElementComplexityRaw(filename);
     printf("%s[NOT RUN] Library-phase conformance not run — profile triggers upstream "
            "undefined behavior (CWE-190)%s\n",
            ColorCritical(), ColorReset());

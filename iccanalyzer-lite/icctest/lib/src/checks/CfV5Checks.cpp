@@ -552,6 +552,20 @@ static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& p
 // ═══════════════════════════════════════════════════════════════════════════
 static CheckResult check_cf115_calculator_element_complexity(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
+    if (!pv.libraryLoaded()) {
+        std::vector<Finding> findings;
+        auto issues = scanRawMpePositionIssues(pv);
+        for (const auto& issue : issues) {
+            findings.push_back({CheckID{CheckID::Kind::Conformance, 115}, Severity::HIGH,
+                "MPE element table structurally invalid",
+                formatRawMpePositionIssue(issue),
+                "CWE-190: Unsigned integer overflow in CIccTagMultiProcessElement::Read() (IccTagMPE.cpp:1042)"});
+        }
+        if (!findings.empty()) {
+            return {CheckResult::Status::FINDINGS, "Calculator complexity issues", std::move(findings)};
+        }
+        return CheckResult::ok("NOT RUN: Library quarantined and no raw CF-115 fingerprint available");
+    }
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 

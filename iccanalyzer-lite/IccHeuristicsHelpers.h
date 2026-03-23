@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <string>
 #include <vector>
 
 // ── ICC Signature Conversion Helpers ──
@@ -213,6 +214,138 @@ struct RawProfileContext {
     return nullptr;
   }
 };
+
+struct RawMpePositionIssue {
+  uint32_t tagSig = 0;
+  uint32_t tagSize = 0;
+  uint32_t procElementCount = 0;
+  uint32_t entryIndex = 0;
+  uint32_t elementOffset = 0;
+  uint32_t elementSize = 0;
+  uint32_t elementSig = 0;
+  bool positionTableTruncated = false;
+  bool offsetSizeWrap = false;
+  bool exceedsTagSize = false;
+};
+
+inline std::string FormatRawMpePositionIssue(const RawMpePositionIssue &issue) {
+  char tagName[5] = {};
+  char elemName[5] = {};
+  SigToChars(issue.tagSig, tagName);
+  SigToChars(issue.elementSig, elemName);
+
+  char msg[512];
+  if (issue.positionTableTruncated) {
+    snprintf(msg, sizeof(msg),
+             "Tag '%s': mpet position table requires %u entries (%llu bytes) but tag size is %u",
+             tagName,
+             issue.procElementCount,
+             static_cast<unsigned long long>(issue.procElementCount) * 8ull,
+             issue.tagSize);
+    return msg;
+  }
+
+  if (issue.elementSig) {
+    snprintf(msg, sizeof(msg),
+             "Tag '%s': mpet element table entry %u ('%s') offset=%u size=%u %s%s tag size=%u",
+             tagName,
+             issue.entryIndex,
+             elemName,
+             issue.elementOffset,
+             issue.elementSize,
+             issue.offsetSizeWrap ? "wraps 32-bit offset+size" : "extends beyond tag bounds",
+             issue.exceedsTagSize ? " and exceeds" : "",
+             issue.tagSize);
+  } else {
+    snprintf(msg, sizeof(msg),
+             "Tag '%s': mpet element table entry %u offset=%u size=%u %s%s tag size=%u",
+             tagName,
+             issue.entryIndex,
+             issue.elementOffset,
+             issue.elementSize,
+             issue.offsetSizeWrap ? "wraps 32-bit offset+size" : "extends beyond",
+             issue.exceedsTagSize ? " and exceeds" : "",
+             issue.tagSize);
+  }
+  return msg;
+}
+
+inline std::vector<RawMpePositionIssue>
+ScanRawMpePositionIssues(RawProfileContext &ctx, size_t maxIssues = 8) {
+  std::vector<RawMpePositionIssue> issues;
+  if (!ctx.valid) return issues;
+
+  constexpr uint32_t kMpeType = 0x6D706574u; // 'mpet'
+  constexpr uint32_t kMpeHeaderSize = 16u;
+
+  for (const auto &tag : ctx.tags) {
+    if (tag.size < kMpeHeaderSize) continue;
+    if ((uint64_t)tag.offset + kMpeHeaderSize > ctx.fileSize()) continue;
+
+    uint8_t hdr[16] = {};
+    if (!ctx.ReadAt(tag.offset, hdr, sizeof(hdr))) continue;
+    if (ReadU32BE(hdr) != kMpeType) continue;
+
+    uint32_t nProcElements = ReadU32BE(hdr + 12);
+    uint64_t requiredTableBytes =
+        (uint64_t)kMpeHeaderSize + (uint64_t)nProcElements * 8ull;
+
+    if (requiredTableBytes > tag.size) {
+      RawMpePositionIssue issue;
+      issue.tagSig = tag.sig;
+      issue.tagSize = tag.size;
+      issue.procElementCount = nProcElements;
+      issue.positionTableTruncated = true;
+      issues.push_back(issue);
+      if (issues.size() >= maxIssues) return issues;
+    }
+
+    uint64_t availableSlots64 = tag.size > kMpeHeaderSize
+        ? ((uint64_t)tag.size - kMpeHeaderSize) / 8ull
+        : 0ull;
+    uint32_t scanCount = nProcElements;
+    if ((uint64_t)scanCount > availableSlots64) {
+      scanCount = static_cast<uint32_t>(availableSlots64);
+    }
+    if (scanCount > 4096u) scanCount = 4096u;
+
+    for (uint32_t i = 0; i < scanCount; ++i) {
+      uint8_t posBuf[8] = {};
+      size_t posOff = static_cast<size_t>(tag.offset) + kMpeHeaderSize + (size_t)i * 8u;
+      if (!ctx.ReadAt(posOff, posBuf, sizeof(posBuf))) break;
+
+      uint32_t elemOff = ReadU32BE(posBuf);
+      uint32_t elemSize = ReadU32BE(posBuf + 4);
+      uint64_t sum64 = (uint64_t)elemOff + (uint64_t)elemSize;
+      bool wrap = sum64 > 0xFFFFFFFFull;
+      bool beyondTag = sum64 > tag.size;
+      if (!wrap && !beyondTag) continue;
+
+      RawMpePositionIssue issue;
+      issue.tagSig = tag.sig;
+      issue.tagSize = tag.size;
+      issue.procElementCount = nProcElements;
+      issue.entryIndex = i;
+      issue.elementOffset = elemOff;
+      issue.elementSize = elemSize;
+      issue.offsetSizeWrap = wrap;
+      issue.exceedsTagSize = beyondTag;
+
+      if ((uint64_t)elemOff + 4ull <= tag.size &&
+          (uint64_t)tag.offset + elemOff + 4ull <= ctx.fileSize()) {
+        uint8_t elemHdr[4] = {};
+        if (ctx.ReadAt((size_t)tag.offset + elemOff, elemHdr, sizeof(elemHdr))) {
+          issue.elementSig = ReadU32BE(elemHdr);
+        }
+      }
+
+      issues.push_back(issue);
+      if (issues.size() >= maxIssues) return issues;
+    }
+  }
+
+  return issues;
+}
 
 // Factory: opens file, reads 132-byte header, parses tag table.
 inline RawProfileContext OpenRawProfileContext(const char *filename) {

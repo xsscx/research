@@ -16,6 +16,16 @@ namespace icctest {
 
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
+static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 101) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 115) {
+        return true;
+    }
+    return false;
+}
+
 const char* IccTestRunner::version() {
     return ICCTEST_VERSION;
 }
@@ -128,13 +138,15 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
         // Skip library-phase checks if UB detected
         if (skipLibrary &&
             (check.meta.phase == CheckPhase::LIBRARY ||
-             check.meta.phase == CheckPhase::CONFORMANCE)) {
+             check.meta.phase == CheckPhase::CONFORMANCE) &&
+            !canRunOnQuarantinedProfile(check)) {
             continue;
         }
 
         if ((check.meta.phase == CheckPhase::LIBRARY ||
              check.meta.phase == CheckPhase::CONFORMANCE) &&
-            !pv.libraryLoaded()) {
+            !pv.libraryLoaded() &&
+            !canRunOnQuarantinedProfile(check)) {
             result.stats.checksRun++;
             auto cr = CheckResult::ok("NOT RUN: Profile failed to load");
             result.perCheck.push_back(PerCheckResult{

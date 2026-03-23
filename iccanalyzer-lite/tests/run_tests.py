@@ -1085,7 +1085,7 @@ def test_pcc_illuminant_overflow_regression(suite):
 
 
 def test_tonemap_describe_overflow_regression(suite):
-    """Regression: malformed tone-map functions must not trigger Describe() ASan."""
+    """Regression: malformed mpet element tables must not trigger ReadValidate() UBSan."""
     profile = TEST_PROFILES / "CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc"
     if not profile.exists():
         return
@@ -1097,7 +1097,7 @@ def test_tonemap_describe_overflow_regression(suite):
     suite.assert_output_contains(
         "heuristic.tonemap_describe_validation",
         ["-a", str(profile)],
-        r"H101|Tone map element .*invalid function parameters|CF-115|Tone mapping function has invalid parameters"
+        r"H101|CF-115|mpet element table entry|MPE element table structurally invalid"
     )
 
 

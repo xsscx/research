@@ -788,6 +788,9 @@ static void test_embedding_tech_note_regressions() {
 
         const auto* cf154 = find_per_check(result, CheckID::Kind::Conformance, 154);
         ASSERT_TRUE(cf154 != nullptr);
+        if (!cf154) {
+            return;
+        }
         ASSERT_TRUE(cf154->result.findings[0].message.find("already v5") != std::string::npos);
     }
 
@@ -1047,7 +1050,6 @@ static void test_tonemap_describe_overflow_regression() {
 
     AnalysisOptions heuristicOpts;
     heuristicOpts.phases = {CheckPhase::LIBRARY};
-    heuristicOpts.skipLibraryOnUB = false;
     heuristicOpts.specificChecks = {
         {CheckID::Kind::Heuristic, 101},
     };
@@ -1057,33 +1059,48 @@ static void test_tonemap_describe_overflow_regression() {
     ASSERT_EQ(1, heuristicResult.stats.checksRun);
     const auto* h101 = find_per_check(heuristicResult, CheckID::Kind::Heuristic, 101);
     ASSERT_TRUE(h101 != nullptr);
+    if (!h101) {
+        return;
+    }
     ASSERT_EQ(CheckResult::Status::FINDINGS, h101->result.status);
     ASSERT_TRUE(h101->result.issueCount() >= 1);
 
-    bool sawToneMapFinding = false;
+    bool sawRawMpeFinding = false;
     for (const auto& finding : h101->result.findings) {
-        if (finding.message.find("tone map element") != std::string::npos) {
-            sawToneMapFinding = true;
+        if (finding.message.find("mpet element table entry") != std::string::npos &&
+            finding.cweNote.find("IccTagMPE.cpp:1042") != std::string::npos) {
+            sawRawMpeFinding = true;
             break;
         }
     }
-    ASSERT_TRUE(sawToneMapFinding);
+    ASSERT_TRUE(sawRawMpeFinding);
 
-    auto conformanceResult = analyze_corpus_checks(profilePath, {115});
+    AnalysisOptions conformanceOpts;
+    conformanceOpts.phases = {CheckPhase::CONFORMANCE};
+    conformanceOpts.skipLibraryOnUB = true;
+    conformanceOpts.specificChecks = {
+        {CheckID::Kind::Conformance, 115},
+    };
+
+    auto conformanceResult = runner.analyze(profilePath, conformanceOpts);
     ASSERT_EQ(1, conformanceResult.stats.checksRun);
     const auto* cf115 = find_per_check(conformanceResult, CheckID::Kind::Conformance, 115);
     ASSERT_TRUE(cf115 != nullptr);
+    if (!cf115) {
+        return;
+    }
     ASSERT_EQ(CheckResult::Status::FINDINGS, cf115->result.status);
     ASSERT_TRUE(cf115->result.issueCount() >= 1);
 
-    bool sawCfToneMapFinding = false;
+    bool sawCfMpeFinding = false;
     for (const auto& finding : cf115->result.findings) {
-        if (finding.message.find("tone map element") != std::string::npos) {
-            sawCfToneMapFinding = true;
+        if (finding.message.find("MPE element table structurally invalid") != std::string::npos &&
+            finding.detail.find("mpet element table entry") != std::string::npos) {
+            sawCfMpeFinding = true;
             break;
         }
     }
-    ASSERT_TRUE(sawCfToneMapFinding);
+    ASSERT_TRUE(sawCfMpeFinding);
 }
 
 static void test_conformance_v5_only_skip_regression() {
