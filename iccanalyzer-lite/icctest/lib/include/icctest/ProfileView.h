@@ -136,10 +136,12 @@ public:
     ProfileView& operator=(const ProfileView&) = delete;
 
     /// Open a profile from a file path.
-    static std::optional<ProfileView> open(const std::filesystem::path& path);
+    static std::optional<ProfileView> open(const std::filesystem::path& path,
+                                           bool skipLibraryOnUB = false);
 
     /// Open a profile from a memory buffer.
-    static std::optional<ProfileView> open(const uint8_t* data, size_t len);
+    static std::optional<ProfileView> open(const uint8_t* data, size_t len,
+                                           bool skipLibraryOnUB = false);
 
     // ── Header access (always safe — parsed from raw bytes) ──
 
@@ -207,7 +209,7 @@ private:
     void parseHeader();
     void parseRawTagTable();
     void runUBPreScan();
-    bool loadLibrary();
+    bool loadLibrary(bool skipLibraryOnUB);
 
     std::unique_ptr<CIccProfile, ProfileDeleter> m_profile;
     std::vector<uint8_t>       m_rawData;

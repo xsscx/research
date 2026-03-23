@@ -11,6 +11,7 @@
 
 #include "IccProfile.h"
 #include "IccTagBasic.h"
+#include "IccTagEmbedIcc.h"
 #include "IccTagLut.h"
 
 namespace icctest {
@@ -674,17 +675,68 @@ REGISTER_HEURISTIC(95, "Sparse Matrix Array Bounds Validation",
 
 static CheckResult check_h96_embedded_profile_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    auto rawTag = pv.rawTag(static_cast<uint32_t>(icSigEmbeddedV5ProfileTag));
+    if (!rawTag) return CheckResult::skip("No embedded profile tag present");
+
+    if (rawTag->offset + 8 > pv.rawSize() || rawTag->size < 8) {
+        cb.critical("Embedded ICC5 tag is truncated before type/reserved fields");
+        return cb.done("Embedded Profile Validation checked");
+    }
+
+    uint32_t typeSig = readU32BE(pv.rawData() + rawTag->offset);
+    if (typeSig == static_cast<uint32_t>(icSigEmbeddedProfileType)) {
+        cb.high("Embedded ICC5 profile reaches unpatched CIccEmbedIO constructor sentinel UB (IccIO.cpp:569: m_nSize=-1 -> size_t)",
+                "CWE-681: Incorrect conversion between numeric types");
+    }
+
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H96
+    if (!p) {
+        if (typeSig != static_cast<uint32_t>(icSigEmbeddedProfileType)) {
+            cb.critical(sfmt("Embedded profile tag has wrong type signature '%s' (expected 'ICCp')",
+                             sigStr(typeSig).c_str()),
+                        "CWE-843: Access of Resource Using Incompatible Type");
+        }
+        return cb.done("Embedded Profile Validation checked");
+    }
+
+    auto* embedTagBase = p->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!embedTagBase) return CheckResult::skip("No embedded profile tag present");
+
+    auto* embedTag = dynamic_cast<CIccTagEmbeddedProfile*>(embedTagBase);
+    if (!embedTag) {
+        cb.critical("Embedded profile tag present but wrong runtime type");
+        return cb.done("Embedded Profile Validation checked");
+    }
+
+    auto* embeddedProfile = embedTag->GetProfile();
+    if (!embeddedProfile) {
+        cb.warn("Embedded profile tag present but child profile is NULL");
+        return cb.done("Embedded Profile Validation checked");
+    }
+
+    if (embeddedProfile->FindTag(icSigEmbeddedV5ProfileTag)) {
+        cb.critical("Recursively embedded profile — infinite recursion risk");
+    }
+
+    if (embeddedProfile->m_Header.size > 0 &&
+        p->m_Header.size > 0 &&
+        embeddedProfile->m_Header.size >= p->m_Header.size) {
+        cb.warn(sfmt("Embedded profile size (%u) >= parent size (%u) — suspicious",
+                     embeddedProfile->m_Header.size, p->m_Header.size));
+    }
+
+    if (embeddedProfile->m_Tags.size() > 200) {
+        cb.warn(sfmt("Embedded profile has %zu tags — potential resource exhaustion",
+                     embeddedProfile->m_Tags.size()));
+    }
+
     return cb.done("Embedded Profile Validation checked");
 }
 
 REGISTER_HEURISTIC(96, "Embedded Profile Validation",
     "", "",
     "CWE-674", "CVE-2026-25503,GHSA-pf84-4c7q-x764",
-    Severity::HIGH, CheckPhase::LIBRARY,
+    Severity::HIGH, CheckPhase::RAW_SCAN,
     check_h96_embedded_profile_validation);
 
 static CheckResult check_h97_profile_sequence_id_validation(const ProfileView& pv) {

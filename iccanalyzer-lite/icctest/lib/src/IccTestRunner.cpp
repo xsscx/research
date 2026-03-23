@@ -57,7 +57,7 @@ AnalysisResult IccTestRunner::analyze(const std::filesystem::path& path,
                                        const AnalysisOptions& opts) const {
     ICCTEST_INFO("Analyzing file: %s", path.c_str());
 
-    auto pv = ProfileView::open(path);
+    auto pv = ProfileView::open(path, opts.skipLibraryOnUB);
     if (!pv) {
         AnalysisResult result{};
         result.findings.push_back(Finding{
@@ -78,7 +78,7 @@ AnalysisResult IccTestRunner::analyze(const uint8_t* data, size_t len,
                                        const AnalysisOptions& opts) const {
     ICCTEST_INFO("Analyzing buffer (%zu bytes)", len);
 
-    auto pv = ProfileView::open(data, len);
+    auto pv = ProfileView::open(data, len, opts.skipLibraryOnUB);
     if (!pv) {
         AnalysisResult result{};
         result.findings.push_back(Finding{

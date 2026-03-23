@@ -30,17 +30,15 @@ WORKDIR /build
 # Copy source
 COPY iccanalyzer-lite/ iccanalyzer-lite/
 COPY colorbleed_tools/ colorbleed_tools/
-COPY cfl/patches/ cfl-patches/
-COPY docker/apply-patches.sh /usr/local/bin/apply-patches.sh
+COPY docs/iccDEV/specifications/ docs/iccDEV/specifications/
 COPY mcp-server/ mcp-server/
 COPY test-profiles/ test-profiles/
 COPY extended-test-profiles/ extended-test-profiles/
 
-# Single iccDEV clone + patch (shared by iccanalyzer-lite and colorbleed_tools)
-RUN apply-patches.sh /build/iccdev /build/cfl-patches
-
-# Build iccDEV static libraries (Debug + ASAN + UBSAN + Coverage)
-RUN cd /build/iccdev/Build \
+# Build upstream iccDEV static libraries from the repo checkout
+RUN find /build/iccanalyzer-lite/iccDEV/Build -mindepth 1 -maxdepth 1 \
+        ! -name Cmake ! -name XCode -exec rm -rf {} + \
+ && cd /build/iccanalyzer-lite/iccDEV/Build \
  && cmake Cmake \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_C_COMPILER=clang \
@@ -56,19 +54,16 @@ RUN cd /build/iccdev/Build \
       -Wno-dev \
  && make -j$(nproc)
 
-# Symlink shared iccDEV into iccanalyzer-lite so build.sh finds it
-RUN ln -s /build/iccdev /build/iccanalyzer-lite/iccDEV
-
-# Build iccanalyzer-lite (ASAN+UBSAN+Coverage — NO patches, handles all input defensively)
+# Build iccanalyzer-lite (ASAN+UBSAN+Coverage — unpatched upstream iccDEV)
 RUN cd iccanalyzer-lite && bash build.sh
 
-# Build icctest V2 CLI against the shared iccDEV tree
+# Build icctest V2 CLI against the same unpatched iccDEV tree
 RUN rm -rf /build/iccanalyzer-lite/icctest/build \
  && cd iccanalyzer-lite/icctest \
  && bash build.sh
 
-# Build safe iccDEV XML tools so the container can expose both directions
-RUN cd /build/iccdev/Build \
+# Build the safe non-GUI iccDEV CLI set used by the MCP maintainer endpoints
+RUN cd /build/iccanalyzer-lite/iccDEV/Build \
  && cmake Cmake \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_C_COMPILER=clang \
@@ -82,12 +77,25 @@ RUN cd /build/iccdev/Build \
       -DICC_LOG_SAFE=ON \
       -DICC_TRACE_NAN_ENABLED=ON \
       -Wno-dev \
- && make -j$(nproc) iccToXml iccFromXml
+ && make -j$(nproc) \
+      iccApplyNamedCmm \
+      iccApplyProfiles \
+      iccApplySearch \
+      iccApplyToLink \
+      iccDumpProfile \
+      iccFromCube \
+      iccFromXml \
+      iccPngDump \
+      iccRoundTrip \
+      iccSpecSepToTiff \
+      iccTiffDump \
+      iccToXml \
+      iccV5DspObsToV4Dsp
 
-# Build colorbleed_tools against shared iccDEV (release: intentionally unsafe)
+# Build colorbleed_tools against the same unpatched iccDEV tree (release: intentionally unsafe)
 RUN cd colorbleed_tools \
  && rm -rf iccDEV \
- && ln -s /build/iccdev iccDEV \
+ && ln -s /build/iccanalyzer-lite/iccDEV iccDEV \
  && make CONFIG=release
 
 # Python venv with MCP server
@@ -117,7 +125,7 @@ RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp
 
 # Copy source trees needed by maintainer/operations tools
 COPY --chown=mcp:mcp iccanalyzer-lite/ iccanalyzer-lite/
-COPY --from=builder --chown=mcp:mcp /build/iccdev/ iccanalyzer-lite/iccDEV/
+COPY --from=builder --chown=mcp:mcp /build/iccanalyzer-lite/iccDEV/ iccanalyzer-lite/iccDEV/
 COPY --chown=mcp:mcp colorbleed_tools/ colorbleed_tools/
 
 # Copy built artifacts used by analysis endpoints
@@ -127,6 +135,7 @@ COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccToXml_unsafe colo
 COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
 COPY --from=builder --chown=mcp:mcp /build/mcp-venv/ mcp-venv/
 COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
+COPY --from=builder --chown=mcp:mcp /build/docs/iccDEV/specifications/ docs/iccDEV/specifications/
 COPY --from=builder --chown=mcp:mcp /build/test-profiles/ test-profiles/
 COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test-profiles/
 

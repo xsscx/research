@@ -51,7 +51,13 @@ def load_cf_registry(path: Path) -> dict[str, dict[str, str]]:
     return out
 
 
-def run_v1_json(binary: Path, input_file: Path, legacy: bool) -> dict:
+def run_v1_json(
+    binary: Path,
+    input_file: Path,
+    legacy: bool,
+    *,
+    disable_library_ub_defense: bool = False,
+) -> dict:
     cmd = [str(binary), "--json"]
     if legacy:
         cmd.append("--legacy")
@@ -61,7 +67,7 @@ def run_v1_json(binary: Path, input_file: Path, legacy: bool) -> dict:
         cmd,
         capture_output=True,
         text=True,
-        env=v1_runtime_env(binary),
+        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
         check=False,
     )
 
@@ -304,6 +310,11 @@ def parse_args() -> argparse.Namespace:
         help="Run V1 with --legacy to include heuristic findings",
     )
     parser.add_argument(
+        "--disable-library-ub-defense",
+        action="store_true",
+        help="Disable the V1 library UB defense for parity measurement only",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON output",
@@ -327,7 +338,12 @@ def main() -> int:
         return 2
 
     cf_registry = load_cf_registry(conformance_registry_path())
-    payload = run_v1_json(args.binary, args.input_file, args.legacy)
+    payload = run_v1_json(
+        args.binary,
+        args.input_file,
+        args.legacy,
+        disable_library_ub_defense=args.disable_library_ub_defense,
+    )
     out = build_output(payload, cf_registry, args.lane)
     json.dump(out, sys.stdout, indent=2 if args.pretty else None)
     if args.pretty:

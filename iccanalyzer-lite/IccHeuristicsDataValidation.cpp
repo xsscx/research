@@ -19,6 +19,7 @@
 #include "IccMD5.h"
 #include "IccMpeBasic.h"
 #include "IccMpeCalc.h"
+#include "IccTagEmbedIcc.h"
 #include "IccTagMPE.h"
 #include "IccTagLut.h"
 #include "IccSparseMatrix.h"
@@ -26,6 +27,8 @@
 #include "IccUtil.h"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+#include <cctype>
 #include <cmath>
 #include <climits>
 #include <algorithm>
@@ -35,6 +38,154 @@
 #include <vector>
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
+
+static icUInt32Number ReadU32BEFile(const icUInt8Number *p) {
+  return (static_cast<icUInt32Number>(p[0]) << 24) |
+         (static_cast<icUInt32Number>(p[1]) << 16) |
+         (static_cast<icUInt32Number>(p[2]) << 8) |
+          static_cast<icUInt32Number>(p[3]);
+}
+
+static bool EqualsIgnoreCase(const char *lhs, const char *rhs) {
+  if (!lhs || !rhs) return false;
+  while (*lhs && *rhs) {
+    if (std::tolower(static_cast<unsigned char>(*lhs)) !=
+        std::tolower(static_cast<unsigned char>(*rhs))) {
+      return false;
+    }
+    ++lhs;
+    ++rhs;
+  }
+  return *lhs == '\0' && *rhs == '\0';
+}
+
+bool IsLibraryUBDefenseEnabled() {
+  const char *env = std::getenv("ICCANALYZER_ENABLE_LIBRARY_UB_DEFENSE");
+  if (!env || !*env) {
+    return true;
+  }
+  if (std::strcmp(env, "0") == 0 ||
+      EqualsIgnoreCase(env, "false") ||
+      EqualsIgnoreCase(env, "no") ||
+      EqualsIgnoreCase(env, "off")) {
+    return false;
+  }
+  return true;
+}
+
+struct H96EmbeddedProfileRawFacts {
+  bool hasEmbedTag = false;
+  bool hasIccpType = false;
+  icUInt32Number typeSig = 0;
+  icUInt32Number tagOffset = 0;
+  icUInt32Number tagSize = 0;
+};
+
+static bool ReadH96EmbeddedProfileRawFacts(const char *filename,
+                                           H96EmbeddedProfileRawFacts &facts) {
+  if (!filename) return false;
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) return false;
+
+  bool ok = false;
+  do {
+    if (fseek(fp, 0, SEEK_END) != 0) break;
+    long fileSize = ftell(fp);
+    if (fileSize < 132) break;
+    rewind(fp);
+
+    icUInt8Number hdr[132];
+    if (fread(hdr, 1, sizeof(hdr), fp) != sizeof(hdr)) break;
+
+    icUInt32Number tagCount = ReadU32BEFile(hdr + 128);
+    size_t maxTags = static_cast<size_t>(fileSize - 132) / 12;
+    if (tagCount > maxTags) {
+      tagCount = static_cast<icUInt32Number>(maxTags);
+    }
+
+    for (icUInt32Number i = 0; i < tagCount; i++) {
+      icUInt8Number entry[12];
+      if (fread(entry, 1, sizeof(entry), fp) != sizeof(entry)) break;
+
+      icUInt32Number tagSig = ReadU32BEFile(entry);
+      if (tagSig != static_cast<icUInt32Number>(icSigEmbeddedV5ProfileTag)) {
+        continue;
+      }
+
+      facts.hasEmbedTag = true;
+      facts.tagOffset = ReadU32BEFile(entry + 4);
+      facts.tagSize = ReadU32BEFile(entry + 8);
+
+      if (facts.tagSize < 8 || facts.tagOffset > static_cast<icUInt32Number>(fileSize - 8)) {
+        ok = true;
+        break;
+      }
+
+      long savedPos = ftell(fp);
+      if (savedPos < 0) {
+        ok = true;
+        break;
+      }
+
+      if (fseek(fp, static_cast<long>(facts.tagOffset), SEEK_SET) != 0) {
+        ok = true;
+        break;
+      }
+
+      icUInt8Number typeHdr[8];
+      if (fread(typeHdr, 1, sizeof(typeHdr), fp) != sizeof(typeHdr)) {
+        ok = true;
+        break;
+      }
+      facts.typeSig = ReadU32BEFile(typeHdr);
+      facts.hasIccpType = facts.typeSig == static_cast<icUInt32Number>(icSigEmbeddedProfileType);
+
+      if (fseek(fp, savedPos, SEEK_SET) != 0) {
+        ok = true;
+        break;
+      }
+
+      ok = true;
+      break;
+    }
+
+    if (!facts.hasEmbedTag) {
+      ok = true;
+    }
+  } while (0);
+
+  fclose(fp);
+  return ok;
+}
+
+bool DetectH96EmbeddedProfileConstructorUB(const char *filename) {
+  H96EmbeddedProfileRawFacts facts;
+  return ReadH96EmbeddedProfileRawFacts(filename, facts) &&
+         facts.hasEmbedTag &&
+         facts.hasIccpType;
+}
+
+int RunHeuristic_H96_EmbeddedProfileValidationRaw(const char *filename) {
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(96, "Embedded Profile Validation");
+
+  H96EmbeddedProfileRawFacts facts;
+  if (!ReadH96EmbeddedProfileRawFacts(filename, facts)) {
+    return hc.skip("Unable to preflight embedded profile tag");
+  }
+  if (!facts.hasEmbedTag) {
+    return hc.skip("No embedded profile tag present");
+  }
+  if (!facts.hasIccpType) {
+    return hc.skip("Embedded profile tag does not use ICCp type");
+  }
+
+  hc.warn("Embedded ICC5 profile raw byte pattern will reach unpatched CIccEmbedIO constructor sentinel UB (IccIO.cpp:569: m_nSize=-1 -> size_t)");
+  hc.cweNote("CWE-681: Incorrect signed-to-unsigned conversion in CIccEmbedIO::CIccEmbedIO()");
+  hc.info("Raw tag 'ICC5' at offset %u, size %u, type 'ICCp'", facts.tagOffset, facts.tagSize);
+  return hc.end("Embedded profile UB preflight fingerprinted");
+}
 
 int RunHeuristic_H56_CalculatorStackDepth(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
@@ -1659,45 +1810,50 @@ int RunHeuristic_H96_EmbeddedProfileValidation(CIccProfile *pIcc) {
 {
   hc.begin(96, "Embedded Profile Validation");
 
-  CIccTagEmbeddedProfile *pEmbed = FindAndCast<CIccTagEmbeddedProfile>(pIcc, icSigEmbeddedV5ProfileTag);
-  if (pEmbed) {
-    if (pEmbed) {
-      CIccProfile *pEmbeddedProfile = pEmbed->GetProfile();
-
-      if (!pEmbeddedProfile) {
-        hc.warn("Embedded profile tag present but profile is NULL");
-      } else {
-        // Validate embedded profile header
-        icHeader &embedHdr = pEmbeddedProfile->m_Header;
-
-        hc.info("Embedded profile: class=%s, colorSpace=%s, version=%u.%u", info.GetProfileClassSigName(embedHdr.deviceClass), info.GetColorSpaceSigName(embedHdr.colorSpace), embedHdr.version >> 24, (embedHdr.version >> 20) & 0xF);
-
-        // Check for recursive embedding — potential infinite recursion (CWE-674)
-        CIccTag *pInnerEmbed = pEmbeddedProfile->FindTag(icSigEmbeddedV5ProfileTag);
-        if (pInnerEmbed) {
-          hc.critical("Recursively embedded profile — infinite recursion risk (CWE-674)");
-        }
-
-        // Check embedded profile size vs parent
-        icUInt32Number parentSize = pIcc->m_Header.size;
-        icUInt32Number embedSize = embedHdr.size;
-        if (embedSize > 0 && parentSize > 0 && embedSize >= parentSize) {
-          hc.warn("Embedded profile size (%u) >= parent size (%u) — suspicious", embedSize, parentSize);
-        }
-
-        // Check embedded profile count > tag count (resource exhaustion)
-        icUInt32Number embedTagCount = (icUInt32Number)pEmbeddedProfile->m_Tags.size();
-        if (embedTagCount > 200) {
-          hc.warn("Embedded profile has %u tags — potential resource exhaustion", embedTagCount);
-        }
-      }
-    } else {
-      hc.critical("Embedded profile tag present but wrong type (dynamic_cast failed)");
-      hc.cweNote("CWE-843: Type confusion — tag is CIccTagUnknown, not CIccTagEmbeddedProfile");
-      hc.info("Upstream: iccDEV #527, #528, #544 — DumpProfileInfo() SEGV via misaligned access");
-    }
-  } else {
+  CIccTag *pEmbedTag = pIcc->FindTag(icSigEmbeddedV5ProfileTag);
+  if (!pEmbedTag) {
     return hc.skip("No embedded profile tag present");
+  }
+
+  CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmbedTag);
+  if (!pEmbed) {
+    hc.critical("Embedded profile tag present but wrong type (dynamic_cast failed)");
+    hc.cweNote("CWE-843: Type confusion — tag is CIccTagUnknown, not CIccTagEmbeddedProfile");
+    hc.info("Upstream: iccDEV #527, #528, #544 — DumpProfileInfo() SEGV via misaligned access");
+    return hc.end("Embedded profile validation complete");
+  }
+
+  hc.warn("Embedded ICC5 profile reaches unpatched CIccEmbedIO constructor sentinel UB (IccIO.cpp:569: m_nSize=-1 -> size_t)");
+  hc.cweNote("CWE-681: Incorrect signed-to-unsigned conversion in CIccEmbedIO::CIccEmbedIO()");
+
+  CIccProfile *pEmbeddedProfile = pEmbed->GetProfile();
+
+  if (!pEmbeddedProfile) {
+    hc.warn("Embedded profile tag present but profile is NULL");
+  } else {
+    // Validate embedded profile header
+    icHeader &embedHdr = pEmbeddedProfile->m_Header;
+
+    hc.info("Embedded profile: class=%s, colorSpace=%s, version=%u.%u", info.GetProfileClassSigName(embedHdr.deviceClass), info.GetColorSpaceSigName(embedHdr.colorSpace), embedHdr.version >> 24, (embedHdr.version >> 20) & 0xF);
+
+    // Check for recursive embedding — potential infinite recursion (CWE-674)
+    CIccTag *pInnerEmbed = pEmbeddedProfile->FindTag(icSigEmbeddedV5ProfileTag);
+    if (pInnerEmbed) {
+      hc.critical("Recursively embedded profile — infinite recursion risk (CWE-674)");
+    }
+
+    // Check embedded profile size vs parent
+    icUInt32Number parentSize = pIcc->m_Header.size;
+    icUInt32Number embedSize = embedHdr.size;
+    if (embedSize > 0 && parentSize > 0 && embedSize >= parentSize) {
+      hc.warn("Embedded profile size (%u) >= parent size (%u) — suspicious", embedSize, parentSize);
+    }
+
+    // Check embedded profile count > tag count (resource exhaustion)
+    icUInt32Number embedTagCount = (icUInt32Number)pEmbeddedProfile->m_Tags.size();
+    if (embedTagCount > 200) {
+      hc.warn("Embedded profile has %u tags — potential resource exhaustion", embedTagCount);
+    }
   }
 }
 

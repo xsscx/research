@@ -23,6 +23,17 @@ extern void test_assert(bool, const char*, const char*, int);
 
 using namespace icctest;
 
+static std::filesystem::path resolve_repo_file(const char* relativePath) {
+    std::filesystem::path base = std::filesystem::path(__FILE__).parent_path();
+    auto candidate = (base / "../../../" / relativePath).lexically_normal();
+    if (std::filesystem::exists(candidate)) return candidate;
+
+    candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
+    if (std::filesystem::exists(candidate)) return candidate;
+
+    return {};
+}
+
 // Helper: create a minimal valid ICC profile in memory (128-byte header + tag table)
 static std::vector<uint8_t> makeMinimalProfile() {
     std::vector<uint8_t> data(256, 0);
@@ -175,6 +186,23 @@ static void test_ub_prescan_clean() {
     }
 }
 
+static void test_ub_prescan_embedded_icc5_skip_load() {
+    std::printf("  test_ub_prescan_embedded_icc5_skip_load...\n");
+    auto corpusProfile = resolve_repo_file("tests/corpus/cf_embedded_child_class_mismatch.icc");
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — embedded corpus profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
     // Try a known-good profile if it exists
@@ -225,6 +253,7 @@ void test_profile_view() {
     test_image_format_detection();
     test_ub_prescan_gbd();
     test_ub_prescan_clean();
+    test_ub_prescan_embedded_icc5_skip_load();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");

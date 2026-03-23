@@ -62,6 +62,18 @@ messages:
         `1000` checks each over time.
       - Use the registries for authoritative current totals.
 
+      Build / artifact policy:
+      - Prefer the shared Debug + ASAN + UBSAN + Clang coverage build path for
+        both V1 and V2 validation work.
+      - Do not assume a separate Release-only rebuild is the authoritative CLI
+        validation path.
+      - If a workflow or report ships V2 binaries, the expected bundle is:
+        `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`,
+        and `verify-parity-summary.json`.
+      - Under harnessed unit/parity execution, use
+        `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless
+        profiling output is intentionally being collected.
+
       mluc note for future parity work:
       - A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated
         as a 12-byte recommended encoding per the ICC TN PSD guidance.

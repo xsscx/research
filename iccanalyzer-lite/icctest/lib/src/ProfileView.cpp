@@ -15,6 +15,7 @@
 #include "IccIO.h"
 #include "IccUtil.h"
 #include "IccTagBasic.h"
+#include "IccTagEmbedIcc.h"
 
 #include <algorithm>
 #include <cstring>
@@ -121,7 +122,8 @@ ProfileView& ProfileView::operator=(ProfileView&& other) noexcept {
 
 // ── Factory methods ──
 
-std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path) {
+std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path,
+                                             bool skipLibraryOnUB) {
     ICCTEST_DEBUG("ProfileView::open(%s)", path.c_str());
 
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -166,7 +168,7 @@ std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path) 
     pv.parseHeader();
     pv.parseRawTagTable();
     pv.runUBPreScan();
-    pv.loadLibrary();
+    pv.loadLibrary(skipLibraryOnUB);
 
     ICCTEST_INFO("ProfileView opened: %s (%zu bytes, %zu tags, lib=%s, ub=%s)",
         path.c_str(), pv.m_rawData.size(), pv.m_rawTags.size(),
@@ -176,7 +178,8 @@ std::optional<ProfileView> ProfileView::open(const std::filesystem::path& path) 
     return pv;
 }
 
-std::optional<ProfileView> ProfileView::open(const uint8_t* data, size_t len) {
+std::optional<ProfileView> ProfileView::open(const uint8_t* data, size_t len,
+                                             bool skipLibraryOnUB) {
     ICCTEST_DEBUG("ProfileView::open(buffer, %zu bytes)", len);
 
     if (len < 128) {
@@ -196,7 +199,7 @@ std::optional<ProfileView> ProfileView::open(const uint8_t* data, size_t len) {
     pv.parseHeader();
     pv.parseRawTagTable();
     pv.runUBPreScan();
-    pv.loadLibrary();
+    pv.loadLibrary(skipLibraryOnUB);
 
     return pv;
 }
@@ -287,6 +290,29 @@ void ProfileView::parseRawTagTable() {
 void ProfileView::runUBPreScan() {
     if (!m_header.size || m_rawData.size() < 132) return;
 
+    // Pattern 0: Embedded ICC5 tag with ICCp type triggers the unpatched
+    // CIccEmbedIO constructor sentinel UB on library parse.
+    for (const auto& tag : m_rawTags) {
+        if (tag.signature != static_cast<uint32_t>(icSigEmbeddedV5ProfileTag)) {
+            continue;
+        }
+        if (tag.offset + 8 > m_rawData.size() || tag.size < 8) {
+            continue;
+        }
+
+        uint32_t typeSig = readU32BE(m_rawData.data() + tag.offset);
+        if (typeSig == static_cast<uint32_t>(icSigEmbeddedProfileType)) {
+            m_ubPatternsDetected = true;
+            char desc[192];
+            std::snprintf(desc, sizeof(desc),
+                "Embedded ICC5 tag at 0x%X with ICCp type will hit CIccEmbedIO constructor UB (IccIO.cpp:569)",
+                tag.offset);
+            m_ubDescriptions.emplace_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc);
+        }
+        break;
+    }
+
     // Pattern 1: GBD nTriangles overflow (CWE-190)
     // GBD tag layout: [type:4][reserved:4][nPCSChannels:2][nDeviceChannels:2]
     //                 [nVertices:4][nTriangles:4]
@@ -357,7 +383,12 @@ void ProfileView::runUBPreScan() {
 
 // ── Library loading ──
 
-bool ProfileView::loadLibrary() {
+bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
+    if (skipLibraryOnUB && m_ubPatternsDetected) {
+        ICCTEST_WARN("Skipping CIccProfile::Read due to known UB trigger patterns");
+        return false;
+    }
+
     try {
         auto* profile = new CIccProfile();
         CIccFileIO io;

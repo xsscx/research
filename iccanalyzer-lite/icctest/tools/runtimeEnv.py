@@ -18,7 +18,7 @@ def _existing_dirs(paths: list[Path]) -> list[str]:
     return out
 
 
-def v1_runtime_env(binary: Path) -> dict[str, str]:
+def v1_runtime_env(binary: Path, *, disable_library_ub_defense: bool = False) -> dict[str, str]:
     """Return an environment that can execute the V1 binary in CI.
 
     The V1 executable lives next to the project root binary and depends on the
@@ -49,5 +49,8 @@ def v1_runtime_env(binary: Path) -> dict[str, str]:
     if lib_dirs:
         existing = env.get("LD_LIBRARY_PATH", "")
         env["LD_LIBRARY_PATH"] = ":".join(lib_dirs + ([existing] if existing else []))
+
+    if disable_library_ub_defense:
+        env["ICCANALYZER_ENABLE_LIBRARY_UB_DEFENSE"] = "0"
 
     return env

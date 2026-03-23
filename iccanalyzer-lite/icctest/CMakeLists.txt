@@ -36,8 +36,15 @@ set(ICCTEST_V1_BINARY "${PROJECT_SOURCE_DIR}/../iccanalyzer-lite" CACHE FILEPATH
     "Path to the V1 iccAnalyzer-lite binary used for parity verification")
 
 # Detect build dir
-if(EXISTS "${ICCDEV_ROOT}/Build/IccProfLib/libIccProfLib2-static.a")
+set(ICCDEV_BUILD "${ICCDEV_BUILD}" CACHE PATH
+    "Path to the iccDEV build directory containing static libraries")
+
+if(ICCDEV_BUILD AND EXISTS "${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a")
+    # Explicit override from workflow or local developer environment.
+elseif(EXISTS "${ICCDEV_ROOT}/Build/IccProfLib/libIccProfLib2-static.a")
     set(ICCDEV_BUILD "${ICCDEV_ROOT}/Build")
+elseif(EXISTS "${ICCDEV_ROOT}/Build-release/IccProfLib/libIccProfLib2-static.a")
+    set(ICCDEV_BUILD "${ICCDEV_ROOT}/Build-release")
 elseif(EXISTS "${ICCDEV_ROOT}/Build-ASAN/IccProfLib/libIccProfLib2-static.a")
     set(ICCDEV_BUILD "${ICCDEV_ROOT}/Build-ASAN")
 else()

@@ -54,6 +54,7 @@
 #include "IccConformanceSecurity.h"
 #include "IccConformanceQuality.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicsDataValidation.h"
 
 //==============================================================================
 // Pre-loading raw scan: detect tag data patterns that cause UBSAN in the
@@ -66,6 +67,14 @@
 //==============================================================================
 static bool HasLibraryUBPatterns(const char *filename) {
   if (!filename) return false;
+
+  if (IsLibraryUBDefenseEnabled() &&
+      DetectH96EmbeddedProfileConstructorUB(filename)) {
+    printf("\n%s[DEFENSE] Embedded ICC5 tag with ICCp type will hit "
+           "CIccEmbedIO constructor UB (IccIO.cpp:569) — skipping library phase%s\n",
+           ColorCritical(), ColorReset());
+    return true;
+  }
 
   FILE *fp = fopen(filename, "rb");
   if (!fp) return false;
