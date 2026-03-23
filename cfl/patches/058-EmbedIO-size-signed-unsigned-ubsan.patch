@@ -1,0 +1,13 @@
+diff --git a/IccProfLib/IccIO.cpp b/IccProfLib/IccIO.cpp
+index 0dbbcbd..de3e2fe 100644
+--- a/IccProfLib/IccIO.cpp
++++ b/IccProfLib/IccIO.cpp
+@@ -566,7 +566,7 @@ CIccEmbedIO::CIccEmbedIO() : CIccIO()
+ {
+   m_pIO = NULL;
+   m_nStartPos = 0;
+-  m_nSize = -1;
++  m_nSize = 0;
+   m_bOwnIO = false;
+ }
+ 
