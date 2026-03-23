@@ -97,7 +97,10 @@ env -u LD_LIBRARY_PATH \
 
 - The heuristic remap used for collision and TODO quarantine lives in `icctest/tools/heuristic-remap.tsv`.
 - CTest and the verifier disable LeakSanitizer leak detection with `ASAN_OPTIONS=detect_leaks=0` because LSAN aborts under the harness execution environment even when the suite itself passes.
-- `CF-223` parity is anchored to the ICC TN PSD guidance: a zero-record `mluc`
-  placeholder is treated as a **12-byte recommended encoding**. The corpus case
-  `tests/corpus/cf_mluc_zero_name_placeholder.icc` intentionally keeps the
-  legacy 16-byte readable form so both V1 and V2 can warn on the same file.
+- A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
+  12-byte recommended encoding per the ICC TN PSD guidance.
+- Legacy 16-byte zero-record encodings are readable in some SampleICC paths but
+  should still be reported as non-minimal rather than silently normalized away.
+- The corpus case `tests/corpus/cf_mluc_zero_name_placeholder.icc`
+  intentionally keeps the legacy 16-byte readable form so both V1 and V2 can
+  warn on the same file.
