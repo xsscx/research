@@ -45,6 +45,11 @@ python3 icctest/tools/verifyPawg.py \
 V2 now has a native `--pawg` formatter aligned to the ICC PAWG 31-item
 checklist. The MCP/WebUI layer intentionally exposes the conformance-only
 slice of that PAWG report for `/api/security-report` and `/api/pawg`.
+`verifyPawg.py` now checks three quality anchors:
+
+- `tests/corpus/valid_srgb.icc`
+- `tests/corpus/targ_quality_profile.icc`
+- `tests/corpus/targ_cmyk_quality_profile.icc`
 
 ## Parity Verification
 
@@ -84,7 +89,7 @@ On the current corpus and generated image smoke:
 - embedded raw parity: `delta = 0`
 - generated PNG/JPEG embedded-ICC smoke: pass
 - PAWG verifier: pass
-- unit tests: `504/504 passed`
+- unit tests: `639/639 passed`
 
 ## CI Notes
 
@@ -116,6 +121,10 @@ env -u LD_LIBRARY_PATH \
 
 - The heuristic remap used for collision and TODO quarantine lives in `icctest/tools/heuristic-remap.tsv`.
 - CTest and the verifier disable LeakSanitizer leak detection with `ASAN_OPTIONS=detect_leaks=0` because LSAN aborts under the harness execution environment even when the suite itself passes.
+- PAWG quality regressions rely on:
+  `tests/corpus/lut8_atob2_btoa2.icc` for alternate-intent classic LUT quality,
+  `tests/corpus/targ_quality_profile.icc` for RGB characterization quality, and
+  `tests/corpus/targ_cmyk_quality_profile.icc` for CMYK Q1/Q2/Q3/Q4 parity.
 - A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
   12-byte recommended encoding per the ICC TN PSD guidance.
 - Legacy 16-byte zero-record encodings are readable in some SampleICC paths but

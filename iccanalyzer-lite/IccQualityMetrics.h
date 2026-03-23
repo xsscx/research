@@ -66,6 +66,8 @@ struct CharacterizationMetrics {
   double maxDe00 = 0.0;
 };
 
+constexpr int kQualityMaxDeviceChannels = 4;
+
 inline double clamp01(double v) {
   if (v < 0.0) return 0.0;
   if (v > 1.0) return 1.0;
@@ -192,6 +194,32 @@ inline double delta_e_2000(const icFloatNumber *lab1, const icFloatNumber *lab2)
   const double value = termL * termL + termC * termC + termH * termH +
                        rt * termC * termH;
   return value > 0.0 ? std::sqrt(value) : 0.0;
+}
+
+template <typename Fn>
+inline void visit_bounded_grid_points_impl(int axis,
+                                           int channels,
+                                           int grid,
+                                           std::array<icFloatNumber, 16> &device,
+                                           Fn &fn) {
+  if (axis >= channels) {
+    fn();
+    return;
+  }
+
+  for (int i = 0; i < grid; ++i) {
+    device[static_cast<size_t>(axis)] =
+        static_cast<icFloatNumber>(i / static_cast<double>(grid - 1));
+    visit_bounded_grid_points_impl(axis + 1, channels, grid, device, fn);
+  }
+}
+
+template <typename Fn>
+inline void visit_bounded_grid_points(int channels,
+                                      std::array<icFloatNumber, 16> &device,
+                                      Fn &&fn) {
+  const int grid = channels >= 4 ? 5 : 9;
+  visit_bounded_grid_points_impl(0, channels, grid, device, fn);
 }
 
 struct MatrixTrcTransform {
@@ -373,6 +401,84 @@ struct ClassicLutTransform {
   int outputChannels = 0;
   icTagTypeSignature type = static_cast<icTagTypeSignature>(0);
 };
+
+struct ClassicLutTagSelection {
+  icTagSignature forwardSig = static_cast<icTagSignature>(0);
+  icTagSignature reverseSig = static_cast<icTagSignature>(0);
+  const char *label = "";
+};
+
+inline const std::array<ClassicLutTagSelection, 3>& classic_lut_round_trip_pairs() {
+  static const std::array<ClassicLutTagSelection, 3> kPairs{{
+      {icSigAToB0Tag, icSigBToA0Tag, "A2B0/B2A0"},
+      {icSigAToB1Tag, icSigBToA1Tag, "A2B1/B2A1"},
+      {icSigAToB2Tag, icSigBToA2Tag, "A2B2/B2A2"},
+  }};
+  return kPairs;
+}
+
+inline const std::array<icTagSignature, 3>& classic_lut_forward_tags() {
+  static const std::array<icTagSignature, 3> kTags{{
+      icSigAToB0Tag,
+      icSigAToB1Tag,
+      icSigAToB2Tag,
+  }};
+  return kTags;
+}
+
+inline const char *tag_sig_short_name(icTagSignature sig) {
+  switch (sig) {
+    case icSigAToB0Tag: return "A2B0";
+    case icSigAToB1Tag: return "A2B1";
+    case icSigAToB2Tag: return "A2B2";
+    case icSigBToA0Tag: return "B2A0";
+    case icSigBToA1Tag: return "B2A1";
+    case icSigBToA2Tag: return "B2A2";
+    default: break;
+  }
+  return "unknown";
+}
+
+inline bool select_classic_lut_round_trip_pair(CIccProfile *pIcc,
+                                               CIccTag *&forwardTag,
+                                               CIccTag *&reverseTag,
+                                               const char *&label) {
+  if (!pIcc) {
+    return false;
+  }
+
+  for (const auto &pair : classic_lut_round_trip_pairs()) {
+    CIccTag *candidateForward = pIcc->FindTag(pair.forwardSig);
+    CIccTag *candidateReverse = pIcc->FindTag(pair.reverseSig);
+    if (candidateForward && candidateReverse) {
+      forwardTag = candidateForward;
+      reverseTag = candidateReverse;
+      label = pair.label;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+inline bool select_classic_lut_forward_tag(CIccProfile *pIcc,
+                                           CIccTag *&forwardTag,
+                                           const char *&label) {
+  if (!pIcc) {
+    return false;
+  }
+
+  for (icTagSignature sig : classic_lut_forward_tags()) {
+    CIccTag *candidate = pIcc->FindTag(sig);
+    if (candidate) {
+      forwardTag = candidate;
+      label = tag_sig_short_name(sig);
+      return true;
+    }
+  }
+
+  return false;
+}
 
 inline bool build_classic_lut_transform(CIccTag *tag,
                                         icColorSpaceSignature pcs,
@@ -577,33 +683,33 @@ inline bool measure_classic_lut_round_trip(CIccProfile *pIcc,
   ClassicLutTransform forward;
   ClassicLutTransform reverse;
 
-  CIccTag *a2b = pIcc ? pIcc->FindTag(icSigAToB0Tag) : nullptr;
-  CIccTag *b2a = pIcc ? pIcc->FindTag(icSigBToA0Tag) : nullptr;
-  if (!a2b || !b2a) {
-    reason = "AToB0/BToA0 tag pair not present";
+  CIccTag *forwardTag = nullptr;
+  CIccTag *reverseTag = nullptr;
+  const char *pairLabel = "";
+  if (!select_classic_lut_round_trip_pair(pIcc, forwardTag, reverseTag, pairLabel)) {
+    reason = "No supported AToB/BToA classic LUT pair present";
     return false;
   }
 
   std::string forwardReason;
-  if (!build_classic_lut_transform(a2b, pIcc->m_Header.pcs, forward, forwardReason)) {
-    reason = "AToB0/BToA0 present but " + forwardReason;
+  if (!build_classic_lut_transform(forwardTag, pIcc->m_Header.pcs, forward, forwardReason)) {
+    reason = std::string(pairLabel) + " present but " + forwardReason;
     return false;
   }
 
   std::string reverseReason;
-  if (!build_classic_lut_transform(b2a, pIcc->m_Header.colorSpace, reverse, reverseReason)) {
-    reason = "AToB0/BToA0 present but " + reverseReason;
+  if (!build_classic_lut_transform(reverseTag, pIcc->m_Header.colorSpace, reverse, reverseReason)) {
+    reason = std::string(pairLabel) + " present but " + reverseReason;
     return false;
   }
 
-  if (forward.outputChannels < 3 || reverse.outputChannels < 1 ||
+  if (forward.outputChannels < 3 ||
       forward.inputChannels != reverse.outputChannels ||
       forward.outputChannels != reverse.inputChannels) {
-    reason = "AToB0/BToA0 channel mismatch prevents bounded round-trip";
+    reason = std::string(pairLabel) + " channel mismatch prevents bounded round-trip";
     return false;
   }
 
-  constexpr int kGrid = 9;
   std::array<icFloatNumber, 16> device0{};
   std::array<icFloatNumber, 16> pcs1{};
   std::array<icFloatNumber, 16> device1{};
@@ -618,35 +724,27 @@ inline bool measure_classic_lut_round_trip(CIccProfile *pIcc,
   double sumSecond = 0.0;
   int samples = 0;
 
-  for (int r = 0; r < kGrid; ++r) {
-    for (int g = 0; g < kGrid; ++g) {
-      for (int b = 0; b < kGrid; ++b) {
-        device0[0] = static_cast<icFloatNumber>(r / static_cast<double>(kGrid - 1));
-        device0[1] = static_cast<icFloatNumber>(g / static_cast<double>(kGrid - 1));
-        device0[2] = static_cast<icFloatNumber>(b / static_cast<double>(kGrid - 1));
-
-        if (!evaluate_classic_lut_forward(forward, device0.data(), pcs1.data()) ||
-            !evaluate_classic_lut_forward(reverse, pcs1.data(), device1.data()) ||
-            !evaluate_classic_lut_forward(forward, device1.data(), pcs2.data()) ||
-            !evaluate_classic_lut_forward(reverse, pcs2.data(), device2.data()) ||
-            !evaluate_classic_lut_forward(forward, device2.data(), pcs3.data())) {
-          continue;
-        }
-
-        pcs_to_lab(pIcc->m_Header.pcs, pcs1.data(), lab1.data());
-        pcs_to_lab(pIcc->m_Header.pcs, pcs2.data(), lab2.data());
-        pcs_to_lab(pIcc->m_Header.pcs, pcs3.data(), lab3.data());
-
-        const double de1 = delta_e_2000(lab1.data(), lab2.data());
-        const double de2 = delta_e_2000(lab2.data(), lab3.data());
-        sumFirst += de1;
-        sumSecond += de2;
-        metrics.maxFirstDe00 = std::max(metrics.maxFirstDe00, de1);
-        metrics.maxSecondDe00 = std::max(metrics.maxSecondDe00, de2);
-        ++samples;
-      }
+  visit_bounded_grid_points(forward.inputChannels, device0, [&]() {
+    if (!evaluate_classic_lut_forward(forward, device0.data(), pcs1.data()) ||
+        !evaluate_classic_lut_forward(reverse, pcs1.data(), device1.data()) ||
+        !evaluate_classic_lut_forward(forward, device1.data(), pcs2.data()) ||
+        !evaluate_classic_lut_forward(reverse, pcs2.data(), device2.data()) ||
+        !evaluate_classic_lut_forward(forward, device2.data(), pcs3.data())) {
+      return;
     }
-  }
+
+    pcs_to_lab(pIcc->m_Header.pcs, pcs1.data(), lab1.data());
+    pcs_to_lab(pIcc->m_Header.pcs, pcs2.data(), lab2.data());
+    pcs_to_lab(pIcc->m_Header.pcs, pcs3.data(), lab3.data());
+
+    const double de1 = delta_e_2000(lab1.data(), lab2.data());
+    const double de2 = delta_e_2000(lab2.data(), lab3.data());
+    sumFirst += de1;
+    sumSecond += de2;
+    metrics.maxFirstDe00 = std::max(metrics.maxFirstDe00, de1);
+    metrics.maxSecondDe00 = std::max(metrics.maxSecondDe00, de2);
+    ++samples;
+  });
 
   if (samples == 0) {
     reason = "Classic LUT round-trip measurement produced no valid samples";
@@ -654,7 +752,7 @@ inline bool measure_classic_lut_round_trip(CIccProfile *pIcc,
   }
 
   metrics.measured = true;
-  metrics.model = "classic lut8/lut16";
+  metrics.model = std::string("classic lut8/lut16 ") + pairLabel;
   metrics.samples = samples;
   metrics.avgFirstDe00 = sumFirst / samples;
   metrics.avgSecondDe00 = sumSecond / samples;
@@ -673,7 +771,9 @@ inline bool measure_round_trip(CIccProfile *pIcc,
     return true;
   }
 
-  if (!reason.empty() && reason.find("AToB0/BToA0 present") != std::string::npos) {
+  if (!reason.empty() &&
+      reason.find("A2B") != std::string::npos &&
+      reason.find("present but") != std::string::npos) {
     return false;
   }
 
@@ -699,36 +799,62 @@ inline bool measure_forward_smoothness_matrix_trc(CIccProfile *pIcc,
   std::array<icFloatNumber, 3> currLab{};
 
   double sumStep = 0.0;
-  double prevStep = -1.0;
   int stepCount = 0;
 
-  for (int i = 0; i < kSamples; ++i) {
-    const double v = i / static_cast<double>(kSamples - 1);
-    device[0] = static_cast<icFloatNumber>(v);
-    if (xform.channels > 1) {
-      device[1] = static_cast<icFloatNumber>(v);
-      device[2] = static_cast<icFloatNumber>(v);
-    }
+  auto accumulate_path = [&](bool diagonal, int axis) {
+    bool havePrev = false;
+    double prevStep = -1.0;
 
-    if (!evaluate_matrix_trc_forward(xform, device.data(), pcs.data())) {
-      continue;
-    }
+    for (int i = 0; i < kSamples; ++i) {
+      const double v = i / static_cast<double>(kSamples - 1);
+      device.fill(0.0f);
 
-    pcs_to_lab(icSigXYZData, pcs.data(), currLab.data());
-    if (i > 0) {
-      const double step = delta_e_2000(prevLab.data(), currLab.data());
-      metrics.maxStepDe00 = std::max(metrics.maxStepDe00, step);
-      sumStep += step;
-      if (prevStep >= 0.0) {
-        metrics.maxCurvatureDe00 = std::max(metrics.maxCurvatureDe00, std::fabs(step - prevStep));
+      if (xform.channels == 1) {
+        device[0] = static_cast<icFloatNumber>(v);
+      } else if (diagonal) {
+        for (int c = 0; c < xform.channels; ++c) {
+          device[static_cast<size_t>(c)] = static_cast<icFloatNumber>(v);
+        }
+      } else {
+        for (int c = 0; c < xform.channels; ++c) {
+          device[static_cast<size_t>(c)] = 0.5f;
+        }
+        device[static_cast<size_t>(axis)] = static_cast<icFloatNumber>(v);
       }
-      if (step > 6.0) {
-        ++metrics.discontinuities;
+
+      if (!evaluate_matrix_trc_forward(xform, device.data(), pcs.data())) {
+        continue;
       }
-      prevStep = step;
-      ++stepCount;
+
+      pcs_to_lab(icSigXYZData, pcs.data(), currLab.data());
+      if (havePrev) {
+        const double step = delta_e_2000(prevLab.data(), currLab.data());
+        metrics.maxStepDe00 = std::max(metrics.maxStepDe00, step);
+        sumStep += step;
+        if (prevStep >= 0.0) {
+          metrics.maxCurvatureDe00 =
+              std::max(metrics.maxCurvatureDe00, std::fabs(step - prevStep));
+        }
+        if (step > 6.0) {
+          ++metrics.discontinuities;
+        }
+        prevStep = step;
+        ++stepCount;
+      } else {
+        havePrev = true;
+      }
+
+      prevLab = currLab;
     }
-    prevLab = currLab;
+  };
+
+  if (xform.channels == 1) {
+    accumulate_path(false, 0);
+  } else {
+    accumulate_path(true, 0);
+    for (int axis = 0; axis < xform.channels; ++axis) {
+      accumulate_path(false, axis);
+    }
   }
 
   if (stepCount == 0) {
@@ -737,7 +863,7 @@ inline bool measure_forward_smoothness_matrix_trc(CIccProfile *pIcc,
   }
 
   metrics.measured = true;
-  metrics.model = "matrix/TRC";
+  metrics.model = xform.channels == 1 ? "gray matrix/TRC" : "matrix/TRC multi-axis";
   metrics.samples = stepCount;
   metrics.avgStepDe00 = sumStep / stepCount;
   return true;
@@ -747,13 +873,14 @@ inline bool measure_forward_smoothness_classic_lut(CIccProfile *pIcc,
                                                    SmoothnessMetrics &metrics,
                                                    std::string &reason) {
   ClassicLutTransform forward;
-  CIccTag *a2b = pIcc ? pIcc->FindTag(icSigAToB0Tag) : nullptr;
-  if (!a2b) {
+  CIccTag *forwardTag = nullptr;
+  const char *tagLabel = "";
+  if (!select_classic_lut_forward_tag(pIcc, forwardTag, tagLabel)) {
     reason = "No supported forward transform tag present";
     return false;
   }
-  if (!build_classic_lut_transform(a2b, pIcc->m_Header.pcs, forward, reason)) {
-    reason = "AToB0 present but " + reason;
+  if (!build_classic_lut_transform(forwardTag, pIcc->m_Header.pcs, forward, reason)) {
+    reason = std::string(tagLabel) + " present but " + reason;
     return false;
   }
 
@@ -764,34 +891,62 @@ inline bool measure_forward_smoothness_classic_lut(CIccProfile *pIcc,
   std::array<icFloatNumber, 3> currLab{};
 
   double sumStep = 0.0;
-  double prevStep = -1.0;
   int stepCount = 0;
 
-  for (int i = 0; i < kSamples; ++i) {
-    const double v = i / static_cast<double>(kSamples - 1);
-    device[0] = static_cast<icFloatNumber>(v);
-    device[1] = static_cast<icFloatNumber>(v);
-    device[2] = static_cast<icFloatNumber>(v);
+  auto accumulate_path = [&](bool diagonal, int axis) {
+    bool havePrev = false;
+    double prevStep = -1.0;
 
-    if (!evaluate_classic_lut_forward(forward, device.data(), pcs.data())) {
-      continue;
-    }
+    for (int i = 0; i < kSamples; ++i) {
+      const double v = i / static_cast<double>(kSamples - 1);
+      device.fill(0.0f);
 
-    pcs_to_lab(pIcc->m_Header.pcs, pcs.data(), currLab.data());
-    if (i > 0) {
-      const double step = delta_e_2000(prevLab.data(), currLab.data());
-      metrics.maxStepDe00 = std::max(metrics.maxStepDe00, step);
-      sumStep += step;
-      if (prevStep >= 0.0) {
-        metrics.maxCurvatureDe00 = std::max(metrics.maxCurvatureDe00, std::fabs(step - prevStep));
+      if (forward.inputChannels == 1) {
+        device[0] = static_cast<icFloatNumber>(v);
+      } else if (diagonal) {
+        for (int c = 0; c < forward.inputChannels; ++c) {
+          device[static_cast<size_t>(c)] = static_cast<icFloatNumber>(v);
+        }
+      } else {
+        for (int c = 0; c < forward.inputChannels; ++c) {
+          device[static_cast<size_t>(c)] = 0.5f;
+        }
+        device[static_cast<size_t>(axis)] = static_cast<icFloatNumber>(v);
       }
-      if (step > 6.0) {
-        ++metrics.discontinuities;
+
+      if (!evaluate_classic_lut_forward(forward, device.data(), pcs.data())) {
+        continue;
       }
-      prevStep = step;
-      ++stepCount;
+
+      pcs_to_lab(pIcc->m_Header.pcs, pcs.data(), currLab.data());
+      if (havePrev) {
+        const double step = delta_e_2000(prevLab.data(), currLab.data());
+        metrics.maxStepDe00 = std::max(metrics.maxStepDe00, step);
+        sumStep += step;
+        if (prevStep >= 0.0) {
+          metrics.maxCurvatureDe00 =
+              std::max(metrics.maxCurvatureDe00, std::fabs(step - prevStep));
+        }
+        if (step > 6.0) {
+          ++metrics.discontinuities;
+        }
+        prevStep = step;
+        ++stepCount;
+      } else {
+        havePrev = true;
+      }
+
+      prevLab = currLab;
     }
-    prevLab = currLab;
+  };
+
+  if (forward.inputChannels == 1) {
+    accumulate_path(false, 0);
+  } else {
+    accumulate_path(true, 0);
+    for (int axis = 0; axis < forward.inputChannels; ++axis) {
+      accumulate_path(false, axis);
+    }
   }
 
   if (stepCount == 0) {
@@ -800,7 +955,7 @@ inline bool measure_forward_smoothness_classic_lut(CIccProfile *pIcc,
   }
 
   metrics.measured = true;
-  metrics.model = "classic lut8/lut16";
+  metrics.model = std::string("classic lut8/lut16 ") + tagLabel;
   metrics.samples = stepCount;
   metrics.avgStepDe00 = sumStep / stepCount;
   return true;
@@ -886,6 +1041,14 @@ inline CurveInvertibilityMetrics measure_curve_invertibility(CIccProfile *pIcc) 
   append_mbb_curve_targets(curves, pIcc, icSigBToA0Tag, "B2A0");
   append_mbb_curve_targets(curves, pIcc, icSigAToB1Tag, "A2B1");
   append_mbb_curve_targets(curves, pIcc, icSigBToA1Tag, "B2A1");
+  append_mbb_curve_targets(curves, pIcc, icSigAToB2Tag, "A2B2");
+  append_mbb_curve_targets(curves, pIcc, icSigBToA2Tag, "B2A2");
+  append_mbb_curve_targets(curves, pIcc, icSigDToB0Tag, "D2B0");
+  append_mbb_curve_targets(curves, pIcc, icSigBToD0Tag, "B2D0");
+  append_mbb_curve_targets(curves, pIcc, icSigDToB1Tag, "D2B1");
+  append_mbb_curve_targets(curves, pIcc, icSigBToD1Tag, "B2D1");
+  append_mbb_curve_targets(curves, pIcc, icSigDToB2Tag, "D2B2");
+  append_mbb_curve_targets(curves, pIcc, icSigBToD2Tag, "B2D2");
 
   for (auto &entry : curves) {
     CIccCurve *curve = entry.second;
@@ -1043,8 +1206,8 @@ inline int find_field_index(const std::vector<std::string> &fields,
   return -1;
 }
 
-inline void normalize_device_triplet(std::vector<std::array<double, 3>> &values,
-                                     int channels) {
+inline void normalize_device_rows(std::vector<std::array<double, kQualityMaxDeviceChannels>> &values,
+                                  int channels) {
   double maxSeen = 0.0;
   for (const auto &v : values) {
     for (int i = 0; i < channels; ++i) {
@@ -1095,10 +1258,11 @@ inline bool evaluate_characterization(CIccProfile *pIcc,
     return false;
   }
 
-  std::vector<std::array<double, 3>> deviceRows;
+  std::vector<std::array<double, kQualityMaxDeviceChannels>> deviceRows;
   std::vector<std::array<double, 3>> pcsRows;
   const icColorSpaceSignature colorSpace = pIcc->m_Header.colorSpace;
   const icColorSpaceSignature pcs = pIcc->m_Header.pcs;
+  int deviceChannels = 0;
 
   if (colorSpace == icSigRgbData) {
     const int r = find_field_index(parsed.fields, {"RGB_R", "R"});
@@ -1106,27 +1270,49 @@ inline bool evaluate_characterization(CIccProfile *pIcc,
     const int b = find_field_index(parsed.fields, {"RGB_B", "B"});
     if (r >= 0 && g >= 0 && b >= 0) {
       metrics.hasDeviceColumns = true;
+      deviceChannels = 3;
       for (const auto &row : parsed.rows) {
         if (static_cast<int>(row.size()) <= std::max({r, g, b})) {
           continue;
         }
         deviceRows.push_back({row[static_cast<size_t>(r)],
                               row[static_cast<size_t>(g)],
-                              row[static_cast<size_t>(b)]});
+                              row[static_cast<size_t>(b)],
+                              0.0});
       }
-      normalize_device_triplet(deviceRows, 3);
+      normalize_device_rows(deviceRows, deviceChannels);
     }
   } else if (colorSpace == icSigGrayData) {
     const int k = find_field_index(parsed.fields, {"GRAY", "K", "GRAY_K"});
     if (k >= 0) {
       metrics.hasDeviceColumns = true;
+      deviceChannels = 1;
       for (const auto &row : parsed.rows) {
         if (static_cast<int>(row.size()) <= k) {
           continue;
         }
-        deviceRows.push_back({row[static_cast<size_t>(k)], 0.0, 0.0});
+        deviceRows.push_back({row[static_cast<size_t>(k)], 0.0, 0.0, 0.0});
       }
-      normalize_device_triplet(deviceRows, 1);
+      normalize_device_rows(deviceRows, deviceChannels);
+    }
+  } else if (colorSpace == icSigCmykData) {
+    const int c = find_field_index(parsed.fields, {"CMYK_C", "C"});
+    const int m = find_field_index(parsed.fields, {"CMYK_M", "M"});
+    const int y = find_field_index(parsed.fields, {"CMYK_Y", "Y"});
+    const int k = find_field_index(parsed.fields, {"CMYK_K", "K"});
+    if (c >= 0 && m >= 0 && y >= 0 && k >= 0) {
+      metrics.hasDeviceColumns = true;
+      deviceChannels = 4;
+      for (const auto &row : parsed.rows) {
+        if (static_cast<int>(row.size()) <= std::max({c, m, y, k})) {
+          continue;
+        }
+        deviceRows.push_back({row[static_cast<size_t>(c)],
+                              row[static_cast<size_t>(m)],
+                              row[static_cast<size_t>(y)],
+                              row[static_cast<size_t>(k)]});
+      }
+      normalize_device_rows(deviceRows, deviceChannels);
     }
   }
 
@@ -1200,12 +1386,26 @@ inline bool evaluate_characterization(CIccProfile *pIcc,
   bool useClassic = false;
 
   std::string transformReason;
-  if (CIccTag *a2b = pIcc->FindTag(icSigAToB0Tag)) {
-    useClassic = build_classic_lut_transform(a2b, pIcc->m_Header.pcs, classicForward, transformReason);
+  const char *forwardLabel = "";
+  if (CIccTag *forwardTag = nullptr; select_classic_lut_forward_tag(pIcc, forwardTag, forwardLabel)) {
+    useClassic = build_classic_lut_transform(forwardTag, pIcc->m_Header.pcs, classicForward, transformReason);
+    if (!useClassic && !transformReason.empty()) {
+      transformReason = std::string(forwardLabel) + " present but " + transformReason;
+    }
   }
 
   if (!useClassic && !build_matrix_trc_transform(pIcc, matrixForward, transformReason)) {
     reason = "Characterization data present but no supported forward transform is available";
+    return false;
+  }
+
+  if (useClassic) {
+    if (classicForward.inputChannels != deviceChannels) {
+      reason = "Characterization device columns do not match classic LUT input channels";
+      return false;
+    }
+  } else if (matrixForward.channels != deviceChannels) {
+    reason = "Characterization device columns do not match matrix/TRC input channels";
     return false;
   }
 
@@ -1219,9 +1419,10 @@ inline bool evaluate_characterization(CIccProfile *pIcc,
 
   for (size_t i = 0; i < limit; ++i) {
     std::array<icFloatNumber, 16> device{};
-    device[0] = static_cast<icFloatNumber>(clamp01(deviceRows[i][0]));
-    device[1] = static_cast<icFloatNumber>(clamp01(deviceRows[i][1]));
-    device[2] = static_cast<icFloatNumber>(clamp01(deviceRows[i][2]));
+    for (int c = 0; c < deviceChannels; ++c) {
+      device[static_cast<size_t>(c)] =
+          static_cast<icFloatNumber>(clamp01(deviceRows[i][static_cast<size_t>(c)]));
+    }
 
     bool ok = false;
     if (useClassic) {
