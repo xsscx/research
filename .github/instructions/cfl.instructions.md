@@ -112,6 +112,16 @@ for historical reference.
 | 055 | fromIt8 signed-unsigned mismatch | Signed/unsigned comparison in fromIt8 loop | CWE-681 | IccCmmConfig.cpp |
 | 056 | Spectral Describe null pointer guards | NULL pointer dereference in spectral Describe methods | CWE-476 | IccMpeSpectral.cpp |
 | 057 | SearchApply uninitialized members | Uninitialized member variables in SearchApply constructor | CWE-908 | IccCmmConfig.cpp |
+| 058 | CIccEmbedIO m_nSize=-1 UBSAN | Implicit -1→size_t conversion in CIccEmbedIO constructor | CWE-681 | IccIO.cpp |
+| 059 | TagCurve Begin nMaxIndex UBSAN | Implicit -1→icUInt16Number conversion in CIccTagCurve::Begin() | CWE-681 | IccTagLut.h |
+| 060 | icGetSigStr left-shift overflow | Left shift of large values by 8 overflows icUInt32Number | CWE-190 | IccUtil.cpp |
+| 061 | icF16toF unsigned underflow | Unsigned subtraction underflow in half-float decoder | CWE-191 | IccUtil.cpp |
+| 062 | icGetSig implicit char conversion | Implicit int→icChar conversion in signature formatting | CWE-681 | IccUtil.cpp |
+| 063 | Bounds check unsigned overflow | offset+size overflow in Read/CheckLut guards | CWE-190 | IccProfile.cpp, IccTagMPE.cpp, IccMpeCalc.cpp |
+| 064 | Segmented curve subtraction underflow | pos-startPos underflow in CIccSegmentedCurve::Read | CWE-191 | IccMpeBasic.cpp |
+| 065 | IccTagLut nEnd subtraction underflow | nEnd-Tell() underflow at 12 Read/Init sites | CWE-191 | IccTagLut.cpp |
+| 066 | IccUtilXml bitmask signed conversion | ~(enum\|enum) produces signed negative→unsigned UBSAN | CWE-681 | IccUtilXml.cpp |
+| 067 | icIsS15Fixed16NumberNear float overflow | Float-to-unsigned cast overflow in D50 illuminant check | CWE-681 | IccUtil.cpp |
 
 ### Retired Patches (accepted upstream)
 
@@ -130,10 +140,13 @@ for historical reference.
 | 024 | TagArray Cleanup UAF guard | #683 |
 | 026 | TagArray copy/assign UAF guard | #680, #693 |
 | 027 | JSON toJson() key typos | #692 |
+| 034 | SearchApply fromJsonInit interpolation key | upstream c2ea9da |
+| 037 | Profile toJson missing transform | upstream c2ea9da |
+| 039 | SearchApply toJson dead guards | upstream c2ea9da |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **058**)
-- 45 active patches (12 retired after upstream acceptance in PRs #680-#695)
+- Numbering: zero-padded 3-digit, sequential (next: **068**)
+- 52 active patches (15 retired after upstream acceptance in PRs #680-#695 + c2ea9da)
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
@@ -163,7 +176,9 @@ LD_LIBRARY_PATH=cfl/iccDEV/Build/IccProfLib:cfl/iccDEV/Build/IccXML ASAN_OPTIONS
 **Patch conflicts on re-build**: `build.sh` runs `git checkout -- .` in `cfl/iccDEV/`
 before applying patches. If you get "FAIL" for patches that previously worked, verify
 the checkout step succeeded. Patches targeting the same file (e.g., `IccMpeCalc.cpp`
-is patched by CFL-005, CFL-009, CFL-010, CFL-014, CFL-017, CFL-020, CFL-021, CFL-022)
+is patched by CFL-005, CFL-009, CFL-014, CFL-017, CFL-022, CFL-063; `IccUtil.cpp`
+by CFL-060, CFL-061, CFL-062, CFL-067; `IccTagLut.cpp` by CFL-002, CFL-008, CFL-025,
+CFL-048, CFL-049, CFL-051, CFL-054, CFL-065)
 MUST be applied in order — each depends on context from previous patches.
 
 **Stale CMakeCache**: After changing iccDEV source or patches, the `Build/CMakeCache.txt`

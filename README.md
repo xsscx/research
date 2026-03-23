@@ -30,7 +30,7 @@ Last Updated: 2026-03-18 03:34:17 UTC by David Hoyt
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v5.0.0: `08c6903`) |
 | **Fuzzers** | 13/13 | Build + smoke test pass, aligned to project tool scope |
-| **CFL Patches** | 32 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-044) |
+| **CFL Patches** | 52 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-067, 15 retired upstream) |
 
 ## Build
 
@@ -54,7 +54,7 @@ cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 
 ## OOM Patch Kit
 
-The `cfl/patches/` directory contains 45 active security patches for iccDEV (CFL-001 through CFL-057, with 12 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes, format specifier fixes, uninitialized member fixes). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
+The `cfl/patches/` directory contains 52 active security patches for iccDEV (CFL-001 through CFL-067, with 15 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes, format specifier fixes, uninitialized member fixes, left-shift overflows, float-to-int overflow, implicit signed-to-unsigned conversions). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
 
 ## Fuzzer → Tool Mapping
 
