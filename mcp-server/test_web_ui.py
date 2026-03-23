@@ -339,11 +339,17 @@ def test_security_report():
           and "SHA-256:" in d.get("result", "")
           and "Size:" in d.get("result", ""))
     check("SecurityReport has view line",
-          "View: PAWG / conformance section only" in d.get("result", ""))
+          "View: PAWG / compact checklist" in d.get("result", ""))
     check("SecurityReport omits conformance coverage heading",
           "CONFORMANCE CHECK COVERAGE" not in d.get("result", ""))
-    check("SecurityReport has C1 and C14",
-          "C1" in d.get("result", "") and "C14" in d.get("result", ""))
+    check("SecurityReport has compact section headings",
+          "\nSecurity\n" in d.get("result", "")
+          and "\nConformance\n" in d.get("result", "")
+          and "\nQuality\n" in d.get("result", ""))
+    check("SecurityReport has S/C/Q item ranges",
+          "S1" in d.get("result", "") and "S13" in d.get("result", "")
+          and "C1" in d.get("result", "") and "C14" in d.get("result", "")
+          and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
     check("SecurityReport omits CWE references",
           "CWE-" not in d.get("result", ""))
     check("SecurityReport omits security taxonomy note",
@@ -352,8 +358,11 @@ def test_security_report():
           "Checks:" not in d.get("result", "")
           and "\n          CF-" not in d.get("result", ""))
     check("SecurityReport omits PAWG banner clutter",
+          "[ SECURITY ]" not in d.get("result", "")
+          and
           "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in d.get("result", "")
           and "[ CONFORMANCE ]" not in d.get("result", "")
+          and "[ QUALITY ]" not in d.get("result", "")
           and "Goals for profile assessment" not in d.get("result", "")
           and "Tool:" not in d.get("result", "")
           and "Build:" not in d.get("result", ""))
@@ -366,10 +375,9 @@ def test_security_report():
           and "Checks mapped:" in d.get("result", "")
           and "Registry total:" in d.get("result", "")
           and "Spec coverage:" in d.get("result", ""))
-    check("SecurityReport is conformance-only",
-          "[ SECURITY ]" not in d.get("result", "")
-          and "[ QUALITY ]" not in d.get("result", "")
-          and "[H" not in d.get("result", ""))
+    check("SecurityReport omits heuristic detail blocks",
+          "[H" not in d.get("result", "")
+          and "\n          CF-" not in d.get("result", ""))
     # Bad path returns 400
     r2 = c.get("/api/security-report?path=nonexistent-xyz.icc")
     check("SecurityReport bad path 400", r2.status_code == 400)
@@ -393,11 +401,17 @@ def test_pawg():
           and "SHA-256:" in d.get("result", "")
           and "Size:" in d.get("result", ""))
     check("PAWG has view line",
-          "View: PAWG / conformance section only" in d.get("result", ""))
+          "View: PAWG / compact checklist" in d.get("result", ""))
     check("PAWG omits conformance coverage heading",
           "CONFORMANCE CHECK COVERAGE" not in d.get("result", ""))
-    check("PAWG has C1 and C14",
-          "C1" in d.get("result", "") and "C14" in d.get("result", ""))
+    check("PAWG has compact section headings",
+          "\nSecurity\n" in d.get("result", "")
+          and "\nConformance\n" in d.get("result", "")
+          and "\nQuality\n" in d.get("result", ""))
+    check("PAWG has S/C/Q item ranges",
+          "S1" in d.get("result", "") and "S13" in d.get("result", "")
+          and "C1" in d.get("result", "") and "C14" in d.get("result", "")
+          and "Q1" in d.get("result", "") and "Q4" in d.get("result", ""))
     check("PAWG omits CWE references",
           "CWE-" not in d.get("result", ""))
     check("PAWG omits security taxonomy note",
@@ -406,8 +420,11 @@ def test_pawg():
           "Checks:" not in d.get("result", "")
           and "\n          CF-" not in d.get("result", ""))
     check("PAWG omits PAWG banner clutter",
+          "[ SECURITY ]" not in d.get("result", "")
+          and
           "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in d.get("result", "")
           and "[ CONFORMANCE ]" not in d.get("result", "")
+          and "[ QUALITY ]" not in d.get("result", "")
           and "Goals for profile assessment" not in d.get("result", "")
           and "Tool:" not in d.get("result", "")
           and "Build:" not in d.get("result", ""))
@@ -416,10 +433,9 @@ def test_pawg():
           and "Checks mapped:" in d.get("result", "")
           and "Registry total:" in d.get("result", "")
           and "Spec coverage:" in d.get("result", ""))
-    check("PAWG is conformance-only",
-          "[ SECURITY ]" not in d.get("result", "")
-          and "[ QUALITY ]" not in d.get("result", "")
-          and "[H" not in d.get("result", ""))
+    check("PAWG omits heuristic detail blocks",
+          "[H" not in d.get("result", "")
+          and "\n          CF-" not in d.get("result", ""))
     r2 = c.get("/api/pawg?path=nonexistent-xyz.icc")
     check("PAWG bad path 400", r2.status_code == 400)
 
