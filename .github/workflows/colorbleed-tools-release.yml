@@ -140,6 +140,7 @@ jobs:
         id: setup
         run: |
           set -euo pipefail
+          source .github/scripts/icc-profile-quarantine.sh
           mkdir -p colorbleed-test-results/outputs/toxml
           mkdir -p colorbleed-test-results/outputs/roundtrip
           mkdir -p colorbleed-test-results/outputs/diffs
@@ -147,8 +148,9 @@ jobs:
           PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
           PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
 
-          find test-profiles/ -type f -name "*.icc" | \
-            shuf -n ${PROFILE_COUNT} > colorbleed-test-results/selected-profiles.txt
+          find test-profiles/ -type f -name "*.icc" | sort > /tmp/colorbleed-release-all.txt
+          icc_profile_filter_quarantine /tmp/colorbleed-release-all.txt /tmp/colorbleed-release-routine.txt
+          shuf -n ${PROFILE_COUNT} /tmp/colorbleed-release-routine.txt > colorbleed-test-results/selected-profiles.txt
 
           AVAILABLE=$(wc -l < colorbleed-test-results/selected-profiles.txt | tr -d ' \n\r')
           echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
@@ -183,6 +185,7 @@ jobs:
             XML_OUT="colorbleed-test-results/outputs/toxml/${PROFILE_NAME}.xml"
             RT_OUT="colorbleed-test-results/outputs/roundtrip/${PROFILE_NAME}"
             DIFF_OUT="colorbleed-test-results/outputs/diffs/${PROFILE_NAME}.diff.txt"
+            printf '%s\n' "$profile" > colorbleed-test-results/current-profile.txt
 
             echo "[${TOTAL}] Testing: ${PROFILE_NAME}"
             echo "=== Profile: ${PROFILE_NAME} ===" >> $SUMMARY

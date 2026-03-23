@@ -16,6 +16,7 @@ Usage:
     python3 run_tests.py --no-color         # Disable colored output
 """
 
+import fnmatch
 import os
 import json
 import re
@@ -34,6 +35,7 @@ BINARY = SCRIPT_DIR.parent / "iccanalyzer-lite"
 CORPUS_DIR = SCRIPT_DIR / "corpus"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
+PROFILE_RESOURCE_QUARANTINE = SCRIPT_DIR / "profile-resource-quarantine.txt"
 
 # Exit codes
 EXIT_CLEAN = 0
@@ -42,6 +44,61 @@ EXIT_ERROR = 2
 EXIT_USAGE = 3
 
 TIMEOUT_SEC = 30
+
+
+def _load_profile_quarantine_patterns():
+    if not PROFILE_RESOURCE_QUARANTINE.exists():
+        return []
+
+    patterns = []
+    for raw in PROFILE_RESOURCE_QUARANTINE.read_text(
+        encoding="utf-8", errors="replace"
+    ).splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            patterns.append(line)
+    return patterns
+
+
+PROFILE_QUARANTINE_PATTERNS = _load_profile_quarantine_patterns()
+
+
+def quarantine_enabled():
+    value = os.environ.get("ICCANALYZER_INCLUDE_QUARANTINED", "").strip().lower()
+    return value not in ("1", "true", "yes", "on")
+
+
+def is_quarantined_profile(path):
+    if not quarantine_enabled() or not PROFILE_QUARANTINE_PATTERNS:
+        return False
+
+    try:
+        rel = path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    except Exception:
+        rel = path.as_posix()
+
+    base = path.name
+    for pattern in PROFILE_QUARANTINE_PATTERNS:
+        if fnmatch.fnmatch(rel, pattern) or fnmatch.fnmatch(base, pattern):
+            return True
+    return False
+
+
+def filter_quarantined_profiles(paths):
+    return [path for path in paths if not is_quarantined_profile(path)]
+
+
+def generic_sanitizer_hit(text):
+    markers = (
+        "ERROR: AddressSanitizer",
+        "SUMMARY: AddressSanitizer",
+        "runtime error:",
+        "SUMMARY: UndefinedBehaviorSanitizer",
+    )
+    for line in text.splitlines():
+        if any(marker in line for marker in markers):
+            return line.strip()
+    return ""
 
 # --- Test infrastructure ---
 
@@ -124,29 +181,85 @@ class TestSuite:
         self._current_section = None
         self._stop_requested = False
         self.env = os.environ.copy()
-        self.env["ASAN_OPTIONS"] = "detect_leaks=0"
+        self.env["ASAN_OPTIONS"] = "detect_leaks=0:halt_on_error=0:print_stacktrace=1"
+        self.env["UBSAN_OPTIONS"] = "halt_on_error=0:print_stacktrace=1"
         self.env["LLVM_PROFILE_FILE"] = "/dev/null"
+        self._run_counter = 0
+        self.sanitizer_log_dir = Path(
+            tempfile.mkdtemp(prefix="iccanalyzer-run-tests-sanitizer-")
+        )
+
+    def _append_sanitizer_option(self, base, extra):
+        base = (base or "").strip(":")
+        return f"{base}:{extra}" if base else extra
+
+    def _sanitizer_log_prefix(self, args):
+        label = "_".join(args) if args else "no_args"
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", label).strip("._")
+        safe = safe[:120] or "run"
+        self._run_counter += 1
+        return self.sanitizer_log_dir / f"{self._run_counter:04d}-{safe}"
+
+    def _collect_sanitizer_log_text(self, prefix):
+        chunks = []
+        for pattern in (f"{prefix.name}.asan*", f"{prefix.name}.ubsan*"):
+            for log_path in sorted(self.sanitizer_log_dir.glob(pattern)):
+                try:
+                    content = log_path.read_text(encoding="utf-8", errors="replace").strip()
+                except OSError:
+                    continue
+                if content:
+                    chunks.append(f"===== {log_path.name} =====\n{content}")
+        return "\n".join(chunks)
 
     def run_analyzer(self, args, timeout=TIMEOUT_SEC):
         """Run iccanalyzer-lite with given args, return (exit_code, stdout, stderr)."""
         cmd = [self.binary] + args
+        env = self.env.copy()
+        log_prefix = self._sanitizer_log_prefix(args)
+        env["ASAN_OPTIONS"] = self._append_sanitizer_option(
+            env.get("ASAN_OPTIONS"), f"log_path={log_prefix}.asan"
+        )
+        env["UBSAN_OPTIONS"] = self._append_sanitizer_option(
+            env.get("UBSAN_OPTIONS"), f"log_path={log_prefix}.ubsan"
+        )
         if self.debug:
             print(f"    {C.dim('$ ' + ' '.join(cmd))}")
         try:
             proc = subprocess.run(
                 cmd, capture_output=True,
-                timeout=timeout, env=self.env
+                timeout=timeout, env=env
             )
             stdout = proc.stdout.decode("utf-8", errors="replace")
             stderr = proc.stderr.decode("utf-8", errors="replace")
+            sanitizer_text = self._collect_sanitizer_log_text(log_prefix)
+            if sanitizer_text:
+                if stderr and not stderr.endswith("\n"):
+                    stderr += "\n"
+                stderr += sanitizer_text
             return proc.returncode, stdout, stderr
-        except subprocess.TimeoutExpired:
-            return -1, "", "TIMEOUT"
+        except subprocess.TimeoutExpired as exc:
+            stdout = (exc.stdout or b"").decode("utf-8", errors="replace")
+            stderr = (exc.stderr or b"").decode("utf-8", errors="replace")
+            sanitizer_text = self._collect_sanitizer_log_text(log_prefix)
+            if sanitizer_text:
+                if stderr and not stderr.endswith("\n"):
+                    stderr += "\n"
+                stderr += sanitizer_text
+            if stderr and not stderr.endswith("\n"):
+                stderr += "\n"
+            stderr += "TIMEOUT"
+            return -1, stdout, stderr
         except FileNotFoundError:
             return -99, "", f"Binary not found: {self.binary}"
 
     def _record(self, result):
         """Record a test result with live progress output."""
+        if not result.skipped and result.passed:
+            asan_hit = self._check_asan_analyzer(result.stderr, result.stdout)
+            if asan_hit:
+                result.passed = False
+                result.message = f"ASAN/UBSAN error: {asan_hit}"
         list.append(self.results, result)  # bypass proxy to avoid recursion
         if self._current_section:
             self._section_results.setdefault(self._current_section, []).append(result)
@@ -262,39 +375,15 @@ class TestSuite:
         return passed
 
     def _check_asan_analyzer(self, stderr, stdout=""):
-        """Check for ASAN/UBSAN errors in analyzer code (not upstream iccDEV)."""
+        """Check for ASAN/UBSAN errors without masking sanitizer log-path output."""
         for line in stderr.splitlines():
             if "ERROR: AddressSanitizer" in line:
                 return line.strip()
             if "runtime error:" in line:
-                # Filter out known upstream iccDEV UBSAN
-                if any(f in line for f in [
-                    "IccCAM.cpp",         # upstream div-by-zero (m_WhitePoint[1])
-                    "IccProfile.cpp",     # upstream div-by-zero (m_illuminantXYZ.Y)
-                    "IccTagLut.cpp",      # upstream signed integer overflow (m_XYZMatrix)
-                    "IccMatrixMath.cpp",  # upstream NaN→unsigned short in SetRange
-                    "IccMD5.cpp",         # MD5 intentional unsigned wrapping
-                    "IccMpeBasic.cpp",    # upstream NaN→unsigned int in Apply()
-                ]):
-                    continue
-                if (
-                    "IccIO.cpp:569" in line and
-                    "[H96]" in stdout and
-                    "CIccEmbedIO constructor sentinel UB" in stdout
-                ):
-                    continue
-                if (
-                    "IccUtil.cpp" in line and
-                    "[H173]" in stdout and
-                    "Signature Conversion Shift Overflow" in stdout
-                ):
-                    continue
-                if (
-                    "IccTagLut.h" in line and
-                    "[H147]" in stdout and
-                    "Null Pointer Dereference" in stdout
-                ):
-                    continue
+                return line.strip()
+            if "SUMMARY: UndefinedBehaviorSanitizer" in line:
+                return line.strip()
+            if "SUMMARY: AddressSanitizer" in line:
                 return line.strip()
         return None
 
@@ -366,6 +455,8 @@ class TestSuite:
         if xml_path:
             self._write_junit_xml(xml_path, total_time)
             print(f"\nJUnit XML written to: {xml_path}")
+        if self.debug or failed > 0:
+            print(f"\nSanitizer logs: {self.sanitizer_log_dir}")
 
         return 0 if failed == 0 else 1
 
@@ -467,7 +558,9 @@ def test_analysis_modes(suite):
     # Use a known good profile from test-profiles/
     good_profile = None
     if TEST_PROFILES.exists():
-        candidates = list(TEST_PROFILES.glob("sRGB*.icc")) + list(TEST_PROFILES.glob("*.icc"))
+        candidates = filter_quarantined_profiles(
+            list(TEST_PROFILES.glob("sRGB*.icc")) + list(TEST_PROFILES.glob("*.icc"))
+        )
         if candidates:
             good_profile = str(candidates[0])
 
@@ -960,15 +1053,52 @@ def test_repo_profiles_sample(suite):
     """Test a sample of real profiles from the repo for ASAN cleanliness."""
     profiles = []
     if TEST_PROFILES.exists():
-        all_profiles = sorted(TEST_PROFILES.glob("*.icc"))
-        # Sample every 10th profile for speed
-        profiles = all_profiles[::10]
+        all_profiles = filter_quarantined_profiles(sorted(TEST_PROFILES.glob("*.icc")))
+        sample_step = max(1, int(os.environ.get("ICCANALYZER_REPO_PROFILE_SAMPLE_STEP", "10")))
+        sample_cap = int(os.environ.get("ICCANALYZER_REPO_PROFILE_CAP", "30"))
+        profiles = all_profiles[::sample_step]
+        if sample_cap > 0:
+            profiles = profiles[:sample_cap]
 
-    for icc in profiles[:30]:  # Cap at 30
+    for icc in profiles:
         suite.assert_no_asan(
             f"asan.repo.{icc.stem[:40]}",
             ["-a", str(icc)]
         )
+
+
+def test_pcc_illuminant_overflow_regression(suite):
+    """Regression: malformed PCC illuminants must not trigger icIsIllumD50 UBSan."""
+    trigger_names = [
+        "76558f2fb46ff50ff77237856adfde8ff74c3793",
+        "8541e466f7def17ed6d5e8fa355bfcb3dc855ce1",
+    ]
+
+    for name in trigger_names:
+        profile = TEST_PROFILES / name
+        if not profile.exists():
+            continue
+        suite.assert_no_asan(
+            f"asan.repo.pcc_illuminant_{name[:16]}",
+            ["-h", str(profile)]
+        )
+
+
+def test_tonemap_describe_overflow_regression(suite):
+    """Regression: malformed tone-map functions must not trigger Describe() ASan."""
+    profile = TEST_PROFILES / "CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc"
+    if not profile.exists():
+        return
+
+    suite.assert_no_asan(
+        "asan.repo.tonemap_describe_heap_oob",
+        ["-a", str(profile)]
+    )
+    suite.assert_output_contains(
+        "heuristic.tonemap_describe_validation",
+        ["-a", str(profile)],
+        r"H101|Tone map element .*invalid function parameters|CF-115|Tone mapping function has invalid parameters"
+    )
 
 
 def test_xml_export(suite):
@@ -1023,7 +1153,7 @@ def test_lut_extraction(suite):
 
     # Test with a real profile from test-profiles if available
     if TEST_PROFILES.exists():
-        candidates = sorted(TEST_PROFILES.glob("*.icc"))
+        candidates = filter_quarantined_profiles(sorted(TEST_PROFILES.glob("*.icc")))
         if candidates:
             with tempfile.TemporaryDirectory() as tmpdir:
                 basename = os.path.join(tmpdir, "lut_real")
@@ -4795,10 +4925,12 @@ def test_iccdev_tool_conformance(suite):
         )
         passed = proc.returncode == 0
         msg = "" if passed else f"iccDumpProfile exit {proc.returncode}"
-        asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
-        if asan_hit:
+        sanitizer_hit = generic_sanitizer_hit(
+            proc.stderr.decode("utf-8", errors="replace")
+        )
+        if sanitizer_hit:
             passed = False
-            msg = "ASAN error in iccDumpProfile"
+            msg = f"Sanitizer error in iccDumpProfile: {sanitizer_hit}"
         suite.results.append(TestResult(
             "iccdev.dump_srgb_v4", passed, msg, 0.0, "", ""
         ))
@@ -4816,10 +4948,12 @@ def test_iccdev_tool_conformance(suite):
             )
             passed = proc.returncode == 0
             msg = "" if passed else f"iccToXml exit {proc.returncode}"
-            asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
-            if asan_hit:
+            sanitizer_hit = generic_sanitizer_hit(
+                proc.stderr.decode("utf-8", errors="replace")
+            )
+            if sanitizer_hit:
                 passed = False
-                msg = "ASAN error in iccToXml"
+                msg = f"Sanitizer error in iccToXml: {sanitizer_hit}"
             suite.results.append(TestResult(
                 "iccdev.toxml_srgb_v4", passed, msg, 0.0, "", ""
             ))
@@ -4838,10 +4972,12 @@ def test_iccdev_tool_conformance(suite):
             )
             passed = proc.returncode == 0
             msg = "" if passed else f"iccDumpProfile exit {proc.returncode}"
-            asan_hit = "AddressSanitizer" in proc.stderr.decode("utf-8", errors="replace")
-            if asan_hit:
+            sanitizer_hit = generic_sanitizer_hit(
+                proc.stderr.decode("utf-8", errors="replace")
+            )
+            if sanitizer_hit:
                 passed = False
-                msg = "ASAN error on valid_srgb.icc"
+                msg = f"Sanitizer error on valid_srgb.icc: {sanitizer_hit}"
             suite.results.append(TestResult(
                 "iccdev.dump_synth_valid", passed, msg, 0.0, "", ""
             ))
@@ -4855,7 +4991,7 @@ def test_extended_profiles_coverage(suite):
     """Test -a on extended test profiles for broader code coverage."""
     if not EXTENDED_PROFILES.exists():
         return
-    profiles = sorted(EXTENDED_PROFILES.glob("*.icc"))
+    profiles = filter_quarantined_profiles(sorted(EXTENDED_PROFILES.glob("*.icc")))
     # Test every 5th extended profile (OOM files live in test-profiles/cwe-400/)
     for icc in profiles[::5][:20]:
         suite.assert_no_asan(
@@ -4886,11 +5022,13 @@ def _print_environment(binary):
     corpus_count = len(list(CORPUS_DIR.glob("*.icc"))) if CORPUS_DIR.exists() else 0
     print(f"  Corpus profiles: {corpus_count}")
     if TEST_PROFILES.exists():
-        tp_count = len(list(TEST_PROFILES.glob("*.icc")))
+        tp_count = len(filter_quarantined_profiles(list(TEST_PROFILES.glob("*.icc"))))
         print(f"  test-profiles/: {tp_count}")
     if EXTENDED_PROFILES.exists():
-        ep_count = len(list(EXTENDED_PROFILES.glob("*.icc")))
+        ep_count = len(filter_quarantined_profiles(list(EXTENDED_PROFILES.glob("*.icc"))))
         print(f"  extended-test-profiles/: {ep_count}")
+    print(f"  Quarantine file: {PROFILE_RESOURCE_QUARANTINE}")
+    print(f"  Quarantine enabled: {quarantine_enabled()}")
 
 
 def main():
@@ -4939,6 +5077,8 @@ examples:
         ("Heuristic Summary", test_heuristic_summary),
         ("Sanitizer Clean (Corpus)", test_sanitizer_clean),
         ("Repo Profile Sample", test_repo_profiles_sample),
+        ("PCC Illuminant Overflow Regression", test_pcc_illuminant_overflow_regression),
+        ("ToneMap Describe Overflow Regression", test_tonemap_describe_overflow_regression),
         ("XML Export", test_xml_export),
         ("Multi-Mode Consistency", test_multiple_modes_same_profile),
         ("LUT Extraction", test_lut_extraction),

@@ -233,6 +233,7 @@ jobs:
           INPUT_PROFILE_COUNT: ${{ inputs.profile_count || '50' }}
         run: |
           set -euo pipefail
+          source .github/scripts/icc-profile-quarantine.sh
 
           # Collect ALL available profiles for maximum coverage
           # 1. Local test profiles (crash/PoC/malformed)
@@ -244,11 +245,12 @@ jobs:
           # 4. iccDEV Testing suite (specification-conformant profiles)
           find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
 
-          # Deduplicate by filename
+          # Deduplicate and drop known resource bombs from routine coverage sampling
           sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt
+          icc_profile_filter_quarantine /tmp/all-profiles-dedup.txt /tmp/all-profiles-routine.txt
 
           PROFILE_COUNT=${INPUT_PROFILE_COUNT:-50}
-          AVAILABLE=$(wc -l < /tmp/all-profiles-dedup.txt)
+          AVAILABLE=$(wc -l < /tmp/all-profiles-routine.txt)
 
           # For coverage, use ALL profiles if count is 0 or "all"
           if [ "$PROFILE_COUNT" = "all" ] || [ "$PROFILE_COUNT" = "0" ]; then
@@ -257,8 +259,8 @@ jobs:
             USE_COUNT=$((AVAILABLE < PROFILE_COUNT ? AVAILABLE : PROFILE_COUNT))
           fi
 
-          shuf -n $USE_COUNT /tmp/all-profiles-dedup.txt > coverage-report/selected-profiles.txt
-          echo "Selected $USE_COUNT profiles from $AVAILABLE available for coverage"
+          shuf -n $USE_COUNT /tmp/all-profiles-routine.txt > coverage-report/selected-profiles.txt
+          echo "Selected $USE_COUNT profiles from $AVAILABLE routine candidates for coverage"
           echo "Sources: test-profiles/ + extended-test-profiles/ + cfl/ + iccDEV/Testing/"
           wc -l coverage-report/selected-profiles.txt
 
@@ -286,6 +288,7 @@ jobs:
             while IFS= read -r profile; do
               TOTAL=$((TOTAL + 1))
               PROFILE_NAME=$(basename "$profile")
+              printf '%s\n' "$MODE_NAME $profile" > coverage-report/current-profile.txt
 
               TMPOUT=$(mktemp)
               if timeout 30s $BINARY $MODE_FLAG "$profile" > "$TMPOUT" 2>&1; then

@@ -167,6 +167,20 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 - When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
 - Gate: if `heuristicCount >= kCriticalHeuristicThreshold`, library phase is skipped
 
+## Routine Resource-Bomb Policy
+
+- Routine local and CI profile sampling must exclude the known resource-bomb
+  families listed in
+  `iccanalyzer-lite/tests/profile-resource-quarantine.txt`.
+- Dedicated timeout/OOM/CWE-400 workflows still own those files explicitly.
+- If a profile-loop workflow runs one file at a time, write a breadcrumb such as
+  `current-profile.txt` before each invocation so host-level OOM still leaves an
+  identifiable last profile.
+- Do not rely on `ulimit -v` for routine ASan runs; ASan reserves large virtual
+  address ranges and can false-fail under tight RLIMIT_AS caps. Prefer the
+  quarantine list for routine runs and cgroup wrappers for targeted resource
+  investigations.
+
 ### Structured Output Architecture (Phase 5)
 
 All structured output modes (`--json`, `--report`, `-xml`, `--pawg`) use the same pattern:
