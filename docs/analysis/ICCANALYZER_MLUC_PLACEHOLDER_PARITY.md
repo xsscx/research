@@ -6,13 +6,19 @@ This note captures the `multiLocalizedUnicodeType` (`mluc`) parity work driven b
 the ICC technical note in `docs/iccDEV/specifications/PSD_TechNote.pdf` and the
 supporting structure diagram in `~/mluc-structure.png`.
 
+## Approved Parity Note
+
+- A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
+  12-byte recommended encoding per the ICC TN PSD guidance.
+- Legacy 16-byte zero-record encodings are readable in some SampleICC paths but
+  should still be reported as non-minimal rather than silently normalized away.
+
 ## Closed Parity Bug
 
-- V1 `CF-223` already treated a zero-name `mluc` placeholder as a **12-byte**
-  recommendation: type signature + reserved + `recordCount = 0`.
+- V1 `CF-223` already followed that guidance.
 - V2 `CF-223` was incorrectly enforcing a **16-byte** size for zero-record
   `mluc` tags.
-- V2 was corrected to match V1 and the ICC TN PSD guidance.
+- V2 was corrected to match V1 and the approved ICC TN PSD guidance.
 
 Code anchors:
 
