@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -233,6 +234,26 @@ PawgVerdict verdictForCheck(const PerCheckResult& entry) {
     return PawgVerdict::PASS;
 }
 
+std::string_view trimSummary(std::string_view summary) {
+    while (!summary.empty() &&
+           (summary.front() == ' ' || summary.front() == '\t')) {
+        summary.remove_prefix(1);
+    }
+    while (!summary.empty() &&
+           (summary.back() == ' ' || summary.back() == '\t')) {
+        summary.remove_suffix(1);
+    }
+    return summary;
+}
+
+std::optional<PawgVerdict> explicitCoverageVerdict(std::string_view summary) {
+    summary = trimSummary(summary);
+    if (summary.rfind("NOT RUN:", 0) == 0) return PawgVerdict::NOT_RUN;
+    if (summary.rfind("N/A:", 0) == 0) return PawgVerdict::NOT_APPLICABLE;
+    if (summary.rfind("GAP:", 0) == 0) return PawgVerdict::GAP;
+    return std::nullopt;
+}
+
 bool isRuntimeSkipSummary(std::string_view summary) {
     if (summary.empty()) return false;
     return summary.find("Library failed to load") != std::string_view::npos
@@ -297,6 +318,33 @@ void appendSkippedCheckDetail(PawgItem& item,
     item.detailLines.push_back(line.str());
 }
 
+void appendCoverageCheckDetail(PawgItem& item,
+                               int cfNumber,
+                               std::string_view summary,
+                               PawgVerdict verdict) {
+    std::ostringstream line;
+    line << "CF-" << std::setw(3) << std::setfill('0') << cfNumber << std::setfill(' ');
+    if (!summary.empty()) {
+        line << ": " << trimSummary(summary);
+    } else {
+        line << ": coverage outcome recorded";
+    }
+    switch (verdict) {
+        case PawgVerdict::NOT_APPLICABLE:
+            line << " [N/A]";
+            break;
+        case PawgVerdict::GAP:
+            line << " [GAP]";
+            break;
+        case PawgVerdict::NOT_RUN:
+            line << " [ -- ]";
+            break;
+        default:
+            break;
+    }
+    item.detailLines.push_back(line.str());
+}
+
 struct PawgTotals {
     int pass = 0;
     int warn = 0;
@@ -329,6 +377,7 @@ void scorePawgItems(std::vector<PawgItem>& items, const AnalysisResult& result) 
         bool anyEvaluated = false;
         PawgVerdict worst = PawgVerdict::PASS;
         std::vector<std::pair<int, std::string>> skippedChecks;
+        std::vector<std::pair<int, std::pair<PawgVerdict, std::string>>> coverageChecks;
         for (int cfNumber : item.checks) {
             auto it = perCheck.find(cfNumber);
             if (it == perCheck.end()) continue;
@@ -337,6 +386,12 @@ void scorePawgItems(std::vector<PawgItem>& items, const AnalysisResult& result) 
             const auto& entry = *it->second;
             if (entry.result.status == CheckResult::Status::SKIP) {
                 skippedChecks.emplace_back(cfNumber, entry.result.summary);
+                continue;
+            }
+            if (auto explicitVerdict = explicitCoverageVerdict(entry.result.summary)) {
+                coverageChecks.emplace_back(
+                    cfNumber,
+                    std::make_pair(*explicitVerdict, std::string(entry.result.summary)));
                 continue;
             }
             anyEvaluated = true;
@@ -368,12 +423,19 @@ void scorePawgItems(std::vector<PawgItem>& items, const AnalysisResult& result) 
         }
         if (!anyEvaluated) {
             PawgVerdict skippedVerdict = PawgVerdict::NOT_APPLICABLE;
+            for (const auto& [cfNumber, entry] : coverageChecks) {
+                (void)cfNumber;
+                skippedVerdict = mergeSkippedVerdict(skippedVerdict, entry.first);
+            }
             for (const auto& [cfNumber, summary] : skippedChecks) {
                 skippedVerdict = mergeSkippedVerdict(
                     skippedVerdict,
                     classifySkippedSummary(summary, item.allSkippedVerdict));
             }
             item.verdict = skippedVerdict;
+            for (const auto& [cfNumber, entry] : coverageChecks) {
+                appendCoverageCheckDetail(item, cfNumber, entry.second, entry.first);
+            }
             for (const auto& [cfNumber, summary] : skippedChecks) {
                 appendSkippedCheckDetail(item, cfNumber, summary, skippedVerdict);
             }

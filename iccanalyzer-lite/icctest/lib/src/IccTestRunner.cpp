@@ -105,7 +105,7 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
     auto& registry = CheckRegistry::instance();
     registry.sort();
 
-    bool skipLibrary = opts.skipLibraryOnUB && pv.hasKnownUBPatterns();
+    bool skipLibrary = opts.skipLibraryOnUB && pv.requiresLibraryQuarantine();
     if (skipLibrary) {
         ICCTEST_WARN("UB patterns detected — skipping library-phase checks");
         // Add info finding about skipped library checks
@@ -122,7 +122,6 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
     for (const auto& check : registry.all()) {
         // Skip checks that don't match options
         if (!shouldRun(check, opts)) {
-            result.stats.checksSkipped++;
             continue;
         }
 
@@ -130,16 +129,18 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
         if (skipLibrary &&
             (check.meta.phase == CheckPhase::LIBRARY ||
              check.meta.phase == CheckPhase::CONFORMANCE)) {
-            result.stats.checksSkipped++;
             continue;
         }
 
-        if (check.meta.phase == CheckPhase::CONFORMANCE && !pv.libraryLoaded()) {
+        if ((check.meta.phase == CheckPhase::LIBRARY ||
+             check.meta.phase == CheckPhase::CONFORMANCE) &&
+            !pv.libraryLoaded()) {
             result.stats.checksRun++;
+            auto cr = CheckResult::ok("NOT RUN: Profile failed to load");
             result.perCheck.push_back(PerCheckResult{
                 check.id,
                 check.meta,
-                CheckResult::skip("Profile failed to load")
+                std::move(cr)
             });
             continue;
         }
@@ -158,6 +159,9 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
         }
 
         result.stats.checksRun++;
+        if (cr.status == CheckResult::Status::SKIP) {
+            result.stats.checksSkipped++;
+        }
 
         // Collect findings
         for (auto& f : cr.findings) {

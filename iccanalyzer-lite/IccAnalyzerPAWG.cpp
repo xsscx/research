@@ -209,6 +209,39 @@ static PAWGVerdict UpgradeVerdict(PAWGVerdict current, PAWGVerdict candidate) {
   return (int)candidate > (int)current ? candidate : current;
 }
 
+static std::string TrimCopy(const std::string &text) {
+  size_t begin = text.find_first_not_of(" \t");
+  if (begin == std::string::npos) return std::string();
+  size_t end = text.find_last_not_of(" \t");
+  return text.substr(begin, end - begin + 1);
+}
+
+static bool ExtractExplicitCoverageVerdict(const std::string &detail,
+                                           PAWGVerdict &verdict,
+                                           std::string &matchedLine) {
+  std::istringstream iss(detail);
+  std::string line;
+  while (std::getline(iss, line)) {
+    std::string trimmed = TrimCopy(line);
+    if (trimmed.rfind("NOT RUN:", 0) == 0) {
+      verdict = PAWGVerdict::NOT_RUN;
+      matchedLine = trimmed;
+      return true;
+    }
+    if (trimmed.rfind("N/A:", 0) == 0) {
+      verdict = PAWGVerdict::NOT_APPLICABLE;
+      matchedLine = trimmed;
+      return true;
+    }
+    if (trimmed.rfind("GAP:", 0) == 0) {
+      verdict = PAWGVerdict::GAP;
+      matchedLine = trimmed;
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool IsRuntimeSkipDetail(const std::string &detail) {
   return detail.find("Library failed to load") != std::string::npos ||
          detail.find("not loaded") != std::string::npos ||
@@ -301,6 +334,7 @@ static void ScorePAWGItem(PAWGItem &item,
   bool anyEvaluated = false;
   PAWGVerdict worst = PAWGVerdict::PASS;
   std::vector<std::pair<int, std::string>> skippedChecks;
+  std::vector<std::pair<int, std::pair<PAWGVerdict, std::string>>> coverageChecks;
 
   for (int i = 0; i < item.checkCount; i++) {
     int cid = item.checks[i];
@@ -312,6 +346,15 @@ static void ScorePAWGItem(PAWGItem &item,
 
     if (r.status == "skip") {
       skippedChecks.push_back(std::make_pair(cid, r.detail));
+      continue;
+    }
+
+    PAWGVerdict explicitVerdict = PAWGVerdict::PASS;
+    std::string explicitDetail;
+    if (r.status == "ok" &&
+        ExtractExplicitCoverageVerdict(r.detail, explicitVerdict, explicitDetail)) {
+      coverageChecks.push_back(
+          std::make_pair(cid, std::make_pair(explicitVerdict, explicitDetail)));
       continue;
     }
     anyEvaluated = true;
@@ -350,12 +393,19 @@ static void ScorePAWGItem(PAWGItem &item,
 
   if (!anyEvaluated) {
     PAWGVerdict skippedVerdict = PAWGVerdict::NOT_APPLICABLE;
+    for (const auto &entry : coverageChecks) {
+      skippedVerdict = MergeSkippedVerdict(skippedVerdict, entry.second.first);
+    }
     for (const auto &entry : skippedChecks) {
       skippedVerdict = MergeSkippedVerdict(
           skippedVerdict,
           ClassifySkippedDetail(entry.second, item.allSkippedVerdict));
     }
     item.verdict = skippedVerdict;
+    for (const auto &entry : coverageChecks) {
+      AppendSkippedCheckDetail(item, entry.first, entry.second.second,
+                               entry.second.first);
+    }
     for (const auto &entry : skippedChecks) {
       AppendSkippedCheckDetail(item, entry.first, entry.second, skippedVerdict);
     }
@@ -545,7 +595,12 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
   printf("\n");
   PAWGBanner("CONFORMANCE CHECK COVERAGE", W);
   printf("\n");
-  printf("  Checks evaluated:       %zu / %d\n", results.size(), kTotalHeuristics);
+  size_t evaluatedConformance = 0;
+  for (const auto &entry : results) {
+    if (entry.first >= 1001 && entry.first < 2000) {
+      ++evaluatedConformance;
+    }
+  }
 
   // Count unique conformance checks mapped by PAWG items
   std::set<int> mappedChecks;
@@ -559,10 +614,11 @@ int RunWithPAWGOutput(const char *profilePath, const char *fingerprint_db) {
     for (int j = 0; j < BuildQualityItems[i].checkCount; j++)
       mappedChecks.insert(BuildQualityItems[i].checks[j]);
 
+  ConformanceRegistryStats cfStats = ComputeConformanceRegistryStats();
+  printf("  Checks evaluated:       %zu / %d\n",
+         evaluatedConformance, cfStats.totalChecks);
   printf("  Checks mapped:          %zu (across %d PAWG items)\n",
          mappedChecks.size(), totalItems);
-
-  ConformanceRegistryStats cfStats = ComputeConformanceRegistryStats();
   printf("  Registry total:         %d conformance checks\n", cfStats.totalChecks);
   printf("  Spec coverage:          %d checks with ICC spec refs\n",
          cfStats.checksWithSpecRef);
