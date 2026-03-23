@@ -57,14 +57,13 @@ if(BUILD_TESTING)
     add_test(
         NAME icctest_verify_parity
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verifyParity.py
-            --skip-unit
-            --skip-generated-smoke
             --v1-binary ${ICCTEST_V1_BINARY}
+            --unit-binary $<TARGET_FILE:icctest_unit_tests>
             --v2-binary $<TARGET_FILE:icctest-parity>
             --heuristic-remap ${CMAKE_CURRENT_SOURCE_DIR}/heuristic-remap.tsv
     )
     set_tests_properties(icctest_verify_parity PROPERTIES
-        TIMEOUT 300
+        TIMEOUT 420
         ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
     )
 

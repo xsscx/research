@@ -539,8 +539,10 @@ int RunCF087_MPEElementSignature(CIccProfile *pIcc) {
 int RunCF088_CalculatorStackStructure(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
   if (!IsV5(pIcc)) {
-    hc.info("Not a v5 profile");
-    return -1;
+    const char *reason = "Not a v5 profile";
+    printf("         %s[N/A]%s %s\n", ColorInfo(), ColorReset(), reason);
+    hc.info("N/A: %s", reason);
+    return 0;
   }
 
   int issues = 0;
@@ -553,8 +555,8 @@ int RunCF088_CalculatorStackStructure(CIccProfile *pIcc) {
     printf("         No tags in profile\n");
     printf("         %s[OK]%s No calculator elements to check\n",
            ColorSuccess(), ColorReset());
-    hc.info("No calculator elements to check");
-    return -1;
+    hc.info("N/A: No calculator elements to check");
+    return 0;
   }
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
