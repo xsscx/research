@@ -81,6 +81,20 @@ messages:
         paths but should still be reported as non-minimal rather than silently
         normalized away.
 
+      PAWG quality note:
+      - `Q1` covers matrix/TRC plus classic LUT round-trip pairs
+        `A2B0/B2A0`, `A2B1/B2A1`, and `A2B2/B2A2`, including 4-channel classic
+        LUTs.
+      - `Q2` includes classic/MBB curves from alternate intents and `D2B/B2D`
+        transforms when present.
+      - `Q3` uses multi-axis smoothness sampling, not diagonal-only sampling.
+      - `Q4` characterization parsing currently supports RGB, Gray, and CMYK
+        `charTargetTag` rows.
+      - Preferred PAWG quality regression fixtures:
+        `tests/corpus/lut8_atob2_btoa2.icc`,
+        `tests/corpus/targ_quality_profile.icc`, and
+        `tests/corpus/targ_cmyk_quality_profile.icc`.
+
       CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
       93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for
       authoritative counts. Key high-severity CVE detections:

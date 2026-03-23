@@ -617,6 +617,24 @@ static void test_pawg_quality_regressions() {
     }
 
     {
+        auto result = analyze_corpus_checks(corpusDir / "lut8_atob2_btoa2.icc", {99, 100, 101});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_conformance_result(result, 99, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
+
+        const auto* cf99 = find_per_check(result, CheckID::Kind::Conformance, 99);
+        const auto* cf100 = find_per_check(result, CheckID::Kind::Conformance, 100);
+        const auto* cf101 = find_per_check(result, CheckID::Kind::Conformance, 101);
+        ASSERT_TRUE(cf99 != nullptr);
+        ASSERT_TRUE(cf100 != nullptr);
+        ASSERT_TRUE(cf101 != nullptr);
+        ASSERT_TRUE(cf99->result.findings[0].detail.find("A2B2/B2A2") != std::string::npos);
+        ASSERT_TRUE(cf100->result.summary.find("curve(s) checked") != std::string::npos);
+        ASSERT_TRUE(cf101->result.summary.find("A2B2") != std::string::npos);
+    }
+
+    {
         auto result = analyze_corpus_checks(corpusDir / "non_monotonic_curve.icc", {100});
         ASSERT_EQ(1, result.stats.checksRun);
         expect_conformance_result(result, 100, CheckResult::Status::FINDINGS, 1);
@@ -646,6 +664,28 @@ static void test_pawg_quality_regressions() {
 
         const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
         ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf102->result.summary.find("usableRows=") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "targ_cmyk_quality_profile.icc", {99, 100, 101, 102});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 102, CheckResult::Status::OK, 0);
+
+        const auto* cf99 = find_per_check(result, CheckID::Kind::Conformance, 99);
+        const auto* cf100 = find_per_check(result, CheckID::Kind::Conformance, 100);
+        const auto* cf101 = find_per_check(result, CheckID::Kind::Conformance, 101);
+        const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
+        ASSERT_TRUE(cf99 != nullptr);
+        ASSERT_TRUE(cf100 != nullptr);
+        ASSERT_TRUE(cf101 != nullptr);
+        ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf99->result.summary.find("samples=") != std::string::npos);
+        ASSERT_TRUE(cf100->result.summary.find("curve(s) checked") != std::string::npos);
+        ASSERT_TRUE(cf101->result.summary.find("model=") != std::string::npos);
         ASSERT_TRUE(cf102->result.summary.find("usableRows=") != std::string::npos);
     }
 }

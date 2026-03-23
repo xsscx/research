@@ -206,6 +206,21 @@ PAWG mode has its own implementation with the same pattern but different output 
   shallower than standalone tag-table `mluc` validation because SampleICC still
   reads standalone `mluc` with the legacy 16-byte header shape.
 
+### PAWG quality coverage note
+
+- `Q1` bounded round-trip uses matrix/TRC plus classic LUT pair selection across
+  `A2B0/B2A0`, `A2B1/B2A1`, and `A2B2/B2A2`, including 4-channel classic LUTs.
+- `Q2` curve invertibility covers TRCs plus classic/MBB curves from alternate
+  intents and `D2B/B2D` tags when present.
+- `Q3` smoothness uses diagonal and per-axis bounded sweeps for matrix/TRC and
+  classic LUT paths; do not regress this back to diagonal-only sampling.
+- `Q4` characterization-data evaluation currently supports RGB, Gray, and CMYK
+  device columns from `charTargetTag`.
+- Regression anchors for PAWG quality work are:
+  `tests/corpus/lut8_atob2_btoa2.icc`,
+  `tests/corpus/targ_quality_profile.icc`, and
+  `tests/corpus/targ_cmyk_quality_profile.icc`.
+
 **Migration pitfall warning**: When writing `hc.info()`, `hc.warn()`, `hc.critical()`
 calls, ensure format string placeholders (`%s`, `%u`, `%d`) match the arguments.
 Missing `%s` causes args to be silently dropped (caught only by `-Wformat-extra-args`
