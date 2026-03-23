@@ -10,9 +10,11 @@
 #include "util/CheckHelpers.h"
 
 #include "IccProfile.h"
+#include "IccMpeBasic.h"
 #include "IccTagBasic.h"
 #include "IccTagEmbedIcc.h"
 #include "IccTagLut.h"
+#include "IccTagMPE.h"
 
 namespace icctest {
 
@@ -801,11 +803,74 @@ REGISTER_HEURISTIC(100, "Profile Sequence Desc Validation",
 
 static CheckResult check_h101_mpe_sub_element_channel_continuity(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library not loaded");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H101
-    return cb.done("MPE Sub Element Channel Continuity checked");
+    if (!p) return CheckResult::error("No profile");
+
+    static const icTagSignature mpeTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        icSigHToS0Tag, icSigHToS1Tag, icSigHToS2Tag, icSigHToS3Tag,
+        icSigCustomToStandardPccTag, icSigStandardToCustomPccTag
+    };
+
+    for (icTagSignature tagSig : mpeTags) {
+        CIccTag* rawTag = p->FindTag(tagSig);
+        CIccTagMultiProcessElement* mpe = rawTag
+            ? dynamic_cast<CIccTagMultiProcessElement*>(rawTag)
+            : nullptr;
+        if (!mpe) continue;
+
+        icUInt32Number numElems = mpe->NumElements();
+        if (!numElems) continue;
+
+        icUInt16Number prevOut = 0;
+        bool first = true;
+        for (icUInt32Number e = 0; e < numElems; e++) {
+            CIccMultiProcessElement* elem = mpe->GetElement(static_cast<int>(e));
+            if (!elem) continue;
+
+            icUInt16Number curIn = elem->NumInputChannels();
+            icUInt16Number curOut = elem->NumOutputChannels();
+
+            if (!first && curIn != prevOut) {
+                cb.critical(
+                    sfmt("Channel discontinuity in '%s' at element %u: prev_out=%u, cur_in=%u",
+                         sigStr(static_cast<uint32_t>(tagSig)).c_str(),
+                         static_cast<unsigned>(e),
+                         static_cast<unsigned>(prevOut),
+                         static_cast<unsigned>(curIn)),
+                    "CWE-787: Buffer overflow risk from mismatched MPE channel continuity");
+            }
+
+            if (auto* toneMap = dynamic_cast<CIccMpeToneMap*>(elem)) {
+                std::string report;
+                icValidateStatus toneStatus = toneMap->Validate("", report, mpe, p);
+                if (toneStatus >= icValidateCriticalError &&
+                    report.find("Tone mapping function has invalid parameters") != std::string::npos) {
+                    cb.critical(
+                        sfmt("Tag '%s' tone map element %u has invalid function parameters",
+                             sigStr(static_cast<uint32_t>(tagSig)).c_str(),
+                             static_cast<unsigned>(e)),
+                        "CWE-122: Heap-based buffer overflow via malformed tone mapping function");
+                } else if (toneStatus >= icValidateCriticalError &&
+                           report.find("unknown function type") != std::string::npos) {
+                    cb.warn(
+                        sfmt("Tag '%s' tone map element %u uses unknown function type",
+                             sigStr(static_cast<uint32_t>(tagSig)).c_str(),
+                             static_cast<unsigned>(e)),
+                        "CWE-20: Invalid tone mapping function type");
+                }
+            }
+
+            prevOut = curOut;
+            first = false;
+        }
+    }
+
+    return cb.done("MPE sub-element channel continuity validated");
 }
 
 REGISTER_HEURISTIC(101, "MPE Sub Element Channel Continuity",

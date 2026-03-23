@@ -252,13 +252,15 @@ jobs:
         id: setup
         run: |
           set -euo pipefail
+          source .github/scripts/icc-profile-quarantine.sh
           mkdir -p cli-test-results/outputs
 
           PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
           PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
 
-          find test-profiles/ -type f -name "*.icc" | \
-            shuf -n ${PROFILE_COUNT} > cli-test-results/selected-profiles.txt
+          find test-profiles/ -type f -name "*.icc" | sort > /tmp/cli-release-all.txt
+          icc_profile_filter_quarantine /tmp/cli-release-all.txt /tmp/cli-release-routine.txt
+          shuf -n ${PROFILE_COUNT} /tmp/cli-release-routine.txt > cli-test-results/selected-profiles.txt
 
           AVAILABLE=$(wc -l < cli-test-results/selected-profiles.txt | tr -d ' \n\r')
           echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
@@ -313,6 +315,7 @@ jobs:
               TOTAL=$((TOTAL + 1))
               PROFILE_NAME=$(basename "$profile")
               OUTPUT_FILE="../cli-test-results/outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
+              printf '%s\n' "$MODE_NAME $profile" > ../cli-test-results/current-profile.txt
 
               echo "[${MODE_NAME}] Testing: ${PROFILE_NAME}"
               echo "Profile: ${PROFILE_NAME}" >> $SUMMARY

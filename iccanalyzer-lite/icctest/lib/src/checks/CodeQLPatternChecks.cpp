@@ -473,7 +473,8 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
 
     // Tag type signatures (first 4 bytes of each tag's data)
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 4 || t.offset + 4 > len) continue;
+        const uint64_t typeEnd = static_cast<uint64_t>(t.offset) + 4u;
+        if (t.size < 4 || typeEnd > len) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
         if (typeSig == 0) continue;
         totalSigs++;

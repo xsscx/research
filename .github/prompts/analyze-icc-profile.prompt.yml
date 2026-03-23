@@ -110,6 +110,14 @@ messages:
       - When reasoning about built iccDEV CLI tools, do not infer success from
         `Tools/<dir>/<dir>` naming assumptions alone. Count actual executable
         files under `Tools/*/*`.
+      - Routine analyzer profile sampling should exclude the known
+        resource-bomb families in
+        `iccanalyzer-lite/tests/profile-resource-quarantine.txt`.
+      - Dedicated timeout/OOM verification owns those files explicitly; do not
+        let broad smoke/parity loops random-sample them.
+      - For harnessed parity/verification runners, force
+        `ASAN_OPTIONS=detect_leaks=0` even if a parent environment already set
+        `ASAN_OPTIONS`.
 
       CVE coverage: 57 heuristics detect patterns from 85 CVEs + 95 GHSAs (180 unique) across
       93 iccDEV security advisories. Use `./iccanalyzer-lite --registry | jq` for

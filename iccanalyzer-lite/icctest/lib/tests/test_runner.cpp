@@ -8,10 +8,12 @@
  */
 
 #include "icctest/IccTest.h"
+#include "IccProfile.h"
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <set>
+#include <string_view>
 #include <vector>
 
 extern void test_assert(bool, const char*, const char*, int);
@@ -23,13 +25,67 @@ extern void test_assert(bool, const char*, const char*, int);
 
 using namespace icctest;
 
-static std::filesystem::path resolve_repo_file(const char* relativePath) {
-    std::filesystem::path base = std::filesystem::path(__FILE__).parent_path();
-    auto candidate = (base / "../../../" / relativePath).lexically_normal();
-    if (std::filesystem::exists(candidate)) return candidate;
+static std::filesystem::path find_named_ancestor(std::filesystem::path start,
+                                                 std::string_view name) {
+    while (!start.empty()) {
+        if (start.filename() == name) {
+            return start;
+        }
+        auto parent = start.parent_path();
+        if (parent == start) {
+            break;
+        }
+        start = parent;
+    }
 
-    candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
-    if (std::filesystem::exists(candidate)) return candidate;
+    return {};
+}
+
+static std::filesystem::path find_repo_root(std::filesystem::path start) {
+    while (!start.empty()) {
+        if (std::filesystem::exists(start / ".git")) {
+            return start;
+        }
+        auto parent = start.parent_path();
+        if (parent == start) {
+            break;
+        }
+        start = parent;
+    }
+
+    return {};
+}
+
+static std::filesystem::path resolve_repo_file(const char* relativePath) {
+    auto sourceDir = std::filesystem::path(__FILE__).parent_path();
+    auto iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
+    auto repoRoot = find_repo_root(sourceDir);
+
+    if (std::strncmp(relativePath, "tests/", 6) == 0 && !iccaRoot.empty()) {
+        auto candidate = (iccaRoot / relativePath).lexically_normal();
+        if (std::filesystem::exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    if (!repoRoot.empty()) {
+        auto candidate = (repoRoot / relativePath).lexically_normal();
+        if (std::filesystem::exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    if (!iccaRoot.empty()) {
+        auto candidate = (iccaRoot / relativePath).lexically_normal();
+        if (std::filesystem::exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    auto candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
+    if (std::filesystem::exists(candidate)) {
+        return candidate;
+    }
 
     return {};
 }
@@ -94,6 +150,9 @@ static void expect_conformance_result(const AnalysisResult& result,
                                       int issueCount) {
     const auto* check = find_per_check(result, CheckID::Kind::Conformance, number);
     ASSERT_TRUE(check != nullptr);
+    if (!check) {
+        return;
+    }
     ASSERT_EQ(status, check->result.status);
     ASSERT_EQ(issueCount, check->result.issueCount());
 }
@@ -104,6 +163,9 @@ static void expect_heuristic_result(const AnalysisResult& result,
                                     int issueCount) {
     const auto* check = find_per_check(result, CheckID::Kind::Heuristic, number);
     ASSERT_TRUE(check != nullptr);
+    if (!check) {
+        return;
+    }
     ASSERT_EQ(status, check->result.status);
     ASSERT_EQ(issueCount, check->result.issueCount());
 }
@@ -269,12 +331,8 @@ static void test_analyze_real_profile() {
     std::printf("  test_analyze_real_profile...\n");
     setup_registry();
 
-    std::filesystem::path testProfile("test-profiles/sRGB_D65_MAT.icc");
-    if (!std::filesystem::exists(testProfile))
-        testProfile = "../test-profiles/sRGB_D65_MAT.icc";
-    if (!std::filesystem::exists(testProfile))
-        testProfile = "../../test-profiles/sRGB_D65_MAT.icc";
-    if (!std::filesystem::exists(testProfile)) {
+    auto testProfile = resolve_repo_file("test-profiles/sRGB_D65_MAT.icc");
+    if (testProfile.empty()) {
         std::printf("    (skipped — no test profile found)\n");
         return;
     }
@@ -918,6 +976,98 @@ static void test_heuristic_parity_regressions() {
     }
 }
 
+static void test_pcc_illuminant_overflow_regression() {
+    std::printf("  test_pcc_illuminant_overflow_regression...\n");
+
+    const std::vector<const char*> profiles = {
+        "test-profiles/76558f2fb46ff50ff77237856adfde8ff74c3793",
+        "test-profiles/8541e466f7def17ed6d5e8fa355bfcb3dc855ce1",
+    };
+
+    for (const char* relativePath : profiles) {
+        auto profilePath = resolve_repo_file(relativePath);
+        if (profilePath.empty()) {
+            std::printf("    (skipped — %s not found)\n", relativePath);
+            continue;
+        }
+
+        auto opened = ProfileView::open(profilePath, false);
+        ASSERT_TRUE(opened.has_value());
+        ASSERT_TRUE(opened->libraryLoaded());
+
+        CIccProfile* pIcc = opened->unsafeLibraryHandle();
+        ASSERT_TRUE(pIcc != nullptr);
+        ASSERT_EQ(icIlluminantUnknown, pIcc->getPccIlluminant());
+        ASSERT_EQ(0.0f, pIcc->getPccCCT());
+        ASSERT_EQ(icStdObsUnknown, pIcc->getPccObserver());
+
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::HEADER, CheckPhase::RAW_SCAN, CheckPhase::LIBRARY};
+        opts.skipLibraryOnUB = false;
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 8},
+            {CheckID::Kind::Heuristic, 112},
+        };
+
+        IccTestRunner runner;
+        auto result = runner.analyze(profilePath, opts);
+        ASSERT_EQ(2, result.stats.checksRun);
+        ASSERT_TRUE(find_per_check(result, CheckID::Kind::Heuristic, 8) != nullptr);
+        ASSERT_TRUE(find_per_check(result, CheckID::Kind::Heuristic, 112) != nullptr);
+        ASSERT_TRUE(result.stats.findingsTotal >= 1);
+    }
+}
+
+static void test_tonemap_describe_overflow_regression() {
+    std::printf("  test_tonemap_describe_overflow_regression...\n");
+
+    auto profilePath = resolve_repo_file("test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc");
+    if (profilePath.empty()) {
+        std::printf("    (skipped — tone-map regression profile not found)\n");
+        return;
+    }
+
+    AnalysisOptions heuristicOpts;
+    heuristicOpts.phases = {CheckPhase::LIBRARY};
+    heuristicOpts.skipLibraryOnUB = false;
+    heuristicOpts.specificChecks = {
+        {CheckID::Kind::Heuristic, 101},
+    };
+
+    IccTestRunner runner;
+    auto heuristicResult = runner.analyze(profilePath, heuristicOpts);
+    ASSERT_EQ(1, heuristicResult.stats.checksRun);
+    const auto* h101 = find_per_check(heuristicResult, CheckID::Kind::Heuristic, 101);
+    ASSERT_TRUE(h101 != nullptr);
+    ASSERT_EQ(CheckResult::Status::FINDINGS, h101->result.status);
+    ASSERT_TRUE(h101->result.issueCount() >= 1);
+
+    bool sawToneMapFinding = false;
+    for (const auto& finding : h101->result.findings) {
+        if (finding.message.find("tone map element") != std::string::npos) {
+            sawToneMapFinding = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(sawToneMapFinding);
+
+    auto conformanceResult = analyze_corpus_checks(profilePath, {115});
+    ASSERT_EQ(1, conformanceResult.stats.checksRun);
+    const auto* cf115 = find_per_check(conformanceResult, CheckID::Kind::Conformance, 115);
+    ASSERT_TRUE(cf115 != nullptr);
+    ASSERT_EQ(CheckResult::Status::FINDINGS, cf115->result.status);
+    ASSERT_TRUE(cf115->result.issueCount() >= 1);
+
+    bool sawCfToneMapFinding = false;
+    for (const auto& finding : cf115->result.findings) {
+        if (finding.message.find("tone map element") != std::string::npos) {
+            sawCfToneMapFinding = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(sawCfToneMapFinding);
+}
+
 static void test_conformance_v5_only_skip_regression() {
     std::printf("  test_conformance_v5_only_skip_regression...\n");
 
@@ -1045,6 +1195,8 @@ void test_runner() {
     test_conformance_v5_gate_regression();
     test_conformance_adgc_skip_regression();
     test_heuristic_parity_regressions();
+    test_pcc_illuminant_overflow_regression();
+    test_tonemap_describe_overflow_regression();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();
     // Analysis tests use setup_registry() which clears auto-registrations

@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from runtimeEnv import force_sanitizer_env
+
 
 ITEM_LINE_RE = re.compile(r"^\s+\[(OK|WARN|FAIL|N/A|GAP| -- )\]\s+([SCQ]\d+)\s+(.*)$", re.MULTILINE)
 COUNT_LINE_RE = re.compile(r"^\s+(PASS|WARN|FAIL|N/A|GAP|NOT RUN):\s+(\d+)$", re.MULTILINE)
@@ -69,9 +71,7 @@ def ensure_file(path: Path, label: str) -> None:
 
 
 def run(cmd: list[str], *, label: str) -> str:
-    env = os.environ.copy()
-    env.setdefault("ASAN_OPTIONS", "detect_leaks=0")
-    env.setdefault("LLVM_PROFILE_FILE", "/dev/null")
+    env = force_sanitizer_env(os.environ.copy())
     proc = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
