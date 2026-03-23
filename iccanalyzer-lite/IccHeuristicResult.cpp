@@ -154,6 +154,9 @@ int HeuristicCollector::skip(const char *reason)
   if (m_active) {
     m_current.status = "skip";
     m_current.findingCount = 0;
+    if (reason && *reason) {
+      m_current.details.push_back(reason);
+    }
     if (m_collecting) {
       m_results.push_back(std::move(m_current));
     }

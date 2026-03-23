@@ -545,6 +545,43 @@ static void test_conformance_parity_regressions() {
     }
 }
 
+static void test_pawg_s1_matrix_trc_regression() {
+    std::printf("  test_pawg_s1_matrix_trc_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "valid_srgb.icc", {60, 61});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_conformance_result(result, 60, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 61, CheckResult::Status::OK, 0);
+    }
+
+    auto namedColorPath = resolve_repo_file("test-profiles/NamedColor.icc");
+    if (namedColorPath.empty()) {
+        std::printf("    (skipped — test-profiles/NamedColor.icc not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(namedColorPath, {60, 61});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_conformance_result(result, 60, CheckResult::Status::SKIP, 0);
+        expect_conformance_result(result, 61, CheckResult::Status::SKIP, 0);
+
+        const auto* cf60 = find_per_check(result, CheckID::Kind::Conformance, 60);
+        const auto* cf61 = find_per_check(result, CheckID::Kind::Conformance, 61);
+        ASSERT_TRUE(cf60 != nullptr);
+        ASSERT_TRUE(cf61 != nullptr);
+        ASSERT_TRUE(cf60->result.summary.find("not applicable") != std::string::npos);
+        ASSERT_TRUE(cf61->result.summary.find("not applicable") != std::string::npos);
+    }
+}
+
 static void test_embedding_tech_note_regressions() {
     std::printf("  test_embedding_tech_note_regressions...\n");
 
@@ -856,6 +893,7 @@ void test_runner() {
     test_conformance_adgc_regression();
     test_sampleicc_legibility_regression();
     test_conformance_parity_regressions();
+    test_pawg_s1_matrix_trc_regression();
     test_embedding_tech_note_regressions();
     test_conformance_v5_only_skip_regression();
     test_conformance_v5_gate_regression();

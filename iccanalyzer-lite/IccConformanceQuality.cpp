@@ -32,6 +32,7 @@
 //   accurate round-trip transforms.
 // ---------------------------------------------------------------------------
 int RunCF099_RoundTripDeltaE(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   printf("  %s[CF-099]%s Round-Trip Transform CIEDE2000 (%sICC.1-2022-05 §8%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -43,7 +44,8 @@ int RunCF099_RoundTripDeltaE(CIccProfile *pIcc) {
   if (!pAToB || !pBToA) {
     printf("           %s[SKIP]%s AToB0/BToA0 tag pair not present\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("AToB0/BToA0 tag pair not present");
+    return -1;
   }
 
   // Verify these are LUT-based tags
@@ -52,7 +54,8 @@ int RunCF099_RoundTripDeltaE(CIccProfile *pIcc) {
   if (!pMBB_AToB || !pMBB_BToA) {
     printf("           %s[SKIP]%s AToB0/BToA0 not LUT-based — round-trip test not applicable\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("AToB0/BToA0 not LUT-based");
+    return -1;
   }
 
   int nIn_AToB = pMBB_AToB->InputChannels();
@@ -65,7 +68,8 @@ int RunCF099_RoundTripDeltaE(CIccProfile *pIcc) {
   if (nIn_AToB < 1 || nOut_AToB < 1 || nIn_BToA < 1 || nOut_BToA < 1) {
     printf("           %s[SKIP]%s Invalid channel counts\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("Invalid channel counts");
+    return -1;
   }
 
   printf("           AToB0: %d→%d channels, BToA0: %d→%d channels\n",
@@ -185,6 +189,7 @@ int RunCF100_CurveInvertibility(CIccProfile *pIcc) {
 //   smoothly varying output values (large jumps indicate discontinuities).
 // ---------------------------------------------------------------------------
 int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   printf("  %s[CF-101]%s Transform Smoothness (%sICC.1-2022-05 §10.8%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -194,21 +199,24 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   if (!pTag) {
     printf("           %s[SKIP]%s No AToB0 tag for smoothness analysis\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("No AToB0 tag");
+    return -1;
   }
 
   CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
   if (!pMBB) {
     printf("           %s[SKIP]%s AToB0 is not LUT-based\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("AToB0 is not LUT-based");
+    return -1;
   }
 
   CIccCLUT *pCLUT = pMBB->GetCLUT();
   if (!pCLUT) {
     printf("           %s[SKIP]%s AToB0 has no CLUT (matrix-only transform)\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("AToB0 has no CLUT");
+    return -1;
   }
 
   int nIn = pCLUT->GetInputDim();
@@ -217,7 +225,8 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   if (nIn < 1 || nOut < 1 || nIn > 15) {
     printf("           %s[SKIP]%s Invalid CLUT dimensions (in=%d, out=%d)\n",
            ColorInfo(), ColorReset(), nIn, nOut);
-    return 0;
+    hc.info("Invalid CLUT dimensions");
+    return -1;
   }
 
   // Get grid size for dimension 0
@@ -225,7 +234,8 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   if (gridSize < 2) {
     printf("           %s[SKIP]%s Grid size too small (%d)\n",
            ColorInfo(), ColorReset(), gridSize);
-    return 0;
+    hc.info("Grid size too small");
+    return -1;
   }
 
   // For 3-input CLUTs: sample along L axis (input dim 0) with a/b at midpoint
@@ -245,7 +255,8 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   if (totalNodes < 2 || totalNodes > 1000000) {
     printf("           %s[SKIP]%s CLUT grid too large or invalid (%d nodes)\n",
            ColorInfo(), ColorReset(), totalNodes);
-    return 0;
+    hc.info("CLUT grid too large or invalid");
+    return -1;
   }
 
   // Compute stride: for dimension 0, each step advances by product of remaining dims × nOut
@@ -267,7 +278,8 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   if (!clutData) {
     printf("           %s[SKIP]%s CLUT data not accessible\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("CLUT data not accessible");
+    return -1;
   }
 
   double maxJump = 0.0;
@@ -311,6 +323,7 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
 //   validates that the measurement data round-trips through the profile.
 // ---------------------------------------------------------------------------
 int RunCF102_CharacterizationRoundTrip(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   printf("  %s[CF-102]%s Characterization Data Round-Trip (%sICC.1-2022-05 §9.2.26%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -320,21 +333,24 @@ int RunCF102_CharacterizationRoundTrip(CIccProfile *pIcc) {
   if (!pTag) {
     printf("           %s[SKIP]%s No charTargetTag ('targ') present\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("No characterization data (targ) tag present");
+    return -1;
   }
 
   CIccTagText *pText = dynamic_cast<CIccTagText*>(pTag);
   if (!pText) {
     printf("           %s[INFO]%s charTargetTag is not textType — cannot parse\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("charTargetTag is not textType");
+    return -1;
   }
 
   const char *text = pText->GetText();
   if (!text || !text[0]) {
     printf("           %s[INFO]%s charTargetTag is empty\n",
            ColorInfo(), ColorReset());
-    return 0;
+    hc.info("charTargetTag is empty");
+    return -1;
   }
 
   size_t len = strlen(text);
@@ -367,9 +383,13 @@ int RunQualityConformance(CIccProfile *pIcc) {
 #define CF_WRAP(id, title, call) \
   hc.begin(id, title); \
   r = call; \
-  if (r > 0) hc.warn("%d non-conformance(s)", r); \
-  hc.end("Conformant"); \
-  issues += r
+  if (r < 0) { \
+    hc.skip(nullptr); \
+  } else { \
+    if (r > 0) hc.warn("%d non-conformance(s)", r); \
+    hc.end("Conformant"); \
+    issues += r; \
+  }
 
   CF_WRAP(1099, "CF-099: Round-Trip CIEDE2000", RunCF099_RoundTripDeltaE(pIcc));
   CF_WRAP(1100, "CF-100: Curve Invertibility", RunCF100_CurveInvertibility(pIcc));

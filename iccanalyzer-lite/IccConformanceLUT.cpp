@@ -49,6 +49,13 @@ static const char *kAllLUTNames[] = {
   "AToB0", "AToB1", "AToB2", "BToA0", "BToA1", "BToA2"
 };
 static constexpr int kAllLUTCount = 6;
+static const icTagSignature kRgbTrcSigs[] = {
+  icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag
+};
+static const icTagSignature kRgbMatrixSigs[] = {
+  icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag, icSigBlueMatrixColumnTag
+};
+static constexpr int kRgbFamilyCount = 3;
 
 // Matrix identity tolerance (covers s15Fixed16 quantization)
 static constexpr double kMatrixIdentityTol = 0.002;
@@ -62,6 +69,67 @@ static bool IsAToBDirection(icTagSignature sig) {
   return sig == icSigAToB0Tag || sig == icSigAToB1Tag || sig == icSigAToB2Tag;
 }
 
+static bool GetTransformTagChannelCounts(CIccTag *tag,
+                                         icUInt16Number &inputChannels,
+                                         icUInt16Number &outputChannels) {
+  CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
+  if (mbb) {
+    inputChannels = mbb->InputChannels();
+    outputChannels = mbb->OutputChannels();
+    return true;
+  }
+
+  CIccTagMultiProcessElement *mpe =
+      dynamic_cast<CIccTagMultiProcessElement *>(tag);
+  if (mpe) {
+    inputChannels = mpe->NumInputChannels();
+    outputChannels = mpe->NumOutputChannels();
+    return true;
+  }
+
+  return false;
+}
+
+static int CountPresentTags(CIccProfile *pIcc,
+                            const icTagSignature *sigs,
+                            int count) {
+  int found = 0;
+  for (int i = 0; i < count; i++) {
+    if (pIcc->FindTag(sigs[i])) {
+      found++;
+    }
+  }
+  return found;
+}
+
+static bool HasAnyTag(CIccProfile *pIcc,
+                      const icTagSignature *sigs,
+                      int count) {
+  return CountPresentTags(pIcc, sigs, count) > 0;
+}
+
+static bool HasAnyLUTTag(CIccProfile *pIcc) {
+  return HasAnyTag(pIcc, kAllLUTSigs, kAllLUTCount);
+}
+
+static bool IsRgbMatrixTrcFallbackApplicable(CIccProfile *pIcc) {
+  if (!pIcc || HasAnyLUTTag(pIcc)) return false;
+  if (pIcc->m_Header.colorSpace != icSigRgbData) return false;
+
+  icProfileClassSignature klass = pIcc->m_Header.deviceClass;
+  return klass == icSigInputClass || klass == icSigDisplayClass;
+}
+
+static bool IsGrayTrcFallbackApplicable(CIccProfile *pIcc) {
+  if (!pIcc || HasAnyLUTTag(pIcc)) return false;
+  if (pIcc->m_Header.colorSpace != icSigGrayData) return false;
+
+  icProfileClassSignature klass = pIcc->m_Header.deviceClass;
+  return klass == icSigInputClass ||
+         klass == icSigDisplayClass ||
+         klass == icSigOutputClass;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CF-060: LUT Input Channel Count (ICC.1-2022-05 §10.8-10.11)
@@ -72,8 +140,10 @@ static bool IsAToBDirection(icTagSignature sig) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   bool found = false;
+  const char *okMessage = "LUT input channel counts valid";
 
   printf("%s[CF-060]%s LUT Input Channel Count (%sICC.1-2022-05 §10.8-10.11%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -84,12 +154,11 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
   for (int i = 0; i < kAllLUTCount; i++) {
     CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
     if (!tag) continue;
-
-    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
-    if (!mbb) continue;
+    icUInt16Number lutIn = 0;
+    icUInt16Number lutOut = 0;
+    if (!GetTransformTagChannelCounts(tag, lutIn, lutOut)) continue;
 
     found = true;
-    icUInt8Number lutIn = mbb->InputChannels();
 
     // AToB: input is device space; BToA: input is PCS
     icUInt32Number expectedIn = IsAToBDirection(kAllLUTSigs[i]) ? deviceChan : pcsChan;
@@ -109,12 +178,75 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
     }
   }
 
-  if (!found)
+  if (!found && IsRgbMatrixTrcFallbackApplicable(pIcc)) {
+    found = true;
+    okMessage = "Matrix/TRC device-side channel tags valid";
+
+    int trcCount = CountPresentTags(pIcc, kRgbTrcSigs, kRgbFamilyCount);
+    if (deviceChan == 0) {
+      printf("         Could not determine expected RGB device channel count\n");
+      hc.info("Could not determine expected RGB device channel count");
+      return -1;
+    }
+
+    if (trcCount != (int)deviceChan) {
+      printf("         Matrix/TRC RGB profile exposes %d device-side TRC tag(s); expected=%u\n",
+             trcCount, deviceChan);
+      printf("         %s[FAIL]%s Input channel count mismatch — ICC.1-2022-05 §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    if (pIcc->FindTag(icSigGrayTRCTag)) {
+      printf("         grayTRCTag present on RGB matrix/TRC profile\n");
+      printf("         %s[FAIL]%s Input channel tag family mismatch — ICC.1-2022-05 §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found && IsGrayTrcFallbackApplicable(pIcc)) {
+    found = true;
+    okMessage = "Gray TRC device-side channel tags valid";
+
+    int grayCount = pIcc->FindTag(icSigGrayTRCTag) ? 1 : 0;
+    if (deviceChan == 0) {
+      printf("         Could not determine expected Gray device channel count\n");
+      hc.info("Could not determine expected Gray device channel count");
+      return -1;
+    }
+
+    if (grayCount != (int)deviceChan) {
+      printf("         Gray profile exposes %d grayTRCTag(s); expected=%u\n",
+             grayCount, deviceChan);
+      printf("         %s[FAIL]%s Input channel count mismatch — ICC.1-2022-05 §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+
+    if (HasAnyTag(pIcc, kRgbTrcSigs, kRgbFamilyCount)) {
+      printf("         RGB TRC tags present on Gray profile\n");
+      printf("         %s[FAIL]%s Input channel tag family mismatch — ICC.1-2022-05 §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
+    printf("         NamedColor profiles do not encode transform input channel counts — check not applicable\n");
+    hc.info("NamedColor profiles do not encode transform input channel counts; not applicable");
+    return -1;
+  }
+
+  if (!found) {
     printf("         No LUT tags present — check not applicable\n");
+    hc.info("No LUT tags present");
+    return -1;
+  }
 
   if (issues == 0)
-    printf("         %s[OK]%s LUT input channel counts valid\n",
-           ColorSuccess(), ColorReset());
+    printf("         %s[OK]%s %s\n",
+           ColorSuccess(), ColorReset(), okMessage);
 
   return issues;
 }
@@ -129,8 +261,10 @@ static int RunCF060_LUTInputChannels(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   bool found = false;
+  const char *okMessage = "LUT output channel counts valid";
 
   printf("%s[CF-061]%s LUT Output Channel Count (%sICC.1-2022-05 §10.8-10.11%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -141,12 +275,11 @@ static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
   for (int i = 0; i < kAllLUTCount; i++) {
     CIccTag *tag = pIcc->FindTag(kAllLUTSigs[i]);
     if (!tag) continue;
-
-    CIccMBB *mbb = dynamic_cast<CIccMBB *>(tag);
-    if (!mbb) continue;
+    icUInt16Number lutIn = 0;
+    icUInt16Number lutOut = 0;
+    if (!GetTransformTagChannelCounts(tag, lutIn, lutOut)) continue;
 
     found = true;
-    icUInt8Number lutOut = mbb->OutputChannels();
 
     // AToB: output is PCS; BToA: output is device space
     icUInt32Number expectedOut = IsAToBDirection(kAllLUTSigs[i]) ? pcsChan : deviceChan;
@@ -166,12 +299,47 @@ static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
     }
   }
 
-  if (!found)
+  if (!found && IsRgbMatrixTrcFallbackApplicable(pIcc)) {
+    found = true;
+    okMessage = "Matrix/TRC PCS-side channel tags valid";
+
+    int matrixCount = CountPresentTags(pIcc, kRgbMatrixSigs, kRgbFamilyCount);
+    if (pcsChan == 0) {
+      printf("         Could not determine expected PCS channel count\n");
+      hc.info("Could not determine expected PCS channel count");
+      return -1;
+    }
+
+    if (matrixCount != (int)pcsChan) {
+      printf("         Matrix/TRC RGB profile exposes %d PCS-side matrix column tag(s); expected=%u\n",
+             matrixCount, pcsChan);
+      printf("         %s[FAIL]%s Output channel count mismatch — ICC.1-2022-05 §10.8-10.11\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  if (!found && IsGrayTrcFallbackApplicable(pIcc)) {
+    printf("         Gray TRC profiles do not encode PCS channel count in per-channel output tags — check not applicable\n");
+    hc.info("Gray TRC profiles do not encode PCS channel count in per-channel output tags; not applicable");
+    return -1;
+  }
+
+  if (!found && pIcc->m_Header.deviceClass == icSigNamedColorClass) {
+    printf("         NamedColor profiles do not encode transform output channel counts — check not applicable\n");
+    hc.info("NamedColor profiles do not encode transform output channel counts; not applicable");
+    return -1;
+  }
+
+  if (!found) {
     printf("         No LUT tags present — check not applicable\n");
+    hc.info("No LUT tags present");
+    return -1;
+  }
 
   if (issues == 0)
-    printf("         %s[OK]%s LUT output channel counts valid\n",
-           ColorSuccess(), ColorReset());
+    printf("         %s[OK]%s %s\n",
+           ColorSuccess(), ColorReset(), okMessage);
 
   return issues;
 }
@@ -185,6 +353,7 @@ static int RunCF061_LUTOutputChannels(CIccProfile *pIcc) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int RunCF062_CLUTGridDimensionality(CIccProfile *pIcc) {
+  auto &hc = HeuristicCollector::instance();
   int issues = 0;
   bool found = false;
 
@@ -236,8 +405,11 @@ static int RunCF062_CLUTGridDimensionality(CIccProfile *pIcc) {
     }
   }
 
-  if (!found)
+  if (!found) {
     printf("         No CLUT elements found — check not applicable\n");
+    hc.info("No CLUT elements found");
+    return -1;
+  }
 
   if (issues == 0)
     printf("         %s[OK]%s CLUT grid dimensions valid\n",
@@ -2283,9 +2455,13 @@ int RunLUTConformance(CIccProfile *pIcc) {
 #define CF_WRAP(id, title, call) \
   hc.begin(id, title); \
   r = call; \
-  if (r > 0) hc.warn("%d non-conformance(s)", r); \
-  hc.end("Conformant"); \
-  issues += r
+  if (r < 0) { \
+    hc.skip(nullptr); \
+  } else { \
+    if (r > 0) hc.warn("%d non-conformance(s)", r); \
+    hc.end("Conformant"); \
+    issues += r; \
+  }
 
   CF_WRAP(1060, "CF-060: LUT Input Channel Count", RunCF060_LUTInputChannels(pIcc));
   CF_WRAP(1061, "CF-061: LUT Output Channel Count", RunCF061_LUTOutputChannels(pIcc));
