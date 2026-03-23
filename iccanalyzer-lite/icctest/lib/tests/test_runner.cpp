@@ -1103,6 +1103,31 @@ static void test_tonemap_describe_overflow_regression() {
     ASSERT_TRUE(sawCfMpeFinding);
 }
 
+static void test_cf115_only_emits_raw_findings_when_quarantined() {
+    std::printf("  test_cf115_only_emits_raw_findings_when_quarantined...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    for (const char* name : {"cf142-vor-valid.icc", "cf142-vor-misaligned.icc"}) {
+        auto result = analyze_corpus_checks(corpusDir / name, {115});
+        ASSERT_EQ(1, result.stats.checksRun);
+
+        const auto* cf115 = find_per_check(result, CheckID::Kind::Conformance, 115);
+        ASSERT_TRUE(cf115 != nullptr);
+        if (!cf115) {
+            return;
+        }
+
+        ASSERT_EQ(CheckResult::Status::SKIP, cf115->result.status);
+        ASSERT_EQ(0, cf115->result.issueCount());
+        ASSERT_TRUE(cf115->result.summary.rfind("NOT RUN: Profile failed to load", 0) == 0);
+    }
+}
+
 static void test_conformance_v5_only_skip_regression() {
     std::printf("  test_conformance_v5_only_skip_regression...\n");
 
@@ -1232,6 +1257,7 @@ void test_runner() {
     test_heuristic_parity_regressions();
     test_pcc_illuminant_overflow_regression();
     test_tonemap_describe_overflow_regression();
+    test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();
     // Analysis tests use setup_registry() which clears auto-registrations

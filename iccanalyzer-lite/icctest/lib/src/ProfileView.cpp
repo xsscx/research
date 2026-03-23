@@ -108,6 +108,7 @@ ProfileView::ProfileView(ProfileView&& other) noexcept
       m_header(other.m_header),
       m_ubPatternsDetected(other.m_ubPatternsDetected),
       m_libraryLoadUnsafe(other.m_libraryLoadUnsafe),
+      m_librarySkippedDueToUB(other.m_librarySkippedDueToUB),
       m_ubDescriptions(std::move(other.m_ubDescriptions)),
       m_path(std::move(other.m_path)) {}
 
@@ -119,6 +120,7 @@ ProfileView& ProfileView::operator=(ProfileView&& other) noexcept {
         m_header = other.m_header;
         m_ubPatternsDetected = other.m_ubPatternsDetected;
         m_libraryLoadUnsafe = other.m_libraryLoadUnsafe;
+        m_librarySkippedDueToUB = other.m_librarySkippedDueToUB;
         m_ubDescriptions = std::move(other.m_ubDescriptions);
         m_path = std::move(other.m_path);
     }
@@ -572,7 +574,9 @@ void ProfileView::runUBPreScan() {
 // ── Library loading ──
 
 bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
+    m_librarySkippedDueToUB = false;
     if (skipLibraryOnUB && m_libraryLoadUnsafe) {
+        m_librarySkippedDueToUB = true;
         ICCTEST_WARN("Skipping CIccProfile::Read due to known UB trigger patterns");
         return false;
     }

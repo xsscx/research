@@ -274,6 +274,30 @@ static void test_ub_prescan_mpe_offset_wrap_skip_load() {
     if (pv) {
         ASSERT_TRUE(pv->hasKnownUBPatterns());
         ASSERT_TRUE(pv->requiresLibraryQuarantine());
+        ASSERT_TRUE(pv->librarySkippedDueToUB());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("IccTagMPE.cpp:1042") != std::string::npos);
+    }
+}
+
+static void test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load() {
+    std::printf("  test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load...\n");
+    auto corpusProfile = resolve_repo_file("iccanalyzer-lite/tests/corpus/cf142-vor-valid.icc");
+    if (corpusProfile.empty()) {
+        corpusProfile = resolve_repo_file("tests/corpus/cf142-vor-valid.icc");
+    }
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — cf142-vor-valid.icc not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, false);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
+        ASSERT_FALSE(pv->librarySkippedDueToUB());
         ASSERT_FALSE(pv->libraryLoaded());
         ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
         ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("IccTagMPE.cpp:1042") != std::string::npos);
@@ -337,6 +361,7 @@ void test_profile_view() {
     test_ub_prescan_half_float_mdv_skip_load();
     test_ub_prescan_namedcolor_keeps_library_loaded();
     test_ub_prescan_mpe_offset_wrap_skip_load();
+    test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");
