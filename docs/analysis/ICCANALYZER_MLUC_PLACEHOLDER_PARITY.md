@@ -40,6 +40,15 @@ non-minimal encoding via `CF-223`.
 - V2 unit tests: `406/406 passed`
 - V1/V2 parity verifier: raw parity `delta = 0`
 
+## Forward-Looking Count Note
+
+- Do not treat the current `173` heuristic entries or `329` canonical
+  conformance entries as a fixed ceiling.
+- V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward
+  `1000` checks each over time.
+- Any count-sensitive tooling should read the registries instead of hardcoding
+  upper bounds.
+
 ## Remaining Gap
 
 The ICC technical note is mainly about **embedded** `mluc` inside

@@ -13,6 +13,12 @@ violations, malformed structures, and potential exploitation vectors. Heuristics
 44+ CWE categories and pair with 329 canonical conformance checks across the V1/V2
 parity harness.
 
+Roadmap note: do **not** treat the current `173` heuristic entries or `329`
+canonical conformance entries as a ceiling. V1 and V2 are expected to grow the
+`H-*` and `CF-*` namespaces toward `1000` checks each over time. Use the
+registries as the source of truth for current counts, and preserve V1/V2 parity
+when extending coverage.
+
 **v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
 embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
 checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full

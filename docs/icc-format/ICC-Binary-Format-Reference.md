@@ -10,6 +10,10 @@
 >
 > **Last verified**: 2026-03-22 23:30:00 UTC — 173 heuristics (H1–H173) +
 > 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
+>
+> **Count note**: these are current registry totals, not an ID-space ceiling.
+> V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
+> checks each over time.
 
 ---
 
@@ -604,7 +608,7 @@ iCCP chunk:
   Compression method (1 byte, must be 0 = zlib)
   Compressed ICC profile data (zlib deflate)
 
-Extraction: png_get_iCCP() → inflate → temp file → 171-heuristic analysis
+Extraction: png_get_iCCP() → inflate → temp file → 173-heuristic analysis
 ```
 
 ### JPEG ICC Extraction
