@@ -156,7 +156,7 @@ Binaries:
 **AFL++**: v4.40c at `/usr/local/bin/afl-fuzz` (built from source against LLVM 18.1.3)
 **MCP venv**: `~/research/mcp-server/.venv/bin/python` (NOT system pip)
 **iccDEV**: `~/research/iccDEV` — UNPATCHED, built with ASAN+UBSAN+coverage for iccanalyzer-lite
-**cfl/iccDEV**: separate clone inside `cfl/` — 45 patches applied (CFL-001–CFL-057, 12 gaps at 003/010/011/012/013/015/016/018/020/024/026/027 retired upstream)
+**cfl/iccDEV**: separate clone inside `cfl/` — 52 patches applied (CFL-001–CFL-067, 15 gaps at 003/010/011/012/013/015/016/018/020/024/026/027/034/037/039 retired upstream)
 **afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
 **Build cores**: use `-j24` (not `-j32`)
 **colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
@@ -177,7 +177,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 45 patches, builds 13 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 52 patches, builds 13 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -202,7 +202,7 @@ make -j$(nproc)
 |------|---------|----------|
 | `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Debug+ASAN+UBSAN+Coverage)** | No |
 | `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage, alternate build dir)** | No |
-| `cfl/iccDEV/` | CFL fuzzer build (45 patches applied (CFL-001–CFL-057, 12 gaps retired upstream)) | Yes |
+| `cfl/iccDEV/` | CFL fuzzer build (52 patches applied (CFL-001–CFL-067, 15 gaps retired upstream)) | Yes |
 
 **CRITICAL BUILD POLICY**: `iccDEV/Build/` must ALWAYS be built with full
 Debug+ASAN+UBSAN+coverage instrumentation. **NEVER use Release builds.**
@@ -814,7 +814,7 @@ See [afl.instructions.md](instructions/afl.instructions.md) for full details.
 ```
 
 **CFL vs AFL distinction**: CFL fuzzers (`cfl/`) use LibFuzzer with in-process harnesses
-and 45 security patches applied. AFL fuzzers (`afl/`) test the unpatched upstream tools
+and 52 security patches applied. AFL fuzzers (`afl/`) test the unpatched upstream tools
 directly via `afl-fuzz`. Both share seed corpora and dictionaries from `cfl/`.
 
 ## Single-Test Commands
@@ -1071,7 +1071,7 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 | Component | Purpose | Instructions |
 |-----------|---------|--------------|
 | **iccanalyzer-lite/** | 171-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
-| **cfl/** | 13 LibFuzzer harnesses + 45 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
+| **cfl/** | 13 LibFuzzer harnesses + 52 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
 | **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
@@ -1150,7 +1150,7 @@ Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spac
 
 ### CFL patch workflow
 See [cfl.instructions.md](instructions/cfl.instructions.md) for patch creation, naming conventions,
-NO-OP management, and reproducer testing. Next patch number: **028**.
+NO-OP management, and reproducer testing. Next patch number: **068**.
 
 ### Crash reproducer testing
 ```bash
