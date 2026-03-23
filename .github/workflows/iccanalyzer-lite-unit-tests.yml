@@ -9,6 +9,7 @@
 #         - Synthesized corpus + repo profile testing
 #         - JSON/XML/Report output validation
 #         - PAWG report validation
+#         - PAWG endpoint smoke (random bounded sample)
 #         - LUT Text I/O and .cube round-trip
 #
 # Last Updated: 2026-03-19
@@ -108,6 +109,7 @@ jobs:
             nlohmann-json3-dev \
             libssl-dev \
             python3
+            python3-venv
 
       - name: Print compiler version
         env:
@@ -415,6 +417,63 @@ jobs:
           python3 run_tests.py -v --xml test-results.xml
           echo ""
           echo "Unit test suite passed."
+
+      - name: Install MCP/Web UI test environment
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          python3 -m venv /tmp/mcp-endpoint-venv
+          source /tmp/mcp-endpoint-venv/bin/activate
+          pip install --upgrade pip
+          pip install -r mcp-server/requirements.txt
+
+      - name: Run PAWG endpoint random sample
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+          ASAN_OPTIONS: "detect_leaks=0:abort_on_error=0"
+          UBSAN_OPTIONS: "halt_on_error=0:print_stacktrace=1"
+          LLVM_PROFILE_FILE: "/dev/null"
+        run: |
+          set -euo pipefail
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          git config --add safe.directory "$PWD"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          source /tmp/mcp-endpoint-venv/bin/activate
+          export LD_LIBRARY_PATH="$PWD/iccanalyzer-lite/iccDEV/Build/IccProfLib:$PWD/iccanalyzer-lite/iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          python3 .github/scripts/pawg-endpoint-sample.py \
+            --repo-root "$PWD" \
+            --engine v2 \
+            --max-profiles 25 \
+            --seed "${GITHUB_SHA}" \
+            --output /tmp/pawg-endpoint-sample.json
+
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("/tmp/pawg-endpoint-sample.json").read_text())
+          print("")
+          print("### PAWG Endpoint Random Sample")
+          print("")
+          print(f"- Engine: `{payload['engine']}`")
+          print(f"- Seed: `{payload['seedInt']}`")
+          print(f"- Candidate profiles: `{payload['candidateCount']}`")
+          print(f"- Sample size: `{payload['selectedCount']}`")
+          print(f"- Failures: `{payload['failureCount']}`")
+          print("- Selected profiles:")
+          for path in payload["selectedProfiles"]:
+              print(f"  - `{path}`")
+          PY
 
       - name: Upload test results
         if: always()
