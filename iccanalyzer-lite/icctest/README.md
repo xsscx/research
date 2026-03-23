@@ -89,7 +89,7 @@ On the current corpus and generated image smoke:
 - embedded raw parity: `delta = 0`
 - generated PNG/JPEG embedded-ICC smoke: pass
 - PAWG verifier: pass
-- unit tests: `639/639 passed`
+- unit tests: `647/647 passed`
 
 ## CI Notes
 
@@ -121,6 +121,11 @@ env -u LD_LIBRARY_PATH \
 
 - The heuristic remap used for collision and TODO quarantine lives in `icctest/tools/heuristic-remap.tsv`.
 - CTest and the verifier disable LeakSanitizer leak detection with `ASAN_OPTIONS=detect_leaks=0` because LSAN aborts under the harness execution environment even when the suite itself passes.
+- V2 now links analyzer-owned `IccDevSafeOverrides.cpp` ahead of the static
+  upstream `iccDEV` libraries so shared-helper UB in `IccUtil.cpp` can be
+  hardened without patching the vendored library. Extend that file, not
+  `cfl/patches`, when a new analyzer-runtime UB helper needs a V1/V2-safe
+  override.
 - PAWG quality regressions rely on:
   `tests/corpus/lut8_atob2_btoa2.icc` for alternate-intent classic LUT quality,
   `tests/corpus/targ_quality_profile.icc` for RGB characterization quality, and
