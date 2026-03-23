@@ -172,3 +172,4 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 171	rename	implemented	Curve Param Count vs FuncType Validation	Curve Param Count Validation	ExploitGapChecks.cpp	same check; cosmetic rename
 172	exact	todo	LUT Matrix Coefficient Validation	LUT Matrix Coefficient Validation	DataValidationChecks.cpp	
 173	exact	implemented	Signature Conversion Shift Overflow	Signature Conversion Shift Overflow	CodeQLPatternChecks.cpp	
+174	exact	implemented	Half-Float Conversion Unsigned Underflow	Half-Float Conversion Unsigned Underflow	CodeQLPatternChecks.cpp	

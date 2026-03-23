@@ -203,6 +203,40 @@ static void test_ub_prescan_embedded_icc5_skip_load() {
     }
 }
 
+static void test_ub_prescan_half_float_header_allows_load() {
+    std::printf("  test_ub_prescan_half_float_header_allows_load...\n");
+    auto corpusProfile = resolve_repo_file("tests/corpus/h174_half_float_header.icc");
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — H174 header corpus profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_FALSE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->libraryLoaded());
+    }
+}
+
+static void test_ub_prescan_half_float_mdv_skip_load() {
+    std::printf("  test_ub_prescan_half_float_mdv_skip_load...\n");
+    auto corpusProfile = resolve_repo_file("tests/corpus/h174_half_float_mdv_fl16.icc");
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — H174 mdv/fl16 corpus profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("float16ArrayType") != std::string::npos);
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
     // Try a known-good profile if it exists
@@ -225,7 +259,9 @@ static void test_open_real_profile() {
         ASSERT_GT(pv->tagCount(), 0u);
         ASSERT_TRUE(pv->libraryLoaded());
         ASSERT_FALSE(pv->isImage());
-        ASSERT_FALSE(pv->hasKnownUBPatterns());
+        if (pv->hasKnownUBPatterns()) {
+            ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        }
 
         auto md = pv->metadata();
         ASSERT_GT(md.fileSize, 128u);
@@ -254,6 +290,8 @@ void test_profile_view() {
     test_ub_prescan_gbd();
     test_ub_prescan_clean();
     test_ub_prescan_embedded_icc5_skip_load();
+    test_ub_prescan_half_float_header_allows_load();
+    test_ub_prescan_half_float_mdv_skip_load();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");

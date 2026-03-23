@@ -41,6 +41,57 @@ inline uint32_t ReadU32BE(const unsigned char *buf) {
           static_cast<uint32_t>(buf[3]);
 }
 
+inline uint16_t ReadU16BE(const unsigned char *buf) {
+  return (static_cast<uint16_t>(buf[0]) << 8) |
+          static_cast<uint16_t>(buf[1]);
+}
+
+// The upstream iccDEV icF16toF() implementation rebiases the exponent using
+// unsigned arithmetic. Any non-zero half-float with exponent < 15 (that is,
+// any magnitude below 1.0, including subnormals) trips UBSAN even though the
+// numerical result is otherwise representable.
+inline bool HalfFloatTriggersIccUtilUB(icFloat16Number raw) {
+  icUInt16Number mag = static_cast<icUInt16Number>(raw & 0x7FFFu);
+  icUInt16Number exp = static_cast<icUInt16Number>((mag >> 10) & 0x1Fu);
+  return mag != 0 && exp < 15;
+}
+
+// Analyzer-owned half-float conversion that preserves the upstream semantics
+// without the unsigned-wrap UBSAN hit in iccDEV IccUtil.cpp:665/677.
+inline icFloatNumber SafeF16ToF(icFloat16Number num) {
+  icUInt16Number signBits = static_cast<icUInt16Number>(num & 0x8000u);
+  icUInt16Number expBits = static_cast<icUInt16Number>((num >> 10) & 0x1Fu);
+  icUInt16Number mantBits = static_cast<icUInt16Number>(num & 0x03FFu);
+  icUInt32Number bits = static_cast<icUInt32Number>(signBits) << 16;
+
+  if ((num & 0x7FFFu) == 0) {
+    bits = static_cast<icUInt32Number>(num) << 16;
+  } else if (expBits == 0) {
+    int exp = -14;
+    icUInt16Number mant = mantBits;
+    while ((mant & 0x0400u) == 0) {
+      mant <<= 1;
+      --exp;
+    }
+    mant = static_cast<icUInt16Number>(mant & 0x03FFu);
+    bits |= (static_cast<icUInt32Number>(exp + 127) << 23) |
+            (static_cast<icUInt32Number>(mant) << 13);
+  } else if (expBits == 0x1Fu) {
+    bits |= 0x7F800000u | (static_cast<icUInt32Number>(mantBits) << 13);
+    if (mantBits) {
+      bits |= 0x00400000u; // Quiet NaN bit.
+    }
+  } else {
+    int exp = static_cast<int>(expBits) - 15 + 127;
+    bits |= (static_cast<icUInt32Number>(exp) << 23) |
+            (static_cast<icUInt32Number>(mantBits) << 13);
+  }
+
+  icFloatNumber out = 0.0f;
+  std::memcpy(&out, &bits, sizeof(out));
+  return out;
+}
+
 // FindAndCast<T> — combines FindTag + dynamic_cast + null check.
 // Returns nullptr if tag not found or wrong type.
 template <typename T>

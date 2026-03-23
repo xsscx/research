@@ -594,6 +594,24 @@ def test_heuristic_detection(suite):
         r"H173|Signature Conversion Shift Overflow|IccUtil\.cpp:1088,1130"
     )
 
+    suite.assert_output_contains(
+        "heuristic.h174_header_half_float_ub",
+        ["-a", "--legacy", f"{corpus}/h174_half_float_header.icc"],
+        r"H174|Half-Float Conversion Unsigned Underflow|header spectralRange\.start raw=0x3800"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h174_mdv_fl16_half_float_ub",
+        ["-a", "--legacy", f"{corpus}/h174_half_float_mdv_fl16.icc"],
+        r"H174|float16ArrayType value raw=0x3800"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h174_defense_skip",
+        ["-a", "--legacy", f"{corpus}/h174_half_float_mdv_fl16.icc"],
+        r"\[PREFLIGHT\].*Half-float values below 1\.0.*icF16toF UB"
+    )
+
     # --- New heuristic-targeted tests ---
 
     # H3: null/invalid colorSpace
@@ -802,14 +820,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", "--legacy", f"{corpus}/xyz_large_array.icc"],
-        r"173 heuristics"
+        r"174 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", "--legacy", f"{corpus}/calculator_deep_nesting.icc"],
-        r"173 heuristics"
+        r"174 heuristics"
     )
 
     # --- H86 Unicode content detection tests (CWE-116) ---
@@ -915,9 +933,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.173_heuristics",
+        "summary.174_heuristics",
         ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
-        r"173 heuristics"
+        r"174 heuristics"
     )
 
     suite.assert_output_contains(
@@ -1141,9 +1159,9 @@ def test_json_output(suite):
     # Summary should have counts
     if "summary" in data:
         s = data["summary"]
-        has_total = s.get("totalHeuristics", 0) == 173
+        has_total = s.get("totalHeuristics", 0) == 174
         suite.results.append(TestResult(
-            "json.total_heuristics_173", has_total,
+            "json.total_heuristics_174", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -1196,7 +1214,7 @@ def test_json_output(suite):
     # Registry block in JSON should have dynamic stats
     if "summary" in data and "registry" in data["summary"]:
         reg = data["summary"]["registry"]
-        has_reg_total = reg.get("totalHeuristics", 0) == 173
+        has_reg_total = reg.get("totalHeuristics", 0) == 174
         suite.results.append(TestResult(
             "json.registry_total_heuristics", has_reg_total,
             f"registry.totalHeuristics={reg.get('totalHeuristics')}" if not has_reg_total else "",
@@ -3186,7 +3204,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.157.depth_ok",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Raw-phase heuristics \(H1-H171\) still ran in legacy mode"
+        r"Raw-phase heuristics \(H1-H174\) still ran in legacy mode"
     )
     suite.assert_output_contains(
         "cf.158.size_ok",

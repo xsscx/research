@@ -297,14 +297,14 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
 
       if (srSteps > 0) {
         printf("  Spectral Range:  %.1f - %.1f nm, %u steps\n",
-               icF16toF(srStart), icF16toF(srEnd), srSteps);
+               SafeF16ToF(srStart), SafeF16ToF(srEnd), srSteps);
       } else {
         printf("  Spectral Range:  Not defined\n");
       }
 
       if (brSteps > 0) {
         printf("  BiSpectral:      %.1f - %.1f nm, %u steps\n",
-               icF16toF(brStart), icF16toF(brEnd), brSteps);
+               SafeF16ToF(brStart), SafeF16ToF(brEnd), brSteps);
       }
 
       // MCS (bytes 116-119 in some v5 layouts)
