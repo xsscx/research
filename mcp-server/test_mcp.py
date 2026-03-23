@@ -361,7 +361,7 @@ async def test_analyze_security_json():
 
 
 async def test_analyze_security_report():
-    """Test analyze_security_report returns a PAWG conformance-only report."""
+    """Test analyze_security_report returns a compact full PAWG report."""
     T.section("Functional: analyze_security_report")
 
     r = await analyze_security_report("sRGB_D65_MAT.icc")
@@ -373,9 +373,15 @@ async def test_analyze_security_report():
     T.ok("report: contains compact metadata fields",
          "Date:" in r and "File:" in r and "SHA-256:" in r and "Size:" in r, r[:400])
     T.ok("report: contains view line",
-         "View: PAWG / conformance section only" in r, r[:400])
+         "View: PAWG / compact checklist" in r, r[:400])
+    T.ok("report: contains compact section headings",
+         "\nSecurity\n" in r and "\nConformance\n" in r and "\nQuality\n" in r, r[:520])
+    T.ok("report: contains security checklist items",
+         "S1" in r and "S13" in r, r[:500])
     T.ok("report: contains conformance checklist items",
-         "C1" in r and "C14" in r, r[:400])
+         "C1" in r and "C14" in r, r[:500])
+    T.ok("report: contains quality checklist items",
+         "Q1" in r and "Q4" in r, r[:500])
     T.ok("report: omits CWE references",
          "CWE-" not in r, r[:220])
     T.ok("report: omits security taxonomy note",
@@ -384,7 +390,9 @@ async def test_analyze_security_report():
          "Checks:" not in r and "\n          CF-" not in r, r[:600])
     T.ok("report: omits PAWG banner clutter",
          "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in r
+         and "[ SECURITY ]" not in r
          and "[ CONFORMANCE ]" not in r
+         and "[ QUALITY ]" not in r
          and "Goals for profile assessment" not in r
          and "Tool:" not in r
          and "Build:" not in r, r[:500])
@@ -399,8 +407,8 @@ async def test_analyze_security_report():
          and "Checks mapped:" in r
          and "Registry total:" in r
          and "Spec coverage:" in r, r[:500])
-    T.ok("report: is conformance-only",
-         "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:400])
+    T.ok("report: omits heuristic detail blocks",
+         "[H" not in r and "\n          CF-" not in r, r[:500])
 
     # Test error handling — bad path
     try:
@@ -414,7 +422,7 @@ async def test_analyze_security_report():
 
 
 async def test_analyze_pawg_report():
-    """Test analyze_pawg_report returns a PAWG-oriented report."""
+    """Test analyze_pawg_report returns a compact full PAWG report."""
     T.section("Functional: analyze_pawg_report")
 
     r = await analyze_pawg_report("sRGB_D65_MAT.icc")
@@ -428,9 +436,15 @@ async def test_analyze_pawg_report():
     T.ok("pawg: contains compact metadata fields",
          "Date:" in r and "File:" in r and "SHA-256:" in r and "Size:" in r, r[:400])
     T.ok("pawg: contains view line",
-         "View: PAWG / conformance section only" in r, r[:400])
-    T.ok("pawg: contains C1 and C14",
-         "C1" in r and "C14" in r, r[:420])
+         "View: PAWG / compact checklist" in r, r[:400])
+    T.ok("pawg: contains compact section headings",
+         "\nSecurity\n" in r and "\nConformance\n" in r and "\nQuality\n" in r, r[:520])
+    T.ok("pawg: contains security items",
+         "S1" in r and "S13" in r, r[:500])
+    T.ok("pawg: contains conformance items",
+         "C1" in r and "C14" in r, r[:500])
+    T.ok("pawg: contains quality items",
+         "Q1" in r and "Q4" in r, r[:500])
     T.ok("pawg: omits conformance coverage heading",
          "CONFORMANCE CHECK COVERAGE" not in r, r[:420])
     T.ok("pawg: omits CWE references",
@@ -441,7 +455,9 @@ async def test_analyze_pawg_report():
          "Checks:" not in r and "\n          CF-" not in r, r[:600])
     T.ok("pawg: omits PAWG banner clutter",
          "ICC PROFILE ASSESSMENT REPORT (PAWG)" not in r
+         and "[ SECURITY ]" not in r
          and "[ CONFORMANCE ]" not in r
+         and "[ QUALITY ]" not in r
          and "Goals for profile assessment" not in r
          and "Tool:" not in r
          and "Build:" not in r, r[:500])
@@ -450,8 +466,8 @@ async def test_analyze_pawg_report():
          and "Checks mapped:" in r
          and "Registry total:" in r
          and "Spec coverage:" in r, r[:500])
-    T.ok("pawg: is conformance-only",
-         "[ SECURITY ]" not in r and "[ QUALITY ]" not in r and "[H" not in r, r[:420])
+    T.ok("pawg: omits heuristic detail blocks",
+         "[H" not in r and "\n          CF-" not in r, r[:500])
 
     try:
         r2 = await analyze_pawg_report("nonexistent-profile-xyz.icc")

@@ -131,17 +131,7 @@ jobs:
             echo "**Tool:**       iccanalyzer-lite unit tests"
           } >> $GITHUB_STEP_SUMMARY
 
-      - name: Cache iccDEV repository
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-iccdev
-        with:
-          path: iccanalyzer-lite/iccDEV
-          key: ${{ runner.os }}-iccdev-lite-upstream-v1
-          restore-keys: |
-            ${{ runner.os }}-iccdev-lite-
-
       - name: Clone iccDEV dependency
-        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -152,11 +142,9 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          cd iccanalyzer-lite
-          if [ ! -d "iccDEV" ]; then
-            git clone https://github.com/InternationalColorConsortium/iccDEV.git
-          fi
-          cd iccDEV
+          rm -rf iccanalyzer-lite/iccDEV
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git iccanalyzer-lite/iccDEV
+          cd iccanalyzer-lite/iccDEV
 
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
@@ -169,21 +157,7 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
 
-      - name: Cache iccDEV build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-iccdev-build
-        with:
-          path: |
-            iccanalyzer-lite/iccDEV/Build/IccProfLib
-            iccanalyzer-lite/iccDEV/Build/IccXML
-            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
-            iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-lite-debug-upstream-${{ hashFiles('.github/workflows/iccanalyzer-lite-unit-tests.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-build-lite-debug-
-
       - name: Normalize upstream iccDEV source
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           # Strip stray U+FE0F (emoji variation selector) from upstream source
@@ -194,7 +168,6 @@ jobs:
           fi
 
       - name: Build iccDEV libraries
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
@@ -208,6 +181,7 @@ jobs:
           unset GITHUB_TOKEN || true
 
           cd iccanalyzer-lite/iccDEV/Build
+          find . -mindepth 1 -maxdepth 1 ! -name Cmake ! -name XCode -exec rm -rf {} +
 
           echo "Configuring CMake with instrumentation..."
           cmake Cmake \

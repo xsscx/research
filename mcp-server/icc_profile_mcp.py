@@ -72,7 +72,7 @@ DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto"
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
 _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
-_PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL)\]\s+C\d+\s+")
+_PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL| -- )\]\s+[SCQ]\d+\s+")
 
 
 def _resolve_engine(engine: str | None, *, default: str) -> str:
@@ -171,17 +171,25 @@ def _collect_pawg_coverage_lines(lines: list[str]) -> list[str]:
     return collected
 
 
-def _render_pawg_conformance_view(text: str) -> str:
-    """Render the native PAWG output as a conformance-only web view."""
+def _render_pawg_compact_view(text: str) -> str:
+    """Render the native PAWG output as a compact web/MCP checklist view."""
     if not text:
         return text
 
     lines = [line.rstrip() for line in _sanitize_output(text).splitlines()]
-    conformance = _slice_between(lines, "[ CONFORMANCE ]", ("[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))
-    conformance = _collapse_pawg_item_lines(conformance)
+    sections = (
+        ("Security", _slice_between(lines, "[ SECURITY ]", ("[ CONFORMANCE ]", "[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))),
+        ("Conformance", _slice_between(lines, "[ CONFORMANCE ]", ("[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))),
+        ("Quality", _slice_between(lines, "[ QUALITY ]", ("[ ASSESSMENT SUMMARY ]",))),
+    )
     coverage = _collect_pawg_coverage_lines(lines)
+    compact_sections: list[tuple[str, list[str]]] = []
+    for title, section_lines in sections:
+        item_lines = _collapse_pawg_item_lines(section_lines)
+        if item_lines:
+            compact_sections.append((title, item_lines))
 
-    if not conformance:
+    if not compact_sections:
         return _sanitize_output(text)
 
     rendered: list[str] = []
@@ -190,9 +198,11 @@ def _render_pawg_conformance_view(text: str) -> str:
         field = _find_pawg_field(lines, prefix)
         if field:
             rendered.append(field)
-    rendered.append("View: PAWG / conformance section only")
-    rendered.append("")
-    rendered.extend(conformance)
+    rendered.append("View: PAWG / compact checklist")
+    for title, item_lines in compact_sections:
+        rendered.append("")
+        rendered.append(title)
+        rendered.extend(item_lines)
     if coverage:
         rendered.append("")
         rendered.extend(coverage)
@@ -587,10 +597,11 @@ async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE
 
 @mcp.tool()
 async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
-    """Run PAWG-aligned conformance report output.
+    """Run compact PAWG checklist report output.
 
-    Returns a conformance-only PAWG view aligned to the ICC assessment
-    checklist, with the official checklist URL and bundled spec references.
+    Returns a compact PAWG view aligned to the ICC assessment checklist,
+    covering Security, Conformance, and Quality items without the verbose
+    native banner/detail blocks.
 
     Args:
         path: Path to .icc file
@@ -603,18 +614,18 @@ async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGI
         flags = _map_flags(["--pawg"], "v2")
     else:
         flags = _map_flags(["-pawg"], "v1")
-    return _render_pawg_conformance_view(await _run([str(analyzer)] + flags + [str(profile)]))
+    return _render_pawg_compact_view(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 async def analyze_pawg_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
-    """Run PAWG-oriented profile assessment output with checklist/spec references."""
+    """Run compact PAWG checklist report output."""
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
     if analyzer == ANALYZER_V2_BIN:
         flags = _map_flags(["--pawg"], "v2")
     else:
         flags = _map_flags(["-pawg"], "v1")
-    return _render_pawg_conformance_view(await _run([str(analyzer)] + flags + [str(profile)]))
+    return _render_pawg_compact_view(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 @mcp.tool()
