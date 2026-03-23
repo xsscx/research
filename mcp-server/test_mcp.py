@@ -385,7 +385,7 @@ async def test_analyze_security_report():
     T.ok("report: reflects profile-specific PAWG quality states",
          "[OK]    S1" in r
          and "[GAP]   Q1" in r
-         and "[GAP]   Q2" in r
+         and "[N/A]   Q2" in r
          and "[GAP]   Q3" in r
          and "[N/A]   Q4" in r, r[:700])
     T.ok("report: omits CWE references",
@@ -454,7 +454,7 @@ async def test_analyze_pawg_report():
     T.ok("pawg: reflects profile-specific PAWG quality states",
          "[OK]    S1" in r
          and "[GAP]   Q1" in r
-         and "[GAP]   Q2" in r
+         and "[N/A]   Q2" in r
          and "[GAP]   Q3" in r
          and "[N/A]   Q4" in r, r[:700])
     T.ok("pawg: omits conformance coverage heading",

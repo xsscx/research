@@ -354,7 +354,7 @@ def test_security_report():
           "[WARN]  S1" in d.get("result", "")
           and "[GAP]   Q1" in d.get("result", "")
           and "[WARN]  Q2" in d.get("result", "")
-          and "[WARN]  Q3" in d.get("result", "")
+          and "[OK]    Q3" in d.get("result", "")
           and "[N/A]   Q4" in d.get("result", ""))
     check("SecurityReport omits CWE references",
           "CWE-" not in d.get("result", ""))
@@ -422,7 +422,7 @@ def test_pawg():
           "[WARN]  S1" in d.get("result", "")
           and "[GAP]   Q1" in d.get("result", "")
           and "[WARN]  Q2" in d.get("result", "")
-          and "[WARN]  Q3" in d.get("result", "")
+          and "[OK]    Q3" in d.get("result", "")
           and "[N/A]   Q4" in d.get("result", ""))
     check("PAWG omits CWE references",
           "CWE-" not in d.get("result", ""))

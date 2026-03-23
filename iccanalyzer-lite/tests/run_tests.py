@@ -1502,14 +1502,14 @@ def test_tiff_corrupt(suite):
         ["-a", corrupt], r"\[H149\].*IFD Chain Cycle"
     )
 
-    # H139/H140/H141/H150 should SKIP (require valid TIFF handle)
+    # H139/H140/H141/H150 should report NOT RUN (require valid TIFF handle)
     suite.assert_output_contains(
         "tiff_corrupt.h139_skips",
         ["-a", corrupt], r"\[H139\].*Strip Geometry"
     )
     suite.assert_output_contains(
         "tiff_corrupt.h139_skip_msg",
-        ["-a", corrupt], r"\[SKIP\].*Requires parseable TIFF"
+        ["-a", corrupt], r"\[NOT RUN\].*Requires parseable TIFF"
     )
 
     # Should output IMAGE ANALYSIS SUMMARY
@@ -2590,12 +2590,12 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.060.namedcolor_not_applicable",
         ["-a", str(TEST_PROFILES / "NamedColor.icc")],
-        r"CF-060[\s\S]*NamedColor profiles do not encode transform input channel counts.*not applicable"
+        r"CF-060[\s\S]*N/A:\s*NamedColor profiles do not encode transform input channel counts"
     )
     suite.assert_output_contains(
         "cf.061.namedcolor_not_applicable",
         ["-a", str(TEST_PROFILES / "NamedColor.icc")],
-        r"CF-061[\s\S]*NamedColor profiles do not encode transform output channel counts.*not applicable"
+        r"CF-061[\s\S]*N/A:\s*NamedColor profiles do not encode transform output channel counts"
     )
     suite.assert_output_contains(
         "cf.lut.clut_grid",
@@ -3336,7 +3336,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.154.v5_parent_warning",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Library-phase conformance skipped"
+        r"Library-phase conformance not run"
     )
     suite.assert_output_contains(
         "cf.155.class_mismatch",
@@ -3346,7 +3346,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.156.flags_invalid",
         ["-a", f"{corpus}/cf_embedded_child_flags_bad.icc"],
-        r"Library-phase conformance skipped"
+        r"Library-phase conformance not run"
     )
     suite.assert_output_contains(
         "cf.157.depth_ok",
@@ -3356,7 +3356,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.158.size_ok",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Library-phase conformance skipped"
+        r"Library-phase conformance not run"
     )
 
     # --- CF-159..CF-162: dictType Validation (v5 profile) ---
@@ -3405,7 +3405,7 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.176.reserved_nonzero",
         ["-a", f"{corpus}/cf_embedded_reserved_nonzero.icc"],
-        r"Library-phase conformance skipped"
+        r"Library-phase conformance not run"
     )
     suite.assert_output_contains(
         "cf.177.embedded_clean_validation",
