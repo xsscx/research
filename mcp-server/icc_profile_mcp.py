@@ -75,6 +75,24 @@ _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer
 _PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL|N/A|GAP| -- )\]\s+[SCQ]\d+\s+")
 
 
+def _force_sanitizer_option(value: str | None, name: str, forced: str) -> str:
+    current = (value or "").strip()
+    if current:
+        current = re.sub(rf"(^|[:,]){re.escape(name)}=[^:,]*", r"\1", current).strip(":,")
+        return f"{name}={forced}:{current}" if current else f"{name}={forced}"
+    return f"{name}={forced}"
+
+
+def _normalized_asan_options() -> str:
+    opts = _force_sanitizer_option(os.environ.get("ASAN_OPTIONS"), "detect_leaks", "0")
+    return _force_sanitizer_option(opts, "abort_on_error", "0")
+
+
+def _normalized_ubsan_options() -> str:
+    opts = _force_sanitizer_option(os.environ.get("UBSAN_OPTIONS"), "halt_on_error", "0")
+    return _force_sanitizer_option(opts, "print_stacktrace", "1")
+
+
 def _resolve_engine(engine: str | None, *, default: str) -> str:
     if engine is None:
         return default
@@ -352,8 +370,8 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
     env = {
         "PATH": os.environ.get("PATH", _default_path),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
-        "ASAN_OPTIONS": os.environ.get("ASAN_OPTIONS", "detect_leaks=0"),
-        "UBSAN_OPTIONS": os.environ.get("UBSAN_OPTIONS", "halt_on_error=0,print_stacktrace=1"),
+        "ASAN_OPTIONS": _normalized_asan_options(),
+        "UBSAN_OPTIONS": _normalized_ubsan_options(),
         "MallocNanoZone": os.environ.get("MallocNanoZone", "0"),
         "GCOV_PREFIX": os.environ.get("GCOV_PREFIX", "/dev/null"),
         # Instrumented Clang coverage builds try to emit default.profraw unless
