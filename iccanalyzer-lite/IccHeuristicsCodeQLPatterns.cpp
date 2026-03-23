@@ -922,7 +922,7 @@ int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx)
 
   // Tag type signatures (first 4 bytes of each tag's data)
   for (const auto &t : ctx.tags) {
-    if (t.size < 4 || t.offset + 4 > ctx.fileSize()) continue;
+    if (t.size < 4 || (uint64_t)t.offset + 4 > ctx.fileSize()) continue;
     uint8_t buf[4];
     if (!ctx.ReadAt(t.offset, buf, 4)) continue;
     uint32_t typeSig = ReadU32BE(buf);
