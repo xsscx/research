@@ -78,6 +78,15 @@ static bool HasLibraryUBPatterns(const char *filename) {
     return true;
   }
 
+  if (IsLibraryUBDefenseEnabled() &&
+      DetectH174HalfFloatReadPathUB(filename)) {
+    printf("\n%s[DEFENSE] Non-zero half-float values below 1.0 will hit "
+           "icF16toF() unsigned-wrap UBSAN (IccUtil.cpp:665/677) — "
+           "skipping library phase%s\n",
+           ColorCritical(), ColorReset());
+    return true;
+  }
+
   FILE *fp = fopen(filename, "rb");
   if (!fp) return false;
 
@@ -153,6 +162,7 @@ static void EmitConformancePreflightFingerprints(const char *filename) {
   bool prevCollecting = hc.collecting();
   hc.setCollecting(false);
   RunHeuristic_H173_SigConversionShiftOverflow(ctx);
+  RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(ctx);
   hc.setCollecting(prevCollecting);
 }
 
@@ -225,11 +235,21 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   // Pre-loading defense: detect tag data patterns that trigger undefined behavior
   // in the upstream iccDEV library during Read(). Must run BEFORE any library call.
   bool skipLibrary = HasLibraryUBPatterns(filename);
+  bool skipLibraryValidation = false;
+  if (!skipLibrary &&
+      IsLibraryUBDefenseEnabled() &&
+      DetectH174HalfFloatConversionUB(filename)) {
+    skipLibraryValidation = true;
+    printf("%s[DEFENSE] H174 half-float fingerprint reaches upstream validation "
+           "paths — skipping Validate() phase but continuing with safe deep "
+           "conformance checks%s\n",
+           ColorCritical(), ColorReset());
+  }
   if (skipLibrary) {
     printf("%s[SKIP] Library-phase conformance skipped — profile triggers upstream "
            "undefined behavior (CWE-190)%s\n",
            ColorCritical(), ColorReset());
-    printf("       %sRaw-phase heuristics (H1-H171) still ran in legacy mode%s\n",
+    printf("       %sRaw-phase heuristics (H1-H174) still ran in legacy mode%s\n",
            ColorInfo(), ColorReset());
     totalIssues++;
     return totalIssues;
@@ -240,9 +260,19 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
          ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
   
-  int validateIssues = RunIccLibraryValidation(filename);
-  if (validateIssues > 0) {
-    totalIssues += validateIssues;
+  if (skipLibraryValidation) {
+    printf("%s[SKIP] Library validation skipped — half-float fields would hit "
+           "upstream icF16toF UB during Validate()%s\n",
+           ColorCritical(), ColorReset());
+    printf("       %sDeep conformance checks will continue using analyzer-owned "
+           "safe conversions%s\n",
+           ColorInfo(), ColorReset());
+    totalIssues++;
+  } else {
+    int validateIssues = RunIccLibraryValidation(filename);
+    if (validateIssues > 0) {
+      totalIssues += validateIssues;
+    }
   }
   phaseNum++;
   

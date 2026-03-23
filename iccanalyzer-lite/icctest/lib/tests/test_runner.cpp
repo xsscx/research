@@ -171,7 +171,7 @@ static void test_check_count() {
     // from static initializers (REGISTER_HEURISTIC macros in check .cpp files).
     auto count = CheckRegistry::instance().size();
     std::printf("    Registered checks: %zu\n", count);
-    ASSERT_TRUE(count >= 502u);  // 173 heuristics + 329 conformance
+    ASSERT_TRUE(count >= 503u);  // 174 heuristics + 329 conformance
 }
 
 static void test_analyze_minimal_profile() {
@@ -297,7 +297,7 @@ static void test_heuristic_coverage() {
     auto& reg = CheckRegistry::instance();
     const auto& all = reg.all();
 
-    // Verify every H-number from 1..173 is registered
+    // Verify every H-number from 1..174 is registered
     std::set<int> registered;
     for (auto& c : all) {
         if (c.id.kind == CheckID::Kind::Heuristic)
@@ -305,14 +305,14 @@ static void test_heuristic_coverage() {
     }
 
     int missing = 0;
-    for (int h = 1; h <= 173; h++) {
+    for (int h = 1; h <= 174; h++) {
         if (registered.find(h) == registered.end()) {
             std::printf("    MISSING: H%d\n", h);
             missing++;
         }
     }
     ASSERT_EQ(0, missing);
-    std::printf("    All 173 heuristic IDs present\n");
+    std::printf("    All 174 heuristic IDs present\n");
 }
 
 static void test_conformance_coverage() {
@@ -778,6 +778,43 @@ static void test_embedding_tech_note_regressions() {
         const auto* h173 = find_per_check(result, CheckID::Kind::Heuristic, 173);
         ASSERT_TRUE(h173 != nullptr);
         ASSERT_TRUE(h173->result.findings[0].message.find("IccUtil.cpp:1088,1130") != std::string::npos);
+    }
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::RAW_SCAN, CheckPhase::LIBRARY, CheckPhase::CONFORMANCE};
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 174},
+            {CheckID::Kind::Conformance, 81},
+        };
+
+        IccTestRunner runner;
+        auto result = runner.analyze(corpusDir / "h174_half_float_mdv_fl16.icc", opts);
+
+        const auto* h174 = find_per_check(result, CheckID::Kind::Heuristic, 174);
+        ASSERT_TRUE(h174 != nullptr);
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h174->result.status);
+        ASSERT_TRUE(h174->result.findings[0].message.find("IccUtil.cpp:665,677") != std::string::npos);
+        ASSERT_TRUE(find_per_check(result, CheckID::Kind::Conformance, 81) == nullptr);
+    }
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::RAW_SCAN, CheckPhase::CONFORMANCE};
+        opts.skipLibraryOnUB = false;
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 174},
+            {CheckID::Kind::Conformance, 81},
+        };
+
+        IccTestRunner runner;
+        auto result = runner.analyze(corpusDir / "h174_half_float_header.icc", opts);
+
+        expect_heuristic_result(result, 174, CheckResult::Status::FINDINGS, 2);
+        const auto* h174 = find_per_check(result, CheckID::Kind::Heuristic, 174);
+        ASSERT_TRUE(h174 != nullptr);
+        ASSERT_TRUE(h174->result.findings[0].message.find("IccUtil.cpp:665,677") != std::string::npos);
+        expect_conformance_result(result, 81, CheckResult::Status::FINDINGS, 1);
     }
 
     {

@@ -132,8 +132,8 @@ int RunCF081_SpectralPCSRange(CIccProfile *pIcc) {
   }
 
   const icSpectralRange &sr = pIcc->m_Header.spectralRange;
-  icFloat32Number startNm = icF16toF(sr.start);
-  icFloat32Number endNm   = icF16toF(sr.end);
+  icFloat32Number startNm = SafeF16ToF(sr.start);
+  icFloat32Number endNm   = SafeF16ToF(sr.end);
   icUInt16Number  steps   = sr.steps;
 
   printf("         spectralRange: start=%.1f nm, end=%.1f nm, steps=%u\n",
@@ -161,8 +161,8 @@ int RunCF081_SpectralPCSRange(CIccProfile *pIcc) {
 
   // Check biSpectralRange if it appears to be set
   const icSpectralRange &bsr = pIcc->m_Header.biSpectralRange;
-  icFloat32Number bStartNm = icF16toF(bsr.start);
-  icFloat32Number bEndNm   = icF16toF(bsr.end);
+  icFloat32Number bStartNm = SafeF16ToF(bsr.start);
+  icFloat32Number bEndNm   = SafeF16ToF(bsr.end);
   icUInt16Number  bSteps   = bsr.steps;
 
   bool biSet = (bsr.start != 0 || bsr.end != 0 || bsr.steps != 0);
@@ -643,8 +643,8 @@ int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc) {
   }
 
   const icSpectralRange &sr = pIcc->m_Header.spectralRange;
-  icFloat32Number startNm = icF16toF(sr.start);
-  icFloat32Number endNm   = icF16toF(sr.end);
+  icFloat32Number startNm = SafeF16ToF(sr.start);
+  icFloat32Number endNm   = SafeF16ToF(sr.end);
   icUInt16Number  steps   = sr.steps;
 
   printf("         Wavelength range: %.1f–%.1f nm, %u steps\n",
@@ -734,8 +734,8 @@ static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
 
   // Profile spectral range
   const icSpectralRange &profRange = pIcc->m_Header.spectralRange;
-  icFloat32Number profStartNm = icF16toF(profRange.start);
-  icFloat32Number profEndNm   = icF16toF(profRange.end);
+  icFloat32Number profStartNm = SafeF16ToF(profRange.start);
+  icFloat32Number profEndNm   = SafeF16ToF(profRange.end);
   printf("         Profile spectral range: %.1f–%.1f nm, %u steps\n",
          static_cast<double>(profStartNm), static_cast<double>(profEndNm),
          profRange.steps);
@@ -756,8 +756,8 @@ static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
       issues++;
     }
   } else {
-    icFloat32Number illumStartNm = icF16toF(illumRange.start);
-    icFloat32Number illumEndNm   = icF16toF(illumRange.end);
+    icFloat32Number illumStartNm = SafeF16ToF(illumRange.start);
+    icFloat32Number illumEndNm   = SafeF16ToF(illumRange.end);
     printf("         Illuminant spectral range: %.1f–%.1f nm, %u steps\n",
            static_cast<double>(illumStartNm), static_cast<double>(illumEndNm),
            illumRange.steps);
@@ -778,8 +778,8 @@ static int RunCF090_SpectralIlluminantConsistency(CIccProfile *pIcc) {
   svcn->getObserver(obsRange);
 
   if (obsRange.steps > 0) {
-    icFloat32Number obsStartNm = icF16toF(obsRange.start);
-    icFloat32Number obsEndNm   = icF16toF(obsRange.end);
+    icFloat32Number obsStartNm = SafeF16ToF(obsRange.start);
+    icFloat32Number obsEndNm   = SafeF16ToF(obsRange.end);
     printf("         Observer spectral range: %.1f–%.1f nm, %u steps\n",
            static_cast<double>(obsStartNm), static_cast<double>(obsEndNm),
            obsRange.steps);
@@ -834,8 +834,8 @@ static int RunCF113_SpectralRangePhysicalBounds(CIccProfile *pIcc) {
     return 0;
   }
 
-  icFloatNumber startNm = icF16toF(spec.start);
-  icFloatNumber endNm   = icF16toF(spec.end);
+  icFloatNumber startNm = SafeF16ToF(spec.start);
+  icFloatNumber endNm   = SafeF16ToF(spec.end);
 
   // Physical bounds check
   if (startNm < 100.0f || startNm > 2500.0f) {
@@ -3722,8 +3722,8 @@ static int RunCF257_SpectralRangeStepCount(CIccProfile *pIcc) {
     issues++;
   }
   // Validate start < end
-  float fStart = icF16toF(sr.start);
-  float fEnd = icF16toF(sr.end);
+  float fStart = SafeF16ToF(sr.start);
+  float fEnd = SafeF16ToF(sr.end);
   if (fStart >= fEnd) {
     printf("         Non-conformance: spectralRange start=%.1fnm >= end=%.1fnm\n", fStart, fEnd);
     issues++;
@@ -3965,8 +3965,8 @@ static int RunCF288_SpectralDataInfoConsistency(CIccProfile *pIcc) {
     issues++;
   } else {
     printf("         spectralRange: start=%.1f end=%.1f steps=%u\n",
-           icF16toF(sdi->m_spectralRange.start),
-           icF16toF(sdi->m_spectralRange.end),
+           SafeF16ToF(sdi->m_spectralRange.start),
+           SafeF16ToF(sdi->m_spectralRange.end),
            sdi->m_spectralRange.steps);
   }
 
@@ -3976,8 +3976,8 @@ static int RunCF288_SpectralDataInfoConsistency(CIccProfile *pIcc) {
                         sdi->m_biSpectralRange.steps != 0);
   if (hasBiSpectral) {
     printf("         biSpectralRange: start=%.1f end=%.1f steps=%u\n",
-           icF16toF(sdi->m_biSpectralRange.start),
-           icF16toF(sdi->m_biSpectralRange.end),
+               SafeF16ToF(sdi->m_biSpectralRange.start),
+               SafeF16ToF(sdi->m_biSpectralRange.end),
            sdi->m_biSpectralRange.steps);
 
     if (sdi->m_spectralRange.steps == 0) {
@@ -5405,7 +5405,7 @@ static int RunCF311_SrefSpectralRangeMandatory(CIccProfile *pIcc) {
     issues++;
   } else {
     printf("         Spectral range: start=%.1f end=%.1f steps=%u\n",
-           icF16toF(specRange.start), icF16toF(specRange.end),
+           SafeF16ToF(specRange.start), SafeF16ToF(specRange.end),
            static_cast<unsigned>(specRange.steps));
   }
 
@@ -5725,8 +5725,8 @@ static int RunCF316_IcsSvcnPlausibility(CIccProfile *pIcc) {
     printf("         %s[INFO]%s Illuminant spectral steps=0 — no spectral data\n",
            ColorInfo(), ColorReset());
   } else {
-    icFloatNumber startNm = icF16toF(illumRange.start);
-    icFloatNumber endNm = icF16toF(illumRange.end);
+    icFloatNumber startNm = SafeF16ToF(illumRange.start);
+    icFloatNumber endNm = SafeF16ToF(illumRange.end);
     if (startNm < 200.0f || endNm > 1000.0f) {
       printf("         %s[WARN]%s Illuminant spectral range %.1f-%.1f nm — outside typical 300-830nm\n",
              ColorWarning(), ColorReset(), startNm, endNm);
@@ -6521,8 +6521,8 @@ static int RunCF328_PCCNonStandardColorimetry(CIccProfile *pIcc) {
   } else {
     printf("         Illuminant SPD: %d steps (%.1f–%.1f nm)\n",
            illumRange.steps,
-           icF16toF(illumRange.start),
-           icF16toF(illumRange.end));
+           SafeF16ToF(illumRange.start),
+           SafeF16ToF(illumRange.end));
   }
 
   // Check observer presence
@@ -6536,8 +6536,8 @@ static int RunCF328_PCCNonStandardColorimetry(CIccProfile *pIcc) {
   } else {
     printf("         Observer CMF: %d steps (%.1f–%.1f nm)\n",
            obsRange.steps,
-           icF16toF(obsRange.start),
-           icF16toF(obsRange.end));
+           SafeF16ToF(obsRange.start),
+           SafeF16ToF(obsRange.end));
   }
 
   if (issues == 0)

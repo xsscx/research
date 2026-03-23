@@ -31,5 +31,8 @@ int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx);
 int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx);
 int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx);
 int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx);
+int RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(RawProfileContext &ctx);
+bool DetectH174HalfFloatConversionUB(const char *filename);
+bool DetectH174HalfFloatReadPathUB(const char *filename);
 
 #endif // ICC_HEURISTICS_CODEQL_PATTERNS_H

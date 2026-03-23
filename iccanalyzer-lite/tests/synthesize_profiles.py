@@ -30,11 +30,25 @@ def write_icc_header(
     creator=b"test",
     profile_id=b"\x00" * 16,
     flags=0,
+    spectral_pcs=0,
+    spectral_range=(0, 0, 0),
+    bi_spectral_range=(0, 0, 0),
+    mcs=0,
+    device_sub_class=0,
 ):
     """Build a 128-byte ICC header."""
+    def _sig_to_u32(value):
+        if isinstance(value, int):
+            return value & 0xFFFFFFFF
+        if isinstance(value, (bytes, bytearray)):
+            if len(value) != 4:
+                raise ValueError(f"Expected 4-byte signature, got {len(value)} bytes")
+            return int.from_bytes(value, "big")
+        raise TypeError(f"Unsupported signature type: {type(value)!r}")
+
     hdr = bytearray(128)
     struct.pack_into(">I", hdr, 0, size)
-    hdr[4:8] = preferred_cmm.to_bytes(4, "big") if isinstance(preferred_cmm, int) else preferred_cmm
+    hdr[4:8] = _sig_to_u32(preferred_cmm).to_bytes(4, "big")
     struct.pack_into(">I", hdr, 8, version)
     hdr[12:16] = device_class
     hdr[16:20] = color_space
@@ -54,6 +68,11 @@ def write_icc_header(
     struct.pack_into(">i", hdr, 76, int(0.8249 * 65536))
     hdr[80:84] = creator
     hdr[84:100] = profile_id
+    struct.pack_into(">I", hdr, 100, _sig_to_u32(spectral_pcs))
+    struct.pack_into(">HHH", hdr, 104, *spectral_range)
+    struct.pack_into(">HHH", hdr, 110, *bi_spectral_range)
+    struct.pack_into(">I", hdr, 116, _sig_to_u32(mcs))
+    struct.pack_into(">I", hdr, 120, _sig_to_u32(device_sub_class))
     return bytes(hdr)
 
 
@@ -107,6 +126,16 @@ def make_curve_tag(values=None, gamma=None):
             data += b"\x00\x00"
     else:
         data += struct.pack(">I", 0)  # identity
+    return data
+
+
+def make_float16_array_tag(raw_values):
+    """Create a float16ArrayType tag with caller-supplied raw IEEE-754 half values."""
+    data = b"fl16" + b"\x00" * 4
+    for raw in raw_values:
+        data += struct.pack(">H", raw & 0xFFFF)
+    while len(data) % 4:
+        data += b"\x00"
     return data
 
 
@@ -2555,6 +2584,48 @@ def synth_cf_htos_all_intents():
     return build_profile(tags, version=0x05000000, flags=0x00000008)
 
 
+def synth_h174_half_float_header():
+    """v5 profile with spectral header half-float < 1.0.
+
+    Triggers H174 on raw scan and exercises analyzer-owned safe half-float
+    conversion when library hardening is explicitly overridden.
+    """
+    tags = [
+        (b"desc", make_mluc_tag("H174 Header Half-Float UB")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        spectral_pcs=b"rs16",
+        spectral_range=(0x3800, 0x3C00, 31),  # 0.5 .. 1.0
+    )
+
+
+def synth_h174_half_float_mdv_fl16():
+    """v5 profile with mdv tag encoded as float16ArrayType containing 0.5.
+
+    Targets the parse-time ReadFloat16Float()->icF16toF path in upstream
+    iccDEV. Default analyzer execution should fingerprint H174 and skip the
+    unsafe library phase before CIccProfile::Read() touches the payload.
+    """
+    tags = [
+        (b"desc", make_mluc_tag("H174 mdv/fl16 Half-Float UB")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"mdv ", make_float16_array_tag([0x3800, 0x3C00])),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        spectral_pcs=b"rs16",
+        spectral_range=(0x3C00, 0x4400, 31),
+    )
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -2670,6 +2741,8 @@ def main():
         "cf_htos_bad_type.icc": synth_cf_htos_bad_type(),
         "cf_htos_channel_mismatch.icc": synth_cf_htos_channel_mismatch(),
         "cf_htos_all_intents.icc": synth_cf_htos_all_intents(),
+        "h174_half_float_header.icc": synth_h174_half_float_header(),
+        "h174_half_float_mdv_fl16.icc": synth_h174_half_float_mdv_fl16(),
     }
 
     for name, data in profiles.items():
