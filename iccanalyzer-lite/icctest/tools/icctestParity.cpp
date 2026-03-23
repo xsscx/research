@@ -806,9 +806,10 @@ void printJson(std::ostream& out,
     out << "    \"fileSize\": " << result.metadata.fileSize << "\n";
     out << "  },\n";
 
+    const int coverageOnlyChecks = countCoverageOnlyChecks(result);
     out << "  \"stats\": {\n";
     out << "    \"checksRun\": " << result.stats.checksRun << ",\n";
-    out << "    \"checksSkipped\": " << result.stats.checksSkipped << ",\n";
+    out << "    \"coverageOnlyChecks\": " << coverageOnlyChecks << ",\n";
     out << "    \"checksRecorded\": " << result.perCheck.size() << ",\n";
     out << "    \"findingsTotal\": " << result.stats.findingsTotal << ",\n";
     out << "    \"totalTimeUs\": " << result.stats.totalTime.count() << ",\n";

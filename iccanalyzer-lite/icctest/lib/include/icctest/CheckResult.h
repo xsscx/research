@@ -173,7 +173,7 @@ struct ProfileMetadata {
 struct RunStats {
     std::chrono::microseconds totalTime{0};
     int checksRun     = 0;
-    int checksSkipped = 0;
+    int checksSkipped = 0;  // Deprecated internal field; explicit coverage states are preferred.
     int findingsTotal = 0;
     std::array<int, 5> findingsBySeverity{};  // [INFO, LOW, MEDIUM, HIGH, CRITICAL]
 
@@ -218,6 +218,25 @@ struct AnalysisResult {
             [](const Finding& f) { return f.level == Severity::CRITICAL; });
     }
 };
+
+inline bool hasExplicitCoverageSummary(const CheckResult& result) {
+    if (result.status != CheckResult::Status::OK) {
+        return false;
+    }
+    return result.summary.rfind("N/A:", 0) == 0
+        || result.summary.rfind("GAP:", 0) == 0
+        || result.summary.rfind("NOT RUN:", 0) == 0;
+}
+
+inline int countCoverageOnlyChecks(const AnalysisResult& result) {
+    int count = 0;
+    for (const auto& entry : result.perCheck) {
+        if (hasExplicitCoverageSummary(entry.result)) {
+            ++count;
+        }
+    }
+    return count;
+}
 
 // Severity helpers
 inline const char* severityName(Severity s) {

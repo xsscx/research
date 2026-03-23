@@ -23,9 +23,12 @@ from runtimeEnv import v1_runtime_env
 HEADER_RE = re.compile(
     r"^\[H(?P<hid>\d+)\]\s+CF-(?P<start>\d{3})(?:\.\.CF-(?P<end>\d{3}))?:\s*(?P<title>.+?)\s*$"
 )
-STATUS_RE = re.compile(r"^\[(?P<status>OK|WARN|FAIL|INFO|SKIP|ERROR)\]\s*(?P<message>.*)$")
+STATUS_RE = re.compile(
+    r"^\[(?P<status>OK|WARN|FAIL|INFO|SKIP|ERROR|N/A|GAP|NOT RUN)\]\s*(?P<message>.*)$"
+)
 CF_STATUS_RE = re.compile(
-    r"^\[(?P<status>OK|WARN|FAIL|INFO|SKIP|ERROR)\]\s*CF-(?P<cfid>\d{3}):\s*(?P<message>.*)$"
+    r"^\[(?P<status>OK|WARN|FAIL|INFO|SKIP|ERROR|N/A|GAP|NOT RUN)\]\s*"
+    r"CF-(?P<cfid>\d{3}):\s*(?P<message>.*)$"
 )
 CF_INLINE_RE = re.compile(r"\bCF-(?P<cfid>\d{3})\b")
 ANSI_RE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -101,12 +104,30 @@ def run_v1_text(
     }
 
 
-def normalize_status(status: str) -> str:
-    if status == "SKIP":
+def normalize_gap_status(message: str) -> str:
+    text = " ".join(message.strip().lower().split())
+    skip_fragments = (
+        "not run",
+        "not evaluated",
+        "skipped",
+        "skip ",
+        "due to non-finite",
+        "due to invalid",
+        "requires parseable",
+    )
+    if any(fragment in text for fragment in skip_fragments):
         return "skip"
+    return "ok"
+
+
+def normalize_status(status: str, message: str = "") -> str:
+    if status in {"SKIP", "NOT RUN"}:
+        return "skip"
+    if status == "GAP":
+        return normalize_gap_status(message)
     if status in {"WARN", "FAIL", "ERROR"}:
         return "finding"
-    if status in {"OK", "INFO"}:
+    if status in {"OK", "INFO", "N/A"}:
         return "ok"
     return "unknown"
 
@@ -169,7 +190,7 @@ def build_record(
     finding_count = max(finding_count, summary_count)
 
     normalized = "ok"
-    if any(status == "SKIP" for status, _ in explicit_statuses):
+    if any(normalize_status(status, message) == "skip" for status, message in explicit_statuses):
         normalized = "skip"
     if finding_count > 0:
         normalized = "finding"
