@@ -25,7 +25,7 @@ struct HeuristicFinding {
   int id;                            // H1-H171+
   std::string title;                 // e.g. "mBA/mAB Sub-Element Offset Validation"
   std::string status;                // "ok", "warn", "critical", "skip"
-  std::vector<std::string> details;  // individual finding lines
+  std::vector<std::string> details;  // finding/info/skip detail lines
   int findingCount;                  // number of [WARN] or [CRIT] sub-findings
 
   HeuristicFinding() : id(0), findingCount(0) {}
