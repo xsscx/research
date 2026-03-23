@@ -8,7 +8,7 @@
 > ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
 > 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-22 23:30:00 UTC — 173 heuristics (H1–H173) +
+> **Last verified**: 2026-03-23 16:25:00 UTC — 173 heuristics (H1–H173) +
 > 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
 >
 > **Count note**: these are current registry totals, not an ID-space ceiling.
@@ -25,6 +25,17 @@
 > `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless the run
 > is intentionally collecting profiling output. LeakSanitizer can abort under
 > harnessed execution even when the suite itself passes.
+
+> **Analyzer-side UB hardening note**:
+> - V1/V2 intentionally validate against the **unpatched** upstream `iccDEV`
+>   runtime for parity.
+> - When user-controlled input can reach recurring UB in shared upstream
+>   helpers, prefer analyzer-owned guards or symbol overrides linked ahead of
+>   the static libraries over patching the vendored `iccDEV` tree.
+> - Keep the corresponding `H-*` / `CF-*` reporting active even after the
+>   runtime path is hardened. Defense and reporting are separate requirements.
+> - `cfl/patches` remain CFL-only and are not the runtime hardening mechanism
+>   for `iccanalyzer-lite` / `icctest`.
 
 > **PAWG quality note**:
 > - `Q1` bounded round-trip coverage includes matrix/TRC plus classic LUT pairs
