@@ -14,6 +14,7 @@ import asyncio
 import fnmatch
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -32,6 +33,10 @@ from web_ui import app  # noqa: E402
 PROFILE_EXTS = {".icc", ".icm"}
 ITEM_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL|N/A|GAP| -- )\]\s+[SCQ]\d+\s+", re.MULTILINE)
 CHECKLIST_URL = "https://www.color.org/profiles/assessment/index.xalter"
+REFERENCE_PROFILE_CANDIDATES = (
+    "test-profiles/sRGB_D65_MAT.icc",
+    "iccanalyzer-lite/tests/corpus/valid_srgb.icc",
+)
 REQUIRED_SNIPPETS = (
     "Profile Assessment Working Group Checklist Reference",
     "View: PAWG / compact checklist",
@@ -42,6 +47,10 @@ REQUIRED_SNIPPETS = (
     "\nSecurity\n",
     "\nConformance\n",
     "\nQuality\n",
+    "Checks evaluated:",
+    "Checks mapped:",
+    "Registry total:",
+    "Spec coverage:",
 )
 FORBIDDEN_SNIPPETS = (
     "CWE-",
@@ -58,6 +67,17 @@ FORBIDDEN_SNIPPETS = (
     "UndefinedBehaviorSanitizer",
     "--- stderr ---",
 )
+
+
+def quiet_logs() -> None:
+    for name in (
+        "httpx",
+        "httpcore",
+        "uvicorn",
+        "uvicorn.access",
+        "uvicorn.error",
+    ):
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def load_quarantine_patterns(path: Path) -> list[str]:
@@ -132,6 +152,7 @@ async def fetch_pawg(path: str, engine: str) -> dict:
         return payload
 
     result = data.get("result", "")
+    payload["result"] = result
     payload["resultLength"] = len(result)
     payload["itemCount"] = len(ITEM_RE.findall(result))
     payload["hasChecklistUrl"] = CHECKLIST_URL in result
@@ -148,13 +169,28 @@ async def fetch_pawg(path: str, engine: str) -> dict:
     return payload
 
 
+def pick_reference_profile(repo_root: Path, selected: list[str]) -> str | None:
+    for relpath in REFERENCE_PROFILE_CANDIDATES:
+        if (repo_root / relpath).is_file():
+            return relpath
+    if selected:
+        return selected[0]
+    return None
+
+
 async def main_async(args: argparse.Namespace) -> int:
+    quiet_logs()
     quarantine_patterns = load_quarantine_patterns(args.quarantine_file)
     candidates = gather_profiles(args.repo_root, quarantine_patterns, args.include_test_profiles)
     selected, seed_int = seeded_sample(candidates, args.max_profiles, args.seed)
 
     results = [await fetch_pawg(path, args.engine) for path in selected]
     failures = [entry for entry in results if not entry.get("valid", False)]
+    reference_path = pick_reference_profile(args.repo_root, selected)
+    reference = await fetch_pawg(reference_path, args.engine) if reference_path else None
+    reference_failure = None
+    if reference and not reference.get("valid", False):
+        reference_failure = reference
 
     summary = {
         "tool": "pawg-endpoint-sample",
@@ -170,8 +206,9 @@ async def main_async(args: argparse.Namespace) -> int:
         "selectedCount": len(selected),
         "selectedProfiles": selected,
         "quarantineFile": str(args.quarantine_file),
-        "failureCount": len(failures),
+        "failureCount": len(failures) + (1 if reference_failure else 0),
         "failures": failures,
+        "reference": reference,
         "results": results,
     }
 
@@ -180,7 +217,7 @@ async def main_async(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(summary, indent=2))
 
-    if failures:
+    if failures or reference_failure:
         for failure in failures:
             print(
                 f"[FAIL] {failure['path']}: status={failure.get('statusCode')} "
@@ -188,6 +225,15 @@ async def main_async(args: argparse.Namespace) -> int:
                 f"missing={failure.get('missingRequired', [])} "
                 f"forbidden={failure.get('presentForbidden', [])} "
                 f"itemCount={failure.get('itemCount')}",
+                file=sys.stderr,
+            )
+        if reference_failure:
+            print(
+                f"[FAIL] reference {reference_failure['path']}: status={reference_failure.get('statusCode')} "
+                f"error={reference_failure.get('error', '')} "
+                f"missing={reference_failure.get('missingRequired', [])} "
+                f"forbidden={reference_failure.get('presentForbidden', [])} "
+                f"itemCount={reference_failure.get('itemCount')}",
                 file=sys.stderr,
             )
         return 1
