@@ -189,11 +189,10 @@ PAWG mode has its own implementation with the same pattern but different output 
 
 ### `mluc` / `pseq` parity note
 
-- `CF-223` follows the ICC TN PSD recommendation that a zero-record `mluc`
-  placeholder is **12 bytes**.
-- A readable 16-byte zero-record `mluc` may still appear in corpus files for
-  SampleICC compatibility; treat it as a non-minimal encoding, not as the
-  preferred form.
+- A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
+  12-byte recommended encoding per the ICC TN PSD guidance.
+- Legacy 16-byte zero-record encodings are readable in some SampleICC paths but
+  should still be reported as non-minimal rather than silently normalized away.
 - `CF-221` coverage for embedded `mluc` inside `profileSequenceDescTag` remains
   shallower than standalone tag-table `mluc` validation because SampleICC still
   reads standalone `mluc` with the legacy 16-byte header shape.

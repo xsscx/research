@@ -320,9 +320,10 @@ Normal `multiLocalizedUnicodeType` layout:
 
 Key conformance notes used by both V1 and V2:
 
-- `CF-223`: a **zero-name placeholder** is treated as a **12-byte recommended
-  encoding** from the ICC TN PSD: type + reserved + `recordCount = 0`, with no
-  trailing record-size field.
+- A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
+  12-byte recommended encoding per the ICC TN PSD guidance.
+- Legacy 16-byte zero-record encodings are readable in some SampleICC paths but
+  should still be reported as non-minimal rather than silently normalized away.
 - `CF-224`: bytes `+4..+7` must stay zero.
 - `CF-225`: UTF-16BE string lengths and offsets should be even.
 - `CF-226`: the effective `mluc` extent should be consistent with
