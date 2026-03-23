@@ -159,9 +159,6 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
         }
 
         result.stats.checksRun++;
-        if (cr.status == CheckResult::Status::SKIP) {
-            result.stats.checksSkipped++;
-        }
 
         // Collect findings
         for (auto& f : cr.findings) {

@@ -36,14 +36,14 @@ int RunCF091_MalwareSignatureScan(CIccProfile *pIcc, const char *filename) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   if (!filename || !filename[0]) {
-    printf("           %s[SKIP]%s No filename provided for malware scan\n",
+    printf("           %s[NOT RUN]%s No filename provided for malware scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
 
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
-    printf("           %s[SKIP]%s Cannot open file for malware scan\n",
+    printf("           %s[NOT RUN]%s Cannot open file for malware scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
@@ -181,14 +181,14 @@ int RunCF093_PrivateTagContentScan(CIccProfile *pIcc, const char *filename) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   if (!filename || !filename[0]) {
-    printf("           %s[SKIP]%s No filename for private tag content scan\n",
+    printf("           %s[NOT RUN]%s No filename for private tag content scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
 
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
-    printf("           %s[SKIP]%s Cannot open file for content scan\n",
+    printf("           %s[NOT RUN]%s Cannot open file for content scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
@@ -298,14 +298,14 @@ int RunCF094_ShellcodePatternScan(const char *filename) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   if (!filename || !filename[0]) {
-    printf("           %s[SKIP]%s No filename for shellcode scan\n",
+    printf("           %s[NOT RUN]%s No filename for shellcode scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
 
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
-    printf("           %s[SKIP]%s Cannot open file for shellcode scan\n",
+    printf("           %s[NOT RUN]%s Cannot open file for shellcode scan\n",
            ColorWarning(), ColorReset());
     return 0;
   }
