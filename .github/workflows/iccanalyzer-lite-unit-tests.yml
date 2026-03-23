@@ -108,7 +108,7 @@ jobs:
             liblzma-dev \
             nlohmann-json3-dev \
             libssl-dev \
-            python3
+            python3 \
             python3-venv
 
       - name: Print compiler version
