@@ -582,6 +582,74 @@ static void test_pawg_s1_matrix_trc_regression() {
     }
 }
 
+static void test_pawg_quality_regressions() {
+    std::printf("  test_pawg_quality_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "valid_srgb.icc", {99, 100, 101, 102});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 102, CheckResult::Status::SKIP, 0);
+
+        const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
+        ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf102->result.summary.find("No characterization data") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "lut8_atob_btoa.icc", {99, 100, 101});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_conformance_result(result, 99, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
+
+        const auto* cf99 = find_per_check(result, CheckID::Kind::Conformance, 99);
+        ASSERT_TRUE(cf99 != nullptr);
+        ASSERT_TRUE(cf99->result.summary.find("out of bounds") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "non_monotonic_curve.icc", {100});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 100, CheckResult::Status::FINDINGS, 1);
+
+        const auto* cf100 = find_per_check(result, CheckID::Kind::Conformance, 100);
+        ASSERT_TRUE(cf100 != nullptr);
+        ASSERT_TRUE(cf100->result.findings[0].message.find("non-monotonic") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "targ_tag_profile.icc", {102});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 102, CheckResult::Status::SKIP, 0);
+
+        const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
+        ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf102->result.summary.find("measurement rows were parsed") != std::string::npos);
+    }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "targ_quality_profile.icc", {99, 100, 101, 102});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_conformance_result(result, 99, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 100, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 101, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 102, CheckResult::Status::OK, 0);
+
+        const auto* cf102 = find_per_check(result, CheckID::Kind::Conformance, 102);
+        ASSERT_TRUE(cf102 != nullptr);
+        ASSERT_TRUE(cf102->result.summary.find("usableRows=") != std::string::npos);
+    }
+}
+
 static void test_embedding_tech_note_regressions() {
     std::printf("  test_embedding_tech_note_regressions...\n");
 
@@ -894,6 +962,7 @@ void test_runner() {
     test_sampleicc_legibility_regression();
     test_conformance_parity_regressions();
     test_pawg_s1_matrix_trc_regression();
+    test_pawg_quality_regressions();
     test_embedding_tech_note_regressions();
     test_conformance_v5_only_skip_regression();
     test_conformance_v5_gate_regression();

@@ -1697,14 +1697,39 @@ def test_pawg_output(suite):
         0.0, "", ""
     ))
 
-    has_split_states = (
+    has_quality_states = (
         re.search(r"\[OK\]\s+S1\b", stdout) is not None and
+        re.search(r"\[OK\]\s+Q1\b", stdout) is not None and
+        re.search(r"\[OK\]\s+Q2\b", stdout) is not None and
+        re.search(r"\[OK\]\s+Q3\b", stdout) is not None and
         re.search(r"\[N/A\]\s+Q4\b", stdout) is not None
     )
     suite.results.append(TestResult(
-        "pawg.good_profile_splits_gap_and_na_states", has_split_states,
-        "Expected S1 to report [OK] and Q4 to report [N/A] on the good profile"
-        if not has_split_states else "",
+        "pawg.good_profile_quality_states", has_quality_states,
+        "Expected S1/Q1/Q2/Q3 to report [OK] and Q4 to report [N/A] on the good profile"
+        if not has_quality_states else "",
+        0.0, "", ""
+    ))
+
+    char_profile = str(CORPUS_DIR / "targ_quality_profile.icc")
+    rc_char, stdout_char, stderr_char = suite.run_analyzer(["-pawg", char_profile])
+    has_char_q4 = re.search(r"\[OK\]\s+Q4\b", stdout_char) is not None
+    suite.results.append(TestResult(
+        "pawg.characterization_profile_q4_ok", has_char_q4,
+        "Expected Q4 to report [OK] on the characterization quality profile"
+        if not has_char_q4 else "",
+        0.0, "", ""
+    ))
+
+    has_char_q123 = (
+        re.search(r"\[OK\]\s+Q1\b", stdout_char) is not None and
+        re.search(r"\[OK\]\s+Q2\b", stdout_char) is not None and
+        re.search(r"\[OK\]\s+Q3\b", stdout_char) is not None
+    )
+    suite.results.append(TestResult(
+        "pawg.characterization_profile_q123_ok", has_char_q123,
+        "Expected Q1/Q2/Q3 to report [OK] on the characterization quality profile"
+        if not has_char_q123 else "",
         0.0, "", ""
     ))
 
@@ -2696,6 +2721,11 @@ def test_conformance_checks(suite):
         ["-a", f"{corpus}/targ_tag_profile.icc"],
         r"CF-102.*[Cc]haracterization"
     )
+    suite.assert_output_contains(
+        "cf.quality.characterization_data_eval",
+        ["-a", f"{corpus}/targ_quality_profile.icc"],
+        r"CF-102.*Characterization.*avg DeltaE00|Characterization data agrees"
+    )
 
     # ═══════════════════════════════════════════════════════════════════════
     # CF-103..CF-122: Deep ICC Specification Conformance Checks
@@ -3064,10 +3094,17 @@ def test_conformance_checks(suite):
         ["-a", v5_profile],
         r"CF-158.*Embedded Profile Size"
     )
+    # Hardened default: ICC5/ICCp embedded profiles hit the H96 UB fingerprint
+    # and skip the unsafe library-phase conformance path.
     suite.assert_output_contains(
         "cf.153.embedded_type_ok",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Embedded profile tag 'ICC5' with type 'ICCp' present"
+        r"\[DEFENSE\].*Embedded ICC5 tag with ICCp type.*IccIO\.cpp:569"
+    )
+    suite.assert_output_not_contains(
+        "cf.153.embedded_type_ok.skips_unsafe_cf",
+        ["-a", f"{corpus}/cf_embedded_clean.icc"],
+        r"CF-153.*Embedded Profile Tag"
     )
     suite.assert_output_contains(
         "cf.153.embedded_wrong_type",
@@ -3082,27 +3119,27 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.154.v5_parent_warning",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Parent profile is already v5"
+        r"Library-phase conformance skipped"
     )
     suite.assert_output_contains(
         "cf.155.class_mismatch",
         ["-a", f"{corpus}/cf_embedded_child_class_mismatch.icc"],
-        r"Profile class mismatch: parent='mntr' child='scnr'"
+        r"\[DEFENSE\].*Embedded ICC5 tag with ICCp type.*IccIO\.cpp:569"
     )
     suite.assert_output_contains(
         "cf.156.flags_invalid",
         ["-a", f"{corpus}/cf_embedded_child_flags_bad.icc"],
-        r"flags bit 0 should be 1|flags bit 1 should be 0"
+        r"Library-phase conformance skipped"
     )
     suite.assert_output_contains(
         "cf.157.depth_ok",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Embedding depth within safe bounds"
+        r"Raw-phase heuristics \(H1-H171\) still ran in legacy mode"
     )
     suite.assert_output_contains(
         "cf.158.size_ok",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Embedded profile size is within bounds"
+        r"Library-phase conformance skipped"
     )
 
     # --- CF-159..CF-162: dictType Validation (v5 profile) ---
@@ -3146,17 +3183,17 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.175.pcs_mismatch",
         ["-a", f"{corpus}/cf_embedded_child_pcs_mismatch.icc"],
-        r"PCS mismatch: parent='XYZ ' child='Lab '"
+        r"\[DEFENSE\].*Embedded ICC5 tag with ICCp type.*IccIO\.cpp:569"
     )
     suite.assert_output_contains(
         "cf.176.reserved_nonzero",
         ["-a", f"{corpus}/cf_embedded_reserved_nonzero.icc"],
-        r"Reserved Value must be zero"
+        r"Library-phase conformance skipped"
     )
     suite.assert_output_contains(
         "cf.177.embedded_clean_validation",
         ["-a", f"{corpus}/cf_embedded_clean.icc"],
-        r"Embedded profile validates cleanly"
+        r"\[DEFENSE\].*Embedded ICC5 tag with ICCp type.*IccIO\.cpp:569"
     )
 
     # --- CF-178..CF-183: Partial Chromatic Adaptation (ICC TN) ---
@@ -4359,9 +4396,29 @@ def test_conformance_checks(suite):
         r"\[OK\]\s+S1"
     )
     suite.assert_output_contains(
+        "cf.pawg.good_profile_q1_ok",
+        ["-pawg", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\]\s+Q1"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.good_profile_q2_ok",
+        ["-pawg", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\]\s+Q2"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.good_profile_q3_ok",
+        ["-pawg", f"{corpus}/valid_srgb.icc"],
+        r"\[OK\]\s+Q3"
+    )
+    suite.assert_output_contains(
         "cf.pawg.good_profile_na_state",
         ["-pawg", f"{corpus}/valid_srgb.icc"],
         r"\[N/A\]\s+Q4"
+    )
+    suite.assert_output_contains(
+        "cf.pawg.characterization_profile_q4_ok",
+        ["-pawg", f"{corpus}/targ_quality_profile.icc"],
+        r"\[OK\]\s+Q4"
     )
 
     # --- iccDEV tool conformance (reference profiles) ---

@@ -19,6 +19,7 @@
 #include "IccConformanceQuality.h"
 #include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
+#include "IccQualityMetrics.h"
 #include <cstdio>
 #include <cstdint>
 #include <cmath>
@@ -37,76 +38,29 @@ int RunCF099_RoundTripDeltaE(CIccProfile *pIcc) {
   printf("  %s[CF-099]%s Round-Trip Transform CIEDE2000 (%sICC.1-2022-05 §8%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  // Check if both AToB0 and BToA0 exist
-  CIccTag *pAToB = pIcc->FindTag(icSigAToB0Tag);
-  CIccTag *pBToA = pIcc->FindTag(icSigBToA0Tag);
-
-  if (!pAToB || !pBToA) {
-    printf("           %s[SKIP]%s AToB0/BToA0 tag pair not present\n",
-           ColorInfo(), ColorReset());
-    hc.info("AToB0/BToA0 tag pair not present");
+  iccquality::RoundTripMetrics metrics;
+  std::string reason;
+  if (!iccquality::measure_round_trip(pIcc, metrics, reason)) {
+    printf("           %s[SKIP]%s %s\n",
+           ColorInfo(), ColorReset(), reason.c_str());
+    hc.info("%s", reason.c_str());
     return -1;
   }
 
-  // Verify these are LUT-based tags
-  CIccMBB *pMBB_AToB = dynamic_cast<CIccMBB*>(pAToB);
-  CIccMBB *pMBB_BToA = dynamic_cast<CIccMBB*>(pBToA);
-  if (!pMBB_AToB || !pMBB_BToA) {
-    printf("           %s[SKIP]%s AToB0/BToA0 not LUT-based — round-trip test not applicable\n",
-           ColorInfo(), ColorReset());
-    hc.info("AToB0/BToA0 not LUT-based");
-    return -1;
-  }
+  printf("           Model: %s, samples: %d\n",
+         metrics.model.c_str(), metrics.samples);
+  printf("           First round trip:  avg DeltaE00=%.4f  max DeltaE00=%.4f\n",
+         metrics.avgFirstDe00, metrics.maxFirstDe00);
+  printf("           Second round trip: avg DeltaE00=%.4f  max DeltaE00=%.4f\n",
+         metrics.avgSecondDe00, metrics.maxSecondDe00);
 
-  int nIn_AToB = pMBB_AToB->InputChannels();
-  int nOut_AToB = pMBB_AToB->OutputChannels();
-  int nIn_BToA = pMBB_BToA->InputChannels();
-  int nOut_BToA = pMBB_BToA->OutputChannels();
-
-  // AToB0: device→PCS, BToA0: PCS→device
-  // Round-trip: device→PCS→device should be close to identity
-  if (nIn_AToB < 1 || nOut_AToB < 1 || nIn_BToA < 1 || nOut_BToA < 1) {
-    printf("           %s[SKIP]%s Invalid channel counts\n",
-           ColorInfo(), ColorReset());
-    hc.info("Invalid channel counts");
-    return -1;
-  }
-
-  printf("           AToB0: %d→%d channels, BToA0: %d→%d channels\n",
-         nIn_AToB, nOut_AToB, nIn_BToA, nOut_BToA);
-
-  // Validate structural consistency for round-trip capability
-  // AToB0: device→PCS (nIn=device channels, nOut=PCS channels)
-  // BToA0: PCS→device (nIn=PCS channels, nOut=device channels)
-  // For valid round-trip: AToB0.nOut should match BToA0.nIn (PCS channels)
-  //                       AToB0.nIn  should match BToA0.nOut (device channels)
-
-  bool channelMatch = (nOut_AToB == nIn_BToA) && (nIn_AToB == nOut_BToA);
-
-  if (!channelMatch) {
-    printf("           %s[WARN]%s Channel mismatch: AToB0(%d→%d) vs BToA0(%d→%d) — round-trip impossible\n",
-           ColorWarning(), ColorReset(), nIn_AToB, nOut_AToB, nIn_BToA, nOut_BToA);
+  if (metrics.maxFirstDe00 > 5.0 || metrics.avgFirstDe00 > 2.0 ||
+      metrics.maxSecondDe00 > 5.0 || metrics.avgSecondDe00 > 2.0) {
+    printf("           %s[WARN]%s Round-trip fidelity exceeds bounded DeltaE00 expectations\n",
+           ColorWarning(), ColorReset());
     issues++;
-  }
-
-  // Check CLUT presence in both tags
-  CIccCLUT *pCLUT_AToB = pMBB_AToB->GetCLUT();
-  CIccCLUT *pCLUT_BToA = pMBB_BToA->GetCLUT();
-
-  printf("           AToB0 CLUT: %s, BToA0 CLUT: %s\n",
-         pCLUT_AToB ? "present" : "absent",
-         pCLUT_BToA ? "present" : "absent");
-
-  // Check PCS Lab for quality context
-  icColorSpaceSignature pcs = pIcc->m_Header.pcs;
-  if (pcs == icSigLabData && nOut_AToB >= 3 && nIn_BToA >= 3) {
-    printf("           PCS=Lab — profile suitable for CIEDE2000 round-trip testing\n");
-  } else if (pcs == icSigXYZData) {
-    printf("           PCS=XYZ — profile suitable for XYZ round-trip testing\n");
-  }
-
-  if (channelMatch) {
-    printf("           %s[OK]%s AToB0/BToA0 channel dimensions are consistent for round-trip\n",
+  } else {
+    printf("           %s[OK]%s Bounded round-trip DeltaE00 fidelity acceptable\n",
            ColorSuccess(), ColorReset());
   }
 
@@ -124,59 +78,34 @@ int RunCF100_CurveInvertibility(CIccProfile *pIcc) {
   printf("  %s[CF-100]%s Curve Invertibility Check (%sICC.1-2022-05 §10.6%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  struct CurveInfo { icTagSignature sig; const char *name; };
-  static const CurveInfo curves[] = {
-    { icSigRedTRCTag,   "rTRC" },
-    { icSigGreenTRCTag, "gTRC" },
-    { icSigBlueTRCTag,  "bTRC" },
-    { icSigGrayTRCTag,  "kTRC" },
-  };
-
-  int curvesChecked = 0;
-  for (size_t c = 0; c < sizeof(curves)/sizeof(curves[0]); c++) {
-    CIccTag *pTag = pIcc->FindTag(curves[c].sig);
-    if (!pTag) continue;
-
-    CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve*>(pTag);
-    if (!pCurve) continue;
-
-    icUInt32Number nEntries = pCurve->GetSize();
-    if (nEntries < 2) {
-      // Gamma or identity curve — always invertible
-      printf("           %s: gamma/identity curve — invertible\n", curves[c].name);
-      curvesChecked++;
-      continue;
-    }
-
-    // Check monotonicity
-    bool monotonic = true;
-    icFloatNumber prev = (*pCurve)[0];
-    for (icUInt32Number i = 1; i < nEntries; i++) {
-      icFloatNumber val = (*pCurve)[i];
-      if (val < prev) {
-        monotonic = false;
-        break;
-      }
-      prev = val;
-    }
-
-    if (!monotonic) {
-      printf("           %s[WARN]%s %s: curve is non-monotonic (%u entries) — not invertible\n",
-             ColorWarning(), ColorReset(), curves[c].name, nEntries);
-      issues++;
-    } else {
-      printf("           %s: monotonically increasing (%u entries) — invertible\n",
-             curves[c].name, nEntries);
-    }
-    curvesChecked++;
+  const auto metrics = iccquality::measure_curve_invertibility(pIcc);
+  if (metrics.curves.empty()) {
+    printf("           %s[SKIP]%s No supported curves found\n",
+           ColorInfo(), ColorReset());
+    return -1;
   }
 
-  if (curvesChecked == 0) {
-    printf("           %s[SKIP]%s No TRC curves found\n",
-           ColorInfo(), ColorReset());
-  } else if (issues == 0) {
-    printf("           %s[OK]%s %d curve(s) checked — all invertible\n",
-           ColorSuccess(), ColorReset(), curvesChecked);
+  for (const auto &curve : metrics.curves) {
+    printf("           %s: avg inv err=%.6f  max err=%.6f\n",
+           curve.name.c_str(), curve.avgError, curve.maxError);
+    if (!curve.monotonic) {
+      printf("           %s[WARN]%s %s is non-monotonic — not reliably invertible\n",
+             ColorWarning(), ColorReset(), curve.name.c_str());
+      issues++;
+    } else if (curve.flat) {
+      printf("           %s[WARN]%s %s is effectively flat — not invertible\n",
+             ColorWarning(), ColorReset(), curve.name.c_str());
+      issues++;
+    } else if (curve.maxError > 0.01) {
+      printf("           %s[WARN]%s %s exceeds bounded invertibility error threshold\n",
+             ColorWarning(), ColorReset(), curve.name.c_str());
+      issues++;
+    }
+  }
+
+  if (issues == 0) {
+    printf("           %s[OK]%s %zu curve(s) checked — bounded invertibility acceptable\n",
+           ColorSuccess(), ColorReset(), metrics.curves.size());
   }
 
   return issues;
@@ -194,119 +123,26 @@ int RunCF101_TransformSmoothness(CIccProfile *pIcc) {
   printf("  %s[CF-101]%s Transform Smoothness (%sICC.1-2022-05 §10.8%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  // Check AToB0 CLUT if present
-  CIccTag *pTag = pIcc->FindTag(icSigAToB0Tag);
-  if (!pTag) {
-    printf("           %s[SKIP]%s No AToB0 tag for smoothness analysis\n",
-           ColorInfo(), ColorReset());
-    hc.info("No AToB0 tag");
+  iccquality::SmoothnessMetrics metrics;
+  std::string reason;
+  if (!iccquality::measure_transform_smoothness(pIcc, metrics, reason)) {
+    printf("           %s[SKIP]%s %s\n",
+           ColorInfo(), ColorReset(), reason.c_str());
+    hc.info("%s", reason.c_str());
     return -1;
   }
 
-  CIccMBB *pMBB = dynamic_cast<CIccMBB*>(pTag);
-  if (!pMBB) {
-    printf("           %s[SKIP]%s AToB0 is not LUT-based\n",
-           ColorInfo(), ColorReset());
-    hc.info("AToB0 is not LUT-based");
-    return -1;
-  }
+  printf("           Model: %s, samples: %d\n",
+         metrics.model.c_str(), metrics.samples);
+  printf("           Avg step DeltaE00=%.4f  max step DeltaE00=%.4f  max curvature=%.4f\n",
+         metrics.avgStepDe00, metrics.maxStepDe00, metrics.maxCurvatureDe00);
+  printf("           Large discontinuities (>6.0 DeltaE00): %d\n",
+         metrics.discontinuities);
 
-  CIccCLUT *pCLUT = pMBB->GetCLUT();
-  if (!pCLUT) {
-    printf("           %s[SKIP]%s AToB0 has no CLUT (matrix-only transform)\n",
-           ColorInfo(), ColorReset());
-    hc.info("AToB0 has no CLUT");
-    return -1;
-  }
-
-  int nIn = pCLUT->GetInputDim();
-  int nOut = pCLUT->GetOutputChannels();
-
-  if (nIn < 1 || nOut < 1 || nIn > 15) {
-    printf("           %s[SKIP]%s Invalid CLUT dimensions (in=%d, out=%d)\n",
-           ColorInfo(), ColorReset(), nIn, nOut);
-    hc.info("Invalid CLUT dimensions");
-    return -1;
-  }
-
-  // Get grid size for dimension 0
-  int gridSize = pCLUT->GridPoint(0);
-  if (gridSize < 2) {
-    printf("           %s[SKIP]%s Grid size too small (%d)\n",
-           ColorInfo(), ColorReset(), gridSize);
-    hc.info("Grid size too small");
-    return -1;
-  }
-
-  // For 3-input CLUTs: sample along L axis (input dim 0) with a/b at midpoint
-  // For higher dimensions: sample along dim 0 only
-  printf("           CLUT: %d input dims, %d output channels, grid=%d\n",
-         nIn, nOut, gridSize);
-
-  // Read CLUT grid data directly (no Begin()/Apply() — CIccMBB is a data container)
-  // Walk along first input dimension at midpoint of all other dimensions.
-  // CLUT data layout: grid[i0][i1]...[iN-1][ch0..chM] — nOut values per grid node.
-  int totalNodes = 1;
-  for (int d = 0; d < nIn; d++) {
-    int gs = pCLUT->GridPoint(d);
-    if (gs < 1) { totalNodes = 0; break; }
-    totalNodes *= gs;
-  }
-  if (totalNodes < 2 || totalNodes > 1000000) {
-    printf("           %s[SKIP]%s CLUT grid too large or invalid (%d nodes)\n",
-           ColorInfo(), ColorReset(), totalNodes);
-    hc.info("CLUT grid too large or invalid");
-    return -1;
-  }
-
-  // Compute stride: for dimension 0, each step advances by product of remaining dims × nOut
-  int stride0 = nOut;
-  for (int d = 1; d < nIn; d++)
-    stride0 *= pCLUT->GridPoint(d);
-
-  // Compute midpoint offset for dims 1..N-1
-  int midOffset = 0;
-  int subStride = nOut;
-  for (int d = nIn - 1; d >= 1; d--) {
-    int gs = pCLUT->GridPoint(d);
-    midOffset += (gs / 2) * subStride;
-    subStride *= gs;
-  }
-
-  // Access CLUT data through GetData()
-  const icFloatNumber *clutData = pCLUT->GetData(0);
-  if (!clutData) {
-    printf("           %s[SKIP]%s CLUT data not accessible\n",
-           ColorInfo(), ColorReset());
-    hc.info("CLUT data not accessible");
-    return -1;
-  }
-
-  double maxJump = 0.0;
-  int jumpCount = 0;
-
-  for (int i = 1; i < gridSize; i++) {
-    int prevIdx = (i - 1) * stride0 + midOffset;
-    int currIdx = i * stride0 + midOffset;
-
-    if (currIdx + nOut > totalNodes * nOut) break;
-
-    double jump = 0.0;
-    for (int ch = 0; ch < nOut; ch++) {
-      double d = (double)clutData[currIdx + ch] - (double)clutData[prevIdx + ch];
-      jump += d * d;
-    }
-    jump = sqrt(jump);
-    if (jump > maxJump) maxJump = jump;
-    if (jump > 0.5) jumpCount++;
-  }
-
-  printf("           Max inter-node distance: %.4f, discontinuities (>0.5): %d\n",
-         maxJump, jumpCount);
-
-  if (jumpCount > gridSize / 4) {
-    printf("           %s[WARN]%s Transform appears discontinuous (%d/%d jumps)\n",
-           ColorWarning(), ColorReset(), jumpCount, gridSize - 1);
+  if (metrics.maxStepDe00 > 8.0 || metrics.maxCurvatureDe00 > 4.0 ||
+      metrics.discontinuities > 4) {
+    printf("           %s[WARN]%s Transform smoothness exceeds bounded continuity expectations\n",
+           ColorWarning(), ColorReset());
     issues++;
   } else {
     printf("           %s[OK]%s Transform smoothness acceptable\n",
@@ -328,45 +164,27 @@ int RunCF102_CharacterizationRoundTrip(CIccProfile *pIcc) {
   printf("  %s[CF-102]%s Characterization Data Round-Trip (%sICC.1-2022-05 §9.2.26%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  // charTargetTag is optional — contains characterization target data
-  CIccTag *pTag = pIcc->FindTag(icSigCharTargetTag);
-  if (!pTag) {
-    printf("           %s[SKIP]%s No charTargetTag ('targ') present\n",
-           ColorInfo(), ColorReset());
-    hc.info("No characterization data (targ) tag present");
+  iccquality::CharacterizationMetrics metrics;
+  std::string reason;
+  if (!iccquality::evaluate_characterization(pIcc, metrics, reason)) {
+    printf("           %s[SKIP]%s %s\n",
+           ColorInfo(), ColorReset(), reason.c_str());
+    hc.info("%s", reason.c_str());
     return -1;
   }
 
-  CIccTagText *pText = dynamic_cast<CIccTagText*>(pTag);
-  if (!pText) {
-    printf("           %s[INFO]%s charTargetTag is not textType — cannot parse\n",
-           ColorInfo(), ColorReset());
-    hc.info("charTargetTag is not textType");
-    return -1;
-  }
+  printf("           charTargetTag fields=%d rows=%d usableRows=%d\n",
+         metrics.fieldCount, metrics.rowCount, metrics.rowsUsed);
+  printf("           Characterization fidelity: avg DeltaE00=%.4f  max DeltaE00=%.4f\n",
+         metrics.avgDe00, metrics.maxDe00);
 
-  const char *text = pText->GetText();
-  if (!text || !text[0]) {
-    printf("           %s[INFO]%s charTargetTag is empty\n",
-           ColorInfo(), ColorReset());
-    hc.info("charTargetTag is empty");
-    return -1;
-  }
-
-  size_t len = strlen(text);
-  printf("           charTargetTag: %zu bytes of characterization data\n", len);
-
-  // Presence of targ + AToB/BToA is itself a quality signal
-  CIccTag *pAToB = pIcc->FindTag(icSigAToB0Tag);
-  CIccTag *pBToA = pIcc->FindTag(icSigBToA0Tag);
-
-  if (pAToB && pBToA) {
-    printf("           AToB0 + BToA0 present — characterization data can be verified\n");
-    printf("           %s[OK]%s Characterization data and transform tags present\n",
-           ColorSuccess(), ColorReset());
+  if (metrics.maxDe00 > 5.0 || metrics.avgDe00 > 2.0) {
+    printf("           %s[WARN]%s Characterization-driven DeltaE00 exceeds bounded expectations\n",
+           ColorWarning(), ColorReset());
+    issues++;
   } else {
-    printf("           %s[INFO]%s Missing AToB0/BToA0 — cannot verify characterization round-trip\n",
-           ColorInfo(), ColorReset());
+    printf("           %s[OK]%s Characterization data agrees with bounded forward transform evaluation\n",
+           ColorSuccess(), ColorReset());
   }
 
   return issues;

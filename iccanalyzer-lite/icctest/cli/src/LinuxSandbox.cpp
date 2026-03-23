@@ -9,6 +9,8 @@
 
 #include "LinuxSandbox.h"
 
+#include <icctest/CheckRegistry.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -23,6 +25,32 @@
 #endif
 
 namespace icctest {
+
+namespace {
+
+Severity maxFindingSeverity(const std::vector<Finding>& findings) {
+    Severity worst = Severity::INFO;
+    for (const auto& finding : findings) {
+        if (finding.level > worst) {
+            worst = finding.level;
+        }
+    }
+    return worst;
+}
+
+CheckMeta defaultConformanceMeta() {
+    return CheckMeta{
+        "",
+        "",
+        "",
+        "",
+        "",
+        Severity::INFO,
+        CheckPhase::CONFORMANCE
+    };
+}
+
+} // namespace
 
 bool isSandboxAvailable() {
 #ifdef __linux__
@@ -157,6 +185,8 @@ runSandboxed(std::function<AnalysisResult()> fn,
         // [4B: findingsTotal] [4B: checksRun] [4B: checksSkipped] [8B: totalTime_us]
         // [5*4B: findingsBySeverity]
         // [4B: nFindings] [N * Finding: sev(1) + kind(1) + num(4) + 3 strings]
+        // [4B: nPerCheck] [N * PerCheckSummary: kind(1) + num(4) + status(1) +
+        //                                    worstSeverity(1) + findingCount(4) + summary]
         uint8_t magic[4] = {'I', 'C', 'T', '\0'};
         (void)write(pipefd[1], magic, 4);
 
@@ -214,6 +244,37 @@ runSandboxed(std::function<AnalysisResult()> fn,
             writeStr(f.message);
             writeStr(f.detail);
             writeStr(f.cweNote);
+        }
+
+        int32_t nPerCheck = 0;
+        if (limits.includeConformancePerCheckSummary) {
+            for (const auto& entry : result.perCheck) {
+                if (entry.id.kind == CheckID::Kind::Conformance) {
+                    ++nPerCheck;
+                }
+            }
+        }
+        (void)write(pipefd[1], &nPerCheck, 4);
+
+        if (nPerCheck > 0) {
+            for (const auto& entry : result.perCheck) {
+                if (entry.id.kind != CheckID::Kind::Conformance) {
+                    continue;
+                }
+
+                uint8_t kind = static_cast<uint8_t>(entry.id.kind);
+                int32_t num = entry.id.number;
+                uint8_t status = static_cast<uint8_t>(entry.result.status);
+                uint8_t worstSeverity = static_cast<uint8_t>(maxFindingSeverity(entry.result.findings));
+                int32_t findingCount = static_cast<int32_t>(entry.result.findings.size());
+
+                (void)write(pipefd[1], &kind, 1);
+                (void)write(pipefd[1], &num, 4);
+                (void)write(pipefd[1], &status, 1);
+                (void)write(pipefd[1], &worstSeverity, 1);
+                (void)write(pipefd[1], &findingCount, 4);
+                writeStr(entry.result.summary);
+            }
         }
 
         close(pipefd[1]);
@@ -368,6 +429,54 @@ runSandboxed(std::function<AnalysisResult()> fn,
         f.cweNote = readStr();
 
         result.findings.push_back(std::move(f));
+    }
+
+    int32_t nPerCheck = 0;
+    if (read(pipefd[0], &nPerCheck, 4) == 4 && nPerCheck > 0) {
+        if (nPerCheck > 4096) nPerCheck = 4096;
+        result.perCheck.reserve(static_cast<size_t>(nPerCheck));
+
+        for (int32_t i = 0; i < nPerCheck; ++i) {
+            uint8_t kind = 0;
+            int32_t num = 0;
+            uint8_t status = 0;
+            uint8_t worstSeverity = 0;
+            int32_t findingCount = 0;
+
+            if (read(pipefd[0], &kind, 1) != 1) break;
+            if (read(pipefd[0], &num, 4) != 4) break;
+            if (read(pipefd[0], &status, 1) != 1) break;
+            if (read(pipefd[0], &worstSeverity, 1) != 1) break;
+            if (read(pipefd[0], &findingCount, 4) != 4) break;
+
+            PerCheckResult entry{};
+            entry.id = {static_cast<CheckID::Kind>(kind & 1), num};
+            if (const auto* reg = CheckRegistry::instance().find(entry.id)) {
+                entry.meta = reg->meta;
+            } else {
+                entry.meta = defaultConformanceMeta();
+            }
+
+            entry.result.status = static_cast<CheckResult::Status>(std::min<uint8_t>(status, 4));
+            entry.result.summary = readStr();
+
+            if (findingCount > 0) {
+                if (findingCount > 1024) findingCount = 1024;
+                entry.result.findings.reserve(static_cast<size_t>(findingCount));
+                const auto worst = static_cast<Severity>(std::min<uint8_t>(worstSeverity, 4));
+                for (int32_t j = 0; j < findingCount; ++j) {
+                    entry.result.findings.push_back(Finding{
+                        entry.id,
+                        j == 0 ? worst : Severity::INFO,
+                        "",
+                        "",
+                        ""
+                    });
+                }
+            }
+
+            result.perCheck.push_back(std::move(entry));
+        }
     }
 
     close(pipefd[0]);

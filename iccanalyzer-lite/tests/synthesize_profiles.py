@@ -1534,6 +1534,55 @@ def synth_targ_tag_profile():
                          pcs=b"Lab ")
 
 
+def synth_targ_quality_profile():
+    """Matrix/TRC profile with usable targ rows for Q4 / CF-102."""
+    matrix = (
+        (0.4124, 0.3576, 0.1805),
+        (0.2126, 0.7152, 0.0722),
+        (0.0193, 0.1192, 0.9505),
+    )
+    samples = (
+        (0.0, 0.0, 0.0),
+        (0.25, 0.25, 0.25),
+        (0.5, 0.2, 0.7),
+        (0.75, 0.6, 0.4),
+        (1.0, 1.0, 1.0),
+    )
+
+    lines = [
+        "BEGIN_DATA_FORMAT",
+        "RGB_R RGB_G RGB_B XYZ_X XYZ_Y XYZ_Z",
+        "END_DATA_FORMAT",
+        "BEGIN_DATA",
+    ]
+
+    for r, g, b in samples:
+        rl = r ** 2.2
+        gl = g ** 2.2
+        bl = b ** 2.2
+        x = matrix[0][0] * rl + matrix[0][1] * gl + matrix[0][2] * bl
+        y = matrix[1][0] * rl + matrix[1][1] * gl + matrix[1][2] * bl
+        z = matrix[2][0] * rl + matrix[2][1] * gl + matrix[2][2] * bl
+        lines.append(f"{r:.6f} {g:.6f} {b:.6f} {x:.6f} {y:.6f} {z:.6f}")
+    lines.append("END_DATA")
+
+    targ_text = b"text" + b"\x00" * 4 + ("\n".join(lines) + "\n").encode("ascii")
+    tags = [
+        (b"desc", make_mluc_tag("Characterization Quality Profile")),
+        (b"cprt", make_mluc_tag("Copyright")),
+        (b"wtpt", make_xyz_tag(0.9505, 1.0000, 1.0890)),
+        (b"rXYZ", make_xyz_tag(0.4124, 0.2126, 0.0193)),
+        (b"gXYZ", make_xyz_tag(0.3576, 0.7152, 0.1192)),
+        (b"bXYZ", make_xyz_tag(0.1805, 0.0722, 0.9505)),
+        (b"rTRC", make_curve_tag(gamma=2.2)),
+        (b"gTRC", make_curve_tag(gamma=2.2)),
+        (b"bTRC", make_curve_tag(gamma=2.2)),
+        (b"targ", targ_text),
+    ]
+    return build_profile(tags, device_class=b"mntr", color_space=b"RGB ",
+                         pcs=b"XYZ ", version=0x04400000)
+
+
 def synth_clean_mntr_profile():
     """Clean well-formed mntr/RGB/XYZ profile with all required tags.
     Should produce zero conformance warnings — baseline for CF clean tests."""
@@ -2495,6 +2544,7 @@ def main():
         "nop_sled_tag.icc": synth_nop_sled_tag(),
         "lut8_atob_btoa.icc": synth_lut8_atob_btoa(),
         "targ_tag_profile.icc": synth_targ_tag_profile(),
+        "targ_quality_profile.icc": synth_targ_quality_profile(),
         "clean_mntr_profile.icc": synth_clean_mntr_profile(),
         # CF-103..CF-122 conformance test profiles
         "cf_misaligned_tag.icc": synth_misaligned_tag(),
