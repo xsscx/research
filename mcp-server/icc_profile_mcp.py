@@ -44,7 +44,6 @@ ROUNDTRIP_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccRoundTrip" / "iccRoundTrip"
 APPLY_NAMED_CMM_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccApplyNamedCmm" / "iccApplyNamedCmm"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
 FROM_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccFromXml_unsafe"
-SPECIFICATIONS_DIR = REPO_ROOT / "docs" / "iccDEV" / "specifications"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
@@ -72,9 +71,6 @@ def _init_engine_default(env_name: str, fallback: str) -> str:
 DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto")
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
-_PAWG_EXCLUDED_REFERENCE_NAMES = frozenset({
-    "ICC.1_Adaptive_Gain_Curve.pdf",
-})
 _V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
 _PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL)\]\s+C\d+\s+")
 
@@ -138,26 +134,6 @@ def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") 
     return text.replace(marker, insert, 1)
 
 
-def _insert_pawg_reference_block(lines: list[str]) -> list[str]:
-    reference_block = _pawg_reference_block_lines()
-    rendered: list[str] = []
-    inserted = False
-    for line in lines:
-        if (
-            ICC_PROFILE_ASSESSMENT_URL in line
-            or "docs/iccDEV/specifications/" in line
-            or line.strip() == "ICC Specification References:"
-        ):
-            continue
-        rendered.append(line)
-        if "Goals for profile assessment" in line and not inserted:
-            rendered.extend(reference_block)
-            inserted = True
-    if not inserted:
-        rendered.extend(reference_block)
-    return rendered
-
-
 def _slice_between(lines: list[str], start_marker: str, end_markers: tuple[str, ...]) -> list[str]:
     start_idx = next((i for i, line in enumerate(lines) if start_marker in line), -1)
     if start_idx < 0:
@@ -170,18 +146,29 @@ def _slice_between(lines: list[str], start_marker: str, end_markers: tuple[str, 
     return lines[start_idx:end_idx]
 
 
-def _collapse_pawg_item_lines(lines: list[str], heading: str) -> list[str]:
-    collapsed: list[str] = []
-    for line in lines:
-        if heading in line:
-            collapsed.append(line)
-            collapsed.append("")
-            continue
-        if _PAWG_ITEM_LINE_RE.match(line):
-            collapsed.append(line.rstrip())
-    while collapsed and not collapsed[-1].strip():
-        collapsed.pop()
+def _collapse_pawg_item_lines(lines: list[str]) -> list[str]:
+    collapsed = [line.rstrip() for line in lines if _PAWG_ITEM_LINE_RE.match(line)]
     return collapsed if collapsed else lines
+
+
+def _find_pawg_field(lines: list[str], prefix: str) -> str:
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            return stripped
+    return ""
+
+
+def _collect_pawg_coverage_lines(lines: list[str]) -> list[str]:
+    coverage = _slice_between(lines, "[ CONFORMANCE CHECK COVERAGE ]", ("[ SPECIFICATION REFERENCES ]",))
+    wanted = (
+        "Checks evaluated:",
+        "Checks mapped:",
+        "Registry total:",
+        "Spec coverage:",
+    )
+    collected = [line.strip() for line in coverage if line.strip().startswith(wanted)]
+    return collected
 
 
 def _render_pawg_conformance_view(text: str) -> str:
@@ -191,84 +178,31 @@ def _render_pawg_conformance_view(text: str) -> str:
 
     lines = [line.rstrip() for line in _sanitize_output(text).splitlines()]
     conformance = _slice_between(lines, "[ CONFORMANCE ]", ("[ QUALITY ]", "[ ASSESSMENT SUMMARY ]"))
-    conformance = _collapse_pawg_item_lines(conformance, "[ CONFORMANCE ]")
-    coverage = _slice_between(lines, "[ CONFORMANCE CHECK COVERAGE ]", ("[ SPECIFICATION REFERENCES ]",))
+    conformance = _collapse_pawg_item_lines(conformance)
+    coverage = _collect_pawg_coverage_lines(lines)
 
     if not conformance:
         return _sanitize_output(text)
 
-    header_end = next((i for i, line in enumerate(lines) if "[ SECURITY ]" in line), len(lines))
-    header = _insert_pawg_reference_block(lines[:header_end])
-
     rendered: list[str] = []
-    rendered.extend(header)
-    if rendered and rendered[-1].strip():
-        rendered.append("")
-    rendered.append("  View: PAWG / conformance section only")
+    rendered.extend(_pawg_reference_block_lines())
+    for prefix in ("Date:", "File:", "SHA-256:", "Size:"):
+        field = _find_pawg_field(lines, prefix)
+        if field:
+            rendered.append(field)
+    rendered.append("View: PAWG / conformance section only")
     rendered.append("")
     rendered.extend(conformance)
     if coverage:
-        if rendered and rendered[-1].strip():
-            rendered.append("")
+        rendered.append("")
         rendered.extend(coverage)
     return _sanitize_output("\n".join(rendered).strip())
 
 
-def _include_pawg_spec_reference(name: str) -> bool:
-    return name not in _PAWG_EXCLUDED_REFERENCE_NAMES
-
-
-def _pawg_spec_reference_paths() -> list[str]:
-    fallback_names = sorted([
-        "Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf",
-        "Guidelines_on_the_use_of_negative_PCSXYZ_values.pdf",
-        "ICC-Technote-PartialAdaptation.pdf",
-        "ICC-Technote-ProfileEmbedding.pdf",
-        "ICC.1-2022-05.pdf",
-        "ICC.2-2019.pdf",
-        "ICC.2-2019_Cumulative_Errata_List_2021-03-08.pdf",
-        "ICC.2-2019_Cumulative_Errata_List_2021-09-09.pdf",
-        "ICC.2-2023.pdf",
-        "ICCSpecRevision_25-02-10_dictType-1.pdf",
-        "ICCSpecRevision_25-02-10_dictType.pdf",
-        "ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf",
-        "ICC_White_Paper_54_Introduction_to_ICS.pdf",
-        "ICC_White_Paper_57_Introduction_to_core_ICS_specifications.pdf",
-        "ICC_white_paper_21-SampleICCProfileCompliance.pdf",
-        "ICS-ExtendedOutput-Part1.pdf",
-        "ICS-ExtendedRange-Part1.pdf",
-        "ICS-ExtendedRange-Part2.pdf",
-        "ICS-ExtendedRange-Part3.pdf",
-        "PSD_TechNote.pdf",
-        "README.md",
-        "icc-individual-cla.pdf",
-        "rfc1321.txt",
-        "v2profiles_v4.pdf",
-        "v4_matrix_entries.pdf",
-    ])
-    try:
-        names = sorted(
-            entry.name
-            for entry in SPECIFICATIONS_DIR.iterdir()
-            if entry.is_file()
-            and _include_pawg_spec_reference(entry.name)
-        )
-    except OSError:
-        names = fallback_names
-    return [
-        f"docs/iccDEV/specifications/{name}"
-        for name in names
-        if _include_pawg_spec_reference(name)
-    ]
-
-
 def _pawg_reference_block_lines() -> tuple[str, ...]:
-    lines = [
-        f"  ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
-        "  ICC Specification References:",
-    ]
-    lines.extend(f"    {path}" for path in _pawg_spec_reference_paths())
-    return tuple(lines)
+    return (
+        f"ICC Profile Assessment Working Group Checklist Reference: {ICC_PROFILE_ASSESSMENT_URL}",
+    )
 
 
 def _map_flags(flags: list[str], engine: str | None) -> list[str]:
