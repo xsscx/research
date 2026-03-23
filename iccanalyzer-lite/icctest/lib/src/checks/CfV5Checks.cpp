@@ -557,6 +557,8 @@ static CheckResult check_cf115_calculator_element_complexity(const ProfileView& 
 
     std::vector<Finding> findings;
     int calcCount = 0;
+    int totalSubElements = 0;
+    int toneMapIssues = 0;
 
     for (const auto& entry : pv.rawTagTable()) {
         CIccTag *tag = pIcc->FindTag(static_cast<icTagSignature>(entry.signature));
@@ -564,21 +566,44 @@ static CheckResult check_cf115_calculator_element_complexity(const ProfileView& 
         CIccTagMultiProcessElement *mpe = dynamic_cast<CIccTagMultiProcessElement*>(tag);
         if (!mpe) continue;
 
-        std::string desc;
-        mpe->Describe(desc, 0);
-        if (desc.find("Calculator") == std::string::npos && desc.find("calc") == std::string::npos)
-            continue;
-        calcCount++;
+        int elemCount = static_cast<int>(mpe->NumElements());
+        bool hasCalculator = false;
+        for (int e = 0; e < elemCount; ++e) {
+            CIccMultiProcessElement *elem = mpe->GetElement(e);
+            if (!elem) continue;
 
-        size_t pos = 0; int elemCount = 0;
-        while ((pos = desc.find("Element", pos)) != std::string::npos) { elemCount++; pos += 7; }
+            if (elem->GetType() == icSigCalculatorElemType) {
+                hasCalculator = true;
+            }
+
+            if (auto* toneMap = dynamic_cast<CIccMpeToneMap*>(elem)) {
+                std::string report;
+                icValidateStatus toneStatus = toneMap->Validate("", report, mpe, pIcc);
+                if (toneStatus >= icValidateCriticalError &&
+                    (report.find("Tone mapping function has invalid parameters") != std::string::npos ||
+                     report.find("unknown function type") != std::string::npos)) {
+                    findings.push_back({CheckID{CheckID::Kind::Conformance, 115}, Severity::HIGH,
+                        sfmt("Tag '%s' tone map element %d failed validation",
+                             sigStr(static_cast<uint32_t>(entry.signature)).c_str(), e),
+                        report.substr(0, 240), ""});
+                    toneMapIssues++;
+                }
+            }
+        }
+
+        if (!hasCalculator) continue;
+        calcCount++;
+        totalSubElements += elemCount;
+
         if (elemCount > 256)
             findings.push_back({CheckID{CheckID::Kind::Conformance, 115}, Severity::MEDIUM,
                 "Excessive calculator complexity (" + std::to_string(elemCount) + " elements)", "§10.2.6", ""});
     }
 
-    if (calcCount == 0) return CheckResult::ok("No calculator elements — not applicable");
-    if (findings.empty()) return CheckResult::ok(std::to_string(calcCount) + " calculator(s) OK");
+    if (calcCount == 0 && toneMapIssues == 0)
+        return CheckResult::ok("No calculator elements — not applicable");
+    if (findings.empty())
+        return CheckResult::ok(sfmt("%d calculator(s), %d total sub-elements", calcCount, totalSubElements));
     return {CheckResult::Status::FINDINGS, "Calculator complexity issues", std::move(findings)};
 }
 
