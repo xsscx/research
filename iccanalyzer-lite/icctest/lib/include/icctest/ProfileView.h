@@ -137,11 +137,11 @@ public:
 
     /// Open a profile from a file path.
     static std::optional<ProfileView> open(const std::filesystem::path& path,
-                                           bool skipLibraryOnUB = false);
+                                           bool skipLibraryOnUB = true);
 
     /// Open a profile from a memory buffer.
     static std::optional<ProfileView> open(const uint8_t* data, size_t len,
-                                           bool skipLibraryOnUB = false);
+                                           bool skipLibraryOnUB = true);
 
     // ── Header access (always safe — parsed from raw bytes) ──
 

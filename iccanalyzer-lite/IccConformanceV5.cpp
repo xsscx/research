@@ -921,6 +921,30 @@ static int RunCF114_MCSColourSpaceConsistency(CIccProfile *pIcc) {
 // malformed profiles. This is a quality/performance conformance check.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+int RunCF115_CalculatorElementComplexityRaw(const char *filename) {
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) {
+    return 0;
+  }
+
+  auto issues = ScanRawMpePositionIssues(ctx);
+  if (issues.empty()) {
+    return 0;
+  }
+
+  int findings = 0;
+  printf("  %s[CF-115]%s Calculator Element Complexity (%sICC.2-2023 §10.2.6%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+  for (const auto &issue : issues) {
+    printf("         %s\n", FormatRawMpePositionIssue(issue).c_str());
+    printf("         %s[FAIL]%s MPE element table structurally invalid — §10.2.6\n",
+           ColorError(), ColorReset());
+    findings++;
+  }
+  printf("\n");
+  return findings;
+}
+
 static int RunCF115_CalculatorElementComplexity(CIccProfile *pIcc) {
   int issues = 0;
   printf("  %s[CF-115]%s Calculator Element Complexity (%sICC.2-2023 §10.2.6%s)\n",

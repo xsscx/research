@@ -2125,6 +2125,33 @@ int RunHeuristic_H100_ProfileSequenceDescValidation(CIccProfile *pIcc) {
   return hc.end("Profile sequence description valid");
 }
 
+bool DetectH101MPEElementOffsetSizeOverflow(const char *filename) {
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) {
+    return false;
+  }
+  return !ScanRawMpePositionIssues(ctx, 1).empty();
+}
+
+int RunHeuristic_H101_MPESubElementChannelContinuityRaw(const char *filename) {
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(101, "MPE Sub-Element Channel Continuity");
+
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) {
+    return hc.skip("File too small for raw MPE validation");
+  }
+
+  auto issues = ScanRawMpePositionIssues(ctx);
+  for (const auto &issue : issues) {
+    hc.critical("%s", FormatRawMpePositionIssue(issue).c_str());
+    hc.cweNote("CWE-190: Unsigned integer overflow in CIccTagMultiProcessElement::Read() "
+               "(IccTagMPE.cpp:1042)");
+  }
+
+  return hc.end("MPE element tables within bounds");
+}
+
 int RunHeuristic_H101_MPESubElementChannelContinuity(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
   CIccInfo info;

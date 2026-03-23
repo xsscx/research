@@ -231,6 +231,11 @@ struct HalfFloatUBScanResult {
     std::vector<std::string> examples;
 };
 
+struct MpePositionUBScanResult {
+    int hitCount = 0;
+    std::vector<std::string> examples;
+};
+
 static std::string sigStrLocal(uint32_t sig) {
     char buf[5];
     buf[0] = static_cast<char>((sig >> 24) & 0xFF);
@@ -256,6 +261,85 @@ static void recordHalfFloatUBHit(HalfFloatUBScanResult& result, std::string exam
     if (result.examples.size() < 4) {
         result.examples.push_back(std::move(example));
     }
+}
+
+static void recordMpePositionUBHit(MpePositionUBScanResult& result, std::string example) {
+    result.hitCount++;
+    if (result.examples.size() < 4) {
+        result.examples.push_back(std::move(example));
+    }
+}
+
+static MpePositionUBScanResult scanMpePositionIccUtilUB(const uint8_t* data,
+                                                        size_t len,
+                                                        const std::vector<RawTagEntry>& tags) {
+    MpePositionUBScanResult result;
+    if (!data || len < 16) return result;
+
+    constexpr uint32_t kMpeType = 0x6D706574u; // 'mpet'
+    constexpr uint32_t kMpeHeaderSize = 16u;
+
+    for (const auto& tag : tags) {
+        if (tag.size < kMpeHeaderSize) continue;
+        if ((uint64_t)tag.offset + kMpeHeaderSize > len) continue;
+        if (readU32BE(data + tag.offset) != kMpeType) continue;
+
+        uint32_t nProcElements = readU32BE(data + tag.offset + 12);
+        uint64_t requiredTableBytes =
+            (uint64_t)kMpeHeaderSize + (uint64_t)nProcElements * 8ull;
+        std::string tagName = sigStrLocal(tag.signature);
+
+        if (requiredTableBytes > tag.size) {
+            char msg[256];
+            std::snprintf(msg, sizeof(msg),
+                          "tag '%s' mpet position table requires %u entries (%llu bytes) but tag size is %u",
+                          tagName.c_str(), nProcElements,
+                          static_cast<unsigned long long>(nProcElements) * 8ull, tag.size);
+            recordMpePositionUBHit(result, msg);
+        }
+
+        uint64_t availableSlots64 = tag.size > kMpeHeaderSize
+            ? ((uint64_t)tag.size - kMpeHeaderSize) / 8ull
+            : 0ull;
+        uint32_t scanCount = nProcElements;
+        if ((uint64_t)scanCount > availableSlots64) {
+            scanCount = static_cast<uint32_t>(availableSlots64);
+        }
+        if (scanCount > 4096u) scanCount = 4096u;
+
+        for (uint32_t i = 0; i < scanCount; ++i) {
+            size_t posOff = static_cast<size_t>(tag.offset) + kMpeHeaderSize + (size_t)i * 8u;
+            if (posOff + 8 > len) break;
+
+            uint32_t elemOff = readU32BE(data + posOff);
+            uint32_t elemSize = readU32BE(data + posOff + 4);
+            uint64_t sum64 = (uint64_t)elemOff + (uint64_t)elemSize;
+            bool wrap = sum64 > 0xFFFFFFFFull;
+            bool beyondTag = sum64 > tag.size;
+            if (!wrap && !beyondTag) continue;
+
+            uint32_t elemSig = 0;
+            if ((uint64_t)elemOff + 4ull <= tag.size &&
+                (uint64_t)tag.offset + elemOff + 4ull <= len) {
+                elemSig = readU32BE(data + tag.offset + elemOff);
+            }
+
+            char msg[320];
+            if (elemSig) {
+                std::snprintf(msg, sizeof(msg),
+                              "tag '%s' mpet entry %u ('%s') offset=%u size=%u wraps/exceeds tag size %u",
+                              tagName.c_str(), i, sigStrLocal(elemSig).c_str(),
+                              elemOff, elemSize, tag.size);
+            } else {
+                std::snprintf(msg, sizeof(msg),
+                              "tag '%s' mpet entry %u offset=%u size=%u wraps/exceeds tag size %u",
+                              tagName.c_str(), i, elemOff, elemSize, tag.size);
+            }
+            recordMpePositionUBHit(result, msg);
+        }
+    }
+
+    return result;
 }
 
 static HalfFloatUBScanResult scanHalfFloatIccUtilUB(const uint8_t* data,
@@ -465,6 +549,20 @@ void ProfileView::runUBPreScan() {
             std::string desc =
                 "Half-float value triggers icF16toF unsigned-wrap UB (IccUtil.cpp:665/677): " +
                 example;
+            m_ubDescriptions.push_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc.c_str());
+        }
+    }
+
+    MpePositionUBScanResult mpePositionResult =
+        scanMpePositionIccUtilUB(m_rawData.data(), m_rawData.size(), m_rawTags);
+    if (mpePositionResult.hitCount > 0) {
+        m_ubPatternsDetected = true;
+        m_libraryLoadUnsafe = true;
+        for (const auto& example : mpePositionResult.examples) {
+            std::string desc =
+                "MPE position table triggers unsigned-wrap UB in CIccTagMultiProcessElement::Read() "
+                "(IccTagMPE.cpp:1042): " + example;
             m_ubDescriptions.push_back(desc);
             ICCTEST_WARN("UB pre-scan: %s", desc.c_str());
         }
