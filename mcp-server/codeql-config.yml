@@ -4,10 +4,10 @@
 
 name: "MCP Server Security Analysis"
 
-disable-default-queries: false
+disable-default-queries: true
 
 queries:
-  - uses: security-and-quality
+  - uses: security-extended
   - uses: security-experimental
   - uses: ./mcp-server/codeql-queries
 

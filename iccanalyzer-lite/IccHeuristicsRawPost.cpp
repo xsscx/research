@@ -266,7 +266,7 @@ int RunHeuristic_H36_LUTTagPairCompleteness(RawProfileContext &ctx)
 
 // =========================================================================
 // H37 — Calculator Element Complexity Validation (LARGE)
-// Includes H151 (calculator enum) and H152 (curve OOM) inline.
+// Includes H151 (calculator enum) inline.
 // =========================================================================
 int RunHeuristic_H37_CalculatorElementComplexity(RawProfileContext &ctx)
 {
@@ -416,65 +416,35 @@ int RunHeuristic_H37_CalculatorElementComplexity(RawProfileContext &ctx)
     }
   }
 
-  // H152: Curve element OOM size validation (CWE-770).
-  // Full-file scan for curve elements with oversized nCount.
-  if (ctx.valid && fs > 12) {
-    std::vector<icUInt8Number> buf(fs);
-    if (ctx.ReadAt(0, buf.data(), fs)) {
-      for (size_t b = 0; b + 11 < fs; b++) {
-        icUInt32Number w = ReadU32BE(&buf[b]);
-        const char *curveName = nullptr;
-        const char *fixRef = nullptr;
+  return hc.end("No calculator complexity issues");
+}
 
-        if (w == 0x736E6766) {       // 'sngf'
-          curveName = "SingleSampledCurve";
-          fixRef = "IccMpeBasic.cpp:1638, CFL-021";
-        } else if (w == 0x73616D66) { // 'samf'
-          curveName = "SampledCurveSegment";
-          fixRef = "IccMpeBasic.cpp:1070";
-        } else if (w == 0x636C6366) { // 'clcf'
-          curveName = "SampledCalculatorCurve";
-          fixRef = "IccMpeBasic.cpp:2446";
-        } else if (w == 0x63757266) { // 'curf'
-          uint16_t nSeg = (uint16_t)((buf[b + 8] << 8) | buf[b + 9]);
-          if (nSeg > 0) {
-            size_t bpBytes = (nSeg > 1) ? ((size_t)(nSeg - 1) * 4) : 0;
-            size_t segMin = (size_t)nSeg * 12;
-            size_t totalMin = 12 + bpBytes + segMin;
-            size_t remaining = fs - b;
-            if (totalMin > remaining) {
-              hc.critical("SegmentedCurve at offset 0x%zX: nSegments=%u "
-                          "needs %zu bytes minimum, only %zu available",
-                          b, nSeg, totalMin, remaining);
-              hc.cweNote("CWE-191: Unsigned underflow in CIccSegmentedCurve::Read() "
-                         "size-(pos-startPos) at IccMpeBasic.cpp:2779");
+bool DetectH152CurveElementOOMSize(const char *filename) {
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) {
+    return false;
+  }
+  return !ScanRawCurveElementIssues(ctx, 1).empty();
+}
 
-            }
-          }
-          continue;
-        } else {
-          continue;
-        }
+// =========================================================================
+// H152 — Curve Element OOM Size Validation
+// =========================================================================
+int RunHeuristic_H152_CurveElementOOMSizeValidation(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(152, "Curve Element OOM Size Validation");
 
-        // sngf/samf/clcf: nCount is uint32 at offset+8
-        icUInt32Number nCount = ReadU32BE(&buf[b + 8]);
-        uint64_t allocBytes = (uint64_t)nCount * 4;
-        size_t remaining = fs - b - 12;
+  if (!ctx.fh) return hc.skip("Cannot open profile for raw curve scan");
+  if (ctx.fileSize() < 12) return hc.skip("File too small for raw curve scan");
 
-        if (allocBytes > 256 * 1024 * 1024 || allocBytes > remaining * 64) {
-          hc.critical("%s at offset 0x%zX: nCount=%u -> "
-                      "%.1f GB allocation (file has %zu bytes remaining)",
-                      curveName, b, nCount,
-                      (double)allocBytes / (1024.0 * 1024.0 * 1024.0),
-                      remaining);
-          hc.cweNote("CWE-770: Allocation without limits — OOM abort (%s)", fixRef);
-
-        }
-      }
-    }
+  auto issues = ScanRawCurveElementIssues(ctx);
+  for (const auto &issue : issues) {
+    hc.critical("%s", FormatRawCurveElementIssue(issue).c_str());
+    hc.cweNote("%s", CurveElementIssueCweNote(issue).c_str());
   }
 
-  return hc.end("No calculator complexity issues");
+  return hc.end("Curve elements within bounded size limits");
 }
 
 // =========================================================================
@@ -1786,7 +1756,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
 {
   int heuristicCount = 0;
 
-  // Single file open for all 28 heuristic functions
+  // Single file open for all raw-post heuristic functions
   RawProfileContext ctx = OpenRawProfileContext(filename);
 
   heuristicCount += RunHeuristic_H33_mBAmABSubElementOffset(ctx);
@@ -1794,6 +1764,7 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H35_SuspiciousFillPattern(ctx);
   heuristicCount += RunHeuristic_H36_LUTTagPairCompleteness(ctx);
   heuristicCount += RunHeuristic_H37_CalculatorElementComplexity(ctx);
+  heuristicCount += RunHeuristic_H152_CurveElementOOMSizeValidation(ctx);
   heuristicCount += RunHeuristic_H38_CurveDegenerateValue(ctx);
   heuristicCount += RunHeuristic_H39_SharedTagDataAliasing(ctx);
   heuristicCount += RunHeuristic_H40_TagAlignmentPadding(ctx);

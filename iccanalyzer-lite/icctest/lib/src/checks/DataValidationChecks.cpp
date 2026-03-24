@@ -1,6 +1,6 @@
 /*
  * IccTest Library — DataValidationChecks.cpp
- * Heuristic checks H56-H102, H146-H148, H151-H152: Data integrity via iccDEV API.
+ * Heuristic checks H56-H102, H146-H148, H151: Data integrity via iccDEV API.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
  * [BSD 3-Clause License]
@@ -157,12 +157,12 @@ static CheckResult check_h151_calc_enum(const ProfileView& pv) {
     constexpr uint32_t kFuncSig = 0x66756E63;  // 'func'
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 16 || t.offset + 4 > len) continue;
+        if (t.size < 16 || !rawRangeAccessible(len, t.offset, 4)) continue;
         if (readU32BE(d + t.offset) != kMpeTag) continue;
 
         size_t scanLen = std::min<size_t>(t.size, 65536);
-        if (t.offset + scanLen > len) {
-            scanLen = len - t.offset;
+        if (!rawRangeAccessible(len, t.offset, scanLen)) {
+            scanLen = static_cast<size_t>(len - std::min<uint64_t>(t.offset, len));
         }
         if (scanLen < 16) continue;
 
@@ -758,11 +758,31 @@ REGISTER_HEURISTIC(97, "Profile Sequence Id Validation",
 
 static CheckResult check_h98_spectral_mpe_element_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H98
-    return cb.done("Spectral MPE Element Validation checked");
+    auto issues = scanRawSpectralMpeIssues(pv, 8);
+    if (issues.spectralElementCount == 0) {
+        return CheckResult::skip("No spectral MPE elements present");
+    }
+
+    for (const auto& issue : issues.issues) {
+        auto message = formatRawSpectralMpeIssue(issue);
+        auto cwe = spectralMpeIssueCweNote(issue);
+
+        switch (issue.kind) {
+            case RawSpectralMpeIssueKind::MatrixZeroChannels:
+            case RawSpectralMpeIssueKind::DescribeRowOverflow:
+            case RawSpectralMpeIssueKind::MatrixPayloadTooShort:
+            case RawSpectralMpeIssueKind::ClutZeroChannels:
+            case RawSpectralMpeIssueKind::ObserverZeroChannels:
+                cb.critical(message, cwe);
+                break;
+            case RawSpectralMpeIssueKind::MatrixExcessiveChannels:
+            case RawSpectralMpeIssueKind::DescribeStrideMismatch:
+                cb.warn(message, cwe);
+                break;
+        }
+    }
+
+    return cb.done("Spectral MPE elements valid");
 }
 
 REGISTER_HEURISTIC(98, "Spectral MPE Element Validation",
@@ -939,9 +959,15 @@ static CheckResult check_h152_curve_element_oom_size_validation(const ProfileVie
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H152
-    return cb.done("Curve Element OOM Size Validation checked");
+    if (!raw || rawLen < 12) return CheckResult::skip("File too small for raw curve scan");
+
+    auto issues = scanRawCurveElementIssues(pv);
+    for (const auto& issue : issues) {
+        cb.critical(formatRawCurveElementIssue(issue),
+                    curveElementIssueCweNote(issue));
+    }
+
+    return cb.done("Curve elements within bounded size limits");
 }
 
 REGISTER_HEURISTIC(152, "Curve Element OOM Size Validation",

@@ -308,6 +308,41 @@ class XmlStringConcatenation extends FunctionCall {
   }
 }
 
+module XmlStringConcatConfigModule implements DataFlow::ConfigSig {
+  predicate isSource(DataFlow::Node source) {
+    source.asExpr() instanceof XmlInputSource
+  }
+
+  predicate isSink(DataFlow::Node sink) {
+    exists(XmlStringConcatenation call |
+      (
+        call.getTarget().getName().matches(["snprintf", "vsnprintf"]) and
+        exists(int i | i >= 3 and sink.asExpr() = call.getArgument(i))
+      )
+      or
+      (
+        call.getTarget().getName().matches(["sprintf", "fprintf", "vfprintf", "vsprintf"]) and
+        exists(int i | i >= 2 and sink.asExpr() = call.getArgument(i))
+      )
+      or
+      (
+        call.getTarget().getName().matches(["printf", "vprintf"]) and
+        exists(int i | i >= 1 and sink.asExpr() = call.getArgument(i))
+      )
+      or
+      (
+        not call.getTarget().getName().matches([
+          "printf", "vprintf", "sprintf", "fprintf", "vfprintf", "vsprintf",
+          "snprintf", "vsnprintf"
+        ]) and
+        exists(int i | i >= 0 and sink.asExpr() = call.getArgument(i))
+      )
+    )
+  }
+}
+
+module XmlStringConcatConfig = TaintTracking::Global<XmlStringConcatConfigModule>;
+
 /**
  * XML namespace manipulation (namespace injection)
  */
@@ -451,6 +486,10 @@ where
     // Category 10: XML String Concatenation
     exists(XmlStringConcatenation strconcat |
       location = strconcat and
+      exists(DataFlow::Node source, DataFlow::Node sink |
+        XmlStringConcatConfig::flow(source, sink) and
+        sink.asExpr() = strconcat.getAChild*()
+      ) and
       message = "[XML String Injection] String concatenation in XML context: " + strconcat.getTarget().getName() + ". " +
                 "Potential XML injection. Use XML builder APIs instead."
     )

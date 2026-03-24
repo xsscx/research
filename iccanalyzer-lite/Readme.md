@@ -45,7 +45,8 @@ The V2 rewrite lives under `icctest/`.
 | IccHeuristicsHeader.cpp | H1-H8, H15-H17 | ~500 | Raw header byte validation |
 | IccHeuristicsTagValidation.cpp | H9-H32 | 1,627 | Tag structure and type checks |
 | IccHeuristicsRawPost.cpp | H33-H55, H57-H69, H153-H161 | 2,955 | Raw file I/O + CodeQL-driven heuristics |
-| IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102, H146-H152 | 2,624 | Deep data validation |
+| IccHeuristicsDataValidation.cpp | H56, H58, H60-H67, H70-H102, H146-H151 | 2,624 | Deep data validation |
+| IccHeuristicsRawPost.cpp | H33-H55, H57-H69, H152-H153 | 1,800+ | Raw-file fallback and preflight curve scanning |
 | IccHeuristicsProfileCompliance.cpp | H103-H120 | 1,749 | ICC spec compliance |
 | IccHeuristicsIntegrity.cpp | H121-H138 | 1,707 | Integrity and CWE-400 checks |
 | IccImageAnalyzer.cpp | H139-H141, H149-H150 | ~1000 | TIFF image security analysis |
@@ -272,7 +273,7 @@ The V2 rewrite lives under `icctest/`.
 | ID | Check | Risk |
 |----|-------|------|
 | H151 | Calculator element enum validation | Enum out-of-range in calculator ops — CWE-681 |
-| H152 | SingleSampledCurve OOM size | Oversized m_nCount allocation detection — CWE-400 |
+| H152 | Curve element OOM size | Oversized `sngf/samf/clcf` counts and `curf` underflow detection — CWE-770/CWE-191 |
 | H153 | Sampled curve NaN-to-unsigned cast | NaN/Inf in curve firstEntry/lastEntry — CWE-681 |
 
 ### CodeQL-Driven Heuristics (H154–H173)

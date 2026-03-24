@@ -304,6 +304,46 @@ static void test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load() {
     }
 }
 
+static void test_ub_prescan_curve_element_oom_skip_load() {
+    std::printf("  test_ub_prescan_curve_element_oom_skip_load...\n");
+    auto corpusProfile = resolve_repo_file("test-profiles/oom-CIccSingleSampledCurve-SetSize-IccProfLib-IccMpeBasic_cpp-Line1496.icc");
+    if (corpusProfile.empty()) {
+        std::printf("    (skipped — curve OOM regression profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(corpusProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
+        ASSERT_TRUE(pv->librarySkippedDueToUB());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("SingleSampledCurve") != std::string::npos);
+    }
+}
+
+static void test_ub_prescan_malformed_tag_offsets_do_not_crash() {
+    std::printf("  test_ub_prescan_malformed_tag_offsets_do_not_crash...\n");
+    auto fuzzProfile = resolve_repo_file(
+        "test-profiles/ub-npd-spectral-fuzzer-CIccApplyCmm-IccCmm_cpp-Line8845.icc");
+    if (fuzzProfile.empty()) {
+        std::printf("    (skipped — malformed spectral fuzzer profile not found)\n");
+        return;
+    }
+
+    auto pv = ProfileView::open(fuzzProfile, true);
+    ASSERT_TRUE(pv.has_value());
+    if (pv) {
+        ASSERT_TRUE(pv->hasKnownUBPatterns());
+        ASSERT_TRUE(pv->requiresLibraryQuarantine());
+        ASSERT_TRUE(pv->librarySkippedDueToUB());
+        ASSERT_FALSE(pv->libraryLoaded());
+        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
     // Try a known-good profile if it exists
@@ -362,6 +402,8 @@ void test_profile_view() {
     test_ub_prescan_namedcolor_keeps_library_loaded();
     test_ub_prescan_mpe_offset_wrap_skip_load();
     test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load();
+    test_ub_prescan_curve_element_oom_skip_load();
+    test_ub_prescan_malformed_tag_offsets_do_not_crash();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");

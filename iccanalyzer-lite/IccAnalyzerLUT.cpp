@@ -52,10 +52,10 @@
 
 // Open file with restricted permissions (0600) after realpath validation.
 // Resolves parent directory via realpath() to prevent path traversal attacks.
-static FILE *SecureFileOpen(const char *path, const char *mode) {
-  if (!path || !path[0]) return nullptr;
+static bool ResolveWritablePath(const char *path, char resolvedPath[PATH_MAX]) {
+  if (!path || !path[0]) return false;
   size_t len = strlen(path);
-  if (len > 4096 || strstr(path, "..")) return nullptr;
+  if (len > 4096 || strstr(path, "..")) return false;
 
   // Resolve parent directory via realpath() — CodeQL sanitization barrier
   char pathCopy[PATH_MAX];
@@ -63,17 +63,24 @@ static FILE *SecureFileOpen(const char *path, const char *mode) {
   pathCopy[PATH_MAX - 1] = '\0';
   char *dir = dirname(pathCopy);
   char resolvedDir[PATH_MAX];
-  if (!realpath(dir, resolvedDir)) return nullptr;
+  if (!realpath(dir, resolvedDir)) return false;
 
   // Reconstruct filename from resolved directory + basename
   char pathCopy2[PATH_MAX];
   strncpy(pathCopy2, path, PATH_MAX - 1);
   pathCopy2[PATH_MAX - 1] = '\0';
   char *base = basename(pathCopy2);
+  if (!base || !base[0] || strcmp(base, ".") == 0 || strcmp(base, "..") == 0) {
+    return false;
+  }
 
-  char resolvedPath[PATH_MAX];
   int n = snprintf(resolvedPath, PATH_MAX, "%s/%s", resolvedDir, base);
-  if (n < 0 || n >= PATH_MAX) return nullptr;
+  return n >= 0 && n < PATH_MAX;
+}
+
+static FILE *SecureFileOpen(const char *path, const char *mode) {
+  char resolvedPath[PATH_MAX];
+  if (!ResolveWritablePath(path, resolvedPath)) return nullptr;
 
   int flags = O_WRONLY | O_CREAT | O_TRUNC;
   if (mode[0] == 'a') flags = O_WRONLY | O_CREAT | O_APPEND;
@@ -421,12 +428,22 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
   if (IccAnalyzerSecurity::ValidateFilePath(profileFile,
         IccAnalyzerSecurity::PathValidationMode::STRICT, true, {".icc", ".icm"})
         != IccAnalyzerSecurity::PathValidationResult::VALID ||
+      IccAnalyzerSecurity::ValidateFilePath(outputFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, false, {".icc", ".icm"})
+        != IccAnalyzerSecurity::PathValidationResult::VALID ||
       IccAnalyzerSecurity::ValidateFilePath(clutFile,
         IccAnalyzerSecurity::PathValidationMode::STRICT, true)
         != IccAnalyzerSecurity::PathValidationResult::VALID) {
-    printf("Error: invalid input file path\n");
+    printf("Error: invalid file path\n");
     return -1;
   }
+
+  char resolvedOutputFile[PATH_MAX];
+  if (!ResolveWritablePath(outputFile, resolvedOutputFile)) {
+    printf("Error: invalid output file path\n");
+    return -1;
+  }
+  outputFile = resolvedOutputFile;
 
   // Open source profile and deserialize into CIccProfile for tag manipulation
   CIccFileIO io;
@@ -636,12 +653,22 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   if (IccAnalyzerSecurity::ValidateFilePath(profileFile,
         IccAnalyzerSecurity::PathValidationMode::STRICT, true, {".icc", ".icm"})
         != IccAnalyzerSecurity::PathValidationResult::VALID ||
+      IccAnalyzerSecurity::ValidateFilePath(outputFile,
+        IccAnalyzerSecurity::PathValidationMode::STRICT, false, {".icc", ".icm"})
+        != IccAnalyzerSecurity::PathValidationResult::VALID ||
       IccAnalyzerSecurity::ValidateFilePath(clutFile,
         IccAnalyzerSecurity::PathValidationMode::STRICT, true)
         != IccAnalyzerSecurity::PathValidationResult::VALID) {
-    printf("Error: invalid input file path\n");
+    printf("Error: invalid file path\n");
     return -1;
   }
+
+  char resolvedOutputFile[PATH_MAX];
+  if (!ResolveWritablePath(outputFile, resolvedOutputFile)) {
+    printf("Error: invalid output file path\n");
+    return -1;
+  }
+  outputFile = resolvedOutputFile;
 
   // Load profile, read CLUT binary, inject into MultiProcessElement CLUT tags
   printf("=== Injecting MPE CLUT data ===\n");

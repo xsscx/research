@@ -1103,6 +1103,265 @@ static void test_tonemap_describe_overflow_regression() {
     ASSERT_TRUE(sawCfMpeFinding);
 }
 
+static void test_curve_element_oom_regression() {
+    std::printf("  test_curve_element_oom_regression...\n");
+
+    const char* triggerNames[] = {
+        "test-profiles/oom-CIccSingleSampledCurve-SetSize-IccProfLib-IccMpeBasic_cpp-Line1496.icc",
+        "test-profiles/cwe-400/oom-CIccSampledCurveSegment-SetSize-IccMpeBasic_cpp-Line986.icc",
+    };
+
+    for (const char* name : triggerNames) {
+        auto profilePath = resolve_repo_file(name);
+        if (profilePath.empty()) {
+            std::printf("    (skipped — %s not found)\n", name);
+            continue;
+        }
+
+        AnalysisOptions heuristicOpts;
+        heuristicOpts.phases = {CheckPhase::RAW_SCAN};
+        heuristicOpts.specificChecks = {
+            {CheckID::Kind::Heuristic, 152},
+        };
+
+        IccTestRunner runner;
+        auto heuristicResult = runner.analyze(profilePath, heuristicOpts);
+        ASSERT_EQ(1, heuristicResult.stats.checksRun);
+        const auto* h152 = find_per_check(heuristicResult, CheckID::Kind::Heuristic, 152);
+        ASSERT_TRUE(h152 != nullptr);
+        if (!h152) {
+            continue;
+        }
+
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h152->result.status);
+        ASSERT_TRUE(h152->result.issueCount() >= 1);
+
+        bool sawCurveIssue = false;
+        for (const auto& finding : h152->result.findings) {
+            if ((finding.message.find("SingleSampledCurve") != std::string::npos ||
+                 finding.message.find("SampledCurveSegment") != std::string::npos) &&
+                finding.cweNote.find("CWE-770") != std::string::npos) {
+                sawCurveIssue = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawCurveIssue);
+
+        auto pv = ProfileView::open(profilePath, true);
+        ASSERT_TRUE(pv.has_value());
+        if (pv) {
+            ASSERT_TRUE(pv->requiresLibraryQuarantine());
+            ASSERT_TRUE(pv->librarySkippedDueToUB());
+            ASSERT_FALSE(pv->libraryLoaded());
+        }
+    }
+}
+
+static void test_null_mpe_clut_curve_guard_regression() {
+    std::printf("  test_null_mpe_clut_curve_guard_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        AnalysisOptions heuristicOpts;
+        heuristicOpts.phases = {CheckPhase::RAW_SCAN};
+        heuristicOpts.specificChecks = {
+            {CheckID::Kind::Heuristic, 167},
+        };
+
+        IccTestRunner runner;
+        auto heuristicResult = runner.analyze(corpusDir / "lut_null_clut.icc", heuristicOpts);
+        ASSERT_EQ(1, heuristicResult.stats.checksRun);
+        const auto* h167 = find_per_check(heuristicResult, CheckID::Kind::Heuristic, 167);
+        ASSERT_TRUE(h167 != nullptr);
+        if (!h167) return;
+
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h167->result.status);
+        ASSERT_TRUE(h167->result.issueCount() >= 1);
+
+        bool sawNullClutIssue = false;
+        for (const auto& finding : h167->result.findings) {
+            if (finding.message.find("CLUT offset=0 but active curves") != std::string::npos &&
+                finding.cweNote.find("CWE-476") != std::string::npos) {
+                sawNullClutIssue = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawNullClutIssue);
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {167});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 167, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_unchecked_allocation_size_overflow_regression() {
+    std::printf("  test_unchecked_allocation_size_overflow_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "named_color2_large_nsize.icc", {168});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 168, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h168 = find_per_check(result, CheckID::Kind::Heuristic, 168);
+        ASSERT_TRUE(h168 != nullptr);
+        if (!h168) return;
+
+        bool sawNamedColor = false;
+        for (const auto& finding : h168->result.findings) {
+            if (finding.message.find("NamedColor2 has 70000 entries") != std::string::npos &&
+                finding.cweNote.find("CWE-789") != std::string::npos) {
+                sawNamedColor = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawNamedColor);
+    }
+
+    {
+        auto gbdPath = resolve_repo_file(
+            "test-profiles/oom-CIccTagGamutBoundaryDesc-Read-1024G-IccTagLut_cpp-Line5631.icc");
+        if (gbdPath.empty()) {
+            std::printf("    (skipped — GamutBoundaryDesc overflow fixture not found)\n");
+        } else {
+            auto result = analyze_corpus_heuristics(gbdPath, {168});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 168, CheckResult::Status::FINDINGS, 1);
+
+            const auto* h168 = find_per_check(result, CheckID::Kind::Heuristic, 168);
+            ASSERT_TRUE(h168 != nullptr);
+            if (!h168) return;
+
+            bool sawGbd = false;
+            for (const auto& finding : h168->result.findings) {
+                if (finding.message.find("GamutBoundaryDesc") != std::string::npos &&
+                    finding.cweNote.find("CWE-190") != std::string::npos) {
+                    sawGbd = true;
+                    break;
+                }
+            }
+            ASSERT_TRUE(sawGbd);
+        }
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {168});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 168, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_alloc_dealloc_and_uaf_ownership_regressions() {
+    std::printf("  test_alloc_dealloc_and_uaf_ownership_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "named_color2_large_nsize.icc", {157, 159});
+        ASSERT_EQ(2, result.stats.checksRun);
+        expect_heuristic_result(result, 157, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 159, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto taryPath = resolve_repo_file("test-profiles/cfl-003-roundtrip-segv-tary.icc");
+        if (taryPath.empty()) {
+            std::printf("    (skipped — TagArray CFL-003 fixture not found)\n");
+        } else {
+            auto result = analyze_corpus_heuristics(taryPath, {157, 159});
+            ASSERT_EQ(2, result.stats.checksRun);
+            expect_heuristic_result(result, 157, CheckResult::Status::FINDINGS, 1);
+            expect_heuristic_result(result, 159, CheckResult::Status::FINDINGS, 1);
+
+            const auto* h157 = find_per_check(result, CheckID::Kind::Heuristic, 157);
+            ASSERT_TRUE(h157 != nullptr);
+            if (!h157) return;
+            ASSERT_TRUE(h157->result.findings[0].message.find("TagArray ('tary')") != std::string::npos);
+            ASSERT_TRUE(h157->result.findings[0].cweNote.find("CWE-762") != std::string::npos);
+
+            const auto* h159 = find_per_check(result, CheckID::Kind::Heuristic, 159);
+            ASSERT_TRUE(h159 != nullptr);
+            if (!h159) return;
+            ASSERT_TRUE(h159->result.findings[0].message.find("CFL-003 UAF path") != std::string::npos);
+            ASSERT_TRUE(h159->result.findings[0].cweNote.find("CWE-416") != std::string::npos);
+        }
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {157, 159});
+        ASSERT_EQ(2, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 157, CheckResult::Status::OK, 0);
+        expect_heuristic_result(cleanResult, 159, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_spectral_mpe_h98_gap_fixture() {
+    std::printf("  test_spectral_mpe_h98_gap_fixture...\n");
+
+    auto spectralPath = resolve_repo_file(
+        "test-profiles/heap-buffer-overflow-CIccMpeSpectralMatrix-Describe-IccMpeSpectral_cpp-Line352.icc");
+    if (spectralPath.empty()) {
+        std::printf("    (skipped — spectral H98 regression profile not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(spectralPath, {98});
+        ASSERT_EQ(1, result.stats.checksRun);
+
+        const auto* h98 = find_per_check(result, CheckID::Kind::Heuristic, 98);
+        ASSERT_TRUE(h98 != nullptr);
+        if (!h98) return;
+
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h98->result.status);
+        ASSERT_TRUE(h98->result.issueCount() >= 2);
+
+        bool sawRowOverflow = false;
+        bool sawStrideMismatch = false;
+        for (const auto& finding : h98->result.findings) {
+            if (finding.message.find("EmissionMatrix out(") != std::string::npos &&
+                finding.cweNote.find("CWE-122") != std::string::npos) {
+                sawRowOverflow = true;
+            }
+            if (finding.message.find("pointer advance mismatch") != std::string::npos &&
+                finding.cweNote.find("CWE-125") != std::string::npos) {
+                sawStrideMismatch = true;
+            }
+        }
+
+        ASSERT_TRUE(sawRowOverflow);
+        ASSERT_TRUE(sawStrideMismatch);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {98});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 98, CheckResult::Status::SKIP, 0);
+    }
+}
+
 static void test_cf115_only_emits_raw_findings_when_quarantined() {
     std::printf("  test_cf115_only_emits_raw_findings_when_quarantined...\n");
 
@@ -1257,6 +1516,11 @@ void test_runner() {
     test_heuristic_parity_regressions();
     test_pcc_illuminant_overflow_regression();
     test_tonemap_describe_overflow_regression();
+    test_curve_element_oom_regression();
+    test_null_mpe_clut_curve_guard_regression();
+    test_unchecked_allocation_size_overflow_regression();
+    test_alloc_dealloc_and_uaf_ownership_regressions();
+    test_spectral_mpe_h98_gap_fixture();
     test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();

@@ -716,8 +716,14 @@ Multi-segment reassembly:
 ## 13. CFL Patch Catalog (45 Active)
 
 Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs.
-Patches numbered CFL-001 through CFL-057, with 12 gaps (003/010/011/012/013/015/016/018/020/024/026/027)
-retired after upstream acceptance.
+The current active patch-file count is **60**, and the normalized analyzer-facing
+inventory now lives in:
+
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
+
+The table below is an older summary slice, not the current source of truth for
+counts or V1/V2 analyzer coverage.
 
 | # | Patch | Bug | CWE | File |
 |---|-------|-----|-----|------|
@@ -770,7 +776,7 @@ retired after upstream acceptance.
 **Retired patches** (accepted upstream in PRs #680–#695):
 003, 010, 011, 012, 013, 015, 016, 018, 020, 024, 026, 027 — 12 patches, 71 total in `cfl/patches-retired/`.
 
-**Next patch**: CFL-058.
+**Next patch**: use the live `cfl/patches/` inventory instead of this historical marker.
 
 ---
 
@@ -783,7 +789,8 @@ Which ICC binary format fields each heuristic group validates:
 | H1–H8, H15–H17 | IccHeuristicsHeader.cpp | Header bytes 0–127 (raw byte access) |
 | H9–H32 | IccHeuristicsTagValidation.cpp | Tag table at offset 128+ (CIccProfile API) |
 | H33–H55, H57–H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O: sub-element offsets, overlaps, embedded data, NaN |
-| H56–H102, H146–H148, H151–H152 | IccHeuristicsDataValidation.cpp | Tag data payloads: LUT, matrix, curves, calculator, SBO, NPD |
+| H33–H55, H57–H69, H152–H153 | IccHeuristicsRawPost.cpp | Raw payload scans: overlap, padding, embedded/image recursion, curve OOM/underflow, curve NaN |
+| H56–H102, H146–H148, H151 | IccHeuristicsDataValidation.cpp | Tag data payloads via CIccProfile: LUT, matrix, curves, calculator, SBO, NPD |
 | H103–H120 | IccHeuristicsProfileCompliance.cpp | Required tags per class, encoding rules, PCS constraints |
 | H121–H138 | IccHeuristicsIntegrity.cpp | MD5, alignment, complexity estimation, CWE-400 patterns |
 | H139–H141, H149–H150 | IccImageAnalyzer.cpp | TIFF strip/tile geometry, IFD bounds, cycle detection |

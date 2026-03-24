@@ -42,9 +42,13 @@ where
   // Inner loop variable
   innerVar = innerLoop.getAnIterationVariable() and
   outerVar != innerVar and
+  // Focus on data-bearing arrays/fields rather than simple lookup tables.
+  not ae.getArrayBase() instanceof VariableAccess and
   // Array access inside inner loop uses outer loop variable
   ae.getEnclosingStmt().getParentStmt*() = innerLoop.getStmt() and
   ae.getArrayOffset().(VariableAccess).getTarget() = outerVar and
+  // Diagnostic/logging lookups often intentionally use the outer index.
+  not exists(FunctionCall fc | fc.getAnArgument() = ae) and
   // The array is not also indexed by the inner var elsewhere in the same expression
   not exists(ArrayExpr ae2 |
     ae2.getEnclosingStmt() = ae.getEnclosingStmt() and

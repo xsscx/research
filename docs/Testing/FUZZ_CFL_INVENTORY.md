@@ -144,9 +144,11 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 ```
 
 ### Patch Directory
-**patches/** — 45 active patches (CFL-001 through CFL-043, with gaps for retired patches):
-- 13 legacy patches retired after upstream acceptance (PRs #680-#695)
-- Current: 45 targeted patches for verified upstream bugs
+**patches/** — 60 active patch files currently present in `cfl/patches/`:
+- historical summary counts in older docs are stale
+- analyzer-facing coverage status now lives in
+  `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+  and `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
 - Format: `NNN-descriptive-name.patch` (unified diff)
 - All patches idempotent (`build.sh` applies with `patch -p1 --forward`)
 
@@ -419,4 +421,3 @@ fuzz/
 - **Ownership caveat** (CFL): `CIccCmm::AddXform()` transfers profile ownership → double-free risk documented in CFL-072
 - **Leak detection** (CFL): icc_link_fuzzer requires `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2× ASAN memory)
 - **Multi-profile fuzzers**: Input format specifications in cfl.instructions.md § "Multi-Profile Fuzzer Input Formats"
-

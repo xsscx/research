@@ -293,39 +293,36 @@ void CIccToneMapFunc::Describe(std::string& sDescription, int /* nVerboseness */
   std::snprintf(buf, bufSize, "ToneFunctionType: %04Xh\n", m_nFunctionType);
   sDescription += buf;
 
-  switch (m_nFunctionType) {
-    case 0x0000:
-      if (!m_params || m_nParameters < 3) {
-        std::snprintf(buf, bufSize,
-                      "Invalid ToneMapFunction: funcType %u requires 3 params, has %u\n\n",
-                      static_cast<unsigned>(m_nFunctionType),
-                      static_cast<unsigned>(m_nParameters));
-        sDescription += buf;
-        return;
-      }
-
+  if (m_nFunctionType == 0x0000) {
+    if (!m_params || m_nParameters < 3) {
       std::snprintf(buf, bufSize,
-                    "Y = %.8f * M * ( X + %.8f) + %.8f\n\n",
-                    m_params[0], m_params[1], m_params[2]);
-      sDescription += buf;
-      return;
-
-    default:
-      std::snprintf(buf, bufSize, "Unknown Function with %u parameters:\n\n",
+                    "Invalid ToneMapFunction: funcType %u requires 3 params, has %u\n\n",
+                    static_cast<unsigned>(m_nFunctionType),
                     static_cast<unsigned>(m_nParameters));
       sDescription += buf;
-
-      if (!m_params && m_nParameters) {
-        sDescription += "Parameter array missing\n\n";
-        return;
-      }
-
-      for (icUInt8Number i = 0; i < m_nParameters; ++i) {
-        std::snprintf(buf, bufSize, "Param[%u] = %.8lf\n\n",
-                      static_cast<unsigned>(i), m_params[i]);
-        sDescription += buf;
-      }
       return;
+    }
+
+    std::snprintf(buf, bufSize,
+                  "Y = %.8f * M * ( X + %.8f) + %.8f\n\n",
+                  m_params[0], m_params[1], m_params[2]);
+    sDescription += buf;
+    return;
+  }
+
+  std::snprintf(buf, bufSize, "Unknown Function with %u parameters:\n\n",
+                static_cast<unsigned>(m_nParameters));
+  sDescription += buf;
+
+  if (!m_params && m_nParameters) {
+    sDescription += "Parameter array missing\n\n";
+    return;
+  }
+
+  for (icUInt8Number i = 0; i < m_nParameters; ++i) {
+    std::snprintf(buf, bufSize, "Param[%u] = %.8lf\n\n",
+                  static_cast<unsigned>(i), m_params[i]);
+    sDescription += buf;
   }
 }
 
