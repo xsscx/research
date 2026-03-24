@@ -628,6 +628,27 @@ the cache issue. Uninstrumented fuzzers miss all memory bugs.
 3. Verify ASAN: `nm cfl/bin/icc_dump_fuzzer | grep -c __asan` → must be > 0
 Never trust a rebuild that reuses cmake cache after source changes.
 
+### 16. Fixing CLI scripts with unit-logic tests instead of end-to-end (CJF-19)
+**What happened (session 2026-03-24)**: User reported `build.sh: line 104: cd: rgb:
+No such file or directory` when running `build.sh --beyondrgb-dir rgb`. Agent fixed
+relative path resolution but added a validation gate that errored on missing directories
+— contradicting the script's existing auto-clone design. Agent tested path resolution
+in isolation (`bash -c 'cd "$(dirname ...)"'`) but never ran the full script against
+a non-existent target directory. User had to spend a second turn explaining the obvious:
+`--beyondrgb-dir beyondrgb` means "clone it here," not "it must already exist."
+**The cost**: 2 user turns for a fix that should have taken 1.
+**The compound error**:
+1. Failed to read existing script behavior (auto-clone was already implemented for the
+   default path — extending it to user-supplied paths was the obvious fix)
+2. Added a contradictory validation gate (`error "not found"`) that broke the UX
+3. Tested syntax + path resolution logic in isolation but never ran the actual failing
+   command end-to-end: `bash build.sh --beyondrgb-dir /tmp/fresh-test`
+**Rule**: When fixing CLI scripts:
+1. Read the existing design intent before adding new behavior
+2. `--dir` / `--path` arguments should auto-create targets, not error on missing dirs
+3. Test with the **exact failing command** the user reported, against a fresh path
+4. One end-to-end test > ten unit-logic tests
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:
