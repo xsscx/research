@@ -37,19 +37,36 @@ The current analyzer-owned override set lives in:
 
 - `iccanalyzer-lite/IccDevSafeOverrides.cpp`
 
-That file shadows selected upstream `IccUtil.cpp` helpers from the static
-`iccDEV` libraries without modifying the vendored source tree:
+That file shadows selected upstream helpers from the static `iccDEV` libraries
+without modifying the vendored source tree:
 
 - `icF16toF`
 - `icGetSig`
 - `icGetSigStr`
 - `icGetColorSig`
 - `icGetColorSigStr`
+- `CIccEmbedIO::CIccEmbedIO`
+- `CIccToneMapFunc::Describe`
+- `icMD5Init`
+- `icMD5Update`
+- `icMD5Final`
+- `icGetHeaderFlagsName`
 
-These address the two known recurring UBSan classes:
+These currently address the recurring helper/runtime classes around:
 
 - half-float exponent rebias / unsigned-wrap (`H174` family)
 - signature-formatting left-shift overflow (`H173` family)
+- embedded-profile constructor sentinel conversion (`H96` family)
+- sampled-curve allocation / segmented-curve underflow preflight (`H152`,
+  CFL-021, CFL-064)
+- tone-map describe parameter underflow / short-parameter access
+- MD5 helper arithmetic safety
+- XML header-flag bitmask conversion safety
+
+For the broader patch-by-patch analyzer status, use:
+
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
 
 ## Maintenance Rule
 

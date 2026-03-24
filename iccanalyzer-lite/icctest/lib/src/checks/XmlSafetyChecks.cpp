@@ -159,7 +159,7 @@ static CheckResult check_h143_xml_array_bounds(const ProfileView& pv) {
     };
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 8 || t.offset + 8 > len) continue;
+        if (t.size < 8 || !rawRangeAccessible(len, t.offset, 8)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
 
         for (const auto& at : arrayTypes) {
@@ -189,15 +189,15 @@ static CheckResult check_h144_xml_string_term(const ProfileView& pv) {
     constexpr uint32_t kClrtType = 0x636C7274;
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 12 || t.offset + 12 > len) continue;
+        if (t.size < 12 || !rawRangeAccessible(len, t.offset, 12)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
         if (typeSig != kClrtType) continue;
 
         uint32_t nEntries = readU32BE(d + t.offset + 8);
         // Each entry: 32-byte name + 6 bytes PCS coordinates = 38 bytes
         for (uint32_t i = 0; i < nEntries && i < 256; i++) {
-            uint32_t entryOff = t.offset + 12 + i * 38;
-            if (entryOff + 38 > len) break;
+            uint64_t entryOff = static_cast<uint64_t>(t.offset) + 12ull + static_cast<uint64_t>(i) * 38ull;
+            if (!rawRangeAccessible(len, entryOff, 38)) break;
 
             // Check if name has null terminator within 32 bytes
             bool hasNull = false;
@@ -225,7 +225,7 @@ static CheckResult check_h145_xml_curve_type(const ProfileView& pv) {
     constexpr uint32_t kCvstSig = 0x63767374; // 'cvst'
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 16 || t.offset + 16 > len) continue;
+        if (t.size < 16 || !rawRangeAccessible(len, t.offset, 16)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
         if (typeSig != kCvstSig) continue;
 

@@ -1,6 +1,6 @@
 # Documentation Index
 
-Research documentation organized by topic. 65 documents across 12 subdirectories.
+Research documentation organized by topic. 67 documents across 12 subdirectories.
 
 ## iccDEV Library
 
@@ -17,7 +17,7 @@ Research documentation organized by topic. 65 documents across 12 subdirectories
 |-----------|----------|-------|
 | [cve/](cve/) | iccDEV CVE report — 87 CVEs + 95 GHSAs across 93 advisories | 1 |
 | [pocs/](pocs/) | 64 PoC reproductions, 12 technique categories, upstream reporting standard ([iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)) | 2 |
-| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy, PAWG quality coverage, upstream-UB hardening policy, resource-bomb quarantine policy | 8 |
+| [analysis/](analysis/) | iccanalyzer-lite code review, concrete findings, summary, `mluc` parity note, instrumented build policy, PAWG quality coverage, upstream-UB hardening policy, CFL patch coverage matrix, resource-bomb quarantine policy | 10 |
 
 ## Testing / Fuzzing
 
@@ -60,6 +60,8 @@ Research documentation organized by topic. 65 documents across 12 subdirectories
 - **`mluc` placeholder parity note**: [analysis/ICCANALYZER_MLUC_PLACEHOLDER_PARITY.md](analysis/ICCANALYZER_MLUC_PLACEHOLDER_PARITY.md)
 - **Instrumented build / artifact policy**: [analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md](analysis/ICCANALYZER_INSTRUMENTED_BUILD_POLICY.md)
 - **Upstream UB hardening policy**: [analysis/ICCANALYZER_UPSTREAM_UB_HARDENING.md](analysis/ICCANALYZER_UPSTREAM_UB_HARDENING.md)
+- **CFL patch coverage matrix**: [analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md](analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md)
+- **CFL patch coverage CSV**: [analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv](analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv)
 - **PAWG quality coverage**: [analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md](analysis/ICCANALYZER_PAWG_QUALITY_COVERAGE.md)
 - **Resource-bomb quarantine policy**: [analysis/ICCANALYZER_RESOURCE_BOMB_QUARANTINE.md](analysis/ICCANALYZER_RESOURCE_BOMB_QUARANTINE.md)
 

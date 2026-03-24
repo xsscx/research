@@ -148,14 +148,21 @@ inline std::vector<std::string> listSpecReferencePaths(
     }
 
     std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    std::filesystem::directory_iterator it(dir, ec);
+    std::filesystem::directory_iterator end;
+    for (; !ec && it != end; it.increment(ec)) {
+        const std::filesystem::directory_entry entry = *it;
         if (ec) {
             break;
         }
         if (!entry.is_regular_file(ec) || ec) {
             continue;
         }
-        const auto name = entry.path().filename().string();
+        const std::filesystem::path entryPath = entry.path();
+        const std::filesystem::path namePath = entryPath.filename();
+        std::string name;
+        const auto nativeName = namePath.native();
+        name.assign(nativeName.begin(), nativeName.end());
         if (!shouldIncludeSpecReferenceName(name)) {
             continue;
         }

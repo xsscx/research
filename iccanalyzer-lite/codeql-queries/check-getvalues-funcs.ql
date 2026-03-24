@@ -1,6 +1,7 @@
 /**
  * @name Check GetValues functions in DB
  * @kind problem
+ * @problem.severity warning
  * @id icc/check-getvalues
  */
 import cpp
