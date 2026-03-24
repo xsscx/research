@@ -78,7 +78,7 @@ static CheckResult check_h136_complexity(const ProfileView& pv) {
     constexpr uint32_t kMpetSig = 0x6D706574; // 'mpet'
     int mpeCount = 0;
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 8 || t.offset + 8 > len) continue;
+        if (t.size < 8 || !rawRangeAccessible(len, t.offset, 8)) continue;
         if (readU32BE(d + t.offset) == kMpetSig) {
             mpeCount++;
         }
@@ -113,7 +113,7 @@ static CheckResult check_h137_gbd_overflow(const ProfileView& pv) {
     constexpr uint32_t kGbdType = 0x67626420;
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 20 || t.offset + 20 > len) continue;
+        if (t.size < 20 || !rawRangeAccessible(len, t.offset, 20)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
         if (typeSig != kGbdType) continue;
 

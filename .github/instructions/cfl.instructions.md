@@ -145,11 +145,14 @@ for historical reference.
 | 039 | SearchApply toJson dead guards | upstream c2ea9da |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: **068**)
-- 52 active patches (15 retired after upstream acceptance in PRs #680-#695 + c2ea9da)
+- Numbering: zero-padded 3-digit, sequential (next: inspect live inventory; current active files run through **075**)
+- 60 active patch files are currently present in `cfl/patches/`
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming
+- For analyzer-facing coverage status, use
+  `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+  and `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
 
 ### Adding a New Patch
 

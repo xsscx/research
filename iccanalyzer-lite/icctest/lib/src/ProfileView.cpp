@@ -238,6 +238,16 @@ struct MpePositionUBScanResult {
     std::vector<std::string> examples;
 };
 
+struct CurveElementUBScanResult {
+    int hitCount = 0;
+    std::vector<std::string> examples;
+};
+
+struct SpectralMpeUBScanResult {
+    int hitCount = 0;
+    std::vector<std::string> examples;
+};
+
 static std::string sigStrLocal(uint32_t sig) {
     char buf[5];
     buf[0] = static_cast<char>((sig >> 24) & 0xFF);
@@ -270,6 +280,25 @@ static void recordMpePositionUBHit(MpePositionUBScanResult& result, std::string 
     if (result.examples.size() < 4) {
         result.examples.push_back(std::move(example));
     }
+}
+
+static void recordCurveElementUBHit(CurveElementUBScanResult& result, std::string example) {
+    result.hitCount++;
+    if (result.examples.size() < 4) {
+        result.examples.push_back(std::move(example));
+    }
+}
+
+static void recordSpectralMpeUBHit(SpectralMpeUBScanResult& result, std::string example) {
+    result.hitCount++;
+    if (result.examples.size() < 4) {
+        result.examples.push_back(std::move(example));
+    }
+}
+
+static bool rawSpanAvailable(size_t totalSize, uint64_t offset, uint64_t need) {
+    uint64_t total = static_cast<uint64_t>(totalSize);
+    return offset <= total && need <= (total - offset);
 }
 
 static MpePositionUBScanResult scanMpePositionIccUtilUB(const uint8_t* data,
@@ -338,6 +367,168 @@ static MpePositionUBScanResult scanMpePositionIccUtilUB(const uint8_t* data,
                               tagName.c_str(), i, elemOff, elemSize, tag.size);
             }
             recordMpePositionUBHit(result, msg);
+        }
+    }
+
+    return result;
+}
+
+static CurveElementUBScanResult scanCurveElementIccUtilUB(const uint8_t* data,
+                                                          size_t len) {
+    CurveElementUBScanResult result;
+    if (!data || len < 12) return result;
+
+    for (size_t off = 0; off + 11 < len; ++off) {
+        uint32_t sig = readU32BE(data + off);
+
+        if (sig == 0x63757266u) { // 'curf'
+            uint16_t nSeg = readU16BE(data + off + 8);
+            if (!nSeg) continue;
+
+            uint64_t bpBytes = nSeg > 1 ? (static_cast<uint64_t>(nSeg) - 1ull) * 4ull : 0ull;
+            uint64_t segMin = static_cast<uint64_t>(nSeg) * 12ull;
+            uint64_t totalMin = 12ull + bpBytes + segMin;
+            uint64_t remaining = static_cast<uint64_t>(len) - static_cast<uint64_t>(off);
+            if (totalMin > remaining) {
+                char msg[320];
+                std::snprintf(msg, sizeof(msg),
+                              "SegmentedCurve at offset 0x%zX: nSegments=%u needs %llu bytes minimum, only %llu available — "
+                              "CWE-191: Unsigned underflow in CIccSegmentedCurve::Read() size-(pos-startPos) at IccMpeBasic.cpp:2779, CFL-064",
+                              off,
+                              static_cast<unsigned>(nSeg),
+                              static_cast<unsigned long long>(totalMin),
+                              static_cast<unsigned long long>(remaining));
+                recordCurveElementUBHit(result, msg);
+            }
+            continue;
+        }
+
+        const char* curveName = nullptr;
+        const char* fixRef = nullptr;
+        if (sig == 0x736E6766u) {       // 'sngf'
+            curveName = "SingleSampledCurve";
+            fixRef = "IccMpeBasic.cpp:1638, CFL-021";
+        } else if (sig == 0x73616D66u) { // 'samf'
+            curveName = "SampledCurveSegment";
+            fixRef = "IccMpeBasic.cpp:1070";
+        } else if (sig == 0x636C6366u) { // 'clcf'
+            curveName = "SampledCalculatorCurve";
+            fixRef = "IccMpeBasic.cpp:2446";
+        } else {
+            continue;
+        }
+
+        uint32_t nCount = readU32BE(data + off + 8);
+        uint64_t allocBytes = static_cast<uint64_t>(nCount) * 4ull;
+        uint64_t remaining = static_cast<uint64_t>(len) - static_cast<uint64_t>(off) - 12ull;
+        if (allocBytes > 256ull * 1024ull * 1024ull ||
+            allocBytes > remaining * 64ull) {
+            char msg[320];
+            std::snprintf(msg, sizeof(msg),
+                          "%s at offset 0x%zX: nCount=%u -> %.1f GB allocation (file has %llu bytes remaining) — "
+                          "CWE-770: Allocation without limits — OOM abort (%s)",
+                          curveName,
+                          off,
+                          nCount,
+                          static_cast<double>(allocBytes) / (1024.0 * 1024.0 * 1024.0),
+                          static_cast<unsigned long long>(remaining),
+                          fixRef);
+            recordCurveElementUBHit(result, msg);
+        }
+    }
+
+    return result;
+}
+
+static SpectralMpeUBScanResult scanSpectralMpeIccUtilUB(
+    const uint8_t* data,
+    size_t len,
+    const std::vector<RawTagEntry>& tags
+) {
+    SpectralMpeUBScanResult result;
+    if (!data || len < 16) return result;
+
+    constexpr uint32_t kMpeType = 0x6D706574u; // 'mpet'
+    constexpr uint32_t kMpeHeaderSize = 16u;
+    constexpr uint32_t kEmissionMatrix = 0x656d7478u;    // 'emtx'
+    constexpr uint32_t kInvEmissionMatrix = 0x69656d78u; // 'iemx'
+    constexpr uint32_t kSpectralMatrixHeaderSize = 20u;
+
+    for (const auto& tag : tags) {
+        if (tag.size < kMpeHeaderSize) continue;
+        if (!rawSpanAvailable(len, tag.offset, kMpeHeaderSize)) continue;
+        if (readU32BE(data + tag.offset) != kMpeType) continue;
+
+        uint32_t nProcElements = readU32BE(data + tag.offset + 12);
+        uint64_t availableSlots64 = tag.size > kMpeHeaderSize
+            ? (static_cast<uint64_t>(tag.size) - kMpeHeaderSize) / 8ull
+            : 0ull;
+        uint32_t scanCount = nProcElements;
+        if (static_cast<uint64_t>(scanCount) > availableSlots64) {
+            scanCount = static_cast<uint32_t>(availableSlots64);
+        }
+        if (scanCount > 4096u) scanCount = 4096u;
+
+        for (uint32_t i = 0; i < scanCount; ++i) {
+            uint64_t posOff64 = static_cast<uint64_t>(tag.offset) + kMpeHeaderSize +
+                                static_cast<uint64_t>(i) * 8ull;
+            if (posOff64 + 8ull > len) break;
+            size_t posOff = static_cast<size_t>(posOff64);
+
+            uint32_t elemOff = readU32BE(data + posOff);
+            uint32_t elemSize = readU32BE(data + posOff + 4);
+            uint64_t elemEnd = static_cast<uint64_t>(elemOff) + static_cast<uint64_t>(elemSize);
+            if (elemEnd > tag.size || elemEnd < elemOff) continue;
+            uint64_t elemFileOff = static_cast<uint64_t>(tag.offset) +
+                                   static_cast<uint64_t>(elemOff);
+            if (!rawSpanAvailable(len, elemFileOff, 4)) continue;
+
+            uint32_t elemSig = readU32BE(data + elemFileOff);
+            if (elemSig != kEmissionMatrix && elemSig != kInvEmissionMatrix) continue;
+            if (!rawSpanAvailable(len, elemFileOff, kSpectralMatrixHeaderSize)) continue;
+
+            uint16_t inCh = readU16BE(data + elemFileOff + 8);
+            uint16_t outCh = readU16BE(data + elemFileOff + 10);
+            uint16_t steps = readU16BE(data + elemFileOff + 16);
+
+            if (elemSig == kEmissionMatrix && outCh > inCh) {
+                char msg[320];
+                std::snprintf(msg, sizeof(msg),
+                              "tag '%s' emtx entry %u: out(%u) > in(%u) — Describe() row iteration overflow risk (CFL-006)",
+                              sigStrLocal(tag.signature).c_str(),
+                              i,
+                              static_cast<unsigned>(outCh),
+                              static_cast<unsigned>(inCh));
+                recordSpectralMpeUBHit(result, msg);
+            }
+
+            if (inCh != steps) {
+                char msg[320];
+                std::snprintf(msg, sizeof(msg),
+                              "tag '%s' %s entry %u: in(%u) != steps(%u) — Describe() pointer advance mismatch (CFL-006)",
+                              sigStrLocal(tag.signature).c_str(),
+                              elemSig == kEmissionMatrix ? "emtx" : "iemx",
+                              i,
+                              static_cast<unsigned>(inCh),
+                              static_cast<unsigned>(steps));
+                recordSpectralMpeUBHit(result, msg);
+            }
+
+            uint16_t numVectors = elemSig == kEmissionMatrix ? inCh : outCh;
+            uint64_t minPayloadBytes = static_cast<uint64_t>(kSpectralMatrixHeaderSize) +
+                static_cast<uint64_t>(steps) * 4ull +
+                static_cast<uint64_t>(numVectors) * static_cast<uint64_t>(steps) * 4ull;
+            if (elemSize < minPayloadBytes) {
+                char msg[320];
+                std::snprintf(msg, sizeof(msg),
+                              "tag '%s' %s entry %u: size=%u, need>=%llu for white+matrix payload — null/short-read Describe() guard needed (CFL-056)",
+                              sigStrLocal(tag.signature).c_str(),
+                              elemSig == kEmissionMatrix ? "emtx" : "iemx",
+                              i,
+                              elemSize,
+                              static_cast<unsigned long long>(minPayloadBytes));
+                recordSpectralMpeUBHit(result, msg);
+            }
         }
     }
 
@@ -450,13 +641,29 @@ void ProfileView::parseRawTagTable() {
 void ProfileView::runUBPreScan() {
     if (!m_header.size || m_rawData.size() < 132) return;
 
+    for (const auto& tag : m_rawTags) {
+        uint64_t tagStart = static_cast<uint64_t>(tag.offset);
+        uint64_t tagSize = static_cast<uint64_t>(tag.size);
+        if (tagSize == 0) continue;
+        if (tagStart > m_rawData.size() || !rawSpanAvailable(m_rawData.size(), tagStart, tagSize)) {
+            m_ubPatternsDetected = true;
+            m_libraryLoadUnsafe = true;
+            char desc[256];
+            std::snprintf(desc, sizeof(desc),
+                "Tag '%s' offset=%u size=%u exceeds available raw bytes (%zu)",
+                sigStrLocal(tag.signature).c_str(), tag.offset, tag.size, m_rawData.size());
+            m_ubDescriptions.emplace_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc);
+        }
+    }
+
     // Pattern 0: Embedded ICC5 tag with ICCp type triggers the unpatched
     // CIccEmbedIO constructor sentinel UB on library parse.
     for (const auto& tag : m_rawTags) {
         if (tag.signature != static_cast<uint32_t>(icSigEmbeddedV5ProfileTag)) {
             continue;
         }
-        if (tag.offset + 8 > m_rawData.size() || tag.size < 8) {
+        if (tag.size < 8 || !rawSpanAvailable(m_rawData.size(), tag.offset, 8)) {
             continue;
         }
 
@@ -481,7 +688,7 @@ void ProfileView::runUBPreScan() {
     for (const auto& tag : m_rawTags) {
         // 'gbd ' = 0x67626420
         if (tag.signature == 0x67626420) {
-            if (tag.offset + 20 <= m_rawData.size() && tag.size >= 20) {
+            if (tag.size >= 20 && rawSpanAvailable(m_rawData.size(), tag.offset, 20)) {
                 uint32_t nTriangles = readU32BE(m_rawData.data() + tag.offset + 16);
                 if (nTriangles > 715827882u) {  // INT_MAX/3
                     m_ubPatternsDetected = true;
@@ -499,7 +706,7 @@ void ProfileView::runUBPreScan() {
         // Pattern 2: NamedColor2 nDeviceCoords > 15 (ICC spec max)
         // 'ncl2' = 0x6E636C32
         if (tag.signature == 0x6E636C32) {
-            if (tag.offset + 12 <= m_rawData.size() && tag.size >= 12) {
+            if (tag.size >= 12 && rawSpanAvailable(m_rawData.size(), tag.offset, 12)) {
                 uint32_t nDevCoords = readU32BE(m_rawData.data() + tag.offset + 8);
                 if (nDevCoords > 15) {
                     m_ubPatternsDetected = true;
@@ -515,12 +722,12 @@ void ProfileView::runUBPreScan() {
         // Check for tags containing CLUTs where grid^ndim could overflow
         // Type signatures: 'mft1', 'mft2', 'mAB ', 'mBA '
         uint32_t typeSig = 0;
-        if (tag.offset + 4 <= m_rawData.size()) {
+        if (rawSpanAvailable(m_rawData.size(), tag.offset, 4)) {
             typeSig = readU32BE(m_rawData.data() + tag.offset);
         }
         if (typeSig == 0x6D667431 || typeSig == 0x6D667432) {  // mft1/mft2
             // LUT8/LUT16: grid size at tag+10 for each input channel
-            if (tag.offset + 12 <= m_rawData.size()) {
+            if (rawSpanAvailable(m_rawData.size(), tag.offset, 12)) {
                 uint8_t nInput = m_rawData[tag.offset + 8];
                 uint8_t gridSize = m_rawData[tag.offset + 10];
                 if (nInput > 0 && gridSize > 0) {
@@ -567,6 +774,30 @@ void ProfileView::runUBPreScan() {
                 "(IccTagMPE.cpp:1042): " + example;
             m_ubDescriptions.push_back(desc);
             ICCTEST_WARN("UB pre-scan: %s", desc.c_str());
+        }
+    }
+
+    CurveElementUBScanResult curveResult =
+        scanCurveElementIccUtilUB(m_rawData.data(), m_rawData.size());
+    if (curveResult.hitCount > 0) {
+        m_ubPatternsDetected = true;
+        m_libraryLoadUnsafe = true;
+        for (const auto& desc : curveResult.examples) {
+            m_ubDescriptions.push_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc.c_str());
+        }
+    }
+
+    SpectralMpeUBScanResult spectralResult =
+        scanSpectralMpeIccUtilUB(m_rawData.data(), m_rawData.size(), m_rawTags);
+    if (spectralResult.hitCount > 0) {
+        m_ubPatternsDetected = true;
+        m_libraryLoadUnsafe = true;
+        for (const auto& desc : spectralResult.examples) {
+            std::string fullDesc =
+                "Spectral MPE Describe() hazard in IccMpeSpectral.cpp: " + desc;
+            m_ubDescriptions.push_back(fullDesc);
+            ICCTEST_WARN("UB pre-scan: %s", fullDesc.c_str());
         }
     }
 }

@@ -32,7 +32,7 @@ static CheckResult check_h154_uncontrolled_alloc(const ProfileView& pv) {
     }
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 12 || t.offset + 12 > len) continue;
+        if (t.size < 12 || !rawRangeAccessible(len, t.offset, 12)) continue;
 
         uint32_t typeSig = readU32BE(d + t.offset);
         if (typeSig == 0x6E636C32 && t.size >= 16) {
@@ -339,7 +339,7 @@ static CheckResult check_h160_format_string(const ProfileView& pv) {
     constexpr uint32_t kMlucType = 0x6D6C7563; // 'mluc'
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size < 8 || t.offset + 8 > len) continue;
+        if (t.size < 8 || !rawRangeAccessible(len, t.offset, 8)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
 
         if (typeSig != kDescType && typeSig != kTextType && typeSig != kMlucType)
@@ -347,7 +347,9 @@ static CheckResult check_h160_format_string(const ProfileView& pv) {
 
         // Scan tag data for format specifiers
         uint32_t scanLen = std::min(t.size, 4096U);
-        if (t.offset + scanLen > len) scanLen = len - t.offset;
+        if (!rawRangeAccessible(len, t.offset, scanLen)) {
+            scanLen = static_cast<uint32_t>(len - std::min<uint64_t>(t.offset, len));
+        }
 
         for (uint32_t i = 8; i < scanLen - 1; i++) {
             if (d[t.offset + i] != '%') continue;
@@ -392,9 +394,42 @@ static CheckResult check_h157_alloc_dealloc_mismatch_tag_patterns(const ProfileV
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H157
-    return cb.done("Alloc-Dealloc Mismatch Tag Patterns checked");
+    if (!raw || rawLen < 132) return cb.done("No alloc-dealloc mismatch trigger patterns");
+
+    bool hasTagArray = false;
+    bool hasNamedColor2 = false;
+    bool hasFormulaCurve = false;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 4 || static_cast<uint64_t>(tag.offset) + 4 > rawLen) {
+            continue;
+        }
+
+        uint32_t typeSig = readU32BE(raw + tag.offset);
+        if (typeSig == 0x74617279) hasTagArray = true;     // 'tary'
+        if (typeSig == 0x6E636C32) hasNamedColor2 = true;  // 'ncl2'
+        if (typeSig == 0x63757266) hasFormulaCurve = true; // 'curf'
+    }
+
+    if (hasTagArray) {
+        cb.critical(
+            "Profile contains TagArray ('tary') — triggers CIccTagArray copy ctor new[]/free() mismatch",
+            "CWE-762: CFL-003 — CIccTagArray(const&) uses new[] but Cleanup() calls free() (IccTagComposite.cpp:1037,1523)");
+    }
+
+    if (hasNamedColor2) {
+        cb.warn(
+            "Profile contains NamedColor2 ('ncl2') — CIccApplyNamedCmm uses new[]/delete mismatch",
+            "CWE-762: m_vals allocated with new icFloatNumber[] but freed with delete (IccCmm.cpp:4785)");
+    }
+
+    if (hasFormulaCurve) {
+        cb.warn(
+            "Profile contains CurveSet ('curf') — formula segments use new[]/delete mismatch",
+            "CWE-762: m_dParam allocated with new[] but freed with delete (IccTagLut.cpp:984)");
+    }
+
+    return cb.done("No alloc-dealloc mismatch trigger patterns");
 }
 
 REGISTER_HEURISTIC(157, "Alloc-Dealloc Mismatch Tag Patterns",
@@ -407,9 +442,41 @@ static CheckResult check_h159_uaf_tag_ownership_chain_detection(const ProfileVie
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H159
-    return cb.done("UAF Tag Ownership Chain Detection checked");
+    if (!raw || rawLen < 132) return cb.done("No UAF-triggering ownership patterns detected");
+
+    uint32_t devClass = readU32BE(raw + 12);
+    bool isRoundTripClass = (devClass == 0x73636E72 ||  // 'scnr'
+                             devClass == 0x6D6E7472 ||  // 'mntr'
+                             devClass == 0x70727472 ||  // 'prtr'
+                             devClass == 0x73706163);   // 'spac'
+
+    bool hasTagArray = false;
+    bool hasNamedColor2 = false;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 4 || static_cast<uint64_t>(tag.offset) + 4 > rawLen) {
+            continue;
+        }
+
+        uint32_t typeSig = readU32BE(raw + tag.offset);
+        if (typeSig == 0x74617279) hasTagArray = true;    // 'tary'
+        if (typeSig == 0x6E636C32) hasNamedColor2 = true; // 'ncl2'
+    }
+
+    if (hasTagArray && isRoundTripClass) {
+        cb.critical(
+            sfmt("Profile class '%s' + TagArray ('tary') -> CFL-003 UAF path",
+                 sigStr(devClass).c_str()),
+            "CWE-416: EvaluateProfile() -> AddXform(CIccProfile&) -> new CIccProfile(copy) -> CIccTagArray copy ctor -> Cleanup() accesses freed memory");
+    }
+
+    if (hasNamedColor2) {
+        cb.warn(
+            "Profile contains NamedColor2 ('ncl2') — potential m_NamedColor UAF after Cleanup",
+            "CWE-416: IccTagBasic.cpp:2879 — m_NamedColor accessed after CIccTagNamedColor2::Cleanup() frees it");
+    }
+
+    return cb.done("No UAF-triggering ownership patterns detected");
 }
 
 REGISTER_HEURISTIC(159, "UAF Tag Ownership Chain Detection",

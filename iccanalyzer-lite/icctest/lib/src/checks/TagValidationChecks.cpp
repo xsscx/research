@@ -47,10 +47,11 @@ static CheckResult check_h10_tag_bounds(const ProfileView& pv) {
     const auto& tags = pv.rawTagTable();
 
     for (const auto& t : tags) {
-        if (t.offset + t.size > pv.rawSize()) {
+        uint64_t tagEnd = static_cast<uint64_t>(t.offset) + static_cast<uint64_t>(t.size);
+        if (tagEnd > pv.rawSize()) {
             cb.critical(sfmt("Tag '%s' offset+size (%u+%u=%llu) exceeds file size %zu",
                               sigStr(t.signature).c_str(), t.offset, t.size,
-                              (unsigned long long)(t.offset + t.size), pv.rawSize()),
+                              static_cast<unsigned long long>(tagEnd), pv.rawSize()),
                         "CWE-125: Out-of-bounds Read");
         }
         if (t.offset < 128 && t.size > 0) {
@@ -114,7 +115,7 @@ static CheckResult check_h14_tag_type(const ProfileView& pv) {
 
     for (const auto& t : pv.rawTagTable()) {
         if (t.size < 4) continue;
-        if (t.offset + 4 > pv.rawSize()) continue;
+        if (!rawRangeAccessible(pv.rawSize(), t.offset, 4)) continue;
 
         uint32_t typeSig = readU32BE(pv.rawData() + t.offset);
         // Type signature should be printable ASCII
@@ -150,14 +151,19 @@ static CheckResult check_h19_overlap(const ProfileView& pv) {
             if (tags[i].offset == tags[j].offset && tags[i].size == tags[j].size) {
                 continue; // Shared tag data (valid per spec)
             }
-            uint32_t s1 = tags[i].offset, e1 = tags[i].offset + tags[i].size;
-            uint32_t s2 = tags[j].offset, e2 = tags[j].offset + tags[j].size;
+            uint64_t s1 = tags[i].offset;
+            uint64_t e1 = static_cast<uint64_t>(tags[i].offset) + tags[i].size;
+            uint64_t s2 = tags[j].offset;
+            uint64_t e2 = static_cast<uint64_t>(tags[j].offset) + tags[j].size;
             if (s1 < e2 && s2 < e1) {
                 // Partial overlap
                 cb.critical(sfmt("Tags '%s' and '%s' partially overlap: [%u,%u) vs [%u,%u)",
                                   sigStr(tags[i].signature).c_str(),
                                   sigStr(tags[j].signature).c_str(),
-                                  s1, e1, s2, e2),
+                                  static_cast<unsigned>(s1),
+                                  static_cast<unsigned>(e1),
+                                  static_cast<unsigned>(s2),
+                                  static_cast<unsigned>(e2)),
                             "CWE-119: Improper Restriction of Operations within Buffer Bounds");
             }
         }

@@ -34,6 +34,8 @@ int RunHeuristic_H34_IntegerOverflowSubElement(RawProfileContext &ctx);
 int RunHeuristic_H35_SuspiciousFillPattern(RawProfileContext &ctx);
 int RunHeuristic_H36_LUTTagPairCompleteness(RawProfileContext &ctx);
 int RunHeuristic_H37_CalculatorElementComplexity(RawProfileContext &ctx);
+int RunHeuristic_H152_CurveElementOOMSizeValidation(RawProfileContext &ctx);
+bool DetectH152CurveElementOOMSize(const char *filename);
 int RunHeuristic_H38_CurveDegenerateValue(RawProfileContext &ctx);
 int RunHeuristic_H39_SharedTagDataAliasing(RawProfileContext &ctx);
 int RunHeuristic_H40_TagAlignmentPadding(RawProfileContext &ctx);

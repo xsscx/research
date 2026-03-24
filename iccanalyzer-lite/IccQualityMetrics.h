@@ -313,8 +313,15 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
     CIccTagXYZ *gXYZ = dynamic_cast<CIccTagXYZ*>(pIcc->FindTag(icSigGreenMatrixColumnTag));
     CIccTagXYZ *bXYZ = dynamic_cast<CIccTagXYZ*>(pIcc->FindTag(icSigBlueMatrixColumnTag));
 
-    if (!rTrc || !gTrc || !bTrc || !rXYZ || !gXYZ || !bXYZ ||
-        rXYZ->GetSize() < 1 || gXYZ->GetSize() < 1 || bXYZ->GetSize() < 1) {
+    if (!rTrc || !gTrc || !bTrc) {
+      reason = "Matrix/TRC tags are incomplete";
+      return false;
+    }
+    if (!rXYZ || !gXYZ || !bXYZ) {
+      reason = "Matrix/TRC tags are incomplete";
+      return false;
+    }
+    if (rXYZ->GetSize() < 1 || gXYZ->GetSize() < 1 || bXYZ->GetSize() < 1) {
       reason = "Matrix/TRC tags are incomplete";
       return false;
     }
@@ -358,13 +365,18 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
     xform.channels = 1;
     xform.curves[0] = kTrc;
 
-    if (CIccTagXYZ *wtpt = dynamic_cast<CIccTagXYZ*>(pIcc->FindTag(icSigMediaWhitePointTag));
-        wtpt && wtpt->GetSize() >= 1) {
-      const icXYZNumber &xyz = (*wtpt)[0];
-      xform.whiteXYZ[0] = icFtoD(xyz.X);
-      xform.whiteXYZ[1] = icFtoD(xyz.Y);
-      xform.whiteXYZ[2] = icFtoD(xyz.Z);
+    CIccTagXYZ *wtpt = dynamic_cast<CIccTagXYZ*>(pIcc->FindTag(icSigMediaWhitePointTag));
+    if (!wtpt) {
+      return true;
     }
+    if (wtpt->GetSize() < 1) {
+      return true;
+    }
+
+    const icXYZNumber &xyz = (*wtpt)[0];
+    xform.whiteXYZ[0] = icFtoD(xyz.X);
+    xform.whiteXYZ[1] = icFtoD(xyz.Y);
+    xform.whiteXYZ[2] = icFtoD(xyz.Z);
     return true;
   }
 

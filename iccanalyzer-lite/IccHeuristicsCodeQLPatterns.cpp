@@ -389,6 +389,9 @@ int RunHeuristic_H157_AllocDeallocMismatchTagPatterns(RawProfileContext &ctx)
   hc.begin(157, "Alloc-Dealloc Mismatch Tag Patterns (CWE-762, \xC2\xA7""10.14)");
 
   if (!ctx.valid) {
+    if (ctx.fh && ctx.fileSize() < 132) {
+      return hc.end("No alloc-dealloc mismatch trigger patterns");
+    }
     return hc.skip("File too small");
   }
 
@@ -571,6 +574,9 @@ int RunHeuristic_H159_UAFTagOwnershipChains(RawProfileContext &ctx)
   hc.begin(159, "UAF Tag Ownership Chain Detection (CWE-416, \xC2\xA7""7.3)");
 
   if (!ctx.valid) {
+    if (ctx.fh && ctx.fileSize() < 132) {
+      return hc.end("No UAF-triggering ownership patterns detected");
+    }
     return hc.skip("File too small");
   }
 

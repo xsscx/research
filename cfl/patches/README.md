@@ -1,16 +1,26 @@
 # CFL Library Patches — Active Security Fixes
 
-Last Updated: 2026-03-16
+Last Updated: 2026-03-24
 
-45 active patches targeting verified security vulnerabilities in iccDEV library code,
-discovered during LibFuzzer and AFL++ fuzzing campaigns.
+60 active patch files are currently present in this directory.
 
-**Architecture**: Post-retirement minimal patch set. 13 patches retired after upstream
-acceptance (PRs #680-#695). Only verified, targeted fixes remain.
+For analyzer/runtime review against the unpatched-library policy, the normalized
+source of truth is:
+
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
+
+**Architecture**: Post-retirement minimal patch set. Retired/upstreamed patches
+still exist in project history, but this directory now carries only the current
+active patch files used by CFL.
 
 **Build**: `cd cfl && ./build.sh` applies all patches from this directory automatically.
 
-## Active Patches (18)
+## Active Patches (stale summary table)
+
+The table below is preserved for patch-family detail, but it is not a complete
+inventory anymore. Use the matrix files above for current counts and analyzer
+coverage status.
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|

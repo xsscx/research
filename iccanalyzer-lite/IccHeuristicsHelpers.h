@@ -12,11 +12,16 @@
 
 #include "IccProfile.h"
 #include "IccAnalyzerColors.h"
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <fcntl.h>
+#include <limits.h>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 // ── ICC Signature Conversion Helpers ──
@@ -93,6 +98,25 @@ inline icFloatNumber SafeF16ToF(icFloat16Number num) {
   return out;
 }
 
+// Exact float comparison for spec-driven equality checks without direct
+// floating-point == / != operators. Treats +0.0 and -0.0 as equal.
+inline bool ExactFiniteFloatEqual(icFloatNumber a, icFloatNumber b) {
+  if (!std::isfinite(a) || !std::isfinite(b)) {
+    return false;
+  }
+
+  uint32_t aBits = 0;
+  uint32_t bBits = 0;
+  std::memcpy(&aBits, &a, sizeof(aBits));
+  std::memcpy(&bBits, &b, sizeof(bBits));
+
+  if ((aBits & 0x7FFFFFFFu) == 0u && (bBits & 0x7FFFFFFFu) == 0u) {
+    return true;
+  }
+
+  return aBits == bBits;
+}
+
 // FindAndCast<T> — combines FindTag + dynamic_cast + null check.
 // Returns nullptr if tag not found or wrong type.
 template <typename T>
@@ -157,8 +181,26 @@ struct RawFileHandle {
 inline RawFileHandle OpenRawFile(const char *filename) {
   RawFileHandle h;
   if (!filename) return h;
-  h.fp = fopen(filename, "rb");
-  if (!h.fp) return h;
+  if (!filename[0]) return h;
+  if (std::strlen(filename) >= PATH_MAX) return h;
+
+  char resolvedPath[PATH_MAX];
+  if (!realpath(filename, resolvedPath)) return h;
+
+  int fd = open(resolvedPath, O_RDONLY | O_CLOEXEC);
+  if (fd < 0) return h;
+
+  struct stat st;
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+    close(fd);
+    return h;
+  }
+
+  h.fp = fdopen(fd, "rb");
+  if (!h.fp) {
+    close(fd);
+    return h;
+  }
   if (fseek(h.fp, 0, SEEK_END) != 0) {
     fclose(h.fp);
     h.fp = nullptr;
@@ -341,6 +383,304 @@ ScanRawMpePositionIssues(RawProfileContext &ctx, size_t maxIssues = 8) {
 
       issues.push_back(issue);
       if (issues.size() >= maxIssues) return issues;
+    }
+  }
+
+  return issues;
+}
+
+enum class RawMpeNullApplyIssueKind {
+  MissingClutWithActiveCurves,
+  ZeroChannelMpe,
+};
+
+struct RawMpeNullApplyIssue {
+  RawMpeNullApplyIssueKind kind = RawMpeNullApplyIssueKind::MissingClutWithActiveCurves;
+  uint32_t tagSig = 0;
+  uint32_t typeSig = 0;
+  uint16_t inputChannels = 0;
+  uint16_t outputChannels = 0;
+  uint32_t clutOffset = 0;
+  uint32_t bCurveOffset = 0;
+  uint32_t aCurveOffset = 0;
+  uint32_t procElementCount = 0;
+};
+
+inline const char *MpeTypeName(uint32_t sig) {
+  switch (sig) {
+    case 0x6D414220u: return "mAB";
+    case 0x6D424120u: return "mBA";
+    case 0x6D706574u: return "MPET";
+    default: return "MPE";
+  }
+}
+
+inline std::string FormatRawMpeNullApplyIssue(const RawMpeNullApplyIssue &issue) {
+  char msg[512];
+  char tagName[5];
+  SigToChars(issue.tagSig, tagName);
+  if (issue.kind == RawMpeNullApplyIssueKind::MissingClutWithActiveCurves) {
+    snprintf(msg, sizeof(msg),
+             "HEURISTIC: Tag '%s' (%s) has %u→%u channels with CLUT offset=0 but active curves — "
+             "m_pCLUT will be NULL in Apply() — ICC.1-2022-05 §10.10",
+             tagName,
+             MpeTypeName(issue.typeSig),
+             static_cast<unsigned>(issue.inputChannels),
+             static_cast<unsigned>(issue.outputChannels));
+    return msg;
+  }
+
+  snprintf(msg, sizeof(msg),
+           "HEURISTIC: Tag '%s' MPET has %u elements with %u→%u channels — "
+           "zero channels create null internal state in Begin() — ICC.2-2023 §10.14",
+           tagName,
+           issue.procElementCount,
+           static_cast<unsigned>(issue.inputChannels),
+           static_cast<unsigned>(issue.outputChannels));
+  return msg;
+}
+
+inline std::string MpeNullApplyIssueCweNote(const RawMpeNullApplyIssue &issue) {
+  if (issue.kind == RawMpeNullApplyIssueKind::MissingClutWithActiveCurves) {
+    return "CWE-476: IccMpeBasic.cpp:5712 — m_pCLUT->InterpNd() null deref";
+  }
+  return "CWE-476: CIccMpeCurveSet::Begin() returns false → Apply() null deref";
+}
+
+inline std::vector<RawMpeNullApplyIssue>
+ScanRawMpeNullApplyIssues(RawProfileContext &ctx, size_t maxIssues = 8) {
+  std::vector<RawMpeNullApplyIssue> issues;
+  if (!ctx.valid || !ctx.fh) return issues;
+
+  const size_t fs = ctx.fileSize();
+  constexpr uint32_t kMabType = 0x6D414220u;  // 'mAB '
+  constexpr uint32_t kMbaType = 0x6D424120u;  // 'mBA '
+  constexpr uint32_t kMpetType = 0x6D706574u; // 'mpet'
+
+  for (const auto &tag : ctx.tags) {
+    if (issues.size() >= maxIssues) break;
+    if (tag.size < 8 || static_cast<uint64_t>(tag.offset) + 8 > fs) continue;
+
+    uint8_t typeHdr[4] = {};
+    if (!ctx.ReadAt(tag.offset, typeHdr, sizeof(typeHdr))) continue;
+    uint32_t type = ReadU32BE(typeHdr);
+
+    if ((type == kMabType || type == kMbaType) &&
+        tag.size >= 32 &&
+        static_cast<uint64_t>(tag.offset) + 32 <= fs) {
+      uint8_t mabHdr[24] = {};
+      if (!ctx.ReadAt(tag.offset + 8, mabHdr, sizeof(mabHdr))) continue;
+
+      RawMpeNullApplyIssue issue;
+      issue.kind = RawMpeNullApplyIssueKind::MissingClutWithActiveCurves;
+      issue.tagSig = tag.sig;
+      issue.typeSig = type;
+      issue.inputChannels = mabHdr[0];
+      issue.outputChannels = mabHdr[1];
+      issue.bCurveOffset = ReadU32BE(&mabHdr[4]);
+      issue.clutOffset = ReadU32BE(&mabHdr[20]);
+
+      if (tag.size >= 40 &&
+          static_cast<uint64_t>(tag.offset) + 40 <= fs) {
+        uint8_t extra[4] = {};
+        if (ctx.ReadAt(tag.offset + 36, extra, sizeof(extra))) {
+          issue.aCurveOffset = ReadU32BE(extra);
+        }
+      }
+
+      if (issue.clutOffset == 0 &&
+          issue.inputChannels > 0 &&
+          issue.outputChannels > 0 &&
+          (issue.bCurveOffset != 0 || issue.aCurveOffset != 0)) {
+        issues.push_back(issue);
+        if (issues.size() >= maxIssues) return issues;
+      }
+      continue;
+    }
+
+    if (type == kMpetType &&
+        tag.size >= 16 &&
+        static_cast<uint64_t>(tag.offset) + 16 <= fs) {
+      uint8_t mpetHdr[8] = {};
+      if (!ctx.ReadAt(tag.offset + 8, mpetHdr, sizeof(mpetHdr))) continue;
+
+      uint16_t nInputCh = static_cast<uint16_t>(mpetHdr[0]) << 8 | mpetHdr[1];
+      uint16_t nOutputCh = static_cast<uint16_t>(mpetHdr[2]) << 8 | mpetHdr[3];
+      uint32_t nElements = ReadU32BE(&mpetHdr[4]);
+
+      if ((nInputCh == 0 || nOutputCh == 0) && nElements > 0) {
+        RawMpeNullApplyIssue issue;
+        issue.kind = RawMpeNullApplyIssueKind::ZeroChannelMpe;
+        issue.tagSig = tag.sig;
+        issue.typeSig = type;
+        issue.inputChannels = nInputCh;
+        issue.outputChannels = nOutputCh;
+        issue.procElementCount = nElements;
+        issues.push_back(issue);
+        if (issues.size() >= maxIssues) return issues;
+      }
+    }
+  }
+
+  return issues;
+}
+
+enum class RawCurveElementIssueKind {
+  OversizedSampleCount,
+  SegmentedCurveTruncation,
+};
+
+struct RawCurveElementIssue {
+  RawCurveElementIssueKind kind = RawCurveElementIssueKind::OversizedSampleCount;
+  uint32_t elementSig = 0;
+  uint64_t fileOffset = 0;
+  uint32_t count = 0;
+  uint64_t allocBytes = 0;
+  uint64_t requiredBytes = 0;
+  uint64_t remainingBytes = 0;
+};
+
+inline const char *CurveElementName(uint32_t sig) {
+  switch (sig) {
+    case 0x736E6766u: return "SingleSampledCurve";      // 'sngf'
+    case 0x73616D66u: return "SampledCurveSegment";     // 'samf'
+    case 0x636C6366u: return "SampledCalculatorCurve";  // 'clcf'
+    case 0x63757266u: return "SegmentedCurve";          // 'curf'
+    default: return "CurveElement";
+  }
+}
+
+inline const char *CurveElementFixRef(const RawCurveElementIssue &issue) {
+  switch (issue.elementSig) {
+    case 0x736E6766u: return "IccMpeBasic.cpp:1638, CFL-021";
+    case 0x73616D66u: return "IccMpeBasic.cpp:1070";
+    case 0x636C6366u: return "IccMpeBasic.cpp:2446";
+    case 0x63757266u: return "IccMpeBasic.cpp:2779, CFL-064";
+    default: return "iccDEV sampled-curve parsing path";
+  }
+}
+
+inline std::string FormatRawCurveElementIssue(const RawCurveElementIssue &issue) {
+  char msg[512];
+
+  if (issue.kind == RawCurveElementIssueKind::SegmentedCurveTruncation) {
+    snprintf(msg, sizeof(msg),
+             "SegmentedCurve at offset 0x%llX: nSegments=%u needs %llu bytes minimum, only %llu available",
+             static_cast<unsigned long long>(issue.fileOffset),
+             issue.count,
+             static_cast<unsigned long long>(issue.requiredBytes),
+             static_cast<unsigned long long>(issue.remainingBytes));
+    return msg;
+  }
+
+  snprintf(msg, sizeof(msg),
+           "%s at offset 0x%llX: nCount=%u -> %.1f GB allocation (file has %llu bytes remaining)",
+           CurveElementName(issue.elementSig),
+           static_cast<unsigned long long>(issue.fileOffset),
+           issue.count,
+           static_cast<double>(issue.allocBytes) / (1024.0 * 1024.0 * 1024.0),
+           static_cast<unsigned long long>(issue.remainingBytes));
+  return msg;
+}
+
+inline std::string CurveElementIssueCweNote(const RawCurveElementIssue &issue) {
+  char msg[256];
+  if (issue.kind == RawCurveElementIssueKind::SegmentedCurveTruncation) {
+    snprintf(msg, sizeof(msg),
+             "CWE-191: Unsigned underflow in CIccSegmentedCurve::Read() "
+             "size-(pos-startPos) at %s",
+             CurveElementFixRef(issue));
+    return msg;
+  }
+
+  snprintf(msg, sizeof(msg),
+           "CWE-770: Allocation without limits — OOM abort (%s)",
+           CurveElementFixRef(issue));
+  return msg;
+}
+
+inline std::vector<RawCurveElementIssue>
+ScanRawCurveElementIssues(RawProfileContext &ctx, size_t maxIssues = 8) {
+  std::vector<RawCurveElementIssue> issues;
+  if (!ctx.fh) return issues;
+
+  const size_t fs = ctx.fileSize();
+  if (fs < 12) return issues;
+
+  constexpr size_t kChunkSize = 1u << 20; // 1 MiB
+  constexpr size_t kOverlap = 11u;        // Need 12 bytes total for pattern+count
+  std::vector<unsigned char> buf(kChunkSize + kOverlap);
+
+  for (size_t base = 0; base < fs; base += kChunkSize) {
+    size_t readLen = fs - base;
+    if (readLen > buf.size()) {
+      readLen = buf.size();
+    }
+
+    if (!ctx.fh.Seek(static_cast<long>(base)) ||
+        !ctx.fh.ReadBytes(buf.data(), readLen)) {
+      break;
+    }
+
+    if (readLen < 12) {
+      continue;
+    }
+
+    size_t scanStarts = readLen - 11;
+    if (scanStarts > kChunkSize) {
+      scanStarts = kChunkSize;
+    }
+
+    for (size_t rel = 0; rel < scanStarts; ++rel) {
+      size_t absolute = base + rel;
+      uint32_t sig = ReadU32BE(buf.data() + rel);
+
+      if (sig == 0x63757266u) { // 'curf'
+        uint16_t nSeg = static_cast<uint16_t>((buf[rel + 8] << 8) | buf[rel + 9]);
+        if (nSeg == 0) {
+          continue;
+        }
+
+        uint64_t bpBytes = nSeg > 1 ? (static_cast<uint64_t>(nSeg) - 1ull) * 4ull : 0ull;
+        uint64_t segMin = static_cast<uint64_t>(nSeg) * 12ull;
+        uint64_t totalMin = 12ull + bpBytes + segMin;
+        uint64_t remaining = static_cast<uint64_t>(fs) - static_cast<uint64_t>(absolute);
+        if (totalMin > remaining) {
+          RawCurveElementIssue issue;
+          issue.kind = RawCurveElementIssueKind::SegmentedCurveTruncation;
+          issue.elementSig = sig;
+          issue.fileOffset = absolute;
+          issue.count = nSeg;
+          issue.requiredBytes = totalMin;
+          issue.remainingBytes = remaining;
+          issues.push_back(issue);
+          if (issues.size() >= maxIssues) return issues;
+        }
+        continue;
+      }
+
+      if (sig != 0x736E6766u && // 'sngf'
+          sig != 0x73616D66u && // 'samf'
+          sig != 0x636C6366u) { // 'clcf'
+        continue;
+      }
+
+      uint32_t nCount = ReadU32BE(buf.data() + rel + 8);
+      uint64_t allocBytes = static_cast<uint64_t>(nCount) * 4ull;
+      uint64_t remaining = static_cast<uint64_t>(fs) - static_cast<uint64_t>(absolute) - 12ull;
+
+      if (allocBytes > 256ull * 1024ull * 1024ull ||
+          allocBytes > remaining * 64ull) {
+        RawCurveElementIssue issue;
+        issue.kind = RawCurveElementIssueKind::OversizedSampleCount;
+        issue.elementSig = sig;
+        issue.fileOffset = absolute;
+        issue.count = nCount;
+        issue.allocBytes = allocBytes;
+        issue.remainingBytes = remaining;
+        issues.push_back(issue);
+        if (issues.size() >= maxIssues) return issues;
+      }
     }
   }
 

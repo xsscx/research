@@ -969,6 +969,137 @@ def test_heuristic_detection(suite):
         r"pTag pointer is null|gridPoints = 0"
     )
 
+    # --- H167 null MPE CLUT/curve-apply guard regression (CWE-476) ---
+
+    suite.assert_no_asan(
+        "asan.repo.h167_null_mpe_clut_guard",
+        ["-a", "--legacy", f"{corpus}/lut_null_clut.icc"],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h167_null_mpe_clut_guard",
+        ["-a", "--legacy", f"{corpus}/lut_null_clut.icc"],
+        r"H167|Null MPE CLUT/Curve Application Guard|CLUT offset=0 but active curves|m_pCLUT"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h167_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"No null MPE CLUT/Curve application risks detected"
+    )
+
+    # --- H168 unchecked allocation-size overflow regression (CWE-190/CWE-789) ---
+
+    suite.assert_no_asan(
+        "asan.repo.h168_namedcolor2_large_nsize",
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h168_namedcolor2_large_nsize",
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
+        r"H168|Unchecked Allocation Size Overflow|NamedColor2 has 70000 entries|CWE-789"
+    )
+
+    suite.assert_no_asan(
+        "asan.repo.h168_gbd_triangle_overflow",
+        ["-a", "--legacy",
+         str(CORPUS_DIR.parent.parent.parent /
+             "test-profiles/oom-CIccTagGamutBoundaryDesc-Read-1024G-IccTagLut_cpp-Line5631.icc")],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h168_gbd_triangle_overflow",
+        ["-a", "--legacy",
+         str(CORPUS_DIR.parent.parent.parent /
+             "test-profiles/oom-CIccTagGamutBoundaryDesc-Read-1024G-IccTagLut_cpp-Line5631.icc")],
+        r"H168|Unchecked Allocation Size Overflow|GamutBoundaryDesc|CWE-190.*CFL-002"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h168_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"No unchecked allocation overflow patterns detected"
+    )
+
+    # --- H98 spectral matrix Describe() gap fixture ---
+    # V1 currently gaps out on this truncated spectral PoC because preflight
+    # refuses the unsafe library path before H98 can execute. V2 carries the
+    # improved raw H98 coverage for this specific fixture.
+
+    spectral_h98_gap = str(
+        CORPUS_DIR.parent.parent.parent /
+        "test-profiles/heap-buffer-overflow-CIccMpeSpectralMatrix-Describe-IccMpeSpectral_cpp-Line352.icc"
+    )
+
+    suite.assert_no_asan(
+        "asan.repo.h98_spectral_matrix_gap_fixture",
+        ["-a", "--legacy", spectral_h98_gap],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h98_spectral_matrix_gap_prefight",
+        ["-a", "--legacy", spectral_h98_gap],
+        r"\[NOT RUN\].*Profile structurally unsafe for library loading"
+    )
+
+    suite.assert_output_not_contains(
+        "heuristic.h98_spectral_matrix_gap_expected_absence",
+        ["-a", "--legacy", spectral_h98_gap],
+        r"\[H98\]"
+    )
+
+    # --- H157/H159 alloc-dealloc mismatch and ownership UAF regression ---
+
+    suite.assert_no_asan(
+        "asan.repo.h157_h159_namedcolor2",
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h157_namedcolor2_large_nsize",
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
+        r"H157|Alloc-Dealloc Mismatch Tag Patterns|NamedColor2.*new\[\]/delete mismatch|CWE-762"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h159_namedcolor2_large_nsize",
+        ["-a", "--legacy", f"{corpus}/named_color2_large_nsize.icc"],
+        r"H159|UAF Tag Ownership Chain Detection|NamedColor2.*m_NamedColor UAF|CWE-416"
+    )
+
+    suite.assert_no_asan(
+        "asan.repo.h157_h159_tary_cfl003",
+        ["-a", "--legacy",
+         str(CORPUS_DIR.parent.parent.parent / "test-profiles/cfl-003-roundtrip-segv-tary.icc")],
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h157_tary_cfl003",
+        ["-a", "--legacy",
+         str(CORPUS_DIR.parent.parent.parent / "test-profiles/cfl-003-roundtrip-segv-tary.icc")],
+        r"H157|Alloc-Dealloc Mismatch Tag Patterns|TagArray \('tary'\).*CFL-003|CWE-762"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h159_tary_cfl003",
+        ["-a", "--legacy",
+         str(CORPUS_DIR.parent.parent.parent / "test-profiles/cfl-003-roundtrip-segv-tary.icc")],
+        r"H159|UAF Tag Ownership Chain Detection|CFL-003 UAF path|CWE-416"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h157_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H157\][\s\S]*No alloc-dealloc mismatch trigger patterns"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h159_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H159\][\s\S]*No UAF-triggering ownership patterns detected"
+    )
+
     # --- H151 float→int cast operator detection (CWE-681) ---
 
     # H151: truncate operator in calculator element
@@ -1099,6 +1230,28 @@ def test_tonemap_describe_overflow_regression(suite):
         ["-a", str(profile)],
         r"H101|CF-115|mpet element table entry|MPE element table structurally invalid"
     )
+
+
+def test_curve_element_oom_regression(suite):
+    """Regression: malformed sampled-curve elements must not trigger allocator/underflow UB."""
+    trigger_profiles = [
+        TEST_PROFILES / "oom-CIccSingleSampledCurve-SetSize-IccProfLib-IccMpeBasic_cpp-Line1496.icc",
+        TEST_PROFILES / "cwe-400" / "oom-CIccSampledCurveSegment-SetSize-IccMpeBasic_cpp-Line986.icc",
+    ]
+
+    for profile in trigger_profiles:
+        if not profile.exists():
+            continue
+        stem = profile.stem[:40]
+        suite.assert_no_asan(
+            f"asan.repo.curve_element_oom_{stem}",
+            ["-a", str(profile)]
+        )
+        suite.assert_output_contains(
+            f"heuristic.curve_element_oom_{stem}",
+            ["-a", str(profile)],
+            r"H152|Curve Element OOM Size Validation|SingleSampledCurve|SampledCurveSegment|skipping library phase"
+        )
 
 
 def test_xml_export(suite):
@@ -5096,6 +5249,7 @@ examples:
         ("Repo Profile Sample", test_repo_profiles_sample),
         ("PCC Illuminant Overflow Regression", test_pcc_illuminant_overflow_regression),
         ("ToneMap Describe Overflow Regression", test_tonemap_describe_overflow_regression),
+        ("Curve Element OOM Regression", test_curve_element_oom_regression),
         ("XML Export", test_xml_export),
         ("Multi-Mode Consistency", test_multiple_modes_same_profile),
         ("LUT Extraction", test_lut_extraction),

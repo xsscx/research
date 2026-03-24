@@ -69,6 +69,33 @@ module InjectionConfigModule implements DataFlow::ConfigSig {
 
 module InjectionConfig = TaintTracking::Global<InjectionConfigModule>;
 
+module FormatStringConfigModule implements DataFlow::ConfigSig {
+  predicate isSource(DataFlow::Node source) {
+    source.asExpr() instanceof UserInputSource
+  }
+
+  predicate isSink(DataFlow::Node sink) {
+    exists(FunctionCall fc |
+      (
+        fc.getTarget().getName().matches(["snprintf", "vsnprintf"]) and
+        sink.asExpr() = fc.getArgument(2)
+      )
+      or
+      (
+        fc.getTarget().getName().matches(["fprintf", "sprintf", "vfprintf", "vsprintf"]) and
+        sink.asExpr() = fc.getArgument(1)
+      )
+      or
+      (
+        fc.getTarget().getName().matches(["printf", "vprintf", "syslog"]) and
+        sink.asExpr() = fc.getArgument(0)
+      )
+    )
+  }
+}
+
+module FormatStringConfig = TaintTracking::Global<FormatStringConfigModule>;
+
 /**
  * Command execution functions (command injection)
  */
@@ -133,6 +160,10 @@ class FormatStringVulnerability extends FunctionCall {
         this.getTarget().getName().matches(["printf", "vprintf", "syslog"]) and
         not this.getArgument(0) instanceof StringLiteral
       )
+    ) and
+    exists(DataFlow::Node source, DataFlow::Node sink |
+      FormatStringConfig::flow(source, sink) and
+      sink.asExpr() = this.getAChild*()
     )
   }
 

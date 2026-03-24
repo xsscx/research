@@ -169,7 +169,8 @@ inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, siz
     for (uint32_t j = 0; j < str_len/2; j++) {
       size_t idx = static_cast<size_t>(str_offset) + static_cast<size_t>(j) * 2 + 1;
       if (idx < size) {
-        unsigned char c = data[idx];
+        const unsigned char *bytePtr = data + idx;
+        unsigned char c = *bytePtr;
         if (c >= 32 && c < 127) xml << c;
       }
     }

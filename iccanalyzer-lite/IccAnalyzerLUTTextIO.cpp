@@ -108,6 +108,32 @@ static FILE *SecureFileOpenText(const char *path, const char *mode) {
     return f;
 }
 
+static bool ValidateOpenedReadableFile(FILE *f, std::string &error) {
+    if (!f) {
+        error = "Cannot open file";
+        return false;
+    }
+
+    int fd = fileno(f);
+    if (fd < 0) {
+        error = "Cannot inspect opened file";
+        return false;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+        error = "Not a regular file";
+        return false;
+    }
+
+    if (st.st_size < 0 || st.st_size > (off_t)kMaxImportFileSize) {
+        error = "File too large or not found";
+        return false;
+    }
+
+    return true;
+}
+
 static std::string SanitizeTag(const char *raw) {
     std::string out;
     if (!raw) return "unknown";
@@ -156,7 +182,7 @@ static icTagSignature ResolveTagSig(const char *name) {
 
 /// Parse "# Tag:" header from text file, return resolved signature
 static icTagSignature ParseTagFromFile(const char *path) {
-    FILE *f = fopen(path, "r");
+    FILE *f = SecureFileOpenText(path, "r");
     if (!f) return icSigAToB0Tag;
     char line[kMaxLineLen];
     icTagSignature sig = icSigAToB0Tag;
@@ -718,7 +744,7 @@ int ExtractLutText(const char *filename, const char *baseName)
 
 /// Detect file type from header comment
 static int DetectTextFileType(const char *path) {
-    FILE *f = fopen(path, "r");
+    FILE *f = SecureFileOpenText(path, "r");
     if (!f) return -1;
 
     char line[kMaxLineLen];
@@ -740,14 +766,11 @@ static int DetectTextFileType(const char *path) {
 static bool ParseCurve1DText(const char *path, std::vector<float> &outInput,
                              std::vector<float> &outOutput, std::string &error)
 {
-    struct stat st;
-    if (stat(path, &st) != 0 || st.st_size > (off_t)kMaxImportFileSize) {
-        error = "File too large or not found";
+    FILE *f = SecureFileOpenText(path, "r");
+    if (!ValidateOpenedReadableFile(f, error)) {
+        if (f) fclose(f);
         return false;
     }
-
-    FILE *f = fopen(path, "r");
-    if (!f) { error = "Cannot open file"; return false; }
 
     char line[kMaxLineLen];
     size_t lineCount = 0;
@@ -791,14 +814,11 @@ static bool ParseCLUTText(const char *path, int &inputDim, int &outputCh,
                           std::vector<int> &gridPoints,
                           std::vector<float> &outputData, std::string &error)
 {
-    struct stat st;
-    if (stat(path, &st) != 0 || st.st_size > (off_t)kMaxImportFileSize) {
-        error = "File too large or not found";
+    FILE *f = SecureFileOpenText(path, "r");
+    if (!ValidateOpenedReadableFile(f, error)) {
+        if (f) fclose(f);
         return false;
     }
-
-    FILE *f = fopen(path, "r");
-    if (!f) { error = "Cannot open file"; return false; }
 
     char line[kMaxLineLen];
     size_t lineCount = 0;
@@ -823,7 +843,7 @@ static bool ParseCLUTText(const char *path, int &inputDim, int &outputCh,
                 std::istringstream iss(gp);
                 int val = 0;
                 while (iss >> val) {
-                    if (val <= 0 || val > kMaxGridDim) { error = "Invalid grid size"; fclose(f); return false; }
+                    if (val < 1 || val > kMaxGridDim) { error = "Invalid grid size"; fclose(f); return false; }
                     gridPoints.push_back(val);
                 }
             }
@@ -874,8 +894,11 @@ static bool ParseCLUTText(const char *path, int &inputDim, int &outputCh,
 static bool ParseMatrixText(const char *path, float e[12], bool &useConstants,
                             std::string &error)
 {
-    FILE *f = fopen(path, "r");
-    if (!f) { error = "Cannot open file"; return false; }
+    FILE *f = SecureFileOpenText(path, "r");
+    if (!ValidateOpenedReadableFile(f, error)) {
+        if (f) fclose(f);
+        return false;
+    }
 
     char line[kMaxLineLen];
     bool inData = false;
@@ -925,7 +948,7 @@ static bool ParseMatrixText(const char *path, float e[12], bool &useConstants,
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int ParseElementIndex(const char *path) {
-    FILE *f = fopen(path, "r");
+    FILE *f = SecureFileOpenText(path, "r");
     if (!f) return 0;
     char line[kMaxLineLen];
     int idx = 0;
@@ -1270,8 +1293,10 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
         (void)ParseElementIndex(textFile);
 
         // Parse MPE CurveSet: multi-channel samples
-        FILE *csvF = fopen(textFile, "r");
-        if (!csvF) {
+        FILE *csvF = SecureFileOpenText(textFile, "r");
+        std::string csvError;
+        if (!ValidateOpenedReadableFile(csvF, csvError)) {
+            if (csvF) fclose(csvF);
             printf("Error: cannot open %s\n", textFile);
             delete pIcc;
             return -1;
@@ -1395,6 +1420,7 @@ int ExportCubeFromProfile(const char *profileFile, const char *tagSigStr,
         return -1;
     }
 
+    CIccMpeCLUT *pSelectedMpeCLUT = nullptr;
     CIccCLUT *pCLUT = nullptr;
     int inputDim = 0;
     int outputCh = 0;
@@ -1417,9 +1443,9 @@ int ExportCubeFromProfile(const char *profileFile, const char *tagSigStr,
             for (icUInt32Number e = 0; e < pMPE->NumElements(); e++) {
                 CIccMultiProcessElement *pElem = pMPE->GetElement(e);
                 if (pElem && pElem->GetType() == icSigCLutElemType) {
-                    CIccMpeCLUT *pMC = dynamic_cast<CIccMpeCLUT*>(pElem);
-                    if (pMC) {
-                        pCLUT = pMC->GetCLUT();
+                    pSelectedMpeCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
+                    if (pSelectedMpeCLUT) {
+                        pCLUT = pSelectedMpeCLUT->GetCLUT();
                         if (pCLUT) {
                             inputDim = pCLUT->GetInputDim();
                             outputCh = pCLUT->GetOutputChannels();
@@ -1429,6 +1455,10 @@ int ExportCubeFromProfile(const char *profileFile, const char *tagSigStr,
                 }
             }
         }
+    }
+
+    if (pSelectedMpeCLUT) {
+        pCLUT = pSelectedMpeCLUT->GetCLUT();
     }
 
     if (!pCLUT || inputDim != 3 || outputCh != 3) {
@@ -1498,14 +1528,13 @@ int ImportCubeToProfile(const char *cubeFile, const char *outputFile)
         return -1;
     }
 
-    struct stat st;
-    if (stat(cubeFile, &st) != 0 || st.st_size > (off_t)kMaxImportFileSize) {
+    std::string cubeError;
+    FILE *f = SecureFileOpenText(cubeFile, "r");
+    if (!ValidateOpenedReadableFile(f, cubeError)) {
+        if (f) fclose(f);
         printf("Error: file too large or not found\n");
         return -1;
     }
-
-    FILE *f = fopen(cubeFile, "r");
-    if (!f) { printf("Error opening .cube: %s\n", cubeFile); return -1; }
 
     char line[kMaxLineLen];
     int gridSize = 0;
