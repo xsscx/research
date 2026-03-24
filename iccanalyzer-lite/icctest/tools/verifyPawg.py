@@ -161,8 +161,8 @@ def check_report(label: str, text: str, failures: list[str]) -> None:
     require(text, "[ CONFORMANCE CHECK COVERAGE ]", failures, label)
     require(text, "[ SPECIFICATION REFERENCES ]", failures, label)
     require(text, "Total checklist items:  31", failures, label)
-    require(text, "Excessive calculator elements not present (ideally provide an estimate of computation cost)", failures, label)
-    require(text, "Private tags do not contain exploitable non-operation (NOP) instructions", failures, label)
+    require(text, "[iccMAX profiles only] Are excessive calculator elements avoided (if possible provide an estimate of computation cost)", failures, label)
+    require(text, "If present, are private tags free of exploitable non-operation (NOP) instructions?", failures, label)
     for path in expected_spec_reference_paths():
         require(text, path, failures, label)
     if "docs/iccDEV/specifications/ICC.1_Adaptive_Gain_Curve.pdf" in text:
