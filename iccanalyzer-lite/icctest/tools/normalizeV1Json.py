@@ -66,19 +66,21 @@ def run_v1_json(
     proc = subprocess.run(
         cmd,
         capture_output=True,
-        text=True,
         env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
         check=False,
     )
 
-    if not proc.stdout.strip():
+    stdout = proc.stdout.decode("utf-8", errors="replace")
+    stderr = proc.stderr.decode("utf-8", errors="replace")
+
+    if not stdout.strip():
         raise RuntimeError(
             f"V1 JSON command produced no stdout (rc={proc.returncode})."
-            f" stderr={proc.stderr.strip()[:400]}"
+            f" stderr={stderr.strip()[:400]}"
         )
 
     try:
-        payload = json.loads(proc.stdout)
+        payload = json.loads(stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError(
             f"Failed to parse V1 JSON: {exc}"
@@ -87,7 +89,7 @@ def run_v1_json(
     payload["_subprocess"] = {
         "cmd": cmd,
         "returncode": proc.returncode,
-        "stderr": proc.stderr,
+        "stderr": stderr,
     }
     return payload
 

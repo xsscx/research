@@ -17,6 +17,9 @@ namespace icctest {
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
 static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 98) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 101) {
         return true;
     }

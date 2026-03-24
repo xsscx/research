@@ -78,4 +78,25 @@ if(BUILD_TESTING)
         TIMEOUT 120
         ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
     )
+
+    add_test(
+        NAME icctest_verify_cli_sandbox
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verifyCliSandbox.py
+            --cli-binary $<TARGET_FILE:icctest>
+    )
+    set_tests_properties(icctest_verify_cli_sandbox PROPERTIES
+        TIMEOUT 60
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
+    )
+
+    add_test(
+        NAME icctest_verify_parity_tooling
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verifyParityTooling.py
+            --v1-binary ${ICCTEST_V1_BINARY}
+            --v2-binary $<TARGET_FILE:icctest-parity>
+    )
+    set_tests_properties(icctest_verify_parity_tooling PROPERTIES
+        TIMEOUT 60
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0;LLVM_PROFILE_FILE=/dev/null"
+    )
 endif()

@@ -15,6 +15,7 @@ import base64
 import hashlib
 import os
 import re
+import secrets
 import signal
 import shutil
 import sys
@@ -325,13 +326,12 @@ def _resolve_profile(path: str) -> Path:
 
     for base, base_resolved in zip(_ALLOWED_BASES, _ALLOWED_BASES_RESOLVED):
         candidate = (base / p).resolve()
-        # Normalize and verify path stays within allowed base (CodeQL sanitizer)
-        safe_path = os.path.normpath(str(candidate))
-        safe_base = os.path.normpath(str(base_resolved))
-        if not (safe_path == safe_base or safe_path.startswith(safe_base + os.sep)):
+        try:
+            candidate.relative_to(base_resolved)
+        except ValueError:
             continue
-        if os.path.isfile(safe_path):
-            return Path(safe_path)
+        if candidate.is_file():
+            return candidate
 
     raise FileNotFoundError(
         f"Profile not found: {path}. "
@@ -879,7 +879,7 @@ async def upload_and_analyze(
 
     # Write to secure temp dir
     upload_dir = _get_upload_dir()
-    prefix = hashlib.sha256(raw[:256]).hexdigest()[:12]
+    prefix = secrets.token_hex(6)
     dest = upload_dir / f"{prefix}_{safe_name}"
     dest.write_bytes(raw)
 

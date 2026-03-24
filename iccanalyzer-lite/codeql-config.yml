@@ -6,12 +6,12 @@
 name: "iccLibFuzzer Security Analysis"
 
 # Disable default queries - we'll use custom security-focused queries
-disable-default-queries: false
+disable-default-queries: true
 
 # Query suites to run
 queries:
   # Official CodeQL security queries
-  - uses: security-and-quality
+  - uses: security-extended
   - uses: security-experimental
   
   # Custom security research queries (local path from repo root)

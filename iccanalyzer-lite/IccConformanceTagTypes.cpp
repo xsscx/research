@@ -2333,7 +2333,7 @@ static int RunCF133_ADGCHeadroomDivByZero(CIccProfile *pIcc, const char *filenam
   float hBase = ReadFloat32BE(d + 28);
   float hAlt  = ReadFloat32BE(d + 32);
   if (std::isfinite(hBase) && std::isfinite(hAlt)) {
-    if (hBase == hAlt) {
+    if (ExactFiniteFloatEqual(hBase, hAlt)) {
       printf("         %s[FAIL]%s CF-133: H_baseline=%.4f == H_alternate=%.4f"
              " — division by zero in Output Evaluator W_target"
              " — ICC.1 ADGC §1.2.3\n",
@@ -2448,7 +2448,7 @@ static int RunCF136_ADGCCurveAdjacentX(CIccProfile *pIcc, const char *filename) 
       if (curXOff + 4 > rd.bytesRead) break;
       float x1 = ReadFloat32BE(d + prevXOff);
       float x2 = ReadFloat32BE(d + curXOff);
-      if (std::isfinite(x1) && std::isfinite(x2) && x1 == x2) {
+      if (ExactFiniteFloatEqual(x1, x2)) {
         printf("         %s[FAIL]%s CF-136: %s curve entries %u,%u have equal x=%.6f"
                " — division by zero in Gain Evaluator cubic"
                " — ICC.1 ADGC §1.2.2\n",

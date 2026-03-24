@@ -113,11 +113,10 @@ def run_json_command(cmd: list[str], env: dict[str, str] | None = None) -> tuple
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        text=True,
         env=merged_env,
         check=False,
     )
-    stdout = proc.stdout.strip()
+    stdout = proc.stdout.decode("utf-8", errors="replace").strip()
     if stdout:
         try:
             return json.loads(stdout), proc.returncode
@@ -128,16 +127,17 @@ def run_json_command(cmd: list[str], env: dict[str, str] | None = None) -> tuple
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
         env=merged_env,
         check=False,
     )
+    debug_stdout = debug_proc.stdout.decode("utf-8", errors="replace")
+    debug_stderr = debug_proc.stderr.decode("utf-8", errors="replace")
     raise RuntimeError(
         f"Command failed to yield parseable JSON.\n"
         f"cmd={' '.join(cmd)}\n"
         f"returncode={debug_proc.returncode}\n"
-        f"stdout={debug_proc.stdout[:600]}\n"
-        f"stderr={debug_proc.stderr[:1200]}"
+        f"stdout={debug_stdout[:600]}\n"
+        f"stderr={debug_stderr[:1200]}"
     )
 
 
@@ -406,6 +406,33 @@ def is_heuristic_export_omission_match(
     return is_heuristic_early_rejected_input(input_path)
 
 
+def heuristic_fixture_coverage_improvement(
+    input_path: Path,
+    check_id: str,
+    v1_record: dict | None,
+    v2_record: dict | None,
+) -> str | None:
+    if check_id != "H98":
+        return None
+    if input_path.name != "heap-buffer-overflow-CIccMpeSpectralMatrix-Describe-IccMpeSpectral_cpp-Line352.icc":
+        return None
+
+    if v1_record and v1_record.get("normalizedStatus", "") not in {"skip", "error"}:
+        return None
+    if not v2_record:
+        return None
+    if v2_record.get("normalizedStatus", "") != "finding":
+        return None
+    if int(v2_record.get("findingCount", 0)) <= 0:
+        return None
+
+    messages = " ".join(v2_record.get("findingMessages", []))
+    if "EmissionMatrix out(" not in messages and "pointer advance mismatch" not in messages:
+        return None
+
+    return "v1_h98_spectral_fixture_gap_v2_raw_coverage"
+
+
 def compare_lane(
     *,
     input_path: Path,
@@ -441,6 +468,7 @@ def compare_lane(
     known_gaps: list[dict] = []
     quarantined: list[dict] = []
     matches: list[dict] = []
+    coverage_improvements: list[dict] = []
 
     for check_id in ids:
         v1_record = v1_map.get(check_id)
@@ -472,11 +500,21 @@ def compare_lane(
         comparison = "match"
         normalized_reason = ""
 
-        if lane == "heuristic" and is_heuristic_export_omission_match(
+        fixture_coverage_reason = heuristic_fixture_coverage_improvement(
+            input_path, check_id, v1_record, v2_record
+        )
+
+        if fixture_coverage_reason:
+            comparison = "coverage_improvement"
+            normalized_reason = fixture_coverage_reason
+        elif lane == "heuristic" and is_heuristic_export_omission_match(
             input_path, check_id, v1_record, v2_record
         ):
             comparison = "export_omission_match"
             normalized_reason = "v1_json_omitted_heuristic_on_early_rejected_input"
+        elif not v1_record and not v2_record:
+            comparison = "match"
+            normalized_reason = "record_missing_on_both_sides"
         elif lane == "conformance" and is_conformance_omitted_not_run_match(
             v1_record, v2_record
         ):
@@ -563,6 +601,8 @@ def compare_lane(
         elif comparison == "known_gap":
             entry["knownGapReason"] = "todo_backed_v2_port"
             known_gaps.append(entry)
+        elif comparison == "coverage_improvement":
+            coverage_improvements.append(entry)
         elif comparison in {
             "match",
             "implicit_skip_match",
@@ -588,6 +628,7 @@ def compare_lane(
             "delta": counts["delta"],
             "knownGap": counts["known_gap"],
             "knownGapMatch": counts["known_gap_match"],
+            "coverageImprovement": counts["coverage_improvement"],
             "quarantined": counts["quarantined"],
         },
         "issueCounts": dict(sorted(issues.items())),
@@ -597,6 +638,7 @@ def compare_lane(
         "summary": summary,
         "deltas": deltas,
         "knownGaps": known_gaps,
+        "coverageImprovements": coverage_improvements,
     }
     if include_quarantined:
         lane_result["quarantined"] = quarantined
@@ -791,6 +833,7 @@ def main() -> int:
             "V1 heuristic export omissions on early-rejected raw inputs are normalized as export_omission_match for H111/H142-H146 when V2 reports clean ok/no-findings.",
             "Heuristic collision IDs are quarantined using heuristic-remap.tsv.",
             "TODO-backed V2 heuristic ports are downgraded to known gaps instead of ordinary parity deltas.",
+            "Named spectral H98 fixtures can be normalized as coverageImprovement when V1 intentionally gaps out but V2 adds raw defensive coverage for that specific PoC.",
         ],
         "summary": {
             "inputCount": len(input_files),

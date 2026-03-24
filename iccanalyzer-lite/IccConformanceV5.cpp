@@ -677,7 +677,7 @@ int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc) {
              ColorError(), ColorReset());
       issues++;
     }
-  } else if (steps == 1 && startNm != endNm) {
+  } else if (steps == 1 && !ExactFiniteFloatEqual(startNm, endNm)) {
     printf("         %s[FAIL]%s steps=1 but start (%.1f) != end (%.1f) — inconsistent\n",
            ColorError(), ColorReset(),
            static_cast<double>(startNm), static_cast<double>(endNm));
@@ -2486,13 +2486,17 @@ int RunCF157_EmbeddedProfileRecursiveDepth(CIccProfile *pIcc) {
   int depth = 0;
   const int kMaxNestingDepth = 4;
   CIccProfile *pCurrent = pIcc;
+  CIccTagEmbeddedProfile *pEmbed = nullptr;
 
   while (pCurrent) {
     CIccTag *pEmTag = pCurrent->FindTag(icSigEmbeddedV5ProfileTag);
     if (!pEmTag) break;
 
-    CIccTagEmbeddedProfile *pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmTag);
-    if (!pEmbed || !pEmbed->GetProfile()) break;
+    pEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pEmTag);
+    if (!pEmbed) break;
+
+    CIccProfile *pEmbeddedProfile = pEmbed->GetProfile();
+    if (!pEmbeddedProfile) break;
 
     depth++;
     if (depth > kMaxNestingDepth) {
@@ -2502,7 +2506,7 @@ int RunCF157_EmbeddedProfileRecursiveDepth(CIccProfile *pIcc) {
       issues++;
       break;
     }
-    pCurrent = pEmbed->GetProfile();
+    pCurrent = pEmbeddedProfile;
   }
 
   if (depth > 0 && !issues) {

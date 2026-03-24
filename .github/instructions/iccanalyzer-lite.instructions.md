@@ -78,6 +78,11 @@ that affects analyzer runtime:
 3. keep V1 and V2 aligned on the same hardening model
 4. do not move these runtime fixes into `cfl/patches`
 
+For the current patch-by-patch analyzer review state, use:
+
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
+- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
+
 Current reference implementation:
 
 - `iccanalyzer-lite/IccDevSafeOverrides.cpp`
@@ -131,8 +136,8 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 |--------|-----------|-----------|
 | `IccHeuristicsHeader.cpp` | H1-H8, H15-H17 | Raw header bytes (11 functions) |
 | `IccHeuristicsTagValidation.cpp` | H9-H32 | Tag table structure via CIccProfile API |
-| `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69, H153 | Raw file I/O fallback |
-| `IccHeuristicsDataValidation.cpp` | H56-H102, H146-H148, H151-H152 | Data integrity via CIccProfile API |
+| `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69, H152-H153 | Raw file I/O fallback |
+| `IccHeuristicsDataValidation.cpp` | H56-H102, H146-H148, H151 | Data integrity via CIccProfile API |
 | `IccHeuristicsProfileCompliance.cpp` | H103-H120 | ICC spec compliance |
 | `IccHeuristicsIntegrity.cpp` | H121-H138 | Profile integrity + CWE-400 |
 | `IccImageAnalyzer.cpp` | H139-H141, H149-H150 | TIFF/PNG/JPEG image security + ICC extraction |
@@ -297,10 +302,11 @@ enum values are within the defined icSigCalcOp range. Detects the enum
 out-of-range UBSAN pattern (sibling of CFL-005/CFL-009/CFL-017). CWE-681.
 Added upstream in iccDEV cfl branch.
 
-**H152: SingleSampledCurve OOM Size Validation** — Validates that
-SingleSampledCurve element allocation sizes are reasonable before the library
-allocates. Detects potential OOM from oversized m_nCount values. CWE-400.
-Added upstream in iccDEV cfl branch.
+**H152: Curve Element OOM Size Validation** — Raw preflight scanner for
+`sngf`/`samf`/`clcf` oversized sample counts and `curf` segmented-curve
+minimum-size underflow. Used both for reporting and for analyzer-owned library
+quarantine before unpatched `iccDEV` reaches the unsafe curve allocation paths.
+CWE-770 / CWE-191. Derived from CFL-021 and CFL-064.
 
 **H153: Sampled Curve NaN-to-Unsigned Cast Detection** — Scans raw profile
 bytes for MPE curve type signatures (sngf=0x736E6766, clcf=0x636C6366,
@@ -425,8 +431,8 @@ PoC: #577.
 |-------|--------|-------|
 | H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
 | H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve NaN) |
-| H56-H102, H146-H148, H151-H152 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves, embedded profiles) |
+| H33-H55, H57-H69, H152-H153 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve OOM/underflow, curve NaN) |
+| H56-H102, H146-H148, H151 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves, embedded profiles) |
 | H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
 | H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
 | H139-H141, H149-H150 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) |

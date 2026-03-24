@@ -305,6 +305,14 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("=======================================================================\n\n");
     }
   }
+  if (DetectH152CurveElementOOMSize(filename) && IsLibraryUBDefenseEnabled()) {
+    skipLibraryPhase = true;
+    printf("=======================================================================\n");
+    printf("[PREFLIGHT] Oversized sampled-curve element count would drive upstream "
+           "curve allocation/underflow paths\n");
+    printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
+    printf("=======================================================================\n\n");
+  }
   
   // PHASE 0.5: External File Metadata (when tools available)
   printf("=======================================================================\n");

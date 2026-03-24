@@ -15,8 +15,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <vector>
 
 #ifdef __linux__
+#include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
@@ -284,6 +287,35 @@ runSandboxed(std::function<AnalysisResult()> fn,
     // ─── Parent process ───
     close(pipefd[1]);  // Close write end
 
+    int originalFlags = fcntl(pipefd[0], F_GETFL, 0);
+    if (originalFlags >= 0) {
+        (void)fcntl(pipefd[0], F_SETFL, originalFlags | O_NONBLOCK);
+    }
+
+    std::vector<uint8_t> serialized;
+    serialized.reserve(64 * 1024);
+
+    auto drainPipeNonBlocking = [&](std::string& err) -> bool {
+        uint8_t buf[8192];
+        for (;;) {
+            ssize_t nr = read(pipefd[0], buf, sizeof(buf));
+            if (nr > 0) {
+                serialized.insert(serialized.end(), buf, buf + nr);
+                if (serialized.size() > 64u * 1024u * 1024u) {
+                    err = "Sandbox result exceeded 64 MB transfer cap";
+                    return false;
+                }
+                continue;
+            }
+            if (nr == 0) return true;
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) return true;
+
+            err = std::string("read() failed: ") + std::strerror(errno);
+            return false;
+        }
+    };
+
     // Wait for child with RSS monitoring.
     // Under ASAN, RLIMIT_AS/DATA can't limit memory, so we poll
     // /proc/<pid>/statm and kill the child if RSS exceeds the limit.
@@ -293,6 +325,14 @@ runSandboxed(std::function<AnalysisResult()> fn,
     pid_t waited = 0;
 
     while (true) {
+        std::string pipeErr;
+        if (!drainPipeNonBlocking(pipeErr)) {
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            close(pipefd[0]);
+            return SandboxError{SandboxError::Kind::InternalError, 0, pipeErr};
+        }
+
         waited = waitpid(pid, &status, WNOHANG);
         if (waited != 0) break;  // Child exited or error
 
@@ -315,8 +355,17 @@ runSandboxed(std::function<AnalysisResult()> fn,
             std::fclose(statm);
         }
 
-        // Poll every 50ms
-        usleep(50000);
+        struct pollfd pfd{};
+        pfd.fd = pipefd[0];
+        pfd.events = POLLIN | POLLHUP;
+        int pollRc = poll(&pfd, 1, 50);
+        if (pollRc < 0 && errno != EINTR) {
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            close(pipefd[0]);
+            return SandboxError{SandboxError::Kind::InternalError, 0,
+                                std::string("poll() failed: ") + std::strerror(errno)};
+        }
     }
 
     if (waited < 0) {
@@ -346,48 +395,94 @@ runSandboxed(std::function<AnalysisResult()> fn,
         return SandboxError{kind, sig, msg};
     }
 
-    // Child exited normally — read result from pipe
+    if (originalFlags >= 0) {
+        (void)fcntl(pipefd[0], F_SETFL, originalFlags);
+    }
+
+    {
+        uint8_t buf[8192];
+        for (;;) {
+            ssize_t nr = read(pipefd[0], buf, sizeof(buf));
+            if (nr > 0) {
+                serialized.insert(serialized.end(), buf, buf + nr);
+                if (serialized.size() > 64u * 1024u * 1024u) {
+                    close(pipefd[0]);
+                    return SandboxError{SandboxError::Kind::InternalError, 0,
+                                        "Sandbox result exceeded 64 MB transfer cap"};
+                }
+                continue;
+            }
+            if (nr == 0) break;
+            if (errno == EINTR) continue;
+            close(pipefd[0]);
+            return SandboxError{SandboxError::Kind::InternalError, 0,
+                                std::string("read() failed: ") + std::strerror(errno)};
+        }
+    }
+
+    close(pipefd[0]);
+
+    // Child exited normally — parse serialized result
     AnalysisResult result{};
+    size_t cursor = 0;
+
+    auto readBytes = [&](void* dst, size_t len) -> bool {
+        if (cursor + len > serialized.size()) return false;
+        std::memcpy(dst, serialized.data() + cursor, len);
+        cursor += len;
+        return true;
+    };
 
     uint8_t magic[4] = {};
-    ssize_t nr = read(pipefd[0], magic, 4);
-    if (nr != 4 || magic[0] != 'I' || magic[1] != 'C' || magic[2] != 'T') {
-        close(pipefd[0]);
+    if (!readBytes(magic, 4) ||
+        magic[0] != 'I' || magic[1] != 'C' || magic[2] != 'T') {
         return SandboxError{SandboxError::Kind::InternalError, 0,
                             "Failed to read result from child (bad magic)"};
     }
 
     // ProfileMetadata (fixed-size fields)
     auto& md = result.metadata;
-    (void)read(pipefd[0], &md.version, 4);
-    (void)read(pipefd[0], &md.profileClass, 4);
-    (void)read(pipefd[0], &md.colorSpace, 4);
-    (void)read(pipefd[0], &md.pcs, 4);
-    (void)read(pipefd[0], &md.flags, 4);
-    (void)read(pipefd[0], &md.headerSize, 4);
-    (void)read(pipefd[0], &md.fileSize, 8);
-    (void)read(pipefd[0], &md.renderingIntent, 4);
-    (void)read(pipefd[0], &md.manufacturer, 4);
-    (void)read(pipefd[0], &md.model, 4);
-    (void)read(pipefd[0], md.profileId.data(), 16);
-    (void)read(pipefd[0], md.magic.data(), 4);
-    (void)read(pipefd[0], md.illuminant.data(), 12);
+    if (!readBytes(&md.version, 4) ||
+        !readBytes(&md.profileClass, 4) ||
+        !readBytes(&md.colorSpace, 4) ||
+        !readBytes(&md.pcs, 4) ||
+        !readBytes(&md.flags, 4) ||
+        !readBytes(&md.headerSize, 4) ||
+        !readBytes(&md.fileSize, 8) ||
+        !readBytes(&md.renderingIntent, 4) ||
+        !readBytes(&md.manufacturer, 4) ||
+        !readBytes(&md.model, 4) ||
+        !readBytes(md.profileId.data(), 16) ||
+        !readBytes(md.magic.data(), 4) ||
+        !readBytes(md.illuminant.data(), 12)) {
+        return SandboxError{SandboxError::Kind::InternalError, 0,
+                            "Sandbox result truncated while reading metadata"};
+    }
     int32_t creatorLen = 0;
-    (void)read(pipefd[0], &creatorLen, 4);
+    if (!readBytes(&creatorLen, 4)) {
+        return SandboxError{SandboxError::Kind::InternalError, 0,
+                            "Sandbox result truncated while reading creator length"};
+    }
     if (creatorLen > 0 && creatorLen < 256) {
         md.creator.resize(creatorLen);
-        (void)read(pipefd[0], md.creator.data(), creatorLen);
+        if (!readBytes(md.creator.data(), static_cast<size_t>(creatorLen))) {
+            return SandboxError{SandboxError::Kind::InternalError, 0,
+                                "Sandbox result truncated while reading creator"};
+        }
     }
 
     // RunStats
     int32_t findingsTotal = 0, checksRun = 0, checksSkipped = 0;
     int64_t totalTime = 0;
-    (void)read(pipefd[0], &findingsTotal, 4);
-    (void)read(pipefd[0], &checksRun, 4);
-    (void)read(pipefd[0], &checksSkipped, 4);
-    (void)read(pipefd[0], &totalTime, 8);
-    (void)read(pipefd[0], result.stats.findingsBySeverity.data(),
-               5 * sizeof(int32_t));
+    if (!readBytes(&findingsTotal, 4) ||
+        !readBytes(&checksRun, 4) ||
+        !readBytes(&checksSkipped, 4) ||
+        !readBytes(&totalTime, 8) ||
+        !readBytes(result.stats.findingsBySeverity.data(),
+                   5 * sizeof(int32_t))) {
+        return SandboxError{SandboxError::Kind::InternalError, 0,
+                            "Sandbox result truncated while reading stats"};
+    }
 
     result.stats.findingsTotal = findingsTotal;
     result.stats.checksRun = checksRun;
@@ -396,18 +491,31 @@ runSandboxed(std::function<AnalysisResult()> fn,
 
     // Findings
     int32_t nFindings = 0;
-    (void)read(pipefd[0], &nFindings, 4);
+    if (!readBytes(&nFindings, 4)) {
+        return SandboxError{SandboxError::Kind::InternalError, 0,
+                            "Sandbox result truncated while reading finding count"};
+    }
 
     // Cap findings to prevent malformed data from exhausting memory
     if (nFindings > 10000) nFindings = 10000;
 
     auto readStr = [&]() -> std::string {
         int32_t len = 0;
-        if (read(pipefd[0], &len, 4) != 4 || len < 0 || len > 1000000) return {};
+        if (!readBytes(&len, 4) || len < 0 || len > 1000000) return {};
         std::string s(len, '\0');
         if (len > 0) {
-            ssize_t got = read(pipefd[0], s.data(), len);
-            if (got != len) s.resize(std::max<ssize_t>(0, got));
+            size_t want = static_cast<size_t>(len);
+            if (cursor + want > serialized.size()) {
+                size_t available = serialized.size() - cursor;
+                s.resize(available);
+                if (available > 0) {
+                    std::memcpy(s.data(), serialized.data() + cursor, available);
+                    cursor += available;
+                }
+            } else {
+                std::memcpy(s.data(), serialized.data() + cursor, want);
+                cursor += want;
+            }
         }
         return s;
     };
@@ -415,13 +523,13 @@ runSandboxed(std::function<AnalysisResult()> fn,
     for (int32_t i = 0; i < nFindings; ++i) {
         Finding f{};
         uint8_t sev = 0;
-        if (read(pipefd[0], &sev, 1) != 1) break;
+        if (!readBytes(&sev, 1)) break;
         f.level = static_cast<Severity>(std::min<uint8_t>(sev, 4));
 
         uint8_t kind = 0;
         int32_t num = 0;
-        if (read(pipefd[0], &kind, 1) != 1) break;
-        if (read(pipefd[0], &num, 4) != 4) break;
+        if (!readBytes(&kind, 1)) break;
+        if (!readBytes(&num, 4)) break;
         f.id = {static_cast<CheckID::Kind>(kind & 1), num};
 
         f.message = readStr();
@@ -432,7 +540,7 @@ runSandboxed(std::function<AnalysisResult()> fn,
     }
 
     int32_t nPerCheck = 0;
-    if (read(pipefd[0], &nPerCheck, 4) == 4 && nPerCheck > 0) {
+    if (readBytes(&nPerCheck, 4) && nPerCheck > 0) {
         if (nPerCheck > 4096) nPerCheck = 4096;
         result.perCheck.reserve(static_cast<size_t>(nPerCheck));
 
@@ -443,11 +551,11 @@ runSandboxed(std::function<AnalysisResult()> fn,
             uint8_t worstSeverity = 0;
             int32_t findingCount = 0;
 
-            if (read(pipefd[0], &kind, 1) != 1) break;
-            if (read(pipefd[0], &num, 4) != 4) break;
-            if (read(pipefd[0], &status, 1) != 1) break;
-            if (read(pipefd[0], &worstSeverity, 1) != 1) break;
-            if (read(pipefd[0], &findingCount, 4) != 4) break;
+            if (!readBytes(&kind, 1)) break;
+            if (!readBytes(&num, 4)) break;
+            if (!readBytes(&status, 1)) break;
+            if (!readBytes(&worstSeverity, 1)) break;
+            if (!readBytes(&findingCount, 4)) break;
 
             PerCheckResult entry{};
             entry.id = {static_cast<CheckID::Kind>(kind & 1), num};
@@ -478,8 +586,6 @@ runSandboxed(std::function<AnalysisResult()> fn,
             result.perCheck.push_back(std::move(entry));
         }
     }
-
-    close(pipefd[0]);
     return result;
 
 #else

@@ -55,6 +55,7 @@
 #include "IccConformanceQuality.h"
 #include "IccHeuristicResult.h"
 #include "IccHeuristicsHelpers.h"
+#include "IccHeuristicsRawPost.h"
 #include "IccHeuristicsCodeQLPatterns.h"
 #include "IccHeuristicsDataValidation.h"
 
@@ -92,6 +93,15 @@ static bool HasLibraryUBPatterns(const char *filename) {
     printf("\n%s[DEFENSE] Malformed mpet element offset/size pair will wrap "
            "CIccTagMultiProcessElement::Read() (IccTagMPE.cpp:1042) — "
            "skipping library phase%s\n",
+           ColorCritical(), ColorReset());
+    return true;
+  }
+
+  if (IsLibraryUBDefenseEnabled() &&
+      DetectH152CurveElementOOMSize(filename)) {
+    printf("\n%s[DEFENSE] Oversized sampled-curve element count would drive "
+           "upstream sampled-curve allocation/underflow paths — skipping "
+           "library phase%s\n",
            ColorCritical(), ColorReset());
     return true;
   }
@@ -176,6 +186,9 @@ static int EmitConformancePreflightFingerprints(const char *filename) {
   hc.setCollecting(prevCollecting);
   if (DetectH101MPEElementOffsetSizeOverflow(filename)) {
     preflightIssues += RunHeuristic_H101_MPESubElementChannelContinuityRaw(filename);
+  }
+  if (DetectH152CurveElementOOMSize(filename)) {
+    preflightIssues += RunHeuristic_H152_CurveElementOOMSizeValidation(ctx);
   }
   return preflightIssues;
 }

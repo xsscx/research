@@ -241,6 +241,493 @@ scanRawMpePositionIssues(const ProfileView& pv, size_t maxIssues = 8) {
     return issues;
 }
 
+enum class RawMpeNullApplyIssueKind : uint8_t {
+    MissingClutWithActiveCurves,
+    ZeroChannelMpe,
+};
+
+struct RawMpeNullApplyIssue {
+    RawMpeNullApplyIssueKind kind = RawMpeNullApplyIssueKind::MissingClutWithActiveCurves;
+    uint32_t tagSig = 0;
+    uint32_t typeSig = 0;
+    uint16_t inputChannels = 0;
+    uint16_t outputChannels = 0;
+    uint32_t clutOffset = 0;
+    uint32_t bCurveOffset = 0;
+    uint32_t aCurveOffset = 0;
+    uint32_t procElementCount = 0;
+};
+
+inline const char* mpeTypeName(uint32_t sig) {
+    switch (sig) {
+        case 0x6D414220u: return "mAB";
+        case 0x6D424120u: return "mBA";
+        case 0x6D706574u: return "MPET";
+        default: return "MPE";
+    }
+}
+
+inline std::string formatRawMpeNullApplyIssue(const RawMpeNullApplyIssue& issue) {
+    if (issue.kind == RawMpeNullApplyIssueKind::MissingClutWithActiveCurves) {
+        return sfmt("HEURISTIC: Tag '%s' (%s) has %u→%u channels with CLUT offset=0 but active curves — "
+                    "m_pCLUT will be NULL in Apply() — ICC.1-2022-05 §10.10",
+                    sigStr(issue.tagSig).c_str(),
+                    mpeTypeName(issue.typeSig),
+                    static_cast<unsigned>(issue.inputChannels),
+                    static_cast<unsigned>(issue.outputChannels));
+    }
+
+    return sfmt("HEURISTIC: Tag '%s' MPET has %u elements with %u→%u channels — "
+                "zero channels create null internal state in Begin() — ICC.2-2023 §10.14",
+                sigStr(issue.tagSig).c_str(),
+                issue.procElementCount,
+                static_cast<unsigned>(issue.inputChannels),
+                static_cast<unsigned>(issue.outputChannels));
+}
+
+inline std::string mpeNullApplyIssueCweNote(const RawMpeNullApplyIssue& issue) {
+    if (issue.kind == RawMpeNullApplyIssueKind::MissingClutWithActiveCurves) {
+        return "CWE-476: IccMpeBasic.cpp:5712 — m_pCLUT->InterpNd() null deref";
+    }
+    return "CWE-476: CIccMpeCurveSet::Begin() returns false → Apply() null deref";
+}
+
+inline std::vector<RawMpeNullApplyIssue>
+scanRawMpeNullApplyIssues(const ProfileView& pv, size_t maxIssues = 8) {
+    std::vector<RawMpeNullApplyIssue> issues;
+    const uint8_t* data = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!data || len < 16) return issues;
+
+    constexpr uint32_t kMabType = 0x6D414220u;  // 'mAB '
+    constexpr uint32_t kMbaType = 0x6D424120u;  // 'mBA '
+    constexpr uint32_t kMpetType = 0x6D706574u; // 'mpet'
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (issues.size() >= maxIssues) break;
+        if (tag.size < 8 || static_cast<uint64_t>(tag.offset) + 8 > len) continue;
+
+        uint32_t type = readU32BE(data + tag.offset);
+
+        if ((type == kMabType || type == kMbaType) &&
+            tag.size >= 32 &&
+            static_cast<uint64_t>(tag.offset) + 32 <= len) {
+            const uint8_t* mabHdr = data + tag.offset + 8;
+
+            RawMpeNullApplyIssue issue;
+            issue.kind = RawMpeNullApplyIssueKind::MissingClutWithActiveCurves;
+            issue.tagSig = tag.signature;
+            issue.typeSig = type;
+            issue.inputChannels = mabHdr[0];
+            issue.outputChannels = mabHdr[1];
+            issue.bCurveOffset = readU32BE(mabHdr + 4);
+            issue.clutOffset = readU32BE(mabHdr + 20);
+
+            if (tag.size >= 40 &&
+                static_cast<uint64_t>(tag.offset) + 40 <= len) {
+                issue.aCurveOffset = readU32BE(data + tag.offset + 36);
+            }
+
+            if (issue.clutOffset == 0 &&
+                issue.inputChannels > 0 &&
+                issue.outputChannels > 0 &&
+                (issue.bCurveOffset != 0 || issue.aCurveOffset != 0)) {
+                issues.push_back(issue);
+                if (issues.size() >= maxIssues) return issues;
+            }
+            continue;
+        }
+
+        if (type == kMpetType &&
+            tag.size >= 16 &&
+            static_cast<uint64_t>(tag.offset) + 16 <= len) {
+            const uint8_t* mpetHdr = data + tag.offset + 8;
+            uint16_t nInputCh = static_cast<uint16_t>(mpetHdr[0]) << 8 | mpetHdr[1];
+            uint16_t nOutputCh = static_cast<uint16_t>(mpetHdr[2]) << 8 | mpetHdr[3];
+            uint32_t nElements = readU32BE(mpetHdr + 4);
+
+            if ((nInputCh == 0 || nOutputCh == 0) && nElements > 0) {
+                RawMpeNullApplyIssue issue;
+                issue.kind = RawMpeNullApplyIssueKind::ZeroChannelMpe;
+                issue.tagSig = tag.signature;
+                issue.typeSig = type;
+                issue.inputChannels = nInputCh;
+                issue.outputChannels = nOutputCh;
+                issue.procElementCount = nElements;
+                issues.push_back(issue);
+                if (issues.size() >= maxIssues) return issues;
+            }
+        }
+    }
+
+    return issues;
+}
+
+enum class RawCurveElementIssueKind : uint8_t {
+    OversizedSampleCount,
+    SegmentedCurveTruncation,
+};
+
+struct RawCurveElementIssue {
+    RawCurveElementIssueKind kind = RawCurveElementIssueKind::OversizedSampleCount;
+    uint32_t elementSig = 0;
+    uint64_t fileOffset = 0;
+    uint32_t count = 0;
+    uint64_t allocBytes = 0;
+    uint64_t requiredBytes = 0;
+    uint64_t remainingBytes = 0;
+};
+
+inline const char* curveElementName(uint32_t sig) {
+    switch (sig) {
+        case 0x736E6766u: return "SingleSampledCurve";      // 'sngf'
+        case 0x73616D66u: return "SampledCurveSegment";     // 'samf'
+        case 0x636C6366u: return "SampledCalculatorCurve";  // 'clcf'
+        case 0x63757266u: return "SegmentedCurve";          // 'curf'
+        default: return "CurveElement";
+    }
+}
+
+inline const char* curveElementFixRef(const RawCurveElementIssue& issue) {
+    switch (issue.elementSig) {
+        case 0x736E6766u: return "IccMpeBasic.cpp:1638, CFL-021";
+        case 0x73616D66u: return "IccMpeBasic.cpp:1070";
+        case 0x636C6366u: return "IccMpeBasic.cpp:2446";
+        case 0x63757266u: return "IccMpeBasic.cpp:2779, CFL-064";
+        default: return "iccDEV sampled-curve parsing path";
+    }
+}
+
+inline std::string formatRawCurveElementIssue(const RawCurveElementIssue& issue) {
+    if (issue.kind == RawCurveElementIssueKind::SegmentedCurveTruncation) {
+        return sfmt("SegmentedCurve at offset 0x%llX: nSegments=%u needs %llu bytes minimum, only %llu available",
+                    static_cast<unsigned long long>(issue.fileOffset),
+                    static_cast<unsigned>(issue.count),
+                    static_cast<unsigned long long>(issue.requiredBytes),
+                    static_cast<unsigned long long>(issue.remainingBytes));
+    }
+
+    return sfmt("%s at offset 0x%llX: nCount=%u -> %.1f GB allocation (file has %llu bytes remaining)",
+                curveElementName(issue.elementSig),
+                static_cast<unsigned long long>(issue.fileOffset),
+                static_cast<unsigned>(issue.count),
+                static_cast<double>(issue.allocBytes) / (1024.0 * 1024.0 * 1024.0),
+                static_cast<unsigned long long>(issue.remainingBytes));
+}
+
+inline std::string curveElementIssueCweNote(const RawCurveElementIssue& issue) {
+    if (issue.kind == RawCurveElementIssueKind::SegmentedCurveTruncation) {
+        return sfmt("CWE-191: Unsigned underflow in CIccSegmentedCurve::Read() "
+                    "size-(pos-startPos) at %s",
+                    curveElementFixRef(issue));
+    }
+
+    return sfmt("CWE-770: Allocation without limits — OOM abort (%s)",
+                curveElementFixRef(issue));
+}
+
+inline std::vector<RawCurveElementIssue>
+scanRawCurveElementIssues(const ProfileView& pv, size_t maxIssues = 8) {
+    std::vector<RawCurveElementIssue> issues;
+    const uint8_t* data = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!data || len < 12) return issues;
+
+    for (size_t off = 0; off + 11 < len; ++off) {
+        uint32_t sig = readU32BE(data + off);
+
+        if (sig == 0x63757266u) { // 'curf'
+            uint16_t nSeg = readU16BE(data + off + 8);
+            if (!nSeg) continue;
+
+            uint64_t bpBytes = nSeg > 1 ? (static_cast<uint64_t>(nSeg) - 1ull) * 4ull : 0ull;
+            uint64_t segMin = static_cast<uint64_t>(nSeg) * 12ull;
+            uint64_t totalMin = 12ull + bpBytes + segMin;
+            uint64_t remaining = static_cast<uint64_t>(len) - static_cast<uint64_t>(off);
+            if (totalMin > remaining) {
+                RawCurveElementIssue issue;
+                issue.kind = RawCurveElementIssueKind::SegmentedCurveTruncation;
+                issue.elementSig = sig;
+                issue.fileOffset = off;
+                issue.count = nSeg;
+                issue.requiredBytes = totalMin;
+                issue.remainingBytes = remaining;
+                issues.push_back(issue);
+                if (issues.size() >= maxIssues) return issues;
+            }
+            continue;
+        }
+
+        if (sig != 0x736E6766u && // 'sngf'
+            sig != 0x73616D66u && // 'samf'
+            sig != 0x636C6366u) { // 'clcf'
+            continue;
+        }
+
+        uint32_t nCount = readU32BE(data + off + 8);
+        uint64_t allocBytes = static_cast<uint64_t>(nCount) * 4ull;
+        uint64_t remaining = static_cast<uint64_t>(len) - static_cast<uint64_t>(off) - 12ull;
+        if (allocBytes > 256ull * 1024ull * 1024ull ||
+            allocBytes > remaining * 64ull) {
+            RawCurveElementIssue issue;
+            issue.kind = RawCurveElementIssueKind::OversizedSampleCount;
+            issue.elementSig = sig;
+            issue.fileOffset = off;
+            issue.count = nCount;
+            issue.allocBytes = allocBytes;
+            issue.remainingBytes = remaining;
+            issues.push_back(issue);
+            if (issues.size() >= maxIssues) return issues;
+        }
+    }
+
+    return issues;
+}
+
+enum class RawSpectralMpeIssueKind : uint8_t {
+    MatrixZeroChannels,
+    MatrixExcessiveChannels,
+    DescribeRowOverflow,
+    DescribeStrideMismatch,
+    MatrixPayloadTooShort,
+    ClutZeroChannels,
+    ObserverZeroChannels,
+};
+
+struct RawSpectralMpeIssue {
+    RawSpectralMpeIssueKind kind = RawSpectralMpeIssueKind::MatrixZeroChannels;
+    uint32_t tagSig = 0;
+    uint32_t elemSig = 0;
+    uint32_t entryIndex = 0;
+    uint32_t elementOffset = 0;
+    uint32_t elementSize = 0;
+    uint16_t inputChannels = 0;
+    uint16_t outputChannels = 0;
+    uint16_t steps = 0;
+    uint64_t minPayloadBytes = 0;
+};
+
+struct RawSpectralMpeScanResult {
+    uint32_t spectralElementCount = 0;
+    std::vector<RawSpectralMpeIssue> issues;
+};
+
+inline bool rawRangeAccessible(uint64_t totalSize, uint64_t offset, uint64_t need) {
+    return offset <= totalSize && need <= (totalSize - offset);
+}
+
+inline const char* spectralElementName(uint32_t sig) {
+    switch (sig) {
+        case 0x656d7478u: return "EmissionMatrix";    // 'emtx'
+        case 0x69656d78u: return "InvEmissionMatrix"; // 'iemx'
+        case 0x65636c74u: return "EmissionCLUT";      // 'eclt'
+        case 0x72636c74u: return "ReflectanceCLUT";   // 'rclt'
+        case 0x656f6273u: return "EmissionObserver";  // 'eobs'
+        case 0x726f6273u: return "ReflectanceObserver"; // 'robs'
+        default: return "SpectralElement";
+    }
+}
+
+inline std::string formatRawSpectralMpeIssue(const RawSpectralMpeIssue& issue) {
+    switch (issue.kind) {
+        case RawSpectralMpeIssueKind::MatrixZeroChannels:
+            return sfmt("HEURISTIC: %s in tag '%s' entry %u has zero channels (in=%u, out=%u) — ICC.2-2023 §10.2.4",
+                        spectralElementName(issue.elemSig),
+                        sigStr(issue.tagSig).c_str(),
+                        issue.entryIndex,
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.outputChannels));
+        case RawSpectralMpeIssueKind::MatrixExcessiveChannels:
+            return sfmt("HEURISTIC: %s in tag '%s' entry %u uses excessive channels (in=%u, out=%u) — ICC.2-2023 §10.2.4",
+                        spectralElementName(issue.elemSig),
+                        sigStr(issue.tagSig).c_str(),
+                        issue.entryIndex,
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.outputChannels));
+        case RawSpectralMpeIssueKind::DescribeRowOverflow:
+            return sfmt("HEURISTIC: EmissionMatrix out(%u) > in(%u) — Describe() iterates %u rows but allocation has %u — ICC.2-2023 §10.2.4",
+                        static_cast<unsigned>(issue.outputChannels),
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.outputChannels),
+                        static_cast<unsigned>(issue.inputChannels));
+        case RawSpectralMpeIssueKind::DescribeStrideMismatch:
+            return sfmt("HEURISTIC: SpectralMatrix in(%u) != steps(%u) — Describe() pointer advance mismatch — ICC.2-2023 §10.2.4",
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.steps));
+        case RawSpectralMpeIssueKind::MatrixPayloadTooShort:
+            return sfmt("HEURISTIC: %s in tag '%s' entry %u is truncated: size=%u, need>=%llu for white+matrix payload — ICC.2-2023 §10.2.4",
+                        spectralElementName(issue.elemSig),
+                        sigStr(issue.tagSig).c_str(),
+                        issue.entryIndex,
+                        issue.elementSize,
+                        static_cast<unsigned long long>(issue.minPayloadBytes));
+        case RawSpectralMpeIssueKind::ClutZeroChannels:
+            return sfmt("HEURISTIC: %s in tag '%s' entry %u has zero channels (in=%u, out=%u) — ICC.2-2023 §10.2.5",
+                        spectralElementName(issue.elemSig),
+                        sigStr(issue.tagSig).c_str(),
+                        issue.entryIndex,
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.outputChannels));
+        case RawSpectralMpeIssueKind::ObserverZeroChannels:
+            return sfmt("HEURISTIC: %s in tag '%s' entry %u has zero channels (in=%u, out=%u) — ICC.2-2023 §10.2.6",
+                        spectralElementName(issue.elemSig),
+                        sigStr(issue.tagSig).c_str(),
+                        issue.entryIndex,
+                        static_cast<unsigned>(issue.inputChannels),
+                        static_cast<unsigned>(issue.outputChannels));
+    }
+
+    return sfmt("HEURISTIC: spectral MPE issue in tag '%s' entry %u",
+                sigStr(issue.tagSig).c_str(),
+                issue.entryIndex);
+}
+
+inline std::string spectralMpeIssueCweNote(const RawSpectralMpeIssue& issue) {
+    switch (issue.kind) {
+        case RawSpectralMpeIssueKind::DescribeRowOverflow:
+            return "CWE-122: Heap-based Buffer Overflow in CIccMpeSpectralMatrix::Describe() (CFL-006)";
+        case RawSpectralMpeIssueKind::DescribeStrideMismatch:
+            return "CWE-125: Out-of-bounds Read via spectral matrix pointer drift in Describe()";
+        case RawSpectralMpeIssueKind::MatrixPayloadTooShort:
+            return "CWE-476: Spectral Describe() null/short-read guard required after truncated payload (CFL-056)";
+        case RawSpectralMpeIssueKind::MatrixZeroChannels:
+        case RawSpectralMpeIssueKind::MatrixExcessiveChannels:
+        case RawSpectralMpeIssueKind::ClutZeroChannels:
+        case RawSpectralMpeIssueKind::ObserverZeroChannels:
+            return "CWE-682: Incorrect Calculation / invalid spectral element channel topology";
+    }
+
+    return {};
+}
+
+inline RawSpectralMpeScanResult
+scanRawSpectralMpeIssues(const ProfileView& pv, size_t maxIssues = 8) {
+    RawSpectralMpeScanResult result;
+    const uint8_t* data = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!data || len < 16) return result;
+
+    constexpr uint32_t kMpeType = 0x6D706574u; // 'mpet'
+    constexpr uint32_t kMpeHeaderSize = 16u;
+    constexpr uint32_t kPositionSize = 8u;
+    constexpr uint32_t kEmissionMatrix = 0x656d7478u;    // 'emtx'
+    constexpr uint32_t kInvEmissionMatrix = 0x69656d78u; // 'iemx'
+    constexpr uint32_t kEmissionClut = 0x65636c74u;      // 'eclt'
+    constexpr uint32_t kReflectanceClut = 0x72636c74u;   // 'rclt'
+    constexpr uint32_t kEmissionObserver = 0x656f6273u;  // 'eobs'
+    constexpr uint32_t kReflectanceObserver = 0x726f6273u; // 'robs'
+    constexpr uint32_t kSpectralMatrixHeaderSize = 20u;
+    constexpr uint32_t kSpectralClutHeaderSize = 36u;
+    constexpr uint32_t kSpectralObserverHeaderSize = 20u;
+
+    auto push_issue = [&](const RawSpectralMpeIssue& issue) {
+        if (result.issues.size() < maxIssues) {
+            result.issues.push_back(issue);
+        }
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        uint64_t tagStart = static_cast<uint64_t>(tag.offset);
+        uint64_t tagSize = static_cast<uint64_t>(tag.size);
+        if (tagSize < kMpeHeaderSize) continue;
+        if (!rawRangeAccessible(len, tagStart, kMpeHeaderSize)) continue;
+        if (readU32BE(data + tag.offset) != kMpeType) continue;
+
+        uint32_t nElements = readU32BE(data + tag.offset + 12);
+        uint64_t availableSlots = tagSize > kMpeHeaderSize
+            ? (tagSize - kMpeHeaderSize) / kPositionSize
+            : 0ull;
+        uint32_t scanCount = nElements;
+        if (static_cast<uint64_t>(scanCount) > availableSlots) {
+            scanCount = static_cast<uint32_t>(availableSlots);
+        }
+        if (scanCount > 4096u) scanCount = 4096u;
+
+        for (uint32_t i = 0; i < scanCount; ++i) {
+            uint64_t posOff = tagStart + kMpeHeaderSize + static_cast<uint64_t>(i) * kPositionSize;
+            if (!rawRangeAccessible(len, posOff, kPositionSize)) break;
+
+            uint32_t elemOff = readU32BE(data + posOff);
+            uint32_t elemSize = readU32BE(data + posOff + 4);
+            uint64_t elemEnd = static_cast<uint64_t>(elemOff) + static_cast<uint64_t>(elemSize);
+            if (elemEnd > tagSize || elemEnd < elemOff) continue;
+
+            uint64_t elemFileOff = tagStart + static_cast<uint64_t>(elemOff);
+            if (!rawRangeAccessible(len, elemFileOff, 4)) continue;
+            uint32_t elemSig = readU32BE(data + elemFileOff);
+
+            bool isSpectralMatrix = elemSig == kEmissionMatrix || elemSig == kInvEmissionMatrix;
+            bool isSpectralClut = elemSig == kEmissionClut || elemSig == kReflectanceClut;
+            bool isSpectralObserver = elemSig == kEmissionObserver || elemSig == kReflectanceObserver;
+            if (!isSpectralMatrix && !isSpectralClut && !isSpectralObserver) {
+                continue;
+            }
+
+            result.spectralElementCount++;
+
+            if (isSpectralMatrix) {
+                if (!rawRangeAccessible(len, elemFileOff, kSpectralMatrixHeaderSize)) continue;
+
+                uint16_t inCh = readU16BE(data + elemFileOff + 8);
+                uint16_t outCh = readU16BE(data + elemFileOff + 10);
+                uint16_t steps = readU16BE(data + elemFileOff + 16);
+
+                if (inCh == 0 || outCh == 0) {
+                    push_issue({RawSpectralMpeIssueKind::MatrixZeroChannels, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+                if (inCh > 256 || outCh > 256) {
+                    push_issue({RawSpectralMpeIssueKind::MatrixExcessiveChannels, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+                if (elemSig == kEmissionMatrix && outCh > inCh) {
+                    push_issue({RawSpectralMpeIssueKind::DescribeRowOverflow, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+                if (inCh != steps) {
+                    push_issue({RawSpectralMpeIssueKind::DescribeStrideMismatch, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+
+                uint16_t numVectors = elemSig == kEmissionMatrix ? inCh : outCh;
+                uint64_t minPayload = static_cast<uint64_t>(kSpectralMatrixHeaderSize) +
+                    static_cast<uint64_t>(steps) * 4ull +
+                    static_cast<uint64_t>(numVectors) * static_cast<uint64_t>(steps) * 4ull;
+                if (elemSize < minPayload) {
+                    push_issue({RawSpectralMpeIssueKind::MatrixPayloadTooShort, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, minPayload});
+                }
+                continue;
+            }
+
+            if (isSpectralClut) {
+                if (!rawRangeAccessible(len, elemFileOff, kSpectralClutHeaderSize)) continue;
+                uint16_t inCh = readU16BE(data + elemFileOff + 8);
+                uint16_t outCh = readU16BE(data + elemFileOff + 10);
+                uint16_t steps = readU16BE(data + elemFileOff + 18);
+                if (inCh == 0 || outCh == 0) {
+                    push_issue({RawSpectralMpeIssueKind::ClutZeroChannels, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+                continue;
+            }
+
+            if (isSpectralObserver) {
+                if (!rawRangeAccessible(len, elemFileOff, kSpectralObserverHeaderSize)) continue;
+                uint16_t inCh = readU16BE(data + elemFileOff + 8);
+                uint16_t outCh = readU16BE(data + elemFileOff + 10);
+                uint16_t steps = readU16BE(data + elemFileOff + 16);
+                if (inCh == 0 || outCh == 0) {
+                    push_issue({RawSpectralMpeIssueKind::ObserverZeroChannels, tag.signature, elemSig,
+                                i, elemOff, elemSize, inCh, outCh, steps, 0});
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 // ── Signature constants ──
 
 constexpr uint32_t kIccMagic = 0x61637370; // 'acsp'

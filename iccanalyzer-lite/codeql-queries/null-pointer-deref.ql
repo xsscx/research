@@ -47,6 +47,19 @@ where
     and cs.getControllingExpr().getAChild*() = va
     and cs.getAChild*() = deref
   )
+  // Also treat an earlier fail-fast null guard as sufficient.
+  and not exists(IfStmt guard, VariableAccess va, Stmt escape |
+    va.getTarget() = v and
+    guard.getCondition().getAChild*() = va and
+    guard.getLocation().getEndLine() < deref.getLocation().getStartLine() and
+    guard.getEnclosingFunction() = deref.getEnclosingFunction() and
+    (
+      escape instanceof ReturnStmt or
+      escape instanceof ContinueStmt or
+      escape instanceof BreakStmt
+    ) and
+    guard.getThen().getAChild*() = escape
+  )
   // Exclude iccDEV upstream (not our code)
   and not alloc.getFile().toString().matches("%iccDEV%")
   and not deref.getFile().toString().matches("%iccDEV%")

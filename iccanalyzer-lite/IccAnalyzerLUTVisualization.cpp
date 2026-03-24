@@ -58,6 +58,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <fcntl.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <climits>
 
@@ -89,6 +90,36 @@ static inline bool SafeMulSz4(size_t a, size_t b, size_t c, size_t d, size_t &re
   size_t tmp = 0;
   if (!SafeMulSz3(a, b, c, tmp)) return false;
   return SafeMulSz(tmp, d, result);
+}
+
+static bool ResolveWritablePath(const std::string &path, std::string &resolvedPath) {
+  if (path.empty() || path.size() >= PATH_MAX || path.find('\0') != std::string::npos) {
+    return false;
+  }
+
+  char pathCopy[PATH_MAX];
+  std::strncpy(pathCopy, path.c_str(), PATH_MAX - 1);
+  pathCopy[PATH_MAX - 1] = '\0';
+  char *dir = dirname(pathCopy);
+  if (!dir) return false;
+
+  char resolvedDir[PATH_MAX];
+  if (!realpath(dir, resolvedDir)) return false;
+
+  char pathCopy2[PATH_MAX];
+  std::strncpy(pathCopy2, path.c_str(), PATH_MAX - 1);
+  pathCopy2[PATH_MAX - 1] = '\0';
+  char *base = basename(pathCopy2);
+  if (!base || !base[0] || std::strcmp(base, ".") == 0 || std::strcmp(base, "..") == 0) {
+    return false;
+  }
+
+  char resolvedBuf[PATH_MAX];
+  int n = std::snprintf(resolvedBuf, PATH_MAX, "%s/%s", resolvedDir, base);
+  if (n < 0 || n >= PATH_MAX) return false;
+
+  resolvedPath.assign(resolvedBuf);
+  return true;
 }
 
 // ============================================================================
@@ -145,7 +176,11 @@ public:
   bool Open(const std::string &path) {
     if (m_out.is_open()) m_out.close();
     m_groupLevel = 0;
-    m_out.open(path);
+    std::string resolvedPath;
+    if (!ResolveWritablePath(path, resolvedPath)) {
+      return false;
+    }
+    m_out.open(resolvedPath);
     return m_out.is_open();
   }
 
@@ -439,16 +474,22 @@ static void ShiftTIFFLab16(uint16_t *in, size_t count) {
 static bool WriteTIFF(const char *name, float dpi, int colorModel,
                       uint8_t *buffer, size_t width, size_t height,
                       int channels, int depth) {
+  std::string resolvedPath;
+  if (!name || !ResolveWritablePath(name, resolvedPath)) {
+    fprintf(stderr, "[LUTViz] Invalid output path: %s\n", name ? name : "(null)");
+    return false;
+  }
+
   // Secure file open (owner rw only)
-  int fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP);
+  int fd = open(resolvedPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP);
   if (fd < 0) {
-    fprintf(stderr, "[LUTViz] Could not create output file: %s\n", name);
+    fprintf(stderr, "[LUTViz] Could not create output file: %s\n", resolvedPath.c_str());
     return false;
   }
   FILE *out = fdopen(fd, "wb");
   if (!out) {
     close(fd);
-    fprintf(stderr, "[LUTViz] fdopen failed for: %s\n", name);
+    fprintf(stderr, "[LUTViz] fdopen failed for: %s\n", resolvedPath.c_str());
     return false;
   }
 
