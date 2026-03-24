@@ -1,0 +1,37 @@
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -562,6 +562,7 @@
+   m_useBPC = false;
+   m_useHToS = false;
+   m_useV5SubProfile = false;
++  m_useEmbedded = false;
+   m_interpolation = icInterpTetrahedral;
+ }
+ 
+@@ -593,7 +594,7 @@
+ 
+ static const char* icGetRenderingIntentName(int nIntent)
+ {
+-  if (nIntent >= icPerceptual && nIntent <= icAbsolute)
++  if (nIntent >= static_cast<int>(icPerceptual) && nIntent <= static_cast<int>(icAbsolute))
+     return icIntentNames[nIntent];
+ 
+   return "unknown";
+@@ -1387,7 +1388,7 @@
+   }
+ 
+   InputData.getline(tempBuf, tempBufSize);
+-  sscanf(tempBuf, "%s", tempBuf);
++  sscanf(tempBuf, "%19999s", tempBuf);
+ 
+   //Setup source encoding
+   m_encoding = CIccCmm::GetFloatColorEncoding(tempBuf);
+@@ -2060,7 +2061,7 @@
+   fprintf(f, "BEGIN_DATA_FORMAT\n");
+   fprintf(f, "%s\n", dataFormat.c_str());
+   fprintf(f, "END_DATA_FORMAT\n");
+-  fprintf(f, "NUMBER_OF_SETS\t%u\n", (int)m_data.size());
++  fprintf(f, "NUMBER_OF_SETS\t%d\n", (int)m_data.size());
+ 
+   CIccCfgDataEntry blank;
+   const size_t bufSize = 256;

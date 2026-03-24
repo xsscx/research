@@ -1,0 +1,29 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -2250,7 +2250,7 @@
+     snprintf(buf, bufSize, "%.8f,", m_lastEntry);
+     sDescription += buf;
+ 
+-    snprintf(buf, bufSize, "%d", m_nDesiredSize);
++    snprintf(buf, bufSize, "%u", m_nDesiredSize);
+     sDescription += buf;
+ 
+     snprintf(buf, bufSize, "]\r\n");
+@@ -2265,7 +2265,7 @@
+     snprintf(buf, bufSize, "%.8f,", m_lastEntry);
+     sDescription += buf;
+ 
+-    snprintf(buf, bufSize, "%d", m_nDesiredSize);
++    snprintf(buf, bufSize, "%u", m_nDesiredSize);
+     sDescription += buf;
+ 
+     snprintf(buf, bufSize, "]\r\n");
+@@ -5463,7 +5463,7 @@
+ }
+ 
+ // this isn't used yet, but want to have it ready
+-static icFloatNumber RealUnitClip(icFloatNumber v)
++[[maybe_unused]] static icFloatNumber RealUnitClip(icFloatNumber v)
+ {
+   if (std::isnan(v))
+     return icFloatNumber(0);

@@ -1,0 +1,96 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -937,6 +937,8 @@
+   m_startPoint = curve.m_startPoint;
+   m_endPoint = curve.m_endPoint;
+   m_nCount = curve.m_nCount;
++  m_range = curve.m_range;
++  m_last = curve.m_last;
+ 
+   if (m_nCount) {
+     m_pSamples = (icFloatNumber*)malloc(m_nCount * sizeof(icFloatNumber));
+@@ -1344,6 +1346,7 @@
+   m_firstEntry = curve.m_firstEntry;
+   m_lastEntry = curve.m_lastEntry;
+   m_range = m_lastEntry - m_firstEntry;
++  m_last = curve.m_last;
+ 
+   m_loIntercept = curve.m_loIntercept;
+   m_loSlope = curve.m_loSlope;
+@@ -1388,6 +1391,8 @@
+ 
+   m_firstEntry = curve.m_firstEntry;
+   m_lastEntry = curve.m_lastEntry;
++  m_range = curve.m_range;
++  m_last = curve.m_last;
+ 
+   m_loIntercept = curve.m_loIntercept;
+   m_loSlope = curve.m_loSlope;
+@@ -1969,12 +1974,15 @@
+ 
+   m_nCount = curve.m_nCount;
+ 
++  m_storageType = curve.m_storageType;
+   m_extensionType = curve.m_extensionType;
+ 
+   m_nDesiredSize = curve.m_nDesiredSize;
+ 
+   if (curve.m_pCalc)
+     m_pCalc = curve.m_pCalc->NewCopy();
++  else
++    m_pCalc = NULL;
+ 
+   if (m_nCount) {
+     m_pSamples = (icFloatNumber*)malloc(m_nCount * sizeof(icFloatNumber));
+@@ -1989,6 +1997,8 @@
+ 
+   m_firstEntry = curve.m_firstEntry;
+   m_lastEntry = curve.m_lastEntry;
++  m_range = curve.m_range;
++  m_last = curve.m_last;
+ 
+   m_loIntercept = curve.m_loIntercept;
+   m_loSlope = curve.m_loSlope;
+@@ -2024,6 +2034,7 @@
+ 
+   m_nDesiredSize = curve.m_nDesiredSize;
+ 
++  m_storageType = curve.m_storageType;
+   m_extensionType = curve.m_extensionType;
+ 
+   if (curve.m_pCalc)
+@@ -2042,6 +2053,8 @@
+ 
+   m_firstEntry = curve.m_firstEntry;
+   m_lastEntry = curve.m_lastEntry;
++  m_range = curve.m_range;
++  m_last = curve.m_last;
+ 
+   m_loIntercept = curve.m_loIntercept;
+   m_loSlope = curve.m_loSlope;
+@@ -4947,7 +4960,8 @@
+   else
+     m_pConstants = NULL;
+ 
+-  m_bApplyConstants = true;
++  m_bApplyConstants = matrix.m_bApplyConstants;
++  m_type = matrix.m_type;
+ }
+ 
+ /**
+@@ -4993,6 +5007,7 @@
+   else
+     m_pConstants = NULL;
+ 
++  m_type = matrix.m_type;
+   m_bApplyConstants = matrix.m_bApplyConstants;
+ 
+   return *this;
+@@ -5522,6 +5537,7 @@
+   m_nReserved = clut.m_nReserved;
+   m_nInputChannels = clut.m_nInputChannels;
+   m_nOutputChannels = clut.m_nOutputChannels;
++  m_interpType = clut.m_interpType;
+ 
+   return *this;
+ }
