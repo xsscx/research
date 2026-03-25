@@ -2,7 +2,9 @@
 
 **Profile**: `test-profiles/sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc`
 **File Size**: 3196 bytes
-**Date**: 2026-03-04T17:03:19Z
+**SHA-256**: `457786e2c96ba0e88a4fe78ce7a15be0a16c9f4754031a398eba7c745e5eebb5`
+**File Type**: data
+**Date**: 2026-03-25T02:25:08Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -12,8 +14,10 @@
 | `-a` (comprehensive) | 1 | Finding detected |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 2 | Error |
+| `-xt` (LUT text export) | 2 | Error |
+| `-cube` (cube export) | 1 | No 3D CLUT |
 
-**ASAN/UBSAN**: [CRITICAL] 1 sanitizer error(s) detected
+**ASAN/UBSAN**: No sanitizer errors detected
 
 ---
 
@@ -22,218 +26,35 @@
 **Exit Code: 1**
 
 ```
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x00000000 (Unknown)
-ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: ColorSpace signature: 0x00000000 (Unknown)
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x00000000 (Unknown)
-ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: ColorSpace signature: 0x00000000 (Unknown)
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x04ff0100 (Unknown)
-ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: ColorSpace signature: 0x04ff0100 (Unknown)
-iccDEV/IccProfLib/IccSignatureUtils.h:403:19: runtime error: implicit conversion from type 'icUInt32Number' (aka 'unsigned int') of value 255 (32-bit, unsigned) to type 'char' changed the value to -1 (8-bit, signed)
-    #0 0x63e951d5058f in DescribeColorSpaceSignature(unsigned int) /home/h02332/po/research/iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h:403:19
-    #1 0x63e951c9f467 in HeuristicAnalyze(char const*, char const*) /home/h02332/po/research/iccanalyzer-lite/IccAnalyzerSecurity.cpp:322:40
-    #2 0x63e951c45db9 in ComprehensiveAnalyze(char const*, char const*) /home/h02332/po/research/iccanalyzer-lite/IccAnalyzerComprehensive.cpp:78:24
-    #3 0x63e951d7c3a6 in main::$_2::operator()() const /home/h02332/po/research/iccanalyzer-lite/iccAnalyzer-lite.cpp:243:65
-    #4 0x63e951d7b09c in int RecoverableRun<main::$_2>(char const*, main::$_2) /home/h02332/po/research/iccanalyzer-lite/iccAnalyzer-lite.cpp:180:16
-    #5 0x63e951d77018 in main /home/h02332/po/research/iccanalyzer-lite/iccAnalyzer-lite.cpp:243:12
-    #6 0x70b841a2a1c9 in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
-    #7 0x70b841a2a28a in __libc_start_main csu/../csu/libc-start.c:360:3
-    #8 0x63e951a352c4 in _start (/home/h02332/po/research/iccanalyzer-lite/iccanalyzer-lite+0x4b72c4) (BuildId: 1b9e631bea467462fa616b9e0cac3a1f3f6ae853)
-
-SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior iccDEV/IccProfLib/IccSignatureUtils.h:403:19 
 
 =======================================================================
-  ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
+  ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
 File: /home/h02332/po/research/test-profiles/sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc
 
+[H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
+      [WARN]  HEURISTIC: 4/6 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
+       CWE-190: sig<<=8 on uint32 with first byte non-zero produces value > UINT32_MAX (upstream iccDEV library pattern)
+
+[H174] Half-Float Conversion Unsigned Underflow (IccUtil.cpp icF16toF)
+      [WARN]  HEURISTIC: 2 half-float value(s) would trigger UBSAN unsigned-wrap in icF16toF() — IccUtil.cpp:665,677 / IccIO.cpp:328
+       CWE-190: exponent rebias uses unsigned subtraction for non-zero half-floats with exponent < 15 (values below 1.0)
+      header spectralRange.start raw=0x323A at file+0x68
+      header spectralRange.end raw=0x32D8 at file+0x6A
+
+[DEFENSE] H174 half-float fingerprint reaches upstream validation paths — skipping Validate() phase but continuing with safe deep conformance checks
 =======================================================================
-PHASE 1: SECURITY HEURISTIC ANALYSIS
-=======================================================================
-
-
-=========================================================================
-|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
-=========================================================================
-
-File: /home/h02332/po/research/test-profiles/sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc
-
-=======================================================================
-HEADER VALIDATION HEURISTICS
-=======================================================================
-
-[H1] Profile Size: 2356 bytes (0x00000934)  [actual file: 3196 bytes]
-     [OK] Size within normal range
-
-[H2] Magic Bytes (offset 0x24): 51 00 00 61 (Q..a)
-     [WARN]  HEURISTIC: Invalid magic bytes (expected "acsp")
-     Risk: Not a valid ICC profile, possible format confusion attack
-
-[H3] Data ColorSpace: 0x00000000 (....)
-     [WARN]  HEURISTIC: Invalid/null colorSpace signature
-     Risk: Enum confusion, undefined behavior
-     Name: Unknown  Bytes: ''
-
-[H4] PCS ColorSpace: 0x04FF0100 (....)
-     [WARN]  HEURISTIC: Invalid PCS signature (must be Lab, XYZ, or spectral)
-     Risk: Colorimetric transform failures
-     Name: Unknown  Bytes: '�'
-
-[H5] Platform: 0x636E6300 (cnc.)
-     [WARN]  HEURISTIC: Unknown platform signature
-     Risk: Platform-specific code path exploitation
-
-[H6] Rendering Intent: 1879048289 (0x70000061)
-     [WARN]  HEURISTIC: Invalid rendering intent (> 3)
-     Risk: Out-of-bounds enum access
-
-[H7] Profile Class: 0x00000001 (....)
-     [OK] Known class: Unknown '????' = 00000001
-
-[H8] Illuminant XYZ: (0.000000, 256.033386, 30976.234375)
-     [WARN]  HEURISTIC: Illuminant values > 5.0 (suspicious)
-     Risk: Floating-point overflow in transforms
-
-[H15] Date Validation: 61695-255-65535 14315:56847:45408
-      [WARN]  HEURISTIC: Invalid month: 255
-      [WARN]  HEURISTIC: Invalid day: 65535
-      [WARN]  HEURISTIC: Invalid hours: 14315
-      [WARN]  HEURISTIC: Invalid minutes: 56847
-      [WARN]  HEURISTIC: Invalid seconds: 45408
-      [WARN]  HEURISTIC: Suspicious year: 61695 (expected 1900-2100)
-      Risk: Malformed date may indicate crafted/corrupted profile
-
-[H16] Signature Pattern Analysis
-      [OK] No suspicious signature patterns detected
-
-[H17] Spectral Range Validation
-      Spectral: start=0.19nm end=0.21nm steps=45056
-      [WARN]  HEURISTIC: Excessive spectral steps: 45056
-      BiSpectral: start=0.00nm end=0.00nm steps=22166
-      [WARN]  HEURISTIC: Excessive bispectral steps: 22166
-
-=======================================================================
-[SKIP] Profile too malformed for library analysis (9 warnings, 0 tags)
-       Library-API heuristics skipped to avoid crash/hang
-       Use -n (ninja mode) for byte-level raw analysis
+PHASE 1: ICC SPECIFICATION CONFORMANCE
 =======================================================================
 
-=======================================================================
-RAW-FILE ANALYSIS ENGINE (library load failed)
-=======================================================================
+[NOT RUN] Library validation not run — half-float fields would hit upstream icF16toF UB during Validate()
+       Deep conformance checks will continue using analyzer-owned safe conversions
 
-[H10] Tag Count: 0 (raw)
-      [WARN]  Zero tags — empty or severely malformed profile
-[H13] Per-Tag Size Check (raw)
-      [OK] All tag sizes within file bounds
-[H25] Tag Offset/Size Out-of-Bounds Detection (raw)
-      [OK] All tag offsets within file bounds
-[H28] LUT Dimension Validation (raw)
-      [OK] No LUT dimension issues
-[H32] Tag Data Type Confusion Detection (raw)
-      [OK] All tag type signatures are printable ICC 4CC codes
-
-[H33] mBA/mAB Sub-Element Offset Validation
-      [OK] All mBA/mAB sub-element offsets within tag bounds
-
-[H34] 32-bit Integer Overflow in Sub-Element Bounds
-      [OK] No 32-bit integer overflow in sub-element offsets
-
-[H35] Suspicious Fill Pattern in mBA/mAB Data
-      [OK] No suspicious fill patterns in mBA/mAB data
-
-[H36] LUT Tag Pair Completeness
-      [OK] All LUT tags properly paired
-
-[H37] Calculator Element Complexity Validation
-      [OK] No calculator complexity issues
-
-[H38] Curve Degenerate Value Detection
-      [OK] No degenerate curve values detected
-
-[H39] Shared Tag Data Aliasing Detection
-      [OK] No risky shared tag data aliasing
-
-[H40] Tag Alignment & Padding Validation
-      [OK] All tags properly aligned with zero padding
-
-[H41] Version/Type Consistency Check
-      Profile version: 84.0.0
-      [OK] All tags/types consistent with declared version
-
-[H42] Matrix Singularity Detection
-      [INFO]  rXYZ/gXYZ/bXYZ tags not all present (0/3 found)
-      [OK] Color matrix is well-conditioned
-
-[H43] Spectral/BRDF Tag Structural Validation
-      [OK] Spectral/BRDF tags structurally valid
-
-[H44] Embedded Image Validation
-      [OK] Embedded images valid (or none present)
-
-[H45] Sparse Matrix Bounds Validation
-      [OK] Sparse matrix bounds valid (or none present)
-
-[H46] TextDescription Unicode Length Validation
-      [OK] TextDescription unicode lengths valid (or no desc tags)
-
-[H47] NamedColor2 Size Overflow Detection
-      [OK] NamedColor2 sizes valid (or no ncl2 tags)
-
-[H48] CLUT Grid Dimension Product Overflow
-      [OK] CLUT grid dimension products within bounds
-
-[H49] Float/s15Fixed16 NaN/Inf Detection
-      [OK] No NaN/Inf/extreme values in float/fixed-point tags
-
-[H50] Zero-Size Profile/Tag Detection (Infinite Loop)
-      [OK] No zero-size profile or tags detected
-
-[H51] LUT I/O Channel Count Consistency
-      [OK] LUT I/O channel counts within valid range
-
-[H52] Integer Underflow in Tag Size Subtraction
-      [OK] All tag sizes meet minimum requirements
-
-[H53] Embedded Profile Recursion Detection
-      [WARN]  Embedded ICC profile detected at offset 936 (size 4908412)
-       CWE-674: 1 embedded profile(s) — recursive parsing risk (UAF/stack overflow)
-
-[H54] Division-by-Zero Trigger Detection
-      [OK] No division-by-zero triggers detected
+[NOT RUN] Deep conformance checks not run — profile failed to load
 
 =======================================================================
-HEURISTIC SUMMARY
-=======================================================================
-
-[WARN]  11 HEURISTIC WARNING(S) DETECTED
-
-  This profile exhibits patterns associated with:
-  - Malformed/corrupted data
-  - Resource exhaustion attempts
-  - Enum confusion vulnerabilities
-  - Parser exploitation attempts
-  - Type confusion / buffer overflow patterns
-
-  - Sub-element offset OOB (mBA/mAB SIGBUS pattern)
-  - 32-bit integer overflow in bounds checks
-  - Suspicious fill patterns enabling OOB traversal
-
-  CVE Coverage: 54 heuristics covering patterns from 77+ iccDEV/RefIccMAX CVEs
-  Key CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow
-  H33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)
-  H37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)
-  H46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
-
-  Recommendations:
-  • Validate profile with official ICC tools
-  • Use -n (ninja mode) for detailed byte-level analysis
-  • Do NOT use in production color workflows
-  • Consider as potential security test case
-
-
-=======================================================================
-PHASE 2: ROUND-TRIP TAG VALIDATION
+PHASE 3: ROUND-TRIP TAG VALIDATION
 =======================================================================
 
 
@@ -244,12 +65,7 @@ Error reading ICC profile
 
 Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc
 Result: NOT round-trip capable
-
-=======================================================================
-PHASE 3: SIGNATURE ANALYSIS
-=======================================================================
-
-[ERROR] Profile failed to load - skipping phases 3-5
+[ERROR] Profile failed to load - skipping remaining phases
         Use -n (ninja mode) for raw analysis of malformed profiles
 ```
 
@@ -290,10 +106,28 @@ Raw file size: 3196 bytes (0xC7C)
 Header Fields (RAW - no validation):
   Profile Size:    0x00000934 (2356 bytes) MISMATCH
   CMM:             0x00000000  '....'
-  Version:         0x54006A00
+  Version:         0x54006A00  (84.0.0)
   Device Class:    0x00000001  '....'
   Color Space:     0x00000000  '....'
   PCS:             0x04FF0100  '....'
+  Date/Time:       61695-255-65535 14315:56847:45408
+  Magic:           0x51000061  [INVALID]
+  Platform:        0x636E6300  'cnc.'
+  Flags:           0x515A0000
+  Manufacturer:    0x0007EA5D  '...]'
+  Model:           0x02001100  '....'
+  Dev Attributes:  0x080026000F616373 [Transparency] [Matte]
+  Rendering Intent:0x70000061  UNKNOWN
+  PCS Illuminant:  X=0.0000 Y=256.0334 Z=30976.2344
+  Creator:         0x0000003C  '...<'
+  Profile ID:      003c01001aff00ffffff33e9ff000000
+  Reserved 100-127: NON-ZERO [VIOLATION]
+
+  --- V5/iccMAX Extended Header ---
+  Spectral PCS:    0x04FF0100  '....'
+  Spectral Range:  0.2 - 0.2 nm, 45056 steps
+  BiSpectral:      0.0 - 0.0 nm, 22166 steps
+  MCS:             0xB10F1BBC  '....'
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 0 (0x00000000)
@@ -526,4 +360,25 @@ Profile: /home/h02332/po/research/test-profiles/sbo-CIccProfile-LoadTag-IccProfi
 Error reading ICC profile
 
 Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/sbo-CIccProfile-LoadTag-IccProfile_cpp-specsep.icc
+```
+
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 2**
+
+```
+Error reading ICC profile
+Exported 0 text file(s) to /tmp/tmp.AiGbxN2GRG/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 1**
+
+```
+No 3D CLUT found in any standard LUT tag
 ```

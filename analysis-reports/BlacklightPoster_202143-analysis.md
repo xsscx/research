@@ -4,7 +4,7 @@
 **File Size**: 16680 bytes
 **SHA-256**: `4227ce8eff19f3224c74a386116ed559a610cbfbf8a2278d9dccaf925d1bfb10`
 **File Type**: ColorSync color profile 2.1, type ADBE, Lab/Lab-abst device by ADBE, 16680 bytes, 7-11-2011 2:49:01, relative colorimetric "Blacklight Poster"
-**Date**: 2026-03-19T09:12:29Z
+**Date**: 2026-03-25T02:25:00Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -28,725 +28,1232 @@
 ```
 
 =======================================================================
-  ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
+  ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
+File: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc
+
+[H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
+      [WARN]  HEURISTIC: 15/15 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
+       CWE-190: sig<<=8 on uint32 with first byte non-zero produces value > UINT32_MAX (upstream iccDEV library pattern)
+
+[H174] Half-Float Conversion Unsigned Underflow (IccUtil.cpp icF16toF)
+      [N/A] No vulnerable half-float values detected
 
 =======================================================================
-PHASE 1: SECURITY HEURISTIC ANALYSIS
+PHASE 1: ICC SPECIFICATION CONFORMANCE
 =======================================================================
-
-
-=========================================================================
-|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
-=========================================================================
-
-File: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
-
-=======================================================================
-EXTERNAL FILE METADATA
-=======================================================================
-
-  [file]
-      ColorSync color profile 2.1, type ADBE, Lab/Lab-abst device by ADBE, 16680 bytes, 7-11-2011 2:49:01, relative colorimetric "Blacklight Poster"
-
-  [exiftool]
-      ExifTool Version Number         : 12.76
-      File Name                       : BlacklightPoster_202143.icc
-      Directory                       : /home/xss/research/test-profiles
-      File Size                       : 17 kB
-      File Modification Date/Time     : 2026:03:14 15:00:55+00:00
-      File Access Date/Time           : 2026:03:19 04:36:19+00:00
-      File Inode Change Date/Time     : 2026:03:14 15:00:55+00:00
-      File Permissions                : -rw-rw-r--
-      File Type                       : ICC
-      File Type Extension             : icc
-      MIME Type                       : application/vnd.iccprofile
-      Profile CMM Type                : Adobe Systems Inc.
-      Profile Version                 : 2.1.0
-      Profile Class                   : Abstract Profile
-      Color Space Data                : Lab
-      Profile Connection Space        : Lab
-      Profile Date Time               : 2011:11:07 02:49:01
-      Profile File Signature          : acsp
-      Primary Platform                : Apple Computer Inc.
-      CMM Flags                       : Not Embedded, Independent
-      Device Manufacturer             : none
-      Device Model                    : 
-      Device Attributes               : Reflective, Glossy, Positive, Color
-      Rendering Intent                : Media-Relative Colorimetric
-      Connection Space Illuminant     : 0.9642 1 0.82491
-      Profile Creator                 : Adobe Systems Inc.
-      Profile ID                      : 0
-      Profile Description             : Blacklight Poster
-      Profile Copyright               : Copyright 2011 Adobe Systems Inc.
-      Media White Point               : 0.9642 1 0.82491
-
-  [identify]
-      Image:
-        Filename: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
-        Permissions: rw-rw-r--
-        Format: ICC (ICC Color Profile)
-        Class: DirectClass
-        Geometry: 1x1+0+0
-        Units: Undefined
-        Colorspace: sRGB
-        Type: Bilevel
-        Base type: Undefined
-        Endianness: Undefined
-        Depth: 16/1-bit
-        Channel depth:
-          red: 1-bit
-          green: 1-bit
-          blue: 1-bit
-        Channel statistics:
-          Pixels: 1
-          Red:
-            min: 65535  (1)
-            max: 65535 (1)
-            mean: 65535 (1)
-            standard deviation: 0 (0)
-            kurtosis: -3
-            skewness: 0
-            entropy: 0
-          Green:
-            min: 65535  (1)
-            max: 65535 (1)
-            mean: 65535 (1)
-            standard deviation: 0 (0)
-            kurtosis: -3
-            skewness: 0
-            entropy: 0
-          Blue:
-            min: 65535  (1)
-            max: 65535 (1)
-            mean: 65535 (1)
-            standard deviation: 0 (0)
-            kurtosis: -3
-
-  [xxd -l 128]
-      00000000: 0000 4128 4144 4245 0210 0000 6162 7374  ..A(ADBE....abst
-      00000010: 4c61 6220 4c61 6220 07db 000b 0007 0002  Lab Lab ........
-      00000020: 0031 0001 6163 7370 4150 504c 0000 0000  .1..acspAPPL....
-      00000030: 6e6f 6e65 0000 0000 0000 0000 0000 0000  none............
-      00000040: 0000 0001 0000 f6d6 0001 0000 0000 d32d  ...............-
-      00000050: 4144 4245 0000 0000 0000 0000 0000 0000  ADBE............
-      00000060: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-      00000070: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-
-  [sha256sum]
-      4227ce8eff19f3224c74a386116ed559a610cbfbf8a2278d9dccaf925d1bfb10  /home/xss/research/test-profiles/BlacklightPoster_202143.icc
-
-=======================================================================
-HEADER VALIDATION HEURISTICS
-=======================================================================
-
-[H1] Profile Size: 16680 bytes (0x00004128)  [actual file: 16680 bytes]
-     [OK] Size within normal range
-
-[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
-     [OK] Valid ICC magic signature
-
-[H3] Data ColorSpace: 0x4C616220 (Lab)
-     [OK] Valid colorSpace: LabData
-
-[H4] PCS ColorSpace: 0x4C616220 (Lab)
-     [OK] Valid PCS: LabData
-
-[H5] Platform / CMM / Manufacturer / Creator Validation
-      Platform: 0x4150504C (APPL)
-      [OK] Known platform code
-      CMM: 0x41444245 (ADBE)
-      [OK] CMM signature registered or zero
-      Manufacturer: 0x6E6F6E65 (none)
-      [OK] Manufacturer signature is printable ASCII
-      Creator: 0x41444245 (ADBE)
-      [OK] Creator signature is printable ASCII
-
-[H6] Rendering Intent: 1 (0x00000001)
-     [OK] Valid intent: Relative Colorimetric
-
-[H7] Profile Class: 0x61627374 (abst)
-     [OK] Known class: AbstractClass
-
-[H8] Illuminant XYZ: (0.964203, 1.000000, 0.824905)
-     [OK] PCS illuminant matches D50 (within s15Fixed16 tolerance)
-
-[H15] Date Validation (§4.2 dateTimeNumber): 2011-11-07 02:49:01
-      [OK] Date values within valid ranges
-
-[H16] Signature Pattern Analysis
-      [OK] No suspicious signature patterns detected
-
-[H17] Spectral Range Validation (ICC.2-2023 §7.2.22-23)
-      [OK] No spectral data (standard profile)
-
-=======================================================================
-TAG-LEVEL HEURISTICS
-=======================================================================
-
-[H9] Critical Text Tags:
-     Description: Present [OK]
-     Copyright: Present [OK]
-     Manufacturer: Missing
-     Device Model: Missing
-
-[H10] Tag Count: 4
-      [OK] Tag count within normal range
-
-[H11] CLUT Entry Limit Check
-      Max safe CLUT entries per tag: 16777216 (16M)
-      Inspected 1 CLUT tag(s)
-
-[H12] MPE Chain Depth Check
-      Max MPE elements per chain: 1024
-      [OK] No MPE tags to check
-
-[H13] Per-Tag Size Check
-      Max tag size: 64 MB (67108864 bytes)
-      [OK] All 4 tags within size limits
-
-[H14] TagArrayType Detection (UAF Risk)
-      Checking for TagArrayType (0x74617279 = 'tary')
-      Note: Tag signature ≠ tag type - must check tag DATA
-      [OK] No TagArrayType tags detected
-
-[H18] Technology Signature Validation
-      INFO: No technology tag present
-
-[H19] Tag Offset/Size Overlap Detection
-      [OK] No tag overlaps detected
-
-[H20] Tag Type Signature Validation
-      [OK] All tag type signatures are valid ASCII
-
-[H21] tagStruct Member Inspection
-      [OK] No tagStruct tags present
-
-[H22] NumArray Scalar Expectation (cept struct)
-      [OK] No cept (ColorEncodingParams) tag — check not applicable
-
-[H23] NumArray Value Range Validation
-      [OK] All NumArray values within normal ranges
-
-[H24] tagStruct/tagArray Nesting Depth
-      [OK] Max nesting depth: 0 (safe limit: 4)
-
-[H25] Tag Offset/Size Out-of-Bounds Detection
-      [OK] All tag offsets/sizes within bounds
-
-[H26] NamedColor2 String Validation
-      [OK] No NamedColor2 tags with risky strings
-
-[H27] MPE Matrix Output Channel Validation
-      [OK] All MPE matrix/calculator dimensions valid
-
-[H28] LUT Dimension Validation (OOM Risk)
-      [OK] Tag 'A2B0' (LUT8): 2x3x17 → 867 points
-      [OK] All LUT dimensions within safe limits
-
-[H29] ColorantTable String Validation
-      [OK] No ColorantTable string issues detected
-
-[H30] GamutBoundaryDesc Allocation Validation
-      [OK] No GamutBoundaryDesc allocation issues
-
-[H31] MPE Channel Count Validation
-      [OK] All MPE channel counts within safe limits
-
-[H32] Tag Data Type Confusion Detection
-      [OK] All tag type signatures are known ICC types
-
-[H56] Calculator Element Stack Depth Analysis
-      [OK] Calculator element depths within safe bounds
-
-[H58] Sparse Matrix Entry Bounds
-      [OK] No oversized array/sparse matrix entries
-
-[H60] Dictionary Tag Consistency
-      [OK] Dictionary tags consistent
-
-[H61] Viewing Conditions Validation
-      [OK] Viewing conditions plausible (or tag absent)
-
-[H62] Multi-Localized Unicode String Bombs
-      [OK] MultiLocalizedUnicode tags within bounds
-
-[H63] Curve/LUT I/O Channel Mismatch
-      [OK] LUT I/O channel counts valid
-
-[H64] NamedColor2 Device Coord Overflow
-      [OK] NamedColor2 dimensions valid (or tag absent)
-
-[H65] Chromaticity Physical Plausibility
-      [OK] Chromaticity coordinates plausible (or tag absent)
-
-[H66] Comprehensive NumArray NaN/Inf Scan
-      [OK] All numeric arrays free of NaN/Inf
-
-[H67] ResponseCurveSet Bounds
-      [OK] ResponseCurveSet bounds valid (or tag absent)
-
-[H70] Measurement Tag Validation
-      [OK] Measurement tag valid (or absent)
-
-[H71] ColorantTable Name Null-Termination
-      [OK] ColorantTable names properly terminated (or absent)
-
-[H72] SparseMatrixArray Allocation Bounds + Enum Validation
-      [OK] SparseMatrixArray allocations and types valid (or absent)
-
-[H73] TagArray/TagStruct Nesting Depth
-      [OK] No suspicious TagArray/TagStruct nesting
-
-[H74] Tag Type Signature Consistency
-      [OK] Tag type signatures consistent
-
-[H75] Tags with Very Small Size
-      [OK] All tags have sufficient minimum size
-
-[H76] CIccTagData Type Flag Validation
-      [OK] CIccTagData types valid (or absent)
-
-[H77] MPE Calculator Sub-Element Count
-      [OK] MPE calculator element counts within bounds
-
-[H78] CLUT Grid Dimension Product Overflow
-      [OK] CLUT grid dimension products within bounds
-
-[H79] LoadTag Allocation Overflow Detection
-      [OK] Tag sizes within safe allocation limits
-
-[H80] Shared Tag Pointer / Use-After-Free Pattern
-      [OK] No excessive tag pointer sharing detected
-
-[H81] MPE Calculator I/O Channel Consistency
-      [OK] MPE calculator channel counts within bounds
-
-[H82] I/O Read Size Overflow Pattern
-      [OK] Tag sizes safe for I/O bit-shift operations
-
-[H83] Float/Numeric Array Size Validation
-      [OK] Float/numeric array sizes within bounds
-
-[H84] 3D LUT Transform Channel/Grid Consistency
-      [WARN]  Tag 'AToB0Tag': CLUT input dim=2 != colorSpace channels=3
-       CWE-125: 3D LUT dimension mismatch (CVE-2026-25585)
-
-[H85] MPE Buffer Overlap Pattern Detection
-      [OK] No excessive MPE buffer overlap patterns
-
-[H86] Localized Unicode Text Bounds Validation
-      [OK] Localized Unicode text within bounds
-
-[H87] TRC Curve Anomaly Detection
-      [OK] TRC curves within bounds (or absent)
-
-[H88] Chromatic Adaptation Matrix Validation
-      [OK] No chromatic adaptation tag (standard D50)
-
-[H89] Profile Sequence Description Validation
-      [OK] Profile sequence descriptions within bounds (or absent)
-
-[H90] Preview Tag Channel Consistency
-      [OK] Preview tag channels consistent (or absent)
-
-[H91] Colorant Order Validation
-      [OK] Colorant order indices valid (or absent)
-
-[H92] Spectral Viewing Conditions Validation
-      [OK] No spectral viewing conditions tag (standard PCC)
-
-[H93] Embedded Profile Flag Consistency
-      [OK] Profile flags and attributes consistent
-
-[H94] Matrix/TRC Colorant Consistency
-      [OK] Matrix/TRC colorant consistency valid (or non-RGB)
-
-[H95] Sparse Matrix Array Bounds Validation
-      [SKIP] No sparse matrix array tags present
-
-[H96] Embedded Profile Validation
-      [SKIP] No embedded profile tag present
-
-[H97] Profile Sequence Identifier Validation
-      [SKIP] No profile sequence ID tag present
-
-[H98] Spectral MPE Element Validation
-      [SKIP] No spectral MPE elements present
-
-[H99] Embedded Image Tag Validation
-      [SKIP] No embedded image tags present
-
-[H100] Profile Sequence Description Validation
-      [SKIP] No profile sequence description tag
-
-[H101] MPE Sub-Element Channel Continuity
-      [OK] MPE sub-element channel continuity valid
-
-[H102] Tag Size vs Profile Size Cross-Check
-      Profile size: 16680 bytes, tag count: 4
-      [OK] Tag size vs profile size consistent
-
-[H146] Stack Buffer Overflow — GetValues() Size Mismatch (CWE-121)
-      [OK] No stack buffer overflow patterns detected in numeric/LUT tags
-
-[H147] Null Pointer Dereference — Post-Read() Tag State (CWE-476)
-      [OK] No null pointer patterns detected in loaded tags
-
-[H148] Memory Copy Bounds and Overlap Detection (CWE-119)
-      [OK] No memory copy overlap or bounds issues detected
-
-[H103] Profile Connection Conditions (PCC)
-      [INFO] No spectral viewing conditions tag (svcn)
-      Standard PCC: yes (D50/2deg)
-      Illuminant: 0x00000001, CCT: 5000.0, Observer: 0x00000001
-
-[H104] PRMG Gamut Evaluation
-      [INFO] No rendering intent gamut tags
-
-[H105] Matrix-TRC Validation
-      [INFO] Not an RGB profile — matrix-TRC check skipped
-
-[H106] Environment Variable Tags
-      [INFO] No environment variable or PCC transform tags
-
-[H107] LUT Channel vs Colorspace Cross-Check
-      Declared data colorspace channels: 3
-      Declared PCS channels: 3
-      [WARN]  AToB0: input channels (2) != data colorspace (3)
-       CWE-131: Channel/colorspace mismatch — buffer overflow risk
-
-[H108] Private Tag Identification
-      [OK] All tags are registered ICC signatures
-
-[H109] NOP Sled / Shellcode Pattern Scan
-      [OK] No shellcode or executable patterns detected
-
-[H110] Profile-Class Required Tag Validation
-      Profile class: Abstract (abst)
-      [OK] Profile class and required tags are consistent
-
-[H111] Reserved Byte Validation
-      [OK] All reserved header bytes are zero
-
-[H112] Wtpt Profile-Class Validation
-      wtpt: X=0.964203 Y=1.000000 Z=0.824905
-      [OK] wtpt is physically plausible
-      (Matches D50 reference illuminant)
-
-[H113] Round-Trip Fidelity Assessment
-      Perceptual intent:
-        AToB0 present (2in→3out) but BToA0 MISSING
-        [INFO] One-way transform only — no round-trip possible
-      [OK] Round-trip tag geometry is consistent
-
-[H114] TRC Curve Smoothness and Monotonicity
-      [INFO] No TRC curve tags found
-
-[H115] Characterization Data Presence
-      [INFO] No characterization data (targ) tag present
-
-[H116] cprt/desc Encoding vs Profile Version
-      Profile version: 2.1.0
-      cprt: type='text' (0x74657874)
-      [OK] cprt uses acceptable type for v2
-      desc: type='desc' (0x64657363)
-      [OK] desc uses acceptable type for v2
-
-[H117] Tag Type Allowed Per Signature
-      [OK] 3 tags checked — all use allowed types
-
-[H118] Calculator Computation Cost Estimate
-      [INFO] No MPE calculator/CLUT elements found
-
-[H119] Round-Trip ΔE Measurement
-      [INFO] No AToB/BToA CLUT pairs available for ΔE measurement
-
-[H120] Curve Invertibility Assessment
-      [INFO] No TRC curves found for invertibility check
-
-[H121] Characterization Data Round-Trip Capability
-      [INFO] No characterization data (targ) tag — cannot assess
-
-[H122] Tag Type Encoding Validation
-      [OK] 1 tag types validated — encoding correct
-
-[H123] Non-Required Tag Classification
-      [OK] All tags are required or optional for this profile class
-
-[H124] Version-Tag Correspondence
-      [OK] Tags correspond to profile version 2
-
-[H125] Overall Transform Smoothness
-      AToB0 (grid=17, 2in/3out): avg step=0.141526  max step=1.013230
-      [WARN]  AToB0: large discontinuity (max step > 0.5) — poor smoothness
-
-[H126] Private Tag Malware Content Scan
-      [INFO] No private tags to scan
-
-[H127] Private Tag Registry Check
-      [OK] No private tags present
-
-[H128] Version BCD Encoding Validation
-      Version bytes: 02 10 00 00 → v2.1.0
-      [OK] Version BCD encoding is valid
-
-[H129] PCS Illuminant Exact D50 Check
-      Raw bytes: X=0x0000F6D6 Y=0x00010000 Z=0x0000D32D
-      Float:     X=0.964203   Y=1.000000   Z=0.824905
-      D50 spec:  X=0x0000F6D6 Y=0x00010000 Z=0x0000D32D
-      [OK] PCS illuminant is exact D50
-
-[H130] Tag Data 4-Byte Alignment
-      [OK] All 4 tags are 4-byte aligned
-
-[H131] Profile ID (MD5) Validation
-      Profile ID: 00000000000000000000000000000000
-      [INFO] Profile ID is all zeros (not computed)
-       ICC.1-2022-05 §7.2.18: ID may be zero if not computed
-
-[H132] chromaticAdaptation Matrix Validation
-      [INFO] No chromaticAdaptation (chad) tag present
-
-[H133] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11)
-      Flags: 0x00000000 (embedded=0, independent=0)
-      [OK] Reserved flag bits are zero
-
-[H134] Tag Type Reserved Bytes (ICC.1-2022-05 §10.1)
-      [OK] All 4 tag types have zeroed reserved bytes
-
-[H135] Duplicate Tag Signatures (ICC.1-2022-05 §7.3.1)
-      [OK] All 4 tag signatures are unique
-
-[H137] High-Dimensional Color Space Grid Complexity (CWE-400)
-      [OK] Color space dimensionality within safe bounds
-
-[H138] Calculator Element Branching Depth (CWE-400/CWE-674)
-      [INFO] No calculator elements found
-
-[H142] XML Serialization Safety (§10 Tag Type Definitions)
-      [OK] XML serialization completed safely (ToXml succeeded)
-
-[H143] XML Array Bounds Precheck (§10 Tag Types)
-      [OK] All array tag element counts consistent with data sizes
-
-[H144] XML String Termination Precheck (§10.4/§10.19)
-      [OK] All string fields properly null-terminated for XML serialization
-
-[H145] XML Curve Type Consistency (§10.14 MPE)
-      [OK] All curve/MPE type signatures consistent for XML serialization
-
-[H33] mBA/mAB Sub-Element Offset Validation
-      [OK] All mBA/mAB sub-element offsets within tag bounds
-
-[H34] 32-bit Integer Overflow in Sub-Element Bounds
-      [OK] No 32-bit integer overflow in sub-element offsets
-
-[H35] Suspicious Fill Pattern in mBA/mAB Data
-      [OK] No suspicious fill patterns in mBA/mAB data
-
-[H36] LUT Tag Pair Completeness
-      [INFO]  A2B0 present but B2A0 missing — forward-only LUT
-      1 unpaired LUT tag(s) — may indicate crafted profile
-
-[H37] Calculator Element Complexity Validation
-      [OK] No calculator complexity issues
-
-[H38] Curve Degenerate Value Detection
-      [OK] No degenerate curve values detected
-
-[H39] Shared Tag Data Aliasing Detection
-      [OK] No risky shared tag data aliasing
-
-[H40] Tag Alignment & Padding Validation
-      [OK] All tags properly aligned with zero padding
-
-[H41] Version/Type Consistency Check
-      Profile version: 2.1.0
-      [OK] All tags/types consistent with declared version
-
-[H42] Matrix Singularity Detection
-      [INFO]  rXYZ/gXYZ/bXYZ tags not all present (0/3 found)
-      [OK] Color matrix is well-conditioned
-
-[H43] Spectral/BRDF Tag Structural Validation
-      [OK] Spectral/BRDF tags structurally valid
-
-[H44] Embedded Image Validation
-      [OK] Embedded images valid (or none present)
-
-[H45] Sparse Matrix Bounds Validation
-      [OK] Sparse matrix bounds valid (or none present)
-
-[H46] TextDescription Unicode Length Validation
-      [OK] TextDescription unicode lengths valid (or no desc tags)
-
-[H47] NamedColor2 Size Overflow Detection
-      [OK] NamedColor2 sizes valid (or no ncl2 tags)
-
-[H48] CLUT Grid Dimension Product Overflow
-      [OK] CLUT grid dimension products within bounds
-
-[H49] Float/s15Fixed16 NaN/Inf Detection
-      [OK] No NaN/Inf/extreme values in float/fixed-point tags
-
-[H50] Zero-Size Profile/Tag Detection (Infinite Loop)
-      [OK] No zero-size profile or tags detected
-
-[H51] LUT I/O Channel Count Consistency
-      [OK] LUT I/O channel counts within valid range
-
-[H52] Integer Underflow in Tag Size Subtraction
-      [OK] All tag sizes meet minimum requirements
-
-[H53] Embedded Profile Recursion Detection
-      [OK] No embedded profiles detected
-
-[H54] Division-by-Zero Trigger Detection
-      [OK] No division-by-zero triggers detected
-
-[H55] UTF-16 Encoding Validation
-      [OK] UTF-16 encoding appears valid
-
-[H57] Embedded Profile Recursion Depth
-      [OK] No embedded profiles detected
-
-[H59] Spectral Wavelength Range Consistency
-      [OK] Spectral range fields consistent
-
-[H68] GamutBoundaryDesc Triangle/Vertex Overflow
-      [OK] GamutBoundaryDesc bounds valid (or absent)
-
-[H69] Profile ID / MD5 Consistency
-      [INFO] Profile ID is all zeros (MD5 not computed)
-
-[H153] Sampled Curve NaN-to-Unsigned Cast Detection (§10.26 MPE)
-      [OK] No sampled curve degenerate range entries
-
-[H154] Uncontrolled Tag Allocation Size (CWE-789, §7.3 Tag Table)
-      [OK] All tag allocation sizes within bounds
-
-[H155] Integer Overflow in Tag Dimensions (CWE-190, §10.6-10.14)
-      [OK] No integer overflow in tag dimension calculations
-
-[H156] Allocation Failure Path Profiles (CWE-252, §7.3)
-      [OK] Allocation pressure within safe bounds
-
-[H157] Alloc-Dealloc Mismatch Tag Patterns (CWE-762, §10.14)
-      [OK] No alloc-dealloc mismatch trigger patterns
-
-[H158] Enum Range Validation Extended (CWE-681, §7.2 Header Fields)
-      [OK] All enum values within valid ranges
-
-[H159] UAF Tag Ownership Chain Detection (CWE-416, §7.3)
-      [OK] No UAF-triggering ownership patterns detected
-
-[H160] Format String Injection in Text Tags (CWE-134, §10.24/§10.22)
-      [OK] No format string specifiers in text tags
-
-[H161] Stack Address Escape via Deep Apply Chains (CWE-121, §10.6/§10.14)
-      [OK] No deep Apply() chain stack-escape risk patterns
-
-[H162] Partial Tag Data Overlap Detection
-      [OK] No partial tag data overlaps detected
-
-[H163] Executable Signature Scan in Tag Data
-      [OK] No executable signatures detected in tag data
-
-[H164] Raw LUT Channel Count vs ColorSpace/PCS
-      [CRITICAL] A2B0: raw n_in=2 but colorSpace expects 3 channels
-       CWE-131: LUT input channel mismatch — heap-buffer-overflow in Apply() when indexing caller buffer
-
-[H165] LUT Data Sufficiency Validation
-      [OK] All LUT tags have sufficient data for declared contents
-
-[H166] Division-by-Zero in CAM/Array/MPE Detection
-      [OK] No division-by-zero risk patterns detected
-
-[H167] Null MPE CLUT/Curve Application Guard
-      [OK] No null MPE CLUT/Curve application risks detected
-
-[H168] Unchecked Allocation Size Overflow Detection
-      [OK] No unchecked allocation overflow patterns detected
-
-[H169] Dictionary Tag Element Bounds Validation
-      [OK] No dictionary tag bounds issues detected
-
-[H170] Copy Constructor UB via Null PCS (CWE-843, §7.2.7)
-      [OK] PCS signature valid for copy-constructor safety
-
-[H171] Curve Param Count vs FuncType Validation (CWE-125, §10.15/§10.23)
-      [OK] Curve param counts consistent with function types
-
-[H136] ResponseCurve Per-Channel Measurement Count (CWE-400)
-      [OK] ResponseCurve measurement counts within bounds (or tag absent)
-
-HEURISTIC SUMMARY
-=======================================================================
-
-[WARN]  4 HEURISTIC WARNING(S) DETECTED
-
-  This profile exhibits patterns associated with:
-  - Malformed/corrupted data
-  - Resource exhaustion attempts
-  - Enum confusion vulnerabilities
-  - Parser exploitation attempts
-  - Type confusion / buffer overflow patterns
-
-  - Sub-element offset OOB (mBA/mAB SIGBUS pattern)
-  - 32-bit integer overflow in bounds checks
-  - Suspicious fill patterns enabling OOB traversal
-
-  CVE Coverage: 171 heuristics covering patterns from 87 CVEs + 95 GHSAs across 93 iccDEV security advisories (57 heuristics with CVE/GHSA cross-references)
-  Spec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references
-  Key CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow
-  H33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)
-  H37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)
-  H46-H54: CWE-driven gap analysis (unicode HBO, ncl2 overflow, CLUT grid, NaN/Inf, recursion)
-  H55-H60: UTF-16, calc depth, embedded profiles, spectral, dict
-  H61-H70: Viewing conditions, mluc bombs, LUT channels, NamedColor2, chromaticity,
-           NumArray NaN/Inf, ResponseCurveSet, GBD overflow, Profile ID, measurement
-  H71-H78: ColorantTable null-term, SparseMatrix, nesting depth, type confusion,
-           small tags, data flags, calculator sub-elements, CLUT grid overflow
-  H79-H86: LoadTag overflow, UAF shared pointers, MPE channel consistency,
-           I/O bit-shift overflow, float array SBO, 3D LUT OOB, memcpy overlap, mluc HBO
-  H87-H94: TRC curve anomalies, chromatic adaptation matrix, profile sequence,
-           preview channels, colorant order, spectral viewing, flags, matrix colorants
-  H95-H102: Sparse matrix bounds, embedded profile recursion, profile sequence ID,
-            spectral MPE elements, embedded images, sequence desc, MPE chain, tag sizes
-  H103-H106: PCC viewing conditions, PRMG gamut evaluation, matrix-TRC validation,
-             environment variable tags, spectral range validation
-  H107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,
-             class-required tags, reserved bytes, wtpt validation, round-trip fidelity,
-             TRC monotonicity, characterization data
-  H116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,
-             computation cost, ΔE round-trip, curve invertibility, characterization RT,
-             deep encoding, non-required tags, version-tag, smoothness, malware scan, registry
-  H128-H132: ICC.1-2022-05 spec compliance — version BCD, PCS D50, tag alignment,
-             Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)
-  H133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved
-             bytes (§10.1), duplicate tag signatures (§7.3.1)
-  H136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional
-             grid complexity, calculator branching depth (CFL-074/075/076 findings)
-  H142-H145: XML serialization safety — fork-isolated ToXml(), array bounds precheck,
-             string termination validation, curve type consistency (25 XML advisories)
-
-  Recommendations:
-  • Validate profile with official ICC tools
-  • Use -n (ninja mode) for detailed byte-level analysis
-  • Do NOT use in production color workflows
-  • Consider as potential security test case
 
 
 =======================================================================
-PHASE 2: ROUND-TRIP TAG VALIDATION
+ICC LIBRARY CONFORMANCE VALIDATION
+=======================================================================
+
+  Running CIccProfile::ReadValidate() — ICC.1-2022-05 conformance checks
+  Checks: header, required tags, tag types, per-tag content validation
+
+  Validation Status: CRITICAL ERROR — Profile is not usable
+
+  [ERROR] AToB0Tag: - Incorrect number of input channels.
+
+  Validation Summary: 1 error(s), 0 non-compliant, 0 warning(s), 0 info
+  [WARN] 1 ICC spec conformance issue(s) detected
+
+
+=======================================================================
+PHASE 2: DEEP CONFORMANCE CHECKS (ICC.1/ICC.2)
+=======================================================================
+
+--- Header Conformance (CF-001..CF-015, CF-184..CF-187, CF-199..CF-201, CF-203, CF-206, CF-210, CF-214..CF-219) ---
+
+[H1001] CF-001: Date/Time Month-Day Validity
+[CF-001] Date/Time Month-Day Validity (ICC.1-2022-05 §7.2.8)
+         Month=11, Day=7 — valid
+         [OK] Date fields within range
+      [OK] Conformant
+
+[H1002] CF-002: Date/Time Leap Year Validation
+[CF-002] Date/Time Leap Year Validation (ICC.1-2022-05 §7.2.8)
+         Month=11 — leap year check not applicable
+         [OK] Not February, skip leap year validation
+      [OK] Conformant
+
+[H1003] CF-003: Profile Flags Reserved Bits
+[CF-003] Profile Flags Reserved Bits (ICC.1-2022-05 §7.2.11 Table 21)
+         flags=0x00000000 — reserved bits 3-15 clear
+         [OK] Profile flags conformant
+      [OK] Conformant
+
+[H1004] CF-004: Device Attributes Reserved Bits
+[CF-004] Device Attributes Reserved Bits (ICC.1-2022-05 §7.2.14)
+         attributes=0x0000000000000000 — reserved bits clear
+         [OK] Device attributes conformant
+      [OK] Conformant
+
+[H1005] CF-005: Rendering Intent Upper Bits Zero
+[CF-005] Rendering Intent Upper Bits Zero (ICC.1-2022-05 §7.2.15)
+         renderingIntent=1 (Media-Relative Colorimetric)
+         [OK] Rendering intent conformant
+      [OK] Conformant
+
+[H1006] CF-006: Version BCD Encoding
+[CF-006] Profile Version BCD Encoding (ICC.1-2022-05 §7.2.4)
+         version=0x02100000 → v2.1.0.0
+         [OK] Version BCD encoding conformant
+      [OK] Conformant
+
+[H1007] CF-007: Primary Platform Signature
+[CF-007] Primary Platform Signature (ICC.1-2022-05 §7.2.10 Table 20)
+         platform=Apple (APPL)
+         [OK] Platform signature conformant
+      [OK] Conformant
+
+[H1008] CF-008: PCS Illuminant D50 Values
+[CF-008] PCS Illuminant D50 Precision (ICC.1-2022-05 §7.2.16)
+         illuminant X=0.9642, Y=1.0000, Z=0.8249
+         expected   X=0.9642, Y=1.0000, Z=0.8249 (D50)
+         [OK] PCS illuminant matches D50
+      [OK] Conformant
+
+[H1009] CF-009: Chromatic Adaptation Tag Requirement
+[CF-009] Chromatic Adaptation Tag Requirement (ICC.1-2022-05 §8.2)
+         Version 2.x  — chad tag check not applicable
+         [OK] Not required for this profile type
+      [OK] Conformant
+
+[H1010] CF-010: Profile Size vs File Size
+[CF-010] Profile Size vs File Size (ICC.1-2022-05 §7.2.2)
+         Header size: 16680 bytes, File size: 16680 bytes
+         [OK] Profile size matches file size
+      [OK] Conformant
+
+[H1011] CF-011: Profile ID MD5 Verification
+[CF-011] Profile ID MD5 Verification (ICC.1-2022-05 §7.2.18)
+         Profile ID is all zeros — not computed
+         [INFO] Profile ID not set — §7.2.18
+      [OK] Conformant
+
+[H1012] CF-012: Profile Class Signature
+[CF-012] Profile Class Signature (ICC.1-2022-05 §7.2.5 Table 18)
+         deviceClass='abst' (0x61627374)
+         [OK] Valid v4 profile class
+      [OK] Conformant
+
+[H1013] CF-013: Data Colour Space Signature
+[CF-013] Data Colour Space Signature (ICC.1-2022-05 §7.2.6 Table 19)
+         colorSpace='Lab ' (0x4C616220) — Lab
+         [OK] Valid colour space signature
+      [OK] Conformant
+
+[H1014] CF-014: PCS Field for Non-DeviceLink
+[CF-014] PCS Field for Non-DeviceLink (ICC.1-2022-05 §7.2.7)
+         PCS='Lab ' (0x4C616220)
+         [OK] PCS conformant for non-DeviceLink profile
+      [OK] Conformant
+
+[H1015] CF-015: Reserved Bytes 100-127 Zero
+[CF-015] Reserved Bytes 100-127 Zero (ICC.1-2022-05 §7.2.24)
+         Bytes 100-127: all zero
+         [OK] Reserved bytes conformant
+      [OK] Conformant
+
+[H1016] CF-016: Device Manufacturer Signature
+[CF-016] Device Manufacturer Signature (ICC.1-2022-05 §7.2.12)
+         manufacturer='none' (0x6E6F6E65)
+         [OK] Device manufacturer field conformant
+      [OK] Conformant
+
+[H1017] CF-017: Device Model Signature
+[CF-017] Device Model Signature (ICC.1-2022-05 §7.2.13)
+         model=0x00000000 — not specified (permitted)
+         [OK] Device model field conformant
+      [OK] Conformant
+
+[H1018] CF-018: Device Attributes Semantic Bits
+[CF-018] Device Attributes Semantic Bits (ICC.1-2022-05 §7.2.14 Table 23)
+         Bit 0 (Media): reflective
+         Bit 1 (Finish): glossy
+         Bit 2 (Polarity): positive
+         Bit 3 (Colour): colour
+         [OK] Device attributes conformant
+      [OK] Conformant
+
+[H1019] CF-019: Creator Signature
+[CF-019] Creator Signature (ICC.1-2022-05 §7.2.17)
+         creator='ADBE' (0x41444245)
+         [OK] Creator signature field conformant
+      [OK] Conformant
+
+[H1107] CF-107: Tag Table Ordering
+  [CF-107] Tag Table Ordering (ICC.1-2022-05 §7.3.1)
+         [OK] Tag table has no duplicate signatures
+      [OK] Conformant
+
+[H1121] CF-121: Illuminant Metadata Consistency
+  [CF-121] Illuminant Metadata Consistency (ICC.1-2022-05 §7.2.16)
+         [OK] Illuminant metadata consistent
+      [OK] Conformant
+
+[H1122] CF-122: Profile Date/Time Plausibility
+  [CF-122] Profile Date/Time Plausibility (ICC.1-2022-05 §7.2.8)
+         [OK] Profile date/time is plausible
+      [OK] Conformant
+
+[H1184] CF-184: Profile ID v4+ Presence
+[CF-184] Profile ID v4+ Presence (ICC.1-2022-05 §7.2.18, RFC 1321)
+         Profile version: 2.x
+         v2 profile — Profile ID field not defined before v4
+         [OK] v2 profiles exempt from Profile ID requirement
+      [OK] Conformant
+
+[H1185] CF-185: Profile ID Size Consistency
+[CF-185] Profile ID Size Consistency (ICC.1-2022-05 §7.2.18, RFC 1321 §3.1)
+         Profile ID is zero — size consistency check not applicable
+         [OK] No Profile ID to validate
+      [OK] Conformant
+
+[H1186] CF-186: Profile ID Entropy Analysis
+[CF-186] Profile ID Entropy Analysis (RFC 1321, ICC.1-2022-05 §7.2.18)
+         Profile ID is zero — entropy analysis not applicable
+         [OK] No Profile ID to analyze
+      [OK] Conformant
+
+[H1187] CF-187: Embedded Profile ProfileID Chain
+[CF-187] Embedded Profile ProfileID Chain (ICC TN Embedding + §7.2.18 + RFC 1321)
+         No embedded profile tag (ICC5) present
+         [OK] No embedding chain to validate
+      [OK] Conformant
+
+[H1199] CF-199: CMM Type Signature Registration
+  [CF-199] CMM Type Signature Registration (ICC.1-2022-05 §7.2.3)
+           cmmId='ADBE' (0x41444245) — registered ICC CMM
+           [OK] CMM type conformant
+      [OK] Conformant
+
+[H1200] CF-200: Device Manufacturer/Model Signature
+  [CF-200] Device Manufacturer/Model Signature (ICC.1-2022-05 §7.2.12-13)
+           manufacturer='none' (0x6E6F6E65)
+           model=0x00000000 — not specified (permitted)
+           [OK] Device manufacturer/model conformant
+      [OK] Conformant
+
+[H1201] CF-201: Profile Creator Signature
+  [CF-201] Profile Creator Signature (ICC.1-2022-05 §7.2.17)
+           creator='ADBE' (0x41444245)
+           [OK] Profile creator conformant
+      [OK] Conformant
+
+[H1203] CF-203: Profile Flags Semantic Validation
+  [CF-203] Profile Flags Semantic Validation (ICC.1-2022-05 §7.2.11 Table 21)
+           Bit 0 (Embedded): not embedded
+           Bit 1 (Independent): can be used independently
+           [OK] Profile flags semantics conformant
+      [OK] Conformant
+
+[H1206] CF-206: Profile File Signature 'acsp'
+[CF-206] Profile File Signature 'acsp' (ICC.1-2022-05 §7.2.9)
+         magic=0x61637370 ('acsp')
+         [OK] Profile file signature conformant
+      [OK] Conformant
+
+[H1210] CF-210: DeviceLink PCS Space Validation
+[CF-210] DeviceLink PCS Space Validation (ICC.1-2022-05 §8.6)
+         Not a DeviceLink profile — skipping
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1214] CF-214: Embedded Profile Class Suitability
+  [CF-214] Embedded Profile Class Suitability (ICC TN Embedding §Table 1)
+         Embedded flag not set — profile not marked for embedding
+         [OK] Not applicable (not an embedded profile)
+      [OK] Conformant
+
+[H1215] CF-215: JPEG APP2 Embedding Size Limit
+  [CF-215] JPEG APP2 Embedding Size Limit (ICC TN Embedding §JFIF)
+         Profile size: 16680 bytes (JPEG limit: 16707345 bytes)
+         Would require 1 APP2 segment(s) for JPEG embedding
+         [OK] Profile fits within JPEG APP2 embedding limit
+      [OK] Conformant
+
+[H1216] CF-216: JP2 Restricted ICC Compliance
+  [CF-216] JP2 Restricted ICC Compliance (ISO 15444-1 Annex I)
+         Class 'abst' — JP2 requires Input ('scnr') class
+         Color space 'Lab ' — JP2 supports only Gray/RGB
+         [INFO] Profile not compatible with JP2 Restricted ICC method
+      [OK] Conformant
+
+[H1217] CF-217: JPX Any ICC Method Compliance
+  [CF-217] JPX Any ICC Method Compliance (ISO 15444-2 Annex M)
+         Class 'abst' — JPX Any ICC requires Input ('scnr') or Display ('mntr')
+         LUT-based profile (AToB0Tag present, no Matrix/TRC tags)
+         JPX Any ICC method requires Matrix/TRC profiles only
+         [INFO] Profile not compatible with JPX Any ICC method
+      [OK] Conformant
+
+[H1218] CF-218: HEIF Restricted ICC Compatibility
+  [CF-218] HEIF Restricted ICC Compatibility (ISO/IEC 14496-12)
+         HEIF 'colr' compatible (v2 profile, ≤ v4)
+         HEIF 'ricc' incompatible (color space 'Lab ')
+         [OK] Profile compatible with HEIF embedding
+      [OK] Conformant
+
+[H1219] CF-219: Container Format Version Matrix
+  [CF-219] Container Format Version Matrix (ICC TN Embedding §Table 1)
+         Profile version: 2.x, class: abst
+         PNG (ISO 15948): compatible (v2, per specification)
+         Compatible with 16+ media formats (of 18 surveyed)
+         [OK] Profile version has broad container format support
+      [OK] Conformant
+
+[H1243] CF-243: dateTimeNumber Field Range
+      [OK] Conformant
+
+[H1244] CF-244: Profile Creation Date Plausibility
+      [OK] Conformant
+
+[H1245] CF-245: Profile Size Multiple of 4
+      [OK] Conformant
+
+[H1246] CF-246: Rendering Intent Range
+      [OK] Conformant
+
+
+--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174, CF-188..CF-190, CF-208, CF-209, CF-212, CF-213, CF-220..CF-234, CF-247..CF-254, CF-263..CF-265, CF-273..CF-281) ---
+
+[H1020] CF-020: Tag Signature → Allowed Type
+[CF-020] Tag Type Allowed for Signature (ICC.1-2022-05 §9.2, §10)
+         [OK] 4/4 tags checked, all use permitted types
+      [OK] Conformant
+
+[H1021] CF-021: Tag Type Reserved Bytes Zero
+[CF-021] Tag Type Reserved Bytes Zero (ICC.1-2022-05 §10)
+         [OK] 4 tag(s) checked, all reserved bytes are zero
+      [OK] Conformant
+
+[H1022] CF-022: curveType Entry Count
+[CF-022] curveType Entry Count Mode (ICC.1-2022-05 §10.6)
+         No curveType tags found
+         [OK] 0 curveType tag(s) checked, all consistent
+      [OK] Conformant
+
+[H1023] CF-023: parametricCurveType Function Type
+[CF-023] parametricCurveType Function Type (ICC.1-2022-05 §10.18 Table 68)
+         No parametricCurveType tags found
+         [OK] 0 parametricCurveType tag(s) checked, all function types valid
+      [OK] Conformant
+
+[H1024] CF-024: parametricCurveType Parameter Count
+[CF-024] parametricCurveType Parameter Count (ICC.1-2022-05 §10.18 Table 68)
+         No parametricCurveType tags found
+         [OK] 0 parametricCurveType tag(s) checked, all parameter counts correct
+      [OK] Conformant
+
+[H1025] CF-025: Chromaticity Phosphor Count
+[CF-025] chromaticityType Phosphor Count (ICC.1-2022-05 §10.2)
+         No chromaticityTag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1026] CF-026: Colorant Table Entry Count
+[CF-026] colorantTableType Colorant Count (ICC.1-2022-05 §10.4)
+         No colorantTableTag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1027] CF-027: Colorant Order Count
+[CF-027] colorantOrderType Count Match (ICC.1-2022-05 §10.3)
+         No colorantOrderTag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1028] CF-028: Named Color2 Device Coordinate Count
+[CF-028] namedColor2Type Coordinate Count (ICC.1-2022-05 §10.14)
+         No namedColor2Tag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1029] CF-029: dateTimeType Field Ranges
+[CF-029] dateTimeType Field Ranges (ICC.1-2022-05 §10.7, §4.2)
+         No dateTimeType tags found
+         [OK] 0 dateTimeType tag(s) checked, all fields in range
+      [OK] Conformant
+
+[H1030] CF-030: multiLocalizedUnicodeType Structure
+[CF-030] multiLocalizedUnicodeType Structure (ICC.1-2022-05 §10.13)
+         No multiLocalizedUnicodeType tags found
+         [OK] 0 mluc tag(s) checked, all structurally valid
+      [OK] Conformant
+
+[H1031] CF-031: s15Fixed16ArrayType Element Count
+[CF-031] s15Fixed16ArrayType Element Count (ICC.1-2022-05 §10.18)
+         No s15Fixed16ArrayType tags found
+         [OK] 0 sf32 tag(s) checked, all element counts valid
+      [OK] Conformant
+
+[H1032] CF-032: XYZType Triplet Count
+[CF-032] XYZType Triplet Count (ICC.1-2022-05 §10.23)
+         [OK] 1 XYZ tag(s) checked, all contain exactly 1 triplet
+      [OK] Conformant
+
+[H1033] CF-033: Measurement Standard Observer
+[CF-033] measurementType Standard Observer (ICC.1-2022-05 §10.12 Table 56)
+         No measurementTag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1034] CF-034: Measurement Geometry
+[CF-034] measurementType Measurement Geometry (ICC.1-2022-05 §10.12 Table 57)
+         No measurementTag found
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1035] CF-035: responseCurveSet16Type Structure
+[CF-035] responseCurveSet16Type Structure (ICC.1-2022-05 §10.19)
+         No outputResponseTag ('resp') found
+         [N/A] Not applicable
+      [OK] Conformant
+
+[H1036] CF-036: profileSequenceDescType Elements
+[CF-036] profileSequenceDescType Elements (ICC.1-2022-05 §10.22)
+         No profileSequenceDescTag found
+         [N/A] Not applicable
+      [OK] Conformant
+
+[H1037] CF-037: profileSequenceIdentifierType Validation
+[CF-037] profileSequenceIdentifierType Validation (ICC.1-2022-05 §10.23)
+         No profileSequenceIdentifierTag ('psid') found
+         [N/A] Not applicable
+      [OK] Conformant
+
+[H1038] CF-038: dateTimeType Tag Range Validation
+[CF-038] dateTimeType Tag Range Validation (ICC.1-2022-05 §10.7)
+         No calibrationDateTimeTag ('calt') found
+         [N/A] Not applicable
+      [OK] Conformant
+
+[H1039] CF-039: signatureType Technology Validation
+[CF-039] signatureType Technology Validation (ICC.1-2022-05 §10.24)
+         No technologyTag ('tech') found
+         [N/A] Not applicable
+      [OK] Conformant
+
+[H1112] CF-112: XYZ Triplet Normalization
+  [CF-112] XYZ Triplet Value Normalization (ICC.1-2022-05 §10.31)
+         [OK] All 1 XYZ triplets have valid values
+      [OK] Conformant
+
+[H1169] CF-169: Negative PCSXYZ Encoding Capability
+  [CF-169] Negative PCSXYZ Encoding Capability (ICC TN Negative PCSXYZ §6.3.4.2)
+         [OK] All 1 XYZ tags have non-negative values
+      [OK] Conformant
+
+[H1170] CF-170: Chromatic Adaptation Negative XYZ Consistency
+  [CF-170] Chromatic Adaptation Negative XYZ Consistency (ICC TN Negative PCSXYZ, §9.2.10)
+         Matrix column tags not all present — check not applicable
+      [OK] Conformant
+
+[H1171] CF-171: White Point Non-Negative Luminance
+  [CF-171] White Point Non-Negative Luminance (ICC TN Negative PCSXYZ, §3.1.24)
+         [OK] White point luminance values are non-negative
+      [OK] Conformant
+
+[H1172] CF-172: Colorant XYZ Sum White Point Consistency
+  [CF-172] Colorant XYZ Sum White Point Consistency (ICC TN Negative PCSXYZ, §9.2.7)
+         Not all matrix columns present — check not applicable
+      [OK] Conformant
+
+[H1173] CF-173: PCS XYZ Absorber Encoding
+  [CF-173] PCS XYZ Absorber Encoding (ICC TN Negative PCSXYZ, §6.4.3)
+         [OK] White point and luminance properly distinguish from absorber encoding
+      [OK] Conformant
+
+[H1174] CF-174: Lab Conversion Clipping Awareness
+  [CF-174] Lab Conversion Clipping Awareness (ICC TN Negative PCSXYZ, §6.4)
+         [OK] Lab PCS profile uses LUT model (no matrix columns)
+      [OK] Conformant
+
+[H1123] CF-123: ADGC Class Restriction
+         No ADGC tag present — check not applicable
+      [OK] Conformant
+
+[H1124] CF-124: ADGC Type Signature
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1125] CF-125: ADGC Function Type ID
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1126] CF-126: ADGC Reserved Bytes
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1127] CF-127: ADGC Float Field Finiteness
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1128] CF-128: ADGC Weight Coefficient Sum
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1129] CF-129: ADGC Curve Position Bounds
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1130] CF-130: ADGC Image-Specific GUID Flags
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1131] CF-131: ADGC Headroom Range Plausibility
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1132] CF-132: ADGC Curve Data Monotonicity
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1133] CF-133: ADGC H_baseline vs H_alternate Div-by-Zero
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1134] CF-134: ADGC Per-Channel GainMin ≤ GainMax
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1135] CF-135: ADGC Curve X-Value Domain Range
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1136] CF-136: ADGC Curve Adjacent-Point X-Equality
+         No ADGC tag or read failed — check skipped
+      [OK] Conformant
+
+[H1188] CF-188: Global Per-Tag Validate() Sweep
+  [CF-188] Global Per-Tag Validate() Sweep (SampleICC §3 Compliance)
+         Swept 4 tags: 3 OK, 1 warnings, 0 errors
+         [OK] All 4 tags pass library Validate()
+      [OK] Conformant
+
+[H1189] CF-189: Tag Type Recognition Coverage
+  [CF-189] Tag Type Recognition Coverage (SampleICC §3 CheckTagTypes)
+         4/4 tags have recognized type signatures
+         [OK] All 4 tag types are recognized by the factory
+      [OK] Conformant
+
+[H1190] CF-190: Profile Legibility Gate
+  [CF-190] Profile Legibility Gate (SampleICC §3 ReadValidate)
+         [OK] Profile is legible: 4 tags parsed, all non-NULL
+      [OK] Conformant
+
+[H1208] CF-208: Tag Type Version Compatibility
+[CF-208] Tag Type Version Compatibility (ICC.1-2022-05 §7.2.4, §10)
+         Checked 4 tags for v2 compatibility
+         [OK] All tag types compatible with profile version 2.x
+      [OK] Conformant
+
+[H1209] CF-209: Colorspace Channel Count vs LUT Dimensions
+[CF-209] Colorspace Channel Count vs LUT Dimensions (ICC.1-2022-05 §7.2.6, §10.8-10.11)
+         colorSpace channels=3, PCS channels=3
+         AToB0 input channels=2, expected 3 (from colorSpace)
+         [FAIL] AToB0 input channel mismatch — ICC.1-2022-05 §10.8-10.11
+      [WARN]  1 non-conformance(s)
+
+[H1212] CF-212: textType Null Termination
+[CF-212] textType Null Termination (ICC.1-2022-05 §10.24)
+         cprt (copyright): "Copyright 2011 Adobe Systems Inc." (33 bytes)
+         [OK] textType tag structure conformant
+      [OK] Conformant
+
+[H1213] CF-213: viewingConditionsType Completeness
+[CF-213] viewingConditionsType Completeness (ICC.1-2022-05 §10.32)
+         No viewingConditionsTag ('view') present
+         [OK] viewingConditionsTag is optional
+      [OK] Conformant
+
+[H1220] CF-220: mluc Name Record Overlap Detection
+[CF-220] mluc Name Record Overlap Detection (ICC TN PSD §mluc)
+      [OK] Conformant
+
+[H1221] CF-221: profileSequenceDescTag Structure
+[CF-221] profileSequenceDescTag Structure (ICC.1-2022-05 §9.2.50)
+         No profileSequenceDescTag — not required for this class
+      [OK] Conformant
+
+[H1222] CF-222: profileSequenceIdentifierTag Validation
+[CF-222] profileSequenceIdentifierTag Validation (ICC.1-2022-05 §9.2.51)
+         No profileSequenceIdentifierTag ('psid') present
+      [OK] Conformant
+
+[H1223] CF-223: mluc Zero-Name Placeholder Encoding
+[CF-223] mluc Zero-Name Placeholder Encoding (ICC TN PSD §placeholder)
+         No zero-name mluc tags found
+      [OK] Conformant
+
+[H1224] CF-224: mluc Reserved Field Zero
+[CF-224] mluc Reserved Field Zero (ICC.1-2022-05 §10.13)
+         No mluc tags found
+      [OK] Conformant
+
+[H1225] CF-225: mluc Name Record String Alignment
+[CF-225] mluc Name Record String Alignment (ICC.1-2022-05 §7.1, §10.13)
+         No mluc tags with records found
+      [OK] Conformant
+
+[H1226] CF-226: mluc Size Inference Safety
+[CF-226] mluc Size Inference Safety (ICC TN PSD §size)
+         No mluc tags with records found
+      [OK] Conformant
+
+[H1227] CF-227: v4 Text Tag Unicode Migration
+[CF-227] v4 Text Tag Unicode Migration (ICC.1-2022-05 S9)
+         Profile is v2 -- mluc migration check not applicable
+      [OK] Conformant
+
+[H1228] CF-228: grayTRCTag Semantic Validation
+[CF-228] grayTRCTag Semantic Validation (v2->v4 TN)
+         Profile color space is not Gray -- grayTRC check N/A
+      [OK] Conformant
+
+[H1229] CF-229: Rendering Intent Dominance Per Class
+[CF-229] Rendering Intent Dominance Per Class (v2->v4 TN)
+         AToB tags: 1, BToA tags: 0, class: 0x61627374
+         [OK] Rendering intent dominance consistent with profile class
+      [OK] Conformant
+
+[H1230] CF-230: CIELAB Encoding Version Consistency
+[CF-230] CIELAB Encoding Version Consistency (ICC.1-2022-05 S6.5.9)
+         v2 profile with Lab PCS -- uses legacy encoding
+      [OK] Conformant
+
+[H1231] CF-231: LUT Processing Element Sequence
+[CF-231] LUT Processing Element Sequence (ICC.1-2022-05 S10.10-10.11)
+         [OK] All 1 LUT processing element sequences valid
+      [OK] Conformant
+
+[H1232] CF-232: Date/Time UTC and Temporal Consistency
+[CF-232] Date/Time UTC and Temporal Consistency (ICC.1-2022-05 S7.2.8)
+         Profile creation: 2011-11-07 02:49:01 (UTC)
+         [OK] Date/time fields consistent with UTC encoding
+      [OK] Conformant
+
+[H1233] CF-233: colorantOrderTag Index Validation
+[CF-233] colorantOrderTag Index Validation (ICC.1-2022-05 S9.2.11, S10.3)
+         No colorantOrderTag present
+      [OK] Conformant
+
+[H1234] CF-234: v4 Perceptual PCS Reference Medium
+[CF-234] v4 Perceptual PCS Reference Medium (ICC.1-2022-05 Annex D)
+         v2 profile -- Perceptual PCS reference medium check N/A
+      [OK] Conformant
+
+[H1247] CF-247: viewingConditionsType Illuminant Type Range
+      [OK] Conformant
+
+[H1248] CF-248: namedColor2Type Device Coords Limit
+      [OK] Conformant
+
+[H1249] CF-249: profileDescriptionTag Non-Empty
+      [OK] Conformant
+
+[H1250] CF-250: copyrightTag Non-Empty
+      [OK] Conformant
+
+[H1251] CF-251: chromaticityType Phosphor Type Range
+      [OK] Conformant
+
+[H1252] CF-252: curveType Gamma Positive/Finite
+      [OK] Conformant
+
+[H1253] CF-253: chromaticityType Channel Count
+      [OK] Conformant
+
+[H1254] CF-254: Technology Signature Registered
+      [OK] Conformant
+
+[H1263] CF-263: Perceptual PCS White Point D50
+[CF-263] Perceptual PCS White Point D50 (ICC.1-2022-05 Annex D)
+         Rendering intent = 1 (not perceptual) — check not applicable
+      [OK] Conformant
+
+[H1264] CF-264: parametricCurveType Function Type Range
+[CF-264] parametricCurveType Function Type Range (ICC.1-2022-05 §10.18)
+         [OK] All parametricCurveType function types in range [0..4]
+      [OK] Conformant
+
+[H1265] CF-265: mluc Language/Country Code Validity
+[CF-265] mluc Record Language/Country Code (ICC.1-2022-05 §10.15)
+         No multiLocalizedUnicodeType tags found
+         [OK] mluc language/country codes valid
+      [OK] Conformant
+
+[H1273] CF-273: Primary Colorant XYZ Values Positive
+[CF-273] Primary Colorant XYZ Values Positive (ICC.1-2022-05 §10.28)
+      [OK] Conformant
+
+[H1274] CF-274: Primary Colorant Chromaticity Sum
+[CF-274] Primary Colorant Chromaticity Sum (TN v4-matrix-entries)
+      [OK] Conformant
+
+[H1275] CF-275: copyrightTag Must Be mluc for v4+
+[CF-275] copyrightTag Must Be mluc for v4+ (ICC.1-2022-05 §9.2.14)
+      [OK] Conformant
+
+[H1276] CF-276: profileDescriptionTag Must Be mluc for v4+
+[CF-276] profileDescriptionTag Must Be mluc for v4+ (ICC.1-2022-05 §9.2.44)
+      [OK] Conformant
+
+[H1277] CF-277: mediaWhitePointTag Must Be XYZType
+[CF-277] mediaWhitePointTag Must Be XYZType (ICC.1-2022-05 §9.2.35)
+         [OK] mediaWhitePointTag is XYZType
+      [OK] Conformant
+
+[H1278] CF-278: chromaticAdaptationTag Type
+[CF-278] chromaticAdaptationTag Type (ICC.1-2022-05 §9.2.2)
+      [OK] Conformant
+
+[H1279] CF-279: TRC Curve Values Non-Negative
+[CF-279] TRC Curve Values Non-Negative (ICC.1-2022-05 §10.5)
+         [OK] TRC curve values non-negative
+      [OK] Conformant
+
+[H1280] CF-280: XYZ Element Luminance (Y) Non-Negative
+[CF-280] XYZ Element Luminance (Y) Non-Negative (ICC.1-2022-05 §10.28)
+         [OK] XYZ luminance values non-negative
+      [OK] Conformant
+
+[H1281] CF-281: profileSequenceDescTag Structure
+[CF-281] profileSequenceDescTag Structure (ICC.1-2022-05 §10.16)
+      [OK] Conformant
+
+
+--- Required Tag Conformance (CF-040..CF-053, CF-202, CF-204..CF-205, CF-207, CF-211, CF-258..CF-260, CF-266..CF-272, CF-282..CF-283) ---
+
+[H1040] CF-040: Common Required Tags (cprt, desc, wtpt)
+[CF-040] Common Required Tags (Non-DeviceLink) (ICC.1-2022-05 §8.2)
+         'desc' (profileDescriptionTag): present
+         'cprt' (copyrightTag): present
+         'wtpt' (mediaWhitePointTag): present
+         [OK] All common required tags present
+      [OK] Conformant
+
+[H1046] CF-046: Abstract Profile Required Tags
+[CF-046] Abstract Profile Required Tags (ICC.1-2022-05 §8.8 Table 32)
+         'A2B0' (AToB0Tag): present
+         [OK] Abstract profile required tags present
+      [OK] Conformant
+
+[H1048] CF-048: Rendering Intent vs Transform Consistency
+[CF-048] Rendering Intent Transform Consistency (ICC.1-2022-05 §7.2.15, §8)
+         Declared rendering intent: 1 (Media-Relative Colorimetric)
+         AToB1Tag: missing, BToA1Tag: missing
+         [WARN] Intent 1 profile should have AToB1/BToA1 transforms — ICC.1-2022-05 §8
+      [WARN]  1 non-conformance(s)
+
+[H1049] CF-049: Matrix/TRC Profiles Must Use PCS XYZ
+[CF-049] Matrix/TRC Profile PCS Must Be XYZ (ICC.1-2022-05 §8.3-8.4)
+         No matrix/TRC tags detected — skipped
+         [OK] Not a matrix/TRC profile
+      [OK] Conformant
+
+[H1050] CF-050: xCLR Spaces Require Colorant Table
+[CF-050] xCLR Colorant Table Required (ICC.1-2022-05 §8.5-8.6)
+         Colour space is not xCLR — skipped
+         [OK] Not an N-component colour space
+      [OK] Conformant
+
+[H1051] CF-051: DeviceLink Prohibited Tags
+[CF-051] DeviceLink Prohibited Tags (ICC.1-2022-05 §8.6 Table 30)
+         Not a DeviceLink profile — skipped
+         [OK] Not applicable
+      [OK] Conformant
+
+[H1052] CF-052: Transform Tag Pair Completeness
+[CF-052] Transform Tag Pair Consistency (ICC.1-2022-05 §8.3-8.5)
+         [OK] All transform tag pairs consistent
+      [OK] Conformant
+
+[H1053] CF-053: CICP Tag Class Restriction
+[CF-053] cicpTag Class Restriction (ICC.1-2022-05 §9.2.11)
+         'cicp' (cicpTag): not present — no restriction check needed
+         [OK] No cicpTag to validate
+      [OK] Conformant
+
+[H1054] CF-054: v5 Spectral Required Tags
+[CF-054] v5 Spectral Required Tags (ICC.2-2023 §8)
+         Profile version 2 — not v5, skipped
+         [OK] Not a v5 profile
+      [OK] Conformant
+
+[H1055] CF-055: D2B/B2D Tag Pair Completeness
+[CF-055] D2B/B2D Tag Pair Completeness (ICC.1-2022-05 §8)
+         No D2B/B2D tags found — skipped
+         [OK] No D2B/B2D tags to validate
+      [OK] Conformant
+
+[H1056] CF-056: Embedded Profile Structure
+[CF-056] Embedded Profile Structure (ICC.2-2023 §9.2)
+         No embedded profile tag ('ICC5') found — skipped
+         [OK] No embedded profile to validate
+      [OK] Conformant
+
+[H1057] CF-057: Dictionary Tag Structure v5
+[CF-057] Dictionary Tag Structure v5 (ICC.2-2023 §9.2.25)
+         Profile version 2 — not v5, skipped
+         [OK] Not a v5 profile
+      [OK] Conformant
+
+[H1058] CF-058: Profile Sequence Identifier v5
+[CF-058] Profile Sequence Identifier v5 (ICC.2-2023 §8)
+         Profile version 2 — not v5, skipped
+         [OK] Not a v5 profile
+      [OK] Conformant
+
+[H1059] CF-059: Colorimetric Intent Image State
+[CF-059] Colorimetric Intent Image State (ICC.1-2022-05 §9.2.12)
+         'ciis' (colorimetricIntentImageStateTag): not present — skipped
+         [OK] No colorimetricIntentImageState tag
+      [OK] Conformant
+
+[H1095] CF-095: Non-Required Tag Identification
+  [CF-095] Non-Required Tag Identification (ICC.1-2022-05 §8)
+           Additional tag: 'A2B0' (0x41324230)
+           [INFO] 1 non-required tag(s) present
+      [OK] Conformant
+
+[H1096] CF-096: Private Tag Signature Range
+  [CF-096] Private Tag Signature Range (ICC.1-2022-05 §9)
+           [OK] No private tags
+      [OK] Conformant
+
+[H1097] CF-097: Private Tag Documentation
+  [CF-097] Private Tag Documentation (ICC.1-2022-05 §9)
+           [OK] No private tags
+      [OK] Conformant
+
+[H1098] CF-098: Undocumented Private Tags
+  [CF-098] Undocumented Private Tag Identification (ICC.1-2022-05 §9)
+           [OK] All tags are recognized ICC signatures
+      [OK] Conformant
+
+[H1103] CF-103: Tag Alignment & Offset Validity
+  [CF-103] Tag Table Alignment & Offset Validity (ICC.1-2022-05 §7.3.1)
+           [OK] All tag offsets aligned and within bounds
+      [OK] Conformant
+
+[H1104] CF-104: DeviceLink PCS Consistency
+  [CF-104] DeviceLink PCS Consistency (ICC.1-2022-05 §8.6)
+           Not a DeviceLink profile — check not applicable
+      [OK] Conformant
+
+[H1111] CF-111: Required Tags per ICC Version
+  [CF-111] Required Tags per ICC Version (ICC.1-2022-05 §8.2-8.9)
+           [OK] Version-specific required tags present
+      [OK] Conformant
+
+[H1117] CF-117: Rendering Intent Tags per Class
+  [CF-117] Rendering Intent Tags per Class (ICC.1-2022-05 §8.3-8.5)
+           [OK] Rendering intent tags appropriate for profile class
+      [OK] Conformant
+
+[H1118] CF-118: Private Tag Creator Signature
+  [CF-118] Private Tag Creator Signature (ICC.1-2022-05 §9)
+           [OK] Creator signature present (0x41444245)
+      [OK] Conformant
+
+[H1119] CF-119: Profile Sequence Identifier
+  [CF-119] Profile Sequence Identifier (ICC.1-2022-05 §8.6)
+           [OK] Profile sequence identification validated
+      [OK] Conformant
+
+[H1120] CF-120: Named Color Space Dimensions
+  [CF-120] Named Color Space Dimensions (ICC.1-2022-05 §10.14)
+           Not a NamedColor profile — check not applicable
+      [OK] Conformant
+
+[H1202] CF-202: Tag Data Padding Zero-Fill
+  [CF-202] Tag Data Padding Zero-Fill (ICC.1-2022-05 §7.2.1c)
+           [OK] All inter-tag padding bytes are zero
+      [OK] Conformant
+
+[H1204] CF-204: Device Attributes Semantic Validation
+  [CF-204] Device Attributes Semantic Validation (ICC.1-2022-05 §7.2.14 Table 22)
+           Bit 0: reflective
+           Bit 1: glossy
+           Bit 2: positive media
+           Bit 3: colour
+           [OK] Device attributes semantics conformant
+      [OK] Conformant
+
+[H1205] CF-205: Tag Data Region Gap Analysis
+  [CF-205] Tag Data Region Gap Analysis (ICC.1-2022-05 §7.3)
+           Distinct data regions: 4
+           Data coverage: 16494 / 16680 bytes (98.9%)
+           Inter-region gaps: 0 (largest: 0 bytes)
+           [OK] Tag data region layout conformant
+      [OK] Conformant
+
+[H1207] CF-207: mediaWhitePointTag Value Range
+[CF-207] mediaWhitePointTag Value Range (ICC.1-2022-05 §10.27)
+         wtpt: X=0.9642, Y=1.0000, Z=0.8249
+         [OK] mediaWhitePointTag values conformant
+      [OK] Conformant
+
+[H1211] CF-211: AToB/BToA Tag Pair Completeness
+[CF-211] AToB/BToA Tag Pair Completeness (ICC.1-2022-05 §9.2.1-9.2.2)
+         Pair 0 (Perceptual): AToB ✓  BToA ✗ — missing inverse transform
+         [FAIL] AToB0 (Perceptual) present without matching BToA0 (Perceptual) — ICC.1-2022-05 §9.2
+      [WARN]  1 non-conformance(s)
+
+[H1258] CF-258: Display v4+ mediaWhitePointTag D50
+[CF-258] Display v4+ mediaWhitePointTag D50 (ICC.1-2022-05 §8.4)
+         Profile version < 4.0 — D50 mediaWhitePoint not mandated
+         [OK] v2 profiles exempt from D50 requirement
+      [OK] Conformant
+
+[H1259] CF-259: colorantOrderTag vs colorantTableTag Cross-Validation
+[CF-259] colorantOrderTag vs colorantTableTag Cross-Validation (ICC.1-2022-05 §10.3)
+         Neither colorantOrderTag nor colorantTableTag present
+      [OK] Conformant
+
+[H1260] CF-260: Output Profile gamutTag Rendering Intent
+[CF-260] Output Profile gamutTag Rendering Intent (ICC.1-2022-05 §9.2.22)
+         Not an Output profile — gamutTag check not applicable
+      [OK] Conformant
+
+[H1266] CF-266: Input Profile Device Color Space
+[CF-266] Input Profile Device Color Space (ICC.1-2022-05 §6.1)
+      [OK] Conformant
+
+[H1267] CF-267: Display Profile Color Space
+[CF-267] Display Profile Color Space (ICC.1-2022-05 §6.2)
+      [OK] Conformant
+
+[H1268] CF-268: Output Profile Color Space
+[CF-268] Output Profile Color Space (ICC.1-2022-05 §6.3)
+      [OK] Conformant
+
+[H1269] CF-269: DeviceLink Data Color Space Matching
+[CF-269] DeviceLink Data Color Space Matching (ICC.1-2022-05 §6.4)
+      [OK] Conformant
+
+[H1270] CF-270: Abstract Profile PCS
+[CF-270] Abstract Profile PCS (ICC.1-2022-05 §6.6)
+         [OK] Abstract profile PCS valid
+      [OK] Conformant
+
+[H1271] CF-271: NamedColor Profile PCS
+[CF-271] NamedColor Profile PCS (ICC.1-2022-05 §6.7)
+      [OK] Conformant
+
+[H1272] CF-272: Matrix/TRC RGB Required Colorant Tags
+[CF-272] Matrix/TRC RGB Required Colorant Tags (ICC.1-2022-05 §9.2.47)
+      [OK] Conformant
+
+[H1282] CF-282: DeviceLink AToB0Tag Required
+[CF-282] DeviceLink AToB0Tag Required (ICC.1-2022-05 §6.4)
+      [OK] Conformant
+
+[H1283] CF-283: DeviceLink profileSequenceDescTag
+[CF-283] DeviceLink profileSequenceDescTag (ICC.1-2022-05 §6.4)
+      [OK] Conformant
+
+
+--- LUT/Matrix Conformance (CF-060..CF-070, CF-163..CF-168, CF-255..CF-256, CF-261..CF-262) ---
+
+[H1060] CF-060: LUT Input Channel Count
+[CF-060] LUT Input Channel Count (ICC.1-2022-05 §10.8-10.11)
+         Tag 'AToB0' — input channels=2, expected=3
+         [FAIL] Input channel count mismatch — ICC.1-2022-05 §10.8-10.11
+      [WARN]  1 non-conformance(s)
+
+[H1061] CF-061: LUT Output Channel Count
+[CF-061] LUT Output Channel Count (ICC.1-2022-05 §10.8-10.11)
+         [OK] LUT output channel counts valid
+      [OK] Conformant
+
+[H1062] CF-062: CLUT Grid Dimensionality
+[CF-062] CLUT Grid Dimensionality (ICC.1-2022-05 §10.8-10.11)
+         [OK] CLUT grid dimensions valid
+      [OK] Conformant
+
+[H1063] CF-063: lut8Type Fixed 256-Entry Tables
+[CF-063] lut8Type Fixed Table Size 256 (ICC.1-2022-05 §10.9)
+         [OK] lut8Type table sizes conformant
+      [OK] Conformant
+
+[H1064] CF-064: lut16Type Table Size Range
+[CF-064] lut16Type Table Size Range 2-4096 (ICC.1-2022-05 §10.10)
+         No lut16Type tags found — check not applicable
+         [OK] lut16Type table sizes within range
+      [OK] Conformant
+
+[H1065] CF-065: lutAToBType Element Presence
+[CF-065] lutAToBType Processing Element Present (ICC.1-2022-05 §10.11)
+         No lutAToBType tags found — check not applicable
+         [OK] lutAToBType element presence valid
+      [OK] Conformant
+
+[H1066] CF-066: lutBToAType Element Presence
+[CF-066] lutBToAType Processing Element Present (ICC.1-2022-05 §10.12)
+         No lutBToAType tags found — check not applicable
+         [OK] lutBToAType element presence valid
+      [OK] Conformant
+
+[H1067] CF-067: LUT Matrix Identity for Non-XYZ PCS
+[CF-067] lut8/16 Matrix Identity When Not PCSXYZ (ICC.1-2022-05 §10.8-10.10)
+         No lut8/lut16 tags with matrix found — check not applicable
+         [OK] lut8/16 matrix identity check passed
+      [OK] Conformant
+
+[H1068] CF-068: Chad Matrix Invertible
+[CF-068] Chromatic Adaptation Matrix Invertible (ICC.1-2022-05 §9.2.10)
+         No chromaticAdaptationTag present — check not applicable
+         [OK] No chad tag to validate
+      [OK] Conformant
+
+[H1069] CF-069: Matrix Column XYZ Count
+[CF-069] Matrix Column Tag XYZ Count (ICC.1-2022-05 §9.2.7, §9.2.18, §9.2.31)
+         No matrix column tags present — check not applicable
+         [OK] Matrix column XYZ counts valid
+      [OK] Conformant
+
+[H1070] CF-070: Chad Array Count = 9
+[CF-070] Chad s15Fixed16 Array Count 9 (ICC.1-2022-05 §9.2.10)
+         No chromaticAdaptationTag present — check not applicable
+         [OK] No chad tag to validate
+      [OK] Conformant
+
+[H1071] CF-071: Curve Count vs Channel Match
+[CF-071] Curve Count vs Channel Match (ICC.1-2022-05 §10.10-10.12)
+         [OK] Curve counts match channel expectations
+      [OK] Conformant
+
+[H1072] CF-072: CLUT Output Value Range
+[CF-072] CLUT Output Value Range (ICC.1-2022-05 §10.8-10.12)
+         [OK] CLUT output values are finite
+      [OK] Conformant
+
+[H1073] CF-073: MBB Matrix Determinant Non-Zero
+[CF-073] MBB Matrix Determinant Non-Zero (ICC.1-2022-05 §10.10-10.12)
+         No MBB tags with matrix found — check not applicable
+         [OK] MBB matrix determinants are non-zero
+      [OK] Conformant
+
+[H1074] CF-074: A2B/B2A Dimension Consistency
+[CF-074] A2B/B2A Dimension Consistency (ICC.1-2022-05 §10.8-10.12)
+         No matching A2B/B2A pairs found — check not applicable
+         [OK] A2B/B2A dimensions are consistent
+      [OK] Conformant
+
+[H1075] CF-075: Tag Data Size vs Dimensions
+[CF-075] Tag Data Size vs Dimensions (ICC.1-2022-05 §10.8-10.12)
+         [OK] LUT dimensions are plausible
+      [OK] Conformant
+
+[H1076] CF-076: Curve Response Direction
+[CF-076] Curve Response Direction (ICC.1-2022-05 §10.5)
+         [OK] B curves are non-decreasing
+      [OK] Conformant
+
+[H1077] CF-077: CLUT Grid Size Plausibility
+[CF-077] CLUT Grid Size Plausibility (ICC.1-2022-05 §10.8-10.12)
+         [OK] CLUT grid sizes are plausible
+      [OK] Conformant
+
+[H1078] CF-078: MBB B-Curve Presence
+[CF-078] MBB B-Curve Presence (ICC.1-2022-05 §10.10-10.12)
+         No lutAToBType/lutBToAType tags found — check not applicable
+         [OK] B curves present in all MBB tags
+      [OK] Conformant
+
+[H1079] CF-079: LUT Bit Depth Consistency
+[CF-079] LUT Bit Depth Consistency (ICC.1-2022-05 §10.9-10.10)
+         [OK] Legacy LUT curve sizes are consistent
+      [OK] Conformant
+
+[H1105] CF-105: LUT Channel Symmetry
+  [CF-105] LUT Channel Symmetry (ICC.1-2022-05 §10.8-10.11)
+         No AToB/BToA tag pairs found — check not applicable
+         [OK] LUT channel symmetry validated
+      [OK] Conformant
+
+[H1106] CF-106: Curve Monotonicity
+  [CF-106] Curve Monotonicity (ICC.1-2022-05 §10.5)
+         [N/A] No tabulated TRC curves found
+      N/A: No tabulated TRC curves found
+         [OK] TRC curves are monotonically non-decreasing
+      [OK] Conformant
+
+[H1108] CF-108: CLUT Grid Point Range
+  [CF-108] CLUT Grid Point Range (ICC.1-2022-05 §10.8-10.10)
+         [OK] CLUT grid points in valid range [2,255]
+      [OK] Conformant
+
+[H1109] CF-109: Matrix Column Normalization
+  [CF-109] Matrix Column Normalization (ICC.1-2022-05 §9.2.7)
+         Not all matrix column tags present — check not applicable
+      [OK] Conformant
+
+[H1110] CF-110: B Curves vs CLUT Output
+  [CF-110] B Curves vs CLUT Output Count (ICC.1-2022-05 §10.8-10.11)
+         No lutAToB/lutBToA with CLUT found — check not applicable
+         [OK] B curves match CLUT output channels
+      [OK] Conformant
+
+[H1116] CF-116: Curve Segment Continuity
+  [CF-116] Curve Segment Continuity (ICC.1-2022-05 §10.18)
+         No parametricCurveType TRC tags found — check not applicable
+         [OK] Curve segments continuous
+      [OK] Conformant
+
+[H1163] CF-163: LUT Matrix Coefficient Finite
+[CF-163] LUT Matrix Coefficient Finite (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix found — check not applicable
+         [OK] All LUT matrix coefficients are finite
+      [OK] Conformant
+
+[H1164] CF-164: LUT Matrix s15Fixed16 Range
+[CF-164] LUT Matrix s15Fixed16 Range (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix found — check not applicable
+         [OK] All LUT matrix coefficients within s15Fixed16 range
+      [OK] Conformant
+
+[H1165] CF-165: LUT Matrix Determinant Non-Singular
+[CF-165] LUT Matrix Determinant Non-Singular (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix found — check not applicable
+         [OK] All LUT matrices are non-singular
+      [OK] Conformant
+
+[H1166] CF-166: LUT Matrix Row Non-Zero
+[CF-166] LUT Matrix Row Non-Zero (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix found — check not applicable
+         [OK] All LUT matrix rows have non-zero elements
+      [OK] Conformant
+
+[H1167] CF-167: LUT Matrix Offset Bounds
+[CF-167] LUT Matrix Offset Bounds (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix offset constants found — check not applicable
+         [OK] All LUT matrix offsets within reasonable bounds
+      [OK] Conformant
+
+[H1168] CF-168: LUT Matrix Input-Output Range
+[CF-168] LUT Matrix Input-Output Range (ICC v4 Matrix Entries TN)
+         No LUT tags with matrix found — check not applicable
+         [OK] LUT matrix outputs within expected range
+      [OK] Conformant
+
+[H1255] CF-255: CLUT Grid Point Values
+      [OK] Conformant
+
+[H1256] CF-256: LUT I/O Channels vs Profile Spaces
+    Non-conformance: AToB0 input channels (2) != colorSpace channels (3)
+      [WARN]  1 non-conformance(s)
+
+[H1261] CF-261: M-Curve Count = 3 When Matrix Present
+[CF-261] lutAToBType M-Curve Count = 3 When Matrix Present (ICC.1-2022-05 §10.11)
+         No lutAToB/BToA tags with matrix+M-curves found
+         [OK] M-curve count consistent with matrix presence
+      [OK] Conformant
+
+[H1262] CF-262: B-Curve Count vs Output Channels
+[CF-262] LUT B-Curve Count vs Output Channels (ICC.1-2022-05 §10.11)
+         No lutAToBType tags found
+         [OK] B-curve count matches output channel count
+      [OK] Conformant
+
+
+--- v5/iccMAX Conformance (CF-080..CF-090, CF-113..CF-115, CF-137..CF-162, CF-175..CF-198, CF-235..CF-242, CF-257, CF-284..CF-316) ---
+
+[H1178] CF-178: Chad Diagonal Dominance
+[CF-178] Chad Matrix Diagonal Dominance (ICC TN Partial Adaptation)
+         No chromaticAdaptationTag (or < 9 elements) — not applicable
+         [OK] Skipped (no chad)
+      [OK] Conformant
+
+[H1179] CF-179: Chad D50 Identity
+[CF-179] Chad D50-to-D50 Identity Check (ICC TN Partial Adaptation)
+         No chad tag — not applicable
+         [OK] Skipped (no chad)
+      [OK] Conformant
+
+[H1183] CF-183: Chad Column Normalization
+[CF-183] Chad Column Normalization (ICC TN Partial Adaptation)
+         No chromaticAdaptationTag (or < 9 elements) — not applicable
+         [OK] Skipped (no chad)
+      [OK] Conformant
+
+  [INFO] Profile version 2 — v5/iccMAX checks skipped
+
+--- Security Conformance (CF-091..CF-094) ---
+
+[H1091] CF-091: Malware Signature Scan
+  [CF-091] Malware Signature Scan (ICC.1-2022-05 §9)
+           [OK] No malware signatures detected in tag data
+      [OK] Conformant
+
+[H1092] CF-092: Private Tag Identification
+  [CF-092] Private/Unregistered Tag Identification (ICC.1-2022-05 §9)
+           [OK] All tags are registered ICC signatures
+      [OK] Conformant
+
+[H1093] CF-093: Private Tag Content Scan
+  [CF-093] Private Tag Content Security Scan (ICC.1-2022-05 §9)
+           [OK] No private tags to scan
+      [OK] Conformant
+
+[H1094] CF-094: NOP/Shellcode Pattern Scan
+  [CF-094] NOP/Shellcode Pattern Scan (CWE-506)
+           [OK] No NOP sled or shellcode patterns detected
+      [OK] Conformant
+
+
+--- Private Tag Conformance (CF-095..CF-098) ---
+
+
+--- Quality Conformance (CF-099..CF-102) ---
+
+[H1099] CF-099: Round-Trip CIEDE2000
+  [CF-099] Round-Trip Transform CIEDE2000 (ICC.1-2022-05 §8)
+           [GAP] Matrix/TRC quality metrics require XYZ PCS
+      GAP: Matrix/TRC quality metrics require XYZ PCS
+      [OK] Conformant
+
+[H1100] CF-100: Curve Invertibility
+  [CF-100] Curve Invertibility Check (ICC.1-2022-05 §10.6)
+           A2B0 A[0]: avg inv err=0.415005  max err=1.000000
+           [WARN] A2B0 A[0] is non-monotonic — not reliably invertible
+           A2B0 A[1]: avg inv err=0.511582  max err=1.000000
+           [WARN] A2B0 A[1] is non-monotonic — not reliably invertible
+           A2B0 A[2]: avg inv err=0.457964  max err=0.992188
+           [WARN] A2B0 A[2] is non-monotonic — not reliably invertible
+           A2B0 B[0]: avg inv err=0.000000  max err=0.000000
+           A2B0 B[1]: avg inv err=0.000000  max err=0.000000
+      [WARN]  3 non-conformance(s)
+
+[H1101] CF-101: Transform Smoothness
+  [CF-101] Transform Smoothness (ICC.1-2022-05 §10.8)
+           Model: classic lut8/lut16 A2B0, samples: 192
+           Avg step DeltaE00=16.3013  max step DeltaE00=115.6213  max curvature=77.0160
+           Large discontinuities (>6.0 DeltaE00): 67
+           [OK] Transform smoothness metrics recorded
+      [OK] Conformant
+
+[H1102] CF-102: Characterization Round-Trip
+  [CF-102] Characterization Data Round-Trip (ICC.1-2022-05 §9.2.26)
+           [N/A] No characterization data (targ) tag present
+      N/A: No characterization data (targ) tag present
+      [OK] Conformant
+
+
+Deep Conformance Summary: 8 issue(s)
+
+=======================================================================
+PHASE 3: ROUND-TRIP TAG VALIDATION
 =======================================================================
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
+Profile: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc
 
 Device Class: 0x61627374
 
@@ -767,7 +1274,7 @@ Tag Pair Analysis:
 Result: NOT round-trip capable
 
 =======================================================================
-PHASE 3: SIGNATURE ANALYSIS
+PHASE 4: SIGNATURE ANALYSIS
 =======================================================================
 
 
@@ -791,7 +1298,7 @@ Idx  Tag          FourCC     Type         Issues
 Summary: 0 signature issue(s) detected
 
 =======================================================================
-PHASE 4: PROFILE STRUCTURE DUMP
+PHASE 5: PROFILE STRUCTURE DUMP
 =======================================================================
 
 === ICC Profile Header ===
@@ -845,7 +1352,7 @@ Idx  Signature    FourCC       Offset     Size
 3    AToB0Tag     'A2B0      '  0x00000164  16323
 
 =======================================================================
-PHASE 5: TAG CONTENT ANALYSIS
+PHASE 6: TAG CONTENT ANALYSIS
 =======================================================================
 
 --- 5A: LUT Tag Geometry ---
@@ -915,14 +1422,15 @@ PHASE 5: TAG CONTENT ANALYSIS
 
 
 =======================================================================
-COMPREHENSIVE ANALYSIS SUMMARY
+CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
-Total Issues Detected: 5
+File: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc
+Mode: Conformance (ICC specification audit)
+Total Issues Detected: 11
 
-[WARN] ANALYSIS COMPLETE - 5 issue(s) detected
-  Review detailed output above for security concerns.
+[WARN] ANALYSIS COMPLETE - 11 issue(s) detected
+  Review conformance findings above. Use --legacy for vulnerability analysis.
 ```
 
 ---
@@ -944,7 +1452,7 @@ WARNING: Analyzing malformed/corrupted ICC profile without validation.
          This mode bypasses all safety checks and may expose parser bugs.
          Use only for security research, fuzzing, or forensic analysis.
 
-File: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
+File: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc
 Mode: FULL DUMP (entire file will be displayed)
 
 Raw file size: 16680 bytes (0x4128)
@@ -2055,7 +2563,7 @@ Use this information for debugging malformed profiles.
 ```
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/xss/research/test-profiles/BlacklightPoster_202143.icc
+Profile: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc
 
 Device Class: 0x61627374
 
@@ -2081,19 +2589,19 @@ Tag Pair Analysis:
 **Exit Code: 0**
 
 ```
-=== Extracting LUT data as text from: /home/xss/research/test-profiles/BlacklightPoster_202143.icc ===
+=== Extracting LUT data as text from: /home/h02332/po/research/test-profiles/BlacklightPoster_202143.icc ===
 
 --- AToB0Tag (type: lut8Type) ---
   Channels: in=2 out=3
-  Wrote curve A[0]: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_clut.txt (289 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.vkDT0A5oy4/BlacklightPoster_202143__AToB0Tag_curveB_1.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_clut.txt (289 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveB_1.txt (256 samples)
 
 === Exported 6 LUT component(s) ===
-Exported 6 text file(s) to /tmp/tmp.vkDT0A5oy4/
+Exported 6 text file(s) to /tmp/tmp.An4n2EKd0p/
 ```
 
 ---

@@ -2,7 +2,9 @@
 
 **Profile**: `test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc`
 **File Size**: 1326 bytes
-**Date**: 2026-02-28T18:05:48Z
+**SHA-256**: `a2df197fb58aa30bc5dcd3fd31d6ae380c2db7a83b67b0af4c4a86aee2954385`
+**File Type**: color profile 5.0, type NULL, RGB/NULL-cenc device by NULL, 720 bytes, PCS X=0 Y=0 Z=0, 0x20000f9ff MD5, no copyright tag
+**Date**: 2026-03-25T02:22:53Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -12,6 +14,8 @@
 | `-a` (comprehensive) | 1 | Finding detected |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 2 | Error |
+| `-xt` (LUT text export) | 2 | Error |
+| `-cube` (cube export) | 1 | No 3D CLUT |
 
 **ASAN/UBSAN**: No sanitizer errors detected
 
@@ -22,144 +26,57 @@
 **Exit Code: 1**
 
 ```
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x52474220 (RGB)
-ICC_DEBUG: [iccDEV/IccProfLib/IccSignatureUtils.h:288] IsValidColorSpaceSignature(): input = 0x4e554c4c (Unknown)
-ICC_WARN: [iccDEV/IccProfLib/IccSignatureUtils.h:311] IccSignatureUtils.h: ColorSpace signature: 0x4e554c4c (Unknown)
 
 =======================================================================
-  ICC PROFILE COMPREHENSIVE ANALYSIS (ALL MODES)
+  ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+File: /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+
+[H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
+      [WARN]  HEURISTIC: 11/11 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
+       CWE-190: sig<<=8 on uint32 with first byte non-zero produces value > UINT32_MAX (upstream iccDEV library pattern)
+
+[H174] Half-Float Conversion Unsigned Underflow (IccUtil.cpp icF16toF)
+      [N/A] No vulnerable half-float values detected
 
 =======================================================================
-PHASE 1: SECURITY HEURISTIC ANALYSIS
+PHASE 1: ICC SPECIFICATION CONFORMANCE
 =======================================================================
-
-
-=========================================================================
-|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |
-=========================================================================
-
-File: /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
-
-=======================================================================
-HEADER VALIDATION HEURISTICS
-=======================================================================
-
-[H1] Profile Size: 720 bytes (0x000002D0)  [actual file: 1326 bytes]
-     [OK] Size within normal range
-
-[H2] Magic Bytes (offset 0x24): 61 63 73 70 (acsp)
-     [OK] Valid ICC magic signature
-
-[H3] Data ColorSpace: 0x52474220 (RGB )
-     [OK] Valid colorSpace: RgbData
-
-[H4] PCS ColorSpace: 0x4E554C4C (NULL)
-     [WARN]  HEURISTIC: Invalid PCS signature (must be Lab, XYZ, or spectral)
-     Risk: Colorimetric transform failures
-     Name: Unknown  Bytes: 'NULL'
-
-[H5] Platform: 0x00000000 (....)
-     [OK] Known platform code
-
-[H6] Rendering Intent: 0 (0x00000000)
-     [OK] Valid intent: Perceptual
-
-[H7] Profile Class: 0x63656E63 (cenc)
-     [OK] Known class: ColorEncodingClass
-
-[H8] Illuminant XYZ: (0.000000, 0.000000, 0.000000)
-     [OK] Illuminant values within physical range
-
-[H15] Date Validation: 0-00-00 00:00:00
-      [WARN]  HEURISTIC: Invalid month: 0
-      [WARN]  HEURISTIC: Invalid day: 0
-      [WARN]  HEURISTIC: Suspicious year: 0 (expected 1900-2100)
-      Risk: Malformed date may indicate crafted/corrupted profile
-
-[H16] Signature Pattern Analysis
-      [OK] No suspicious signature patterns detected
-
-[H17] Spectral Range Validation
-      [OK] No spectral data (standard profile)
-
-=======================================================================
-TAG-LEVEL HEURISTICS
-=======================================================================
-
-[H9] Critical Text Tags:
-     Description: Missing
-     Copyright: Missing
-     Manufacturer: Missing
-     Device Model: Missing
-     [WARN]  HEURISTIC: Multiple required text tags missing
-       Risk: Incomplete/malformed profile
-
-[H10] Tag Count: 3
-      [OK] Tag count within normal range
-
-[H11] CLUT Entry Limit Check
-      Max safe CLUT entries per tag: 16777216 (16M)
-      [OK] No CLUT tags to check
-
-[H12] MPE Chain Depth Check
-      Max MPE elements per chain: 1024
-      [OK] No MPE tags to check
-
-[H13] Per-Tag Size Check
-      Max tag size: 64 MB (67108864 bytes)
-      [OK] All 3 tags within size limits
-
-[H14] TagArrayType Detection (UAF Risk)
-      Checking for TagArrayType (0x74617279 = 'tary')
-      Note: Tag signature ≠ tag type - must check tag DATA
-      [OK] No TagArrayType tags detected
-
-[H18] Technology Signature Validation
-      INFO: No technology tag present
-
-[H19] Tag Offset/Size Overlap Detection
-      [OK] No tag overlaps detected
-
-=======================================================================
-HEURISTIC SUMMARY
-=======================================================================
-
-[WARN]  3 HEURISTIC WARNING(S) DETECTED
-
-  This profile exhibits patterns associated with:
-  - Malformed/corrupted data
-  - Resource exhaustion attempts
-  - Enum confusion vulnerabilities
-  - Parser exploitation attempts
-
-  Recommendations:
-  • Validate profile with official ICC tools
-  • Use -n (ninja mode) for detailed byte-level analysis
-  • Do NOT use in production color workflows
-  • Consider as potential security test case
 
 
 =======================================================================
-PHASE 2: ROUND-TRIP TAG VALIDATION
+ICC LIBRARY CONFORMANCE VALIDATION
+=======================================================================
+
+  Running CIccProfile::ReadValidate() — ICC.1-2022-05 conformance checks
+  Checks: header, required tags, tag types, per-tag content validation
+
+  Validation Status: CRITICAL ERROR — Profile is not usable
+
+  [NON-COMPLIANT] Bad Header File Size
+  [NON-COMPLIANT] Bad Profile ID
+  [ERROR]  - colorEncodingParamsTag - Tag has invalid structure!
+
+  Validation Summary: 1 error(s), 2 non-compliant, 0 warning(s), 0 info
+  [WARN] 3 ICC spec conformance issue(s) detected
+
+
+[NOT RUN] Deep conformance checks not run — profile failed to load
+
+=======================================================================
+PHASE 3: ROUND-TRIP TAG VALIDATION
 =======================================================================
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+Profile: /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
 
 Error reading ICC profile
 
-Profile failed validation. Try ninja mode: iccAnalyzer -n /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
 Result: NOT round-trip capable
-
-=======================================================================
-PHASE 3: SIGNATURE ANALYSIS
-=======================================================================
-
-[ERROR] Profile failed to load - skipping phases 3-5
+[ERROR] Profile failed to load - skipping remaining phases
         Use -n (ninja mode) for raw analysis of malformed profiles
 ```
 
@@ -182,7 +99,7 @@ WARNING: Analyzing malformed/corrupted ICC profile without validation.
          This mode bypasses all safety checks and may expose parser bugs.
          Use only for security research, fuzzing, or forensic analysis.
 
-File: /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+File: /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
 Mode: FULL DUMP (entire file will be displayed)
 
 Raw file size: 1326 bytes (0x52E)
@@ -200,10 +117,26 @@ Raw file size: 1326 bytes (0x52E)
 Header Fields (RAW - no validation):
   Profile Size:    0x000002D0 (720 bytes) MISMATCH
   CMM:             0x4E554C4C  'NULL'
-  Version:         0x05000000
+  Version:         0x05000000  (5.0.0)
   Device Class:    0x63656E63  'cenc'
   Color Space:     0x52474220  'RGB '
   PCS:             0x4E554C4C  'NULL'
+  Date/Time:       0000-00-00 00:00:00
+  Magic:           0x61637370  [OK 'acsp']
+  Platform:        0x00000000  '....'
+  Flags:           0x00000000
+  Manufacturer:    0x00000000  '....'
+  Model:           0x00000000  '....'
+  Dev Attributes:  0x0000000000000000
+  Rendering Intent:0x00000000  Perceptual
+  PCS Illuminant:  X=0.0000 Y=0.0000 Z=0.0000
+  Creator:         0x4E554C4C  'NULL'
+  Profile ID:      000000020000f9ff0000000000000000
+  Reserved 100-127: NON-ZERO [VIOLATION]
+
+  --- V5/iccMAX Extended Header ---
+  Spectral PCS:    0x4E554C4C  'NULL'
+  Spectral Range:  Not defined
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 3 (0x00000003)
@@ -319,9 +252,30 @@ Use this information for debugging malformed profiles.
 ```
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+Profile: /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
 
 Error reading ICC profile
 
-Profile failed validation. Try ninja mode: iccAnalyzer -n /home/runner/work/research/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/CIccTagStruct-Read-recursive-stack-overflow.icc
+```
+
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 2**
+
+```
+Error reading ICC profile
+Exported 0 text file(s) to /tmp/tmp.f6QVRcMGER/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 1**
+
+```
+No 3D CLUT found in any standard LUT tag
 ```
