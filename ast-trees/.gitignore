@@ -1,0 +1,2 @@
+# Raw Clang AST dumps (150-850MB each — too large for git)
+*-ast-raw.json

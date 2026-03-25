@@ -1,0 +1,29 @@
+digraph iccDumpProfile {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#f0f4ff",
+        fontname="Courier", fontsize=9];
+  edge [color="#4a6fa5", arrowsize=0.7];
+
+  "main" [label="int main()", fillcolor="#d4edda"];
+  "Close" [label="Close", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Open" [label="Open", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "PushFactory" [label="PushFactory", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Read" [label="Read", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "ToXml" [label="ToXml", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Write8" [label="Write8", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "c_str" [label="c_str", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "printf" [label="printf", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "reserve" [label="reserve", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "size" [label="size", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+
+  "main" -> "printf" [label="  L15  [gate: argc <= 2]  ", fontsize=7];
+  "main" -> "PushFactory" [label="  L20  ", fontsize=7];
+  "main" -> "Open" [label="  L0  ", fontsize=7];
+  "main" -> "Read" [label="  L0  ", fontsize=7];
+  "main" -> "reserve" [label="  L37  ", fontsize=7];
+  "main" -> "ToXml" [label="  L0  ", fontsize=7];
+  "main" -> "Write8" [label="  L0  ", fontsize=7];
+  "main" -> "c_str" [label="  L0  ", fontsize=7];
+  "main" -> "size" [label="  L0  ", fontsize=7];
+  "main" -> "Close" [label="  L57  ", fontsize=7];
+}

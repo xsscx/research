@@ -1,0 +1,1337 @@
+{
+  "source": "iccSpecSepToTiff.cpp",
+  "generator": "extract-ast.py (clang-18 AST)",
+  "functions": 2,
+  "total_calls": 92,
+  "total_gates": 25,
+  "total_vars": 35,
+  "definitions": [
+    {
+      "name": "Usage",
+      "return_type": "void",
+      "params": [
+        {
+          "name": "name",
+          "type": "const char *"
+        }
+      ],
+      "line_start": 90,
+      "line_end": 115,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "strrchr",
+          "line": 0,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "strrchr",
+          "line": 0,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 102,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 103,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 105,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 106,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 107,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 108,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 109,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 110,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 111,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 112,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 113,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 114,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "strippedName == <GNUNullExpr>",
+          "line": 94,
+          "gate_type": "if",
+          "parent_func": "Usage",
+          "depth": 1,
+          "calls_in_true": [
+            "strrchr"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "strippedName == <GNUNullExpr>",
+          "line": 96,
+          "gate_type": "if",
+          "parent_func": "Usage",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "strippedName",
+          "type": "const char *",
+          "line": 0,
+          "parent_func": "Usage",
+          "is_pointer": true,
+          "is_array": false
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [
+        {
+          "name": "argc",
+          "type": "int"
+        },
+        {
+          "name": "argv",
+          "type": "char **"
+        }
+      ],
+      "line_start": 119,
+      "line_end": 273,
+      "is_main": true,
+      "calls": [
+        {
+          "callee": "Usage",
+          "line": 123,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 135,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 142,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "abs",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 149,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "snprintf",
+          "line": 161,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "Open",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 163,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 168,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 173,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidth",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetWidth",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetHeight",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetHeight",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetBitsPerSample",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetBitsPerSample",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetXRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetXRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetYRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetYRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 183,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "GetBytesPerLine",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 200,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetBitsPerSample",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidth",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "get",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "get",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetXRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetYRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Create",
+          "line": 222,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidth",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetHeight",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetBitsPerSample",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 224,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "Open",
+          "line": 232,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetLength",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "reset",
+          "line": 234,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Read8",
+          "line": 235,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "get",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetIccProfile",
+          "line": 236,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "get",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Close",
+          "line": 237,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetHeight",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "ReadLine",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 246,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidth",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "memcpy",
+          "line": 259,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "WriteLine",
+          "line": 263,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Close",
+          "line": 267,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 269,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "argc < minargs",
+          "line": 122,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "Usage"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "step == 0",
+          "line": 134,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "((end < start) && (step > 0)) || ((end > start) && (step < 0))",
+          "line": 140,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "nSamples < 1",
+          "line": 148,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 156,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!Open(...)",
+          "line": 162,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetSamples(...) != 1",
+          "line": 167,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetPhoto(...) == 3",
+          "line": 172,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "i && (GetWidth(...) != GetWidth(...) || GetHeight(...) != GetHeight(...) || GetBitsPerSample(...) != GetBitsPerSample(...) || GetPhoto(...) != GetPhoto(...) || GetXRes(...) != GetXRes(...) || GetYRes(...) != GetYRes(...))",
+          "line": 177,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetPhoto(...) == 1",
+          "line": 197,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": [
+            "GetPhoto",
+            "printf"
+          ]
+        },
+        {
+          "condition_text": "GetPhoto(...) != 0",
+          "line": 199,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 2,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "xRes < 1",
+          "line": 216,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "yRes < 1",
+          "line": 218,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!Create(...)",
+          "line": 222,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "argc > 8",
+          "line": 230,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "Open",
+            "GetLength",
+            "reset",
+            "Read8",
+            "get",
+            "SetIccProfile",
+            "get",
+            "Close"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "Open(...)",
+          "line": 232,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "GetLength",
+            "reset",
+            "Read8",
+            "get",
+            "SetIccProfile",
+            "get",
+            "Close"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 241,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 243,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!ReadLine(...)",
+          "line": 245,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "invert",
+          "line": 249,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 250,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 7,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 256,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 257,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "minargs",
+          "type": "const int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "bCompress",
+          "type": "bool",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "bSep",
+          "type": "bool",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "start",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "end",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "step",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "nSamples",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "infile",
+          "type": "std::vector<CTiffImg>",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "i",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "max_path_length",
+          "type": "const int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "filename",
+          "type": "char[510]",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "channelNum",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "f",
+          "type": "CTiffImg *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "bytePerLine",
+          "type": "long",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "invert",
+          "type": "bool",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "bytesPerSample",
+          "type": "long",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "inbufffer",
+          "type": "std::unique_ptr<icUInt8Number[]>",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": true
+        },
+        {
+          "name": "outSize",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "outbuffer",
+          "type": "std::unique_ptr<icUInt8Number[]>",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": true
+        },
+        {
+          "name": "inbuf",
+          "type": "icUInt8Number *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "outbuf",
+          "type": "icUInt8Number *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "xRes",
+          "type": "float",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "yRes",
+          "type": "float",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "outfile",
+          "type": "CTiffImg",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "destProfile",
+          "type": "std::unique_ptr<unsigned char[]>",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": true
+        },
+        {
+          "name": "io",
+          "type": "CIccFileIO",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "length",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "i",
+          "type": "unsigned int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "sptr",
+          "type": "icUInt8Number *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "tptr",
+          "type": "icUInt8Number *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "j",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "k",
+          "type": "long",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "k",
+          "type": "unsigned int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "j",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        }
+      ]
+    }
+  ]
+}

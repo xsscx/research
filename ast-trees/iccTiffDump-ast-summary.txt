@@ -1,0 +1,143 @@
+============================================================================
+  AST Analysis: iccTiffDump.cpp
+============================================================================
+
+  Functions:  4
+  Call sites: 89
+  AST gates:  23
+  Variables:  16
+
+----------------------------------------------------------------------------
+  const char * GetId(unsigned long nId, IdList * pIdList)
+  Lines 111–115   |   0 calls   |   1 gates   |   0 vars
+
+  AST Gates:
+      ⊳ for (<for-loop>)  L113
+
+----------------------------------------------------------------------------
+  void Usage()
+  Lines 117–121   |   2 calls   |   0 gates   |   0 vars
+
+  Call Graph:
+    L 119  printf
+
+----------------------------------------------------------------------------
+  void DumpProfileInfo(CIccProfile * pProfile, std::string prefix)
+  Lines 123–180   |   42 calls   |   13 gates   |   9 vars
+
+  AST Gates:
+      ⊳ if (colorSpace)  L130
+        → true:  printf, c_str, GetColorSpaceSigName
+      ⊳ if (pcs)  L132
+        → true:  printf, c_str, GetColorSpaceSigName
+      ⊳ if (spectralPCS)  L134
+        → true:  printf, c_str, GetSpectralColorSigName, printf, c_str, icF16toF, icF16toF, printf
+          ⊳ if (start || end || steps)  L136
+            → true:  printf, c_str, icF16toF, icF16toF
+          ⊳ if (start || end || steps)  L142
+            → true:  printf, c_str, icF16toF, icF16toF
+      ⊳ if (pDesc)  L151
+        → true:  GetType, printf, c_str, GetText, GetType, begin, operator!=, end
+          ⊳ if (GetType(...) == icSigTextDescriptionType)  L152
+            → true:  printf, c_str, GetText
+            → false: GetType, begin, operator!=, end, GetText, operator->, printf, c_str
+            ⊳ if (GetType(...) == icSigMultiLocalizedUnicodeType)  L156
+              → true:  begin, operator!=, end, GetText, operator->, printf, c_str, c_str
+            ⊳ if (m_Strings)  L158
+              → true:  begin, operator!=, end, GetText, operator->, printf, c_str, c_str
+            ⊳ if (<ExprWithCleanups>)  L160
+              → true:  GetText, operator->, printf, c_str, c_str
+      ⊳ if (pEmbedded)  L170
+        → true:  GetType, GetProfile, printf, c_str, DumpProfileInfo, GetProfile, operator+
+          ⊳ if (GetType(...) == icSigEmbeddedProfileType)  L172
+            → true:  GetProfile, printf, c_str, DumpProfileInfo, GetProfile, operator+
+            ⊳ if (GetProfile(...))  L174
+              → true:  printf, c_str, DumpProfileInfo, GetProfile, operator+
+
+  Call Graph:
+    L   0  c_str (member)
+    L   0  GetVersionName (member)
+    L   0  GetColorSpaceSigName (member)
+    L   0  GetSpectralColorSigName (member)
+    L   0  icF16toF
+    L   0  FindTag (member)
+    L   0  GetType (member)
+    L   0  GetText (member)
+    L   0  begin (member)
+    L   0  end (member)
+    L   0  GetProfile (member)
+    L   0  DumpProfileInfo
+    L 128  printf
+
+  Security-Relevant Variables:
+    L   0  icHeader *                               pHdr [PTR]
+    L   0  CIccTag *                                pDesc [PTR]
+    L   0  CIccTagTextDescription *                 pText [PTR]
+    L   0  CIccTagMultiLocalizedUnicode *           pStrs [PTR]
+    L   0  CIccTag *                                pEmbedded [PTR]
+    L   0  CIccTagEmbeddedProfile *                 pEmbeddedTag [PTR]
+
+----------------------------------------------------------------------------
+  int main(int argc, icChar ** argv) [ENTRY]
+  Lines 184–252   |   45 calls   |   9 gates   |   7 vars
+
+  AST Gates:
+      ⊳ if (argc <= minargs)  L187
+        → true:  Usage
+      ⊳ if (!Open(...))  L193
+        → true:  printf
+      ⊳ if (nExtra)  L207
+        → true:  printf
+      ⊳ if (GetIccProfile(...))  L216
+        → true:  printf, fopen, fwrite, fclose, printf, fprintf, OpenIccProfile, DumpProfileInfo
+        → false: printf
+          ⊳ if (argc > 2 && pProfMem && nLen > 0)  L220
+            → true:  fopen, fwrite, fclose, printf, fprintf
+            ⊳ if (fp)  L222
+              → true:  fwrite, fclose, printf
+              → false: fprintf
+          ⊳ if (pProfile)  L233
+            → true:  DumpProfileInfo, ReadTags, SaveIccProfile, printf, printf
+            ⊳ if (argc > 2)  L235
+              → true:  ReadTags, SaveIccProfile, printf, printf
+            ⊳ if (SaveIccProfile(...))  L237
+              → true:  printf
+              → false: printf
+
+  Call Graph:
+    L   0  Open (member)
+    L   0  GetHeight (member)
+    L   0  GetHeightIn (member)
+    L   0  GetId
+    L   0  GetPlanar (member)
+    L   0  GetBitsPerSample (member)
+    L   0  GetSamples (member)
+    L   0  GetExtraSamples (member)
+    L   0  GetPhoto (member)
+    L   0  GetBytesPerLine (member)
+    L   0  GetXRes (member)
+    L   0  GetYRes (member)
+    L   0  GetCompress (member)
+    L   0  fopen
+    L   0  OpenIccProfile
+    L   0  DumpProfileInfo
+    L 188  Usage
+    L 194  printf
+    L 201  GetWidth (member)
+    L 202  GetWidthIn (member)
+    L 216  GetIccProfile (member)
+    L 223  fwrite
+    L 224  fclose
+    L 227  fprintf
+    L 236  ReadTags (member)
+    L 237  SaveIccProfile
+    L 250  Close (member)
+
+  Security-Relevant Variables:
+    L   0  int                                      minargs
+    L   0  int                                      nExtra
+    L   0  unsigned char *                          pProfMem [PTR]
+    L   0  unsigned int                             nLen
+    L   0  FILE *                                   fp [PTR]
+    L   0  CIccProfile *                            pProfile [PTR]
+

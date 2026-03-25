@@ -1,0 +1,244 @@
+============================================================================
+  AST Analysis: iccApplyProfiles.cpp
+============================================================================
+
+  Functions:  3
+  Call sites: 224
+  AST gates:  72
+  Variables:  83
+
+----------------------------------------------------------------------------
+  icFloatNumber UnitClip(icFloatNumber v)
+  Lines 83–98   |   2 calls   |   5 gates   |   0 vars
+
+  AST Gates:
+      ⊳ if (isnan(...))  L85
+      ⊳ if (isinf(...))  L87
+          ⊳ if (v < <FloatingLiteral>)  L88
+      ⊳ if (v < <FloatingLiteral>)  L93
+      ⊳ if (v > <FloatingLiteral>)  L95
+
+  Call Graph:
+    L  85  isnan
+    L  87  isinf
+
+----------------------------------------------------------------------------
+  void Usage()
+  Lines 103–154   |   43 calls   |   0 gates   |   0 vars
+
+  Call Graph:
+    L 105  printf
+
+----------------------------------------------------------------------------
+  int main(int argc, const char ** argv) [ENTRY]
+  Lines 158–674   |   179 calls   |   67 gates   |   83 vars
+
+  AST Gates:
+      ⊳ if (argc < minargs)  L161
+        → true:  Usage
+      ⊳ if (argc > 2 && !strcasecmp(...))  L169
+        → true:  loadJsonFrom, is_object, printf, operator==, find, end, fromJson, operator[]
+        → false: strcasecmp, operator=, fromArgs, printf, Usage, fromArgs, printf, Usage
+          ⊳ if (!loadJsonFrom(...) || !is_object(...))  L171
+            → true:  printf
+          ⊳ if (<ExprWithCleanups>)  L176
+            → true:  printf
+          ⊳ if (<ExprWithCleanups>)  L181
+            → true:  printf
+          ⊳ if (argc > 2 && !strcasecmp(...))  L192
+            → true:  operator=
+          ⊳ if (!nArg)  L199
+            → true:  printf, Usage
+          ⊳ if (!nArg)  L208
+            → true:  printf, Usage
+          ⊳ if (!empty(...))  L214
+            → true:  fopen, c_str, toJson, operator=, operator[], toJson, operator=, operator[]
+            ⊳ if (f)  L216
+              → true:  toJson, operator=, operator[], toJson, operator=, operator[], dump, fwrite
+              → false: printf, c_str
+      ⊳ if (!Open(...))  L243
+        → true:  printf, c_str
+      ⊳ switch (bps)  L254
+      ⊳ if (m_dstEncoding == icEncodeUnknown)  L266
+        → false: printf
+          ⊳ switch (destEncoding)  L271
+            ⊳ ternary (m_dstCompression == icDstBoolFromSrc)  L0
+            ⊳ ternary (m_dstPlanar == icDstBoolFromSrc)  L0
+          ⊳ ternary (m_dstEmbedIcc == icDstBoolFromSrc)  L0
+      ⊳ for (<for-loop>)  L310
+          ⊳ if (!pProfCfg)  L313
+            → true:  printf
+          ⊳ if (m_useBPC)  L322
+            → true:  AddHint
+          ⊳ if (m_adjustPcsLuminance)  L325
+            → true:  AddHint
+          ⊳ if (size(...))  L329
+            → true:  OpenIccProfile, c_str, printf, c_str, push_back
+            ⊳ if (!pPccProfile)  L331
+              → true:  printf, c_str
+          ⊳ if (size(...) > 0)  L340
+            → true:  AddHint
+          ⊳ if (size(...) > 0)  L344
+            → true:  AddHint
+          ⊳ if (bFirst && !size(...))  L349
+            → true:  AddXform, printf, c_str, printf
+            → false: c_str, AddXform, c_str, printf, c_str
+            ⊳ if (bHasSrcProfile)  L350
+              → true:  AddXform, printf, c_str
+              → false: printf
+            ⊳ if (AddXform(...))  L351
+              → true:  printf, c_str
+            ⊳ ternary (m_intent < 0)  L352
+            ⊳ if (AddXform(...))  L371
+              → true:  printf, c_str
+            ⊳ ternary (m_intent < 0)  L372
+      ⊳ if ((stat = Begin(...)))  L387
+        → true:  printf
+      ⊳ for (<for-loop>)  L394
+      ⊳ if (nSrcSamples != sn)  L405
+        → true:  printf, c_str, printf, c_str
+          ⊳ if (sen != 0)  L407
+            → true:  printf, c_str
+            → false: printf, c_str
+            ⊳ if (nSrcSamples != (sn - sen))  L408
+              → true:  printf, c_str
+      ⊳ if (nDestParentSamples && nDestSamples != nDestParentSamples)  L431
+      ⊳ switch (DestColorSpaceSig)  L436
+      ⊳ if (!Create(...))  L467
+        → true:  printf, c_str
+      ⊳ if (bEmbed && last_path)  L473
+        → true:  Open, GetLength, malloc, Read8, SetIccProfile, free, Close
+          ⊳ if (Open(...))  L478
+            → true:  GetLength, malloc, Read8, SetIccProfile, free, Close
+            ⊳ if (pDestProfile)  L481
+              → true:  Read8, SetIccProfile, free
+      ⊳ if (!pSBuf)  L492
+        → true:  printf
+      ⊳ if (!pDBuf)  L499
+        → true:  printf, free
+      ⊳ for (<for-loop>)  L511
+          ⊳ if (!ReadLine(...))  L512
+          ⊳ for (<for-loop>)  L515
+            ⊳ switch (bps)  L518
+            ⊳ if (sphoto == 2)  L520
+              → true:  operator float *
+              → false: operator float *
+            ⊳ for (<for-loop>)  L530
+            ⊳ if (sphoto == 2)  L537
+              → true:  operator float *
+              → false: operator float *
+            ⊳ for (<for-loop>)  L547
+            ⊳ if (<UnaryExprOrTypeTraitExpr> == <UnaryExprOrTypeTraitExpr>)  L555
+              → true:  memcpy, get
+              → false: operator float *
+            ⊳ for (<for-loop>)  L561
+            ⊳ if (sphoto == 2 || sphoto == 3)  L566
+              → true:  icLabToPcs, operator float *
+            ⊳ if (sphoto == 2 && SrcspaceSig == icSigXYZData)  L576
+              → true:  icLabFromPcs, operator float *, icLabtoXYZ, operator float *, icXyzToPcs, operator float *
+            ⊳ if (photo == 2 && DestSpaceSig == icSigXYZData)  L586
+              → true:  icXyzFromPcs, operator float *, icXYZtoLab, operator float *, icLabToPcs, operator float *
+            ⊳ switch (dbps)  L591
+            ⊳ if (photo == 2)  L593
+              → true:  operator float *, UnitClip, UnitClip, UnitClip
+              → false: operator float *, UnitClip
+            ⊳ for (<for-loop>)  L603
+            ⊳ if (photo == 2)  L610
+              → true:  operator float *, UnitClip, UnitClip, UnitClip
+              → false: operator float *, UnitClip
+            ⊳ for (<for-loop>)  L620
+            ⊳ if (photo == 2 || photo == 3)  L628
+              → true:  icLabFromPcs, operator float *
+            ⊳ if (<UnaryExprOrTypeTraitExpr> == <UnaryExprOrTypeTraitExpr>)  L632
+              → true:  memcpy, get
+              → false: operator float *
+            ⊳ for (<for-loop>)  L638
+          ⊳ if (!WriteLine(...))  L652
+          ⊳ if (curper != lastPer)  L658
+            → true:  printf
+
+  Call Graph:
+    L   0  loadJsonFrom
+    L   0  is_object (member)
+    L   0  find (member)
+    L   0  end (member)
+    L   0  fromJson (member)
+    L   0  fromArgs (member)
+    L   0  empty (member)
+    L   0  fopen
+    L   0  c_str (member)
+    L   0  dump (member)
+    L   0  size (member)
+    L   0  Open (member)
+    L   0  GetSamples (member)
+    L   0  GetExtraSamples (member)
+    L   0  GetPhoto (member)
+    L   0  GetBitsPerSample (member)
+    L   0  GetIccProfile (member)
+    L   0  GetCompress (member)
+    L   0  GetPlanar (member)
+    L   0  begin (member)
+    L   0  get (member)
+    L   0  OpenIccProfile
+    L   0  Begin (member)
+    L   0  GetSourceSpace (member)
+    L   0  icGetSpaceSamples
+    L   0  GetDestSpace (member)
+    L   0  GetLastParentSpace (member)
+    L   0  Create (member)
+    L   0  GetWidth (member)
+    L   0  GetHeight (member)
+    L   0  GetXRes (member)
+    L   0  GetYRes (member)
+    L   0  GetLength (member)
+    L   0  malloc
+    L   0  GetBytesPerLine (member)
+    L   0  icIntMax
+    L   0  ReadLine (member)
+    L   0  UnitClip
+    L   0  WriteLine (member)
+    L 162  Usage
+    L 169  strcasecmp
+    L 172  printf
+    L 220  toJson (member)
+    L 227  fwrite
+    L 228  fclose
+    L 323  AddHint (member)
+    L 336  push_back (member)
+    L 351  AddXform (member)
+    L 398  clear (member)
+    L 482  Read8 (member)
+    L 483  SetIccProfile (member)
+    L 484  free
+    L 486  Close (member)
+    L 556  memcpy
+    L 567  icLabToPcs
+    L 577  icLabFromPcs
+    L 578  icLabtoXYZ
+    L 579  icXyzToPcs
+    L 583  Apply (member)
+    L 587  icXyzFromPcs
+    L 588  icXYZtoLab
+
+  Security-Relevant Variables:
+    L   0  int                                      minargs
+    L   0  int                                      nArg
+    L   0  FILE *                                   f [PTR]
+    L   0  int                                      i
+    L   0  int                                      j
+    L   0  int                                      k
+    L   0  unsigned int                             sn
+    L   0  unsigned int                             sen
+    L   0  unsigned int                             sphoto
+    L   0  unsigned int                             photo
+    L   0  unsigned int                             bps
+    L   0  unsigned int                             dbps
+    L   0  unsigned char *                          sptr [PTR]
+    L   0  unsigned char *                          dptr [PTR]
+    L   0  const char *                             last_path [PTR]
+    L   0  icFloatColorEncoding                     destEncoding
+    L   0  unsigned char *                          pSrcProfile [PTR]
+    L   0  unsigned int                             nSrcProfileLen
+    L   0  CIccCfgProfile *                         pProfCfg [PTR]
+    L   0  CIccProfile *                            pPccProfile [PTR]
+
