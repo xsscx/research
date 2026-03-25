@@ -4,7 +4,7 @@
 **File Size**: 524530 bytes
 **SHA-256**: `76d9b0e18911af8064fa9b2e612f2f205590ea321a725dd8925c3b3bb765e8f8`
 **File Type**: TIFF image data, big-endian, direntries=15, height=256, bps=8, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=256
-**Date**: 2026-03-08T20:03:08Z
+**Date**: 2026-03-25T02:25:02Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -14,6 +14,8 @@
 | `-a` (comprehensive) | 1 | Finding detected |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 2 | Error |
+| `-xt` (LUT text export) | 2 | Error |
+| `-cube` (cube export) | 1 | No 3D CLUT |
 
 **ASAN/UBSAN**: No sanitizer errors detected
 
@@ -43,13 +45,19 @@ File: /home/h02332/po/research/test-profiles/catalyst-16bit-mutated.tiff
 
 --- TIFF Security Heuristics ---
 [H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)
-      [OK] Strip geometry valid (bytesPerLine=2048, stripSize=131072, rowsPerStrip=64)
+      [OK] Strip geometry valid
 
 [H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)
-      [OK] Dimensions 256√ó256, BPS=16, SPP=4 (65536 pixels)
+      [OK] Dimensions valid
 
 [H141] TIFF IFD Offset Bounds Validation (CWE-125)
-      [OK] All IFD offsets within file bounds (size=524530, pages=1)
+      [OK] All IFD offsets within file bounds
+
+[H149] TIFF IFD Chain Cycle Detection (CWE-835)
+      [OK] IFD chain is acyclic
+
+[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)
+      [OK] Strip-based image ‚Äî tile geometry N/A
 
 
 --- Injection Signature Scan ---
@@ -110,10 +118,28 @@ Raw file size: 524530 bytes (0x800F2)
 Header Fields (RAW - no validation):
   Profile Size:    0x4D4D002A (1296891946 bytes) MISMATCH
   CMM:             0x00080008  '....'
-  Version:         0xAB1D1D0D
+  Version:         0xAB1D1D0D  (171.1.13)
   Device Class:    0x920A1D1D  '....'
   Color Space:     0x5E3907F6  '^9..'
   PCS:             0xFF7F98FE  '....'
+  Date/Time:       16343-65535-53217 65535:12077:53456
+  Magic:           0xC22ED0D0  [INVALID]
+  Platform:        0xFBAF9DB6  '....'
+  Flags:           0x52CBCCB5 [Embedded]
+  Manufacturer:    0x2BE00B05  '+...'
+  Model:           0x2B2B1204  '++..'
+  Dev Attributes:  0xA8A801008757A8A8
+  Rendering Intent:0x76CB8A46  UNKNOWN
+  PCS Illuminant:  X=-5333.0000 Y=7979.6133 Z=8238.3408
+  Creator:         0x393B2C21  '9;,!'
+  Profile ID:      5939ef3aa7a79e46c9a7a7afa46cd4d2
+  Reserved 100-127: NON-ZERO [VIOLATION]
+
+  --- V5/iccMAX Extended Header ---
+  Spectral PCS:    0xFF7F98FE  '....'
+  Spectral Range:  -nan - 485.2 nm, 27413 steps
+  BiSpectral:      -nan - -0.0 nm, 4675 steps
+  MCS:             0xCAB7ED43  '...C'
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 3166438211 (0xBCBC0343)
@@ -198,8 +224,7 @@ Idx  Signature    FourCC       Offset       Size         TagType      Status
 55   0x2F32401F   '/2@'        0xECDDE2A2   0xDEAE599B   '----'        OOB offset
 56   0xE3279A1A   '„'ö'        0x0100E015   0x15153D13   '----'        OOB offset
 57   0xFFFF904C   'ˇˇêL'        0x8B4BDDA7   0x1018CE00   '----'        OOB offset
-58   0xA0182FA8   '†/®'        0xFF7F2A50   0x175050ICC_WARN: [IccAnalyzerNinja.cpp:219] ninja.tagSig: suspicious signature 0x3f5701c9
-50   '----'        OOB offset
+58   0xA0182FA8   '†/®'        0xFF7F2A50   0x17505050   '----'        OOB offset
 59   0x6520991E   'e ô'        0x495FB58E   0xA3A3CB6B   '----'        OOB offset
 60   0xA3A35C5C   '££\\'        0xFFFFA04A   0xA07A0100   '----'        OOB offset
 61   0xBCE33BBE   'º„;æ'        0xA3577DBC   0xE34B2020   '----'        OOB offset
@@ -33052,7 +33077,27 @@ Use this information for debugging malformed profiles.
 === Round-Trip Tag Pair Analysis ===
 Profile: /home/h02332/po/research/test-profiles/catalyst-16bit-mutated.tiff
 
-Error reading ICC profile
+[NOT RUN] Profile TRUNCATED ‚Äî round-trip validation not run
+       Header claims more bytes than file contains (CWE-125)
+```
 
-Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/catalyst-16bit-mutated.tiff
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 2**
+
+```
+Error reading ICC profile
+Exported 0 text file(s) to /tmp/tmp.e9KzIxKL2Q/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 1**
+
+```
+No 3D CLUT found in any standard LUT tag
 ```
