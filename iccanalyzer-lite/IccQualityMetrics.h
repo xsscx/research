@@ -299,7 +299,7 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
   }
 
   xform.pcs = pIcc->m_Header.pcs;
-  if (xform.pcs != icSigXYZData) {
+  if (static_cast<icUInt32Number>(xform.pcs) != static_cast<icUInt32Number>(icSigXYZData)) {
     reason = "Matrix/TRC quality metrics require XYZ PCS";
     return false;
   }
