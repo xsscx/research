@@ -1,0 +1,33 @@
+digraph iccDumpProfile {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#f0f4ff",
+        fontname="Courier", fontsize=9];
+  edge [color="#4a6fa5", arrowsize=0.7];
+
+  "main" [label="int main()", fillcolor="#d4edda"];
+  "LoadXml" [label="LoadXml", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "PushFactory" [label="PushFactory", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "SaveIccProfile" [label="SaveIccProfile", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Validate" [label="Validate", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "c_str" [label="c_str", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "fclose" [label="fclose", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "find_last_of" [label="find_last_of", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "fopen" [label="fopen", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "printf" [label="printf", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "strcasecmp" [label="strcasecmp", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "strncmp" [label="strncmp", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "substr" [label="substr", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+
+  "main" -> "printf" [label="  L17  [gate: argc <= 2]  ", fontsize=7];
+  "main" -> "PushFactory" [label="  L22  ", fontsize=7];
+  "main" -> "strcasecmp" [label="  L34  ", fontsize=7];
+  "main" -> "strncmp" [label="  L0  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "substr" [label="  L0  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "find_last_of" [label="  L0  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "fopen" [label="  L0  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "c_str" [label="  L0  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "fclose" [label="  L61  [else: !strcasecmp(...)]  ", fontsize=7];
+  "main" -> "LoadXml" [label="  L0  ", fontsize=7];
+  "main" -> "Validate" [label="  L0  ", fontsize=7];
+  "main" -> "SaveIccProfile" [label="  L87  [gate: <ExprWithCleanups>]  ", fontsize=7];
+}

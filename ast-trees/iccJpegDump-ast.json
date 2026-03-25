@@ -1,0 +1,1480 @@
+{
+  "source": "iccJpegDump.cpp",
+  "generator": "extract-ast.py (clang-18 AST)",
+  "functions": 4,
+  "total_calls": 98,
+  "total_gates": 30,
+  "total_vars": 29,
+  "definitions": [
+    {
+      "name": "Usage",
+      "return_type": "void",
+      "params": [],
+      "line_start": 133,
+      "line_end": 139,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "printf",
+          "line": 134,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 135,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 136,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 137,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 138,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [],
+      "vars": []
+    },
+    {
+      "name": "ExtractIccFromJpeg",
+      "return_type": "bool",
+      "params": [
+        {
+          "name": "jpegPath",
+          "type": "const char *"
+        },
+        {
+          "name": "iccOutPath",
+          "type": "const char *"
+        }
+      ],
+      "line_start": 159,
+      "line_end": 250,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "fopen",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 161,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 161,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fread",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fread",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "ntohs",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fread",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "data",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 183,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "memcmp",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "data",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "data",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "insert",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 193,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "memcmp",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "insert",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator+",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "begin",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 206,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "operator!",
+          "line": 218,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "fprintf",
+          "line": 219,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "memcmp",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "operator[]",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "insert",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator+",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "begin",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 229,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "empty",
+          "line": 238,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 239,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fopen",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 244,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 244,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 245,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "data",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 246,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 248,
+          "col": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "!fp",
+          "line": 161,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "fread(...) == 2",
+          "line": 170,
+          "gate_type": "while",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> != 255",
+          "line": 171,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> == 217",
+          "line": 172,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "fread(...) != 1",
+          "line": 175,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "len < 2",
+          "line": 178,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "fread(...) != size(...)",
+          "line": 180,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> == 226 && len > 16",
+          "line": 188,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [
+            "memcmp",
+            "data",
+            "data",
+            "size",
+            "insert",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "memcmp(...) == 0",
+          "line": 189,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 5,
+          "calls_in_true": [
+            "data",
+            "size",
+            "insert",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> >= 224 && <ArraySubscriptExpr> <= 239",
+          "line": 202,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [
+            "size",
+            "memcmp",
+            "operator[]",
+            "insert",
+            "end",
+            "operator+",
+            "begin",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 203,
+          "gate_type": "for",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 5,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "memcmp(...) == 0",
+          "line": 204,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 7,
+          "calls_in_true": [
+            "insert",
+            "end",
+            "operator+",
+            "begin",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!found",
+          "line": 216,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "operator!",
+            "fprintf",
+            "size",
+            "memcmp",
+            "operator[]",
+            "insert",
+            "end",
+            "operator+",
+            "begin",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<CXXOperatorCallExpr>",
+          "line": 218,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [
+            "fprintf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 226,
+          "gate_type": "for",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "memcmp(...) == 0",
+          "line": 227,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 5,
+          "calls_in_true": [
+            "insert",
+            "end",
+            "operator+",
+            "begin",
+            "end",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "empty(...)",
+          "line": 238,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!out",
+          "line": 244,
+          "gate_type": "if",
+          "parent_func": "ExtractIccFromJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "fp",
+          "type": "FILE *",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "iccData",
+          "type": "std::vector<unsigned char>",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "marker",
+          "type": "unsigned char[2]",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "found",
+          "type": "bool",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "len",
+          "type": "unsigned short",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "segment",
+          "type": "std::vector<unsigned char>",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "dataStart",
+          "type": "unsigned char *",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "dataLen",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "i",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "file",
+          "type": "std::ifstream",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "raw",
+          "type": "std::vector<unsigned char>",
+          "line": 223,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "i",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "out",
+          "type": "FILE *",
+          "line": 0,
+          "parent_func": "ExtractIccFromJpeg",
+          "is_pointer": true,
+          "is_array": false
+        }
+      ]
+    },
+    {
+      "name": "InjectIccIntoJpeg",
+      "return_type": "bool",
+      "params": [
+        {
+          "name": "inputPath",
+          "type": "const char *"
+        },
+        {
+          "name": "iccPath",
+          "type": "const char *"
+        },
+        {
+          "name": "outputPath",
+          "type": "const char *"
+        }
+      ],
+      "line_start": 274,
+      "line_end": 337,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "fopen",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fopen",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "is_open",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 280,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 280,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fread",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 298,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 299,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 303,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 303,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 304,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "htons",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fputc",
+          "line": 320,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fputc",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 321,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 322,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "fputc",
+          "line": 323,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fputc",
+          "line": 324,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fputc",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 325,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "data",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "fread",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 333,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 335,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "close",
+          "line": 0,
+          "col": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_member": true,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "!in || !out || !is_open(...)",
+          "line": 279,
+          "gate_type": "if",
+          "parent_func": "InjectIccIntoJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "bytesRead != 2",
+          "line": 297,
+          "gate_type": "if",
+          "parent_func": "InjectIccIntoJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf",
+            "fclose"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> != 255 || <ArraySubscriptExpr> != 216",
+          "line": 302,
+          "gate_type": "if",
+          "parent_func": "InjectIccIntoJpeg",
+          "depth": 1,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "(n = fread(...)) > 0",
+          "line": 332,
+          "gate_type": "while",
+          "parent_func": "InjectIccIntoJpeg",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "in",
+          "type": "FILE *",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "out",
+          "type": "FILE *",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "icc",
+          "type": "std::ifstream",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "iccData",
+          "type": "std::vector<unsigned char>",
+          "line": 285,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "soi",
+          "type": "unsigned char[2]",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "bytesRead",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "sig",
+          "type": "std::string",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "markerLen",
+          "type": "unsigned short",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "markerBE",
+          "type": "unsigned short",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "buf",
+          "type": "unsigned char[4096]",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": true
+        },
+        {
+          "name": "n",
+          "type": "size_t",
+          "line": 0,
+          "parent_func": "InjectIccIntoJpeg",
+          "is_pointer": false,
+          "is_array": false
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [
+        {
+          "name": "argc",
+          "type": "int"
+        },
+        {
+          "name": "argv",
+          "type": "char **"
+        }
+      ],
+      "line_start": 355,
+      "line_end": 407,
+      "is_main": true,
+      "calls": [
+        {
+          "callee": "Usage",
+          "line": 357,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "strcmp",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "strcmp",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "InjectIccIntoJpeg",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 386,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 386,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 388,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "ExtractIccFromJpeg",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 395,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 395,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "Usage",
+          "line": 402,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 403,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "exit",
+          "line": 403,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "argc < 2",
+          "line": 356,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "Usage"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<for-loop>",
+          "line": 371,
+          "gate_type": "for",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "strcmp(...) == 0 && i + 1 < argc",
+          "line": 372,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [],
+          "calls_in_false": [
+            "strcmp"
+          ]
+        },
+        {
+          "condition_text": "strcmp(...) == 0 && i + 1 < argc",
+          "line": 374,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 4,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "injectIccFile && outputJpegFile",
+          "line": 384,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "InjectIccIntoJpeg",
+            "fprintf",
+            "exit",
+            "printf"
+          ],
+          "calls_in_false": [
+            "ExtractIccFromJpeg",
+            "fprintf",
+            "exit",
+            "Usage",
+            "fprintf",
+            "exit"
+          ]
+        },
+        {
+          "condition_text": "!InjectIccIntoJpeg(...)",
+          "line": 385,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "extractIccOut",
+          "line": 393,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 2,
+          "calls_in_true": [
+            "ExtractIccFromJpeg",
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": [
+            "Usage",
+            "fprintf",
+            "exit"
+          ]
+        },
+        {
+          "condition_text": "!ExtractIccFromJpeg(...)",
+          "line": 394,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 4,
+          "calls_in_true": [
+            "fprintf",
+            "exit"
+          ],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "inputFile",
+          "type": "const char *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "extractIccOut",
+          "type": "const char *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "injectIccFile",
+          "type": "const char *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "outputJpegFile",
+          "type": "const char *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "i",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        }
+      ]
+    }
+  ]
+}

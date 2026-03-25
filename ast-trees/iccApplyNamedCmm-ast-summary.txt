@@ -1,0 +1,206 @@
+============================================================================
+  AST Analysis: iccApplyNamedCmm.cpp
+============================================================================
+
+  Functions:  2
+  Call sites: 226
+  AST gates:  67
+  Variables:  54
+
+----------------------------------------------------------------------------
+  void Usage()
+  Lines 187–230   |   36 calls   |   0 gates   |   0 vars
+
+  Call Graph:
+    L 189  printf
+
+----------------------------------------------------------------------------
+  int main(int argc, const char ** argv) [ENTRY]
+  Lines 235–655   |   190 calls   |   67 gates   |   54 vars
+
+  AST Gates:
+      ⊳ if (argc < minargs)  L238
+        → true:  Usage
+      ⊳ if (argc > 2 && !strcasecmp(...))  L247
+        → true:  loadJsonFrom, is_object, printf, operator==, find, end, fromJson, operator[]
+        → false: strcasecmp, strcasecmp, operator=, strcasecmp, strcasecmp, fromArgs, printf, fromArgs
+          ⊳ if (!loadJsonFrom(...) || !is_object(...))  L249
+            → true:  printf
+          ⊳ if (<ExprWithCleanups>)  L254
+            → true:  printf
+          ⊳ if (<ExprWithCleanups>)  L259
+            → true:  printf
+          ⊳ if (m_srcType == icCfgColorData)  L264
+            → true:  empty, fromJson, operator[], printf, loadJsonFrom, c_str, fromJson, printf
+            ⊳ if (empty(...))  L265
+              → true:  fromJson, operator[], printf
+              → false: loadJsonFrom, c_str, fromJson, printf, c_str
+            ⊳ if (<ExprWithCleanups>)  L266
+              → true:  printf
+            ⊳ if (<ExprWithCleanups>)  L272
+              → true:  printf, c_str
+          ⊳ if (argc > 2 && (!strcasecmp(...) || !strcasecmp(...)))  L286
+            → true:  operator=, strcasecmp
+            ⊳ if (!strcasecmp(...))  L290
+          ⊳ if (argc > 1 && !strcasecmp(...))  L296
+          ⊳ if (!nArg)  L304
+            → true:  printf
+          ⊳ if (!nArg)  L312
+            → true:  printf
+          ⊳ if (m_srcType != icCfgLegacy || !fromLegacy(...))  L317
+            → true:  printf, c_str
+          ⊳ if (!empty(...))  L322
+            → true:  fopen, c_str, toJson, toJson, operator=, operator[], operator=, operator[]
+            ⊳ if (f)  L324
+              → true:  toJson, toJson, operator=, operator[], operator=, operator[], operator=, operator[]
+              → false: printf, c_str
+            ⊳ if (bExportData)  L330
+              → true:  toJson, operator=, operator[], operator=, operator[], operator=, operator[]
+      ⊳ if (m_debugCalc)  L355
+        → true:  operator=, SetDebugger, get
+      ⊳ if (!bInputProfile)  L373
+        → true:  OpenIccProfile, c_str, operator->, operator[]
+          ⊳ if (pProf)  L375
+            ⊳ if (deviceClass != icSigAbstractClass && ((colorSpace) == icSigX)  L376
+      ⊳ for (<for-loop>)  L388
+          ⊳ if (!pProfCfg)  L391
+          ⊳ if (m_useBPC)  L398
+            → true:  AddHint
+          ⊳ if (m_adjustPcsLuminance)  L401
+            → true:  AddHint
+          ⊳ if (size(...))  L405
+            → true:  OpenIccProfile, c_str, printf, c_str, push_back
+            ⊳ if (!pPccProfile)  L407
+              → true:  printf, c_str
+          ⊳ if (size(...) > 0)  L416
+            → true:  AddHint
+          ⊳ if (size(...) > 0)  L420
+            → true:  AddHint
+          ⊳ if (AddXform(...))  L425
+            → true:  printf, c_str
+            ⊳ ternary (m_intent < 0)  L426
+      ⊳ if ((stat = Begin(...)))  L441
+        → true:  printf
+      ⊳ for (<for-loop>)  L450
+      ⊳ if (bInputProfile && ((SrcspaceSig) == icSigXYZData || (Srcspace)  L462
+          ⊳ if (SrcspaceSig == icSigXYZData)  L463
+            ⊳ if (SrcspaceSig == icSigLabData)  L465
+          ⊳ if (srcEncoding == icEncodeFloat)  L468
+      ⊳ if (DestspaceSig == icSigNamedData)  L485
+      ⊳ if (SrcspaceSig == icSigNamedData)  L491
+      ⊳ for (<for-loop>)  L496
+          ⊳ if (!pData)  L501
+          ⊳ if (operator bool(...))  L504
+            → true:  reset, operator->
+          ⊳ if (SrcspaceSig == icSigNamedData)  L513
+            → true:  c_str, size, operator[], GetInterface, Apply, operator float *, printf, FromInternalEncoding
+            → false: size, operator[], operator[], operator=, operator->, ToInternalEncoding, operator float *, operator float *
+            ⊳ if (size(...))  L518
+              → true:  operator[]
+            ⊳ switch (GetInterface(...))  L523
+            ⊳ if (Apply(...))  L527
+              → true:  printf
+            ⊳ if (FromInternalEncoding(...))  L532
+              → true:  printf
+            ⊳ for (<for-loop>)  L537
+            ⊳ if (Apply(...))  L544
+              → true:  printf
+            ⊳ for (<for-loop>)  L560
+            ⊳ if (ToInternalEncoding(...))  L566
+              → true:  printf
+            ⊳ switch (GetInterface(...))  L571
+            ⊳ if (pMruCmm)  L574
+              → true:  Apply, operator float *, operator float *, printf
+              → false: Apply, operator float *, operator float *, printf
+            ⊳ if (Apply(...))  L575
+              → true:  printf
+            ⊳ if (Apply(...))  L580
+              → true:  printf
+            ⊳ if (FromInternalEncoding(...))  L584
+              → true:  printf
+            ⊳ for (<for-loop>)  L589
+            ⊳ if (Apply(...))  L596
+              → true:  printf
+          ⊳ if (operator bool(...))  L611
+            → true:  operator=, operator->, operator->
+      ⊳ if (m_dstType == icCfgLegacy)  L623
+        → true:  toLegacy, c_str
+        → false: toJson, is_object, operator=, operator[], toJson, is_object, operator=, operator[]
+        ⊳ if (m_dstType == icCfgColorData)  L626
+          → true:  toJson, is_object, operator=, operator[], toJson, is_object, operator=, operator[]
+          → false: toIt8, c_str, printf
+            ⊳ if (is_object(...))  L630
+              → true:  operator=, operator[]
+            ⊳ if (is_object(...))  L635
+              → true:  operator=, operator[]
+            ⊳ if (is_object(...))  L638
+              → true:  saveJsonAs, c_str
+          ⊳ if (m_dstType == icCfgIt8)  L641
+            → true:  toIt8, c_str
+            → false: printf
+      ⊳ if (pMruCmm)  L651
+
+  Call Graph:
+    L   0  loadJsonFrom
+    L   0  is_object (member)
+    L   0  find (member)
+    L   0  end (member)
+    L   0  fromJson (member)
+    L   0  c_str (member)
+    L   0  fromArgs (member)
+    L   0  fromLegacy (member)
+    L   0  fopen
+    L   0  dump (member)
+    L   0  size (member)
+    L   0  get (member)
+    L   0  OpenIccProfile
+    L   0  begin (member)
+    L   0  Begin (member)
+    L   0  GetSourceSpace (member)
+    L   0  icGetSpaceSamples
+    L   0  GetDestSpace (member)
+    L   0  icIntMax
+    L   0  GetInterface (member)
+    L   0  Apply (member)
+    L   0  FromInternalEncoding
+    L   0  ToInternalEncoding
+    L 239  Usage
+    L 247  strcasecmp
+    L 250  printf
+    L 265  empty (member)
+    L 328  toJson (member)
+    L 345  fwrite
+    L 346  fclose
+    L 357  SetDebugger
+    L 362  snprintf
+    L 399  AddHint (member)
+    L 412  push_back (member)
+    L 425  AddXform (member)
+    L 454  clear (member)
+    L 505  reset (member)
+    L 624  toLegacy (member)
+    L 639  saveJsonAs
+    L 642  toIt8 (member)
+
+  Security-Relevant Variables:
+    L   0  int                                      minargs
+    L   0  int                                      nArg
+    L   0  FILE *                                   f [PTR]
+    L   0  const size_t                             precSize
+    L   0  char[30]                                 precisionStr [ARR]
+    L   0  icFloatColorEncoding                     srcEncoding
+    L   0  icFloatColorEncoding                     destEncoding
+    L   0  CIccProfile *                            pProf [PTR]
+    L   0  CIccCfgProfile *                         pProfCfg [PTR]
+    L   0  CIccProfile *                            pPccProfile [PTR]
+    L   0  CIccCreateXformHintManager               Hint
+    L   0  CIccCmm *                                pMruCmm [PTR]
+    L   0  CIccProfile *                            pPccProfile [PTR]
+    L   0  icUInt32Number                           nSrcSamples
+    L   0  int                                      nDestSamples
+    L   0  char[256]                                SrcNameBuf [ARR]
+    L   0  char[256]                                DestNameBuf [ARR]
+    L   0  CIccCfgDataEntry *                       pData [PTR]
+    L   0  int                                      i
+    L   0  const char *                             szName [PTR]
+

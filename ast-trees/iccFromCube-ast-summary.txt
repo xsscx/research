@@ -1,0 +1,79 @@
+============================================================================
+  AST Analysis: iccFromCube.cpp
+============================================================================
+
+  Functions:  1
+  Call sites: 51
+  AST gates:  12
+  Variables:  14
+
+----------------------------------------------------------------------------
+  int main(int argc, char ** argv) [ENTRY]
+  Lines 342–465   |   51 calls   |   12 gates   |   14 vars
+
+  AST Gates:
+      ⊳ if (argc <= 2)  L344
+        → true:  printf, printf
+      ⊳ if (!parseHeader(...))  L353
+        → true:  printf
+      ⊳ if (!sizeLut3D(...))  L358
+        → true:  printf
+      ⊳ if (isCustomInputRange(...))  L374
+        → true:  getMinInput, getMaxInput, SetSize, GetSamples, GetSamples, SetCurve, SetSize, GetSamples
+          ⊳ if (<ArraySubscriptExpr> != <ArraySubscriptExpr> || <ArraySubscr)  L387
+            → true:  SetSize, GetSamples, GetSamples
+          ⊳ if (<ArraySubscriptExpr> != <ArraySubscriptExpr> || <ArraySubscr)  L399
+            → true:  SetSize, GetSamples, GetSamples
+            ⊳ if (<ArraySubscriptExpr> == <ArraySubscriptExpr> && <ArraySubscr)  L400
+              → false: SetSize, GetSamples, GetSamples
+      ⊳ if (!Init(...))  L419
+        → true:  printf
+      ⊳ if (!bSuccess)  L425
+        → true:  printf
+      ⊳ if (size(...))  L440
+        → true:  SetText, c_str
+        → false: SetText, c_str, operator+
+      ⊳ if (<ExprWithCleanups>)  L450
+        → true:  SetText, c_str, getCopyright, AttachTag
+      ⊳ if (SaveIccProfile(...))  L456
+        → true:  printf
+        → false: printf
+
+  Call Graph:
+    L   0  parseHeader (member)
+    L   0  sizeLut3D (member)
+    L   0  getMinInput (member)
+    L   0  getMaxInput (member)
+    L   0  GetSamples (member)
+    L   0  Init (member)
+    L   0  parse3DTable (member)
+    L   0  GetData (member)
+    L   0  NumPoints (member)
+    L   0  getDescription (member)
+    L   0  size (member)
+    L   0  c_str (member)
+    L   0  getCopyright (member)
+    L 345  printf
+    L 366  InitHeader (member)
+    L 374  isCustomInputRange (member)
+    L 380  SetSize (member)
+    L 384  SetCurve (member)
+    L 413  Attach (member)
+    L 430  SetCLUT (member)
+    L 433  AttachTag (member)
+    L 435  close (member)
+    L 441  SetText (member)
+    L 456  SaveIccProfile
+
+  Security-Relevant Variables:
+    L   0  CIccTagMultiProcessElement *             pTag [PTR]
+    L   0  icFloatNumber *                          minVal [PTR]
+    L   0  icFloatNumber *                          maxVal [PTR]
+    L   0  CIccMpeCurveSet *                        pCurves [PTR]
+    L   0  CIccSingleSampledCurve *                 pCurve0 [PTR]
+    L   0  CIccSingleSampledCurve *                 pCurve1 [PTR]
+    L   0  CIccSingleSampledCurve *                 pCurve2 [PTR]
+    L   0  CIccMpeCLUT *                            pMpeCLUT [PTR]
+    L   0  CIccCLUT *                               pCLUT [PTR]
+    L   0  CIccTagMultiLocalizedUnicode *           pTextTag [PTR]
+

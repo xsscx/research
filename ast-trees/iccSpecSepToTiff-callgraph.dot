@@ -1,0 +1,60 @@
+digraph iccDumpProfile {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#f0f4ff",
+        fontname="Courier", fontsize=9];
+  edge [color="#4a6fa5", arrowsize=0.7];
+
+  "Usage" [label="void Usage()", fillcolor="#f0f4ff"];
+  "main" [label="int main()", fillcolor="#d4edda"];
+  "Close" [label="Close", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Create" [label="Create", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetBitsPerSample" [label="GetBitsPerSample", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetBytesPerLine" [label="GetBytesPerLine", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetHeight" [label="GetHeight", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetLength" [label="GetLength", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetPhoto" [label="GetPhoto", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetSamples" [label="GetSamples", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetWidth" [label="GetWidth", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetXRes" [label="GetXRes", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "GetYRes" [label="GetYRes", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Open" [label="Open", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "Read8" [label="Read8", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "ReadLine" [label="ReadLine", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "SetIccProfile" [label="SetIccProfile", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "WriteLine" [label="WriteLine", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "abs" [label="abs", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "atoi" [label="atoi", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "get" [label="get", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "memcpy" [label="memcpy", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "printf" [label="printf", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "reset" [label="reset", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "snprintf" [label="snprintf", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+  "strrchr" [label="strrchr", fillcolor="#fff3cd", style="rounded,filled,dashed"];
+
+  "Usage" -> "strrchr" [label="  L0  [gate: strippedName == <GNUNullExpr>]  ", fontsize=7];
+  "Usage" -> "printf" [label="  L102  ", fontsize=7];
+  "main" -> "Usage" [label="  L123  [gate: argc < minargs]  ", fontsize=7];
+  "main" -> "atoi" [label="  L0  ", fontsize=7];
+  "main" -> "printf" [label="  L135  [gate: step == 0]  ", fontsize=7];
+  "main" -> "abs" [label="  L0  ", fontsize=7];
+  "main" -> "snprintf" [label="  L161  ", fontsize=7];
+  "main" -> "Open" [label="  L0  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "GetSamples" [label="  L0  ", fontsize=7];
+  "main" -> "GetPhoto" [label="  L0  [else: GetPhoto(...) == 1]  ", fontsize=7];
+  "main" -> "GetWidth" [label="  L0  ", fontsize=7];
+  "main" -> "GetHeight" [label="  L0  ", fontsize=7];
+  "main" -> "GetBitsPerSample" [label="  L0  ", fontsize=7];
+  "main" -> "GetXRes" [label="  L0  ", fontsize=7];
+  "main" -> "GetYRes" [label="  L0  ", fontsize=7];
+  "main" -> "GetBytesPerLine" [label="  L0  ", fontsize=7];
+  "main" -> "get" [label="  L0  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "Create" [label="  L222  ", fontsize=7];
+  "main" -> "GetLength" [label="  L0  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "reset" [label="  L234  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "Read8" [label="  L235  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "SetIccProfile" [label="  L236  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "Close" [label="  L237  [gate: argc > 8]  ", fontsize=7];
+  "main" -> "ReadLine" [label="  L0  ", fontsize=7];
+  "main" -> "memcpy" [label="  L259  ", fontsize=7];
+  "main" -> "WriteLine" [label="  L263  ", fontsize=7];
+}

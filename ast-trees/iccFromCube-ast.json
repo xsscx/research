@@ -1,0 +1,716 @@
+{
+  "source": "iccFromCube.cpp",
+  "generator": "extract-ast.py (clang-18 AST)",
+  "functions": 1,
+  "total_calls": 51,
+  "total_gates": 12,
+  "total_vars": 14,
+  "definitions": [
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [
+        {
+          "name": "argc",
+          "type": "int"
+        },
+        {
+          "name": "argv",
+          "type": "char **"
+        }
+      ],
+      "line_start": 342,
+      "line_end": 465,
+      "is_main": true,
+      "calls": [
+        {
+          "callee": "printf",
+          "line": 345,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 346,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "parseHeader",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 354,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "sizeLut3D",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 359,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "InitHeader",
+          "line": 366,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "isCustomInputRange",
+          "line": 374,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "getMinInput",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "getMaxInput",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetSize",
+          "line": 380,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetCurve",
+          "line": 384,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetSize",
+          "line": 390,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetCurve",
+          "line": 395,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetSize",
+          "line": 405,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetCurve",
+          "line": 411,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Attach",
+          "line": 413,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Init",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "sizeLut3D",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 420,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "parse3DTable",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetData",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "NumPoints",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 426,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "SetCLUT",
+          "line": 430,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "Attach",
+          "line": 431,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "AttachTag",
+          "line": 433,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "close",
+          "line": 435,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "getDescription",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetText",
+          "line": 441,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetText",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator+",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "AttachTag",
+          "line": 446,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "size",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "getCopyright",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SetText",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "getCopyright",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "AttachTag",
+          "line": 453,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SaveIccProfile",
+          "line": 456,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 457,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 460,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "argc <= 2",
+          "line": 344,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!parseHeader(...)",
+          "line": 353,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!sizeLut3D(...)",
+          "line": 358,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "isCustomInputRange(...)",
+          "line": 374,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "getMinInput",
+            "getMaxInput",
+            "SetSize",
+            "GetSamples",
+            "GetSamples",
+            "SetCurve",
+            "SetSize",
+            "GetSamples",
+            "GetSamples",
+            "SetCurve",
+            "SetSize",
+            "GetSamples",
+            "GetSamples",
+            "SetCurve",
+            "Attach"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> != <ArraySubscriptExpr> || <ArraySubscriptExpr> != <ArraySubscriptExpr>",
+          "line": 387,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "SetSize",
+            "GetSamples",
+            "GetSamples"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> != <ArraySubscriptExpr> || <ArraySubscriptExpr> != <ArraySubscriptExpr>",
+          "line": 399,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "SetSize",
+            "GetSamples",
+            "GetSamples"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ArraySubscriptExpr> == <ArraySubscriptExpr> && <ArraySubscriptExpr> == <ArraySubscriptExpr>",
+          "line": 400,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [],
+          "calls_in_false": [
+            "SetSize",
+            "GetSamples",
+            "GetSamples"
+          ]
+        },
+        {
+          "condition_text": "!Init(...)",
+          "line": 419,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!bSuccess",
+          "line": 425,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "size(...)",
+          "line": 440,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "SetText",
+            "c_str"
+          ],
+          "calls_in_false": [
+            "SetText",
+            "c_str",
+            "operator+"
+          ]
+        },
+        {
+          "condition_text": "<ExprWithCleanups>",
+          "line": 450,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "SetText",
+            "c_str",
+            "getCopyright",
+            "AttachTag"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "SaveIccProfile(...)",
+          "line": 456,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": [
+            "printf"
+          ]
+        }
+      ],
+      "vars": [
+        {
+          "name": "cube",
+          "type": "CubeFile",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "profile",
+          "type": "CIccProfile",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "pTag",
+          "type": "CIccTagMultiProcessElement *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "minVal",
+          "type": "icFloatNumber *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "maxVal",
+          "type": "icFloatNumber *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pCurves",
+          "type": "CIccMpeCurveSet *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pCurve0",
+          "type": "CIccSingleSampledCurve *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pCurve1",
+          "type": "CIccSingleSampledCurve *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pCurve2",
+          "type": "CIccSingleSampledCurve *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pMpeCLUT",
+          "type": "CIccMpeCLUT *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pCLUT",
+          "type": "CIccCLUT *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "bSuccess",
+          "type": "bool",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "pTextTag",
+          "type": "CIccTagMultiLocalizedUnicode *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "desc",
+          "type": "std::string",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        }
+      ]
+    }
+  ]
+}

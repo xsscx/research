@@ -1,0 +1,40 @@
+============================================================================
+  AST Analysis: iccRoundTrip.cpp
+============================================================================
+
+  Functions:  1
+  Call sites: 35
+  AST gates:  7
+  Variables:  6
+
+----------------------------------------------------------------------------
+  int main(int argc, char ** argv) [ENTRY]
+  Lines 149–220   |   35 calls   |   7 gates   |   6 vars
+
+  AST Gates:
+      ⊳ if (argc <= 1)  L151
+        → true:  printf, printf, printf
+      ⊳ if (argc > 2)  L161
+        → true:  atoi, atoi
+          ⊳ if (argc > 3)  L163
+            → true:  atoi
+      ⊳ if (stat != icCmmStatOk)  L172
+        → true:  printf
+      ⊳ if (stat != icCmmStatOk)  L181
+        → true:  printf
+        ⊳ ternary (m_bPrmgImplied)  L0
+      ⊳ if (m_nTotal)  L208
+        → true:  printf, printf, printf, printf, printf, printf, printf, printf
+
+  Call Graph:
+    L   0  atoi
+    L   0  EvaluateProfile (member)
+    L   0  GetRenderingIntentName (member)
+    L   0  GetMean1 (member)
+    L   0  GetMean2 (member)
+    L 152  printf
+
+  Security-Relevant Variables:
+    L   0  icRenderingIntent                        nIntent
+    L   0  int                                      nUseMPE
+

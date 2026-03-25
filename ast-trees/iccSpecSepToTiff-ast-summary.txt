@@ -1,0 +1,116 @@
+============================================================================
+  AST Analysis: iccSpecSepToTiff.cpp
+============================================================================
+
+  Functions:  2
+  Call sites: 92
+  AST gates:  25
+  Variables:  35
+
+----------------------------------------------------------------------------
+  void Usage(const char * name)
+  Lines 90–115   |   14 calls   |   2 gates   |   1 vars
+
+  AST Gates:
+      ⊳ if (strippedName == <GNUNullExpr>)  L94
+        → true:  strrchr
+          ⊳ if (strippedName == <GNUNullExpr>)  L96
+
+  Call Graph:
+    L   0  strrchr
+    L 102  printf
+
+  Security-Relevant Variables:
+    L   0  const char *                             strippedName [PTR]
+
+----------------------------------------------------------------------------
+  int main(int argc, char ** argv) [ENTRY]
+  Lines 119–273   |   78 calls   |   23 gates   |   34 vars
+
+  AST Gates:
+      ⊳ if (argc < minargs)  L122
+        → true:  Usage
+      ⊳ if (step == 0)  L134
+        → true:  printf
+      ⊳ if (((end < start) && (step > 0)) || ((end > start) && (step < 0)  L140
+        → true:  printf
+      ⊳ if (nSamples < 1)  L148
+        → true:  printf
+      ⊳ for (<for-loop>)  L156
+          ⊳ if (!Open(...))  L162
+            → true:  printf
+          ⊳ if (GetSamples(...) != 1)  L167
+            → true:  printf
+          ⊳ if (GetPhoto(...) == 3)  L172
+            → true:  printf
+          ⊳ if (i && (GetWidth(...) != GetWidth(...) || GetHeight(...) != Ge)  L177
+            → true:  printf
+      ⊳ if (GetPhoto(...) == 1)  L197
+        → false: GetPhoto, printf
+        ⊳ if (GetPhoto(...) != 0)  L199
+          → true:  printf
+      ⊳ if (xRes < 1)  L216
+      ⊳ if (yRes < 1)  L218
+      ⊳ if (!Create(...))  L222
+        → true:  printf
+      ⊳ if (argc > 8)  L230
+        → true:  Open, GetLength, reset, Read8, get, SetIccProfile, get, Close
+          ⊳ if (Open(...))  L232
+            → true:  GetLength, reset, Read8, get, SetIccProfile, get, Close
+      ⊳ for (<for-loop>)  L241
+          ⊳ for (<for-loop>)  L243
+            ⊳ if (!ReadLine(...))  L245
+              → true:  printf
+            ⊳ if (invert)  L249
+            ⊳ for (<for-loop>)  L250
+          ⊳ for (<for-loop>)  L256
+            ⊳ for (<for-loop>)  L257
+
+  Call Graph:
+    L   0  atoi
+    L   0  abs
+    L   0  Open (member)
+    L   0  GetSamples (member)
+    L   0  GetPhoto (member)
+    L   0  GetWidth (member)
+    L   0  GetHeight (member)
+    L   0  GetBitsPerSample (member)
+    L   0  GetXRes (member)
+    L   0  GetYRes (member)
+    L   0  GetBytesPerLine (member)
+    L   0  get (member)
+    L   0  GetLength (member)
+    L   0  ReadLine (member)
+    L 123  Usage
+    L 135  printf
+    L 161  snprintf
+    L 222  Create (member)
+    L 234  reset (member)
+    L 235  Read8 (member)
+    L 236  SetIccProfile (member)
+    L 237  Close (member)
+    L 259  memcpy
+    L 263  WriteLine (member)
+
+  Security-Relevant Variables:
+    L   0  const int                                minargs
+    L   0  int                                      start
+    L   0  int                                      end
+    L   0  int                                      step
+    L   0  int                                      nSamples
+    L   0  std::vector<CTiffImg>                    infile [ARR]
+    L   0  int                                      i
+    L   0  const int                                max_path_length
+    L   0  char[510]                                filename [ARR]
+    L   0  int                                      channelNum
+    L   0  CTiffImg *                               f [PTR]
+    L   0  std::unique_ptr<icUInt8Number[]>         inbufffer [PTR,ARR]
+    L   0  size_t                                   outSize
+    L   0  std::unique_ptr<icUInt8Number[]>         outbuffer [PTR,ARR]
+    L   0  icUInt8Number *                          inbuf [PTR]
+    L   0  icUInt8Number *                          outbuf [PTR]
+    L   0  float                                    xRes
+    L   0  float                                    yRes
+    L   0  std::unique_ptr<unsigned char[]>         destProfile [PTR,ARR]
+    L   0  size_t                                   length
+

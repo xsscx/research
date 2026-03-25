@@ -1,0 +1,446 @@
+{
+  "source": "iccRoundTrip.cpp",
+  "generator": "extract-ast.py (clang-18 AST)",
+  "functions": 1,
+  "total_calls": 35,
+  "total_gates": 7,
+  "total_vars": 6,
+  "definitions": [
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [
+        {
+          "name": "argc",
+          "type": "int"
+        },
+        {
+          "name": "argv",
+          "type": "char **"
+        }
+      ],
+      "line_start": 149,
+      "line_end": 220,
+      "is_main": true,
+      "calls": [
+        {
+          "callee": "printf",
+          "line": 152,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 153,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 154,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "atoi",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "EvaluateProfile",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 173,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "EvaluateProfile",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 182,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 188,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 189,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetRenderingIntentName",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 190,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 192,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 193,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 194,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 195,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetMean1",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 196,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 198,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 200,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 201,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 202,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 203,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetMean2",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 204,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 206,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 209,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 210,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 212,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 213,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 214,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 215,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 216,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 217,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "argc <= 1",
+          "line": 151,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "argc > 2",
+          "line": 161,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "atoi",
+            "atoi"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "argc > 3",
+          "line": 163,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "atoi"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "stat != icCmmStatOk",
+          "line": 172,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "stat != icCmmStatOk",
+          "line": 181,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "m_bPrmgImplied",
+          "line": 0,
+          "gate_type": "ternary",
+          "parent_func": "main",
+          "depth": 2,
+          "calls_in_true": [],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "m_nTotal",
+          "line": 208,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "printf",
+            "printf",
+            "printf",
+            "printf",
+            "printf",
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "nIntent",
+          "type": "icRenderingIntent",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "nUseMPE",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "eval",
+          "type": "CIccMinMaxEval",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "stat",
+          "type": "icStatusCMM",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "prmg",
+          "type": "CIccPRMG",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "info",
+          "type": "CIccInfo",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        }
+      ]
+    }
+  ]
+}

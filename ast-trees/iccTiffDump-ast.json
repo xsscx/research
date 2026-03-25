@@ -1,0 +1,1287 @@
+{
+  "source": "iccTiffDump.cpp",
+  "generator": "extract-ast.py (clang-18 AST)",
+  "functions": 4,
+  "total_calls": 89,
+  "total_gates": 23,
+  "total_vars": 16,
+  "definitions": [
+    {
+      "name": "GetId",
+      "return_type": "const char *",
+      "params": [
+        {
+          "name": "nId",
+          "type": "unsigned long"
+        },
+        {
+          "name": "pIdList",
+          "type": "IdList *"
+        }
+      ],
+      "line_start": 111,
+      "line_end": 115,
+      "is_main": false,
+      "calls": [],
+      "gates": [
+        {
+          "condition_text": "<for-loop>",
+          "line": 113,
+          "gate_type": "for",
+          "parent_func": "GetId",
+          "depth": 1,
+          "calls_in_true": [],
+          "calls_in_false": []
+        }
+      ],
+      "vars": []
+    },
+    {
+      "name": "Usage",
+      "return_type": "void",
+      "params": [],
+      "line_start": 117,
+      "line_end": 121,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "printf",
+          "line": 119,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 120,
+          "col": 0,
+          "parent_func": "Usage",
+          "is_member": false,
+          "is_operator": false
+        }
+      ],
+      "gates": [],
+      "vars": []
+    },
+    {
+      "name": "DumpProfileInfo",
+      "return_type": "void",
+      "params": [
+        {
+          "name": "pProfile",
+          "type": "CIccProfile *"
+        },
+        {
+          "name": "prefix",
+          "type": "std::string"
+        }
+      ],
+      "line_start": 123,
+      "line_end": 180,
+      "is_main": false,
+      "calls": [
+        {
+          "callee": "printf",
+          "line": 128,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetVersionName",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 131,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetColorSpaceSigName",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 133,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetColorSpaceSigName",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 135,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSpectralColorSigName",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 137,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "icF16toF",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "icF16toF",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 143,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "icF16toF",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "icF16toF",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "FindTag",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetType",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 154,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetText",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetType",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "begin",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator!=",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "end",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetText",
+          "line": 162,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator->",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": true
+        },
+        {
+          "callee": "printf",
+          "line": 163,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "FindTag",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetType",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetProfile",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 175,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "c_str",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "DumpProfileInfo",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetProfile",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "operator+",
+          "line": 0,
+          "col": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_member": false,
+          "is_operator": true
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "colorSpace",
+          "line": 130,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "GetColorSpaceSigName"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "pcs",
+          "line": 132,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "GetColorSpaceSigName"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "spectralPCS",
+          "line": 134,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "GetSpectralColorSigName",
+            "printf",
+            "c_str",
+            "icF16toF",
+            "icF16toF",
+            "printf",
+            "c_str",
+            "icF16toF",
+            "icF16toF"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "start || end || steps",
+          "line": 136,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 3,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "icF16toF",
+            "icF16toF"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "start || end || steps",
+          "line": 142,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 3,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "icF16toF",
+            "icF16toF"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "pDesc",
+          "line": 151,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 1,
+          "calls_in_true": [
+            "GetType",
+            "printf",
+            "c_str",
+            "GetText",
+            "GetType",
+            "begin",
+            "operator!=",
+            "end",
+            "GetText",
+            "operator->",
+            "printf",
+            "c_str",
+            "c_str"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetType(...) == icSigTextDescriptionType",
+          "line": 152,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 3,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "GetText"
+          ],
+          "calls_in_false": [
+            "GetType",
+            "begin",
+            "operator!=",
+            "end",
+            "GetText",
+            "operator->",
+            "printf",
+            "c_str",
+            "c_str"
+          ]
+        },
+        {
+          "condition_text": "GetType(...) == icSigMultiLocalizedUnicodeType",
+          "line": 156,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 4,
+          "calls_in_true": [
+            "begin",
+            "operator!=",
+            "end",
+            "GetText",
+            "operator->",
+            "printf",
+            "c_str",
+            "c_str"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "m_Strings",
+          "line": 158,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 6,
+          "calls_in_true": [
+            "begin",
+            "operator!=",
+            "end",
+            "GetText",
+            "operator->",
+            "printf",
+            "c_str",
+            "c_str"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "<ExprWithCleanups>",
+          "line": 160,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 8,
+          "calls_in_true": [
+            "GetText",
+            "operator->",
+            "printf",
+            "c_str",
+            "c_str"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "pEmbedded",
+          "line": 170,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 1,
+          "calls_in_true": [
+            "GetType",
+            "GetProfile",
+            "printf",
+            "c_str",
+            "DumpProfileInfo",
+            "GetProfile",
+            "operator+"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetType(...) == icSigEmbeddedProfileType",
+          "line": 172,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 3,
+          "calls_in_true": [
+            "GetProfile",
+            "printf",
+            "c_str",
+            "DumpProfileInfo",
+            "GetProfile",
+            "operator+"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetProfile(...)",
+          "line": 174,
+          "gate_type": "if",
+          "parent_func": "DumpProfileInfo",
+          "depth": 5,
+          "calls_in_true": [
+            "printf",
+            "c_str",
+            "DumpProfileInfo",
+            "GetProfile",
+            "operator+"
+          ],
+          "calls_in_false": []
+        }
+      ],
+      "vars": [
+        {
+          "name": "pHdr",
+          "type": "icHeader *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "Fmt",
+          "type": "CIccInfo",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "pDesc",
+          "type": "CIccTag *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pText",
+          "type": "CIccTagTextDescription *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pStrs",
+          "type": "CIccTagMultiLocalizedUnicode *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "text",
+          "type": "CIccMultiLocalizedUnicode::iterator",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "line",
+          "type": "std::string",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "pEmbedded",
+          "type": "CIccTag *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pEmbeddedTag",
+          "type": "CIccTagEmbeddedProfile *",
+          "line": 0,
+          "parent_func": "DumpProfileInfo",
+          "is_pointer": true,
+          "is_array": false
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [
+        {
+          "name": "argc",
+          "type": "int"
+        },
+        {
+          "name": "argv",
+          "type": "icChar **"
+        }
+      ],
+      "line_start": 184,
+      "line_end": 252,
+      "is_main": true,
+      "calls": [
+        {
+          "callee": "Usage",
+          "line": 188,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "Open",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 194,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 198,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 199,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 200,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidth",
+          "line": 201,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetHeight",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetWidthIn",
+          "line": 202,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetHeightIn",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 203,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetId",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetPlanar",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 204,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetBitsPerSample",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 205,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetExtraSamples",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 208,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 209,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetId",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetPhoto",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 210,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetBytesPerLine",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 211,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetXRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetYRes",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 212,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetId",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "GetCompress",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "GetIccProfile",
+          "line": 216,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 217,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fopen",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fwrite",
+          "line": 223,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fclose",
+          "line": 224,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 225,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "fprintf",
+          "line": 227,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "OpenIccProfile",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "DumpProfileInfo",
+          "line": 0,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "ReadTags",
+          "line": 236,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        },
+        {
+          "callee": "SaveIccProfile",
+          "line": 237,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 238,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 241,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "printf",
+          "line": 247,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": false,
+          "is_operator": false
+        },
+        {
+          "callee": "Close",
+          "line": 250,
+          "col": 0,
+          "parent_func": "main",
+          "is_member": true,
+          "is_operator": false
+        }
+      ],
+      "gates": [
+        {
+          "condition_text": "argc <= minargs",
+          "line": 187,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "Usage"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "!Open(...)",
+          "line": 193,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "nExtra",
+          "line": 207,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "GetIccProfile(...)",
+          "line": 216,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 1,
+          "calls_in_true": [
+            "printf",
+            "fopen",
+            "fwrite",
+            "fclose",
+            "printf",
+            "fprintf",
+            "OpenIccProfile",
+            "DumpProfileInfo",
+            "ReadTags",
+            "SaveIccProfile",
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": [
+            "printf"
+          ]
+        },
+        {
+          "condition_text": "argc > 2 && pProfMem && nLen > 0",
+          "line": 220,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "fopen",
+            "fwrite",
+            "fclose",
+            "printf",
+            "fprintf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "fp",
+          "line": 222,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [
+            "fwrite",
+            "fclose",
+            "printf"
+          ],
+          "calls_in_false": [
+            "fprintf"
+          ]
+        },
+        {
+          "condition_text": "pProfile",
+          "line": 233,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 3,
+          "calls_in_true": [
+            "DumpProfileInfo",
+            "ReadTags",
+            "SaveIccProfile",
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "argc > 2",
+          "line": 235,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 5,
+          "calls_in_true": [
+            "ReadTags",
+            "SaveIccProfile",
+            "printf",
+            "printf"
+          ],
+          "calls_in_false": []
+        },
+        {
+          "condition_text": "SaveIccProfile(...)",
+          "line": 237,
+          "gate_type": "if",
+          "parent_func": "main",
+          "depth": 7,
+          "calls_in_true": [
+            "printf"
+          ],
+          "calls_in_false": [
+            "printf"
+          ]
+        }
+      ],
+      "vars": [
+        {
+          "name": "minargs",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "SrcImg",
+          "type": "CTiffImg",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "nExtra",
+          "type": "int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "pProfMem",
+          "type": "unsigned char *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "nLen",
+          "type": "unsigned int",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": false,
+          "is_array": false
+        },
+        {
+          "name": "fp",
+          "type": "FILE *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        },
+        {
+          "name": "pProfile",
+          "type": "CIccProfile *",
+          "line": 0,
+          "parent_func": "main",
+          "is_pointer": true,
+          "is_array": false
+        }
+      ]
+    }
+  ]
+}
