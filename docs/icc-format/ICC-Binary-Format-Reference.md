@@ -9,7 +9,7 @@
 > 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
 > **Last verified**: 2026-03-23 16:25:00 UTC — 173 heuristics (H1–H173) +
-> 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
+> 329 canonical conformance checks (CF-001..CF-329), 60 CFL patches, 13 fuzzers.
 >
 > **Count note**: these are current registry totals, not an ID-space ceiling.
 > V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
@@ -675,7 +675,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-44 distinct CWE categories across 173 heuristics + 329 canonical conformance checks + 45 CFL patches:
+44 distinct CWE categories across 173 heuristics + 329 canonical conformance checks + 60 CFL patches:
 
 | CWE | Name | Sources | Key References |
 |-----|------|---------|----------------|
@@ -1132,4 +1132,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 173 heuristics · 329 canonical conformance checks (331 wrapper entries) · 45 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 173 heuristics · 329 canonical conformance checks (331 wrapper entries) · 60 CFL patches · 13 fuzzers · 93 advisories*
