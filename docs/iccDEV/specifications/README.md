@@ -4,7 +4,7 @@ These PDFs are the authoritative source of truth for all ICC profile conformance
 checks in iccanalyzer-lite. Every conformance check (CF-*) and PAWG checklist
 item traces back to a specific section in one of these documents.
 
-**Total: 25 documents | 318 conformance checks (CF-001..CF-316) | 171 security heuristics (H1-H171)**
+**Total: 25 documents | 329 conformance checks (CF-001..CF-329) | 173 security heuristics (H1-H173)**
 
 ## Primary Specifications
 
@@ -94,7 +94,7 @@ These documents are referenced by iccanalyzer-lite conformance checks:
 | `IccConformanceQuality.cpp` | CF-091..CF-094 | Transform quality metrics |
 | `IccAnalyzerPAWG.cpp` | — | PAWG 31-item assessment (maps to CF-* checks) |
 
-**Total: 318 conformance checks (CF-001..CF-316)**
+**Total: 329 conformance checks (CF-001..CF-329)**
 
 ## Coverage Status — All Specs Covered
 

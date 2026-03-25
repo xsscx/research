@@ -60,7 +60,7 @@ for r in sarif['runs'][0]['results']:
 ## Relationship to iccanalyzer-lite
 
 CodeQL queries find bugs at **build time** via static analysis.
-iccanalyzer-lite heuristics (H1-H171) detect the **same patterns at runtime**
+iccanalyzer-lite heuristics (H1-H173) detect the **same patterns at runtime**
 by scanning raw ICC profile bytes. Both approaches are complementary:
 
 | Query | Runtime Heuristic | CFL Patch |

@@ -4,7 +4,7 @@
 # Intent: Run iccanalyzer-lite unit tests (290 tests)
 #         - Exit code validation
 #         - Analysis mode verification
-#         - Heuristic detection (H1-H171)
+#         - Heuristic detection (H1-H173)
 #         - ASAN/UBSAN cleanliness
 #         - Synthesized corpus + repo profile testing
 #         - JSON/XML/Report output validation

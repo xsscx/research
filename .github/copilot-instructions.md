@@ -56,7 +56,7 @@ This file contains cross-cutting rules that apply to ALL components.
 
 | Metric | Value | Sync locations |
 |--------|-------|----------------|
-| Heuristics | 171 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H171 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
+| Heuristics | 173 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H173 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
 | MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 13 | cfl.instructions.md, README.md |
 | iccDEV advisories | 93 (87 CVEs + 95 GHSAs = 182 unique, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
@@ -156,11 +156,11 @@ Binaries:
 **AFL++**: v4.40c at `/usr/local/bin/afl-fuzz` (built from source against LLVM 18.1.3)
 **MCP venv**: `~/research/mcp-server/.venv/bin/python` (NOT system pip)
 **iccDEV**: `~/research/iccDEV` — UNPATCHED, built with ASAN+UBSAN+coverage for iccanalyzer-lite
-**cfl/iccDEV**: separate clone inside `cfl/` — 52 patches applied (CFL-001–CFL-067, 15 gaps at 003/010/011/012/013/015/016/018/020/024/026/027/034/037/039 retired upstream)
+**cfl/iccDEV**: separate clone inside `cfl/` — 60 patches applied (CFL-001–CFL-075, 15 gaps at 003/010/011/012/013/015/016/018/020/024/026/027/034/037/039 retired upstream)
 **afl/bin**: 14 AFL-instrumented iccDEV tools + shared libs
 **Build cores**: use `-j24` (not `-j32`)
 **colorbleed_tools**: built with `CONFIG=sanitizer` — binaries in `bin/sanitizer/`
-**Tests verified**: iccanalyzer-lite 716/716 · MCP 1816/1816 · web_ui 256/256
+**Tests verified**: iccanalyzer-lite 813/813 · MCP 1816/1816 · web_ui 256/256
 
 ### Local / Copilot CLI (WSL-2 or other Linux)
 Binaries must be built before use. See **Local Build** section below.
@@ -177,7 +177,7 @@ Binaries must be built before use. See **Local Build** section below.
 # Build iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
-# Build CFL fuzzers (clones iccDEV, applies 52 patches, builds 13 fuzzers)
+# Build CFL fuzzers (clones iccDEV, applies 60 patches, builds 13 fuzzers)
 cd cfl && ./build.sh
 
 # Build colorbleed_tools
@@ -202,7 +202,7 @@ make -j$(nproc)
 |------|---------|----------|
 | `iccDEV/Build/Tools/` | **Upstream reference tools (UNPATCHED, Debug+ASAN+UBSAN+Coverage)** | No |
 | `iccDEV/Build-ASAN/Tools/` | **Upstream tools (ASAN+UBSAN+Coverage, alternate build dir)** | No |
-| `cfl/iccDEV/` | CFL fuzzer build (52 patches applied (CFL-001–CFL-067, 15 gaps retired upstream)) | Yes |
+| `cfl/iccDEV/` | CFL fuzzer build (60 patches applied (CFL-001–CFL-075, 15 gaps retired upstream)) | Yes |
 
 **CRITICAL BUILD POLICY**: `iccDEV/Build/` must ALWAYS be built with full
 Debug+ASAN+UBSAN+coverage instrumentation. **NEVER use Release builds.**
@@ -316,7 +316,7 @@ All heuristic, CVE, and severity counts are computed dynamically from
 `IccHeuristicsRegistry.h` at runtime. Use `--registry` mode for authoritative data:
 
 ```bash
-./iccanalyzer-lite --registry | jq .totalHeuristics    # → 171
+./iccanalyzer-lite --registry | jq .totalHeuristics    # → 173
 ./iccanalyzer-lite --registry | jq .uniqueCVEs         # → 87
 ./iccanalyzer-lite --registry | jq .uniqueGHSAs        # → 95
 ./iccanalyzer-lite --registry | jq .heuristicsWithCVE  # → 57
@@ -647,7 +647,7 @@ Every success claim MUST include verification evidence in this format:
 
 **Examples:**
 - `[OK] Verified: build succeeded (cd iccanalyzer-lite && ./build.sh → exit 0)`
-- `[OK] Verified: 716 tests pass (python3 tests/run_tests.py → 716/716 passed)`
+- `[OK] Verified: 813 tests pass (python3 tests/run_tests.py → 813/813 passed)`
 - `[OK] Verified: 0 ASAN errors (./iccanalyzer-lite -a profile.icc 2>&1 | grep -c AddressSanitizer → 0)`
 - `[OK] Verified: all 7 build locations synced (.github/scripts/pre-push-validate.sh → exit 0)`
 - `[OK] Verified: CFL patches ground-truth (cfl/verify-patches.sh → 45 PASS, 0 FAIL)`
@@ -814,7 +814,7 @@ See [afl.instructions.md](instructions/afl.instructions.md) for full details.
 ```
 
 **CFL vs AFL distinction**: CFL fuzzers (`cfl/`) use LibFuzzer with in-process harnesses
-and 52 security patches applied. AFL fuzzers (`afl/`) test the unpatched upstream tools
+and 60 security patches applied. AFL fuzzers (`afl/`) test the unpatched upstream tools
 directly via `afl-fuzz`. Both share seed corpora and dictionaries from `cfl/`.
 
 ## Single-Test Commands
@@ -920,7 +920,7 @@ Key endpoints: `/api/upload` (POST), `/api/security-json` (GET), `/api/full` (GE
 ### Reusable Prompts
 
 Nineteen prompt templates in `.github/prompts/` guide AI through standard analysis workflows:
-- `analyze-icc-profile.prompt.yml` — full 171-heuristic security scan
+- `analyze-icc-profile.prompt.yml` — full 173-heuristic security scan
 - `compare-icc-profiles.prompt.yml` — side-by-side structural diff
 - `triage-cve-poc.prompt.yml` — CVE PoC analysis with CVE mapping
 - `triage-fuzzer-crash.prompt.md` — fuzzer crash triage, minimization, and patch workflow
@@ -950,13 +950,13 @@ GitHub does not allow `.icc` file attachments. Users should rename files to `.ic
 When an issue asks to analyze an ICC profile, perform **two phases**:
 
 **Note**: For TIFF image files, use `./iccanalyzer-lite/iccanalyzer-lite -a <file.tif>` which
-auto-detects TIFF format, extracts embedded ICC profiles, and runs full 171-heuristic analysis (H1-H138 on ICC + H139-H141, H149-H150 on TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H171 CodeQL-driven).
+auto-detects TIFF format, extracts embedded ICC profiles, and runs full 173-heuristic analysis (H1-H138 on ICC + H139-H141, H149-H150 on TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H173 CodeQL-driven).
 
 #### Phase 1 — MCP tool analysis (Copilot's independent review)
 Use the MCP tools to perform your own analysis of the profile before running the script:
 
 1. **`inspect_profile`** — Examine the profile structure: header fields, tag table, data values
-2. **`analyze_security`** — Run the 171-heuristic security scan (H1–H171)
+2. **`analyze_security`** — Run the 173-heuristic security scan (H1–H173)
 3. **`validate_roundtrip`** — Check AToB/BToA and DToB/BToD tag pair completeness
 4. **`profile_to_xml`** — Convert to XML for human-readable inspection
 
@@ -1046,7 +1046,7 @@ For the complete 24-tool reference (11 analysis + 7 maintainer + 6 operations),
 see [mcp-server.instructions.md](instructions/mcp-server.instructions.md).
 
 **Key analysis tools** (exposed to coding agent):
-- `analyze_security` — 171-heuristic security scan (fastest, most actionable)
+- `analyze_security` — 173-heuristic security scan (fastest, most actionable)
 - `full_analysis` — All 3 modes (`-a`, `-nf`, `-r`) for comprehensive reports
 - `inspect_profile` — Header fields, tag table, data values
 - `validate_roundtrip` — AToB/BToA tag pair completeness
@@ -1070,8 +1070,8 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 
 | Component | Purpose | Instructions |
 |-----------|---------|--------------|
-| **iccanalyzer-lite/** | 171-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
-| **cfl/** | 13 LibFuzzer harnesses + 52 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
+| **iccanalyzer-lite/** | 173-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
+| **cfl/** | 13 LibFuzzer harnesses + 60 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
 | **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
