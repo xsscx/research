@@ -728,7 +728,7 @@ void ProfileView::runUBPreScan() {
         if (typeSig == 0x6D667431 || typeSig == 0x6D667432) {  // mft1/mft2
             // LUT8/LUT16: grid size at tag+10 for each input channel
             if (rawSpanAvailable(m_rawData.size(), tag.offset, 12)) {
-                uint8_t nInput = m_rawData[tag.offset + 8];
+                const int nInput = static_cast<int>(m_rawData[tag.offset + 8]);
                 uint8_t gridSize = m_rawData[tag.offset + 10];
                 if (nInput > 0 && gridSize > 0) {
                     uint64_t gridPoints = 1;
