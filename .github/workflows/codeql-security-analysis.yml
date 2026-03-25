@@ -149,10 +149,11 @@ jobs:
         run: |
           set -euo pipefail
           cd iccDEV/Build
-          # Use RelWithDebInfo (not Release) to avoid iccDEV's LTO logic at CMakeLists.txt:755
-          # which produces LLVM bitcode in static archives that /usr/bin/ld cannot read.
-          # iccDEV's set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON) overrides -D flags.
-          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
+          # Disable LTO so static archives contain ELF objects (not LLVM bitcode).
+          # The sed is needed until iccDEV merges fix-cmake-lto branch; after that,
+          # -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF alone suffices.
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/# LTO disabled by downstream CI\n    # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt 2>/dev/null || true
+          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
           make -j$(nproc) IccProfLib2 IccXML2 IccProfLib2-static IccXML2-static
 
       - name: Initialize CodeQL
