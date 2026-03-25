@@ -317,7 +317,7 @@ CWE-681. Phase: RAW_POST. Severity: CRITICAL.
 **UBSAN trigger**: `IccMpeBasic.cpp:2446 — -nan is outside the range of
 representable values of type 'unsigned int'`.
 
-### Implemented CodeQL-Driven Heuristics (H154-H171)
+### Implemented CodeQL-Driven Heuristics (H154-H173)
 
 These heuristics were derived from CodeQL static analysis patterns and detect
 library-level vulnerability patterns in the raw profile binary data:
@@ -495,7 +495,7 @@ Next available: **CF-330**.
 4. Add `CF_WRAP(1330, "CF-330: Title", RunCF330_Name(pIcc));` to the dispatcher
 5. Add entry to `IccConformanceRegistry.h` (before closing `};`)
 6. Add test assertion in `run_tests.py` `test_conformance_checks()`
-7. Build, test (716+ tests), ASAN spot-check
+7. Build, test (813+ tests), ASAN spot-check
 
 ## CVE Coverage (93 iccDEV Advisories)
 
@@ -525,7 +525,7 @@ comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
 # 5. Update counts in ALL 6 sync locations (see plan.md)
 # 6. Build, then read uniqueCVEs from --json output (do NOT guess)
 # 7. Update test expectations with actual values
-# 8. Verify: 716/716 tests pass
+# 8. Verify: 813/813 tests pass
 ```
 
 ## JSON Output Mode (v3.6.0+)
