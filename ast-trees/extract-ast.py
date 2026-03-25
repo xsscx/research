@@ -20,6 +20,7 @@ Usage:
 """
 
 import json
+import re
 import sys
 import os
 from collections import defaultdict
@@ -524,6 +525,17 @@ def main():
     top_inner = ast.get("inner", [])
     inherited_file = ""
 
+    # Build class name map from CXXRecordDecl nodes (id → class name)
+    class_name_map = {}
+    for node in top_inner:
+        if node.get("kind") == "CXXRecordDecl" and node.get("name"):
+            class_name_map[node.get("id", "")] = node.get("name")
+        # Also check NamespaceDecl children for nested classes
+        if node.get("kind") == "NamespaceDecl":
+            for child in node.get("inner", []):
+                if child.get("kind") == "CXXRecordDecl" and child.get("name"):
+                    class_name_map[child.get("id", "")] = child.get("name")
+
     for node in top_inner:
         kind = node.get("kind", "")
 
@@ -532,7 +544,9 @@ def main():
         if nf:
             inherited_file = nf
 
-        if kind != "FunctionDecl":
+        FUNC_KINDS = {"FunctionDecl", "CXXMethodDecl",
+                      "CXXConstructorDecl", "CXXDestructorDecl"}
+        if kind not in FUNC_KINDS:
             continue
 
         # Check if this function is from our target file
@@ -548,6 +562,13 @@ def main():
             continue
 
         func_name = node.get("name", "?")
+        # For class methods, prepend the parent class name
+        if kind in ("CXXMethodDecl", "CXXConstructorDecl", "CXXDestructorDecl"):
+            parent_id = node.get("parentDeclContextId", "")
+            parent_name = class_name_map.get(parent_id, "")
+            if parent_name:
+                func_name = f"{parent_name}::{func_name}"
+
         ret_type = node.get("type", {}).get("qualType", "?")
         # Extract return type (before the '(')
         if "(" in ret_type:
