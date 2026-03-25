@@ -156,7 +156,7 @@ jobs:
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
           languages: cpp
-          config-file: ${{ matrix.target }}/codeql-config.yml
+          config-file: ${{ matrix.target == 'icctest' && 'iccanalyzer-lite/codeql-config.yml' || format('{0}/codeql-config.yml', matrix.target) }}
 
       - name: Build for CodeQL - iccanalyzer-lite
         if: matrix.target == 'iccanalyzer-lite'
