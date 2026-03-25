@@ -248,11 +248,46 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   
   // Conformance Phase: ICC specification validation via CIccProfile::ReadValidate()
   if (IsProfileTruncated(filename)) {
-    printf("\n%s[NOT RUN] Profile TRUNCATED — conformance validation not run (CWE-125)%s\n",
+    // Distinguish empty/unreadable files from truncated-but-analyzable profiles.
+    // Files < 128 bytes cannot hold an ICC header — report error without analysis.
+    FILE *fpCheck = fopen(filename, "rb");
+    long fileSizeCheck = 0;
+    if (fpCheck) {
+      fseek(fpCheck, 0, SEEK_END);
+      fileSizeCheck = ftell(fpCheck);
+      fclose(fpCheck);
+    }
+    if (fileSizeCheck < 128) {
+      printf("\n%s[ERROR] Cannot read ICC header (file too small or corrupted)%s\n",
+             ColorCritical(), ColorReset());
+      printf("\n%s[NOT RUN] Library-phase conformance validation skipped — profile truncated%s\n",
+             ColorCritical(), ColorReset());
+      return -1;
+    }
+
+    printf("\n%s[CRITICAL] Profile TRUNCATED — header claims more bytes than file contains (CWE-125/CWE-131)%s\n",
            ColorCritical(), ColorReset());
-    printf("       %sHeader claims more bytes than file contains%s\n",
+    printf("       %sLibrary-phase conformance skipped (unsafe on truncated data)%s\n",
            ColorInfo(), ColorReset());
-    return totalIssues > 0 ? totalIssues : -1;
+    printf("       %sRunning raw-byte security heuristics (H1-H173)...%s\n\n",
+           ColorInfo(), ColorReset());
+    totalIssues++;
+
+    // Run the full raw-byte heuristic engine — header checks, raw tag analysis,
+    // CodeQL-driven patterns, exploit gap analysis all work on truncated profiles.
+    // Only library-API heuristics (CIccProfile*-dependent) are skipped internally
+    // via the skipLibraryPhase gate in HeuristicAnalyze/RunSecurityHeuristics.
+    // Guard: legacy mode already ran HeuristicAnalyze above — don't run twice.
+    if (!legacy) {
+      int heuristicCount = HeuristicAnalyze(filename, fingerprint_db);
+      if (heuristicCount > 0) {
+        totalIssues += heuristicCount;
+      }
+    }
+
+    printf("\n%s[NOT RUN] Library-phase conformance validation skipped — profile truncated%s\n",
+           ColorCritical(), ColorReset());
+    return totalIssues;
   }
 
   if (!legacy) {
