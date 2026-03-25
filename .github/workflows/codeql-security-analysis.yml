@@ -149,8 +149,8 @@ jobs:
         run: |
           set -euo pipefail
           cd iccDEV/Build
-          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=OFF
-          make -j$(nproc) IccProfLib2 IccXML2
+          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
+          make -j$(nproc) IccProfLib2 IccXML2 IccProfLib2-static IccXML2-static
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
