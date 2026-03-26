@@ -510,7 +510,7 @@ async def health_check() -> str:
     lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
     lines.append("")
 
-    # Tool count (11 analysis tools + 7 maintainer + 6 operations = 24 tools)
+    # Tool count (11 analysis tools + 7 maintainer + 6 operations + 2 graph = 26 tools)
     lines.append("Tools: 24 registered (11 analysis + 7 maintainer + 6 operations)")
     lines.append("")
 
@@ -2719,6 +2719,170 @@ async def scan_logs(
     if len(log_files) > cap:
         lines.append(f"[NOTE] Capped at {cap} files (found {len(log_files)})")
     lines.append(f"Total: {total_matches} findings across {len(active)} categories")
+
+    return "\n".join(lines)
+
+
+####################################################################
+# Graph / Knowledge-Graph tools  (2 tools — require networkx)
+####################################################################
+
+def _load_knowledge_graph() -> dict:
+    """Load the unified knowledge graph JSON."""
+    kg_path = _REPO / "call-graph" / "knowledge-graph.json"
+    if not kg_path.exists():
+        raise FileNotFoundError(
+            f"knowledge-graph.json not found at {kg_path}. "
+            "Run: python3 call-graph/scripts/build-knowledge-graph.py"
+        )
+    return json.loads(kg_path.read_text())
+
+
+def _kg_to_networkx(kg: dict):  # type: ignore[no-untyped-def]
+    """Convert knowledge graph dict to a NetworkX DiGraph."""
+    import networkx as nx  # type: ignore[import-untyped]
+
+    G = nx.DiGraph()
+    for node in kg.get("nodes", []):
+        G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+    for edge in kg.get("edges", []):
+        G.add_edge(edge["source"], edge["target"], label=edge.get("label", ""))
+    return G
+
+
+@mcp.tool()
+async def query_attack_surface(
+    top_n: int = 15,
+) -> str:
+    """Rank components/heuristics by graph centrality to identify the most
+    critical attack surface nodes.  Uses betweenness centrality on the
+    unified knowledge graph (heuristics, CVEs, CWEs, patches, fuzzers).
+
+    Args:
+        top_n: Number of top-ranked nodes to return (default 15).
+    """
+    import networkx as nx  # type: ignore[import-untyped]
+
+    try:
+        kg = _load_knowledge_graph()
+    except FileNotFoundError as exc:
+        return f"[FAIL] {exc}"
+
+    G = _kg_to_networkx(kg)
+    bc = nx.betweenness_centrality(G)
+    ranked = sorted(bc.items(), key=lambda x: x[1], reverse=True)[:top_n]
+
+    lines = [
+        f"[Attack Surface — top {top_n} by betweenness centrality]",
+        f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges",
+        "",
+        f"{'Rank':<5} {'Node':<40} {'Type':<12} {'Centrality':<10}",
+        "-" * 70,
+    ]
+    for i, (nid, score) in enumerate(ranked, 1):
+        ntype = G.nodes[nid].get("type", "?")
+        lines.append(f"{i:<5} {nid:<40} {ntype:<12} {score:.4f}")
+
+    # Degree distribution summary
+    in_deg = sorted(G.in_degree(), key=lambda x: x[1], reverse=True)[:5]
+    lines.append("")
+    lines.append("Top incoming-edge nodes (most referenced):")
+    for nid, deg in in_deg:
+        lines.append(f"  {nid}: {deg} incoming edges")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def coverage_gaps(
+    severity_filter: str = "",
+) -> str:
+    """Identify heuristics, CVEs, or CWEs that lack fuzzer coverage or
+    patch remediation by analyzing the knowledge graph.
+
+    Args:
+        severity_filter: Optional severity to filter (CRITICAL, HIGH, MEDIUM, LOW).
+    """
+    try:
+        kg = _load_knowledge_graph()
+    except FileNotFoundError as exc:
+        return f"[FAIL] {exc}"
+
+    G = _kg_to_networkx(kg)
+
+    # 1. Heuristics without any DETECTS edge (no CVE coverage)
+    heuristics_no_cve: list[str] = []
+    for node in kg["nodes"]:
+        if node["type"] != "heuristic":
+            continue
+        if severity_filter and node.get("severity", "").upper() != severity_filter.upper():
+            continue
+        nid = node["id"]
+        has_cve = any(
+            e["label"] == "DETECTS"
+            for e in kg["edges"]
+            if e["source"] == nid
+        )
+        if not has_cve:
+            heuristics_no_cve.append(
+                f"  {nid}: {node.get('name', '?')} [{node.get('severity', '?')}]"
+            )
+
+    # 2. Patches not covered by heuristics
+    patches_uncovered: list[str] = []
+    for node in kg["nodes"]:
+        if node["type"] != "patch":
+            continue
+        nid = node["id"]
+        has_coverage = any(
+            e["label"] == "COVERED_BY"
+            for e in kg["edges"]
+            if e["source"] == nid
+        )
+        if not has_coverage:
+            pri = node.get("priority", "?")
+            patches_uncovered.append(f"  {nid} (priority: {pri})")
+
+    # 3. Components without fuzzer targeting
+    comps_unfuzzed: list[str] = []
+    fuzzed_targets = {
+        e["target"]
+        for e in kg["edges"]
+        if e["label"] == "TARGETS"
+    }
+    for node in kg["nodes"]:
+        if node["type"] != "component":
+            continue
+        if node["id"] not in fuzzed_targets:
+            comps_unfuzzed.append(f"  {node['id']}: {node.get('name', '?')}")
+
+    sev_note = f" (filter: {severity_filter})" if severity_filter else ""
+    lines = [
+        f"[Coverage Gaps{sev_note}]",
+        "",
+        f"── Heuristics without CVE/GHSA mapping ({len(heuristics_no_cve)}) ──",
+    ]
+    for h in heuristics_no_cve[:30]:
+        lines.append(h)
+    if len(heuristics_no_cve) > 30:
+        lines.append(f"  ... and {len(heuristics_no_cve) - 30} more")
+
+    lines.append("")
+    lines.append(f"── Patches without heuristic coverage ({len(patches_uncovered)}) ──")
+    for p in patches_uncovered[:20]:
+        lines.append(p)
+
+    lines.append("")
+    lines.append(f"── Components without fuzzer targeting ({len(comps_unfuzzed)}) ──")
+    for c in comps_unfuzzed[:20]:
+        lines.append(c)
+
+    lines.append("")
+    lines.append(
+        f"Summary: {len(heuristics_no_cve)} unmapped heuristics, "
+        f"{len(patches_uncovered)} uncovered patches, "
+        f"{len(comps_unfuzzed)} unfuzzed components"
+    )
 
     return "\n".join(lines)
 
