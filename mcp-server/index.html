@@ -319,6 +319,18 @@ footer {
   vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.tool-hint { color: #a6adc8; font-size: 13px; margin: 8px 0 0 0; line-height: 1.4; }
+.graph-frame { background: #11111b; margin-top: 10px; min-height: 200px; height: 600px; border: 1px solid #333; border-radius: 6px; position: relative; }
+.graph-viewer-container { width: 100%; }
+.graph-loading { color: #888; }
+.graph-error { color: #f38ba8; }
+.graph-search-bar { position: absolute; top: 8px; left: 8px; z-index: 10; display: flex; gap: 6px; }
+.graph-search-input { padding: 4px 8px; border-radius: 4px; border: 1px solid #555; background: #1e1e2e; color: #cdd6f4; font-size: 13px; width: 200px; }
+.graph-type-filter { padding: 4px; border-radius: 4px; border: 1px solid #555; background: #1e1e2e; color: #cdd6f4; font-size: 13px; }
+.graph-legend { position: absolute; bottom: 8px; left: 8px; z-index: 10; display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; }
+.graph-legend-swatch { display: inline-flex; align-items: center; gap: 3px; }
+.graph-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.graph-detail { position: absolute; top: 8px; right: 8px; z-index: 10; max-width: 320px; max-height: 400px; overflow: auto; background: #1e1e2e; border: 1px solid #555; border-radius: 6px; padding: 10px; font-size: 12px; color: #cdd6f4; display: none; white-space: pre-wrap; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -358,6 +370,10 @@ footer {
     <button data-tool="coverage_report"    >Coverage</button>
     <button data-tool="scan_logs"          >Scan Logs</button>
     <button data-tool="upload_and_analyze" >Upload &amp; Analyze</button>
+    <span class="separator" data-separator></span>
+    <button data-tool="attack_surface"    >Attack Surface</button>
+    <button data-tool="coverage_gaps"     >Coverage Gaps</button>
+    <button data-tool="graph_viewer"      >Graph Viewer</button>
   </nav>
 
   <!-- Input panel -->
@@ -415,6 +431,9 @@ const TOOLS = {
   coverage_report:    { label: "Coverage",         endpoint: "/api/coverage-report",   fields: ["build_dir"],  method: "POST" },
   scan_logs:          { label: "Scan Logs",        endpoint: "/api/scan-logs",         fields: ["directory","categories"], method: "POST" },
   upload_and_analyze: { label: "Upload & Analyze", endpoint: "/api/upload-and-analyze", fields: ["data_base64","filename","mode"], method: "POST" },
+  attack_surface:     { label: "Attack Surface",   endpoint: "/api/attack-surface",    fields: ["top_n"],           method: "GET" },
+  coverage_gaps:      { label: "Coverage Gaps",     endpoint: "/api/coverage-gaps",     fields: ["severity_filter"], method: "GET" },
+  graph_viewer:       { label: "Graph Viewer",      endpoint: null,                     fields: [],                  method: null },
 };
 
 const DIRS = ["test-profiles", "extended-test-profiles"];
@@ -776,6 +795,44 @@ function renderInputs() {
         <button class="btn-upload" id="btnUpload">📂 Choose File to Upload & Analyze</button>
         <span class="upload-status" id="uploadStatus"></span>
       </div>`;
+  } else if (currentTool === "attack_surface") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-top_n">Top N Nodes</label>
+          <input id="inp-top_n" type="number" value="15" min="1" max="100" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <p class="tool-hint">Ranks knowledge-graph nodes by betweenness centrality to identify critical attack surface points.</p>`;
+  } else if (currentTool === "coverage_gaps") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-severity_filter">Severity Filter</label>
+          <select id="inp-severity_filter">
+            <option value="" selected>All</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <p class="tool-hint">Identifies heuristics without CVE mapping, patches without coverage, and unfuzzed components.</p>`;
+  } else if (currentTool === "graph_viewer") {
+    html = `
+      <div class="graph-viewer-container">
+        <p class="tool-hint">Interactive knowledge graph: 516 nodes (heuristics, CVEs, CWEs, patches, fuzzers) &amp; 566 edges. Pan, zoom, search, and click nodes for details.</p>
+        <div class="input-row">
+          <button class="btn-run" id="btnLoadGraph">Load Graph Viewer</button>
+          ${saveBtn}
+        </div>
+        <div id="graphViewerFrame" class="graph-frame"></div>
+      </div>`;
   } else {
     const defaultVal = currentTool === "xml" ? DEFAULT_XML_PROFILE : DEFAULT_PROFILE;
     const xmlSaveBtn = currentTool === "xml"
@@ -823,7 +880,8 @@ function renderInputs() {
 
   // Auto-show profile picker for analysis tools (not directory-based tools)
   const dirTools = ["list", "validate_xml", "batch_test", "scan_logs",
-                    "build_tools", "find_artifacts", "coverage_report", "upload_and_analyze"];
+                    "build_tools", "find_artifacts", "coverage_report", "upload_and_analyze",
+                    "attack_surface", "coverage_gaps", "graph_viewer"];
   if (!dirTools.includes(currentTool)) loadProfilePicker(true);
 
   // Auto-load XML file list for validate_xml
@@ -831,6 +889,12 @@ function renderInputs() {
     loadXmlFilePicker();
     const dirSelect = document.getElementById("inp-directory");
     if (dirSelect) dirSelect.addEventListener("change", loadXmlFilePicker);
+  }
+
+  // Graph viewer: load interactive Cytoscape.js viewer inline
+  if (currentTool === "graph_viewer") {
+    const btnLoadGraph = document.getElementById("btnLoadGraph");
+    if (btnLoadGraph) btnLoadGraph.addEventListener("click", loadGraphViewer);
   }
 }
 
@@ -953,6 +1017,166 @@ function toggleProfilePicker() {
   }
 }
 
+/* ── Graph viewer (inline Cytoscape.js) ────────────────── */
+async function loadGraphViewer() {
+  const frame = document.getElementById("graphViewerFrame");
+  if (!frame) return;
+  const btn = document.getElementById("btnLoadGraph");
+  if (btn) btn.disabled = true;
+  setStatus("running", "Loading knowledge graph\u2026");
+  frame.innerHTML = '<p class="graph-loading">Loading graph data\u2026</p>';
+
+  try {
+    const resp = await fetch("/api/knowledge-graph.json");
+    if (!resp.ok) throw new Error("Knowledge graph not available (HTTP " + resp.status + ")");
+    const kg = await resp.json();
+
+    // Load Cytoscape.js from local server (CSP-safe, no CDN)
+    if (typeof cytoscape === "undefined") {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "/static/cytoscape.min.js";
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Failed to load Cytoscape.js"));
+        document.head.appendChild(s);
+      });
+    }
+
+    // Convert knowledge-graph.json to Cytoscape elements
+    const elements = [];
+    const typeColors = {
+      heuristic: "#4fc3f7", cve: "#ef5350", ghsa: "#ff7043", cwe: "#ffa726",
+      patch: "#66bb6a", component: "#ab47bc", fuzzer: "#26c6da"
+    };
+    for (const n of (kg.nodes || [])) {
+      elements.push({
+        data: {
+          id: n.id,
+          label: n.id.length > 30 ? n.id.substring(0, 28) + "\u2026" : n.id,
+          fullLabel: n.name || n.id,
+          type: n.type,
+          color: typeColors[n.type] || "#90a4ae",
+          severity: n.severity || "",
+          extra: JSON.stringify(n, null, 2)
+        }
+      });
+    }
+    for (const e of (kg.edges || [])) {
+      elements.push({ data: { source: e.source, target: e.target, label: e.label || "" } });
+    }
+
+    frame.innerHTML = "";
+    frame.className = "graph-frame";
+
+    // Search bar
+    const searchDiv = document.createElement("div");
+    searchDiv.className = "graph-search-bar";
+    searchDiv.innerHTML = '<input id="graphSearch" type="text" placeholder="Search nodes\u2026" class="graph-search-input">'
+      + '<select id="graphTypeFilter" class="graph-type-filter">'
+      + '<option value="">All types</option>'
+      + '<option value="heuristic">Heuristics</option>'
+      + '<option value="cve">CVEs</option>'
+      + '<option value="ghsa">GHSAs</option>'
+      + '<option value="cwe">CWEs</option>'
+      + '<option value="patch">Patches</option>'
+      + '<option value="component">Components</option>'
+      + '<option value="fuzzer">Fuzzers</option>'
+      + '</select>';
+    frame.appendChild(searchDiv);
+
+    // Legend
+    const legendDiv = document.createElement("div");
+    legendDiv.className = "graph-legend";
+    for (const [t, c] of Object.entries(typeColors)) {
+      legendDiv.innerHTML += '<span class="graph-legend-swatch">'
+        + '<span class="graph-legend-dot" data-color="' + c + '"></span>'
+        + t + '</span>';
+    }
+    frame.appendChild(legendDiv);
+    // Apply legend dot colors programmatically
+    legendDiv.querySelectorAll(".graph-legend-dot").forEach(function(dot) {
+      dot.style.backgroundColor = dot.getAttribute("data-color");
+    });
+
+    // Node detail panel
+    const detailDiv = document.createElement("div");
+    detailDiv.id = "graphDetail";
+    detailDiv.className = "graph-detail";
+    frame.appendChild(detailDiv);
+
+    const cy = cytoscape({
+      container: frame,
+      elements: elements,
+      style: [
+        { selector: "node", style: {
+          "background-color": "data(color)", "label": "data(label)",
+          "font-size": "8px", "color": "#cdd6f4", "text-outline-color": "#1e1e2e",
+          "text-outline-width": 1, "width": 20, "height": 20, "text-valign": "bottom",
+          "text-margin-y": 4
+        }},
+        { selector: "edge", style: {
+          "width": 1, "line-color": "#555", "target-arrow-color": "#555",
+          "target-arrow-shape": "triangle", "curve-style": "bezier",
+          "font-size": "7px", "color": "#888", "text-rotation": "autorotate"
+        }},
+        { selector: ".highlighted", style: {
+          "border-width": 3, "border-color": "#ffd700", "width": 30, "height": 30, "font-size": "10px"
+        }},
+        { selector: ".faded", style: { "opacity": 0.15 }}
+      ],
+      layout: { name: "cose", animate: false, nodeRepulsion: 8000, idealEdgeLength: 80, numIter: 200 }
+    });
+
+    // Click handler — show detail
+    cy.on("tap", "node", function(evt) {
+      const d = evt.target.data();
+      const detail = document.getElementById("graphDetail");
+      if (detail) {
+        detail.style.display = "block";
+        detail.textContent = d.extra || d.fullLabel;
+      }
+    });
+    cy.on("tap", function(evt) {
+      if (evt.target === cy) {
+        const detail = document.getElementById("graphDetail");
+        if (detail) detail.style.display = "none";
+      }
+    });
+
+    // Search handler
+    const searchInput = document.getElementById("graphSearch");
+    const typeFilter = document.getElementById("graphTypeFilter");
+    function applyFilters() {
+      const q = (searchInput ? searchInput.value : "").toLowerCase();
+      const t = typeFilter ? typeFilter.value : "";
+      cy.batch(function() {
+        cy.elements().removeClass("highlighted faded");
+        if (!q && !t) return;
+        const matched = cy.nodes().filter(function(n) {
+          const matchType = !t || n.data("type") === t;
+          const matchSearch = !q || n.data("id").toLowerCase().includes(q) || (n.data("fullLabel") || "").toLowerCase().includes(q);
+          return matchType && matchSearch;
+        });
+        if (matched.length > 0 && (q || t)) {
+          cy.elements().addClass("faded");
+          matched.removeClass("faded").addClass("highlighted");
+          matched.connectedEdges().removeClass("faded");
+          matched.neighborhood().removeClass("faded");
+        }
+      });
+    }
+    if (searchInput) searchInput.addEventListener("input", applyFilters);
+    if (typeFilter) typeFilter.addEventListener("change", applyFilters);
+
+    setStatus("ok", "Knowledge graph loaded: " + kg.nodes.length + " nodes, " + kg.edges.length + " edges");
+  } catch (err) {
+    frame.innerHTML = '<p class="graph-error">' + sanitize(err.message) + '</p>';
+    setStatus("err", sanitize(err.message));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 /* ── File upload handler ────────────────────────────────── */
 async function handleFileUpload() {
   const fileInput = document.getElementById("fileInput");
@@ -1025,6 +1249,10 @@ async function handleFileUpload() {
 /* ── Run the selected tool ─────────────────────────────── */
 async function run() {
   const tool = TOOLS[currentTool];
+
+  // graph_viewer has no API endpoint — handled by loadGraphViewer()
+  if (!tool.endpoint) return;
+
   const isPost = tool.method === "POST";
 
   if (isPost) {

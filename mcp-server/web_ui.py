@@ -84,6 +84,8 @@ from icc_profile_mcp import (  # noqa: E402
     validate_roundtrip,
     validate_xml,
     windows_build,
+    query_attack_surface,
+    coverage_gaps,
 )
 
 # ---------------------------------------------------------------------------
@@ -91,6 +93,7 @@ from icc_profile_mcp import (  # noqa: E402
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
 _INDEX_HTML = _HERE / "index.html"
+_CYTOSCAPE_JS = _HERE / "cytoscape.min.js"
 _INDEX_CONTENT: str | None = None  # cached on first request
 MAX_PATH_LEN = 512
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # 50 MB cap on file downloads
@@ -273,6 +276,17 @@ async def index(request: Request) -> Response:
     headers = dict(_SECURITY_HEADERS)
     headers["Content-Security-Policy"] = _CSP_NONCE_TEMPLATE.format(nonce=nonce)
     return HTMLResponse(html, headers=headers)
+
+
+async def serve_cytoscape_js(request: Request) -> Response:
+    """Serve cytoscape.min.js as a static asset (CSP-safe, no CDN dependency)."""
+    if not _CYTOSCAPE_JS.is_file():
+        return Response("Not found", status_code=404, media_type="text/plain")
+    return Response(
+        _CYTOSCAPE_JS.read_bytes(),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 async def api_list(request: Request) -> Response:
@@ -1047,10 +1061,63 @@ class SecurityHeadersMiddleware:
 
 
 # ---------------------------------------------------------------------------
+# Graph / knowledge-graph endpoints
+# ---------------------------------------------------------------------------
+
+async def api_attack_surface(request: Request) -> Response:
+    """GET /api/attack-surface — rank nodes by betweenness centrality."""
+    try:
+        top_n_raw = request.query_params.get("top_n", "15")
+        try:
+            top_n = max(1, min(100, int(top_n_raw)))
+
+        except (ValueError, TypeError):
+            top_n = 15
+        async with (await _get_semaphore()):
+            result = await query_attack_surface(top_n=top_n)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_coverage_gaps(request: Request) -> Response:
+    """GET /api/coverage-gaps — identify heuristics/patches/components lacking coverage."""
+    try:
+        severity_filter = request.query_params.get("severity_filter", "")
+        if not isinstance(severity_filter, str):
+            severity_filter = ""
+        severity_filter = severity_filter.strip().upper()[:20]
+        async with (await _get_semaphore()):
+            result = await coverage_gaps(severity_filter=severity_filter)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_knowledge_graph_json(request: Request) -> Response:
+    """GET /api/knowledge-graph.json — serve the knowledge graph data for the viewer."""
+    import json as _json
+
+    _REPO_ROOT = _HERE.parent
+    kg_path = _REPO_ROOT / "call-graph" / "knowledge-graph.json"
+    if not kg_path.is_file():
+        return JSONResponse(
+            {"ok": False, "error": "knowledge-graph.json not found. Run: python3 call-graph/scripts/build-knowledge-graph.py"},
+            status_code=404,
+        )
+    try:
+        data = _json.loads(kg_path.read_text(encoding="utf-8"))
+        return JSONResponse(data)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=500)
+
+
+# ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
 routes = [
     Route("/", index, methods=["GET"]),
+    Route("/static/cytoscape.min.js", serve_cytoscape_js, methods=["GET"]),
     Route("/api/health", api_health, methods=["GET"]),
     Route("/api/registry", api_registry, methods=["GET"]),
     Route("/api/list", api_list, methods=["GET"]),
@@ -1082,6 +1149,9 @@ routes = [
     Route("/api/coverage-report", api_coverage_report, methods=["POST"]),
     Route("/api/scan-logs", api_scan_logs, methods=["POST"]),
     Route("/api/upload-and-analyze", api_upload_and_analyze, methods=["POST"]),
+    Route("/api/attack-surface", api_attack_surface, methods=["GET"]),
+    Route("/api/coverage-gaps", api_coverage_gaps, methods=["GET"]),
+    Route("/api/knowledge-graph.json", api_knowledge_graph_json, methods=["GET"]),
 ]
 
 app = Starlette(
