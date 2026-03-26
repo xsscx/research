@@ -291,8 +291,6 @@ all filed and fixed by the BeyondRGB/RIT research team and maintainer:
 | #720 | CWE-190 | UB left-shift in `icGetColorSigStr()` | IccUtil.cpp:1130 | #724 | `iccDumpProfile -V 100 profile.icc` |
 | #721 | CWE-190 | UB left-shift in `icGetColorSig()` | IccUtil.cpp:1253 | #726 | `iccToXml` on extracted ICC |
 | #722 | CWE-681 | int→unsigned implicit conversion | IccUtilXml.cpp:1539 | #725 | `iccToXml` on ICC from CM tiff |
-| #701 | CWE-476 | Null CIccApplyCLUT in InterpNd | IccTagLut.cpp:3181 | #730 | `iccRoundTrip` on BeyondRGB profiles |
-| #702 | CWE-476 | NPD in CIccTagLut16::Write | IccTagLut.cpp:5361 | #728 | `iccTiffDump` on malformed profiles |
 
 ### CFL Patch Coverage
 
@@ -304,8 +302,6 @@ all filed and fixed by the BeyondRGB/RIT research team and maintainer:
 | #720 | CFL-060 (same patch) | H173 ✓ |
 | #721 | CFL-060 (same patch) | H173 ✓ |
 | #722 | CFL-066 (`IccUtilXml bitmask`) | — |
-| #701 | CFL-025 (`CLUT InterpNd null`) | H167 ✓ |
-| #702 | — (upstream fix) | H147 ✓ |
 
 ---
 
