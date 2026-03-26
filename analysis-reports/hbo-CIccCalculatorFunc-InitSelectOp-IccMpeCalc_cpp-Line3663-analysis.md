@@ -4,7 +4,7 @@
 **File Size**: 11727 bytes
 **SHA-256**: `4f736b7a7633d8383d510c03519842e01d59df0139974a11a1b022859f0bd1ff`
 **File Type**: color profile 5.0, RGB/XYZ-spac device by ICC, 11236 bytes, 17-2-2026 8:38:12, relative colorimetric, 0x6ac2323e93276f5a MD5 'sRGB calc tester'
-**Date**: 2026-03-25T02:25:06Z
+**Date**: 2026-03-26T16:57:50Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -2928,7 +2928,7 @@ Tag Pair Analysis:
   Element[0]: CIccMpeCalculator (skipped)
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.ywCq3SReG6/
+Exported 0 text file(s) to /tmp/tmp.SZqZfFP0Pu/
 ```
 
 ---

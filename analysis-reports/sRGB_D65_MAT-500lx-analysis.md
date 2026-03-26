@@ -4,7 +4,7 @@
 **File Size**: 24712 bytes
 **SHA-256**: `8448d5fa6e02890b6ca734ab6854ebd4c288a43df3efa611d7b969daa7b508f6`
 **File Type**: color profile 5.0, RGB/XYZ-mntr device by ICC, 24712 bytes, 17-2-2026 8:38:13, embedded, relative colorimetric, PCS X=0xf34d Z=0x116c2, 0xade2a4b2f4166b01 MD5 'sRGB D65 MAT'
-**Date**: 2026-03-25T02:25:08Z
+**Date**: 2026-03-26T16:57:52Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -3758,24 +3758,24 @@ Tag Pair Analysis:
 
 --- AToB1Tag (MPE: 2 elements) ---
   Channels: in=3 out=3
-  Wrote MPE CurveSet[0]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__AToB1Tag_mpe0_curves.txt (3 ch × 4096 samples)
-  Wrote MPE Matrix[1]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__AToB1Tag_mpe1_matrix.txt (3x3)
+  Wrote MPE CurveSet[0]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__AToB1Tag_mpe0_curves.txt (3 ch × 4096 samples)
+  Wrote MPE Matrix[1]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__AToB1Tag_mpe1_matrix.txt (3x3)
 
 --- BToA1Tag (MPE: 2 elements) ---
   Channels: in=3 out=3
-  Wrote MPE Matrix[0]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__BToA1Tag_mpe0_matrix.txt (3x3)
-  Wrote MPE CurveSet[1]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__BToA1Tag_mpe1_curves.txt (3 ch × 4096 samples)
+  Wrote MPE Matrix[0]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__BToA1Tag_mpe0_matrix.txt (3x3)
+  Wrote MPE CurveSet[1]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__BToA1Tag_mpe1_curves.txt (3 ch × 4096 samples)
 
 --- customToStandardPccTag (MPE: 1 elements) ---
   Channels: in=3 out=3
-  Wrote MPE Matrix[0]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__customToStandardPccTag_mpe0_matrix.txt (3x3)
+  Wrote MPE Matrix[0]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__customToStandardPccTag_mpe0_matrix.txt (3x3)
 
 --- standardToCustomPccTag (MPE: 1 elements) ---
   Channels: in=3 out=3
-  Wrote MPE Matrix[0]: /tmp/tmp.5WZv27kuXa/sRGB_D65_MAT-500lx__standardToCustomPccTag_mpe0_matrix.txt (3x3)
+  Wrote MPE Matrix[0]: /tmp/tmp.AF29in1uJ6/sRGB_D65_MAT-500lx__standardToCustomPccTag_mpe0_matrix.txt (3x3)
 
 === Exported 6 LUT component(s) ===
-Exported 6 text file(s) to /tmp/tmp.5WZv27kuXa/
+Exported 6 text file(s) to /tmp/tmp.AF29in1uJ6/
 ```
 
 ---

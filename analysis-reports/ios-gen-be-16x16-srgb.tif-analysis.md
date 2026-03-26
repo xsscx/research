@@ -4,7 +4,7 @@
 **File Size**: 4118 bytes
 **SHA-256**: `7bdc333070f956a1e11aec2430b27a975db3f2c0c405126c5630566e6a1ad8fa`
 **File Type**: TIFF image data, big-endian, direntries=15, height=16, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=16
-**Date**: 2026-03-25T02:25:06Z
+**Date**: 2026-03-26T16:57:50Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -69,7 +69,7 @@ File: /home/h02332/po/research/test-profiles/ios-gen-be-16x16-srgb.tif
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     2.1
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-JKeTlx.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-K3atyt.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -80,7 +80,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-JKeTlx.icc
+File: /tmp/iccanalyzer-K3atyt.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 42/42 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1318,7 +1318,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-JKeTlx.icc
+Profile: /tmp/iccanalyzer-K3atyt.icc
 
 Device Class: 0x6D6E7472
 
@@ -1523,7 +1523,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-JKeTlx.icc
+File: /tmp/iccanalyzer-K3atyt.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 3
 
@@ -2022,7 +2022,7 @@ Profile: /home/h02332/po/research/test-profiles/ios-gen-be-16x16-srgb.tif
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.tLWX6rVKig/
+Exported 0 text file(s) to /tmp/tmp.ikPDnNRSBT/
 ```
 
 ---

@@ -1,98 +1,131 @@
-digraph iccFromCube {
-  rankdir=TB;
-  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
-  edge [fontname="Helvetica", fontsize=8];
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccFromCube.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x55555566c040 [label="main\\n---\\n[PTR] pTag\\n[PTR] minVal\\n[PTR] maxVal\\n[PTR] pCurves\\n[PTR] pCurve0", fillcolor="#ffcccc"];
+	Node0x55555566c040 -> Node0x5555556446c0;
+	Node0x55555566c040 -> Node0x555555761a30;
+	Node0x55555566c040 -> Node0x5555556b2710;
+	Node0x55555566c040 -> Node0x555555644d80;
+	Node0x55555566c040 -> Node0x55555575abb0;
+	Node0x55555566c040 -> Node0x5555557245b0;
+	Node0x55555566c040 -> Node0x555555681050;
+	Node0x55555566c040 -> Node0x555555770c90;
+	Node0x55555566c040 -> Node0x55555563f440;
+	Node0x55555566c040 -> Node0x55555563f9b0;
+	Node0x55555566c040 -> Node0x555555642510;
+	Node0x55555566c040 -> Node0x555555644bc0;
+	Node0x55555566c040 -> Node0x5555556429a0;
+	Node0x55555566c040 -> Node0x555555771a90;
+	Node0x55555566c040 -> Node0x555555643010;
+	Node0x55555566c040 -> Node0x555555773c60;
+	Node0x55555566c040 -> Node0x555555642750;
+	Node0x55555566c040 -> Node0x555555643910;
+	Node0x55555566c040 -> Node0x555555644240;
+	Node0x55555566c040 -> Node0x555555643760;
+	Node0x55555566c040 -> Node0x5555557733a0;
+	Node0x55555566c040 -> Node0x555555773710;
+	Node0x55555566c040 -> Node0x555555642b70;
+	Node0x55555566c040 -> Node0x5555556432e0;
+	Node0x55555566c040 -> Node0x555555773150;
+	Node0x55555566c040 -> Node0x555555642040;
+	Node0x55555566c040 -> Node0x5555556426d0;
+	Node0x55555566c040 -> Node0x555555641ce0;
+	Node0x55555566c040 -> Node0x555555642e40;
+	Node0x555555761a30 [label="CubeFile::CubeFile()"];
+	Node0x5555556b2710 [label="CubeFile::parseHeader()"];
+	Node0x5555556b2710 -> Node0x555555775870;
+	Node0x5555556b2710 -> Node0x555555644b40;
+	Node0x5555556b2710 -> Node0x555555776f10;
+	Node0x5555556b2710 -> Node0x555555643910;
+	Node0x5555556b2710 -> Node0x555555777410;
+	Node0x5555556b2710 -> Node0x5555557786a0;
+	Node0x5555556b2710 -> Node0x555555779b80;
+	Node0x5555556b2710 -> Node0x5555557792c0;
+	Node0x5555556b2710 -> Node0x555555777ca0;
+	Node0x55555575abb0 [label="CubeFile::sizeLut3D()"];
+	Node0x5555557245b0 [label="CIccProfile::CIccProfile()"];
+	Node0x555555681050 [label="CIccProfile::InitHeader()"];
+	Node0x555555770c90 [label="CIccTagMultiProcessElement::CIccTagMultiProcessElement()"];
+	Node0x55555563f440 [label="CubeFile::isCustomInputRange()"];
+	Node0x55555563f440 -> Node0x55555577abc0;
+	Node0x55555563f9b0 [label="CubeFile::getMinInput()"];
+	Node0x555555642510 [label="CubeFile::getMaxInput()"];
+	Node0x5555556429a0 [label="CIccMpeCurveSet::CIccMpeCurveSet()"];
+	Node0x555555771a90 [label="CIccSingleSampledCurve::CIccSingleSampledCurve()"];
+	Node0x555555642750 [label="CIccMpeCurveSet::SetCurve()"];
+	Node0x555555642e40 [label="CIccMpeCLUT::CIccMpeCLUT()"];
+	Node0x555555641ce0 [label="CIccCLUT::CIccCLUT()"];
+	Node0x5555556426d0 [label="CIccCLUT::Init()"];
+	Node0x5555556432e0 [label="CubeFile::parse3DTable()"];
+	Node0x5555556432e0 -> Node0x555555644b40;
+	Node0x5555556432e0 -> Node0x555555776f10;
+	Node0x5555556432e0 -> Node0x555555643910;
+	Node0x5555556432e0 -> Node0x5555557786a0;
+	Node0x5555556432e0 -> Node0x555555779b80;
+	Node0x555555642040 [label="CIccCLUT::GetData()"];
+	Node0x555555773150 [label="CIccCLUT::NumPoints()"];
+	Node0x555555642b70 [label="CIccMpeCLUT::SetCLUT()"];
+	Node0x555555643010 [label="CIccProfile::AttachTag()"];
+	Node0x555555773710 [label="CubeFile::close()"];
+	Node0x555555643760 [label="CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()"];
+	Node0x5555557733a0 [label="CubeFile::getDescription[abi:cxx11]()"];
+	Node0x555555773c60 [label="CIccTagMultiLocalizedUnicode::SetText()"];
+	Node0x555555643910 [label="c_str()"];
+	Node0x555555644240 [label="CubeFile::getCopyright[abi:cxx11]()"];
+	Node0x555555644bc0 [label="SaveIccProfile()"];
+	Node0x555555644d80 [label="CIccProfile::~CIccProfile()"];
+	Node0x5555556446c0 [label="CubeFile::~CubeFile()"];
+	Node0x5555556446c0 -> Node0x555555773710;
+	Node0x555555775870 [label="CubeFile::open()"];
+	Node0x555555775870 -> Node0x555555643910;
+	Node0x555555644b40 [label="CubeFile::isEOF()"];
+	Node0x555555776f10 [label="CubeFile::getNextLine[abi:cxx11]()"];
+	Node0x555555776f10 -> Node0x555555644b40;
+	Node0x555555776f10 -> Node0x555555783090;
+	Node0x555555777410 [label="substr()"];
+	Node0x555555777ca0 [label="CubeFile::getTitle[abi:cxx11](char const*)"];
+	Node0x5555557792c0 [label="atoll"];
+	Node0x5555557786a0 [label="atof"];
+	Node0x555555779b80 [label="CubeFile::getNext()"];
+	Node0x555555783090 [label="fgetc"];
+	Node0x55555577fcd0 [label="length()"];
+	Node0x555555782550 [label="compare()"];
+	Node0x55555577abc0 [label="icIsNear()"];
+	Node0x555555784550 [label="_Guard::_Guard()"];
+	Node0x555555799510 [label="_Guard::~_Guard()"];
+	Node0x55555577d030 [label="append()"];
 
-  // Legend
   subgraph cluster_legend {
-    label="Legend"; style=dashed; fontsize=9;
-    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
-    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
-    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
-    leg_hot  [label="Alloc Hotspot", fillcolor="#FF6347"];
+    label="Security Gate Legend";
+    style=dashed;
+    color="#999999";
+    fontsize=8;
+    fontname="Courier";
+    leg_sec [label="Security-sensitive\\n(has ptr/array vars)", fillcolor="#ffcccc",
+             shape=box, style="rounded,filled", fontsize=7];
+    leg_gated [label="Gated function\\n(has if/else branches)", fillcolor="#fff3cd",
+               shape=box, style="rounded,filled", fontsize=7];
+    leg_normal [label="Normal function", fillcolor="#f0f4ff",
+                shape=box, style="rounded,filled", fontsize=7];
   }
-
-  tool [label="main()\niccFromCube.cpp", fillcolor="#FF6B6B", shape=ellipse];
-  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_fromcube_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
-
-  // CLI
-  subgraph cluster_cli {
-    label="Phase 1: CLI Args"; style=rounded;
-    usage [label="Usage()", fillcolor="#D3D3D3"];
-    argv1 [label="argv[1] input", fillcolor="#D3D3D3"];
-    argv2 [label="argv[2] output", fillcolor="#D3D3D3"];
-  }
-
-  // CUBE Parsing
-  subgraph cluster_parse {
-    label="Phase 2: CUBE Parsing (Attack Surface)"; style=rounded; color=red;
-    cubefile [label="CubeFile(filename)", fillcolor="#90EE90"];
-    parseheader [label="parseHeader()\nMAIN ENTRY", fillcolor="#90EE90", penwidth=3];
-    getnextline [label="getNextLine()\n(255-byte cap)", fillcolor="#90EE90"];
-    gettitle [label="getTitle()", fillcolor="#90EE90"];
-    getnext [label="getNext()", fillcolor="#90EE90"];
-    atoll_size [label="atoll(LUT_3D_SIZE)\noverflow check", fillcolor="#90EE90"];
-    atof_domain [label="atof(DOMAIN)", fillcolor="#90EE90"];
-    sizelut [label="sizeLut3D()", fillcolor="#90EE90"];
-    parse3d [label="parse3DTable()\nN³ float parse", fillcolor="#90EE90", penwidth=2];
-  }
-
-  // Profile Construction
-  subgraph cluster_profile {
-    label="Phase 3: ICC Profile Construction"; style=rounded;
-    initheader [label="InitHeader()", fillcolor="#90EE90"];
-    mpe_tag [label="CIccTagMPE(3,3)", fillcolor="#90EE90"];
-    curveset [label="CIccMpeCurveSet(3)", fillcolor="#90EE90"];
-    curves [label="SingleSampledCurve\n(per channel)", fillcolor="#90EE90"];
-    mpeclut [label="CIccMpeCLUT", fillcolor="#90EE90"];
-    clut [label="CIccCLUT(3,3)", fillcolor="#90EE90"];
-    clut_init [label="pCLUT->Init()\nALLOC HOTSPOT", fillcolor="#FF6347", penwidth=3];
-    attach_a2b [label="AttachTag(A2B0)", fillcolor="#90EE90"];
-  }
-
-  // Output
-  subgraph cluster_output {
-    label="Phase 4: Metadata & Output"; style=rounded;
-    desc_tag [label="Description Tag", fillcolor="#90EE90"];
-    copy_tag [label="Copyright Tag", fillcolor="#90EE90"];
-    save [label="SaveIccProfile()", fillcolor="#90EE90"];
-  }
-
-  // Tool edges
-  tool -> usage [style=dashed];
-  tool -> argv1 [style=dashed];
-  tool -> cubefile;
-  tool -> parseheader [style=bold, penwidth=2];
-  tool -> sizelut;
-  tool -> initheader;
-  tool -> mpe_tag;
-  tool -> parse3d [style=bold];
-  tool -> save;
-  tool -> argv2 [style=dashed];
-
-  // Fuzzer edges
-  fuzzer -> cubefile [color=green];
-  fuzzer -> parseheader [style=bold, color=green, penwidth=2];
-  fuzzer -> sizelut [color=green];
-  fuzzer -> initheader [color=green];
-  fuzzer -> mpe_tag [color=green];
-  fuzzer -> parse3d [style=bold, color=green];
-  fuzzer -> save [color=green];
-
-  // Internal edges
-  parseheader -> getnextline;
-  parseheader -> gettitle;
-  parseheader -> getnext;
-  parseheader -> atoll_size;
-  parseheader -> atof_domain;
-  mpe_tag -> curveset;
-  curveset -> curves;
-  mpe_tag -> mpeclut;
-  mpeclut -> clut;
-  clut -> clut_init [color=red, penwidth=2];
-  mpe_tag -> attach_a2b;
-  attach_a2b -> desc_tag;
-  desc_tag -> copy_tag;
-  copy_tag -> save;
-
 }

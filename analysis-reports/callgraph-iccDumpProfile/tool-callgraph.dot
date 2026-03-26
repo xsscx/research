@@ -1,114 +1,159 @@
-digraph iccDumpProfile {
-  rankdir=TB;
-  node [shape=box, style=filled, fontname="Helvetica"];
-  edge [fontname="Helvetica", fontsize=9];
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccDumpProfile.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x555555882e90 [label="__isoc23_strtol"];
+	Node0x555555984360 [label="__errno_location"];
+	Node0x55555563ff50 [label="ValidateIccProfile()"];
+	Node0x5555559f1e10 [label="OpenIccProfile()"];
+	Node0x5555559b14e0 [label="CIccInfo::IsProfileIDCalculated()"];
+	Node0x55555563fa30 [label="CIccInfo::GetProfileID()"];
+	Node0x555555642770 [label="CIccInfo::GetDeviceAttrName()"];
+	Node0x555555640900 [label="CIccInfo::GetCmmSigName()"];
+	Node0x555555640db0 [label="CIccInfo::GetColorSpaceSigName()"];
+	Node0x5555559e8dc0 [label="DumpTagCore()\\n---\\n[SIZE] bufSize\\n[ARR] buf", fillcolor="#ffcccc"];
+	Node0x5555559e8dc0 -> Node0x5555559ede80;
+	Node0x5555559e8dc0 -> Node0x5555559e72a0;
+	Node0x5555559e8dc0 -> Node0x555555666dc0;
+	Node0x5555559e8dc0 -> Node0x5555556743c0;
+	Node0x5555559e8dc0 -> Node0x5555556e36f0;
+	Node0x5555559e8dc0 -> Node0x5555556eb8d0;
+	Node0x5555559e8dc0 -> Node0x5555556f9540;
+	Node0x5555559ede80 [label="CIccInfo::CIccInfo()"];
+	Node0x5555559e72a0 [label="CIccInfo::GetTagSigName()"];
+	Node0x555555666dc0 [label="icGetSig()"];
+	Node0x5555556f9540 [label="CIccInfo::GetTagTypeSigName()"];
+	Node0x5555556eb8d0 [label="c_str()"];
+	Node0x5555556e36f0 [label="length()"];
+	Node0x5555556743c0 [label="CIccInfo::~CIccInfo()"];
+	Node0x55555571c7f0 [label="DumpTagSig()\\n---\\n[PTR] pTag", fillcolor="#ffcccc"];
+	Node0x55555571c7f0 -> Node0x555555712b90;
+	Node0x55555571c7f0 -> Node0x5555559e8dc0;
+	Node0x555555712b90 [label="CIccProfile::FindTag()"];
+	Node0x55555570d660 [label="DumpTagEntry()\\n---\\n[PTR] pTag", fillcolor="#ffcccc"];
+	Node0x55555570d660 -> Node0x555555933f80;
+	Node0x55555570d660 -> Node0x5555559e8dc0;
+	Node0x555555933f80 [label="CIccProfile::FindTag()"];
+	Node0x55555592cc00 [label="printUsage()"];
+	Node0x55555591df90 [label="main\\n---\\n[PTR] pIcc\\n[PTR] endptr\\n[PTR] endptr\\n[PTR] pHdr\\n[SIZE] bufSize", fillcolor="#ffcccc"];
+	Node0x55555591df90 -> Node0x55555592cc00;
+	Node0x55555591df90 -> Node0x5555556743c0;
+	Node0x55555591df90 -> Node0x555555882e90;
+	Node0x55555591df90 -> Node0x555555984360;
+	Node0x55555591df90 -> Node0x55555563ff50;
+	Node0x55555591df90 -> Node0x5555556e36f0;
+	Node0x55555591df90 -> Node0x5555556eb8d0;
+	Node0x55555591df90 -> Node0x5555559f1e10;
+	Node0x55555591df90 -> Node0x5555559ede80;
+	Node0x55555591df90 -> Node0x5555559fab00;
+	Node0x55555591df90 -> Node0x5555559b14e0;
+	Node0x55555591df90 -> Node0x55555563fa30;
+	Node0x55555591df90 -> Node0x555555652320;
+	Node0x55555591df90 -> Node0x55555571c7f0;
+	Node0x55555591df90 -> Node0x555555653740;
+	Node0x55555591df90 -> Node0x555555642770;
+	Node0x55555591df90 -> Node0x55555570d660;
+	Node0x55555591df90 -> Node0x555555640900;
+	Node0x55555591df90 -> Node0x555555666dc0;
+	Node0x55555591df90 -> Node0x555555640db0;
+	Node0x55555591df90 -> Node0x5555556532a0;
+	Node0x55555591df90 -> Node0x555555642670;
+	Node0x55555591df90 -> Node0x555555651950;
+	Node0x55555591df90 -> Node0x555555642480;
+	Node0x55555591df90 -> Node0x5555559e72a0;
+	Node0x55555591df90 -> Node0x5555556409a0;
+	Node0x55555591df90 -> Node0x5555556425d0;
+	Node0x55555591df90 -> Node0x5555556503a0;
+	Node0x55555591df90 -> Node0x555555650140;
+	Node0x55555591df90 -> Node0x5555559fb890;
+	Node0x55555591df90 -> Node0x5555559fb710;
+	Node0x55555591df90 -> Node0x55555564ef10;
+	Node0x55555591df90 -> Node0x5555559fba00;
+	Node0x55555591df90 -> Node0x5555559fe100;
+	Node0x55555591df90 -> Node0x5555559fbfd0;
+	Node0x555555642670 [label="CIccInfo::GetProfileFlagsName()"];
+	Node0x555555642480 [label="CIccInfo::GetPlatformSigName()"];
+	Node0x5555556409a0 [label="CIccInfo::GetRenderingIntentName()"];
+	Node0x5555556425d0 [label="CIccInfo::GetProfileClassSigName()"];
+	Node0x5555559fab00 [label="CIccInfo::GetVersionName()"];
+	Node0x5555559fb890 [label="CIccInfo::GetSubClassVersionName()"];
+	Node0x5555559fb710 [label="icFtoD()"];
+	Node0x55555564ef10 [label="CIccInfo::GetSpectralColorSigName()"];
+	Node0x5555559fba00 [label="icF16toF()"];
+	Node0x5555559fbfd0 [label="resize()"];
+	Node0x555555650140 [label="cbegin()"];
+	Node0x555555650140 -> Node0x555555656b80;
+	Node0x5555556503a0 [label="cend()"];
+	Node0x5555556503a0 -> Node0x555555656b80;
+	Node0x5555559fe100 [label="unordered_map()"];
+	Node0x5555559fe100 -> Node0x555555a00530;
+	Node0x555555651950 [label="icMaxStatus()"];
+	Node0x5555556532a0 [label="strcasecmp"];
+	Node0x555555653740 [label="icGetSigVal()"];
+	Node0x555555652320 [label="unordered_map()"];
+	Node0x555555652320 -> Node0x55555565ae60;
+	Node0x555555a00530 [label="_Hashtable()"];
+	Node0x555555a00530 -> Node0x55555565c260;
+	Node0x555555a00530 -> Node0x55555565c490;
+	Node0x55555565c260 [label="__detail::_Hash_node_base::_Hash_node_base()"];
+	Node0x55555565c490 [label="__detail::_Prime_rehash_policy::_Prime_rehash_policy()"];
+	Node0x555555a05250 [label="true::_Hashtable_ebo_helper()"];
+	Node0x55555565ae60 [label="_Hashtable()"];
+	Node0x555555a09530 [label="true::_M_get()"];
+	Node0x555555a092b0 [label="pointer_to()"];
+	Node0x555555a0ccb0 [label="pointer_to()"];
+	Node0x555555a07650 [label="true::~_Hashtable_ebo_helper()"];
+	Node0x555555a0f2b0 [label="max_size()"];
+	Node0x5555559fffb0 [label="__normal_iterator()"];
+	Node0x555555a1fed0 [label="base()"];
+	Node0x555555a306c0 [label="bool __gnu_cxx::operator< (__gnu_cxx::__normal_iterator c..."];
+	Node0x555555a306c0 -> Node0x555555a1fed0;
+	Node0x555555a30450 [label="__ops::_Iter_less_iter::operator()"];
+	Node0x555555a34040 [label="__ops::_Iter_less_val::_Iter_less_val()"];
+	Node0x555555a32a00 [label="__ops::_Iter_less_val::operator()"];
+	Node0x555555a3a890 [label="__ops::_Val_less_iter::operator()"];
+	Node0x555555656b80 [label="__normal_iterator()"];
+	Node0x555555a3ead0 [label="__ops::_Val_less_iter::operator()"];
+	Node0x555555659c10 [label="base()"];
+	Node0x555555a44490 [label="__small_size_threshold()"];
+	Node0x555555a44490 -> Node0x555555a46d90;
+	Node0x555555a46d90 [label="__small_size_threshold()"];
+	Node0x555555a4a8b0 [label="__detail::_Select1st::operator()"];
+	Node0x555555a50be0 [label="__detail::_Mod_range_hashing::operator()"];
+	Node0x555555a56a60 [label="__detail::_Prime_rehash_policy::_M_state()"];
+	Node0x555555a26a70 [label="__detail::_Prime_rehash_policy::_M_need_rehash()"];
+	Node0x555555a08970 [label="__detail::_Prime_rehash_policy::_M_reset()"];
 
-  // Function definitions
-  DumpTagCore [label="DumpTagCore()\nL93-114 (8 calls)", fillcolor=lightyellow];
-  DumpTagSig [label="DumpTagSig()\nL117-121 (2 calls)", fillcolor=lightyellow];
-  DumpTagEntry [label="DumpTagEntry()\nL124-128 (2 calls)", fillcolor=lightyellow];
-  printUsage [label="printUsage()\nL130-136 (0 calls)", fillcolor=lightgray];
-  main [label="main()\nL139-496 (42 calls)", fillcolor=lightgreen];
-
-  // Library API nodes (deduplicated)
-  Fmt_GetTagSigName [label="Fmt.GetTagSigName\nL102,334,391,414,422", fillcolor=lightblue, shape=ellipse];
-  icGetSig [label="icGetSig\nL102,107,112,249,250,258,335", fillcolor=salmon, shape=ellipse];
-  pTag__IsArrayType [label="pTag->IsArrayType\nL104", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetTagTypeSigName [label="Fmt.GetTagTypeSigName\nL107", fillcolor=lightblue, shape=ellipse];
-  pTag__GetType [label="pTag->GetType\nL107", fillcolor=lightblue, shape=ellipse];
-  pTag__Describe [label="pTag->Describe\nL108", fillcolor=lightblue, shape=ellipse];
-  pIcc__FindTag_sig_ [label="pIcc->FindTag(sig)\nL119", fillcolor=lightblue, shape=ellipse];
-  pIcc__FindTag_entry_ [label="pIcc->FindTag(entry)\nL126", fillcolor=lightblue, shape=ellipse];
-  strncmp [label="strncmp\nL172", fillcolor=lightgray, shape=ellipse];
-  strtol [label="strtol\nL181,204", fillcolor=lightgray, shape=ellipse];
-  ValidateIccProfile [label="ValidateIccProfile\nL198", fillcolor=salmon, shape=ellipse];
-  OpenIccProfile [label="OpenIccProfile\nL218", fillcolor=salmon, shape=ellipse];
-  Fmt_IsProfileIDCalculated [label="Fmt.IsProfileIDCalculated\nL236", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetProfileID [label="Fmt.GetProfileID\nL237", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetDeviceAttrName [label="Fmt.GetDeviceAttrName\nL244", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetCmmSigName [label="Fmt.GetCmmSigName\nL245", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetColorSpaceSigName [label="Fmt.GetColorSpaceSigName\nL251,253,291", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetProfileFlagsName [label="Fmt.GetProfileFlagsName\nL252", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetPlatformSigName [label="Fmt.GetPlatformSigName\nL254", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetRenderingIntentName [label="Fmt.GetRenderingIntentName\nL255", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetProfileClassSigName [label="Fmt.GetProfileClassSigName\nL256", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetVersionName [label="Fmt.GetVersionName\nL261,461", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetSubClassVersionName [label="Fmt.GetSubClassVersionName\nL263", fillcolor=lightblue, shape=ellipse];
-  icFtoD [label="icFtoD\nL266", fillcolor=lightblue, shape=ellipse];
-  Fmt_GetSpectralColorSigName [label="Fmt.GetSpectralColorSigName\nL269", fillcolor=lightblue, shape=ellipse];
-  icF16toF [label="icF16toF\nL272,281", fillcolor=lightblue, shape=ellipse];
-  std__sort [label="std::sort\nL315", fillcolor=lightblue, shape=ellipse];
-  std__upper_bound [label="std::upper_bound\nL323,403", fillcolor=lightblue, shape=ellipse];
-  unordered_map__find [label="unordered_map::find\nL346", fillcolor=lightblue, shape=ellipse];
-  icMaxStatus [label="icMaxStatus\nL349,380,436", fillcolor=lightblue, shape=ellipse];
-  DumpTagEntry [label="DumpTagEntry\nL443", fillcolor=lightblue, shape=ellipse];
-  icGetSigVal [label="icGetSigVal\nL447", fillcolor=lightgray, shape=ellipse];
-
-  // Call edges
-  DumpTagCore -> Fmt_GetTagSigName [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagCore -> icGetSig [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagCore -> pTag__IsArrayType [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagCore -> Fmt_GetTagTypeSigName [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagCore -> pTag__GetType [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagCore -> pTag__Describe [label="pTag != NULL", color=red, penwidth=2.0];
-  DumpTagSig -> pIcc__FindTag_sig_;
-  DumpTagSig -> DumpTagCore;
-  DumpTagEntry -> pIcc__FindTag_entry_;
-  DumpTagEntry -> DumpTagCore;
-  main -> printUsage [label="argc <= 1", style=dashed, color=gray];
-  main -> strncmp [style=dashed, color=gray];
-  main -> strtol [label="-v flag present", style=dashed, color=gray];
-  main -> ValidateIccProfile [label="-v flag present"];
-  main -> OpenIccProfile [label="-v flag absent"];
-  main -> Fmt_IsProfileIDCalculated [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetProfileID [label="pIcc && profileID calculated"];
-  main -> Fmt_GetDeviceAttrName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetCmmSigName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> icGetSig [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetColorSpaceSigName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetProfileFlagsName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetPlatformSigName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetRenderingIntentName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetProfileClassSigName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetVersionName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetSubClassVersionName [label="version >= v5 && deviceSubClass"];
-  main -> icFtoD [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> Fmt_GetSpectralColorSigName [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> icF16toF [label="spectralRange defined"];
-  main -> std__sort [label="pIcc != NULL", color=red, penwidth=2.0];
-  main -> std__upper_bound [label="tag iteration"];
-  main -> Fmt_GetTagSigName [label="tag iteration"];
-  main -> unordered_map__find [label="tag iteration"];
-  main -> icMaxStatus [label="duplicate sig found"];
-  main -> DumpTagEntry [label="argv has tag arg && arg=='ALL'"];
-  main -> icGetSigVal [label="argv has tag arg && arg!='ALL'", style=dashed, color=gray];
-  main -> DumpTagSig [label="argv has tag arg && arg!='ALL'", style=dashed, color=gray];
-
-  // Security-relevant AST gates
-  gate_0 [label="GATE L101\npTag != NULL", shape=diamond, fillcolor=orange, fontsize=8];
-  DumpTagCore -> gate_0 [style=dashed, color=gray];
-  gate_0 -> icGetSig [style=dashed, color=darkgreen, label="true"];
-  gate_3 [label="GATE L172\n-V/-v flag in argv[1]", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_3 [style=dashed, color=gray];
-  gate_3 -> ValidateIccProfile [style=dashed, color=darkgreen, label="true"];
-  gate_5 [label="GATE L226\npIcc != NULL", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_5 [style=dashed, color=gray];
-  gate_9 [label="GATE L270\nspectralRange.start || .end || .steps", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_9 [style=dashed, color=gray];
-  gate_10 [label="GATE L280\nbiSpectralRange defined", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_10 [style=dashed, color=gray];
-  gate_12 [label="GATE L324\nupper_bound == cend()", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_12 [style=dashed, color=gray];
-  gate_14 [label="GATE L369\nbDumpValidation", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_14 [style=dashed, color=gray];
-  gate_15 [label="GATE L377\nversion >= v4.2 && size % 4 != 0  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_15 [style=dashed, color=gray];
-  gate_16 [label="GATE L388\noffset + size > pHdr->size  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_16 [style=dashed, color=gray];
-  gate_17 [label="GATE L411\nclosest < offset+size && closest < EOF  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_17 [style=dashed, color=gray];
-  gate_19 [label="GATE L431\nsmallest_offset > expected_first  (depth 1)", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_19 [style=dashed, color=gray];
-  gate_21 [label="GATE L441\nstricmp(arg, 'ALL') == 0", shape=diamond, fillcolor=orange, fontsize=8];
-  main -> gate_21 [style=dashed, color=gray];
+  subgraph cluster_legend {
+    label="Security Gate Legend";
+    style=dashed;
+    color="#999999";
+    fontsize=8;
+    fontname="Courier";
+    leg_sec [label="Security-sensitive\\n(has ptr/array vars)", fillcolor="#ffcccc",
+             shape=box, style="rounded,filled", fontsize=7];
+    leg_gated [label="Gated function\\n(has if/else branches)", fillcolor="#fff3cd",
+               shape=box, style="rounded,filled", fontsize=7];
+    leg_normal [label="Normal function", fillcolor="#f0f4ff",
+                shape=box, style="rounded,filled", fontsize=7];
+  }
 }

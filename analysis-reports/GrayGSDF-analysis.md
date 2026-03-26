@@ -4,7 +4,7 @@
 **File Size**: 33924 bytes
 **SHA-256**: `5eb0cd56f66f9cb92ab28a563b859029d51216b29f48d8b440d90187b160b938`
 **File Type**: color profile 5.0, GRAY/GRAY-link device, 33924 bytes, 17-2-2026 8:38:12, embedded, relative colorimetric, PCS X=0xd75e Z=0xf6b7, 0x5e5ae7c8ed42e74e MD5 'Grayscale GSDF device link JND steps to Monitor drive values using 'ambL' CMM environment variable'
-**Date**: 2026-03-25T02:25:00Z
+**Date**: 2026-03-26T16:57:44Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -4257,7 +4257,7 @@ Result: DeviceLink profiles are not round-tripable.
   Element[0]: CIccMpeCalculator (skipped)
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.Av6cD3wL2i/
+Exported 0 text file(s) to /tmp/tmp.PHDgHS32QF/
 ```
 
 ---

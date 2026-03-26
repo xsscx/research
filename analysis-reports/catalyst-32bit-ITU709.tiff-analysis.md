@@ -4,7 +4,7 @@
 **File Size**: 37642 bytes
 **SHA-256**: `6f935370bebfc6264efa1a2b802f9ef4f0d28d34d4a31177eff44e939564e4b5`
 **File Type**: TIFF image data, big-endian, direntries=16, height=96, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=96
-**Date**: 2026-03-25T02:25:02Z
+**Date**: 2026-03-26T16:57:46Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -71,7 +71,7 @@ File: /home/h02332/po/research/test-profiles/catalyst-32bit-ITU709.tiff
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-t6NMby.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-URscON.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -82,7 +82,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-t6NMby.icc
+File: /tmp/iccanalyzer-URscON.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1319,7 +1319,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-t6NMby.icc
+Profile: /tmp/iccanalyzer-URscON.icc
 
 Device Class: 0x6D6E7472
 
@@ -1508,7 +1508,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-t6NMby.icc
+File: /tmp/iccanalyzer-URscON.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 2
 
@@ -3975,7 +3975,7 @@ Profile: /home/h02332/po/research/test-profiles/catalyst-32bit-ITU709.tiff
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.d7XCsyZ5r9/
+Exported 0 text file(s) to /tmp/tmp.sivg3HkeIi/
 ```
 
 ---

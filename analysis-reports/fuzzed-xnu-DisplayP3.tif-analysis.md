@@ -4,7 +4,7 @@
 **File Size**: 17142 bytes
 **SHA-256**: `8993301d3aa2857ab9325accdfeb668e8348e1ec62f39caef9233cc52711d084`
 **File Type**: TIFF image data, big-endian, direntries=16, height=1, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=4096
-**Date**: 2026-03-25T02:25:05Z
+**Date**: 2026-03-26T16:57:48Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -71,7 +71,7 @@ File: /home/h02332/po/research/test-profiles/fuzzed-xnu-DisplayP3.tif
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-FynhxB.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-yPdnaW.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -82,7 +82,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-FynhxB.icc
+File: /tmp/iccanalyzer-yPdnaW.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1325,7 +1325,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-FynhxB.icc
+Profile: /tmp/iccanalyzer-yPdnaW.icc
 
 Device Class: 0x6D6E7472
 
@@ -1513,7 +1513,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-FynhxB.icc
+File: /tmp/iccanalyzer-yPdnaW.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 5
 
@@ -2825,7 +2825,7 @@ Profile: /home/h02332/po/research/test-profiles/fuzzed-xnu-DisplayP3.tif
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.EW1jiggfFK/
+Exported 0 text file(s) to /tmp/tmp.TGcJTPsiPL/
 ```
 
 ---

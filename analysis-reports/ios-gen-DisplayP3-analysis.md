@@ -4,7 +4,7 @@
 **File Size**: 536 bytes
 **SHA-256**: `0ff6958f98684c61f6bbdce1368ddeaf3873baf84545baba482e920d92a914c0`
 **File Type**: ColorSync color profile 4.0, type appl, RGB/XYZ-mntr device by appl, 536 bytes, 1-1-2022 'Display P3lc'
-**Date**: 2026-03-25T02:25:06Z
+**Date**: 2026-03-26T16:57:50Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -1629,7 +1629,7 @@ Tag Pair Analysis:
 === Extracting LUT data as text from: /home/h02332/po/research/test-profiles/ios-gen-DisplayP3.icc ===
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.T1G68fv7ta/
+Exported 0 text file(s) to /tmp/tmp.lBLU0Eufzd/
 ```
 
 ---

@@ -4,7 +4,7 @@
 **File Size**: 524530 bytes
 **SHA-256**: `76d9b0e18911af8064fa9b2e612f2f205590ea321a725dd8925c3b3bb765e8f8`
 **File Type**: TIFF image data, big-endian, direntries=15, height=256, bps=8, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=256
-**Date**: 2026-03-25T02:25:02Z
+**Date**: 2026-03-26T16:57:46Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -33089,7 +33089,7 @@ Profile: /home/h02332/po/research/test-profiles/catalyst-16bit-mutated.tiff
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.e9KzIxKL2Q/
+Exported 0 text file(s) to /tmp/tmp.fHlFq0fYkB/
 ```
 
 ---

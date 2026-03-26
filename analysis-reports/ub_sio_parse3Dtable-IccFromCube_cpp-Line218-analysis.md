@@ -4,7 +4,7 @@
 **File Size**: 258 bytes
 **SHA-256**: `14ccb963a898d012280391849e3246641311afd6de2e6b7d3498bdb28cb8c09a`
 **File Type**: data
-**Date**: 2026-03-25T03:11:30Z
+**Date**: 2026-03-26T16:57:54Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -74,7 +74,7 @@ EXTERNAL FILE METADATA
       Directory                       : /home/h02332/po/research/test-profiles
       File Size                       : 258 bytes
       File Modification Date/Time     : 2026:02:23 11:23:31-05:00
-      File Access Date/Time           : 2026:03:24 12:27:17-04:00
+      File Access Date/Time           : 2026:03:25 14:55:46-04:00
       File Inode Change Date/Time     : 2026:03:13 10:54:17-04:00
       File Permissions                : -rw-r--r--
       Error                           : File format error
@@ -891,7 +891,7 @@ Profile: /home/h02332/po/research/test-profiles/ub_sio_parse3Dtable-IccFromCube_
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.qoXsDmXCBB/
+Exported 0 text file(s) to /tmp/tmp.i3TWQtMsjf/
 ```
 
 ---
