@@ -10,6 +10,7 @@ Use this file as the fast path into `docs/`. For a fuller directory guide, see [
 - Analyzer runtime findings and policy notes: [analysis/](analysis/)
 - JSON config and TIFF-focused test work: [Testing/README.md](Testing/README.md)
 - ICC binary format and CWE cross-reference: [icc-format/ICC-Binary-Format-Reference.md](icc-format/ICC-Binary-Format-Reference.md)
+- CI governance hardening (bash + PowerShell): [ci-governance-hardening.md](ci-governance-hardening.md)
 
 ## By Task
 
