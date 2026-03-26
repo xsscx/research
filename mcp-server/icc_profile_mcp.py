@@ -13,6 +13,7 @@ Build prerequisites:
 import asyncio
 import base64
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -511,7 +512,7 @@ async def health_check() -> str:
     lines.append("")
 
     # Tool count (11 analysis tools + 7 maintainer + 6 operations + 2 graph = 26 tools)
-    lines.append("Tools: 24 registered (11 analysis + 7 maintainer + 6 operations)")
+    lines.append("Tools: 26 registered (11 analysis + 7 maintainer + 6 operations + 2 graph)")
     lines.append("")
 
     xml_toolchain_ok = (
@@ -2729,7 +2730,7 @@ async def scan_logs(
 
 def _load_knowledge_graph() -> dict:
     """Load the unified knowledge graph JSON."""
-    kg_path = _REPO / "call-graph" / "knowledge-graph.json"
+    kg_path = REPO_ROOT / "call-graph" / "knowledge-graph.json"
     if not kg_path.exists():
         raise FileNotFoundError(
             f"knowledge-graph.json not found at {kg_path}. "
@@ -2746,7 +2747,7 @@ def _kg_to_networkx(kg: dict):  # type: ignore[no-untyped-def]
     for node in kg.get("nodes", []):
         G.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
     for edge in kg.get("edges", []):
-        G.add_edge(edge["source"], edge["target"], label=edge.get("label", ""))
+        G.add_edge(edge["source"], edge["target"], label=edge.get("relationship", ""))
     return G
 
 
@@ -2819,7 +2820,7 @@ async def coverage_gaps(
             continue
         nid = node["id"]
         has_cve = any(
-            e["label"] == "DETECTS"
+            e.get("relationship") == "DETECTS"
             for e in kg["edges"]
             if e["source"] == nid
         )
@@ -2835,7 +2836,7 @@ async def coverage_gaps(
             continue
         nid = node["id"]
         has_coverage = any(
-            e["label"] == "COVERED_BY"
+            e.get("relationship") == "COVERED_BY"
             for e in kg["edges"]
             if e["source"] == nid
         )
@@ -2848,7 +2849,7 @@ async def coverage_gaps(
     fuzzed_targets = {
         e["target"]
         for e in kg["edges"]
-        if e["label"] == "TARGETS"
+        if e.get("relationship") == "TARGETS"
     }
     for node in kg["nodes"]:
         if node["type"] != "component":
