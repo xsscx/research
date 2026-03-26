@@ -280,7 +280,7 @@ the CCSG target patches, enabling the M_color and M_spectral transformations.
 
 ## 5. Cross-Reference with iccDEV Issues
 
-These artifacts triggered or are directly related to 8 upstream iccDEV security issues,
+These artifacts triggered or are directly related to 5 upstream iccDEV security issues,
 all filed and fixed by the BeyondRGB/RIT research team and maintainer:
 
 | Issue | CWE | Bug | File:Line | Fix PR | Triggered By |
@@ -341,7 +341,7 @@ The ADS metadata is informational only — it has no security impact on Linux an
 ### Research Value
 
 These artifacts represent a production-quality spectral imaging pipeline that
-successfully exposed 8 iccDEV library bugs through normal usage. The hybrid
+successfully exposed 5 iccDEV library bugs through normal usage. The hybrid
 v4.3/v5.1 ICC profile format is the canonical test case for the ICC5/ICCp
 embedding specification, making it valuable for:
 
