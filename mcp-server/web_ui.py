@@ -521,7 +521,7 @@ async def api_health(request: Request) -> Response:
     v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
     resp = {
         "ok": True,
-        "tools": 24,
+        "tools": 26,
         "engines": {"v1": v1_ok, "v2": v2_ok},
         "defaultAnalysisEngine": DEFAULT_ANALYSIS_ENGINE,
         "defaultStructuralEngine": DEFAULT_STRUCTURAL_ENGINE,

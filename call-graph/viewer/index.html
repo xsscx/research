@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ICC Security Knowledge Graph</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       background: #1a1a2e; color: #e0e0e0; display: flex; height: 100vh; }
+
+#sidebar { width: 320px; background: #16213e; padding: 16px; overflow-y: auto;
+           border-right: 1px solid #0f3460; display: flex; flex-direction: column; }
+#sidebar h1 { font-size: 18px; margin-bottom: 12px; color: #e94560; }
+
+.controls { margin-bottom: 12px; }
+.controls label { display: block; font-size: 12px; margin-bottom: 4px; color: #a0a0a0; }
+.controls input, .controls select { width: 100%; padding: 6px 8px; border: 1px solid #0f3460;
+  background: #1a1a2e; color: #e0e0e0; border-radius: 4px; margin-bottom: 8px; font-size: 13px; }
+.controls button { padding: 6px 12px; background: #0f3460; color: #e0e0e0; border: none;
+  border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px; margin-bottom: 4px; }
+.controls button:hover { background: #e94560; }
+.controls button.active { background: #e94560; }
+
+#stats { font-size: 12px; color: #a0a0a0; margin-bottom: 12px; }
+#stats span { color: #e94560; font-weight: bold; }
+
+#detail-panel { flex: 1; overflow-y: auto; font-size: 12px; background: #1a1a2e;
+  border-radius: 4px; padding: 8px; border: 1px solid #0f3460; min-height: 200px; }
+#detail-panel h3 { color: #e94560; margin-bottom: 6px; font-size: 14px; }
+#detail-panel .prop { margin: 2px 0; }
+#detail-panel .prop-key { color: #a0a0a0; }
+#detail-panel .prop-val { color: #e0e0e0; }
+#detail-panel .edge-list { margin-top: 8px; }
+#detail-panel .edge-item { padding: 2px 0; border-bottom: 1px solid #0f3460; cursor: pointer; }
+#detail-panel .edge-item:hover { color: #e94560; }
+
+#cy { flex: 1; background: #1a1a2e; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; font-size: 11px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>ICC Knowledge Graph</h1>
+
+  <div id="stats">Loading...</div>
+
+  <div class="controls">
+    <label>Search nodes</label>
+    <input type="text" id="search" placeholder="H42, CVE-2024-38427, CWE-122...">
+
+    <label>Filter by type</label>
+    <select id="type-filter">
+      <option value="all">All types</option>
+      <option value="heuristic">Heuristics (H1-H174)</option>
+      <option value="cve">CVEs</option>
+      <option value="ghsa">GHSAs</option>
+      <option value="cwe">CWEs</option>
+      <option value="patch">Patches (CFL-*)</option>
+      <option value="component">Components</option>
+      <option value="fuzzer">Fuzzers</option>
+    </select>
+
+    <label>Filter by severity</label>
+    <select id="severity-filter">
+      <option value="all">All severities</option>
+      <option value="CRITICAL">Critical</option>
+      <option value="HIGH">High</option>
+      <option value="MEDIUM">Medium</option>
+      <option value="LOW">Low</option>
+      <option value="INFO">Info</option>
+    </select>
+
+    <label>Layout</label>
+    <div>
+      <button onclick="setLayout('cose')" class="active" id="btn-cose">Force</button>
+      <button onclick="setLayout('circle')" id="btn-circle">Circle</button>
+      <button onclick="setLayout('grid')" id="btn-grid">Grid</button>
+      <button onclick="setLayout('concentric')" id="btn-concentric">Concentric</button>
+    </div>
+
+    <div style="margin-top: 8px;">
+      <button onclick="cy.fit()" title="Fit all">Fit All</button>
+      <button onclick="resetFilters()">Reset Filters</button>
+      <button onclick="showNeighborhood()">Show Neighbors</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#e94560"></div>Heuristic</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>CVE</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffa502"></div>GHSA</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1dd1a1"></div>CWE</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#54a0ff"></div>Patch</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5f27cd"></div>Component</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#01a3a4"></div>Fuzzer</div>
+  </div>
+
+  <div id="detail-panel">
+    <h3>Node Details</h3>
+    <p style="color:#666">Click a node to see details</p>
+  </div>
+</div>
+
+<div id="cy"></div>
+
+<script>
+const TYPE_COLORS = {
+  heuristic: '#e94560', cve: '#ff6b6b', ghsa: '#ffa502',
+  cwe: '#1dd1a1', patch: '#54a0ff', component: '#5f27cd', fuzzer: '#01a3a4'
+};
+
+const SEVERITY_SIZES = {
+  CRITICAL: 30, HIGH: 25, MEDIUM: 20, LOW: 16, INFO: 14
+};
+
+let cy, graphData;
+
+async function init() {
+  try {
+    const resp = await fetch('knowledge-graph.json');
+    graphData = await resp.json();
+  } catch (e) {
+    document.getElementById('stats').textContent =
+      'Error: Place knowledge-graph.json in the same directory as this HTML file.';
+    return;
+  }
+
+  const elements = [];
+
+  for (const node of graphData.nodes) {
+    const size = SEVERITY_SIZES[node.severity] || 16;
+    elements.push({
+      data: {
+        id: node.id,
+        label: node.name || node.id,
+        type: node.type,
+        severity: node.severity || '',
+        ...node
+      },
+      classes: node.type
+    });
+  }
+
+  for (const edge of graphData.edges) {
+    elements.push({
+      data: {
+        source: edge.source,
+        target: edge.target,
+        label: edge.relationship,
+        ...edge
+      }
+    });
+  }
+
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: elements,
+    style: [
+      { selector: 'node', style: {
+        'label': 'data(label)', 'font-size': 8, 'color': '#ccc',
+        'text-valign': 'bottom', 'text-margin-y': 4,
+        'width': function(ele) { return SEVERITY_SIZES[ele.data('severity')] || 16; },
+        'height': function(ele) { return SEVERITY_SIZES[ele.data('severity')] || 16; },
+        'background-color': function(ele) { return TYPE_COLORS[ele.data('type')] || '#888'; },
+        'border-width': 1, 'border-color': '#333',
+        'text-max-width': 80, 'text-wrap': 'ellipsis'
+      }},
+      { selector: 'edge', style: {
+        'width': 1, 'line-color': '#333', 'target-arrow-color': '#333',
+        'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
+        'arrow-scale': 0.6, 'opacity': 0.5
+      }},
+      { selector: 'node:selected', style: {
+        'border-width': 3, 'border-color': '#fff',
+        'font-size': 11, 'color': '#fff', 'font-weight': 'bold'
+      }},
+      { selector: 'edge:selected', style: {
+        'width': 3, 'line-color': '#e94560', 'target-arrow-color': '#e94560', 'opacity': 1
+      }},
+      { selector: '.highlighted', style: {
+        'border-width': 3, 'border-color': '#ffd700', 'opacity': 1
+      }},
+      { selector: '.dimmed', style: { 'opacity': 0.1 }},
+    ],
+    layout: { name: 'cose', animate: false, nodeRepulsion: 8000,
+              idealEdgeLength: 80, padding: 30 },
+    minZoom: 0.05, maxZoom: 5
+  });
+
+  cy.on('tap', 'node', function(evt) { showDetail(evt.target); });
+  cy.on('tap', function(evt) {
+    if (evt.target === cy) {
+      document.getElementById('detail-panel').innerHTML =
+        '<h3>Node Details</h3><p style="color:#666">Click a node to see details</p>';
+      cy.elements().removeClass('highlighted dimmed');
+    }
+  });
+
+  updateStats();
+  document.getElementById('search').addEventListener('input', applyFilters);
+  document.getElementById('type-filter').addEventListener('change', applyFilters);
+  document.getElementById('severity-filter').addEventListener('change', applyFilters);
+}
+
+function updateStats() {
+  const s = graphData.stats;
+  document.getElementById('stats').innerHTML =
+    `<span>${s.nodes}</span> nodes · <span>${s.edges}</span> edges · ` +
+    `<span>${s.heuristics}</span> heuristics · <span>${s.cves}</span> CVEs · ` +
+    `<span>${s.patches}</span> patches · <span>${s.fuzzers}</span> fuzzers`;
+}
+
+function showDetail(node) {
+  const d = node.data();
+  const panel = document.getElementById('detail-panel');
+  let html = `<h3>${d.id}</h3>`;
+
+  const skip = new Set(['id', 'label', 'type']);
+  for (const [k, v] of Object.entries(d)) {
+    if (skip.has(k) || v === '' || v === null || v === undefined) continue;
+    html += `<div class="prop"><span class="prop-key">${k}:</span> <span class="prop-val">${v}</span></div>`;
+  }
+
+  const edges = node.connectedEdges();
+  if (edges.length > 0) {
+    html += `<div class="edge-list"><h3>Connections (${edges.length})</h3>`;
+    edges.forEach(e => {
+      const other = e.source().id() === d.id ? e.target() : e.source();
+      const dir = e.source().id() === d.id ? '→' : '←';
+      html += `<div class="edge-item" onclick="focusNode('${other.id()}')">`
+            + `${dir} [${e.data('label')}] ${other.id()}</div>`;
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+
+  // Highlight neighborhood
+  cy.elements().removeClass('highlighted dimmed');
+  const neighborhood = node.closedNeighborhood();
+  cy.elements().not(neighborhood).addClass('dimmed');
+  neighborhood.addClass('highlighted');
+}
+
+function focusNode(id) {
+  const node = cy.getElementById(id);
+  if (node.length) {
+    cy.animate({ center: { eles: node }, zoom: 2 }, { duration: 300 });
+    showDetail(node);
+  }
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const typeFilter = document.getElementById('type-filter').value;
+  const sevFilter = document.getElementById('severity-filter').value;
+
+  cy.elements().removeClass('dimmed highlighted');
+
+  cy.nodes().forEach(node => {
+    const d = node.data();
+    let visible = true;
+
+    if (search && !d.id.toLowerCase().includes(search) &&
+        !(d.label || '').toLowerCase().includes(search) &&
+        !(d.name || '').toLowerCase().includes(search)) {
+      visible = false;
+    }
+    if (typeFilter !== 'all' && d.type !== typeFilter) visible = false;
+    if (sevFilter !== 'all' && d.severity !== sevFilter) visible = false;
+
+    if (!visible) {
+      node.addClass('dimmed');
+      node.connectedEdges().addClass('dimmed');
+    }
+  });
+}
+
+function resetFilters() {
+  document.getElementById('search').value = '';
+  document.getElementById('type-filter').value = 'all';
+  document.getElementById('severity-filter').value = 'all';
+  cy.elements().removeClass('dimmed highlighted');
+  cy.fit();
+}
+
+function showNeighborhood() {
+  const selected = cy.nodes(':selected');
+  if (selected.length === 0) return;
+  const neighborhood = selected.closedNeighborhood();
+  cy.elements().not(neighborhood).addClass('dimmed');
+  neighborhood.removeClass('dimmed').addClass('highlighted');
+  cy.fit(neighborhood, 50);
+}
+
+function setLayout(name) {
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('btn-' + name);
+  if (btn) btn.classList.add('active');
+
+  const opts = { name, animate: true, animationDuration: 500, padding: 30 };
+  if (name === 'cose') {
+    opts.nodeRepulsion = 8000;
+    opts.idealEdgeLength = 80;
+    opts.animate = false;
+  } else if (name === 'concentric') {
+    opts.concentric = function(node) {
+      return {'CRITICAL':5,'HIGH':4,'MEDIUM':3,'LOW':2,'INFO':1}[node.data('severity')] || 0;
+    };
+    opts.levelWidth = () => 1;
+  }
+  cy.layout(opts).run();
+}
+
+init();
+</script>
+</body>
+</html>
