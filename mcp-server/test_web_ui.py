@@ -170,7 +170,7 @@ def test_health():
     check("Health 200", r.status_code == 200)
     d = r.json()
     check("Health ok", d["ok"] is True)
-    check("Health tools=24", d["tools"] == 24)
+    check("Health tools=26", d["tools"] == 26)
     check("Health has defaultAnalysisEngine",
           d.get("defaultAnalysisEngine") in {"auto", "v1", "v2"})
     check("Health has defaultStructuralEngine",
@@ -937,7 +937,7 @@ def test_operations_endpoints():
     check("health-check returns 200", r.status_code == 200)
     data = r.json()
     check("health-check has result", "result" in data)
-    check("health-check mentions tools", "24" in data.get("result", ""))
+    check("health-check mentions tools", "26" in data.get("result", ""))
     check("health-check mentions iccDumpProfile", "iccDumpProfile" in data.get("result", ""))
     check("health-check mentions iccRoundTrip", "iccRoundTrip" in data.get("result", ""))
     check("health-check mentions iccApplyNamedCmm", "iccApplyNamedCmm" in data.get("result", ""))
