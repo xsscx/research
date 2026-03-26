@@ -4,7 +4,7 @@
 **File Size**: 262938 bytes
 **SHA-256**: `9a052467d236ae366c2da5d92be2dfd80cb4afe58c11737a8a09b34a893a8c3d`
 **File Type**: TIFF image data, big-endian, direntries=16, height=256, bps=4, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=256
-**Date**: 2026-03-25T02:25:01Z
+**Date**: 2026-03-26T16:57:45Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -73,7 +73,7 @@ File: /home/h02332/po/research/test-profiles/catalyst-16bit-ITU2020.tiff
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-pguhsh.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-fKZiMC.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -84,7 +84,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-pguhsh.icc
+File: /tmp/iccanalyzer-fKZiMC.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1329,7 +1329,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-pguhsh.icc
+Profile: /tmp/iccanalyzer-fKZiMC.icc
 
 Device Class: 0x6D6E7472
 
@@ -1518,7 +1518,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-pguhsh.icc
+File: /tmp/iccanalyzer-fKZiMC.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 4
 
@@ -18193,7 +18193,7 @@ Profile: /home/h02332/po/research/test-profiles/catalyst-16bit-ITU2020.tiff
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.DMlclFpyYo/
+Exported 0 text file(s) to /tmp/tmp.0qzU6QleNx/
 ```
 
 ---

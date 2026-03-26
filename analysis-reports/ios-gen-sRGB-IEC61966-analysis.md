@@ -4,7 +4,7 @@
 **File Size**: 3144 bytes
 **SHA-256**: `2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e`
 **File Type**: Microsoft color profile 2.1, type Lino, RGB/XYZ-mntr device, IEC/sRGB model by HP, 3144 bytes, 9-2-1998 6:49:00 "sRGB IEC61966-2.1"
-**Date**: 2026-03-25T02:25:07Z
+**Date**: 2026-03-26T16:57:51Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -1816,7 +1816,7 @@ Tag Pair Analysis:
 === Extracting LUT data as text from: /home/h02332/po/research/test-profiles/ios-gen-sRGB-IEC61966.icc ===
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.lkjJDu6XGa/
+Exported 0 text file(s) to /tmp/tmp.QRUe1hyQUj/
 ```
 
 ---

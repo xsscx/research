@@ -4,7 +4,7 @@
 **File Size**: 962 bytes
 **SHA-256**: `c0b20307635b3427858a80f0845cda68ecf242a54fb062dec450aacd4c51c803`
 **File Type**: TIFF image data, big-endian, direntries=14, height=16, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=16
-**Date**: 2026-03-08T19:58:18Z
+**Date**: 2026-03-26T16:57:49Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -14,6 +14,8 @@
 | `-a` (comprehensive) | 0 | Clean |
 | `-nf` (ninja full dump) | 0 | Dump completed |
 | `-r` (round-trip) | 2 | Error |
+| `-xt` (LUT text export) | 2 | Error |
+| `-cube` (cube export) | 1 | No 3D CLUT |
 
 **ASAN/UBSAN**: No sanitizer errors detected
 
@@ -43,13 +45,19 @@ File: /home/h02332/po/research/test-profiles/fuzzed-xnu-non_premultiplied_alpha.
 
 --- TIFF Security Heuristics ---
 [H139] TIFF Strip Geometry Validation (CWE-122/CWE-190)
-      [OK] Strip geometry valid (bytesPerLine=48, stripSize=768, rowsPerStrip=16)
+      [OK] Strip geometry valid
 
 [H140] TIFF Dimension and Sample Validation (CWE-400/CWE-131)
-      [OK] Dimensions 16×16, BPS=8, SPP=3 (256 pixels)
+      [OK] Dimensions valid
 
 [H141] TIFF IFD Offset Bounds Validation (CWE-125)
-      [OK] All IFD offsets within file bounds (size=962, pages=1)
+      [OK] All IFD offsets within file bounds
+
+[H149] TIFF IFD Chain Cycle Detection (CWE-835)
+      [OK] IFD chain is acyclic
+
+[H150] TIFF Tile Geometry Validation (CWE-122/CWE-131)
+      [OK] Strip-based image — tile geometry N/A
 
 
 --- Injection Signature Scan ---
@@ -106,10 +114,28 @@ Raw file size: 962 bytes (0x3C2)
 Header Fields (RAW - no validation):
   Profile Size:    0x4D4D002A (1296891946 bytes) MISMATCH
   CMM:             0x00000308  '....'
-  Version:         0x1A4F59F9
+  Version:         0x1A4F59F9  (26.4.15)
   Device Class:    0x5EC70B47  '^..G'
   Color Space:     0x09074101  '..A.'
   PCS:             0x00620014  '.b..'
+  Date/Time:       41267-63678-65081 24423:00:102
+  Magic:           0x448C7D35  [INVALID]
+  Platform:        0x7554E5EE  'uT..'
+  Flags:           0x7D357584
+  Manufacturer:    0x266E7D75  '&n}u'
+  Model:           0x35C393C6  '5...'
+  Dev Attributes:  0xC68A986739751838
+  Rendering Intent:0x00014107  UNKNOWN
+  PCS Illuminant:  X=1857.0060 Y=-26990.0293 Z=-431.7174
+  Creator:         0x7D753564  '}u5d'
+  Profile ID:      24208aca827d357500000084448c0000
+  Reserved 100-127: NON-ZERO [VIOLATION]
+
+  --- V5/iccMAX Extended Header ---
+  Spectral PCS:    0x00620014  '.b..'
+  Spectral Range:  1909.0 - 0.6 nm, 54074 steps
+  BiSpectral:      -27520.0 - -18352.0 nm, 27572 steps
+  MCS:             0x01410707  '.A..'
 
 === RAW TAG TABLE (0x0080+) ===
 Tag Count: 2676127370 (0x9F82768A)
@@ -293,7 +319,27 @@ Use this information for debugging malformed profiles.
 === Round-Trip Tag Pair Analysis ===
 Profile: /home/h02332/po/research/test-profiles/fuzzed-xnu-non_premultiplied_alpha.tif
 
-Error reading ICC profile
+[NOT RUN] Profile TRUNCATED — round-trip validation not run
+       Header claims more bytes than file contains (CWE-125)
+```
 
-Profile failed validation. Try ninja mode: iccAnalyzer -n /home/h02332/po/research/test-profiles/fuzzed-xnu-non_premultiplied_alpha.tif
+---
+
+## LUT Text Export (`-xt`)
+
+**Exit Code: 2**
+
+```
+Error reading ICC profile
+Exported 0 text file(s) to /tmp/tmp.mRUTfC54ZX/
+```
+
+---
+
+## Cube Export (`-cube`)
+
+**Exit Code: 1**
+
+```
+No 3D CLUT found in any standard LUT tag
 ```

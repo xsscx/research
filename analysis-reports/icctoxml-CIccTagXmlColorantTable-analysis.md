@@ -4,7 +4,7 @@
 **File Size**: 28346 bytes
 **SHA-256**: `b3c3abb7fc4bc0ef1e5eb6d51dbec548364966ce03ad9271ececc06e6840c58f`
 **File Type**: ColorSync color profile 4.2, type appl, RGB/XYZ-mntr device by appl, 8204 bytes, 9-6-2018 19:43:44, 0x77bbaeb4832ccefd MD5
-**Date**: 2026-03-25T03:11:14Z
+**Date**: 2026-03-26T16:57:53Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -3417,7 +3417,7 @@ Tag Pair Analysis:
 === Extracting LUT data as text from: /home/h02332/po/research/test-profiles/icctoxml-CIccTagXmlColorantTable.icc ===
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.sLm4ACt1tz/
+Exported 0 text file(s) to /tmp/tmp.Lay8ngabDf/
 ```
 
 ---

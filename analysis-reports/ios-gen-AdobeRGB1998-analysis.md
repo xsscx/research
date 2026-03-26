@@ -4,7 +4,7 @@
 **File Size**: 560 bytes
 **SHA-256**: `304f569a83c1e5eddaddac54e99ed03339333db013738bb499ab64f049887e28`
 **File Type**: ColorSync color profile 2.1, type ADBE, RGB/XYZ-mntr device by ADBE, 560 bytes, 11-8-2000 19:51:59 "Adobe RGB (1998)"
-**Date**: 2026-03-25T02:25:06Z
+**Date**: 2026-03-26T16:57:50Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -1619,7 +1619,7 @@ Tag Pair Analysis:
 === Extracting LUT data as text from: /home/h02332/po/research/test-profiles/ios-gen-AdobeRGB1998.icc ===
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.13DGgPZS3n/
+Exported 0 text file(s) to /tmp/tmp.WkYHp5w07n/
 ```
 
 ---

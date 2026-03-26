@@ -4,7 +4,7 @@
 **File Size**: 415834 bytes
 **SHA-256**: `bc320fb59695ba4c5f087091f675fc47a3f9fa346aa63153ddecacf4015f033a`
 **File Type**: TIFF image data, big-endian, direntries=16, height=16, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=16
-**Date**: 2026-03-25T02:25:05Z
+**Date**: 2026-03-26T16:57:49Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -69,7 +69,7 @@ File: /home/h02332/po/research/test-profiles/fuzzed-xnu-Tek350.tif
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     2.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-JHLfH6.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-ufQ2zc.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -80,7 +80,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-JHLfH6.icc
+File: /tmp/iccanalyzer-ufQ2zc.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 26/26 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1353,7 +1353,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-JHLfH6.icc
+Profile: /tmp/iccanalyzer-ufQ2zc.icc
 
 Device Class: 0x70727472
 
@@ -1596,7 +1596,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-JHLfH6.icc
+File: /tmp/iccanalyzer-ufQ2zc.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 16
 
@@ -27839,7 +27839,7 @@ Profile: /home/h02332/po/research/test-profiles/fuzzed-xnu-Tek350.tif
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.EJt7mGb0qf/
+Exported 0 text file(s) to /tmp/tmp.1Vrbb9QYjL/
 ```
 
 ---

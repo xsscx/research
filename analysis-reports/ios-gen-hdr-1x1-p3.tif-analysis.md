@@ -4,7 +4,7 @@
 **File Size**: 774 bytes
 **SHA-256**: `313d91226c7566591e0082701727f36a6884243e0e300e785e0749c588170804`
 **File Type**: TIFF image data, big-endian, direntries=16, height=1, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=1
-**Date**: 2026-03-25T02:25:07Z
+**Date**: 2026-03-26T16:57:51Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -69,7 +69,7 @@ File: /home/h02332/po/research/test-profiles/ios-gen-hdr-1x1-p3.tif
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-1OJomB.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-g7mDIe.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -80,7 +80,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-1OJomB.icc
+File: /tmp/iccanalyzer-g7mDIe.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1323,7 +1323,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-1OJomB.icc
+Profile: /tmp/iccanalyzer-g7mDIe.icc
 
 Device Class: 0x6D6E7472
 
@@ -1511,7 +1511,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-1OJomB.icc
+File: /tmp/iccanalyzer-g7mDIe.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 5
 
@@ -1752,7 +1752,7 @@ Profile: /home/h02332/po/research/test-profiles/ios-gen-hdr-1x1-p3.tif
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.KdaJy2vTF0/
+Exported 0 text file(s) to /tmp/tmp.pEYr7XDfDg/
 ```
 
 ---

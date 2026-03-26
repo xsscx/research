@@ -201,7 +201,7 @@
       {
         "name": "iccanalyzer-lite",
         "ast_functions": 320844,
-        "cg_edges": 21350,
+        "cg_edges": 21354,
         "cg_method": "llvm-ir"
       }
     ]
@@ -209,6 +209,6 @@
   "totals": {
     "targets": 32,
     "total_functions": 822468,
-    "total_edges": 57732
+    "total_edges": 57736
   }
 }

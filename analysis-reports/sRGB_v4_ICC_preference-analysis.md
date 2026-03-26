@@ -4,7 +4,7 @@
 **File Size**: 60960 bytes
 **SHA-256**: `83174717332326ddc198d9df188a4daec27b8979ba152cebbfc470c793d0bb11`
 **File Type**: color profile 4.2, RGB/Lab-spac device, 60960 bytes, 25-7-2007 0:05:37, 0x34562abf994ccd06 MD5 'sRGB v4 ICC preference perceptual intent beta'
-**Date**: 2026-03-25T02:25:08Z
+**Date**: 2026-03-26T16:57:52Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -5450,29 +5450,29 @@ Tag Pair Analysis:
 
 --- AToB0Tag (type: lutAtoBType) ---
   Channels: in=3 out=3
-  Wrote CLUT: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB0Tag_clut.txt (4913 entries × 3 outputs)
-  Wrote matrix: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB0Tag_matrix.txt
+  Wrote CLUT: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB0Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote matrix: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB0Tag_matrix.txt
 
 --- AToB1Tag (type: lutAtoBType) ---
   Channels: in=3 out=3
-  Wrote CLUT: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB1Tag_clut.txt (8 entries × 3 outputs)
-  Wrote matrix: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB1Tag_matrix.txt
-  Wrote curve B[0]: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB1Tag_curveB_0.txt (2 samples)
-  Wrote curve B[1]: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB1Tag_curveB_1.txt (2 samples)
-  Wrote curve B[2]: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__AToB1Tag_curveB_2.txt (2 samples)
+  Wrote CLUT: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB1Tag_clut.txt (8 entries × 3 outputs)
+  Wrote matrix: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB1Tag_matrix.txt
+  Wrote curve B[0]: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB1Tag_curveB_0.txt (2 samples)
+  Wrote curve B[1]: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB1Tag_curveB_1.txt (2 samples)
+  Wrote curve B[2]: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__AToB1Tag_curveB_2.txt (2 samples)
 
 --- BToA0Tag (type: lutBtoAType) ---
   Channels: in=3 out=3
-  Wrote CLUT: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__BToA0Tag_clut.txt (4913 entries × 3 outputs)
-  Wrote matrix: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__BToA0Tag_matrix.txt
+  Wrote CLUT: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__BToA0Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote matrix: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__BToA0Tag_matrix.txt
 
 --- BToA1Tag (type: lutBtoAType) ---
   Channels: in=3 out=3
-  Wrote CLUT: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__BToA1Tag_clut.txt (8 entries × 3 outputs)
-  Wrote matrix: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference__BToA1Tag_matrix.txt
+  Wrote CLUT: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__BToA1Tag_clut.txt (8 entries × 3 outputs)
+  Wrote matrix: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference__BToA1Tag_matrix.txt
 
 === Exported 11 LUT component(s) ===
-Exported 11 text file(s) to /tmp/tmp.cTrMx1ornN/
+Exported 11 text file(s) to /tmp/tmp.bb8MAUrqUY/
 ```
 
 ---
@@ -5482,6 +5482,6 @@ Exported 11 text file(s) to /tmp/tmp.cTrMx1ornN/
 **Exit Code: 0**
 
 ```
-Exported .cube: /tmp/tmp.cTrMx1ornN/sRGB_v4_ICC_preference.cube (grid 17³ = 4913 entries)
+Exported .cube: /tmp/tmp.bb8MAUrqUY/sRGB_v4_ICC_preference.cube (grid 17³ = 4913 entries)
 Cube file: 132812 bytes (tag: AToB0Tag)
 ```

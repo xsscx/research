@@ -4,7 +4,7 @@
 **File Size**: 414588 bytes
 **SHA-256**: `1f41ff8274d3f3fed502aa209e3fb5e7828dbbfd6f64b0fc5de6358dbebdc2c5`
 **File Type**: ColorSync color profile 2.0, type mnco, RGB/Lab-prtr device by \3, 414588 bytes, 22-2-1999 10:56:38, PCS X=0xf6d4 Z=0xd32b, 0xba0a400000000000 MD5 "Tek 350, ES1000 Monaco2"
-**Date**: 2026-03-25T02:25:05Z
+**Date**: 2026-03-26T16:57:48Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -27593,74 +27593,74 @@ Tag Pair Analysis:
 
 --- AToB0Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_clut.txt (4913 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB0Tag_curveB_2.txt (256 samples)
 
 --- BToA0Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_clut.txt (35937 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA0Tag_curveB_2.txt (256 samples)
 
 --- gamutTag (type: lut8Type) ---
   Channels: in=3 out=1
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__gamutTag_curveA_0.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__gamutTag_clut.txt (35937 entries × 1 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__gamutTag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__gamutTag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__gamutTag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__gamutTag_curveA_0.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__gamutTag_clut.txt (35937 entries × 1 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__gamutTag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__gamutTag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__gamutTag_curveB_2.txt (256 samples)
 
 --- AToB1Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_clut.txt (4913 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB1Tag_curveB_2.txt (256 samples)
 
 --- BToA1Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_clut.txt (35937 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA1Tag_curveB_2.txt (256 samples)
 
 --- AToB2Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_clut.txt (4913 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_clut.txt (4913 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__AToB2Tag_curveB_2.txt (256 samples)
 
 --- BToA2Tag (type: lut8Type) ---
   Channels: in=3 out=3
-  Wrote curve A[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_clut.txt (35937 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_1.txt (256 samples)
-  Wrote curve B[2]: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_2.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_clut.txt (35937 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_1.txt (256 samples)
+  Wrote curve B[2]: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k__BToA2Tag_curveB_2.txt (256 samples)
 
 === Exported 47 LUT component(s) ===
-Exported 47 text file(s) to /tmp/tmp.6apfpv4M5D/
+Exported 47 text file(s) to /tmp/tmp.3laGi3cBvY/
 ```
 
 ---
@@ -27670,6 +27670,6 @@ Exported 47 text file(s) to /tmp/tmp.6apfpv4M5D/
 **Exit Code: 0**
 
 ```
-Exported .cube: /tmp/tmp.6apfpv4M5D/fuzzed-prtr-Lab-414k.cube (grid 17³ = 4913 entries)
+Exported .cube: /tmp/tmp.3laGi3cBvY/fuzzed-prtr-Lab-414k.cube (grid 17³ = 4913 entries)
 Cube file: 132810 bytes (tag: AToB0Tag)
 ```

@@ -1,96 +1,269 @@
-digraph iccApplyToLink {
-  rankdir=TB;
-  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];
-  edge [fontname="Helvetica", fontsize=8];
+digraph "Call graph: /home/h02332/po/research/call-graph/iccdev/tools/iccApplyToLink.ll" {
+	// Clean graph styling — auto-sized for browser viewing
+	graph [
+		rankdir=LR,
+		nodesep=0.3,
+		ranksep=0.8,
+		fontname="Helvetica",
+		fontsize=10,
+		bgcolor="white",
+		pad=0.3
+	];
+	node [
+		shape=box,
+		style="rounded,filled",
+		fillcolor="#f0f4ff",
+		fontname="Courier",
+		fontsize=9,
+		margin="0.08,0.04"
+	];
+	edge [
+		color="#4a6fa5",
+		arrowsize=0.6
+	];
+	Node0x5555559a8890 [label="Usage()"];
+	Node0x55555565d8a0 [label="c_str()"];
+	Node0x55555565d820 [label="icIsNear()"];
+	Node0x5555559bd060 [label="CIccXform::GetProfile()"];
+	Node0x55555565e600 [label="CIccProfile::FindTagConst()"];
+	Node0x5555559bcda0 [label="icGetTagText()"];
+	Node0x5555559c00a0 [label="CDevLinkWriter::~CDevLinkWriter()"];
+	Node0x5555559c00a0 -> Node0x5555559b70b0;
+	Node0x5555559c00a0 -> Node0x555555655870;
+	Node0x5555559aafc0 [label="main\\n---\\n[PTR] pLinkWriter\\n[PTR] pPccProfile\\n[PTR] pXformProfile\\n[PTR] pPccProfile\\n[PTR] idx", fillcolor="#ffcccc"];
+	Node0x5555559aafc0 -> Node0x5555559a8890;
+	Node0x5555559aafc0 -> Node0x55555564f9a0;
+	Node0x5555559aafc0 -> Node0x5555559a5bc0;
+	Node0x5555559aafc0 -> Node0x5555559b6a60;
+	Node0x5555559aafc0 -> Node0x5555556a58f0;
+	Node0x5555559aafc0 -> Node0x5555559b6490;
+	Node0x5555559aafc0 -> Node0x55555564f5a0;
+	Node0x5555559aafc0 -> Node0x5555559b4140;
+	Node0x5555559aafc0 -> Node0x5555559b53e0;
+	Node0x5555559aafc0 -> Node0x5555556becf0;
+	Node0x5555559aafc0 -> Node0x55555570e590;
+	Node0x5555559aafc0 -> Node0x555555720240;
+	Node0x5555559aafc0 -> Node0x555555732480;
+	Node0x5555559aafc0 -> Node0x5555557b8140;
+	Node0x5555559aafc0 -> Node0x555555843aa0;
+	Node0x5555559aafc0 -> Node0x55555563f750;
+	Node0x5555559aafc0 -> Node0x5555557077d0;
+	Node0x5555559aafc0 -> Node0x555555886c30;
+	Node0x5555559aafc0 -> Node0x555555642340;
+	Node0x5555559aafc0 -> Node0x555555954540;
+	Node0x5555559aafc0 -> Node0x555555640fe0;
+	Node0x5555559aafc0 -> Node0x555555643b70;
+	Node0x5555559aafc0 -> Node0x555555640220;
+	Node0x5555559aafc0 -> Node0x55555563fa00;
+	Node0x5555559a5bc0 [label="CCubeWriter::CCubeWriter()"];
+	Node0x5555559a5bc0 -> Node0x55555564fe70;
+	Node0x5555559a5bc0 -> Node0x5555559b7370;
+	Node0x5555559a5bc0 -> Node0x5555559b70b0;
+	Node0x5555556a58f0 [label="CDevLinkWriter::CDevLinkWriter()"];
+	Node0x5555556a58f0 -> Node0x55555564fe70;
+	Node0x5555556a58f0 -> Node0x5555559b7370;
+	Node0x5555556becf0 [label="atof"];
+	Node0x55555570e590 [label="CIccCmm::CIccCmm()"];
+	Node0x555555720240 [label="strncasecmp"];
+	Node0x555555732480 [label="icGetSigVal()"];
+	Node0x5555557b8140 [label="strcasecmp"];
+	Node0x555555843aa0 [label="CIccCreateXformHintManager::CIccCreateXformHintManager()"];
+	Node0x555555886c30 [label="CIccCreateXformHintManager::AddHint()"];
+	Node0x5555557077d0 [label="CIccApplyBPCHint::CIccApplyBPCHint()"];
+	Node0x5555557077d0 -> Node0x5555556521f0;
+	Node0x555555954540 [label="CIccLuminanceMatchingHint::CIccLuminanceMatchingHint()"];
+	Node0x555555954540 -> Node0x5555559b94a0;
+	Node0x555555640220 [label="OpenIccProfile()"];
+	Node0x55555563fa00 [label="CIccCmmEnvVarHint::CIccCmmEnvVarHint()"];
+	Node0x555555643b70 [label="ReadIccProfile()"];
+	Node0x555555640fe0 [label="CIccCmm::AddXform()"];
+	Node0x555555642340 [label="CIccCreateXformHintManager::~CIccCreateXformHintManager()"];
+	Node0x55555563f750 [label="CIccCmm::Begin()"];
+	Node0x5555559b53e0 [label="CIccCmm::GetSourceSpace()"];
+	Node0x5555559b4140 [label="CIccCmm::GetDestSpace()"];
+	Node0x55555564f5a0 [label="icGetSpaceSamples()"];
+	Node0x5555559b6490 [label="CIccCmm::Apply()"];
+	Node0x5555559b6a60 [label="CIccCmm::~CIccCmm()"];
+	Node0x55555564f9a0 [label="shared_ptr()"];
+	Node0x55555564f9a0 -> Node0x555555654600;
+	Node0x55555564fe70 [label="ILinkWriter::ILinkWriter()"];
+	Node0x5555559b7370 [label="IXformIterator::IXformIterator()"];
+	Node0x555555656240 [label="CCubeWriter::~CCubeWriter()"];
+	Node0x555555656240 -> Node0x555555655870;
+	Node0x555555656240 -> Node0x5555559b70b0;
+	Node0x555555655f80 [label="CCubeWriter::~CCubeWriter()"];
+	Node0x555555655f80 -> Node0x555555656240;
+	Node0x55555564ee80 [label="CCubeWriter::setFile()"];
+	Node0x5555556561c0 [label="CCubeWriter::setOption()"];
+	Node0x555555659320 [label="CCubeWriter::setTitle()"];
+	Node0x5555556590f0 [label="CCubeWriter::setCmm()"];
+	Node0x555555658b90 [label="CCubeWriter::setLutSize()"];
+	Node0x55555564ee00 [label="CCubeWriter::setInputRange()"];
+	Node0x55555565d5f0 [label="CCubeWriter::begin()"];
+	Node0x55555565d5f0 -> Node0x55555564f5a0;
+	Node0x55555565d5f0 -> Node0x55555565d8a0;
+	Node0x55555565d5f0 -> Node0x55555565d820;
+	Node0x55555565df50 [label="CCubeWriter::setNextNode()"];
+	Node0x55555565dd10 [label="CCubeWriter::finish()"];
+	Node0x55555565da50 [label="CCubeWriter::iterate()"];
+	Node0x55555565da50 -> Node0x5555559bd060;
+	Node0x55555565da50 -> Node0x55555565e600;
+	Node0x55555565da50 -> Node0x5555559bcda0;
+	Node0x55555565da50 -> Node0x55555565d8a0;
+	Node0x55555565e3d0 [label="CCubeWriter::~CCubeWriter()"];
+	Node0x55555565e3d0 -> Node0x555555656240;
+	Node0x55555565f130 [label="CCubeWriter::~CCubeWriter()"];
+	Node0x55555565f130 -> Node0x555555655f80;
+	Node0x55555565eef0 [label="CCubeWriter::iterate()"];
+	Node0x55555565eef0 -> Node0x55555565da50;
+	Node0x5555559b70b0 [label="ILinkWriter::~ILinkWriter()"];
+	Node0x55555565e580 [label="ILinkWriter::~ILinkWriter()"];
+	Node0x555555655870 [label="IXformIterator::~IXformIterator()"];
+	Node0x555555661090 [label="IXformIterator::~IXformIterator()"];
+	Node0x5555559c1280 [label="CDevLinkWriter::~CDevLinkWriter()"];
+	Node0x5555559c1280 -> Node0x5555559c00a0;
+	Node0x5555559c11c0 [label="CDevLinkWriter::setFile()"];
+	Node0x5555559bf4e0 [label="CDevLinkWriter::setOption()"];
+	Node0x5555559c03e0 [label="CDevLinkWriter::setTitle()"];
+	Node0x5555559c1e40 [label="CDevLinkWriter::setCmm()"];
+	Node0x5555559c2700 [label="CDevLinkWriter::setLutSize()"];
+	Node0x5555559c2340 [label="CDevLinkWriter::setInputRange()"];
+	Node0x5555559c20c0 [label="CDevLinkWriter::begin()"];
+	Node0x5555559c20c0 -> Node0x55555564f5a0;
+	Node0x5555559c20c0 -> Node0x5555559cc1d0;
+	Node0x5555559c20c0 -> Node0x5555559c4c20;
+	Node0x5555559c20c0 -> Node0x5555559c1f80;
+	Node0x5555559c20c0 -> Node0x5555559c3be0;
+	Node0x5555559c20c0 -> Node0x5555559c5320;
+	Node0x5555559c20c0 -> Node0x5555559c50a0;
+	Node0x5555559c20c0 -> Node0x5555559cc590;
+	Node0x5555559c20c0 -> Node0x5555559c34c0;
+	Node0x5555559c20c0 -> Node0x5555559c3240;
+	Node0x5555559c20c0 -> Node0x5555559c2e80;
+	Node0x5555559c20c0 -> Node0x55555565d8a0;
+	Node0x5555559c20c0 -> Node0x5555559c53a0;
+	Node0x5555559c20c0 -> Node0x5555559cab50;
+	Node0x5555559c20c0 -> Node0x5555559ccc50;
+	Node0x5555559c20c0 -> Node0x5555559cb190;
+	Node0x5555559c20c0 -> Node0x5555559cb690;
+	Node0x5555559c20c0 -> Node0x5555559cba50;
+	Node0x5555559c20c0 -> Node0x55555565e600;
+	Node0x5555559c20c0 -> Node0x5555559c6040;
+	Node0x5555559c20c0 -> Node0x5555559c4220;
+	Node0x5555559c20c0 -> Node0x55555565d820;
+	Node0x5555559c20c0 -> Node0x5555559ca150;
+	Node0x5555559c20c0 -> Node0x5555559ca510;
+	Node0x5555559c20c0 -> Node0x5555559bf8a0;
+	Node0x5555559c20c0 -> Node0x5555559c4e20;
+	Node0x5555559c20c0 -> Node0x5555559c2c80;
+	Node0x5555559c20c0 -> Node0x5555559bf9e0;
+	Node0x5555559c20c0 -> Node0x5555559c1640;
+	Node0x5555559c20c0 -> Node0x5555559c3580;
+	Node0x5555559cbf50 [label="CDevLinkWriter::setNextNode()"];
+	Node0x5555559cdb50 [label="CDevLinkWriter::finish()"];
+	Node0x5555559cdb50 -> Node0x55555565d8a0;
+	Node0x5555559cdb50 -> Node0x5555559cd8d0;
+	Node0x5555559cd790 [label="CDevLinkWriter::iterate()"];
+	Node0x5555559cd790 -> Node0x5555559bd060;
+	Node0x5555559cd790 -> Node0x5555559cd3d0;
+	Node0x5555559cd790 -> Node0x55555565e600;
+	Node0x5555559cd790 -> Node0x5555559cd290;
+	Node0x5555559cd790 -> Node0x5555559cf310;
+	Node0x5555559cd790 -> Node0x5555559d0c10;
+	Node0x5555559cd790 -> Node0x5555559cecd0;
+	Node0x5555559cd790 -> Node0x5555559ce910;
+	Node0x5555559cd790 -> Node0x5555559ce410;
+	Node0x5555559cfe50 [label="CDevLinkWriter::~CDevLinkWriter()"];
+	Node0x5555559cfe50 -> Node0x5555559c00a0;
+	Node0x5555559cf950 [label="CDevLinkWriter::~CDevLinkWriter()"];
+	Node0x5555559cf950 -> Node0x5555559c1280;
+	Node0x5555559c94b0 [label="CDevLinkWriter::iterate()"];
+	Node0x5555559c94b0 -> Node0x5555559cd790;
+	Node0x5555559c1f80 [label="CIccInfo::CIccInfo()"];
+	Node0x5555559c3be0 [label="CIccInfo::IsValidSpace()"];
+	Node0x5555559c34c0 [label="CIccProfile::CIccProfile()"];
+	Node0x5555559c3240 [label="CIccProfile::InitHeader()"];
+	Node0x5555559c2e80 [label="CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()"];
+	Node0x5555559c53a0 [label="CIccTagMultiLocalizedUnicode::SetText()"];
+	Node0x5555559c4c20 [label="CIccProfile::AttachTag()"];
+	Node0x5555559c4220 [label="CIccTagMultiProcessElement::CIccTagMultiProcessElement()"];
+	Node0x5555559bf8a0 [label="CIccMpeCurveSet::CIccMpeCurveSet()"];
+	Node0x5555559c2c80 [label="CIccSingleSampledCurve::CIccSingleSampledCurve()"];
+	Node0x5555559c3580 [label="CIccMpeCurveSet::SetCurve()"];
+	Node0x5555559c1640 [label="CIccMpeCLUT::CIccMpeCLUT()"];
+	Node0x5555559bf9e0 [label="CIccCLUT::CIccCLUT()"];
+	Node0x5555559c4e20 [label="CIccCLUT::Init()"];
+	Node0x5555559c50a0 [label="CIccCLUT::GetData()"];
+	Node0x5555559c5320 [label="CIccCLUT::NumPoints()"];
+	Node0x5555559ca510 [label="CIccMpeCLUT::SetCLUT()"];
+	Node0x5555559ca150 [label="CIccTagProfileSeqDesc::CIccTagProfileSeqDesc()"];
+	Node0x5555559c6040 [label="icIsSpaceCLR()"];
+	Node0x5555559cba50 [label="CIccTagLutAtoB::CIccTagLutAtoB()"];
+	Node0x5555559cb690 [label="CIccMBB::Init()"];
+	Node0x5555559cb190 [label="CIccMBB::NewCurvesA()"];
+	Node0x5555559cab50 [label="CIccTagCurve::CIccTagCurve()"];
+	Node0x5555559ccc50 [label="CIccMBB::NewCurvesB()"];
+	Node0x5555559cc590 [label="CIccMBB::NewCLUT()"];
+	Node0x5555559cc1d0 [label="CIccInfo::~CIccInfo()"];
+	Node0x5555559cd8d0 [label="SaveIccProfile()"];
+	Node0x5555559cd3d0 [label="CIccProfileDescStruct::CIccProfileDescStruct()"];
+	Node0x5555559cd290 [label="CIccTagSignature::GetValue()"];
+	Node0x5555559cecd0 [label="CIccProfileDescText::SetType()"];
+	Node0x5555559ce910 [label="CIccProfileDescText::GetTag()"];
+	Node0x5555559ce410 [label="CIccTagTextDescription::operator=(CIccTagTextDescription ..."];
+	Node0x5555559d0c10 [label="CIccTagMultiLocalizedUnicode::operator=(CIccTagMultiLocal..."];
+	Node0x5555559cf310 [label="CIccProfileDescStruct::~CIccProfileDescStruct()"];
+	Node0x5555559cf310 -> Node0x5555559cf010;
+	Node0x555555a12490 [label="key_comp()"];
+	Node0x5555556d16e0 [label="__detail::_List_node_base::_M_hook()"];
+	Node0x5555559dcae0 [label="__allocated_ptr()"];
+	Node0x5555559df490 [label="decltype()"];
+	Node0x5555559df1f0 [label="__allocated_ptr()"];
+	Node0x5555559e8400 [label="CIccProfileDescStruct::CIccProfileDescStruct()"];
+	Node0x5555559cf010 [label="CIccProfileDescText::~CIccProfileDescText()"];
+	Node0x5555559ea7e0 [label="__detail::_List_node_header::_List_node_header()"];
+	Node0x5555559ea7e0 -> Node0x5555559ef660;
+	Node0x5555559ef660 [label="__detail::_List_node_header::_M_init()"];
+	Node0x5555559eefd0 [label="true::_Rb_tree_impl()"];
+	Node0x5555556521f0 [label="CIccCreateAdjustPCSXformHint::CIccCreateAdjustPCSXformHint()"];
+	Node0x5555556521f0 -> Node0x5555559b94a0;
+	Node0x5555559b94a0 [label="IIccCreateXformHint::IIccCreateXformHint()"];
+	Node0x5555559f3370 [label="CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi..."];
+	Node0x5555559f3370 -> Node0x5555559f0b00;
+	Node0x5555559f3ce0 [label="CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi..."];
+	Node0x5555559f43e0 [label="CIccCreateAdjustPCSXformHint::GetHintType()"];
+	Node0x5555559f0b00 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x5555559f52c0 [label="IIccCreateXformHint::~IIccCreateXformHint()"];
+	Node0x5555559f5050 [label="CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()"];
+	Node0x5555559f5050 -> Node0x5555559f0b00;
+	Node0x5555559f6f10 [label="CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()"];
+	Node0x5555559f6f10 -> Node0x5555559f5050;
+	Node0x5555559f6e20 [label="CIccLuminanceMatchingHint::GetHintType()"];
+	Node0x5555559f6650 [label="true::~_Rb_tree_impl()"];
+	Node0x555555654600 [label="__shared_ptr()"];
+	Node0x555555654600 -> Node0x5555559ff140;
+	Node0x5555559ff140 [label="__shared_count()"];
+	Node0x555555a0f730 [label="get()"];
+	Node0x555555651400 [label="lower_bound()"];
+	Node0x555555651400 -> Node0x555555a12db0;
+	Node0x5555559b8430 [label="key_comp()"];
+	Node0x5555559b8430 -> Node0x555555a12490;
+	Node0x555555a12db0 [label="lower_bound()"];
+	Node0x555555a1efe0 [label="__allocated_ptr()"];
+	Node0x555555a29310 [label="decltype()"];
+	Node0x555555a2ce90 [label="__allocated_ptr()"];
 
-  // Legend
   subgraph cluster_legend {
-    label="Legend"; style=dashed; fontsize=9;
-    leg_both [label="In Tool + Fuzzer", fillcolor="#90EE90"];
-    leg_tool [label="Tool Only", fillcolor="#ADD8E6"];
-    leg_cli  [label="CLI Only", fillcolor="#D3D3D3"];
-    leg_fuzzer [label="Fuzzer Extra", fillcolor="#FFD700"];
+    label="Security Gate Legend";
+    style=dashed;
+    color="#999999";
+    fontsize=8;
+    fontname="Courier";
+    leg_sec [label="Security-sensitive\\n(has ptr/array vars)", fillcolor="#ffcccc",
+             shape=box, style="rounded,filled", fontsize=7];
+    leg_gated [label="Gated function\\n(has if/else branches)", fillcolor="#fff3cd",
+               shape=box, style="rounded,filled", fontsize=7];
+    leg_normal [label="Normal function", fillcolor="#f0f4ff",
+                shape=box, style="rounded,filled", fontsize=7];
   }
-
-  main [label="main()\niccApplyToLink.cpp", fillcolor="#FF6B6B", shape=ellipse];
-  fuzzer [label="LLVMFuzzerTestOneInput()\nicc_link_fuzzer.cpp", fillcolor="#FF6B6B", shape=ellipse];
-
-  subgraph cluster_cli {
-    label="Phase 1: CLI Parsing"; style=rounded;
-    n0 [label="printUsage\nL590", fillcolor="#D3D3D3"];
-    n1 [label="atoi(bFirstTransform)\nL691", fillcolor="#D3D3D3"];
-    n2 [label="atoi(nInterp)\nL692", fillcolor="#D3D3D3"];
-  }
-
-  subgraph cluster_cmm {
-    label="Phase 2: CMM Construction"; style=rounded;
-    n3 [label="CIccCmm::CIccCmm\nL699", fillcolor="#90EE90"];
-    n4 [label="ReadIccProfile\nL770", fillcolor="#90EE90"];
-    n5 [label="OpenIccProfile(pcc)\nL754", fillcolor="#ADD8E6"];
-    n6 [label="CIccCreateXformHintManager\nL736", fillcolor="#90EE90"];
-    n7 [label="CIccApplyBPCHint\nL744", fillcolor="#90EE90"];
-    n8 [label="CIccLuminanceMatchingHint\nL749", fillcolor="#90EE90"];
-    n9 [label="CIccCmmEnvVarHint\nL766", fillcolor="#ADD8E6"];
-    n10 [label="CIccCmm::AddXform(CIccProfile*)\nL771", fillcolor="#90EE90"];
-  }
-
-  subgraph cluster_exec {
-    label="Phase 3: CMM Execution"; style=rounded;
-    n11 [label="CIccCmm::Begin\nL783", fillcolor="#90EE90"];
-    n12 [label="CIccCmm::GetSourceSpace\nL804", fillcolor="#90EE90"];
-    n13 [label="CIccCmm::GetDestSpace\nL808", fillcolor="#90EE90"];
-    n14 [label="icGetSpaceSamples(src)\nL805", fillcolor="#90EE90"];
-    n15 [label="icGetSpaceSamples(dst)\nL809", fillcolor="#90EE90"];
-    n16 [label="CIccCmm::Apply\nL834", fillcolor="#90EE90"];
-  }
-
-  subgraph cluster_output {
-    label="Phase 4: Output Writing"; style=rounded;
-    n17 [label="ILinkWriter::begin\nL798", fillcolor="#ADD8E6"];
-    n18 [label="ILinkWriter::setPixel\nL835", fillcolor="#ADD8E6"];
-    n19 [label="ILinkWriter::finish\nL862", fillcolor="#ADD8E6"];
-    n20 [label="SaveIccProfile\nL540", fillcolor="#ADD8E6"];
-    n21 [label="CIccProfile::new\nL328", fillcolor="#ADD8E6"];
-  }
-
-  subgraph cluster_fuzzer {
-    label="Phase 5: Fuzzer Extras"; style=rounded;
-    n22 [label="CIccCmm::GetNumXforms", fillcolor="#FFD700"];
-    n23 [label="CIccCmm::Valid", fillcolor="#FFD700"];
-  }
-
-  main -> n0 [style=dashed];
-  main -> n1 [style=dashed];
-  main -> n2 [style=dashed];
-  main -> n3 [style=bold];
-  main -> n4 [style=bold];
-  main -> n5 [style=dashed];
-  main -> n6 [style=bold];
-  main -> n7 [style=bold];
-  main -> n8 [style=bold];
-  main -> n9 [style=dashed];
-  main -> n10 [style=bold];
-  main -> n11 [style=bold];
-  main -> n12 [style=bold];
-  main -> n13 [style=bold];
-  main -> n14 [style=bold];
-  main -> n15 [style=bold];
-  main -> n16 [style=bold];
-  main -> n17 [style=dashed];
-  main -> n18 [style=dashed];
-  main -> n19 [style=dashed];
-  fuzzer -> n22 [style=bold, color=orange];
-  fuzzer -> n23 [style=bold, color=orange];
-  fuzzer -> n3 [style=dotted, color=green];
-  fuzzer -> n4 [style=dotted, color=green];
-  fuzzer -> n6 [style=dotted, color=green];
-  fuzzer -> n7 [style=dotted, color=green];
-  fuzzer -> n8 [style=dotted, color=green];
-  fuzzer -> n10 [style=dotted, color=green];
-  fuzzer -> n11 [style=dotted, color=green];
-  fuzzer -> n12 [style=dotted, color=green];
-  fuzzer -> n13 [style=dotted, color=green];
-  fuzzer -> n14 [style=dotted, color=green];
-  fuzzer -> n15 [style=dotted, color=green];
-  fuzzer -> n16 [style=dotted, color=green];
 }

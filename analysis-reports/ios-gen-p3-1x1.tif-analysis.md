@@ -4,7 +4,7 @@
 **File Size**: 762 bytes
 **SHA-256**: `58522ce710ff327d4856f826aa4f12bdddcb89e7fe8523be690878f309db27db`
 **File Type**: TIFF image data, big-endian, direntries=16, height=1, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=1
-**Date**: 2026-03-25T02:25:07Z
+**Date**: 2026-03-26T16:57:51Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -69,7 +69,7 @@ File: /home/h02332/po/research/test-profiles/ios-gen-p3-1x1.tif
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-dELDiY.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-3qFtNv.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -80,7 +80,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-dELDiY.icc
+File: /tmp/iccanalyzer-3qFtNv.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1323,7 +1323,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-dELDiY.icc
+Profile: /tmp/iccanalyzer-3qFtNv.icc
 
 Device Class: 0x6D6E7472
 
@@ -1511,7 +1511,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-dELDiY.icc
+File: /tmp/iccanalyzer-3qFtNv.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 5
 
@@ -1750,7 +1750,7 @@ Profile: /home/h02332/po/research/test-profiles/ios-gen-p3-1x1.tif
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.DgotxZkphs/
+Exported 0 text file(s) to /tmp/tmp.dQorxtnc6l/
 ```
 
 ---

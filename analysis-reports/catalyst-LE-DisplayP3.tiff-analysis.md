@@ -4,7 +4,7 @@
 **File Size**: 39158 bytes
 **SHA-256**: `153948de59837353c361a04a6188e2405b30958a559c702cbcc319e3e460e88c`
 **File Type**: TIFF image data, big-endian, direntries=16, height=120, bps=0, compression=none, PhotometricInterpretation=RGB, orientation=upper-left, width=80
-**Date**: 2026-03-25T02:25:03Z
+**Date**: 2026-03-26T16:57:46Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -71,7 +71,7 @@ File: /home/h02332/po/research/test-profiles/catalyst-LE-DisplayP3.tiff
   ICC Magic:       [OK] 'acsp' at offset 36
   ICC Version:     4.0
 
-  Extracted ICC from TIFF to: /tmp/iccanalyzer-10Rnzn.icc
+  Extracted ICC from TIFF to: /tmp/iccanalyzer-zDsxgd.icc
 
 =======================================================================
 EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
@@ -82,7 +82,7 @@ EXTRACTED ICC PROFILE — FULL HEURISTIC ANALYSIS
   ICC PROFILE CONFORMANCE AUDIT
 =======================================================================
 
-File: /tmp/iccanalyzer-10Rnzn.icc
+File: /tmp/iccanalyzer-zDsxgd.icc
 
 [H173] Signature Conversion Shift Overflow (IccUtil.cpp signature formatting helpers)
       [WARN]  HEURISTIC: 27/27 FourCC signatures trigger UBSAN shift overflow in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() — IccUtil.cpp:1088,1130,1167,1187,1228,1253
@@ -1327,7 +1327,7 @@ PHASE 3: ROUND-TRIP TAG VALIDATION
 
 
 === Round-Trip Tag Pair Analysis ===
-Profile: /tmp/iccanalyzer-10Rnzn.icc
+Profile: /tmp/iccanalyzer-zDsxgd.icc
 
 Device Class: 0x6D6E7472
 
@@ -1516,7 +1516,7 @@ PHASE 6: TAG CONTENT ANALYSIS
 CONFORMANCE AUDIT SUMMARY
 =======================================================================
 
-File: /tmp/iccanalyzer-10Rnzn.icc
+File: /tmp/iccanalyzer-zDsxgd.icc
 Mode: Conformance (ICC specification audit)
 Total Issues Detected: 4
 
@@ -4216,7 +4216,7 @@ Profile: /home/h02332/po/research/test-profiles/catalyst-LE-DisplayP3.tiff
 
 ```
 Error reading ICC profile
-Exported 0 text file(s) to /tmp/tmp.6fQKHHZlKP/
+Exported 0 text file(s) to /tmp/tmp.L64Ci7BNu8/
 ```
 
 ---

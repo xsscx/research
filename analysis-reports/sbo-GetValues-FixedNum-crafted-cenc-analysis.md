@@ -4,7 +4,7 @@
 **File Size**: 704 bytes
 **SHA-256**: `4ed01d7cd294c0cac7102f8028e30c9c790b1ab84236770e0177d1c1d271678d`
 **File Type**: color profile 5.0, RGB-cenc device, 704 bytes, PCS X=0 Y=0 Z=0, no copyright tag
-**Date**: 2026-03-25T03:11:26Z
+**Date**: 2026-03-26T16:57:54Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -2184,7 +2184,7 @@ Tag Pair Analysis:
 === Extracting LUT data as text from: /home/h02332/po/research/extended-test-profiles/sbo-GetValues-FixedNum-crafted-cenc.icc ===
 
 === Exported 0 LUT component(s) ===
-Exported 0 text file(s) to /tmp/tmp.JhRaWXCWPu/
+Exported 0 text file(s) to /tmp/tmp.ceBhJ3YSBw/
 ```
 
 ---

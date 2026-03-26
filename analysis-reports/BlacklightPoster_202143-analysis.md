@@ -4,7 +4,7 @@
 **File Size**: 16680 bytes
 **SHA-256**: `4227ce8eff19f3224c74a386116ed559a610cbfbf8a2278d9dccaf925d1bfb10`
 **File Type**: ColorSync color profile 2.1, type ADBE, Lab/Lab-abst device by ADBE, 16680 bytes, 7-11-2011 2:49:01, relative colorimetric "Blacklight Poster"
-**Date**: 2026-03-25T02:25:00Z
+**Date**: 2026-03-26T16:57:44Z
 **Analyzer**: iccanalyzer-lite (pre-built, ASAN+UBSAN instrumented)
 
 ## Exit Code Summary
@@ -2593,15 +2593,15 @@ Tag Pair Analysis:
 
 --- AToB0Tag (type: lut8Type) ---
   Channels: in=2 out=3
-  Wrote curve A[0]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_0.txt (256 samples)
-  Wrote curve A[1]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_1.txt (256 samples)
-  Wrote curve A[2]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveA_2.txt (256 samples)
-  Wrote CLUT: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_clut.txt (289 entries × 3 outputs)
-  Wrote curve B[0]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveB_0.txt (256 samples)
-  Wrote curve B[1]: /tmp/tmp.An4n2EKd0p/BlacklightPoster_202143__AToB0Tag_curveB_1.txt (256 samples)
+  Wrote curve A[0]: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_curveA_0.txt (256 samples)
+  Wrote curve A[1]: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_curveA_1.txt (256 samples)
+  Wrote curve A[2]: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_curveA_2.txt (256 samples)
+  Wrote CLUT: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_clut.txt (289 entries × 3 outputs)
+  Wrote curve B[0]: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_curveB_0.txt (256 samples)
+  Wrote curve B[1]: /tmp/tmp.Xg8EzdgwNy/BlacklightPoster_202143__AToB0Tag_curveB_1.txt (256 samples)
 
 === Exported 6 LUT component(s) ===
-Exported 6 text file(s) to /tmp/tmp.An4n2EKd0p/
+Exported 6 text file(s) to /tmp/tmp.Xg8EzdgwNy/
 ```
 
 ---
