@@ -32,6 +32,7 @@ COPY iccanalyzer-lite/ iccanalyzer-lite/
 COPY colorbleed_tools/ colorbleed_tools/
 COPY docs/iccDEV/specifications/ docs/iccDEV/specifications/
 COPY mcp-server/ mcp-server/
+COPY call-graph/knowledge-graph.json call-graph/knowledge-graph.json
 COPY test-profiles/ test-profiles/
 COPY extended-test-profiles/ extended-test-profiles/
 
@@ -147,6 +148,7 @@ COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccToXml_unsafe colo
 COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
 COPY --from=builder --chown=mcp:mcp /build/mcp-venv/ mcp-venv/
 COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
+COPY --from=builder --chown=mcp:mcp /build/call-graph/knowledge-graph.json call-graph/knowledge-graph.json
 COPY --from=builder --chown=mcp:mcp /build/docs/iccDEV/specifications/ docs/iccDEV/specifications/
 COPY --from=builder --chown=mcp:mcp /build/test-profiles/ test-profiles/
 COPY --from=builder --chown=mcp:mcp /build/extended-test-profiles/ extended-test-profiles/
