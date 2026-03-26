@@ -17,6 +17,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | **afl/** | [afl.instructions.md](instructions/afl.instructions.md) | `./afl/build.sh` ∥ `./afl/start.sh dump` |
 | **call-graph/** | [call-graph.instructions.md](instructions/call-graph.instructions.md) | `python3 scripts/generate-callgraphs.py` |
 | Multi-agent coordination | [multi-agent.instructions.md](instructions/multi-agent.instructions.md) | Platform detection, handoff protocols |
+| Workflow governance | [workflow-governance.instructions.md](instructions/workflow-governance.instructions.md) | Shell hardening, sanitizer functions, credential isolation |
 
 ### Reference Documentation
 
@@ -26,6 +27,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | iccDEV Shell Helpers (Windows) | [docs/iccDEV/shell-helpers/windows.md](../../docs/iccDEV/shell-helpers/windows.md) | MSVC, vcpkg, ASAN, SARIF analysis |
 | iccDEV Issue Reproductions | [docs/pocs/iccdev-issue-reproductions.md](../../docs/pocs/iccdev-issue-reproductions.md) | 63 PoC reproductions from closed issues #480–#656 |
 | iccDEV PoC Techniques | [docs/pocs/iccdev-poc-techniques.md](../../docs/pocs/iccdev-poc-techniques.md) | printf pipe technique, image format helpers, regression testing |
+| CI Governance Hardening | [docs/ci-governance-hardening.md](../../docs/ci-governance-hardening.md) | Four-pillar hardening, sanitizer API, bash+PowerShell patterns |
 
 ### Workflow Prompts (task-specific guides)
 
@@ -41,6 +43,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Remote Docker analysis | [remote-analysis.prompt.md](prompts/remote-analysis.prompt.md) |
 | JSON tooling testing | [json-tooling.prompt.md](prompts/json-tooling.prompt.md) |
 | Agent task priorities | [cooperative-development.prompt.md](prompts/cooperative-development.prompt.md) |
+| Audit workflow governance | [workflow-governance.prompt.md](prompts/workflow-governance.prompt.md) |
 
 ### Pre-installed Tools (do NOT re-install)
 
