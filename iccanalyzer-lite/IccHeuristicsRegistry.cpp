@@ -214,6 +214,10 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {172, "LUT Matrix Coefficient Validation", "ICC TN v4 Matrix Entries","CWE-682", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::MEDIUM},
   {173, "Signature Conversion Shift Overflow", "IccUtil.cpp:1088/1130/1167/1187/1228/1253","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
   {174, "Half-Float Conversion Unsigned Underflow", "IccUtil.cpp:665/677, IccIO.cpp:328","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
+  {175, "Device Spectral Colour Space Range Requirement", "ICC.2:2023 §7.2.8 amend","CWE-20", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
+  {176, "deviceSpectralRangeTag Validation", "ICC.2:2023 §9.2.x","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
+  {177, "devicePccTag Structure Validation", "ICC.2:2023 §9.2.x+1","CWE-20/CWE-476", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
+  {178, "spectralRangeType Encoding Validation", "ICC.2:2023 §10.2.w","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
