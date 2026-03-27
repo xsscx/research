@@ -57,32 +57,38 @@ static std::filesystem::path find_repo_root(std::filesystem::path start) {
 }
 
 static std::filesystem::path resolve_repo_file(const char* relativePath) {
-    auto sourceDir = std::filesystem::path(__FILE__).parent_path();
-    auto iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
-    auto repoRoot = find_repo_root(sourceDir);
+    std::filesystem::path srcPath(__FILE__);
+    std::filesystem::path sourceDir = srcPath.parent_path();
+    std::filesystem::path iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
+    std::filesystem::path repoRoot = find_repo_root(sourceDir);
 
     if (std::strncmp(relativePath, "tests/", 6) == 0 && !iccaRoot.empty()) {
-        auto candidate = (iccaRoot / relativePath).lexically_normal();
+        std::filesystem::path combined = iccaRoot / relativePath;
+        std::filesystem::path candidate = combined.lexically_normal();
         if (std::filesystem::exists(candidate)) {
             return candidate;
         }
     }
 
     if (!repoRoot.empty()) {
-        auto candidate = (repoRoot / relativePath).lexically_normal();
+        std::filesystem::path combined = repoRoot / relativePath;
+        std::filesystem::path candidate = combined.lexically_normal();
         if (std::filesystem::exists(candidate)) {
             return candidate;
         }
     }
 
     if (!iccaRoot.empty()) {
-        auto candidate = (iccaRoot / relativePath).lexically_normal();
+        std::filesystem::path combined = iccaRoot / relativePath;
+        std::filesystem::path candidate = combined.lexically_normal();
         if (std::filesystem::exists(candidate)) {
             return candidate;
         }
     }
 
-    auto candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path combined = cwd / relativePath;
+    std::filesystem::path candidate = combined.lexically_normal();
     if (std::filesystem::exists(candidate)) {
         return candidate;
     }
@@ -233,7 +239,7 @@ static void test_check_count() {
     // from static initializers (REGISTER_HEURISTIC macros in check .cpp files).
     auto count = CheckRegistry::instance().size();
     std::printf("    Registered checks: %zu\n", count);
-    ASSERT_TRUE(count >= 503u);  // 174 heuristics + 329 conformance
+    ASSERT_TRUE(count >= 517u);  // 178 heuristics + 339 conformance
 }
 
 static void test_analyze_minimal_profile() {
@@ -387,9 +393,9 @@ static void test_conformance_coverage() {
             registered.insert(c.id.number);
     }
 
-    // All 329 CF IDs are registered (CF-001..CF-329, complete range)
+    // All 339 CF IDs are registered (CF-001..CF-339, complete range)
     int missing = 0;
-    for (int cf = 1; cf <= 329; cf++) {
+    for (int cf = 1; cf <= 339; cf++) {
         if (registered.find(cf) == registered.end()) {
             std::printf("    MISSING: CF-%03d\n", cf);
             missing++;
@@ -398,7 +404,7 @@ static void test_conformance_coverage() {
 
     std::printf("    Registered conformance checks: %zu\n", registered.size());
     ASSERT_EQ(0, missing);
-    std::printf("    All 329 conformance IDs present\n");
+    std::printf("    All 339 conformance IDs present\n");
 }
 
 static void test_conformance_private_tag_documentation_regression() {
