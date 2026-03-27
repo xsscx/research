@@ -55,6 +55,20 @@ enum class Severity : uint8_t {
     CRITICAL = 4,
 };
 
+/// Comparison operators for Severity (higher numeric value = more severe).
+inline constexpr bool operator>(Severity a, Severity b) noexcept {
+    return static_cast<unsigned>(a) > static_cast<unsigned>(b);
+}
+inline constexpr bool operator>=(Severity a, Severity b) noexcept {
+    return static_cast<unsigned>(a) >= static_cast<unsigned>(b);
+}
+inline constexpr bool operator<(Severity a, Severity b) noexcept {
+    return static_cast<unsigned>(a) < static_cast<unsigned>(b);
+}
+inline constexpr bool operator<=(Severity a, Severity b) noexcept {
+    return static_cast<unsigned>(a) <= static_cast<unsigned>(b);
+}
+
 /// When a check runs in the analysis pipeline.
 enum class CheckPhase : uint8_t {
     HEADER      = 0,  // Raw header bytes (before library parse)

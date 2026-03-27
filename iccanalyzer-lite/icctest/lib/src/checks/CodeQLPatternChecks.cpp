@@ -144,6 +144,7 @@ static CheckResult check_h155_dimension_overflow(const ProfileView& pv) {
             uint32_t clutOff = readU32BE(d + tOffset + 24);
             if (clutOff != 0 && static_cast<uint64_t>(tOffset) + clutOff + 20 <= len) {
                 size_t clutAddr = tOffset + clutOff;
+                if (clutAddr + 20 > len) continue; // explicit bounds guard
                 uint64_t clutSize = (d[clutAddr + 16] == 2) ? 2 : 1;
                 bool overflow = false;
                 for (uint8_t dim = 0; dim < nInput && dim < 16; dim++) {

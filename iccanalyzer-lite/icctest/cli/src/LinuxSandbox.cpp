@@ -34,7 +34,7 @@ namespace {
 Severity maxFindingSeverity(const std::vector<Finding>& findings) {
     Severity worst = Severity::INFO;
     for (const auto& finding : findings) {
-        if (static_cast<uint8_t>(finding.level) > static_cast<uint8_t>(worst)) {
+        if (finding.level > worst) {
             worst = finding.level;
         }
     }
