@@ -13,7 +13,7 @@
 #include "IccHeuristicsExploitGap.h"
 #include "IccHeuristicsHelpers.h"
 
-/// Run raw-file post-library heuristics (H33-H55, H57, H59, H68-H69, H153)
+/// Run raw-file post-library heuristics (H33-H55, H57, H59, H68-H69, H153, H175-H178)
 /// plus CodeQL-driven (H154-H161) and exploit-gap (H162-H171) via sub-dispatchers.
 /// @param filename Path to the ICC profile to analyze
 /// @return Number of heuristic warnings detected
@@ -59,5 +59,9 @@ int RunHeuristic_H59_SpectralWavelengthRange(RawProfileContext &ctx);
 int RunHeuristic_H68_GamutBoundaryDescOverflow(RawProfileContext &ctx);
 int RunHeuristic_H69_ProfileIDMD5Consistency(RawProfileContext &ctx);
 int RunHeuristic_H153_SampledCurveNaNCast(RawProfileContext &ctx);
+int RunHeuristic_H175_DeviceSpectralColourSpaceRange(RawProfileContext &ctx);
+int RunHeuristic_H176_DsrnTagValidation(RawProfileContext &ctx);
+int RunHeuristic_H177_DpccTagValidation(RawProfileContext &ctx);
+int RunHeuristic_H178_SrngEncodingValidation(RawProfileContext &ctx);
 
 #endif // ICCHEURISTICSRAWPOST_H
