@@ -297,18 +297,6 @@ When the tool writes results, the output JSON uses `colorData` structure:
 }
 ```
 
-### Known JSON Bugs
-
-**Bug 1: `dstDigits]"` key typo** (IccCmmConfig.cpp:~303) — `toJson()` serializes
-`dstDigits` as `"dstDigits]"` (bracket inside key string). Breaks round-trip load→save→load.
-
-**Bug 2: `iccFile`/`iccProfile` field mismatch** — `fromJson()` reads `"iccFile"` but
-`toJson()` writes `"iccProfile"`. Round-trip serialization loses the profile path.
-
-**Bug 3: `icInterpNames` array assignment** (IccCmmConfig.cpp:~706) — `toJson()` assigns
-the entire `icInterpNames` array pointer instead of `icInterpNames[i]`. Interpolation
-value is corrupted in output JSON.
-
 ### JSON Test Suite
 
 90 automated tests covering valid configs, malformed JSON, edge cases, all intents,
@@ -320,7 +308,8 @@ See `docs/Testing/README.md` and `docs/Testing/test-json-tools.sh`.
 - Encoding 4 (icEncode8Bit) returns exit 255 with some profiles
 - Chained transforms with 2+ profiles may trigger upstream memory leak
   (`CIccPcsStepScale::Mult` at IccCmm.cpp:4325 — 24-byte leak, upstream)
-- JSON `toJson()` output has 3 serialization bugs (see Known JSON Bugs above)
+- JSON `toJson()` serialization bugs (dstDigits typo, iccFile/iccProfile mismatch,
+  icInterpNames array) were fixed upstream in PRs #692, #739 (v2.3.1.5)
 
 ## Related Tools
 
