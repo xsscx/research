@@ -2626,6 +2626,320 @@ def synth_h174_half_float_mdv_fl16():
     )
 
 
+# ---------------------------------------------------------------------------
+# H175-H178: ICC.2:2023 Extended Device Colour Space Amendment
+# ---------------------------------------------------------------------------
+
+def _make_srng_tag(start_f16, end_f16, steps, bi_start=0, bi_end=0, bi_steps=0,
+                   bad_reserved=False, bad_sig=False):
+    """Build a spectralRangeType tag (20 bytes).
+
+    Layout: 'srng'(4) + reserved(4) + spectralRange(6) + biSpectralRange(6)
+    """
+    sig = b"XXXX" if bad_sig else b"srng"
+    reserved = b"\x01\x02\x03\x04" if bad_reserved else b"\x00\x00\x00\x00"
+    return sig + reserved + struct.pack(">HHH", start_f16, end_f16, steps) + \
+        struct.pack(">HHH", bi_start, bi_end, bi_steps)
+
+
+def synth_h175_spectral_device_valid_dsrn():
+    """Profile with spectral device colour space AND a valid dsrn tag.
+
+    colorSpace = 'rs16' (reflectance spectral, 16 channels)
+    dsrn tag present with valid srng data (380-780nm, 81 steps)
+    Should pass H175 — spectral device with range source present.
+    """
+    # 380nm = 0x5DF0, 780nm = 0x6218 in half-float
+    dsrn_data = _make_srng_tag(0x5DF0, 0x6218, 81)
+    tags = [
+        (b"desc", make_mluc_tag("H175 Spectral Device Valid dsrn")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h175_spectral_device_header_fallback():
+    """Profile with spectral device colour space, NO dsrn, but header range set.
+
+    colorSpace = 'ts10' (transmission spectral, 10 channels)
+    No dsrn tag, but header spectralRange fields at offset 104-109 are non-zero.
+    Should pass H175 — using header range as fallback.
+    """
+    tags = [
+        (b"desc", make_mluc_tag("H175 Header Fallback")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"ts10",
+        pcs=b"XYZ ",
+        spectral_range=(0x5DF0, 0x6218, 81),  # 380-780nm, 81 steps
+    )
+
+
+def synth_h175_spectral_device_no_range():
+    """Profile with spectral device colour space but NO range source.
+
+    colorSpace = 'es08' (radiant spectral, 8 channels)
+    No dsrn tag AND header spectralRange fields are all zeros.
+    Should FAIL H175 — no spectral range source defined.
+    """
+    tags = [
+        (b"desc", make_mluc_tag("H175 Missing Range")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"es08",
+        pcs=b"XYZ ",
+        # No spectral_range, no dsrn tag
+    )
+
+
+def synth_h176_dsrn_valid():
+    """Profile with valid dsrn tag (spectralRangeType, 380-780nm, 81 steps).
+
+    Should pass H176 — well-formed srng encoding.
+    """
+    dsrn_data = _make_srng_tag(0x5DF0, 0x6218, 81)
+    tags = [
+        (b"desc", make_mluc_tag("H176 Valid dsrn")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h176_dsrn_bad_reserved():
+    """Profile with dsrn tag where reserved bytes are non-zero.
+
+    Should trigger H176 warning for non-zero reserved bytes.
+    """
+    dsrn_data = _make_srng_tag(0x5DF0, 0x6218, 81, bad_reserved=True)
+    tags = [
+        (b"desc", make_mluc_tag("H176 Bad Reserved")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h176_dsrn_bad_sig():
+    """Profile with dsrn tag where type signature is not 'srng'.
+
+    Should trigger H176 critical for wrong type signature.
+    """
+    dsrn_data = _make_srng_tag(0x5DF0, 0x6218, 81, bad_sig=True)
+    tags = [
+        (b"desc", make_mluc_tag("H176 Wrong Sig")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h176_dsrn_inverted_range():
+    """Profile with dsrn tag where start > end wavelength.
+
+    start=780nm (0x6218), end=380nm (0x5DF0) — inverted.
+    Should trigger H176 warning for inverted range.
+    """
+    dsrn_data = _make_srng_tag(0x6218, 0x5DF0, 81)  # start > end
+    tags = [
+        (b"desc", make_mluc_tag("H176 Inverted Range")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h177_dpcc_valid():
+    """Profile with valid dpcc tag (tagStructType with 'pcc ' structure).
+
+    Builds a minimal tagStructType: 'tstr'(4) + reserved(4) + 'pcc '(4) +
+    tagCount(4) + sub-tag entries. Sub-tags: iXYZ, mwpt, swpt, svcn, c2sp, s2cp.
+    """
+    # tagStructType layout:
+    #   0-3:  'tstr' type signature
+    #   4-7:  reserved (0)
+    #   8-11: 'pcc ' structure type ID
+    #   12-15: sub-tag count (6)
+    #   16+:  sub-tag entries (sig(4) + offset(4) + size(4) each)
+    #   then sub-tag data
+    sub_tags = [
+        b"iXYZ", b"mwpt", b"swpt", b"svcn", b"c2sp", b"s2cp"
+    ]
+    # Minimal sub-tag data: 12-byte XYZ for each
+    sub_data = struct.pack(">4sI", b"XYZ ", 0) + struct.pack(">iii",
+        int(0.9642 * 65536), int(1.0 * 65536), int(0.8249 * 65536))
+    sub_data_size = len(sub_data)  # 20 bytes
+
+    # Build sub-tag table + data
+    sub_table_size = len(sub_tags) * 12
+    data_start = 16 + sub_table_size
+
+    entries = b""
+    datas = b""
+    for i, sig in enumerate(sub_tags):
+        offset = data_start + i * sub_data_size
+        entries += struct.pack(">4sII", sig, offset, sub_data_size)
+        datas += sub_data
+
+    dpcc_tag = struct.pack(">4sI4sI", b"tstr", 0, b"pcc ", len(sub_tags))
+    dpcc_tag += entries + datas
+
+    tags = [
+        (b"desc", make_mluc_tag("H177 Valid dpcc")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dpcc", dpcc_tag),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"abst",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h177_dpcc_missing_subtags():
+    """Profile with dpcc tag that is missing required sub-tags.
+
+    Only includes iXYZ — missing mwpt, swpt, svcn, c2sp, s2cp.
+    Should trigger H177 warnings for missing sub-tags.
+    """
+    sub_data = struct.pack(">4sI", b"XYZ ", 0) + struct.pack(">iii",
+        int(0.9642 * 65536), int(1.0 * 65536), int(0.8249 * 65536))
+    sub_data_size = len(sub_data)
+
+    data_start = 16 + 12  # 1 sub-tag entry
+    entries = struct.pack(">4sII", b"iXYZ", data_start, sub_data_size)
+
+    dpcc_tag = struct.pack(">4sI4sI", b"tstr", 0, b"pcc ", 1)
+    dpcc_tag += entries + sub_data
+
+    tags = [
+        (b"desc", make_mluc_tag("H177 Missing SubTags")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dpcc", dpcc_tag),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"abst",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h178_srng_nan_wavelength():
+    """Profile with dsrn tag where wavelength is NaN (0x7E00).
+
+    start=NaN (0x7E00), end=780nm (0x6218), steps=81.
+    Should trigger H178 critical for NaN wavelength.
+    """
+    dsrn_data = _make_srng_tag(0x7E00, 0x6218, 81)  # NaN start
+    tags = [
+        (b"desc", make_mluc_tag("H178 NaN Wavelength")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h178_srng_low_steps():
+    """Profile with dsrn tag where steps < 2.
+
+    380-780nm but steps=1 (must be >= 2).
+    Should trigger H178 warning for insufficient steps.
+    """
+    dsrn_data = _make_srng_tag(0x5DF0, 0x6218, 1)  # steps=1
+    tags = [
+        (b"desc", make_mluc_tag("H178 Low Steps")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
+def synth_h178_srng_out_of_range():
+    """Profile with dsrn tag where wavelength is outside 100-2500nm.
+
+    start=50nm (0x5240), end=780nm (0x6218), steps=81.
+    Should trigger H178 warning for out-of-range wavelength.
+    """
+    dsrn_data = _make_srng_tag(0x5240, 0x6218, 81)  # 50nm < 100nm
+    tags = [
+        (b"desc", make_mluc_tag("H178 Out of Range")),
+        (b"cprt", make_mluc_tag("Copyright 2026 Test")),
+        (b"wtpt", make_xyz_tag(0.9642, 1.0, 0.8249)),
+        (b"dsrn", dsrn_data),
+    ]
+    return build_profile(
+        tags,
+        version=0x05000000,
+        device_class=b"spac",
+        color_space=b"rs16",
+        pcs=b"XYZ ",
+    )
+
+
 def main():
     os.makedirs(CORPUS_DIR, exist_ok=True)
 
@@ -2743,6 +3057,19 @@ def main():
         "cf_htos_all_intents.icc": synth_cf_htos_all_intents(),
         "h174_half_float_header.icc": synth_h174_half_float_header(),
         "h174_half_float_mdv_fl16.icc": synth_h174_half_float_mdv_fl16(),
+        # H175-H178: ICC.2:2023 Extended Device Colour Space Amendment
+        "h175_spectral_device_valid_dsrn.icc": synth_h175_spectral_device_valid_dsrn(),
+        "h175_spectral_device_header_fallback.icc": synth_h175_spectral_device_header_fallback(),
+        "h175_spectral_device_no_range.icc": synth_h175_spectral_device_no_range(),
+        "h176_dsrn_valid.icc": synth_h176_dsrn_valid(),
+        "h176_dsrn_bad_reserved.icc": synth_h176_dsrn_bad_reserved(),
+        "h176_dsrn_bad_sig.icc": synth_h176_dsrn_bad_sig(),
+        "h176_dsrn_inverted_range.icc": synth_h176_dsrn_inverted_range(),
+        "h177_dpcc_valid.icc": synth_h177_dpcc_valid(),
+        "h177_dpcc_missing_subtags.icc": synth_h177_dpcc_missing_subtags(),
+        "h178_srng_nan_wavelength.icc": synth_h178_srng_nan_wavelength(),
+        "h178_srng_low_steps.icc": synth_h178_srng_low_steps(),
+        "h178_srng_out_of_range.icc": synth_h178_srng_out_of_range(),
     }
 
     for name, data in profiles.items():
