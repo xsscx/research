@@ -244,7 +244,7 @@ std::optional<Severity> maxFindingSeverity(const CheckResult& result) {
     }
     Severity maxLevel = result.findings.front().level;
     for (const auto& f : result.findings) {
-        if (static_cast<uint8_t>(f.level) > static_cast<uint8_t>(maxLevel)) {
+        if (f.level > maxLevel) {
             maxLevel = f.level;
         }
     }
