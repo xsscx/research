@@ -1,6 +1,8 @@
---- a/IccProfLib/IccTagLut.h	2026-03-26 22:13:40.592048435 -0400
-+++ IccProfLib/IccTagLut.h	2026-03-26 22:13:40.600070241 -0400
-@@ -640,12 +640,12 @@
+diff --git a/IccProfLib/IccTagLut.h b/IccProfLib/IccTagLut.h
+index 0e2b5f6..e9c5f0e 100644
+--- a/IccProfLib/IccTagLut.h
++++ b/IccProfLib/IccTagLut.h
+@@ -640,12 +640,12 @@ public:
      return m_NumberOfTriangles;
    }	
  
@@ -15,7 +17,7 @@
    {
      return m_nDeviceChannels;
    }		
-@@ -653,8 +653,8 @@
+@@ -653,8 +653,8 @@ public:
  protected:
    icInt32Number m_NumberOfVertices;
    icInt32Number m_NumberOfTriangles;
