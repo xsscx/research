@@ -223,7 +223,7 @@ static CheckResult check_cf093_private_tag_content_scan(const ProfileView& pv) {
         }
         if (sz >= 64 && d[0]=='M' && d[1]=='Z') {
             uint32_t peOff = readU32LE(&d[60]);
-            if (peOff < sz - 4 && d[peOff]=='P' && d[peOff+1]=='E') {
+            if (static_cast<uint64_t>(peOff) + 4 <= sz && d[peOff]=='P' && d[peOff+1]=='E') {
                 findings.push_back({id, Severity::CRITICAL,
                     "PE executable in private tag '" + std::string(sigStr) + "'",
                     "", "CWE-506: Embedded Malicious Code"});

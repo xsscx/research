@@ -24,11 +24,16 @@ extern void test_assert(bool, const char*, const char*, int);
 using namespace icctest;
 
 static std::filesystem::path resolve_repo_file(const char* relativePath) {
-    std::filesystem::path base = std::filesystem::path(__FILE__).parent_path();
-    auto candidate = (base / "../../../" / relativePath).lexically_normal();
+    std::filesystem::path srcPath(__FILE__);
+    std::filesystem::path base = srcPath.parent_path();
+
+    std::filesystem::path combined = base / "../../../" / relativePath;
+    std::filesystem::path candidate = combined.lexically_normal();
     if (std::filesystem::exists(candidate)) return candidate;
 
-    candidate = (std::filesystem::current_path() / relativePath).lexically_normal();
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path cwdCombined = cwd / relativePath;
+    candidate = cwdCombined.lexically_normal();
     if (std::filesystem::exists(candidate)) return candidate;
 
     return {};
