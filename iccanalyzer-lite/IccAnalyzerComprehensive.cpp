@@ -269,7 +269,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
            ColorCritical(), ColorReset());
     printf("       %sLibrary-phase conformance skipped (unsafe on truncated data)%s\n",
            ColorInfo(), ColorReset());
-    printf("       %sRunning raw-byte security heuristics (H1-H173)...%s\n\n",
+    printf("       %sRunning raw-byte security heuristics (H1-H178)...%s\n\n",
            ColorInfo(), ColorReset());
     totalIssues++;
 
@@ -312,7 +312,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     printf("%s[NOT RUN] Library-phase conformance not run — profile triggers upstream "
            "undefined behavior (CWE-190)%s\n",
            ColorCritical(), ColorReset());
-    printf("       %sRaw-phase heuristics (H1-H174) still ran in legacy mode%s\n",
+    printf("       %sRaw-phase heuristics (H1-H178) still ran in legacy mode%s\n",
            ColorInfo(), ColorReset());
     totalIssues++;
     return totalIssues;

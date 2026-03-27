@@ -5,7 +5,7 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  */
 
-// Post-library raw-file heuristics (H33-H55, H57, H59, H68-H69, H153).
+// Post-library raw-file heuristics (H33-H55, H57, H59, H68-H69, H153, H175-H178).
 // Refactored: all functions use shared RawProfileContext (single file open)
 // and HeuristicCollector for dual-mode output (printf + structured collection).
 
@@ -1750,6 +1750,438 @@ int RunHeuristic_H153_SampledCurveNaNCast(RawProfileContext &ctx)
 
 
 // =========================================================================
+// H175 — Device Spectral Colour Space Range Requirement
+// ICC.2:2023 §7.2.8 amendment (Oct 2025): when colorSpace uses a spectral
+// signature (rs/ts/es/bs/sm upper 16 bits), the spectral range MUST be
+// defined by either a deviceSpectralRangeTag ('dsrn') or the header
+// spectralRange fields (§7.2.22/23).
+// =========================================================================
+int RunHeuristic_H175_DeviceSpectralColourSpaceRange(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(175, "Device Spectral Colour Space Range Requirement (ICC.2:2023 §7.2.8 amend)");
+
+  if (!ctx.valid) return hc.skip("File too small for tag table");
+
+  // Only relevant for v5+ profiles
+  uint8_t versionMajor = ctx.header[8];
+  if (versionMajor < 5) return hc.end("Not a v5+ profile — device spectral check skipped");
+
+  // Read colorSpace from header offset 16-19 (big-endian)
+  uint32_t colorSpace = ReadU32BE(&ctx.header[16]);
+  uint16_t csUpper = static_cast<uint16_t>((colorSpace >> 16) & 0xFFFFu);
+
+  // Check if colorSpace uses a spectral signature (Table 21)
+  // rs = 0x7273, ts = 0x7473, es = 0x6573, bs = 0x6273, sm = 0x736D
+  bool isSpectralDevice = (csUpper == 0x7273 || csUpper == 0x7473 ||
+                           csUpper == 0x6573 || csUpper == 0x6273 ||
+                           csUpper == 0x736D);
+
+  if (!isSpectralDevice)
+    return hc.end("Device colour space is not spectral — check not applicable");
+
+  const char *spectralType = "unknown";
+  if (csUpper == 0x7273) spectralType = "reflectance";
+  else if (csUpper == 0x7473) spectralType = "transmission";
+  else if (csUpper == 0x6573) spectralType = "radiant";
+  else if (csUpper == 0x6273) spectralType = "bi-spectral reflectance";
+  else if (csUpper == 0x736D) spectralType = "sparse matrix reflectance";
+
+  hc.info("Device colour space uses %s spectral signature (0x%08X)", spectralType, colorSpace);
+
+  // Check 1: Look for 'dsrn' tag (0x6473726E) in tag table
+  const uint32_t kDsrnSig = 0x6473726Eu;
+  auto dsrnTag = ctx.FindTag(kDsrnSig);
+  bool hasDsrnTag = (dsrnTag != nullptr);
+
+  if (hasDsrnTag) {
+    hc.info("deviceSpectralRangeTag ('dsrn') found at offset %u, size %u",
+            dsrnTag->offset, dsrnTag->size);
+    return hc.end("Device spectral range defined by dsrn tag");
+  }
+
+  // Check 2: Fall back to header spectralRange fields (offset 104-109)
+  if (sizeof(ctx.header) >= 116) {
+    uint16_t specStart = (static_cast<uint16_t>(ctx.header[104]) << 8) | ctx.header[105];
+    uint16_t specEnd   = (static_cast<uint16_t>(ctx.header[106]) << 8) | ctx.header[107];
+    uint16_t specSteps = (static_cast<uint16_t>(ctx.header[108]) << 8) | ctx.header[109];
+
+    if (specSteps > 0 && (specStart > 0 || specEnd > 0)) {
+      hc.info("No dsrn tag — using header spectralRange fields (start=0x%04X, end=0x%04X, steps=%u)",
+              specStart, specEnd, specSteps);
+      return hc.end("Device spectral range defined by header spectral PCS range fields");
+    }
+  }
+
+  // Neither source provides the range — CRITICAL
+  hc.critical("Spectral device colour space (0x%08X, %s) has NO spectral range definition",
+              colorSpace, spectralType);
+  hc.critical("Must provide either deviceSpectralRangeTag ('dsrn') or header spectralRange fields (§7.2.22/23)");
+  hc.cweNote("CWE-20: Improper Input Validation — spectral processing requires valid wavelength range");
+  return hc.end("CRITICAL: spectral device colour space without range definition");
+}
+
+
+// =========================================================================
+// H176 — deviceSpectralRangeTag ('dsrn') Validation
+// ICC.2:2023 §9.2.x: validates the dsrn tag data encodes a valid
+// spectralRangeType ('srng'), with correct reserved bytes, spectral range
+// start < end, steps >= 2, and bi-spectral range zero for non-bi-spectral.
+// =========================================================================
+int RunHeuristic_H176_DsrnTagValidation(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(176, "deviceSpectralRangeTag ('dsrn') Validation (ICC.2:2023 §9.2.x)");
+
+  if (!ctx.valid) return hc.skip("File too small for tag table");
+
+  uint8_t versionMajor = ctx.header[8];
+  if (versionMajor < 5) return hc.end("Not a v5+ profile — dsrn check skipped");
+
+  // Find 'dsrn' tag (0x6473726E) in tag table
+  const uint32_t kDsrnSig = 0x6473726Eu;
+  auto dsrnTag = ctx.FindTag(kDsrnSig);
+  if (!dsrnTag)
+    return hc.end("No deviceSpectralRangeTag present — check not applicable");
+
+  // spectralRangeType requires exactly 20 bytes
+  if (dsrnTag->size < 20) {
+    hc.critical("dsrn tag too small: %u bytes (need 20 for spectralRangeType)", dsrnTag->size);
+    hc.cweNote("CWE-125: Out-of-bounds Read — insufficient data for spectralRangeType");
+    return hc.end("dsrn tag undersized");
+  }
+
+  // Read tag data
+  uint8_t tagData[20];
+  if (!ctx.ReadAt(dsrnTag->offset, tagData, 20))
+    return hc.skip("Cannot read dsrn tag data");
+
+  // Validate type signature = 'srng' (0x73726E67)
+  uint32_t typeSig = ReadU32BE(tagData);
+  if (typeSig != 0x73726E67u) {
+    char sigStr[5];
+    sigStr[0] = static_cast<char>(static_cast<unsigned char>((typeSig >> 24) & 0xFF));
+    sigStr[1] = static_cast<char>(static_cast<unsigned char>((typeSig >> 16) & 0xFF));
+    sigStr[2] = static_cast<char>(static_cast<unsigned char>((typeSig >> 8) & 0xFF));
+    sigStr[3] = static_cast<char>(static_cast<unsigned char>(typeSig & 0xFF));
+    sigStr[4] = '\0';
+    hc.critical("dsrn tag type signature is '%s' (0x%08X), expected 'srng' (0x73726E67)",
+                sigStr, typeSig);
+    hc.cweNote("CWE-20: Wrong type signature for deviceSpectralRangeTag");
+    return hc.end("dsrn tag has wrong type signature");
+  }
+
+  // Validate reserved bytes (4-7) = 0
+  uint32_t reserved = ReadU32BE(&tagData[4]);
+  if (reserved != 0) {
+    hc.warn("dsrn tag reserved field is 0x%08X (should be 0x00000000)", reserved);
+    hc.cweNote("CWE-20: Non-zero reserved field in spectralRangeType");
+  }
+
+  // Validate spectral wavelength range (bytes 8-13)
+  // start (float16), end (float16), steps (uint16)
+  uint16_t specStartRaw = (static_cast<uint16_t>(tagData[8]) << 8) | tagData[9];
+  uint16_t specEndRaw   = (static_cast<uint16_t>(tagData[10]) << 8) | tagData[11];
+  uint16_t specSteps    = (static_cast<uint16_t>(tagData[12]) << 8) | tagData[13];
+
+  icFloatNumber specStart = SafeF16ToF(specStartRaw);
+  icFloatNumber specEnd = SafeF16ToF(specEndRaw);
+
+  hc.info("Spectral range: start=%.1f nm (0x%04X), end=%.1f nm (0x%04X), steps=%u",
+          (double)specStart, specStartRaw, (double)specEnd, specEndRaw, specSteps);
+
+  if (std::isnan(specStart) || std::isinf(specStart)) {
+    hc.critical("Spectral start wavelength is %s (raw=0x%04X)",
+                std::isnan(specStart) ? "NaN" : "Inf", specStartRaw);
+    hc.cweNote("CWE-20: Invalid float16 wavelength value");
+  }
+  if (std::isnan(specEnd) || std::isinf(specEnd)) {
+    hc.critical("Spectral end wavelength is %s (raw=0x%04X)",
+                std::isnan(specEnd) ? "NaN" : "Inf", specEndRaw);
+    hc.cweNote("CWE-20: Invalid float16 wavelength value");
+  }
+
+  if (std::isfinite(specStart) && std::isfinite(specEnd)) {
+    if (specStart < 100.0f || specStart > 2500.0f) {
+      hc.warn("Spectral start wavelength %.1f nm outside typical range (100-2500 nm)", (double)specStart);
+    }
+    if (specEnd < 100.0f || specEnd > 2500.0f) {
+      hc.warn("Spectral end wavelength %.1f nm outside typical range (100-2500 nm)", (double)specEnd);
+    }
+    if (specEnd <= specStart) {
+      hc.critical("Spectral end (%.1f nm) <= start (%.1f nm) — inverted range", (double)specEnd, (double)specStart);
+      hc.cweNote("CWE-682: Incorrect Calculation — inverted spectral range");
+    }
+  }
+
+  if (specSteps < 2 && (specStartRaw != 0 || specEndRaw != 0)) {
+    hc.critical("Spectral steps=%u (must be >= 2 for valid spectral sampling)", specSteps);
+    hc.cweNote("CWE-369: Divide By Zero — insufficient spectral steps for interpolation");
+  }
+
+  // Validate bi-spectral wavelength range (bytes 14-19)
+  uint16_t biStartRaw = (static_cast<uint16_t>(tagData[14]) << 8) | tagData[15];
+  uint16_t biEndRaw   = (static_cast<uint16_t>(tagData[16]) << 8) | tagData[17];
+  uint16_t biSteps    = (static_cast<uint16_t>(tagData[18]) << 8) | tagData[19];
+
+  // Check device colour space — bi-spectral range must be zero for non-bi-spectral
+  uint32_t colorSpace = ReadU32BE(&ctx.header[16]);
+  uint16_t csUpper = static_cast<uint16_t>((colorSpace >> 16) & 0xFFFFu);
+  bool isBiSpectral = (csUpper == 0x6273); // 'bs' prefix
+
+  if (!isBiSpectral && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0)) {
+    hc.warn("Bi-spectral range is non-zero (start=0x%04X, end=0x%04X, steps=%u) "
+            "but device colour space is not bi-spectral",
+            biStartRaw, biEndRaw, biSteps);
+    hc.cweNote("CWE-20: Bi-spectral range must be zero for non-bi-spectral device colour space");
+  }
+
+  if (isBiSpectral && biSteps < 2 && (biStartRaw != 0 || biEndRaw != 0)) {
+    hc.warn("Bi-spectral steps=%u (must be >= 2 for valid bi-spectral sampling)", biSteps);
+    hc.cweNote("CWE-369: Divide By Zero — insufficient bi-spectral steps");
+  }
+
+  return hc.end("dsrn tag validation complete");
+}
+
+
+// =========================================================================
+// H177 — devicePccTag ('dpcc') Structure Validation
+// ICC.2:2023 §9.2.x+1: validates the dpcc tag contains a tagStructType
+// with 'pcc ' structure ID and all 6 required sub-tag members.
+// =========================================================================
+int RunHeuristic_H177_DpccTagValidation(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(177, "devicePccTag ('dpcc') Structure Validation (ICC.2:2023 §9.2.x+1)");
+
+  if (!ctx.valid) return hc.skip("File too small for tag table");
+
+  uint8_t versionMajor = ctx.header[8];
+  if (versionMajor < 5) return hc.end("Not a v5+ profile — dpcc check skipped");
+
+  // Find 'dpcc' tag (0x64706363) in tag table
+  const uint32_t kDpccSig = 0x64706363u;
+  auto dpccTag = ctx.FindTag(kDpccSig);
+  if (!dpccTag)
+    return hc.end("No devicePccTag present — check not applicable");
+
+  // tagStructType minimum: 4 (sig) + 4 (reserved) + 4 (struct type) = 12 bytes header
+  if (dpccTag->size < 12) {
+    hc.critical("dpcc tag too small: %u bytes (need >= 12 for tagStructType header)", dpccTag->size);
+    hc.cweNote("CWE-125: Out-of-bounds Read — insufficient data for tagStructType");
+    return hc.end("dpcc tag undersized");
+  }
+
+  // Read enough tag data to parse the structure header and scan for sub-tags
+  size_t readSize = (dpccTag->size > 4096) ? 4096u : dpccTag->size;
+  std::vector<uint8_t> tagData(readSize);
+  if (!ctx.ReadAt(dpccTag->offset, tagData.data(), readSize))
+    return hc.skip("Cannot read dpcc tag data");
+
+  // Validate outer type = tagStructType (0x74737470 = 'tstp')
+  // NOTE: iccDEV uses 0x74737470 for tagStructType in some places.
+  // The actual ICC spec uses the struct type ID at offset 8.
+  // ICC.2-2023 uses tagStructType 'tstr' (0x74737472)... let's check both patterns.
+  // Regardless, the key check is the structure type ID.
+
+  // Structure type at offset 8-11 should be 'pcc ' (0x70636320)
+  if (readSize >= 12) {
+    uint32_t structType = ReadU32BE(&tagData[8]);
+    if (structType != 0x70636320u) {
+      char sigStr[5];
+      sigStr[0] = static_cast<char>(static_cast<unsigned char>((structType >> 24) & 0xFF));
+      sigStr[1] = static_cast<char>(static_cast<unsigned char>((structType >> 16) & 0xFF));
+      sigStr[2] = static_cast<char>(static_cast<unsigned char>((structType >> 8) & 0xFF));
+      sigStr[3] = static_cast<char>(static_cast<unsigned char>(structType & 0xFF));
+      sigStr[4] = '\0';
+      hc.critical("dpcc tag structure type is '%s' (0x%08X), expected 'pcc ' (0x70636320)",
+                  sigStr, structType);
+      hc.cweNote("CWE-20: Wrong structure type for devicePccTag");
+      return hc.end("dpcc tag has wrong structure type");
+    }
+    hc.info("dpcc tag has correct structure type 'pcc ' (profileConnectionConditionsStructure)");
+  }
+
+  // Scan for the 6 required sub-tag member signatures within the tag data
+  struct PccSubTag {
+    uint32_t sig;
+    const char *name;
+    const char *desc;
+    bool found;
+  };
+
+  PccSubTag subTags[] = {
+    {0x6958595Au, "iXYZ", "pcsIlluminantXYZMbr",          false},
+    {0x6D777074u, "mwpt", "mediaWhitePointMbr",           false},
+    {0x73777074u, "swpt", "spectralWhitePointMbr",         false},
+    {0x7376636Eu, "svcn", "spectralViewingConditionsMbr",  false},
+    {0x63327370u, "c2sp", "customToStandardPccMbr",        false},
+    {0x73326370u, "s2cp", "standardToCustomPccMbr",        false},
+  };
+
+  // Scan tag data for sub-tag signatures (4-byte aligned positions)
+  for (size_t pos = 12; pos + 3 < readSize; pos += 4) {
+    uint32_t w = ReadU32BE(&tagData[pos]);
+    for (auto &st : subTags) {
+      if (w == st.sig) {
+        st.found = true;
+        hc.info("  Sub-tag '%s' (%s) found at offset +%zu", st.name, st.desc, pos);
+      }
+    }
+  }
+
+  // Report missing sub-tags
+  int missingCount = 0;
+  for (const auto &st : subTags) {
+    if (!st.found) {
+      // iXYZ and svcn/c2sp/s2cp are always required
+      // mwpt is "required if colorimetric connection used"
+      // swpt is "required if spectral connection used"
+      if (st.sig == 0x6D777074u || st.sig == 0x73777074u) {
+        hc.warn("PCC sub-tag '%s' (%s) not found — conditionally required", st.name, st.desc);
+      } else {
+        hc.critical("Required PCC sub-tag '%s' (%s) missing from dpcc structure", st.name, st.desc);
+        missingCount++;
+      }
+    }
+  }
+
+  if (missingCount > 0) {
+    hc.cweNote("CWE-476: Missing required PCC sub-tags may cause null dereference during transform processing");
+    hc.cweNote("CWE-20: Incomplete profileConnectionConditionsStructure — %d required members absent", missingCount);
+  }
+
+  return hc.end("dpcc tag structure validation complete");
+}
+
+
+// =========================================================================
+// H178 — spectralRangeType ('srng') Encoding Validation
+// ICC.2:2023 §10.2.w: generic validator for any tag using spectralRangeType.
+// Validates type signature, reserved bytes, wavelength values, and step counts.
+// Scans entire tag table for any tag typed as 'srng'.
+// =========================================================================
+int RunHeuristic_H178_SrngEncodingValidation(RawProfileContext &ctx)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(178, "spectralRangeType ('srng') Encoding Validation (ICC.2:2023 §10.2.w)");
+
+  if (!ctx.valid) return hc.skip("File too small for tag table");
+
+  uint8_t versionMajor = ctx.header[8];
+  if (versionMajor < 5) return hc.end("Not a v5+ profile — srng check skipped");
+
+  // Scan all tags for any that contain a spectralRangeType ('srng') type sig
+  int srngCount = 0;
+  int issues = 0;
+
+  for (const auto &tag : ctx.tags) {
+    if (tag.size < 20) continue;
+
+    // Read first 4 bytes of tag data to check type signature
+    uint8_t typeSigBuf[4];
+    if (!ctx.ReadAt(tag.offset, typeSigBuf, 4)) continue;
+
+    uint32_t typeSig = ReadU32BE(typeSigBuf);
+    if (typeSig != 0x73726E67u) continue; // not 'srng'
+
+    srngCount++;
+
+    // Read full 20-byte spectralRangeType
+    uint8_t srngData[20];
+    if (!ctx.ReadAt(tag.offset, srngData, 20)) continue;
+
+    char tagSigStr[5];
+    tagSigStr[0] = static_cast<char>(static_cast<unsigned char>((tag.sig >> 24) & 0xFF));
+    tagSigStr[1] = static_cast<char>(static_cast<unsigned char>((tag.sig >> 16) & 0xFF));
+    tagSigStr[2] = static_cast<char>(static_cast<unsigned char>((tag.sig >> 8) & 0xFF));
+    tagSigStr[3] = static_cast<char>(static_cast<unsigned char>(tag.sig & 0xFF));
+    tagSigStr[4] = '\0';
+
+    // Reserved bytes (4-7) = 0
+    uint32_t reserved = ReadU32BE(&srngData[4]);
+    if (reserved != 0) {
+      hc.warn("Tag '%s': srng reserved field is 0x%08X (must be 0)", tagSigStr, reserved);
+      hc.cweNote("CWE-20: Non-zero reserved field in spectralRangeType");
+      issues++;
+    }
+
+    // Spectral range (bytes 8-13): start (F16), end (F16), steps (U16)
+    uint16_t specStartRaw = (static_cast<uint16_t>(srngData[8]) << 8) | srngData[9];
+    uint16_t specEndRaw   = (static_cast<uint16_t>(srngData[10]) << 8) | srngData[11];
+    uint16_t specSteps    = (static_cast<uint16_t>(srngData[12]) << 8) | srngData[13];
+
+    icFloatNumber specStart = SafeF16ToF(specStartRaw);
+    icFloatNumber specEnd = SafeF16ToF(specEndRaw);
+
+    if (std::isnan(specStart) || std::isinf(specStart) ||
+        std::isnan(specEnd) || std::isinf(specEnd)) {
+      hc.critical("Tag '%s': srng spectral range has NaN/Inf wavelength values "
+                  "(start=0x%04X→%g, end=0x%04X→%g)",
+                  tagSigStr, specStartRaw, (double)specStart, specEndRaw, (double)specEnd);
+      hc.cweNote("CWE-20: Invalid float16 wavelength in spectralRangeType");
+      issues++;
+    } else if (specStart > 0.0f || specEnd > 0.0f) {
+      if (specStart < 100.0f || specStart > 2500.0f)
+        hc.warn("Tag '%s': srng start wavelength %.1f nm outside 100-2500 nm", tagSigStr, (double)specStart);
+      if (specEnd < 100.0f || specEnd > 2500.0f)
+        hc.warn("Tag '%s': srng end wavelength %.1f nm outside 100-2500 nm", tagSigStr, (double)specEnd);
+      if (specEnd <= specStart) {
+        hc.critical("Tag '%s': srng spectral end (%.1f) <= start (%.1f)", tagSigStr, (double)specEnd, (double)specStart);
+        hc.cweNote("CWE-682: Inverted spectral range in spectralRangeType");
+        issues++;
+      }
+      if (specSteps < 2) {
+        hc.critical("Tag '%s': srng spectral steps=%u (must be >= 2)", tagSigStr, specSteps);
+        hc.cweNote("CWE-369: Divide By Zero — insufficient spectral steps");
+        issues++;
+      }
+    }
+
+    // Bi-spectral range (bytes 14-19): start (F16), end (F16), steps (U16)
+    uint16_t biStartRaw = (static_cast<uint16_t>(srngData[14]) << 8) | srngData[15];
+    uint16_t biEndRaw   = (static_cast<uint16_t>(srngData[16]) << 8) | srngData[17];
+    uint16_t biSteps    = (static_cast<uint16_t>(srngData[18]) << 8) | srngData[19];
+
+    // Check device colour space for bi-spectral type
+    uint32_t colorSpace = ReadU32BE(&ctx.header[16]);
+    uint16_t csUpper = static_cast<uint16_t>((colorSpace >> 16) & 0xFFFFu);
+    bool isBiSpectral = (csUpper == 0x6273); // 'bs' prefix
+
+    if (!isBiSpectral && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0)) {
+      hc.warn("Tag '%s': bi-spectral range non-zero but colour space is not bi-spectral",
+              tagSigStr);
+      hc.cweNote("CWE-20: Bi-spectral range must be zero for non-bi-spectral space (§10.2.w)");
+      issues++;
+    }
+
+    if (isBiSpectral && (biStartRaw != 0 || biEndRaw != 0)) {
+      icFloatNumber biStart = SafeF16ToF(biStartRaw);
+      icFloatNumber biEnd = SafeF16ToF(biEndRaw);
+
+      if (std::isnan(biStart) || std::isinf(biStart) ||
+          std::isnan(biEnd) || std::isinf(biEnd)) {
+        hc.critical("Tag '%s': bi-spectral range has NaN/Inf (start=0x%04X, end=0x%04X)",
+                    tagSigStr, biStartRaw, biEndRaw);
+        issues++;
+      }
+      if (biSteps < 2) {
+        hc.warn("Tag '%s': bi-spectral steps=%u (must be >= 2)", tagSigStr, biSteps);
+        issues++;
+      }
+    }
+  }
+
+  if (srngCount == 0)
+    return hc.end("No spectralRangeType tags found — check not applicable");
+
+  hc.info("Validated %d spectralRangeType instance(s), %d issue(s) found", srngCount, issues);
+  return hc.end("srng encoding validation complete");
+}
+
+
+// =========================================================================
 // Dispatcher — single file open, shared context for all raw heuristics
 // =========================================================================
 int RunRawPostLibraryHeuristics(const char *filename)
@@ -1788,6 +2220,10 @@ int RunRawPostLibraryHeuristics(const char *filename)
   heuristicCount += RunHeuristic_H68_GamutBoundaryDescOverflow(ctx);
   heuristicCount += RunHeuristic_H69_ProfileIDMD5Consistency(ctx);
   heuristicCount += RunHeuristic_H153_SampledCurveNaNCast(ctx);
+  heuristicCount += RunHeuristic_H175_DeviceSpectralColourSpaceRange(ctx);
+  heuristicCount += RunHeuristic_H176_DsrnTagValidation(ctx);
+  heuristicCount += RunHeuristic_H177_DpccTagValidation(ctx);
+  heuristicCount += RunHeuristic_H178_SrngEncodingValidation(ctx);
 
   // CodeQL-driven heuristics (H154-H161) — extracted to IccHeuristicsCodeQLPatterns.cpp
   heuristicCount += RunCodeQLPatternHeuristics(ctx);
