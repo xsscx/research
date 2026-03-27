@@ -122,6 +122,7 @@ for historical reference.
 | 065 | IccTagLut nEnd subtraction underflow | nEnd-Tell() underflow at 12 Read/Init sites | CWE-191 | IccTagLut.cpp |
 | 066 | IccUtilXml bitmask signed conversion | ~(enum\|enum) produces signed negative→unsigned UBSAN | CWE-681 | IccUtilXml.cpp |
 | 067 | icIsS15Fixed16NumberNear float overflow | Float-to-unsigned cast overflow in D50 illuminant check | CWE-681 | IccUtil.cpp |
+| 076 | GBD signed channel type confusion | icInt16Number→icUInt16Number for m_nPCSChannels/m_nDeviceChannels | CWE-681 | IccTagLut.h |
 
 ### Retired Patches (accepted upstream)
 
@@ -180,8 +181,8 @@ LD_LIBRARY_PATH=cfl/iccDEV/Build/IccProfLib:cfl/iccDEV/Build/IccXML ASAN_OPTIONS
 before applying patches. If you get "FAIL" for patches that previously worked, verify
 the checkout step succeeded. Patches targeting the same file (e.g., `IccMpeCalc.cpp`
 is patched by CFL-005, CFL-009, CFL-014, CFL-017, CFL-022, CFL-063; `IccUtil.cpp`
-by CFL-060, CFL-061, CFL-062, CFL-067; `IccTagLut.cpp` by CFL-002, CFL-008, CFL-025,
-CFL-048, CFL-049, CFL-051, CFL-054, CFL-065)
+by CFL-060, CFL-061, CFL-062, CFL-067; `IccTagLut.h` by CFL-076; `IccTagLut.cpp`
+by CFL-002, CFL-008, CFL-025, CFL-048, CFL-049, CFL-051, CFL-054, CFL-065)
 MUST be applied in order — each depends on context from previous patches.
 
 **Stale CMakeCache**: After changing iccDEV source or patches, the `Build/CMakeCache.txt`
@@ -304,6 +305,36 @@ nm cfl/bin/icc_dump_fuzzer | grep -c __asan   # should be > 0
   consumer of `CIccTagCurve::Apply()` with attacker-controlled profile data could hit this.
 - **Related**: `RGBClip()` at IccCmm.cpp:5380-5388 has the SAME NaN bypass bug
   (potential future patch)
+
+### CFL-076: GamutBoundaryDesc Signed Channel Type Confusion (CWE-681)
+
+- **PoC 1**: `/home/h02332/po/artifacts/applycrash-400da49a3c09cda91483119a4a9755d5f23ce039`
+  (1462 bytes, v5.00, svcn tag with nested tary→gbd structure)
+- **PoC 2**: `ub-runtime-error-signed-integer-overflowIccTagLut_cpp-Line5638.icc`
+  (1300 bytes, spac/RGB/XYZ v5.00 — also triggers CFL-002)
+- **ASAN trace (PoC 1)**: `requested allocation size 0xffffffffffffffff` at
+  `CIccTagGamutBoundaryDesc::Read()` (IccTagLut.cpp:5715)
+- **Root cause**: `m_nPCSChannels` and `m_nDeviceChannels` in `IccTagLut.h:656-657`
+  declared as `icInt16Number` (signed short). `Read16(&m_nPCSChannels)` reads
+  0xFFFF from file → stored as -1. Validation `if (m_nPCSChannels > 3)` evaluates
+  `-1 > 3` → FALSE → **bypassed**. Subsequent allocation
+  `new icFloatNumber[m_nPCSChannels * m_NumberOfVertices]` promotes signed -1 to
+  SIZE_MAX (0xFFFFFFFFFFFFFFFF) via signed-to-unsigned conversion.
+- **Fix**: Change `icInt16Number` → `icUInt16Number` for both member declarations
+  (lines 656-657) and their getter return types (lines 643, 648). Channel counts
+  are unsigned by ICC spec — negative values are meaningless.
+- **Upstream reproduction**:
+  ```bash
+  LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML \
+  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
+    source-of-truth/Build/Tools/IccDumpProfile/iccDumpProfile \
+    /home/h02332/po/artifacts/applycrash-400da49a3c09cda91483119a4a9755d5f23ce039 ALL
+  ```
+- **Verified patched**: Both PoCs exit cleanly, 0 ASAN/UBSAN with patched CFL fuzzers
+- **Affected tools**: Any tool loading profiles with `gbd` tags (iccDumpProfile,
+  iccToXml, iccRoundTrip, iccApplySearch, iccApplyNamedCmm)
+- **Related**: CFL-002 patches a DIFFERENT bug in the same function (triangles
+  overflow at line 5733, CWE-190). PoC 2 triggers both CFL-002 and CFL-076.
 
 ### CFL-011: iccSpecSepToTiff unique_ptr Array Mismatch (CWE-762)
 
