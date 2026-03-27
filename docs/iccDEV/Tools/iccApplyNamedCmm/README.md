@@ -141,9 +141,12 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 \
 ### CMYK profile with CMYK data
 
 ```bash
-iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-cmyk-percent.txt 1 0 \
+iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-cmyk-percent.txt 0 0 \
   test-profiles/CMYK-3DLUTs2.icc 1
 ```
+
+> **Note**: CMYK→Lab transforms output Lab values. Use encoding 0 (icEncodeValue) or
+> 3 (icEncodeFloat) — encoding 1 (icEncodePercent) returns exit 255 for this combination.
 
 ### Float and 16-bit data formats
 
