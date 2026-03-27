@@ -35,8 +35,8 @@ BIN_DIR="$REPO_ROOT/bin"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccDumpAll)
-TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccDumpAll)
+TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccDumpAll IccDiagnosticLoad)
+TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad)
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
