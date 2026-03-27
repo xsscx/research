@@ -2399,7 +2399,7 @@ def test_lut_text_io(suite):
 
 
 def test_conformance_checks(suite):
-    """Test ICC Specification conformance checks (CF-001..CF-329)."""
+    """Test ICC Specification conformance checks (CF-001..CF-339)."""
     corpus = str(CORPUS_DIR)
 
     # --- CF Header Checks (CF-001..CF-019) ---
@@ -4834,6 +4834,66 @@ def test_conformance_checks(suite):
         "cf.329.pcc_override_source",
         ["-a", v5_profile],
         r"CF-329.*PCC.*Override.*Source"
+    )
+
+    # --- CF-330..CF-339: Device Spectral Colour Space (ICC.2:2023 amendment) ---
+    spectral_no_range = f"{corpus}/h175_spectral_device_no_range.icc"
+    spectral_valid_dsrn = f"{corpus}/h175_spectral_device_valid_dsrn.icc"
+    spectral_fallback = f"{corpus}/h175_spectral_device_header_fallback.icc"
+
+    # CF-330: Device Spectral Colour Space Signature
+    suite.assert_output_contains(
+        "cf.330.device_spectral_sig",
+        ["-a", spectral_valid_dsrn],
+        r"CF-330.*Device Spectral Colour Space"
+    )
+    # CF-331: missing range → FAIL
+    suite.assert_output_contains(
+        "cf.331.no_range_fail",
+        ["-a", spectral_no_range],
+        r"Spectral device colour space has no spectral range"
+    )
+    # CF-331: dsrn present → pass
+    suite.assert_output_contains(
+        "cf.331.dsrn_present",
+        ["-a", spectral_valid_dsrn],
+        r"deviceSpectralRangeTag.*dsrn.*present"
+    )
+    # CF-332: spectralRangeType reserved
+    suite.assert_output_contains(
+        "cf.332.srng_reserved",
+        ["-a", spectral_valid_dsrn],
+        r"dsrn tag found.*reserved field validation"
+    )
+    # CF-333: no dpcc → skip
+    suite.assert_output_contains(
+        "cf.333.no_dpcc_skip",
+        ["-a", spectral_valid_dsrn],
+        r"No dpcc tag present"
+    )
+    # CF-337: no range → FAIL
+    suite.assert_output_contains(
+        "cf.337.no_range_fail",
+        ["-a", spectral_no_range],
+        r"No spectral range source for spectral device"
+    )
+    # CF-337: dsrn only → pass
+    suite.assert_output_contains(
+        "cf.337.dsrn_only",
+        ["-a", spectral_valid_dsrn],
+        r"Device spectral range defined by dsrn tag only"
+    )
+    # CF-338: non-bi-spectral zero check
+    suite.assert_output_contains(
+        "cf.338.non_bispectral_zero",
+        ["-a", spectral_valid_dsrn],
+        r"Non-bi-spectral.*correctly zero"
+    )
+    # CF-339: non-abstract → skip
+    suite.assert_output_contains(
+        "cf.339.non_abstract_skip",
+        ["-a", spectral_valid_dsrn],
+        r"Profile class is not Abstract"
     )
 
     # --- Clean profile baseline ---
