@@ -39,6 +39,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Optimize a specific fuzzer | [fuzzer-optimization.prompt.md](prompts/fuzzer-optimization.prompt.md) |
 | Manage corpus storage | [corpus-management.prompt.md](prompts/corpus-management.prompt.md) |
 | Sync upstream iccDEV | [upstream-sync.prompt.md](prompts/upstream-sync.prompt.md) |
+| Bump iccDEV version | [version-bump.prompt.md](prompts/version-bump.prompt.md) |
 | Enrich CVE mappings | [cve-enrichment.prompt.md](prompts/cve-enrichment.prompt.md) |
 | Remote Docker analysis | [remote-analysis.prompt.md](prompts/remote-analysis.prompt.md) |
 | JSON tooling testing | [json-tooling.prompt.md](prompts/json-tooling.prompt.md) |
