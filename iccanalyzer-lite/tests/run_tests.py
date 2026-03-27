@@ -705,6 +705,92 @@ def test_heuristic_detection(suite):
         r"\[PREFLIGHT\].*Half-float values below 1\.0.*icF16toF UB"
     )
 
+    # --- H175-H178: ICC.2:2023 Extended Device Colour Space ---
+
+    # H175: valid dsrn tag provides range source → OK
+    suite.assert_output_contains(
+        "heuristic.h175_valid_dsrn",
+        ["-a", "--legacy", f"{corpus}/h175_spectral_device_valid_dsrn.icc"],
+        r"Device spectral range defined by dsrn tag"
+    )
+
+    # H175: header fallback when no dsrn tag → OK
+    suite.assert_output_contains(
+        "heuristic.h175_header_fallback",
+        ["-a", "--legacy", f"{corpus}/h175_spectral_device_header_fallback.icc"],
+        r"header spectral PCS range fields"
+    )
+
+    # H175: spectral device with NO range source → CRITICAL
+    suite.assert_output_contains(
+        "heuristic.h175_no_range",
+        ["-a", "--legacy", f"{corpus}/h175_spectral_device_no_range.icc"],
+        r"CRITICAL.*NO spectral range definition"
+    )
+
+    # H176: valid dsrn tag encoding → OK
+    suite.assert_output_contains(
+        "heuristic.h176_valid_dsrn",
+        ["-a", "--legacy", f"{corpus}/h176_dsrn_valid.icc"],
+        r"dsrn tag validation complete"
+    )
+
+    # H176: non-zero reserved bytes
+    suite.assert_output_contains(
+        "heuristic.h176_bad_reserved",
+        ["-a", "--legacy", f"{corpus}/h176_dsrn_bad_reserved.icc"],
+        r"reserved field is 0x01020304"
+    )
+
+    # H176: wrong type signature
+    suite.assert_output_contains(
+        "heuristic.h176_bad_sig",
+        ["-a", "--legacy", f"{corpus}/h176_dsrn_bad_sig.icc"],
+        r"CRITICAL.*type signature is.*XXXX.*expected.*srng"
+    )
+
+    # H176: inverted wavelength range
+    suite.assert_output_contains(
+        "heuristic.h176_inverted_range",
+        ["-a", "--legacy", f"{corpus}/h176_dsrn_inverted_range.icc"],
+        r"CRITICAL.*end.*380.*<=.*start.*780.*inverted"
+    )
+
+    # H177: valid dpcc tag with all sub-tags → OK
+    suite.assert_output_contains(
+        "heuristic.h177_valid_dpcc",
+        ["-a", "--legacy", f"{corpus}/h177_dpcc_valid.icc"],
+        r"dpcc tag structure validation complete"
+    )
+
+    # H177: dpcc with missing sub-tags → WARN/CRITICAL
+    suite.assert_output_contains(
+        "heuristic.h177_missing_subtags",
+        ["-a", "--legacy", f"{corpus}/h177_dpcc_missing_subtags.icc"],
+        r"CRITICAL: Required PCC sub-tag 'svcn'"
+    )
+
+    # H178: NaN wavelength → CRITICAL
+    suite.assert_output_contains(
+        "heuristic.h178_nan_wavelength",
+        ["-a", "--legacy", f"{corpus}/h178_srng_nan_wavelength.icc"],
+        r"CRITICAL.*srng spectral range has NaN"
+    )
+
+    # H178: low steps → CRITICAL
+    suite.assert_output_contains(
+        "heuristic.h178_low_steps",
+        ["-a", "--legacy", f"{corpus}/h178_srng_low_steps.icc"],
+        r"CRITICAL.*srng spectral steps=1"
+    )
+
+    # H178: out-of-range wavelength
+    suite.assert_output_contains(
+        "heuristic.h178_out_of_range",
+        ["-a", "--legacy", f"{corpus}/h178_srng_out_of_range.icc"],
+        r"srng start wavelength 50\.0 nm outside 100-2500"
+    )
+
     # --- New heuristic-targeted tests ---
 
     # H3: null/invalid colorSpace
