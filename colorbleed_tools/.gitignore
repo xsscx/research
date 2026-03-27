@@ -3,6 +3,8 @@ iccDEV/
 bin/
 iccToXml_unsafe
 iccFromXml_unsafe
+iccDumpAll
+iccDiagnosticLoad
 *.o
 *.profraw
 *.profdata
