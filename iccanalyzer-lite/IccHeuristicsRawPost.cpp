@@ -1260,17 +1260,24 @@ int RunHeuristic_H51_LUTChannelCountConsistency(RawProfileContext &ctx)
 }
 
 // =========================================================================
-// H52 — Integer Underflow in Tag Size
+// H52 — Integer Underflow in Tag Size (ICC.1-2022-05 §10.10, §10.11)
 // =========================================================================
+// Phase 1: Check minimum sizes for known tag types.
+// Phase 2: For lutAtoBType (mAB, 0x6D414220) and lutBtoAType (mBA, 0x6D424120),
+//          validate the 5 sub-element offset fields (B-curves, Matrix, M-curves,
+//          CLUT, A-curves). If any non-zero offset exceeds the tag size, the
+//          library's (nEnd - pIO->Tell()) subtraction underflows to ~4GB,
+//          defeating all downstream size validation. CFL-065, CWE-191→CWE-789.
+// Phase 3: For lut8Type and lut16Type, validate that declared channel counts
+//          and grid dimensions produce sequential read sizes within the tag.
 int RunHeuristic_H52_IntegerUnderflowTagSize(RawProfileContext &ctx)
 {
   auto &hc = HeuristicCollector::instance();
-  hc.begin(52, "Integer Underflow in Tag Size");
+  hc.begin(52, "Integer Underflow in Tag Size (ICC.1-2022-05 §10.10, §10.11)");
 
   if (!ctx.valid) return hc.skip("File too small for tag table");
 
   size_t fs = ctx.fileSize();
-
 
   for (const auto &tag : ctx.tags) {
     uint32_t tOff = tag.offset;
@@ -1281,7 +1288,7 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(RawProfileContext &ctx)
     if (!ctx.ReadAt(tOff, typeSig, 4)) continue;
     uint32_t typeVal = ReadU32BE(typeSig);
 
-    // Check minimum sizes for known types
+    // Phase 1: Check minimum sizes for known types
     struct { uint32_t type; uint32_t minSize; const char *name; } mins[] = {
       {0x64657363, 12, "desc"},  // textDescription
       {0x58595A20, 20, "XYZ"},   // XYZType
@@ -1301,8 +1308,116 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(RawProfileContext &ctx)
         hc.warn("Tag '%s' (type %s): size %u < minimum %u",
                 sig, m.name, tSz, m.minSize);
         hc.cweNote("CWE-191: Undersized tag — size arithmetic underflows on (size - headerSize)");
-
         break;
+      }
+    }
+
+    // Phase 2: mAB/mBA sub-element offset validation (CFL-065 pattern)
+    // Layout: [typeSig(4)][reserved(4)][nInput(1)][nOutput(1)][reserved(2)][Offset[5](20)]
+    // Total header: 32 bytes. Offset[0..4] = {B-curves, Matrix, M-curves, CLUT, A-curves}
+    // Each non-zero offset is relative to tag start; must be < tagSize.
+    if ((typeVal == 0x6D414220 || typeVal == 0x6D424120) && tSz >= 32) {
+      // Read the 5 offset fields starting at tag_offset + 12
+      if ((uint64_t)tOff + 32 <= fs) {
+        icUInt8Number offBuf[20];
+        if (ctx.ReadAt(tOff + 12, offBuf, 20)) {
+          const char *elemNames[] = {"B-curves", "Matrix", "M-curves", "CLUT", "A-curves"};
+          const char *typeName = (typeVal == 0x6D414220) ? "mAB" : "mBA";
+
+          for (int e = 0; e < 5; e++) {
+            uint32_t subOff = ReadU32BE(offBuf + e * 4);
+            if (subOff == 0) continue; // not present
+
+            if (subOff > tSz) {
+              char sig[5]; SigToChars(tag.sig, sig);
+              hc.critical("Tag '%s' (type %s): %s offset %u exceeds tag size %u "
+                          "— (nEnd - pIO->Tell()) underflows to ~4GB",
+                          sig, typeName, elemNames[e], subOff, tSz);
+              hc.cweNote("CWE-191: Integer underflow in sub-element offset subtraction "
+                         "(CFL-065: defeated size validation → CWE-789 uncontrolled allocation)");
+            } else if (subOff < 32) {
+              char sig[5]; SigToChars(tag.sig, sig);
+              hc.warn("Tag '%s' (type %s): %s offset %u overlaps header (< 32)",
+                      sig, typeName, elemNames[e], subOff);
+              hc.cweNote("CWE-125: Sub-element offset within tag header region");
+            }
+          }
+        }
+      }
+    }
+
+    // Phase 3: lut8/lut16 sequential read size validation
+    // lut8 layout: [sig(4)][reserved(4)][nIn(1)][nOut(1)][gridPoints(1)][pad(1)]
+    //              [matrix(36)][inTableEntries(nIn*256)][clutEntries(grid^nIn*nOut)]
+    //              [outTableEntries(nOut*256)]
+    // lut16 layout: [sig(4)][reserved(4)][nIn(1)][nOut(1)][gridPoints(1)][pad(1)]
+    //              [matrix(36)][nInputTableEntries(2)][nOutputTableEntries(2)]
+    //              [inTable(nIn*nInputEntries*2)][clutEntries(grid^nIn*nOut*2)]
+    //              [outTable(nOut*nOutputEntries*2)]
+    if (typeVal == 0x6D667431 && tSz >= 48) {
+      // lut8Type: read nIn, nOut, gridPoints at offset+8,+9,+10
+      if ((uint64_t)tOff + 12 <= fs) {
+        icUInt8Number lutHdr[4];
+        if (ctx.ReadAt(tOff + 8, lutHdr, 4)) {
+          uint8_t nIn = lutHdr[0], nOut = lutHdr[1], grid = lutHdr[2];
+          if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+            // Fixed header = 48 bytes
+            // Input tables = nIn * 256
+            // CLUT = grid^nIn * nOut (1-byte entries)
+            // Output tables = nOut * 256
+            uint64_t inTable = (uint64_t)nIn * 256;
+            uint64_t clutEntries = 1;
+            for (int d = 0; d < nIn; d++) {
+              clutEntries *= grid;
+              if (clutEntries > 0x10000000ULL) { clutEntries = 0xFFFFFFFFULL; break; }
+            }
+            uint64_t clutData = clutEntries * nOut;
+            uint64_t outTable = (uint64_t)nOut * 256;
+            uint64_t totalMin = 48 + inTable + clutData + outTable;
+
+            if (totalMin > tSz && clutEntries < 0xFFFFFFFFULL) {
+              char sig[5]; SigToChars(tag.sig, sig);
+              hc.warn("Tag '%s' (lut8): nIn=%u nOut=%u grid=%u requires %llu bytes, "
+                      "tag size only %u — sequential reads will underflow nEnd",
+                      sig, nIn, nOut, grid, (unsigned long long)totalMin, tSz);
+              hc.cweNote("CWE-191: lut8 sequential read data exceeds tag size boundary");
+            }
+          }
+        }
+      }
+    }
+
+    if (typeVal == 0x6D667432 && tSz >= 52) {
+      // lut16Type: read nIn, nOut, gridPoints at offset+8,+9,+10
+      // nInputTableEntries at offset+48 (2 bytes), nOutputTableEntries at offset+50 (2 bytes)
+      if ((uint64_t)tOff + 52 <= fs) {
+        icUInt8Number lutHdr[44];
+        if (ctx.ReadAt(tOff + 8, lutHdr, 44)) {
+          uint8_t nIn = lutHdr[0], nOut = lutHdr[1], grid = lutHdr[2];
+          // nInputTableEntries at byte 40 (offset+48 - offset-8 = 40), nOutputTableEntries at 42
+          uint16_t nInEntries = ((uint16_t)lutHdr[40] << 8) | lutHdr[41];
+          uint16_t nOutEntries = ((uint16_t)lutHdr[42] << 8) | lutHdr[43];
+          if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+            uint64_t inTable = (uint64_t)nIn * nInEntries * 2;
+            uint64_t clutEntries = 1;
+            for (int d = 0; d < nIn; d++) {
+              clutEntries *= grid;
+              if (clutEntries > 0x10000000ULL) { clutEntries = 0xFFFFFFFFULL; break; }
+            }
+            uint64_t clutData = clutEntries * nOut * 2;
+            uint64_t outTable = (uint64_t)nOut * nOutEntries * 2;
+            uint64_t totalMin = 52 + inTable + clutData + outTable;
+
+            if (totalMin > tSz && clutEntries < 0xFFFFFFFFULL) {
+              char sig[5]; SigToChars(tag.sig, sig);
+              hc.warn("Tag '%s' (lut16): nIn=%u nOut=%u grid=%u inEntries=%u outEntries=%u "
+                      "requires %llu bytes, tag size only %u",
+                      sig, nIn, nOut, grid, nInEntries, nOutEntries,
+                      (unsigned long long)totalMin, tSz);
+              hc.cweNote("CWE-191: lut16 sequential read data exceeds tag size boundary");
+            }
+          }
+        }
       }
     }
   }
