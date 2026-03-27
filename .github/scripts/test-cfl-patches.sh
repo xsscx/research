@@ -254,9 +254,10 @@ echo ""
 
 # =============================================================================
 # CFL-001: icAnsiToUtf8 null termination (CWE-125/CWE-170)
-# Patched: strlen HBO eliminated on unterminated colorant name[32]
+# UPSTREAM FIXED: PR #740 merged this fix. Patch retired.
+# Test validates the upstream fix holds — PoC should NOT trigger ASAN.
 # =============================================================================
-echo "--- CFL-001: icAnsiToUtf8 null termination ---"
+echo "--- CFL-001: icAnsiToUtf8 null termination (upstream-fixed PR #740) ---"
 
 if [ -f "$HBO_POC" ]; then
     run_patch_test "cfl001-dump-hbo" \
