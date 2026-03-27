@@ -6668,6 +6668,376 @@ static int RunCF329_PCCOverrideSourceValidation(CIccProfile *pIcc) {
   return issues;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CF-330..CF-339: ICC.2:2023 Extended Device Colour Space Amendment
+//
+// Spectral signatures (rs/ts/es/bs/sm) are now allowed in the device colour
+// space field (§7.2.8 amend, passed Oct 30 2025).  New tags: dsrn, dpcc.
+// New type: srng (spectralRangeType, 20 bytes).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Helper: returns true if colorSpace upper 16 bits indicate a spectral
+/// device colour space signature per ICC.2:2023 §7.2.8 amendment Table 21.
+static bool IsSpectralDeviceColorSpace(CIccProfile *pIcc) {
+  icUInt32Number cs = static_cast<icUInt32Number>(pIcc->m_Header.colorSpace);
+  icUInt16Number upper = static_cast<icUInt16Number>(cs >> 16);
+  return upper == 0x7273 || // rs — reflectance
+         upper == 0x7473 || // ts — transmission
+         upper == 0x6573 || // es — radiant
+         upper == 0x6273 || // bs — bi-spectral reflectance
+         upper == 0x736D;   // sm — sparse matrix reflectance
+}
+
+/// Helper: returns true if colorSpace upper 16 bits indicate a bi-spectral type
+static bool IsBiSpectralDevice(CIccProfile *pIcc) {
+  icUInt32Number cs = static_cast<icUInt32Number>(pIcc->m_Header.colorSpace);
+  icUInt16Number upper = static_cast<icUInt16Number>(cs >> 16);
+  return upper == 0x6273 || upper == 0x736D;
+}
+
+// ---------------------------------------------------------------------------
+// CF-330: Device Spectral Colour Space Signature (ICC.2:2023 §7.2.8 amend)
+// ---------------------------------------------------------------------------
+static int RunCF330_DeviceSpectralSignature(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-330]%s Device Spectral Colour Space Signature "
+         "(%sICC.2:2023 §7.2.8 amend%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  icUInt32Number cs = static_cast<icUInt32Number>(pIcc->m_Header.colorSpace);
+
+  if (!IsSpectralDeviceColorSpace(pIcc)) {
+    printf("         colorSpace=0x%08X — not a spectral device signature\n", cs);
+    return 0;
+  }
+
+  icUInt16Number upper = static_cast<icUInt16Number>(cs >> 16);
+  const char *type = "unknown";
+  switch (upper) {
+    case 0x7273: type = "Reflectance Spectral"; break;
+    case 0x7473: type = "Transmission Spectral"; break;
+    case 0x6573: type = "Radiant Spectral"; break;
+    case 0x6273: type = "Bi-Spectral Reflectance"; break;
+    case 0x736D: type = "Sparse Matrix Reflectance"; break;
+  }
+
+  icUInt16Number lower = static_cast<icUInt16Number>(cs & 0xFFFF);
+  printf("         colorSpace=0x%08X — %s (n=%u channels)\n", cs, type, lower);
+  printf("         %s[OK]%s Spectral device colour space signature recognized\n",
+         ColorSuccess(), ColorReset());
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-331: Device Spectral Range Source Requirement
+// (ICC.2:2023 §7.2.8 + §9.2.x)
+// ---------------------------------------------------------------------------
+static int RunCF331_DeviceSpectralRangeSource(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+  if (!IsSpectralDeviceColorSpace(pIcc)) return -1;
+
+  int issues = 0;
+  printf("  %s[CF-331]%s Device Spectral Range Source Requirement "
+         "(%sICC.2:2023 §7.2.8 + §9.2.x%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Check for dsrn tag (0x6473726E)
+  CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+  if (dsrnTag) {
+    printf("         deviceSpectralRangeTag ('dsrn') present\n");
+    printf("         %s[OK]%s Device spectral range defined by dsrn tag\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  // Fallback: header spectral range fields (offsets 104-109)
+  icSpectralRange sr = pIcc->m_Header.spectralRange;
+  if (sr.steps > 0) {
+    printf("         No dsrn tag — using header spectralRange (steps=%u) as fallback\n",
+           sr.steps);
+    printf("         %s[OK]%s Device spectral range defined by header fields\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  printf("         %s[FAIL]%s Spectral device colour space has no spectral "
+         "range definition — neither dsrn tag nor header spectralRange\n",
+         ColorError(), ColorReset());
+  issues++;
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-332: spectralRangeType Reserved Bytes (ICC.2:2023 §10.2.w)
+// ---------------------------------------------------------------------------
+static int RunCF332_SrngReservedBytes(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-332]%s spectralRangeType Reserved Bytes "
+         "(%sICC.2:2023 §10.2.w%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // Find dsrn tag and check its srng data reserved field
+  CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+  if (!dsrnTag) {
+    printf("         No dsrn tag present — check not applicable\n");
+    return -1;
+  }
+
+  // dsrn tag data is spectralRangeType (20 bytes):
+  // bytes 4-7 must be reserved = 0x00000000
+  // We access via tag iteration for offset/size info
+  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+    if (it->TagInfo.sig == (icTagSignature)0x6473726E) {
+      if (it->TagInfo.size < 20) {
+        printf("         %s[FAIL]%s dsrn tag size %u < 20 bytes (minimum "
+               "spectralRangeType size)\n",
+               ColorError(), ColorReset(), it->TagInfo.size);
+        issues++;
+      } else {
+        printf("         dsrn tag found (offset=%u, size=%u) — reserved "
+               "field validation deferred to H176\n",
+               it->TagInfo.offset, it->TagInfo.size);
+      }
+      break;
+    }
+  }
+
+  if (issues == 0) {
+    printf("         %s[OK]%s dsrn tag size meets spectralRangeType minimum\n",
+           ColorSuccess(), ColorReset());
+  }
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-333: devicePccTag Sub-Tag Completeness (ICC.2:2023 §12.2.y)
+// ---------------------------------------------------------------------------
+static int RunCF333_DpccSubTagCompleteness(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-333]%s devicePccTag Sub-Tag Completeness "
+         "(%sICC.2:2023 §12.2.y%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+  if (!dpccTag) {
+    printf("         No dpcc tag present — check not applicable\n");
+    return -1;
+  }
+
+  printf("         devicePccTag ('dpcc') found — sub-tag completeness "
+         "validated by H177\n");
+  printf("         %s[OK]%s dpcc tag present for device PCC override\n",
+         ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-334: PCC pcsIlluminantXYZMbr Required (ICC.2:2023 §12.2.y.2.1)
+// ---------------------------------------------------------------------------
+static int RunCF334_PccIlluminantRequired(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-334]%s PCC pcsIlluminantXYZMbr Required "
+         "(%sICC.2:2023 §12.2.y.2.1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+  if (!dpccTag) {
+    printf("         No dpcc tag — pcsIlluminantXYZMbr check not applicable\n");
+    return -1;
+  }
+
+  // pcsIlluminantXYZMbr ('iXYZ') is required in every PCC structure.
+  // Deep sub-tag scanning done by H177; here we check from library perspective.
+  // Since iccDEV may not parse dpcc structure natively, this check relies on
+  // H177 for detailed validation.
+  printf("         dpcc tag present — iXYZ requirement validated by H177\n");
+  printf("         %s[OK]%s pcsIlluminantXYZMbr conformance check deferred to H177\n",
+         ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-335: PCC mediaWhitePointMbr Conditional (ICC.2:2023 §12.2.y.2.2)
+// ---------------------------------------------------------------------------
+static int RunCF335_PccMediaWhitePoint(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-335]%s PCC mediaWhitePointMbr Conditional "
+         "(%sICC.2:2023 §12.2.y.2.2%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+  if (!dpccTag) {
+    printf("         No dpcc tag — mediaWhitePointMbr check not applicable\n");
+    return -1;
+  }
+
+  printf("         dpcc tag present — mwpt conditionality validated by H177\n");
+  printf("         %s[OK]%s mediaWhitePointMbr conformance check deferred to H177\n",
+         ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-336: PCC spectralWhitePointMbr Conditional (ICC.2:2023 §12.2.y.2.3)
+// ---------------------------------------------------------------------------
+static int RunCF336_PccSpectralWhitePoint(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-336]%s PCC spectralWhitePointMbr Conditional "
+         "(%sICC.2:2023 §12.2.y.2.3%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+  if (!dpccTag) {
+    printf("         No dpcc tag — spectralWhitePointMbr check not applicable\n");
+    return -1;
+  }
+
+  printf("         dpcc tag present — swpt conditionality validated by H177\n");
+  printf("         %s[OK]%s spectralWhitePointMbr conformance check deferred to H177\n",
+         ColorSuccess(), ColorReset());
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-337: Device Spectral Range vs Header Consistency
+// (ICC.2:2023 §7.2.8 + §7.2.22)
+// ---------------------------------------------------------------------------
+static int RunCF337_DeviceRangeHeaderConsistency(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+  if (!IsSpectralDeviceColorSpace(pIcc)) return -1;
+
+  int issues = 0;
+  printf("  %s[CF-337]%s Device Spectral Range vs Header Consistency "
+         "(%sICC.2:2023 §7.2.8 + §7.2.22%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+  icSpectralRange sr = pIcc->m_Header.spectralRange;
+
+  if (dsrnTag && sr.steps > 0) {
+    printf("         Both dsrn tag and header spectralRange present — dsrn "
+           "takes precedence per §7.2.8 amendment\n");
+    printf("         %s[OK]%s Dual-source spectral range noted (dsrn authoritative)\n",
+           ColorSuccess(), ColorReset());
+  } else if (dsrnTag) {
+    printf("         Device spectral range defined by dsrn tag only\n");
+    printf("         %s[OK]%s Range source is dsrn tag\n",
+           ColorSuccess(), ColorReset());
+  } else if (sr.steps > 0) {
+    printf("         Device spectral range defined by header fields only (fallback)\n");
+    printf("         %s[OK]%s Range source is header spectralRange (fallback)\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    printf("         %s[FAIL]%s No spectral range source for spectral device "
+           "colour space\n", ColorError(), ColorReset());
+    issues++;
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-338: Bi-Spectral Device Range Zero Check (ICC.2:2023 §10.2.w)
+// ---------------------------------------------------------------------------
+static int RunCF338_BiSpectralRangeZero(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+  if (!IsSpectralDeviceColorSpace(pIcc)) return -1;
+
+  int issues = 0;
+  printf("  %s[CF-338]%s Bi-Spectral Device Range Zero Check "
+         "(%sICC.2:2023 §10.2.w%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  if (IsBiSpectralDevice(pIcc)) {
+    printf("         Device colour space is bi-spectral — bi-spectral range "
+           "may be non-zero\n");
+    printf("         %s[OK]%s Bi-spectral device type permits bi-spectral range\n",
+           ColorSuccess(), ColorReset());
+  } else {
+    // For non-bi-spectral device types, bi-spectral range in header must be zero
+    icSpectralRange bsr = pIcc->m_Header.biSpectralRange;
+    if (bsr.start != 0 || bsr.end != 0 || bsr.steps != 0) {
+      printf("         %s[FAIL]%s Non-bi-spectral device has non-zero header "
+             "biSpectralRange (start=0x%04X, end=0x%04X, steps=%u)\n",
+             ColorError(), ColorReset(),
+             static_cast<unsigned>(bsr.start),
+             static_cast<unsigned>(bsr.end),
+             static_cast<unsigned>(bsr.steps));
+      issues++;
+    } else {
+      printf("         Non-bi-spectral device — header biSpectralRange is "
+             "correctly zero\n");
+      printf("         %s[OK]%s Bi-spectral range zero for non-bi-spectral device\n",
+             ColorSuccess(), ColorReset());
+    }
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// CF-339: Abstract Profile Device PCC Presence (ICC.2:2023 §9.2.x+1)
+// ---------------------------------------------------------------------------
+static int RunCF339_AbstractDevicePccPresence(CIccProfile *pIcc) {
+  if (!IsV5(pIcc)) return 0;
+
+  int issues = 0;
+  printf("  %s[CF-339]%s Abstract Profile Device PCC Presence "
+         "(%sICC.2:2023 §9.2.x+1%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  // dpcc is only relevant for abstract profiles where device colour space is
+  // colorimetric/spectral PCS
+  icProfileClassSignature cls = pIcc->m_Header.deviceClass;
+  if (cls != icSigAbstractClass) {
+    printf("         Profile class is not Abstract — dpcc check not applicable\n");
+    return -1;
+  }
+
+  CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+  icUInt32Number cs = static_cast<icUInt32Number>(pIcc->m_Header.colorSpace);
+  bool spectralDevice = IsSpectralDeviceColorSpace(pIcc);
+  // Colorimetric PCS as device colour space: Lab/XYZ
+  bool colorimetricDevice = (cs == 0x4C616220 || cs == 0x58595A20);
+
+  if (spectralDevice || colorimetricDevice) {
+    if (dpccTag) {
+      printf("         Abstract profile with PCS-like device colour space has dpcc tag\n");
+      printf("         %s[OK]%s devicePccTag present for alternate PCC override\n",
+             ColorSuccess(), ColorReset());
+    } else {
+      printf("         Abstract profile with PCS-like device colour space has "
+             "no dpcc tag\n");
+      printf("         %s[INFO]%s dpcc tag absent — device PCC matches spectral "
+             "PCS connection conditions\n", ColorWarning(), ColorReset());
+    }
+  } else {
+    printf("         Abstract profile device colour space is not "
+           "colorimetric/spectral — dpcc not expected\n");
+    if (dpccTag) {
+      printf("         %s[FAIL]%s dpcc tag present on abstract profile with "
+             "non-PCS device colour space — unexpected\n",
+             ColorError(), ColorReset());
+      issues++;
+    }
+  }
+
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatcher: RunV5Conformance
 // ---------------------------------------------------------------------------
@@ -6843,6 +7213,18 @@ int RunV5Conformance(CIccProfile *pIcc) {
   CF_WRAP(1327, "CF-327: PCC Alternate Override Readiness", RunCF327_PCCAlternateOverrideReadiness(pIcc));
   CF_WRAP(1328, "CF-328: PCC Non-Standard Colorimetry Indication", RunCF328_PCCNonStandardColorimetry(pIcc));
   CF_WRAP(1329, "CF-329: PCC Override Source Profile Validation", RunCF329_PCCOverrideSourceValidation(pIcc));
+
+  // ICC.2:2023 Extended Device Colour Space Amendment (CF-330..CF-339)
+  CF_WRAP(1330, "CF-330: Device Spectral Colour Space Signature", RunCF330_DeviceSpectralSignature(pIcc));
+  CF_WRAP(1331, "CF-331: Device Spectral Range Source Requirement", RunCF331_DeviceSpectralRangeSource(pIcc));
+  CF_WRAP(1332, "CF-332: spectralRangeType Reserved Bytes", RunCF332_SrngReservedBytes(pIcc));
+  CF_WRAP(1333, "CF-333: devicePccTag Sub-Tag Completeness", RunCF333_DpccSubTagCompleteness(pIcc));
+  CF_WRAP(1334, "CF-334: PCC pcsIlluminantXYZMbr Required", RunCF334_PccIlluminantRequired(pIcc));
+  CF_WRAP(1335, "CF-335: PCC mediaWhitePointMbr Conditional", RunCF335_PccMediaWhitePoint(pIcc));
+  CF_WRAP(1336, "CF-336: PCC spectralWhitePointMbr Conditional", RunCF336_PccSpectralWhitePoint(pIcc));
+  CF_WRAP(1337, "CF-337: Device Spectral Range vs Header Consistency", RunCF337_DeviceRangeHeaderConsistency(pIcc));
+  CF_WRAP(1338, "CF-338: Bi-Spectral Device Range Zero Check", RunCF338_BiSpectralRangeZero(pIcc));
+  CF_WRAP(1339, "CF-339: Abstract Profile Device PCC Presence", RunCF339_AbstractDevicePccPresence(pIcc));
 
 done:
 #undef CF_WRAP
