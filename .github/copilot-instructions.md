@@ -396,6 +396,13 @@ point value must validate finite-ness AND range before casting. Three patterns i
     iccanalyzer-lite H153 detects the sampled curve variant via raw byte scanning
     for sngf/clcf/samf curve signatures.
 
+11. **GamutBoundaryDesc signed channel type confusion** — `CIccTagGamutBoundaryDesc`
+    at `IccTagLut.h:656-657` declares `m_nPCSChannels` and `m_nDeviceChannels` as
+    `icInt16Number` (signed short). `Read16()` loads 0xFFFF → stored as -1. Validation
+    `if (m_nPCSChannels > 3)` evaluates `-1 > 3` → FALSE → bypassed. Allocation
+    `new icFloatNumber[m_nPCSChannels * m_NumberOfVertices]` promotes -1 to SIZE_MAX.
+    Fix: CFL-076 (change both members + getters to `icUInt16Number`).
+
 **Detection**: Run corpus merge or fuzzer with UBSAN:
 ```bash
 UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
