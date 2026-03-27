@@ -60,11 +60,11 @@ on:
       ref:
         description: 'iccDEV branch to test'
         required: false
-        default: 'cfl'
+        default: 'master'
         type: choice
         options:
-          - cfl
           - master
+          - cfl
   schedule:
     - cron: '30 6 * * 3'  # Weekly Wednesday 06:30 UTC
 
@@ -77,7 +77,7 @@ jobs:
   # Job 1: Build iccDEV with ASAN+UBSAN + all 14 CLI tools
   #############################################################################
   build-and-test:
-    name: "iccDEV Tools (${{ github.event.inputs.ref || 'cfl' }}) • ASAN+UBSAN • 331 tests"
+    name: "iccDEV Tools (${{ github.event.inputs.ref || 'master' }}) • ASAN+UBSAN • 331 tests"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -177,7 +177,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          REF="${{ github.event.inputs.ref || 'cfl' }}"
+          REF="${{ github.event.inputs.ref || 'master' }}"
           rm -rf iccDEV
           git clone --depth 1 --branch "$REF" \
             https://github.com/InternationalColorConsortium/iccDEV.git
@@ -753,7 +753,7 @@ jobs:
             echo "| Runner | ubuntu-24.04 |"
             echo "| Compiler | $(clang-18 --version 2>/dev/null | head -1 || echo 'N/A') |"
             echo "| CMake | $(cmake --version 2>/dev/null | head -1 || echo 'N/A') |"
-            echo "| iccDEV | ${{ github.event.inputs.ref || 'cfl' }} — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
+            echo "| iccDEV | ${{ github.event.inputs.ref || 'master' }} — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Script | iccdev-tool-coverage-baseline.sh |"
             echo ""
@@ -765,7 +765,7 @@ jobs:
             echo ""
             echo '```bash'
             echo "# 1. Clone and build"
-            echo "git clone -b cfl https://github.com/InternationalColorConsortium/iccDEV.git"
+            echo "git clone -b master https://github.com/InternationalColorConsortium/iccDEV.git"
             echo "cd iccDEV && mkdir -p build && cd build"
             echo 'cmake ../Build/Cmake \'
             echo '  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \'
