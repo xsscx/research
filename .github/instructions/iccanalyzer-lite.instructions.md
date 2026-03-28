@@ -814,7 +814,7 @@ for r in sarif['runs'][0]['results']:
 
 - 0 analyzer-code UBSAN errors
 - Remaining upstream iccDEV UBSAN (NOT in analyzer code):
-  - `IccCAM.cpp:262,266` — div-by-zero (m_WhitePoint[1] can be 0)
+  - `IccCAM.cpp:262,266,283` — div-by-zero (m_WhitePoint[1]=0 or m_La=0 causes m_Fl=0, m_x0=0; CFL-077 fixes)
   - `IccProfile.cpp:3153,3155` — div-by-zero (m_illuminantXYZ.Y can be 0)
   - `IccTagLut.cpp:5009` — signed integer overflow (int sum += m_XYZMatrix)
   - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange
