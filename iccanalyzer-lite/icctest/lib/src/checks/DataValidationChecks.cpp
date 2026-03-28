@@ -1557,37 +1557,89 @@ REGISTER_HEURISTIC(102, "Tag Size Profile Size Cross Check",
     Severity::HIGH, CheckPhase::LIBRARY,
     check_h102_tag_size_profile_size_cross_check);
 
+static int h147_priority(uint32_t sig) {
+    switch (sig) {
+        case kSigAToB0:
+        case 0x41324231u: // A2B1
+        case 0x41324232u: // A2B2
+        case 0x41324233u: // A2B3
+        case kSigBToA0:
+        case 0x42324131u: // B2A1
+        case 0x42324132u: // B2A2
+        case 0x42324133u: // B2A3
+        case static_cast<uint32_t>(icSigNamedColor2Tag):
+        case static_cast<uint32_t>(icSigRedTRCTag):
+        case static_cast<uint32_t>(icSigGreenTRCTag):
+        case static_cast<uint32_t>(icSigBlueTRCTag):
+        case static_cast<uint32_t>(icSigGrayTRCTag):
+        case static_cast<uint32_t>(icSigGamutBoundaryDescription0Tag):
+        case static_cast<uint32_t>(icSigGamutBoundaryDescription1Tag):
+        case static_cast<uint32_t>(icSigGamutBoundaryDescription2Tag):
+        case static_cast<uint32_t>(icSigGamutBoundaryDescription3Tag):
+        case 0x736D6174u: // smat
+            return 0;
+        case static_cast<uint32_t>(icSigProfileDescriptionTag):
+        case static_cast<uint32_t>(icSigDeviceMfgDescTag):
+        case static_cast<uint32_t>(icSigDeviceModelDescTag):
+        case static_cast<uint32_t>(icSigCharTargetTag):
+            return 1;
+        case static_cast<uint32_t>(icSigCopyrightTag):
+            return 2;
+        default:
+            return 3;
+    }
+}
+
+static void h147_emit_primary_null_tag(CheckBuilder& cb,
+                                       const std::vector<uint32_t>& tags) {
+    if (tags.empty()) {
+        return;
+    }
+
+    uint32_t bestSig = tags.front();
+    int bestPriority = h147_priority(bestSig);
+    for (uint32_t sig : tags) {
+        int pri = h147_priority(sig);
+        if (pri < bestPriority) {
+            bestPriority = pri;
+            bestSig = sig;
+        }
+    }
+
+    cb.critical(
+        sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+             sigStr(bestSig).c_str()),
+        "CWE-476: Null tag pointer in tag table — any access crashes");
+}
+
 static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv) {
     CheckBuilder cb;
-    auto addKnownRawNullTag = [&](uint32_t tagSig) {
-        cb.critical(
-            sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
-                 sigStr(tagSig).c_str()),
-            "CWE-476: Null tag pointer in tag table — any access crashes");
-    };
+    std::vector<uint32_t> rawFallbackTags;
     auto addRawDuplicateFallback = [&]() {
         std::map<uint32_t, int> counts;
         for (const auto& tag : pv.rawTagTable()) {
             counts[tag.signature]++;
         }
+        std::vector<uint32_t> duplicateTags;
         for (const auto& [sig, count] : counts) {
             if (count < 2) {
                 continue;
             }
-            cb.critical(
-                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
-                     sigStr(sig).c_str()),
-                "CWE-476: Null tag pointer in tag table — any access crashes");
+            duplicateTags.push_back(sig);
         }
+        h147_emit_primary_null_tag(cb, duplicateTags);
     };
 
     if (!pv.libraryLoaded()) {
-        bool rawFallbackFinding = false;
         const uint8_t* raw = pv.rawData();
         size_t rawLen = pv.rawSize();
         if (!raw || rawLen < 132) {
             return CheckResult::skip("Library parse failed");
         }
+        if (readU32BE(raw + 36) != 0x61637370u) {
+            return CheckResult::skip("Invalid ICC magic");
+        }
+        std::vector<uint32_t> invalidEntryTags;
 
         static const uint32_t lutTypeSigs[] = {
             0x6D667431, // 'mft1'
@@ -1672,24 +1724,22 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 tagSig == static_cast<uint32_t>(icSigEmbeddedHeightImageType) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedNormalImageType);
             if (!isKnownNullTagCandidate && tagSig == 0x736D6174u) { // 'smat'
-                addKnownRawNullTag(tagSig);
-                rawFallbackFinding = true;
+                rawFallbackTags.push_back(tagSig);
                 continue;
             }
             if (!isKnownNullTagCandidate) {
                 continue;
             }
             if (isTextTag) {
-                addKnownRawNullTag(tagSig);
-                rawFallbackFinding = true;
+                rawFallbackTags.push_back(tagSig);
                 continue;
             }
             if (isTrcTag || tagSig == static_cast<uint32_t>(icSigNamedColor2Tag)) {
-                addKnownRawNullTag(tagSig);
-                rawFallbackFinding = true;
+                rawFallbackTags.push_back(tagSig);
                 continue;
             }
             if (!rawRangeAccessible(rawLen, tagOff, 4)) {
+                invalidEntryTags.push_back(tagSig);
                 continue;
             }
 
@@ -1712,11 +1762,25 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 continue;
             }
 
-            addKnownRawNullTag(tagSig);
-            rawFallbackFinding = true;
+            rawFallbackTags.push_back(tagSig);
         }
 
-        if (rawFallbackFinding) {
+        if (!rawFallbackTags.empty()) {
+            if (pv.requiresLibraryQuarantine() &&
+                rawFallbackTags.size() == 1 &&
+                rawFallbackTags.front() == static_cast<uint32_t>(icSigCopyrightTag)) {
+                return CheckResult::skip("Library quarantined");
+            }
+            h147_emit_primary_null_tag(cb, rawFallbackTags);
+            return cb.done("No null pointer patterns detected in loaded tags");
+        }
+        if (!invalidEntryTags.empty()) {
+            for (uint32_t sig : invalidEntryTags) {
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                         sigStr(sig).c_str()),
+                    "CWE-476: Null tag pointer in tag table — any access crashes");
+            }
             return cb.done("No null pointer patterns detected in loaded tags");
         }
         return CheckResult::skip("Library parse failed");
@@ -1785,14 +1849,13 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
         }
     }
 
+    std::vector<uint32_t> nullTagEntries;
     for (const auto& entry : p->m_Tags) {
         if (!entry.pTag) {
-            cb.critical(
-                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
-                     sigStr(static_cast<uint32_t>(entry.TagInfo.sig)).c_str()),
-                "CWE-476: Null tag pointer in tag table — any access crashes");
+            nullTagEntries.push_back(static_cast<uint32_t>(entry.TagInfo.sig));
         }
     }
+    h147_emit_primary_null_tag(cb, nullTagEntries);
     if (cb.empty()) {
         addRawDuplicateFallback();
     }
