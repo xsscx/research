@@ -347,6 +347,20 @@ def is_conformance_omitted_not_run_match(
     return summary.startswith("not run:")
 
 
+def is_heuristic_omitted_not_run_match(
+    v1_record: dict | None, v2_record: dict | None
+) -> bool:
+    if v1_record is not None or not v2_record:
+        return False
+    if v2_record.get("normalizedStatus", "") != "ok":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 0:
+        return False
+
+    summary = normalize_summary_text(v2_record.get("summary", ""))
+    return summary.startswith("not run:")
+
+
 def is_conformance_advisory_match(v1_record: dict | None, v2_record: dict | None) -> bool:
     if not v1_record or not v2_record:
         return False
@@ -589,6 +603,11 @@ def compare_lane(
         ):
             comparison = "implicit_skip_match"
             normalized_reason = "v1_text_omitted_not_run_conformance_check"
+        elif lane == "heuristic" and is_heuristic_omitted_not_run_match(
+            v1_record, v2_record
+        ):
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_text_omitted_not_run_heuristic_check"
         elif lane == "conformance" and is_conformance_omitted_applicability_match(
             v1_record, v2_record
         ):
@@ -947,6 +966,7 @@ def main() -> int:
             "Conformance V1 ok/no-findings versus V2 skip/no-findings is normalized as applicability_match when V2 explains the skip as not-applicable rather than load/error fallout.",
             "Heuristic V1 ok/no-findings versus V2 skip/no-findings is also normalized as applicability_match using the same logic (e.g. V2 skips v5-only checks on v2/v4 profiles).",
             "Conformance V1 omitted results versus V2 ok/NOT RUN is normalized as implicit_skip_match when V2 is making load failure explicit rather than omitting the CF entry.",
+            "Heuristic V1 omitted results versus V2 ok/NOT RUN is normalized as implicit_skip_match when V2 makes a safe quarantine or non-executable path explicit instead of omitting the check.",
             "Conformance V1 ok versus V2 finding is normalized as advisory_match when every V2 finding is INFO/LOW, reflecting legacy informational notes that V1 did not treat as failing status.",
             "V1 heuristic H151 is synthesized from the composite H37 JSON output because the V1 binary does not emit a standalone H151 record.",
             "V1 heuristic export omissions on early-rejected raw inputs are normalized as export_omission_match for H111/H142-H146 when V2 reports clean ok/no-findings.",

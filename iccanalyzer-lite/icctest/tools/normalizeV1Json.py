@@ -17,6 +17,8 @@ from pathlib import Path
 
 from runtimeEnv import v1_runtime_env
 
+ANSI_RE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -92,6 +94,47 @@ def run_v1_json(
         "stderr": stderr,
     }
     return payload
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_RE.sub("", text)
+
+
+def run_v1_text(
+    binary: Path,
+    input_file: Path,
+    legacy: bool,
+    *,
+    disable_library_ub_defense: bool = False,
+) -> dict:
+    cmd = [str(binary), "-a"]
+    if legacy:
+        cmd.append("--legacy")
+    cmd.append(str(input_file))
+
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
+        check=False,
+    )
+
+    stdout = proc.stdout.decode("utf-8", errors="replace")
+    stderr = proc.stderr.decode("utf-8", errors="replace")
+
+    if not stdout.strip():
+        raise RuntimeError(
+            f"V1 text command produced no stdout (rc={proc.returncode})."
+            f" stderr={stderr.strip()[:400]}"
+        )
+
+    return {
+        "stdout": stdout,
+        "stdoutStripped": strip_ansi(stdout),
+        "stderr": stderr,
+        "cmd": cmd,
+        "returncode": proc.returncode,
+    }
 
 
 def normalized_status(status: str) -> str:
@@ -271,9 +314,122 @@ def maybe_synthesize_h151(records: list[dict]) -> None:
     )
 
 
-def build_output(payload: dict, cf_registry: dict[str, dict[str, str]], lane: str) -> dict:
+def maybe_synthesize_h172(
+    records: list[dict],
+    *,
+    binary: Path,
+    input_file: Path,
+    legacy: bool,
+    disable_library_ub_defense: bool,
+) -> None:
+    if any(record.get("canonicalId") == "H172" for record in records):
+        return
+    if not legacy:
+        return
+
+    payload = run_v1_text(
+        binary,
+        input_file,
+        legacy,
+        disable_library_ub_defense=disable_library_ub_defense,
+    )
+    lines = payload["stdoutStripped"].splitlines()
+
+    start = None
+    for idx, line in enumerate(lines):
+        if line.startswith("[H172] "):
+            start = idx
+            break
+
+    if start is None:
+        return
+
+    block_lines: list[str] = []
+    for idx in range(start, len(lines)):
+        line = lines[idx]
+        if idx > start and re.match(r"^\[H\d+\]\s+", line):
+            break
+        block_lines.append(line.rstrip())
+
+    stripped = [line.strip() for line in block_lines if line.strip()]
+    if len(stripped) < 2:
+        return
+
+    finding_lines: list[str] = []
+    detail_lines: list[str] = []
+    ok = False
+    skip = False
+
+    for line in stripped[1:]:
+        if line.startswith(("[WARN]", "[FAIL]", "[ERROR]")):
+            finding_lines.append(line)
+            detail_lines.append(line)
+            continue
+        if line.startswith(("[N/A]", "[SKIP]", "[NOT RUN]")):
+            skip = True
+            detail_lines.append(line)
+            continue
+        if line.startswith("[OK]"):
+            ok = True
+            detail_lines.append(line)
+            continue
+        if line.startswith(("CWE-", "Checked ", "Validated ")):
+            detail_lines.append(line)
+
+    normalized = "ok"
+    raw_status = "ok"
+    finding_count = 0
+    if finding_lines:
+        normalized = "finding"
+        raw_status = "warn"
+        finding_count = len(finding_lines)
+    elif skip:
+        normalized = "skip"
+        raw_status = "skip"
+    elif ok:
+        normalized = "ok"
+        raw_status = "ok"
+
+    records.append(
+        {
+            "tool": "v1-synth",
+            "lane": "heuristic",
+            "rawId": 172,
+            "canonicalId": "H172",
+            "rawName": "LUT Matrix Coefficient Validation",
+            "canonicalName": "LUT Matrix Coefficient Validation",
+            "reportedStatus": raw_status,
+            "normalizedStatus": normalized,
+            "reportedSeverity": "MEDIUM",
+            "findingCount": finding_count,
+            "detail": "\n".join(detail_lines),
+            "canonicalSeverity": "MEDIUM",
+            "specRef": "ICC TN v4 Matrix Entries",
+            "specDoc": "",
+            "category": "",
+        }
+    )
+
+
+def build_output(
+    payload: dict,
+    cf_registry: dict[str, dict[str, str]],
+    lane: str,
+    *,
+    binary: Path,
+    input_file: Path,
+    legacy: bool,
+    disable_library_ub_defense: bool,
+) -> dict:
     records = [normalize_result(item, cf_registry) for item in payload.get("results", [])]
     maybe_synthesize_h151(records)
+    maybe_synthesize_h172(
+        records,
+        binary=binary,
+        input_file=input_file,
+        legacy=legacy,
+        disable_library_ub_defense=disable_library_ub_defense,
+    )
     if lane != "all":
         records = [record for record in records if record["lane"] == lane]
 
@@ -346,7 +502,15 @@ def main() -> int:
         args.legacy,
         disable_library_ub_defense=args.disable_library_ub_defense,
     )
-    out = build_output(payload, cf_registry, args.lane)
+    out = build_output(
+        payload,
+        cf_registry,
+        args.lane,
+        binary=args.binary,
+        input_file=args.input_file,
+        legacy=args.legacy,
+        disable_library_ub_defense=args.disable_library_ub_defense,
+    )
     json.dump(out, sys.stdout, indent=2 if args.pretty else None)
     if args.pretty:
         sys.stdout.write("\n")
