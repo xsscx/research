@@ -112,6 +112,8 @@ REC2100_FULL="$(resolve_profile Rec2100HlgFull.icc)"
 CFL049_POC="$(resolve_profile cfl-049-btoa-lut16-test.icc)"
 HBO_POC="$(resolve_profile hbo-CIccTagColorantTable-Describe-IccTagBasic_cpp-Line8953.icc)"
 MULTICHAN="$(resolve_profile 17ChanPart1.icc)"
+CFL004_POC="$(resolve_profile CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc)"
+CFL077_POC="$(resolve_profile Spec400_10_700-B_2deg-CAM.icc)"
 
 # =============================================================================
 # Test helpers
@@ -275,10 +277,11 @@ fi
 
 # =============================================================================
 # CFL-002: GamutBoundary triangles signed overflow (CWE-190)
-# Patched: m_NumberOfTriangles*3 cast to int64 before multiply
+# RETIRED: upstream fix in v2.3.1.6 — patch moved to cfl/patches-retired/
+# Test validates the upstream fix holds.
 # =============================================================================
 echo ""
-echo "--- CFL-002: GamutBoundary triangles overflow ---"
+echo "--- CFL-002: GamutBoundary triangles overflow (upstream-fixed) ---"
 
 run_patch_test "cfl002-srgb-dump" \
     "DumpProfile sRGB — no crash" \
@@ -288,9 +291,19 @@ run_patch_test "cfl002-srgb-dump" \
 # =============================================================================
 # CFL-004: ToneMapFunc Read parameter count (CWE-122)
 # Patched: validates m_nParameters >= NumArgs() in Read()
+# PoC: CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc
+#   UNPATCHED: ASAN heap-buffer-overflow at IccMpeBasic.cpp:3988 (SCARINESS=17)
+#   PATCHED:   clean exit, no ASAN
 # =============================================================================
 echo ""
 echo "--- CFL-004: ToneMapFunc param count validation ---"
+
+if [ -f "$CFL004_POC" ]; then
+    run_patch_test "cfl004-poc-hbo" \
+        "DumpProfile ToneMapFunc HBO PoC — no ASAN" \
+        "no_asan" "" \
+        "$DUMP" -v 100 "$CFL004_POC" ALL
+fi
 
 if [ -f "$REC2100" ]; then
     run_patch_test "cfl004-rec2100-dump" \
@@ -753,6 +766,399 @@ if [ -d "$MALFORMED_JSON" ]; then
 else
     skip_test "cfl057" "CFL-057 SearchApply init" "malformed-json/ missing"
 fi
+
+# =============================================================================
+# CFL-059: CIccTagCurve::Begin nMaxIndex underflow (CWE-681)
+# Patched: m_nSize > 0 guard before (m_nSize - 1) to avoid unsigned underflow
+# Source: IccTagLut.h — Begin() method
+# =============================================================================
+echo ""
+echo "--- CFL-059: TagCurve Begin nMaxIndex underflow ---"
+
+run_patch_test "cfl059-srgb-roundtrip" \
+    "RoundTrip sRGB — no unsigned underflow" \
+    "no_ubsan" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+# =============================================================================
+# CFL-061: icF16toF unsigned underflow (CWE-191)
+# Patched: prevents unsigned subtraction underflow in half-float decoder
+# Source: IccUtil.cpp — icF16toF()
+# =============================================================================
+echo ""
+echo "--- CFL-061: icF16toF unsigned underflow ---"
+
+run_patch_test "cfl061-srgb-dump" \
+    "DumpProfile sRGB — no underflow UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+# =============================================================================
+# CFL-062: icGetSig implicit char conversion (CWE-681)
+# Patched: explicit cast prevents implicit int-to-icChar UBSAN
+# Source: IccUtil.cpp — icGetSig()
+# =============================================================================
+echo ""
+echo "--- CFL-062: icGetSig implicit char conversion ---"
+
+run_patch_test "cfl062-srgb-dump" \
+    "DumpProfile sRGB — no implicit conversion UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+run_patch_test "cfl062-srgb-toxml" \
+    "ToXml sRGB — no implicit conversion UBSAN" \
+    "no_ubsan" "" \
+    "$TOXML" "$SRGB" "$OUTDIR/cfl062.xml"
+
+# =============================================================================
+# CFL-063: Bounds check unsigned overflow (CWE-190)
+# Patched: offset+size overflow guards in Read/CheckLut
+# Source: IccProfile.cpp, IccTagMPE.cpp, IccMpeCalc.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-063: Bounds check unsigned overflow ---"
+
+run_patch_test "cfl063-srgb-roundtrip" \
+    "RoundTrip sRGB — no unsigned overflow UBSAN" \
+    "no_ubsan" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+if [ -f "$MULTICHAN" ]; then
+    run_patch_test "cfl063-17chan-dump" \
+        "DumpProfile 17-channel — no overflow UBSAN" \
+        "no_sanitizer" "" \
+        "$DUMP" -v 100 "$MULTICHAN" ALL
+fi
+
+# =============================================================================
+# CFL-064: Segmented curve subtraction underflow (CWE-191)
+# Patched: pos-startPos underflow guard in CIccSegmentedCurve::Read
+# Source: IccMpeBasic.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-064: Segmented curve subtraction underflow ---"
+
+run_patch_test "cfl064-srgb-dump" \
+    "DumpProfile sRGB — no subtraction underflow UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+if [ -f "$DISPLAY_P3" ]; then
+    run_patch_test "cfl064-p3-roundtrip" \
+        "RoundTrip DisplayP3 — no subtraction underflow" \
+        "no_ubsan" "" \
+        "$ROUNDTRIP" "$DISPLAY_P3"
+fi
+
+# =============================================================================
+# CFL-067: icIsS15Fixed16NumberNear float overflow (CWE-681)
+# Patched: isnan/isinf check before unsigned cast in D50 check
+# Source: IccUtil.cpp — icIsS15Fixed16NumberNear()
+# =============================================================================
+echo ""
+echo "--- CFL-067: S15Fixed16 float overflow guard ---"
+
+run_patch_test "cfl067-srgb-dump" \
+    "DumpProfile sRGB — no float overflow UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+run_patch_test "cfl067-srgb-roundtrip" \
+    "RoundTrip sRGB — no float overflow UBSAN" \
+    "no_ubsan" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+# =============================================================================
+# CFL-040: fromIt8 CMYK missing push_back (CWE-787/CWE-125)
+# Patched: adds samples.push_back(val) in CMYK branch
+# Source: IccCmmConfig.cpp — fromIt8()
+# =============================================================================
+echo ""
+echo "--- CFL-040: fromIt8 CMYK missing push_back ---"
+
+# JSON config tools exercise this code path
+if [ -n "$_JSON_CONFIGS" ]; then
+    for cfg in "$_JSON_CONFIGS"/*.json; do
+        [ -f "$cfg" ] || continue
+        base=$(basename "$cfg" .json)
+        run_patch_test "cfl040-cfg-$base" \
+            "ApplyNamedCmm -cfg $base — no sanitizer" \
+            "no_sanitizer" "" \
+            "$APPLYNAMED" -cfg "$cfg"
+        break
+    done
+else
+    run_patch_test "cfl040-roundtrip-srgb" \
+        "RoundTrip sRGB — CMYK path safe" \
+        "no_sanitizer" "" \
+        "$ROUNDTRIP" "$SRGB"
+fi
+
+# =============================================================================
+# CFL-041: fromIt8 LAB/XYZ val(4) out-of-bounds (CWE-125)
+# Patched: val(4) corrected to val(3) for 3-channel LAB/XYZ
+# Source: IccCmmConfig.cpp — fromIt8()
+# =============================================================================
+echo ""
+echo "--- CFL-041: fromIt8 LAB/XYZ val(4) OOB ---"
+
+if [ -n "$_JSON_CONFIGS" ]; then
+    for cfg in "$_JSON_CONFIGS"/*.json; do
+        [ -f "$cfg" ] || continue
+        base=$(basename "$cfg" .json)
+        run_patch_test "cfl041-cfg-$base" \
+            "ApplyNamedCmm -cfg $base — no OOB" \
+            "no_sanitizer" "" \
+            "$APPLYNAMED" -cfg "$cfg"
+        break
+    done
+else
+    run_patch_test "cfl041-roundtrip-srgb" \
+        "RoundTrip sRGB — LAB/XYZ path safe" \
+        "no_sanitizer" "" \
+        "$ROUNDTRIP" "$SRGB"
+fi
+
+# =============================================================================
+# CFL-042: ParseNumbers 'n' vs '\n' typo (CWE-20)
+# Patched: literal character 'n' corrected to newline '\n'
+# Source: IccCmmConfig.cpp — ParseNumbers()
+# =============================================================================
+echo ""
+echo "--- CFL-042: ParseNumbers newline typo ---"
+
+if [ -n "$_JSON_CONFIGS" ]; then
+    for cfg in "$_JSON_CONFIGS"/*.json; do
+        [ -f "$cfg" ] || continue
+        base=$(basename "$cfg" .json)
+        run_patch_test "cfl042-cfg-$base" \
+            "ApplyNamedCmm -cfg $base — parse ok" \
+            "no_sanitizer" "" \
+            "$APPLYNAMED" -cfg "$cfg"
+        break
+    done
+else
+    run_patch_test "cfl042-roundtrip-srgb" \
+        "RoundTrip sRGB — parse path safe" \
+        "no_sanitizer" "" \
+        "$ROUNDTRIP" "$SRGB"
+fi
+
+# =============================================================================
+# CFL-046: PCS step src matrix delete[] mismatch (CWE-762)
+# Patched: delete vs delete[] mismatch on matrix array in IccCmm.cpp
+# Source: IccCmm.cpp — PCS step cleanup
+# =============================================================================
+echo ""
+echo "--- CFL-046: PCS step matrix delete[] ---"
+
+run_patch_test "cfl046-srgb-roundtrip" \
+    "RoundTrip sRGB — no alloc/dealloc mismatch" \
+    "no_sanitizer" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+if [ -f "$SRGB" ] && [ -f "$SRGB_500" ]; then
+    run_patch_test "cfl046-link-srgb" \
+        "ApplyToLink sRGB — no delete[] mismatch" \
+        "no_sanitizer" "" \
+        "$APPLYTOLINK" "$SRGB" 1 "$SRGB_500" 1 "$OUTDIR/cfl046-link.icc"
+fi
+
+# =============================================================================
+# CFL-047: pushXYZNormalize null PCC guard (CWE-476)
+# Patched: NULL check on PCC pointer before dereference
+# Source: IccCmm.cpp — pushXYZNormalize()
+# =============================================================================
+echo ""
+echo "--- CFL-047: pushXYZNormalize null PCC guard ---"
+
+run_patch_test "cfl047-srgb-roundtrip" \
+    "RoundTrip sRGB — no null PCC deref" \
+    "no_sanitizer" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+if [ -f "$MULTICHAN" ]; then
+    run_patch_test "cfl047-17chan-roundtrip" \
+        "RoundTrip 17-channel — no null PCC deref" \
+        "no_sanitizer" "" \
+        "$ROUNDTRIP" "$MULTICHAN"
+fi
+
+# =============================================================================
+# CFL-068: MpeCurveSet operator= self-assignment guard (CWE-416)
+# Patched: self-assignment check in operator= to prevent UAF
+# Source: IccMpeBasic.cpp — CIccMpeCurveSet::operator=()
+# =============================================================================
+echo ""
+echo "--- CFL-068: MpeCurveSet self-assignment guard ---"
+
+run_patch_test "cfl068-srgb-dump" \
+    "DumpProfile sRGB — no self-assign UAF" \
+    "no_sanitizer" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+# =============================================================================
+# CFL-069: operator= self-assignment guards (multiple classes) (CWE-416)
+# Patched: self-assignment checks in multiple IccMpeBasic.cpp classes
+# Source: IccMpeBasic.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-069: Multiple operator= self-assignment guards ---"
+
+run_patch_test "cfl069-srgb-roundtrip" \
+    "RoundTrip sRGB — no self-assign issues" \
+    "no_sanitizer" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+if [ -f "$REC2100" ]; then
+    run_patch_test "cfl069-rec2100-dump" \
+        "DumpProfile Rec2100 — no self-assign issues" \
+        "no_sanitizer" "" \
+        "$DUMP" -v 100 "$REC2100" ALL
+fi
+
+# =============================================================================
+# CFL-070: Missing member copies in operator=/copy ctor (CWE-665)
+# Patched: ensures all members copied in copy and assignment
+# Source: IccMpeBasic.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-070: Missing member copies ---"
+
+run_patch_test "cfl070-srgb-roundtrip" \
+    "RoundTrip sRGB — complete member copy" \
+    "no_sanitizer" "" \
+    "$ROUNDTRIP" "$SRGB"
+
+# =============================================================================
+# CFL-071: Uninitialized default constructor members (CWE-908)
+# Patched: initializes all scalar members in default constructors
+# Source: IccMpeBasic.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-071: Uninit default ctor members ---"
+
+run_patch_test "cfl071-srgb-dump" \
+    "DumpProfile sRGB — no uninit member UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+if [ -f "$REC2100" ]; then
+    run_patch_test "cfl071-rec2100-roundtrip" \
+        "RoundTrip Rec2100 — no uninit member UBSAN" \
+        "no_ubsan" "" \
+        "$ROUNDTRIP" "$REC2100"
+fi
+
+# =============================================================================
+# CFL-072: printf format and unused function cleanup (CWE-134)
+# Patched: corrects format specifiers, removes dead code
+# Source: IccMpeBasic.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-072: printf format and unused function ---"
+
+run_patch_test "cfl072-srgb-dump" \
+    "DumpProfile sRGB — no format string UBSAN" \
+    "no_ubsan" "" \
+    "$DUMP" -v 100 "$SRGB" ALL
+
+# =============================================================================
+# CFL-073: IccProfileXml implicit fallthrough (CWE-484)
+# Patched: adds break or fallthrough annotation in switch
+# Source: IccXML/IccLibXML/IccProfileXml.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-073: IccProfileXml implicit fallthrough ---"
+
+run_patch_test "cfl073-srgb-toxml" \
+    "ToXml sRGB — no fallthrough warnings" \
+    "no_sanitizer" "" \
+    "$TOXML" "$SRGB" "$OUTDIR/cfl073.xml"
+
+if [ -f "$OUTDIR/cfl073.xml" ]; then
+    run_patch_test "cfl073-fromxml-roundtrip" \
+        "FromXml roundtrip — no fallthrough issues" \
+        "no_sanitizer" "" \
+        "$FROMXML" "$OUTDIR/cfl073.xml" "$OUTDIR/cfl073-rt.icc"
+fi
+
+# =============================================================================
+# CFL-074: IccUtilXml clipTypeRange if-constexpr (CWE-570)
+# Patched: dead comparison removed via if-constexpr pattern
+# Source: IccXML/IccLibXML/IccUtilXml.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-074: IccUtilXml clipTypeRange ---"
+
+run_patch_test "cfl074-srgb-toxml" \
+    "ToXml sRGB — clean XML export" \
+    "no_sanitizer" "" \
+    "$TOXML" "$SRGB" "$OUTDIR/cfl074.xml"
+
+if [ -f "$DISPLAY_P3" ]; then
+    run_patch_test "cfl074-p3-toxml" \
+        "ToXml DisplayP3 — clean XML export" \
+        "no_sanitizer" "" \
+        "$TOXML" "$DISPLAY_P3" "$OUTDIR/cfl074-p3.xml"
+fi
+
+# =============================================================================
+# CFL-075: IccCmmConfig uninit + format fixes (CWE-908/CWE-134)
+# Patched: initializes members, fixes format strings
+# Source: IccCmmConfig.cpp
+# =============================================================================
+echo ""
+echo "--- CFL-075: IccCmmConfig uninit + format fixes ---"
+
+if [ -n "$_JSON_CONFIGS" ]; then
+    for cfg in "$_JSON_CONFIGS"/*.json; do
+        [ -f "$cfg" ] || continue
+        base=$(basename "$cfg" .json)
+        run_patch_test "cfl075-cfg-$base" \
+            "ApplyNamedCmm -cfg $base — no uninit UBSAN" \
+            "no_ubsan" "" \
+            "$APPLYNAMED" -cfg "$cfg"
+        break
+    done
+else
+    run_patch_test "cfl075-roundtrip-srgb" \
+        "RoundTrip sRGB — no uninit UBSAN" \
+        "no_ubsan" "" \
+        "$ROUNDTRIP" "$SRGB"
+fi
+
+# =============================================================================
+# CFL-077: CAM CalcCoefficients div-by-zero guard (CWE-369)
+# Patched: guards 3 division chains when m_La=0 or m_WhitePoint[1]=0
+# PoC: Spec400_10_700-B_2deg-CAM.icc
+#   UNPATCHED: UBSAN division by zero at IccCAM.cpp:266,283 (3 sites)
+#   PATCHED:   clean exit, no UBSAN
+# Source: IccCAM.cpp — CIccCamConverter::CalcCoefficients()
+# =============================================================================
+echo ""
+echo "--- CFL-077: CAM CalcCoefficients div-by-zero ---"
+
+if [ -f "$CFL077_POC" ]; then
+    run_patch_test "cfl077-poc-divzero" \
+        "DumpProfile CAM PoC — no div-by-zero UBSAN" \
+        "no_ubsan" "" \
+        "$DUMP" -v 100 "$CFL077_POC" ALL
+
+    run_patch_test "cfl077-poc-no-asan" \
+        "DumpProfile CAM PoC — no ASAN" \
+        "no_asan" "" \
+        "$DUMP" -v 100 "$CFL077_POC" ALL
+else
+    skip_test "cfl077" "CFL-077 CAM div-by-zero" "Spec400_10_700-B_2deg-CAM.icc missing"
+fi
+
+# Also test with sRGB to ensure no regression on normal CAM usage
+run_patch_test "cfl077-srgb-roundtrip" \
+    "RoundTrip sRGB — CAM no regression" \
+    "no_sanitizer" "" \
+    "$ROUNDTRIP" "$SRGB"
 
 # =============================================================================
 # Cross-tool validation: all tools build and run clean on good profiles
