@@ -1,6 +1,6 @@
 --- a/IccProfLib/IccTagLut.cpp
 +++ b/IccProfLib/IccTagLut.cpp
-@@ -891,7 +891,7 @@
+@@ -888,7 +888,7 @@
  
  case 0x0003:
    if (m_nNumParam < 5) { sDescription += "  Insufficient parameters\n"; return; }
@@ -9,7 +9,7 @@
      m_dParam[3], m_dParam[4]);
    sDescription += buf;
  
-@@ -903,7 +903,7 @@
+@@ -900,7 +900,7 @@
  
  case 0x0004:
    if (m_nNumParam < 7) { sDescription += "  Insufficient parameters\n"; return; }

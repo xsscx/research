@@ -1,6 +1,8 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index 3bc7292..87647d9 100644
 --- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
 +++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
-@@ -562,6 +562,7 @@
+@@ -561,6 +561,7 @@ void CIccCfgProfile::reset()
    m_useBPC = false;
    m_useHToS = false;
    m_useV5SubProfile = false;
@@ -8,16 +10,7 @@
    m_interpolation = icInterpTetrahedral;
  }
  
-@@ -593,7 +594,7 @@
- 
- static const char* icGetRenderingIntentName(int nIntent)
- {
--  if (nIntent >= icPerceptual && nIntent <= icAbsolute)
-+  if (nIntent >= static_cast<int>(icPerceptual) && nIntent <= static_cast<int>(icAbsolute))
-     return icIntentNames[nIntent];
- 
-   return "unknown";
-@@ -1387,7 +1388,7 @@
+@@ -1374,7 +1375,7 @@ bool CIccCfgColorData::fromLegacy(const char* filename, bool bReset)
    }
  
    InputData.getline(tempBuf, tempBufSize);
@@ -26,7 +19,7 @@
  
    //Setup source encoding
    m_encoding = CIccCmm::GetFloatColorEncoding(tempBuf);
-@@ -2060,7 +2061,7 @@
+@@ -2046,7 +2047,7 @@ bool CIccCfgColorData::toIt8(const char* filename, icUInt8Number nDigits, icUInt
    fprintf(f, "BEGIN_DATA_FORMAT\n");
    fprintf(f, "%s\n", dataFormat.c_str());
    fprintf(f, "END_DATA_FORMAT\n");

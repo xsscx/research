@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7d2a7a1..e98b972 100644
 --- a/IccProfLib/IccMpeBasic.cpp
 +++ b/IccProfLib/IccMpeBasic.cpp
-@@ -2250,7 +2250,7 @@
+@@ -2199,7 +2199,7 @@ void CIccSampledCalculatorCurve::Describe(std::string &sDescription, int nVerbos
      snprintf(buf, bufSize, "%.8f,", m_lastEntry);
      sDescription += buf;
  
@@ -9,7 +11,7 @@
      sDescription += buf;
  
      snprintf(buf, bufSize, "]\r\n");
-@@ -2265,7 +2265,7 @@
+@@ -2214,7 +2214,7 @@ void CIccSampledCalculatorCurve::Describe(std::string &sDescription, int nVerbos
      snprintf(buf, bufSize, "%.8f,", m_lastEntry);
      sDescription += buf;
  
@@ -18,7 +20,7 @@
      sDescription += buf;
  
      snprintf(buf, bufSize, "]\r\n");
-@@ -5463,7 +5463,7 @@
+@@ -5388,7 +5388,7 @@ static icFloatNumber NoClip(icFloatNumber v)
  }
  
  // this isn't used yet, but want to have it ready
