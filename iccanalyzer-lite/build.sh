@@ -83,7 +83,31 @@ echo ""
 INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
 
 # Libraries
-LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
+resolve_static_lib() {
+  local dir="$1"
+  local base="$2"
+  local lib=""
+
+  for candidate in \
+    "${dir}/${base}-static.a" \
+    "${dir}/${base}-staticd.a"; do
+    if [ -f "$candidate" ]; then
+      lib="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$lib" ]; then
+    echo "ERROR: required static library not found in $dir for ${base}-static[ d].a" >&2
+    exit 1
+  fi
+
+  printf '%s' "$lib"
+}
+
+LIB_PROF="$(resolve_static_lib "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")"
+LIB_XML="$(resolve_static_lib "${ICCDEV_BUILD}/IccXML" "libIccXML2")"
+LIBS="${LIB_PROF} ${LIB_XML} -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
 
 # Source files
 SOURCES="iccAnalyzer-lite.cpp IccDevSafeOverrides.cpp IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp IccConformanceHeader.cpp IccConformanceTagTypes.cpp IccConformanceRequired.cpp IccConformanceLUT.cpp IccConformanceV5.cpp IccConformanceSecurity.cpp IccConformanceQuality.cpp"
