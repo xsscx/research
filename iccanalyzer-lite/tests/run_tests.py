@@ -111,6 +111,68 @@ def pawg_spec_reference_paths():
         if entry.is_file() and entry.name != "ICC.1_Adaptive_Gain_Curve.pdf"
     ]
 
+
+def make_h161_deep_apply_profile_bytes():
+    data = bytearray(192)
+
+    def put_u32(offset, value):
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=False)
+
+    def put_u16(offset, value):
+        data[offset:offset + 2] = int(value).to_bytes(2, "big", signed=False)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)   # v4.4
+    put_u32(12, 0x6D6E7472)  # 'mntr'
+    put_u32(16, 0x3132434C)  # '12CL'
+    put_u32(20, 0x4C616220)  # 'Lab '
+    put_u32(36, 0x61637370)  # 'acsp'
+
+    put_u32(128, 2)
+    put_u32(132, 0x41324230)  # 'A2B0'
+    put_u32(136, 160)
+    put_u32(140, 16)
+    put_u32(144, 0x42324130)  # 'B2A0'
+    put_u32(148, 176)
+    put_u32(152, 16)
+
+    put_u32(160, 0x6D706574)  # 'mpet'
+    put_u16(168, 12)
+    put_u16(170, 12)
+    put_u32(172, 5)
+
+    put_u32(176, 0x6D706574)  # 'mpet'
+    put_u16(184, 12)
+    put_u16(186, 12)
+    put_u32(188, 5)
+
+    return bytes(data)
+
+
+def make_h169_dict_bounds_profile_bytes():
+    data = bytearray(160)
+
+    def put_u32(offset, value):
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=False)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)   # v4.4
+    put_u32(12, 0x6D6E7472)  # 'mntr'
+    put_u32(16, 0x52474220)  # 'RGB '
+    put_u32(20, 0x58595A20)  # 'XYZ '
+    put_u32(36, 0x61637370)  # 'acsp'
+
+    put_u32(128, 1)
+    put_u32(132, 0x6D657461)  # 'meta'
+    put_u32(136, 144)
+    put_u32(140, 16)
+
+    put_u32(144, 0x64696374)  # 'dict'
+    put_u32(152, 3)
+    put_u32(156, 8)
+
+    return bytes(data)
+
 # ANSI color codes
 class _Colors:
     """Terminal color codes with auto-detection."""
@@ -1184,6 +1246,76 @@ def test_heuristic_detection(suite):
         "heuristic.h159_clean_profile",
         ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
         r"\[H159\][\s\S]*No UAF-triggering ownership patterns detected"
+    )
+
+    # --- H161 deep Apply() stack-address-escape regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h161_deep_apply_profile_bytes())
+        h161_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h161_deep_apply_synthetic",
+            ["-a", "--legacy", h161_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h161_deep_apply_mpet_chain",
+            ["-a", "--legacy", h161_path],
+            r"H161|Stack Address Escape Deep Apply Chains|A2B0.*5 elements x 12->12 channels|CWE-121"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h161_deep_apply_profile_wide",
+            ["-a", "--legacy", h161_path],
+            r"H161|12-channel profile with 2 MPE tags|High channel count"
+        )
+    finally:
+        try:
+            os.unlink(h161_path)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h161_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H161\][\s\S]*No deep Apply\(\) chain stack-escape risk patterns"
+    )
+
+    # --- H169 dictionary tag element bounds regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h169_dict_bounds_profile_bytes())
+        h169_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h169_dictionary_bounds_synthetic",
+            ["-a", "--legacy", h169_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h169_dictionary_reclen",
+            ["-a", "--legacy", h169_path],
+            r"H169|Dictionary Tag Element Bounds|dict recLen = 8|CWE-20"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h169_dictionary_size",
+            ["-a", "--legacy", h169_path],
+            r"H169|3 entries × 8 bytes/rec = 24 bytes exceeds 16-byte tag|CWE-789"
+        )
+    finally:
+        try:
+            os.unlink(h169_path)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h169_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H169\][\s\S]*No dictionary tag bounds issues detected"
     )
 
     # --- H151 float→int cast operator detection (CWE-681) ---

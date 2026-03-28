@@ -159,7 +159,7 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 158	exact	implemented	Enum Range Violation Detection	Enum Range Violation Detection	CodeQLPatternChecks.cpp	
 159	exact	implemented	UAF Tag Ownership Chain Detection	UAF Tag Ownership Chain Detection	CodeQLPatternChecks.cpp	
 160	exact	implemented	Format String Injection in Text Tags	Format String Injection in Text Tags	CodeQLPatternChecks.cpp	
-161	exact	todo	Stack Address Escape Deep Apply Chains	Stack Address Escape Deep Apply Chains	CodeQLPatternChecks.cpp	
+161	exact	implemented	Stack Address Escape Deep Apply Chains	Stack Address Escape Deep Apply Chains	CodeQLPatternChecks.cpp	
 162	rename	implemented	Partial Tag Data Overlap Detection	Partial Tag Data Overlap	ExploitGapChecks.cpp	same check; cosmetic rename
 163	rename	implemented	Executable Signature Scan In Tag Data	Executable Signature Scan	ExploitGapChecks.cpp	same check; cosmetic rename
 164	rename	implemented	Raw LUT Channel vs ColorSpace/PCS Cross-Check	LUT Channel Cross-Check	ExploitGapChecks.cpp	same check; cosmetic rename
@@ -167,7 +167,7 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 166	rename	implemented	Division-by-Zero in CAM/Array/MPE	Division-by-Zero Guards	ExploitGapChecks.cpp	same check; cosmetic rename
 167	exact	implemented	Null MPE CLUT/Curve Application Guard	Null MPE CLUT/Curve Application Guard	ExploitGapChecks.cpp	
 168	exact	implemented	Unchecked Allocation Size Overflow	Unchecked Allocation Size Overflow	ExploitGapChecks.cpp	
-169	exact	todo	Dictionary Tag Element Bounds	Dictionary Tag Element Bounds	ExploitGapChecks.cpp	
+169	exact	implemented	Dictionary Tag Element Bounds	Dictionary Tag Element Bounds	ExploitGapChecks.cpp	
 170	exact	todo	Copy Constructor UB via Null PCS	Copy Constructor UB via Null PCS	ExploitGapChecks.cpp	
 171	rename	implemented	Curve Param Count vs FuncType Validation	Curve Param Count Validation	ExploitGapChecks.cpp	same check; cosmetic rename
 172	exact	todo	LUT Matrix Coefficient Validation	LUT Matrix Coefficient Validation	DataValidationChecks.cpp	
