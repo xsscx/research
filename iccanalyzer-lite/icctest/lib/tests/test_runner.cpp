@@ -4004,7 +4004,7 @@ static void test_h32_tag_data_type_confusion_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {32});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 1);
     }
 }
 
