@@ -566,6 +566,50 @@ int RunCF026_ColorantTableCount(CIccProfile *pIcc) {
 }
 
 
+// =============================================================================
+// CF-340: colorantTableOutTag Count vs PCS Channels (ICC.1-2022-05 §10.4)
+// =============================================================================
+// PR #708 regression: upstream validation validates clot against colorSpace
+// instead of PCS. The clot (ColorantTableOutTag) describes OUTPUT colorants,
+// which must match the PCS channel count -- not the device colorSpace.
+// This mirrors CF-026 (clrt vs colorSpace) for the output side.
+
+int RunCF340_ColorantTableOutCountVsPCS(CIccProfile *pIcc) {
+  int issues = 0;
+
+  printf("%s[CF-340]%s colorantTableOutTag Count vs PCS Channels (%sICC.1-2022-05 %s10.4%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorInfo(), ColorReset());
+
+  CIccTagColorantTable *pClot =
+      FindAndCast<CIccTagColorantTable>(pIcc, icSigColorantTableOutTag);
+  if (!pClot) {
+    printf("         No colorantTableOutTag found\n");
+    printf("         %s[OK]%s Not applicable\n", ColorSuccess(), ColorReset());
+    return 0;
+  }
+
+  icUInt32Number nColorants = pClot->GetSize();
+  icUInt32Number nExpected = icGetSpaceSamples(pIcc->m_Header.pcs);
+
+  if (nExpected > 0 && nColorants != nExpected) {
+    printf("         Colorant count=%u, PCS channels=%u -- %smismatch%s\n",
+           nColorants, nExpected, ColorError(), ColorReset());
+    printf("         %s[FAIL]%s colorantTableOutTag count must equal PCS channel count"
+           " -- ICC.1-2022-05 %s10.4\n",
+           ColorError(), ColorReset(), ColorReset());
+    printf("         NOTE: PR #708 regression validates clot against colorSpace instead of PCS\n");
+    issues++;
+  } else {
+    printf("         Colorant count=%u, PCS channels=%u -- match\n",
+           nColorants, nExpected);
+    printf("         %s[OK]%s colorantTableOutTag count valid\n",
+           ColorSuccess(), ColorReset());
+  }
+
+  return issues;
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CF-027: colorantOrderType Count Match (ICC.1-2022-05 §10.3)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4878,6 +4922,7 @@ int RunTagTypeConformance(CIccProfile *pIcc, const char *filename) {
   CF_WRAP(1279, "CF-279: TRC Curve Values Non-Negative", RunCF279_TRCCurveNonNegative(pIcc));
   CF_WRAP(1280, "CF-280: XYZ Element Luminance (Y) Non-Negative", RunCF280_XYZLuminanceNonNegative(pIcc));
   CF_WRAP(1281, "CF-281: profileSequenceDescTag Structure", RunCF281_ProfileSequenceDescStructure(pIcc));
+  CF_WRAP(1340, "CF-340: colorantTableOutTag Count vs PCS Channels", RunCF340_ColorantTableOutCountVsPCS(pIcc));
 
 #undef CF_WRAP
   return issues;

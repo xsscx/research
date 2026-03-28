@@ -3427,3 +3427,39 @@ REGISTER_CONFORMANCE(304, "v5 Text Tag multiLocalizedUnicodeType",
     "v5 text tags must use multiLocalizedUnicodeType per errata Tables 40/41 correction", "ICC.2-2019 Errata §10.2.5",
     "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
     check_cf304_v5_text_tags_mluc);
+
+// ── CF-340: colorantTableOutTag Count vs PCS Channels ──
+// PR #708 regression: clot validation must check PCS channels, not colorSpace.
+// Output profiles: clot describes PCS-side colorants (not device-side).
+static CheckResult check_cf340_colorant_table_out_count_vs_pcs(const ProfileView& pv) {
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *pTag = pIcc->FindTag(icSigColorantTableOutTag);
+    if (!pTag) return CheckResult::skip("No colorantTableOutTag");
+
+    CIccTagColorantTable *pCT = dynamic_cast<CIccTagColorantTable *>(pTag);
+    if (!pCT) return CheckResult::skip("Not CIccTagColorantTable");
+
+    icUInt32Number nColorants = pCT->GetSize();
+    icColorSpaceSignature pcsSig = pIcc->m_Header.pcs;
+    int pcsChannels = icGetSpaceSamples(pcsSig);
+
+    if (pcsChannels > 0 && static_cast<int>(nColorants) != pcsChannels) {
+        return {CheckResult::Status::FINDINGS,
+                "colorantTableOutTag count vs PCS mismatch", {Finding{
+                    {CheckID::Kind::Conformance, 340}, Severity::HIGH,
+                    "colorantTableOutTag count=" + std::to_string(nColorants) +
+                    " but PCS channels=" + std::to_string(pcsChannels) +
+                    " -- clot describes PCS-side colorants, not device-side (PR #708 regression)",
+                    "ICC.1-2022-05 §9.2.13", "CWE-131"}}};
+    }
+    return CheckResult::ok("colorantTableOutTag count matches PCS channels");
+}
+
+REGISTER_CONFORMANCE(340, "colorantTableOutTag Count vs PCS Channels",
+    "colorantTableOutTag count must match PCS channel count, not device colorSpace",
+    "ICC.1-2022-05 §9.2.13",
+    "CWE-131", "",
+    Severity::HIGH, CheckPhase::CONFORMANCE,
+    check_cf340_colorant_table_out_count_vs_pcs);

@@ -218,6 +218,8 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {176, "deviceSpectralRangeTag Validation", "ICC.2:2023 §9.2.x","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {177, "devicePccTag Structure Validation", "ICC.2:2023 §9.2.x+1","CWE-20/CWE-476", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {178, "spectralRangeType Encoding Validation", "ICC.2:2023 §10.2.w","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
+  {179, "AddXform Create NULL Guard Detection", "IccCmm.cpp:8292 PR#708","CWE-476", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
+  {180, "XML Round-Trip Fidelity", "ICC.1-2022-05 §10","CWE-345", nullptr, HeuristicPhase::XML_SAFETY, HeuristicSeverity::HIGH},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);
@@ -243,6 +245,9 @@ const char *PhaseToString(HeuristicPhase p) {
     case HeuristicPhase::PROFILE_COMPLIANCE: return "PROFILE_COMPLIANCE";
     case HeuristicPhase::INTEGRITY:          return "INTEGRITY";
     case HeuristicPhase::IMAGE:              return "IMAGE";
+    case HeuristicPhase::CODEQL_PATTERNS:    return "CODEQL_PATTERNS";
+    case HeuristicPhase::EXPLOIT_GAP:        return "EXPLOIT_GAP";
+    case HeuristicPhase::XML_SAFETY:         return "XML_SAFETY";
   }
   return "UNKNOWN";
 }
