@@ -568,6 +568,15 @@ def compare_lane(
                     entry_issues = []
                 else:
                     comparison = "match" if not entry_issues else "delta"
+            elif lane == "heuristic" and entry_issues == ["status_mismatch"]:
+                if is_conformance_applicability_match(v1_record, v2_record):
+                    comparison = "applicability_match"
+                    normalized_reason = "v1_ok_vs_v2_skip_not_applicable"
+                    entry_issues = []
+                elif implementation == "todo":
+                    comparison = "known_gap"
+                else:
+                    comparison = "match" if not entry_issues else "delta"
             elif lane == "heuristic" and implementation == "todo":
                 if entry_issues:
                     comparison = "known_gap"
@@ -827,6 +836,7 @@ def main() -> int:
             "CF severity is not compared by default because V1 and V2 use different conformance severity taxonomies.",
             "Raw ICC conformance uses the V1 `-a` text adapter because the V1 `--json` path omits a material subset of CF results.",
             "Conformance V1 ok/no-findings versus V2 skip/no-findings is normalized as applicability_match when V2 explains the skip as not-applicable rather than load/error fallout.",
+            "Heuristic V1 ok/no-findings versus V2 skip/no-findings is also normalized as applicability_match using the same logic (e.g. V2 skips v5-only checks on v2/v4 profiles).",
             "Conformance V1 omitted results versus V2 ok/NOT RUN is normalized as implicit_skip_match when V2 is making load failure explicit rather than omitting the CF entry.",
             "Conformance V1 ok versus V2 finding is normalized as advisory_match when every V2 finding is INFO/LOW, reflecting legacy informational notes that V1 did not treat as failing status.",
             "V1 heuristic H151 is synthesized from the composite H37 JSON output because the V1 binary does not emit a standalone H151 record.",
