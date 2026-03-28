@@ -607,6 +607,24 @@ jobs:
           echo "Merged profdata: $(stat -c%s results/coverage/merged.profdata) bytes"
 
           MAIN_BIN="${{ env.binary_path }}"
+          if [ -z "$MAIN_BIN" ] || [ -d "$MAIN_BIN" ] || [ ! -x "$MAIN_BIN" ]; then
+            for candidate in \
+              "${{ github.workspace }}/iccanalyzer-lite/iccanalyzer-lite" \
+              "${{ github.workspace }}/iccanalyzer-lite/build/iccanalyzer-lite"; do
+              if [ -x "$candidate" ]; then
+                MAIN_BIN="$candidate"
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$MAIN_BIN" ] || [ ! -x "$MAIN_BIN" ]; then
+            echo "::warning::Unable to locate built iccanalyzer-lite binary for coverage reporting"
+            echo "No analyzer binary available for llvm-cov" > results/coverage/coverage-summary.txt
+            exit 0
+          fi
+
+          echo "Using MAIN_BIN=$MAIN_BIN"
 
           # Generate text summary report
           echo "--- Coverage Summary Report ---"
