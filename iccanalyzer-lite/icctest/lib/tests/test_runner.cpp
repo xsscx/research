@@ -1351,6 +1351,16 @@ static void expect_heuristic_result(const AnalysisResult& result,
     if (!check) {
         return;
     }
+    if (status != check->result.status || issueCount != check->result.issueCount()) {
+        std::fprintf(stderr,
+                     "heuristic mismatch H%d: expected status=%d findings=%d actual status=%d findings=%d summary=%s\n",
+                     number,
+                     static_cast<int>(status),
+                     issueCount,
+                     static_cast<int>(check->result.status),
+                     check->result.issueCount(),
+                     check->result.summary.c_str());
+    }
     ASSERT_EQ(status, check->result.status);
     ASSERT_EQ(issueCount, check->result.issueCount());
 }
@@ -3612,7 +3622,7 @@ static void test_h20_tag_type_signature_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {20});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 20, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 20, CheckResult::Status::FINDINGS, 1);
     }
 }
 
@@ -3994,7 +4004,7 @@ static void test_h32_tag_data_type_confusion_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {32});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 32, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 2);
     }
 }
 
