@@ -8,6 +8,7 @@
 #include <icctest/CheckRegistry.h>
 #include <icctest/ProfileView.h>
 #include <icctest/CheckResult.h>
+#include "util/CheckHelpers.h"
 
 #include "IccProfile.h"
 #include "IccTag.h"
@@ -1324,17 +1325,28 @@ static CheckResult check_cf139_embedded_normal_image_data_length(const ProfileVi
 
 static CheckResult check_cf140_gbd_vertex_count_field(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-
-    for (const auto& te : pv.rawTagTable()) {
-        if (te.signature != icSigGamutBoundaryDescType) continue;
-        if (te.size < 20) {
-            return {CheckResult::Status::FINDINGS, "GBD too small", {Finding{
-                {CheckID::Kind::Conformance, 140}, Severity::MEDIUM,
-                "GBD tag size " + std::to_string(te.size) + " < 20 bytes minimum",
-                "ICC.2-2023 errata", "CWE-125"}}};
-        }
+    if (!pv.libraryLoaded() && !pv.requiresLibraryQuarantine()) {
+        return CheckResult::skip("NOT RUN: Profile failed to load");
     }
-    return CheckResult::ok("GBD vertex count field valid");
+
+    auto records = scanRawGbdRecords(pv);
+    if (records.empty()) {
+        return CheckResult::ok("No gamutBoundaryDescType tags — not applicable");
+    }
+
+    std::vector<Finding> findings;
+    for (const auto& record : records) {
+        if (record.logicalSize >= 20) continue;
+        findings.push_back({CheckID{CheckID::Kind::Conformance, 140}, Severity::MEDIUM,
+            "GBD tag '" + rawGbdOwnerName(record) + "' size " + std::to_string(record.logicalSize) + " < 20 bytes minimum",
+            "ICC.2-2019 §10.2.11 Errata: vertex count field requires bytes 12..15",
+            "CWE-125"});
+    }
+
+    if (findings.empty()) {
+        return CheckResult::ok("GBD tag structure has room for vertex count field");
+    }
+    return {CheckResult::Status::FINDINGS, "GBD too small", std::move(findings)};
 }
 
 static CheckResult check_cf141_sparse_matrix_array_count(const ProfileView& pv) {

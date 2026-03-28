@@ -65,15 +65,32 @@ def run_v1_json(
         cmd.append("--legacy")
     cmd.append(str(input_file))
 
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
-        check=False,
-    )
+    def invoke(disable_defense: bool) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            env=v1_runtime_env(binary, disable_library_ub_defense=disable_defense),
+            check=False,
+        )
+
+    proc = invoke(disable_library_ub_defense)
 
     stdout = proc.stdout.decode("utf-8", errors="replace")
     stderr = proc.stderr.decode("utf-8", errors="replace")
+
+    fallback_used = False
+    if not stdout.strip() and disable_library_ub_defense:
+        lower_stderr = stderr.lower()
+        if (
+            "addresssanitizer" in lower_stderr
+            or "allocation-size-too-big" in lower_stderr
+            or "out of memory" in lower_stderr
+            or "runtime error:" in lower_stderr
+        ):
+            proc = invoke(False)
+            stdout = proc.stdout.decode("utf-8", errors="replace")
+            stderr = proc.stderr.decode("utf-8", errors="replace")
+            fallback_used = True
 
     if not stdout.strip():
         raise RuntimeError(
@@ -92,6 +109,8 @@ def run_v1_json(
         "cmd": cmd,
         "returncode": proc.returncode,
         "stderr": stderr,
+        "disableLibraryUbDefense": disable_library_ub_defense and not fallback_used,
+        "fallbackToDefendedRun": fallback_used,
     }
     return payload
 
@@ -112,15 +131,30 @@ def run_v1_text(
         cmd.append("--legacy")
     cmd.append(str(input_file))
 
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
-        check=False,
-    )
+    def invoke(disable_defense: bool) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            env=v1_runtime_env(binary, disable_library_ub_defense=disable_defense),
+            check=False,
+        )
+
+    proc = invoke(disable_library_ub_defense)
 
     stdout = proc.stdout.decode("utf-8", errors="replace")
     stderr = proc.stderr.decode("utf-8", errors="replace")
+
+    if not stdout.strip() and disable_library_ub_defense:
+        lower_stderr = stderr.lower()
+        if (
+            "addresssanitizer" in lower_stderr
+            or "allocation-size-too-big" in lower_stderr
+            or "out of memory" in lower_stderr
+            or "runtime error:" in lower_stderr
+        ):
+            proc = invoke(False)
+            stdout = proc.stdout.decode("utf-8", errors="replace")
+            stderr = proc.stderr.decode("utf-8", errors="replace")
 
     if not stdout.strip():
         raise RuntimeError(
@@ -150,6 +184,7 @@ def normalized_status(status: str) -> str:
 def infer_heuristic_primary_findings(detail: str) -> int:
     auxiliary_prefixes = (
         "risk:",
+        "allocation:",
         "cwe-",
         "ref:",
         "expected:",

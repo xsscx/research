@@ -165,13 +165,18 @@ static void test_ub_prescan_gbd() {
     auto data = makeMinimalProfile();
     auto* p = data.data();
 
-    // Set tag to 'gbd ' with nTriangles = 800000000 (> 715827882)
-    p[132] = 'g'; p[133] = 'b'; p[134] = 'd'; p[135] = ' ';
-    // offset 144, size 24
+    // Tag table entry signature can be arbitrary; the tag payload type must be 'gbd '.
+    p[132] = 'g'; p[133] = 'b'; p[134] = 'd'; p[135] = '0';
+    // offset 144, size 20
     p[136] = 0; p[137] = 0; p[138] = 0; p[139] = 144;
-    p[140] = 0; p[141] = 0; p[142] = 0; p[143] = 24;
+    p[140] = 0; p[141] = 0; p[142] = 0; p[143] = 20;
 
-    // At offset 144+16 = 160, write nTriangles = 0x2FAF0800 (800000000)
+    // Tag payload at offset 144:
+    // type='gbd ', reserved=0, pcs=3, dev=4, nVertices=10, nTriangles=800000000
+    p[144] = 'g'; p[145] = 'b'; p[146] = 'd'; p[147] = ' ';
+    p[152] = 0; p[153] = 3;  // PCS channels
+    p[154] = 0; p[155] = 4;  // Device channels
+    p[156] = 0; p[157] = 0; p[158] = 0; p[159] = 10;
     p[160] = 0x2F; p[161] = 0xAF; p[162] = 0x08; p[163] = 0x00;
 
     auto pv = ProfileView::open(data.data(), data.size());

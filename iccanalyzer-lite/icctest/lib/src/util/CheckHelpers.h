@@ -516,6 +516,103 @@ inline bool rawRangeAccessible(uint64_t totalSize, uint64_t offset, uint64_t nee
     return offset <= totalSize && need <= (totalSize - offset);
 }
 
+struct RawGbdRecord {
+    uint32_t ownerSig = 0;
+    bool nestedInTagArray = false;
+    uint32_t logicalSize = 0;
+    bool headerAccessible = false;
+    uint16_t pcsChannels = 0;
+    uint16_t deviceChannels = 0;
+    uint32_t vertices = 0;
+    uint32_t triangles = 0;
+};
+
+inline std::string rawGbdOwnerName(const RawGbdRecord& record) {
+    if (record.nestedInTagArray) {
+        return sfmt("%s[tary]", sigStr(record.ownerSig).c_str());
+    }
+    return sigStr(record.ownerSig);
+}
+
+inline std::vector<RawGbdRecord>
+scanRawGbdRecords(const ProfileView& pv, size_t maxRecords = 16) {
+    std::vector<RawGbdRecord> records;
+    const uint8_t* data = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!data || len < 16) return records;
+
+    constexpr uint32_t kGbdType = 0x67626420u;      // 'gbd '
+    constexpr uint32_t kTagArrayType = 0x74617279u; // 'tary'
+
+    auto push_record = [&](const RawGbdRecord& record) {
+        if (records.size() < maxRecords) {
+            records.push_back(record);
+        }
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        uint64_t tagStart = static_cast<uint64_t>(tag.offset);
+        uint64_t tagSize = static_cast<uint64_t>(tag.size);
+        if (!rawRangeAccessible(len, tagStart, 4)) continue;
+
+        uint32_t typeSig = readU32BE(data + tag.offset);
+        if (typeSig == kGbdType) {
+            RawGbdRecord record;
+            record.ownerSig = tag.signature;
+            record.logicalSize = tag.size;
+            if (tag.size >= 20 && rawRangeAccessible(len, tagStart, 20)) {
+                record.headerAccessible = true;
+                record.pcsChannels = readU16BE(data + tag.offset + 8);
+                record.deviceChannels = readU16BE(data + tag.offset + 10);
+                record.vertices = readU32BE(data + tag.offset + 12);
+                record.triangles = readU32BE(data + tag.offset + 16);
+            }
+            push_record(record);
+            continue;
+        }
+
+        if (typeSig != kTagArrayType || tag.size < 16 ||
+            !rawRangeAccessible(len, tagStart, 16)) {
+            continue;
+        }
+
+        uint32_t elemCount = readU32BE(data + tag.offset + 12);
+        if (elemCount == 0 || elemCount > 256) continue;
+
+        uint64_t ownerEnd = tagStart + tagSize;
+        uint64_t tableEnd = tagStart + 16ull + static_cast<uint64_t>(elemCount) * 8ull;
+        if (tableEnd > len || tableEnd > ownerEnd) continue;
+
+        for (uint32_t i = 0; i < elemCount; ++i) {
+            uint64_t recOff = tagStart + 16ull + static_cast<uint64_t>(i) * 8ull;
+            if (!rawRangeAccessible(len, recOff, 8) || recOff + 8 > ownerEnd) break;
+
+            uint32_t childOff = readU32BE(data + recOff);
+            uint32_t childSz = readU32BE(data + recOff + 4);
+            if (!childOff || childSz < 4) continue;
+
+            uint64_t childAbs = tagStart + static_cast<uint64_t>(childOff);
+            if (!rawRangeAccessible(len, childAbs, 4) || childAbs + childSz > ownerEnd) continue;
+            if (readU32BE(data + childAbs) != kGbdType) continue;
+
+            RawGbdRecord record;
+            record.ownerSig = tag.signature;
+            record.nestedInTagArray = true;
+            record.logicalSize = childSz;
+            if (childSz >= 20 && rawRangeAccessible(len, childAbs, 20)) {
+                record.headerAccessible = true;
+                record.pcsChannels = readU16BE(data + childAbs + 8);
+                record.deviceChannels = readU16BE(data + childAbs + 10);
+                record.vertices = readU32BE(data + childAbs + 12);
+                record.triangles = readU32BE(data + childAbs + 16);
+            }
+            push_record(record);
+        }
+    }
+
+    return records;
+}
+
 inline const char* spectralElementName(uint32_t sig) {
     switch (sig) {
         case 0x656d7478u: return "EmissionMatrix";    // 'emtx'

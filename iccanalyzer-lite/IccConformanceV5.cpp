@@ -54,6 +54,108 @@ static inline bool IsV5(CIccProfile *pIcc) {
   return (pIcc->m_Header.version >> 24) >= 5;
 }
 
+struct RawGbdConformanceRecord {
+  std::string owner;
+  icUInt32Number logicalSize = 0;
+  bool headerAccessible = false;
+  icUInt16Number nPCSCh = 0;
+  icUInt16Number nDevCh = 0;
+  icUInt32Number nVerts = 0;
+  icUInt32Number nTris = 0;
+};
+
+static uint64_t Choose3Clamped(icUInt32Number n) {
+  if (n < 3) return 0;
+  if (n > 1000000u) return UINT64_MAX;
+  unsigned __int128 v = static_cast<unsigned __int128>(n) *
+                        static_cast<unsigned __int128>(n - 1u) *
+                        static_cast<unsigned __int128>(n - 2u);
+  v /= 6u;
+  if (v > static_cast<unsigned __int128>(UINT64_MAX)) return UINT64_MAX;
+  return static_cast<uint64_t>(v);
+}
+
+static std::vector<RawGbdConformanceRecord>
+ScanRawGbdConformanceRecords(const char *filename) {
+  std::vector<RawGbdConformanceRecord> records;
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) return records;
+
+  for (const auto &tag : ctx.tags) {
+    uint32_t tOff = tag.offset;
+    uint32_t tSz  = tag.size;
+    if ((uint64_t)tOff + 4 > ctx.fileSize() || tSz < 4) continue;
+
+    icUInt8Number typeSig[4];
+    if (!ctx.ReadAt(tOff, typeSig, 4)) continue;
+    uint32_t typeVal = ReadU32BE(typeSig);
+
+    if (typeVal == 0x67626420u) {
+      RawGbdConformanceRecord record;
+      char sig[5]; SigToChars(tag.sig, sig);
+      record.owner = sig;
+      record.logicalSize = tSz;
+      if (tSz >= 20 && (uint64_t)tOff + 20 <= ctx.fileSize()) {
+        icUInt8Number hdr[20];
+        if (ctx.ReadAt(tOff, hdr, 20)) {
+          record.headerAccessible = true;
+          record.nPCSCh = ReadU16BE(hdr + 8);
+          record.nDevCh = ReadU16BE(hdr + 10);
+          record.nVerts = ReadU32BE(hdr + 12);
+          record.nTris = ReadU32BE(hdr + 16);
+        }
+      }
+      records.push_back(record);
+      continue;
+    }
+
+    if (typeVal != 0x74617279u || tSz < 16) continue;
+    icUInt8Number taryHdr[16];
+    if (!ctx.ReadAt(tOff, taryHdr, 16)) continue;
+    uint32_t elemCount = ReadU32BE(taryHdr + 12);
+    if (elemCount == 0 || elemCount > 256) continue;
+
+    uint64_t ownerEnd = (uint64_t)tOff + tSz;
+    uint64_t tableEnd = (uint64_t)tOff + 16ull + (uint64_t)elemCount * 8ull;
+    if (tableEnd > ctx.fileSize() || tableEnd > ownerEnd) continue;
+
+    for (uint32_t j = 0; j < elemCount; j++) {
+      uint64_t recPos = (uint64_t)tOff + 16ull + (uint64_t)j * 8ull;
+      if (recPos + 8 > ctx.fileSize() || recPos + 8 > ownerEnd) break;
+      icUInt8Number rec[8];
+      if (!ctx.ReadAt((uint32_t)recPos, rec, 8)) break;
+
+      uint32_t childOff = ReadU32BE(rec);
+      uint32_t childSz  = ReadU32BE(rec + 4);
+      if (!childOff || childSz < 4) continue;
+      uint64_t childPos = (uint64_t)tOff + childOff;
+      if (childPos + 4 > ctx.fileSize() || childPos + childSz > ownerEnd) continue;
+
+      icUInt8Number childTypeSig[4];
+      if (!ctx.ReadAt((uint32_t)childPos, childTypeSig, 4)) continue;
+      if (ReadU32BE(childTypeSig) != 0x67626420u) continue;
+
+      RawGbdConformanceRecord record;
+      char sig[5]; SigToChars(tag.sig, sig);
+      record.owner = std::string(sig) + "[tary]";
+      record.logicalSize = childSz;
+      if (childSz >= 20 && childPos + 20 <= ctx.fileSize()) {
+        icUInt8Number hdr[20];
+        if (ctx.ReadAt((uint32_t)childPos, hdr, 20)) {
+          record.headerAccessible = true;
+          record.nPCSCh = ReadU16BE(hdr + 8);
+          record.nDevCh = ReadU16BE(hdr + 10);
+          record.nVerts = ReadU32BE(hdr + 12);
+          record.nTris = ReadU32BE(hdr + 16);
+        }
+      }
+      records.push_back(record);
+    }
+  }
+
+  return records;
+}
+
 // ---------------------------------------------------------------------------
 // CF-080: Spectral PCS Signature  (ICC.2-2023 §7.2.22)
 // ---------------------------------------------------------------------------
@@ -1197,6 +1299,37 @@ static int RunCF140_GBDVertexCountField(CIccProfile *pIcc) {
 
   if (!found)
     printf("         No gamutBoundaryDescType tags — check not applicable\n");
+
+  return issues;
+}
+
+int RunCF140_GBDVertexCountFieldRaw(const char *filename) {
+  int issues = 0;
+  printf("  %s[CF-140]%s GBD Vertex Count Field (%sICC.2-2019 §10.2.11 Errata%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  auto records = ScanRawGbdConformanceRecords(filename);
+  if (records.empty()) {
+    printf("         %s[N/A]%s No gamutBoundaryDescType tags — not applicable\n",
+           ColorInfo(), ColorReset());
+    return 0;
+  }
+
+  int okCount = 0;
+  for (const auto &record : records) {
+    if (record.logicalSize < 20) {
+      printf("         %s[FAIL]%s GBD tag '%s' size %u < 20 bytes (errata requires vertex count at bytes 12..15)\n",
+             ColorError(), ColorReset(), record.owner.c_str(), record.logicalSize);
+      issues++;
+    } else {
+      okCount++;
+    }
+  }
+
+  if (issues == 0) {
+    printf("         %s[OK]%s %d GBD tag(s) have room for vertex count field\n",
+           ColorSuccess(), ColorReset(), okCount);
+  }
 
   return issues;
 }
@@ -3921,6 +4054,45 @@ static int RunCF286_GBDTriangleVertexConsistency(CIccProfile *pIcc) {
   return issues;
 }
 
+int RunCF286_GBDTriangleVertexConsistencyRaw(const char *filename) {
+  printf("  %s[CF-286]%s GBD Triangle-Vertex Consistency (%sICC.2-2023 §10.2.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+  auto records = ScanRawGbdConformanceRecords(filename);
+  for (const auto &record : records) {
+    if (!record.headerAccessible) continue;
+    checked++;
+
+    if (record.nTris > 0 && record.nVerts < 3) {
+      printf("         %s[FAIL]%s '%s' has %u triangles but only %u vertices (need >= 3)\n",
+             ColorError(), ColorReset(), record.owner.c_str(), record.nTris, record.nVerts);
+      issues++;
+      continue;
+    }
+
+    uint64_t maxTriangles = Choose3Clamped(record.nVerts);
+    if (maxTriangles != UINT64_MAX &&
+        static_cast<uint64_t>(record.nTris) > maxTriangles) {
+      printf("         %s[FAIL]%s '%s' has %u triangles but only %u vertices (max distinct triangles %llu)\n",
+             ColorError(), ColorReset(), record.owner.c_str(), record.nTris, record.nVerts,
+             (unsigned long long)maxTriangles);
+      issues++;
+    }
+  }
+
+  if (checked == 0) {
+    printf("         %s[N/A]%s No GBD tags — not applicable\n",
+           ColorInfo(), ColorReset());
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d GBD tag(s) have consistent vertex/triangle counts\n",
+           ColorSuccess(), ColorReset(), checked);
+  }
+
+  return issues;
+}
+
 
 // ---------------------------------------------------------------------------
 // CF-287: GBD Channel Count Plausibility (ICC.2-2023 §10.2.11)
@@ -3976,6 +4148,40 @@ static int RunCF287_GBDChannelPlausibility(CIccProfile *pIcc) {
     printf("         %s[OK]%s %d GBD tag(s) have plausible channel counts\n",
            ColorSuccess(), ColorReset(), checked);
   }
+  return issues;
+}
+
+int RunCF287_GBDChannelPlausibilityRaw(const char *filename) {
+  printf("  %s[CF-287]%s GBD Channel Count Plausibility (%sICC.2-2023 §10.2.11%s)\n",
+         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
+
+  int issues = 0;
+  int checked = 0;
+  auto records = ScanRawGbdConformanceRecords(filename);
+  for (const auto &record : records) {
+    if (!record.headerAccessible) continue;
+    checked++;
+
+    if (record.nPCSCh != 3) {
+      printf("         %s[FAIL]%s '%s' PCS channels = %u — expected 3 (Lab/XYZ)\n",
+             ColorError(), ColorReset(), record.owner.c_str(), record.nPCSCh);
+      issues++;
+    }
+    if (record.nDevCh > 15) {
+      printf("         %s[FAIL]%s '%s' device channels = %u — exceeds plausible maximum (15)\n",
+             ColorError(), ColorReset(), record.owner.c_str(), record.nDevCh);
+      issues++;
+    }
+  }
+
+  if (checked == 0) {
+    printf("         %s[N/A]%s No GBD tags — not applicable\n",
+           ColorInfo(), ColorReset());
+  } else if (issues == 0) {
+    printf("         %s[OK]%s %d GBD tag(s) have plausible channel counts\n",
+           ColorSuccess(), ColorReset(), checked);
+  }
+
   return issues;
 }
 

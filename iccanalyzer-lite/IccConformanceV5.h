@@ -17,6 +17,9 @@ int RunCF087_MPEElementSignature(CIccProfile *pIcc);
 int RunCF088_CalculatorStackStructure(CIccProfile *pIcc);
 int RunCF089_SpectralWavelengthRange(CIccProfile *pIcc);
 int RunCF115_CalculatorElementComplexityRaw(const char *filename);
+int RunCF140_GBDVertexCountFieldRaw(const char *filename);
+int RunCF286_GBDTriangleVertexConsistencyRaw(const char *filename);
+int RunCF287_GBDChannelPlausibilityRaw(const char *filename);
 
 // ICS Extended Range checks (CF-144..CF-148)
 int RunCF144_ExtendedRangePCSFlagConsistency(CIccProfile *pIcc);

@@ -416,9 +416,128 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H52
-    return cb.done("Integer Underflow Tag Size Subtraction checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    struct MinTagType {
+        uint32_t type;
+        uint32_t minSize;
+        const char* name;
+    };
+    static const MinTagType mins[] = {
+        {0x64657363u, 12u, "desc"},
+        {0x58595A20u, 20u, "XYZ"},
+        {0x63757276u, 12u, "curv"},
+        {0x70617261u, 12u, "para"},
+        {0x6D667431u, 48u, "lut8"},
+        {0x6D667432u, 52u, "lut16"},
+        {0x6D414220u, 32u, "mAB"},
+        {0x6D424120u, 32u, "mBA"},
+        {0x6D706574u, 16u, "mpet"},
+        {0x6D6C7563u, 16u, "mluc"},
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        const uint32_t tOff = tag.offset;
+        const uint32_t tSz = tag.size;
+
+        if ((uint64_t)tOff + 4ull > rawLen || tSz < 4u) continue;
+        uint32_t typeVal = readU32BE(raw + tOff);
+
+        for (const auto& m : mins) {
+            if (typeVal == m.type && tSz < m.minSize) {
+                cb.warn(
+                    sfmt("Tag '%s' (type %s): size %u < minimum %u",
+                         sigStr(tag.signature).c_str(), m.name, tSz, m.minSize),
+                    "CWE-191: Undersized tag — size arithmetic underflows on (size - headerSize)");
+                break;
+            }
+        }
+
+        if ((typeVal == 0x6D414220u || typeVal == 0x6D424120u) && tSz >= 32u) {
+            if ((uint64_t)tOff + 32ull <= rawLen) {
+                static const char* elemNames[] = {"B-curves", "Matrix", "M-curves", "CLUT", "A-curves"};
+                const char* typeName = (typeVal == 0x6D414220u) ? "mAB" : "mBA";
+                for (int e = 0; e < 5; ++e) {
+                    uint32_t subOff = readU32BE(raw + tOff + 12u + static_cast<size_t>(e) * 4u);
+                    if (subOff == 0) continue;
+
+                    if (subOff > tSz) {
+                        cb.critical(
+                            sfmt("Tag '%s' (type %s): %s offset %u exceeds tag size %u — (nEnd - pIO->Tell()) underflows to ~4GB",
+                                 sigStr(tag.signature).c_str(), typeName, elemNames[e], subOff, tSz),
+                            "CWE-191: Integer underflow in sub-element offset subtraction (CFL-065: defeated size validation -> CWE-789 uncontrolled allocation)");
+                    } else if (subOff < 32u) {
+                        cb.warn(
+                            sfmt("Tag '%s' (type %s): %s offset %u overlaps header (< 32)",
+                                 sigStr(tag.signature).c_str(), typeName, elemNames[e], subOff),
+                            "CWE-125: Sub-element offset within tag header region");
+                    }
+                }
+            }
+        }
+
+        if (typeVal == 0x6D667431u && tSz >= 48u) {
+            if ((uint64_t)tOff + 12ull <= rawLen) {
+                uint8_t nIn = raw[tOff + 8u];
+                uint8_t nOut = raw[tOff + 9u];
+                uint8_t grid = raw[tOff + 10u];
+                if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+                    uint64_t inTable = static_cast<uint64_t>(nIn) * 256ull;
+                    uint64_t clutEntries = 1ull;
+                    for (int d = 0; d < nIn; ++d) {
+                        clutEntries *= static_cast<uint64_t>(grid);
+                        if (clutEntries > 0x10000000ull) {
+                            clutEntries = 0xFFFFFFFFull;
+                            break;
+                        }
+                    }
+                    uint64_t clutData = clutEntries * static_cast<uint64_t>(nOut);
+                    uint64_t outTable = static_cast<uint64_t>(nOut) * 256ull;
+                    uint64_t totalMin = 48ull + inTable + clutData + outTable;
+                    if (clutEntries < 0xFFFFFFFFull && totalMin > tSz) {
+                        cb.warn(
+                            sfmt("Tag '%s' (lut8): nIn=%u nOut=%u grid=%u requires %llu bytes, tag size only %u — sequential reads will underflow nEnd",
+                                 sigStr(tag.signature).c_str(), nIn, nOut, grid,
+                                 static_cast<unsigned long long>(totalMin), tSz),
+                            "CWE-191: lut8 sequential read data exceeds tag size boundary");
+                    }
+                }
+            }
+        }
+
+        if (typeVal == 0x6D667432u && tSz >= 52u) {
+            if ((uint64_t)tOff + 52ull <= rawLen) {
+                uint8_t nIn = raw[tOff + 8u];
+                uint8_t nOut = raw[tOff + 9u];
+                uint8_t grid = raw[tOff + 10u];
+                uint16_t nInEntries = readU16BE(raw + tOff + 48u);
+                uint16_t nOutEntries = readU16BE(raw + tOff + 50u);
+                if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+                    uint64_t inTable = static_cast<uint64_t>(nIn) * static_cast<uint64_t>(nInEntries) * 2ull;
+                    uint64_t clutEntries = 1ull;
+                    for (int d = 0; d < nIn; ++d) {
+                        clutEntries *= static_cast<uint64_t>(grid);
+                        if (clutEntries > 0x10000000ull) {
+                            clutEntries = 0xFFFFFFFFull;
+                            break;
+                        }
+                    }
+                    uint64_t clutData = clutEntries * static_cast<uint64_t>(nOut) * 2ull;
+                    uint64_t outTable = static_cast<uint64_t>(nOut) * static_cast<uint64_t>(nOutEntries) * 2ull;
+                    uint64_t totalMin = 52ull + inTable + clutData + outTable;
+                    if (clutEntries < 0xFFFFFFFFull && totalMin > tSz) {
+                        cb.warn(
+                            sfmt("Tag '%s' (lut16): nIn=%u nOut=%u grid=%u inEntries=%u outEntries=%u requires %llu bytes, tag size only %u",
+                                 sigStr(tag.signature).c_str(), nIn, nOut, grid, nInEntries, nOutEntries,
+                                 static_cast<unsigned long long>(totalMin), tSz),
+                            "CWE-191: lut16 sequential read data exceeds tag size boundary");
+                    }
+                }
+            }
+        }
+    }
+
+    return cb.done("No integer underflow in tag sizes");
 }
 
 REGISTER_HEURISTIC(52, "Integer Underflow Tag Size Subtraction",
@@ -612,7 +731,78 @@ static CheckResult check_h68_gamutboundarydesc_triangle_vertex_overflow(const Pr
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
     if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H68
+
+    auto scanGbdRecord = [&](const std::string& ownerSig, const uint8_t* gbdHdr) {
+        uint32_t nVertices = readU32BE(gbdHdr + 12);
+        uint32_t nTriangles = readU32BE(gbdHdr + 16);
+        uint64_t triProduct = static_cast<uint64_t>(nTriangles) * 3ull;
+        if (triProduct > 0x7FFFFFFFULL) {
+            cb.critical(
+                sfmt("Tag '%s' (gbd): nTriangles=%u * 3 = %llu overflows int32",
+                     ownerSig.c_str(), nTriangles,
+                     static_cast<unsigned long long>(triProduct)),
+                "CWE-190: Signed integer overflow in triangle index computation (CFL-002)");
+        }
+
+        uint64_t vertexBytes = static_cast<uint64_t>(nVertices) * 12ull;
+        if (vertexBytes > 256ull * 1024ull * 1024ull) {
+            cb.high(
+                sfmt("Tag '%s' (gbd): %u vertices * 12 = %llu bytes exceeds 256MB",
+                     ownerSig.c_str(), nVertices,
+                     static_cast<unsigned long long>(vertexBytes)),
+                "CWE-789: Amplification via vertex count");
+        }
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 4) || tag.size < 4) {
+            continue;
+        }
+        uint32_t typeSig = readU32BE(raw + tag.offset);
+        if (typeSig == 0x67626420) {
+            if (tag.size < 20 || !rawRangeAccessible(rawLen, tag.offset, 20)) {
+                continue;
+            }
+            scanGbdRecord(sigStr(tag.signature), raw + tag.offset);
+            continue;
+        }
+
+        if (typeSig != 0x74617279 || tag.size < 16 ||
+            !rawRangeAccessible(rawLen, tag.offset, 16)) {
+            continue;
+        }
+
+        uint32_t elemCount = readU32BE(raw + tag.offset + 12);
+        if (elemCount == 0 || elemCount > 256) {
+            continue;
+        }
+        uint64_t ownerEnd = static_cast<uint64_t>(tag.offset) + static_cast<uint64_t>(tag.size);
+        uint64_t tableEnd = static_cast<uint64_t>(tag.offset) + 16ull +
+                            static_cast<uint64_t>(elemCount) * 8ull;
+        if (tableEnd > rawLen || tableEnd > ownerEnd) {
+            continue;
+        }
+
+        for (uint32_t i = 0; i < elemCount; i++) {
+            size_t recOff = tag.offset + 16 + static_cast<size_t>(i) * 8;
+            uint32_t childOff = readU32BE(raw + recOff);
+            uint32_t childSz = readU32BE(raw + recOff + 4);
+            if (!childOff || childSz < 20) {
+                continue;
+            }
+
+            uint64_t childAbs = static_cast<uint64_t>(tag.offset) + static_cast<uint64_t>(childOff);
+            if (childAbs + 20 > rawLen || childAbs + childSz > ownerEnd) {
+                continue;
+            }
+            const uint8_t* child = raw + childAbs;
+            if (readU32BE(child) != 0x67626420) {
+                continue;
+            }
+            scanGbdRecord(sfmt("%s[tary]", sigStr(tag.signature).c_str()), child);
+        }
+    }
+
     return cb.done("GamutBoundaryDesc Triangle Vertex Overflow checked");
 }
 
