@@ -30,7 +30,7 @@ Last Updated: 2026-03-18 03:34:17 UTC by David Hoyt
 | **scan-build** | 0 bugs | 14 modules (12 iccanalyzer-lite + 2 colorbleed_tools) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v5.0.0: `08c6903`) |
 | **Fuzzers** | 13/13 | Build + smoke test pass, aligned to project tool scope |
-| **CFL Patches** | 60 active patches | Security fixes in cfl/patches/ (CFL-001 through CFL-075, 15 retired upstream) |
+| **CFL Patches** | 45 active, 93 retired | Security fixes in cfl/patches/ (CFL-004 through CFL-077, see patch table below) |
 
 ## Build
 
@@ -52,9 +52,66 @@ cd cfl && ./ramdisk-fuzz.sh     # automated tmpfs workflow
 cat .github/scripts/ramdisk-cheatsheet.sh  # copy-paste one-liners
 ```
 
-## OOM Patch Kit
+## CFL Patch Kit
 
-The `cfl/patches/` directory contains 60 active security patches for iccDEV (CFL-001 through CFL-075, with 15 retired after upstream acceptance: HBO fixes, integer overflow guards, alloc-dealloc mismatch, UBSAN enum/NaN fixes, recursion depth limits, unsigned underflow guards, null pointer dereference guards, stack buffer overflow guards, JSON config fixes, format specifier fixes, uninitialized member fixes, left-shift overflows, float-to-int overflow, implicit signed-to-unsigned conversions). Applied automatically by `cfl/build.sh`. 71 legacy patches retired March 2026 — see `cfl/patches-retired/` for the full catalog.
+The `cfl/patches/` directory contains **45 active** security patches for iccDEV, applied automatically by `cfl/build.sh` and `afl/build.sh`. **93 legacy patches** retired to `cfl/patches-retired/` after upstream acceptance or supersession (March 2026).
+
+### Active Patches (45)
+
+| # | Patch | CWE | Bug Class |
+|---|-------|-----|-----------|
+| 004 | ToneMapFunc Read parameter count | CWE-122 | HBO via Describe() with insufficient params |
+| 005 | CalculatorFunc Read enum UBSAN | CWE-681 | Enum out-of-range |
+| 006 | SpectralMatrix Describe iteration bounds | CWE-122 | HBO via Describe() row iteration |
+| 007 | TagArray Read overflow guard | CWE-190 | Integer overflow in element count |
+| 008 | TagCurve Apply NaN-to-unsigned | CWE-681 | NaN bypasses clamp, UB cast |
+| 009 | EnvVar Exec enum UBSAN | CWE-681 | Enum out-of-range |
+| 014 | SequenceNeedTempReset recursion depth | CWE-674 | Unbounded recursion |
+| 017 | GetEnvSig parse enum UBSAN | CWE-681 | Enum out-of-range (XML path) |
+| 019 | PCC getReflectanceObserver null guard | CWE-476 | Null pointer deref |
+| 021 | SingleSampledCurve OOM size validation | CWE-400 | Oversized allocation |
+| 022 | Calc Trunc/Floor/Ceil/Round/Mod int overflow | CWE-681 | Float-to-int overflow (5 ops) |
+| 023 | Sampled curve NaN-to-unsigned cast | CWE-681 | 3 NaN-to-unsigned casts |
+| 025 | CLUT InterpNd null Apply guard | CWE-476 | Null CIccApplyCLUT deref |
+| 028 | MatrixMath SetRange NaN guard | CWE-681 | NaN-to-unsigned-short |
+| 029 | TagArray operator= loop var | CWE-824 | Loop variable modified inside body |
+| 040 | fromIt8 CMYK missing push_back | CWE-787 | Missing sample accumulation |
+| 041 | fromIt8 LAB/XYZ val(4) OOB | CWE-125 | Wrong index (4 vs 3) |
+| 042 | ParseNumbers 'n' vs '\n' typo | CWE-20 | Character literal typo |
+| 043 | Tool toJson is_object vs is_array | CWE-697 | JSON type confusion |
+| 044 | NDLut Apply missing interp dispatch | CWE-476 | Missing dispatch in NDLut |
+| 046 | PCS step src matrix delete[] | CWE-762 | delete vs delete[] mismatch |
+| 047 | pushXYZNormalize null PCC guard | CWE-476 | Null PCC pointer deref |
+| 050 | FormulaCurve Describe param bounds | CWE-125 | OOB read in Describe |
+| 051 | ParametricCurve Describe param bounds | CWE-125 | OOB read in Describe |
+| 052 | fromIt8 wrong index variable | CWE-125 | Wrong loop index |
+| 053 | FormulaCurve Describe format specifiers | CWE-134 | Wrong printf format |
+| 054 | ParametricCurve Describe format specifiers | CWE-134 | Wrong printf format |
+| 055 | fromIt8 signed-unsigned mismatch | CWE-681 | Signed/unsigned comparison |
+| 056 | Spectral Describe null pointer guards | CWE-476 | Null pointer deref |
+| 057 | SearchApply uninitialized members | CWE-908 | Uninitialized members |
+| 059 | TagCurve Begin nMaxIndex underflow | CWE-681 | Implicit -1 to unsigned |
+| 061 | icF16toF unsigned underflow | CWE-191 | Unsigned subtraction underflow |
+| 062 | icGetSig implicit char conversion | CWE-681 | Implicit int-to-char |
+| 063 | Bounds check unsigned overflow | CWE-190 | offset+size overflow |
+| 064 | Segmented curve subtraction underflow | CWE-191 | pos-startPos underflow |
+| 067 | icIsS15Fixed16NumberNear float overflow | CWE-681 | Float-to-unsigned cast |
+| 068 | MpeCurveSet operator= self-assignment | CWE-824 | Self-assignment crash |
+| 069 | operator= self-assignment guards | CWE-824 | Self-assignment (multiple classes) |
+| 070 | Missing member copies in operator=/copy-ctor | CWE-665 | Incomplete copy |
+| 071 | Uninitialized default ctor members | CWE-908 | Uninitialized members |
+| 072 | printf format + unused function | CWE-134 | Format specifier mismatch |
+| 073 | IccProfileXml implicit fallthrough | CWE-484 | Missing break in switch |
+| 074 | IccUtilXml clipTypeRange if-constexpr | CWE-681 | Signed comparison fix |
+| 075 | IccCmmConfig uninit + format fixes | CWE-908 | Uninitialized + format |
+| 077 | CAM CalcCoefficients div-by-zero | CWE-369 | 3 division-by-zero chains |
+
+### Upstream Status
+
+- **CFL-077**: PR [#754](https://github.com/InternationalColorConsortium/iccDEV/pull/754) — open, Merge Ready
+- **CFL-076**: Accepted upstream in v2.3.1.6 — retired
+- **CFL-002, CFL-036, CFL-065**: Accepted upstream — retired
+- **93 legacy patches** in `cfl/patches-retired/` (timeout caps, OOM guards, alloc caps — superseded by LibFuzzer `-timeout=30 -rss_limit_mb=4096`)
 
 ## Fuzzer → Tool Mapping
 

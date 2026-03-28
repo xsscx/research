@@ -1,14 +1,16 @@
 # CFL — ClusterFuzzLite / LibFuzzer Harnesses for iccDEV
 
-Last Updated: 2026-03-07 16:50:00 UTC
+Last Updated: 2026-03-28 18:50:00 UTC
 
 Security fuzzing toolkit for [iccDEV](https://github.com/InternationalColorConsortium/iccDEV) (formerly DemoIccMAX).
-19 LibFuzzer harnesses, 57 active security patches, 18,800+ corpus files, and automated ramdisk workflows.
+13 LibFuzzer harnesses, 45 active security patches, 93 retired patches, and automated ramdisk workflows.
+
+Upstream: iccDEV v2.3.1.5 (commit e62525a)
 
 ## Quick Start
 
 ```bash
-# Build (clones iccDEV, applies 57 patches, compiles 19 fuzzers)
+# Build (clones iccDEV, applies 45 patches, compiles 13 fuzzers)
 ./build.sh
 
 # Smoke test (60 seconds on tmpfs ramdisk)
@@ -18,47 +20,104 @@ sudo ./ramdisk-fuzz.sh 60
 ./fuzz-local.sh -t 14400 -w 4
 ```
 
-## Fuzzers (19)
+## Fuzzers (13)
 
-| Fuzzer | LOC | Corpus | iccDEV Tool | API Scope |
-|--------|-----|--------|-------------|-----------|
-| `icc_dump_fuzzer` | 175 | 1,804 | IccDumpProfile | `OpenIccProfile`, `Describe`, `Validate` |
-| `icc_deep_dump_fuzzer` | 1,029 | 307 | IccDumpProfile | Deep tag inspection, `FindTag`, `Describe` |
-| `icc_profile_fuzzer` | 138 | 1,172 | IccDumpProfile | `CIccProfile::Read`, header/tag validation |
-| `icc_calculator_fuzzer` | 131 | 1,100 | IccDumpProfile | `CIccMpeCalculator`, calc element ops |
-| `icc_multitag_fuzzer` | 115 | 618 | IccDumpProfile | Multi-tag iteration, `FindTag` enumeration |
-| `icc_io_fuzzer` | 107 | 438 | IccRoundTrip | `CIccProfile::Read`/`Write`, `CIccMemIO` |
-| `icc_roundtrip_fuzzer` | 187 | 643 | IccRoundTrip | Read→Write→Read, `EvaluateProfile` |
-| `icc_apply_fuzzer` | 132 | 1,450 | IccApplyProfiles | `CIccCmm::AddXform`, `Begin`, `Apply` |
-| `icc_applyprofiles_fuzzer` | 163 | 1,592 | IccApplyProfiles | Multi-profile `CIccCmm` pipeline |
-| `icc_applynamedcmm_fuzzer` | 359 | 468 | IccApplyNamedCmm | `CIccNamedColorCmm` all Apply variants |
-| `icc_link_fuzzer` | 186 | 998 | IccApplyToLink | 2-profile `CIccCmm` link (2× ASAN memory) |
-| `icc_spectral_fuzzer` | 172 | 307 | IccV5DspObsToV4Dsp | MPE: `Begin`, `GetNewApply`, `Apply` |
-| `icc_v5dspobs_fuzzer` | 822 | 741 | IccV5DspObsToV4Dsp | v5 display observer conversion |
-| `icc_fromxml_fuzzer` | 167 | 1,693 | XML tools | `CIccProfileXml::LoadXml` |
-| `icc_toxml_fuzzer` | 86 | 1,177 | XML tools | `CIccProfile::Read` → `ToXml` |
-| `icc_fromcube_fuzzer` | 502 | 338 | IccFromCube | CUBE LUT import pipeline |
-| `icc_specsep_fuzzer` | 276 | 1,144 | IccSpecSepToTiff | `CTiffImg` spectral separation |
-| `icc_tiffdump_fuzzer` | 223 | 953 | IccTiffDump | `CTiffImg`, `OpenIccProfile`, `FindTag` |
+| # | Fuzzer | iccDEV Tool | API Scope |
+|---|--------|-------------|-----------|
+| 1 | `icc_applynamedcmm_fuzzer` | IccApplyNamedCmm | `CIccNamedColorCmm` all Apply variants |
+| 2 | `icc_applyprofiles_fuzzer` | IccApplyProfiles | Multi-profile `CIccCmm` pipeline |
+| 3 | `icc_applysearch_fuzzer` | IccApplySearch | `CIccCmmSearch` optimization |
+| 4 | `icc_cfg_fuzzer` | JSON config tools | `IccCmmConfig` JSON parsing |
+| 5 | `icc_dump_fuzzer` | IccDumpProfile | `OpenIccProfile`, `Describe`, `Validate` |
+| 6 | `icc_fromcube_fuzzer` | IccFromCube | CUBE LUT import pipeline |
+| 7 | `icc_fromxml_fuzzer` | IccFromXml | `CIccProfileXml::LoadXml` |
+| 8 | `icc_link_fuzzer` | IccApplyToLink | 2-profile `CIccCmm` link (2x ASAN memory) |
+| 9 | `icc_roundtrip_fuzzer` | IccRoundTrip | Read/Write/Read, `EvaluateProfile` |
+| 10 | `icc_specsep_fuzzer` | IccSpecSepToTiff | `CTiffImg` spectral separation |
+| 11 | `icc_tiffdump_fuzzer` | IccTiffDump | `CTiffImg`, `OpenIccProfile`, `FindTag` |
+| 12 | `icc_toxml_fuzzer` | IccToXml | `CIccProfile::Read` then `ToXml` |
+| 13 | `icc_v5dspobs_fuzzer` | IccV5DspObsToV4Dsp | v5 display observer conversion |
 
-**Total:** 5,770 LOC · 18,843 corpus files · 62,512 dictionary entries
+## Patch Kit (45 active, 93 retired)
 
-## Patch Kit (57 active patches)
+Security patches applied to iccDEV before building. Retired patches are in `patches-retired/` — accepted upstream in v2.3.1.5/v2.3.1.6 or superseded by LibFuzzer runtime limits.
 
-Security patches applied to iccDEV before building. See [`patches/README.md`](patches/README.md) for full details.
+### Active Patches (45)
 
-| Category | Count | Examples |
-|----------|-------|---------|
-| OOM allocation caps | 12 | 16MB CLUT, 128MB SetSize, 16MB SparseMatrix |
-| Heap-buffer-overflow | 14 | CLUT interp OOB, ApplySequence, pushXYZConvert, icFixXml |
-| UBSAN fixes | 10 | Float→int overflow, invalid-enum-load, NaN casts |
-| Stack overflow | 4 | Recursion depth caps (100-level), Read8 underflow |
-| Memory leaks | 6 | Read() failure paths, ParseTag, CheckPCSConnections |
-| Null-deref guards | 3 | NDLut Apply, ParseTag, ToneMapFunc |
-| XML parsing limits | 2 | Tag/string caps, mluc/Dict/ProfileSeqId bounds |
-| Upstream-adopted (dropped) | 15 | PRs #622, #630-#639 (upstream sync 2026-03-05) |
+| # | Patch | CWE | Files |
+|---|-------|-----|-------|
+| 004 | ToneMapFunc Read parameter count | CWE-122 | IccMpeBasic.cpp |
+| 005 | CalculatorFunc Read enum UBSAN | CWE-681 | IccMpeCalc.cpp |
+| 006 | SpectralMatrix Describe iteration bounds | CWE-122 | IccMpeSpectral.cpp |
+| 007 | TagArray Read overflow guard | CWE-190 | IccTagComposite.cpp |
+| 008 | TagCurve Apply NaN-to-unsigned | CWE-681 | IccTagLut.cpp |
+| 009 | EnvVar Exec enum UBSAN | CWE-681 | IccMpeCalc.cpp |
+| 014 | SequenceNeedTempReset recursion depth | CWE-674 | IccMpeCalc.cpp |
+| 017 | GetEnvSig parse enum UBSAN | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
+| 019 | PCC getReflectanceObserver null guard | CWE-476 | IccPcc.cpp |
+| 021 | SingleSampledCurve OOM size validation | CWE-400 | IccMpeBasic.cpp |
+| 022 | Calc Trunc/Floor/Ceil/Round/Mod int overflow | CWE-681 | IccMpeCalc.cpp |
+| 023 | Sampled curve NaN-to-unsigned cast | CWE-681 | IccMpeBasic.cpp |
+| 025 | CLUT InterpNd null Apply guard | CWE-476 | IccTagLut.cpp |
+| 028 | MatrixMath SetRange NaN guard | CWE-681 | IccMatrixMath.cpp |
+| 029 | TagArray operator= loop var | CWE-824 | IccTagComposite.cpp |
+| 040 | fromIt8 CMYK missing push_back | CWE-787 | IccCmmConfig.cpp |
+| 041 | fromIt8 LAB/XYZ val(4) OOB | CWE-125 | IccCmmConfig.cpp |
+| 042 | ParseNumbers 'n' vs '\n' typo | CWE-20 | IccCmmConfig.cpp |
+| 043 | Tool toJson is_object vs is_array | CWE-697 | iccApplyNamedCmm.cpp, iccApplySearch.cpp |
+| 044 | NDLut Apply missing interp dispatch | CWE-476 | IccCmm.cpp |
+| 046 | PCS step src matrix delete[] | CWE-762 | IccCmm.cpp |
+| 047 | pushXYZNormalize null PCC guard | CWE-476 | IccCmm.cpp |
+| 050 | FormulaCurve Describe param bounds | CWE-125 | IccMpeBasic.cpp |
+| 051 | ParametricCurve Describe param bounds | CWE-125 | IccTagLut.cpp |
+| 052 | fromIt8 wrong index variable | CWE-125 | IccCmmConfig.cpp |
+| 053 | FormulaCurve Describe format specifiers | CWE-134 | IccMpeBasic.cpp |
+| 054 | ParametricCurve Describe format specifiers | CWE-134 | IccTagLut.cpp |
+| 055 | fromIt8 signed-unsigned mismatch | CWE-681 | IccCmmConfig.cpp |
+| 056 | Spectral Describe null pointer guards | CWE-476 | IccMpeSpectral.cpp |
+| 057 | SearchApply uninitialized members | CWE-908 | IccCmmConfig.cpp |
+| 059 | TagCurve Begin nMaxIndex UBSAN | CWE-681 | IccTagLut.h |
+| 061 | icF16toF unsigned underflow | CWE-191 | IccUtil.cpp |
+| 062 | icGetSig implicit char conversion | CWE-681 | IccUtil.cpp |
+| 063 | Bounds check unsigned overflow | CWE-190 | IccProfile.cpp, IccTagMPE.cpp, IccMpeCalc.cpp |
+| 064 | Segmented curve subtraction underflow | CWE-191 | IccMpeBasic.cpp |
+| 067 | icIsS15Fixed16NumberNear float overflow | CWE-681 | IccUtil.cpp |
+| 068 | MpeCurveSet operator= self-assignment | CWE-824 | IccMpeBasic.cpp |
+| 069 | operator= self-assignment guards | CWE-824 | Multiple files |
+| 070 | Missing member copies operator=/copy-ctor | CWE-665 | Multiple files |
+| 071 | Uninit default ctor members | CWE-908 | Multiple files |
+| 072 | printf format + unused fn | CWE-134 | Multiple files |
+| 073 | IccProfileXml implicit fallthrough | CWE-484 | IccProfileXml.cpp |
+| 074 | IccUtilXml clipTypeRange if-constexpr | CWE-681 | IccUtilXml.cpp |
+| 075 | IccCmmConfig uninit + format fixes | CWE-908 | IccCmmConfig.cpp |
+| 077 | CAM CalcCoefficients div-by-zero guard | CWE-369 | IccCAM.cpp |
 
-**Active patches: 57** (71 total − 14 NO-OPs dropped during upstream sync)
+### Upstream Status
+
+| Patch | Status | Reference |
+|-------|--------|-----------|
+| CFL-004 | **PoC-validated** — ASAN HBO at IccMpeBasic.cpp:3988, SCARINESS=17 | `test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc` |
+| CFL-077 | **PoC-validated** — UBSAN div-by-zero at IccCAM.cpp:266,283 | [PR #754](https://github.com/InternationalColorConsortium/iccDEV/pull/754) (open, Merge Ready) |
+
+### Retired Patches (93 in `patches-retired/`)
+
+Patches accepted upstream in iccDEV v2.3.1.5/v2.3.1.6, or superseded by LibFuzzer runtime limits (`-timeout=30 -rss_limit_mb=4096`).
+
+| # | Reason | Upstream Reference |
+|---|--------|--------------------|
+| 001 | Accepted upstream | v2.3.1.5 |
+| 002 | Accepted upstream v2.3.1.6 | GBD triangles overflow |
+| 003 | Accepted upstream | PRs #680, #693 |
+| 010-013, 015-016, 018 | Accepted upstream | pre-v2.3.1.5 |
+| 019-old | Accepted upstream (partial) | PR #691 |
+| 020, 024, 026-027 | Accepted upstream | PRs #683, #694, #692 |
+| 034, 037, 039 | Accepted upstream | commit c2ea9da |
+| 036 | Accepted upstream v2.3.1.6 | linkGridSize toJson |
+| 065 | Accepted upstream v2.3.1.6 | IccTagLut nEnd underflow |
+| 076 | Accepted upstream v2.3.1.6 | GBD signed channel type confusion |
+| 074-083 (old series) | Superseded by LibFuzzer runtime limits | CWE-400 timeout/OOM patterns |
+
+See `patches-retired/` for the complete archive.
 
 ## Build
 
@@ -72,9 +131,9 @@ Security patches applied to iccDEV before building. See [`patches/README.md`](pa
 **What `build.sh` does:**
 1. Clones `iccDEV` (or reuses existing checkout)
 2. Resets to clean state (`git checkout .`)
-3. Applies all 57 patches from `patches/`
+3. Applies all 45 patches from `patches/`
 4. Builds static libraries (`IccProfLib2-static.a`, `IccXML2-static.a`)
-5. Compiles 19 fuzzers with ASAN + UBSAN + coverage instrumentation
+5. Compiles 13 fuzzers with ASAN + UBSAN + coverage instrumentation
 6. Outputs binaries to `bin/`
 
 **Instrumentation flags:**
@@ -97,7 +156,7 @@ sudo ./ramdisk-fuzz.sh 120 icc_profile_fuzzer icc_io_fuzzer  # specific fuzzers
 
 ```bash
 # Requires ramdisk already mounted and seeded
-./fuzz-local.sh                     # all 19 fuzzers, 4 workers, 4h each
+./fuzz-local.sh                     # all 13 fuzzers, 4 workers, 4h each
 ./fuzz-local.sh -t 3600 icc_dump_fuzzer  # single fuzzer, 1h
 ./fuzz-local.sh -w 8 -t 600        # 8 workers, 10 min each
 ./fuzz-local.sh -r /mnt/g/fuzz-ssd  # external SSD storage
@@ -162,33 +221,35 @@ LLVM_PROFILE_FILE=/dev/null
 
 | Fuzzer | Special Requirements |
 |--------|---------------------|
-| `icc_link_fuzzer` | `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2× ASAN memory) |
+| `icc_link_fuzzer` | `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256` (2 profiles per input = 2x ASAN memory) |
 | `icc_fromxml_fuzzer` | XML input (not binary ICC); uses `corpus-xml/` seed |
 | `icc_fromcube_fuzzer` | CUBE LUT text input (not binary ICC) |
-| `icc_deep_dump_fuzzer` | Largest fuzzer (1,029 LOC); deep tag-by-tag inspection |
-| `icc_v5dspobs_fuzzer` | v5 spectral profiles only; 822 LOC |
+| `icc_cfg_fuzzer` | JSON config input; uses malformed JSON test configs |
+| `icc_v5dspobs_fuzzer` | v5 spectral profiles; multi-profile bundled input format |
 
 ## Directory Structure
 
 ```
 cfl/
-├── bin/                      # Compiled fuzzer binaries (19)
-├── corpus-icc_*_fuzzer/      # Per-fuzzer seed corpora (19 dirs)
+├── bin/                      # Compiled fuzzer binaries (13)
+├── corpus-icc_*_fuzzer/      # Per-fuzzer seed corpora (11 active dirs)
 ├── corpus/                   # Shared ICC profiles
 ├── corpus-xml/               # XML seed corpus for fromxml fuzzer
-├── patches/                  # 71 security patches (57 active, 14 NO-OP) + README.md
-│   ├── 001-*.patch ... 070-*.patch
+├── patches/                  # 45 active security patches
+│   ├── 004-*.patch ... 077-*.patch
 │   └── README.md             # Full patch documentation
-├── icc_*_fuzzer.cpp           # Fuzzer source files (19)
-├── icc_*_fuzzer.dict          # Per-fuzzer dictionaries (19)
-├── icc_*_fuzzer.options       # LibFuzzer options files
-├── icc_*_fuzzer_seed_corpus/  # Minimal seed corpora
-├── findings/                  # Crash/OOM/timeout artifacts
-├── iccDEV/                   # iccDEV source (git clone)
+├── patches-retired/          # 93 retired patches (accepted upstream or superseded)
+├── icc_*_fuzzer.cpp          # Fuzzer source files (13)
+├── icc_*_fuzzer.dict         # Per-fuzzer dictionaries
+├── icc_*_fuzzer.options      # LibFuzzer options files
+├── icc_*_fuzzer_seed_corpus/ # Minimal seed corpora
+├── findings/                 # Crash/OOM/timeout artifacts
+├── iccDEV/                   # iccDEV source (git clone, patched at build time)
 ├── build.sh                  # Build script (clone + patch + compile)
 ├── fuzz-local.sh             # Local fuzzing driver
 ├── ramdisk-fuzz.sh           # Automated ramdisk fuzzing
 ├── fuzz_utils.h              # Shared fuzzer utilities
+├── CflSafeDescribe.h         # SafeDescribe wrapper for Describe-calling fuzzers
 ├── CMakeLists.txt            # CMake build for iccDEV libraries
 ├── project.yaml              # ClusterFuzzLite project config
 ├── Dockerfile                # CFL Docker image
@@ -216,9 +277,10 @@ Config: `codeql-config.yml`
 
 | Component | Path | Description |
 |-----------|------|-------------|
-| iccanalyzer-lite | `iccanalyzer-lite/` | 135-heuristic security analyzer with ASAN/UBSAN |
-| colorbleed_tools | `colorbleed_tools/` | Unsafe ICC↔XML converters for mutation testing |
-| MCP Server | `mcp-server/` | ICC Profile MCP server (22 tools) |
+| iccanalyzer-lite | `iccanalyzer-lite/` | 173-heuristic security analyzer with ASAN/UBSAN |
+| colorbleed_tools | `colorbleed_tools/` | Unsafe ICC/XML converters for mutation testing |
+| MCP Server | `mcp-server/` | ICC Profile MCP server (24 tools) |
+| AFL++ | `afl/` | Tool-level AFL++ fuzzing (14 instrumented iccDEV tools) |
 | CI Workflows | `.github/workflows/` | CodeQL, coverage, Docker build, MCP tests |
 | Prompts | `.github/prompts/` | AI analysis prompt templates |
 | Test Profiles | `test-profiles/` | ICC profiles for validation |
