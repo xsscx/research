@@ -1145,7 +1145,7 @@ sigCC[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));
 Use `SignatureToFourCC()` helper when displaying signatures (trims trailing spaces).
 
 **Known upstream UBSAN** (in iccDEV library, not our code):
-- `IccCAM.cpp:262,266` — division by zero in CAM color appearance model (m_WhitePoint[1] can be 0)
+- `IccCAM.cpp:262,266,283` — division by zero in CAM color appearance model (m_WhitePoint[1]=0 or m_La=0 causes m_Fl=0, m_x0=0; CFL-077 fixes)
 - `IccProfile.cpp:3153,3155` — division by zero (m_illuminantXYZ.Y can be 0)
 - `IccTagLut.cpp:5009` — signed integer overflow in LUT matrix validation (int sum += m_XYZMatrix)
 - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange (patch 051 fixes in CFL)

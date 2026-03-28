@@ -123,6 +123,7 @@ for historical reference.
 | 066 | IccUtilXml bitmask signed conversion | ~(enum\|enum) produces signed negative→unsigned UBSAN | CWE-681 | IccUtilXml.cpp |
 | 067 | icIsS15Fixed16NumberNear float overflow | Float-to-unsigned cast overflow in D50 illuminant check | CWE-681 | IccUtil.cpp |
 | 076 | GBD signed channel type confusion | icInt16Number→icUInt16Number for m_nPCSChannels/m_nDeviceChannels | CWE-681 | IccTagLut.h |
+| 077 | CAM CalcCoefficients div-by-zero guard | Guard 3 division chains when m_La=0 or m_WhitePoint[1]=0 | CWE-369 | IccCAM.cpp |
 
 ### Retired Patches (accepted upstream)
 
