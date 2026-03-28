@@ -354,6 +354,29 @@ static void test_ub_prescan_malformed_tag_offsets_do_not_crash() {
     }
 }
 
+static void test_failed_load_profiles_keep_raw_state() {
+    std::printf("  test_failed_load_profiles_keep_raw_state...\n");
+
+    for (const char* relPath : {
+             "tests/corpus/calculator_deep_nesting.icc",
+             "tests/corpus/v5_spac_basic.icc",
+         }) {
+        auto profilePath = resolve_repo_file(relPath);
+        if (profilePath.empty()) {
+            std::printf("    (skipped — %s not found)\n", relPath);
+            continue;
+        }
+
+        auto pv = ProfileView::open(profilePath, true);
+        ASSERT_TRUE(pv.has_value());
+        if (pv) {
+            ASSERT_FALSE(pv->requiresLibraryQuarantine());
+            ASSERT_FALSE(pv->libraryLoaded());
+            ASSERT_GT(pv->tagCount(), 0u);
+        }
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
     // Try a known-good profile if it exists
@@ -414,6 +437,7 @@ void test_profile_view() {
     test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load();
     test_ub_prescan_curve_element_oom_skip_load();
     test_ub_prescan_malformed_tag_offsets_do_not_crash();
+    test_failed_load_profiles_keep_raw_state();
     test_open_real_profile();
     test_metadata();
     std::printf("  [OK]\n\n");

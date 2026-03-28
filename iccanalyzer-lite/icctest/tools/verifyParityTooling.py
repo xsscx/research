@@ -38,12 +38,21 @@ def default_h30_fixture() -> Path:
     return repo_root() / "tests" / "corpus" / "gbd_tary_signed_channel_wrap.icc"
 
 
+def default_h21_fixture() -> Path:
+    return (
+        repo_root().parent
+        / "test-profiles"
+        / "sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc"
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v1-binary", type=Path, default=default_v1_binary())
     parser.add_argument("--v2-binary", type=Path, default=default_v2_binary())
     parser.add_argument("--fixture", type=Path, default=default_fixture())
     parser.add_argument("--h30-fixture", type=Path, default=default_h30_fixture())
+    parser.add_argument("--h21-fixture", type=Path, default=default_h21_fixture())
     return parser.parse_args()
 
 
@@ -155,6 +164,7 @@ def main() -> int:
     ensure_file(args.v2_binary, "V2 parity binary")
     ensure_file(args.fixture, "malformed spectral fixture")
     ensure_file(args.h30_fixture, "H30 GBD fixture")
+    ensure_file(args.h21_fixture, "H21 tagStruct fixture")
 
     tool_dir = Path(__file__).resolve().parent
     normalize = tool_dir / "normalizeV1Json.py"
@@ -221,6 +231,27 @@ def main() -> int:
     if int(h30_counts.get("delta", 0)) != 0:
         raise RuntimeError(
             f"Expected H30 comparator delta=0 for nested GBD fixture, got {h30_counts}"
+        )
+
+    h21_payload = run_json(
+        [
+            sys.executable,
+            str(compare),
+            "--lane",
+            "heuristic",
+            "--check",
+            "H21,H22,H23,H24",
+            "--v1-binary",
+            str(args.v1_binary),
+            "--v2-binary",
+            str(args.v2_binary),
+            str(args.h21_fixture),
+        ]
+    )
+    h21_counts = h21_payload.get("summary", {}).get("counts", {})
+    if int(h21_counts.get("delta", 0)) != 0:
+        raise RuntimeError(
+            f"Expected H21-H24 comparator delta=0 for tagStruct fixture, got {h21_counts}"
         )
 
     with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:

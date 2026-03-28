@@ -830,11 +830,90 @@ REGISTER_HEURISTIC(89, "Profile Sequence Description",
 
 static CheckResult check_h90_preview_tag_channel_consistency(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H90
-    return cb.done("Preview Tag Channel Consistency checked");
+
+    auto pcsChannelCount = [&](uint32_t pcs) -> uint32_t {
+        switch (pcs) {
+            case 0x58595A20u: return 3; // 'XYZ '
+            case 0x4C616220u: return 3; // 'Lab '
+            case 0x4C757620u: return 3; // 'Luv '
+            case 0x59436272u: return 3; // 'YCbr'
+            case 0x52474220u: return 3; // 'RGB '
+            case 0x434D5920u: return 3; // 'CMY '
+            case 0x434D594Bu: return 4; // 'CMYK'
+            case 0x47524159u: return 1; // 'GRAY'
+            default: return 0;
+        }
+    };
+
+    auto checkPreviewTag = [&](icTagSignature sig, uint8_t inChan, uint8_t outChan) {
+        uint32_t pcsChannels = 0;
+        if (pv.rawSize() >= 128) {
+            pcsChannels = pcsChannelCount(pv.header().pcs);
+        } else if (p) {
+            pcsChannels = pcsChannelCount(static_cast<uint32_t>(p->m_Header.pcs));
+        }
+        if (!pcsChannels) return;
+
+        if (inChan != pcsChannels) {
+            cb.warn(sfmt("Tag '%s': input channels=%u != PCS channels=%u",
+                         sigStr(sig).c_str(), inChan, pcsChannels),
+                    "CWE-125: Channel mismatch -> OOB in preview transform");
+        }
+        if (outChan != pcsChannels) {
+            cb.warn(sfmt("Tag '%s': output channels=%u != PCS channels=%u",
+                         sigStr(sig).c_str(), outChan, pcsChannels),
+                    "CWE-787: Output channel mismatch -> buffer overwrite");
+        }
+    };
+
+    if (p) {
+        static const icTagSignature previewSigs[] = {
+            icSigPreview0Tag, icSigPreview1Tag, icSigPreview2Tag,
+            static_cast<icTagSignature>(0)
+        };
+        for (int i = 0; previewSigs[i] != static_cast<icTagSignature>(0); ++i) {
+            auto tag = pv.tag(previewSigs[i]);
+            auto* pMbb = tag ? dynamic_cast<CIccMBB*>(tag->rawHandle()) : nullptr;
+            if (!pMbb) continue;
+            checkPreviewTag(previewSigs[i], pMbb->InputChannels(), pMbb->OutputChannels());
+        }
+        return cb.done("Preview tag channels consistent (or absent)");
+    }
+
+    // Raw fallback: preview tags frequently fail full library load even though
+    // their mft1/mft2/mAB/mBA channel header bytes are still readable.
+    static const uint32_t previewSigs[] = {
+        0x70726530u, // 'pre0'
+        0x70726531u, // 'pre1'
+        0x70726532u  // 'pre2'
+    };
+    bool sawPreview = false;
+    for (uint32_t sig : previewSigs) {
+        auto raw = pv.rawTag(sig);
+        if (!raw || raw->size < 12 || !rawRangeAccessible(pv.rawSize(), raw->offset, 12)) {
+            continue;
+        }
+        sawPreview = true;
+        const uint8_t* tag = pv.rawData() + raw->offset;
+        uint32_t typeSig = readU32BE(tag);
+        switch (typeSig) {
+            case 0x6D667431u: // mft1
+            case 0x6D667432u: // mft2
+            case 0x6D414220u: // mAB 
+            case 0x6D424120u: // mBA 
+                checkPreviewTag(static_cast<icTagSignature>(sig), tag[8], tag[9]);
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (!sawPreview) {
+        return CheckResult::skip("No preview tags present");
+    }
+
+    return cb.done("Preview tag channels consistent (or absent)");
 }
 
 REGISTER_HEURISTIC(90, "Preview Tag Channel Consistency",
@@ -1511,6 +1590,13 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
             static_cast<uint32_t>(icSigGamutBoundaryDescription2Tag),
             static_cast<uint32_t>(icSigGamutBoundaryDescription3Tag),
         };
+        static const uint32_t textTagSigs[] = {
+            static_cast<uint32_t>(icSigProfileDescriptionTag),
+            static_cast<uint32_t>(icSigDeviceMfgDescTag),
+            static_cast<uint32_t>(icSigDeviceModelDescTag),
+            static_cast<uint32_t>(icSigCopyrightTag),
+            static_cast<uint32_t>(icSigCharTargetTag),
+        };
 
         uint32_t tagCount = readU32BE(raw + 128);
         uint32_t maxTags = static_cast<uint32_t>((rawLen - 132) / 12);
@@ -1536,12 +1622,39 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                     break;
                 }
             }
+            bool isTextTag = false;
+            for (uint32_t sig : textTagSigs) {
+                if (tagSig == sig) {
+                    isTextTag = true;
+                    break;
+                }
+            }
             bool isKnownNullTagCandidate =
                 isLutTag ||
                 isGbdTag ||
+                isTextTag ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedHeightImageType) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedNormalImageType);
-            if (!isKnownNullTagCandidate || !rawRangeAccessible(rawLen, tagOff, 4)) {
+            if (!isKnownNullTagCandidate) {
+                continue;
+            }
+            if (isTextTag) {
+                if (!rawRangeAccessible(rawLen, tagOff, 4)) {
+                    continue;
+                }
+                uint32_t typeSig = readU32BE(raw + tagOff);
+                if (typeSig != static_cast<uint32_t>(icSigTextDescriptionType) &&
+                    typeSig != static_cast<uint32_t>(icSigTextType)) {
+                    continue;
+                }
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                         sigStr(tagSig).c_str()),
+                    "CWE-476: Null tag pointer in tag table — any access crashes");
+                rawFallbackFinding = true;
+                continue;
+            }
+            if (!rawRangeAccessible(rawLen, tagOff, 4)) {
                 continue;
             }
 

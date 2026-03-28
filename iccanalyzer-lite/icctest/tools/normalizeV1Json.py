@@ -207,6 +207,8 @@ def infer_heuristic_primary_findings(detail: str) -> int:
 
         line = raw_line.strip()
         lowered = line.lower()
+        if re.match(r"^Tag '....' is tagStruct \(type='....', \d+ members\)$", line):
+            continue
         if any(lowered.startswith(prefix) for prefix in auxiliary_prefixes):
             continue
 

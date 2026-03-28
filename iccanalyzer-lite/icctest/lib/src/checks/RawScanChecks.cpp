@@ -221,9 +221,67 @@ static CheckResult check_h38_curve_degenerate_value_detection(const ProfileView&
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H38
-    return cb.done("Curve Degenerate Value Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 12 > rawLen || tag.size < 12) {
+            continue;
+        }
+
+        uint32_t tagType = readU32BE(raw + tag.offset);
+        std::string sig = sigStr(tag.signature);
+
+        if (tagType == 0x63757276u) { // 'curv'
+            uint32_t curveCount = readU32BE(raw + tag.offset + 8);
+            if (curveCount == 0) {
+                continue;
+            }
+            if (curveCount > 65536u) {
+                cb.warn(sfmt("Tag '%s' (curv): count %u > 64K — OOM risk",
+                             sig.c_str(), curveCount));
+                continue;
+            }
+
+            size_t sampleCount = curveCount > 512u ? 512u : static_cast<size_t>(curveCount);
+            uint64_t dataOff = static_cast<uint64_t>(tag.offset) + 12ull;
+            if (dataOff + sampleCount * 2ull > rawLen) {
+                continue;
+            }
+
+            bool allZero = true;
+            bool allMax = true;
+            for (size_t i = 0; i < sampleCount; ++i) {
+                uint16_t val = readU16BE(raw + dataOff + i * 2);
+                if (val != 0) {
+                    allZero = false;
+                }
+                if (val != 0xFFFFu) {
+                    allMax = false;
+                }
+            }
+
+            if (allZero && curveCount > 1u) {
+                cb.warn(sfmt("Tag '%s' (curv): all %u entries are zero — input always mapped to 0",
+                             sig.c_str(), curveCount),
+                        "CWE-682: Degenerate TRC destroys color information");
+            }
+            if (allMax && curveCount > 1u) {
+                cb.warn(sfmt("Tag '%s' (curv): all %u entries are 0xFFFF — input always mapped to max",
+                             sig.c_str(), curveCount));
+            }
+        }
+
+        if (tagType == 0x70617261u && tag.size >= 16) { // 'para'
+            uint16_t funcType = readU16BE(raw + tag.offset + 8);
+            if (funcType > 4u) {
+                cb.warn(sfmt("Tag '%s' (para): funcType %u > 4 (ICC max)",
+                             sig.c_str(), static_cast<unsigned>(funcType)),
+                        "CWE-681: Invalid parametric curve function type");
+            }
+        }
+    }
+
+    return cb.done("No degenerate curve values detected");
 }
 
 REGISTER_HEURISTIC(38, "Curve Degenerate Value Detection",
@@ -236,9 +294,78 @@ static CheckResult check_h39_shared_tag_data_aliasing_detection(const ProfileVie
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H39
-    return cb.done("Shared Tag Data Aliasing Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    static const uint32_t kImmutableTypes[] = {
+        0x63757276u, // curv
+        0x73663332u, // sf32
+        0x58595A20u, // XYZ
+        0x6D667432u, // mft2
+        0x6D667431u, // mft1
+        0x70617261u, // para
+        0x74657874u, // text
+        0x64657363u, // desc
+        0x6D6C7563u, // mluc
+    };
+    auto isImmutableType = [&](uint32_t sig) {
+        for (uint32_t known : kImmutableTypes) {
+            if (known == sig) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int sharedPairs = 0;
+    bool allImmutable = true;
+    const auto& tags = pv.rawTagTable();
+    for (size_t i = 0; i < tags.size(); ++i) {
+        for (size_t j = i + 1; j < tags.size(); ++j) {
+            uint32_t offI = tags[i].offset;
+            uint32_t szI = tags[i].size;
+            uint32_t offJ = tags[j].offset;
+            uint32_t szJ = tags[j].size;
+
+            if (offI == offJ && szI == szJ) {
+                sharedPairs++;
+                if ((uint64_t)offI + 4 <= rawLen) {
+                    uint32_t typeVal = readU32BE(raw + offI);
+                    if (!isImmutableType(typeVal)) {
+                        allImmutable = false;
+                    }
+                }
+                continue;
+            }
+
+            if (offI == offJ && szI != szJ) {
+                cb.warn(sfmt("Tags '%s' and '%s' share offset 0x%X but have different sizes (%u vs %u)",
+                             sigStr(tags[i].signature).c_str(),
+                             sigStr(tags[j].signature).c_str(),
+                             offI, szI, szJ),
+                        "CWE-119: Shared offset with size mismatch — potential OOB");
+                continue;
+            }
+
+            if ((uint64_t)offI < (uint64_t)offJ + szJ &&
+                (uint64_t)offJ < (uint64_t)offI + szI &&
+                offI != offJ) {
+                cb.warn(sfmt("Tags '%s' [0x%X+%u] and '%s' [0x%X+%u] partially overlap",
+                             sigStr(tags[i].signature).c_str(), offI, szI,
+                             sigStr(tags[j].signature).c_str(), offJ, szJ),
+                        "CWE-119: Partial tag data overlap — parser confusion");
+            }
+        }
+    }
+
+    if (sharedPairs > 0 && allImmutable) {
+        cb.info(sfmt("%d shared tag pair(s) — all immutable types (safe)", sharedPairs));
+    } else if (sharedPairs > 0) {
+        cb.warn(sfmt("%d shared tag pair(s) include mutable types — UAF risk in Cleanup()",
+                     sharedPairs),
+                "CWE-416: Shared mutable tag pointers — double-free in dedup loop");
+    }
+
+    return cb.done("No risky shared tag data aliasing");
 }
 
 REGISTER_HEURISTIC(39, "Shared Tag Data Aliasing Detection",
@@ -251,9 +378,28 @@ static CheckResult check_h41_version_type_consistency_check(const ProfileView& p
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H41
-    return cb.done("Version Type Consistency Check checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    uint8_t versionMajor = raw[8];
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 4 > rawLen || tag.size < 4) {
+            continue;
+        }
+
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        std::string sig = sigStr(tag.signature);
+
+        if (versionMajor >= 4 && typeVal == 0x64657363u) {
+            cb.warn(sfmt("Tag '%s': v2-only textDescription type (0x64657363) in v%u profile",
+                         sig.c_str(), static_cast<unsigned>(versionMajor)));
+        }
+        if (versionMajor >= 4 && typeVal == 0x6E636F6Cu) {
+            cb.warn(sfmt("Tag '%s': deprecated namedColor type in v%u profile",
+                         sig.c_str(), static_cast<unsigned>(versionMajor)));
+        }
+    }
+
+    return cb.done("Version/type consistency OK");
 }
 
 REGISTER_HEURISTIC(41, "Version Type Consistency Check",
@@ -266,9 +412,53 @@ static CheckResult check_h42_matrix_singularity_detection(const ProfileView& pv)
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H42
-    return cb.done("Matrix Singularity Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 48 > rawLen || tag.size < 48) {
+            continue;
+        }
+
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        if (typeVal != 0x6D667431u && typeVal != 0x6D667432u) {
+            continue;
+        }
+
+        double m[3][3];
+        for (int r = 0; r < 3; ++r) {
+            for (int c = 0; c < 3; ++c) {
+                const uint8_t* elem = raw + tag.offset + 12 + ((r * 3 + c) * 4);
+                m[r][c] = readS15Fixed16(elem);
+            }
+        }
+
+        double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                   - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                   + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+
+        std::string sig = sigStr(tag.signature);
+        const char* kind = (typeVal == 0x6D667431u) ? "lut8" : "lut16";
+
+        if (std::fabs(det) < 1e-6) {
+            cb.warn(sfmt("Tag '%s' (%s): near-singular 3x3 matrix (det=%.6g)",
+                         sig.c_str(), kind, det),
+                    "CWE-369: Singular matrix — inversion produces div-by-zero or garbage");
+        }
+
+        bool allZero = (std::fabs(det) < 1e-20);
+        for (int r = 0; r < 3 && allZero; ++r) {
+            for (int c = 0; c < 3 && allZero; ++c) {
+                if (std::fabs(m[r][c]) > 1e-10) {
+                    allZero = false;
+                }
+            }
+        }
+        if (allZero) {
+            cb.warn(sfmt("Tag '%s': matrix is all zeros — destroys color data", sig.c_str()));
+        }
+    }
+
+    return cb.done("No singular matrices detected");
 }
 
 REGISTER_HEURISTIC(42, "Matrix Singularity Detection",
@@ -281,9 +471,36 @@ static CheckResult check_h43_spectral_brdf_tag_structural_validation(const Profi
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H43
-    return cb.done("Spectral BRDF Tag Structural Validation checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 20 > rawLen || tag.size < 20) {
+            continue;
+        }
+
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        if (typeVal != 0x73767763u) { // 'svwc'
+            continue;
+        }
+
+        uint16_t specStart = readU16BE(raw + tag.offset + 8);
+        uint16_t specEnd = readU16BE(raw + tag.offset + 10);
+        uint16_t specSteps = readU16BE(raw + tag.offset + 12);
+        std::string sig = sigStr(tag.signature);
+
+        if (specStart > 0 && specEnd > 0 && specEnd <= specStart) {
+            cb.warn(sfmt("Tag '%s' (svwc): spectral end (%u) <= start (%u)",
+                         sig.c_str(), static_cast<unsigned>(specEnd), static_cast<unsigned>(specStart)),
+                    "CWE-682: Inverted spectral range");
+        }
+        if ((specStart > 0 || specEnd > 0) && specSteps == 0) {
+            cb.warn(sfmt("Tag '%s' (svwc): spectral steps = 0 with non-zero range",
+                         sig.c_str()),
+                    "CWE-369: Division by zero in spectral interpolation");
+        }
+    }
+
+    return cb.done("No spectral/BRDF structure issues");
 }
 
 REGISTER_HEURISTIC(43, "Spectral BRDF Tag Structural Validation",
@@ -296,9 +513,35 @@ static CheckResult check_h44_embedded_image_validation(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H44
-    return cb.done("Embedded Image Validation checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 8 > rawLen || tag.size < 8) {
+            continue;
+        }
+
+        if (tag.size > 16u * 1024u * 1024u) {
+            cb.warn(sfmt("Tag '%s': size %u bytes (>16MB) — oversized embedded data",
+                         sigStr(tag.signature).c_str(), tag.size),
+                    "CWE-400: Potential resource exhaustion via large embedded image");
+        }
+
+        if ((uint64_t)tag.offset + 16 <= rawLen) {
+            const uint8_t* magic = raw + tag.offset + 8;
+            if ((magic[0] == 0x49 && magic[1] == 0x49) ||
+                (magic[0] == 0x4D && magic[1] == 0x4D)) {
+                cb.info(sfmt("Tag '%s': TIFF image detected in tag data",
+                             sigStr(tag.signature).c_str()));
+            }
+            if (magic[0] == 0x89 && magic[1] == 0x50 &&
+                magic[2] == 0x4E && magic[3] == 0x47) {
+                cb.info(sfmt("Tag '%s': PNG image detected in tag data",
+                             sigStr(tag.signature).c_str()));
+            }
+        }
+    }
+
+    return cb.done("No embedded image issues");
 }
 
 REGISTER_HEURISTIC(44, "Embedded Image Validation",
@@ -311,9 +554,46 @@ static CheckResult check_h45_sparse_matrix_bounds_validation(const ProfileView& 
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H45
-    return cb.done("Sparse Matrix Bounds Validation checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    constexpr uint64_t kMaxSparseMatrixEntries = 16ull * 1024ull * 1024ull;
+    constexpr size_t kMaxTagDataScan = 4096;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 16 > rawLen || tag.size < 16) {
+            continue;
+        }
+
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        if (typeVal != 0x6D706574u) { // 'mpet'
+            continue;
+        }
+
+        size_t scanLen = tag.size < kMaxTagDataScan ? tag.size : kMaxTagDataScan;
+        if ((uint64_t)tag.offset + scanLen > rawLen) {
+            scanLen = rawLen - tag.offset;
+        }
+
+        for (size_t b = 0; b + 16 < scanLen; b += 4) {
+            uint32_t sig = readU32BE(raw + tag.offset + b);
+            if (sig != 0x736D7478u) { // 'smtx'
+                continue;
+            }
+            uint32_t rows = readU32BE(raw + tag.offset + b + 8);
+            uint32_t cols = readU32BE(raw + tag.offset + b + 12);
+            uint64_t entries = static_cast<uint64_t>(rows) * static_cast<uint64_t>(cols);
+            if (entries > kMaxSparseMatrixEntries) {
+                cb.warn(sfmt("Tag '%s': sparse matrix %ux%u = %llu entries (limit %llu)",
+                             sigStr(tag.signature).c_str(),
+                             rows, cols,
+                             static_cast<unsigned long long>(entries),
+                             static_cast<unsigned long long>(kMaxSparseMatrixEntries)),
+                        "CWE-789: Amplification — small tag triggers huge allocation");
+            }
+        }
+    }
+
+    return cb.done("No sparse matrix bounds issues");
 }
 
 REGISTER_HEURISTIC(45, "Sparse Matrix Bounds Validation",
@@ -326,9 +606,45 @@ static CheckResult check_h46_textdescription_unicode_length_validation(const Pro
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H46
-    return cb.done("TextDescription Unicode Length Validation checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if ((uint64_t)tag.offset + 12 > rawLen || tag.size < 12) {
+            continue;
+        }
+
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        std::string sig = sigStr(tag.signature);
+
+        if (typeVal == 0x64657363u) { // 'desc'
+            uint32_t asciiLen = readU32BE(raw + tag.offset + 8);
+            if (asciiLen > tag.size - 8) {
+                cb.warn(sfmt("Tag '%s' (desc): ASCII length %u exceeds available tag data %u",
+                             sig.c_str(), asciiLen, tag.size - 8),
+                        "CWE-120: Buffer overflow in textDescription parsing");
+            }
+
+            size_t uniOff = 12u + asciiLen;
+            if (uniOff + 8 <= tag.size && (uint64_t)tag.offset + uniOff + 8 <= rawLen) {
+                uint32_t uniLen = readU32BE(raw + tag.offset + uniOff + 4);
+                if (uniLen > 0 && uniOff + 8 + static_cast<uint64_t>(uniLen) * 2ull > tag.size) {
+                    cb.warn(sfmt("Tag '%s' (desc): unicode length %u exceeds tag bounds",
+                                 sig.c_str(), uniLen),
+                            "CWE-120: Unicode string overflow in textDescription");
+                }
+            }
+        }
+
+        if (typeVal == 0x6D6C7563u && (uint64_t)tag.offset + 12 <= rawLen) { // 'mluc'
+            uint32_t numRec = readU32BE(raw + tag.offset + 8);
+            if (numRec > 500u) {
+                cb.warn(sfmt("Tag '%s' (mluc): %u records (>500) — OOM risk",
+                             sig.c_str(), numRec));
+            }
+        }
+    }
+
+    return cb.done("No text description length issues");
 }
 
 REGISTER_HEURISTIC(46, "TextDescription Unicode Length Validation",
@@ -386,9 +702,17 @@ static CheckResult check_h50_zero_size_profile_tag_detection(const ProfileView& 
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H50
-    return cb.done("Zero-Size Profile Tag Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size == 0) {
+            cb.warn(sfmt("Tag '%s' at offset 0x%X: zero size",
+                         sigStr(tag.signature).c_str(), tag.offset),
+                    "CWE-476: Zero-size tag may cause null deref or empty buffer access");
+        }
+    }
+
+    return cb.done("No zero-size tags");
 }
 
 REGISTER_HEURISTIC(50, "Zero-Size Profile Tag Detection",
