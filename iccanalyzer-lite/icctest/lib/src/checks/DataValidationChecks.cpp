@@ -530,11 +530,107 @@ REGISTER_HEURISTIC(85, "MPE Buffer Overlap",
 
 static CheckResult check_h86_localized_unicode_bounds(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H86
-    return cb.done("Localized Unicode Bounds checked");
+    if (!p) return CheckResult::error("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* pTag = p->FindTag(sit->TagInfo.sig);
+        if (!pTag) {
+            continue;
+        }
+        if (pTag->GetType() != icSigMultiLocalizedUnicodeType) {
+            continue;
+        }
+
+        auto* pMluc = dynamic_cast<CIccTagMultiLocalizedUnicode*>(pTag);
+        if (!pMluc || !pMluc->m_Strings) {
+            continue;
+        }
+
+        int localeCount = 0;
+        uint64_t totalTextBytes = 0;
+        for (auto mlucIt = pMluc->m_Strings->begin(); mlucIt != pMluc->m_Strings->end(); ++mlucIt) {
+            localeCount++;
+            totalTextBytes += mlucIt->GetLength() * sizeof(icUInt16Number);
+        }
+
+        std::string tagName = sigStr(static_cast<uint32_t>(sit->TagInfo.sig));
+        if (localeCount > 1000) {
+            cb.warn(sfmt("Tag '%s': %d locale entries in mluc (>1000) — memory bomb",
+                         tagName.c_str(), localeCount),
+                    "CWE-122: Excessive locale entries → HBO in GetText (CVE-2026-21679)");
+        }
+        if (totalTextBytes > 67108864ULL) {
+            cb.warn(sfmt("Tag '%s': total mluc text=%llu bytes (>64MB)",
+                         tagName.c_str(), static_cast<unsigned long long>(totalTextBytes)),
+                    "CWE-122: Excessive text size → heap overflow (CVE-2026-21678)");
+        }
+
+        for (auto mlucIt = pMluc->m_Strings->begin(); mlucIt != pMluc->m_Strings->end(); ++mlucIt) {
+            icUInt32Number textLen = mlucIt->GetLength();
+            const icUInt16Number* textBuf = mlucIt->GetBuf();
+            if (!textBuf || textLen == 0) {
+                continue;
+            }
+            if (textLen > 10000) {
+                textLen = 10000;
+            }
+
+            int controlChars = 0;
+            int bidiOverrides = 0;
+            int nullChars = 0;
+            bool hasLatin = false;
+            bool hasNonLatin = false;
+
+            for (icUInt32Number c = 0; c < textLen; c++) {
+                icUInt16Number ch = textBuf[c];
+                if (ch == 0x0000) {
+                    nullChars++;
+                    continue;
+                }
+                if ((ch < 0x0020 && ch != 0x0009 && ch != 0x000A && ch != 0x000D) ||
+                    (ch >= 0x007F && ch <= 0x009F)) {
+                    controlChars++;
+                }
+                if ((ch >= 0x200B && ch <= 0x206F) || ch == 0xFEFF) {
+                    bidiOverrides++;
+                }
+                if (ch >= 0x0020 && ch <= 0x007E) {
+                    hasLatin = true;
+                }
+                if (ch > 0x024F) {
+                    hasNonLatin = true;
+                }
+            }
+
+            if (bidiOverrides > 0) {
+                cb.critical(sfmt("HEURISTIC: Tag '%s': mluc text contains %d Unicode bidi override/formatting characters (U+200B-U+206F)",
+                                 tagName.c_str(), bidiOverrides),
+                            "CWE-116: Bidi text injection — can reverse displayed text direction for spoofing/phishing");
+            }
+            if (controlChars > 0) {
+                cb.warn(sfmt("Tag '%s': mluc text contains %d non-printable control characters",
+                             tagName.c_str(), controlChars),
+                        "CWE-116: Control character injection in profile text");
+            }
+            if (nullChars > 0 && nullChars < static_cast<int>(textLen)) {
+                bool isJustTerminator = (nullChars == 1 && textBuf[textLen - 1] == 0x0000);
+                if (!isJustTerminator) {
+                    cb.warn(sfmt("Tag '%s': mluc text contains %d embedded null characters (string truncation attack)",
+                                 tagName.c_str(), nullChars),
+                            "CWE-170: Embedded nulls truncate text differently per consumer (injection vector)");
+                }
+            }
+            if (hasLatin && hasNonLatin) {
+                cb.warn(sfmt("Tag '%s': mluc text mixes Latin + non-Latin scripts (possible homoglyph/corruption)",
+                             tagName.c_str()),
+                        "CWE-116: Mixed-script text may indicate fuzzed/corrupted Unicode data");
+            }
+        }
+    }
+
+    return cb.done("Localized Unicode text within bounds");
 }
 
 REGISTER_HEURISTIC(86, "Localized Unicode Bounds",
@@ -545,11 +641,80 @@ REGISTER_HEURISTIC(86, "Localized Unicode Bounds",
 
 static CheckResult check_h87_trc_curve_anomaly(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H87
-    return cb.done("TRC Curve Anomaly checked");
+    if (!p) return CheckResult::error("No profile");
+
+    static const icTagSignature trcSigs[] = {
+        icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, icSigGrayTRCTag,
+        static_cast<icTagSignature>(0)
+    };
+    static const char* trcNames[] = {
+        "redTRCTag", "greenTRCTag", "blueTRCTag", "grayTRCTag"
+    };
+
+    for (int t = 0; trcSigs[t] != static_cast<icTagSignature>(0); t++) {
+        CIccTag* pTag = p->FindTag(trcSigs[t]);
+        if (!pTag) {
+            continue;
+        }
+
+        auto* pCurve = dynamic_cast<CIccTagCurve*>(pTag);
+        if (pCurve) {
+            icUInt32Number nSize = pCurve->GetSize();
+            if (nSize > 65536) {
+                cb.warn(sfmt("Tag '%s': TRC curve with %u points (>65536) — excessive allocation",
+                             trcNames[t], nSize),
+                        "CWE-400: Oversized curve table → OOM in Apply()");
+            }
+            if (nSize > 1) {
+                bool allZero = true;
+                for (icUInt32Number i = 0; i < nSize && i < 16; i++) {
+                    icFloatNumber v = (*pCurve)[i];
+                    if (v != 0.0f) {
+                        allZero = false;
+                    }
+                }
+                if (allZero && nSize > 2) {
+                    cb.warn(sfmt("Tag '%s': TRC curve all-zero (%u points) — clipped output",
+                                 trcNames[t], nSize));
+                }
+            }
+        }
+
+        auto* pParam = dynamic_cast<CIccTagParametricCurve*>(pTag);
+        if (pParam) {
+            icUInt16Number funcType = pParam->GetFunctionType();
+            if (funcType > 4) {
+                cb.warn(sfmt("Tag '%s': parametric curve function type %u (>4, spec violation)",
+                             trcNames[t], funcType),
+                        "CWE-843: Invalid function type → unpredictable Apply() behavior");
+            }
+            icUInt16Number nParams = pParam->GetNumParam();
+            static const int kParaMinParams[] = {1, 3, 4, 5, 7};
+            if (funcType <= 4) {
+                int required = kParaMinParams[funcType];
+                if (static_cast<int>(nParams) < required) {
+                    cb.critical(sfmt("HEURISTIC: Tag '%s': funcType %u requires %d params, has %u — HBO in Describe() — ICC.1-2022-05 §10.15",
+                                     trcNames[t], funcType, required, nParams),
+                                "CWE-125: Heap-Buffer-Overflow via insufficient parametric curve params");
+                }
+            }
+            icFloatNumber* params = pParam->GetParams();
+            if (params && nParams > 0) {
+                for (icUInt16Number param = 0; param < nParams; param++) {
+                    if (std::isnan(params[param]) || std::isinf(params[param])) {
+                        cb.warn(sfmt("Tag '%s': parametric curve param[%u] = NaN/Inf",
+                                     trcNames[t], param),
+                                "CWE-682: NaN/Inf in curve parameters → undefined math");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return cb.done("TRC curves within bounds (or absent)");
 }
 
 REGISTER_HEURISTIC(87, "TRC Curve Anomaly",
@@ -560,11 +725,63 @@ REGISTER_HEURISTIC(87, "TRC Curve Anomaly",
 
 static CheckResult check_h88_chromatic_adaptation_matrix(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H88
-    return cb.done("Chromatic Adaptation Matrix checked");
+    if (!p) return CheckResult::error("No profile");
+
+    CIccTag* rawTag = p->FindTag(icSigChromaticAdaptationTag);
+    auto* pChad = rawTag ? dynamic_cast<CIccTagS15Fixed16*>(rawTag) : nullptr;
+    if (rawTag && !pChad) {
+        cb.warn("chad tag present but unexpected type");
+        return cb.done("No chromatic adaptation tag (standard D50)");
+    }
+
+    if (pChad) {
+        icUInt32Number nSize = pChad->GetSize();
+        if (nSize < 9) {
+            cb.warn(sfmt("chad tag has %u elements (need 9 for 3x3 matrix)", nSize),
+                    "CWE-125: Undersized chad → OOB read in PCS conversion");
+        }
+        else {
+            icFloatNumber m[9];
+            for (int i = 0; i < 9; i++) {
+                m[i] = static_cast<icFloatNumber>(static_cast<double>((*pChad)[i]) / 65536.0);
+            }
+
+            bool hasNanInf = false;
+            for (int i = 0; i < 9; i++) {
+                if (std::isnan(m[i]) || std::isinf(m[i])) {
+                    hasNanInf = true;
+                    break;
+                }
+            }
+
+            if (hasNanInf) {
+                cb.warn("chad matrix contains NaN/Inf values",
+                        "CWE-682: NaN/Inf in adaptation matrix → undefined PCS transform");
+            }
+            else {
+                double det = static_cast<double>(m[0]) *
+                                 (static_cast<double>(m[4]) * m[8] - static_cast<double>(m[5]) * m[7]) -
+                             static_cast<double>(m[1]) *
+                                 (static_cast<double>(m[3]) * m[8] - static_cast<double>(m[5]) * m[6]) +
+                             static_cast<double>(m[2]) *
+                                 (static_cast<double>(m[3]) * m[7] - static_cast<double>(m[4]) * m[6]);
+                if (std::fabs(det) < 1e-10) {
+                    cb.warn(sfmt("chad matrix near-singular (det=%.2e)", det),
+                            "CWE-369: Singular chad → division-by-zero in PCS inversion");
+                }
+                for (int i = 0; i < 9; i++) {
+                    if (std::fabs(m[i]) > 100.0) {
+                        cb.warn(sfmt("chad matrix element[%d] = %.4f (extreme, >100)", i, m[i]));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return cb.done("No chromatic adaptation tag (standard D50)");
 }
 
 REGISTER_HEURISTIC(88, "Chromatic Adaptation Matrix",
@@ -575,11 +792,34 @@ REGISTER_HEURISTIC(88, "Chromatic Adaptation Matrix",
 
 static CheckResult check_h89_profile_sequence_description(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H89
-    return cb.done("Profile Sequence Description checked");
+    if (!p) return CheckResult::error("No profile");
+
+    CIccTag* pTag = p->FindTag(icSigProfileSequenceDescTag);
+    if (pTag) {
+        auto* pSeq = dynamic_cast<CIccTagProfileSeqDesc*>(pTag);
+        if (pSeq && pSeq->m_Descriptions) {
+            size_t descCount = pSeq->m_Descriptions->size();
+            if (descCount > 256) {
+                cb.warn(sfmt("Profile sequence has %zu descriptions (>256) — OOM risk",
+                             descCount),
+                        "CWE-400: Excessive sequence entries → large allocations in Read()");
+            }
+            if (descCount == 0) {
+                cb.warn("Profile sequence has 0 descriptions (empty)");
+            }
+        }
+        else {
+            cb.warn("pseq tag present but wrong type or NULL descriptions");
+        }
+    }
+
+    if (p->FindTag(static_cast<icTagSignature>(icSigProfileSequceIdTag))) {
+        cb.info("ProfileSequenceId tag present");
+    }
+
+    return cb.done("Profile sequence descriptions within bounds (or absent)");
 }
 
 REGISTER_HEURISTIC(89, "Profile Sequence Description",
@@ -605,11 +845,54 @@ REGISTER_HEURISTIC(90, "Preview Tag Channel Consistency",
 
 static CheckResult check_h91_colorant_order_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H91
-    return cb.done("Colorant Order Validation checked");
+    if (!p) return CheckResult::error("No profile");
+
+    static const icTagSignature orderSigs[] = {
+        icSigColorantOrderTag, icSigColorantOrderOutTag, static_cast<icTagSignature>(0)
+    };
+    static const icTagSignature tableSigs[] = {
+        icSigColorantTableTag, icSigColorantTableOutTag, static_cast<icTagSignature>(0)
+    };
+
+    for (int o = 0; orderSigs[o] != static_cast<icTagSignature>(0); o++) {
+        auto* pOrder = dynamic_cast<CIccTagColorantOrder*>(p->FindTag(orderSigs[o]));
+        if (!pOrder) {
+            continue;
+        }
+
+        icUInt32Number orderCount = pOrder->GetSize();
+        icUInt32Number tableCount = 0;
+
+        auto* pTable = dynamic_cast<CIccTagColorantTable*>(p->FindTag(tableSigs[o]));
+        if (pTable) {
+            tableCount = pTable->GetSize();
+        }
+
+        if (tableCount > 0 && orderCount != tableCount) {
+            cb.warn(sfmt("ColorantOrder has %u entries but ColorantTable has %u",
+                         orderCount, tableCount));
+        }
+
+        std::set<icUInt8Number> seen;
+        for (icUInt32Number i = 0; i < orderCount; i++) {
+            icUInt8Number idx = (*pOrder)[i];
+            if (tableCount > 0 && idx >= tableCount) {
+                cb.warn(sfmt("ColorantOrder[%u]=%u >= table count %u — OOB",
+                             i, idx, tableCount),
+                        "CWE-125: Index out-of-bounds in colorant mapping");
+                break;
+            }
+            if (seen.count(idx)) {
+                cb.warn(sfmt("ColorantOrder has duplicate index %u", idx));
+                break;
+            }
+            seen.insert(idx);
+        }
+    }
+
+    return cb.done("Colorant order indices valid (or absent)");
 }
 
 REGISTER_HEURISTIC(91, "Colorant Order Validation",
@@ -635,11 +918,32 @@ REGISTER_HEURISTIC(92, "Spectral Viewing Conditions",
 
 static CheckResult check_h93_embedded_profile_flag(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H93
-    return cb.done("Embedded Profile Flag checked");
+    if (!p) return CheckResult::error("No profile");
+
+    icUInt32Number flags = p->m_Header.flags;
+    icUInt32Number reservedMask = 0xFFFFFFFC;
+    if (flags & reservedMask) {
+        cb.warn(sfmt("Profile flags=0x%08X: reserved bits set (mask=0x%08X)",
+                     flags, flags & reservedMask),
+                "CWE-20: Non-zero reserved flag bits → spec violation or crafted profile");
+    }
+
+    bool embedded = (flags & 0x01) != 0;
+    bool notIndependent = (flags & 0x02) != 0;
+    if (notIndependent && !embedded) {
+        cb.warn("Flag conflict: 'cannot use independently' set but 'embedded' not set");
+    }
+
+    icUInt64Number attributes = p->m_Header.attributes;
+    uint64_t attrReserved = attributes & 0xFFFFFFFFFFFFFFF0ULL;
+    if (attrReserved) {
+        cb.warn(sfmt("Attributes=0x%016llX: reserved bits set",
+                     static_cast<unsigned long long>(attributes)));
+    }
+
+    return cb.done("Profile flags and attributes consistent");
 }
 
 REGISTER_HEURISTIC(93, "Embedded Profile Flag",
@@ -650,11 +954,75 @@ REGISTER_HEURISTIC(93, "Embedded Profile Flag",
 
 static CheckResult check_h94_matrix_trc_colorant_consistency(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H94
-    return cb.done("Matrix TRC Colorant Consistency checked");
+    if (!p) return CheckResult::error("No profile");
+
+    if (p->m_Header.colorSpace == icSigRgbData) {
+        CIccTag* pRedCol = p->FindTag(icSigRedMatrixColumnTag);
+        CIccTag* pGrnCol = p->FindTag(icSigGreenMatrixColumnTag);
+        CIccTag* pBluCol = p->FindTag(icSigBlueMatrixColumnTag);
+        CIccTag* pWP = p->FindTag(icSigMediaWhitePointTag);
+
+        if (pRedCol && pGrnCol && pBluCol) {
+            auto* rXYZ = dynamic_cast<CIccTagXYZ*>(pRedCol);
+            auto* gXYZ = dynamic_cast<CIccTagXYZ*>(pGrnCol);
+            auto* bXYZ = dynamic_cast<CIccTagXYZ*>(pBluCol);
+
+            if (rXYZ && gXYZ && bXYZ &&
+                rXYZ->GetSize() >= 1 && gXYZ->GetSize() >= 1 && bXYZ->GetSize() >= 1) {
+                double sumX = static_cast<double>((*rXYZ)[0].X) / 65536.0 +
+                              static_cast<double>((*gXYZ)[0].X) / 65536.0 +
+                              static_cast<double>((*bXYZ)[0].X) / 65536.0;
+                double sumY = static_cast<double>((*rXYZ)[0].Y) / 65536.0 +
+                              static_cast<double>((*gXYZ)[0].Y) / 65536.0 +
+                              static_cast<double>((*bXYZ)[0].Y) / 65536.0;
+                double sumZ = static_cast<double>((*rXYZ)[0].Z) / 65536.0 +
+                              static_cast<double>((*gXYZ)[0].Z) / 65536.0 +
+                              static_cast<double>((*bXYZ)[0].Z) / 65536.0;
+
+                double devX = std::fabs(sumX - 0.9505);
+                double devY = std::fabs(sumY - 1.0000);
+                double devZ = std::fabs(sumZ - 1.0890);
+
+                if (devX > 0.1 || devY > 0.1 || devZ > 0.1) {
+                    cb.warn(sfmt("Matrix column sum (%.4f, %.4f, %.4f) deviates from D50",
+                                 sumX, sumY, sumZ));
+                    cb.info(sfmt("Expected \xE2\x89\x88 (0.9505, 1.0000, 1.0890), deviation (%.4f, %.4f, %.4f)",
+                                 devX, devY, devZ));
+                }
+
+                for (int c = 0; c < 3; c++) {
+                    CIccTagXYZ* col = (c == 0) ? rXYZ : (c == 1 ? gXYZ : bXYZ);
+                    double x = static_cast<double>((*col)[0].X) / 65536.0;
+                    double y = static_cast<double>((*col)[0].Y) / 65536.0;
+                    double z = static_cast<double>((*col)[0].Z) / 65536.0;
+                    if (std::isnan(x) || std::isnan(y) || std::isnan(z)) {
+                        cb.warn(sfmt("Matrix column %d contains NaN — corrupted colorant", c),
+                                "CWE-682: NaN in matrix → undefined PCS output");
+                    }
+                }
+
+                if (static_cast<double>((*rXYZ)[0].Y) / 65536.0 < -0.01 ||
+                    static_cast<double>((*gXYZ)[0].Y) / 65536.0 < -0.01 ||
+                    static_cast<double>((*bXYZ)[0].Y) / 65536.0 < -0.01) {
+                    cb.warn("Matrix column Y value negative — non-physical colorant");
+                }
+            }
+        }
+
+        if (pWP) {
+            auto* wpXYZ = dynamic_cast<CIccTagXYZ*>(pWP);
+            if (wpXYZ && wpXYZ->GetSize() >= 1) {
+                double wpY = static_cast<double>((*wpXYZ)[0].Y) / 65536.0;
+                if (std::fabs(wpY - 1.0) > 0.1) {
+                    cb.warn(sfmt("Media whitepoint Y=%.4f (expected ~1.0 for D50)", wpY));
+                }
+            }
+        }
+    }
+
+    return cb.done("Matrix/TRC colorant consistency valid (or non-RGB)");
 }
 
 REGISTER_HEURISTIC(94, "Matrix TRC Colorant Consistency",
@@ -886,12 +1254,58 @@ REGISTER_HEURISTIC(99, "Embedded Image Tag Validation",
     check_h99_embedded_image_tag_validation);
 
 static CheckResult check_h100_profile_sequence_desc_validation(const ProfileView& pv) {
-    CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H100
-    return cb.done("Profile Sequence Desc Validation checked");
+    if (!p) return CheckResult::error("No profile");
+
+    CIccTag* pPseqTag = p->FindTag(icSigProfileSequenceDescTag);
+    if (!pPseqTag) {
+        return CheckResult::skip("No profile sequence description tag");
+    }
+
+    std::string desc;
+    pPseqTag->Describe(desc, 1);
+
+    std::vector<Finding> findings;
+    auto push_info = [&](std::string message) {
+        findings.push_back(Finding{
+            {CheckID::Kind::Heuristic, 100},
+            Severity::INFO,
+            std::move(message),
+            "", ""
+        });
+    };
+    auto push_warn = [&](std::string message) {
+        findings.push_back(Finding{
+            {CheckID::Kind::Heuristic, 100},
+            Severity::MEDIUM,
+            std::move(message),
+            "", "CWE-787"
+        });
+    };
+
+    push_info("Found ProfileSequenceDesc tag");
+
+    if (desc.empty()) {
+        push_warn("ProfileSequenceDesc describes as empty");
+        return {CheckResult::Status::FINDINGS, "2 issue(s)", std::move(findings)};
+    }
+
+    size_t pos = 0;
+    int descEntries = 0;
+    while ((pos = desc.find("Device Manufacturer", pos)) != std::string::npos) {
+        descEntries++;
+        pos++;
+    }
+
+    push_info(sfmt("Sequence description entries: ~%d", descEntries));
+
+    if (descEntries > 100) {
+        push_warn(sfmt("Excessive sequence entries (%d) — DoS risk", descEntries));
+        return {CheckResult::Status::FINDINGS, "3 issue(s)", std::move(findings)};
+    }
+
+    return CheckResult::ok("Profile sequence description valid");
 }
 
 REGISTER_HEURISTIC(100, "Profile Sequence Desc Validation",
@@ -991,6 +1405,20 @@ REGISTER_HEURISTIC(101, "MPE Sub Element Channel Continuity",
 
 static CheckResult check_h102_tag_size_profile_size_cross_check(const ProfileView& pv) {
     CheckBuilder cb;
+    const uint8_t* raw = pv.rawData();
+    size_t rawLen = pv.rawSize();
+    if (!raw || rawLen < 132) {
+        return CheckResult::skip("File too small");
+    }
+    if (readU32BE(raw + 36) != kIccMagic) {
+        return CheckResult::skip("Invalid ICC magic");
+    }
+    uint32_t declaredTagCount = readU32BE(raw + 128);
+    size_t maxTags = (rawLen - 132) / 12;
+    if (declaredTagCount > maxTags || declaredTagCount > 10000) {
+        return CheckResult::skip("Tag count out of range");
+    }
+
     const auto& rawTags = pv.rawTagTable();
     if (!pv.libraryLoaded() && rawTags.empty()) {
         return CheckResult::skip("Library parse failed");
@@ -1066,10 +1494,22 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
             0x6D667432, // 'mft2'
             0x6D414220, // 'mAB '
             0x6D424120, // 'mBA '
+            0x6D706574, // 'mpet'
         };
         static const uint32_t lutTagSigs[] = {
             kSigAToB0, 0x41324231, 0x41324232, 0x41324233,
             kSigBToA0, 0x42324131, 0x42324132, 0x42324133,
+        };
+        static const uint32_t extraTypeSigs[] = {
+            static_cast<uint32_t>(icSigEmbeddedHeightImageType),
+            static_cast<uint32_t>(icSigEmbeddedNormalImageType),
+            static_cast<uint32_t>(icSigGamutBoundaryDescType),
+        };
+        static const uint32_t gbdTagSigs[] = {
+            static_cast<uint32_t>(icSigGamutBoundaryDescription0Tag),
+            static_cast<uint32_t>(icSigGamutBoundaryDescription1Tag),
+            static_cast<uint32_t>(icSigGamutBoundaryDescription2Tag),
+            static_cast<uint32_t>(icSigGamutBoundaryDescription3Tag),
         };
 
         uint32_t tagCount = readU32BE(raw + 128);
@@ -1089,7 +1529,19 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                     break;
                 }
             }
-            if (!isLutTag || !rawRangeAccessible(rawLen, tagOff, 4)) {
+            bool isGbdTag = false;
+            for (uint32_t sig : gbdTagSigs) {
+                if (tagSig == sig) {
+                    isGbdTag = true;
+                    break;
+                }
+            }
+            bool isKnownNullTagCandidate =
+                isLutTag ||
+                isGbdTag ||
+                tagSig == static_cast<uint32_t>(icSigEmbeddedHeightImageType) ||
+                tagSig == static_cast<uint32_t>(icSigEmbeddedNormalImageType);
+            if (!isKnownNullTagCandidate || !rawRangeAccessible(rawLen, tagOff, 4)) {
                 continue;
             }
 
@@ -1101,7 +1553,14 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                     break;
                 }
             }
-            if (!isKnownLutType) {
+            bool isKnownExtraType = false;
+            for (uint32_t sig : extraTypeSigs) {
+                if (typeSig == sig) {
+                    isKnownExtraType = true;
+                    break;
+                }
+            }
+            if (!isKnownLutType && !isKnownExtraType) {
                 continue;
             }
 

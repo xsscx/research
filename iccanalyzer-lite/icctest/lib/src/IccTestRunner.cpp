@@ -17,10 +17,22 @@ namespace icctest {
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
 static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 97) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 98) {
         return true;
     }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 99) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 100) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 147) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 172) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 101) {
@@ -30,6 +42,15 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 115) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 140) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 286) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 287) {
         return true;
     }
     return false;

@@ -58,6 +58,7 @@
 #include "IccHeuristicsRawPost.h"
 #include "IccHeuristicsCodeQLPatterns.h"
 #include "IccHeuristicsDataValidation.h"
+#include "IccHeuristicsTagValidation.h"
 
 //==============================================================================
 // Pre-loading raw scan: detect tag data patterns that cause UBSAN in the
@@ -102,6 +103,14 @@ static bool HasLibraryUBPatterns(const char *filename) {
     printf("\n%s[DEFENSE] Oversized sampled-curve element count would drive "
            "upstream sampled-curve allocation/underflow paths — skipping "
            "library phase%s\n",
+           ColorCritical(), ColorReset());
+    return true;
+  }
+
+  if (IsLibraryUBDefenseEnabled() &&
+      DetectH30GamutBoundaryDescAllocation(filename)) {
+    printf("\n%s[DEFENSE] GamutBoundaryDesc allocation/channel fields are unsafe "
+           "(including nested tary->gbd payloads) — skipping library phase%s\n",
            ColorCritical(), ColorReset());
     return true;
   }
@@ -189,6 +198,12 @@ static int EmitConformancePreflightFingerprints(const char *filename) {
   }
   if (DetectH152CurveElementOOMSize(filename)) {
     preflightIssues += RunHeuristic_H152_CurveElementOOMSizeValidation(ctx);
+  }
+  if (DetectH30GamutBoundaryDescAllocation(filename)) {
+    preflightIssues += RunHeuristic_H30_GamutBoundaryDescAllocation(nullptr, filename);
+    preflightIssues += RunCF140_GBDVertexCountFieldRaw(filename);
+    preflightIssues += RunCF286_GBDTriangleVertexConsistencyRaw(filename);
+    preflightIssues += RunCF287_GBDChannelPlausibilityRaw(filename);
   }
   return preflightIssues;
 }

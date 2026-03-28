@@ -1705,6 +1705,25 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(RawProfileContext &ctx)
   size_t fs = ctx.fileSize();
 
 
+  auto scanGbdRecord = [&](const char *ownerSig, const icUInt8Number *gbdHdr) {
+    uint32_t nVerts = ReadU32BE(gbdHdr + 12);
+    uint32_t nTris  = ReadU32BE(gbdHdr + 16);
+
+    uint64_t triProduct = (uint64_t)nTris * 3;
+    if (triProduct > 0x7FFFFFFF) {
+      hc.warn("Tag '%s' (gbd): nTriangles=%u * 3 = %llu overflows int32",
+              ownerSig, nTris, (unsigned long long)triProduct);
+      hc.cweNote("CWE-190: Signed integer overflow in triangle index computation (CFL-002)");
+    }
+
+    uint64_t vertexBytes = (uint64_t)nVerts * 12;
+    if (vertexBytes > kMaxVertexDataBytes) {
+      hc.warn("Tag '%s' (gbd): %u vertices * 12 = %llu bytes exceeds 256MB",
+              ownerSig, nVerts, (unsigned long long)vertexBytes);
+      hc.cweNote("CWE-789: Amplification via vertex count");
+    }
+  };
+
   for (const auto &tag : ctx.tags) {
     uint32_t tOff = tag.offset;
     uint32_t tSz  = tag.size;
@@ -1714,34 +1733,42 @@ int RunHeuristic_H68_GamutBoundaryDescOverflow(RawProfileContext &ctx)
     if (!ctx.ReadAt(tOff, typeSig, 4)) continue;
     uint32_t typeVal = ReadU32BE(typeSig);
 
-    // gbd  (0x67626420) — gamut boundary description
-    if (typeVal != 0x67626420) continue;
-    if (tSz < 20 || (uint64_t)tOff + 20 > fs) continue;
-
-    icUInt8Number gbdHdr[12];
-    if (!ctx.ReadAt(tOff + 8, gbdHdr, 12)) continue;
-
-    uint32_t nVerts = ReadU32BE(gbdHdr);
-    uint32_t nTris  = ReadU32BE(&gbdHdr[4]);
-
-    // CFL-002: m_NumberOfTriangles * 3 overflows signed int
-    uint64_t triProduct = (uint64_t)nTris * 3;
-    if (triProduct > 0x7FFFFFFF) {
+    if (typeVal == 0x67626420) {
+      if (tSz < 20 || (uint64_t)tOff + 20 > fs) continue;
+      icUInt8Number gbdHdr[20];
+      if (!ctx.ReadAt(tOff, gbdHdr, 20)) continue;
       char sig[5]; SigToChars(tag.sig, sig);
-      hc.warn("Tag '%s' (gbd): nTriangles=%u * 3 = %llu overflows int32",
-              sig, nTris, (unsigned long long)triProduct);
-      hc.cweNote("CWE-190: Signed integer overflow in triangle index computation (CFL-002)");
-
+      scanGbdRecord(sig, gbdHdr);
+      continue;
     }
 
-    // Vertex data size check
-    uint64_t vertexBytes = (uint64_t)nVerts * 12; // 3 floats per vertex
-    if (vertexBytes > kMaxVertexDataBytes) {
-      char sig[5]; SigToChars(tag.sig, sig);
-      hc.warn("Tag '%s' (gbd): %u vertices * 12 = %llu bytes exceeds 256MB",
-              sig, nVerts, (unsigned long long)vertexBytes);
-      hc.cweNote("CWE-789: Amplification via vertex count");
+    if (typeVal != 0x74617279 || tSz < 16) continue;  // 'tary'
 
+    icUInt8Number taryHdr[16];
+    if (!ctx.ReadAt(tOff, taryHdr, 16)) continue;
+    uint32_t elemCount = ReadU32BE(taryHdr + 12);
+    if (!elemCount || elemCount > 256) continue;
+
+    for (uint32_t j = 0; j < elemCount; j++) {
+      uint64_t recPos = (uint64_t)tOff + 16 + (uint64_t)j * 8;
+      if (recPos + 8 > fs || recPos + 8 > (uint64_t)tOff + tSz) break;
+      icUInt8Number rec[8];
+      if (!ctx.ReadAt((uint32_t)recPos, rec, 8)) break;
+
+      uint32_t childOff = ReadU32BE(rec);
+      uint32_t childSz  = ReadU32BE(rec + 4);
+      if (!childOff || childSz < 20) continue;
+
+      uint64_t childPos = (uint64_t)tOff + childOff;
+      if (childPos + 20 > fs || childPos + childSz > (uint64_t)tOff + tSz) continue;
+      icUInt8Number childHdr[20];
+      if (!ctx.ReadAt((uint32_t)childPos, childHdr, 20)) continue;
+      if (ReadU32BE(childHdr) != 0x67626420) continue;
+
+      char ownerSig[16];
+      char sig[5]; SigToChars(tag.sig, sig);
+      std::snprintf(ownerSig, sizeof(ownerSig), "%s[tary]", sig);
+      scanGbdRecord(ownerSig, childHdr);
     }
   }
 

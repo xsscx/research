@@ -16,21 +16,21 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 15	rename	implemented	Date Validation	Creation Date/Time Validation	HeaderChecks.cpp	same check; cosmetic rename
 16	collision	implemented	Signature Patterns	Primary Platform Validation	HeaderChecks.cpp	same-number collision; V2 platform validation is closer to V1 H5
 17	collision	implemented	Spectral Range	Spectral PCS Validation	HeaderChecks.cpp	same-number collision; V2 spectral PCS check does not match V1 spectral-range heuristic
-18	exact	todo	Technology Signature	Technology Signature	TagValidationChecks.cpp	
+18	exact	implemented	Technology Signature	Technology Signature	TagValidationChecks.cpp	
 19	rename	implemented	Tag Offset Overlap	Tag Overlap Detection	TagValidationChecks.cpp	same check; cosmetic rename
-20	exact	todo	Tag Type Signature	Tag Type Signature	TagValidationChecks.cpp	
+20	exact	implemented	Tag Type Signature	Tag Type Signature	TagValidationChecks.cpp	top-level tag type bytes validated; null and non-ASCII type signatures reported
 21	exact	todo	Tag Struct Member Inspection	Tag Struct Member Inspection	TagValidationChecks.cpp	
 22	exact	todo	Num Array Scalar Expectation	Num Array Scalar Expectation	TagValidationChecks.cpp	
 23	exact	todo	Num Array Value Range	Num Array Value Range	TagValidationChecks.cpp	
 24	exact	todo	Tag Struct Nesting Depth	Tag Struct Nesting Depth	TagValidationChecks.cpp	
-25	exact	todo	Tag Offset OOB	Tag Offset OOB	TagValidationChecks.cpp	
-26	exact	todo	Named Color2String Validation	Named Color2String Validation	TagValidationChecks.cpp	
+25	exact	implemented	Tag Offset OOB	Tag Offset OOB	TagValidationChecks.cpp	
+26	exact	implemented	Named Color2String Validation	Named Color2String Validation	TagValidationChecks.cpp	
 27	exact	todo	MPE Matrix Output Channel	MPE Matrix Output Channel	TagValidationChecks.cpp	
-28	exact	todo	LUT Dimension Validation	LUT Dimension Validation	TagValidationChecks.cpp	
-29	exact	todo	Colorant Table String Validation	Colorant Table String Validation	TagValidationChecks.cpp	
-30	exact	todo	Gamut Boundary Desc Allocation	Gamut Boundary Desc Allocation	TagValidationChecks.cpp	
-31	exact	todo	MPE Channel Count	MPE Channel Count	TagValidationChecks.cpp	
-32	exact	todo	Tag Data Type Confusion	Tag Data Type Confusion	TagValidationChecks.cpp	
+28	exact	implemented	LUT Dimension Validation	LUT Dimension Validation	TagValidationChecks.cpp	
+29	exact	implemented	Colorant Table String Validation	Colorant Table String Validation	TagValidationChecks.cpp	
+30	exact	implemented	Gamut Boundary Desc Allocation	Gamut Boundary Desc Allocation	TagValidationChecks.cpp	
+31	exact	implemented	MPE Channel Count	MPE Channel Count	TagValidationChecks.cpp	
+32	exact	implemented	Tag Data Type Confusion	Tag Data Type Confusion	TagValidationChecks.cpp	
 33	collision	implemented	mBA/mAB Sub-Element Offset Validation	Embedded Image Detection	RawScanChecks.cpp	same-number collision; V2 embedded-image scan does not match V1 mAB/mBA offset validation
 34	collision	implemented	Integer Overflow Sub-Element Bounds	Embedded Text Detection	RawScanChecks.cpp	same-number collision; V2 embedded-text scan does not match V1 integer-overflow bounds check
 35	collision	implemented	Suspicious Fill Pattern mBA/mAB Data	Creator Signature Identification	RawScanChecks.cpp	same-number collision; V2 creator signature check does not match V1 suspicious-fill-pattern heuristic
@@ -50,7 +50,7 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 49	exact	todo	Float s15Fixed16 NaN Inf Detection	Float s15Fixed16 NaN Inf Detection	RawScanChecks.cpp	
 50	exact	todo	Zero-Size Profile Tag Detection	Zero-Size Profile Tag Detection	RawScanChecks.cpp	
 51	exact	todo	LUT IO Channel Count Consistency	LUT IO Channel Count Consistency	RawScanChecks.cpp	
-52	exact	todo	Integer Underflow Tag Size Subtraction	Integer Underflow Tag Size Subtraction	RawScanChecks.cpp	
+52	exact	implemented	Integer Underflow Tag Size Subtraction	Integer Underflow Tag Size Subtraction	RawScanChecks.cpp	raw mAB/mBA offset-underflow and lut8/lut16 size-validation ported from V1; CFL-065 coverage
 53	exact	todo	Embedded Profile Recursion Detection	Embedded Profile Recursion Detection	RawScanChecks.cpp	
 54	exact	todo	Division-by-Zero Trigger Detection	Division-by-Zero Trigger Detection	RawScanChecks.cpp	
 55	exact	todo	UTF-16 Encoding Validation	UTF-16 Encoding Validation	RawScanChecks.cpp	
@@ -66,7 +66,7 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 65	exact	todo	Chromaticity Plausibility	Chromaticity Plausibility	RawScanChecks.cpp	
 66	exact	todo	Num Array NaN Inf Scan	Num Array NaN Inf Scan	RawScanChecks.cpp	
 67	exact	todo	Response Curve Set Bounds	Response Curve Set Bounds	RawScanChecks.cpp	
-68	exact	todo	GamutBoundaryDesc Triangle Vertex Overflow	GamutBoundaryDesc Triangle Vertex Overflow	RawScanChecks.cpp	
+68	exact	implemented	GamutBoundaryDesc Triangle Vertex Overflow	GamutBoundaryDesc Triangle Vertex Overflow	RawScanChecks.cpp	
 69	exact	todo	Profile ID MD5 Consistency	Profile ID MD5 Consistency	RawScanChecks.cpp	
 70	exact	todo	Measurement Tag Validation	Measurement Tag Validation	DataValidationChecks.cpp	
 71	exact	todo	Colorant Table Null Termination	Colorant Table Null Termination	DataValidationChecks.cpp	
@@ -84,21 +84,21 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 83	exact	todo	Float Numeric Array Size	Float Numeric Array Size	DataValidationChecks.cpp	
 84	exact	todo	LUT3D Transform Consistency	LUT3D Transform Consistency	DataValidationChecks.cpp	
 85	exact	todo	MPE Buffer Overlap	MPE Buffer Overlap	DataValidationChecks.cpp	
-86	exact	todo	Localized Unicode Bounds	Localized Unicode Bounds	DataValidationChecks.cpp	
-87	exact	todo	TRC Curve Anomaly	TRC Curve Anomaly	DataValidationChecks.cpp	
-88	exact	todo	Chromatic Adaptation Matrix	Chromatic Adaptation Matrix	DataValidationChecks.cpp	
-89	exact	todo	Profile Sequence Description	Profile Sequence Description	DataValidationChecks.cpp	
+86	exact	implemented	Localized Unicode Bounds	Localized Unicode Bounds	DataValidationChecks.cpp	
+87	exact	implemented	TRC Curve Anomaly	TRC Curve Anomaly	DataValidationChecks.cpp	
+88	exact	implemented	Chromatic Adaptation Matrix	Chromatic Adaptation Matrix	DataValidationChecks.cpp	
+89	exact	implemented	Profile Sequence Description	Profile Sequence Description	DataValidationChecks.cpp	
 90	exact	todo	Preview Tag Channel Consistency	Preview Tag Channel Consistency	DataValidationChecks.cpp	
-91	exact	todo	Colorant Order Validation	Colorant Order Validation	DataValidationChecks.cpp	
+91	exact	implemented	Colorant Order Validation	Colorant Order Validation	DataValidationChecks.cpp	
 92	exact	todo	Spectral Viewing Conditions	Spectral Viewing Conditions	DataValidationChecks.cpp	
-93	exact	todo	Embedded Profile Flag	Embedded Profile Flag	DataValidationChecks.cpp	
-94	exact	todo	Matrix TRC Colorant Consistency	Matrix TRC Colorant Consistency	DataValidationChecks.cpp	
+93	exact	implemented	Embedded Profile Flag	Embedded Profile Flag	DataValidationChecks.cpp	
+94	exact	implemented	Matrix TRC Colorant Consistency	Matrix TRC Colorant Consistency	DataValidationChecks.cpp	
 95	exact	todo	Sparse Matrix Array Bounds Validation	Sparse Matrix Array Bounds Validation	DataValidationChecks.cpp	
 96	exact	implemented	Embedded Profile Validation	Embedded Profile Validation	DataValidationChecks.cpp	
 97	exact	implemented	Profile Sequence Id Validation	Profile Sequence Id Validation	DataValidationChecks.cpp	
 98	exact	implemented	Spectral MPE Element Validation	Spectral MPE Element Validation	DataValidationChecks.cpp	
 99	exact	implemented	Embedded Image Tag Validation	Embedded Image Tag Validation	DataValidationChecks.cpp	
-100	exact	todo	Profile Sequence Desc Validation	Profile Sequence Desc Validation	DataValidationChecks.cpp	
+100	exact	implemented	Profile Sequence Desc Validation	Profile Sequence Desc Validation	DataValidationChecks.cpp	
 101	exact	implemented	MPE Sub Element Channel Continuity	MPE Sub Element Channel Continuity	DataValidationChecks.cpp	
 102	exact	implemented	Tag Size Profile Size Cross Check	Tag Size Profile Size Cross Check	DataValidationChecks.cpp	
 103	collision	implemented	PCC	Profile ID Validation	ComplianceChecks.cpp	same-number collision; V2 profile-ID validation is closer to V1 H69/H131 family
