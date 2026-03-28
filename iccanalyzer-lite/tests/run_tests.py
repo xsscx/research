@@ -21,6 +21,7 @@ import os
 import json
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -171,6 +172,187 @@ def make_h169_dict_bounds_profile_bytes():
     put_u32(152, 3)
     put_u32(156, 8)
 
+    return bytes(data)
+
+
+def make_h165_lut_data_sufficiency_profile_bytes():
+    data = bytearray(160)
+
+    def put_u32(offset, value):
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=False)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)   # v4.4
+    put_u32(12, 0x6D6E7472)  # 'mntr'
+    put_u32(16, 0x52474220)  # 'RGB '
+    put_u32(20, 0x58595A20)  # 'XYZ '
+    put_u32(36, 0x61637370)  # 'acsp'
+
+    put_u32(128, 1)
+    put_u32(132, 0x41324230)  # 'A2B0'
+    put_u32(136, 144)
+    put_u32(140, 16)
+
+    put_u32(144, 0x6D667431)  # 'mft1'
+    data[152] = 3
+    data[153] = 3
+    data[154] = 2
+
+    return bytes(data)
+
+
+def make_h170_null_pcs_profile_bytes():
+    data = bytearray(132)
+
+    def put_u32(offset, value):
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=False)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)   # v4.4
+    put_u32(12, 0x6D6E7472)  # 'mntr'
+    put_u32(16, 0x52474220)  # 'RGB '
+    put_u32(20, 0x00000000)  # null PCS
+    put_u32(36, 0x61637370)  # 'acsp'
+    put_u32(128, 0)
+
+    return bytes(data)
+
+
+def make_h172_lut_matrix_profile_bytes(malformed=True):
+    data = bytearray(228)
+
+    def put_u32(offset, value):
+        data[offset:offset + 4] = int(value & 0xFFFFFFFF).to_bytes(4, "big", signed=False)
+
+    def put_s32(offset, value):
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=True)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)   # v4.4
+    put_u32(12, 0x70727472)  # 'prtr'
+    put_u32(16, 0x52474220)  # 'RGB '
+    put_u32(20, 0x4C616220)  # 'Lab '
+    put_u32(36, 0x61637370)  # 'acsp'
+
+    put_u32(128, 1)
+    put_u32(132, 0x41324230)  # 'A2B0'
+    put_u32(136, 144)
+    put_u32(140, 116)
+
+    put_u32(144, 0x6D414220)  # 'mAB '
+    data[152] = 3
+    data[153] = 3
+    put_u32(156, 32)  # B curves
+    put_u32(160, 68)  # Matrix
+    put_u32(164, 0)   # M curves
+    put_u32(168, 0)   # CLUT
+    put_u32(172, 0)   # A curves
+
+    for curve in range(3):
+        off = 176 + curve * 12
+        put_u32(off, 0x63757276)  # 'curv'
+        put_u32(off + 4, 0)
+        put_u32(off + 8, 0)
+
+    identity = 1 << 16
+    matrix_off = 212
+    if malformed:
+        put_s32(matrix_off + 0, 0)
+        put_s32(matrix_off + 4, 0)
+        put_s32(matrix_off + 8, 0)
+        put_s32(matrix_off + 12, 0)
+        put_s32(matrix_off + 16, identity)
+        put_s32(matrix_off + 20, 0)
+        put_s32(matrix_off + 24, 0)
+        put_s32(matrix_off + 28, 0)
+        put_s32(matrix_off + 32, 200 << 16)
+        put_s32(matrix_off + 36, 20 << 16)
+        put_s32(matrix_off + 40, 0)
+        put_s32(matrix_off + 44, 0)
+    else:
+        put_s32(matrix_off + 0, identity)
+        put_s32(matrix_off + 4, 0)
+        put_s32(matrix_off + 8, 0)
+        put_s32(matrix_off + 12, 0)
+        put_s32(matrix_off + 16, identity)
+        put_s32(matrix_off + 20, 0)
+        put_s32(matrix_off + 24, 0)
+        put_s32(matrix_off + 28, 0)
+        put_s32(matrix_off + 32, identity)
+        put_s32(matrix_off + 36, 0)
+        put_s32(matrix_off + 40, 0)
+        put_s32(matrix_off + 44, 0)
+
+    return bytes(data)
+
+
+def make_h97_profile_sequence_id_profile_bytes(malformed=True):
+    def make_psid_entry(profile_id, text):
+        utf16 = text.encode("utf-16-be")
+        mluc = b"mluc" + b"\x00" * 4
+        mluc += struct.pack(">II", 1, 12)
+        mluc += b"enUS"
+        mluc += struct.pack(">II", len(utf16), 28)
+        mluc += utf16
+        while len(mluc) % 4:
+            mluc += b"\x00"
+        return bytes(profile_id) + mluc
+
+    zero_id = b"\x00" * 16
+    dup_id = bytes(range(0x10, 0x20))
+    clean_id_a = bytes(range(0x20, 0x30))
+    clean_id_b = bytes(range(0x30, 0x40))
+
+    if malformed:
+        entries = [
+            make_psid_entry(zero_id, "Zero"),
+            make_psid_entry(dup_id, "DupA"),
+            make_psid_entry(dup_id, "DupB"),
+        ]
+    else:
+        entries = [
+            make_psid_entry(clean_id_a, "CleanA"),
+            make_psid_entry(clean_id_b, "CleanB"),
+        ]
+
+    psid = bytearray()
+    psid += b"psid" + b"\x00" * 4
+    psid += struct.pack(">I", len(entries))
+    dir_offset = 12 + len(entries) * 8
+    cur = dir_offset
+    for entry in entries:
+        psid += struct.pack(">II", cur, len(entry))
+        cur += len(entry)
+    for entry in entries:
+        psid += entry
+    while len(psid) % 4:
+        psid += b"\x00"
+
+    size = 128 + 4 + 12 + len(psid)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHH HHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"psid"
+    struct.pack_into(">II", data, 136, 144, len(psid))
+    data[144:144 + len(psid)] = psid
+    return bytes(data)
+
+
+def make_h102_profile_size_profile_bytes(declared_size, desc_offset, desc_size):
+    data = bytearray((CORPUS_DIR / "valid_srgb.icc").read_bytes())
+    struct.pack_into(">I", data, 0, declared_size)
+    struct.pack_into(">II", data, 136, desc_offset, desc_size)
     return bytes(data)
 
 # ANSI color codes
@@ -974,6 +1156,135 @@ def test_heuristic_detection(suite):
         r"suspicious pattern.*0xFF|Profile ID.*suspicious"
     )
 
+    # --- H97 profileSequenceIdentifier validation regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h97_profile_sequence_id_profile_bytes(True))
+        h97_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h97_psid_malformed",
+            ["-a", "--legacy", h97_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h97_null_profile_id",
+            ["-a", "--legacy", h97_path],
+            r"H97|Profile Sequence Identifier Validation|Null profile ID \(all zeros\) in sequence"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h97_duplicate_profile_ids",
+            ["-a", "--legacy", h97_path],
+            r"H97|Duplicate profile IDs in sequence"
+        )
+    finally:
+        try:
+            os.unlink(h97_path)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h97_profile_sequence_id_profile_bytes(False))
+        h97_clean_path = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h97_clean_profile",
+            ["-a", "--legacy", h97_clean_path],
+            r"\[H97\][\s\S]*Profile sequence identifiers valid"
+        )
+    finally:
+        try:
+            os.unlink(h97_clean_path)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h97_absent_tag",
+        ["-a", "--legacy", f"{corpus}/suspicious_profile_id.icc"],
+        r"\[H97\][\s\S]*No profile sequence ID tag present"
+    )
+
+    # --- H102 tag size vs profile size regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h102_profile_size_profile_bytes(140, 240, 64))
+        h102_small_header = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h102_small_header",
+            ["-a", "--legacy", h102_small_header],
+            r"\[H102\][\s\S]*Profile size 140 too small for 9 tags"
+        )
+        suite.assert_output_contains(
+            "heuristic.h102_small_header_offset",
+            ["-a", "--legacy", h102_small_header],
+            r"\[H102\][\s\S]*offset 240 exceeds profile size 140"
+        )
+    finally:
+        try:
+            os.unlink(h102_small_header)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h102_profile_size_profile_bytes(500, 1000, 64))
+        h102_bad_offset = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h102_bad_offset",
+            ["-a", "--legacy", h102_bad_offset],
+            r"\[H102\][\s\S]*offset 1000 exceeds profile size 500"
+        )
+    finally:
+        try:
+            os.unlink(h102_bad_offset)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h102_profile_size_profile_bytes(500, 240, 1000))
+        h102_bad_size = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h102_bad_size",
+            ["-a", "--legacy", h102_bad_size],
+            r"\[H102\][\s\S]*extends past profile end: offset=240 size=1000 total=500"
+        )
+    finally:
+        try:
+            os.unlink(h102_bad_size)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h102_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H102\][\s\S]*Tag size vs profile size consistent"
+    )
+
+    # H99: embedded image tag validation
+    suite.assert_output_contains(
+        "heuristic.h99_ehim_valid",
+        ["-a", "--legacy", f"{corpus}/cf138-ehim-valid.icc"],
+        r"\[H99\][\s\S]*Embedded image tags valid"
+    )
+    suite.assert_output_contains(
+        "heuristic.h99_enim_valid",
+        ["-a", "--legacy", f"{corpus}/cf139-enim-valid.icc"],
+        r"\[H99\][\s\S]*Embedded image tags valid"
+    )
+    suite.assert_output_contains(
+        "heuristic.h99_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H99\][\s\S]*No embedded image tags present"
+    )
+
     # H10: zero tags (verify library-level detection)
     suite.assert_output_contains(
         "heuristic.zero_tags_detected",
@@ -1115,6 +1426,20 @@ def test_heuristic_detection(suite):
         "heuristic.h147_degenerate_clut",
         ["-a", "--legacy", f"{corpus}/lut_degenerate_clut.icc"],
         r"pTag pointer is null|gridPoints = 0"
+    )
+
+    # --- H148 memory copy bounds/overlap regression (CWE-119) ---
+
+    suite.assert_output_contains(
+        "heuristic.h148_namedcolor2_excessive_coords",
+        ["-a", "--legacy", f"{corpus}/named_color2_excessive_coords.icc"],
+        r"H148|Memory Copy Bounds Overlap|NamedColor2 deviceCoords=20 exceeds ICC max \(15\)|CWE-119"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h148_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H148\][\s\S]*No memory copy overlap or bounds issues detected"
     )
 
     # --- H167 null MPE CLUT/curve-apply guard regression (CWE-476) ---
@@ -1317,6 +1642,126 @@ def test_heuristic_detection(suite):
         ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
         r"\[H169\][\s\S]*No dictionary tag bounds issues detected"
     )
+
+    # --- H165 LUT data sufficiency regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h165_lut_data_sufficiency_profile_bytes())
+        h165_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h165_lut_data_sufficiency_synthetic",
+            ["-a", "--legacy", h165_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h165_lut_data_sufficiency",
+            ["-a", "--legacy", h165_path],
+            r"H165|LUT Data Sufficiency Validation|A2B0.*lut8.*n_in=3 n_out=3 grid=2.*min 1608 bytes but tag size is 16|CWE-125/CWE-122"
+        )
+    finally:
+        try:
+            os.unlink(h165_path)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h165_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H165\][\s\S]*All LUT tags have sufficient data for declared contents"
+    )
+
+    # --- H170 copy-constructor null PCS regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h170_null_pcs_profile_bytes())
+        h170_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h170_null_pcs_synthetic",
+            ["-a", "--legacy", h170_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h170_null_pcs",
+            ["-a", "--legacy", h170_path],
+            r"H170|Copy Constructor UB via Null PCS|PCS is null \(0x00000000\).*profile class 'mntr'|CWE-843"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h170_affected_tools",
+            ["-a", "--legacy", h170_path],
+            r"Affected tools: iccApplySearch, iccRoundTrip, iccApplyProfiles, iccApplyNamedCmm"
+        )
+    finally:
+        try:
+            os.unlink(h170_path)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h170_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H170\][\s\S]*PCS signature valid for copy-constructor safety"
+    )
+
+    # --- H172 LUT matrix coefficient validation regression ---
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h172_lut_matrix_profile_bytes(True))
+        h172_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h172_lut_matrix_synthetic",
+            ["-a", "--legacy", h172_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h172_singular_matrix",
+            ["-a", "--legacy", h172_path],
+            r"H172|LUT Matrix Coefficient Validation|A2B0 matrix is singular.*CWE-369"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h172_extreme_coefficient",
+            ["-a", "--legacy", h172_path],
+            r"H172|A2B0 matrix e\[9\] = 200\.0000 \(extreme magnitude >100\)|CWE-682"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h172_zero_row",
+            ["-a", "--legacy", h172_path],
+            r"H172|A2B0 matrix row 1 has all-zero coefficients.*CWE-682"
+        )
+    finally:
+        try:
+            os.unlink(h172_path)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h172_lut_matrix_profile_bytes(False))
+        h172_clean_path = tmp.name
+
+    try:
+        suite.assert_no_asan(
+            "asan.repo.h172_lut_matrix_clean_synthetic",
+            ["-a", "--legacy", h172_clean_path],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h172_clean_profile",
+            ["-a", "--legacy", h172_clean_path],
+            r"\[H172\][\s\S]*Validated 1 LUT matrix/matrices"
+        )
+    finally:
+        try:
+            os.unlink(h172_clean_path)
+        except OSError:
+            pass
 
     # --- H151 float→int cast operator detection (CWE-681) ---
 
