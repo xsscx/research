@@ -885,6 +885,16 @@ bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
         return false;
     }
 
+    auto keep_partial_profile = [&](CIccProfile* profile, const char* source) -> bool {
+        if (!profile || profile->m_Tags.empty()) {
+            return false;
+        }
+        ICCTEST_WARN("CIccProfile::Read failed (%s), retaining partial tag state (%zu tag entries)",
+                     source, profile->m_Tags.size());
+        m_profile.reset(profile);
+        return true;
+    };
+
     try {
         auto* profile = new CIccProfile();
         CIccFileIO io;
@@ -900,6 +910,9 @@ bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
             memIo.Attach(const_cast<icUInt8Number*>(m_rawData.data()),
                          static_cast<icUInt32Number>(m_rawData.size()));
             if (!profile->Read(&memIo)) {
+                if (keep_partial_profile(profile, "memory buffer")) {
+                    return true;
+                }
                 ICCTEST_WARN("CIccProfile::Read failed (memory buffer)");
                 delete profile;
                 return false;
@@ -909,6 +922,9 @@ bool ProfileView::loadLibrary(bool skipLibraryOnUB) {
         }
 
         if (!profile->Read(&io)) {
+            if (keep_partial_profile(profile, m_path.c_str())) {
+                return true;
+            }
             ICCTEST_WARN("CIccProfile::Read failed: %s", m_path.c_str());
             delete profile;
             return false;
