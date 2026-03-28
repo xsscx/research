@@ -17,6 +17,9 @@ namespace icctest {
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
 static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 90) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 97) {
         return true;
     }
@@ -39,6 +42,15 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 102) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Heuristic &&
+        check.id.number >= 128 && check.id.number <= 135) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Heuristic &&
+        (check.id.number == 123 || check.id.number == 124 ||
+         check.id.number == 126 || check.id.number == 127)) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 115) {

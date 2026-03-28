@@ -439,6 +439,61 @@ static std::vector<uint8_t> make_h18_technology_signature_profile(uint32_t techS
     return data;
 }
 
+static std::vector<uint8_t> make_h38_curve_degenerate_profile() {
+    std::vector<uint8_t> data(164, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x47524159);  // 'GRAY'
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x6B545243); // 'kTRC'
+    put_u32(136, 144);
+    put_u32(140, 20);
+    put_u32(144, 0x63757276); // 'curv'
+    put_u32(152, 4);          // count
+    // entries remain zero
+    return data;
+}
+
+static std::vector<uint8_t> make_h39_shared_tag_alias_profile() {
+    std::vector<uint8_t> data(180, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 2);
+    put_u32(132, 0x63707274); // 'cprt'
+    put_u32(136, 168);
+    put_u32(140, 12);
+    put_u32(144, 0x64657363); // 'desc'
+    put_u32(148, 168);
+    put_u32(152, 8);
+    put_u32(168, 0x74657874); // 'text'
+    put_u32(172, 0);          // reserved
+    put_u32(176, 0x4142);     // "AB"
+    return data;
+}
+
 static std::vector<uint8_t> make_h25_tag_offset_oob_profile() {
     auto data = read_file_bytes(resolve_repo_file("tests/corpus/valid_srgb.icc"));
     if (data.size() < 144) {
@@ -487,6 +542,51 @@ static std::vector<uint8_t> make_h26_named_color2_string_profile(bool unterminat
         data[196] = 'O';
         data[197] = 'K';
     }
+    return data;
+}
+
+static std::vector<uint8_t> make_h27_mpe_matrix_output_profile(uint16_t outputChannels) {
+    std::vector<uint8_t> data(188, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_u16 = [&](size_t off, uint16_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_f32 = [&](size_t off, float value) {
+        uint32_t bits = 0;
+        std::memcpy(&bits, &value, sizeof(bits));
+        put_u32(off, bits);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 144);
+    put_u32(140, 44);
+
+    put_u32(144, 0x6D706574); // 'mpet'
+    put_u16(152, 1);
+    put_u16(154, outputChannels);
+    put_u32(156, 1);
+    put_u32(160, 24);
+    put_u32(164, 20);
+
+    put_u32(168, 0x6D617466); // 'matf'
+    put_u16(176, 1);
+    put_u16(178, outputChannels);
+    if (outputChannels >= 1) put_f32(180, 1.0f);
+    if (outputChannels >= 2) put_f32(184, 0.0f);
     return data;
 }
 
@@ -719,6 +819,45 @@ static std::vector<uint8_t> make_h91_colorant_order_profile(bool duplicate) {
     put_hdr_u32(136, 144);
     put_hdr_u32(140, static_cast<uint32_t>(clro.size()));
     std::copy(clro.begin(), clro.end(), data.begin() + 144);
+    return data;
+}
+
+static std::vector<uint8_t> make_h90_preview_profile(uint8_t inputChannels,
+                                                     uint8_t outputChannels) {
+    std::vector<uint8_t> data(160, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_s32 = [&](size_t off, int32_t value) {
+        put_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_s32(76, static_cast<int32_t>(0.8249 * 65536));
+
+    put_u32(128, 1);          // tag count
+    data[132] = 'p'; data[133] = 'r'; data[134] = 'e'; data[135] = '0';
+    put_u32(136, 144);
+    put_u32(140, 16);
+
+    data[144] = 'm'; data[145] = 'f'; data[146] = 't'; data[147] = '1';
+    data[152] = inputChannels;
+    data[153] = outputChannels;
+    data[154] = 2; // CLUT points
+
     return data;
 }
 
@@ -1014,6 +1153,179 @@ static std::vector<uint8_t> make_h172_lut_matrix_profile(bool malformed) {
         put_s32(matrixOff + 44, 0);
     }
 
+    return data;
+}
+
+static std::vector<uint8_t> make_h41_version_type_profile(uint32_t typeSig) {
+    auto data = read_file_bytes(resolve_repo_file("tests/corpus/valid_srgb.icc"));
+    if (data.size() < 144) {
+        return {};
+    }
+
+    data[8] = 0x04;  // v4.x
+    data[9] = 0x40;
+    data[10] = 0x00;
+    data[11] = 0x00;
+
+    uint32_t firstTagOffset = (static_cast<uint32_t>(data[136]) << 24) |
+                              (static_cast<uint32_t>(data[137]) << 16) |
+                              (static_cast<uint32_t>(data[138]) << 8) |
+                              static_cast<uint32_t>(data[139]);
+    if (firstTagOffset + 4 > data.size()) {
+        return {};
+    }
+
+    data[firstTagOffset + 0] = static_cast<uint8_t>((typeSig >> 24) & 0xFF);
+    data[firstTagOffset + 1] = static_cast<uint8_t>((typeSig >> 16) & 0xFF);
+    data[firstTagOffset + 2] = static_cast<uint8_t>((typeSig >> 8) & 0xFF);
+    data[firstTagOffset + 3] = static_cast<uint8_t>(typeSig & 0xFF);
+    return data;
+}
+
+static std::vector<uint8_t> make_h42_matrix_singularity_profile() {
+    std::vector<uint8_t> data(192, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+
+    put_u32(128, 1);
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 144);
+    put_u32(140, 48);
+
+    put_u32(144, 0x6D667431); // 'mft1'
+    // matrix bytes at 156..191 remain zero -> singular/all-zero
+    return data;
+}
+
+static std::vector<uint8_t> make_h50_zero_size_tag_profile() {
+    auto data = read_file_bytes(resolve_repo_file("tests/corpus/valid_srgb.icc"));
+    if (data.size() < 144) {
+        return {};
+    }
+
+    data[140] = 0;
+    data[141] = 0;
+    data[142] = 0;
+    data[143] = 0;
+    return data;
+}
+
+static std::vector<uint8_t> make_h43_spectral_brdf_profile() {
+    std::vector<uint8_t> data(164, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_u16 = [&](size_t off, uint16_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x05000000);   // v5
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x7376636Eu); // 'svcn'
+    put_u32(136, 144);
+    put_u32(140, 20);
+    put_u32(144, 0x73767763u); // 'svwc'
+    put_u16(152, 780);
+    put_u16(154, 380);
+    put_u16(156, 0);
+    return data;
+}
+
+static std::vector<uint8_t> make_h44_embedded_image_profile() {
+    std::vector<uint8_t> data(160, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);
+    put_u32(16, 0x52474220);
+    put_u32(20, 0x58595A20);
+    put_u32(36, 0x61637370);
+    put_u32(128, 1);
+    put_u32(132, 0x70726530); // 'pre0'
+    put_u32(136, 144);
+    put_u32(140, 0x01000001u); // >16MB
+    put_u32(144, 0x74657874);  // 'text'
+    return data;
+}
+
+static std::vector<uint8_t> make_h45_sparse_matrix_profile() {
+    std::vector<uint8_t> data(176, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x05000000);
+    put_u32(12, 0x6D6E7472);
+    put_u32(16, 0x52474220);
+    put_u32(20, 0x58595A20);
+    put_u32(36, 0x61637370);
+    put_u32(128, 1);
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 144);
+    put_u32(140, 32);
+    put_u32(144, 0x6D706574); // 'mpet'
+    put_u32(152, 0x736D7478); // 'smtx'
+    put_u32(160, 5000);
+    put_u32(164, 5000);
+    return data;
+}
+
+static std::vector<uint8_t> make_h46_text_desc_profile() {
+    std::vector<uint8_t> data(164, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);
+    put_u32(16, 0x52474220);
+    put_u32(20, 0x58595A20);
+    put_u32(36, 0x61637370);
+    put_u32(128, 1);
+    put_u32(132, 0x64657363); // 'desc'
+    put_u32(136, 144);
+    put_u32(140, 20);
+    put_u32(144, 0x64657363); // 'desc'
+    put_u32(152, 64);         // ascii len exceeds tag data
     return data;
 }
 
@@ -2837,6 +3149,51 @@ static void test_colorant_order_validation_regression() {
     }
 }
 
+static void test_preview_tag_channel_consistency_regression() {
+    std::printf("  test_preview_tag_channel_consistency_regression...\n");
+
+    {
+        auto clean = make_h90_preview_profile(3, 3);
+        auto profilePath = write_temp_profile(clean, "h90-preview-ok.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {90});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 90, CheckResult::Status::OK, 0);
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto bad = make_h90_preview_profile(4, 2);
+        auto profilePath = write_temp_profile(bad, "h90-preview-bad.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {90});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 90, CheckResult::Status::FINDINGS, 2);
+
+        const auto* h90 = find_per_check(result, CheckID::Kind::Heuristic, 90);
+        ASSERT_TRUE(h90 != nullptr);
+        if (h90) {
+            bool sawInput = false;
+            bool sawOutput = false;
+            for (const auto& finding : h90->result.findings) {
+                if (finding.message.find("Tag 'pre0': input channels=4 != PCS channels=3") != std::string::npos) {
+                    sawInput = true;
+                }
+                if (finding.message.find("Tag 'pre0': output channels=2 != PCS channels=3") != std::string::npos) {
+                    sawOutput = true;
+                }
+            }
+            ASSERT_TRUE(sawInput);
+            ASSERT_TRUE(sawOutput);
+        }
+        std::filesystem::remove(profilePath);
+    }
+}
+
 static void test_unchecked_allocation_size_overflow_regression() {
     std::printf("  test_unchecked_allocation_size_overflow_regression...\n");
 
@@ -3227,6 +3584,18 @@ static void test_h20_tag_type_signature_regression() {
         }
         ASSERT_TRUE(h20->result.summary.find("All tag type signatures are valid ASCII") != std::string::npos);
     }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf_misaligned_tag.icc", {20});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 20, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {20});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 20, CheckResult::Status::OK, 0);
+    }
 }
 
 static void test_h18_technology_signature_regression() {
@@ -3303,6 +3672,72 @@ static void test_h25_tag_offset_oob_regression() {
     expect_heuristic_result(cleanResult, 25, CheckResult::Status::OK, 0);
 }
 
+static void test_h21_h24_tag_struct_regressions() {
+    std::printf("  test_h21_h24_tag_struct_regressions...\n");
+
+    auto structFixture = resolve_repo_file("test-profiles/sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc");
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (structFixture.empty() || corpusDir.empty()) {
+        std::printf("    (skipped — tagStruct fixture(s) not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(structFixture, {21, 22, 23, 24});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_heuristic_result(result, 21, CheckResult::Status::FINDINGS, 4);
+        expect_heuristic_result(result, 22, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 23, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
+
+        const auto* h21 = find_per_check(result, CheckID::Kind::Heuristic, 21);
+        ASSERT_TRUE(h21 != nullptr);
+        if (h21) {
+            ASSERT_TRUE(h21->result.findings[0].message.find("null type") != std::string::npos ||
+                        h21->result.findings[0].message.find("non-ASCII type") != std::string::npos);
+        }
+
+        const auto* h22 = find_per_check(result, CheckID::Kind::Heuristic, 22);
+        ASSERT_TRUE(h22 != nullptr);
+        if (h22) {
+            ASSERT_TRUE(h22->result.findings[0].message.find("ViewingSurround") != std::string::npos);
+        }
+
+        const auto* h24 = find_per_check(result, CheckID::Kind::Heuristic, 24);
+        ASSERT_TRUE(h24 != nullptr);
+        if (h24) {
+            ASSERT_TRUE(h24->result.summary.find("Max nesting depth: 1") != std::string::npos);
+        }
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf143-meas-valid.icc", {21, 22, 23, 24});
+        ASSERT_EQ(4, result.stats.checksRun);
+        expect_heuristic_result(result, 21, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 22, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 23, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
+
+        const auto* h21 = find_per_check(result, CheckID::Kind::Heuristic, 21);
+        ASSERT_TRUE(h21 != nullptr);
+        if (h21) {
+            ASSERT_TRUE(h21->result.summary.find("tagStruct members appear well-formed") != std::string::npos);
+        }
+
+        const auto* h22 = find_per_check(result, CheckID::Kind::Heuristic, 22);
+        ASSERT_TRUE(h22 != nullptr);
+        if (h22) {
+            ASSERT_TRUE(h22->result.summary.find("No cept") != std::string::npos);
+        }
+
+        const auto* h24 = find_per_check(result, CheckID::Kind::Heuristic, 24);
+        ASSERT_TRUE(h24 != nullptr);
+        if (h24) {
+            ASSERT_TRUE(h24->result.summary.find("Max nesting depth: 0") != std::string::npos);
+        }
+    }
+}
+
 static void test_h26_named_color2_string_regression() {
     std::printf("  test_h26_named_color2_string_regression...\n");
 
@@ -3350,6 +3785,38 @@ static void test_h26_named_color2_string_regression() {
         std::error_code ignored;
         std::filesystem::remove(path, ignored);
     }
+}
+
+static void test_h27_mpe_matrix_output_regression() {
+    std::printf("  test_h27_mpe_matrix_output_regression...\n");
+
+    {
+        auto data = make_h27_mpe_matrix_output_profile(2);
+        auto path = write_temp_profile(data, "icctest-h27-matrix-out2.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {27});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h27 = find_per_check(result, CheckID::Kind::Heuristic, 27);
+        ASSERT_TRUE(h27 != nullptr);
+        if (!h27) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h27->result.status);
+        ASSERT_TRUE(h27->result.findings[0].message.find("Matrix has 2 output channels") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) return;
+    auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {27});
+    ASSERT_EQ(1, cleanResult.stats.checksRun);
+    expect_heuristic_result(cleanResult, 27, CheckResult::Status::OK, 0);
 }
 
 static void test_h28_lut_dimension_regression() {
@@ -3499,6 +3966,18 @@ static void test_h32_tag_data_type_confusion_regression() {
     auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {32});
     ASSERT_EQ(1, cleanResult.stats.checksRun);
     expect_heuristic_result(cleanResult, 32, CheckResult::Status::OK, 0);
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "huge_tag_count.icc", {32});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 10);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {32});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 32, CheckResult::Status::OK, 0);
+    }
 }
 
 static void test_h52_tag_size_underflow_regression() {
@@ -3552,6 +4031,397 @@ static void test_h52_tag_size_underflow_regression() {
             return;
         }
         ASSERT_TRUE(h52->result.summary.find("No integer underflow in tag sizes") != std::string::npos);
+    }
+}
+
+static void test_h41_h42_h50_raw_scan_regressions() {
+    std::printf("  test_h41_h42_h50_raw_scan_regressions...\n");
+
+    {
+        auto data = make_h41_version_type_profile(0x64657363u); // 'desc'
+        auto path = write_temp_profile(data, "icctest-h41-version-type.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {41});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h41 = find_per_check(result, CheckID::Kind::Heuristic, 41);
+        ASSERT_TRUE(h41 != nullptr);
+        if (!h41) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h41->result.status);
+        ASSERT_EQ(1, h41->result.issueCount());
+        ASSERT_TRUE(h41->result.findings[0].message.find("v2-only textDescription type") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h42_matrix_singularity_profile();
+        auto path = write_temp_profile(data, "icctest-h42-singular-matrix.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {42});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h42 = find_per_check(result, CheckID::Kind::Heuristic, 42);
+        ASSERT_TRUE(h42 != nullptr);
+        if (!h42) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h42->result.status);
+        ASSERT_TRUE(h42->result.issueCount() >= 2);
+        bool sawSingular = false;
+        bool sawAllZero = false;
+        for (const auto& finding : h42->result.findings) {
+            if (finding.message.find("near-singular 3x3 matrix") != std::string::npos) {
+                sawSingular = true;
+            }
+            if (finding.message.find("matrix is all zeros") != std::string::npos) {
+                sawAllZero = true;
+            }
+        }
+        ASSERT_TRUE(sawSingular);
+        ASSERT_TRUE(sawAllZero);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h50_zero_size_tag_profile();
+        auto path = write_temp_profile(data, "icctest-h50-zero-size.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {50});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h50 = find_per_check(result, CheckID::Kind::Heuristic, 50);
+        ASSERT_TRUE(h50 != nullptr);
+        if (!h50) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h50->result.status);
+        ASSERT_EQ(1, h50->result.issueCount());
+        ASSERT_TRUE(h50->result.findings[0].message.find("zero size") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        return;
+    }
+
+    {
+        auto clean = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {41, 42, 50});
+        ASSERT_EQ(3, clean.stats.checksRun);
+        expect_heuristic_result(clean, 41, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 42, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 50, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_h38_h39_raw_scan_regressions() {
+    std::printf("  test_h38_h39_raw_scan_regressions...\n");
+
+    {
+        auto data = make_h38_curve_degenerate_profile();
+        auto path = write_temp_profile(data, "icctest-h38-curve-degenerate.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {38});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h38 = find_per_check(result, CheckID::Kind::Heuristic, 38);
+        ASSERT_TRUE(h38 != nullptr);
+        if (!h38) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h38->result.status);
+        ASSERT_EQ(1, h38->result.issueCount());
+        ASSERT_TRUE(h38->result.findings[0].message.find("all 4 entries are zero") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h39_shared_tag_alias_profile();
+        auto path = write_temp_profile(data, "icctest-h39-shared-alias.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {39});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h39 = find_per_check(result, CheckID::Kind::Heuristic, 39);
+        ASSERT_TRUE(h39 != nullptr);
+        if (!h39) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h39->result.status);
+        ASSERT_EQ(1, h39->result.issueCount());
+        ASSERT_TRUE(h39->result.findings[0].message.find("share offset") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        return;
+    }
+
+    {
+        auto clean = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {38, 39});
+        ASSERT_EQ(2, clean.stats.checksRun);
+        expect_heuristic_result(clean, 38, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 39, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_h43_h46_raw_scan_regressions() {
+    std::printf("  test_h43_h46_raw_scan_regressions...\n");
+
+    {
+        auto data = make_h43_spectral_brdf_profile();
+        auto path = write_temp_profile(data, "icctest-h43-svwc.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+        auto result = analyze_corpus_heuristics(path, {43});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h43 = find_per_check(result, CheckID::Kind::Heuristic, 43);
+        ASSERT_TRUE(h43 != nullptr);
+        if (!h43) return;
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h43->result.status);
+        ASSERT_TRUE(h43->result.issueCount() >= 2);
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h44_embedded_image_profile();
+        auto path = write_temp_profile(data, "icctest-h44-embedded-image.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+        auto result = analyze_corpus_heuristics(path, {44});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h44 = find_per_check(result, CheckID::Kind::Heuristic, 44);
+        ASSERT_TRUE(h44 != nullptr);
+        if (!h44) return;
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h44->result.status);
+        ASSERT_TRUE(h44->result.findings[0].message.find("oversized embedded data") != std::string::npos);
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h45_sparse_matrix_profile();
+        auto path = write_temp_profile(data, "icctest-h45-sparse-matrix.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+        auto result = analyze_corpus_heuristics(path, {45});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h45 = find_per_check(result, CheckID::Kind::Heuristic, 45);
+        ASSERT_TRUE(h45 != nullptr);
+        if (!h45) return;
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h45->result.status);
+        ASSERT_TRUE(h45->result.findings[0].message.find("sparse matrix 5000x5000") != std::string::npos);
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h46_text_desc_profile();
+        auto path = write_temp_profile(data, "icctest-h46-text-desc.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+        auto result = analyze_corpus_heuristics(path, {46});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h46 = find_per_check(result, CheckID::Kind::Heuristic, 46);
+        ASSERT_TRUE(h46 != nullptr);
+        if (!h46) return;
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h46->result.status);
+        ASSERT_TRUE(h46->result.findings[0].message.find("ASCII length 64 exceeds available tag data") != std::string::npos);
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        return;
+    }
+
+    {
+        auto clean = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {43, 44, 45, 46});
+        ASSERT_EQ(4, clean.stats.checksRun);
+        expect_heuristic_result(clean, 43, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 44, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 45, CheckResult::Status::OK, 0);
+        expect_heuristic_result(clean, 46, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_integrity_heuristic_regressions() {
+    std::printf("  test_integrity_heuristic_regressions...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "version_bcd_invalid.icc", {128});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 128, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {128});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 128, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "wrong_d50_illuminant.icc", {129});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 129, CheckResult::Status::FINDINGS, 4);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {129});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 129, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "tag_misaligned.icc", {130});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 130, CheckResult::Status::FINDINGS, 4);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {130});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 130, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf_md5_mismatch.icc", {131});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 131, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {131});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 131, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto singular = make_h88_chad_profile_singular();
+        auto profilePath = write_temp_profile(singular, "h132-chad-singular.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (!profilePath.empty()) {
+            auto result = analyze_corpus_heuristics(profilePath, {132});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 132, CheckResult::Status::FINDINGS, 1);
+
+            std::error_code ignored;
+            std::filesystem::remove(profilePath, ignored);
+        }
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {132});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 132, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "flags_reserved_bits.icc", {133});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 133, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {133});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 133, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "cf_reserved_bytes_nonzero_tag.icc", {134});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 134, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {134});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 134, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "duplicate_tags.icc", {135});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 135, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {135});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 135, CheckResult::Status::OK, 0);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "private_tags.icc", {123, 126, 127});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_heuristic_result(result, 123, CheckResult::Status::FINDINGS, 3);
+        expect_heuristic_result(result, 126, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 127, CheckResult::Status::FINDINGS, 3);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "malware_private_tag.icc", {123, 126, 127});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_heuristic_result(result, 123, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 126, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 127, CheckResult::Status::FINDINGS, 2);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "v5_tags_on_v4.icc", {124, 126, 127});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_heuristic_result(result, 124, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 126, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 127, CheckResult::Status::OK, 0);
+    }
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "targ_cmyk_quality_profile.icc", {125});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 125, CheckResult::Status::FINDINGS, 1);
+    }
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {123, 124, 125, 126, 127});
+        ASSERT_EQ(5, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 123, CheckResult::Status::OK, 0);
+        expect_heuristic_result(cleanResult, 124, CheckResult::Status::OK, 0);
+        expect_heuristic_result(cleanResult, 125, CheckResult::Status::OK, 0);
+        expect_heuristic_result(cleanResult, 126, CheckResult::Status::OK, 0);
+        expect_heuristic_result(cleanResult, 127, CheckResult::Status::OK, 0);
     }
 }
 
@@ -3714,6 +4584,46 @@ static void test_failed_load_heuristic_parity_regression_cluster() {
             }
         }
         ASSERT_TRUE(sawNullTag);
+    }
+}
+
+static void test_failed_load_library_only_ok_regression_cluster() {
+    std::printf("  test_failed_load_library_only_ok_regression_cluster...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(
+            corpusDir / "calculator_deep_nesting.icc",
+            {18, 21, 22, 23, 24, 27, 31, 147});
+        ASSERT_EQ(8, result.stats.checksRun);
+        expect_heuristic_result(result, 18, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 21, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 22, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 23, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 27, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 31, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(
+            corpusDir / "v5_spac_basic.icc",
+            {18, 21, 22, 23, 24, 27, 31, 147});
+        ASSERT_EQ(8, result.stats.checksRun);
+        expect_heuristic_result(result, 18, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 21, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 22, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 23, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 27, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 31, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
     }
 }
 
@@ -3888,6 +4798,7 @@ void test_runner() {
     test_profile_sequence_description_regression();
     test_profile_sequence_desc_validation_regression();
     test_colorant_order_validation_regression();
+    test_preview_tag_channel_consistency_regression();
     test_unchecked_allocation_size_overflow_regression();
     test_alloc_dealloc_and_uaf_ownership_regressions();
     test_deep_apply_stack_escape_regression();
@@ -3896,16 +4807,23 @@ void test_runner() {
     test_copy_constructor_null_pcs_regression();
     test_h18_technology_signature_regression();
     test_h20_tag_type_signature_regression();
+    test_h21_h24_tag_struct_regressions();
     test_h25_tag_offset_oob_regression();
     test_h26_named_color2_string_regression();
+    test_h27_mpe_matrix_output_regression();
     test_h28_lut_dimension_regression();
     test_h29_colorant_table_string_regression();
     test_h31_mpe_channel_count_regression();
     test_h32_tag_data_type_confusion_regression();
+    test_h38_h39_raw_scan_regressions();
+    test_h41_h42_h50_raw_scan_regressions();
+    test_h43_h46_raw_scan_regressions();
     test_h52_tag_size_underflow_regression();
+    test_integrity_heuristic_regressions();
     test_lut_matrix_coefficient_validation_regression();
     test_spectral_mpe_h98_gap_fixture();
     test_failed_load_heuristic_parity_regression_cluster();
+    test_failed_load_library_only_ok_regression_cluster();
     test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();
