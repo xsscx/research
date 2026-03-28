@@ -75,7 +75,9 @@ This matrix separates:
 ### Highest-priority analyzer gaps
 
 - **V2 TODO breadth remains the main limiter**:
-  - CFL-029 via alloc/UAF ownership families (`H159`)
+  - the remaining TODO surface is now outside the H157/H159/H161 ownership family
+    that has been ported; the next limiter is the unported exploit-gap/data-validation
+    tail rather than the CodeQL ownership checks
 - **Defense exists but reporting parity still lags**:
   - CFL-063 broader offset+size overflow family
   - CFL-067 fixed-point illuminant overflow reporting on V2
