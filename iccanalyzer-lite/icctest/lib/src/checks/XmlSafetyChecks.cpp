@@ -413,9 +413,17 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
     close(pipeFd[0]);
 
     if (nRead == sizeof(int32_t)) {
-        // Single error code
+        // Single error code from child
         int32_t errCode = vals[0];
         if (errCode < -900) {
+            // -993 = LoadXml failed after ToXml succeeded = round-trip data loss
+            // -995 = ToXml failed = no round-trip possible (not a finding)
+            // -997 = Read failed = cannot load profile (not a finding)
+            if (errCode == -993) {
+                cb.high("FromXml(ToXml()) failed -- round-trip data loss",
+                        "CWE-345: Insufficient Verification of Data Authenticity");
+                return cb.done(sfmt("XML round-trip: LoadXml failed (stage %d)", errCode));
+            }
             return CheckResult::ok(
                 sfmt("XML round-trip could not complete (stage error %d) -- not a crash", errCode));
         }
