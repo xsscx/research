@@ -6,10 +6,10 @@
 >
 > **Sources**: ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
 > ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
-> 93 iccDEV security advisories (87 CVEs + 95 GHSAs).
+> 113 iccDEV security advisories (87 CVEs + 95 GHSAs).
 >
-> **Last verified**: 2026-03-23 16:25:00 UTC — 173 heuristics (H1–H173) +
-> 329 canonical conformance checks (CF-001..CF-329), 60 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-03-23 16:25:00 UTC — 180 heuristics (H1–H180) +
+> 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
 >
 > **Count note**: these are current registry totals, not an ID-space ceiling.
 > V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
@@ -74,7 +74,7 @@
 12. [Security Patterns — CWE Catalog](#12-security-patterns--cwe-catalog)
 13. [CFL Patch Catalog (45 Active)](#13-cfl-patch-catalog-45-active)
 14. [Heuristic → Format Mapping](#14-heuristic--format-mapping)
-14.5. [ICC Conformance Checks (CF-001..CF-316)](#145-icc-conformance-checks-cf-001cf-316)
+14.5. [ICC Conformance Checks (CF-001..CF-329)](#145-icc-conformance-checks-cf-001cf-329)
 14.6. [ICC.2:2019 Errata Coverage](#146-icc22019-errata-coverage)
 14.7. [ICS Sub-Class Conformance (CF-308..CF-316)](#147-ics-sub-class-conformance-cf-308cf-316)
 15. [Version History and BCD Encoding](#15-version-history-and-bcd-encoding)
@@ -255,14 +255,18 @@ AToB0  'A2B0'    Device → PCS, perceptual intent       (ICC.1 §9.2.1)
 AToB1  'A2B1'    Device → PCS, relative colorimetric  (ICC.1 §9.2.2)
 AToB2  'A2B2'    Device → PCS, saturation              (ICC.1 §9.2.3)
 AToB3  'A2B3'    Device → PCS, absolute colorimetric   (ICC.2 v5+ ONLY — NOT in ICC.1-2022-05)
-BToA0  'B2A0'    PCS → Device, perceptual              (ICC.1 §9.2.4)
-BToA1  'B2A1'    PCS → Device, relative                (ICC.1 §9.2.5)
-BToA2  'B2A2'    PCS → Device, saturation              (ICC.1 §9.2.6)
+BToA0  'B2A0'    PCS → Device, perceptual              (ICC.1 §9.2.6)
+BToA1  'B2A1'    PCS → Device, relative                (ICC.1 §9.2.7)
+BToA2  'B2A2'    PCS → Device, saturation              (ICC.1 §9.2.8)
 BToA3  'B2A3'    PCS → Device, absolute                (ICC.2 v5+ ONLY — NOT in ICC.1-2022-05)
-DToB0  'D2B0'    Device → PCS, spectral                (ICC.1 §9.2.51, v4.0+)
-DToB1  'D2B1'    ...                                    (ICC.1 §9.2.52)
-BToD0  'B2D0'    PCS → Device, spectral                (ICC.1 §9.2.7)
-BToD1  'B2D1'    ...                                    (ICC.1 §9.2.8)
+DToB0  'D2B0'    Device → PCS, perceptual, MPE         (ICC.1 §9.2.24, v4.0+)
+DToB1  'D2B1'    Device → PCS, relative, MPE           (ICC.1 §9.2.25)
+DToB2  'D2B2'    Device → PCS, saturation, MPE         (ICC.1 §9.2.26)
+DToB3  'D2B3'    Device → PCS, absolute, MPE           (ICC.1 §9.2.27)
+BToD0  'B2D0'    PCS → Device, perceptual, MPE         (ICC.1 §9.2.9)
+BToD1  'B2D1'    PCS → Device, relative, MPE           (ICC.1 §9.2.10)
+BToD2  'B2D2'    PCS → Device, saturation, MPE         (ICC.1 §9.2.11)
+BToD3  'B2D3'    PCS → Device, absolute, MPE           (ICC.1 §9.2.12)
 ```
 
 ### Other Important Tags
@@ -381,7 +385,7 @@ standalone tag-table auditing.
 
 ## 7. Multi-Process Element (MPE) Internals
 
-**Type signature**: `'mpet'` (0x6D706574) — ICC.1-2022-05 §10.18
+**Type signature**: `'mpet'` (0x6D706574) — ICC.1-2022-05 §10.16
 
 MPE tags contain a chain of processing elements applied sequentially.
 
@@ -650,7 +654,7 @@ iCCP chunk:
   Compression method (1 byte, must be 0 = zlib)
   Compressed ICC profile data (zlib deflate)
 
-Extraction: png_get_iCCP() → inflate → temp file → 173-heuristic analysis
+Extraction: png_get_iCCP() → inflate → temp file → 180-heuristic analysis
 ```
 
 ### JPEG ICC Extraction
@@ -675,7 +679,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-44 distinct CWE categories across 173 heuristics + 329 canonical conformance checks + 60 CFL patches:
+44 distinct CWE categories across 180 heuristics + 329 canonical conformance checks + 45 CFL patches:
 
 | CWE | Name | Sources | Key References |
 |-----|------|---------|----------------|
@@ -716,7 +720,7 @@ Multi-segment reassembly:
 ## 13. CFL Patch Catalog (45 Active)
 
 Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs.
-The current active patch-file count is **60**, and the normalized analyzer-facing
+The current active patch-file count is **45**, and the normalized analyzer-facing
 inventory now lives in:
 
 - `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
@@ -774,7 +778,7 @@ counts or V1/V2 analyzer coverage.
 | 057 | SearchApply uninitialized members | Uninitialized member variables in constructor | CWE-908 | IccCmmConfig.cpp |
 
 **Retired patches** (accepted upstream in PRs #680–#695):
-003, 010, 011, 012, 013, 015, 016, 018, 020, 024, 026, 027 — 12 patches, 71 total in `cfl/patches-retired/`.
+003, 010, 011, 012, 013, 015, 016, 018, 020, 024, 026, 027 — 12 patches, 93 total in `cfl/patches-retired/`.
 
 **Next patch**: use the live `cfl/patches/` inventory instead of this historical marker.
 
@@ -788,7 +792,6 @@ Which ICC binary format fields each heuristic group validates:
 |-----------------|--------|---------------|
 | H1–H8, H15–H17 | IccHeuristicsHeader.cpp | Header bytes 0–127 (raw byte access) |
 | H9–H32 | IccHeuristicsTagValidation.cpp | Tag table at offset 128+ (CIccProfile API) |
-| H33–H55, H57–H69, H153 | IccHeuristicsRawPost.cpp | Raw file I/O: sub-element offsets, overlaps, embedded data, NaN |
 | H33–H55, H57–H69, H152–H153 | IccHeuristicsRawPost.cpp | Raw payload scans: overlap, padding, embedded/image recursion, curve OOM/underflow, curve NaN |
 | H56–H102, H146–H148, H151 | IccHeuristicsDataValidation.cpp | Tag data payloads via CIccProfile: LUT, matrix, curves, calculator, SBO, NPD |
 | H103–H120 | IccHeuristicsProfileCompliance.cpp | Required tags per class, encoding rules, PCS constraints |
@@ -797,6 +800,7 @@ Which ICC binary format fields each heuristic group validates:
 | H142–H145 | IccHeuristicsXmlSafety.cpp | XML serialization crash isolation (fork + alarm) |
 | H154–H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived: alloc, overflow, enum, UAF, format string |
 | H162–H171 | IccHeuristicsExploitGap.cpp | Exploit gap: overlap, exec sigs, LUT, div-zero, null, curves |
+| H172–H180 | *(various — see IccHeuristicsRegistry.h)* | Extended heuristics: TIFF compression bomb, matrix determinant, half-float, spectral, ADGC |
 
 ---
 
@@ -1132,4 +1136,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 173 heuristics · 329 canonical conformance checks (331 wrapper entries) · 60 CFL patches · 13 fuzzers · 93 advisories*
+*iccanalyzer-lite v3.7.0+ · 180 heuristics · 329 canonical conformance checks (331 wrapper entries) · 45 CFL patches · 13 fuzzers · 113 advisories*
