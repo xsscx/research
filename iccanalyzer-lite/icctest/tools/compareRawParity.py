@@ -361,6 +361,19 @@ def is_heuristic_omitted_not_run_match(
     return summary.startswith("not run:")
 
 
+def is_heuristic_omitted_clean_failed_load_match(
+    v1_record: dict | None, v2_record: dict | None, v2_payload: dict
+) -> bool:
+    if v1_record is not None or not v2_record:
+        return False
+    if v2_record.get("normalizedStatus", "") != "ok":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 0:
+        return False
+    profile = v2_payload.get("profile", {})
+    return profile.get("libraryLoaded") is False
+
+
 def is_conformance_advisory_match(v1_record: dict | None, v2_record: dict | None) -> bool:
     if not v1_record or not v2_record:
         return False
@@ -608,6 +621,11 @@ def compare_lane(
         ):
             comparison = "implicit_skip_match"
             normalized_reason = "v1_text_omitted_not_run_heuristic_check"
+        elif lane == "heuristic" and is_heuristic_omitted_clean_failed_load_match(
+            v1_record, v2_record, v2_payload
+        ):
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_text_omitted_clean_heuristic_on_failed_load"
         elif lane == "conformance" and is_conformance_omitted_applicability_match(
             v1_record, v2_record
         ):
