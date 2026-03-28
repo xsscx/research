@@ -1,10 +1,11 @@
 #!/bin/bash
-# afl/build.sh — Build iccDEV with AFL++ instrumentation (ASAN+UBSAN)
+# afl/build.sh — Build PATCHED iccDEV with AFL++ instrumentation (ASAN+UBSAN)
 #
 # Usage: ./afl/build.sh [--clean]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with
 # AddressSanitizer and UndefinedBehaviorSanitizer enabled.
+# Applies all CFL security patches from cfl/patches/ before building.
 
 set -euo pipefail
 
@@ -13,13 +14,42 @@ ICCDEV_DIR="$REPO_ROOT/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build-AFL"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="$REPO_ROOT/afl/bin"
+PATCH_DIR="$REPO_ROOT/cfl/patches"
 JOBS=$(nproc)
 
-# Clone iccDEV if not present or incomplete (AFL tests unpatched upstream)
+# Clone iccDEV if not present or incomplete
 if [ ! -f "$CMAKE_DIR/CMakeLists.txt" ]; then
-    echo "[*] Cloning iccDEV (unpatched upstream for AFL)..."
+    echo "[*] Cloning iccDEV..."
     rm -rf "$ICCDEV_DIR"
     git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
+fi
+echo "[*] iccDEV commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
+
+# --- Apply CFL security patches ---
+# Reset working tree to clean state, then apply all patches from cfl/patches/
+echo "[*] Applying CFL security patches..."
+(cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
+if [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
+    PATCH_OK=0
+    PATCH_FAIL=0
+    for p in "$PATCH_DIR"/*.patch; do
+        pname=$(basename "$p")
+        if patch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+            patch -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1
+            PATCH_OK=$((PATCH_OK + 1))
+        elif patch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+            PATCH_OK=$((PATCH_OK + 1))
+        else
+            echo "  [FAIL] $pname"
+            PATCH_FAIL=$((PATCH_FAIL + 1))
+        fi
+    done
+    echo "  Patches: $PATCH_OK applied, $PATCH_FAIL failed"
+    if [ "$PATCH_FAIL" -gt 0 ]; then
+        echo "  WARNING: Some patches failed — check upstream changes"
+    fi
+else
+    echo "  No patches found in $PATCH_DIR"
 fi
 
 # Verify AFL++ is installed
@@ -29,11 +59,14 @@ if ! command -v afl-clang-fast++ &>/dev/null; then
     exit 1
 fi
 
-# Clean build if requested
+# Clean build if requested or if patches changed the source
 if [[ "${1:-}" == "--clean" ]]; then
     echo "[*] Cleaning Build-AFL directory..."
     rm -rf "$BUILD_DIR"
 fi
+
+# Delete stale cmake cache after patching (Anti-Pattern #15)
+rm -f "$BUILD_DIR/CMakeCache.txt"
 
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
@@ -91,13 +124,15 @@ for tool_dir in "$BUILD_DIR"/Tools/*/; do
 done
 echo "  $DEPLOYED tool binaries deployed"
 
-# Deploy shared libraries
-cp "$BUILD_DIR"/IccProfLib/libIccProfLib2.so* "$BIN_DIR/"
-cp "$BUILD_DIR"/IccXML/libIccXML2.so* "$BIN_DIR/" 2>/dev/null || true
+# Deploy shared libraries (handle CMAKE_DEBUG_POSTFIX 'd' suffix)
+for lib in IccProfLib IccXML; do
+    for f in "$BUILD_DIR"/$lib/lib${lib}2*.so*; do
+        [ -e "$f" ] && cp -P "$f" "$BIN_DIR/"
+    done
+done
 echo ""
 echo "Shared libraries:"
-ls -lh "$BIN_DIR"/libIccProfLib2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
-ls -lh "$BIN_DIR"/libIccXML2.so 2>/dev/null | awk '{print "  "$5"  "$9}'
+ls -lh "$BIN_DIR"/lib*.so 2>/dev/null | awk '{print "  "$5"  "$9}'
 
 echo ""
-echo "[OK] $DEPLOYED AFL-instrumented tools deployed to afl/bin/"
+echo "[OK] $DEPLOYED AFL-instrumented PATCHED tools deployed to afl/bin/"
