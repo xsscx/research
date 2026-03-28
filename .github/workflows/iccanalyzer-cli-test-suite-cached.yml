@@ -193,6 +193,7 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
 
           echo "Building iccDEV libraries (cache miss)..."
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
@@ -210,8 +211,8 @@ jobs:
           make -j$(nproc)
 
           echo "Verifying libraries..."
-          ls -lh IccProfLib/libIccProfLib2-static.a
-          ls -lh IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a
+          ls -lh IccXML/libIccXML2-static*.a
 
       - name: Verify cached iccDEV build
         if: steps.cache-iccdev-build.outputs.cache-hit == 'true'
@@ -220,8 +221,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "Using cached iccDEV build"
-          ls -lh iccanalyzer-lite/iccDEV/Build/IccProfLib/libIccProfLib2-static.a
-          ls -lh iccanalyzer-lite/iccDEV/Build/IccXML/libIccXML2-static.a
+          ls -lh iccanalyzer-lite/iccDEV/Build/IccProfLib/libIccProfLib2-static*.a
+          ls -lh iccanalyzer-lite/iccDEV/Build/IccXML/libIccXML2-static*.a
 
       - name: Build iccanalyzer-lite
         working-directory: iccanalyzer-lite

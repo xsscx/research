@@ -139,6 +139,7 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
           # Force reconfigure to ensure coverage flags are applied
           rm -f CMakeCache.txt
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=gcc \
@@ -151,8 +152,8 @@ jobs:
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
           make -j$(nproc)
-          ls -lh IccProfLib/libIccProfLib2-static.a
-          ls -lh IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a
+          ls -lh IccXML/libIccXML2-static*.a
           echo "Verifying .gcno files generated..."
           GCNO_COUNT=$(find . -name "*.gcno" | wc -l)
           echo "Found $GCNO_COUNT .gcno files"
@@ -176,7 +177,7 @@ jobs:
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
-          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static*.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static*.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
 
           SOURCES="iccAnalyzer-lite.cpp IccDevSafeOverrides.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp IccConformanceHeader.cpp IccConformanceTagTypes.cpp IccConformanceRequired.cpp IccConformanceLUT.cpp IccConformanceV5.cpp IccConformanceSecurity.cpp IccConformanceQuality.cpp"
 
