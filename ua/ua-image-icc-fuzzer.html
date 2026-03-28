@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UA -- User Agent Image &amp; ICC Profile Fuzzer Harness V2</title>
+    <title>UA -- User Agent Image &amp; ICC Profile Fuzzer Harness V3</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; }
@@ -59,12 +59,30 @@
         #summary-box th, #summary-box td { padding: 4px 8px; border: 1px solid #30363d; text-align: left; font-size: 12px; }
         #summary-box th { background: #21262d; color: #8b949e; }
         .elapsed { color: #8b949e; font-size: 11px; }
+        #mode-tabs { display: flex; gap: 0; margin: 0 8px; }
+        .tab { background: #21262d; color: #8b949e; border: 1px solid #30363d; border-bottom: none; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 11px; border-radius: 4px 4px 0 0; }
+        .tab.active { background: #0d1117; color: #58a6ff; border-bottom: 1px solid #0d1117; }
+        .tab:hover:not(.active) { background: #161b22; color: #c9d1d9; }
+        #css-profile-zone { display: none; padding: 12px; }
+        .cp-test { border: 1px solid #30363d; padding: 8px; margin: 4px 0; border-radius: 4px; }
+        .cp-swatch { display: inline-block; width: 40px; height: 20px; border: 1px solid #555; margin: 0 4px; vertical-align: middle; }
+        #stress-zone { display: none; padding: 12px; }
+        .stress-gauge { display: inline-block; width: 80px; height: 12px; background: #21262d; border-radius: 6px; overflow: hidden; vertical-align: middle; margin: 0 4px; }
+        .stress-fill { height: 100%; background: #da3633; width: 0%; transition: width 0.2s; }
+        #filter-zone { display: none; padding: 12px; }
+        .filter-frame { border: 1px solid #30363d; border-radius: 4px; margin: 4px; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    <h1>UA Fuzzer V2</h1>
+    <h1>UA Fuzzer V3</h1>
+    <div id="mode-tabs">
+        <div class="tab active" data-mode="fuzz">Image/ICC</div>
+        <div class="tab" data-mode="cssprofile">CSS Profile</div>
+        <div class="tab" data-mode="stress">Memory Stress</div>
+        <div class="tab" data-mode="filter">CSS Filter</div>
+    </div>
     <button class="btn" id="btn-start">Start</button>
     <button class="btn stop" id="btn-stop" disabled>Stop</button>
     <button class="btn" id="btn-shuffle">Shuffle</button>
@@ -109,6 +127,49 @@
         <div id="icc-info"></div>
         <div id="file-bar">Ready -- click Start</div>
     </div>
+    <div id="css-profile-zone">
+        <h3 style="color:#bc8cff;margin-bottom:8px">CSS @color-profile Tests</h3>
+        <p style="color:#8b949e;font-size:11px;margin-bottom:12px">
+            Tests browser CSS Level 4 @color-profile support. Each ICC profile is loaded via
+            CSS src:url() and applied via color(--profileName r g b). Exercises
+            CGColorSpaceCreateWithICCData / ColorSync path on WebKit/macOS.
+        </p>
+        <div id="cp-results"></div>
+        <div id="cp-status" style="margin-top:8px;color:#8b949e;font-size:11px"></div>
+    </div>
+    <div id="stress-zone">
+        <h3 style="color:#da3633;margin-bottom:8px">Memory Pressure + ICC Processing</h3>
+        <p style="color:#8b949e;font-size:11px;margin-bottom:12px">
+            Spawns Web Workers allocating memory while processing ICC profiles on the main thread.
+            Memory corruption bugs often manifest only under allocation pressure. Based on
+            webkit-targeted-worker-memory-fragmentation-crash PoC (Safari 17.6 PAC crash).
+        </p>
+        <div style="margin:8px 0">
+            <label>Workers:</label>
+            <input type="number" id="stress-workers" value="16" min="1" max="200" step="4">
+            <label style="margin-left:8px">Chunk MB:</label>
+            <input type="number" id="stress-chunk" value="50" min="1" max="500" step="10">
+            <label style="margin-left:8px">ICC batch:</label>
+            <input type="number" id="stress-icc-batch" value="4" min="1" max="32">
+        </div>
+        <div id="stress-gauges" style="margin:8px 0"></div>
+        <div id="stress-results"></div>
+        <div id="stress-status" style="margin-top:8px;color:#8b949e;font-size:11px"></div>
+    </div>
+    <div id="filter-zone">
+        <h3 style="color:#f0883e;margin-bottom:8px">CSS Filter/Transform + ICC Fuzzing</h3>
+        <p style="color:#8b949e;font-size:11px;margin-bottom:12px">
+            Loads ICC-bearing images into canvases with randomized CSS filter and transform
+            combinations. Exercises GPU compositing + color space conversion intersection.
+            Based on location-href-testing-001 PoC (100 filter combos).
+        </p>
+        <div style="margin:8px 0">
+            <label>Variants per image:</label>
+            <input type="number" id="filter-variants" value="8" min="1" max="50" step="1">
+        </div>
+        <div id="filter-grid" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+        <div id="filter-status" style="margin-top:8px;color:#8b949e;font-size:11px"></div>
+    </div>
     <div id="sidebar">
         <div id="log-hdr"><span>Event Log</span><button class="btn" id="btn-clear" style="font-size:10px;padding:2px 8px">Clear</button></div>
         <div id="log"></div>
@@ -144,6 +205,9 @@ let findings = [], logN = 0;
 let perFormat = {};   // ext -> {done,err,findings}
 let perSeverity = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
 const MAX_LOG = 5000;
+let activeMode = 'fuzz';
+let stressWorkers = [];
+let stressRunning = false;
 
 // -- CWE Mapping for ICC Heuristic Findings -------------------------
 const CWE_MAP = {
@@ -718,8 +782,335 @@ function showSummary() {
 }
 
 // -- Controls -------------------------------------------------------
-$('btn-start').onclick = start;
-$('btn-stop').onclick = stop;
+$('btn-start').onclick = function() {
+    if (activeMode === 'fuzz') start();
+    else if (activeMode === 'cssprofile') startCSSProfileTest();
+    else if (activeMode === 'stress') startStressTest();
+    else if (activeMode === 'filter') startFilterTest();
+};
+$('btn-stop').onclick = function() {
+    if (activeMode === 'fuzz') stop();
+    else if (activeMode === 'stress') stopStressTest();
+    else { running = false; stop(); }
+};
+
+// -- Mode Tabs ------------------------------------------------------
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = function() {
+        if (running) return; // no switching while running
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        activeMode = this.dataset.mode;
+        $('render').style.display = activeMode === 'fuzz' ? '' : 'none';
+        $('css-profile-zone').style.display = activeMode === 'cssprofile' ? 'block' : 'none';
+        $('stress-zone').style.display = activeMode === 'stress' ? 'block' : 'none';
+        $('filter-zone').style.display = activeMode === 'filter' ? 'block' : 'none';
+        log('i', 'Mode: ' + activeMode);
+    };
+});
+
+// -- CSS @color-profile Tests (webkit/icctest.html technique) -------
+async function startCSSProfileTest() {
+    if (!manifest) { log('e', 'No manifest loaded'); return; }
+    running = true;
+    $('btn-start').disabled = true;
+    $('btn-stop').disabled = false;
+    S.t0 = Date.now();
+    const iccFiles = manifest.files.filter(f => f.type === 'icc');
+    const el = $('cp-results');
+    el.innerHTML = '';
+    $('cp-status').textContent = 'Testing ' + iccFiles.length + ' ICC profiles via CSS @color-profile...';
+    log('i', 'CSS @color-profile: testing ' + iccFiles.length + ' profiles');
+
+    let tested = 0, supported = 0, crashed = 0;
+    const batch = Math.min(iccFiles.length, 200);
+    for (let i = 0; i < batch && running; i++) {
+        const f = iccFiles[i];
+        const url = '../' + f.path.replace(/^\.\//, '');
+        const name = '--icc-test-' + i;
+        const safeName = 'icc-test-' + i;
+
+        try {
+            // Create <style> with @color-profile rule
+            const style = document.createElement('style');
+            style.textContent = '@color-profile ' + name + ' { src: url("' + url + '"); }\n' +
+                '#cp-swatch-' + i + ' { background-color: color(' + name + ' 1 0 0); }';
+            document.head.appendChild(style);
+
+            // Create test swatch
+            const div = document.createElement('div');
+            div.className = 'cp-test';
+            div.innerHTML = '<span class="cp-swatch" id="cp-swatch-' + i + '"></span> ' +
+                '<span style="color:#58a6ff">' + esc(f.path) + '</span> ';
+            el.appendChild(div);
+
+            // Wait a tick for CSS to apply
+            await new Promise(r => setTimeout(r, 50));
+
+            const swatch = $('cp-swatch-' + i);
+            if (swatch) {
+                const cs = getComputedStyle(swatch);
+                const bg = cs.backgroundColor || '';
+                if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+                    div.innerHTML += '<span style="color:#3fb950">LOADED: ' + esc(bg) + '</span>';
+                    supported++;
+                    log('ok', 'CSS profile applied: ' + f.path + ' -> ' + bg);
+                    finding(f.path, 'CSS @color-profile loaded: ' + bg);
+                } else {
+                    div.innerHTML += '<span style="color:#8b949e">not applied</span>';
+                }
+            }
+
+            // Cleanup
+            document.head.removeChild(style);
+            tested++;
+            S.done++;
+            updStats();
+        } catch (ex) {
+            crashed++;
+            S.crash++;
+            log('c', 'CSS PROFILE CRASH: ' + f.path + ' -- ' + ex.message);
+            finding(f.path, 'CSS @color-profile crash: ' + ex.message);
+        }
+    }
+
+    $('cp-status').textContent = 'Done: ' + tested + ' tested, ' + supported + ' applied, ' + crashed + ' crashes';
+    log('i', 'CSS @color-profile complete: ' + tested + ' tested, ' + supported + ' applied');
+    running = false;
+    $('btn-start').disabled = false;
+    $('btn-stop').disabled = true;
+    updStats();
+}
+
+// -- Memory Stress + ICC (webkit worker-fragmentation technique) ----
+function startStressTest() {
+    if (!manifest) { log('e', 'No manifest loaded'); return; }
+    running = true;
+    stressRunning = true;
+    $('btn-start').disabled = true;
+    $('btn-stop').disabled = false;
+    S.t0 = Date.now();
+
+    const nWorkers = parseInt($('stress-workers').value) || 16;
+    const chunkMB = parseInt($('stress-chunk').value) || 50;
+    const iccBatch = parseInt($('stress-icc-batch').value) || 4;
+    const iccFiles = manifest.files.filter(f => f.type === 'icc');
+
+    $('stress-status').textContent = 'Spawning ' + nWorkers + ' workers (' + chunkMB + 'MB each) + processing ICC...';
+    log('i', 'STRESS: ' + nWorkers + ' workers x ' + chunkMB + 'MB + ' + iccFiles.length + ' ICC profiles');
+
+    // Build worker gauges
+    const gauges = $('stress-gauges');
+    gauges.innerHTML = '';
+    for (let i = 0; i < Math.min(nWorkers, 32); i++) {
+        const g = document.createElement('span');
+        g.innerHTML = '<span class="stress-gauge"><span class="stress-fill" id="sg-' + i + '"></span></span>';
+        gauges.appendChild(g);
+    }
+
+    const results = $('stress-results');
+    results.innerHTML = '';
+
+    // Spawn memory-stress workers
+    const STRESS_WORKER_CODE = 'self.onmessage = function(e) {\n' +
+        '  var bufs = [], chunkBytes = e.data.chunkMB * 1024 * 1024;\n' +
+        '  try {\n' +
+        '    for (var i = 0; i < 10; i++) {\n' +
+        '      bufs.push(new ArrayBuffer(chunkBytes));\n' +
+        '      var v = new Uint8Array(bufs[bufs.length-1]);\n' +
+        '      for (var k = 0; k < 1024; k++) v[k * Math.floor(v.length / 1024)] = k & 0xFF;\n' +
+        '      self.postMessage({ type: "progress", i: i });\n' +
+        '    }\n' +
+        '    for (var j = 0; j < 50; j++) {\n' +
+        '      bufs.splice(0, 2);\n' +
+        '      bufs.push(new ArrayBuffer(chunkBytes));\n' +
+        '    }\n' +
+        '    self.postMessage({ type: "done", allocated: bufs.length });\n' +
+        '  } catch(ex) {\n' +
+        '    self.postMessage({ type: "error", msg: ex.toString() });\n' +
+        '  }\n' +
+        '};\n';
+
+    const blob = new Blob([STRESS_WORKER_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    stressWorkers = [];
+    let workersDone = 0, workerErrors = 0;
+
+    for (let i = 0; i < nWorkers; i++) {
+        const w = new Worker(url);
+        stressWorkers.push(w);
+        w.onmessage = function(e) {
+            if (e.data.type === 'progress') {
+                const bar = $('sg-' + (i % 32));
+                if (bar) bar.style.width = ((e.data.i + 1) * 10) + '%';
+            } else if (e.data.type === 'done') {
+                workersDone++;
+                log('ok', 'Stress worker ' + i + ' done (' + e.data.allocated + ' chunks)');
+                $('stress-status').textContent = workersDone + '/' + nWorkers + ' workers done, ' + workerErrors + ' errors';
+            } else if (e.data.type === 'error') {
+                workerErrors++;
+                log('w', 'Stress worker ' + i + ' OOM: ' + e.data.msg);
+            }
+        };
+        w.onerror = function(e) {
+            workerErrors++;
+            S.crash++;
+            log('c', 'STRESS WORKER CRASH: ' + i + ' -- ' + (e.message || 'unknown'));
+            finding('stress-worker-' + i, 'WORKER CRASH under memory pressure: ' + (e.message || ''));
+        };
+        w.postMessage({ chunkMB: chunkMB });
+    }
+    URL.revokeObjectURL(url);
+
+    // Simultaneously process ICC profiles on main thread
+    let iccIdx = 0;
+    async function stressIccTick() {
+        if (!stressRunning || iccIdx >= iccFiles.length) {
+            $('stress-status').textContent = 'Stress complete: ' + workersDone + '/' + nWorkers + ' workers, ' + iccIdx + ' ICC processed, ' + workerErrors + ' errors, ' + S.crash + ' crashes';
+            log('i', 'STRESS complete: ' + iccIdx + ' ICC processed under memory pressure');
+            stressRunning = false;
+            running = false;
+            $('btn-start').disabled = false;
+            $('btn-stop').disabled = true;
+            return;
+        }
+        const promises = [];
+        for (let b = 0; b < iccBatch && iccIdx < iccFiles.length; b++, iccIdx++) {
+            promises.push(loadICC(iccFiles[iccIdx]));
+        }
+        await Promise.allSettled(promises);
+        updStats();
+        setTimeout(stressIccTick, 10);
+    }
+    setTimeout(stressIccTick, 500); // start ICC after workers begin allocating
+}
+
+function stopStressTest() {
+    stressRunning = false;
+    running = false;
+    for (const w of stressWorkers) { try { w.terminate(); } catch(_) {} }
+    stressWorkers = [];
+    $('btn-start').disabled = false;
+    $('btn-stop').disabled = true;
+    log('w', 'Stress test stopped');
+    updStats();
+}
+
+// -- CSS Filter/Transform + ICC (webkit location-href technique) ----
+async function startFilterTest() {
+    if (!manifest) { log('e', 'No manifest loaded'); return; }
+    running = true;
+    $('btn-start').disabled = true;
+    $('btn-stop').disabled = false;
+    S.t0 = Date.now();
+
+    const images = manifest.files.filter(f => f.type === 'image');
+    const variants = parseInt($('filter-variants').value) || 8;
+    const grid = $('filter-grid');
+    grid.innerHTML = '';
+    $('filter-status').textContent = 'Testing ' + images.length + ' images x ' + variants + ' filter variants...';
+    log('i', 'CSS FILTER: ' + images.length + ' images x ' + variants + ' variants');
+
+    function randFilter() {
+        const filters = [
+            'blur(' + (Math.random() * 20).toFixed(1) + 'px)',
+            'contrast(' + (10 + Math.random() * 300).toFixed(0) + '%)',
+            'grayscale(' + (Math.random() * 100).toFixed(0) + '%)',
+            'invert(' + (Math.random() * 100).toFixed(0) + '%)',
+            'brightness(' + (10 + Math.random() * 300).toFixed(0) + '%)',
+            'saturate(' + (Math.random() * 500).toFixed(0) + '%)',
+            'sepia(' + (Math.random() * 100).toFixed(0) + '%)',
+            'hue-rotate(' + (Math.random() * 360).toFixed(0) + 'deg)',
+            'drop-shadow(' + (Math.random()*10).toFixed(0) + 'px ' + (Math.random()*10).toFixed(0) + 'px ' + (Math.random()*10).toFixed(0) + 'px #' + Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0') + ')',
+        ];
+        const n = 1 + Math.floor(Math.random() * 3);
+        const picked = [];
+        for (let i = 0; i < n; i++) picked.push(filters[Math.floor(Math.random() * filters.length)]);
+        return picked.join(' ');
+    }
+
+    function randTransform() {
+        const xforms = [
+            'scale(' + (0.1 + Math.random() * 3).toFixed(2) + ')',
+            'rotate(' + (Math.random() * 360).toFixed(0) + 'deg)',
+            'skewX(' + (-45 + Math.random() * 90).toFixed(0) + 'deg)',
+            'skewY(' + (-45 + Math.random() * 90).toFixed(0) + 'deg)',
+            'perspective(' + (50 + Math.random() * 500).toFixed(0) + 'px) rotateX(' + (Math.random()*60-30).toFixed(0) + 'deg)',
+            'rotate3d(' + Math.random().toFixed(2) + ',' + Math.random().toFixed(2) + ',' + Math.random().toFixed(2) + ',' + (Math.random()*360).toFixed(0) + 'deg)',
+        ];
+        const n = 1 + Math.floor(Math.random() * 2);
+        const picked = [];
+        for (let i = 0; i < n; i++) picked.push(xforms[Math.floor(Math.random() * xforms.length)]);
+        return picked.join(' ');
+    }
+
+    let tested = 0, crashed = 0;
+    const batch = Math.min(images.length, 100);
+    for (let i = 0; i < batch && running; i++) {
+        const f = images[i];
+        const url = '../' + f.path.replace(/^\.\//, '');
+
+        for (let v = 0; v < variants && running; v++) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                canvas.style.filter = randFilter();
+                canvas.style.transform = randTransform();
+                canvas.className = 'filter-frame';
+                canvas.title = f.path + ' v' + v;
+                grid.appendChild(canvas);
+
+                // Keep grid manageable
+                while (grid.children.length > 200) grid.removeChild(grid.firstChild);
+
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise((resolve) => {
+                    const to = setTimeout(() => { resolve(); }, 3000);
+                    img.onload = function() {
+                        clearTimeout(to);
+                        try {
+                            let ctx;
+                            try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); }
+                            catch(_) { ctx = canvas.getContext('2d'); }
+                            ctx.drawImage(img, 0, 0, 64, 64);
+                            // Readback forces GPU compositing with filter applied
+                            ctx.getImageData(0, 0, 64, 64);
+                        } catch(ex) {
+                            crashed++;
+                            S.crash++;
+                            log('c', 'FILTER CANVAS CRASH: ' + f.path + ' v' + v + ' -- ' + ex.message);
+                            finding(f.path, 'CSS filter/transform crash: ' + canvas.style.filter + ' ' + canvas.style.transform + ' -- ' + ex.message);
+                        }
+                        resolve();
+                    };
+                    img.onerror = function() { clearTimeout(to); resolve(); };
+                    img.src = url;
+                });
+
+                tested++;
+                S.done++;
+                if (tested % 50 === 0) {
+                    updStats();
+                    $('filter-status').textContent = tested + ' variants tested, ' + crashed + ' crashes';
+                }
+            } catch(ex) {
+                crashed++;
+                S.crash++;
+                log('c', 'FILTER CRASH: ' + f.path + ' -- ' + ex.message);
+                finding(f.path, 'CSS filter test crash: ' + ex.message);
+            }
+        }
+    }
+
+    $('filter-status').textContent = 'Done: ' + tested + ' variants, ' + crashed + ' crashes (' + batch + ' images x ' + variants + ')';
+    log('i', 'CSS FILTER complete: ' + tested + ' variants, ' + crashed + ' crashes');
+    running = false;
+    $('btn-start').disabled = false;
+    $('btn-stop').disabled = true;
+    updStats();
+}
 $('btn-summary').onclick = showSummary;
 $('btn-clear').onclick = () => { $log.innerHTML = ''; logN = 0; };
 
@@ -748,12 +1139,17 @@ $('btn-csv').onclick = () => {
     a.click();
 };
 
-// Keyboard: space = toggle, s = shuffle, m = summary
+// Keyboard: space = toggle, s = shuffle, m = summary, 1-4 = mode tabs
 document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-    if (e.key === ' ') { e.preventDefault(); running ? stop() : start(); }
+    if (e.key === ' ') { e.preventDefault(); $('btn-start').disabled ? $('btn-stop').click() : $('btn-start').click(); }
     if (e.key === 's') $('btn-shuffle').click();
     if (e.key === 'm') showSummary();
+    if (e.key >= '1' && e.key <= '4' && !running) {
+        const tabs = document.querySelectorAll('.tab');
+        const idx = parseInt(e.key) - 1;
+        if (tabs[idx]) tabs[idx].click();
+    }
 });
 
 // Global error handlers
