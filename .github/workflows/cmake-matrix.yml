@@ -498,6 +498,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           mkdir -p Build && cd Build
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
                 -DCMAKE_BUILD_TYPE=Release \
                 ${{ matrix.cmake_opts }}

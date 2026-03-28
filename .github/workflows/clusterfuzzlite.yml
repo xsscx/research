@@ -127,7 +127,8 @@ jobs:
           set -euo pipefail
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
-            if patch -p1 -d cfl/iccDEV --forward -s < "$p" 2>/dev/null; then
+            if patch -p1 -d cfl/iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d cfl/iccDEV --forward -s < "$p" >/dev/null 2>&1
               echo "  [OK] $(basename "$p")"
             else
               echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
@@ -156,6 +157,7 @@ jobs:
           sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
           cd Build
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
@@ -202,8 +204,8 @@ jobs:
 
           CXXFLAGS="-fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g -O1 -frtti -fprofile-instr-generate -fcoverage-mapping"
           INCLUDES="-I$ICCDEV/IccProfLib -I$ICCDEV/IccXML/IccLibXML -I$ICCDEV/Tools/CmdLine/IccCommon -I$ICCDEV/Tools/CmdLine/IccApplyProfiles -I/usr/include/libxml2"
-          LIBS_BASE="$BUILD/IccProfLib/libIccProfLib2-static.a"
-          LIBS_XML="$BUILD/IccXML/libIccXML2-static.a"
+          LIBS_BASE="$BUILD/IccProfLib/libIccProfLib2-static*.a"
+          LIBS_XML="$BUILD/IccXML/libIccXML2-static*.a"
           LIBS_SYS="-lxml2 -lz"
 
           # Fuzzers that need TiffImg.o and libtiff

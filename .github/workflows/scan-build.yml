@@ -102,7 +102,8 @@ jobs:
           if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
             echo "Applying CFL library patches..."
             for p in cfl/patches/*.patch; do
-              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+              if patch -p1 -d iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d iccDEV --forward -s < "$p" >/dev/null 2>&1
                 echo "  [OK] $(basename "$p")"
               else
                 echo "  [SKIP] $(basename "$p") (already applied or N/A)"
@@ -115,6 +116,7 @@ jobs:
               echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
             fi
             cd iccDEV/Build
+            sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
             cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
             make -j$(nproc) IccProfLib2 IccXML2
           fi
