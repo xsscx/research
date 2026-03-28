@@ -1136,6 +1136,7 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
         return pv.libraryLoaded() ? CheckResult::ok("File too small")
                                   : CheckResult::skip("Library parse failed");
     }
+    bool allowUnknownPrintable = pv.libraryLoaded();
     bool sawTagType = false;
 
     static const uint32_t knownTypes[] = {
@@ -1174,6 +1175,16 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
                 }
             }
             if (!isKnown) {
+                bool standardFailedLoadTag =
+                    tag.signature == static_cast<uint32_t>(icSigRedTRCTag) ||
+                    tag.signature == static_cast<uint32_t>(icSigGreenTRCTag) ||
+                    tag.signature == static_cast<uint32_t>(icSigBlueTRCTag) ||
+                    tag.signature == static_cast<uint32_t>(icSigGrayTRCTag) ||
+                    tag.signature == 0x6568696Du ||  // 'ehim'
+                    tag.signature == 0x656E696Du;    // 'enim'
+                if (validFourCc && !standardFailedLoadTag) {
+                    continue;
+                }
                 cb.warn(
                     validFourCc
                         ? sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",
@@ -1209,6 +1220,7 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
         }
         if (isKnown) continue;
         if (!allPrintable) continue;  // H20 already owns non-printable types on loadable profiles.
+        if (!allowUnknownPrintable) continue;
 
         cb.warn(
             sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",

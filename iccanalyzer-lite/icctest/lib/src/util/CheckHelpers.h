@@ -241,6 +241,71 @@ scanRawMpePositionIssues(const ProfileView& pv, size_t maxIssues = 8) {
     return issues;
 }
 
+inline bool rawHasGbdQuarantineSignature(const ProfileView& pv) {
+    const uint8_t* raw = pv.rawData();
+    size_t len = pv.rawSize();
+    if (!raw || len < 132) {
+        return false;
+    }
+
+    auto riskyGbdRecord = [&](size_t off, size_t sz) {
+        if (sz < 20 || off > len || len - off < 20) {
+            return false;
+        }
+        if (readU32BE(raw + off) != 0x67626420u) {  // 'gbd '
+            return false;
+        }
+        uint16_t pcs = readU16BE(raw + off + 8);
+        uint16_t dev = readU16BE(raw + off + 10);
+        uint32_t tri = readU32BE(raw + off + 16);
+        return pcs > 0x7FFFu || dev > 0x7FFFu || tri > 715827882u;
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (riskyGbdRecord(tag.offset, tag.size)) {
+            return true;
+        }
+
+        if (tag.size < 16 || tag.offset > len || len - tag.offset < 16) {
+            continue;
+        }
+        if (readU32BE(raw + tag.offset) != 0x74617279u) {  // 'tary'
+            continue;
+        }
+
+        uint32_t elemCount = readU32BE(raw + tag.offset + 12);
+        if (elemCount == 0 || elemCount > 256) {
+            continue;
+        }
+        uint64_t tableEnd = static_cast<uint64_t>(tag.offset) + 16ull +
+                            static_cast<uint64_t>(elemCount) * 8ull;
+        uint64_t ownerEnd = static_cast<uint64_t>(tag.offset) +
+                            static_cast<uint64_t>(tag.size);
+        if (tableEnd > len || tableEnd > ownerEnd) {
+            continue;
+        }
+
+        for (uint32_t i = 0; i < elemCount; ++i) {
+            size_t recOff = tag.offset + 16 + static_cast<size_t>(i) * 8;
+            uint32_t childOff = readU32BE(raw + recOff);
+            uint32_t childSz = readU32BE(raw + recOff + 4);
+            if (!childOff || childSz < 20) {
+                continue;
+            }
+            uint64_t childAbs = static_cast<uint64_t>(tag.offset) +
+                                static_cast<uint64_t>(childOff);
+            if (childAbs + 20 > len || childAbs + childSz > ownerEnd) {
+                continue;
+            }
+            if (riskyGbdRecord(static_cast<size_t>(childAbs), childSz)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 enum class RawMpeNullApplyIssueKind : uint8_t {
     MissingClutWithActiveCurves,
     ZeroChannelMpe,

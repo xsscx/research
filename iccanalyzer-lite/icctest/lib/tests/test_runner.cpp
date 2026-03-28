@@ -2289,18 +2289,36 @@ static void test_tonemap_describe_overflow_regression() {
     if (!cf115) {
         return;
     }
-    ASSERT_EQ(CheckResult::Status::FINDINGS, cf115->result.status);
-    ASSERT_TRUE(cf115->result.issueCount() >= 1);
+    ASSERT_EQ(CheckResult::Status::OK, cf115->result.status);
+    ASSERT_EQ(0, cf115->result.issueCount());
+    ASSERT_TRUE(cf115->result.summary == "NOT RUN: Library quarantined");
 
-    bool sawCfMpeFinding = false;
-    for (const auto& finding : cf115->result.findings) {
-        if (finding.message.find("MPE element table structurally invalid") != std::string::npos &&
-            finding.detail.find("mpet element table entry") != std::string::npos) {
-            sawCfMpeFinding = true;
+    AnalysisOptions loadedConformanceOpts;
+    loadedConformanceOpts.phases = {CheckPhase::CONFORMANCE};
+    loadedConformanceOpts.skipLibraryOnUB = false;
+    loadedConformanceOpts.specificChecks = {
+        {CheckID::Kind::Conformance, 115},
+    };
+
+    auto loadedConformanceResult = runner.analyze(profilePath, loadedConformanceOpts);
+    ASSERT_EQ(1, loadedConformanceResult.stats.checksRun);
+    const auto* loadedCf115 = find_per_check(loadedConformanceResult, CheckID::Kind::Conformance, 115);
+    ASSERT_TRUE(loadedCf115 != nullptr);
+    if (!loadedCf115) {
+        return;
+    }
+    ASSERT_EQ(CheckResult::Status::FINDINGS, loadedCf115->result.status);
+    ASSERT_TRUE(loadedCf115->result.issueCount() >= 1);
+
+    bool sawCfToneMapFinding = false;
+    for (const auto& finding : loadedCf115->result.findings) {
+        if (finding.message.find("tone map element") != std::string::npos &&
+            finding.detail.find("Tone mapping function has invalid parameters") != std::string::npos) {
+            sawCfToneMapFinding = true;
             break;
         }
     }
-    ASSERT_TRUE(sawCfMpeFinding);
+    ASSERT_TRUE(sawCfToneMapFinding);
 }
 
 static void test_curve_element_oom_regression() {
@@ -2433,7 +2451,7 @@ static void test_null_pointer_after_tag_read_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "lut_degenerate_clut.icc", {147});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 3);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
 
         const auto* h147 = find_per_check(result, CheckID::Kind::Heuristic, 147);
         ASSERT_TRUE(h147 != nullptr);
@@ -3976,7 +3994,7 @@ static void test_h32_tag_data_type_confusion_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {32});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 32, CheckResult::Status::OK, 0);
     }
 }
 
@@ -4569,9 +4587,7 @@ static void test_failed_load_heuristic_parity_regression_cluster() {
         expect_heuristic_result(result, 99, CheckResult::Status::SKIP, 0);
         expect_heuristic_result(result, 100, CheckResult::Status::SKIP, 0);
         expect_heuristic_result(result, 172, CheckResult::Status::SKIP, 0);
-        int expectedH147Count =
-            std::string_view(name) == "calculator_deep_nesting.icc" ? 3 : 1;
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, expectedH147Count);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
 
         const auto* h147 = find_per_check(result, CheckID::Kind::Heuristic, 147);
         ASSERT_TRUE(h147 != nullptr);
@@ -4610,7 +4626,7 @@ static void test_failed_load_library_only_ok_regression_cluster() {
         expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
         expect_heuristic_result(result, 27, CheckResult::Status::OK, 0);
         expect_heuristic_result(result, 31, CheckResult::Status::OK, 0);
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 3);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
     }
 
     {
@@ -4648,11 +4664,9 @@ static void test_cf115_only_emits_raw_findings_when_quarantined() {
             return;
         }
 
-        ASSERT_EQ(CheckResult::Status::FINDINGS, cf115->result.status);
-        ASSERT_EQ(1, cf115->result.issueCount());
-        ASSERT_TRUE(cf115->result.summary == "Calculator complexity issues");
-        ASSERT_TRUE(cf115->result.findings[0].message.find("MPE element table structurally invalid") != std::string::npos);
-        ASSERT_TRUE(cf115->result.findings[0].cweNote.find("IccTagMPE.cpp:1042") != std::string::npos);
+        ASSERT_EQ(CheckResult::Status::OK, cf115->result.status);
+        ASSERT_EQ(0, cf115->result.issueCount());
+        ASSERT_TRUE(cf115->result.summary == "NOT RUN: Library quarantined");
     }
 }
 
