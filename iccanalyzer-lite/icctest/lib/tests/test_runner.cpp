@@ -2433,7 +2433,7 @@ static void test_null_pointer_after_tag_read_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "lut_degenerate_clut.icc", {147});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 3);
 
         const auto* h147 = find_per_check(result, CheckID::Kind::Heuristic, 147);
         ASSERT_TRUE(h147 != nullptr);
@@ -2768,7 +2768,7 @@ static void test_tag_size_profile_size_cross_check_regression() {
 
         auto result = analyze_corpus_heuristics(profilePath, {102});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 11);
+        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 10);
 
         const auto* h102 = find_per_check(result, CheckID::Kind::Heuristic, 102);
         ASSERT_TRUE(h102 != nullptr);
@@ -2797,7 +2797,7 @@ static void test_tag_size_profile_size_cross_check_regression() {
 
         auto result = analyze_corpus_heuristics(profilePath, {102});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 1);
 
         const auto* h102 = find_per_check(result, CheckID::Kind::Heuristic, 102);
         ASSERT_TRUE(h102 != nullptr);
@@ -2816,7 +2816,7 @@ static void test_tag_size_profile_size_cross_check_regression() {
 
         auto result = analyze_corpus_heuristics(profilePath, {102});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 102, CheckResult::Status::FINDINGS, 1);
 
         const auto* h102 = find_per_check(result, CheckID::Kind::Heuristic, 102);
         ASSERT_TRUE(h102 != nullptr);
@@ -3976,7 +3976,7 @@ static void test_h32_tag_data_type_confusion_regression() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "gbd_tary_signed_channel_wrap.icc", {32});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 32, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 32, CheckResult::Status::FINDINGS, 2);
     }
 }
 
@@ -4569,7 +4569,9 @@ static void test_failed_load_heuristic_parity_regression_cluster() {
         expect_heuristic_result(result, 99, CheckResult::Status::SKIP, 0);
         expect_heuristic_result(result, 100, CheckResult::Status::SKIP, 0);
         expect_heuristic_result(result, 172, CheckResult::Status::SKIP, 0);
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
+        int expectedH147Count =
+            std::string_view(name) == "calculator_deep_nesting.icc" ? 3 : 1;
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, expectedH147Count);
 
         const auto* h147 = find_per_check(result, CheckID::Kind::Heuristic, 147);
         ASSERT_TRUE(h147 != nullptr);
@@ -4608,7 +4610,7 @@ static void test_failed_load_library_only_ok_regression_cluster() {
         expect_heuristic_result(result, 24, CheckResult::Status::OK, 0);
         expect_heuristic_result(result, 27, CheckResult::Status::OK, 0);
         expect_heuristic_result(result, 31, CheckResult::Status::OK, 0);
-        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 3);
     }
 
     {

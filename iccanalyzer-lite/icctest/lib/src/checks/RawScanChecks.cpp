@@ -358,7 +358,8 @@ static CheckResult check_h39_shared_tag_data_aliasing_detection(const ProfileVie
     }
 
     if (sharedPairs > 0 && allImmutable) {
-        cb.info(sfmt("%d shared tag pair(s) — all immutable types (safe)", sharedPairs));
+        return CheckResult::ok(
+            sfmt("%d shared tag pair(s) — all immutable types (safe)", sharedPairs));
     } else if (sharedPairs > 0) {
         cb.warn(sfmt("%d shared tag pair(s) include mutable types — UAF risk in Cleanup()",
                      sharedPairs),
@@ -1054,7 +1055,7 @@ static CheckResult check_h68_gamutboundarydesc_triangle_vertex_overflow(const Pr
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
 
     auto scanGbdRecord = [&](const std::string& ownerSig, const uint8_t* gbdHdr) {
         uint32_t nVertices = readU32BE(gbdHdr + 12);

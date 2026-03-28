@@ -51,6 +51,23 @@ banner() {
   echo "════════════════════════════════════════"
 }
 
+resolve_static_lib() {
+  local dir="$1"
+  local base="$2"
+
+  for candidate in \
+    "${dir}/${base}-static.a" \
+    "${dir}/${base}-staticd.a"; do
+    if [ -f "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  echo "  [FAIL] Missing static library for ${base} in ${dir}" >&2
+  exit 1
+}
+
 # --- Clean mode ---
 if [ "${1:-}" = "clean" ]; then
   banner "Cleaning build artifacts"
@@ -185,8 +202,10 @@ build_config() {
 
   make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
 
-  local lib_prof="$build_dir/IccProfLib/libIccProfLib2-static.a"
-  local lib_xml="$build_dir/IccXML/libIccXML2-static.a"
+  local lib_prof
+  local lib_xml
+  lib_prof="$(resolve_static_lib "$build_dir/IccProfLib" "libIccProfLib2")"
+  lib_xml="$(resolve_static_lib "$build_dir/IccXML" "libIccXML2")"
 
   echo ""
   echo "  Libraries:"
