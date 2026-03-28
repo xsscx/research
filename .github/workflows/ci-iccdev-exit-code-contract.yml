@@ -78,7 +78,7 @@ jobs:
           sed -i 's/add_subdirectory(Tools\/wxProfileDump)/#add_subdirectory(Tools\/wxProfileDump)/' \
             Build/Cmake/CMakeLists.txt 2>/dev/null || true
           mkdir -p Build && cd Build
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Build/Cmake/CMakeLists.txt
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
