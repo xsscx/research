@@ -102,7 +102,8 @@ jobs:
           set -euo pipefail
           echo "Applying CFL patches..."
           for p in cfl/patches/*.patch; do
-            if patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" 2>/dev/null; then
+            if patch -p1 -d iccanalyzer-lite/iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" >/dev/null 2>&1
               echo "  [OK] $(basename "$p")"
             else
               echo "  [SKIP] $(basename "$p")"
@@ -134,6 +135,7 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
@@ -146,7 +148,7 @@ jobs:
             -DICC_LOG_SAFE=ON \
             -Wno-dev
           make -j$(nproc)
-          ls -lh IccProfLib/libIccProfLib2-static.a IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a
 
       - name: Build iccanalyzer-lite
         run: |
@@ -177,8 +179,8 @@ jobs:
               -I /usr/include/libxml2 \
               "${src_dir}/${tool}.cpp" \
               -Wl,--whole-archive \
-              "${ICCDEV_BUILD}/IccXML/libIccXML2-static.a" \
-              "${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a" \
+              $(ls "${ICCDEV_BUILD}"/IccXML/libIccXML2-static*.a) \
+              $(ls "${ICCDEV_BUILD}"/IccProfLib/libIccProfLib2-static*.a) \
               -Wl,--no-whole-archive \
               -lxml2 -ltiff -lz -lpng -ljpeg \
               -o "${tool}_unsafe"

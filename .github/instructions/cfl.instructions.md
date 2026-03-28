@@ -164,17 +164,41 @@ for historical reference.
 4. Reset: `cd cfl/iccDEV && git checkout -- .`
 5. Rebuild: `cd cfl && ./build.sh` — verify "Applied: NNN-name.patch"
 6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
-7. Create 1-liner reproduction commands (unpatched vs patched) per
-   [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700) standard
+7. File upstream issue per gold standard template
+   ([iccDEV#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753))
 8. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
 
-**1-liner format** (mandatory for every patch):
-```bash
-# Unpatched
-LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 source-of-truth/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
-# Patched
-LD_LIBRARY_PATH=cfl/iccDEV/Build/IccProfLib:cfl/iccDEV/Build/IccXML ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 cfl/iccDEV/Build/Tools/<Tool>/<binary> <args> 2>/dev/null | grep <filter>
+**Upstream issue format** (gold standard — [#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753)):
+Zero prose, zero opinions, zero analysis. Pure reproduction recipe:
+
+```markdown
+## Maintainer Repro
+<UTC timestamp>
+
+## Bisect
+Date: <date>
+Commit: <sha>
+
+## Build Unpatched
+<exact clone/checkout/build/run commands in code block>
+
+## Unpatched Output
+<verbatim error line(s)>
+
+## Clean
+<git checkout/reset commands>
+
+## Patch
+git apply patch
+<inline diff in code block>
+
+## Patched Output
+<clean result>
 ```
+
+See also: [#752](https://github.com/InternationalColorConsortium/iccDEV/issues/752),
+[#744](https://github.com/InternationalColorConsortium/iccDEV/issues/744),
+[#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)
 
 ### Build Troubleshooting
 

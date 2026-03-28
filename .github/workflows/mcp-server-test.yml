@@ -144,6 +144,7 @@ jobs:
               sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
               echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
             fi
+            sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' iccDEV/Build/Cmake/CMakeLists.txt
             cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
             cd ../..
           fi

@@ -130,7 +130,8 @@ jobs:
                 echo "  [NOOP] $(basename "$p") (upstream)"
                 continue
               fi
-              if patch -p1 -d iccDEV --forward -s < "$p" 2>/dev/null; then
+              if patch -p1 -d iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d iccDEV --forward -s < "$p" >/dev/null 2>&1
                 echo "  [OK] $(basename "$p")"
               else
                 echo "  [SKIP] $(basename "$p") (already applied or N/A)"
@@ -153,6 +154,7 @@ jobs:
           # The sed is needed until iccDEV merges fix-cmake-lto branch; after that,
           # -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF alone suffices.
           sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/# LTO disabled by downstream CI\n    # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt 2>/dev/null || true
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
           make -j$(nproc) IccProfLib2 IccXML2 IccProfLib2-static IccXML2-static
 

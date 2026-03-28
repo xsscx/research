@@ -96,7 +96,8 @@ jobs:
             cd ${{ github.workspace }}
             echo "Applying CFL library patches to cfl branch..."
             for p in cfl/patches/*.patch; do
-              if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+              if patch -p1 -d /tmp/iccdev --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d /tmp/iccdev --forward -s < "$p" >/dev/null 2>&1
                 echo "  [OK] $(basename "$p")"
               else
                 echo "  [SKIP] $(basename "$p") (already applied or N/A)"
@@ -108,6 +109,7 @@ jobs:
           fi
 
           mkdir -p build-coverage && cd build-coverage
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' ../Build/Cmake/CMakeLists.txt
           cmake ../Build/Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
