@@ -1,6 +1,6 @@
 /*
  * IccTest Library — XmlSafetyChecks.cpp
- * Heuristic checks H142-H145: XML serialization safety.
+ * Heuristic checks H142-H145, H180: XML serialization safety.
  *
  * H142 performs fork-isolated XML serialization directly, matching V1.
  *
@@ -253,5 +253,194 @@ REGISTER_HEURISTIC(144, "XML String Termination Precheck",
 REGISTER_HEURISTIC(145, "XML Curve Type Consistency",
     "CIccXmlMpeCurveSet::ToXml", "CWE-843",
     "CWE-843", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h145_xml_curve_type);
+
+// ── H180: XML Round-Trip Fidelity ──
+// Fork-isolated: ICC -> ToXml -> LoadXml -> compare tag counts.
+// Detects profiles that lose tags or gain phantom tags through XML round-trip.
+static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
+    CheckBuilder cb;
+    if (pv.filePath().empty()) {
+        return CheckResult::needsIsolation(
+            "XML round-trip requires fork isolation with a file-backed profile");
+    }
+
+    std::fflush(stdout);
+    std::fflush(stderr);
+
+    // Use a pipe to return tag count delta from child
+    int pipeFd[2];
+    if (pipe(pipeFd) < 0) {
+        return CheckResult::error("pipe() failed for XML round-trip check");
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipeFd[0]);
+        close(pipeFd[1]);
+        cb.high(sfmt("fork() failed (errno=%d) -- XML round-trip check skipped", errno),
+                "CWE-271: Cannot isolate XML round-trip");
+        return cb.done("Fork failed");
+    }
+
+    if (pid == 0) {
+        close(pipeFd[0]); // child writes only
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        alarm(20);
+
+        auto* tagFactory = new (std::nothrow) CIccTagXmlFactory();
+        auto* mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+        if (!tagFactory || !mpeFactory) {
+            delete tagFactory;
+            delete mpeFactory;
+            int32_t val = -999;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        CIccTagCreator::PushFactory(tagFactory);
+        CIccMpeCreator::PushFactory(mpeFactory);
+
+        // Step 1: Read original
+        CIccProfileXml origXml;
+        CIccFileIO srcIo;
+        if (!srcIo.Open(pv.filePath().c_str(), "rb")) {
+            int32_t val = -998;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        if (!origXml.Read(&srcIo)) {
+            srcIo.Close();
+            int32_t val = -997;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        srcIo.Close();
+        int32_t origCount = static_cast<int32_t>(origXml.m_Tags.size());
+
+        // Step 2: ToXml
+        std::string xmlOutput;
+        try { xmlOutput.reserve(4 * 1024 * 1024); } catch (...) {
+            int32_t val = -996;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        if (!origXml.ToXml(xmlOutput)) {
+            int32_t val = -995;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+
+        // Step 3: Write XML to temp file
+        char tmpPath[] = "/tmp/icctest-h180-XXXXXX";
+        int fd = mkstemp(tmpPath);
+        if (fd < 0) {
+            int32_t val = -994;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        (void)write(fd, xmlOutput.data(), xmlOutput.size());
+        close(fd);
+
+        // Step 4: LoadXml
+        CIccProfileXml rtProfile;
+        std::string parseErr;
+        if (!rtProfile.LoadXml(tmpPath, nullptr, &parseErr)) {
+            unlink(tmpPath);
+            int32_t val = -993;
+            (void)write(pipeFd[1], &val, sizeof(val));
+            close(pipeFd[1]);
+            _exit(0);
+        }
+        unlink(tmpPath);
+
+        int32_t rtCount = static_cast<int32_t>(rtProfile.m_Tags.size());
+        int32_t delta = rtCount - origCount;
+
+        // Write: origCount, rtCount, delta
+        (void)write(pipeFd[1], &origCount, sizeof(origCount));
+        (void)write(pipeFd[1], &rtCount, sizeof(rtCount));
+        (void)write(pipeFd[1], &delta, sizeof(delta));
+        close(pipeFd[1]);
+        _exit(0);
+    }
+
+    // Parent
+    close(pipeFd[1]); // parent reads only
+    int status = 0;
+    int waited = 0;
+    for (int i = 0; i < 250; i++) { // 25 seconds max
+        pid_t ret = waitpid(pid, &status, WNOHANG);
+        if (ret == pid) { waited = 1; break; }
+        if (ret < 0) { waited = -1; break; }
+        usleep(100000);
+    }
+
+    if (!waited) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        close(pipeFd[0]);
+        cb.high("XML round-trip timed out (>25s) -- potential resource exhaustion",
+                "CWE-400: Uncontrolled Resource Consumption");
+        return cb.done("XML round-trip timed out");
+    }
+
+    if (waited < 0) {
+        close(pipeFd[0]);
+        return CheckResult::error("waitpid() failed during XML round-trip check");
+    }
+
+    if (WIFSIGNALED(status)) {
+        int sig = WTERMSIG(status);
+        close(pipeFd[0]);
+        cb.critical(sfmt("XML round-trip crashed with signal %d", sig),
+                    "CWE-787/CWE-125: XML round-trip memory safety violation");
+        return cb.done("XML round-trip crashed");
+    }
+
+    // Read pipe results
+    int32_t vals[3] = {0, 0, 0};
+    ssize_t nRead = read(pipeFd[0], vals, sizeof(vals));
+    close(pipeFd[0]);
+
+    if (nRead == sizeof(int32_t)) {
+        // Single error code
+        int32_t errCode = vals[0];
+        if (errCode < -900) {
+            return CheckResult::ok(
+                sfmt("XML round-trip could not complete (stage error %d) -- not a crash", errCode));
+        }
+    }
+
+    if (nRead == 3 * static_cast<ssize_t>(sizeof(int32_t))) {
+        int32_t origCount = vals[0];
+        int32_t rtCount = vals[1];
+        int32_t delta = vals[2];
+
+        if (delta != 0) {
+            cb.high(sfmt("XML round-trip tag count mismatch: original=%d, round-tripped=%d, delta=%d",
+                         origCount, rtCount, delta),
+                    "CWE-345: Insufficient data authenticity verification in XML serialization");
+        }
+        return cb.done(sfmt("XML round-trip: orig=%d tags, rt=%d tags, delta=%d",
+                            origCount, rtCount, delta));
+    }
+
+    return CheckResult::ok("XML round-trip completed (no detailed results available)");
+}
+
+REGISTER_HEURISTIC(180, "XML Round-Trip Fidelity",
+    "CIccProfileXml::ToXml/LoadXml", "PR #708 coverage gap",
+    "CWE-345", "",
+    Severity::HIGH, CheckPhase::LIBRARY, check_h180_xml_round_trip_fidelity);
 
 } // namespace icctest

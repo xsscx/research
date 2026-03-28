@@ -999,14 +999,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", "--legacy", f"{corpus}/xyz_large_array.icc"],
-        r"178 heuristics"
+        r"180 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", "--legacy", f"{corpus}/calculator_deep_nesting.icc"],
-        r"178 heuristics"
+        r"180 heuristics"
     )
 
     # --- H86 Unicode content detection tests (CWE-116) ---
@@ -1243,9 +1243,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.178_heuristics",
+        "summary.180_heuristics",
         ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
-        r"178 heuristics"
+        r"180 heuristics"
     )
 
     suite.assert_output_contains(
@@ -1528,9 +1528,9 @@ def test_json_output(suite):
     # Summary should have counts
     if "summary" in data:
         s = data["summary"]
-        has_total = s.get("totalHeuristics", 0) == 178
+        has_total = s.get("totalHeuristics", 0) == 180
         suite.results.append(TestResult(
-            "json.total_heuristics_178", has_total,
+            "json.total_heuristics_180", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -1583,7 +1583,7 @@ def test_json_output(suite):
     # Registry block in JSON should have dynamic stats
     if "summary" in data and "registry" in data["summary"]:
         reg = data["summary"]["registry"]
-        has_reg_total = reg.get("totalHeuristics", 0) == 178
+        has_reg_total = reg.get("totalHeuristics", 0) == 180
         suite.results.append(TestResult(
             "json.registry_total_heuristics", has_reg_total,
             f"registry.totalHeuristics={reg.get('totalHeuristics')}" if not has_reg_total else "",

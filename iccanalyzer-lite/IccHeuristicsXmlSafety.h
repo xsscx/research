@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsXmlSafety.h — XML serialization safety heuristics (H142-H145)
+ * IccHeuristicsXmlSafety.h — XML serialization safety heuristics (H142-H145, H180)
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -34,9 +34,13 @@ int RunHeuristic_H144_XmlStringTerminationPrecheck(CIccProfile *pIcc);
 // match expected element types before ToXmlCurve. Catches type confusion.
 int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc);
 
-/// Sub-dispatcher for XML serialization safety heuristics (H142-H145).
+// H180: XML Round-Trip Fidelity — ToXml -> LoadXml -> compare structure
+// under fork() isolation. Detects data loss or corruption in XML round-trip.
+int RunHeuristic_H180_XmlRoundTripFidelity(CIccProfile *pIcc, const char *filename);
+
+/// Sub-dispatcher for XML serialization safety heuristics (H142-H145, H180).
 /// @param pIcc Profile loaded via CIccProfile (must not be NULL)
-/// @param filename Path for heuristics needing raw file access (H142)
+/// @param filename Path for heuristics needing raw file access (H142, H180)
 /// @return Number of heuristic warnings detected
 int RunXmlSafetyHeuristics(CIccProfile *pIcc, const char *filename);
 
