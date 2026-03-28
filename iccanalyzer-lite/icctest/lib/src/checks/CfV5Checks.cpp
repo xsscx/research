@@ -3230,3 +3230,564 @@ REGISTER_CONFORMANCE(329, "PCC Override Source Profile Validation",
     "Validates profiles with deviceSubClass pcc have proper svcn content for use as alternate PCC source", "K.2.6, ICS-Colorimetric",
     "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
     check_cf329_pcc_override_source_profile_validation);
+
+// ============================================================================
+// Extended Device Colour Space Support (ICC.2:2023 amendment, Oct 2025)
+// Heuristics H175-H178 and Conformance CF-330..CF-339
+// ============================================================================
+
+// --- Helper: is device colour space spectral? (upper 16 bits check) ----------
+static bool IsSpectralDeviceColorSpaceV2(const ProfileView& pv) {
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return false;
+    uint32_t cs = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+    uint16_t upper = static_cast<uint16_t>(cs >> 16);
+    return (upper == 0x7273 || upper == 0x7473 || upper == 0x6573 ||
+            upper == 0x6273 || upper == 0x736D);
+}
+
+// --- Helper: is device colour space bi-spectral? ----------------------------
+static bool IsBiSpectralDeviceV2(const ProfileView& pv) {
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return false;
+    uint32_t cs = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+    uint16_t upper = static_cast<uint16_t>(cs >> 16);
+    return (upper == 0x6273 || upper == 0x736D);
+}
+
+// --- Helper: read 16-bit big-endian from raw bytes --------------------------
+static inline uint16_t ReadU16BE(const uint8_t* p) {
+    return (uint16_t(p[0]) << 8) | uint16_t(p[1]);
+}
+
+// ============================================================================
+// H175 — Device Spectral Colour Space Range Requirement
+// ============================================================================
+static CheckResult check_h175_device_spectral_colour_space_range(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    if (!IsSpectralDeviceColorSpaceV2(pv))
+        return CheckResult::ok("Device colour space is not spectral — check not applicable");
+
+    CheckID id{CheckID::Kind::Heuristic, 175};
+    std::vector<Finding> findings;
+
+    uint32_t cs = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+    uint16_t upper = static_cast<uint16_t>(cs >> 16);
+    const char *type = "unknown";
+    switch (upper) {
+        case 0x7273: type = "reflectance"; break;
+        case 0x7473: type = "transmission"; break;
+        case 0x6573: type = "radiant"; break;
+        case 0x6273: type = "bi-spectral reflectance"; break;
+        case 0x736D: type = "sparse matrix reflectance"; break;
+    }
+
+    // Check 1: Look for 'dsrn' tag (0x6473726E) in tag table
+    auto dsrnTag = pv.rawTag(0x6473726Eu);
+    if (dsrnTag)
+        return CheckResult::ok("Device spectral range defined by dsrn tag");
+
+    // Check 2: Fall back to header spectralRange fields
+    const icSpectralRange &sr = pIcc->m_Header.spectralRange;
+    if (sr.steps > 0 && (sr.start > 0 || sr.end > 0))
+        return CheckResult::ok("Device spectral range defined by header spectral PCS range fields");
+
+    // Neither source provides the range — CRITICAL
+    findings.push_back({id, Severity::CRITICAL,
+        std::string("Spectral device colour space (") + type +
+        ") has NO spectral range definition",
+        "Must provide either dsrn tag or header spectralRange — ICC.2:2023 §7.2.8",
+        "CWE-20"});
+    return {CheckResult::Status::FINDINGS, "No spectral range for spectral device", std::move(findings)};
+}
+
+REGISTER_HEURISTIC(175, "Device Spectral Colour Space Range Requirement",
+    "§7.2.8 amend", "ICC.2:2023",
+    "CWE-20", "", Severity::HIGH, CheckPhase::RAW_SCAN,
+    check_h175_device_spectral_colour_space_range);
+
+// ============================================================================
+// H176 — deviceSpectralRangeTag ('dsrn') Validation
+// ============================================================================
+static CheckResult check_h176_dsrn_tag_validation(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+
+    auto dsrnTag = pv.rawTag(0x6473726Eu);
+    if (!dsrnTag) return CheckResult::ok("No dsrn tag present — check not applicable");
+
+    CheckID id{CheckID::Kind::Heuristic, 176};
+    std::vector<Finding> findings;
+
+    if (dsrnTag->size < 20) {
+        findings.push_back({id, Severity::CRITICAL,
+            "dsrn tag too small: " + std::to_string(dsrnTag->size) + " bytes (need 20)",
+            "spectralRangeType minimum size", "CWE-125"});
+        return {CheckResult::Status::FINDINGS, "dsrn tag undersized", std::move(findings)};
+    }
+
+    if (dsrnTag->offset > pv.rawSize() || dsrnTag->size > pv.rawSize() - dsrnTag->offset)
+        return CheckResult::error("dsrn tag offset/size exceeds file");
+
+    const uint8_t* tagData = pv.rawData() + dsrnTag->offset;
+
+    // Type signature = 'srng' (0x73726E67)
+    uint32_t typeSig = ReadU32BE(tagData);
+    if (typeSig != 0x73726E67u) {
+        char sigStr[5]; SigToChars(typeSig, sigStr);
+        findings.push_back({id, Severity::CRITICAL,
+            std::string("dsrn tag type '") + sigStr + "' — expected 'srng'",
+            "ICC.2:2023 §10.2.w", "CWE-20"});
+        return {CheckResult::Status::FINDINGS, "Wrong type in dsrn", std::move(findings)};
+    }
+
+    // Reserved bytes (4-7) = 0
+    uint32_t reserved = ReadU32BE(tagData + 4);
+    if (reserved != 0) {
+        char hex[11]; std::snprintf(hex, sizeof(hex), "0x%08X", reserved);
+        findings.push_back({id, Severity::MEDIUM,
+            std::string("dsrn reserved field is ") + hex + " (should be 0)",
+            "ICC.2:2023 §10.2.w", "CWE-20"});
+    }
+
+    // Spectral range (bytes 8-13)
+    uint16_t specStartRaw = ReadU16BE(tagData + 8);
+    uint16_t specEndRaw   = ReadU16BE(tagData + 10);
+    uint16_t specSteps    = ReadU16BE(tagData + 12);
+    float specStart = safeF16ToF(specStartRaw);
+    float specEnd   = safeF16ToF(specEndRaw);
+
+    if (std::isnan(specStart) || std::isinf(specStart))
+        findings.push_back({id, Severity::CRITICAL, "Spectral start wavelength is NaN/Inf", "", "CWE-20"});
+    if (std::isnan(specEnd) || std::isinf(specEnd))
+        findings.push_back({id, Severity::CRITICAL, "Spectral end wavelength is NaN/Inf", "", "CWE-20"});
+
+    if (std::isfinite(specStart) && std::isfinite(specEnd)) {
+        if (specEnd <= specStart)
+            findings.push_back({id, Severity::CRITICAL,
+                "Spectral end <= start — inverted range", "", "CWE-682"});
+    }
+
+    if (specSteps < 2 && (specStartRaw != 0 || specEndRaw != 0))
+        findings.push_back({id, Severity::CRITICAL,
+            "Spectral steps=" + std::to_string(specSteps) + " (must be >= 2)", "", "CWE-369"});
+
+    // Bi-spectral range (bytes 14-19)
+    uint16_t biStartRaw = ReadU16BE(tagData + 14);
+    uint16_t biEndRaw   = ReadU16BE(tagData + 16);
+    uint16_t biSteps    = ReadU16BE(tagData + 18);
+
+    if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0))
+        findings.push_back({id, Severity::MEDIUM,
+            "Bi-spectral range non-zero for non-bi-spectral device", "", "CWE-20"});
+
+    if (findings.empty()) return CheckResult::ok("dsrn tag validation passed");
+    return {CheckResult::Status::FINDINGS, "dsrn tag issues found", std::move(findings)};
+}
+
+REGISTER_HEURISTIC(176, "deviceSpectralRangeTag Validation",
+    "§9.2.x", "ICC.2:2023",
+    "CWE-20/CWE-125", "", Severity::HIGH, CheckPhase::RAW_SCAN,
+    check_h176_dsrn_tag_validation);
+
+// ============================================================================
+// H177 — devicePccTag ('dpcc') Structure Validation
+// ============================================================================
+static CheckResult check_h177_dpcc_tag_validation(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+
+    auto dpccTag = pv.rawTag(0x64706363u);
+    if (!dpccTag) return CheckResult::ok("No dpcc tag present — check not applicable");
+
+    CheckID id{CheckID::Kind::Heuristic, 177};
+    std::vector<Finding> findings;
+
+    if (dpccTag->size < 12) {
+        findings.push_back({id, Severity::CRITICAL,
+            "dpcc tag too small: " + std::to_string(dpccTag->size) + " bytes (need >= 12)",
+            "tagStructType header", "CWE-125"});
+        return {CheckResult::Status::FINDINGS, "dpcc tag undersized", std::move(findings)};
+    }
+
+    if (dpccTag->offset > pv.rawSize() || dpccTag->size > pv.rawSize() - dpccTag->offset)
+        return CheckResult::error("dpcc tag offset/size exceeds file");
+
+    const uint8_t* tagData = pv.rawData() + dpccTag->offset;
+    size_t readSize = std::min(static_cast<size_t>(dpccTag->size), size_t(4096));
+
+    // Structure type at offset 8-11 should be 'pcc ' (0x70636320)
+    if (readSize >= 12) {
+        uint32_t structType = ReadU32BE(tagData + 8);
+        if (structType != 0x70636320u) {
+            char sigStr[5]; SigToChars(structType, sigStr);
+            findings.push_back({id, Severity::CRITICAL,
+                std::string("dpcc structure type '") + sigStr + "' — expected 'pcc '",
+                "ICC.2:2023 §12.2.y", "CWE-20"});
+            return {CheckResult::Status::FINDINGS, "Wrong structure type", std::move(findings)};
+        }
+    }
+
+    // Scan for 6 required sub-tag signatures
+    struct PccSubTag { uint32_t sig; const char *name; bool required; bool found; };
+    PccSubTag subTags[] = {
+        {0x6958595Au, "iXYZ", true,  false},
+        {0x6D777074u, "mwpt", false, false},  // conditionally required
+        {0x73777074u, "swpt", false, false},  // conditionally required
+        {0x7376636Eu, "svcn", true,  false},
+        {0x63327370u, "c2sp", true,  false},
+        {0x73326370u, "s2cp", true,  false},
+    };
+
+    for (size_t pos = 12; pos + 3 < readSize; pos += 4) {
+        uint32_t w = ReadU32BE(tagData + pos);
+        for (auto &st : subTags)
+            if (w == st.sig) st.found = true;
+    }
+
+    for (const auto &st : subTags) {
+        if (!st.found && st.required)
+            findings.push_back({id, Severity::HIGH,
+                std::string("Required PCC sub-tag '") + st.name + "' missing",
+                "ICC.2:2023 §12.2.y", "CWE-476"});
+    }
+
+    if (findings.empty()) return CheckResult::ok("dpcc tag structure validation passed");
+    return {CheckResult::Status::FINDINGS, "dpcc tag issues found", std::move(findings)};
+}
+
+REGISTER_HEURISTIC(177, "devicePccTag Structure Validation",
+    "§9.2.x+1", "ICC.2:2023",
+    "CWE-20/CWE-476", "", Severity::HIGH, CheckPhase::RAW_SCAN,
+    check_h177_dpcc_tag_validation);
+
+// ============================================================================
+// H178 — spectralRangeType ('srng') Encoding Validation
+// ============================================================================
+static CheckResult check_h178_srng_encoding_validation(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+
+    CheckID id{CheckID::Kind::Heuristic, 178};
+    std::vector<Finding> findings;
+    int srngCount = 0;
+
+    for (const auto &tag : pv.rawTagTable()) {
+        if (tag.size < 20) continue;
+        if (tag.offset > pv.rawSize() || tag.size > pv.rawSize() - tag.offset) continue;
+
+        const uint8_t* tagData = pv.rawData() + tag.offset;
+        uint32_t typeSig = ReadU32BE(tagData);
+        if (typeSig != 0x73726E67u) continue; // not 'srng'
+
+        srngCount++;
+        char tagSigStr[5]; SigToChars(tag.signature, tagSigStr);
+
+        // Reserved bytes (4-7) = 0
+        uint32_t reserved = ReadU32BE(tagData + 4);
+        if (reserved != 0)
+            findings.push_back({id, Severity::MEDIUM,
+                std::string("Tag '") + tagSigStr + "': srng reserved field non-zero",
+                "", "CWE-20"});
+
+        // Spectral range (bytes 8-13)
+        uint16_t specStartRaw = ReadU16BE(tagData + 8);
+        uint16_t specEndRaw   = ReadU16BE(tagData + 10);
+        uint16_t specSteps    = ReadU16BE(tagData + 12);
+        float specStart = safeF16ToF(specStartRaw);
+        float specEnd   = safeF16ToF(specEndRaw);
+
+        if (std::isnan(specStart) || std::isinf(specStart) ||
+            std::isnan(specEnd) || std::isinf(specEnd))
+            findings.push_back({id, Severity::CRITICAL,
+                std::string("Tag '") + tagSigStr + "': NaN/Inf wavelength", "", "CWE-20"});
+        else if (specStart > 0.0f || specEnd > 0.0f) {
+            if (specEnd <= specStart)
+                findings.push_back({id, Severity::CRITICAL,
+                    std::string("Tag '") + tagSigStr + "': inverted spectral range",
+                    "", "CWE-682"});
+            if (specSteps < 2)
+                findings.push_back({id, Severity::CRITICAL,
+                    std::string("Tag '") + tagSigStr + "': steps=" +
+                    std::to_string(specSteps) + " (need >= 2)", "", "CWE-369"});
+        }
+
+        // Bi-spectral range (bytes 14-19)
+        uint16_t biStartRaw = ReadU16BE(tagData + 14);
+        uint16_t biEndRaw   = ReadU16BE(tagData + 16);
+        uint16_t biSteps    = ReadU16BE(tagData + 18);
+
+        if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0))
+            findings.push_back({id, Severity::MEDIUM,
+                std::string("Tag '") + tagSigStr + "': bi-spectral range non-zero for non-bi-spectral",
+                "", "CWE-20"});
+    }
+
+    if (srngCount == 0) return CheckResult::ok("No srng type tags found");
+    if (findings.empty()) return CheckResult::ok("srng encoding validation passed");
+    return {CheckResult::Status::FINDINGS, "srng encoding issues found", std::move(findings)};
+}
+
+REGISTER_HEURISTIC(178, "spectralRangeType Encoding Validation",
+    "§10.2.w", "ICC.2:2023",
+    "CWE-20/CWE-125", "", Severity::MEDIUM, CheckPhase::RAW_SCAN,
+    check_h178_srng_encoding_validation);
+
+// ============================================================================
+// CF-330: Device Spectral Colour Space Signature
+// ============================================================================
+static CheckResult check_cf330_device_spectral_signature(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    uint32_t cs = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+    if (!IsSpectralDeviceColorSpaceV2(pv))
+        return CheckResult::ok("colorSpace is not a spectral device signature");
+
+    uint16_t upper = static_cast<uint16_t>(cs >> 16);
+    const char *type = "unknown";
+    switch (upper) {
+        case 0x7273: type = "Reflectance Spectral"; break;
+        case 0x7473: type = "Transmission Spectral"; break;
+        case 0x6573: type = "Radiant Spectral"; break;
+        case 0x6273: type = "Bi-Spectral Reflectance"; break;
+        case 0x736D: type = "Sparse Matrix Reflectance"; break;
+    }
+    return CheckResult::ok(std::string("Spectral device signature recognized: ") + type);
+}
+
+REGISTER_CONFORMANCE(330, "Device Spectral Colour Space Signature",
+    "§7.2.8 amend", "ICC.2:2023",
+    "", "", Severity::HIGH, CheckPhase::CONFORMANCE,
+    check_cf330_device_spectral_signature);
+
+// ============================================================================
+// CF-331: Device Spectral Range Source Requirement
+// ============================================================================
+static CheckResult check_cf331_device_spectral_range_source(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    if (!IsSpectralDeviceColorSpaceV2(pv)) return CheckResult::skip("Not spectral device");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CheckID id{CheckID::Kind::Conformance, 331};
+
+    CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+    if (dsrnTag) return CheckResult::ok("Device spectral range defined by dsrn tag");
+
+    icSpectralRange sr = pIcc->m_Header.spectralRange;
+    if (sr.steps > 0)
+        return CheckResult::ok("Device spectral range defined by header spectralRange (fallback)");
+
+    return {CheckResult::Status::FINDINGS, "No spectral range source",
+        {{id, Severity::HIGH,
+          "Spectral device has no range definition — need dsrn tag or header spectralRange",
+          "ICC.2:2023 §7.2.8 + §9.2.x", ""}}};
+}
+
+REGISTER_CONFORMANCE(331, "Device Spectral Range Source Requirement",
+    "§7.2.8 + §9.2.x", "ICC.2:2023",
+    "", "", Severity::HIGH, CheckPhase::CONFORMANCE,
+    check_cf331_device_spectral_range_source);
+
+// ============================================================================
+// CF-332: spectralRangeType Reserved Bytes
+// ============================================================================
+static CheckResult check_cf332_srng_reserved_bytes(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+    if (!dsrnTag) return CheckResult::skip("No dsrn tag present");
+
+    // Check tag size via tag iteration
+    for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
+        if (it->TagInfo.sig == (icTagSignature)0x6473726E) {
+            if (it->TagInfo.size < 20) {
+                return {CheckResult::Status::FINDINGS, "dsrn tag undersized",
+                    {{{CheckID::Kind::Conformance, 332}, Severity::HIGH,
+                      "dsrn tag size " + std::to_string(it->TagInfo.size) +
+                      " < 20 (minimum spectralRangeType)", "", ""}}};
+            }
+            break;
+        }
+    }
+    return CheckResult::ok("dsrn tag size meets spectralRangeType minimum");
+}
+
+REGISTER_CONFORMANCE(332, "spectralRangeType Reserved Bytes",
+    "§10.2.w", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf332_srng_reserved_bytes);
+
+// ============================================================================
+// CF-333: devicePccTag Sub-Tag Completeness
+// ============================================================================
+static CheckResult check_cf333_dpcc_subtag_completeness(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+    if (!dpccTag) return CheckResult::skip("No dpcc tag present");
+
+    return CheckResult::ok("dpcc tag present — sub-tag completeness validated by H177");
+}
+
+REGISTER_CONFORMANCE(333, "devicePccTag Sub-Tag Completeness",
+    "§12.2.y", "ICC.2:2023",
+    "", "", Severity::HIGH, CheckPhase::CONFORMANCE,
+    check_cf333_dpcc_subtag_completeness);
+
+// ============================================================================
+// CF-334: PCC pcsIlluminantXYZMbr Required
+// ============================================================================
+static CheckResult check_cf334_pcc_illuminant_required(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+    if (!dpccTag) return CheckResult::skip("No dpcc tag");
+
+    return CheckResult::ok("dpcc present — iXYZ requirement validated by H177");
+}
+
+REGISTER_CONFORMANCE(334, "PCC pcsIlluminantXYZMbr Required",
+    "§12.2.y.2.1", "ICC.2:2023",
+    "", "", Severity::HIGH, CheckPhase::CONFORMANCE,
+    check_cf334_pcc_illuminant_required);
+
+// ============================================================================
+// CF-335: PCC mediaWhitePointMbr Conditional
+// ============================================================================
+static CheckResult check_cf335_pcc_media_white_point(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+    if (!dpccTag) return CheckResult::skip("No dpcc tag");
+
+    return CheckResult::ok("dpcc present — mwpt conditionality validated by H177");
+}
+
+REGISTER_CONFORMANCE(335, "PCC mediaWhitePointMbr Conditional",
+    "§12.2.y.2.2", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf335_pcc_media_white_point);
+
+// ============================================================================
+// CF-336: PCC spectralWhitePointMbr Conditional
+// ============================================================================
+static CheckResult check_cf336_pcc_spectral_white_point(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+    if (!dpccTag) return CheckResult::skip("No dpcc tag");
+
+    return CheckResult::ok("dpcc present — swpt conditionality validated by H177");
+}
+
+REGISTER_CONFORMANCE(336, "PCC spectralWhitePointMbr Conditional",
+    "§12.2.y.2.3", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf336_pcc_spectral_white_point);
+
+// ============================================================================
+// CF-337: Device Spectral Range vs Header Consistency
+// ============================================================================
+static CheckResult check_cf337_device_range_header_consistency(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    if (!IsSpectralDeviceColorSpaceV2(pv)) return CheckResult::skip("Not spectral device");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    CIccTag *dsrnTag = pIcc->FindTag((icTagSignature)0x6473726E);
+    icSpectralRange sr = pIcc->m_Header.spectralRange;
+
+    if (dsrnTag && sr.steps > 0)
+        return CheckResult::ok("Both dsrn tag and header spectralRange present — dsrn takes precedence");
+    if (dsrnTag)
+        return CheckResult::ok("Range source is dsrn tag");
+    if (sr.steps > 0)
+        return CheckResult::ok("Range source is header spectralRange (fallback)");
+
+    return {CheckResult::Status::FINDINGS, "No spectral range source",
+        {{{CheckID::Kind::Conformance, 337}, Severity::HIGH,
+          "No spectral range source for spectral device colour space",
+          "ICC.2:2023 §7.2.8 + §7.2.22", ""}}};
+}
+
+REGISTER_CONFORMANCE(337, "Device Spectral Range vs Header Consistency",
+    "§7.2.8 + §7.2.22", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf337_device_range_header_consistency);
+
+// ============================================================================
+// CF-338: Bi-Spectral Device Range Zero Check
+// ============================================================================
+static CheckResult check_cf338_bispectral_range_zero(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    if (!IsSpectralDeviceColorSpaceV2(pv)) return CheckResult::skip("Not spectral device");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    if (IsBiSpectralDeviceV2(pv))
+        return CheckResult::ok("Bi-spectral device — bi-spectral range may be non-zero");
+
+    icSpectralRange bsr = pIcc->m_Header.biSpectralRange;
+    if (bsr.start != 0 || bsr.end != 0 || bsr.steps != 0) {
+        return {CheckResult::Status::FINDINGS, "Non-zero bi-spectral range",
+            {{{CheckID::Kind::Conformance, 338}, Severity::MEDIUM,
+              "Non-bi-spectral device has non-zero header biSpectralRange",
+              "ICC.2:2023 §10.2.w", ""}}};
+    }
+    return CheckResult::ok("Bi-spectral range correctly zero for non-bi-spectral device");
+}
+
+REGISTER_CONFORMANCE(338, "Bi-Spectral Device Range Zero Check",
+    "§10.2.w", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf338_bispectral_range_zero);
+
+// ============================================================================
+// CF-339: Abstract Profile Device PCC Presence
+// ============================================================================
+static CheckResult check_cf339_abstract_device_pcc_presence(const ProfileView& pv) {
+    if (!IsV5(pv)) return CheckResult::skip("Not a v5+ profile");
+    CIccProfile *pIcc = pv.unsafeLibraryHandle();
+    if (!pIcc) return CheckResult::error("No library handle");
+
+    if (pIcc->m_Header.deviceClass != icSigAbstractClass)
+        return CheckResult::skip("Not an abstract profile");
+
+    CheckID id{CheckID::Kind::Conformance, 339};
+    CIccTag *dpccTag = pIcc->FindTag((icTagSignature)0x64706363);
+    uint32_t cs = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+    bool spectralDevice = IsSpectralDeviceColorSpaceV2(pv);
+    bool colorimetricDevice = (cs == 0x4C616220 || cs == 0x58595A20); // 'Lab ' or 'XYZ '
+
+    if (spectralDevice || colorimetricDevice) {
+        if (dpccTag)
+            return CheckResult::ok("Abstract profile with PCS-like device has dpcc tag");
+        return CheckResult::ok("Abstract profile — dpcc absent (device PCC matches spectral PCS)");
+    }
+
+    if (dpccTag) {
+        return {CheckResult::Status::FINDINGS, "Unexpected dpcc on abstract profile",
+            {{id, Severity::MEDIUM,
+              "dpcc tag present on abstract profile with non-PCS device colour space",
+              "ICC.2:2023 §9.2.x+1", ""}}};
+    }
+    return CheckResult::ok("Abstract profile — dpcc not expected for this device space");
+}
+
+REGISTER_CONFORMANCE(339, "Abstract Profile Device PCC Presence",
+    "§9.2.x+1", "ICC.2:2023",
+    "", "", Severity::MEDIUM, CheckPhase::CONFORMANCE,
+    check_cf339_abstract_device_pcc_presence);

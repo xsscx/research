@@ -173,3 +173,9 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 172	exact	todo	LUT Matrix Coefficient Validation	LUT Matrix Coefficient Validation	DataValidationChecks.cpp	
 173	exact	implemented	Signature Conversion Shift Overflow	Signature Conversion Shift Overflow	CodeQLPatternChecks.cpp	
 174	exact	implemented	Half-Float Conversion Unsigned Underflow	Half-Float Conversion Unsigned Underflow	CodeQLPatternChecks.cpp	
+175exactimplementedDevice Spectral Colour Space Range RequirementDevice Spectral Colour Space Range RequirementRawScanChecks.cpp
+176exactimplementeddeviceSpectralRangeTag ValidationdeviceSpectralRangeTag ValidationRawScanChecks.cpp
+177exactimplementeddevicePccTag Structure ValidationdevicePccTag Structure ValidationRawScanChecks.cpp
+178exactimplementedspectralRangeType Encoding ValidationspectralRangeType Encoding ValidationRawScanChecks.cpp
+179exactimplementedAddXform Create NULL Guard DetectionAddXform Create NULL GuardExploitGapChecks.cpp
+180exactimplementedXML Round-Trip FidelityXML Round-Trip FidelityXmlSafetyChecks.cpp
