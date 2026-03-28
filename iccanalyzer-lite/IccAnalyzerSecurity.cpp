@@ -44,6 +44,7 @@
 #include "IccHeuristicsLibrary.h"
 #include "IccHeuristicsHeader.h"
 #include "IccHeuristicsDataValidation.h"
+#include "IccHeuristicsTagValidation.h"
 #include "IccHeuristicsRegistry.h"
 
 #include "IccAnalyzerSafeArithmetic.h"
@@ -312,6 +313,17 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
            "curve allocation/underflow paths\n");
     printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
     printf("=======================================================================\n\n");
+  }
+  if (DetectH30GamutBoundaryDescAllocation(filename)) {
+    heuristicCount += RunHeuristic_H30_GamutBoundaryDescAllocation(nullptr, filename);
+    if (IsLibraryUBDefenseEnabled()) {
+      skipLibraryPhase = true;
+      printf("=======================================================================\n");
+      printf("[PREFLIGHT] GamutBoundaryDesc allocation/channel fields are unsafe "
+             "(including nested tary->gbd payloads)\n");
+      printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
+      printf("=======================================================================\n\n");
+    }
   }
   
   // PHASE 0.5: External File Metadata (when tools available)

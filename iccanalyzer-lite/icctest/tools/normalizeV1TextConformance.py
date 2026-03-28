@@ -83,27 +83,47 @@ def run_v1_text(
 ) -> dict:
     cmd = [str(binary), "-a", str(input_file)]
 
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        env=v1_runtime_env(binary, disable_library_ub_defense=disable_library_ub_defense),
-        check=False,
-        errors="replace",
-    )
+    def invoke(disable_defense: bool) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            env=v1_runtime_env(binary, disable_library_ub_defense=disable_defense),
+            check=False,
+        )
 
-    if not proc.stdout.strip():
+    proc = invoke(disable_library_ub_defense)
+
+    stdout = proc.stdout.decode("utf-8", errors="replace")
+    stderr = proc.stderr.decode("utf-8", errors="replace")
+
+    fallback_used = False
+    if not stdout.strip() and disable_library_ub_defense:
+        lower_stderr = stderr.lower()
+        if (
+            "addresssanitizer" in lower_stderr
+            or "allocation-size-too-big" in lower_stderr
+            or "out of memory" in lower_stderr
+            or "runtime error:" in lower_stderr
+        ):
+            proc = invoke(False)
+            stdout = proc.stdout.decode("utf-8", errors="replace")
+            stderr = proc.stderr.decode("utf-8", errors="replace")
+            fallback_used = True
+
+    if not stdout.strip():
         raise RuntimeError(
             f"V1 text command produced no stdout (rc={proc.returncode})."
-            f" stderr={proc.stderr.strip()[:400]}"
+            f" stderr={stderr.strip()[:400]}"
         )
 
     return {
-        "stdout": proc.stdout,
-        "stdoutStripped": strip_ansi(proc.stdout),
-        "stderr": proc.stderr,
+        "stdout": stdout,
+        "stdoutStripped": strip_ansi(stdout),
+        "stderr": stderr,
         "cmd": cmd,
         "returncode": proc.returncode,
+        "disableLibraryUbDefense": disable_library_ub_defense and not fallback_used,
+        "fallbackToDefendedRun": fallback_used,
     }
 
 

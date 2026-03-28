@@ -1167,6 +1167,35 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
   if (fh30) {
     size_t fs30 = (size_t)fh30.fileSize;
 
+    auto scanGbdRecord = [&](const char *ownerSig,
+                             const icUInt8Number *gbdHdr,
+                             icUInt32Number logicalSize) {
+      icUInt16Number nPCSCh = (static_cast<icUInt16Number>(gbdHdr[8])<<8) | gbdHdr[9];
+      icUInt16Number nDevCh = (static_cast<icUInt16Number>(gbdHdr[10])<<8) | gbdHdr[11];
+      icUInt32Number nVerts = (static_cast<icUInt32Number>(gbdHdr[12])<<24) | (static_cast<icUInt32Number>(gbdHdr[13])<<16) |
+                              (static_cast<icUInt32Number>(gbdHdr[14])<<8) | gbdHdr[15];
+      icUInt32Number nTris  = (static_cast<icUInt32Number>(gbdHdr[16])<<24) | (static_cast<icUInt32Number>(gbdHdr[17])<<16) |
+                              (static_cast<icUInt32Number>(gbdHdr[18])<<8) | gbdHdr[19];
+
+      uint64_t triAlloc = (uint64_t)nTris * 12;
+      uint64_t vertAlloc = (uint64_t)nVerts * (12 + (uint64_t)nPCSCh * 4 + (uint64_t)nDevCh * 4);
+      uint64_t totalAlloc = triAlloc + vertAlloc + 24;
+
+      if (totalAlloc > (uint64_t)logicalSize * 4) {
+        hc.warn("Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
+                ownerSig, nVerts, nTris, nPCSCh, nDevCh);
+        hc.cweNote("Allocation: %llu bytes vs tag size %u bytes",
+                   (unsigned long long)totalAlloc, logicalSize);
+        hc.cweNote("Risk: OOM in CIccTagGamutBoundaryDesc::Read()");
+      }
+
+      if (nPCSCh > 3 || nDevCh > 15) {
+        hc.warn("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+                ownerSig, nPCSCh, nDevCh);
+        hc.cweNote("Risk: Signed/unsigned confusion in allocation size");
+      }
+    };
+
     if (fs30 >= 132) {
       icUInt8Number hdr30[132];
       if (fread(hdr30, 1, 132, fh30.fp) == 132) {
@@ -1186,47 +1215,61 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
           icUInt32Number tSz30  = (static_cast<icUInt32Number>(e30[8])<<24) | (static_cast<icUInt32Number>(e30[9])<<16) |
                                   (static_cast<icUInt32Number>(e30[10])<<8) | e30[11];
 
-          // 'gbd ' type header: type(4)+reserved(4)+reserved(4)+nVertices(4)+nTriangles(4)+nPCSCh(2)+nDevCh(2) = 24 bytes
-          if (tOff30 > fs30 || tOff30 + 24 > fs30 || tSz30 < 24) continue;
-          icUInt8Number gbdHdr[24];
+          // 'gbd ' header: type(4)+reserved(4)+nPCSCh(2)+nDevCh(2)+nVertices(4)+nTriangles(4) = 20 bytes
+          if (tOff30 > fs30 || tOff30 + 20 > fs30 || tSz30 < 20) continue;
+          icUInt8Number gbdHdr[20];
           fseek(fh30.fp, tOff30, SEEK_SET);
-          if (fread(gbdHdr, 1, 24, fh30.fp) != 24) continue;
+          if (fread(gbdHdr, 1, 20, fh30.fp) != 20) continue;
 
           icUInt32Number gbdType = (static_cast<icUInt32Number>(gbdHdr[0])<<24) | (static_cast<icUInt32Number>(gbdHdr[1])<<16) |
                                    (static_cast<icUInt32Number>(gbdHdr[2])<<8) | gbdHdr[3];
 
           // 'gbd ' = 0x67626420
-          if (gbdType != 0x67626420) continue;
-
-          icUInt32Number nVerts = (static_cast<icUInt32Number>(gbdHdr[12])<<24) | (static_cast<icUInt32Number>(gbdHdr[13])<<16) |
-                                  (static_cast<icUInt32Number>(gbdHdr[14])<<8) | gbdHdr[15];
-          icUInt32Number nTris  = (static_cast<icUInt32Number>(gbdHdr[16])<<24) | (static_cast<icUInt32Number>(gbdHdr[17])<<16) |
-                                  (static_cast<icUInt32Number>(gbdHdr[18])<<8) | gbdHdr[19];
-          icUInt16Number nPCSCh = (static_cast<icUInt16Number>(gbdHdr[20])<<8) | gbdHdr[21];
-          icUInt16Number nDevCh = (static_cast<icUInt16Number>(gbdHdr[22])<<8) | gbdHdr[23];
-
-          // Triangle allocation: nTriangles × 12 bytes
-          uint64_t triAlloc = (uint64_t)nTris * 12;
-          // Vertex arrays: nVertices × (3*4 + nPCSCh*4 + nDevCh*4)
-          uint64_t vertAlloc = (uint64_t)nVerts * (12 + (uint64_t)nPCSCh * 4 + (uint64_t)nDevCh * 4);
-          uint64_t totalAlloc = triAlloc + vertAlloc + 24;
-
-          char sig30[5];
-          sig30[0] = static_cast<char>(e30[0]); sig30[1] = static_cast<char>(e30[1]); sig30[2] = static_cast<char>(e30[2]); sig30[3] = static_cast<char>(e30[3]); sig30[4] = '\0';
-
-          // Check: allocation exceeds tag size (OOM risk)
-          if (totalAlloc > (uint64_t)tSz30 * 4) {
-            hc.warn("Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
-                   sig30, nVerts, nTris, nPCSCh, nDevCh);
-            hc.cweNote("Allocation: %llu bytes vs tag size %u bytes", (unsigned long long)totalAlloc, tSz30);
-            hc.cweNote("Risk: OOM in CIccTagGamutBoundaryDesc::Read()");
+          if (gbdType == 0x67626420) {
+            char sig30[5];
+            sig30[0] = static_cast<char>(e30[0]); sig30[1] = static_cast<char>(e30[1]); sig30[2] = static_cast<char>(e30[2]); sig30[3] = static_cast<char>(e30[3]); sig30[4] = '\0';
+            scanGbdRecord(sig30, gbdHdr, tSz30);
           }
 
-          // Check: negative channel counts (icUInt16Number interpreted as signed)
-          if (nPCSCh > 3 || nDevCh > 15) {
-            hc.warn("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
-                   sig30, nPCSCh, nDevCh);
-            hc.cweNote("Risk: Signed/unsigned confusion in allocation size");
+          // Nested CIccTagArray element records can also contain GBD payloads.
+          if (gbdType == 0x74617279 && tSz30 >= 16) {
+            icUInt32Number elemCount = (static_cast<icUInt32Number>(gbdHdr[12])<<24) |
+                                       (static_cast<icUInt32Number>(gbdHdr[13])<<16) |
+                                       (static_cast<icUInt32Number>(gbdHdr[14])<<8) |
+                                       gbdHdr[15];
+            if (elemCount > 0 && elemCount <= 256 && tOff30 + 16 <= fs30) {
+              for (icUInt32Number j = 0; j < elemCount; j++) {
+                uint64_t recPos = (uint64_t)tOff30 + 16 + (uint64_t)j * 8;
+                if (recPos + 8 > fs30 || recPos + 8 > (uint64_t)tOff30 + tSz30) break;
+                icUInt8Number rec[8];
+                fseek(fh30.fp, (long)recPos, SEEK_SET);
+                if (fread(rec, 1, 8, fh30.fp) != 8) break;
+
+                icUInt32Number childOff = (static_cast<icUInt32Number>(rec[0])<<24) | (static_cast<icUInt32Number>(rec[1])<<16) |
+                                          (static_cast<icUInt32Number>(rec[2])<<8) | rec[3];
+                icUInt32Number childSz  = (static_cast<icUInt32Number>(rec[4])<<24) | (static_cast<icUInt32Number>(rec[5])<<16) |
+                                          (static_cast<icUInt32Number>(rec[6])<<8) | rec[7];
+                if (!childOff || childSz < 20) continue;
+                uint64_t childPos = (uint64_t)tOff30 + childOff;
+                if (childPos + 20 > fs30 || childPos + childSz > (uint64_t)tOff30 + tSz30) continue;
+
+                icUInt8Number childHdr[20];
+                fseek(fh30.fp, (long)childPos, SEEK_SET);
+                if (fread(childHdr, 1, 20, fh30.fp) != 20) continue;
+
+                icUInt32Number childType = (static_cast<icUInt32Number>(childHdr[0])<<24) |
+                                           (static_cast<icUInt32Number>(childHdr[1])<<16) |
+                                           (static_cast<icUInt32Number>(childHdr[2])<<8) |
+                                           childHdr[3];
+                if (childType != 0x67626420) continue;
+
+                char ownerSig[16];
+                std::snprintf(ownerSig, sizeof(ownerSig), "%c%c%c%c[tary]",
+                              static_cast<char>(e30[0]), static_cast<char>(e30[1]),
+                              static_cast<char>(e30[2]), static_cast<char>(e30[3]));
+                scanGbdRecord(ownerSig, childHdr, childSz);
+              }
+            }
           }
         }
       }
@@ -1237,6 +1280,96 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
 }
 
   return hc.end("No GamutBoundaryDesc allocation issues");
+}
+
+bool DetectH30GamutBoundaryDescAllocation(const char *filename) {
+  RawFileHandle fh = OpenRawFile(filename);
+  if (!fh) return false;
+
+  size_t fs = (size_t)fh.fileSize;
+  if (fs < 132) return false;
+
+  icUInt8Number hdr[132];
+  if (fread(hdr, 1, 132, fh.fp) != 132) return false;
+
+  icUInt32Number tagCount = (static_cast<icUInt32Number>(hdr[128])<<24) |
+                            (static_cast<icUInt32Number>(hdr[129])<<16) |
+                            (static_cast<icUInt32Number>(hdr[130])<<8) |
+                            hdr[131];
+
+  auto recordDangerous = [](const icUInt8Number *gbdHdr, icUInt32Number logicalSize) {
+    icUInt16Number nPCSCh = (static_cast<icUInt16Number>(gbdHdr[8])<<8) | gbdHdr[9];
+    icUInt16Number nDevCh = (static_cast<icUInt16Number>(gbdHdr[10])<<8) | gbdHdr[11];
+    icUInt32Number nVerts = (static_cast<icUInt32Number>(gbdHdr[12])<<24) | (static_cast<icUInt32Number>(gbdHdr[13])<<16) |
+                            (static_cast<icUInt32Number>(gbdHdr[14])<<8) | gbdHdr[15];
+    icUInt32Number nTris  = (static_cast<icUInt32Number>(gbdHdr[16])<<24) | (static_cast<icUInt32Number>(gbdHdr[17])<<16) |
+                            (static_cast<icUInt32Number>(gbdHdr[18])<<8) | gbdHdr[19];
+    uint64_t triAlloc = (uint64_t)nTris * 12;
+    uint64_t vertAlloc = (uint64_t)nVerts * (12 + (uint64_t)nPCSCh * 4 + (uint64_t)nDevCh * 4);
+    uint64_t totalAlloc = triAlloc + vertAlloc + 24;
+    return totalAlloc > (uint64_t)logicalSize * 4 || nPCSCh > 3 || nDevCh > 15;
+  };
+
+  for (icUInt32Number i = 0; i < tagCount && i < 256; i++) {
+    uint64_t ePos = 132 + (uint64_t)i * 12;
+    if (ePos + 12 > fs) break;
+    icUInt8Number e[12];
+    fseek(fh.fp, (long)ePos, SEEK_SET);
+    if (fread(e, 1, 12, fh.fp) != 12) break;
+
+    icUInt32Number tOff = (static_cast<icUInt32Number>(e[4])<<24) | (static_cast<icUInt32Number>(e[5])<<16) |
+                          (static_cast<icUInt32Number>(e[6])<<8) | e[7];
+    icUInt32Number tSz  = (static_cast<icUInt32Number>(e[8])<<24) | (static_cast<icUInt32Number>(e[9])<<16) |
+                          (static_cast<icUInt32Number>(e[10])<<8) | e[11];
+    if (tOff > fs || tOff + 20 > fs || tSz < 20) continue;
+
+    icUInt8Number tagHdr[20];
+    fseek(fh.fp, (long)tOff, SEEK_SET);
+    if (fread(tagHdr, 1, 20, fh.fp) != 20) continue;
+    icUInt32Number typeSig = (static_cast<icUInt32Number>(tagHdr[0])<<24) |
+                             (static_cast<icUInt32Number>(tagHdr[1])<<16) |
+                             (static_cast<icUInt32Number>(tagHdr[2])<<8) |
+                             tagHdr[3];
+    if (typeSig == 0x67626420 && recordDangerous(tagHdr, tSz)) {
+      return true;
+    }
+    if (typeSig != 0x74617279 || tSz < 16) continue;
+
+    icUInt32Number elemCount = (static_cast<icUInt32Number>(tagHdr[12])<<24) |
+                               (static_cast<icUInt32Number>(tagHdr[13])<<16) |
+                               (static_cast<icUInt32Number>(tagHdr[14])<<8) |
+                               tagHdr[15];
+    if (!elemCount || elemCount > 256) continue;
+
+    for (icUInt32Number j = 0; j < elemCount; j++) {
+      uint64_t recPos = (uint64_t)tOff + 16 + (uint64_t)j * 8;
+      if (recPos + 8 > fs || recPos + 8 > (uint64_t)tOff + tSz) break;
+      icUInt8Number rec[8];
+      fseek(fh.fp, (long)recPos, SEEK_SET);
+      if (fread(rec, 1, 8, fh.fp) != 8) break;
+
+      icUInt32Number childOff = (static_cast<icUInt32Number>(rec[0])<<24) | (static_cast<icUInt32Number>(rec[1])<<16) |
+                                (static_cast<icUInt32Number>(rec[2])<<8) | rec[3];
+      icUInt32Number childSz  = (static_cast<icUInt32Number>(rec[4])<<24) | (static_cast<icUInt32Number>(rec[5])<<16) |
+                                (static_cast<icUInt32Number>(rec[6])<<8) | rec[7];
+      if (!childOff || childSz < 20) continue;
+
+      uint64_t childPos = (uint64_t)tOff + childOff;
+      if (childPos + 20 > fs || childPos + childSz > (uint64_t)tOff + tSz) continue;
+      icUInt8Number childHdr[20];
+      fseek(fh.fp, (long)childPos, SEEK_SET);
+      if (fread(childHdr, 1, 20, fh.fp) != 20) continue;
+      icUInt32Number childType = (static_cast<icUInt32Number>(childHdr[0])<<24) |
+                                 (static_cast<icUInt32Number>(childHdr[1])<<16) |
+                                 (static_cast<icUInt32Number>(childHdr[2])<<8) |
+                                 childHdr[3];
+      if (childType == 0x67626420 && recordDangerous(childHdr, childSz)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 int RunHeuristic_H31_MPEChannelCount(CIccProfile *pIcc) {
@@ -1422,4 +1555,3 @@ hc.begin(32, "Tag Data Type Confusion Detection");
 
   return hc.end("All tag type signatures are known ICC types");
 }
-

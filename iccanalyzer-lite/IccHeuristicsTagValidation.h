@@ -32,6 +32,7 @@ int RunHeuristic_H27_MPEMatrixOutputChannel(CIccProfile *pIcc);
 int RunHeuristic_H28_LUTDimensionValidation(CIccProfile *pIcc, const char *filename);
 int RunHeuristic_H29_ColorantTableStringValidation(CIccProfile *pIcc, const char *filename);
 int RunHeuristic_H30_GamutBoundaryDescAllocation(CIccProfile *pIcc, const char *filename);
+bool DetectH30GamutBoundaryDescAllocation(const char *filename);
 int RunHeuristic_H31_MPEChannelCount(CIccProfile *pIcc);
 int RunHeuristic_H32_TagDataTypeConfusion(CIccProfile *pIcc, const char *filename);
 

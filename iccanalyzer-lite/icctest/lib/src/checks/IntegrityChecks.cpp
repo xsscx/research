@@ -112,17 +112,54 @@ static CheckResult check_h137_gbd_overflow(const ProfileView& pv) {
     // GBD tag type: 'gbd ' = 0x67626420
     constexpr uint32_t kGbdType = 0x67626420;
 
+    auto scanGbdRecord = [&](const uint8_t* hdr) {
+        uint32_t nTriangles = readU32BE(hdr + 16);
+        if (nTriangles > 715827882U) {
+            cb.critical(sfmt("GBD nTriangles=%u — int overflow in nTriangles*3 (max 715827882)",
+                             nTriangles),
+                        "CWE-190: Integer Overflow or Wraparound");
+        }
+    };
+
     for (const auto& t : pv.rawTagTable()) {
         if (t.size < 20 || !rawRangeAccessible(len, t.offset, 20)) continue;
         uint32_t typeSig = readU32BE(d + t.offset);
-        if (typeSig != kGbdType) continue;
+        if (typeSig == kGbdType) {
+            scanGbdRecord(d + t.offset);
+            continue;
+        }
 
-        // GBD layout: [type:4][reserved:4][nPCSChan:2][nDevChan:2][nVertices:4][nTriangles:4]
-        uint32_t nTriangles = readU32BE(d + t.offset + 16);
-        if (nTriangles > 715827882U) { // INT_MAX / 3
-            cb.critical(sfmt("GBD nTriangles=%u — int overflow in nTriangles*3 (max 715827882)",
-                              nTriangles),
-                        "CWE-190: Integer Overflow or Wraparound");
+        if (typeSig != 0x74617279 || t.size < 16 || !rawRangeAccessible(len, t.offset, 16)) {
+            continue;
+        }
+
+        uint32_t elemCount = readU32BE(d + t.offset + 12);
+        if (elemCount == 0 || elemCount > 256) {
+            continue;
+        }
+        uint64_t ownerEnd = static_cast<uint64_t>(t.offset) + static_cast<uint64_t>(t.size);
+        uint64_t tableEnd = static_cast<uint64_t>(t.offset) + 16ull +
+                            static_cast<uint64_t>(elemCount) * 8ull;
+        if (tableEnd > len || tableEnd > ownerEnd) {
+            continue;
+        }
+
+        for (uint32_t i = 0; i < elemCount; i++) {
+            size_t recOff = t.offset + 16 + static_cast<size_t>(i) * 8;
+            uint32_t childOff = readU32BE(d + recOff);
+            uint32_t childSz = readU32BE(d + recOff + 4);
+            if (!childOff || childSz < 20) {
+                continue;
+            }
+            uint64_t childAbs = static_cast<uint64_t>(t.offset) + static_cast<uint64_t>(childOff);
+            if (childAbs + 20 > len || childAbs + childSz > ownerEnd) {
+                continue;
+            }
+            const uint8_t* child = d + childAbs;
+            if (readU32BE(child) != kGbdType) {
+                continue;
+            }
+            scanGbdRecord(child);
         }
     }
 
