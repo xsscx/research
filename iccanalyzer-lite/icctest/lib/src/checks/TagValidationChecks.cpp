@@ -1197,8 +1197,16 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
             bool validFourCc = true;
             for (int b = 0; b < 4; ++b) {
                 uint8_t c = static_cast<uint8_t>((dataType >> (24 - b * 8)) & 0xFFu);
-                if (c != 0 && (c < 0x20 || c > 0x7Eu)) {
+                if (c < 0x20 || c > 0x7Eu) {
                     validFourCc = false;
+                    break;
+                }
+            }
+            bool tagSigPrintable = true;
+            for (int b = 0; b < 4; ++b) {
+                uint8_t c = static_cast<uint8_t>((tag.signature >> (24 - b * 8)) & 0xFFu);
+                if (c < 0x20 || c > 0x7Eu) {
+                    tagSigPrintable = false;
                     break;
                 }
             }
@@ -1210,18 +1218,24 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
                 }
             }
             if (!isKnown) {
+                if (!validFourCc) {
+                    if (!tagSigPrintable) {
+                        cb.warn(
+                            sfmt("Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
+                                 sigStr(tag.signature).c_str(), tag.offset,
+                                 static_cast<unsigned>((dataType >> 24) & 0xFFu),
+                                 static_cast<unsigned>((dataType >> 16) & 0xFFu),
+                                 static_cast<unsigned>((dataType >> 8) & 0xFFu),
+                                 static_cast<unsigned>(dataType & 0xFFu)),
+                            "Risk: Type confusion -> wrong parser invoked -> memory corruption");
+                    }
+                    continue;  // H20 owns non-printable type signatures, even on failed-load profiles.
+                }
                 cb.warn(
-                    validFourCc
-                        ? sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",
-                               sigStr(tag.signature).c_str(),
-                               sigStr(dataType).c_str(),
-                               dataType)
-                        : sfmt("Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
-                               sigStr(tag.signature).c_str(), tag.offset,
-                               static_cast<unsigned>((dataType >> 24) & 0xFFu),
-                               static_cast<unsigned>((dataType >> 16) & 0xFFu),
-                               static_cast<unsigned>((dataType >> 8) & 0xFFu),
-                               static_cast<unsigned>(dataType & 0xFFu)),
+                    sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",
+                         sigStr(tag.signature).c_str(),
+                         sigStr(dataType).c_str(),
+                         dataType),
                     "Risk: Type confusion -> wrong parser invoked -> memory corruption");
             }
             continue;
