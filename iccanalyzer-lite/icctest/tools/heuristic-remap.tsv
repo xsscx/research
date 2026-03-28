@@ -94,13 +94,13 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 93	exact	todo	Embedded Profile Flag	Embedded Profile Flag	DataValidationChecks.cpp	
 94	exact	todo	Matrix TRC Colorant Consistency	Matrix TRC Colorant Consistency	DataValidationChecks.cpp	
 95	exact	todo	Sparse Matrix Array Bounds Validation	Sparse Matrix Array Bounds Validation	DataValidationChecks.cpp	
-96	exact	todo	Embedded Profile Validation	Embedded Profile Validation	DataValidationChecks.cpp	
-97	exact	todo	Profile Sequence Id Validation	Profile Sequence Id Validation	DataValidationChecks.cpp	
-98	exact	todo	Spectral MPE Element Validation	Spectral MPE Element Validation	DataValidationChecks.cpp	
-99	exact	todo	Embedded Image Tag Validation	Embedded Image Tag Validation	DataValidationChecks.cpp	
+96	exact	implemented	Embedded Profile Validation	Embedded Profile Validation	DataValidationChecks.cpp	
+97	exact	implemented	Profile Sequence Id Validation	Profile Sequence Id Validation	DataValidationChecks.cpp	
+98	exact	implemented	Spectral MPE Element Validation	Spectral MPE Element Validation	DataValidationChecks.cpp	
+99	exact	implemented	Embedded Image Tag Validation	Embedded Image Tag Validation	DataValidationChecks.cpp	
 100	exact	todo	Profile Sequence Desc Validation	Profile Sequence Desc Validation	DataValidationChecks.cpp	
-101	exact	todo	MPE Sub Element Channel Continuity	MPE Sub Element Channel Continuity	DataValidationChecks.cpp	
-102	exact	todo	Tag Size Profile Size Cross Check	Tag Size Profile Size Cross Check	DataValidationChecks.cpp	
+101	exact	implemented	MPE Sub Element Channel Continuity	MPE Sub Element Channel Continuity	DataValidationChecks.cpp	
+102	exact	implemented	Tag Size Profile Size Cross Check	Tag Size Profile Size Cross Check	DataValidationChecks.cpp	
 103	collision	implemented	PCC	Profile ID Validation	ComplianceChecks.cpp	same-number collision; V2 profile-ID validation is closer to V1 H69/H131 family
 104	collision	implemented	PRMG	CMM Type Validation	ComplianceChecks.cpp	same-number collision; V2 CMM-type validation is closer to V1 H5 family
 105	collision	implemented	Matrix TRC	ColorSpace/PCS Consistency	ComplianceChecks.cpp	same-number collision; V2 colorspace/PCS consistency is closer to V1 H4/H107/H164 family
@@ -145,8 +145,8 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 144	exact	implemented	XML String Termination Precheck	XML String Termination Precheck	XmlSafetyChecks.cpp	
 145	exact	implemented	XML Curve Type Consistency	XML Curve Type Consistency	XmlSafetyChecks.cpp	
 146	exact	implemented	Stack Buffer Overflow GetValues	Stack Buffer Overflow GetValues	DataValidationChecks.cpp	
-147	exact	todo	Null Pointer After Tag Read	Null Pointer After Tag Read	DataValidationChecks.cpp	
-148	exact	todo	Memory Copy Bounds Overlap	Memory Copy Bounds Overlap	DataValidationChecks.cpp	
+147	exact	implemented	Null Pointer After Tag Read	Null Pointer After Tag Read	DataValidationChecks.cpp	
+148	exact	implemented	Memory Copy Bounds Overlap	Memory Copy Bounds Overlap	DataValidationChecks.cpp	
 149	rename	implemented	TIFF IFD Chain Cycle Detection	TIFF IFD Cycle Detection	ImageChecks.cpp	same check; cosmetic rename
 150	exact	implemented	TIFF Tile Geometry Validation	TIFF Tile Geometry Validation	ImageChecks.cpp	
 151	rename	implemented	Calculator Operator Enum Validation	Calculator Element Enum Validation	DataValidationChecks.cpp	same check; cosmetic rename
@@ -163,14 +163,14 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 162	rename	implemented	Partial Tag Data Overlap Detection	Partial Tag Data Overlap	ExploitGapChecks.cpp	same check; cosmetic rename
 163	rename	implemented	Executable Signature Scan In Tag Data	Executable Signature Scan	ExploitGapChecks.cpp	same check; cosmetic rename
 164	rename	implemented	Raw LUT Channel vs ColorSpace/PCS Cross-Check	LUT Channel Cross-Check	ExploitGapChecks.cpp	same check; cosmetic rename
-165	exact	todo	LUT Data Sufficiency Validation	LUT Data Sufficiency Validation	ExploitGapChecks.cpp	
+165	exact	implemented	LUT Data Sufficiency Validation	LUT Data Sufficiency Validation	ExploitGapChecks.cpp	
 166	rename	implemented	Division-by-Zero in CAM/Array/MPE	Division-by-Zero Guards	ExploitGapChecks.cpp	same check; cosmetic rename
 167	exact	implemented	Null MPE CLUT/Curve Application Guard	Null MPE CLUT/Curve Application Guard	ExploitGapChecks.cpp	
 168	exact	implemented	Unchecked Allocation Size Overflow	Unchecked Allocation Size Overflow	ExploitGapChecks.cpp	
 169	exact	implemented	Dictionary Tag Element Bounds	Dictionary Tag Element Bounds	ExploitGapChecks.cpp	
-170	exact	todo	Copy Constructor UB via Null PCS	Copy Constructor UB via Null PCS	ExploitGapChecks.cpp	
+170	exact	implemented	Copy Constructor UB via Null PCS	Copy Constructor UB via Null PCS	ExploitGapChecks.cpp	
 171	rename	implemented	Curve Param Count vs FuncType Validation	Curve Param Count Validation	ExploitGapChecks.cpp	same check; cosmetic rename
-172	exact	todo	LUT Matrix Coefficient Validation	LUT Matrix Coefficient Validation	DataValidationChecks.cpp	
+172	exact	implemented	LUT Matrix Coefficient Validation	LUT Matrix Coefficient Validation	DataValidationChecks.cpp	
 173	exact	implemented	Signature Conversion Shift Overflow	Signature Conversion Shift Overflow	CodeQLPatternChecks.cpp	
 174	exact	implemented	Half-Float Conversion Unsigned Underflow	Half-Float Conversion Unsigned Underflow	CodeQLPatternChecks.cpp	
 175	exact	implemented	Device Spectral Colour Space Range Requirement	Device Spectral Colour Space Range Requirement	CfV5Checks.cpp	

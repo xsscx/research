@@ -20,7 +20,13 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 98) {
         return true;
     }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 147) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 101) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 102) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 115) {
