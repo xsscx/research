@@ -164,6 +164,7 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
 
           echo "Configuring CMake with full instrumentation..."
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3" \
@@ -179,8 +180,8 @@ jobs:
           make -j$(nproc)
 
           echo "Verifying instrumented libraries..."
-          ls -lh IccProfLib/libIccProfLib2-static.a
-          ls -lh IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a
+          ls -lh IccXML/libIccXML2-static*.a
 
       - name: Build iccanalyzer-lite
         working-directory: iccanalyzer-lite

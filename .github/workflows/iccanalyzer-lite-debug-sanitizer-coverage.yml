@@ -160,6 +160,7 @@ jobs:
           # Disable LTO — produces bitcode archives incompatible with sanitizer linking
           sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt
 
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -176,8 +177,8 @@ jobs:
           make -j$(nproc)
 
           echo "Verifying instrumented libraries..."
-          ls -lh IccProfLib/libIccProfLib2-static.a
-          ls -lh IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a
+          ls -lh IccXML/libIccXML2-static*.a
 
           echo "Checking coverage instrumentation flags..."
           find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | head -3 || true
@@ -199,7 +200,7 @@ jobs:
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
-          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static*.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static*.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
 
           SOURCES="iccAnalyzer-lite.cpp IccDevSafeOverrides.cpp IccAnalyzerConfig.cpp IccAnalyzerErrors.cpp IccAnalyzerSecurity.cpp IccAnalyzerPathValidation.cpp IccAnalyzerSignatures.cpp IccAnalyzerValidation.cpp IccAnalyzerComprehensive.cpp IccAnalyzerInspect.cpp IccAnalyzerNinja.cpp IccAnalyzerLUT.cpp IccAnalyzerLUTTextIO.cpp IccAnalyzerLUTVisualization.cpp IccAnalyzerXMLExport.cpp IccAnalyzerCallGraph.cpp IccAnalyzerTagDetails.cpp IccHeuristicResult.cpp IccAnalyzerCapture.cpp IccHeuristicsRawPost.cpp IccHeuristicsCodeQLPatterns.cpp IccHeuristicsExploitGap.cpp IccHeuristicsRegistry.cpp IccHeuristicsLibrary.cpp IccHeuristicsTagValidation.cpp IccHeuristicsDataValidation.cpp IccHeuristicsProfileCompliance.cpp IccHeuristicsIntegrity.cpp IccHeuristicsHeader.cpp IccImageAnalyzer.cpp IccAnalyzerJson.cpp IccAnalyzerReport.cpp IccAnalyzerPAWG.cpp IccHeuristicsXmlSafety.cpp IccConformanceHeader.cpp IccConformanceTagTypes.cpp IccConformanceRequired.cpp IccConformanceLUT.cpp IccConformanceV5.cpp IccConformanceSecurity.cpp IccConformanceQuality.cpp"
 

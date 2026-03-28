@@ -134,7 +134,8 @@ jobs:
           if [ "$REF" = "cfl" ]; then
             echo "Applying CFL library patches to cfl branch..."
             for p in cfl/patches/*.patch; do
-              if patch -p1 -d /tmp/iccdev --forward -s < "$p" 2>/dev/null; then
+              if patch -p1 -d /tmp/iccdev --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d /tmp/iccdev --forward -s < "$p" >/dev/null 2>&1
                 echo "  [OK] $(basename "$p")"
               else
                 echo "  [SKIP] $(basename "$p") (already applied or N/A)"
@@ -169,6 +170,7 @@ jobs:
           set -euo pipefail
           cd /tmp/iccdev
           sed -i '/find_package(wxWidgets/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Build/Cmake/CMakeLists.txt
           mkdir -p build-coverage && cd build-coverage
           cmake ../Build/Cmake \
             -DCMAKE_BUILD_TYPE=Debug \

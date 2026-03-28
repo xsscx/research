@@ -196,6 +196,7 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
           
           echo "Configuring CMake with instrumentation..."
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
@@ -213,16 +214,16 @@ jobs:
           make -j$(nproc)
           
           echo "Verifying libraries..."
-          ls -lh IccProfLib/libIccProfLib2-static.a
-          ls -lh IccXML/libIccXML2-static.a
+          ls -lh IccProfLib/libIccProfLib2-static*.a
+          ls -lh IccXML/libIccXML2-static*.a
           
           {
             echo ""
             echo "### iccDEV Libraries Built"
             echo ""
             echo '```'
-            ls -lh IccProfLib/libIccProfLib2-static.a
-            ls -lh IccXML/libIccXML2-static.a
+            ls -lh IccProfLib/libIccProfLib2-static*.a
+            ls -lh IccXML/libIccXML2-static*.a
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
       

@@ -94,7 +94,8 @@ jobs:
           cd ..
           echo "Applying CFL library patches..."
           for p in cfl/patches/*.patch; do
-            if patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" 2>/dev/null; then
+            if patch -p1 -d colorbleed_tools/iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
+            patch -p1 -d colorbleed_tools/iccDEV --forward -s < "$p" >/dev/null 2>&1
               echo "  [OK] $(basename "$p")"
             else
               echo "  [SKIP]  $(basename "$p") (already applied or N/A)"
