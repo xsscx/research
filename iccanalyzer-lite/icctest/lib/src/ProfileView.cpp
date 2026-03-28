@@ -681,24 +681,97 @@ void ProfileView::runUBPreScan() {
         break;
     }
 
-    // Pattern 1: GBD nTriangles overflow (CWE-190)
-    // GBD tag layout: [type:4][reserved:4][nPCSChannels:2][nDeviceChannels:2]
-    //                 [nVertices:4][nTriangles:4]
-    // nTriangles at tag offset+16. If nTriangles*3 overflows int → UBSAN.
+    auto rawSigName = [](uint32_t sig) {
+        char buf[5];
+        for (int i = 0; i < 4; ++i) {
+            unsigned char c = static_cast<unsigned char>((sig >> (24 - i * 8)) & 0xffu);
+            buf[i] = (c >= 0x20 && c <= 0x7e) ? static_cast<char>(c) : '?';
+        }
+        buf[4] = '\0';
+        return std::string(buf);
+    };
+
+    auto scanGbdRecord = [&](const std::string& ownerName,
+                             const uint8_t* hdr,
+                             uint32_t logicalSize) {
+        uint32_t nPCSChannels = static_cast<uint32_t>(hdr[8]) << 8 | hdr[9];
+        uint32_t nDeviceChannels = static_cast<uint32_t>(hdr[10]) << 8 | hdr[11];
+        uint32_t nVertices = readU32BE(hdr + 12);
+        uint32_t nTriangles = readU32BE(hdr + 16);
+
+        if (nTriangles > 715827882u) {
+            m_ubPatternsDetected = true;
+            m_libraryLoadUnsafe = true;
+            char desc[192];
+            std::snprintf(desc, sizeof(desc),
+                "GBD '%s' nTriangles=%u would overflow int (nTriangles*3)",
+                ownerName.c_str(), nTriangles);
+            m_ubDescriptions.emplace_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc);
+        }
+
+        uint64_t triAlloc = static_cast<uint64_t>(nTriangles) * 12ull;
+        uint64_t vertAlloc = static_cast<uint64_t>(nVertices) *
+                             (12ull + static_cast<uint64_t>(nPCSChannels) * 4ull +
+                              static_cast<uint64_t>(nDeviceChannels) * 4ull);
+        uint64_t totalAlloc = triAlloc + vertAlloc + 24ull;
+        if (nPCSChannels > 3 || nDeviceChannels > 15 ||
+            totalAlloc > static_cast<uint64_t>(logicalSize) * 4ull) {
+            m_ubPatternsDetected = true;
+            m_libraryLoadUnsafe = true;
+            char desc[256];
+            std::snprintf(desc, sizeof(desc),
+                "GBD '%s' vertices=%u triangles=%u PCS=%u Dev=%u drives unsafe allocation/channel path",
+                ownerName.c_str(), nVertices, nTriangles, nPCSChannels, nDeviceChannels);
+            m_ubDescriptions.emplace_back(desc);
+            ICCTEST_WARN("UB pre-scan: %s", desc);
+        }
+    };
+
+    // Pattern 1: GBD allocation and signed-channel overflow (CWE-190/CWE-681)
+    // Includes both top-level 'gbd ' tags and nested tary->gbd elements.
     for (const auto& tag : m_rawTags) {
-        // 'gbd ' = 0x67626420
-        if (tag.signature == 0x67626420) {
-            if (tag.size >= 20 && rawSpanAvailable(m_rawData.size(), tag.offset, 20)) {
-                uint32_t nTriangles = readU32BE(m_rawData.data() + tag.offset + 16);
-                if (nTriangles > 715827882u) {  // INT_MAX/3
-                    m_ubPatternsDetected = true;
-                    m_libraryLoadUnsafe = true;
-                    char desc[128];
-                    std::snprintf(desc, sizeof(desc),
-                        "GBD nTriangles=%u would overflow int (nTriangles*3)",
-                        nTriangles);
-                    m_ubDescriptions.emplace_back(desc);
-                    ICCTEST_WARN("UB pre-scan: %s", desc);
+        if (tag.size < 16 || !rawSpanAvailable(m_rawData.size(), tag.offset, 16)) {
+            continue;
+        }
+
+        uint32_t tagTypeSig = readU32BE(m_rawData.data() + tag.offset);
+        if (tagTypeSig == 0x67626420 && tag.size >= 20 &&
+            rawSpanAvailable(m_rawData.size(), tag.offset, 20)) {
+            scanGbdRecord(rawSigName(tag.signature), m_rawData.data() + tag.offset, tag.size);
+            continue;
+        }
+
+        if (tagTypeSig == 0x74617279) {  // 'tary'
+            uint32_t elemCount = readU32BE(m_rawData.data() + tag.offset + 12);
+            if (elemCount != 0 && elemCount <= 256) {
+                uint64_t tableEnd = static_cast<uint64_t>(tag.offset) + 16ull +
+                                    static_cast<uint64_t>(elemCount) * 8ull;
+                uint64_t ownerEnd = static_cast<uint64_t>(tag.offset) +
+                                    static_cast<uint64_t>(tag.size);
+                if (tableEnd <= m_rawData.size() && tableEnd <= ownerEnd) {
+                    for (uint32_t i = 0; i < elemCount; i++) {
+                        size_t recOff = tag.offset + 16 + static_cast<size_t>(i) * 8;
+                        uint32_t childOff = readU32BE(m_rawData.data() + recOff);
+                        uint32_t childSz = readU32BE(m_rawData.data() + recOff + 4);
+                        if (!childOff || childSz < 20) {
+                            continue;
+                        }
+
+                        uint64_t childAbs = static_cast<uint64_t>(tag.offset) +
+                                            static_cast<uint64_t>(childOff);
+                        if (childAbs + 20 > m_rawData.size() || childAbs + childSz > ownerEnd) {
+                            continue;
+                        }
+
+                        const uint8_t* child = m_rawData.data() + childAbs;
+                        if (readU32BE(child) != 0x67626420) {
+                            continue;
+                        }
+
+                        scanGbdRecord(rawSigName(tag.signature) + "[tary]",
+                                      child, childSz);
+                    }
                 }
             }
         }
@@ -721,11 +794,11 @@ void ProfileView::runUBPreScan() {
         // Pattern 3: CLUT grid dimension overflow
         // Check for tags containing CLUTs where grid^ndim could overflow
         // Type signatures: 'mft1', 'mft2', 'mAB ', 'mBA '
-        uint32_t typeSig = 0;
+        uint32_t lutTypeSig = 0;
         if (rawSpanAvailable(m_rawData.size(), tag.offset, 4)) {
-            typeSig = readU32BE(m_rawData.data() + tag.offset);
+            lutTypeSig = readU32BE(m_rawData.data() + tag.offset);
         }
-        if (typeSig == 0x6D667431 || typeSig == 0x6D667432) {  // mft1/mft2
+        if (lutTypeSig == 0x6D667431 || lutTypeSig == 0x6D667432) {  // mft1/mft2
             // LUT8/LUT16: grid size at tag+10 for each input channel
             if (rawSpanAvailable(m_rawData.size(), tag.offset, 12)) {
                 const int nInput = static_cast<int>(m_rawData[tag.offset + 8]);

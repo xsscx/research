@@ -384,6 +384,513 @@ static std::vector<uint8_t> make_h102_profile_size_profile(uint32_t declaredSize
     return data;
 }
 
+static std::vector<uint8_t> make_h20_tag_type_signature_profile(uint32_t typeSig) {
+    auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+    auto data = read_file_bytes(corpusPath);
+    if (data.size() < 144) {
+        return {};
+    }
+
+    uint32_t tagCount = (static_cast<uint32_t>(data[128]) << 24) |
+                        (static_cast<uint32_t>(data[129]) << 16) |
+                        (static_cast<uint32_t>(data[130]) << 8) |
+                        static_cast<uint32_t>(data[131]);
+    if (tagCount == 0 || data.size() < 144) {
+        return {};
+    }
+
+    uint32_t firstTagOffset = (static_cast<uint32_t>(data[136]) << 24) |
+                              (static_cast<uint32_t>(data[137]) << 16) |
+                              (static_cast<uint32_t>(data[138]) << 8) |
+                              static_cast<uint32_t>(data[139]);
+    if (firstTagOffset + 4 > data.size()) {
+        return {};
+    }
+
+    data[firstTagOffset + 0] = static_cast<uint8_t>((typeSig >> 24) & 0xFF);
+    data[firstTagOffset + 1] = static_cast<uint8_t>((typeSig >> 16) & 0xFF);
+    data[firstTagOffset + 2] = static_cast<uint8_t>((typeSig >> 8) & 0xFF);
+    data[firstTagOffset + 3] = static_cast<uint8_t>(typeSig & 0xFF);
+    return data;
+}
+
+static std::vector<uint8_t> make_h18_technology_signature_profile(uint32_t techSig) {
+    std::vector<uint8_t> data(156, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x74656368); // 'tech'
+    put_u32(136, 144);
+    put_u32(140, 12);
+    put_u32(144, 0x73696720); // 'sig '
+    put_u32(152, techSig);
+    return data;
+}
+
+static std::vector<uint8_t> make_h25_tag_offset_oob_profile() {
+    auto data = read_file_bytes(resolve_repo_file("tests/corpus/valid_srgb.icc"));
+    if (data.size() < 144) {
+        return data;
+    }
+
+    uint32_t badOff = static_cast<uint32_t>(data.size() + 0x20);
+    data[136] = static_cast<uint8_t>((badOff >> 24) & 0xFF);
+    data[137] = static_cast<uint8_t>((badOff >> 16) & 0xFF);
+    data[138] = static_cast<uint8_t>((badOff >> 8) & 0xFF);
+    data[139] = static_cast<uint8_t>(badOff & 0xFF);
+    return data;
+}
+
+static std::vector<uint8_t> make_h26_named_color2_string_profile(bool unterminated) {
+    std::vector<uint8_t> data(228, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x6E636C32); // 'ncl2'
+    put_u32(136, 144);
+    put_u32(140, 84);
+    put_u32(144, 0x6E636C32); // 'ncl2'
+    put_u32(152, 0);          // vendorFlags
+    put_u32(156, 1);          // count
+    put_u32(160, 3);          // nDevCoords
+
+    uint8_t fill = unterminated ? static_cast<uint8_t>('A') : 0;
+    std::memset(data.data() + 164, fill, 32);
+    std::memset(data.data() + 196, fill, 32);
+    if (!unterminated) {
+        data[164] = 'O';
+        data[165] = 'K';
+        data[196] = 'O';
+        data[197] = 'K';
+    }
+    return data;
+}
+
+static std::vector<uint8_t> make_h28_lut_dimension_profile(uint8_t nInput,
+                                                           uint8_t nOutput,
+                                                           uint8_t nGrid) {
+    std::vector<uint8_t> data(155, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 144);
+    put_u32(140, 11);
+    put_u32(144, 0x6D667431); // 'mft1'
+    data[152] = nInput;
+    data[153] = nOutput;
+    data[154] = nGrid;
+    return data;
+}
+
+static std::vector<uint8_t> make_h29_colorant_table_profile(bool unterminated) {
+    std::vector<uint8_t> data(232, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x636C7274); // 'clrt'
+    put_u32(136, 144);
+    put_u32(140, 88);
+    put_u32(144, 0x636C7274); // 'clrt'
+    put_u32(152, 2);          // count
+
+    uint8_t fill = unterminated ? static_cast<uint8_t>('B') : 0;
+    std::memset(data.data() + 156, fill, 32);
+    std::memset(data.data() + 194, fill, 32);
+    if (!unterminated) {
+        data[156] = 'R';
+        data[157] = 0;
+        data[194] = 'G';
+        data[195] = 0;
+    }
+    return data;
+}
+
+static std::vector<uint8_t> make_h31_mpe_channel_count_profile(uint16_t channels) {
+    std::vector<uint8_t> data(160, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_u16 = [&](size_t off, uint16_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+    put_u32(128, 1);
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 144);
+    put_u32(140, 16);
+    put_u32(144, 0x6D706574); // 'mpet'
+    put_u16(152, channels);
+    put_u16(154, channels);
+    put_u32(156, 0);
+    return data;
+}
+
+static std::vector<uint8_t> make_h32_unknown_type_profile(uint32_t typeSig) {
+    return make_h20_tag_type_signature_profile(typeSig);
+}
+
+static std::vector<uint8_t> make_h100_profile_sequence_desc_profile(size_t entryCount) {
+    auto make_mluc = [](const std::string& text) {
+        std::vector<uint8_t> out;
+        out.insert(out.end(), {'m','l','u','c', 0,0,0,0});
+
+        auto put_u32 = [&](uint32_t value) {
+            out.push_back(static_cast<uint8_t>((value >> 24) & 0xFF));
+            out.push_back(static_cast<uint8_t>((value >> 16) & 0xFF));
+            out.push_back(static_cast<uint8_t>((value >> 8) & 0xFF));
+            out.push_back(static_cast<uint8_t>(value & 0xFF));
+        };
+
+        std::vector<uint8_t> utf16;
+        utf16.reserve(text.size() * 2);
+        for (char ch : text) {
+            utf16.push_back(0);
+            utf16.push_back(static_cast<uint8_t>(ch));
+        }
+
+        put_u32(1);
+        put_u32(12);
+        out.insert(out.end(), {'e','n','U','S'});
+        put_u32(static_cast<uint32_t>(utf16.size()));
+        put_u32(28);
+        out.insert(out.end(), utf16.begin(), utf16.end());
+        while (out.size() % 4 != 0) {
+            out.push_back(0);
+        }
+        return out;
+    };
+
+    auto put_u32 = [](std::vector<uint8_t>& out, uint32_t value) {
+        out.push_back(static_cast<uint8_t>((value >> 24) & 0xFF));
+        out.push_back(static_cast<uint8_t>((value >> 16) & 0xFF));
+        out.push_back(static_cast<uint8_t>((value >> 8) & 0xFF));
+        out.push_back(static_cast<uint8_t>(value & 0xFF));
+    };
+
+    auto put_u64 = [](std::vector<uint8_t>& out, uint64_t value) {
+        for (int shift = 56; shift >= 0; shift -= 8) {
+            out.push_back(static_cast<uint8_t>((value >> shift) & 0xFF));
+        }
+    };
+
+    std::vector<uint8_t> pseq;
+    pseq.insert(pseq.end(), {'p','s','e','q', 0,0,0,0});
+    put_u32(pseq, static_cast<uint32_t>(entryCount));
+
+    for (size_t idx = 0; idx < entryCount; ++idx) {
+        pseq.insert(pseq.end(), {'A','P','P','L'});
+        pseq.insert(pseq.end(), {'M','D','L',' '});
+        put_u64(pseq, 0);
+        pseq.insert(pseq.end(), {'f','s','c','n'});
+        auto mfg = make_mluc("Mfg" + std::to_string(idx));
+        auto mdl = make_mluc("Model" + std::to_string(idx));
+        pseq.insert(pseq.end(), mfg.begin(), mfg.end());
+        pseq.insert(pseq.end(), mdl.begin(), mdl.end());
+    }
+    while (pseq.size() % 4 != 0) {
+        pseq.push_back(0);
+    }
+
+    size_t size = 128 + 4 + 12 + pseq.size();
+    std::vector<uint8_t> data(size, 0);
+    auto put_hdr_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_hdr_s32 = [&](size_t off, int32_t value) {
+        put_hdr_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_hdr_u32(0, static_cast<uint32_t>(size));
+    put_hdr_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_hdr_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_hdr_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_hdr_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_hdr_u32(128, 1);
+    data[132] = 'p'; data[133] = 's'; data[134] = 'e'; data[135] = 'q';
+    put_hdr_u32(136, 144);
+    put_hdr_u32(140, static_cast<uint32_t>(pseq.size()));
+    std::copy(pseq.begin(), pseq.end(), data.begin() + 144);
+    return data;
+}
+
+static std::vector<uint8_t> make_h91_colorant_order_profile(bool duplicate) {
+    std::vector<uint8_t> clro;
+    clro.insert(clro.end(), {'c','l','r','o', 0,0,0,0, 0,0,0,2});
+    clro.push_back(0);
+    clro.push_back(duplicate ? 0 : 1);
+    while (clro.size() % 4 != 0) {
+        clro.push_back(0);
+    }
+
+    size_t size = 128 + 4 + 12 + clro.size();
+    std::vector<uint8_t> data(size, 0);
+    auto put_hdr_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_hdr_s32 = [&](size_t off, int32_t value) {
+        put_hdr_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_hdr_u32(0, static_cast<uint32_t>(size));
+    put_hdr_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_hdr_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_hdr_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_hdr_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_hdr_u32(128, 1);
+    data[132] = 'c'; data[133] = 'l'; data[134] = 'r'; data[135] = 'o';
+    put_hdr_u32(136, 144);
+    put_hdr_u32(140, static_cast<uint32_t>(clro.size()));
+    std::copy(clro.begin(), clro.end(), data.begin() + 144);
+    return data;
+}
+
+static std::vector<uint8_t> make_h88_chad_profile_singular() {
+    std::vector<uint8_t> sf32;
+    sf32.insert(sf32.end(), {'s','f','3','2', 0,0,0,0});
+    for (int i = 0; i < 9; i++) {
+        sf32.insert(sf32.end(), {0,0,0,0});
+    }
+
+    size_t size = 128 + 4 + 12 + sf32.size();
+    std::vector<uint8_t> data(size, 0);
+    auto put_hdr_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_hdr_s32 = [&](size_t off, int32_t value) {
+        put_hdr_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_hdr_u32(0, static_cast<uint32_t>(size));
+    put_hdr_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_hdr_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_hdr_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_hdr_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_hdr_u32(128, 1);
+    data[132] = 'c'; data[133] = 'h'; data[134] = 'a'; data[135] = 'd';
+    put_hdr_u32(136, 144);
+    put_hdr_u32(140, static_cast<uint32_t>(sf32.size()));
+    std::copy(sf32.begin(), sf32.end(), data.begin() + 144);
+    return data;
+}
+
+static std::vector<uint8_t> make_h87_trc_curve_profile_all_zero() {
+    std::vector<uint8_t> curv;
+    curv.insert(curv.end(), {'c','u','r','v', 0,0,0,0, 0,0,0,3});
+    curv.insert(curv.end(), {0,0, 0,0, 0,0});
+    while (curv.size() % 4 != 0) {
+        curv.push_back(0);
+    }
+
+    size_t size = 128 + 4 + 12 + curv.size();
+    std::vector<uint8_t> data(size, 0);
+    auto put_hdr_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_hdr_s32 = [&](size_t off, int32_t value) {
+        put_hdr_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_hdr_u32(0, static_cast<uint32_t>(size));
+    put_hdr_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_hdr_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_hdr_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_hdr_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_hdr_u32(128, 1);
+    data[132] = 'r'; data[133] = 'T'; data[134] = 'R'; data[135] = 'C';
+    put_hdr_u32(136, 144);
+    put_hdr_u32(140, static_cast<uint32_t>(curv.size()));
+    std::copy(curv.begin(), curv.end(), data.begin() + 144);
+    return data;
+}
+
+static std::vector<uint8_t> make_h93_flags_profile(uint32_t flags, uint64_t attributes) {
+    std::vector<uint8_t> data(132, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_u64 = [&](size_t off, uint64_t value) {
+        for (int shift = 56; shift >= 0; shift -= 8) {
+            data[off++] = static_cast<uint8_t>((value >> shift) & 0xFF);
+        }
+    };
+    auto put_s32 = [&](size_t off, int32_t value) {
+        put_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    put_u32(44, flags);
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_u64(56, attributes);
+    put_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_u32(128, 0);
+    return data;
+}
+
+static std::vector<uint8_t> make_h94_matrix_trc_profile_bad_columns() {
+    auto append_xyz = [](std::vector<uint8_t>& out, int32_t x, int32_t y, int32_t z) {
+        out.insert(out.end(), {'X','Y','Z',' ', 0,0,0,0});
+        auto put_s32 = [&](int32_t value) {
+            out.push_back(static_cast<uint8_t>((static_cast<uint32_t>(value) >> 24) & 0xFF));
+            out.push_back(static_cast<uint8_t>((static_cast<uint32_t>(value) >> 16) & 0xFF));
+            out.push_back(static_cast<uint8_t>((static_cast<uint32_t>(value) >> 8) & 0xFF));
+            out.push_back(static_cast<uint8_t>(static_cast<uint32_t>(value) & 0xFF));
+        };
+        put_s32(x);
+        put_s32(y);
+        put_s32(z);
+    };
+
+    std::vector<uint8_t> r, g, b;
+    append_xyz(r, 0, 0, 0);
+    append_xyz(g, 0, 0, 0);
+    append_xyz(b, 0, 0, 0);
+
+    size_t size = 128 + 4 + 12 * 3 + r.size() + g.size() + b.size();
+    std::vector<uint8_t> data(size, 0);
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+    auto put_s32 = [&](size_t off, int32_t value) {
+        put_u32(off, static_cast<uint32_t>(value));
+    };
+
+    put_u32(0, static_cast<uint32_t>(size));
+    put_u32(8, 0x04400000);
+    data[12] = 'm'; data[13] = 'n'; data[14] = 't'; data[15] = 'r';
+    data[16] = 'R'; data[17] = 'G'; data[18] = 'B'; data[19] = ' ';
+    data[20] = 'X'; data[21] = 'Y'; data[22] = 'Z'; data[23] = ' ';
+    data[36] = 'a'; data[37] = 'c'; data[38] = 's'; data[39] = 'p';
+    data[40] = 'A'; data[41] = 'P'; data[42] = 'P'; data[43] = 'L';
+    data[80] = 't'; data[81] = 'e'; data[82] = 's'; data[83] = 't';
+    put_s32(68, static_cast<int32_t>(0.9642 * 65536));
+    put_s32(72, static_cast<int32_t>(1.0 * 65536));
+    put_s32(76, static_cast<int32_t>(0.8249 * 65536));
+    put_u32(128, 3);
+    data[132] = 'r'; data[133] = 'X'; data[134] = 'Y'; data[135] = 'Z';
+    put_u32(136, 168);
+    put_u32(140, static_cast<uint32_t>(r.size()));
+    data[144] = 'g'; data[145] = 'X'; data[146] = 'Y'; data[147] = 'Z';
+    put_u32(148, 168 + static_cast<uint32_t>(r.size()));
+    put_u32(152, static_cast<uint32_t>(g.size()));
+    data[156] = 'b'; data[157] = 'X'; data[158] = 'Y'; data[159] = 'Z';
+    put_u32(160, 168 + static_cast<uint32_t>(r.size() + g.size()));
+    put_u32(164, static_cast<uint32_t>(b.size()));
+    std::copy(r.begin(), r.end(), data.begin() + 168);
+    std::copy(g.begin(), g.end(), data.begin() + 168 + r.size());
+    std::copy(b.begin(), b.end(), data.begin() + 168 + r.size() + g.size());
+    return data;
+}
+
 static std::vector<uint8_t> make_h165_lut_data_sufficiency_profile() {
     std::vector<uint8_t> data(160, 0);
 
@@ -1675,6 +2182,202 @@ static void test_memory_copy_bounds_overlap_regression() {
     }
 }
 
+static void test_localized_unicode_bounds_regression() {
+    std::printf("  test_localized_unicode_bounds_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "mluc_control_chars.icc", {86});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 86, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h86 = find_per_check(result, CheckID::Kind::Heuristic, 86);
+        ASSERT_TRUE(h86 != nullptr);
+        if (!h86) return;
+
+        bool sawControlChars = false;
+        for (const auto& finding : h86->result.findings) {
+            if (finding.message.find("non-printable control characters") != std::string::npos &&
+                finding.cweNote.find("CWE-116") != std::string::npos) {
+                sawControlChars = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawControlChars);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "mluc_bidi_override.icc", {86});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 86, CheckResult::Status::FINDINGS, 2);
+
+        const auto* h86 = find_per_check(result, CheckID::Kind::Heuristic, 86);
+        ASSERT_TRUE(h86 != nullptr);
+        if (!h86) return;
+
+        bool sawBidiOverride = false;
+        bool sawMixedScripts = false;
+        for (const auto& finding : h86->result.findings) {
+            if (finding.message.find("bidi override/formatting characters") != std::string::npos &&
+                finding.cweNote.find("CWE-116") != std::string::npos) {
+                sawBidiOverride = true;
+            }
+            if (finding.message.find("mixes Latin + non-Latin scripts") != std::string::npos &&
+                finding.cweNote.find("CWE-116") != std::string::npos) {
+                sawMixedScripts = true;
+            }
+        }
+        ASSERT_TRUE(sawBidiOverride);
+        ASSERT_TRUE(sawMixedScripts);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "mluc_embedded_nulls.icc", {86});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 86, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h86 = find_per_check(result, CheckID::Kind::Heuristic, 86);
+        ASSERT_TRUE(h86 != nullptr);
+        if (!h86) return;
+
+        bool sawEmbeddedNulls = false;
+        for (const auto& finding : h86->result.findings) {
+            if (finding.message.find("embedded null characters") != std::string::npos &&
+                finding.cweNote.find("CWE-170") != std::string::npos) {
+                sawEmbeddedNulls = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawEmbeddedNulls);
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(corpusDir / "mluc_mixed_scripts.icc", {86});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 86, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h86 = find_per_check(result, CheckID::Kind::Heuristic, 86);
+        ASSERT_TRUE(h86 != nullptr);
+        if (!h86) return;
+
+        bool sawMixedScripts = false;
+        for (const auto& finding : h86->result.findings) {
+            if (finding.message.find("mixes Latin + non-Latin scripts") != std::string::npos &&
+                finding.cweNote.find("CWE-116") != std::string::npos) {
+                sawMixedScripts = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawMixedScripts);
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {86});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 86, CheckResult::Status::OK, 0);
+    }
+}
+
+static void test_gbd_tary_signed_channel_wrap_regression() {
+    std::printf("  test_gbd_tary_signed_channel_wrap_regression...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    auto profilePath = corpusDir / "gbd_tary_signed_channel_wrap.icc";
+    if (!std::filesystem::exists(profilePath)) {
+        std::printf("    (skipped — gbd_tary_signed_channel_wrap.icc not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(profilePath, {30, 68, 137});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_heuristic_result(result, 30, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 68, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 137, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h30 = find_per_check(result, CheckID::Kind::Heuristic, 30);
+        ASSERT_TRUE(h30 != nullptr);
+        if (!h30) return;
+
+        bool sawAlloc = false;
+        bool sawChannels = false;
+        for (const auto& finding : h30->result.findings) {
+            if (finding.message.find("vertices") != std::string::npos &&
+                finding.cweNote.find("Allocation:") != std::string::npos) {
+                sawAlloc = true;
+            }
+            if (finding.message.find("PCS channels=65535, Device channels=65534") != std::string::npos &&
+                finding.cweNote.find("Signed/unsigned confusion") != std::string::npos) {
+                sawChannels = true;
+            }
+        }
+        ASSERT_TRUE(sawAlloc);
+        ASSERT_TRUE(sawChannels);
+
+        const auto* h68 = find_per_check(result, CheckID::Kind::Heuristic, 68);
+        ASSERT_TRUE(h68 != nullptr);
+        if (h68) {
+            ASSERT_TRUE(!h68->result.findings.empty());
+            ASSERT_TRUE(h68->result.findings.front().message.find("nTriangles=1947472916") != std::string::npos);
+        }
+
+        const auto* h137 = find_per_check(result, CheckID::Kind::Heuristic, 137);
+        ASSERT_TRUE(h137 != nullptr);
+        if (h137) {
+            ASSERT_TRUE(!h137->result.findings.empty());
+            ASSERT_TRUE(h137->result.findings.front().message.find("nTriangles=1947472916") != std::string::npos);
+        }
+    }
+
+    {
+        auto result = analyze_corpus_checks(profilePath, {140, 286, 287});
+        ASSERT_EQ(3, result.stats.checksRun);
+        expect_conformance_result(result, 140, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 286, CheckResult::Status::FINDINGS, 1);
+        expect_conformance_result(result, 287, CheckResult::Status::FINDINGS, 2);
+
+        const auto* cf140 = find_per_check(result, CheckID::Kind::Conformance, 140);
+        ASSERT_TRUE(cf140 != nullptr);
+        if (cf140) {
+            ASSERT_TRUE(cf140->result.summary.find("vertex count field") != std::string::npos);
+            ASSERT_TRUE(cf140->result.summary.find("NOT RUN") == std::string::npos);
+        }
+
+        const auto* cf286 = find_per_check(result, CheckID::Kind::Conformance, 286);
+        ASSERT_TRUE(cf286 != nullptr);
+        if (cf286 && !cf286->result.findings.empty()) {
+            ASSERT_TRUE(cf286->result.findings[0].message.find("max distinct triangles") != std::string::npos);
+        }
+
+        const auto* cf287 = find_per_check(result, CheckID::Kind::Conformance, 287);
+        ASSERT_TRUE(cf287 != nullptr);
+        if (cf287) {
+            bool sawPcs = false;
+            bool sawDev = false;
+            for (const auto& finding : cf287->result.findings) {
+                if (finding.message.find("PCS channels=65535") != std::string::npos) {
+                    sawPcs = true;
+                }
+                if (finding.message.find("device channels=65534") != std::string::npos) {
+                    sawDev = true;
+                }
+            }
+            ASSERT_TRUE(sawPcs);
+            ASSERT_TRUE(sawDev);
+        }
+    }
+}
+
 static void test_profile_sequence_id_validation_regression() {
     std::printf("  test_profile_sequence_id_validation_regression...\n");
 
@@ -1830,6 +2533,307 @@ static void test_tag_size_profile_size_cross_check_regression() {
             ASSERT_EQ(1, result.stats.checksRun);
             expect_heuristic_result(result, 102, CheckResult::Status::SKIP, 0);
         }
+    }
+}
+
+static void test_profile_sequence_desc_validation_regression() {
+    std::printf("  test_profile_sequence_desc_validation_regression...\n");
+
+    {
+        auto one = make_h100_profile_sequence_desc_profile(1);
+        auto profilePath = write_temp_profile(one, "h100-pseq-one.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {100});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 100, CheckResult::Status::OK, 0);
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto many = make_h100_profile_sequence_desc_profile(101);
+        auto profilePath = write_temp_profile(many, "h100-pseq-many.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {100});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 100, CheckResult::Status::FINDINGS, 3);
+
+        const auto* h100 = find_per_check(result, CheckID::Kind::Heuristic, 100);
+        ASSERT_TRUE(h100 != nullptr);
+        if (h100) {
+            bool sawFound = false;
+            bool sawCount = false;
+            bool sawWarn = false;
+            for (const auto& finding : h100->result.findings) {
+                if (finding.message.find("Found ProfileSequenceDesc tag") != std::string::npos) {
+                    sawFound = true;
+                }
+                if (finding.message.find("Sequence description entries: ~101") != std::string::npos) {
+                    sawCount = true;
+                }
+                if (finding.message.find("Excessive sequence entries (101) — DoS risk") != std::string::npos) {
+                    sawWarn = true;
+                }
+            }
+            ASSERT_TRUE(sawFound);
+            ASSERT_TRUE(sawCount);
+            ASSERT_TRUE(sawWarn);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {100});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 100, CheckResult::Status::SKIP, 0);
+        }
+    }
+}
+
+static void test_chromatic_adaptation_matrix_regression() {
+    std::printf("  test_chromatic_adaptation_matrix_regression...\n");
+
+    {
+        auto singular = make_h88_chad_profile_singular();
+        auto profilePath = write_temp_profile(singular, "h88-chad-singular.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {88});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 88, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h88 = find_per_check(result, CheckID::Kind::Heuristic, 88);
+        ASSERT_TRUE(h88 != nullptr);
+        if (h88) {
+            bool sawWarn = false;
+            for (const auto& finding : h88->result.findings) {
+                if (finding.message.find("chad matrix near-singular (det=0.00e+00)") != std::string::npos) {
+                    sawWarn = true;
+                }
+            }
+            ASSERT_TRUE(sawWarn);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {88});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 88, CheckResult::Status::OK, 0);
+        }
+    }
+}
+
+static void test_trc_curve_anomaly_regression() {
+    std::printf("  test_trc_curve_anomaly_regression...\n");
+
+    {
+        auto zeroCurve = make_h87_trc_curve_profile_all_zero();
+        auto profilePath = write_temp_profile(zeroCurve, "h87-trc-zero.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {87});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 87, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h87 = find_per_check(result, CheckID::Kind::Heuristic, 87);
+        ASSERT_TRUE(h87 != nullptr);
+        if (h87) {
+            bool sawWarn = false;
+            for (const auto& finding : h87->result.findings) {
+                if (finding.message.find("Tag 'redTRCTag': TRC curve all-zero (3 points) — clipped output") != std::string::npos) {
+                    sawWarn = true;
+                }
+            }
+            ASSERT_TRUE(sawWarn);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {87});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 87, CheckResult::Status::OK, 0);
+        }
+    }
+}
+
+static void test_embedded_profile_flag_regression() {
+    std::printf("  test_embedded_profile_flag_regression...\n");
+
+    {
+        auto flagged = make_h93_flags_profile(0x00000004u, 0x0000000000000010ULL);
+        auto profilePath = write_temp_profile(flagged, "h93-flags-bad.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {93});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 93, CheckResult::Status::FINDINGS, 2);
+
+        const auto* h93 = find_per_check(result, CheckID::Kind::Heuristic, 93);
+        ASSERT_TRUE(h93 != nullptr);
+        if (h93) {
+            bool sawFlags = false;
+            bool sawAttrs = false;
+            for (const auto& finding : h93->result.findings) {
+                if (finding.message.find("Profile flags=0x00000004: reserved bits set (mask=0x00000004)") != std::string::npos) {
+                    sawFlags = true;
+                }
+                if (finding.message.find("Attributes=0x0000000000000010: reserved bits set") != std::string::npos) {
+                    sawAttrs = true;
+                }
+            }
+            ASSERT_TRUE(sawFlags);
+            ASSERT_TRUE(sawAttrs);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/zero_tags.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {93});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 93, CheckResult::Status::OK, 0);
+        }
+    }
+}
+
+static void test_matrix_trc_colorant_consistency_regression() {
+    std::printf("  test_matrix_trc_colorant_consistency_regression...\n");
+
+    {
+        auto bad = make_h94_matrix_trc_profile_bad_columns();
+        auto profilePath = write_temp_profile(bad, "h94-matrix-bad.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {94});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 94, CheckResult::Status::FINDINGS, 2);
+
+        const auto* h94 = find_per_check(result, CheckID::Kind::Heuristic, 94);
+        ASSERT_TRUE(h94 != nullptr);
+        if (h94) {
+            bool sawWarn = false;
+            bool sawInfo = false;
+            for (const auto& finding : h94->result.findings) {
+                if (finding.message.find("Matrix column sum (0.0000, 0.0000, 0.0000) deviates from D50") != std::string::npos) {
+                    sawWarn = true;
+                }
+                if (finding.message.find("Expected") != std::string::npos &&
+                    finding.message.find("deviation (0.9505, 1.0000, 1.0890)") != std::string::npos) {
+                    sawInfo = true;
+                }
+            }
+            ASSERT_TRUE(sawWarn);
+            ASSERT_TRUE(sawInfo);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {94});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 94, CheckResult::Status::OK, 0);
+        }
+    }
+}
+
+static void test_profile_sequence_description_regression() {
+    std::printf("  test_profile_sequence_description_regression...\n");
+
+    {
+        auto many = make_h100_profile_sequence_desc_profile(257);
+        auto profilePath = write_temp_profile(many, "h89-pseq-many.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {89});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 89, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h89 = find_per_check(result, CheckID::Kind::Heuristic, 89);
+        ASSERT_TRUE(h89 != nullptr);
+        if (h89) {
+            bool sawWarn = false;
+            for (const auto& finding : h89->result.findings) {
+                if (finding.message.find("Profile sequence has 257 descriptions (>256) — OOM risk") != std::string::npos) {
+                    sawWarn = true;
+                }
+            }
+            ASSERT_TRUE(sawWarn);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto corpusPath = resolve_repo_file("tests/corpus/valid_srgb.icc");
+        ASSERT_FALSE(corpusPath.empty());
+        if (!corpusPath.empty()) {
+            auto result = analyze_corpus_heuristics(corpusPath, {89});
+            ASSERT_EQ(1, result.stats.checksRun);
+            expect_heuristic_result(result, 89, CheckResult::Status::OK, 0);
+        }
+    }
+}
+
+static void test_colorant_order_validation_regression() {
+    std::printf("  test_colorant_order_validation_regression...\n");
+
+    {
+        auto dup = make_h91_colorant_order_profile(true);
+        auto profilePath = write_temp_profile(dup, "h91-clro-dup.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {91});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 91, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h91 = find_per_check(result, CheckID::Kind::Heuristic, 91);
+        ASSERT_TRUE(h91 != nullptr);
+        if (h91) {
+            bool sawDup = false;
+            for (const auto& finding : h91->result.findings) {
+                if (finding.message.find("ColorantOrder has duplicate index 0") != std::string::npos) {
+                    sawDup = true;
+                }
+            }
+            ASSERT_TRUE(sawDup);
+        }
+        std::filesystem::remove(profilePath);
+    }
+
+    {
+        auto clean = make_h91_colorant_order_profile(false);
+        auto profilePath = write_temp_profile(clean, "h91-clro-ok.icc");
+        ASSERT_FALSE(profilePath.empty());
+        if (profilePath.empty()) return;
+
+        auto result = analyze_corpus_heuristics(profilePath, {91});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 91, CheckResult::Status::OK, 0);
+        std::filesystem::remove(profilePath);
     }
 }
 
@@ -2177,6 +3181,380 @@ static void test_copy_constructor_null_pcs_regression() {
     }
 }
 
+static void test_h20_tag_type_signature_regression() {
+    std::printf("  test_h20_tag_type_signature_regression...\n");
+
+    {
+        auto data = make_h20_tag_type_signature_profile(0x00000000u);
+        auto path = write_temp_profile(data, "icctest-h20-null-type.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {20});
+        ASSERT_EQ(1, result.stats.checksRun);
+
+        const auto* h20 = find_per_check(result, CheckID::Kind::Heuristic, 20);
+        ASSERT_TRUE(h20 != nullptr);
+        if (!h20) {
+            return;
+        }
+
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h20->result.status);
+        ASSERT_EQ(1, h20->result.issueCount());
+        ASSERT_TRUE(h20->result.findings[0].message.find("null type signature") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {20});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 20, CheckResult::Status::OK, 0);
+
+        const auto* h20 = find_per_check(cleanResult, CheckID::Kind::Heuristic, 20);
+        ASSERT_TRUE(h20 != nullptr);
+        if (!h20) {
+            return;
+        }
+        ASSERT_TRUE(h20->result.summary.find("All tag type signatures are valid ASCII") != std::string::npos);
+    }
+}
+
+static void test_h18_technology_signature_regression() {
+    std::printf("  test_h18_technology_signature_regression...\n");
+
+    {
+        auto data = make_h18_technology_signature_profile(0xFFFFFFFFu);
+        auto path = write_temp_profile(data, "icctest-h18-tech-invalid.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {18});
+        ASSERT_EQ(1, result.stats.checksRun);
+
+        const auto* h18 = find_per_check(result, CheckID::Kind::Heuristic, 18);
+        ASSERT_TRUE(h18 != nullptr);
+        if (!h18) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h18->result.status);
+        ASSERT_TRUE(h18->result.findings[0].message.find("Unknown technology signature") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {18});
+    ASSERT_EQ(1, cleanResult.stats.checksRun);
+    expect_heuristic_result(cleanResult, 18, CheckResult::Status::OK, 0);
+    const auto* h18 = find_per_check(cleanResult, CheckID::Kind::Heuristic, 18);
+    ASSERT_TRUE(h18 != nullptr);
+    if (h18) {
+        ASSERT_TRUE(h18->result.summary.find("No technology tag present") != std::string::npos);
+    }
+}
+
+static void test_h25_tag_offset_oob_regression() {
+    std::printf("  test_h25_tag_offset_oob_regression...\n");
+
+    {
+        auto data = make_h25_tag_offset_oob_profile();
+        auto path = write_temp_profile(data, "icctest-h25-offset-oob.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {25});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h25 = find_per_check(result, CheckID::Kind::Heuristic, 25);
+        ASSERT_TRUE(h25 != nullptr);
+        if (!h25) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h25->result.status);
+        ASSERT_TRUE(h25->result.findings[0].message.find("beyond file/profile bounds") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) return;
+    auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {25});
+    ASSERT_EQ(1, cleanResult.stats.checksRun);
+    expect_heuristic_result(cleanResult, 25, CheckResult::Status::OK, 0);
+}
+
+static void test_h26_named_color2_string_regression() {
+    std::printf("  test_h26_named_color2_string_regression...\n");
+
+    {
+        auto data = make_h26_named_color2_string_profile(true);
+        auto path = write_temp_profile(data, "icctest-h26-ncl2-bad.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {26});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h26 = find_per_check(result, CheckID::Kind::Heuristic, 26);
+        ASSERT_TRUE(h26 != nullptr);
+        if (!h26) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h26->result.status);
+        bool sawPrefix = false;
+        bool sawSuffix = false;
+        for (const auto& finding : h26->result.findings) {
+            if (finding.message.find("Prefix not null-terminated") != std::string::npos) sawPrefix = true;
+            if (finding.message.find("Suffix not null-terminated") != std::string::npos) sawSuffix = true;
+        }
+        ASSERT_TRUE(sawPrefix);
+        ASSERT_TRUE(sawSuffix);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h26_named_color2_string_profile(false);
+        auto path = write_temp_profile(data, "icctest-h26-ncl2-ok.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {26});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 26, CheckResult::Status::OK, 0);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+}
+
+static void test_h28_lut_dimension_regression() {
+    std::printf("  test_h28_lut_dimension_regression...\n");
+
+    {
+        auto data = make_h28_lut_dimension_profile(17, 3, 2);
+        auto path = write_temp_profile(data, "icctest-h28-lut-bad.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {28});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h28 = find_per_check(result, CheckID::Kind::Heuristic, 28);
+        ASSERT_TRUE(h28 != nullptr);
+        if (!h28) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h28->result.status);
+        ASSERT_TRUE(h28->result.findings[0].message.find("exceeds spec max (16)") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h28_lut_dimension_profile(3, 3, 2);
+        auto path = write_temp_profile(data, "icctest-h28-lut-ok.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {28});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 28, CheckResult::Status::OK, 0);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+}
+
+static void test_h29_colorant_table_string_regression() {
+    std::printf("  test_h29_colorant_table_string_regression...\n");
+
+    {
+        auto data = make_h29_colorant_table_profile(true);
+        auto path = write_temp_profile(data, "icctest-h29-clrt-bad.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {29});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h29 = find_per_check(result, CheckID::Kind::Heuristic, 29);
+        ASSERT_TRUE(h29 != nullptr);
+        if (!h29) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h29->result.status);
+        ASSERT_TRUE(h29->result.issueCount() >= 2);
+        ASSERT_TRUE(h29->result.findings[0].message.find("Colorant[0] name not null-terminated") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    {
+        auto data = make_h29_colorant_table_profile(false);
+        auto path = write_temp_profile(data, "icctest-h29-clrt-ok.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {29});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 29, CheckResult::Status::OK, 0);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+}
+
+static void test_h31_mpe_channel_count_regression() {
+    std::printf("  test_h31_mpe_channel_count_regression...\n");
+
+    {
+        auto data = make_h31_mpe_channel_count_profile(33);
+        auto path = write_temp_profile(data, "icctest-h31-mpet-bad.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {31});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h31 = find_per_check(result, CheckID::Kind::Heuristic, 31);
+        ASSERT_TRUE(h31 != nullptr);
+        if (!h31) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h31->result.status);
+        ASSERT_TRUE(h31->result.findings[0].message.find("MPE channels in=33 out=33 (>32)") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) return;
+    auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {31});
+    ASSERT_EQ(1, cleanResult.stats.checksRun);
+    expect_heuristic_result(cleanResult, 31, CheckResult::Status::OK, 0);
+}
+
+static void test_h32_tag_data_type_confusion_regression() {
+    std::printf("  test_h32_tag_data_type_confusion_regression...\n");
+
+    {
+        auto data = make_h32_unknown_type_profile(0x7A7A7A7Au); // 'zzzz'
+        auto path = write_temp_profile(data, "icctest-h32-unknown-type.icc");
+        ASSERT_FALSE(path.empty());
+        if (path.empty()) {
+            return;
+        }
+
+        auto result = analyze_corpus_heuristics(path, {32});
+        ASSERT_EQ(1, result.stats.checksRun);
+        const auto* h32 = find_per_check(result, CheckID::Kind::Heuristic, 32);
+        ASSERT_TRUE(h32 != nullptr);
+        if (!h32) {
+            return;
+        }
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h32->result.status);
+        ASSERT_TRUE(h32->result.findings[0].message.find("unknown type signature 'zzzz'") != std::string::npos);
+
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) return;
+    auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {32});
+    ASSERT_EQ(1, cleanResult.stats.checksRun);
+    expect_heuristic_result(cleanResult, 32, CheckResult::Status::OK, 0);
+}
+
+static void test_h52_tag_size_underflow_regression() {
+    std::printf("  test_h52_tag_size_underflow_regression...\n");
+
+    auto pocPath = resolve_repo_file("test-profiles/cfl065-nEnd-underflow-v4.icc");
+    if (pocPath.empty()) {
+        std::printf("    (skipped — cfl065-nEnd-underflow-v4.icc not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(pocPath, {52});
+        ASSERT_EQ(1, result.stats.checksRun);
+
+        const auto* h52 = find_per_check(result, CheckID::Kind::Heuristic, 52);
+        ASSERT_TRUE(h52 != nullptr);
+        if (!h52) {
+            return;
+        }
+
+        ASSERT_EQ(CheckResult::Status::FINDINGS, h52->result.status);
+        ASSERT_TRUE(h52->result.issueCount() >= 1);
+
+        bool sawOffsetOverflow = false;
+        for (const auto& finding : h52->result.findings) {
+            if (finding.message.find("B-curves offset") != std::string::npos &&
+                finding.message.find("underflows to ~4GB") != std::string::npos &&
+                finding.cweNote.find("CFL-065") != std::string::npos) {
+                sawOffsetOverflow = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawOffsetOverflow);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {52});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 52, CheckResult::Status::OK, 0);
+
+        const auto* h52 = find_per_check(cleanResult, CheckID::Kind::Heuristic, 52);
+        ASSERT_TRUE(h52 != nullptr);
+        if (!h52) {
+            return;
+        }
+        ASSERT_TRUE(h52->result.summary.find("No integer underflow in tag sizes") != std::string::npos);
+    }
+}
+
 static void test_lut_matrix_coefficient_validation_regression() {
     std::printf("  test_lut_matrix_coefficient_validation_regression...\n");
 
@@ -2296,6 +3674,49 @@ static void test_spectral_mpe_h98_gap_fixture() {
     }
 }
 
+static void test_failed_load_heuristic_parity_regression_cluster() {
+    std::printf("  test_failed_load_heuristic_parity_regression_cluster...\n");
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped — tests/corpus not found)\n");
+        return;
+    }
+
+    const char* names[] = {
+        "calculator_deep_nesting.icc",
+        "cf138-ehim-short.icc",
+        "cf139-enim-short.icc",
+        "cf140-gbd-short.icc",
+        "cf140-gbd-valid.icc",
+    };
+
+    for (const char* name : names) {
+        auto result = analyze_corpus_heuristics(corpusDir / name, {97, 99, 100, 147, 172});
+        ASSERT_EQ(5, result.stats.checksRun);
+
+        expect_heuristic_result(result, 97, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 99, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 100, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 172, CheckResult::Status::SKIP, 0);
+        expect_heuristic_result(result, 147, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h147 = find_per_check(result, CheckID::Kind::Heuristic, 147);
+        ASSERT_TRUE(h147 != nullptr);
+        if (!h147) return;
+
+        bool sawNullTag = false;
+        for (const auto& finding : h147->result.findings) {
+            if (finding.message.find("pTag pointer is null") != std::string::npos &&
+                finding.cweNote.find("CWE-476") != std::string::npos) {
+                sawNullTag = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(sawNullTag);
+    }
+}
+
 static void test_cf115_only_emits_raw_findings_when_quarantined() {
     std::printf("  test_cf115_only_emits_raw_findings_when_quarantined...\n");
 
@@ -2315,9 +3736,11 @@ static void test_cf115_only_emits_raw_findings_when_quarantined() {
             return;
         }
 
-        ASSERT_EQ(CheckResult::Status::SKIP, cf115->result.status);
-        ASSERT_EQ(0, cf115->result.issueCount());
-        ASSERT_TRUE(cf115->result.summary.rfind("NOT RUN: Profile failed to load", 0) == 0);
+        ASSERT_EQ(CheckResult::Status::FINDINGS, cf115->result.status);
+        ASSERT_EQ(1, cf115->result.issueCount());
+        ASSERT_TRUE(cf115->result.summary == "Calculator complexity issues");
+        ASSERT_TRUE(cf115->result.findings[0].message.find("MPE element table structurally invalid") != std::string::npos);
+        ASSERT_TRUE(cf115->result.findings[0].cweNote.find("IccTagMPE.cpp:1042") != std::string::npos);
     }
 }
 
@@ -2454,16 +3877,35 @@ void test_runner() {
     test_null_mpe_clut_curve_guard_regression();
     test_null_pointer_after_tag_read_regression();
     test_memory_copy_bounds_overlap_regression();
+    test_localized_unicode_bounds_regression();
+    test_gbd_tary_signed_channel_wrap_regression();
     test_profile_sequence_id_validation_regression();
     test_tag_size_profile_size_cross_check_regression();
+    test_trc_curve_anomaly_regression();
+    test_chromatic_adaptation_matrix_regression();
+    test_embedded_profile_flag_regression();
+    test_matrix_trc_colorant_consistency_regression();
+    test_profile_sequence_description_regression();
+    test_profile_sequence_desc_validation_regression();
+    test_colorant_order_validation_regression();
     test_unchecked_allocation_size_overflow_regression();
     test_alloc_dealloc_and_uaf_ownership_regressions();
     test_deep_apply_stack_escape_regression();
     test_dictionary_tag_element_bounds_regression();
     test_lut_data_sufficiency_regression();
     test_copy_constructor_null_pcs_regression();
+    test_h18_technology_signature_regression();
+    test_h20_tag_type_signature_regression();
+    test_h25_tag_offset_oob_regression();
+    test_h26_named_color2_string_regression();
+    test_h28_lut_dimension_regression();
+    test_h29_colorant_table_string_regression();
+    test_h31_mpe_channel_count_regression();
+    test_h32_tag_data_type_confusion_regression();
+    test_h52_tag_size_underflow_regression();
     test_lut_matrix_coefficient_validation_regression();
     test_spectral_mpe_h98_gap_fixture();
+    test_failed_load_heuristic_parity_regression_cluster();
     test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();

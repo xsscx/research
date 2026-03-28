@@ -9,6 +9,12 @@
 #include "icctest/CheckRegistry.h"
 #include "util/CheckHelpers.h"
 
+#include "IccSignatureUtils.h"
+#include "IccProfile.h"
+#include "IccTagBasic.h"
+#include "IccTagMPE.h"
+#include "IccUtil.h"
+
 #include <algorithm>
 #include <set>
 
@@ -210,8 +216,23 @@ static CheckResult check_h18_technology_signature(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
     if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H18
-    return cb.done("Technology Signature checked");
+    auto* pSigTag = dynamic_cast<CIccTagSignature*>(p->FindTag(icSigTechnologyTag));
+    if (!pSigTag) {
+        return cb.done("No technology tag present");
+    }
+
+    icTechnologySignature techSig =
+        static_cast<icTechnologySignature>(pSigTag->GetValue());
+    if (IsValidTechnologySignature(techSig)) {
+        CIccInfo techInfo;
+        return cb.done(sfmt("Valid technology: %s",
+                            techInfo.GetTechnologySigName(techSig)));
+    }
+
+    cb.warn(sfmt("Unknown technology signature: 0x%08X",
+                 static_cast<unsigned>(techSig)),
+            "Risk: Non-standard technology, possible parser issue");
+    return cb.done("Technology signature invalid");
 }
 
 REGISTER_HEURISTIC(18, "Technology Signature",
@@ -223,10 +244,35 @@ REGISTER_HEURISTIC(18, "Technology Signature",
 static CheckResult check_h20_tag_type_signature(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H20
-    return cb.done("Tag Type Signature checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 8) continue;
+        if (!rawRangeAccessible(pv.rawSize(), tag.offset, 4)) continue;
+
+        const uint8_t* typeBuf = pv.rawData() + tag.offset;
+        bool allPrintable = true;
+        bool allZero = true;
+        for (int b = 0; b < 4; ++b) {
+            if (typeBuf[b] != 0) allZero = false;
+            if (typeBuf[b] < 0x20 || typeBuf[b] > 0x7E) allPrintable = false;
+        }
+
+        if (allZero) {
+            cb.warn(
+                sfmt("Tag '%s' has null type signature (0x00000000)",
+                     sigStr(tag.signature).c_str()),
+                "Risk: Corrupted tag data — parser may misinterpret");
+        } else if (!allPrintable) {
+            cb.warn(
+                sfmt("Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X",
+                     sigStr(tag.signature).c_str(),
+                     typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]),
+                "Risk: Malformed type bytes — possible type confusion");
+        }
+    }
+
+    return cb.done("All tag type signatures are valid ASCII");
 }
 
 REGISTER_HEURISTIC(20, "Tag Type Signature",
@@ -297,11 +343,34 @@ REGISTER_HEURISTIC(24, "Tag Struct Nesting Depth",
 
 static CheckResult check_h25_tag_offset_oob(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H25
-    return cb.done("Tag Offset OOB checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    uint32_t hdrProfileSize = readU32BE(pv.rawData());
+    size_t bound = std::min<size_t>(pv.rawSize(), hdrProfileSize);
+    int oobCount = 0;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        uint64_t tagEnd = static_cast<uint64_t>(tag.offset) + tag.size;
+        if (tag.offset >= bound) {
+            cb.warn(
+                sfmt("Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)",
+                     sigStr(tag.signature).c_str(), tag.offset, bound),
+                "Risk: Heap-buffer-overflow when loading OOB tags");
+            ++oobCount;
+        } else if (tagEnd > bound) {
+            cb.warn(
+                sfmt("Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)",
+                     sigStr(tag.signature).c_str(), tag.offset, tag.size,
+                     static_cast<unsigned long long>(tagEnd - bound), bound),
+                "Risk: Heap-buffer-overflow when loading OOB tags");
+            ++oobCount;
+        }
+    }
+
+    if (oobCount > 0) {
+        cb.info(sfmt("%d tag(s) reference data beyond file/profile bounds", oobCount));
+    }
+    return cb.done("All tag offsets/sizes within bounds");
 }
 
 REGISTER_HEURISTIC(25, "Tag Offset OOB",
@@ -312,11 +381,75 @@ REGISTER_HEURISTIC(25, "Tag Offset OOB",
 
 static CheckResult check_h26_named_color2string_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H26
-    return cb.done("Named Color2String Validation checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    auto countXmlExpand = [](const uint8_t* buf, int len) {
+        int ct = 0;
+        for (int j = 0; j < len && buf[j] != 0; ++j) {
+            if (buf[j] == '\'' || buf[j] == '"' || buf[j] == '&' ||
+                buf[j] == '<'  || buf[j] == '>') {
+                ++ct;
+            }
+        }
+        return ct;
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 84) continue;
+        if (!rawRangeAccessible(pv.rawSize(), tag.offset, 84)) continue;
+
+        const uint8_t* ptr = pv.rawData() + tag.offset;
+        if (readU32BE(ptr) != 0x6E636C32u) continue; // 'ncl2'
+
+        const uint8_t* prefix = ptr + 20;
+        const uint8_t* suffix = ptr + 52;
+        int prefixLen = 0, suffixLen = 0;
+        while (prefixLen < 32 && prefix[prefixLen]) ++prefixLen;
+        while (suffixLen < 32 && suffix[suffixLen]) ++suffixLen;
+
+        int prefixExpand = countXmlExpand(prefix, 32);
+        int suffixExpand = countXmlExpand(suffix, 32);
+        int prefixExpanded = prefixLen + prefixExpand * 5;
+        int suffixExpanded = suffixLen + suffixExpand * 5;
+
+        if (prefixExpanded > 255) {
+            cb.critical(
+                sfmt("Prefix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
+                     prefixLen, prefixExpand, prefixExpanded),
+                "Risk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)");
+        } else if (prefixExpand > 0 && prefixLen > 20) {
+            cb.warn(
+                sfmt("Prefix has %d XML-expandable chars in %d-byte string (expanded: %d)",
+                     prefixExpand, prefixLen, prefixExpanded));
+        }
+
+        if (suffixExpanded > 255) {
+            cb.critical(
+                sfmt("Suffix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
+                     suffixLen, suffixExpand, suffixExpanded),
+                "Risk: Stack-buffer-overflow in icFixXml() (SCARINESS:55 class)");
+        } else if (suffixExpand > 0 && suffixLen > 20) {
+            cb.warn(
+                sfmt("Suffix has %d XML-expandable chars in %d-byte string (expanded: %d)",
+                     suffixExpand, suffixLen, suffixExpanded));
+        }
+
+        bool prefixUnterminated = true, suffixUnterminated = true;
+        for (int j = 0; j < 32; ++j) {
+            if (prefix[j] == 0) prefixUnterminated = false;
+            if (suffix[j] == 0) suffixUnterminated = false;
+        }
+        if (prefixUnterminated) {
+            cb.warn("Prefix not null-terminated (all 32 bytes non-zero)",
+                    "Risk: strlen overflow, icFixXml reads past buffer boundary");
+        }
+        if (suffixUnterminated) {
+            cb.warn("Suffix not null-terminated (all 32 bytes non-zero)",
+                    "Risk: strlen overflow, icFixXml reads past buffer boundary");
+        }
+    }
+
+    return cb.done("No NamedColor2 tags with risky strings");
 }
 
 REGISTER_HEURISTIC(26, "Named Color2String Validation",
@@ -342,11 +475,64 @@ REGISTER_HEURISTIC(27, "MPE Matrix Output Channel",
 
 static CheckResult check_h28_lut_dimension_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H28
-    return cb.done("LUT Dimension Validation checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    constexpr uint32_t kLut8 = 0x6D667431u;  // 'mft1'
+    constexpr uint32_t kLut16 = 0x6D667432u; // 'mft2'
+    constexpr uint64_t kMaxLutPoints = 16ull * 1024ull * 1024ull;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 11) continue;
+        if (!rawRangeAccessible(pv.rawSize(), tag.offset, 11)) continue;
+
+        const uint8_t* lutHdr = pv.rawData() + tag.offset;
+        uint32_t lutType = readU32BE(lutHdr);
+        if (lutType != kLut8 && lutType != kLut16) continue;
+
+        uint8_t nInput = lutHdr[8];
+        uint8_t nOutput = lutHdr[9];
+        uint8_t nGrid = lutHdr[10];
+        const char* lutName = lutType == kLut8 ? "LUT8" : "LUT16";
+
+        if (nInput > 16 || nOutput > 16) {
+            cb.warn(
+                sfmt("Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)",
+                     sigStr(tag.signature).c_str(), lutName, nInput, nOutput),
+                "Risk: Buffer overflow in grid point arrays (max 16 channels)");
+            continue;
+        }
+
+        uint64_t points = 1;
+        bool overflow = false;
+        for (uint8_t ch = 0; ch < nInput; ++ch) {
+            uint64_t prev = points;
+            points *= nGrid;
+            if (nGrid > 0 && points / nGrid != prev) {
+                overflow = true;
+                break;
+            }
+        }
+        if (!overflow) {
+            uint64_t prev = points;
+            points *= nOutput;
+            if (nOutput > 0 && points / nOutput != prev) {
+                overflow = true;
+            }
+        }
+
+        if (overflow || points > kMaxLutPoints) {
+            cb.warn(
+                sfmt("Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u -> %s CLUT points",
+                     sigStr(tag.signature).c_str(), lutName, nInput, nOutput, nGrid,
+                     overflow ? "OVERFLOW" : sfmt("%llu",
+                         static_cast<unsigned long long>(points)).c_str()),
+                sfmt("Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
+                     overflow ? ">2^64" : sfmt("%llu",
+                         static_cast<unsigned long long>(points * 4ull)).c_str()));
+        }
+    }
+
+    return cb.done("All LUT dimensions within safe limits");
 }
 
 REGISTER_HEURISTIC(28, "LUT Dimension Validation",
@@ -357,11 +543,55 @@ REGISTER_HEURISTIC(28, "LUT Dimension Validation",
 
 static CheckResult check_h29_colorant_table_string_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H29
-    return cb.done("Colorant Table String Validation checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 12) continue;
+        if (!rawRangeAccessible(pv.rawSize(), tag.offset, 12)) continue;
+
+        const uint8_t* ptr = pv.rawData() + tag.offset;
+        if (readU32BE(ptr) != 0x636C7274u) continue; // 'clrt'
+
+        uint32_t colorantCount = readU32BE(ptr + 8);
+        if (colorantCount > 256) {
+            cb.warn(sfmt("ColorantTable: count=%u (>256) — excessive allocation risk",
+                         colorantCount));
+            continue;
+        }
+
+        uint32_t unterminatedCount = 0;
+        for (uint32_t i = 0; i < colorantCount && i < 256; ++i) {
+            uint64_t namePos = static_cast<uint64_t>(tag.offset) + 12ull +
+                               static_cast<uint64_t>(i) * 38ull;
+            if (!rawRangeAccessible(pv.rawSize(), static_cast<size_t>(namePos), 32)) break;
+
+            const uint8_t* name = pv.rawData() + namePos;
+            bool hasNull = false;
+            for (int j = 0; j < 32; ++j) {
+                if (name[j] == 0) {
+                    hasNull = true;
+                    break;
+                }
+            }
+            if (!hasNull) {
+                cb.critical(
+                    sfmt("Colorant[%u] name not null-terminated (all 32 bytes non-zero)", i),
+                    "GHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name[32]");
+                ++unterminatedCount;
+            }
+        }
+
+        if (unterminatedCount > 1) {
+            size_t allocSize = static_cast<size_t>(colorantCount) * 38u;
+            cb.critical(
+                sfmt("%u/%u colorant entries lack null terminator",
+                     unterminatedCount, colorantCount),
+                sfmt("Allocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer",
+                     colorantCount, allocSize));
+        }
+    }
+
+    return cb.done("No ColorantTable string issues detected");
 }
 
 REGISTER_HEURISTIC(29, "Colorant Table String Validation",
@@ -372,11 +602,90 @@ REGISTER_HEURISTIC(29, "Colorant Table String Validation",
 
 static CheckResult check_h30_gamut_boundary_desc_allocation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H30
-    return cb.done("Gamut Boundary Desc Allocation checked");
+    if (pv.rawSize() < 132) return CheckResult::skip("File too small for tag table");
+
+    auto scanGbdRecord = [&](const std::string& ownerSig,
+                             const uint8_t* hdr,
+                             uint32_t logicalSize) {
+        uint16_t nPCSCh = static_cast<uint16_t>(hdr[8]) << 8 | hdr[9];
+        uint16_t nDevCh = static_cast<uint16_t>(hdr[10]) << 8 | hdr[11];
+        uint32_t nVerts = readU32BE(hdr + 12);
+        uint32_t nTris  = readU32BE(hdr + 16);
+
+        uint64_t triAlloc = static_cast<uint64_t>(nTris) * 12ull;
+        uint64_t vertAlloc = static_cast<uint64_t>(nVerts) *
+                             (12ull + static_cast<uint64_t>(nPCSCh) * 4ull +
+                              static_cast<uint64_t>(nDevCh) * 4ull);
+        uint64_t totalAlloc = triAlloc + vertAlloc + 24ull;
+
+        if (totalAlloc > static_cast<uint64_t>(logicalSize) * 4ull) {
+            cb.warn(sfmt("Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
+                         ownerSig.c_str(), nVerts, nTris, nPCSCh, nDevCh),
+                    sfmt("Allocation: %llu bytes vs tag size %u bytes; Risk: OOM in CIccTagGamutBoundaryDesc::Read()",
+                         static_cast<unsigned long long>(totalAlloc), logicalSize));
+        }
+        if (nPCSCh > 3 || nDevCh > 15) {
+            cb.warn(sfmt("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+                         ownerSig.c_str(), nPCSCh, nDevCh),
+                    "Risk: Signed/unsigned confusion in allocation size");
+        }
+    };
+
+    const uint8_t* raw = pv.rawData();
+    size_t rawLen = pv.rawSize();
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 20) || tag.size < 20) {
+            continue;
+        }
+
+        uint32_t typeSig = readU32BE(raw + tag.offset);
+        if (typeSig == 0x67626420) {  // 'gbd '
+            scanGbdRecord(sigStr(tag.signature), raw + tag.offset, tag.size);
+            continue;
+        }
+
+        if (typeSig != 0x74617279 || tag.size < 16) {  // 'tary'
+            continue;
+        }
+
+        if (!rawRangeAccessible(rawLen, tag.offset, 16)) {
+            continue;
+        }
+        uint32_t elemCount = readU32BE(raw + tag.offset + 12);
+        if (elemCount == 0 || elemCount > 256) {
+            continue;
+        }
+
+        uint64_t tableStart = static_cast<uint64_t>(tag.offset) + 16ull;
+        uint64_t tableEnd = tableStart + static_cast<uint64_t>(elemCount) * 8ull;
+        uint64_t ownerEnd = static_cast<uint64_t>(tag.offset) + static_cast<uint64_t>(tag.size);
+        if (tableEnd > rawLen || tableEnd > ownerEnd) {
+            continue;
+        }
+
+        for (uint32_t i = 0; i < elemCount; i++) {
+            size_t recOff = tag.offset + 16 + static_cast<size_t>(i) * 8;
+            uint32_t childOff = readU32BE(raw + recOff);
+            uint32_t childSz  = readU32BE(raw + recOff + 4);
+            if (!childOff || childSz < 20) {
+                continue;
+            }
+
+            uint64_t childAbs = static_cast<uint64_t>(tag.offset) + static_cast<uint64_t>(childOff);
+            if (childAbs + 20 > rawLen || childAbs + childSz > ownerEnd) {
+                continue;
+            }
+
+            const uint8_t* child = raw + childAbs;
+            if (readU32BE(child) != 0x67626420) {
+                continue;
+            }
+
+            scanGbdRecord(sfmt("%s[tary]", sigStr(tag.signature).c_str()), child, childSz);
+        }
+    }
+
+    return cb.done("No GamutBoundaryDesc allocation issues");
 }
 
 REGISTER_HEURISTIC(30, "Gamut Boundary Desc Allocation",
@@ -390,8 +699,46 @@ static CheckResult check_h31_mpe_channel_count(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
     if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H31
-    return cb.done("MPE Channel Count checked");
+
+    icUInt32Number mpeSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag
+    };
+
+    for (auto sig : mpeSigs) {
+        auto* mpe = dynamic_cast<CIccTagMultiProcessElement*>(p->FindTag((icTagSignature)sig));
+        if (!mpe) continue;
+
+        icUInt16Number mpeIn = mpe->NumInputChannels();
+        icUInt16Number mpeOut = mpe->NumOutputChannels();
+        std::string sigName = sigStr(sig);
+
+        if (mpeIn > 32 || mpeOut > 32) {
+            cb.warn(
+                sfmt("Tag '%s': MPE channels in=%u out=%u (>32)",
+                     sigName.c_str(), mpeIn, mpeOut),
+                "Risk: memcpy-param-overlap in Apply(), stack buffer overflow");
+        }
+
+        icUInt32Number nElems = mpe->NumElements();
+        for (icUInt32Number i = 0; i < nElems && i < 64; ++i) {
+            CIccMultiProcessElement* elem = mpe->GetElement(i);
+            if (!elem) continue;
+
+            icUInt16Number elemIn = elem->NumInputChannels();
+            icUInt16Number elemOut = elem->NumOutputChannels();
+            if (elemIn > 64 || elemOut > 64) {
+                cb.warn(
+                    sfmt("Tag '%s' elem %u: channels in=%u out=%u (extreme)",
+                         sigName.c_str(), i, elemIn, elemOut),
+                    "Risk: Stack buffer overflow in element Apply()");
+            }
+        }
+    }
+
+    return cb.done("All MPE channel counts within safe limits");
 }
 
 REGISTER_HEURISTIC(31, "MPE Channel Count",
@@ -402,11 +749,51 @@ REGISTER_HEURISTIC(31, "MPE Channel Count",
 
 static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H32
-    return cb.done("Tag Data Type Confusion checked");
+    if (!pv.rawData() || pv.rawSize() < 132) return cb.done("File too small");
+
+    static const uint32_t knownTypes[] = {
+        0x63757276u, 0x70617261u, 0x6D667431u, 0x6D667432u, 0x6D414220u,
+        0x6D424120u, 0x6D706574u, 0x58595A20u, 0x74657874u, 0x64657363u,
+        0x6D6C7563u, 0x73663332u, 0x75663332u, 0x73696720u, 0x64617461u,
+        0x6474696Du, 0x76696577u, 0x6D656173u, 0x6E636C32u, 0x636C7274u,
+        0x636C726Fu, 0x63727064u, 0x75693038u, 0x75693136u, 0x75693332u,
+        0x75693634u, 0x666C3136u, 0x666C3332u, 0x666C3634u, 0x67626420u,
+        0x63696370u, 0x73706563u, 0x736D6174u, 0x74617279u, 0x74737472u,
+        0x7A757466u, 0x7A786D6Cu, 0x75746638u, 0x64696374u, 0x656D6274u,
+        0x636F6C52u, 0x636F6C53u, 0x7376636Eu, 0x7364696Eu, 0x736D7769u,
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 4) continue;
+        if (!rawRangeAccessible(pv.rawSize(), tag.offset, 4)) continue;
+
+        uint32_t dataType = readU32BE(pv.rawData() + tag.offset);
+        bool isKnown = false;
+        for (uint32_t known : knownTypes) {
+            if (dataType == known) {
+                isKnown = true;
+                break;
+            }
+        }
+        if (isKnown) continue;
+
+        bool allPrintable = true;
+        for (int b = 0; b < 4; ++b) {
+            uint8_t c = static_cast<uint8_t>((dataType >> (24 - b * 8)) & 0xFFu);
+            if (c < 0x20 || c > 0x7E) {
+                allPrintable = false;
+                break;
+            }
+        }
+        if (!allPrintable) continue;  // H20 already owns non-printable types.
+
+        cb.warn(
+            sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",
+                 sigStr(tag.signature).c_str(), sigStr(dataType).c_str(), dataType),
+            "Risk: Type confusion -> wrong parser invoked -> memory corruption");
+    }
+
+    return cb.done("All tag type signatures are known ICC types");
 }
 
 REGISTER_HEURISTIC(32, "Tag Data Type Confusion",

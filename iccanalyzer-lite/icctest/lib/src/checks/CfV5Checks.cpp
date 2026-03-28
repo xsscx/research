@@ -137,6 +137,17 @@ static T* FindAndCast(CIccProfile* pIcc, icTagSignature sig) {
     return dynamic_cast<T*>(tag);
 }
 
+static uint64_t choose3Clamped(uint32_t n) {
+    if (n < 3) return 0;
+    if (n > 1000000u) return UINT64_MAX;
+    unsigned __int128 v = static_cast<unsigned __int128>(n) *
+                          static_cast<unsigned __int128>(n - 1u) *
+                          static_cast<unsigned __int128>(n - 2u);
+    v /= 6u;
+    if (v > static_cast<unsigned __int128>(UINT64_MAX)) return UINT64_MAX;
+    return static_cast<uint64_t>(v);
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CF-080: Spectral PCS Signature (ICC.2-2023 §7.2.22)
@@ -553,7 +564,7 @@ static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& p
 static CheckResult check_cf115_calculator_element_complexity(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     if (!pv.libraryLoaded()) {
-        if (!pv.librarySkippedDueToUB()) {
+        if (!pv.requiresLibraryQuarantine()) {
             return CheckResult::skip("NOT RUN: Profile failed to load");
         }
         std::vector<Finding> findings;
@@ -1575,21 +1586,31 @@ static CheckResult check_cf285_brdf_tag_presence_consistency(const ProfileView& 
 
 static CheckResult check_cf286_gbd_triangle_vertex_consistency(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-    CIccProfile *pIcc = pv.unsafeLibraryHandle();
-    if (!pIcc) return CheckResult::error("No library handle");
+    if (!pv.libraryLoaded() && !pv.requiresLibraryQuarantine()) {
+        return CheckResult::skip("NOT RUN: Profile failed to load");
+    }
+
+    auto records = scanRawGbdRecords(pv);
+    if (records.empty()) return CheckResult::ok("No GBD tags — not applicable");
 
     std::vector<Finding> findings;
-    icTagSignature gbdTags[] = {icSigGamutBoundaryDescription0Tag, icSigGamutBoundaryDescription1Tag,
-                                 icSigGamutBoundaryDescription2Tag, icSigGamutBoundaryDescription3Tag};
-
-    for (int i = 0; i < 4; i++) {
-        CIccTagGamutBoundaryDesc *gbd = FindAndCast<CIccTagGamutBoundaryDesc>(pIcc, gbdTags[i]);
-        if (!gbd) continue;
-        int nTris = gbd->getNumberOfTriangles();
-        int nVerts = gbd->getNumberOfVertices();
-        if (nTris > 0 && nVerts < 3)
+    for (const auto& record : records) {
+        if (!record.headerAccessible) continue;
+        uint64_t nTris = record.triangles;
+        uint64_t nVerts = record.vertices;
+        if (nTris > 0 && nVerts < 3) {
             findings.push_back({CheckID{CheckID::Kind::Conformance, 286}, Severity::HIGH,
-                "GBD[" + std::to_string(i) + "] has " + std::to_string(nTris) + " triangles but only " + std::to_string(nVerts) + " vertices", "", ""});
+                "GBD '" + rawGbdOwnerName(record) + "' has " + std::to_string(nTris) +
+                " triangles but only " + std::to_string(nVerts) + " vertices", "", ""});
+            continue;
+        }
+        uint64_t maxTriangles = choose3Clamped(record.vertices);
+        if (maxTriangles != UINT64_MAX && nTris > maxTriangles) {
+            findings.push_back({CheckID{CheckID::Kind::Conformance, 286}, Severity::HIGH,
+                "GBD '" + rawGbdOwnerName(record) + "' has " + std::to_string(nTris) +
+                " triangles but only " + std::to_string(nVerts) +
+                " vertices (max distinct triangles " + std::to_string(maxTriangles) + ")", "", ""});
+        }
     }
 
     if (findings.empty()) return CheckResult::ok("GBD triangle-vertex consistency OK");
@@ -1598,24 +1619,26 @@ static CheckResult check_cf286_gbd_triangle_vertex_consistency(const ProfileView
 
 static CheckResult check_cf287_gbd_channel_count_plausibility(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-    CIccProfile *pIcc = pv.unsafeLibraryHandle();
-    if (!pIcc) return CheckResult::error("No library handle");
+    if (!pv.libraryLoaded() && !pv.requiresLibraryQuarantine()) {
+        return CheckResult::skip("NOT RUN: Profile failed to load");
+    }
+
+    auto records = scanRawGbdRecords(pv);
+    if (records.empty()) return CheckResult::ok("No GBD tags — not applicable");
 
     std::vector<Finding> findings;
-    icTagSignature gbdTags[] = {icSigGamutBoundaryDescription0Tag, icSigGamutBoundaryDescription1Tag,
-                                 icSigGamutBoundaryDescription2Tag, icSigGamutBoundaryDescription3Tag};
-
-    for (int i = 0; i < 4; i++) {
-        CIccTagGamutBoundaryDesc *gbd = FindAndCast<CIccTagGamutBoundaryDesc>(pIcc, gbdTags[i]);
-        if (!gbd) continue;
-        int pcsCh = gbd->getNumPCSChannels();
-        int devCh = gbd->getNumDeviceChannels();
-        if (pcsCh != 3)
+    for (const auto& record : records) {
+        if (!record.headerAccessible) continue;
+        uint32_t pcsCh = record.pcsChannels;
+        uint32_t devCh = record.deviceChannels;
+        if (pcsCh != 3) {
             findings.push_back({CheckID{CheckID::Kind::Conformance, 287}, Severity::MEDIUM,
-                "GBD[" + std::to_string(i) + "] PCS channels=" + std::to_string(pcsCh) + " (expected 3)", "", ""});
-        if (devCh > 16)
+                "GBD '" + rawGbdOwnerName(record) + "' PCS channels=" + std::to_string(pcsCh) + " (expected 3)", "", ""});
+        }
+        if (devCh > 15) {
             findings.push_back({CheckID{CheckID::Kind::Conformance, 287}, Severity::MEDIUM,
-                "GBD[" + std::to_string(i) + "] device channels=" + std::to_string(devCh) + " (>16)", "", ""});
+                "GBD '" + rawGbdOwnerName(record) + "' device channels=" + std::to_string(devCh) + " (>15)", "", ""});
+        }
     }
 
     if (findings.empty()) return CheckResult::ok("GBD channel counts plausible");

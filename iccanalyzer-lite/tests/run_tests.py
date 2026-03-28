@@ -355,6 +355,305 @@ def make_h102_profile_size_profile_bytes(declared_size, desc_offset, desc_size):
     struct.pack_into(">II", data, 136, desc_offset, desc_size)
     return bytes(data)
 
+
+def make_h20_tag_type_signature_profile_bytes(type_sig):
+    data = bytearray((CORPUS_DIR / "valid_srgb.icc").read_bytes())
+    if len(data) < 144:
+        return bytes(data)
+    first_tag_offset = struct.unpack_from(">I", data, 136)[0]
+    if first_tag_offset + 4 > len(data):
+        return bytes(data)
+    struct.pack_into(">I", data, first_tag_offset, type_sig)
+    return bytes(data)
+
+
+def make_h18_technology_signature_profile_bytes(tech_sig):
+    data = bytearray(156)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"tech"
+    struct.pack_into(">II", data, 136, 144, 12)
+    data[144:148] = b"sig "
+    struct.pack_into(">I", data, 152, tech_sig)
+    return bytes(data)
+
+
+def make_h25_tag_offset_oob_profile_bytes():
+    data = bytearray((CORPUS_DIR / "valid_srgb.icc").read_bytes())
+    if len(data) >= 144:
+        struct.pack_into(">I", data, 136, len(data) + 0x20)
+    return bytes(data)
+
+
+def make_h26_named_color2_string_profile_bytes(unterminated):
+    data = bytearray(228)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"ncl2"
+    struct.pack_into(">II", data, 136, 144, 84)
+    data[144:148] = b"ncl2"
+    struct.pack_into(">III", data, 152, 0, 1, 3)
+    fill = b"A" * 32 if unterminated else b"OK" + b"\0" * 30
+    data[164:196] = fill
+    data[196:228] = fill
+    return bytes(data)
+
+
+def make_h28_lut_dimension_profile_bytes(n_input, n_output, n_grid):
+    data = bytearray(155)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"A2B0"
+    struct.pack_into(">II", data, 136, 144, 11)
+    data[144:148] = b"mft1"
+    data[152] = n_input
+    data[153] = n_output
+    data[154] = n_grid
+    return bytes(data)
+
+
+def make_h29_colorant_table_profile_bytes(unterminated):
+    data = bytearray(232)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"clrt"
+    struct.pack_into(">II", data, 136, 144, 88)
+    data[144:148] = b"clrt"
+    struct.pack_into(">I", data, 152, 2)
+    fill = b"B" * 32 if unterminated else b"R\0" + b"\0" * 30
+    data[156:188] = fill
+    data[194:226] = fill
+    return bytes(data)
+
+
+def make_h31_mpe_channel_count_profile_bytes(channels):
+    data = bytearray(160)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"A2B0"
+    struct.pack_into(">II", data, 136, 144, 16)
+    data[144:148] = b"mpet"
+    struct.pack_into(">HHI", data, 152, channels, channels, 0)
+    return bytes(data)
+
+
+def make_h32_unknown_type_profile_bytes(type_sig):
+    return make_h20_tag_type_signature_profile_bytes(type_sig)
+
+
+def make_h100_profile_sequence_desc_profile_bytes(entry_count):
+    def make_mluc(text):
+        utf16 = text.encode("utf-16-be")
+        out = bytearray()
+        out += b"mluc" + b"\x00" * 4
+        out += struct.pack(">II", 1, 12)
+        out += b"enUS"
+        out += struct.pack(">II", len(utf16), 28)
+        out += utf16
+        while len(out) % 4:
+            out += b"\x00"
+        return bytes(out)
+
+    pseq = bytearray()
+    pseq += b"pseq" + b"\x00" * 4
+    pseq += struct.pack(">I", entry_count)
+    for idx in range(entry_count):
+        pseq += b"APPL"
+        pseq += b"MDL "
+        pseq += struct.pack(">Q", 0)
+        pseq += b"fscn"
+        pseq += make_mluc(f"Mfg{idx}")
+        pseq += make_mluc(f"Model{idx}")
+    while len(pseq) % 4:
+        pseq += b"\x00"
+
+    size = 128 + 4 + 12 + len(pseq)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"pseq"
+    struct.pack_into(">II", data, 136, 144, len(pseq))
+    data[144:144 + len(pseq)] = pseq
+    return bytes(data)
+
+
+def make_h91_colorant_order_profile_bytes(duplicate):
+    clro = bytearray()
+    clro += b"clro" + b"\x00" * 4
+    clro += struct.pack(">I", 2)
+    clro += b"\x00" + (b"\x00" if duplicate else b"\x01")
+    while len(clro) % 4:
+        clro += b"\x00"
+
+    size = 128 + 4 + 12 + len(clro)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"clro"
+    struct.pack_into(">II", data, 136, 144, len(clro))
+    data[144:144 + len(clro)] = clro
+    return bytes(data)
+
+
+def make_h88_chad_profile_singular_bytes():
+    sf32 = bytearray()
+    sf32 += b"sf32" + b"\x00" * 4
+    sf32 += b"\x00" * (9 * 4)
+
+    size = 128 + 4 + 12 + len(sf32)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"chad"
+    struct.pack_into(">II", data, 136, 144, len(sf32))
+    data[144:144 + len(sf32)] = sf32
+    return bytes(data)
+
+
+def make_h87_trc_curve_profile_all_zero_bytes():
+    curv = bytearray()
+    curv += b"curv" + b"\x00" * 4
+    curv += struct.pack(">I", 3)
+    curv += b"\x00" * 6
+    while len(curv) % 4:
+        curv += b"\x00"
+
+    size = 128 + 4 + 12 + len(curv)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 1)
+    data[132:136] = b"rTRC"
+    struct.pack_into(">II", data, 136, 144, len(curv))
+    data[144:144 + len(curv)] = curv
+    return bytes(data)
+
+
+def make_h93_flags_profile_bytes(flags, attributes):
+    data = bytearray(132)
+    struct.pack_into(">I", data, 0, len(data))
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    struct.pack_into(">I", data, 44, flags)
+    struct.pack_into(">Q", data, 56, attributes)
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 0)
+    return bytes(data)
+
+
+def make_h94_matrix_trc_profile_bad_columns_bytes():
+    def make_xyz(x, y, z):
+        out = bytearray()
+        out += b"XYZ " + b"\x00" * 4
+        out += struct.pack(">iii", x, y, z)
+        return bytes(out)
+
+    r = make_xyz(0, 0, 0)
+    g = make_xyz(0, 0, 0)
+    b = make_xyz(0, 0, 0)
+
+    size = 128 + 4 + 12 * 3 + len(r) + len(g) + len(b)
+    data = bytearray(size)
+    struct.pack_into(">I", data, 0, size)
+    struct.pack_into(">I", data, 8, 0x04400000)
+    data[12:16] = b"mntr"
+    data[16:20] = b"RGB "
+    data[20:24] = b"XYZ "
+    struct.pack_into(">HHHHHH", data, 24, 2024, 1, 1, 0, 0, 0)
+    data[36:40] = b"acsp"
+    data[40:44] = b"APPL"
+    data[80:84] = b"test"
+    struct.pack_into(">i", data, 68, int(0.9642 * 65536))
+    struct.pack_into(">i", data, 72, int(1.0000 * 65536))
+    struct.pack_into(">i", data, 76, int(0.8249 * 65536))
+    struct.pack_into(">I", data, 128, 3)
+    data[132:136] = b"rXYZ"
+    struct.pack_into(">II", data, 136, 168, len(r))
+    data[144:148] = b"gXYZ"
+    struct.pack_into(">II", data, 148, 168 + len(r), len(g))
+    data[156:160] = b"bXYZ"
+    struct.pack_into(">II", data, 160, 168 + len(r) + len(g), len(b))
+    data[168:168 + len(r)] = r
+    data[168 + len(r):168 + len(r) + len(g)] = g
+    data[168 + len(r) + len(g):168 + len(r) + len(g) + len(b)] = b
+    return bytes(data)
+
+
 # ANSI color codes
 class _Colors:
     """Terminal color codes with auto-detection."""
@@ -1285,6 +1584,397 @@ def test_heuristic_detection(suite):
         r"\[H99\][\s\S]*No embedded image tags present"
     )
 
+    # H100: profile sequence description validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h100_profile_sequence_desc_profile_bytes(1))
+        h100_one = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h100_one_entry",
+            ["-a", "--legacy", h100_one],
+            r"\[H100\][\s\S]*Profile sequence description valid"
+        )
+    finally:
+        try:
+            os.unlink(h100_one)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h100_profile_sequence_desc_profile_bytes(101))
+        h100_many = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h100_many_entries",
+            ["-a", "--legacy", h100_many],
+            r"\[H100\][\s\S]*Excessive sequence entries \(101\) — DoS risk"
+        )
+    finally:
+        try:
+            os.unlink(h100_many)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h100_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H100\][\s\S]*No profile sequence description tag"
+    )
+
+    # H89: profile sequence description validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h100_profile_sequence_desc_profile_bytes(257))
+        h89_many = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h89_many_entries",
+            ["-a", "--legacy", h89_many],
+            r"\[H89\][\s\S]*Profile sequence has 257 descriptions \(>256\) — OOM risk"
+        )
+    finally:
+        try:
+            os.unlink(h89_many)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h89_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H89\][\s\S]*Profile sequence descriptions within bounds \(or absent\)"
+    )
+
+    # H20: tag type signature validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h20_tag_type_signature_profile_bytes(0x00000000))
+        h20_null = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h20_null_type_signature",
+            ["-a", "--legacy", h20_null],
+            r"\[H20\][\s\S]*Tag 'desc' has null type signature \(0x00000000\)"
+        )
+    finally:
+        try:
+            os.unlink(h20_null)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h20_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H20\][\s\S]*All tag type signatures are valid ASCII"
+    )
+
+    # H18: technology signature validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h18_technology_signature_profile_bytes(0xFFFFFFFF))
+        h18_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h18_unknown_technology",
+            ["-a", "--legacy", h18_bad],
+            r"\[H18\][\s\S]*Unknown technology signature: 0xFFFFFFFF"
+        )
+    finally:
+        try:
+            os.unlink(h18_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h18_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H18\][\s\S]*No technology tag present"
+    )
+
+    # H25: tag offset/size out-of-bounds
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h25_tag_offset_oob_profile_bytes())
+        h25_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h25_offset_oob",
+            ["-a", "--legacy", h25_bad],
+            r"\[H25\][\s\S]*Tag 'desc' offset 0x[0-9A-F]+ beyond file/profile bounds"
+        )
+    finally:
+        try:
+            os.unlink(h25_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h25_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H25\][\s\S]*All tag offsets/sizes within bounds"
+    )
+
+    # H26: NamedColor2 string validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h26_named_color2_string_profile_bytes(True))
+        h26_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h26_unterminated_strings",
+            ["-a", "--legacy", h26_bad],
+            r"\[H26\][\s\S]*Prefix not null-terminated[\s\S]*Suffix not null-terminated"
+        )
+    finally:
+        try:
+            os.unlink(h26_bad)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h26_named_color2_string_profile_bytes(False))
+        h26_ok = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h26_clean_profile",
+            ["-a", "--legacy", h26_ok],
+            r"\[H26\][\s\S]*No NamedColor2 tags with risky strings"
+        )
+    finally:
+        try:
+            os.unlink(h26_ok)
+        except OSError:
+            pass
+
+    # H28: LUT dimension validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h28_lut_dimension_profile_bytes(17, 3, 2))
+        h28_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h28_dimension_overflow",
+            ["-a", "--legacy", h28_bad],
+            r"\[H28\][\s\S]*nInput=17 nOutput=3 exceeds spec max \(16\)"
+        )
+    finally:
+        try:
+            os.unlink(h28_bad)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h28_lut_dimension_profile_bytes(3, 3, 2))
+        h28_ok = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h28_clean_profile",
+            ["-a", "--legacy", h28_ok],
+            r"\[H28\][\s\S]*All LUT dimensions within safe limits"
+        )
+    finally:
+        try:
+            os.unlink(h28_ok)
+        except OSError:
+            pass
+
+    # H29: ColorantTable string validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h29_colorant_table_profile_bytes(True))
+        h29_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h29_colorant_unterminated",
+            ["-a", "--legacy", h29_bad],
+            r"\[H29\][\s\S]*Colorant\[0\] name not null-terminated[\s\S]*2/2 colorant entries lack null terminator"
+        )
+    finally:
+        try:
+            os.unlink(h29_bad)
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h29_colorant_table_profile_bytes(False))
+        h29_ok = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h29_clean_profile",
+            ["-a", "--legacy", h29_ok],
+            r"\[H29\][\s\S]*No ColorantTable string issues detected"
+        )
+    finally:
+        try:
+            os.unlink(h29_ok)
+        except OSError:
+            pass
+
+    # H31: MPE channel count validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h31_mpe_channel_count_profile_bytes(33))
+        h31_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h31_mpe_channel_count",
+            ["-a", "--legacy", h31_bad],
+            r"\[H31\][\s\S]*MPE channels in=33 out=33 \(>32\)"
+        )
+    finally:
+        try:
+            os.unlink(h31_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h31_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H31\][\s\S]*All MPE channel counts within safe limits"
+    )
+
+    # H32: tag data type confusion
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h32_unknown_type_profile_bytes(0x7A7A7A7A))
+        h32_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h32_unknown_type",
+            ["-a", "--legacy", h32_bad],
+            r"\[H32\][\s\S]*Tag 'desc': unknown type signature 'zzzz' \(0x7A7A7A7A\)"
+        )
+    finally:
+        try:
+            os.unlink(h32_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h32_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H32\][\s\S]*All tag type signatures are known ICC types"
+    )
+
+    # H87: TRC curve anomaly detection
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h87_trc_curve_profile_all_zero_bytes())
+        h87_zero = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h87_zero_curve",
+            ["-a", "--legacy", h87_zero],
+            r"\[H87\][\s\S]*Tag 'redTRCTag': TRC curve all-zero \(3 points\) — clipped output"
+        )
+    finally:
+        try:
+            os.unlink(h87_zero)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h87_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H87\][\s\S]*TRC curves within bounds \(or absent\)"
+    )
+
+    # H88: chromatic adaptation matrix validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h88_chad_profile_singular_bytes())
+        h88_singular = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h88_singular_chad",
+            ["-a", "--legacy", h88_singular],
+            r"\[H88\][\s\S]*chad matrix near-singular \(det=0\.00e\+00\)"
+        )
+    finally:
+        try:
+            os.unlink(h88_singular)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h88_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H88\][\s\S]*No chromatic adaptation tag \(standard D50\)"
+    )
+
+    # H93: embedded profile flag consistency
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h93_flags_profile_bytes(0x00000004, 0x0000000000000010))
+        h93_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h93_reserved_bits",
+            ["-a", "--legacy", h93_bad],
+            r"\[H93\][\s\S]*Profile flags=0x00000004: reserved bits set \(mask=0x00000004\)[\s\S]*Attributes=0x0000000000000010: reserved bits set"
+        )
+    finally:
+        try:
+            os.unlink(h93_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h93_ok",
+        ["-a", "--legacy", f"{corpus}/zero_tags.icc"],
+        r"\[H93\][\s\S]*Profile flags and attributes consistent"
+    )
+
+    # H94: matrix/TRC colorant consistency
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h94_matrix_trc_profile_bad_columns_bytes())
+        h94_bad = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h94_matrix_sum",
+            ["-a", "--legacy", h94_bad],
+            r"\[H94\][\s\S]*Matrix column sum \(0\.0000, 0\.0000, 0\.0000\) deviates from D50[\s\S]*deviation \(0\.9505, 1\.0000, 1\.0890\)"
+        )
+    finally:
+        try:
+            os.unlink(h94_bad)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h94_ok",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H94\][\s\S]*Matrix/TRC colorant consistency valid \(or non-RGB\)"
+    )
+
+    # H91: colorant order validation
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h91_colorant_order_profile_bytes(True))
+        h91_dup = tmp.name
+
+    try:
+        suite.assert_output_contains(
+            "heuristic.h91_duplicate_index",
+            ["-a", "--legacy", h91_dup],
+            r"\[H91\][\s\S]*ColorantOrder has duplicate index 0"
+        )
+    finally:
+        try:
+            os.unlink(h91_dup)
+        except OSError:
+            pass
+
+    suite.assert_output_contains(
+        "heuristic.h91_absent",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H91\][\s\S]*Colorant order indices valid \(or absent\)"
+    )
+
     # H10: zero tags (verify library-level detection)
     suite.assert_output_contains(
         "heuristic.zero_tags_detected",
@@ -1410,6 +2100,37 @@ def test_heuristic_detection(suite):
         "heuristic.h86_embedded_nulls",
         ["-a", "--legacy", f"{corpus}/mluc_embedded_nulls.icc"],
         r"embedded null characters"
+    )
+
+    # H30: nested tary->gbd signed channel wrap / allocation bomb
+    suite.assert_output_contains(
+        "heuristic.h30_gbd_tary_signed_channel_wrap",
+        ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
+        r"PCS channels=65535, Device channels=65534.*out of range"
+    )
+
+    suite.assert_output_contains(
+        "heuristic.h68_gbd_tary_triangle_overflow",
+        ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
+        r"\[H68\][\s\S]*nTriangles=1947472916 \* 3 = 5842418748 overflows int32"
+    )
+
+    suite.assert_output_contains(
+        "cf.140.gbd_tary_vertex_count_field",
+        ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
+        r"\[DEFENSE\][\s\S]*GamutBoundaryDesc allocation/channel fields are unsafe[\s\S]*skipping library phase"
+    )
+
+    suite.assert_output_contains(
+        "cf.286.gbd_tary_triangle_vertex_consistency",
+        ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
+        r"\[NOT RUN\][\s\S]*Library-phase conformance not run"
+    )
+
+    suite.assert_output_contains(
+        "cf.287.gbd_tary_channel_plausibility",
+        ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
+        r"\[H30\][\s\S]*PCS channels=65535, Device channels=65534.*out of range"
     )
 
     # --- H147 null/degenerate CLUT detection tests (CWE-476) ---
@@ -1705,6 +2426,27 @@ def test_heuristic_detection(suite):
         "heuristic.h170_clean_profile",
         ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
         r"\[H170\][\s\S]*PCS signature valid for copy-constructor safety"
+    )
+
+    # --- H52 integer underflow in tag size / CFL-065 regression ---
+
+    h52_poc = os.path.join(REPO_ROOT, "test-profiles", "cfl065-nEnd-underflow-v4.icc")
+    if os.path.exists(h52_poc):
+        suite.assert_no_asan(
+            "asan.repo.h52_tag_size_underflow_v4",
+            ["-a", "--legacy", h52_poc],
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h52_tag_size_underflow_v4",
+            ["-a", "--legacy", h52_poc],
+            r"H52|Integer Underflow in Tag Size|A2B0.*type mAB.*B-curves offset 332 exceeds tag size 32.*underflows to ~4GB|CFL-065"
+        )
+
+    suite.assert_output_contains(
+        "heuristic.h52_clean_profile",
+        ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
+        r"\[H52\][\s\S]*No integer underflow in tag sizes"
     )
 
     # --- H172 LUT matrix coefficient validation regression ---

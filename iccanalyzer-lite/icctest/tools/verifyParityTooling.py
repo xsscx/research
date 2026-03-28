@@ -34,11 +34,16 @@ def default_fixture() -> Path:
     )
 
 
+def default_h30_fixture() -> Path:
+    return repo_root() / "tests" / "corpus" / "gbd_tary_signed_channel_wrap.icc"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v1-binary", type=Path, default=default_v1_binary())
     parser.add_argument("--v2-binary", type=Path, default=default_v2_binary())
     parser.add_argument("--fixture", type=Path, default=default_fixture())
+    parser.add_argument("--h30-fixture", type=Path, default=default_h30_fixture())
     return parser.parse_args()
 
 
@@ -149,6 +154,7 @@ def main() -> int:
     ensure_file(args.v1_binary, "V1 binary")
     ensure_file(args.v2_binary, "V2 parity binary")
     ensure_file(args.fixture, "malformed spectral fixture")
+    ensure_file(args.h30_fixture, "H30 GBD fixture")
 
     tool_dir = Path(__file__).resolve().parent
     normalize = tool_dir / "normalizeV1Json.py"
@@ -194,6 +200,27 @@ def main() -> int:
     if int(counts.get("implicitSkipMatch", 0)) != 1:
         raise RuntimeError(
             f"Expected H98 comparator implicitSkipMatch=1 for malformed spectral fixture, got {counts}"
+        )
+
+    h30_payload = run_json(
+        [
+            sys.executable,
+            str(compare),
+            "--lane",
+            "heuristic",
+            "--check",
+            "H30",
+            "--v1-binary",
+            str(args.v1_binary),
+            "--v2-binary",
+            str(args.v2_binary),
+            str(args.h30_fixture),
+        ]
+    )
+    h30_counts = h30_payload.get("summary", {}).get("counts", {})
+    if int(h30_counts.get("delta", 0)) != 0:
+        raise RuntimeError(
+            f"Expected H30 comparator delta=0 for nested GBD fixture, got {h30_counts}"
         )
 
     with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:
