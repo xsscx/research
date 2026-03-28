@@ -219,7 +219,8 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/icctest
-          cmake --build build --target icctest-verify-parity
+          rm -rf build/parity-artifacts
+          cmake --build build --clean-first --target icctest-verify-parity
 
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
