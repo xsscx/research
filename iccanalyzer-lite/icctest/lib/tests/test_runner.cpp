@@ -150,6 +150,78 @@ static AnalysisResult analyze_image_checks(const std::filesystem::path& imagePat
     return runner.analyze(imagePath, opts);
 }
 
+static std::vector<uint8_t> make_h161_deep_apply_profile() {
+    std::vector<uint8_t> data(192, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    auto put_u16 = [&](size_t off, uint16_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x3132434C);  // '12CL'
+    put_u32(20, 0x4C616220);  // 'Lab '
+    put_u32(36, 0x61637370);  // 'acsp'
+
+    put_u32(128, 2);          // tag count
+    put_u32(132, 0x41324230); // 'A2B0'
+    put_u32(136, 160);
+    put_u32(140, 16);
+    put_u32(144, 0x42324130); // 'B2A0'
+    put_u32(148, 176);
+    put_u32(152, 16);
+
+    put_u32(160, 0x6D706574); // 'mpet'
+    put_u16(168, 12);
+    put_u16(170, 12);
+    put_u32(172, 5);
+
+    put_u32(176, 0x6D706574); // 'mpet'
+    put_u16(184, 12);
+    put_u16(186, 12);
+    put_u32(188, 5);
+
+    return data;
+}
+
+static std::vector<uint8_t> make_h169_dict_bounds_profile() {
+    std::vector<uint8_t> data(160, 0);
+
+    auto put_u32 = [&](size_t off, uint32_t value) {
+        data[off + 0] = static_cast<uint8_t>((value >> 24) & 0xFF);
+        data[off + 1] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[off + 2] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[off + 3] = static_cast<uint8_t>(value & 0xFF);
+    };
+
+    put_u32(0, static_cast<uint32_t>(data.size()));
+    put_u32(8, 0x04400000);   // v4.4
+    put_u32(12, 0x6D6E7472);  // 'mntr'
+    put_u32(16, 0x52474220);  // 'RGB '
+    put_u32(20, 0x58595A20);  // 'XYZ '
+    put_u32(36, 0x61637370);  // 'acsp'
+
+    put_u32(128, 1);          // tag count
+    put_u32(132, 0x6D657461); // 'meta'
+    put_u32(136, 144);
+    put_u32(140, 16);
+
+    put_u32(144, 0x64696374); // 'dict'
+    put_u32(152, 3);          // count
+    put_u32(156, 8);          // recLen
+
+    return data;
+}
+
 static void expect_conformance_result(const AnalysisResult& result,
                                       int number,
                                       CheckResult::Status status,
@@ -1317,6 +1389,128 @@ static void test_alloc_dealloc_and_uaf_ownership_regressions() {
     }
 }
 
+static void test_deep_apply_stack_escape_regression() {
+    std::printf("  test_deep_apply_stack_escape_regression...\n");
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::RAW_SCAN};
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 161},
+        };
+
+        auto data = make_h161_deep_apply_profile();
+        IccTestRunner runner;
+        auto result = runner.analyze(data.data(), data.size(), opts);
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 161, CheckResult::Status::FINDINGS, 3);
+
+        const auto* h161 = find_per_check(result, CheckID::Kind::Heuristic, 161);
+        ASSERT_TRUE(h161 != nullptr);
+        if (!h161) {
+            return;
+        }
+
+        bool sawA2B0Risk = false;
+        bool sawB2A0Risk = false;
+        bool sawProfileWideRisk = false;
+        for (const auto& finding : h161->result.findings) {
+            if (finding.message.find("Tag 'A2B0' MPE chain: 5 elements x 12->12 channels") != std::string::npos &&
+                finding.cweNote.find("CWE-121") != std::string::npos) {
+                sawA2B0Risk = true;
+            }
+            if (finding.message.find("Tag 'B2A0' MPE chain: 5 elements x 12->12 channels") != std::string::npos &&
+                finding.cweNote.find("CWE-121") != std::string::npos) {
+                sawB2A0Risk = true;
+            }
+            if (finding.message.find("12-channel profile with 2 MPE tags") != std::string::npos &&
+                finding.cweNote.find("High channel count") != std::string::npos) {
+                sawProfileWideRisk = true;
+            }
+        }
+        ASSERT_TRUE(sawA2B0Risk);
+        ASSERT_TRUE(sawB2A0Risk);
+        ASSERT_TRUE(sawProfileWideRisk);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {161});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 161, CheckResult::Status::OK, 0);
+
+        const auto* h161 = find_per_check(cleanResult, CheckID::Kind::Heuristic, 161);
+        ASSERT_TRUE(h161 != nullptr);
+        if (!h161) {
+            return;
+        }
+        ASSERT_TRUE(h161->result.summary.find("No deep Apply() chain stack-escape risk patterns") != std::string::npos);
+    }
+}
+
+static void test_dictionary_tag_element_bounds_regression() {
+    std::printf("  test_dictionary_tag_element_bounds_regression...\n");
+
+    {
+        AnalysisOptions opts;
+        opts.phases = {CheckPhase::RAW_SCAN};
+        opts.specificChecks = {
+            {CheckID::Kind::Heuristic, 169},
+        };
+
+        auto data = make_h169_dict_bounds_profile();
+        IccTestRunner runner;
+        auto result = runner.analyze(data.data(), data.size(), opts);
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_heuristic_result(result, 169, CheckResult::Status::FINDINGS, 2);
+
+        const auto* h169 = find_per_check(result, CheckID::Kind::Heuristic, 169);
+        ASSERT_TRUE(h169 != nullptr);
+        if (!h169) {
+            return;
+        }
+
+        bool sawRecLenFinding = false;
+        bool sawBoundsFinding = false;
+        for (const auto& finding : h169->result.findings) {
+            if (finding.message.find("dict recLen = 8") != std::string::npos &&
+                finding.cweNote.find("CWE-20") != std::string::npos) {
+                sawRecLenFinding = true;
+            }
+            if (finding.message.find("3 entries × 8 bytes/rec = 24 bytes exceeds 16-byte tag") != std::string::npos &&
+                finding.cweNote.find("CWE-789") != std::string::npos) {
+                sawBoundsFinding = true;
+            }
+        }
+        ASSERT_TRUE(sawRecLenFinding);
+        ASSERT_TRUE(sawBoundsFinding);
+    }
+
+    auto corpusDir = resolve_repo_file("tests/corpus");
+    if (corpusDir.empty()) {
+        std::printf("    (skipped clean check — tests/corpus not found)\n");
+        return;
+    }
+
+    {
+        auto cleanResult = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {169});
+        ASSERT_EQ(1, cleanResult.stats.checksRun);
+        expect_heuristic_result(cleanResult, 169, CheckResult::Status::OK, 0);
+
+        const auto* h169 = find_per_check(cleanResult, CheckID::Kind::Heuristic, 169);
+        ASSERT_TRUE(h169 != nullptr);
+        if (!h169) {
+            return;
+        }
+        ASSERT_TRUE(h169->result.summary.find("No dictionary tag bounds issues detected") != std::string::npos);
+    }
+}
+
 static void test_spectral_mpe_h98_gap_fixture() {
     std::printf("  test_spectral_mpe_h98_gap_fixture...\n");
 
@@ -1526,6 +1720,8 @@ void test_runner() {
     test_null_mpe_clut_curve_guard_regression();
     test_unchecked_allocation_size_overflow_regression();
     test_alloc_dealloc_and_uaf_ownership_regressions();
+    test_deep_apply_stack_escape_regression();
+    test_dictionary_tag_element_bounds_regression();
     test_spectral_mpe_h98_gap_fixture();
     test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
