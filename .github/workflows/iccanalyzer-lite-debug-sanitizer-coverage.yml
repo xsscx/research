@@ -123,21 +123,7 @@ jobs:
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
-      - name: Cache iccDEV build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-iccdev-build
-        with:
-          path: |
-            iccanalyzer-lite/iccDEV/Build/IccProfLib
-            iccanalyzer-lite/iccDEV/Build/IccXML
-            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
-            iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-lite-debug-san-upstream-${{ hashFiles('.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-build-lite-debug-san-
-
       - name: Normalize upstream iccDEV source
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           # Strip stray U+FE0F (emoji variation selector) from upstream source
@@ -148,7 +134,6 @@ jobs:
           fi
 
       - name: Build iccDEV libraries (Debug + ASan + UBSan + Coverage)
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
           CC: clang-18
@@ -156,6 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
+          find . -mindepth 1 -maxdepth 1 ! -name Cmake ! -name XCode -exec rm -rf {} +
 
           # Disable LTO — produces bitcode archives incompatible with sanitizer linking
           sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt

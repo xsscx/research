@@ -344,9 +344,6 @@ REGISTER_HEURISTIC(138, "Total Allocation Budget",
 
 static CheckResult check_h123_non_required_tags(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     auto allowed = build_h123_allowed_tags(pv.header().deviceClass);
 
     int unclassified = 0;
@@ -585,10 +582,6 @@ REGISTER_HEURISTIC(126, "Private Tag Malware",
 
 static CheckResult check_h127_private_tag_registry(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() &&
-        (pv.rawTagTable().empty() || rawHasGbdQuarantineSignature(pv))) {
-        return CheckResult::skip("Library quarantined");
-    }
     if (pv.rawSize() < 132) return CheckResult::skip("Cannot read tag count");
     const uint8_t* raw = pv.rawData();
     if (!raw || readU32BE(raw + 36) != 0x61637370u) {
@@ -661,9 +654,6 @@ REGISTER_HEURISTIC(127, "Private Tag Registry",
 
 static CheckResult check_h128_version_bcd(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     if (pv.rawSize() < 12) return CheckResult::skip("File too small for version field");
 
     const uint8_t* d = pv.rawData();
@@ -703,9 +693,6 @@ REGISTER_HEURISTIC(128, "Version BCD",
 
 static CheckResult check_h129_pcs_illuminant_d50(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     if (pv.rawSize() < 80) return CheckResult::skip("File too small for illuminant field");
 
     const uint8_t* d = pv.rawData();
@@ -773,9 +760,6 @@ REGISTER_HEURISTIC(130, "Tag Alignment",
 
 static CheckResult check_h131_profile_id_md5(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     if (pv.rawSize() < 128) return CheckResult::skip("File too small for header");
 
     const uint8_t* d = pv.rawData();
@@ -880,12 +864,10 @@ REGISTER_HEURISTIC(132, "Chad Determinant",
 
 static CheckResult check_h133_flags_reserved_bits(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     if (pv.rawSize() < 48) return CheckResult::skip("Cannot read flags at offset 44");
-
-    uint32_t flags = pv.header().flags;
+    const uint8_t* raw = pv.rawData();
+    if (!raw) return CheckResult::skip("No raw bytes available");
+    uint32_t flags = readU32BE(raw + 44);
     uint32_t reservedBits = flags & 0xFFFFFFFCu;
     if (reservedBits != 0) {
         cb.warn(sfmt("Reserved flag bits non-zero (0x%08X)", reservedBits),
@@ -903,9 +885,6 @@ REGISTER_HEURISTIC(133, "Flags Reserved Bits",
 
 static CheckResult check_h134_tag_type_reserved_bytes(const ProfileView& pv) {
     CheckBuilder cb;
-    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
-        return CheckResult::skip("Library quarantined");
-    }
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
     if (!d || len < 132) return CheckResult::skip("Cannot read tag count");
