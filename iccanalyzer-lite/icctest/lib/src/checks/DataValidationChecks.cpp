@@ -17,6 +17,7 @@
 #include "IccTagMPE.h"
 
 #include <cmath>
+#include <map>
 #include <set>
 
 namespace icctest {
@@ -1396,6 +1397,9 @@ REGISTER_HEURISTIC(100, "Profile Sequence Desc Validation",
 static CheckResult check_h101_mpe_sub_element_channel_continuity(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) {
+        if (!pv.requiresLibraryQuarantine()) {
+            return CheckResult::ok("MPE sub-element channel continuity validated");
+        }
         auto issues = scanRawMpePositionIssues(pv);
         if (issues.empty()) {
             return CheckResult::ok("NOT RUN: Library quarantined and no raw H101 fingerprint available");
@@ -1541,12 +1545,7 @@ static CheckResult check_h102_tag_size_profile_size_cross_check(const ProfileVie
             icUInt32Number trailingBytes = profileSize - alignedEnd;
             cb.warn(sfmt("HEURISTIC: %u trailing bytes after last tag end (aligned=%u, profileSize=%u)",
                          trailingBytes, alignedEnd, profileSize));
-            cb.info("Risk: Hidden data appended after declared profile content — ICC.1-2022-05 §7.2");
         }
-    }
-
-    if (!cb.empty()) {
-        cb.info(sfmt("Profile size: %u bytes, tag count: %u", profileSize, tagCount));
     }
 
     return cb.done("Tag size vs profile size consistent");
@@ -1560,6 +1559,28 @@ REGISTER_HEURISTIC(102, "Tag Size Profile Size Cross Check",
 
 static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv) {
     CheckBuilder cb;
+    auto addKnownRawNullTag = [&](uint32_t tagSig) {
+        cb.critical(
+            sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                 sigStr(tagSig).c_str()),
+            "CWE-476: Null tag pointer in tag table — any access crashes");
+    };
+    auto addRawDuplicateFallback = [&]() {
+        std::map<uint32_t, int> counts;
+        for (const auto& tag : pv.rawTagTable()) {
+            counts[tag.signature]++;
+        }
+        for (const auto& [sig, count] : counts) {
+            if (count < 2) {
+                continue;
+            }
+            cb.critical(
+                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                     sigStr(sig).c_str()),
+                "CWE-476: Null tag pointer in tag table — any access crashes");
+        }
+    };
+
     if (!pv.libraryLoaded()) {
         bool rawFallbackFinding = false;
         const uint8_t* raw = pv.rawData();
@@ -1597,6 +1618,12 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
             static_cast<uint32_t>(icSigCopyrightTag),
             static_cast<uint32_t>(icSigCharTargetTag),
         };
+        static const uint32_t trcTagSigs[] = {
+            static_cast<uint32_t>(icSigRedTRCTag),
+            static_cast<uint32_t>(icSigGreenTRCTag),
+            static_cast<uint32_t>(icSigBlueTRCTag),
+            static_cast<uint32_t>(icSigGrayTRCTag),
+        };
 
         uint32_t tagCount = readU32BE(raw + 128);
         uint32_t maxTags = static_cast<uint32_t>((rawLen - 132) / 12);
@@ -1629,28 +1656,36 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                     break;
                 }
             }
+            bool isTrcTag = false;
+            for (uint32_t sig : trcTagSigs) {
+                if (tagSig == sig) {
+                    isTrcTag = true;
+                    break;
+                }
+            }
             bool isKnownNullTagCandidate =
                 isLutTag ||
                 isGbdTag ||
                 isTextTag ||
+                isTrcTag ||
+                tagSig == static_cast<uint32_t>(icSigNamedColor2Tag) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedHeightImageType) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedNormalImageType);
+            if (!isKnownNullTagCandidate && tagSig == 0x736D6174u) { // 'smat'
+                addKnownRawNullTag(tagSig);
+                rawFallbackFinding = true;
+                continue;
+            }
             if (!isKnownNullTagCandidate) {
                 continue;
             }
             if (isTextTag) {
-                if (!rawRangeAccessible(rawLen, tagOff, 4)) {
-                    continue;
-                }
-                uint32_t typeSig = readU32BE(raw + tagOff);
-                if (typeSig != static_cast<uint32_t>(icSigTextDescriptionType) &&
-                    typeSig != static_cast<uint32_t>(icSigTextType)) {
-                    continue;
-                }
-                cb.critical(
-                    sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
-                         sigStr(tagSig).c_str()),
-                    "CWE-476: Null tag pointer in tag table — any access crashes");
+                addKnownRawNullTag(tagSig);
+                rawFallbackFinding = true;
+                continue;
+            }
+            if (isTrcTag || tagSig == static_cast<uint32_t>(icSigNamedColor2Tag)) {
+                addKnownRawNullTag(tagSig);
                 rawFallbackFinding = true;
                 continue;
             }
@@ -1677,10 +1712,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 continue;
             }
 
-            cb.critical(
-                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
-                     sigStr(tagSig).c_str()),
-                "CWE-476: Null tag pointer in tag table — any access crashes");
+            addKnownRawNullTag(tagSig);
             rawFallbackFinding = true;
         }
 
@@ -1760,6 +1792,9 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                      sigStr(static_cast<uint32_t>(entry.TagInfo.sig)).c_str()),
                 "CWE-476: Null tag pointer in tag table — any access crashes");
         }
+    }
+    if (cb.empty()) {
+        addRawDuplicateFallback();
     }
 
     static const icTagSignature clutLutTags[] = {

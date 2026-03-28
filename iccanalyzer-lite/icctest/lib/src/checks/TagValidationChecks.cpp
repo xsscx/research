@@ -1068,9 +1068,6 @@ static CheckResult check_h30_gamut_boundary_desc_allocation(const ProfileView& p
         }
     }
 
-    if (!pv.libraryLoaded() && cb.empty()) {
-        return CheckResult::skip("Library parse failed");
-    }
     return cb.done("No GamutBoundaryDesc allocation issues");
 }
 
@@ -1169,14 +1166,26 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
                     break;
                 }
             }
-            if (!validFourCc) {
+            bool isKnown = false;
+            for (uint32_t known : knownTypes) {
+                if (dataType == known) {
+                    isKnown = true;
+                    break;
+                }
+            }
+            if (!isKnown) {
                 cb.warn(
-                    sfmt("Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
-                         sigStr(tag.signature).c_str(), tag.offset,
-                         static_cast<unsigned>((dataType >> 24) & 0xFFu),
-                         static_cast<unsigned>((dataType >> 16) & 0xFFu),
-                         static_cast<unsigned>((dataType >> 8) & 0xFFu),
-                         static_cast<unsigned>(dataType & 0xFFu)),
+                    validFourCc
+                        ? sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",
+                               sigStr(tag.signature).c_str(),
+                               sigStr(dataType).c_str(),
+                               dataType)
+                        : sfmt("Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
+                               sigStr(tag.signature).c_str(), tag.offset,
+                               static_cast<unsigned>((dataType >> 24) & 0xFFu),
+                               static_cast<unsigned>((dataType >> 16) & 0xFFu),
+                               static_cast<unsigned>((dataType >> 8) & 0xFFu),
+                               static_cast<unsigned>(dataType & 0xFFu)),
                     "Risk: Type confusion -> wrong parser invoked -> memory corruption");
             }
             continue;

@@ -35,6 +35,9 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 147) {
         return true;
     }
+    if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 127) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 172) {
         return true;
     }
@@ -50,7 +53,7 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
     }
     if (check.id.kind == CheckID::Kind::Heuristic &&
         (check.id.number == 123 || check.id.number == 124 ||
-         check.id.number == 126 || check.id.number == 127)) {
+         check.id.number == 126)) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 115) {
