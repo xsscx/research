@@ -413,10 +413,29 @@ jobs:
             libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
             nlohmann-json3-dev libssl-dev
 
-      - name: Clone iccDEV
+      - name: Clone and patch iccDEV
+        env:
+          BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git afl-iccDEV
+          # Apply CFL security patches
+          PATCH_OK=0
+          PATCH_FAIL=0
+          for p in cfl/patches/*.patch; do
+            if patch --dry-run -p1 -d afl-iccDEV < "$p" > /dev/null 2>&1; then
+              patch -p1 -d afl-iccDEV < "$p" > /dev/null 2>&1
+              PATCH_OK=$((PATCH_OK + 1))
+            elif patch -R --dry-run -p1 -d afl-iccDEV < "$p" > /dev/null 2>&1; then
+              PATCH_OK=$((PATCH_OK + 1))
+            else
+              echo "[FAIL] $(basename "$p")"
+              PATCH_FAIL=$((PATCH_FAIL + 1))
+            fi
+          done
+          echo "CFL patches: $PATCH_OK applied, $PATCH_FAIL failed"
 
       - name: Build iccDEV with AFL++ instrumentation
         run: |
