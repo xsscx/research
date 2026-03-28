@@ -344,6 +344,9 @@ REGISTER_HEURISTIC(138, "Total Allocation Budget",
 
 static CheckResult check_h123_non_required_tags(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     auto allowed = build_h123_allowed_tags(pv.header().deviceClass);
 
     int unclassified = 0;
@@ -582,6 +585,19 @@ REGISTER_HEURISTIC(126, "Private Tag Malware",
 
 static CheckResult check_h127_private_tag_registry(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() &&
+        (pv.rawTagTable().empty() || rawHasGbdQuarantineSignature(pv))) {
+        return CheckResult::skip("Library quarantined");
+    }
+    if (pv.rawSize() < 132) return CheckResult::skip("Cannot read tag count");
+    const uint8_t* raw = pv.rawData();
+    if (!raw || readU32BE(raw + 36) != 0x61637370u) {
+        return CheckResult::skip("Invalid ICC magic");
+    }
+    uint32_t declaredTagCount = readU32BE(raw + 128);
+    if (declaredTagCount > 200) {
+        return CheckResult::skip(sfmt("Tag count %u too high for safe iteration", declaredTagCount));
+    }
     static const struct {
         uint32_t sig;
         const char* registrant;
@@ -645,6 +661,9 @@ REGISTER_HEURISTIC(127, "Private Tag Registry",
 
 static CheckResult check_h128_version_bcd(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     if (pv.rawSize() < 12) return CheckResult::skip("File too small for version field");
 
     const uint8_t* d = pv.rawData();
@@ -684,6 +703,9 @@ REGISTER_HEURISTIC(128, "Version BCD",
 
 static CheckResult check_h129_pcs_illuminant_d50(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     if (pv.rawSize() < 80) return CheckResult::skip("File too small for illuminant field");
 
     const uint8_t* d = pv.rawData();
@@ -751,6 +773,9 @@ REGISTER_HEURISTIC(130, "Tag Alignment",
 
 static CheckResult check_h131_profile_id_md5(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     if (pv.rawSize() < 128) return CheckResult::skip("File too small for header");
 
     const uint8_t* d = pv.rawData();
@@ -805,7 +830,8 @@ static CheckResult check_h132_chad_determinant(const ProfileView& pv) {
 
     const uint8_t* d = pv.rawData();
     if (!d || !rawRangeAccessible(pv.rawSize(), tag->offset, tag->size) || tag->size < 44) {
-        return CheckResult::skip("Invalid chad tag bounds");
+        cb.warn("chad tag present but not valid S15Fixed16 3x3 matrix");
+        return cb.done("Chad matrix checked");
     }
     if (readU32BE(d + tag->offset) != 0x73663332u) { // 'sf32'
         cb.warn("chad tag present but not valid S15Fixed16 3x3 matrix");
@@ -854,6 +880,9 @@ REGISTER_HEURISTIC(132, "Chad Determinant",
 
 static CheckResult check_h133_flags_reserved_bits(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     if (pv.rawSize() < 48) return CheckResult::skip("Cannot read flags at offset 44");
 
     uint32_t flags = pv.header().flags;
@@ -874,6 +903,9 @@ REGISTER_HEURISTIC(133, "Flags Reserved Bits",
 
 static CheckResult check_h134_tag_type_reserved_bytes(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     const uint8_t* d = pv.rawData();
     size_t len = pv.rawSize();
     if (!d || len < 132) return CheckResult::skip("Cannot read tag count");
@@ -906,6 +938,14 @@ REGISTER_HEURISTIC(134, "Tag Type Reserved Bytes",
 static CheckResult check_h135_duplicate_tag_signatures(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 132) return CheckResult::skip("Cannot read tag count");
+    const uint8_t* raw = pv.rawData();
+    if (!raw || readU32BE(raw + 36) != 0x61637370u) {
+        return CheckResult::skip("Invalid ICC magic");
+    }
+    uint32_t declaredTagCount = readU32BE(raw + 128);
+    if (declaredTagCount > 200) {
+        return CheckResult::skip(sfmt("Tag count %u too high for safe iteration", declaredTagCount));
+    }
 
     std::vector<uint32_t> signatures;
     signatures.reserve(pv.rawTagTable().size());

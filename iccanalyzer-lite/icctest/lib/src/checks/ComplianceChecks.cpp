@@ -89,6 +89,9 @@ static CheckResult check_h108_encoding(const ProfileView& pv) {
 // ── H111: Reserved Bytes (100-127) All Zeros ──
 static CheckResult check_h111_reserved_zeros(const ProfileView& pv) {
     CheckBuilder cb;
+    if (pv.requiresLibraryQuarantine() && rawHasGbdQuarantineSignature(pv)) {
+        return CheckResult::skip("Library quarantined");
+    }
     if (pv.rawSize() < 128) return CheckResult::skip("File too small");
     const uint8_t* d = pv.rawData();
 
