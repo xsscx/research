@@ -998,11 +998,11 @@ REGISTER_HEURISTIC(92, "Spectral Viewing Conditions",
 
 static CheckResult check_h93_embedded_profile_flag(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return CheckResult::error("No profile");
+    if (pv.rawSize() < 64) return CheckResult::skip("File too small for header flags");
+    const uint8_t* raw = pv.rawData();
+    if (!raw) return CheckResult::skip("No raw bytes available");
 
-    icUInt32Number flags = p->m_Header.flags;
+    icUInt32Number flags = readU32BE(raw + 44);
     icUInt32Number reservedMask = 0xFFFFFFFC;
     if (flags & reservedMask) {
         cb.warn(sfmt("Profile flags=0x%08X: reserved bits set (mask=0x%08X)",
@@ -1016,7 +1016,9 @@ static CheckResult check_h93_embedded_profile_flag(const ProfileView& pv) {
         cb.warn("Flag conflict: 'cannot use independently' set but 'embedded' not set");
     }
 
-    icUInt64Number attributes = p->m_Header.attributes;
+    icUInt64Number attributes =
+        (static_cast<icUInt64Number>(readU32BE(raw + 56)) << 32) |
+        static_cast<icUInt64Number>(readU32BE(raw + 60));
     uint64_t attrReserved = attributes & 0xFFFFFFFFFFFFFFF0ULL;
     if (attrReserved) {
         cb.warn(sfmt("Attributes=0x%016llX: reserved bits set",
@@ -1669,6 +1671,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
             static_cast<uint32_t>(icSigDeviceModelDescTag),
             static_cast<uint32_t>(icSigCopyrightTag),
             static_cast<uint32_t>(icSigCharTargetTag),
+            static_cast<uint32_t>(icSigSpectralViewingConditionsTag),
         };
         static const uint32_t trcTagSigs[] = {
             static_cast<uint32_t>(icSigRedTRCTag),
@@ -1721,6 +1724,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 isTextTag ||
                 isTrcTag ||
                 tagSig == static_cast<uint32_t>(icSigNamedColor2Tag) ||
+                tagSig == static_cast<uint32_t>(icSigAToM0Tag) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedHeightImageType) ||
                 tagSig == static_cast<uint32_t>(icSigEmbeddedNormalImageType);
             if (!isKnownNullTagCandidate && tagSig == 0x736D6174u) { // 'smat'

@@ -332,9 +332,6 @@ static CheckResult check_h20_tag_type_signature(const ProfileView& pv) {
                 "Risk: Malformed type bytes — possible type confusion");
         }
 
-        if (!pv.libraryLoaded()) {
-            break;
-        }
     }
 
     if (!pv.libraryLoaded() && cb.empty() && !sawTagType) {
@@ -595,17 +592,55 @@ REGISTER_HEURISTIC(23, "Num Array Value Range",
 
 static CheckResult check_h24_tag_struct_nesting_depth(const ProfileView& pv) {
     CheckBuilder cb;
+    constexpr int kMaxSafeDepth = 4;
     if (!pv.libraryLoaded()) {
-        if (!raw_has_tag_type_signature(pv, static_cast<uint32_t>(icSigTagStructType)) &&
-            !raw_has_tag_type_signature(pv, static_cast<uint32_t>(icSigTagArrayType))) {
+        bool hasStruct = raw_has_tag_type_signature(pv, static_cast<uint32_t>(icSigTagStructType));
+        bool hasArray = raw_has_tag_type_signature(pv, static_cast<uint32_t>(icSigTagArrayType));
+        if (!hasStruct && !hasArray) {
             return cb.done("Max nesting depth: 0 (safe limit: 4)");
         }
-        return CheckResult::skip("Library parse failed");
+
+        int maxDepth = hasStruct || hasArray ? 1 : 0;
+        const uint8_t* raw = pv.rawData();
+        size_t rawLen = pv.rawSize();
+        if (raw) {
+            for (const auto& tag : pv.rawTagTable()) {
+                if (tag.size < 16 || !rawRangeAccessible(rawLen, tag.offset, 16)) continue;
+                const uint8_t* ptr = raw + tag.offset;
+                if (readU32BE(ptr) != static_cast<uint32_t>(icSigTagArrayType)) continue;
+
+                uint32_t elemCount = readU32BE(ptr + 12);
+                uint64_t ownerEnd = static_cast<uint64_t>(tag.offset) + tag.size;
+                for (uint32_t i = 0; i < elemCount && i < 64; ++i) {
+                    uint64_t recOff = static_cast<uint64_t>(tag.offset) + 16ull + static_cast<uint64_t>(i) * 8ull;
+                    if (!rawRangeAccessible(rawLen, static_cast<size_t>(recOff), 8)) break;
+
+                    uint32_t childOff = readU32BE(raw + recOff);
+                    uint32_t childSize = readU32BE(raw + recOff + 4);
+                    if (!childOff || childSize < 4) continue;
+
+                    uint64_t childAbs = static_cast<uint64_t>(tag.offset) + childOff;
+                    if (childAbs + 4 > rawLen || childAbs + childSize > ownerEnd) continue;
+
+                    uint32_t childType = readU32BE(raw + childAbs);
+                    if (childType == static_cast<uint32_t>(icSigTagStructType) ||
+                        childType == static_cast<uint32_t>(icSigTagArrayType)) {
+                        maxDepth = std::max(maxDepth, 2);
+                    }
+                }
+            }
+        }
+
+        if (maxDepth > kMaxSafeDepth) {
+            cb.warn(sfmt("Nesting depth %d exceeds safe limit (%d)",
+                         maxDepth, kMaxSafeDepth),
+                    "Risk: Stack overflow via recursive Read/Describe");
+        }
+        return cb.done(sfmt("Max nesting depth: %d (safe limit: %d)", maxDepth, kMaxSafeDepth));
     }
     auto* p = pv.unsafeLibraryHandle();
     if (!p) return CheckResult::skip("No profile");
 
-    constexpr int kMaxSafeDepth = 4;
     struct DepthEntry {
         CIccTag* tag;
         int depth;
@@ -1175,16 +1210,6 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
                 }
             }
             if (!isKnown) {
-                bool standardFailedLoadTag =
-                    tag.signature == static_cast<uint32_t>(icSigRedTRCTag) ||
-                    tag.signature == static_cast<uint32_t>(icSigGreenTRCTag) ||
-                    tag.signature == static_cast<uint32_t>(icSigBlueTRCTag) ||
-                    tag.signature == static_cast<uint32_t>(icSigGrayTRCTag) ||
-                    tag.signature == 0x6568696Du ||  // 'ehim'
-                    tag.signature == 0x656E696Du;    // 'enim'
-                if (validFourCc && !standardFailedLoadTag) {
-                    continue;
-                }
                 cb.warn(
                     validFourCc
                         ? sfmt("Tag '%s': unknown type signature '%s' (0x%08X)",

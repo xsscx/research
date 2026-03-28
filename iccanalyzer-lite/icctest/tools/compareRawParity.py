@@ -508,6 +508,30 @@ def heuristic_fixture_coverage_improvement(
     v1_record: dict | None,
     v2_record: dict | None,
 ) -> str | None:
+    if input_path.name == "gbd_tary_signed_channel_wrap.icc":
+        gbd_ids = {
+            "H20",
+            "H32",
+            "H93",
+            "H111",
+            "H123",
+            "H127",
+            "H128",
+            "H129",
+            "H131",
+            "H133",
+            "H134",
+            "H147",
+        }
+        if check_id in gbd_ids and v2_record:
+            if v2_record.get("normalizedStatus", "") != "finding":
+                return None
+            if int(v2_record.get("findingCount", 0)) <= 0:
+                return None
+            if v1_record and v1_record.get("normalizedStatus", "") not in {"ok", "skip"}:
+                return None
+            return "v2_raw_gbd_quarantine_coverage"
+
     if check_id != "H98":
         return None
     if input_path.name != "heap-buffer-overflow-CIccMpeSpectralMatrix-Describe-IccMpeSpectral_cpp-Line352.icc":
