@@ -12,6 +12,12 @@ This directory mixes authored references, research writeups, test fixtures, and 
 | [iccDEV/specifications/](iccDEV/specifications/) | ICC specifications, technotes, and supporting reference material |
 | [icc-format/](icc-format/) | ICC binary format notes, security patterns, and CWE mapping |
 
+## Security Reference
+
+| Path | What it covers |
+|------|----------------|
+| [vulnerability-taxonomy.md](vulnerability-taxonomy.md) | CWE/CVE/CVSS vulnerability classification, attack surface map, SCAP identifiers, exploit primitives, detection coverage matrix |
+
 ## Research and Testing
 
 | Path | What it covers |
