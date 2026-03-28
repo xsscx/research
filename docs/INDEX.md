@@ -22,7 +22,7 @@ Use this file as the fast path into `docs/`. For a fuller directory guide, see [
 
 ### Investigate a Bug or Security Finding
 
-- **Vulnerability taxonomy** (CWE/CVE/CVSS classification, attack surface, SCAP identifiers): [vulnerability-taxonomy.md](vulnerability-taxonomy.md)
+- **Vulnerability taxonomy** (CWE/CVE/CVSS classification, attack surface, SCAP identifiers): [iccDEV/vulnerability-taxonomy.md](iccDEV/vulnerability-taxonomy.md)
 - CVE inventory: [cve/iccDEV-CVE-Report.md](cve/iccDEV-CVE-Report.md)
 - Reproduction notes and PoC techniques: [pocs/](pocs/)
 - Static-analysis workflow: [iccDEV/codeql/maintainer-workflow.md](iccDEV/codeql/maintainer-workflow.md)
