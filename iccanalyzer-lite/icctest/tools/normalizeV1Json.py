@@ -184,6 +184,7 @@ def normalized_status(status: str) -> str:
 def infer_heuristic_primary_findings(detail: str) -> int:
     auxiliary_prefixes = (
         "risk:",
+        "profile size:",
         "allocation:",
         "cwe-",
         "ref:",
@@ -448,6 +449,75 @@ def maybe_synthesize_h172(
     )
 
 
+def maybe_override_h101_from_text(
+    records: list[dict],
+    *,
+    binary: Path,
+    input_file: Path,
+    legacy: bool,
+    disable_library_ub_defense: bool,
+) -> None:
+    target = next((r for r in records if r.get("canonicalId") == "H101"), None)
+    if target and target.get("normalizedStatus") == "finding":
+        return
+
+    payload = run_v1_text(
+        binary,
+        input_file,
+        legacy,
+        disable_library_ub_defense=disable_library_ub_defense,
+    )
+    lines = payload["stdoutStripped"].splitlines()
+    start = None
+    for idx, line in enumerate(lines):
+        if line.startswith("[H101] "):
+            start = idx
+            break
+    if start is None:
+        return
+
+    block_lines: list[str] = []
+    for idx in range(start, len(lines)):
+        line = lines[idx]
+        if idx > start and re.match(r"^\[H\d+\]\s+", line):
+            break
+        block_lines.append(line.rstrip())
+
+    finding_lines: list[str] = []
+    detail_lines: list[str] = []
+    for line in (line.strip() for line in block_lines[1:] if line.strip()):
+        if line.startswith(("[WARN]", "[FAIL]", "[ERROR]")):
+            finding_lines.append(line)
+        if line.startswith(("[WARN]", "[FAIL]", "[ERROR]", "CWE-", "Risk:", "Ref:")):
+            detail_lines.append(line)
+
+    if not finding_lines:
+        return
+
+    synthesized = {
+        "tool": "v1-synth",
+        "lane": "heuristic",
+        "rawId": 101,
+        "canonicalId": "H101",
+        "rawName": "MPE Sub Element Channel Continuity",
+        "canonicalName": "MPE Sub Element Channel Continuity",
+        "reportedStatus": "warn",
+        "normalizedStatus": "finding",
+        "reportedSeverity": "CRITICAL",
+        "findingCount": len(finding_lines),
+        "detail": "\n".join(detail_lines),
+        "canonicalSeverity": "CRITICAL",
+        "specRef": "",
+        "specDoc": "",
+        "category": "",
+    }
+
+    if target:
+        target.update(synthesized)
+    else:
+        records.append(synthesized)
+
+
 def build_output(
     payload: dict,
     cf_registry: dict[str, dict[str, str]],
@@ -467,6 +537,28 @@ def build_output(
         legacy=legacy,
         disable_library_ub_defense=disable_library_ub_defense,
     )
+    maybe_override_h101_from_text(
+        records,
+        binary=binary,
+        input_file=input_file,
+        legacy=legacy,
+        disable_library_ub_defense=disable_library_ub_defense,
+    )
+    deduped: dict[tuple[str, str], dict] = {}
+    status_rank = {"finding": 3, "error": 2, "skip": 1, "ok": 0}
+    for record in records:
+        key = (record.get("lane", ""), record.get("canonicalId", ""))
+        existing = deduped.get(key)
+        if existing is None:
+            deduped[key] = record
+            continue
+        current_rank = status_rank.get(record.get("normalizedStatus", ""), -1)
+        existing_rank = status_rank.get(existing.get("normalizedStatus", ""), -1)
+        if current_rank > existing_rank:
+            deduped[key] = record
+        elif current_rank == existing_rank and int(record.get("findingCount", 0)) > int(existing.get("findingCount", 0)):
+            deduped[key] = record
+    records = list(deduped.values())
     if lane != "all":
         records = [record for record in records if record["lane"] == lane]
 
