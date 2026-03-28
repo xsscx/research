@@ -17,8 +17,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
-LIB_PROF="$ICCDEV_DIR/Build/IccProfLib/libIccProfLib2-static.a"
-LIB_XML="$ICCDEV_DIR/Build/IccXML/libIccXML2-static.a"
+resolve_static_lib() {
+  local dir="$1"
+  local base="$2"
+  for candidate in \
+    "${dir}/${base}-static.a" \
+    "${dir}/${base}-staticd.a"; do
+    if [ -f "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  echo "ERROR: required static library not found in $dir for ${base}-static[ d].a" >&2
+  exit 1
+}
+
+LIB_PROF="$(resolve_static_lib "$ICCDEV_DIR/Build/IccProfLib" "libIccProfLib2")"
+LIB_XML="$(resolve_static_lib "$ICCDEV_DIR/Build/IccXML" "libIccXML2")"
 
 # --- Clean mode ---
 if [ "${1:-}" = "clean" ]; then

@@ -32,6 +32,22 @@ set(ICCTEST_LIB_SOURCES
 
 add_library(IccTest STATIC ${ICCTEST_LIB_SOURCES})
 
+function(resolve_iccdev_static_lib out_var dir base)
+    set(candidates
+        "${dir}/${base}-static.a"
+        "${dir}/${base}-staticd.a")
+    foreach(candidate IN LISTS candidates)
+        if(EXISTS "${candidate}")
+            set(${out_var} "${candidate}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+    message(FATAL_ERROR "Missing iccDEV static library for ${base} in ${dir}")
+endfunction()
+
+resolve_iccdev_static_lib(ICCTEST_LIB_PROF "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")
+resolve_iccdev_static_lib(ICCTEST_LIB_XML "${ICCDEV_BUILD}/IccXML" "libIccXML2")
+
 target_include_directories(IccTest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     # iccDEV headers needed by ProfileView.h (public API)
@@ -68,8 +84,8 @@ target_compile_options(IccTest PRIVATE
 
 # Link iccDEV static libs + system deps
 target_link_libraries(IccTest PUBLIC
-    ${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a
-    ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a
+    ${ICCTEST_LIB_PROF}
+    ${ICCTEST_LIB_XML}
     xml2 tiff png jpeg z lzma m ssl crypto
 )
 

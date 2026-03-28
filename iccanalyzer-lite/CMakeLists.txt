@@ -12,6 +12,22 @@ set(ICCDEV_BUILD "${ICCDEV_ROOT}/Build")
 # Find required libraries
 find_package(LibXml2 REQUIRED)
 
+function(resolve_iccdev_static_lib out_var dir base)
+    set(candidates
+        "${dir}/${base}-static.a"
+        "${dir}/${base}-staticd.a")
+    foreach(candidate IN LISTS candidates)
+        if(EXISTS "${candidate}")
+            set(${out_var} "${candidate}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+    message(FATAL_ERROR "Missing iccDEV static library for ${base} in ${dir}")
+endfunction()
+
+resolve_iccdev_static_lib(ICCDEV_LIB_PROF "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")
+resolve_iccdev_static_lib(ICCDEV_LIB_XML "${ICCDEV_BUILD}/IccXML" "libIccXML2")
+
 # Source files (must match build.sh SOURCES — 23 files)
 set(SOURCES
     iccAnalyzer-lite.cpp
@@ -70,8 +86,8 @@ target_include_directories(iccAnalyzer-lite PRIVATE
 
 # Link libraries (use instrumented static libraries from iccDEV)
 target_link_libraries(iccAnalyzer-lite
-    ${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static.a
-    ${ICCDEV_BUILD}/IccXML/libIccXML2-static.a
+    ${ICCDEV_LIB_PROF}
+    ${ICCDEV_LIB_XML}
     ${LIBXML2_LIBRARIES}
     tiff
     png
