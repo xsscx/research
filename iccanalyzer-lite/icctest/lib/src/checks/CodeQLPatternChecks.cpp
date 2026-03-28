@@ -490,9 +490,104 @@ static CheckResult check_h161_stack_address_escape_deep_apply_chains(const Profi
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H161
-    return cb.done("Stack Address Escape Deep Apply Chains checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("Cannot read profile");
+
+    auto channelsFromSig = [](uint32_t sig) -> int {
+        switch (sig) {
+            case 0x58595A20: return 3;  // 'XYZ '
+            case 0x4C616220: return 3;  // 'Lab '
+            case 0x52474220: return 3;  // 'RGB '
+            case 0x47524159: return 1;  // 'GRAY'
+            case 0x434D594B: return 4;  // 'CMYK'
+            case 0x48535620: return 3;  // 'HSV '
+            default: {
+                uint8_t hi = static_cast<uint8_t>((sig >> 24) & 0xFF);
+                uint8_t lo = static_cast<uint8_t>((sig >> 16) & 0xFF);
+                uint32_t suffix = sig & 0x0000FFFFU;
+                if (suffix == 0x434CU && hi >= '0' && hi <= '9' &&
+                    lo >= '0' && lo <= '9') {
+                    return (hi - '0') * 10 + (lo - '0');
+                }
+                if (suffix == 0x434CU && hi >= '1' && hi <= 'F') {
+                    return (hi <= '9') ? (hi - '0') : (hi - 'A' + 10);
+                }
+                return 3;
+            }
+        }
+    };
+
+    int nChannels = channelsFromSig(pv.header().colorSpace);
+    int mpetCount = 0;
+
+    static const uint32_t kLutTypes[] = {
+        0x6D414220, // 'mAB '
+        0x6D424120, // 'mBA '
+        0x6D667431, // 'mft1'
+        0x6D667432, // 'mft2'
+    };
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size < 12 || !rawRangeAccessible(rawLen, tag.offset, 12)) {
+            continue;
+        }
+
+        uint32_t type = readU32BE(raw + tag.offset);
+        if (type == 0x6D706574) { // 'mpet'
+            mpetCount++;
+            if (tag.size >= 16 && rawRangeAccessible(rawLen, tag.offset + 8, 8)) {
+                const uint8_t* mpetHdr = raw + tag.offset + 8;
+                uint32_t nInputChannels = (static_cast<uint32_t>(mpetHdr[0]) << 8) |
+                                          static_cast<uint32_t>(mpetHdr[1]);
+                uint32_t nOutputChannels = (static_cast<uint32_t>(mpetHdr[2]) << 8) |
+                                           static_cast<uint32_t>(mpetHdr[3]);
+                uint32_t nElements = readU32BE(mpetHdr + 4);
+
+                if (nElements > 4 && (nInputChannels > 8 || nOutputChannels > 8)) {
+                    cb.warn(
+                        sfmt("HEURISTIC: Tag '%s' MPE chain: %u elements x %u->%u channels — deep Apply() stack risk — ICC.1-2022-05 §10.14",
+                             sigStr(tag.signature).c_str(),
+                             nElements,
+                             nInputChannels,
+                             nOutputChannels),
+                        sfmt("CWE-121: Local pixel buffers propagated across %u function frames",
+                             nElements));
+                }
+            }
+        }
+
+        for (uint32_t lutType : kLutTypes) {
+            if (type != lutType) {
+                continue;
+            }
+            if ((type == 0x6D667431 || type == 0x6D667432) &&
+                rawRangeAccessible(rawLen, tag.offset + 8, 4)) {
+                const uint8_t* lutHdr = raw + tag.offset + 8;
+                uint8_t nInput = lutHdr[0];
+                uint8_t nOutput = lutHdr[1];
+                if (nOutput > 16 || (nOutput > 0 && nInput > 0 &&
+                                     static_cast<uint32_t>(nInput) * static_cast<uint32_t>(nOutput) > 256U)) {
+                    cb.warn(
+                        sfmt("HEURISTIC: LUT %ux%u channels — local buffer overflow risk in Apply() tmpPixel — ICC.1-2022-05 §10.6",
+                             nInput,
+                             nOutput),
+                        sfmt("CWE-121: Stack buffer sized for declared channels (%d) may be overwritten by LUT output (%u)",
+                             nChannels,
+                             nOutput));
+                }
+            }
+            break;
+        }
+    }
+
+    if (nChannels > 8 && mpetCount >= 2) {
+        cb.warn(
+            sfmt("HEURISTIC: %d-channel profile with %d MPE tags — deep Apply() stack chain risk — ICC.1-2022-05 §10.14",
+                 nChannels,
+                 mpetCount),
+            "CWE-121: High channel count amplifies local buffer size across stack frames");
+    }
+
+    return cb.done("No deep Apply() chain stack-escape risk patterns");
 }
 
 REGISTER_HEURISTIC(161, "Stack Address Escape Deep Apply Chains",
