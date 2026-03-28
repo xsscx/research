@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from runtimeEnv import force_sanitizer_env
@@ -75,6 +76,74 @@ def run_json(cmd: list[str]) -> dict:
         ) from exc
 
 
+def make_h172_lut_matrix_profile_bytes(malformed: bool) -> bytes:
+    data = bytearray(228)
+
+    def put_u32(offset: int, value: int) -> None:
+        data[offset:offset + 4] = int(value & 0xFFFFFFFF).to_bytes(4, "big", signed=False)
+
+    def put_s32(offset: int, value: int) -> None:
+        data[offset:offset + 4] = int(value).to_bytes(4, "big", signed=True)
+
+    put_u32(0, len(data))
+    put_u32(8, 0x04400000)
+    put_u32(12, 0x70727472)
+    put_u32(16, 0x52474220)
+    put_u32(20, 0x4C616220)
+    put_u32(36, 0x61637370)
+
+    put_u32(128, 1)
+    put_u32(132, 0x41324230)
+    put_u32(136, 144)
+    put_u32(140, 116)
+
+    put_u32(144, 0x6D414220)
+    data[152] = 3
+    data[153] = 3
+    put_u32(156, 32)
+    put_u32(160, 68)
+    put_u32(164, 0)
+    put_u32(168, 0)
+    put_u32(172, 0)
+
+    for curve in range(3):
+        off = 176 + curve * 12
+        put_u32(off, 0x63757276)
+        put_u32(off + 4, 0)
+        put_u32(off + 8, 0)
+
+    identity = 1 << 16
+    matrix_off = 212
+    if malformed:
+        put_s32(matrix_off + 0, 0)
+        put_s32(matrix_off + 4, 0)
+        put_s32(matrix_off + 8, 0)
+        put_s32(matrix_off + 12, 0)
+        put_s32(matrix_off + 16, identity)
+        put_s32(matrix_off + 20, 0)
+        put_s32(matrix_off + 24, 0)
+        put_s32(matrix_off + 28, 0)
+        put_s32(matrix_off + 32, 200 << 16)
+        put_s32(matrix_off + 36, 20 << 16)
+        put_s32(matrix_off + 40, 0)
+        put_s32(matrix_off + 44, 0)
+    else:
+        put_s32(matrix_off + 0, identity)
+        put_s32(matrix_off + 4, 0)
+        put_s32(matrix_off + 8, 0)
+        put_s32(matrix_off + 12, 0)
+        put_s32(matrix_off + 16, identity)
+        put_s32(matrix_off + 20, 0)
+        put_s32(matrix_off + 24, 0)
+        put_s32(matrix_off + 28, 0)
+        put_s32(matrix_off + 32, identity)
+        put_s32(matrix_off + 36, 0)
+        put_s32(matrix_off + 40, 0)
+        put_s32(matrix_off + 44, 0)
+
+    return bytes(data)
+
+
 def main() -> int:
     args = parse_args()
     ensure_file(args.v1_binary, "V1 binary")
@@ -126,6 +195,58 @@ def main() -> int:
         raise RuntimeError(
             f"Expected H98 comparator implicitSkipMatch=1 for malformed spectral fixture, got {counts}"
         )
+
+    with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:
+        malformed_h172 = Path(tmpdir) / "h172-lut-matrix.icc"
+        clean_h172 = Path(tmpdir) / "h172-lut-matrix-clean.icc"
+        malformed_h172.write_bytes(make_h172_lut_matrix_profile_bytes(True))
+        clean_h172.write_bytes(make_h172_lut_matrix_profile_bytes(False))
+
+        h172_payload = run_json(
+            [
+                sys.executable,
+                str(normalize),
+                "--binary",
+                str(args.v1_binary),
+                "--lane",
+                "heuristic",
+                "--disable-library-ub-defense",
+                "--legacy",
+                str(malformed_h172),
+            ]
+        )
+        h172_record = next(
+            (record for record in h172_payload.get("records", []) if record.get("canonicalId") == "H172"),
+            None,
+        )
+        if not h172_record:
+            raise RuntimeError("Expected normalizeV1Json to synthesize H172 from legacy text")
+        if h172_record.get("normalizedStatus") != "finding":
+            raise RuntimeError(f"Expected synthesized H172 finding status, got {h172_record}")
+        if int(h172_record.get("findingCount", 0)) != 4:
+            raise RuntimeError(f"Expected synthesized H172 findingCount=4, got {h172_record}")
+
+        for fixture in (malformed_h172, clean_h172):
+            compare_h172 = run_json(
+                [
+                    sys.executable,
+                    str(compare),
+                    "--lane",
+                    "heuristic",
+                    "--check",
+                    "H172",
+                    "--v1-binary",
+                    str(args.v1_binary),
+                    "--v2-binary",
+                    str(args.v2_binary),
+                    str(fixture),
+                ]
+            )
+            h172_counts = compare_h172.get("summary", {}).get("counts", {})
+            if int(h172_counts.get("delta", 0)) != 0:
+                raise RuntimeError(
+                    f"Expected H172 comparator delta=0 for {fixture.name}, got {h172_counts}"
+                )
 
     print("verifyParityTooling: pass")
     return 0

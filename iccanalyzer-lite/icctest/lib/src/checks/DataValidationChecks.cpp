@@ -16,6 +16,9 @@
 #include "IccTagLut.h"
 #include "IccTagMPE.h"
 
+#include <cmath>
+#include <set>
+
 namespace icctest {
 
 // ── H56: MediaWhitePoint Validation ──
@@ -743,11 +746,63 @@ REGISTER_HEURISTIC(96, "Embedded Profile Validation",
 
 static CheckResult check_h97_profile_sequence_id_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H97
-    return cb.done("Profile Sequence Id Validation checked");
+    if (!p) return CheckResult::error("No profile");
+
+    CIccTag* seqIdTag = p->FindTag(icSigProfileSequceIdTag);
+    auto* seqId = seqIdTag ? dynamic_cast<CIccTagProfileSequenceId*>(seqIdTag) : nullptr;
+    if (!seqId) return CheckResult::skip("No profile sequence ID tag present");
+
+    int entryCount = 0;
+    bool hasNullId = false;
+    bool hasDupId = false;
+    std::set<std::string> seenIds;
+
+    for (const auto& entry : *seqId) {
+        entryCount++;
+
+        icProfileID pid = entry.m_profileID;
+        bool allZero = true;
+        for (int k = 0; k < 16; k++) {
+            if (pid.ID8[k] != 0) {
+                allZero = false;
+                break;
+            }
+        }
+        if (allZero) hasNullId = true;
+
+        std::string idStr(reinterpret_cast<const char*>(pid.ID8), 16);
+        if (!allZero && seenIds.count(idStr)) {
+            hasDupId = true;
+        }
+        seenIds.insert(idStr);
+
+        if (entryCount > 1000) {
+            cb.warn("Profile sequence >1000 entries — potential DoS (CWE-400)");
+            break;
+        }
+    }
+
+    if (hasNullId) {
+        cb.warn("Null profile ID (all zeros) in sequence");
+    }
+
+    if (hasDupId) {
+        cb.warn("Duplicate profile IDs in sequence");
+    }
+
+    CIccProfileIdDesc* first = seqId->GetFirst();
+    CIccProfileIdDesc* last = seqId->GetLast();
+    if (entryCount > 0 && (!first || !last)) {
+        cb.critical("Non-empty sequence but GetFirst/GetLast returns NULL");
+    }
+
+    if (!cb.empty()) {
+        cb.info(sfmt("Profile sequence: %d entries", entryCount));
+    }
+
+    return cb.done("Profile sequence identifiers valid");
 }
 
 REGISTER_HEURISTIC(97, "Profile Sequence Id Validation",
@@ -793,11 +848,35 @@ REGISTER_HEURISTIC(98, "Spectral MPE Element Validation",
 
 static CheckResult check_h99_embedded_image_tag_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H99
-    return cb.done("Embedded Image Tag Validation checked");
+    if (!p) return CheckResult::error("No profile");
+
+    bool foundEmbedImg = false;
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* pTag = p->FindTag(sit->TagInfo.sig);
+        if (!pTag) {
+            continue;
+        }
+
+        icTagTypeSignature tagType = pTag->GetType();
+        if (tagType == icSigEmbeddedHeightImageType || tagType == icSigEmbeddedNormalImageType) {
+            foundEmbedImg = true;
+            if (sit->TagInfo.size > 100u * 1024u * 1024u) {
+                const char* typeName =
+                    (tagType == icSigEmbeddedHeightImageType) ? "HeightImage" : "NormalImage";
+                cb.warn(sfmt("%s tag size %u bytes (>100MB) — potential DoS",
+                             typeName, sit->TagInfo.size));
+            }
+        }
+    }
+
+    if (!foundEmbedImg) {
+        return CheckResult::skip("No embedded image tags present");
+    }
+
+    return cb.done("Embedded image tags valid");
 }
 
 REGISTER_HEURISTIC(99, "Embedded Image Tag Validation",
@@ -912,11 +991,58 @@ REGISTER_HEURISTIC(101, "MPE Sub Element Channel Continuity",
 
 static CheckResult check_h102_tag_size_profile_size_cross_check(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H102
-    return cb.done("Tag Size Profile Size Cross Check checked");
+    const auto& rawTags = pv.rawTagTable();
+    if (!pv.libraryLoaded() && rawTags.empty()) {
+        return CheckResult::skip("Library parse failed");
+    }
+
+    icUInt32Number profileSize = pv.header().size;
+    icUInt32Number tagCount = static_cast<icUInt32Number>(rawTags.size());
+    icUInt32Number maxTagEnd = 0;
+
+    if (profileSize > 0 && profileSize < 128 + (tagCount * 12)) {
+        cb.critical(sfmt("Profile size %u too small for %u tags (min=%u) — truncation",
+                         profileSize, tagCount, 128 + tagCount * 12));
+    }
+
+    for (const auto& tagEntry : rawTags) {
+        icUInt32Number tagOffset = tagEntry.offset;
+        icUInt32Number tagSize = tagEntry.size;
+        std::string tagName = sigStr(tagEntry.signature);
+
+        if (profileSize > 0) {
+            if (tagOffset > profileSize) {
+                cb.critical(sfmt("Tag '%s' offset %u exceeds profile size %u",
+                                 tagName.c_str(), tagOffset, profileSize));
+            } else if (tagSize > profileSize - tagOffset) {
+                cb.warn(sfmt("Tag '%s' extends past profile end: offset=%u size=%u total=%u",
+                             tagName.c_str(), tagOffset, tagSize, profileSize));
+            }
+        }
+
+        if (tagSize <= profileSize && tagOffset <= profileSize - tagSize) {
+            icUInt32Number tagEnd = tagOffset + tagSize;
+            if (tagEnd > maxTagEnd) {
+                maxTagEnd = tagEnd;
+            }
+        }
+    }
+
+    if (profileSize > 0 && maxTagEnd > 0) {
+        icUInt32Number alignedEnd = (maxTagEnd + 3u) & ~3u;
+        if (profileSize > alignedEnd + 4u) {
+            icUInt32Number trailingBytes = profileSize - alignedEnd;
+            cb.warn(sfmt("HEURISTIC: %u trailing bytes after last tag end (aligned=%u, profileSize=%u)",
+                         trailingBytes, alignedEnd, profileSize));
+            cb.info("Risk: Hidden data appended after declared profile content — ICC.1-2022-05 §7.2");
+        }
+    }
+
+    if (!cb.empty()) {
+        cb.info(sfmt("Profile size: %u bytes, tag count: %u", profileSize, tagCount));
+    }
+
+    return cb.done("Tag size vs profile size consistent");
 }
 
 REGISTER_HEURISTIC(102, "Tag Size Profile Size Cross Check",
@@ -927,11 +1053,207 @@ REGISTER_HEURISTIC(102, "Tag Size Profile Size Cross Check",
 
 static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) {
+        bool rawFallbackFinding = false;
+        const uint8_t* raw = pv.rawData();
+        size_t rawLen = pv.rawSize();
+        if (!raw || rawLen < 132) {
+            return CheckResult::skip("Library parse failed");
+        }
+
+        static const uint32_t lutTypeSigs[] = {
+            0x6D667431, // 'mft1'
+            0x6D667432, // 'mft2'
+            0x6D414220, // 'mAB '
+            0x6D424120, // 'mBA '
+        };
+        static const uint32_t lutTagSigs[] = {
+            kSigAToB0, 0x41324231, 0x41324232, 0x41324233,
+            kSigBToA0, 0x42324131, 0x42324132, 0x42324133,
+        };
+
+        uint32_t tagCount = readU32BE(raw + 128);
+        uint32_t maxTags = static_cast<uint32_t>((rawLen - 132) / 12);
+        if (tagCount > maxTags) {
+            tagCount = maxTags;
+        }
+
+        for (uint32_t i = 0; i < tagCount; i++) {
+            size_t tableOff = 132 + static_cast<size_t>(i) * 12;
+            uint32_t tagSig = readU32BE(raw + tableOff);
+            uint32_t tagOff = readU32BE(raw + tableOff + 4);
+            bool isLutTag = false;
+            for (uint32_t sig : lutTagSigs) {
+                if (tagSig == sig) {
+                    isLutTag = true;
+                    break;
+                }
+            }
+            if (!isLutTag || !rawRangeAccessible(rawLen, tagOff, 4)) {
+                continue;
+            }
+
+            uint32_t typeSig = readU32BE(raw + tagOff);
+            bool isKnownLutType = false;
+            for (uint32_t sig : lutTypeSigs) {
+                if (typeSig == sig) {
+                    isKnownLutType = true;
+                    break;
+                }
+            }
+            if (!isKnownLutType) {
+                continue;
+            }
+
+            cb.critical(
+                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                     sigStr(tagSig).c_str()),
+                "CWE-476: Null tag pointer in tag table — any access crashes");
+            rawFallbackFinding = true;
+        }
+
+        if (rawFallbackFinding) {
+            return cb.done("No null pointer patterns detected in loaded tags");
+        }
+        return CheckResult::skip("Library parse failed");
+    }
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H147
-    return cb.done("Null Pointer After Tag Read checked");
+    if (!p) return CheckResult::error("No profile");
+
+    static const icTagSignature textTags[] = {
+        icSigProfileDescriptionTag,
+        icSigDeviceMfgDescTag,
+        icSigDeviceModelDescTag,
+        icSigCopyrightTag,
+        icSigCharTargetTag,
+        static_cast<icTagSignature>(0),
+    };
+
+    for (int t = 0; textTags[t] != static_cast<icTagSignature>(0); t++) {
+        CIccTag* tag = p->FindTag(textTags[t]);
+        if (!tag) continue;
+
+        if (auto* utf16 = dynamic_cast<CIccTagUtf16Text*>(tag)) {
+            const icUChar16* buf = utf16->GetText();
+            if (!buf || utf16->GetLength() == 0) {
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' (Utf16Text) has null/empty text after Read()",
+                         sigStr(static_cast<uint32_t>(textTags[t])).c_str()),
+                    "CWE-476: GetText() returns null — subsequent access crashes");
+            }
+        }
+
+        if (auto* desc = dynamic_cast<CIccTagTextDescription*>(tag)) {
+            const icChar* text = desc->GetText();
+            if (!text) {
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' (TextDescription) has null text pointer",
+                         sigStr(static_cast<uint32_t>(textTags[t])).c_str()),
+                    "CWE-476: GetText() returns null — strlen/Describe crashes");
+            }
+        }
+    }
+
+    static const icTagSignature mpeTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        static_cast<icTagSignature>(0),
+    };
+
+    for (int t = 0; mpeTags[t] != static_cast<icTagSignature>(0); t++) {
+        CIccTag* rawTag = p->FindTag(mpeTags[t]);
+        auto* mpe = rawTag ? dynamic_cast<CIccTagMultiProcessElement*>(rawTag) : nullptr;
+        if (!mpe) continue;
+
+        icUInt32Number nElem = mpe->NumElements();
+        for (icUInt32Number e = 0; e < nElem && e < 64; e++) {
+            CIccMultiProcessElement* elem = mpe->GetElement(e);
+            if (!elem) {
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' MPE element[%u] is null — Apply() will crash",
+                         sigStr(static_cast<uint32_t>(mpeTags[t])).c_str(),
+                         static_cast<unsigned>(e)),
+                    "CWE-476: Null element dereference in processing pipeline");
+                break;
+            }
+        }
+    }
+
+    for (const auto& entry : p->m_Tags) {
+        if (!entry.pTag) {
+            cb.critical(
+                sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
+                     sigStr(static_cast<uint32_t>(entry.TagInfo.sig)).c_str()),
+                "CWE-476: Null tag pointer in tag table — any access crashes");
+        }
+    }
+
+    static const icTagSignature clutLutTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        static_cast<icTagSignature>(0),
+    };
+
+    for (int t = 0; clutLutTags[t] != static_cast<icTagSignature>(0); t++) {
+        CIccTag* rawTag = p->FindTag(clutLutTags[t]);
+        auto* mbb = rawTag ? dynamic_cast<CIccMBB*>(rawTag) : nullptr;
+        if (!mbb) continue;
+
+        CIccCLUT* clut = mbb->GetCLUT();
+        if (!clut) {
+            cb.critical(
+                sfmt("HEURISTIC: Tag '%s' LUT has null CLUT — Apply() will crash",
+                     sigStr(static_cast<uint32_t>(clutLutTags[t])).c_str()),
+                "CWE-476: CIccCLUT::InterpND() dereferences null pApply (IccTagLut.cpp:3181)");
+            continue;
+        }
+
+        icUInt8Number inputDim = clut->GetInputDim();
+        icUInt32Number gridPoints = clut->NumPoints();
+        if (inputDim == 0 || gridPoints == 0) {
+            cb.critical(
+                sfmt("HEURISTIC: Tag '%s' CLUT has %u input dims, %u grid points",
+                     sigStr(static_cast<uint32_t>(clutLutTags[t])).c_str(),
+                     static_cast<unsigned>(inputDim),
+                     static_cast<unsigned>(gridPoints)),
+                "CWE-476: Degenerate CLUT → GetNewApply() Init() fails → null pApply");
+        }
+    }
+
+    icColorSpaceSignature cs = p->m_Header.colorSpace;
+    bool isNDLutPath = (cs != icSigRgbData && cs != icSigLabData &&
+                        cs != icSigXYZData && cs != icSigHsvData &&
+                        cs != icSigHlsData && cs != icSigCmyData &&
+                        cs != icSig3colorData &&
+                        cs != icSigCmykData && cs != icSig4colorData);
+    if (isNDLutPath) {
+        static const icTagSignature btoaTags[] = {
+            icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+            static_cast<icTagSignature>(0),
+        };
+
+        for (int t = 0; btoaTags[t] != static_cast<icTagSignature>(0); t++) {
+            CIccTag* rawTag = p->FindTag(btoaTags[t]);
+            auto* mbb = rawTag ? dynamic_cast<CIccMBB*>(rawTag) : nullptr;
+            if (!mbb) continue;
+            CIccCLUT* clut = mbb->GetCLUT();
+            if (!clut) continue;
+
+            icUInt8Number inputDim = clut->GetInputDim();
+            if (inputDim >= 1 && inputDim <= 4) {
+                cb.critical(
+                    sfmt("HEURISTIC: Tag '%s' CLUT has %u input dims on NDLut path",
+                         sigStr(static_cast<uint32_t>(btoaTags[t])).c_str(),
+                         static_cast<unsigned>(inputDim)),
+                    sfmt("CWE-476: CIccXformNDLut::Apply() missing Interp%ud dispatch — falls to InterpND(pApply=NULL) (IccCmm.cpp:6570/6600)",
+                         static_cast<unsigned>(inputDim)));
+            }
+        }
+    }
+
+    return cb.done("No null pointer patterns detected in loaded tags");
 }
 
 REGISTER_HEURISTIC(147, "Null Pointer After Tag Read",
@@ -942,11 +1264,89 @@ REGISTER_HEURISTIC(147, "Null Pointer After Tag Read",
 
 static CheckResult check_h148_memory_copy_bounds_overlap(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H148
-    return cb.done("Memory Copy Bounds Overlap checked");
+    if (!p) return CheckResult::error("No profile");
+
+    static const icTagSignature mpeTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag, icSigAToB3Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag, icSigBToA3Tag,
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        static_cast<icTagSignature>(0),
+    };
+
+    for (int t = 0; mpeTags[t] != static_cast<icTagSignature>(0); t++) {
+        CIccTag* rawTag = p->FindTag(mpeTags[t]);
+        auto* mpe = rawTag ? dynamic_cast<CIccTagMultiProcessElement*>(rawTag) : nullptr;
+        if (!mpe) continue;
+
+        icUInt16Number nIn = mpe->NumInputChannels();
+        icUInt16Number nOut = mpe->NumOutputChannels();
+        icUInt32Number nElem = mpe->NumElements();
+        if (nElem < 2) continue;
+
+        bool hasOverlapRisk = false;
+        icUInt16Number prevOut = nIn;
+
+        for (icUInt32Number e = 0; e < nElem && e < 64; e++) {
+            CIccMultiProcessElement* elem = mpe->GetElement(e);
+            if (!elem) break;
+
+            icUInt16Number eIn = elem->NumInputChannels();
+            icUInt16Number eOut = elem->NumOutputChannels();
+
+            if (eIn == eOut && eIn == prevOut && nElem > 2) {
+                hasOverlapRisk = true;
+            }
+
+            if (eIn != prevOut && prevOut > 0) {
+                cb.warn(
+                    sfmt("Tag '%s' MPE chain: element[%u] output=%u -> element[%u] input=%u mismatch",
+                         sigStr(static_cast<uint32_t>(mpeTags[t])).c_str(),
+                         static_cast<unsigned>(e > 0 ? e - 1 : 0),
+                         static_cast<unsigned>(prevOut),
+                         static_cast<unsigned>(e),
+                         static_cast<unsigned>(eIn)),
+                    "CWE-119: Channel mismatch may cause out-of-bounds memcpy");
+            }
+
+            prevOut = eOut;
+        }
+
+        if (hasOverlapRisk) {
+            cb.warn(
+                sfmt("Tag '%s' MPE chain (%u elements, in=%u out=%u) has memcpy overlap risk",
+                     sigStr(static_cast<uint32_t>(mpeTags[t])).c_str(),
+                     static_cast<unsigned>(nElem),
+                     static_cast<unsigned>(nIn),
+                     static_cast<unsigned>(nOut)),
+                "CWE-119: Apply() ping-pong buffers may alias when channels match");
+        }
+    }
+
+    CIccTag* rawNamed = p->FindTag(icSigNamedColor2Tag);
+    auto* named = rawNamed ? dynamic_cast<CIccTagNamedColor2*>(rawNamed) : nullptr;
+    if (named) {
+        icUInt32Number nColors = named->GetSize();
+        icUInt32Number nDevCoords = named->GetDeviceCoords();
+
+        if (nDevCoords > 15) {
+            cb.critical(
+                sfmt("HEURISTIC: NamedColor2 deviceCoords=%u exceeds ICC max (15)",
+                     static_cast<unsigned>(nDevCoords)),
+                "CWE-119: Internal buffer overflow in color entry copy");
+        }
+
+        if (nColors > 10000 && nDevCoords > 4) {
+            cb.warn(
+                sfmt("NamedColor2: %u colors x %u deviceCoords — memory amplification risk",
+                     static_cast<unsigned>(nColors),
+                     static_cast<unsigned>(nDevCoords)));
+        }
+    }
+
+    return cb.done("No memory copy overlap or bounds issues detected");
 }
 
 REGISTER_HEURISTIC(148, "Memory Copy Bounds Overlap",
@@ -977,12 +1377,132 @@ REGISTER_HEURISTIC(152, "Curve Element OOM Size Validation",
     check_h152_curve_element_oom_size_validation);
 
 static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileView& pv) {
-    CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H172
-    return cb.done("LUT Matrix Coefficient Validation checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icTagSignature lutTags[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag
+    };
+    static const char* lutNames[] = {
+        "AToB0", "AToB1", "AToB2",
+        "BToA0", "BToA1", "BToA2"
+    };
+
+    std::vector<Finding> findings;
+    int matricesChecked = 0;
+
+    for (int t = 0; t < 6; t++) {
+        CIccTag* rawTag = p->FindTag(lutTags[t]);
+        CIccMBB* mbb = rawTag ? dynamic_cast<CIccMBB*>(rawTag) : nullptr;
+        if (!mbb) continue;
+
+        CIccMatrix* matrix = mbb->GetMatrix();
+        if (!matrix) continue;
+
+        matricesChecked++;
+
+        const int coeffCount = matrix->m_bUseConstants ? 12 : 9;
+        bool hasNanInf = false;
+        for (int i = 0; i < coeffCount; i++) {
+            double value = static_cast<double>(matrix->m_e[i]);
+            if (std::isnan(value) || std::isinf(value)) {
+                findings.push_back(makeFinding(
+                    Severity::CRITICAL,
+                    sfmt("HEURISTIC: %s matrix e[%d] = NaN/Inf — ICC TN v4 Matrix Entries",
+                         lutNames[t], i + 1),
+                    "CWE-682: NaN/Inf in LUT matrix -> undefined color transform"));
+                hasNanInf = true;
+                break;
+            }
+        }
+        if (hasNanInf) {
+            continue;
+        }
+
+        for (int i = 0; i < coeffCount; i++) {
+            double value = static_cast<double>(matrix->m_e[i]);
+            if (value < -32768.0 || value > 32767.99998) {
+                findings.push_back(makeFinding(
+                    Severity::MEDIUM,
+                    sfmt("HEURISTIC: %s matrix e[%d] = %.6f exceeds s15Fixed16 range (±32768) — ICC TN v4 Matrix Entries",
+                         lutNames[t], i + 1, value),
+                    "CWE-682: Coefficient outside s15Fixed16Number representable range"));
+                break;
+            }
+        }
+
+        const icFloatNumber* e = matrix->m_e;
+        double det = static_cast<double>(e[0]) *
+                         (static_cast<double>(e[4]) * e[8] - static_cast<double>(e[5]) * e[7]) -
+                     static_cast<double>(e[1]) *
+                         (static_cast<double>(e[3]) * e[8] - static_cast<double>(e[5]) * e[6]) +
+                     static_cast<double>(e[2]) *
+                         (static_cast<double>(e[3]) * e[7] - static_cast<double>(e[4]) * e[6]);
+
+        if (!matrix->IsIdentity() && std::fabs(det) < 1e-10) {
+            findings.push_back(makeFinding(
+                Severity::MEDIUM,
+                sfmt("HEURISTIC: %s matrix is singular (det=%.2e) — ICC TN v4 Matrix Entries",
+                     lutNames[t], det),
+                "CWE-369: Singular LUT matrix -> division-by-zero in PCS transform inversion"));
+        }
+
+        for (int i = 0; i < 9; i++) {
+            double value = std::fabs(static_cast<double>(matrix->m_e[i]));
+            if (value > 100.0) {
+                findings.push_back(makeFinding(
+                    Severity::MEDIUM,
+                    sfmt("HEURISTIC: %s matrix e[%d] = %.4f (extreme magnitude >100)",
+                         lutNames[t], i + 1, static_cast<double>(matrix->m_e[i])),
+                    "CWE-682: Extreme matrix coefficient — likely crafted profile"));
+                break;
+            }
+        }
+
+        if (matrix->m_bUseConstants) {
+            for (int i = 9; i < 12; i++) {
+                double value = std::fabs(static_cast<double>(matrix->m_e[i]));
+                if (value > 10.0) {
+                    findings.push_back(makeFinding(
+                        Severity::MEDIUM,
+                        sfmt("HEURISTIC: %s matrix offset e[%d] = %.4f (extreme, >10.0)",
+                             lutNames[t], i + 1, static_cast<double>(matrix->m_e[i])),
+                        "CWE-682: Extreme offset constant — unusual for PCS mapping"));
+                    break;
+                }
+            }
+        }
+
+        for (int row = 0; row < 3; row++) {
+            double rowSum = std::fabs(static_cast<double>(e[row * 3 + 0])) +
+                            std::fabs(static_cast<double>(e[row * 3 + 1])) +
+                            std::fabs(static_cast<double>(e[row * 3 + 2]));
+            if (rowSum < 1e-10 && !matrix->IsIdentity()) {
+                findings.push_back(makeFinding(
+                    Severity::MEDIUM,
+                    sfmt("HEURISTIC: %s matrix row %d has all-zero coefficients — output channel %d is constant",
+                         lutNames[t], row + 1, row + 1),
+                    "CWE-682: Zero matrix row -> color channel data loss"));
+            }
+        }
+    }
+
+    if (!matricesChecked) {
+        return CheckResult::skip("No LUT matrix present in AToB/BToA tags");
+    }
+
+    if (findings.empty()) {
+        return CheckResult::ok(
+            sfmt("Validated %d LUT matrix/matrices (e1-e12 coefficients, determinant, s15Fixed16 range, offsets)",
+                 matricesChecked));
+    }
+
+    return {CheckResult::Status::FINDINGS,
+            sfmt("Checked %d LUT matrices, %d finding(s)",
+                 matricesChecked, static_cast<int>(findings.size())),
+            std::move(findings)};
 }
 
 REGISTER_HEURISTIC(172, "LUT Matrix Coefficient Validation",
